@@ -1,0 +1,6 @@
+[submodule "external/bcs"]
+	path = external/bcs
+	url = git@github.com:groundhogchain/bcs.git
+[submodule "external/serde_arrays"]
+	path = external/serde_arrays
+	url = git@github.com:groundhogchain/serde_arrays.git
