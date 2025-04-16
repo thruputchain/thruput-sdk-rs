@@ -35,6 +35,7 @@ pub mod serialize {
     pub use ::bcs::{from_bytes, from_bytes_seed, to_bytes};
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
 }
+pub mod contract_result;
 pub mod contract_test;
 
 // Lower-level
@@ -53,9 +54,6 @@ pub mod internal;
 #[cfg(feature = "alloc")]
 pub mod storage;
 
-// Deprecated
-pub mod initialize;
-
 #[cfg(feature = "mock")]
 pub use ::groundhog_xdr::ffi_enums::*;
 
@@ -71,7 +69,12 @@ mod prelude_base {
     };
 
     #[doc(inline)]
+    pub use super::syscall::SysErr;
+
+    #[doc(inline)]
     pub use super::syscall::SyscallErrorCode;
+
+    pub use thiserror::Error;
 
     #[doc(inline)]
     pub use super::log::*;
@@ -87,6 +90,9 @@ mod prelude_base {
 
     #[doc(inline)]
     pub use super::macros::contract;
+
+    #[doc(inline)]
+    pub use super::contract_result::*;
 }
 
 /// Lower-level contract facilities

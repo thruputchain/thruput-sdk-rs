@@ -1,7 +1,7 @@
 use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
-use super::Result;
+use super::error::Result;
 use crate::serialize::Serialize;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -14,17 +14,22 @@ pub struct Map<K, V> {
     _marker: PhantomData<fn() -> (K, V)>,
 }
 
-// TODO: impl Index?
+impl<K, V> From<Keypath> for Map<K, V> {
+    fn from(keypath: Keypath) -> Self {
+        let _marker = PhantomData;
+        Self { keypath, _marker }
+    }
+}
 
 impl<K, V> LoadKeypath for Map<K, V> {
     fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        Ok(Map::new(keypath))
+        Ok(Self::new(keypath))
     }
 }
 
 impl<K, V> DefaultFromKeypath for Map<K, V> {
     fn default_from_keypath(keypath: &Keypath) -> Self {
-        Map::new(keypath)
+        Self::new(keypath)
     }
 }
 

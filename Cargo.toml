@@ -2,7 +2,7 @@
 members = ["macros"]
 
 [package]
-name = "sdk_rs"
+name = "rs_contract_sdk"
 version = "0.0.1"
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
@@ -14,9 +14,9 @@ doctest = false
 
 [dependencies]
 bcs = { path = "external/bcs", default-features = false }
-groundhog_xdr = { path = "../hogd/rust_contracts/groundhog_xdr" }
+groundhog_xdr = { path = "../../rust_contracts/groundhog_xdr/" }
 macros = { path = "macros" }
-native_exec = { path = "../hogd/rust_contracts/native_exec", optional = true}
+native_exec = { path = "../../rust_contracts/native_exec", optional = true}
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.11", default-features = false }

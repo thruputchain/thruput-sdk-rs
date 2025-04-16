@@ -1,5 +1,5 @@
 use crate::crypto::{sha_256, SHA256Hash};
-use crate::result::Result;
+use crate::storage::error::Result;
 
 pub type Hash256 = SHA256Hash;
 

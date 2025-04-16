@@ -2,12 +2,6 @@ check:
 	cargo +nightly check --no-default-features --features=std
 .PHONY: check
 
-check_guest:
-	cargo +nightly check \
-		--features alloc \
-		--target wasm32-unknown-unknown
-.PHONY: check_guest
-
 test:
 	cargo +nightly test --jobs=1 --no-default-features --features=mock
 .PHONY: test

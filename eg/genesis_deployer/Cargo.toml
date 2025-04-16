@@ -1,0 +1,20 @@
+[package]
+name = "genesis_deployer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdk = { package = "rs_contract_sdk", path = "../../rs_contract_sdk/" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+client = []
+guest = []
+alloc = ["sdk/alloc"]
+std = ["alloc", "sdk/std"]
+mock = ["guest", "std", "sdk/mock"]
+
+[dev-dependencies]
+genesis_deployer = { path = ".", features = ["mock", "client"] }

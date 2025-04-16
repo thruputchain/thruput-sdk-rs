@@ -1,7 +1,7 @@
 use super::keypath::DefaultFromKeypath;
 use super::keypath::{KeyCache, Keypath};
 use super::load::LoadKeypath;
-use super::Result;
+use super::error::Result;
 use crate::bytestring::*;
 use alloc::boxed::Box;
 use alloc::vec;

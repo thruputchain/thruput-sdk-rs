@@ -1,0 +1,20 @@
+[package]
+name = "rcq_test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdk = { package = "rs_contract_sdk", path = "../../rs_contract_sdk/" }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+client = []
+guest = []
+alloc = ["sdk/alloc"]
+std = ["alloc", "sdk/std"]
+mock = ["guest", "std", "sdk/mock"]
+
+[dev-dependencies]
+rcq_test = { path = ".", features = ["mock", "client"] }
