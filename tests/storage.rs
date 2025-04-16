@@ -1,4 +1,4 @@
-use rs_contract_sdk as sdk;
+use sdk_rs as sdk;
 use sdk::contract_test;
 use sdk::storage_prelude::*;
 

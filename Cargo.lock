@@ -386,7 +386,7 @@ name = "groundhog_xdr"
 version = "0.0.1"
 dependencies = [
  "serde",
- "serde_arrays 0.1.0",
+ "serde_arrays",
 ]
 
 [[package]]
@@ -834,7 +834,7 @@ dependencies = [
  "macros",
  "native_exec",
  "serde",
- "serde_arrays 0.2.0",
+ "serde_arrays",
  "thiserror",
 ]
 
@@ -845,13 +845,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
 dependencies = [
  "serde_derive",
-]
-
-[[package]]
-name = "serde_arrays"
-version = "0.1.0"
-dependencies = [
- "serde",
 ]
 
 [[package]]
