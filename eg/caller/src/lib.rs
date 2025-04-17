@@ -2,11 +2,13 @@
 
 #![no_std]
 
+/*
 #[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+*/
 
 use erc20::interface::client::ERC20Client;
 use erc20::interface::{Amount, ERC20};

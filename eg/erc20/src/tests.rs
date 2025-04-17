@@ -1,7 +1,7 @@
 use crate::implementation;
 use crate::interface::client::ERC20Client;
 use crate::interface::ERC20;
-use sdk::result::Result;
+use sdk::contract_result::Result;
 
 #[test]
 fn check_erc20() {

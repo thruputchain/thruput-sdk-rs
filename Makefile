@@ -1,9 +1,13 @@
 check:
-	cargo +nightly check --no-default-features --features=std
+	cargo +nightly check --features=std
 .PHONY: check
 
+check_guest:
+	cargo +nightly check --features=std,guest
+.PHONY: check_guest
+
 test:
-	cargo +nightly test --jobs=1 --no-default-features --features=mock
+	cargo +nightly test --jobs=1 --features=mock
 .PHONY: test
 
 lint:
@@ -29,3 +33,7 @@ doc_open:
 fmt:
 	cargo +nightly fmt
 .PHONY: fmt
+
+example_contracts:
+	make -C eg example_contracts
+.PHONY: example_contracts

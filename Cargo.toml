@@ -1,8 +1,11 @@
+# Strip private prefixes of filesystem paths from binaries
+cargo-features = ["trim-paths"]
+
 [workspace]
-members = ["macros"]
+members = ["macros", "groundhog_xdr", "native_exec", "eg/*"]
 
 [package]
-name = "rs_contract_sdk"
+name = "sdk_rs"
 version = "0.0.1"
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
@@ -13,15 +16,50 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-bcs = { path = "external/bcs", default-features = false }
-groundhog_xdr = { path = "../../rust_contracts/groundhog_xdr/" }
+groundhog_xdr = { workspace = true }
 macros = { path = "macros" }
-native_exec = { path = "../../rust_contracts/native_exec", optional = true}
+bcs = { path = "external/bcs", default-features = false }
+native_exec = { path = "native_exec", optional = true }
+serde = { workspace = true }
+serde_arrays = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+
+[workspace.dependencies]
+groundhog_xdr = { path = "groundhog_xdr" }
+sha2 = { version = "0.10.8" }
+sdk = { package = "sdk_rs", path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "external/serde_arrays", default-features = false }
-thiserror = { version = "2.0.11", default-features = false }
+thiserror = { version = "2.0.12", default-features = false }
 
 [features]
+# can probably remove this by removing the alloc dependency in the `internal` module
+default = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
+storage = ["alloc"]
 mock = ["std", "dep:native_exec"]
+
+[profile.dev]
+opt-level = 0
+panic = "abort"
+
+### From eg/Cargo.toml
+# [profile.dev]
+# opt-level = "z"
+# overflow-checks = false
+# debug = false
+# strip = "debuginfo"
+# panic = "abort"
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+trim-paths = "all"  # unstable

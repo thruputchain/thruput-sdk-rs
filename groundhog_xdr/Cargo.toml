@@ -1,0 +1,20 @@
+[package]
+name = "groundhog_xdr"
+version = "0.0.1"
+authors = ["Grounghog Team"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+alloc = []
+std = ["alloc"]
+
+[dependencies]
+serde = { workspace = true, features = ["alloc", "derive"] }
+serde_arrays = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+groundhog_xdr = { path = ".", features = ["std"] }

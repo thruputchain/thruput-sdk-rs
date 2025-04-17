@@ -44,7 +44,7 @@ pub mod delete;
 pub mod nonnegative_int;
 pub mod retrocausal_queue;
 
-#[cfg(feature = "alloc")]
+// #[cfg(feature = "alloc")]
 pub mod result;
 
 #[cfg(feature = "alloc")]

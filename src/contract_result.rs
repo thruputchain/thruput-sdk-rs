@@ -1,5 +1,6 @@
 use crate::serialize::{Serialize, Deserialize};
 use crate::syscall::SysErr;
+#[cfg(feature = "storage")]
 use crate::storage::error::Error as StorageErr;
 use crate::result::ErrorMsg;
 use thiserror::Error;
@@ -21,6 +22,7 @@ pub enum ContractError {
     #[error(": failed due to syscall error: {0}")]
     Syscall(#[from] SysErr),
 
+    #[cfg(feature = "storage")]
     #[error(": failed due to storage error: {0}")]
     Storage(#[from] StorageErr),
 }
@@ -31,6 +33,7 @@ impl From<SysErr> for Error {
     }
 }
 
+#[cfg(feature = "storage")]
 impl From<StorageErr> for Error {
     fn from(err: StorageErr) -> Self {
         Error::Contract(err.into())
