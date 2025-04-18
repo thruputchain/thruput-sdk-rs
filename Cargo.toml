@@ -2,7 +2,7 @@
 cargo-features = ["trim-paths", "profile-rustflags"]
 
 [workspace]
-members = ["macros", "groundhog_xdr", "native_exec", "eg/*"]
+members = ["macros", "native_exec", "eg/*"]
 
 [package]
 name = "sdk_rs"
@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-groundhog_xdr = { workspace = true }
+protocol = { workspace = true }
 macros = { path = "macros" }
 bcs = { path = "external/bcs", default-features = false }
 native_exec = { path = "native_exec", optional = true }
@@ -26,7 +26,7 @@ thiserror = { workspace = true }
 sha2 = { workspace = true }
 
 [workspace.dependencies]
-groundhog_xdr = { path = "groundhog_xdr" }
+protocol = { path = "../protocol-rs" }
 sha2 = { version = "0.10.8", default-features = false }
 sdk = { package = "sdk_rs", path = "." }
 serde = { version = "1.0.217", default-features = false }
@@ -36,8 +36,8 @@ thiserror = { version = "2.0.12", default-features = false }
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
 default = ["alloc"]
-alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
-std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
+alloc = ["serde/alloc", "serde_arrays/alloc", "protocol/alloc"]
+std = ["alloc", "serde/std", "bcs/std", "protocol/std"]
 storage = ["alloc"]
 mock = ["std", "dep:native_exec"]
 

@@ -1,6 +1,0 @@
-contract.rs
-syscall.rs
-transaction.rs
-types.rs
-ffi_enums.rs
-syscall_args.rs

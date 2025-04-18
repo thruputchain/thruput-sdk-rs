@@ -55,7 +55,7 @@ pub mod internal;
 pub mod storage;
 
 #[cfg(feature = "mock")]
-pub use ::groundhog_xdr::ffi_enums::*;
+pub use ::protocol::ffi_enums::*;
 
 #[cfg(feature = "mock")]
 pub use ::native_exec::*;

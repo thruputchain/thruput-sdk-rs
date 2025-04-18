@@ -2,12 +2,11 @@ use core::ffi::c_void;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-use groundhog_xdr::contract::Contract;
-use groundhog_xdr::ffi_enums::InvokeErrorCode;
-use groundhog_xdr::transaction::SignedTransaction;
-use groundhog_xdr::types::ContractAddress;
-use groundhog_xdr::types::SHA256Hash;
-use groundhog_xdr::{ByteArray, Limits, WriteXdr};
+use protocol::contract::Contract;
+use protocol::ffi_enums::InvokeErrorCode;
+use protocol::transaction::SignedTransaction;
+use protocol::types::{ContractAddress, SHA256Hash};
+use protocol::{Limits, WriteXdr};
 
 use sha2::Digest;
 use sha2::Sha256;

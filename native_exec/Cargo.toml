@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["rlib"]
 
 [dependencies]
-groundhog_xdr = { workspace = true, features = ["std"] }
+protocol = { workspace = true, features = ["std"] }
 sha2 = { workspace = true }
 
 [build-dependencies]
