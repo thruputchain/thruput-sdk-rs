@@ -37,3 +37,13 @@ fmt:
 example_contracts:
 	make -C eg example_contracts
 .PHONY: example_contracts
+
+test_contracts:
+	./scripts/test_example_contracts.sh
+.PHONY: test_contracts
+
+tree:
+	# Show the dependency graph
+	cargo +nightly tree \
+		--edges normal,build \
+		--target wasm32-unknown-unknown

@@ -1,7 +1,7 @@
 #![no_std]
 
 extern crate alloc;
-use alloc::vec::Vec;
+use ::alloc::vec::Vec;
 
 use sdk::macros::static_key;
 use sdk::prelude::*;

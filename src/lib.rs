@@ -4,7 +4,7 @@
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
 
-#[cfg(feature = "std")]
+#[cfg(feature = "mock")]
 extern crate std;
 
 #[cfg(feature = "alloc")]

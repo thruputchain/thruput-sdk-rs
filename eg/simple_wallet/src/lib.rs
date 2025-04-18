@@ -1,8 +1,6 @@
 #![no_std]
 #![feature(maybe_uninit_slice)]
 
-extern crate alloc;
-
 use erc20::client::ERC20Client;
 use erc20::interface::{Amount, ERC20};
 use sdk::storage_prelude::*;

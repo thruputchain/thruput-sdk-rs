@@ -12,8 +12,7 @@ crate-type = ["cdylib"]
 [features]
 client = []
 guest = []
-std = ["sdk/std"]
-mock = ["guest", "std", "sdk/mock"]
+mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]
 test_bytestring = { path = ".", features = ["mock", "client"] }

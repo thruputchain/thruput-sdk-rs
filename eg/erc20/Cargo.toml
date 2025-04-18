@@ -15,7 +15,7 @@ doctest = false
 [features]
 client = []
 guest = []
-mock = ["guest", "sdk/std", "sdk/mock"]
+mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]
 erc20 = { path = ".", features = ["mock", "client"] }

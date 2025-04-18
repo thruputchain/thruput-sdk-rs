@@ -8,18 +8,17 @@ example_contracts : \
 	test_bytestring.wasm \
 	playground.wasm
 
-%.wasm : Makefile $(wildcard $</src/*.rs)
-	cargo +nightly rustc \
-		--no-default-features \
+%.wasm : Makefile $(wildcard $</src/*.rs) $(wildcard $</src/storage/*.rs)
+	cargo +nightly build \
 		--features "guest" \
 		--target wasm32-unknown-unknown \
 		--release \
 		--verbose \
 		-p $(basename $@) \
-		-Zbuild-std=alloc,core \
-		-Zbuild-std-features=panic_immediate_abort \
-		-- \
-		-C link-args=-zstack-size=64000
+		-Z build-std=core,alloc \
+		-Z build-std-features=panic_immediate_abort
+	# Flags for rustc are attached to the release profile
+	# using `rustflags` in `Cargo.toml`
 
 ls_wasms:
 	ls -l ../target/wasm32-unknown-unknown/release/*.wasm
