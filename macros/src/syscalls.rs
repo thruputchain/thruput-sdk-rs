@@ -373,9 +373,7 @@ fn generate_syscall_raw_decl(syscall: &Syscall) -> TokenStream2 {
     }
 }
 
-pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
-    let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
-
+fn load_syscall_yaml(file_path: String) -> SyscallSpec {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
         .expect("CARGO_MANIFEST_DIR not set");
     let yaml_path = std::path::PathBuf::from(manifest_dir).join(&file_path);
@@ -383,7 +381,12 @@ pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
     let content = std::fs::read_to_string(&yaml_path)
         .unwrap_or_else(|_| panic!("Failed to read {}", yaml_path.display()));
 
-    let spec: SyscallSpec = serde_yaml::from_str(&content).unwrap();
+    serde_yaml::from_str(&content).unwrap()
+}
+
+pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
+    let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
+    let spec = load_syscall_yaml(file_path);
 
     let decls = spec.syscalls.iter().map(|func| {
         let uninit = generate_syscall_uninit_decl(&func);
@@ -410,15 +413,7 @@ fn generate_syscall_no_line(syscall: &Syscall) -> TokenStream2 {
 
 pub fn generate_syscall_numbers(input: TokenStream) -> TokenStream {
     let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
-
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .expect("CARGO_MANIFEST_DIR not set");
-    let yaml_path = std::path::PathBuf::from(manifest_dir).join(&file_path);
-
-    let content = std::fs::read_to_string(&yaml_path)
-        .unwrap_or_else(|_| panic!("Failed to read {}", yaml_path.display()));
-
-    let spec: SyscallSpec = serde_yaml::from_str(&content).unwrap();
+    let spec = load_syscall_yaml(file_path);
 
     let lines = spec.syscalls.iter().map(|func| {
         generate_syscall_no_line(&func)
@@ -444,16 +439,8 @@ fn generate_syscall_error_code_line(error: &SyscallErrorDecl) -> TokenStream2 {
 
 pub fn generate_syscall_error_codes(input: TokenStream) -> TokenStream {
     let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
-
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .expect("CARGO_MANIFEST_DIR not set");
-    let yaml_path = std::path::PathBuf::from(manifest_dir).join(&file_path);
-
-    let content = std::fs::read_to_string(&yaml_path)
-        .unwrap_or_else(|_| panic!("Failed to read {}", yaml_path.display()));
-
-    let spec: SyscallSpec = serde_yaml::from_str(&content).unwrap();
-
+    let spec = load_syscall_yaml(file_path);
+    
     let lines = spec.errors.iter().map(|func| {
         generate_syscall_error_code_line(&func)
     });
