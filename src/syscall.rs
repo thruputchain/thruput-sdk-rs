@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 /// Rust bindings for the syscalls
 pub mod bindings;
 
@@ -13,6 +11,8 @@ use thiserror::Error;
 )]
 #[error("SysErr({0})")]
 pub struct SysErr(i32);
+
+pub use bindings::SyscallErrorCode;
 
 impl SysErr {
     pub fn is_code(self, code: SyscallErrorCode) -> bool {

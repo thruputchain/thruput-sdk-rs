@@ -421,18 +421,49 @@ pub fn generate_syscall_numbers(input: TokenStream) -> TokenStream {
     let spec: SyscallSpec = serde_yaml::from_str(&content).unwrap();
 
     let lines = spec.syscalls.iter().map(|func| {
-        let line = generate_syscall_no_line(&func);
-        quote! {
-           #line
-        }
+        generate_syscall_no_line(&func)
     });
 
     quote! {
-    #[repr(u64)]
-    #[derive(Eq,PartialEq,Copy,Debug,Clone)]
-    pub enum SyscallNo {
-        #(#lines,)*
+        #[repr(u64)]
+        #[derive(Eq,PartialEq,Copy,Debug,Clone)]
+        pub enum SyscallNo {
+            #(#lines,)*
+        }
     }
+    .into()
+}
+
+fn generate_syscall_error_code_line(error: &SyscallErrorDecl) -> TokenStream2 {
+    let name = format_ident!("k{}", &error.name);
+    let num = error.number;
+    quote! {
+        #name = #num as i32
+    }
+}
+
+pub fn generate_syscall_error_codes(input: TokenStream) -> TokenStream {
+    let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR not set");
+    let yaml_path = std::path::PathBuf::from(manifest_dir).join(&file_path);
+
+    let content = std::fs::read_to_string(&yaml_path)
+        .unwrap_or_else(|_| panic!("Failed to read {}", yaml_path.display()));
+
+    let spec: SyscallSpec = serde_yaml::from_str(&content).unwrap();
+
+    let lines = spec.errors.iter().map(|func| {
+        generate_syscall_error_code_line(&func)
+    });
+
+    quote! {
+        #[repr(i32)]
+        #[derive(Eq,PartialEq,Copy,Debug,Clone)]
+        pub enum SyscallErrorCode {
+            #(#lines,)*
+        }
     }
     .into()
 }
