@@ -38,7 +38,7 @@ mod cross_call {
     use crate::serialize::{self, DeserializeOwned, Serialize};
     use crate::sys;
     use crate::types::{
-        ContractAddress, InvocationFlagSet, InvocationFlags,
+        ContractAddress,
         RuntimeMemoryLength,
     };
     use alloc::{vec, vec::Vec};
@@ -78,16 +78,10 @@ mod cross_call {
     ) -> Vec<u8> {
         // Perform the cross-contract call
 
-        let flags: InvocationFlagSet =
-            InvocationFlags::kNone as InvocationFlagSet;
-        sys::raw_Invoke(address, method, gas_limit, call_data, flags)
+        let mut return_len = 0;
+        sys::raw_Invoke(address, method, gas_limit, call_data, &mut return_len)
             .expect("Contract invocation failed");
 
-        // Retrieve the return-value buffer
-
-        let mut return_len = 0;
-        sys::raw_GetReturnedBufferLen(&mut return_len)
-            .expect("Couldn't get returned buffer len");
 
         let mut return_buf = vec![0; return_len as usize];
         let mut written: RuntimeMemoryLength = 0;

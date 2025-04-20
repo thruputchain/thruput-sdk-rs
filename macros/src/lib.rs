@@ -3,6 +3,7 @@ use proc_macro::TokenStream;
 mod contract;
 mod static_key;
 mod storage;
+mod syscalls;
 
 #[proc_macro]
 pub fn static_key(item: TokenStream) -> TokenStream {
@@ -37,3 +38,9 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
+
+#[proc_macro]
+pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
+    syscalls::generate_syscall_decls(input)
+}
+

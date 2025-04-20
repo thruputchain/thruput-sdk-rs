@@ -1,6 +1,7 @@
 #![no_std]
+
 #![feature(maybe_uninit_slice)]
-#![feature(maybe_uninit_array_assume_init)]
+
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
 
@@ -41,7 +42,7 @@ pub mod contract_test;
 pub mod bytestring;
 pub mod delete;
 pub mod nonnegative_int;
-pub mod retrocausal_queue;
+//pub mod retrocausal_queue;
 
 #[cfg(feature = "alloc")]
 pub mod result;
@@ -66,7 +67,7 @@ pub use ::native_exec::*;
 mod prelude_base {
     #[doc(inline)]
     pub use super::types::{
-        ByteArray, ContractAddress, Ed25519PublicKey, Ed25519Signature,
+        ContractAddress, Ed25519PublicKey, Ed25519Signature,
         PublicKey, SHA256Hash, Signature, StorageKey,
     };
 
@@ -102,9 +103,6 @@ pub mod prelude {
 
     #[doc(inline)]
     pub use super::bytestring::*;
-
-    #[doc(inline)]
-    pub use super::retrocausal_queue::*;
 }
 
 /// Storage-layer facilities

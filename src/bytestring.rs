@@ -8,8 +8,6 @@
 
 use crate::result::SysResult as Result;
 use crate::sys;
-#[allow(unused_imports)]
-use crate::syscall::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
 
@@ -55,7 +53,7 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// to the same value, both writes will be allowed.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice, 0)?;
+    sys::raw_BytestringSet(key, slice)?;
     Ok(())
 }
 
@@ -70,8 +68,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
-        slice,
-        crate::types::StorageDeltaModifier::kLockExclusive as i32,
+        slice
     )
 }
 
@@ -85,13 +82,14 @@ pub fn bytestring_get_sized<const N: usize>(
     key: &StorageKey,
 ) -> Result<Option<[u8; N]>> {
     let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
-    let mut len = 0;
-    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len)?;
-    if len != N as u32 {
+    let mut written_len : MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
+    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut written_len)?;
+    if written_len.assume_init() != N as u32 {
         return Ok(None);
     }
-
-    let bytes: [u8; N] = unsafe { MaybeUninit::array_assume_init(bytes_mu) };
+    // Apparently rustc optimizes this well enough:
+    // https://github.com/rust-lang/rust/issues/96097#issuecomment-1823511470
+    let bytes: [u8; N] = unsafe { bytes_mu.map(|elt| MaybeUninit::assume_init(elt)) };
     Ok(Some(bytes))
 }
 
@@ -99,10 +97,9 @@ pub fn bytestring_get_sized<const N: usize>(
 mod bytestring_get_alloc {
     use crate::result::SysResult as Result;
     use crate::sys;
-    #[allow(unused_imports)]
-    use crate::syscall::SyscallErrorCode;
-    use crate::types::StorageKey;
+    use crate::types::{RuntimeMemoryLength, StorageKey};
     use ::alloc::boxed::Box;
+    use core::mem::MaybeUninit;
 
     /// Returns a new allocation with the contents of the bytestring stored at the given key.
     ///
@@ -113,9 +110,9 @@ mod bytestring_get_alloc {
     pub fn bytestring_get(key: &StorageKey) -> Result<Box<[u8]>> {
         let len = super::bytestring_get_len(key)?;
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
-        let mut written_len = 0;
+        let mut written_len : MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
         sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
-        if written_len != len {
+        if written_len.assume_init() != len {
             panic!("Inconsistent bytestring size");
         }
 
@@ -134,9 +131,9 @@ mod bytestring_get_alloc {
             }
         };
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
-        let mut written_len = 0;
+        let mut written_len : MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
         sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
-        if written_len != len {
+        if written_len.assume_init() != len {
             panic!("Inconsistent bytestring size");
         }
 
