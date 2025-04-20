@@ -14,7 +14,9 @@ struct SyscallErrorDecl {
     number: i32,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, serde::Deserialize)]
 struct Syscall {
@@ -62,7 +64,7 @@ impl Arg {
 
     fn fixed_size_typename(&self) -> Option<String> {
         if let Some(x) = &self.rust_typename {
-            return Some(x.clone())
+            return Some(x.clone());
         }
         self.typename.clone()
     }
@@ -300,7 +302,6 @@ fn generate_u64_syscall_args(syscall: &Syscall) -> Vec<TokenStream2> {
 }
 
 fn generate_syscall_uninit_decl(syscall: &Syscall) -> TokenStream2 {
-    
     //  #[cfg(not(feature="mock"))]
     //  pub fn uninit_SHA256(buffer : &[u8], hash : &mut MaybeUninit<SHA256Hash>) -> SyscallResult<()> {
     //
@@ -395,5 +396,43 @@ pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
 
     quote! {
         #(#decls)*
-    }.into()
+    }
+    .into()
+}
+
+fn generate_syscall_no_line(syscall: &Syscall) -> TokenStream2 {
+    let name = format_ident!("k{}", &syscall.name);
+    let num = syscall.number;
+    quote! {
+        #name = #num as u64
+    }
+}
+
+pub fn generate_syscall_numbers(input: TokenStream) -> TokenStream {
+    let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR not set");
+    let yaml_path = std::path::PathBuf::from(manifest_dir).join(&file_path);
+
+    let content = std::fs::read_to_string(&yaml_path)
+        .unwrap_or_else(|_| panic!("Failed to read {}", yaml_path.display()));
+
+    let spec: SyscallSpec = serde_yaml::from_str(&content).unwrap();
+
+    let lines = spec.syscalls.iter().map(|func| {
+        let line = generate_syscall_no_line(&func);
+        quote! {
+           #line
+        }
+    });
+
+    quote! {
+    #[repr(u64)]
+    #[derive(Eq,PartialEq,Copy,Debug,Clone)]
+    pub enum SyscallNo {
+        #(#lines,)*
+    }
+    }
+    .into()
 }

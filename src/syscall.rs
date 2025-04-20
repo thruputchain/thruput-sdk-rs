@@ -14,7 +14,6 @@ use thiserror::Error;
 #[error("SysErr({0})")]
 pub struct SysErr(i32);
 
-/*
 impl SysErr {
     pub fn is_code(self, code: SyscallErrorCode) -> bool {
         if let Ok(c) = TryInto::<SyscallErrorCode>::try_into(self) {
@@ -35,14 +34,13 @@ impl SysErr {
     pub fn is_storage_key_not_exist(self) -> bool {
         self.is_code(SyscallErrorCode::kStorageKeyNotExist)
     }
-} */
+}
 
-/*impl From<SyscallErrorCode> for SysErr {
+impl From<SyscallErrorCode> for SysErr {
     fn from(code: SyscallErrorCode) -> Self {
         SysErr(code as i32)
     }
-}*/
-
+}
 
 impl From<SysErr> for i32 {
     fn from(err: SysErr) -> Self {
