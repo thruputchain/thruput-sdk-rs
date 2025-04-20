@@ -1,7 +1,5 @@
 #![no_std]
 
-#![feature(maybe_uninit_slice)]
-
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
 
