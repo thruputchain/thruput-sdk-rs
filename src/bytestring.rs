@@ -84,7 +84,7 @@ pub fn bytestring_get_sized<const N: usize>(
     let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
     let mut written_len : MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
     sys::uninit_BytestringGet(key, &mut bytes_mu, &mut written_len)?;
-    if written_len.assume_init() != N as u32 {
+    if unsafe {written_len.assume_init()} != N as u32 {
         return Ok(None);
     }
     // Apparently rustc optimizes this well enough:
@@ -112,7 +112,7 @@ mod bytestring_get_alloc {
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
         let mut written_len : MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
         sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
-        if written_len.assume_init() != len {
+        if unsafe {written_len.assume_init()} != len {
             panic!("Inconsistent bytestring size");
         }
 
@@ -133,7 +133,7 @@ mod bytestring_get_alloc {
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
         let mut written_len : MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
         sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
-        if written_len.assume_init() != len {
+        if unsafe {written_len.assume_init()} != len {
             panic!("Inconsistent bytestring size");
         }
 
