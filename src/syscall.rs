@@ -1,5 +1,6 @@
 /// Rust bindings for the syscalls
 pub mod bindings;
+pub mod to_u64s;
 
 // provides TryInto<SyscallErrorCode> for SysErr
 #[rustfmt::skip]

@@ -37,7 +37,7 @@ pub fn get_calldata_sized<const N: usize>() -> Result<[u8; N]> {
     }
 
     let calldata: [u8; N] =
-        unsafe { calldata_mu.map(|c| { MaybeUninit::assume_init(c) }) };
+        unsafe { calldata_mu.map(|c| MaybeUninit::assume_init(c)) };
     Ok(calldata)
 }
 

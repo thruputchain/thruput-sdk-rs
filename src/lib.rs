@@ -1,5 +1,4 @@
 #![no_std]
-
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
 
@@ -65,8 +64,8 @@ pub use ::native_exec::*;
 mod prelude_base {
     #[doc(inline)]
     pub use super::types::{
-        ContractAddress, Ed25519PublicKey, Ed25519Signature,
-        PublicKey, SHA256Hash, Signature, StorageKey,
+        ContractAddress, Ed25519PublicKey, Ed25519Signature, PublicKey,
+        SHA256Hash, Signature, StorageKey,
     };
 
     #[doc(inline)]

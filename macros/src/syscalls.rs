@@ -1,9 +1,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
+use std::collections::HashMap;
 
 #[derive(Debug, serde::Deserialize)]
 struct SyscallSpec {
+    type_mappings: Vec<TypeMapping>,
     syscalls: Vec<Syscall>,
     errors: Vec<SyscallErrorDecl>,
 }
@@ -28,6 +30,39 @@ struct Syscall {
     returns: bool, // default to true
 }
 
+#[derive(Debug, serde::Deserialize)]
+struct TypeMapping {
+    base_name: String,
+    rust_name: String,
+    xdr_name: String,
+    rust_uses_to_offset: bool,
+}
+
+struct TypeInfo {
+    rust_name: String,
+    xdr_name: String,
+    rust_uses_to_offset: bool,
+}
+
+type TypeMap = HashMap<String, TypeInfo>;
+
+impl SyscallSpec {
+    pub fn get_type_map(&self) -> TypeMap {
+        let mut out = HashMap::new();
+        for elt in &self.type_mappings {
+            out.insert(
+                elt.base_name.clone(),
+                TypeInfo {
+                    rust_name: elt.rust_name.clone(),
+                    xdr_name: elt.xdr_name.clone(),
+                    rust_uses_to_offset: elt.rust_uses_to_offset,
+                },
+            );
+        }
+        out
+    }
+}
+
 impl Syscall {
     pub fn return_type(&self) -> TokenStream2 {
         if self.returns {
@@ -49,6 +84,8 @@ struct Arg {
     rust_typename: Option<String>,
     #[serde(default)]
     primitive_type: bool, // default to false
+    #[serde(default)]
+    optional: bool, // default to false
 }
 
 impl Arg {
@@ -62,58 +99,52 @@ impl Arg {
         syn::Ident::new(&self.name, proc_macro2::Span::call_site())
     }
 
-    fn fixed_size_typename(&self) -> Option<String> {
+    fn get_type_details<'a>(
+        &self,
+        type_map: &'a TypeMap,
+    ) -> Option<&'a TypeInfo> {
+        match &self.typename {
+            None => {
+                return None;
+            }
+            Some(name) => return type_map.get(&name.clone()),
+        }
+    }
+
+    fn fixed_size_typename(&self, type_map: &TypeMap) -> Option<String> {
+        match &self.typename {
+            None => {
+                return None;
+            }
+            _ => {}
+        };
+
+        if let Some(type_details) = self.get_type_details(type_map) {
+            return Some(type_details.rust_name.clone());
+        }
         if let Some(x) = &self.rust_typename {
             return Some(x.clone());
         }
         self.typename.clone()
     }
 
-    pub fn to_u64s(&self, is_input: bool) -> Vec<TokenStream2> {
+    pub fn to_u64s(&self, type_map: &TypeMap) -> Vec<TokenStream2> {
         let name = self.formatted_name();
 
         if self.is_span_argument() {
-            if is_input {
-                return vec![
-                    quote! {
-                        #name.as_ptr() as u64,
-                    },
-                    quote! {
-                        #name.len() as u64,
-                    },
-                ];
-            }
             return vec![
                 quote! {
-                    #name.as_mut_ptr() as u64,
+                    #name.to_u64_0(),
                 },
                 quote! {
-                    #name.len() as u64,
+                    #name.to_u64_1(),
                 },
             ];
         }
 
-        if let Some(_) = self.fixed_size_typename() {
-            if self.primitive_type {
-                if is_input {
-                    // passed directly in the u64
-                    return vec![quote! {
-                        #name as u64,
-                    }];
-                }
-                // primitive types in output are still passed as references
-                return vec![quote! {
-                    to_offset_mut(#name) as u64,
-                }];
-            }
-
-            if is_input {
-                return vec![quote! {
-                    #name.as_ptr() as u64,
-                }];
-            }
+        if let Some(_) = self.fixed_size_typename(type_map) {
             return vec![quote! {
-                #name.as_mut_ptr() as u64,
+                #name.to_u64_0(),
             }];
         }
 
@@ -121,7 +152,11 @@ impl Arg {
     }
 
     // does not include trailing comma
-    pub fn to_uninit_input(&self, is_input: bool) -> TokenStream2 {
+    pub fn to_uninit_input(
+        &self,
+        is_input: bool,
+        type_map: &TypeMap,
+    ) -> TokenStream2 {
         let name = self.formatted_name();
         if self.is_span_argument() {
             if is_input {
@@ -133,12 +168,17 @@ impl Arg {
                 #name :  &mut [MaybeUninit<u8>]
             };
         }
-        if let Some(type_str) = self.fixed_size_typename() {
+        if let Some(type_str) = self.fixed_size_typename(type_map) {
             let ty = format_ident!("{}", type_str);
             if is_input {
                 if self.primitive_type {
                     return quote! {
                         #name : #ty
+                    };
+                }
+                if self.optional {
+                    return quote! {
+                        #name : Option<&#ty>
                     };
                 }
                 return quote! {
@@ -159,12 +199,16 @@ impl Arg {
     }
 
     // does not include trailing comma
-    pub fn to_raw_input(&self, is_input: bool) -> TokenStream2 {
+    pub fn to_raw_input(
+        &self,
+        is_input: bool,
+        type_map: &TypeMap,
+    ) -> TokenStream2 {
         let name = self.formatted_name();
 
         let ty = if self.is_span_argument() {
             quote! { [u8] }
-        } else if let Some(type_str) = self.fixed_size_typename() {
+        } else if let Some(type_str) = self.fixed_size_typename(type_map) {
             let ident = format_ident!("{}", type_str);
             quote! { #ident }
         } else {
@@ -175,6 +219,11 @@ impl Arg {
             if self.primitive_type {
                 return quote! {
                     #name : #ty
+                };
+            }
+            if self.optional {
+                return quote! {
+                    #name : Option<&#ty>
                 };
             }
             return quote! {
@@ -188,7 +237,11 @@ impl Arg {
 
     // raw_SYSCALL wraps uninit_SYSCALL, getting rid of the MaybeUninit usage.
     // These return the arguments forwarded to the uninit_SYSCALL call.
-    pub fn to_raw_through_call(&self, is_input: bool) -> TokenStream2 {
+    pub fn to_raw_through_call(
+        &self,
+        is_input: bool,
+        type_map: &TypeMap,
+    ) -> TokenStream2 {
         let name = self.formatted_name();
 
         if is_input || self.primitive_type {
@@ -200,7 +253,7 @@ impl Arg {
                 unsafe {core::mem::transmute::<&mut [u8], &mut [MaybeUninit<u8>]>(#name)}
             };
         }
-        if let Some(type_str) = &self.typename {
+        if let Some(type_str) = self.fixed_size_typename(type_map) {
             let ty = format_ident!("{}", type_str);
             return quote! {
                 unsafe {core::mem::transmute::<&mut #ty, &mut MaybeUninit<#ty>>(#name)}
@@ -211,19 +264,22 @@ impl Arg {
     }
 }
 
-fn generate_uninit_syscall_inputs(syscall: &Syscall) -> Vec<TokenStream2> {
+fn generate_uninit_syscall_inputs(
+    syscall: &Syscall,
+    type_map: &TypeMap,
+) -> Vec<TokenStream2> {
     // inputs
     let mut args: Vec<TokenStream2> = syscall
         .inputs
         .iter()
-        .map(|inp| inp.to_uninit_input(true))
+        .map(|inp| inp.to_uninit_input(true, type_map))
         .collect();
 
     // outputs
     let output_args: Vec<TokenStream2> = syscall
         .outputs
         .iter()
-        .map(|outp| outp.to_uninit_input(false))
+        .map(|outp| outp.to_uninit_input(false, type_map))
         .collect();
 
     args.extend(output_args);
@@ -231,19 +287,22 @@ fn generate_uninit_syscall_inputs(syscall: &Syscall) -> Vec<TokenStream2> {
     args
 }
 
-fn generate_raw_through_calls(syscall: &Syscall) -> Vec<TokenStream2> {
+fn generate_raw_through_calls(
+    syscall: &Syscall,
+    type_map: &TypeMap,
+) -> Vec<TokenStream2> {
     // inputs
     let mut args: Vec<TokenStream2> = syscall
         .inputs
         .iter()
-        .map(|inp| inp.to_raw_through_call(true))
+        .map(|inp| inp.to_raw_through_call(true, type_map))
         .collect();
 
     // outputs
     let output_args: Vec<TokenStream2> = syscall
         .outputs
         .iter()
-        .map(|outp| outp.to_raw_through_call(false))
+        .map(|outp| outp.to_raw_through_call(false, type_map))
         .collect();
 
     args.extend(output_args);
@@ -251,19 +310,22 @@ fn generate_raw_through_calls(syscall: &Syscall) -> Vec<TokenStream2> {
     args
 }
 
-fn generate_raw_syscall_inputs(syscall: &Syscall) -> Vec<TokenStream2> {
+fn generate_raw_syscall_inputs(
+    syscall: &Syscall,
+    type_map: &TypeMap,
+) -> Vec<TokenStream2> {
     // inputs
     let mut args: Vec<TokenStream2> = syscall
         .inputs
         .iter()
-        .map(|inp| inp.to_raw_input(true))
+        .map(|inp| inp.to_raw_input(true, type_map))
         .collect();
 
     // outputs
     let output_args: Vec<TokenStream2> = syscall
         .outputs
         .iter()
-        .map(|outp| outp.to_raw_input(false))
+        .map(|outp| outp.to_raw_input(false, type_map))
         .collect();
 
     args.extend(output_args);
@@ -271,19 +333,22 @@ fn generate_raw_syscall_inputs(syscall: &Syscall) -> Vec<TokenStream2> {
     args
 }
 
-fn generate_u64_syscall_args(syscall: &Syscall) -> Vec<TokenStream2> {
+fn generate_u64_syscall_args(
+    syscall: &Syscall,
+    type_map: &TypeMap,
+) -> Vec<TokenStream2> {
     // inputs
     let mut u64_args: Vec<TokenStream2> = syscall
         .inputs
         .iter()
-        .flat_map(|inp| inp.to_u64s(true))
+        .flat_map(|inp| inp.to_u64s(type_map))
         .collect();
 
     // outputs
     let output_args: Vec<TokenStream2> = syscall
         .outputs
         .iter()
-        .flat_map(|outp| outp.to_u64s(false))
+        .flat_map(|outp| outp.to_u64s(type_map))
         .collect();
 
     u64_args.extend(output_args);
@@ -301,7 +366,10 @@ fn generate_u64_syscall_args(syscall: &Syscall) -> Vec<TokenStream2> {
     u64_args
 }
 
-fn generate_syscall_uninit_decl(syscall: &Syscall) -> TokenStream2 {
+fn generate_syscall_uninit_decl(
+    syscall: &Syscall,
+    type_map: &TypeMap,
+) -> TokenStream2 {
     //  #[cfg(not(feature="mock"))]
     //  pub fn uninit_SHA256(buffer : &[u8], hash : &mut MaybeUninit<SHA256Hash>) -> SyscallResult<()> {
     //
@@ -337,8 +405,9 @@ fn generate_syscall_uninit_decl(syscall: &Syscall) -> TokenStream2 {
         }
     };
 
-    let u64_args = generate_u64_syscall_args(&syscall);
-    let uninit_syscall_inputs = generate_uninit_syscall_inputs(&syscall);
+    let u64_args = generate_u64_syscall_args(&syscall, type_map);
+    let uninit_syscall_inputs =
+        generate_uninit_syscall_inputs(&syscall, type_map);
 
     let uninit_ident = format_ident!("uninit_{}", &syscall.name);
     let syscall_no = format_ident!("k{}", &syscall.name);
@@ -357,9 +426,12 @@ fn generate_syscall_uninit_decl(syscall: &Syscall) -> TokenStream2 {
     }
 }
 
-fn generate_syscall_raw_decl(syscall: &Syscall) -> TokenStream2 {
-    let raw_syscall_inputs = generate_raw_syscall_inputs(&syscall);
-    let forward_args = generate_raw_through_calls(&syscall);
+fn generate_syscall_raw_decl(
+    syscall: &Syscall,
+    type_map: &TypeMap,
+) -> TokenStream2 {
+    let raw_syscall_inputs = generate_raw_syscall_inputs(&syscall, type_map);
+    let forward_args = generate_raw_through_calls(&syscall, type_map);
 
     let uninit_ident = format_ident!("uninit_{}", &syscall.name);
     let raw_ident = format_ident!("raw_{}", &syscall.name);
@@ -387,10 +459,11 @@ fn load_syscall_yaml(file_path: String) -> SyscallSpec {
 pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
     let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
     let spec = load_syscall_yaml(file_path);
+    let type_map = spec.get_type_map();
 
     let decls = spec.syscalls.iter().map(|func| {
-        let uninit = generate_syscall_uninit_decl(&func);
-        let raw = generate_syscall_raw_decl(&func);
+        let uninit = generate_syscall_uninit_decl(&func, &type_map);
+        let raw = generate_syscall_raw_decl(&func, &type_map);
         quote! {
             #uninit
             #raw
@@ -415,9 +488,10 @@ pub fn generate_syscall_numbers(input: TokenStream) -> TokenStream {
     let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
     let spec = load_syscall_yaml(file_path);
 
-    let lines = spec.syscalls.iter().map(|func| {
-        generate_syscall_no_line(&func)
-    });
+    let lines = spec
+        .syscalls
+        .iter()
+        .map(|func| generate_syscall_no_line(&func));
 
     quote! {
         #[repr(u64)]
@@ -440,10 +514,11 @@ fn generate_syscall_error_code_line(error: &SyscallErrorDecl) -> TokenStream2 {
 pub fn generate_syscall_error_codes(input: TokenStream) -> TokenStream {
     let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
     let spec = load_syscall_yaml(file_path);
-    
-    let lines = spec.errors.iter().map(|func| {
-        generate_syscall_error_code_line(&func)
-    });
+
+    let lines = spec
+        .errors
+        .iter()
+        .map(|func| generate_syscall_error_code_line(&func));
 
     quote! {
         #[repr(i32)]
