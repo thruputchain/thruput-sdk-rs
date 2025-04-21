@@ -1,0 +1,39 @@
+use core::hint::unreachable_unchecked;
+use core::mem::MaybeUninit;
+
+use crate::syscall::to_u64s::*;
+use crate::syscall::{to_offset, to_offset_mut, SysErr, SyscallResult};
+use groundhog_xdr::types::*;
+
+macros::generate_syscall_numbers!("protocol-rs/protocol/syscalls.yaml");
+macros::generate_syscall_error_codes!("protocol-rs/protocol/syscalls.yaml");
+
+#[link(wasm_import_module = "marmot")]
+extern "C" {
+    pub(crate) fn syscall(
+        syscall: u64,
+        arg1: u64,
+        arg2: u64,
+        arg3: u64,
+        arg4: u64,
+        arg5: u64,
+        arg6: u64,
+    ) -> i32;
+}
+
+fn syscall_wrapper(
+    syscall_no: SyscallNo,
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+    arg4: u64,
+    arg5: u64,
+    arg6: u64,
+) -> SysErr {
+    unsafe {
+        let errno =
+            syscall(syscall_no as u64, arg1, arg2, arg3, arg4, arg5, arg6);
+        SysErr(errno)
+    }
+}
+macros::generate_syscall_decls!("protocol-rs/protocol/syscalls.yaml");
