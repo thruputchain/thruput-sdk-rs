@@ -2,7 +2,7 @@ use core::hint::unreachable_unchecked;
 use core::mem::MaybeUninit;
 
 use crate::syscall::to_u64s::*;
-use crate::syscall::{to_offset, to_offset_mut, SysErr, SyscallResult};
+use crate::syscall::{SysErr, SyscallResult};
 use groundhog_xdr::types::*;
 
 macros::generate_syscall_numbers!("protocol-rs/protocol/syscalls.yaml");
