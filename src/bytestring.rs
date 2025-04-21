@@ -65,9 +65,9 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, the contract instance that writes last will be aborted.
 ///
-pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice)
-}
+//pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
+//    sys::raw_BytestringSet(key, slice)
+//}
 
 /// Returns the bytestring contents in a statically-sized array.
 ///
