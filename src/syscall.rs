@@ -1,10 +1,6 @@
-#![allow(dead_code)]
-
-pub use ::groundhog_xdr::syscall::{SyscallErrorCode, SyscallNo};
-
 /// Rust bindings for the syscalls
-#[rustfmt::skip]
 pub mod bindings;
+pub mod to_u64s;
 
 // provides TryInto<SyscallErrorCode> for SysErr
 #[rustfmt::skip]
@@ -16,6 +12,8 @@ use thiserror::Error;
 )]
 #[error("SysErr({0})")]
 pub struct SysErr(i32);
+
+pub use bindings::SyscallErrorCode;
 
 impl SysErr {
     pub fn is_code(self, code: SyscallErrorCode) -> bool {
@@ -51,34 +49,7 @@ impl From<SysErr> for i32 {
     }
 }
 
-#[link(wasm_import_module = "marmot")]
-extern "C" {
-    pub(crate) fn syscall(
-        syscall: u64,
-        arg1: u64,
-        arg2: u64,
-        arg3: u64,
-        arg4: u64,
-        arg5: u64,
-        arg6: u64,
-    ) -> i32;
-}
-
-pub(crate) fn syscall_wrapper(
-    syscall_no: SyscallNo,
-    arg1: u64,
-    arg2: u64,
-    arg3: u64,
-    arg4: u64,
-    arg5: u64,
-    arg6: u64,
-) -> SysErr {
-    unsafe {
-        let errno =
-            syscall(syscall_no as u64, arg1, arg2, arg3, arg4, arg5, arg6);
-        SysErr(errno)
-    }
-}
+pub type SyscallResult<T> = core::result::Result<T, SysErr>;
 
 pub(crate) fn to_offset_mut<T>(obj: &mut T) -> *mut u8 {
     obj as *mut T as *mut u8

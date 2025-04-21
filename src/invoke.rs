@@ -11,13 +11,13 @@ pub fn get_caller() -> Result<ContractAddress> {
     sys::uninit_GetMsgSender(&mut out_addr)?;
     Ok(unsafe { out_addr.assume_init() })
 }
-
+/*
 pub fn get_current_address() -> Result<ContractAddress> {
     let mut out_addr: MaybeUninit<ContractAddress> =
         MaybeUninit::<ContractAddress>::uninit();
     sys::uninit_GetCurrentAddress(&mut out_addr)?;
     Ok(unsafe { out_addr.assume_init() })
-}
+} */
 
 pub fn get_calldata_len() -> Result<RuntimeMemoryLength> {
     let mut out: RuntimeMemoryLength = 0;
@@ -37,7 +37,7 @@ pub fn get_calldata_sized<const N: usize>() -> Result<[u8; N]> {
     }
 
     let calldata: [u8; N] =
-        unsafe { MaybeUninit::array_assume_init(calldata_mu) };
+        unsafe { calldata_mu.map(|c| MaybeUninit::assume_init(c)) };
     Ok(calldata)
 }
 
@@ -81,23 +81,6 @@ mod get_calldata_alloc {
 
         if written_len != len {
             panic!("Unexpected calldata size");
-        }
-
-        Ok(unsafe { vec.assume_init() })
-    }
-
-    pub fn get_returned_buffer() -> Result<Box<[u8]>> {
-        let mut expected_len: RuntimeMemoryLength = 0;
-        sys::raw_GetReturnedBufferLen(&mut expected_len)?;
-
-        let mut vec = Box::<[u8]>::new_uninit_slice(expected_len as usize);
-
-        let mut written_len: RuntimeMemoryLength = 0;
-
-        sys::uninit_GetReturnedBuffer(&mut vec, &mut written_len)?;
-
-        if written_len != expected_len {
-            panic!("Unexpected return buffer size");
         }
 
         Ok(unsafe { vec.assume_init() })

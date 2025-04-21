@@ -2,7 +2,6 @@
 
 use crate::result::SysResult as Result;
 use crate::sys;
-use crate::syscall::SyscallErrorCode;
 use crate::types::StorageKey;
 
 pub fn non_negative_int_get_values(key: &StorageKey) -> Result<(i128, i128)> {
@@ -51,7 +50,7 @@ pub fn non_negative_int_get_values_default_zero(
     key: &StorageKey,
 ) -> Result<(i128, i128)> {
     non_negative_int_get_values(key).or_else(|syserr| {
-        if syserr.is_code(SyscallErrorCode::kStorageKeyNotExist) {
+        if syserr.is_storage_key_not_exist() {
             Ok((0, 0))
         } else {
             Err(syserr)
