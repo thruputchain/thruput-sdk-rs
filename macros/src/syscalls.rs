@@ -35,13 +35,11 @@ struct TypeMapping {
     base_name: String,
     rust_name: String,
     xdr_name: String,
-    rust_uses_to_offset: bool,
 }
 
 struct TypeInfo {
     rust_name: String,
     xdr_name: String,
-    rust_uses_to_offset: bool,
 }
 
 type TypeMap = HashMap<String, TypeInfo>;
@@ -55,7 +53,6 @@ impl SyscallSpec {
                 TypeInfo {
                     rust_name: elt.rust_name.clone(),
                     xdr_name: elt.xdr_name.clone(),
-                    rust_uses_to_offset: elt.rust_uses_to_offset,
                 },
             );
         }
