@@ -515,13 +515,46 @@ pub fn generate_syscall_error_codes(input: TokenStream) -> TokenStream {
     let lines = spec
         .errors
         .iter()
-        .map(|func| generate_syscall_error_code_line(&func));
+        .map(|err| generate_syscall_error_code_line(&err));
 
     quote! {
         #[repr(i32)]
         #[derive(Eq,PartialEq,Copy,Debug,Clone)]
         pub enum SyscallErrorCode {
             #(#lines,)*
+        }
+    }
+    .into()
+}
+
+fn generate_error_code_helper_line(error: &SyscallErrorDecl) -> TokenStream2 {
+    let name = format_ident!("k{}", &error.name);
+    quote! {
+        e if e == SyscallErrorCode::#name as i32 => Ok(SyscallErrorCode::#name)
+    }
+}
+
+
+pub fn generate_syscall_error_helper(input: TokenStream) -> TokenStream {
+    let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
+    let spec = load_syscall_yaml(file_path);
+
+    let lines = spec
+        .errors
+        .iter()
+        .map(|err| generate_error_code_helper_line(&err));
+
+    quote! {
+        impl TryInto<SyscallErrorCode> for SysErr {
+            type Error = i32;
+        
+            fn try_into(self) -> Result<SyscallErrorCode, Self::Error> {
+                match self.0 {
+                     #(#lines,)*
+
+                     e => Err(e)
+                }
+            }
         }
     }
     .into()
