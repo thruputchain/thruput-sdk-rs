@@ -7,9 +7,17 @@ use ::cmake;
 fn main() {
     use std::env;
     use std::path::PathBuf;
+
+    let hogd_src = env::var("HOGD_SRC").unwrap_or_else(|_| "default".to_string());
+    println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
+
+    println!("cargo:rerun-if-env-changed=HOGD_SRC");
+
+    let native_exec_bindings = PathBuf::from(hogd_src).join("hogd/test_ffi/test_bindings.h");
+
     // Generate Rust bindings from the C header file
     let bindings = bindgen::Builder::default()
-        .header("../protocol-rs/protocol/native_exec_bindings.h")
+        .header(native_exec_bindings.to_str().unwrap())
         .generate()
         .expect("Unable to generate bindings");
 

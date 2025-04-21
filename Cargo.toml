@@ -1,5 +1,9 @@
 [workspace]
-members = ["macros", "protocol-rs/groundhog_xdr", "protocol-rs/protocol_macros"]
+members = [
+    "macros", 
+    "protocol-rs/groundhog_xdr", 
+    "protocol-rs/protocol_macros", 
+    "native_exec"]
 
 [package]
 name = "sdk_rs"
