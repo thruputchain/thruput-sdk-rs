@@ -52,7 +52,7 @@ pub mod internal;
 pub mod storage;
 
 // Deprecated
-pub mod initialize;
+//pub mod initialize;
 
 #[cfg(feature = "mock")]
 pub use ::groundhog_xdr::ffi_enums::*;

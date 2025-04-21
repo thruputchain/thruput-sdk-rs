@@ -1,4 +1,3 @@
-use crate::rt::trap;
 use crate::syscall::to_offset;
 use core::mem::MaybeUninit;
 use groundhog_xdr::types::*;
@@ -105,7 +104,7 @@ impl ToU64_1 for Signature {
             Signature::Ed25519 { ed25519: sig } => to_offset(sig) as u64,
             #[allow(unreachable_patterns)]
             _ => {
-                trap();
+                u64::MAX
             }
         }
     }
@@ -123,7 +122,7 @@ impl ToU64_1 for PublicKey {
             PublicKey::Ed25519 { ed25519: pk } => to_offset(pk) as u64,
             #[allow(unreachable_patterns)]
             _ => {
-                trap();
+                u64::MAX
             }
         }
     }
