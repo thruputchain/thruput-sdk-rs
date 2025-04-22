@@ -1,0 +1,20 @@
+[package]
+name = "caller"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdk = { workspace = true, features = ["storage"] }
+serde = { workspace = true }
+erc20 = { path = "../erc20", features = ["client"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+caller = { path = ".", features = ["mock", "client"] }

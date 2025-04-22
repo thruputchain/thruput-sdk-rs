@@ -10,7 +10,7 @@ use thiserror::Error;
 #[derive(
     Error, Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize,
 )]
-#[error("SysErr({0})")]
+#[error("SysErr<{0}>")]
 pub struct SysErr(i32);
 
 pub use bindings::SyscallErrorCode;

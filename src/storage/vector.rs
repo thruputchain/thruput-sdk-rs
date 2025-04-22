@@ -2,8 +2,7 @@ use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{Load, LoadKeypath};
 use super::store::Store;
-use super::Result;
-use crate::result::oob_err;
+use super::error::{oob_err, Result};
 use crate::serialize::Serialize;
 use crate::types::StorageKey;
 use core::fmt::Debug;
@@ -48,7 +47,7 @@ impl<T> Vector<T> {
             let key = &self.make_index_key(index);
             <T as Load>::load(key)
         } else {
-            oob_err(index)
+            oob_err(self.len, index)
         }
     }
 
@@ -62,7 +61,7 @@ impl<T> Vector<T> {
                 .unwrap_or_else(|| T::default_from_keypath(&keypath));
             Ok(val)
         } else {
-            oob_err(index)
+            oob_err(self.len, index)
         }
     }
 
@@ -91,7 +90,7 @@ impl<T> Vector<T> {
             let handle = Handle::from(keypath);
             Ok(handle)
         } else {
-            oob_err(index)
+            oob_err(self.len, index)
         }
     }
 
@@ -104,7 +103,7 @@ impl<T> Vector<T> {
             val.store_keypath(keypath)?;
             Ok(())
         } else {
-            oob_err(index)
+            oob_err(self.len, index)
         }
     }
 
@@ -131,7 +130,7 @@ impl<T> Vector<T> {
             self.len = len;
             Ok(())
         } else {
-            oob_err(len) // can only increase length
+            oob_err(self.len, len) // can only increase length
         }
     }
 

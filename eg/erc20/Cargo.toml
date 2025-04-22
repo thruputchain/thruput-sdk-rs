@@ -1,0 +1,21 @@
+[package]
+name = "erc20"
+version = "0.1.2"
+edition = "2021"
+
+[dependencies]
+sdk = { workspace = true, features = ["storage"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/std", "sdk/mock"]
+
+[dev-dependencies]
+erc20 = { path = ".", features = ["mock", "client"] }

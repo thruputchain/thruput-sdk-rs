@@ -1,7 +1,8 @@
 use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
-use super::Result;
+use super::error::Result as StorageResult;
+use crate::result::SysResult as Result;
 use crate::nonnegative_int::*;
 use core::fmt::Debug;
 
@@ -17,7 +18,7 @@ impl From<Keypath> for NNInt {
 }
 
 impl LoadKeypath for NNInt {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
+    fn load_keypath(keypath: &Keypath) -> StorageResult<Self> {
         // No I/O necessary
         Ok(NNInt::new(keypath))
     }

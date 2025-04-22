@@ -1,5 +1,5 @@
 use super::keypath::*;
-use super::Result;
+use super::error::Result;
 use crate::bytestring::*;
 use crate::serialize::{self, Serialize};
 use crate::types::StorageKey;
@@ -18,6 +18,7 @@ where
     T: Serialize,
 {
     fn store(&self, key: &StorageKey) -> Result<()> {
+        // Load any previous value and drop it? XXX
         if let Some(prev) = bytestring_try_get(key)? {
             drop(prev);
         }
