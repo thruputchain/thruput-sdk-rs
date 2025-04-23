@@ -522,7 +522,6 @@ dependencies = [
  "bindgen",
  "cmake",
  "groundhog_xdr",
- "sdk_rs",
  "sha2",
 ]
 

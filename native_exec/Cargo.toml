@@ -9,7 +9,6 @@ crate-type = ["rlib"]
 [dependencies]
 groundhog_xdr = {path = "../protocol-rs/groundhog_xdr", features = ["std"]}
 sha2 = {version = "0.10"}
-sdk_rs = {path = "..", features = ["std"]}
 
 [build-dependencies]
 cmake = "0.1"

@@ -1,11 +1,18 @@
+use crate::bindings::ForeignInvokeResult;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
-
 use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::panic_any;
+use std::panic::UnwindSafe;
 
-#[derive(Debug, Clone)]
+impl PartialEq for ForeignInvokeResult {
+    fn eq(&self, other: &Self) -> bool {
+        (self.result_code == other.result_code) && (self.panic == other.panic)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct InvokeError {
     pub error_type: InvokeErrorCode,
     pub error_code: i32,
@@ -93,4 +100,155 @@ pub fn set_override_panic_hook() {
 
         panic::resume_unwind(Box::new(deterministic_error()));
     }));
+}
+
+// Wrap a function (i.e. part of a contract) within a try-catch block
+// that appropriately handles groundhog error codes.
+pub fn invoke_wrapper<'a, F>(
+    wrapped: F,
+) -> Box<dyn Fn() -> ForeignInvokeResult + 'a>
+where
+    F: Fn() -> i32 + UnwindSafe + Clone + 'a,
+{
+    Box::new(move || {
+        let w = wrapped.clone();
+        let result = panic::catch_unwind(move || w());
+
+        match result {
+            Ok(result_code) => {
+                return ForeignInvokeResult {
+                    result_code: result_code,
+                    panic: InvokeErrorCode::kNone as i32,
+                }
+            }
+            Err(err) => {
+                if let Some(my_error) = err.downcast_ref::<InvokeError>() {
+                    return ForeignInvokeResult {
+                        result_code: my_error.error_code,
+                        panic: my_error.error_type.clone() as i32,
+                    };
+                }
+                return ForeignInvokeResult {
+                    result_code: 0,
+                    panic: InvokeErrorCode::kUnrecoverable as i32,
+                };
+            }
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // There's a race condition on the panic handler,
+    // which changes how tests behave.  So run them all sequentially.
+    #[test]
+    fn test_panic_runner() {
+        test_error_wrap();
+        test_panic();
+        test_panic_ok();
+        test_sdk_panic();
+        test_option_panic();
+        test_pass_invoke_error_through_panic_hook();
+    }
+
+    fn test_error_wrap() {
+        let _ = panic::take_hook();
+        let f: fn() -> i32 = || {
+            return 1;
+        };
+
+        let boxed = invoke_wrapper(f);
+
+        assert_eq!(
+            (*boxed)(),
+            ForeignInvokeResult {
+                result_code: 1,
+                panic: 0
+            }
+        );
+    }
+
+    fn test_panic() {
+        let _ = panic::take_hook();
+        let f: fn() -> i32 = || panic!("unknown");
+
+        let boxed = invoke_wrapper(f);
+
+        assert_eq!(
+            (*boxed)(),
+            ForeignInvokeResult {
+                result_code: 0,
+                panic: InvokeErrorCode::kUnrecoverable as i32
+            }
+        );
+    }
+
+    fn test_panic_ok() {
+        let _ = panic::take_hook();
+        let f: fn() -> i32 =
+            || panic_any(crate::invoke_error::validation_error());
+
+        let boxed = invoke_wrapper(f);
+
+        assert_eq!(
+            (*boxed)(),
+            ForeignInvokeResult {
+                result_code: 0,
+                panic: InvokeErrorCode::kValidationFailure as i32
+            }
+        );
+    }
+
+    fn test_sdk_panic() {
+        set_override_panic_hook();
+        let f: fn() -> i32 = || {
+            panic!("something");
+        };
+
+        let boxed = invoke_wrapper(f);
+
+        assert_eq!(
+            (*boxed)(),
+            ForeignInvokeResult {
+                result_code: 0,
+                panic: InvokeErrorCode::kDeterministic as i32
+            }
+        );
+    }
+
+    fn test_option_panic() {
+        set_override_panic_hook();
+        let f: fn() -> i32 = || {
+            let x: Option<i32> = None;
+            return x.unwrap();
+        };
+
+        let boxed = invoke_wrapper(f);
+
+        assert_eq!(
+            (*boxed)(),
+            ForeignInvokeResult {
+                result_code: 0,
+                panic: InvokeErrorCode::kDeterministic as i32
+            }
+        );
+    }
+
+    fn test_pass_invoke_error_through_panic_hook() {
+        set_override_panic_hook();
+        let f: fn() -> i32 =
+            || panic_any(crate::invoke_error::validation_error());
+
+        let boxed = invoke_wrapper(f);
+
+        assert_eq!(
+            (*boxed)(),
+            ForeignInvokeResult {
+                result_code: 0,
+                panic: InvokeErrorCode::kValidationFailure as i32
+            }
+        );
+    }
 }

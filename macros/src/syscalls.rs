@@ -367,7 +367,6 @@ fn generate_syscall_uninit_decl(
     syscall: &Syscall,
     type_map: &TypeMap,
 ) -> TokenStream2 {
-    //  #[cfg(not(feature="mock"))]
     //  pub fn uninit_SHA256(buffer : &[u8], hash : &mut MaybeUninit<SHA256Hash>) -> SyscallResult<()> {
     //
     //      // syscall will initialize outputs, if error is kNone
@@ -410,7 +409,6 @@ fn generate_syscall_uninit_decl(
     let syscall_no = format_ident!("k{}", &syscall.name);
 
     quote! {
-        #[cfg(not(feature="mock"))]
         pub fn #uninit_ident(#(#uninit_syscall_inputs,)*) -> #return_type {
 
             // syscall will initialize outputs, if error is kNone
@@ -491,7 +489,7 @@ pub fn generate_syscall_numbers(input: TokenStream) -> TokenStream {
         .map(|func| generate_syscall_no_line(&func));
 
     quote! {
-        #[repr(u64)]
+        #[repr(i32)]
         #[derive(Eq,PartialEq,Copy,Debug,Clone)]
         pub enum SyscallNo {
             #(#lines,)*

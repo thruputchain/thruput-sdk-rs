@@ -1,7 +1,7 @@
+use crate::bindings::mock_syscall_entrypoint;
 use crate::bindings::ForeignHostFnResult;
 use groundhog_xdr::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
-use crate::bindings::mock_syscall_entrypoint;
 
 impl ForeignHostFnResult {
     pub fn unwrap(&self) -> i32 {
@@ -31,21 +31,24 @@ impl ForeignHostFnResult {
     }
 }
 
-//struct ForeignHostFnResult mock_syscall_entrypoint(int32_t syscall, const unsigned char* input, uint32_t input_len,
-//    unsigned char* output, uint32_t output_len);
-
 pub fn perform_mocked_syscall(
-    syscall: sdk_rs::sys::SyscallNo,
-    input: &[u8],
-    output: &mut [u8],
+    syscall: i32,
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+    arg4: u64,
+    arg5: u64,
+    arg6: u64,
 ) -> i32 {
     let result: ForeignHostFnResult = unsafe {
         mock_syscall_entrypoint(
-            syscall as i32,
-            input.as_ptr(),
-            input.len().try_into().unwrap(),
-            output.as_mut_ptr(),
-            output.len().try_into().unwrap(),
+            syscall,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6
         )
     };
 
