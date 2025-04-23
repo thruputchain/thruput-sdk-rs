@@ -103,9 +103,7 @@ impl ToU64_1 for Signature {
         match self {
             Signature::Ed25519 { ed25519: sig } => to_offset(sig) as u64,
             #[allow(unreachable_patterns)]
-            _ => {
-                u64::MAX
-            }
+            _ => u64::MAX,
         }
     }
 }
@@ -121,9 +119,7 @@ impl ToU64_1 for PublicKey {
         match self {
             PublicKey::Ed25519 { ed25519: pk } => to_offset(pk) as u64,
             #[allow(unreachable_patterns)]
-            _ => {
-                u64::MAX
-            }
+            _ => u64::MAX,
         }
     }
 }
