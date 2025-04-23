@@ -20,7 +20,7 @@ doctest = false
 bcs = { path = "external/bcs", default-features = false }
 groundhog_xdr = { path = "protocol-rs/groundhog_xdr" }
 macros = { path = "macros" }
-#native_exec = { path = "../hogd/rust_contracts/native_exec", optional = true}
+native_exec = { path = "native_exec", optional = true}
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.11", default-features = false }
@@ -28,5 +28,4 @@ thiserror = { version = "2.0.11", default-features = false }
 [features]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
-#mock = ["std", "dep:native_exec"]
-mock = ["std"]
+mock = ["std", "dep:native_exec"]

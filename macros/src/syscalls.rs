@@ -475,7 +475,7 @@ fn generate_syscall_no_line(syscall: &Syscall) -> TokenStream2 {
     let name = format_ident!("k{}", &syscall.name);
     let num = syscall.number;
     quote! {
-        #name = #num as u64
+        #name = #num as i32
     }
 }
 

@@ -855,6 +855,7 @@ dependencies = [
  "bcs",
  "groundhog_xdr",
  "macros",
+ "native_exec",
  "serde",
  "serde_arrays",
  "thiserror",

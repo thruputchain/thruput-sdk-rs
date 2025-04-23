@@ -49,11 +49,8 @@ fn syscall_wrapper(
     arg5: u64,
     arg6: u64,
 ) -> SysErr {
-    unsafe {
-        let errno =
-            native_exec::perform_mocked_syscall(syscall_no as i32, arg1, arg2, arg3, arg4, arg5, arg6);
-        SysErr(errno)
-    }
+    SysErr(
+        native_exec::perform_mocked_syscall(syscall_no as i32, arg1, arg2, arg3, arg4, arg5, arg6))    
 }
 
 macros::generate_syscall_decls!("protocol-rs/protocol/syscalls.yaml");

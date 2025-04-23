@@ -16,9 +16,6 @@ pub mod allocator;
 #[doc(inline)]
 pub use ::macros;
 
-#[cfg(not(feature = "mock"))]
-mod custom_arg;
-
 // Base
 pub mod syscall;
 pub mod types;
