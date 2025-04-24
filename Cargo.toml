@@ -1,5 +1,12 @@
+cargo-features = ["trim-paths"]
+
 [workspace]
-members = ["macros", "protocol-rs/groundhog_xdr", "protocol-rs/protocol_macros"]
+members = [
+    "macros",
+    "protocol-rs/groundhog_xdr",
+    "protocol-rs/protocol_macros",
+    "examples/erc20_low_level",
+    ]
 
 [package]
 name = "sdk_rs"
@@ -7,6 +14,7 @@ version = "0.0.1"
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+autoexamples = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -26,3 +34,26 @@ alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
 #mock = ["std", "dep:native_exec"]
 mock = ["std"]
+
+# Below from rs_contract_sdk/Cargo.toml
+
+[profile.dev]
+opt-level = "z"
+overflow-checks = false
+debug = false
+strip = "debuginfo"
+panic = "abort"
+
+[profile.test]
+# settings inherited from profile.dev
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+trim-paths = "all"  # unstable

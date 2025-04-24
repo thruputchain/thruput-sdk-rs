@@ -1,0 +1,22 @@
+[package]
+name = "playground"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdk = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+client = []
+guest = []
+alloc = ["sdk/alloc"]
+std = ["alloc", "sdk/std"]
+mock = ["guest", "std", "sdk/mock"]
+
+[dev-dependencies]
+playground = { path = ".", features = ["mock", "client"] }

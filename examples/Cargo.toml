@@ -1,0 +1,41 @@
+# Strip private prefixes of filesystem paths from binaries
+cargo-features = ["trim-paths"]
+
+[workspace]
+resolver = "2"
+
+members = [
+    "erc20",
+    "erc20_low_level",
+    "caller",
+    "genesis_deployer",
+    "rcq_test",
+    "simple_wallet",
+    "test_bytestring",
+    "playground",
+]
+
+[workspace.dependencies]
+sdk = { package = "rs_contract_sdk", path = "../rs_contract_sdk/" }
+serde = { version = "1.0.217", default-features = false }
+
+[profile.dev]
+opt-level = "z"
+overflow-checks = false
+debug = false
+strip = "debuginfo"
+panic = "abort"
+
+[profile.test]
+# settings inherited from profile.dev
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+trim-paths = "all"  # unstable

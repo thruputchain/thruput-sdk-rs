@@ -1,0 +1,22 @@
+[package]
+name = "erc20_low_level"
+version = "0.1.1"
+edition = "2021"
+
+[dependencies]
+sdk = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+client = []
+guest = []
+alloc = ["sdk/alloc"]
+std = ["alloc", "sdk/std"]
+mock = ["guest", "std", "sdk/mock"]
+
+[dev-dependencies]
+erc20_low_level = { path = ".", features = ["mock"] }
