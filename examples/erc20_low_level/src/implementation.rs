@@ -39,7 +39,7 @@ fn get_allowance_key(
 
 fn get_owner() -> Result<ContractAddress> {
     if let Some(bytes) = bytestring_get_sized(&get_owner_key())? {
-        Ok(ByteArray::new(bytes))
+        Ok(bytes.into())
     } else {
         app_err("Unexpected bytestring size".into())
     }

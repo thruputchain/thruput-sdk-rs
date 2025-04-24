@@ -1,4 +1,4 @@
-cargo-features = ["trim-paths"]
+cargo-features = ["trim-paths", "profile-rustflags"] #unstable
 
 [workspace]
 members = [
@@ -21,19 +21,30 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-bcs = { path = "external/bcs", default-features = false }
-groundhog_xdr = { path = "protocol-rs/groundhog_xdr" }
+groundhog_xdr = { workspace = true }
 macros = { path = "macros" }
 #native_exec = { path = "../hogd/rust_contracts/native_exec", optional = true}
+bcs = { path = "external/bcs", default-features = false }
+serde = { workspace = true }
+serde_arrays = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+
+[workspace.dependencies]
+groundhog_xdr = { path = "protocol-rs/groundhog_xdr" }
+sha2 = { version = "0.10.8", default-features = false }
+sdk = { package = "sdk_rs", path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "external/serde_arrays", default-features = false }
-thiserror = { version = "2.0.11", default-features = false }
+thiserror = { version = "2.0.12", default-features = false }
 
 [features]
+# can probably remove this by removing the alloc dependency in the `internal` module
+default = ["alloc"]
+mock = ["std"]  #mock = ["std", "dep:native_exec"]
+storage = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
-#mock = ["std", "dep:native_exec"]
-mock = ["std"]
 
 # Below from rs_contract_sdk/Cargo.toml
 
@@ -57,3 +68,4 @@ panic = "abort"
 lto = true
 codegen-units = 1
 trim-paths = "all"  # unstable
+rustflags = [ "-C", "link-args=-zstack-size=64000" ]

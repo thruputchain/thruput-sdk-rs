@@ -28,6 +28,18 @@ impl ToU64_1 for [u8] {
     }
 }
 
+impl<const N: usize> ToU64_0 for ByteArray<N> {
+    fn to_u64_0(&self) -> u64 {
+        self.as_slice().as_ptr() as u64
+    }
+}
+
+impl<const N: usize> ToU64_1 for ByteArray<N> {
+    fn to_u64_1(&self) -> u64 {
+        self.len() as u64
+    }
+}
+
 impl ToU64_0Mut for [MaybeUninit<u8>] {
     fn to_u64_0(&mut self) -> u64 {
         self.as_mut_ptr() as u64
@@ -52,8 +64,15 @@ macro_rules! fixed_size_inputs {
     };
 }
 
-fixed_size_inputs!(SHA256Hash, AddressAndKey, i128, u128);
+fixed_size_inputs!(SHA256Hash, AddressAndKey, ContractAddress, i128, u128);
 
+impl<T> ToU64_0Mut for MaybeUninit<T> {
+    fn to_u64_0(&mut self) -> u64 {
+        self.as_mut_ptr() as u64
+    }
+}
+
+/*
 macro_rules! fixed_size_outputs {
     ($($type:ty),*) => {
         $(
@@ -67,6 +86,7 @@ macro_rules! fixed_size_outputs {
 }
 
 fixed_size_outputs!(SHA256Hash, u32, u64, u128, i32, i64, i128);
+*/
 
 macro_rules! primitive_type_inputs {
     ($($type:ty),*) => {

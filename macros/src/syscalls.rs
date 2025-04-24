@@ -39,6 +39,7 @@ struct TypeMapping {
 
 struct TypeInfo {
     rust_name: String,
+    #[allow(dead_code)] // XXX
     xdr_name: String,
 }
 
