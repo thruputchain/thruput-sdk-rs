@@ -1,6 +1,3 @@
-#![allow(unused)]
-
-use sdk::result::Result;
 use sdk::prelude::*;
 
 pub type Amount = i128;

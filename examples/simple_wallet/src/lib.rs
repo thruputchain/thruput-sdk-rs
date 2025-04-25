@@ -3,8 +3,8 @@
 
 use erc20::client::ERC20Client;
 use erc20::interface::{Amount, ERC20};
-use sdk::storage_prelude::*;
 use sdk::bytestring::bytestring_exists;
+use sdk::storage_prelude::*;
 
 // TODO: Replay prevention?
 
@@ -84,7 +84,9 @@ impl Wallet {
         let auth_message = self.compute_auth_message(to_addr, amount);
 
         sdk::crypto::verify_signature(
-            &PublicKey::Ed25519 { ed25519: self.pk.clone() },
+            &PublicKey::Ed25519 {
+                ed25519: self.pk.clone(),
+            },
             &Signature::Ed25519 {
                 ed25519: signature.clone(),
             },

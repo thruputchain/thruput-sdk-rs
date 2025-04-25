@@ -6,7 +6,6 @@
 
 use super::interface::{Amount, ERC20};
 use sdk::storage_prelude::*;
-use sdk::result::*;
 
 type Balance = NNInt;
 type Allowance = NNInt;
@@ -71,8 +70,7 @@ impl CoinContract {
         spender: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        #[allow(unused_mut)] // TODO: mutability of storage boxes?
-        let mut owner_allowances = self.allowances.get(owner)?;
+        let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
         spender_allowance.add_default_zero(amount as i128)?;
         Ok(())
@@ -84,8 +82,7 @@ impl CoinContract {
     }
 
     fn _total_supply(&self) -> Result<Amount> {
-        let amount =
-            self.total_supply.try_get()?.unwrap_or(0) as Amount;
+        let amount = self.total_supply.try_get()?.unwrap_or(0) as Amount;
         Ok(amount)
     }
 }
@@ -131,7 +128,7 @@ impl ERC20 for CoinContract {
         receiver: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        ensure(amount >= 0, "Transfer amount must be positive")?;
+        caller_ensure(amount >= 0, "Transfer amount must be non-negative")?;
 
         let spender = get_caller()?;
         self._adjust_allowance(owner, &spender, -amount)?;
@@ -164,11 +161,11 @@ impl ERC20 for CoinContract {
         amount: Amount,
     ) -> Result<()> {
         let caller = get_caller()?;
-        ensure(
+        caller_ensure(
             &caller == self._contract_owner(),
             "Minter must be contract owner",
         )?;
-        ensure(amount >= 0, "Mint amount must be non-negative")?;
+        caller_ensure(amount >= 0, "Mint amount must be non-negative")?;
 
         self._adjust_balance(receiver, amount)?;
         self._adjust_total_supply(amount)
@@ -176,11 +173,11 @@ impl ERC20 for CoinContract {
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
         let caller = get_caller()?;
-        ensure(
+        caller_ensure(
             &caller == self._contract_owner(),
             "Burner must be contract owner",
         )?;
-        ensure(amount >= 0, "Burn amount must be non-negative")?;
+        caller_ensure(amount >= 0, "Burn amount must be non-negative")?;
 
         self._adjust_balance(owner, -amount)?;
         self._adjust_total_supply(-amount)
@@ -193,7 +190,7 @@ impl ERC20 for CoinContract {
     fn add_frot(&mut self, amount: Amount) -> Result<()> {
         let mut frottage = self.frottage.load_mut()?;
 
-        ensure(frottage.touched == false, "Shouldn't be touched")?;
+        assert!(frottage.touched == false, "Shouldn't be touched");
 
         frottage.touched = true;
         frottage.bytes.set(&[0, 1, 2, 3, 4]);
@@ -213,10 +210,10 @@ impl ERC20 for CoinContract {
 
         let frottage = self.frottage.load()?;
 
-        ensure(frottage.touched == true, "Should be touched")?;
+        assert!(frottage.touched == true, "Should be touched");
 
         let bytes = frottage.bytes.get();
-        ensure(&*bytes == &[0, 1, 2, 3, 4], "Bad bytes")?;
+        assert!(&*bytes == &[0, 1, 2, 3, 4], "Bad bytes");
 
         let count = frottage.count.get()?;
         Ok(count as Amount)

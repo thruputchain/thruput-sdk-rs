@@ -1,7 +1,7 @@
+use super::error::Result;
 use super::keypath::*;
 use super::load::*;
 use super::store::*;
-use crate::result::Result;
 use core::marker::PhantomData;
 
 /// A handle to a storage location

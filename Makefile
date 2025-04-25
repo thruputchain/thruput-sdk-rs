@@ -1,15 +1,13 @@
 check:
-	cargo +nightly check --no-default-features --features=std
+	cargo +nightly check --features=std
 .PHONY: check
 
 check_guest:
-	cargo +nightly check \
-		--features alloc \
-		--target wasm32-unknown-unknown
+	cargo +nightly check --features=std,guest
 .PHONY: check_guest
 
 test:
-	cargo +nightly test --jobs=1 --no-default-features --features=mock
+	cargo +nightly test --jobs=1 --features=mock
 .PHONY: test
 
 lint:
@@ -35,3 +33,17 @@ doc_open:
 fmt:
 	cargo +nightly fmt
 .PHONY: fmt
+
+example_contracts:
+	make -C examples
+.PHONY: example_contracts
+
+test_contracts:
+	./scripts/test_example_contracts.sh
+.PHONY: test_contracts
+
+tree:
+	# Show the dependency graph
+	cargo +nightly tree \
+		--edges normal,build \
+		--target wasm32-unknown-unknown

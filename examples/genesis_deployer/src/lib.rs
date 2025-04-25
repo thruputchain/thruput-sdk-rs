@@ -2,10 +2,10 @@
 
 extern crate alloc;
 
+use alloc::vec::Vec;
 use sdk::prelude::*;
 use sdk::sys;
 use sdk::types::MethodID;
-use alloc::vec::Vec;
 
 pub struct GenesisDeployer;
 

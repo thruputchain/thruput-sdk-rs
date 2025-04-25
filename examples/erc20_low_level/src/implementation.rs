@@ -10,7 +10,6 @@
 
 use crate::interface::Amount;
 use sdk::prelude::*;
-use sdk::result::{app_err, ensure, Result}; // TODO: contract-specific error type
 
 // Compute keys for storing things
 
@@ -41,28 +40,28 @@ fn get_owner() -> Result<ContractAddress> {
     if let Some(bytes) = bytestring_get_sized(&get_owner_key())? {
         Ok(bytes.into())
     } else {
-        app_err("Unexpected bytestring size".into())
+        internal_err("Unexpected bytestring size")
     }
 }
 
 fn ensure_caller_is_owner() -> Result<()> {
     let caller = get_caller()?;
     let owner = get_owner()?;
-    ensure(caller == owner, "Caller must be owner")
+    caller_ensure(caller == owner, "Caller must be owner")
 }
 
 fn add_to_total_supply(amount: Amount) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
-            &get_total_supply_key(),
-            amount as i128,
-            )?)
+        &get_total_supply_key(),
+        amount as i128,
+    )?)
 }
 
 fn add_to_balance(addr: &ContractAddress, amount: Amount) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
-            &get_balance_key(addr),
-            amount as i128,
-            )?)
+        &get_balance_key(addr),
+        amount as i128,
+    )?)
 }
 
 fn add_to_allowance(
@@ -71,9 +70,9 @@ fn add_to_allowance(
     amount: Amount,
 ) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
-            &get_allowance_key(owner, spender),
-            amount as i128,
-            )?)
+        &get_allowance_key(owner, spender),
+        amount as i128,
+    )?)
 }
 
 // Exposed contract functions
@@ -84,7 +83,7 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
 
     // Make sure we haven't already been initialized
     if bytestring_exists(&key)? {
-        panic!("Contract already initialized");
+        return caller_error("Contract already initialized");
     }
 
     // Store ourselves
@@ -94,11 +93,8 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
 }
 
 #[contract]
-pub fn transfer(
-    to: &ContractAddress,
-    amount: Amount,
-) -> Result<()> {
-    ensure(amount >= 0, "no negative spends allowed")?;
+pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
+    caller_ensure(amount >= 0, "Transfer amount must be non-negative")?;
 
     let caller = get_caller()?;
 
@@ -113,7 +109,7 @@ pub fn transfer_from(
     to: &ContractAddress,
     amount: Amount,
 ) -> Result<()> {
-    ensure(amount >= 0, "no negative spends allowed")?;
+    caller_ensure(amount >= 0, "Transfer amount must be non-negative")?;
 
     let caller = get_caller()?;
     add_to_allowance(owner, &caller, -amount)?;
@@ -147,7 +143,7 @@ pub fn get_balance() -> Result<Amount> {
 #[contract]
 pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
-    ensure(amount >= 0, "mint amount must be nonnegative")?;
+    caller_ensure(amount >= 0, "Mint amount must be non-negative")?;
 
     add_to_balance(to, amount)?;
     add_to_total_supply(amount)
@@ -156,7 +152,7 @@ pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
 #[contract]
 pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
-    ensure(amount >= 0, "burn amount must be nonnegative")?;
+    caller_ensure(amount >= 0, "Burn amount must be non-negative")?;
 
     add_to_balance(to, -amount)?;
     add_to_total_supply(-amount)
@@ -167,15 +163,20 @@ pub fn total_supply() -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
 }
 
-#[cfg(feature="mock")]
-pub fn register(env : &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
+// TODO: Something better
+#[cfg(feature = "mock")]
+pub fn register(env: &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
     let mut contract = env.add_contract();
 
     contract.register_method(INITIALIZE_EXPORT_NUM, initialize_internal);
     contract.register_method(TRANSFER_EXPORT_NUM, transfer_internal);
     contract.register_method(TRANSFER_FROM_EXPORT_NUM, transfer_from_internal);
-    contract.register_method(ADJUST_ALLOWANCE_EXPORT_NUM, adjust_allowance_internal);
-    contract.register_method(GET_BALANCE_OF_EXPORT_NUM, get_balance_of_internal);
+    contract.register_method(
+        ADJUST_ALLOWANCE_EXPORT_NUM,
+        adjust_allowance_internal,
+    );
+    contract
+        .register_method(GET_BALANCE_OF_EXPORT_NUM, get_balance_of_internal);
     contract.register_method(GET_BALANCE_EXPORT_NUM, get_balance_internal);
     contract.register_method(MINT_EXPORT_NUM, mint_internal);
     contract.register_method(BURN_EXPORT_NUM, burn_internal);

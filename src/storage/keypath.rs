@@ -53,10 +53,7 @@ impl Keypath {
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        sha_256(self.flattened().as_slice())
-            .unwrap() // SHA256Hash
-            .into_inner() // ByteArray
-            .into() // StorageKey
+        sha_256(self.flattened().as_slice()).unwrap().into()
     }
 
     fn push_bytes(&mut self, slice: &[u8]) {

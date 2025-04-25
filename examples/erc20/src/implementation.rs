@@ -6,7 +6,6 @@
 
 use super::interface::{Amount, ERC20};
 use sdk::storage_prelude::*;
-use sdk::result::*; // TODO: contract-specific error type
 
 type Balance = NNInt;
 type Allowance = NNInt;
@@ -73,8 +72,7 @@ impl CoinContract {
     }
 
     fn _total_supply(&self) -> Result<Amount> {
-        let amount =
-            self.total_supply.try_get()?.unwrap_or(0) as Amount;
+        let amount = self.total_supply.try_get()?.unwrap_or(0) as Amount;
         Ok(amount)
     }
 }
@@ -120,7 +118,7 @@ impl ERC20 for CoinContract {
         receiver: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        ensure(amount >= 0, "Transfer amount must be positive")?;
+        caller_ensure(amount >= 0, "Transfer amount must non-negative")?;
 
         let spender = get_caller()?;
         self._adjust_allowance(owner, &spender, -amount)?;
@@ -153,11 +151,11 @@ impl ERC20 for CoinContract {
         amount: Amount,
     ) -> Result<()> {
         let caller = get_caller()?;
-        ensure(
+        caller_ensure(
             &caller == self._contract_owner(),
             "Minter must be contract owner",
         )?;
-        ensure(amount >= 0, "Mint amount must be non-negative")?;
+        caller_ensure(amount >= 0, "Mint amount must be non-negative")?;
 
         self._adjust_balance(receiver, amount)?;
         self._adjust_total_supply(amount)
@@ -165,11 +163,11 @@ impl ERC20 for CoinContract {
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
         let caller = get_caller()?;
-        ensure(
+        caller_ensure(
             &caller == self._contract_owner(),
             "Burner must be contract owner",
         )?;
-        ensure(amount >= 0, "Burn amount must be non-negative")?;
+        caller_ensure(amount >= 0, "Burn amount must be non-negative")?;
 
         self._adjust_balance(owner, -amount)?;
         self._adjust_total_supply(-amount)

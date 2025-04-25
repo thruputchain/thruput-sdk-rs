@@ -67,5 +67,5 @@ debug-assertions = false
 panic = "abort"
 lto = true
 codegen-units = 1
-trim-paths = "all"  # unstable
+trim-paths = "all" # unstable
 rustflags = [ "-C", "link-args=-zstack-size=64000" ]

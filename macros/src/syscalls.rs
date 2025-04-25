@@ -1,3 +1,4 @@
+use ::serde;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -535,7 +536,6 @@ fn generate_error_code_helper_line(error: &SyscallErrorDecl) -> TokenStream2 {
     }
 }
 
-
 pub fn generate_syscall_error_helper(input: TokenStream) -> TokenStream {
     let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
     let spec = load_syscall_yaml(file_path);
@@ -548,7 +548,7 @@ pub fn generate_syscall_error_helper(input: TokenStream) -> TokenStream {
     quote! {
         impl TryInto<SyscallErrorCode> for SysErr {
             type Error = i32;
-        
+
             fn try_into(self) -> Result<SyscallErrorCode, Self::Error> {
                 match self.0 {
                      #(#lines,)*

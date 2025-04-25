@@ -11,7 +11,6 @@ extern crate alloc;
 use erc20::interface::client::ERC20Client;
 use erc20::interface::{Amount, ERC20};
 use sdk::storage_prelude::*;
-use sdk::result::Result;
 
 #[derive(Storage, Debug, Serialize)]
 pub struct Caller {

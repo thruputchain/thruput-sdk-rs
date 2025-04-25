@@ -1,5 +1,4 @@
 use sdk::prelude::*;
-use sdk::result::Result; // TODO: contract-specific error type
 
 pub type Amount = i128;
 
