@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 sdk = { workspace = true }
-# serde = { workspace = true, features = ["derive"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

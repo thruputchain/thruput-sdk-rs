@@ -23,12 +23,13 @@ impl GenesisDeployer {
     ) {
         let deployed_addr = deploy_contract(nonce, contract_hash).unwrap();
 
+        let mut return_len = 0;
         sys::raw_Invoke(
             &deployed_addr,
             method,
             u64::MAX,
             calldata.as_slice(),
-            0,
+            &mut return_len,
         )
         .unwrap();
     }

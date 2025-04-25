@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdk = { package = "rs_contract_sdk", path = "../../rs_contract_sdk/" }
+sdk = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
 
 [features]
 guest = []
-alloc = ["sdk/alloc"]

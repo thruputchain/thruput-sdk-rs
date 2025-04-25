@@ -21,7 +21,7 @@ pub struct Caller {
 impl Caller {
     pub fn new(token_contract: &ContractAddress) -> Self {
         Self {
-            token_contract: *token_contract,
+            token_contract: token_contract.clone(),
         }
     }
 }

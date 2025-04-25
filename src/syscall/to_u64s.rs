@@ -1,6 +1,7 @@
 use crate::rt::trap;
 use crate::syscall::to_offset;
 use core::mem::MaybeUninit;
+use groundhog_xdr::byte_array::ByteArray;
 use groundhog_xdr::types::*;
 
 pub trait ToU64_0 {

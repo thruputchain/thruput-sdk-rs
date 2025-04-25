@@ -108,7 +108,7 @@ impl ERC20 for CoinContract {
         // the given closure for initialization, and
         // store it at the root key.
         initialize_root(|storage: &mut Self| {
-            storage.contract_owner = *contract_owner
+            storage.contract_owner = contract_owner.clone()
         })?;
 
         Ok(())

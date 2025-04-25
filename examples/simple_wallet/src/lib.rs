@@ -1,8 +1,6 @@
 #![no_std]
 #![feature(maybe_uninit_slice)]
 
-extern crate alloc;
-
 use erc20::client::ERC20Client;
 use erc20::interface::{Amount, ERC20};
 use sdk::storage_prelude::*;
@@ -42,8 +40,8 @@ impl Wallet {
         }
 
         let value = Wallet {
-            pk: *pk,
-            token_addr: *token_addr,
+            pk: pk.clone(),
+            token_addr: token_addr.clone(),
         };
 
         // Store ourselves
@@ -86,9 +84,9 @@ impl Wallet {
         let auth_message = self.compute_auth_message(to_addr, amount);
 
         sdk::crypto::verify_signature(
-            &PublicKey::Ed25519 { ed25519: self.pk },
+            &PublicKey::Ed25519 { ed25519: self.pk.clone() },
             &Signature::Ed25519 {
-                ed25519: *signature,
+                ed25519: signature.clone(),
             },
             &auth_message,
         )

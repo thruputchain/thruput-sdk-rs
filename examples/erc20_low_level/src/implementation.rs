@@ -15,15 +15,15 @@ use sdk::result::{app_err, ensure, Result}; // TODO: contract-specific error typ
 // Compute keys for storing things
 
 fn get_owner_key() -> StorageKey {
-    b"owner".hash()
+    b"owner".hash().into()
 }
 
 fn get_total_supply_key() -> StorageKey {
-    b"total_supply".hash()
+    b"total_supply".hash().into()
 }
 
 fn get_balance_key(addr: &ContractAddress) -> StorageKey {
-    (b"balance", addr).hash()
+    (b"balance", addr).hash().into()
 }
 
 fn get_allowance_key(
@@ -32,7 +32,7 @@ fn get_allowance_key(
 ) -> StorageKey {
     debug_assert!(owner != spender, "no allowance needed on spending self");
 
-    (b"allowance", owner, spender).hash()
+    (b"allowance", owner, spender).hash().into()
 }
 
 // Read/write permanent state

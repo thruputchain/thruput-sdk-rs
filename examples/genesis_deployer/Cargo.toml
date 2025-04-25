@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdk = { package = "rs_contract_sdk", path = "../../rs_contract_sdk/" }
+sdk = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
@@ -12,9 +12,7 @@ crate-type = ["cdylib"]
 [features]
 client = []
 guest = []
-alloc = ["sdk/alloc"]
-std = ["alloc", "sdk/std"]
-mock = ["guest", "std", "sdk/mock"]
+mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]
 genesis_deployer = { path = ".", features = ["mock", "client"] }

@@ -5,7 +5,7 @@ members = [
     "macros",
     "protocol-rs/groundhog_xdr",
     "protocol-rs/protocol_macros",
-    "examples/erc20_low_level",
+    "examples/*",
     ]
 
 [package]

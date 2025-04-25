@@ -1,13 +1,13 @@
 example_contracts : \
-	erc20_low_level.wasm
-
-other_contracts: \
 	genesis_deployer.wasm \
+	erc20_low_level.wasm \
 	erc20.wasm \
 	caller.wasm \
-	simple_wallet.wasm \
 	test_bytestring.wasm \
 	playground.wasm
+
+# missing a syscall:
+#    simple_wallet.wasm
 
 %.wasm : Makefile $(wildcard $</src/*.rs)
 	cargo +nightly build \
