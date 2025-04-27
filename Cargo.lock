@@ -392,6 +392,8 @@ name = "groundhog_xdr"
 version = "0.1.0"
 dependencies = [
  "protocol_macros",
+ "serde",
+ "serde_arrays",
 ]
 
 [[package]]

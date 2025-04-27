@@ -28,42 +28,42 @@ impl Error for InvokeError {}
 
 pub fn deterministic_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kDeterministic,
+        error_type: InvokeErrorCode::kInvokeDeterministic,
         error_code: 0,
     }
 }
 
 pub fn out_of_gas_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kOutOfGas,
+        error_type: InvokeErrorCode::kInvokeOutOfGas,
         error_code: 0,
     }
 }
 
 pub fn unrecoverable_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kUnrecoverable,
+        error_type: InvokeErrorCode::kInvokeUnrecoverable,
         error_code: 0,
     }
 }
 
 pub fn exit_error(code: i32) -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kNone,
+        error_type: InvokeErrorCode::kInvokeNone,
         error_code: code,
     }
 }
 
 pub fn return_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kNone,
+        error_type: InvokeErrorCode::kInvokeNone,
         error_code: 0,
     }
 }
 
 pub fn validation_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kValidationFailure,
+        error_type: InvokeErrorCode::kInvokeValidationFailure,
         error_code: 0,
     }
 }
@@ -118,7 +118,7 @@ where
             Ok(result_code) => {
                 return ForeignInvokeResult {
                     result_code: result_code,
-                    panic: InvokeErrorCode::kNone as i32,
+                    panic: InvokeErrorCode::kInvokeNone as i32,
                 }
             }
             Err(err) => {
@@ -130,7 +130,7 @@ where
                 }
                 return ForeignInvokeResult {
                     result_code: 0,
-                    panic: InvokeErrorCode::kUnrecoverable as i32,
+                    panic: InvokeErrorCode::kInvokeUnrecoverable as i32,
                 };
             }
         }
@@ -180,7 +180,7 @@ mod tests {
             (*boxed)(),
             ForeignInvokeResult {
                 result_code: 0,
-                panic: InvokeErrorCode::kUnrecoverable as i32
+                panic: InvokeErrorCode::kInvokeUnrecoverable as i32
             }
         );
     }
@@ -196,7 +196,7 @@ mod tests {
             (*boxed)(),
             ForeignInvokeResult {
                 result_code: 0,
-                panic: InvokeErrorCode::kValidationFailure as i32
+                panic: InvokeErrorCode::kInvokeValidationFailure as i32
             }
         );
     }
@@ -213,7 +213,7 @@ mod tests {
             (*boxed)(),
             ForeignInvokeResult {
                 result_code: 0,
-                panic: InvokeErrorCode::kDeterministic as i32
+                panic: InvokeErrorCode::kInvokeDeterministic as i32
             }
         );
     }
@@ -231,7 +231,7 @@ mod tests {
             (*boxed)(),
             ForeignInvokeResult {
                 result_code: 0,
-                panic: InvokeErrorCode::kDeterministic as i32
+                panic: InvokeErrorCode::kInvokeDeterministic as i32
             }
         );
     }
@@ -247,7 +247,7 @@ mod tests {
             (*boxed)(),
             ForeignInvokeResult {
                 result_code: 0,
-                panic: InvokeErrorCode::kValidationFailure as i32
+                panic: InvokeErrorCode::kInvokeValidationFailure as i32
             }
         );
     }

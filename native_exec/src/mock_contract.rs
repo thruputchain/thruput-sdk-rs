@@ -5,6 +5,7 @@ use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
 use groundhog_xdr::types::SHA256Hash;
+use groundhog_xdr::byte_array::ByteArray;
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -48,8 +49,8 @@ impl<'a> MockContract<'a> {
         u32_to_contract(unsafe { (*self.contract).index })
     }
 
-    pub fn as_hash(&self) -> SHA256Hash {
-        unsafe { (*self.contract).hash }
+    pub fn as_hash(&self) -> &SHA256Hash {
+        unsafe { &(*self.contract).hash }
     }
 
     pub fn register_method(self: &mut Self, id: u32, func: fn() -> i32) {
@@ -73,15 +74,20 @@ impl MockContractInner {
         let mut hasher = Sha256::new();
         let contract = u32_to_contract(n);
         hasher.update(contract.to_xdr(Limits::none()).unwrap());
-        let result = hasher.finalize();
+        let result : [u8; 32] = hasher.finalize().into();
+        let bytearray: ByteArray<32> = result.into();
         Self {
             index: n,
-            hash: result.into(),
+            hash: bytearray.into(),
             funcs: HashMap::new(),
         }
     }
 
-    pub fn as_hash(&self) -> SHA256Hash {
-        self.hash
+    pub fn as_hash(&self) -> &SHA256Hash {
+        &self.hash
+    }
+
+    pub fn get_func(&self, method : u32) -> Option<&Box<dyn Fn() -> ForeignInvokeResult>> {
+        self.funcs.get(&method)
     }
 }

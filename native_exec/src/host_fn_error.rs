@@ -6,22 +6,22 @@ use std::panic::panic_any;
 impl ForeignHostFnResult {
     pub fn unwrap(&self) -> i32 {
         match self.panic {
-            x if x == HostFnErrorCode::kNoneOrRecoverable as i32 => {
+            x if x == HostFnErrorCode::kHostNoneOrRecoverable as i32 => {
                 return self.result_code;
             }
-            x if x == HostFnErrorCode::kOutOfGas as i32 => {
+            x if x == HostFnErrorCode::kHostOutOfGas as i32 => {
                 panic_any(crate::invoke_error::out_of_gas_error());
             }
-            x if x == HostFnErrorCode::kUnrecoverable as i32 => {
+            x if x == HostFnErrorCode::kHostUnrecoverable as i32 => {
                 panic_any(crate::invoke_error::unrecoverable_error());
             }
-            x if x == HostFnErrorCode::kReturn as i32 => {
+            x if x == HostFnErrorCode::kHostReturn as i32 => {
                 panic_any(crate::invoke_error::return_error());
             }
-            x if x == HostFnErrorCode::kExit as i32 => {
+            x if x == HostFnErrorCode::kHostExit as i32 => {
                 panic_any(crate::invoke_error::exit_error(self.result_code));
             }
-            x if x == HostFnErrorCode::kValidationFailure as i32 => {
+            x if x == HostFnErrorCode::kHostValidationFailure as i32 => {
                 panic_any(crate::invoke_error::validation_error());
             }
             _ => {
