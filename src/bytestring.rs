@@ -105,9 +105,9 @@ pub fn bytestring_get_sized<const N: usize>(
 mod bytestring_get_alloc {
     use crate::result::SysResult as Result;
     use crate::sys;
-    use crate::types::StorageKey;
     #[allow(unused_imports)] // import is for docs
     use crate::sys::SyscallErrorCode;
+    use crate::types::StorageKey;
     use ::alloc::boxed::Box;
     use core::mem::MaybeUninit;
 

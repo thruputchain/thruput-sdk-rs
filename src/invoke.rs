@@ -19,7 +19,6 @@ pub fn get_current_address() -> Result<ContractAddress> {
     Ok(unsafe { out_addr.assume_init() })
 }
 
-
 pub fn get_calldata_len() -> Result<RuntimeMemoryLength> {
     let mut out: RuntimeMemoryLength = 0;
     sys::raw_GetCalldataLen(&mut out)?;
