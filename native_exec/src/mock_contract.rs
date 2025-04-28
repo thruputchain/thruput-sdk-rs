@@ -2,10 +2,10 @@ use crate::test_environment::TestEnvironment;
 
 use crate::bindings::ForeignInvokeResult;
 use crate::invoke_error::invoke_wrapper;
+use groundhog_xdr::byte_array::ByteArray;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
 use groundhog_xdr::types::SHA256Hash;
-use groundhog_xdr::byte_array::ByteArray;
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ use std::panic::UnwindSafe;
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: u32,
-    hash: SHA256Hash,
+    hash: SHA256Hash, // sha256(Contract::kMocktest(index))
     funcs: HashMap<u32, Box<dyn Fn() -> ForeignInvokeResult>>,
 }
 
@@ -31,12 +31,11 @@ fn u32_to_contract(index: u32) -> Contract {
 }
 
 impl<'a> MockContract<'a> {
-
     pub fn new(inner: *mut MockContractInner) -> Self {
-       MockContract {
-         contract: inner,
-         _marker: PhantomData
-       }
+        MockContract {
+            contract: inner,
+            _marker: PhantomData,
+        }
     }
 
     pub fn method_name_from_int(method_id: u32) -> String {
@@ -82,7 +81,7 @@ impl MockContractInner {
         let mut hasher = Sha256::new();
         let contract = u32_to_contract(n);
         hasher.update(contract.to_xdr(Limits::none()).unwrap());
-        let result : [u8; 32] = hasher.finalize().into();
+        let result: [u8; 32] = hasher.finalize().into();
         let bytearray: ByteArray<32> = result.into();
         Self {
             index: n,
@@ -95,7 +94,10 @@ impl MockContractInner {
         &self.hash
     }
 
-    pub fn get_func(&self, method : u32) -> Option<&Box<dyn Fn() -> ForeignInvokeResult>> {
+    pub fn get_func(
+        &self,
+        method: u32,
+    ) -> Option<&Box<dyn Fn() -> ForeignInvokeResult>> {
         self.funcs.get(&method)
     }
 }

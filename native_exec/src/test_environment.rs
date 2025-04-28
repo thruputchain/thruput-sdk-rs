@@ -1,14 +1,15 @@
 use crate::bindings::*;
-use crate::mock_contract::{MockContract, MockContractInner};
-use groundhog_xdr::types::*;
-use groundhog_xdr::contract::*;
-use groundhog_xdr::serialize::{Limits, WriteXdr};
-use sha2::{Sha256, Digest};
-use groundhog_xdr::ffi_enums::InvokeErrorCode;
-
-use core::ffi::c_void;
-
 use crate::invoke_error::set_override_panic_hook;
+use crate::mock_contract::{MockContract, MockContractInner};
+use crate::transaction_handler::TransactionHandler;
+use core::ffi::c_void;
+use groundhog_xdr::contract::*;
+use groundhog_xdr::ffi_enums::InvokeErrorCode;
+use groundhog_xdr::serialize::{Limits, WriteXdr};
+use groundhog_xdr::transaction::*;
+use groundhog_xdr::types::*;
+use sha2::{Digest, Sha256};
+use std::panic::UnwindSafe;
 
 // TODO(geoff): I cannot figure out how to prevent rust from moving objects
 // without just converting back to raw pointers.
@@ -17,8 +18,8 @@ use crate::invoke_error::set_override_panic_hook;
 // (or at least seem to make) passing closures in as parameters to test functions
 // much easier.
 pub struct TestEnvironment {
-    db: *mut c_void,
-    contract_context: *mut c_void,
+    pub(crate) db: *mut c_void,
+    pub(crate) contract_context: *mut c_void,
     mock_contract_index: u32,
     contracts: Vec<*mut MockContractInner>, // owns these contracts
 }
@@ -65,7 +66,10 @@ impl<'a> TestEnvironment {
         out
     }
 
-    pub fn setup_create_contract(&mut self, contract: &Contract) -> SHA256Hash {
+    pub fn setup_create_contract(
+        &mut self,
+        contract: &Contract,
+    ) -> SHA256Hash {
         let contract_bytes = contract.to_xdr(Limits::none()).unwrap();
         let res = unsafe {
             setup_create_contract(
@@ -78,8 +82,8 @@ impl<'a> TestEnvironment {
         assert_eq!(res, 0);
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
-        let res : [u8; 32] = hasher.finalize().into();
-        let bytearray : ByteArray<32> = res.into();
+        let res: [u8; 32] = hasher.finalize().into();
+        let bytearray: ByteArray<32> = res.into();
         bytearray.into()
     }
 
@@ -92,16 +96,15 @@ impl<'a> TestEnvironment {
 
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
-        let res : [u8; 32] = hasher.finalize().into();
-        let bytearray : ByteArray<32> = res.into();
-        let contract_hash: SHA256Hash =
-            bytearray.into();
+        let res: [u8; 32] = hasher.finalize().into();
+        let bytearray: ByteArray<32> = res.into();
+        let contract_hash: SHA256Hash = bytearray.into();
 
         let res = unsafe {
             setup_deploy_contract(
                 self.db,
                 addr.as_ptr(),
-                contract_hash.as_ptr()
+                contract_hash.as_ptr(),
             )
         };
         assert_eq!(res, 0);
@@ -135,7 +138,7 @@ impl<'a> TestEnvironment {
         MockContract::new(out)
     }
 
-   /* pub fn prepare_test<F>(
+    pub fn prepare_test<F>(
         self: &'a mut TestEnvironment,
         test: F,
     ) -> TransactionHandler<'a>
@@ -146,9 +149,7 @@ impl<'a> TestEnvironment {
         test_contract.register_func(0, test);
         self.setup_create_contract(&test_contract.as_contract());
 
-        use groundhog_xdr::transaction::*;
-
-        let invoke_addr = ByteArray::new([0xFF; 32]);
+        let invoke_addr: ContractAddress = [0xFF; 32].into();
 
         self.setup_create_deployment(
             &invoke_addr,
@@ -158,7 +159,7 @@ impl<'a> TestEnvironment {
         let stx = SignedTransaction {
             tx: Transaction {
                 invocation: Invocation {
-                    invoked_address: ByteArray::new([0xFF; 32]),
+                    invoked_address: invoke_addr,
                     method: 0,
                     gas_limit: u64::MAX,
                     calldata: [].try_into().unwrap(),
@@ -168,7 +169,7 @@ impl<'a> TestEnvironment {
         };
 
         TransactionHandler::new(self, &stx)
-    } */
+    }
 }
 
 impl Drop for TestEnvironment {
@@ -180,4 +181,3 @@ impl Drop for TestEnvironment {
         }
     }
 }
-
