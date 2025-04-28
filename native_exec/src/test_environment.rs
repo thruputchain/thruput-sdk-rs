@@ -6,8 +6,6 @@ use groundhog_xdr::serialize::{Limits, WriteXdr};
 use sha2::{Sha256, Digest};
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
 
-use std::marker::PhantomData;
-
 use core::ffi::c_void;
 
 use crate::invoke_error::set_override_panic_hook;
@@ -69,16 +67,20 @@ impl<'a> TestEnvironment {
 
     pub fn setup_create_contract(&mut self, contract: &Contract) -> SHA256Hash {
         let contract_bytes = contract.to_xdr(Limits::none()).unwrap();
-        unsafe {
+        let res = unsafe {
             setup_create_contract(
+                self.contract_context,
                 self.db,
                 contract_bytes.as_ptr(),
                 contract_bytes.len().try_into().unwrap(),
             )
         };
+        assert_eq!(res, 0);
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
-        hasher.finalize().into().into().into()
+        let res : [u8; 32] = hasher.finalize().into();
+        let bytearray : ByteArray<32> = res.into();
+        bytearray.into()
     }
 
     pub fn setup_create_deployment(
@@ -95,13 +97,14 @@ impl<'a> TestEnvironment {
         let contract_hash: SHA256Hash =
             bytearray.into();
 
-        unsafe {
-            setup_create_deployment(
+        let res = unsafe {
+            setup_deploy_contract(
                 self.db,
                 addr.as_ptr(),
-                contract_hash.as_ptr(),
+                contract_hash.as_ptr()
             )
         };
+        assert_eq!(res, 0);
     }
 
     pub fn advance_block(&mut self) {
@@ -113,13 +116,15 @@ impl<'a> TestEnvironment {
             MockContractInner::new(self.mock_contract_index),
         ));
 
+        let new_id = self.mock_contract_index;
+
         self.contracts.push(out);
         self.mock_contract_index += 1;
 
         let res = unsafe {
-            add_contract_and_method(
+            register_new_contract(
                 self.contract_context,
-                (*out).as_hash().as_ptr(),
+                new_id,
                 Some(trampoline),
                 out as *mut c_void,
             )
@@ -127,10 +132,7 @@ impl<'a> TestEnvironment {
         if res != 0 {
             panic!("failed to link fn");
         }
-        MockContract {
-            contract: out,
-            _marker: PhantomData,
-        }
+        MockContract::new(out)
     }
 
    /* pub fn prepare_test<F>(

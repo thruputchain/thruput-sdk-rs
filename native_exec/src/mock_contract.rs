@@ -31,6 +31,14 @@ fn u32_to_contract(index: u32) -> Contract {
 }
 
 impl<'a> MockContract<'a> {
+
+    pub fn new(inner: *mut MockContractInner) -> Self {
+       MockContract {
+         contract: inner,
+         _marker: PhantomData
+       }
+    }
+
     pub fn method_name_from_int(method_id: u32) -> String {
         format!("{:X}", method_id)
     }

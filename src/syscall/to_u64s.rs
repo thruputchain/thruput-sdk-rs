@@ -51,7 +51,7 @@ macro_rules! fixed_size_inputs {
     };
 }
 
-fixed_size_inputs!(SHA256Hash, AddressAndKey, i128, u128);
+fixed_size_inputs!(SHA256Hash, AddressAndKey, ContractAddress, i128, u128);
 
 macro_rules! fixed_size_outputs {
     ($($type:ty),*) => {
@@ -65,7 +65,7 @@ macro_rules! fixed_size_outputs {
     };
 }
 
-fixed_size_outputs!(SHA256Hash, u32, u64, u128, i32, i64, i128);
+fixed_size_outputs!(SHA256Hash, ContractAddress, u32, u64, u128, i32, i64, i128);
 
 macro_rules! primitive_type_inputs {
     ($($type:ty),*) => {
