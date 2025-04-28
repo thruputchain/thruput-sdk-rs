@@ -26,6 +26,11 @@ impl CoinContract {
     // and allowances are non-negative.  They do _not_ check
     // authorization.
 
+    // (pub so we can embed this implementation in another contract)
+    pub fn _init(&mut self, contract_owner: &ContractAddress) {
+        self.contract_owner = contract_owner.clone();
+    }
+
     fn _contract_owner(&self) -> &ContractAddress {
         &self.contract_owner
     }
@@ -41,7 +46,7 @@ impl CoinContract {
     fn _adjust_balance(
         &mut self,
         owner: &ContractAddress,
-        amount: Amount,
+        amount: i128,
     ) -> Result<()> {
         let mut balance = self.balances.get(owner)?;
 
@@ -49,7 +54,7 @@ impl CoinContract {
         // number results in a non-negative value.
         // For never-stored-to addresses, it acts as
         // if the address had contained (0, 0).
-        balance.add_default_zero(amount as i128)?;
+        balance.add_default_zero(amount)?;
         Ok(())
     }
 
@@ -58,16 +63,16 @@ impl CoinContract {
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
-        amount: Amount,
+        amount: i128,
     ) -> Result<()> {
         let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
-        spender_allowance.add_default_zero(amount as i128)?;
+        spender_allowance.add_default_zero(amount)?;
         Ok(())
     }
 
-    fn _adjust_total_supply(&mut self, amount: Amount) -> Result<()> {
-        self.total_supply.add_default_zero(amount as i128)?;
+    fn _adjust_total_supply(&mut self, amount: i128) -> Result<()> {
+        self.total_supply.add_default_zero(amount)?;
         Ok(())
     }
 
@@ -95,7 +100,7 @@ impl ERC20 for CoinContract {
         // the given closure for initialization, and
         // store it at the root key.
         initialize_root(|storage: &mut Self| {
-            storage.contract_owner = contract_owner.clone()
+            storage._init(contract_owner)
         })?;
 
         Ok(())
@@ -108,8 +113,8 @@ impl ERC20 for CoinContract {
     ) -> Result<()> {
         let owner = get_caller()?;
 
-        self._adjust_balance(&owner, -amount)?;
-        self._adjust_balance(receiver, amount)
+        self._adjust_balance(&owner, -(amount as i128))?;
+        self._adjust_balance(receiver, amount as i128)
     }
 
     fn transfer_from(
@@ -118,13 +123,11 @@ impl ERC20 for CoinContract {
         receiver: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        caller_ensure(amount >= 0, "Transfer amount must non-negative")?;
-
         let spender = get_caller()?;
-        self._adjust_allowance(owner, &spender, -amount)?;
+        self._adjust_allowance(owner, &spender, -(amount as i128))?;
 
-        self._adjust_balance(owner, -amount)?;
-        self._adjust_balance(receiver, amount)
+        self._adjust_balance(owner, -(amount as i128))?;
+        self._adjust_balance(receiver, amount as i128)
     }
 
     fn adjust_allowance(
@@ -133,7 +136,7 @@ impl ERC20 for CoinContract {
         amount: Amount,
     ) -> Result<()> {
         let owner = get_caller()?;
-        self._adjust_allowance(&owner, spender, amount)
+        self._adjust_allowance(&owner, spender, amount as i128)
     }
 
     fn get_balance_of(&self, owner: &ContractAddress) -> Result<Amount> {
@@ -155,10 +158,9 @@ impl ERC20 for CoinContract {
             &caller == self._contract_owner(),
             "Minter must be contract owner",
         )?;
-        caller_ensure(amount >= 0, "Mint amount must be non-negative")?;
 
-        self._adjust_balance(receiver, amount)?;
-        self._adjust_total_supply(amount)
+        self._adjust_balance(receiver, amount as i128)?;
+        self._adjust_total_supply(amount as i128)
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
@@ -167,10 +169,9 @@ impl ERC20 for CoinContract {
             &caller == self._contract_owner(),
             "Burner must be contract owner",
         )?;
-        caller_ensure(amount >= 0, "Burn amount must be non-negative")?;
 
-        self._adjust_balance(owner, -amount)?;
-        self._adjust_total_supply(-amount)
+        self._adjust_balance(owner, -(amount as i128))?;
+        self._adjust_total_supply(-(amount as i128))
     }
 
     fn total_supply(&self) -> Result<Amount> {

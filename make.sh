@@ -1,37 +1,38 @@
 #!/bin/bash
 
+source examples/cargo.sh
+
 verb=${1:?}
 shift
-
-cargo="cargo +nightly"
 
 case "$verb" in
     doc)
         $cargo doc --features=std "$@"
         ;;
     examples)
-        (cd examples && bash make.sh all)
-        ;;
-    test_examples)
-        (cd examples && bash make.sh test)
+        # e.g. "examples build erc20"
+        (cd examples && bash make.sh "$@")
         ;;
     test)
-        $cargo test --jobs=1 --features=mock
+        cargo_native test --features=mock "$@"
+        ;;
+    expand)
+        cargo_native expand --features=mock "$@"
         ;;
     check)
-        $cargo check --features=std
+        $cargo check --features=std "$@"
         ;;
     check_guest)
-        $cargo check --features=std,guest
+        $cargo check --features=std,guest "$@"
         ;;
     lint)
-        $cargo clippy --no-deps --features=std
+        $cargo clippy --no-deps --features=std "$@"
         ;;
     lint_mock)
-        $cargo clippy --no-deps --features=mock
+        cargo_native clippy --no-deps --features=mock "$@"
         ;;
     lint_macros)
-        $cargo clippy --no-deps -p macros
+        $cargo clippy --no-deps -p macros "$@"
         ;;
     fmt)
         $cargo fmt --package \
@@ -39,13 +40,15 @@ case "$verb" in
             groundhog_xdr \
             protocol_macros \
             native_exec \
-            "$(ls examples | grep -v Makefile)"
+            "$(cd examples && bash make.sh ls)" \
+            "$@"
         ;;
     tree)
         # Show the dependency graph
         cargo +nightly tree \
+            --target wasm32-unknown-unknown \
             --edges normal,build \
-            --target wasm32-unknown-unknown
+            "$@"
         ;;
     *)
         printf "Sorry, didn't understand what to do.\n"

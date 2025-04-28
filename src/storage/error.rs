@@ -5,7 +5,7 @@ use thiserror::Error;
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
-#[derive(Error, Debug, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Error {
     #[error("Storage error due to {0}")]
     Syscall(#[from] SysErr),

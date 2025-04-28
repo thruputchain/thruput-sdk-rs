@@ -56,7 +56,10 @@ pub mod storage;
 pub use ::groundhog_xdr::ffi_enums::*;
 
 #[cfg(feature = "mock")]
-pub use ::native_exec::test_environment::TestEnvironment;
+pub use ::native_exec::{
+    mock_contract::MockContract,
+    test_environment::TestEnvironment,
+};
 
 // Available from any prelude
 mod prelude_base {

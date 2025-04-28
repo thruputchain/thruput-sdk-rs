@@ -22,6 +22,7 @@ impl GenesisDeployer {
         calldata: Vec<u8>,
     ) {
         let deployed_addr = deploy_contract(nonce, contract_hash).unwrap();
+        let flags = 0;
 
         let mut return_len = 0;
         sys::raw_Invoke(
@@ -29,7 +30,7 @@ impl GenesisDeployer {
             method,
             u64::MAX,
             calldata.as_slice(),
-            0,
+            flags,
             &mut return_len,
         )
         .unwrap();

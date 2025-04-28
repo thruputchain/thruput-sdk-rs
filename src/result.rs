@@ -11,7 +11,7 @@ pub type SysResult<T> = core::result::Result<T, SysErr>;
 pub type Result<T> = core::result::Result<T, Error>;
 
 // Error type for general SDK functions
-#[derive(Error, Debug, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum Error {
     #[error("System call error: {0}")]
     SystemErr(#[from] SysErr),
@@ -63,11 +63,11 @@ impl From<SerializationError> for Error {
 // dropped when compiled for contract deployment
 
 #[cfg(not(feature = "mock"))]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorMsg;
 
 #[cfg(feature = "mock")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorMsg(String);
 
 impl ErrorMsg {

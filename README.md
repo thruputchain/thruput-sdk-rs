@@ -48,6 +48,12 @@ To generate and open the SDK documentation:
 ./make.sh test_examples
 ```
 
+## Testing
+
+```shell
+make test_contracts
+```
+
 ## Development
 
 See `make.sh` for these useful targets:
@@ -56,3 +62,10 @@ See `make.sh` for these useful targets:
 - `lint`
 - `doc`
 - `fmt`
+
+### Expand macros to view exports
+
+```shell
+./make.sh expand -p swap swapv2_pair::swap_exports
+./make.sh expand -p swap swapv2_pair::erc20_exports
+```

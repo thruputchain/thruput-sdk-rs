@@ -1,6 +1,7 @@
 use sdk::prelude::*;
 
-pub type Amount = i128;
+pub use sdk::prelude::{Error, Result};
+pub type Amount = u128;
 
 #[contract(client = "client")]
 pub trait ERC20 {

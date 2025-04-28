@@ -64,6 +64,10 @@ panic = "abort"
 
 [profile.test]
 # settings inherited from profile.dev
+# opt-level = 0
+# overflow-checks = true
+# debug = true
+# strip = false
 
 [profile.release]
 opt-level = 3

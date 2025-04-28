@@ -7,7 +7,6 @@ edition = "2021"
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
