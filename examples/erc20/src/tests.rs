@@ -3,8 +3,6 @@ use crate::interface::client::ERC20Client;
 use crate::interface::ERC20;
 use sdk::prelude::*;
 
-use std::println;
-
 #[test]
 fn check_mint() {
     let mut env = sdk::TestEnvironment::new();
