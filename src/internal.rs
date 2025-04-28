@@ -78,22 +78,15 @@ mod cross_call {
     ) -> Vec<u8> {
         // Perform the cross-contract call
 
-        /*
-        let flags: InvocationFlagSet =
-            InvocationFlags::kNone as InvocationFlagSet;
-        */
-        let mut flags = 0; // XXX
-        sys::raw_Invoke(address, method, gas_limit, call_data, &mut flags)
-            .expect("Contract invocation failed");
-
-        // Retrieve the return-value buffer
-
-        let return_len = 0; // XXX
-                            /*
-                            let mut return_len = 0;
-                            sys::raw_GetReturnedBufferLen(&mut return_len)
-                                .expect("Couldn't get returned buffer len");
-                            */
+        let mut return_len = 0;
+        sys::raw_Invoke(
+            address,
+            method,
+            gas_limit,
+            call_data,
+            &mut return_len,
+        )
+        .expect("Contract invocation failed");
 
         let mut return_buf = vec![0; return_len as usize];
         let mut written: RuntimeMemoryLength = 0;

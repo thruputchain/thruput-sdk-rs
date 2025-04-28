@@ -73,22 +73,6 @@ impl<T> ToU64_0Mut for MaybeUninit<T> {
     }
 }
 
-/*
-macro_rules! fixed_size_outputs {
-    ($($type:ty),*) => {
-        $(
-            impl ToU64_0Mut for MaybeUninit<$type> {
-                fn to_u64_0(&mut self) -> u64 {
-                    self.as_mut_ptr() as u64
-                }
-            }
-        )*
-    };
-}
-
-fixed_size_outputs!(SHA256Hash, u32, u64, u128, i32, i64, i128);
-*/
-
 macro_rules! primitive_type_inputs {
     ($($type:ty),*) => {
         $(

@@ -2,11 +2,12 @@ cargo-features = ["trim-paths", "profile-rustflags"] #unstable
 
 [workspace]
 members = [
-    "macros",
-    "protocol-rs/groundhog_xdr",
-    "protocol-rs/protocol_macros",
+    "macros", 
+    "protocol-rs/groundhog_xdr", 
+    "protocol-rs/protocol_macros", 
+    "native_exec",
     "examples/*",
-    ]
+]
 
 [package]
 name = "sdk_rs"
@@ -21,16 +22,17 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-groundhog_xdr = { workspace = true }
-macros = { path = "macros" }
-#native_exec = { path = "../hogd/rust_contracts/native_exec", optional = true}
 bcs = { path = "external/bcs", default-features = false }
+macros = { workspace = true }
+native_exec = { path = "native_exec", optional = true}
+groundhog_xdr = { workspace = true }
 serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
 
 [workspace.dependencies]
+macros = { path = "macros" }
 groundhog_xdr = { path = "protocol-rs/groundhog_xdr" }
 sha2 = { version = "0.10.8", default-features = false }
 sdk = { package = "sdk_rs", path = "." }
@@ -41,7 +43,7 @@ thiserror = { version = "2.0.12", default-features = false }
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
 default = ["alloc"]
-mock = ["std"]  #mock = ["std", "dep:native_exec"]
+mock = ["std", "dep:native_exec"]
 storage = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]

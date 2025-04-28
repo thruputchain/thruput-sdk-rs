@@ -1,6 +1,4 @@
 #![no_std]
-#![feature(maybe_uninit_slice)]
-#![feature(maybe_uninit_array_assume_init)]
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
 
@@ -17,9 +15,6 @@ pub mod allocator;
 
 #[doc(inline)]
 pub use ::macros;
-
-#[cfg(not(feature = "mock"))]
-mod custom_arg;
 
 // Base
 pub mod syscall;
@@ -64,8 +59,8 @@ pub use ::groundhog_xdr::ffi_enums::*;
 mod prelude_base {
     #[doc(inline)]
     pub use super::types::{
-        ByteArray, ContractAddress, Ed25519PublicKey, Ed25519Signature,
-        PublicKey, SHA256Hash, Signature, StorageKey,
+        ContractAddress, Ed25519PublicKey, Ed25519Signature, PublicKey,
+        SHA256Hash, Signature, StorageKey,
     };
 
     #[doc(inline)]

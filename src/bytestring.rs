@@ -94,8 +94,10 @@ pub fn bytestring_get_sized<const N: usize>(
     if len != N as u32 {
         return Ok(None);
     }
-
-    let bytes: [u8; N] = unsafe { MaybeUninit::array_assume_init(bytes_mu) };
+    // Apparently rustc optimizes this well enough:
+    // https://github.com/rust-lang/rust/issues/96097#issuecomment-1823511470
+    let bytes: [u8; N] =
+        unsafe { bytes_mu.map(|elt| MaybeUninit::assume_init(elt)) };
     Ok(Some(bytes))
 }
 
