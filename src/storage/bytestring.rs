@@ -1,7 +1,7 @@
+use super::error::Result;
 use super::keypath::DefaultFromKeypath;
 use super::keypath::{KeyCache, Keypath};
 use super::load::LoadKeypath;
-use super::Result;
 use crate::bytestring::*;
 use alloc::boxed::Box;
 use alloc::vec;
@@ -31,9 +31,11 @@ impl Bytestring {
         bytestring_set(&self.key, buf).unwrap();
     }
 
-    // pub fn set_exclusive(&mut self, buf: &[u8]) {
-    //     bytestring_set_exclusive(&self.key, buf).unwrap()
-    // }
+    /*
+    pub fn set_exclusive(&mut self, buf: &[u8]) {
+        bytestring_set_exclusive(&self.key, buf).unwrap()
+    }
+    */
 
     pub fn get_sized<const N: usize>(&self) -> Option<[u8; N]> {
         bytestring_get_sized(&self.key).unwrap()

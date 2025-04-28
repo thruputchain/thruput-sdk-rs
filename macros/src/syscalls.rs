@@ -1,3 +1,4 @@
+use ::serde;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -34,12 +35,10 @@ struct Syscall {
 struct TypeMapping {
     base_name: String,
     rust_name: String,
-    xdr_name: String,
 }
 
 struct TypeInfo {
     rust_name: String,
-    xdr_name: String,
 }
 
 type TypeMap = HashMap<String, TypeInfo>;
@@ -52,7 +51,6 @@ impl SyscallSpec {
                 elt.base_name.clone(),
                 TypeInfo {
                     rust_name: elt.rust_name.clone(),
-                    xdr_name: elt.xdr_name.clone(),
                 },
             );
         }

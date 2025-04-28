@@ -37,7 +37,10 @@ mod handle {
 mod cross_call {
     use crate::serialize::{self, DeserializeOwned, Serialize};
     use crate::sys;
-    use crate::types::{ContractAddress, RuntimeMemoryLength};
+    use crate::types::{
+        ContractAddress, /* InvocationFlagSet, InvocationFlags, */
+        RuntimeMemoryLength,
+    };
     use alloc::{vec, vec::Vec};
 
     pub fn invoke<ARGS, RET>(

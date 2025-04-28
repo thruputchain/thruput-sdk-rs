@@ -8,6 +8,8 @@
 
 use crate::result::SysResult as Result;
 use crate::sys;
+#[allow(unused_imports)] // import is for docs
+use crate::sys::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
 
@@ -53,10 +55,11 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// to the same value, both writes will be allowed.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice)?;
+    sys::raw_BytestringSet(key, slice /*, 0 */)?;
     Ok(())
 }
 
+/*
 /// Sets the contents of the bytestring at the given key.
 /// (**TODO**: Check semantics)
 ///
@@ -65,9 +68,14 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, the contract instance that writes last will be aborted.
 ///
-//pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
-//    sys::raw_BytestringSet(key, slice)
-//}
+pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
+    sys::raw_BytestringSet(
+        key,
+        slice,
+        crate::types::StorageDeltaModifier::kLockExclusive as i32,
+    )
+}
+*/
 
 /// Returns the bytestring contents in a statically-sized array.
 ///
@@ -79,10 +87,11 @@ pub fn bytestring_get_sized<const N: usize>(
     key: &StorageKey,
 ) -> Result<Option<[u8; N]>> {
     let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
-    let mut written_len: MaybeUninit<RuntimeMemoryLength> =
-        MaybeUninit::uninit();
-    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut written_len)?;
-    if unsafe { written_len.assume_init() } != N as u32 {
+    let mut len = MaybeUninit::uninit();
+    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len)?;
+
+    let len = unsafe { len.assume_init() };
+    if len != N as u32 {
         return Ok(None);
     }
     // Apparently rustc optimizes this well enough:
@@ -96,7 +105,9 @@ pub fn bytestring_get_sized<const N: usize>(
 mod bytestring_get_alloc {
     use crate::result::SysResult as Result;
     use crate::sys;
-    use crate::types::{RuntimeMemoryLength, StorageKey};
+    use crate::types::StorageKey;
+    #[allow(unused_imports)] // import is for docs
+    use crate::sys::SyscallErrorCode;
     use ::alloc::boxed::Box;
     use core::mem::MaybeUninit;
 
@@ -109,10 +120,11 @@ mod bytestring_get_alloc {
     pub fn bytestring_get(key: &StorageKey) -> Result<Box<[u8]>> {
         let len = super::bytestring_get_len(key)?;
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
-        let mut written_len: MaybeUninit<RuntimeMemoryLength> =
-            MaybeUninit::uninit();
+        let mut written_len = MaybeUninit::uninit();
         sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
-        if unsafe { written_len.assume_init() } != len {
+
+        let written_len = unsafe { written_len.assume_init() };
+        if written_len != len {
             panic!("Inconsistent bytestring size");
         }
 
@@ -131,10 +143,11 @@ mod bytestring_get_alloc {
             }
         };
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
-        let mut written_len: MaybeUninit<RuntimeMemoryLength> =
-            MaybeUninit::uninit();
+        let mut written_len = MaybeUninit::uninit();
         sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
-        if unsafe { written_len.assume_init() } != len {
+
+        let written_len = unsafe { written_len.assume_init() };
+        if written_len != len {
             panic!("Inconsistent bytestring size");
         }
 

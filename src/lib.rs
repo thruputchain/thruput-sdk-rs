@@ -30,15 +30,16 @@ pub mod serialize {
     pub use ::bcs::{from_bytes, from_bytes_seed, to_bytes};
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
 }
+pub mod contract_result;
 pub mod contract_test;
 
 // Lower-level
 pub mod bytestring;
 pub mod delete;
 pub mod nonnegative_int;
-//pub mod retrocausal_queue;
+// pub mod retrocausal_queue;
 
-#[cfg(feature = "alloc")]
+// #[cfg(feature = "alloc")]
 pub mod result;
 
 #[cfg(feature = "alloc")]
@@ -48,14 +49,11 @@ pub mod internal;
 #[cfg(feature = "alloc")]
 pub mod storage;
 
-// Deprecated
-//pub mod initialize;
-
 #[cfg(feature = "mock")]
 pub use ::groundhog_xdr::ffi_enums::*;
 
-#[cfg(feature = "mock")]
-pub use ::native_exec::*;
+// #[cfg(feature = "mock")]
+// pub use ::native_exec::*;
 
 // Available from any prelude
 mod prelude_base {
@@ -66,7 +64,12 @@ mod prelude_base {
     };
 
     #[doc(inline)]
-    pub use super::syscall::SyscallErrorCode;
+    pub use super::syscall::SysErr;
+
+    #[doc(inline)]
+    pub use super::sys::SyscallErrorCode;
+
+    pub use thiserror::Error;
 
     #[doc(inline)]
     pub use super::log::*;
@@ -82,6 +85,9 @@ mod prelude_base {
 
     #[doc(inline)]
     pub use super::macros::contract;
+
+    #[doc(inline)]
+    pub use super::contract_result::*;
 }
 
 /// Lower-level contract facilities
@@ -97,6 +103,9 @@ pub mod prelude {
 
     #[doc(inline)]
     pub use super::bytestring::*;
+
+    // #[doc(inline)]
+    // pub use super::retrocausal_queue::*;
 }
 
 /// Storage-layer facilities

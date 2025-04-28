@@ -316,7 +316,7 @@ mod gen {
 
                 impl #client_ident {
                     pub fn new(address: &ContractAddress) -> Self {
-                        Self { address: *address }
+                        Self { address: address.clone() }
                     }
                 }
 

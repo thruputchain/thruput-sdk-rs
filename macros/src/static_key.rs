@@ -6,11 +6,11 @@ pub fn static_key_output(input: syn::LitStr, internal: bool) -> TokenStream {
 
     if internal {
         TokenStream::from(quote::quote! {
-            ::groundhog_xdr::ByteArray::new([#(#res),*])
+            ::groundhog_xdr::byte_array::ByteArray::from([#(#res),*]).into()
         })
     } else {
         TokenStream::from(quote::quote! {
-            sdk::types::ByteArray::new([#(#res),*])
+            ::sdk::types::ByteArray::from([#(#res),*]).into()
         })
     }
 }

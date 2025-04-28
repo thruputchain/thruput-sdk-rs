@@ -1,0 +1,18 @@
+[package]
+name = "genesis_deployer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdk = { workspace = true }
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+genesis_deployer = { path = ".", features = ["mock", "client"] }

@@ -221,7 +221,7 @@ fn generate_load_keypath_impl(
     Ok(quote! {
 
         impl #generic_params LoadKeypath for #ty {
-            fn load_keypath(keypath: &Keypath) -> sdk::result::Result<Self> {
+            fn load_keypath(keypath: &Keypath) -> sdk::storage::error::Result<Self> {
                 let key = keypath.generate_key();
                 let buf = bytestring_get(&key)?;
 

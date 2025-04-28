@@ -1,5 +1,7 @@
+use crate::rt::trap;
 use crate::syscall::to_offset;
 use core::mem::MaybeUninit;
+use groundhog_xdr::byte_array::ByteArray;
 use groundhog_xdr::types::*;
 
 pub trait ToU64_0 {
@@ -22,6 +24,18 @@ impl ToU64_0 for [u8] {
 }
 
 impl ToU64_1 for [u8] {
+    fn to_u64_1(&self) -> u64 {
+        self.len() as u64
+    }
+}
+
+impl<const N: usize> ToU64_0 for ByteArray<N> {
+    fn to_u64_0(&self) -> u64 {
+        self.as_slice().as_ptr() as u64
+    }
+}
+
+impl<const N: usize> ToU64_1 for ByteArray<N> {
     fn to_u64_1(&self) -> u64 {
         self.len() as u64
     }
@@ -53,28 +67,11 @@ macro_rules! fixed_size_inputs {
 
 fixed_size_inputs!(SHA256Hash, AddressAndKey, ContractAddress, i128, u128);
 
-macro_rules! fixed_size_outputs {
-    ($($type:ty),*) => {
-        $(
-            impl ToU64_0Mut for MaybeUninit<$type> {
-                fn to_u64_0(&mut self) -> u64 {
-                    self.as_mut_ptr() as u64
-                }
-            }
-        )*
-    };
+impl<T> ToU64_0Mut for MaybeUninit<T> {
+    fn to_u64_0(&mut self) -> u64 {
+        self.as_mut_ptr() as u64
+    }
 }
-
-fixed_size_outputs!(
-    SHA256Hash,
-    ContractAddress,
-    u32,
-    u64,
-    u128,
-    i32,
-    i64,
-    i128
-);
 
 macro_rules! primitive_type_inputs {
     ($($type:ty),*) => {
@@ -112,7 +109,9 @@ impl ToU64_1 for Signature {
         match self {
             Signature::Ed25519 { ed25519: sig } => to_offset(sig) as u64,
             #[allow(unreachable_patterns)]
-            _ => u64::MAX,
+            _ => {
+                trap();
+            }
         }
     }
 }
@@ -128,7 +127,9 @@ impl ToU64_1 for PublicKey {
         match self {
             PublicKey::Ed25519 { ed25519: pk } => to_offset(pk) as u64,
             #[allow(unreachable_patterns)]
-            _ => u64::MAX,
+            _ => {
+                trap();
+            }
         }
     }
 }

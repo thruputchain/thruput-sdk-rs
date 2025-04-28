@@ -1,5 +1,5 @@
+use super::error::Result;
 use super::keypath::*;
-use super::Result;
 use crate::bytestring::bytestring_get;
 use crate::serialize::{self, DeserializeOwned};
 use crate::types::StorageKey;
