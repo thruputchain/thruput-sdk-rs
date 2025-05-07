@@ -4,12 +4,11 @@
 ///
 /// [whitepaper](https://docs.uniswap.org/whitepaper.pdf)
 /// [v2-core](https://github.com/Uniswap/v2-core)
-
-#![allow(dead_code)]
-
-use sdk::prelude::*;
 use crate::erc20::ERC20;
+use crate::interfaces::ierc20::IERC20;
 use crate::util::*;
+use core::ops::Mul;
+use sdk::prelude::*;
 
 type Address = ContractAddress;
 
@@ -27,6 +26,7 @@ pub enum Error {
     InvalidDestination,
     InvalidSwapProduct,
     Overflow,
+    TransferFailed,
 }
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
@@ -39,6 +39,7 @@ pub struct SwapV2Pair {
     pub token0: Address,
     pub token1: Address,
 
+    // These private fields are available via `get_reserves()`
     reserve0: U112,
     reserve1: U112,
     block_timestamp_last: u32,
@@ -56,7 +57,6 @@ pub struct SwapV2Pair {
 //  crate::interfaces::ERC20
 
 impl SwapV2Pair {
-
     pub const MINIMUM_LIQUIDITY: u32 = 10u32.pow(3);
 
     pub fn new(factory: Address, token0: Address, token1: Address) -> Self {
@@ -65,13 +65,13 @@ impl SwapV2Pair {
             token0,
             token1,
 
-            reserve0: 0,
-            reserve1: 0,
+            reserve0: U112::new_strict(0),
+            reserve1: U112::new_strict(0),
             block_timestamp_last: 0,
 
-            price0_cumulative_last: 0,
-            price1_cumulative_last: 0,
-            k_last: 0,
+            price0_cumulative_last: 0.into(),
+            price1_cumulative_last: 0.into(),
+            k_last: 0.into(),
         }
     }
 
@@ -84,90 +84,119 @@ impl SwapV2Pair {
         &mut self,
         amount0_out: Amount,
         amount1_out: Amount,
-        to: Address)
-    -> Result<()> {
-        require(amount0_out > 0 || amount1_out > 0,
-            Error::InsufficientOutputAmount)?;
+        to: &Address,
+    ) -> Result<()> {
+        require(
+            amount0_out > 0 || amount1_out > 0,
+            Error::InsufficientOutputAmount,
+        )?;
 
-        require(amount0_out < self.reserve0 && amount1_out < self.reserve1,
-            Error::InsufficientLiquidity)?;
+        require(
+            amount0_out < self.reserve0.into()
+                && amount1_out < self.reserve1.into(),
+            Error::InsufficientLiquidity,
+        )?;
 
-        require(to != self.token0 && to != self.token1,
-            Error::InvalidDestination)?;
+        require(
+            to != &self.token0 && to != &self.token1,
+            Error::InvalidDestination,
+        )?;
 
         if amount0_out > 0 {
-            self._transfer(0, to, amount0_out);
+            self._transfer(0, to, amount0_out)?;
         }
         if amount1_out > 0 {
-            self._transfer(1, to, amount1_out);
+            self._transfer(1, to, amount1_out)?;
         }
 
         // Callback for flash-swap goes here
 
-        let this_contract = get_current_address();
-        let balance0: Amount = IERC20(&self.token0).balance_of(this_contract);
-        let balance1: Amount = IERC20(&self.token1).balance_of(this_contract);
+        let this_contract = get_current_address().unwrap();
+        let balance0: Amount =
+            ERC20(&mut self.token0).balance_of(&this_contract);
+        let balance1: Amount =
+            ERC20(&mut self.token1).balance_of(&this_contract);
 
-        let amount0_in = balance0.saturating_sub(self.reserve0 - amount0_out);
-        let amount1_in = balance1.saturating_sub(self.reserve1 - amount1_out);
+        // The unchecked subtractions here will not wrap, due to a `require` above
+        let amount0_in =
+            balance0.saturating_sub(Amount::from(self.reserve0) - amount0_out);
+        let amount1_in =
+            balance1.saturating_sub(Amount::from(self.reserve1) - amount1_out);
 
-        require(amount0_in > 0 || amount1_in > 0,
-            Error::InsufficientInputAmount)?;
+        require(
+            amount0_in > 0 || amount1_in > 0,
+            Error::InsufficientInputAmount,
+        )?;
 
-        let balance0_adj = balance0.strict_mul(1000).strict_sub(amount0_in * 3);
-        let balance1_adj = balance1.strict_mul(1000).strict_sub(amount1_in * 3);
-        let balance_prod: U256 = balance0_adj.into().mul(balance1_adj);
+        let balance0_adj = balance0
+            .checked_mul(1000)
+            .unwrap()
+            .checked_sub(amount0_in * 3)
+            .unwrap();
+        let balance1_adj = balance1
+            .checked_mul(1000)
+            .unwrap()
+            .checked_sub(amount1_in * 3)
+            .unwrap();
+        let balance_prod = U256::from(balance0_adj).mul(balance1_adj);
 
-        let reserve0_adj: u128 = self.reserve0.into() * 1000;
-        let reserve1_adj: u128 = self.reserve1.into() * 1000;
-        let reserve_prod: U256 = reserve0_adj.into().mul(reserve1_adj);
+        let reserve0_adj = u128::from(self.reserve0) * 1000;
+        let reserve1_adj = u128::from(self.reserve1) * 1000;
+        let reserve_prod = U256::from(reserve0_adj).mul(reserve1_adj);
 
         require(balance_prod >= reserve_prod, Error::InvalidSwapProduct)?;
 
-        self._update(balance0, balance1);
+        self._update(balance0, balance1)?;
 
         // emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
 
         Ok(())
     }
 
-    fn _transfer(&self, which: u8, to: Address, amount: Amount) {
-        let token = if (which == 0) { &self.token0 } else { &self.token1 };
+    fn _transfer(
+        &mut self,
+        which: u8,
+        to: &Address,
+        amount: Amount,
+    ) -> Result<()> {
+        let token = if which == 0 {
+            &mut self.token0
+        } else {
+            &mut self.token1
+        };
 
-        IERC20(token).transfer(to, amount);
+        let success = ERC20(token).transfer(to, amount);
+
+        require(success, Error::TransferFailed)
     }
 
-    fn _update(
-        &mut self,
-        balance0: Amount,
-        balance1: Amount,
-    ) {
+    fn _update(&mut self, balance0: Amount, balance1: Amount) -> Result<()> {
         // If this fails, `skim()` may be used to extract the overflow
-        require(balance0 <= U112_MAX && balance1 <= U112_MAX,
-            Error::Overflow);
+        require(
+            balance0 <= U112_MAX && balance1 <= U112_MAX,
+            Error::Overflow,
+        )?;
 
         // We intentionally truncate here, desiring the timestamp mod 2^32
         let block_timestamp = get_block_timestamp() as u32;
 
         // Wrapping yields the right elapsed time if this method is
         // run at least once every ~139 years.
-        let time_elapsed = block_timestamp.wrapping_sub(self.block_timestamp_last);
+        let time_elapsed =
+            block_timestamp.wrapping_sub(self.block_timestamp_last);
 
-        if (time_elapsed > 0 && self.reserve0 != 0 && self.reserve1 != 0) {
-
-            // Overflow is desired
-
-            self.price0_cumulative_last += uq112x112_div_mul(
+        if time_elapsed > 0 && self.reserve0 != 0 && self.reserve1 != 0 {
+            self.price0_cumulative_last.add_wrapping(&uq112x112_div_mul(
                 self.reserve1,
                 self.reserve0,
                 time_elapsed,
-            );
+            ));
 
-            self.price1_cumulative_last += uq112x112_div_mul(
+            self.price1_cumulative_last.add_wrapping(&uq112x112_div_mul(
                 self.reserve0,
                 self.reserve1,
                 time_elapsed,
-            );
+            ));
         }
 
         // These will not fail, due to the checks at the top
@@ -178,11 +207,13 @@ impl SwapV2Pair {
         self.block_timestamp_last = block_timestamp;
 
         // emit Sync(reserve0, reserve1);
+
+        Ok(())
     }
 }
 
 fn get_block_timestamp() -> u64 {
-    todo!()
+    unimplemented!()
 }
 
 fn require(cond: bool, err: Error) -> Result<()> {

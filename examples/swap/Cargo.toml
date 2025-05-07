@@ -10,7 +10,7 @@ doctest = false
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
-thiserror = { workspace = true }
+# thiserror = { workspace = true }
 
 [features]
 guest = []

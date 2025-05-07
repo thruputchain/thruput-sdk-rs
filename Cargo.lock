@@ -1010,7 +1010,6 @@ version = "0.1.0"
 dependencies = [
  "sdk_rs",
  "serde",
- "thiserror",
 ]
 
 [[package]]

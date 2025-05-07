@@ -16,7 +16,9 @@ pub trait IERC20 {
     function approve(address spender, uint value) external returns (bool);
     */
 
-    fn transfer(to: ContractAddress, amount: u128) -> bool;
+    fn transfer(&mut self, to: &ContractAddress, amount: u128) -> bool;
+
+    fn balance_of(&self, address: &ContractAddress) -> u128;
 
     // function transferFrom(address from, address to, uint value) external returns (bool);
 }

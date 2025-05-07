@@ -1,12 +1,21 @@
+#![allow(unused_variables)]
+
 use core::cmp::Ord;
+use core::ops::{Div, Mul};
 
-pub const U112_MAX: u128 = 2u128.checked_pow(112) - 1;
+pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 
-#[derive(Default, Ord, Copy, Clone)]
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 #[repr(transparent)]
 pub struct U112(u128);
 
-impl TryFrom<128> for U112 {
+impl U112 {
+    pub fn new_strict(n: u128) -> Self {
+        n.try_into().unwrap()
+    }
+}
+
+impl TryFrom<u128> for U112 {
     type Error = ();
 
     fn try_from(n: u128) -> Result<Self, ()> {
@@ -24,9 +33,24 @@ impl From<U112> for u128 {
     }
 }
 
-#[derive(Default, Ord, Copy, Clone)]
-#[repr(transparent)]
+impl PartialEq<u128> for U112 {
+    fn eq(&self, other: &u128) -> bool {
+        self.0 == *other
+    }
+}
+
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub struct U256(u128, u128);
+
+impl U256 {
+    pub const fn q(power: u32) -> Self {
+        U256(0, 2u128.pow(power))
+    }
+
+    pub fn add_wrapping(&mut self, other: &Self) {
+        todo!()
+    }
+}
 
 impl From<u128> for U256 {
     fn from(n: u128) -> Self {
@@ -41,7 +65,22 @@ impl From<U112> for U256 {
     }
 }
 
-use core::ops::Mul;
+impl Div for U256 {
+    type Output = U256;
+
+    fn div(self, other: Self) -> Self {
+        todo!()
+    }
+}
+
+impl Mul for U256 {
+    type Output = U256;
+
+    fn mul(self, other: Self) -> Self {
+        todo!()
+    }
+}
+
 impl Mul<u128> for U256 {
     type Output = U256;
 
@@ -52,9 +91,10 @@ impl Mul<u128> for U256 {
 
 // Compute exactly: (a*Q)/(b*Q) * p, where Q = 2^112
 pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
-    const Q: U256 = 2u128.pow(112).into();
+    const Q: U256 = U256::q(112);
+
     let a: U256 = a.into();
     let b: U256 = b.into();
-    let p: U256 = p.into();
-    (a * Q)/(b * Q) * p
+    let p: U256 = (p as u128).into();
+    (a * Q) / (b * Q) * p
 }
