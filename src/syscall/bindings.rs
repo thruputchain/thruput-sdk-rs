@@ -39,7 +39,7 @@ fn syscall_wrapper(
 }
 
 #[cfg(feature = "mock")]
-pub fn syscall_wrapper(
+fn syscall_wrapper(
     syscall_no: SyscallNo,
     arg1: u64,
     arg2: u64,
