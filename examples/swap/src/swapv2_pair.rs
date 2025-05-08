@@ -19,6 +19,7 @@ type Address = ContractAddress;
 type Amount = u128;
 
 #[derive(Copy, Clone)]
+#[non_exhaustive]
 pub enum Error {
     InsufficientOutputAmount,
     InsufficientInputAmount,
@@ -138,11 +139,11 @@ impl SwapV2Pair {
             .unwrap()
             .checked_sub(amount1_in * 3)
             .unwrap();
-        let balance_prod = U256::from(balance0_adj).mul(balance1_adj);
+        let balance_prod = U256::from(balance0_adj).mul(U256::from(balance1_adj));
 
         let reserve0_adj = u128::from(self.reserve0) * 1000;
         let reserve1_adj = u128::from(self.reserve1) * 1000;
-        let reserve_prod = U256::from(reserve0_adj).mul(reserve1_adj);
+        let reserve_prod = U256::from(reserve0_adj).mul(U256::from(reserve1_adj));
 
         require(balance_prod >= reserve_prod, Error::InvalidSwapProduct)?;
 
@@ -186,17 +187,17 @@ impl SwapV2Pair {
             block_timestamp.wrapping_sub(self.block_timestamp_last);
 
         if time_elapsed > 0 && self.reserve0 != 0 && self.reserve1 != 0 {
-            self.price0_cumulative_last.add_wrapping(&uq112x112_div_mul(
+            self.price0_cumulative_last += uq112x112_div_mul(
                 self.reserve1,
                 self.reserve0,
                 time_elapsed,
-            ));
+            );
 
-            self.price1_cumulative_last.add_wrapping(&uq112x112_div_mul(
+            self.price1_cumulative_last += uq112x112_div_mul(
                 self.reserve0,
                 self.reserve1,
                 time_elapsed,
-            ));
+            );
         }
 
         // These will not fail, due to the checks at the top
@@ -222,4 +223,14 @@ fn require(cond: bool, err: Error) -> Result<()> {
     } else {
         Err(err)
     }
+}
+
+// Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112
+pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
+    const LN_Q: U256 = U256([112, 0, 0, 0]);
+
+    let a: U256 = a.into();
+    let b: U256 = b.into();
+    let p: U256 = (p as u128).into();
+    (a << LN_Q) / (b << LN_Q) * p
 }

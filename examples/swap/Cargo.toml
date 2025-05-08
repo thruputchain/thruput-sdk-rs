@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
+primitive-types = { version = "0.13.1", default-features = false }
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 # thiserror = { workspace = true }
