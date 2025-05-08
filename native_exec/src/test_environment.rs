@@ -66,6 +66,10 @@ impl<'a> TestEnvironment {
         out
     }
 
+    pub fn enable_syscall_logging() {
+        unsafe { enable_syscall_logging() };
+    }
+
     pub fn setup_create_contract(
         &mut self,
         contract: &Contract,

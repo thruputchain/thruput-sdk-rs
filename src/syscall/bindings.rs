@@ -1,7 +1,6 @@
 use core::hint::unreachable_unchecked;
 use core::mem::MaybeUninit;
 
-use crate::syscall::to_u64s::*;
 use crate::syscall::{SysErr, SyscallResult};
 use groundhog_xdr::types::*;
 

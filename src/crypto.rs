@@ -13,7 +13,7 @@ pub fn sha_256(input: &[u8]) -> Result<SHA256Hash> {
     let hash = unsafe { out_hash.assume_init() };
     Ok(hash)
 }
-
+/*
 pub fn verify_signature(
     pk: &PublicKey,
     signature: &Signature,
@@ -21,3 +21,4 @@ pub fn verify_signature(
 ) -> Result<()> {
     sys::uninit_VerifySignature(signature, pk, message)
 }
+*/

@@ -52,8 +52,8 @@ pub mod storage;
 #[cfg(feature = "mock")]
 pub use ::groundhog_xdr::ffi_enums::*;
 
-// #[cfg(feature = "mock")]
-// pub use ::native_exec::*;
+#[cfg(feature = "mock")]
+pub use ::native_exec::*;
 
 // Available from any prelude
 mod prelude_base {

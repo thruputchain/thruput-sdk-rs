@@ -35,10 +35,13 @@ struct Syscall {
 struct TypeMapping {
     base_name: String,
     rust_name: String,
+    #[serde(default = "default_true")]
+    rust_uses_as_ptr: bool,
 }
 
 struct TypeInfo {
     rust_name: String,
+    rust_uses_as_ptr: bool,
 }
 
 type TypeMap = HashMap<String, TypeInfo>;
@@ -51,6 +54,7 @@ impl SyscallSpec {
                 elt.base_name.clone(),
                 TypeInfo {
                     rust_name: elt.rust_name.clone(),
+                    rust_uses_as_ptr: elt.rust_uses_as_ptr,
                 },
             );
         }
@@ -81,6 +85,8 @@ struct Arg {
     primitive_type: bool, // default to false
     #[serde(default)]
     optional: bool, // default to false
+    #[serde(default)]
+    custom_parsing: bool, // default to false
 }
 
 impl Arg {
@@ -123,23 +129,114 @@ impl Arg {
         self.typename.clone()
     }
 
-    pub fn to_u64s(&self, type_map: &TypeMap) -> Vec<TokenStream2> {
+    fn uses_as_ptr(&self, type_map: &TypeMap) -> bool {
+        if let Some(type_details) = self.get_type_details(type_map) {
+            return type_details.rust_uses_as_ptr;
+        }
+        return true;
+    }
+
+    pub fn to_u64s(&self, type_map: &TypeMap, is_input: bool) -> Vec<TokenStream2> {
         let name = self.formatted_name();
 
         if self.is_span_argument() {
+            if is_input {
+                return vec![
+                    quote! {
+                        #name.as_ptr() as u64,
+                    },
+                    quote! {
+                        #name.len() as u64,
+                    },
+                ];
+            }
             return vec![
                 quote! {
-                    #name.to_u64_0(),
+                    #name.as_mut_ptr() as u64,
                 },
                 quote! {
-                    #name.to_u64_1(),
+                    #name.len() as u64,
                 },
             ];
         }
 
+        if self.custom_parsing {
+            assert!(is_input);
+            // custom parsing implementations:
+            // 1. Signature
+            if self.typename.clone().unwrap() == "Signature" {
+                return vec![quote! {
+                    #name.scheme() as u64,
+                },
+                quote! {
+                    match #name {
+                        Signature::Ed25519 { ed25519: sig } => sig.as_ptr() as u64,
+                        #[allow(unreachable_patterns)]
+                        _ => {
+                            crate::rt::trap();
+                        }
+                    },
+                }];
+            }
+            // 2. PublicKey
+            if self.typename.clone().unwrap() == "PublicKey" {
+                return vec![quote! {
+                    #name.scheme() as u64,
+                },
+                quote! {
+                    match #name {
+                        PublicKey::Ed25519 { ed25519: pk } => pk.as_ptr() as u64,
+                        #[allow(unreachable_patterns)]
+                        _ => {
+                            crate::rt::trap();
+                        }
+                    },
+                }];
+            }
+            unimplemented!("Unknown custom parsing type");
+        }
+
         if let Some(_) = self.fixed_size_typename(type_map) {
+            if self.primitive_type {
+                if is_input {
+                    return vec![quote! {
+                        #name as u64,
+                    }];
+                }
+                return vec![quote! {
+                    #name as *mut _ as u64,
+                }];
+            }
+            if self.optional {
+                assert!(is_input);
+                return vec![quote! {
+                    match #name {
+                        Some(x) => x.as_ptr() as u64,
+                        None => u64::MAX,
+                    },
+                }];
+            }
+
+
+            if self.uses_as_ptr(type_map) {
+                if is_input {
+                    return vec![quote! {
+                        #name.as_ptr() as u64,
+                    }];
+                }
+                return vec![quote! {
+                    #name.as_mut_ptr() as u64,
+                }];
+            }
+            // else it's, at this point in time, a 128 bit int
+            if is_input {
+                return vec![quote! {
+                    #name as *const _ as u64,
+                }];
+            }
+
             return vec![quote! {
-                #name.to_u64_0(),
+                #name as *mut _ as u64,
             }];
         }
 
@@ -336,14 +433,14 @@ fn generate_u64_syscall_args(
     let mut u64_args: Vec<TokenStream2> = syscall
         .inputs
         .iter()
-        .flat_map(|inp| inp.to_u64s(type_map))
+        .flat_map(|inp| inp.to_u64s(type_map, true))
         .collect();
 
     // outputs
     let output_args: Vec<TokenStream2> = syscall
         .outputs
         .iter()
-        .flat_map(|outp| outp.to_u64s(type_map))
+        .flat_map(|outp| outp.to_u64s(type_map, false))
         .collect();
 
     u64_args.extend(output_args);
