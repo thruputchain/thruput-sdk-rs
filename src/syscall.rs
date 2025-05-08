@@ -1,6 +1,5 @@
 /// Rust bindings for the syscalls
 pub mod bindings;
-pub mod to_u64s;
 
 // provides TryInto<SyscallErrorCode> for SysErr
 #[rustfmt::skip]
@@ -55,7 +54,8 @@ pub type SyscallResult<T> = core::result::Result<T, SysErr>;
 pub(crate) fn to_offset_mut<T>(obj: &mut T) -> *mut u8 {
     obj as *mut T as *mut u8
 }
+use alloc::fmt::Debug;
 
-pub(crate) fn to_offset<T>(obj: &T) -> *const u8 {
+pub(crate) fn to_offset<T : Debug>(obj: &T) -> *const u8 {
     obj as *const T as *const u8
 }

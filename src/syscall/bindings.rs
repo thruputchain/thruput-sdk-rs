@@ -1,7 +1,6 @@
 use core::hint::unreachable_unchecked;
 use core::mem::MaybeUninit;
 
-use crate::syscall::to_u64s::*;
 use crate::syscall::{SysErr, SyscallResult};
 use groundhog_xdr::types::*;
 
@@ -40,7 +39,7 @@ fn syscall_wrapper(
 }
 
 #[cfg(feature = "mock")]
-fn syscall_wrapper(
+pub fn syscall_wrapper(
     syscall_no: SyscallNo,
     arg1: u64,
     arg2: u64,

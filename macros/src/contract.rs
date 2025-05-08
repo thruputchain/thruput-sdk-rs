@@ -419,7 +419,7 @@ mod gen {
                 use super::#exports_mod_ident::*;
 
                 #[allow(dead_code)]
-                pub fn register(env : &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
+                pub fn register(env : &mut ::sdk::test_environment::TestEnvironment) -> ::sdk::types::Contract {
                     let mut contract = env.add_contract();
 
                     #registrations

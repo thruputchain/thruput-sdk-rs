@@ -41,7 +41,10 @@ pub fn deploy_contract(
 ) -> Result<ContractAddress> {
     let mut out_addr: MaybeUninit<ContractAddress> =
         MaybeUninit::<ContractAddress>::uninit();
-    sys::uninit_DeployContract(nonce, contract_hash, &mut out_addr)?;
+
+    let r = crate::sys::uninit_DeployContract(nonce, contract_hash, &mut out_addr);
+
+    r.unwrap();
 
     Ok(unsafe { out_addr.assume_init() })
 }
