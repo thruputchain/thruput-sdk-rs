@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(strict_overflow_ops)]
 
 extern crate alloc;
 

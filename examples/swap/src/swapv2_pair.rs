@@ -4,10 +4,11 @@
 ///
 /// [whitepaper](https://docs.uniswap.org/whitepaper.pdf)
 /// [v2-core](https://github.com/Uniswap/v2-core)
-use crate::erc20::ERC20;
+use crate::erc20::ERC20Client;
 use crate::interfaces::ierc20::IERC20;
 use crate::util::*;
 use core::ops::Mul;
+use core::cmp::min;
 use sdk::prelude::*;
 
 type Address = ContractAddress;
@@ -24,6 +25,7 @@ pub enum Error {
     InsufficientOutputAmount,
     InsufficientInputAmount,
     InsufficientLiquidity,
+    InsufficientLiquidityMinted,
     InvalidDestination,
     InvalidSwapProduct,
     Overflow,
@@ -31,6 +33,16 @@ pub enum Error {
 }
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
+
+#[derive(Default)]
+struct ERC20 {
+    /* TODO */
+}
+
+impl ERC20 {
+    pub fn total_supply(&self) -> Amount { todo!() }
+    pub fn mint(&self, _to: Address, _amount: Amount) { todo!() }
+}
 
 // #[contract]
 // #[derive(Serialize, Deserialize)]
@@ -51,14 +63,15 @@ pub struct SwapV2Pair {
     /// The product `reserve0` * `reserve1`, as of immediately
     /// after the most recent liquidity event
     pub k_last: U256,
+
+    // An embedded ERC20 contract, implementing the LP token
+    // TODO: how to "forward" ERC20 method calls to this?
+    lp: ERC20,
 }
 
-// We want to impl these:
-//  crate::interfaces::ISwapV2Pair
-//  crate::interfaces::ERC20
-
 impl SwapV2Pair {
-    pub const MINIMUM_LIQUIDITY: u32 = 10u32.pow(3);
+    pub const MINIMUM_LIQUIDITY: u128 = 10u128.pow(3);
+    pub const BLACK_HOLE: Address = Address::zero();
 
     pub fn new(factory: Address, token0: Address, token1: Address) -> Self {
         Self {
@@ -73,6 +86,8 @@ impl SwapV2Pair {
             price0_cumulative_last: 0.into(),
             price1_cumulative_last: 0.into(),
             k_last: 0.into(),
+
+            lp: ERC20::default(),
         }
     }
 
@@ -80,7 +95,64 @@ impl SwapV2Pair {
         (self.reserve0, self.reserve1, self.block_timestamp_last)
     }
 
-    // TODO: #[contract(no_reenter)]
+    // Called by LP after transferring tokens to this contract
+    pub fn mint(&mut self, to: Address) -> Result<u128> {
+        // Current reserve balances
+        let balance0 = ERC20Client(&self.token0).balance_of(&this_contract());
+        let balance1 = ERC20Client(&self.token1).balance_of(&this_contract());
+
+        // Differences from previously-recorded reserve balances
+        let amount0 = balance0.strict_sub(self.reserve0.into());
+        let amount1 = balance1.strict_sub(self.reserve1.into());
+
+        let fee_on = self._mint_fee(); // calls _mint when true
+
+        let total_supply = self.lp.total_supply();
+
+        // Added liquidity (TODO: check integer size needs)
+        let liquidity = if total_supply == 0 {
+
+            // Permanently lock the first MINIMUM_LIQUIDITY tokens
+            self.lp.mint(Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY);
+
+            amount0.strict_mul(amount1)
+                   .isqrt()
+                   .strict_sub(Self::MINIMUM_LIQUIDITY)
+        } else {
+            min(amount0.strict_mul(total_supply)
+                       .strict_div(self.reserve0.into()),
+                amount1.strict_mul(total_supply)
+                       .strict_div(self.reserve1.into()))
+        };
+
+        require(liquidity > 0, Error::InsufficientLiquidityMinted)?;
+
+        // Mint the new liquidity to the LP
+        self.lp.mint(to, liquidity);
+
+        // Record new balances
+        self._update(balance0, balance1)?;
+
+        if fee_on {
+            // TODO: check mul?
+            self.k_last = U256::from(self.reserve0).mul(U256::from(self.reserve1));
+        }
+
+        log(b"MINT").unwrap(); // emit Mint(msg.sender, amount0, amount1)
+
+        Ok(liquidity)
+    }
+
+    fn _mint_fee(&mut self) -> bool {
+        // Optional TODO: support fee_to setting
+
+        if !self.k_last.is_zero() {
+            self.k_last = 0.into();
+        }
+
+        false
+    }
+
     pub fn swap(
         &mut self,
         amount0_out: Amount,
@@ -110,13 +182,16 @@ impl SwapV2Pair {
             self._transfer(1, to, amount1_out)?;
         }
 
-        // Callback for flash-swap goes here
+        // Optional TODO: Callback for flash-swap goes here.
+        //
+        // If it is implemented, we will need something like `#[contract(no_reenter)]`
+        // on this method.
 
-        let this_contract = get_current_address().unwrap();
+        let this_contract = this_contract();
         let balance0: Amount =
-            ERC20(&mut self.token0).balance_of(&this_contract);
+            ERC20Client(&mut self.token0).balance_of(&this_contract);
         let balance1: Amount =
-            ERC20(&mut self.token1).balance_of(&this_contract);
+            ERC20Client(&mut self.token1).balance_of(&this_contract);
 
         // The unchecked subtractions here will not wrap, due to a `require` above
         let amount0_in =
@@ -129,16 +204,8 @@ impl SwapV2Pair {
             Error::InsufficientInputAmount,
         )?;
 
-        let balance0_adj = balance0
-            .checked_mul(1000)
-            .unwrap()
-            .checked_sub(amount0_in * 3)
-            .unwrap();
-        let balance1_adj = balance1
-            .checked_mul(1000)
-            .unwrap()
-            .checked_sub(amount1_in * 3)
-            .unwrap();
+        let balance0_adj = balance0.strict_mul(1000).strict_sub(amount0_in * 3);
+        let balance1_adj = balance1.strict_mul(1000).strict_sub(amount1_in * 3);
         let balance_prod = U256::from(balance0_adj).mul(U256::from(balance1_adj));
 
         let reserve0_adj = u128::from(self.reserve0) * 1000;
@@ -150,6 +217,7 @@ impl SwapV2Pair {
         self._update(balance0, balance1)?;
 
         // emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        log(b"SWAP").unwrap();
 
         Ok(())
     }
@@ -166,7 +234,7 @@ impl SwapV2Pair {
             &mut self.token1
         };
 
-        let success = ERC20(token).transfer(to, amount);
+        let success = ERC20Client(token).transfer(to, amount);
 
         require(success, Error::TransferFailed)
     }
@@ -207,10 +275,14 @@ impl SwapV2Pair {
 
         self.block_timestamp_last = block_timestamp;
 
-        // emit Sync(reserve0, reserve1);
+        log(b"SYNC").unwrap(); // emit Sync(reserve0, reserve1);
 
         Ok(())
     }
+}
+
+fn this_contract() -> Address {
+    get_current_address().unwrap()
 }
 
 fn get_block_timestamp() -> u64 {
