@@ -22,20 +22,26 @@ You can use [rustup](https://rustup.rs/) to get a Rust toolchain.
 
 Then install the WASM target:
 
-```
+```shell
 rustup +nightly target add wasm32-unknown-unknown
 ```
 
 Also, install the rust sources so the build process can
 recompile them in a more compact form to reduce code size:
 
-```
+```shell
 rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
 ```
 
 ## Documentation
 
 Use `make doc_open` to generate and open the SDK documentation.
+
+## Testing
+
+```shell
+make test_contracts
+```
 
 ## Development
 

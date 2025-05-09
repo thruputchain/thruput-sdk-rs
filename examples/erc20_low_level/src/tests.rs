@@ -1,6 +1,7 @@
 use crate::implementation;
 use crate::interface::client::ERC20Client;
 use crate::interface::ERC20;
+use sdk::prelude::*;
 
 #[test]
 fn check_erc20() {
@@ -17,16 +18,15 @@ fn check_erc20() {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.result.panic, sdk::InvokeErrorCode::kNone as i32);
+    assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
 fn check_erc20_inner(
     contract_hash: &sdk::types::SHA256Hash,
-) -> sdk::result::Result<()> {
-    use sdk::prelude::*;
+) -> Result<()> {
 
-    let nonce = ByteArray::new([7; 32]);
-    let deployed_addr = deploy_contract(&nonce, contract_hash).unwrap();
+    let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
+    let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address().unwrap();
 
     let mut client = ERC20Client::new(&deployed_addr);
@@ -38,7 +38,7 @@ fn check_erc20_inner(
     client.mint(&owner, 100)?;
     assert_eq!(client.get_balance()?, 100);
 
-    let other = ByteArray::new([0xBB; 32]);
+    let other = ContractAddress::from(ByteArray::from([0xBB; 32]));
     client.transfer(&other, 25)?;
     assert_eq!(client.get_balance_of(&other)?, 25);
     assert_eq!(client.get_balance_of(&owner)?, 75);

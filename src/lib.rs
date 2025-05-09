@@ -53,15 +53,12 @@ pub mod storage;
 pub use ::groundhog_xdr::ffi_enums::*;
 
 #[cfg(feature = "mock")]
-pub use ::native_exec::*;
+pub use ::native_exec::test_environment::TestEnvironment;
 
 // Available from any prelude
 mod prelude_base {
     #[doc(inline)]
-    pub use super::types::{
-        ContractAddress, Ed25519PublicKey, Ed25519Signature, PublicKey,
-        SHA256Hash, Signature, StorageKey,
-    };
+    pub use super::types::*;
 
     #[doc(inline)]
     pub use super::syscall::SysErr;

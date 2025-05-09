@@ -6,11 +6,21 @@ pub fn static_key_output(input: syn::LitStr, internal: bool) -> TokenStream {
 
     if internal {
         TokenStream::from(quote::quote! {
-            ::groundhog_xdr::byte_array::ByteArray::from([#(#res),*]).into()
+            {
+                use crate::types::byte_array::ByteArray;
+                use crate::types::byte_array::StorageKey;
+
+                StorageKey::new(ByteArray::new([#(#res),*]))
+            }
         })
     } else {
         TokenStream::from(quote::quote! {
-            ::sdk::types::ByteArray::from([#(#res),*]).into()
+            {
+                use ::sdk::types::ByteArray;
+                use ::sdk::types::StorageKey;
+
+                StorageKey::new(ByteArray::new([#(#res),*]))
+            }
         })
     }
 }

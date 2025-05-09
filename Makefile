@@ -39,7 +39,7 @@ example_contracts:
 .PHONY: example_contracts
 
 test_contracts:
-	./scripts/test_example_contracts.sh
+	bash ./scripts/test_example_contracts.sh
 .PHONY: test_contracts
 
 tree:

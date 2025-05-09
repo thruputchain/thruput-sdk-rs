@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 CC=gcc
 CXX=g++
 
-for package_dir in eg/* ; do
+for package_dir in examples/* ; do
     if [ -d $package_dir ]; then
         package=$(basename "$package_dir")
         cargo +nightly -v test --package $package
