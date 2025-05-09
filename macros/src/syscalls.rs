@@ -137,7 +137,11 @@ impl Arg {
         return true;
     }
 
-    pub fn to_u64s(&self, type_map: &TypeMap, is_input: bool) -> Vec<TokenStream2> {
+    pub fn to_u64s(
+        &self,
+        type_map: &TypeMap,
+        is_input: bool,
+    ) -> Vec<TokenStream2> {
         let name = self.formatted_name();
 
         if self.is_span_argument() {
@@ -166,33 +170,37 @@ impl Arg {
             // custom parsing implementations:
             // 1. Signature
             if self.typename.clone().unwrap() == "Signature" {
-                return vec![quote! {
-                    #name.scheme() as u64,
-                },
-                quote! {
-                    match #name {
-                        Signature::Ed25519 { ed25519: sig } => sig.as_ptr() as u64,
-                        #[allow(unreachable_patterns)]
-                        _ => {
-                            crate::rt::trap();
-                        }
+                return vec![
+                    quote! {
+                        #name.scheme() as u64,
                     },
-                }];
+                    quote! {
+                        match #name {
+                            Signature::Ed25519 { ed25519: sig } => sig.as_ptr() as u64,
+                            #[allow(unreachable_patterns)]
+                            _ => {
+                                crate::rt::trap();
+                            }
+                        },
+                    },
+                ];
             }
             // 2. PublicKey
             if self.typename.clone().unwrap() == "PublicKey" {
-                return vec![quote! {
-                    #name.scheme() as u64,
-                },
-                quote! {
-                    match #name {
-                        PublicKey::Ed25519 { ed25519: pk } => pk.as_ptr() as u64,
-                        #[allow(unreachable_patterns)]
-                        _ => {
-                            crate::rt::trap();
-                        }
+                return vec![
+                    quote! {
+                        #name.scheme() as u64,
                     },
-                }];
+                    quote! {
+                        match #name {
+                            PublicKey::Ed25519 { ed25519: pk } => pk.as_ptr() as u64,
+                            #[allow(unreachable_patterns)]
+                            _ => {
+                                crate::rt::trap();
+                            }
+                        },
+                    },
+                ];
             }
             unimplemented!("Unknown custom parsing type");
         }
@@ -217,7 +225,6 @@ impl Arg {
                     },
                 }];
             }
-
 
             if self.uses_as_ptr(type_map) {
                 if is_input {
@@ -497,7 +504,8 @@ fn generate_syscall_uninit_decl(
         }
     };
 
-    let u64_args = generate_u64_syscall_args(&syscall, type_map, syscall_input_count);
+    let u64_args =
+        generate_u64_syscall_args(&syscall, type_map, syscall_input_count);
     let uninit_syscall_inputs =
         generate_uninit_syscall_inputs(&syscall, type_map);
 
@@ -553,7 +561,11 @@ pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
     let type_map = spec.get_type_map();
 
     let decls = spec.syscalls.iter().map(|func| {
-        let uninit = generate_syscall_uninit_decl(&func, &type_map, spec.syscall_input_count);
+        let uninit = generate_syscall_uninit_decl(
+            &func,
+            &type_map,
+            spec.syscall_input_count,
+        );
         let raw = generate_syscall_raw_decl(&func, &type_map);
         quote! {
             #uninit

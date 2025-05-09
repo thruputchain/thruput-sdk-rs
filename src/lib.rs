@@ -23,11 +23,14 @@ pub mod types;
 pub use syscall::bindings as sys;
 pub mod crypto;
 pub mod deploy;
+#[cfg(feature = "alloc")]
 pub mod hash;
 pub mod invoke;
 pub mod log;
 pub mod serialize {
-    pub use ::bcs::{from_bytes, from_bytes_seed, to_bytes};
+    #[cfg(feature = "alloc")]
+    pub use ::bcs::to_bytes;
+    pub use ::bcs::{from_bytes, from_bytes_seed};
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
 }
 pub mod contract_result;
@@ -74,6 +77,7 @@ mod prelude_base {
     #[doc(inline)]
     pub use super::invoke::*;
 
+    #[cfg(feature = "alloc")]
     #[doc(inline)]
     pub use super::hash::*;
 

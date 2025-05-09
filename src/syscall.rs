@@ -49,5 +49,3 @@ impl From<SysErr> for i32 {
 }
 
 pub type SyscallResult<T> = core::result::Result<T, SysErr>;
-
-use alloc::fmt::Debug;

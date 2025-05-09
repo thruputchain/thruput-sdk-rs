@@ -45,7 +45,7 @@ thiserror = { version = "2.0.12", default-features = false }
 default = ["alloc"]
 mock = ["std", "dep:native_exec"]
 storage = ["alloc"]
-alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc"]
+alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
 
 # Below from rs_contract_sdk/Cargo.toml

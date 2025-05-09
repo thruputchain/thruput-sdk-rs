@@ -2,8 +2,8 @@ use core::hint::unreachable_unchecked;
 use core::mem::MaybeUninit;
 
 use crate::syscall::{SysErr, SyscallResult};
-use groundhog_xdr::types::*;
 use groundhog_xdr::transaction::*;
+use groundhog_xdr::types::*;
 
 macros::generate_syscall_numbers!("protocol-rs/protocol/syscalls.yaml");
 macros::generate_syscall_error_codes!("protocol-rs/protocol/syscalls.yaml");
@@ -35,8 +35,16 @@ fn syscall_wrapper(
     arg7: u64,
 ) -> SysErr {
     unsafe {
-        let errno =
-            syscall(syscall_no as u64, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+        let errno = syscall(
+            syscall_no as u64,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6,
+            arg7,
+        );
         SysErr(errno)
     }
 }
