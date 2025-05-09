@@ -35,17 +35,22 @@ rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
 
 ## Documentation
 
-Use `make doc_open` to generate and open the SDK documentation.
+To generate and open the SDK documentation:
+
+```shell
+./make.sh doc --open
+```
 
 ## Testing
 
 ```shell
-make test_contracts
+./make.sh test
+./make.sh test_examples
 ```
 
 ## Development
 
-See `Makefile` for these useful targets:
+See `make.sh` for these useful targets:
 - `check`
 - `test`
 - `lint`
