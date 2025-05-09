@@ -161,6 +161,7 @@ impl<'a> TestEnvironment {
         );
 
         let stx = SignedTransaction {
+            signature: Signature::default(),
             tx: Transaction {
                 created: 0,
                 id: [0; 16].into(),
