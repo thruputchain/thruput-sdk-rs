@@ -29,6 +29,7 @@ impl GenesisDeployer {
             method,
             u64::MAX,
             calldata.as_slice(),
+            0,
             &mut return_len,
         )
         .unwrap();
