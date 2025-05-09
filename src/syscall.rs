@@ -50,12 +50,4 @@ impl From<SysErr> for i32 {
 
 pub type SyscallResult<T> = core::result::Result<T, SysErr>;
 
-#[allow(dead_code)]
-pub(crate) fn to_offset_mut<T>(obj: &mut T) -> *mut u8 {
-    obj as *mut T as *mut u8
-}
 use alloc::fmt::Debug;
-
-pub(crate) fn to_offset<T : Debug>(obj: &T) -> *const u8 {
-    obj as *const T as *const u8
-}
