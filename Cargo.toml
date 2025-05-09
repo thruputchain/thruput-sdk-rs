@@ -33,7 +33,7 @@ sha2 = { workspace = true }
 
 [workspace.dependencies]
 macros = { path = "macros" }
-groundhog_xdr = { path = "protocol-rs/groundhog_xdr" }
+groundhog_xdr = { path = "protocol-rs/groundhog_xdr", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 sdk = { package = "sdk_rs", path = "." }
 serde = { version = "1.0.217", default-features = false }
@@ -56,6 +56,11 @@ overflow-checks = false
 debug = false
 strip = "debuginfo"
 panic = "abort"
+
+# Note: if you want to build on mac with nostd, you need to add
+# rustflags = [ "-C", "link-arg=-lSystem" ]
+# to the profile sections
+# Or alternatively, use `RUSTFLAGS="-C link-arg=-lSystem" cargo build ...`
 
 [profile.test]
 # settings inherited from profile.dev
