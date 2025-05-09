@@ -162,6 +162,8 @@ impl<'a> TestEnvironment {
 
         let stx = SignedTransaction {
             tx: Transaction {
+                created: 0,
+                id: [0; 16].into(),
                 invocation: Invocation {
                     invoked_address: invoke_addr,
                     method: 0,

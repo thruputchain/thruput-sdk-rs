@@ -3,6 +3,7 @@ use core::mem::MaybeUninit;
 
 use crate::syscall::{SysErr, SyscallResult};
 use groundhog_xdr::types::*;
+use groundhog_xdr::transaction::*;
 
 macros::generate_syscall_numbers!("protocol-rs/protocol/syscalls.yaml");
 macros::generate_syscall_error_codes!("protocol-rs/protocol/syscalls.yaml");
@@ -18,6 +19,7 @@ extern "C" {
         arg4: u64,
         arg5: u64,
         arg6: u64,
+        arg7: u64,
     ) -> i32;
 }
 
@@ -30,10 +32,11 @@ fn syscall_wrapper(
     arg4: u64,
     arg5: u64,
     arg6: u64,
+    arg7: u64,
 ) -> SysErr {
     unsafe {
         let errno =
-            syscall(syscall_no as u64, arg1, arg2, arg3, arg4, arg5, arg6);
+            syscall(syscall_no as u64, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
         SysErr(errno)
     }
 }
@@ -47,6 +50,7 @@ fn syscall_wrapper(
     arg4: u64,
     arg5: u64,
     arg6: u64,
+    arg7: u64,
 ) -> SysErr {
     SysErr(native_exec::perform_mocked_syscall(
         syscall_no as i32,
@@ -56,6 +60,7 @@ fn syscall_wrapper(
         arg4,
         arg5,
         arg6,
+        arg7,
     ))
 }
 

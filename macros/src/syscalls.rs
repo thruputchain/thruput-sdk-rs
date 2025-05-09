@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, serde::Deserialize)]
 struct SyscallSpec {
+    syscall_input_count: usize,
     type_mappings: Vec<TypeMapping>,
     syscalls: Vec<Syscall>,
     errors: Vec<SyscallErrorDecl>,
@@ -428,6 +429,7 @@ fn generate_raw_syscall_inputs(
 fn generate_u64_syscall_args(
     syscall: &Syscall,
     type_map: &TypeMap,
+    syscall_input_count: usize,
 ) -> Vec<TokenStream2> {
     // inputs
     let mut u64_args: Vec<TokenStream2> = syscall
@@ -445,15 +447,13 @@ fn generate_u64_syscall_args(
 
     u64_args.extend(output_args);
 
-    const MAX_SYSCALL_ARGS: usize = 6;
-
-    if u64_args.len() > MAX_SYSCALL_ARGS {
+    if u64_args.len() > syscall_input_count {
         return vec![quote! {
             compile_error!("Too many syscall args")
         }];
     }
 
-    u64_args.resize(MAX_SYSCALL_ARGS, quote! { 0, });
+    u64_args.resize(syscall_input_count, quote! { 0, });
 
     u64_args
 }
@@ -461,6 +461,7 @@ fn generate_u64_syscall_args(
 fn generate_syscall_uninit_decl(
     syscall: &Syscall,
     type_map: &TypeMap,
+    syscall_input_count: usize,
 ) -> TokenStream2 {
     //  pub fn uninit_SHA256(buffer : &[u8], hash : &mut MaybeUninit<SHA256Hash>) -> SyscallResult<()> {
     //
@@ -496,7 +497,7 @@ fn generate_syscall_uninit_decl(
         }
     };
 
-    let u64_args = generate_u64_syscall_args(&syscall, type_map);
+    let u64_args = generate_u64_syscall_args(&syscall, type_map, syscall_input_count);
     let uninit_syscall_inputs =
         generate_uninit_syscall_inputs(&syscall, type_map);
 
@@ -552,7 +553,7 @@ pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
     let type_map = spec.get_type_map();
 
     let decls = spec.syscalls.iter().map(|func| {
-        let uninit = generate_syscall_uninit_decl(&func, &type_map);
+        let uninit = generate_syscall_uninit_decl(&func, &type_map, spec.syscall_input_count);
         let raw = generate_syscall_raw_decl(&func, &type_map);
         quote! {
             #uninit

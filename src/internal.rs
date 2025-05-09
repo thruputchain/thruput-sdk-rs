@@ -84,6 +84,7 @@ mod cross_call {
             method,
             gas_limit,
             call_data,
+            0, // TODO(geoff): invoke flags go here
             &mut return_len,
         )
         .expect("Contract invocation failed");
