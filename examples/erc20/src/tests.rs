@@ -25,7 +25,6 @@ fn check_mint() {
 }
 
 fn check_mint_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
-
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address()?;

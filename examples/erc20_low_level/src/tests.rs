@@ -21,10 +21,7 @@ fn check_erc20() {
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
-fn check_erc20_inner(
-    contract_hash: &sdk::types::SHA256Hash,
-) -> Result<()> {
-
+fn check_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address().unwrap();
