@@ -24,7 +24,9 @@ pub fn retrocausal_queue_consume_sized<const N: usize>(
         &mut queue_entry,
         &mut written_len,
     )?;
-    Ok(unsafe { MaybeUninit::array_assume_init(queue_entry) })
+    let bytes: [u8; N] =
+        unsafe { queue_entry.map(|elt| MaybeUninit::assume_init(elt)) };
+    Ok(bytes)
 }
 
 pub fn retrocausal_queue_peek_sized<const N: usize>(
@@ -38,5 +40,7 @@ pub fn retrocausal_queue_peek_sized<const N: usize>(
         &mut queue_entry,
         &mut written_len,
     )?;
-    Ok(unsafe { MaybeUninit::array_assume_init(queue_entry) })
+    let bytes: [u8; N] =
+        unsafe { queue_entry.map(|elt| MaybeUninit::assume_init(elt)) };
+    Ok(bytes)
 }

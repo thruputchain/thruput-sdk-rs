@@ -40,7 +40,7 @@ pub mod contract_test;
 pub mod bytestring;
 pub mod delete;
 pub mod nonnegative_int;
-// pub mod retrocausal_queue;
+pub mod retrocausal_queue;
 
 // #[cfg(feature = "alloc")]
 pub mod result;
