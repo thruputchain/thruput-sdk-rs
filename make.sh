@@ -10,7 +10,7 @@ case "$verb" in
         $cargo doc --features=std "$@"
         ;;
     examples)
-        (cd examples && bash make.sh all)
+        (cd examples && bash make.sh build)
         ;;
     test_examples)
         (cd examples && bash make.sh test)
