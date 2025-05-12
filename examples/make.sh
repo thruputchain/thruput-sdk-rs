@@ -25,6 +25,7 @@ function build_contract {
         --release \
         --verbose \
         --package "$contract" \
+        --color=always \
         -Zbuild-std=alloc,core \
         -Zbuild-std-features=panic_immediate_abort
 }
@@ -49,7 +50,9 @@ function test_contract {
     fi
 
     CC=gcc CXX=g++ HOGD_SRC="$HOGD" \
-        $cargo -v test --package "$contract"
+        $cargo -v test \
+            --color=always \
+            --package "$contract"
 }
 
 function test_contracts {

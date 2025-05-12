@@ -26,6 +26,7 @@ pub enum Error {
     InsufficientInputAmount,
     InsufficientLiquidity,
     InsufficientLiquidityMinted,
+    InsufficientLiquidityBurned,
     InvalidDestination,
     InvalidSwapProduct,
     Overflow,
@@ -41,7 +42,9 @@ struct ERC20 {
 
 impl ERC20 {
     pub fn total_supply(&self) -> Amount { todo!() }
-    pub fn mint(&self, _to: Address, _amount: Amount) { todo!() }
+    pub fn mint(&self, _to: &Address, _amount: Amount) { todo!() }
+    pub fn burn(&self, _to: &Address, _amount: Amount) { todo!() }
+    pub fn balance_of(&self, _addr: &Address) -> Amount { todo!() }
 }
 
 // #[contract]
@@ -95,42 +98,39 @@ impl SwapV2Pair {
         (self.reserve0, self.reserve1, self.block_timestamp_last)
     }
 
-    // Called by LP after transferring tokens to this contract
-    pub fn mint(&mut self, to: Address) -> Result<u128> {
-        // Current reserve balances
-        let balance0 = ERC20Client(&self.token0).balance_of(&this_contract());
-        let balance1 = ERC20Client(&self.token1).balance_of(&this_contract());
+    /// Mint LP in exchange for any pair-tokens transferred
+    pub fn mint(&mut self, to: &Address) -> Result<u128> {
+        // New reserve balances after LP transfer
+        let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
+        let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
 
         // Differences from previously-recorded reserve balances
         let amount0 = balance0.strict_sub(self.reserve0.into());
         let amount1 = balance1.strict_sub(self.reserve1.into());
 
-        let fee_on = self._mint_fee(); // calls _mint when true
+        let fee_on = self._mint_fee();
 
-        let total_supply = self.lp.total_supply();
+        let total_liquidity = self.lp.total_supply();
 
         // Added liquidity (TODO: check integer size needs)
-        let liquidity = if total_supply == 0 {
-
+        let liquidity = if total_liquidity == 0 {
             // Permanently lock the first MINIMUM_LIQUIDITY tokens
-            self.lp.mint(Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY);
+            self.lp.mint(&Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY);
 
             amount0.strict_mul(amount1)
                    .isqrt()
                    .strict_sub(Self::MINIMUM_LIQUIDITY)
         } else {
-            min(amount0.strict_mul(total_supply)
-                       .strict_div(self.reserve0.into()),
-                amount1.strict_mul(total_supply)
-                       .strict_div(self.reserve1.into()))
+            min(amount0.strict_mul(total_liquidity).strict_div(self.reserve0.into()),
+                amount1.strict_mul(total_liquidity).strict_div(self.reserve1.into()))
         };
 
         require(liquidity > 0, Error::InsufficientLiquidityMinted)?;
 
-        // Mint the new liquidity to the LP
+        // Mint the new liquidity to the address specified by the LP
         self.lp.mint(to, liquidity);
 
-        // Record new balances
+        // Record the new reserve balances
         self._update(balance0, balance1)?;
 
         if fee_on {
@@ -140,17 +140,36 @@ impl SwapV2Pair {
 
         log(b"MINT").unwrap(); // emit Mint(msg.sender, amount0, amount1)
 
+        // Return the amount of liquidity minted
         Ok(liquidity)
     }
 
-    fn _mint_fee(&mut self) -> bool {
-        // Optional TODO: support fee_to setting
+    /// Transfer pair-tokens in exchange for any LP tokens returned to us
+    pub fn burn(&mut self, to: &Address) -> Result<(Amount, Amount)> {
+        let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
+        let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
+        let liquidity = self.lp.balance_of(this_contract());
 
-        if !self.k_last.is_zero() {
-            self.k_last = 0.into();
+        let fee_on = self._mint_fee();
+        let total_liquidity = self.lp.total_supply();
+        let amount0 = liquidity.strict_mul(balance0) / total_liquidity;
+        let amount1 = liquidity.strict_mul(balance1) / total_liquidity;
+        require(amount0 > 0 && amount1 > 0,
+            Error::InsufficientLiquidityBurned)?;
+        self.lp.burn(this_contract(), liquidity);
+        self._transfer(0, &to, amount0)?;
+        self._transfer(1, &to, amount1)?;
+        let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
+        let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
+
+        self._update(balance0, balance1)?;
+        if fee_on {
+            self.k_last = U256::from(self.reserve0).mul(U256::from(self.reserve1));
         }
+        log(b"BURN").unwrap(); // emit Burn(msg.sender, amount0, amount1, to);
 
-        false
+        // Return amounts burned
+        Ok((amount0, amount1))
     }
 
     pub fn swap(
@@ -187,11 +206,10 @@ impl SwapV2Pair {
         // If it is implemented, we will need something like `#[contract(no_reenter)]`
         // on this method.
 
-        let this_contract = this_contract();
         let balance0: Amount =
-            ERC20Client(&mut self.token0).balance_of(&this_contract);
+            ERC20Client(&mut self.token0).balance_of(this_contract());
         let balance1: Amount =
-            ERC20Client(&mut self.token1).balance_of(&this_contract);
+            ERC20Client(&mut self.token1).balance_of(this_contract());
 
         // The unchecked subtractions here will not wrap, due to a `require` above
         let amount0_in =
@@ -220,6 +238,37 @@ impl SwapV2Pair {
         log(b"SWAP").unwrap();
 
         Ok(())
+    }
+
+    // Extract any reserve balances surplus to what was last recorded
+    pub fn skim(&mut self, to: &Address) -> Result<()> {
+        let surplus0 = ERC20Client(&mut self.token0).balance_of(this_contract()).strict_sub(self.reserve0.into());
+        let surplus1 = ERC20Client(&mut self.token1).balance_of(this_contract()).strict_sub(self.reserve1.into());
+
+        self._transfer(0, &to, surplus0)?;
+        self._transfer(1, &to, surplus1)?;
+
+        Ok(())
+    }
+
+    // Record current reserve balances
+    pub fn sync(&mut self) -> Result<()> {
+        let balance0 = ERC20Client(&mut self.token0).balance_of(this_contract());
+        let balance1 = ERC20Client(&mut self.token1).balance_of(this_contract());
+
+        self._update(balance0, balance1)?;
+
+        Ok(())
+    }
+
+    fn _mint_fee(&mut self) -> bool {
+        // Optional TODO: support fee_to setting
+
+        if !self.k_last.is_zero() {
+            self.k_last = 0.into();
+        }
+
+        false
     }
 
     fn _transfer(
@@ -275,14 +324,33 @@ impl SwapV2Pair {
 
         self.block_timestamp_last = block_timestamp;
 
-        log(b"SYNC").unwrap(); // emit Sync(reserve0, reserve1);
+        log(b"SYNC(reserve0, reserve1)").unwrap();
 
         Ok(())
     }
 }
 
-fn this_contract() -> Address {
-    get_current_address().unwrap()
+// Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112
+pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
+    const LN_Q: U256 = U256([112, 0, 0, 0]);
+
+    let a: U256 = a.into();
+    let b: U256 = b.into();
+    let p: U256 = (p as u128).into();
+    (a << LN_Q) / (b << LN_Q) * p
+}
+
+fn this_contract() -> &'static ContractAddress {
+    static mut ADDRESS_CELL: Option<Address> = None;
+
+    #[allow(static_mut_refs)]
+    unsafe {
+        if ADDRESS_CELL.is_none() {
+            let address = get_current_address().unwrap();
+            ADDRESS_CELL = Some(address);
+        }
+        ADDRESS_CELL.as_ref().unwrap()
+    }
 }
 
 fn get_block_timestamp() -> u64 {
@@ -295,14 +363,4 @@ fn require(cond: bool, err: Error) -> Result<()> {
     } else {
         Err(err)
     }
-}
-
-// Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112
-pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
-    const LN_Q: U256 = U256([112, 0, 0, 0]);
-
-    let a: U256 = a.into();
-    let b: U256 = b.into();
-    let p: U256 = (p as u128).into();
-    (a << LN_Q) / (b << LN_Q) * p
 }
