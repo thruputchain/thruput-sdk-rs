@@ -8,10 +8,15 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-primitive-types = { version = "0.13.1", default-features = false }
+primitive-types = { version = "0.13.1", default-features = false, features = ["serde_no_std"] }
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
-# thiserror = { workspace = true }
+thiserror = { workspace = true }
 
 [features]
+client = []
 guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+swap = { path = ".", features = ["mock", "client"] }

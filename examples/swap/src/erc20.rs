@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![allow(unused_variables)]
 
 use crate::interfaces::ierc20::IERC20;

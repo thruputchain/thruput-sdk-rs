@@ -1,12 +1,15 @@
-use core::cmp::Ord;
+use ::core::cmp::Ord;
+use ::serde::{Serialize, Deserialize};
 
 pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 
-#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct U112(u128);
 
 impl U112 {
+    pub const MAX: u128 = 2u128.pow(112) - 1;
+
     pub fn new_strict(n: u128) -> Self {
         n.try_into().unwrap()
     }

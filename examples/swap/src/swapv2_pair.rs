@@ -4,38 +4,16 @@
 ///
 /// [whitepaper](https://docs.uniswap.org/whitepaper.pdf)
 /// [v2-core](https://github.com/Uniswap/v2-core)
-use crate::erc20::ERC20Client;
-use crate::interfaces::ierc20::IERC20;
-use crate::util::*;
+
 use core::ops::Mul;
 use core::cmp::min;
-use sdk::prelude::*;
+use sdk::storage_prelude::*;
+use crate::erc20::ERC20Client;
+use crate::interfaces::ierc20::IERC20;
+use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pair};
+use crate::util::{U112, U256};
 
-type Address = ContractAddress;
-
-// This type is a 256-bit unsigned int in UniswapV2, but in this contract,
-// values over `U112_MAX` result in runtime failure.  We use `u128` here
-// because it is a convenient Rust primitive.
-// (For other integer types, we use the same number of bits as in UniswapV2.)
-type Amount = u128;
-
-#[derive(Copy, Clone)]
-#[non_exhaustive]
-pub enum Error {
-    InsufficientOutputAmount,
-    InsufficientInputAmount,
-    InsufficientLiquidity,
-    InsufficientLiquidityMinted,
-    InsufficientLiquidityBurned,
-    InvalidDestination,
-    InvalidSwapProduct,
-    Overflow,
-    TransferFailed,
-}
-
-pub type Result<T, E = Error> = core::result::Result<T, E>;
-
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 struct ERC20 {
     /* TODO */
 }
@@ -47,9 +25,7 @@ impl ERC20 {
     pub fn balance_of(&self, _addr: &Address) -> Amount { todo!() }
 }
 
-// #[contract]
-// #[derive(Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct SwapV2Pair {
     pub factory: Address,
     pub token0: Address,
@@ -72,10 +48,7 @@ pub struct SwapV2Pair {
     lp: ERC20,
 }
 
-impl SwapV2Pair {
-    pub const MINIMUM_LIQUIDITY: u128 = 10u128.pow(3);
-    pub const BLACK_HOLE: Address = Address::zero();
-
+    /*
     pub fn new(factory: Address, token0: Address, token1: Address) -> Self {
         Self {
             factory,
@@ -93,13 +66,102 @@ impl SwapV2Pair {
             lp: ERC20::default(),
         }
     }
+    */
 
-    pub fn get_reserves(&self) -> (U112, U112, u32) {
+
+impl SwapV2Pair {
+    pub const MINIMUM_LIQUIDITY: u128 = 10u128.pow(3);
+    pub const BLACK_HOLE: Address = Address::zero();
+
+    fn _mint_fee(&mut self) -> bool {
+        // Optional TODO: support fee_to setting
+
+        if !self.k_last.is_zero() {
+            self.k_last = 0.into();
+        }
+
+        false
+    }
+
+    fn _transfer(
+        &mut self,
+        which: u8,
+        to: &Address,
+        amount: Amount,
+    ) -> Result<()> {
+        let token = if which == 0 {
+            &mut self.token0
+        } else {
+            &mut self.token1
+        };
+
+        let success = ERC20Client(token).transfer(to, amount);
+
+        require(success, Error::TransferFailed)
+    }
+
+    fn _update(&mut self, balance0: Amount, balance1: Amount) -> Result<()> {
+        // If this fails, `skim()` may be used to extract the overflow
+        require(
+            balance0 <= U112::MAX && balance1 <= U112::MAX,
+            Error::Overflow,
+        )?;
+
+        // We intentionally truncate here, desiring the timestamp mod 2^32
+        let block_timestamp = get_block_timestamp() as u32;
+
+        // Wrapping yields the right elapsed time if this method is
+        // run at least once every ~139 years.
+        let time_elapsed =
+            block_timestamp.wrapping_sub(self.block_timestamp_last);
+
+        if time_elapsed > 0 && self.reserve0 != 0 && self.reserve1 != 0 {
+            self.price0_cumulative_last += uq112x112_div_mul(
+                self.reserve1,
+                self.reserve0,
+                time_elapsed,
+            );
+
+            self.price1_cumulative_last += uq112x112_div_mul(
+                self.reserve0,
+                self.reserve1,
+                time_elapsed,
+            );
+        }
+
+        // These will not fail, due to the checks at the top
+        // of this function
+        self.reserve0 = U112::try_from(balance0).unwrap();
+        self.reserve1 = U112::try_from(balance1).unwrap();
+
+        self.block_timestamp_last = block_timestamp;
+
+        log(b"SYNC(reserve0, reserve1)").unwrap();
+
+        Ok(())
+    }
+}
+
+#[contract(exports = "guest_exports")]
+impl ISwapV2Pair for SwapV2Pair {
+    fn initialize(this: Option<&mut Self>) -> Result<()> {
+        // Make sure we haven't already been initialized
+        require(this.is_none(), Error::AlreadyInitialized)?;
+
+        initialize_root(|_: &mut Self| {
+            // the DefaultFromKeypath implementation, derived by Storage,
+            // does all we need
+        }).map_err(|_| Error::InitializeFailed)?;
+
+        Ok(())
+    }
+
+    fn get_reserves(&self) -> (U112, U112, u32) {
         (self.reserve0, self.reserve1, self.block_timestamp_last)
     }
 
-    /// Mint LP in exchange for any pair-tokens transferred
-    pub fn mint(&mut self, to: &Address) -> Result<u128> {
+    // Mint LP in exchange for any pair-tokens transferred
+    fn mint(&mut self, to: &Address) -> Result<u128> {
         // New reserve balances after LP transfer
         let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
         let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
@@ -144,8 +206,8 @@ impl SwapV2Pair {
         Ok(liquidity)
     }
 
-    /// Transfer pair-tokens in exchange for any LP tokens returned to us
-    pub fn burn(&mut self, to: &Address) -> Result<(Amount, Amount)> {
+    // Transfer pair-tokens in exchange for any LP tokens returned to us
+    fn burn(&mut self, to: &Address) -> Result<(Amount, Amount)> {
         let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
         let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
         let liquidity = self.lp.balance_of(this_contract());
@@ -172,7 +234,7 @@ impl SwapV2Pair {
         Ok((amount0, amount1))
     }
 
-    pub fn swap(
+    fn swap(
         &mut self,
         amount0_out: Amount,
         amount1_out: Amount,
@@ -241,7 +303,7 @@ impl SwapV2Pair {
     }
 
     // Extract any reserve balances surplus to what was last recorded
-    pub fn skim(&mut self, to: &Address) -> Result<()> {
+    fn skim(&mut self, to: &Address) -> Result<()> {
         let surplus0 = ERC20Client(&mut self.token0).balance_of(this_contract()).strict_sub(self.reserve0.into());
         let surplus1 = ERC20Client(&mut self.token1).balance_of(this_contract()).strict_sub(self.reserve1.into());
 
@@ -252,79 +314,11 @@ impl SwapV2Pair {
     }
 
     // Record current reserve balances
-    pub fn sync(&mut self) -> Result<()> {
+    fn sync(&mut self) -> Result<()> {
         let balance0 = ERC20Client(&mut self.token0).balance_of(this_contract());
         let balance1 = ERC20Client(&mut self.token1).balance_of(this_contract());
 
         self._update(balance0, balance1)?;
-
-        Ok(())
-    }
-
-    fn _mint_fee(&mut self) -> bool {
-        // Optional TODO: support fee_to setting
-
-        if !self.k_last.is_zero() {
-            self.k_last = 0.into();
-        }
-
-        false
-    }
-
-    fn _transfer(
-        &mut self,
-        which: u8,
-        to: &Address,
-        amount: Amount,
-    ) -> Result<()> {
-        let token = if which == 0 {
-            &mut self.token0
-        } else {
-            &mut self.token1
-        };
-
-        let success = ERC20Client(token).transfer(to, amount);
-
-        require(success, Error::TransferFailed)
-    }
-
-    fn _update(&mut self, balance0: Amount, balance1: Amount) -> Result<()> {
-        // If this fails, `skim()` may be used to extract the overflow
-        require(
-            balance0 <= U112_MAX && balance1 <= U112_MAX,
-            Error::Overflow,
-        )?;
-
-        // We intentionally truncate here, desiring the timestamp mod 2^32
-        let block_timestamp = get_block_timestamp() as u32;
-
-        // Wrapping yields the right elapsed time if this method is
-        // run at least once every ~139 years.
-        let time_elapsed =
-            block_timestamp.wrapping_sub(self.block_timestamp_last);
-
-        if time_elapsed > 0 && self.reserve0 != 0 && self.reserve1 != 0 {
-            self.price0_cumulative_last += uq112x112_div_mul(
-                self.reserve1,
-                self.reserve0,
-                time_elapsed,
-            );
-
-            self.price1_cumulative_last += uq112x112_div_mul(
-                self.reserve0,
-                self.reserve1,
-                time_elapsed,
-            );
-        }
-
-        // These will not fail, due to the checks at the top
-        // of this function
-        self.reserve0 = U112::try_from(balance0).unwrap();
-        self.reserve1 = U112::try_from(balance1).unwrap();
-
-        self.block_timestamp_last = block_timestamp;
-
-        log(b"SYNC(reserve0, reserve1)").unwrap();
 
         Ok(())
     }

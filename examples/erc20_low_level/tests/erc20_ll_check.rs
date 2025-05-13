@@ -1,13 +1,13 @@
-use erc20_low_level::implementation;
+use erc20_low_level::test;
 use erc20_low_level::interface::client::ERC20Client;
 use erc20_low_level::interface::ERC20;
 use sdk::prelude::*;
 
 #[test]
-fn check_erc20() {
+fn erc20_ll_check() {
     let mut env = sdk::TestEnvironment::new();
 
-    let test_contract = implementation::register(&mut env);
+    let test_contract = test::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> i32 {

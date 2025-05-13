@@ -4,6 +4,9 @@ use syn::spanned::Spanned;
 use syn::Ident;
 use syn::Result;
 
+/// Generate trait implementations allowing a struct
+/// containing various `storage` types (e.g. `Map`)
+/// to be loaded and stored.
 pub fn generate(input: &syn::DeriveInput) -> Result<TokenStream> {
     let ident = &input.ident;
     let generics = &input.generics;

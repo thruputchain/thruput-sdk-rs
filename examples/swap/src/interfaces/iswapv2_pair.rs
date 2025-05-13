@@ -1,4 +1,59 @@
+use ::core::fmt;
+use ::serde::{Serialize, Deserialize};
+use ::thiserror::Error;
+use sdk::prelude::contract;
+
+pub use crate::util::{U112, U256};
+
+#[derive(Error, Debug, Copy, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum Error {
+    InitializeFailed,
+    AlreadyInitialized,
+    InsufficientOutputAmount,
+    InsufficientInputAmount,
+    InsufficientLiquidity,
+    InsufficientLiquidityMinted,
+    InsufficientLiquidityBurned,
+    InvalidDestination,
+    InvalidSwapProduct,
+    Overflow,
+    TransferFailed,
+}
+
+// TODO: Wrap the above error type in one that can also
+// represent sdk errors
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SwapV2{:?}", self)
+    }
+}
+
+pub type Result<T, E = Error> = core::result::Result<T, E>;
+
+// This type is a 256-bit unsigned int in UniswapV2, but in this contract,
+// values over `U112_MAX` result in runtime failure.  We use `u128` here
+// because it is a convenient Rust primitive.
+// (For other integer types, we use the same number of bits as in UniswapV2.)
+pub type Amount = u128;
+
+pub type Address = sdk::prelude::ContractAddress;
+
+#[contract(client = "client")]
 pub trait ISwapV2Pair {
     // event Approval
     // event Transfer
+
+    // Must be called exactly once before any other methods
+    fn initialize(this: Option<&mut Self>) -> Result<()>;
+
+    fn get_reserves(&self) -> (U112, U112, u32);
+    // TODO: macro-generate getters for public members?
+
+    fn mint(&mut self, to: &Address) -> Result<u128>;
+    fn burn(&mut self, to: &Address) -> Result<(Amount, Amount)>;
+    fn swap(&mut self, amount0_out: Amount, amount1_out: Amount, to: &Address) -> Result<()>;
+    fn skim(&mut self, to: &Address) -> Result<()>;
+    fn sync(&mut self) -> Result<()>;
 }

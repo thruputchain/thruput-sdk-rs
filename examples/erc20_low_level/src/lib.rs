@@ -16,5 +16,5 @@ mod implementation;
 #[cfg(feature = "guest")]
 pub use implementation::*;
 
-#[cfg(test)]
-mod tests;
+#[cfg(feature = "mock")]
+pub use implementation::test;
