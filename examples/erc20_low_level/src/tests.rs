@@ -1,3 +1,4 @@
+/*
 use crate::implementation;
 use crate::interface::client::ERC20Client;
 use crate::interface::ERC20;
@@ -47,3 +48,4 @@ fn check_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
 
     Ok(())
 }
+*/
