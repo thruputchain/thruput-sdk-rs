@@ -47,9 +47,14 @@ pub trait ISwapV2Pair {
     // event Transfer
 
     // Must be called exactly once before any other methods
-    fn initialize(this: Option<&mut Self>) -> Result<()>;
+    fn initialize(
+        this: Option<&mut Self>,
+        factory: &Address,
+        token0: &Address,
+        token1: &Address,
+        ) -> Result<()>;
 
-    fn get_reserves(&self) -> (U112, U112, u32);
+    fn get_reserves(&self) -> Result<(U112, U112, u32)>;
     // TODO: macro-generate getters for public members?
 
     fn mint(&mut self, to: &Address) -> Result<u128>;

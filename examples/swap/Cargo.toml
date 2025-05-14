@@ -22,3 +22,4 @@ mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]
 swap = { path = ".", features = ["mock", "client"] }
+erc20 = { path = "../erc20", features = ["mock", "client"] }

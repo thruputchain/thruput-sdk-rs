@@ -1,3 +1,5 @@
+use erc20::interface::ERC20;
+use erc20::interface::client::ERC20Client;
 use swap::*;
 use swap::Result;
 use sdk::prelude::*;
@@ -6,11 +8,16 @@ use sdk::prelude::*;
 fn swap_test() {
     let mut env = sdk::TestEnvironment::new();
 
-    let test_contract = test_setup::register(&mut env);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let erc20_contract = erc20::test_setup::register(&mut env);
+
+    let token0_hash = env.setup_create_contract(&erc20_contract);
+    let token1_hash = env.setup_create_contract(&erc20_contract);
+
+    let swap_contract = test_setup::register(&mut env);
+    let swap_hash = env.setup_create_contract(&swap_contract);
 
     let mut handler = env.prepare_test(move || -> i32 {
-        match swap_test_inner(&contract_hash) {
+        match swap_test_inner(&swap_hash, &token0_hash, &token1_hash) {
             Ok(_) => 0,
             Err(error) => panic!("test failed: {:?}", error),
         }
@@ -20,17 +27,74 @@ fn swap_test() {
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
-fn swap_test_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
+fn swap_test_inner(
+    swap_hash: &SHA256Hash,
+    token0_hash: &SHA256Hash,
+    token1_hash: &SHA256Hash,
+    ) -> Result<()> {
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
-    let deployed_addr = deploy_contract(&nonce, contract_hash).unwrap();
+    let nonce0 = SHA256Hash::from(ByteArray::from([90; 32]));
+    let nonce1 = SHA256Hash::from(ByteArray::from([91; 32]));
 
-    let mut pair = ISwapV2PairClient::new(&deployed_addr);
+    let token_admin = get_current_address().unwrap();
 
-    ISwapV2Pair::initialize(Some(&mut pair))?;
+    // Deploy & initialize two token contracts
+    let token0_addr = deploy(&nonce0, token0_hash);
+    let token1_addr = deploy(&nonce1, token1_hash);
+    let mut token0 = ERC20Client::new(&token0_addr);
+    let mut token1 = ERC20Client::new(&token1_addr);
+    ERC20::initialize(Some(&mut token0), &token_admin).unwrap();
+    ERC20::initialize(Some(&mut token1), &token_admin).unwrap();
 
-    let (_r0, _r1, _ts) = pair.get_reserves();
+    let factory_addr = get_current_address().unwrap(); // whatever, for now
 
-    // pair.sync()?;
+    // Deploy & initialize the swap-pair contract
+    let swap_addr = deploy(&nonce, swap_hash);
+    let mut swap_pair = ISwapV2PairClient::new(&swap_addr);
+    ISwapV2Pair::initialize(Some(&mut swap_pair), &factory_addr, &token0_addr, &token1_addr)?;
+
+    let (r0, r1, _ts) = swap_pair.get_reserves()?;
+
+    assert_eq!(r0, 0);
+    assert_eq!(r1, 0);
+
+    swap_pair.sync()?;
+
+    swap_pair.skim(&token_admin)?;
 
     Ok(())
 }
+
+fn deploy(nonce: &SHA256Hash, contract_hash: &SHA256Hash) -> ContractAddress {
+    let addr = deploy_contract(nonce, contract_hash).unwrap_or_else(|e| {
+        if let Ok(errcode) = TryInto::<SyscallErrorCode>::try_into(e) {
+            panic!("deploy failed ({:?}) for {:x}", errcode, Hex(contract_hash));
+        } else {
+            panic!("deploy failed: {:?}", e);
+        }
+    });
+
+    println!("DEPLOYED {:x} at 0x{:x}", Hex(contract_hash), Hex(&addr));
+
+    addr
+}
+
+mod hex {
+    use core::fmt;
+
+    pub struct Hex<'a, T>(pub &'a T);
+
+    impl<'a, T> fmt::LowerHex for Hex<'a, T>
+        where
+            T: AsRef<[u8]>,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let slice: &[u8] = self.0.as_ref();
+            for b in slice {
+                write!(f, "{:x}", b)?;
+            }
+            Ok(())
+        }
+    }
+}
+use hex::Hex;

@@ -10,10 +10,8 @@ case "$verb" in
         $cargo doc --features=std "$@"
         ;;
     examples)
-        (cd examples && bash make.sh build)
-        ;;
-    test_examples)
-        (cd examples && bash make.sh test)
+        # e.g. "examples build erc20"
+        (cd examples && bash make.sh "$@")
         ;;
     test)
         $cargo test --jobs=1 --features=mock

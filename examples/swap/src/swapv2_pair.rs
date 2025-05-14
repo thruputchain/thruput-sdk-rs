@@ -159,20 +159,27 @@ impl SwapV2Pair {
 
 #[contract(exports = "guest_exports")]
 impl ISwapV2Pair for SwapV2Pair {
-    fn initialize(this: Option<&mut Self>) -> Result<()> {
+    fn initialize(
+        this: Option<&mut Self>,
+        factory: &Address,
+        token0: &Address,
+        token1: &Address,
+        ) -> Result<()> {
         // Make sure we haven't already been initialized
         require(this.is_none(), Error::AlreadyInitialized)?;
 
-        initialize_root(|_: &mut Self| {
-            // the DefaultFromKeypath implementation, derived by Storage,
-            // does all we need
+        initialize_root(|this: &mut Self| {
+            this.factory = factory.clone();
+            this.token0 = token0.clone();
+            this.token1 = token1.clone();
+            // (defaults for other fields)
         }).map_err(|_| Error::InitializeFailed)?;
 
         Ok(())
     }
 
-    fn get_reserves(&self) -> (U112, U112, u32) {
-        (self.reserve0, self.reserve1, self.block_timestamp_last)
+    fn get_reserves(&self) -> Result<(U112, U112, u32)> {
+        Ok((self.reserve0, self.reserve1, self.block_timestamp_last))
     }
 
     // Mint LP in exchange for any pair-tokens transferred
