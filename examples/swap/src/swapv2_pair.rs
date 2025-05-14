@@ -8,17 +8,17 @@
 use core::ops::Mul;
 use core::cmp::min;
 use sdk::storage_prelude::*;
-use crate::erc20::ERC20Client;
-use crate::interfaces::ierc20::IERC20;
+use erc20::interface::client::ERC20Client;
+use erc20::interface::ERC20;
 use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pair};
-use crate::util::{U112, U256};
+use crate::bignum::{U112, U256};
 
 #[derive(Default, Serialize, Deserialize)]
-struct ERC20 {
+struct EmbeddedERC20 {
     /* TODO */
 }
 
-impl ERC20 {
+impl EmbeddedERC20 {
     pub fn total_supply(&self) -> Amount { todo!() }
     pub fn mint(&self, _to: &Address, _amount: Amount) { todo!() }
     pub fn burn(&self, _to: &Address, _amount: Amount) { todo!() }
@@ -45,7 +45,7 @@ pub struct SwapV2Pair {
 
     // An embedded ERC20 contract, implementing the LP token
     // TODO: how to "forward" ERC20 method calls to this?
-    lp: ERC20,
+    lp: EmbeddedERC20,
 }
 
     /*
@@ -83,6 +83,19 @@ impl SwapV2Pair {
         false
     }
 
+    fn _get_token_balances(&self) -> Result<(Amount, Amount)> {
+        let balance0 = ERC20Client::new(&self.token0)
+            .get_balance_of(this_contract())
+            .map_err(|_| Error::PairTokenFail)?
+            as u128; // TODO: fix ERC20 interface to use unsigned balances
+        let balance1 = ERC20Client::new(&self.token1)
+            .get_balance_of(this_contract())
+            .map_err(|_| Error::PairTokenFail)?
+            as u128;
+
+        Ok((balance0, balance1))
+    }
+
     fn _transfer(
         &mut self,
         which: u8,
@@ -95,7 +108,9 @@ impl SwapV2Pair {
             &mut self.token1
         };
 
-        let success = ERC20Client(token).transfer(to, amount);
+        let mut token = ERC20Client::new(token);
+        let amount = amount as i128; // TODO: fix ERC20
+        let success = matches!(token.transfer(to, amount), Ok(_));
 
         require(success, Error::TransferFailed)
     }
@@ -163,8 +178,7 @@ impl ISwapV2Pair for SwapV2Pair {
     // Mint LP in exchange for any pair-tokens transferred
     fn mint(&mut self, to: &Address) -> Result<u128> {
         // New reserve balances after LP transfer
-        let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
-        let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
+        let (balance0, balance1) = self._get_token_balances()?;
 
         // Differences from previously-recorded reserve balances
         let amount0 = balance0.strict_sub(self.reserve0.into());
@@ -208,8 +222,8 @@ impl ISwapV2Pair for SwapV2Pair {
 
     // Transfer pair-tokens in exchange for any LP tokens returned to us
     fn burn(&mut self, to: &Address) -> Result<(Amount, Amount)> {
-        let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
-        let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
+        let (balance0, balance1) = self._get_token_balances()?;
+
         let liquidity = self.lp.balance_of(this_contract());
 
         let fee_on = self._mint_fee();
@@ -221,8 +235,7 @@ impl ISwapV2Pair for SwapV2Pair {
         self.lp.burn(this_contract(), liquidity);
         self._transfer(0, &to, amount0)?;
         self._transfer(1, &to, amount1)?;
-        let balance0 = ERC20Client(&self.token0).balance_of(this_contract());
-        let balance1 = ERC20Client(&self.token1).balance_of(this_contract());
+        let (balance0, balance1) = self._get_token_balances()?;
 
         self._update(balance0, balance1)?;
         if fee_on {
@@ -268,10 +281,7 @@ impl ISwapV2Pair for SwapV2Pair {
         // If it is implemented, we will need something like `#[contract(no_reenter)]`
         // on this method.
 
-        let balance0: Amount =
-            ERC20Client(&mut self.token0).balance_of(this_contract());
-        let balance1: Amount =
-            ERC20Client(&mut self.token1).balance_of(this_contract());
+        let (balance0, balance1) = self._get_token_balances()?;
 
         // The unchecked subtractions here will not wrap, due to a `require` above
         let amount0_in =
@@ -304,8 +314,10 @@ impl ISwapV2Pair for SwapV2Pair {
 
     // Extract any reserve balances surplus to what was last recorded
     fn skim(&mut self, to: &Address) -> Result<()> {
-        let surplus0 = ERC20Client(&mut self.token0).balance_of(this_contract()).strict_sub(self.reserve0.into());
-        let surplus1 = ERC20Client(&mut self.token1).balance_of(this_contract()).strict_sub(self.reserve1.into());
+        let (balance0, balance1) = self._get_token_balances()?;
+
+        let surplus0 = balance0.strict_sub(self.reserve0.into());
+        let surplus1 = balance1.strict_sub(self.reserve1.into());
 
         self._transfer(0, &to, surplus0)?;
         self._transfer(1, &to, surplus1)?;
@@ -315,8 +327,7 @@ impl ISwapV2Pair for SwapV2Pair {
 
     // Record current reserve balances
     fn sync(&mut self) -> Result<()> {
-        let balance0 = ERC20Client(&mut self.token0).balance_of(this_contract());
-        let balance1 = ERC20Client(&mut self.token1).balance_of(this_contract());
+        let (balance0, balance1) = self._get_token_balances()?;
 
         self._update(balance0, balance1)?;
 
@@ -335,9 +346,10 @@ pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
 }
 
 fn this_contract() -> &'static ContractAddress {
-    static mut ADDRESS_CELL: Option<Address> = None;
+    static mut ADDRESS_CELL: Option<ContractAddress> = None;
 
     #[allow(static_mut_refs)]
+    // SAFETY: ??
     unsafe {
         if ADDRESS_CELL.is_none() {
             let address = get_current_address().unwrap();
@@ -348,7 +360,7 @@ fn this_contract() -> &'static ContractAddress {
 }
 
 fn get_block_timestamp() -> u64 {
-    unimplemented!()
+    42
 }
 
 fn require(cond: bool, err: Error) -> Result<()> {

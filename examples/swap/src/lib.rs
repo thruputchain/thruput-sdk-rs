@@ -24,6 +24,4 @@ pub use swapv2_pair::guest_exports::*;
 #[cfg(feature = "mock")]
 pub use swapv2_pair::test_setup;
 
-// Utilities
-pub(crate) mod erc20;
-pub(crate) mod util;
+mod bignum;

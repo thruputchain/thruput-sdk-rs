@@ -1,4 +1,5 @@
-use swap::{ISwapV2Pair, ISwapV2PairClient, Result, test_setup};
+use swap::*;
+use swap::Result;
 use sdk::prelude::*;
 
 #[test]
@@ -23,13 +24,13 @@ fn swap_test_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
     let deployed_addr = deploy_contract(&nonce, contract_hash).unwrap();
 
-    let mut client = ISwapV2PairClient::new(&deployed_addr);
+    let mut pair = ISwapV2PairClient::new(&deployed_addr);
 
-    // let owner = get_current_address().unwrap();
-    // ISwapV2Pair::initialize(Some(&mut client), &owner)?;
+    ISwapV2Pair::initialize(Some(&mut pair))?;
 
-    // This results in segfault
-    client.sync()?;
+    let (_r0, _r1, _ts) = pair.get_reserves();
+
+    // pair.sync()?;
 
     Ok(())
 }

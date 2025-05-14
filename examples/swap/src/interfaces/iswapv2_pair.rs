@@ -3,7 +3,7 @@ use ::serde::{Serialize, Deserialize};
 use ::thiserror::Error;
 use sdk::prelude::contract;
 
-pub use crate::util::{U112, U256};
+pub use crate::bignum::{U112, U256};
 
 #[derive(Error, Debug, Copy, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -19,6 +19,7 @@ pub enum Error {
     InvalidSwapProduct,
     Overflow,
     TransferFailed,
+    PairTokenFail,  // temporary
 }
 
 // TODO: Wrap the above error type in one that can also

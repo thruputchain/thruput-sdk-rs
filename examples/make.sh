@@ -52,7 +52,8 @@ function test_contract {
     CC=gcc CXX=g++ HOGD_SRC="$HOGD" \
         $cargo -v test \
             --color=always \
-            --package "$contract"
+            --package "$contract" \
+            -- --nocapture
 }
 
 function test_contracts {
