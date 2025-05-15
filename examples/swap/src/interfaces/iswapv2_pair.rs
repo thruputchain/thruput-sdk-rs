@@ -5,7 +5,7 @@ use sdk::prelude::contract;
 
 pub use crate::bignum::{U112, U256};
 
-#[derive(Error, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Error {
     InitializeFailed,
@@ -20,7 +20,7 @@ pub enum Error {
     Overflow,
     TransferFailed,
     PairTokenFail,  // temporary
-    LPTokenFailure, // include ERC20 error
+    LPTokenFailure(sdk::prelude::Error),
 }
 
 // TODO: Wrap the above error type in one that can also
@@ -57,6 +57,8 @@ pub trait ISwapV2Pair {
 
     fn get_reserves(&self) -> Result<(U112, U112, u32)>;
     // TODO: macro-generate getters for public members?
+
+    fn get_liquidity(&self) -> Result<Amount>;
 
     // These names need to not collide with ERC20::{mint, burn} because
     // the swap contract will implement that interface also

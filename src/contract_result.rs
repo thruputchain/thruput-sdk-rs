@@ -5,7 +5,7 @@ use crate::storage::error::Error as StorageErr;
 use crate::syscall::SysErr;
 use thiserror::Error;
 
-#[derive(Error, Debug, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum Error {
     #[error("Caller error{0}")]
     Caller(ErrorMsg),
@@ -14,7 +14,7 @@ pub enum Error {
     Contract(#[from] ContractError),
 }
 
-#[derive(Error, Debug, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ContractError {
     #[error(": {0}")]
     Custom(ErrorMsg),

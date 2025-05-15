@@ -140,7 +140,8 @@ impl ISwapV2Pair for SwapV2Pair {
             this.factory = factory.clone();
             this.token0 = token0.clone();
             this.token1 = token1.clone();
-            this.lp._init(this_contract());
+            let lp_contract_owner = &factory; // TODO: temp
+            this.lp._init(lp_contract_owner);
         }).unwrap();
 
         Ok(())
@@ -148,6 +149,10 @@ impl ISwapV2Pair for SwapV2Pair {
 
     fn get_reserves(&self) -> Result<(U112, U112, u32)> {
         Ok((self.reserve0, self.reserve1, self.block_timestamp_last))
+    }
+
+    fn get_liquidity(&self) -> Result<Amount> {
+        try_lp(self.lp.total_supply())
     }
 
     // Mint LP in exchange for any pair-tokens transferred
@@ -311,7 +316,7 @@ impl ISwapV2Pair for SwapV2Pair {
 }
 
 fn try_lp<T>(x: sdk::prelude::Result<T>) -> Result<T> {
-    x.map_err(|_erc20_err| Error::LPTokenFailure)
+    x.map_err(|e| Error::LPTokenFailure(e))
 }
 
 // Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112

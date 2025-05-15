@@ -51,19 +51,23 @@ fn swap_test_inner(
     // Deploy & initialize the swap-pair contract
     let swap_addr = deploy(&nonce, swap_hash);
     let mut swap_pair = ISwapV2PairClient::new(&swap_addr);
+
     ISwapV2Pair::initialize_pair(Some(&mut swap_pair), &factory_addr, &token0_addr, &token1_addr)?;
-
     let (r0, r1, _ts) = swap_pair.get_reserves()?;
-
     assert_eq!(r0, 0);
     assert_eq!(r1, 0);
+
+    let liquidity = swap_pair.get_liquidity()?;
+    assert_eq!(0, liquidity);
 
     swap_pair.sync()?;
     swap_pair.skim(&token_admin)?;
 
-    // let lp_addr = ContractAddress::from([42; 32]);
-    // swap_pair.mint_lp(&lp_addr)?; // LPTokenFailure
+    /*
+    let lp_addr = ContractAddress::from([42; 32]);
+    swap_pair.mint_lp(&lp_addr)?; // LPTokenFailure
     // swap_pair.burn_lp(&lp_addr)?; // Divide by zero!
+    */
 
     Ok(())
 }
