@@ -20,6 +20,7 @@ pub enum Error {
     Overflow,
     TransferFailed,
     PairTokenFail,  // temporary
+    LPTokenFailure, // include ERC20 error
 }
 
 // TODO: Wrap the above error type in one that can also
@@ -47,7 +48,7 @@ pub trait ISwapV2Pair {
     // event Transfer
 
     // Must be called exactly once before any other methods
-    fn initialize(
+    fn initialize_pair(
         this: Option<&mut Self>,
         factory: &Address,
         token0: &Address,
@@ -57,8 +58,11 @@ pub trait ISwapV2Pair {
     fn get_reserves(&self) -> Result<(U112, U112, u32)>;
     // TODO: macro-generate getters for public members?
 
-    fn mint(&mut self, to: &Address) -> Result<u128>;
-    fn burn(&mut self, to: &Address) -> Result<(Amount, Amount)>;
+    // These names need to not collide with ERC20::{mint, burn} because
+    // the swap contract will implement that interface also
+    fn mint_lp(&mut self, to: &Address) -> Result<u128>;
+    fn burn_lp(&mut self, to: &Address) -> Result<(Amount, Amount)>;
+
     fn swap(&mut self, amount0_out: Amount, amount1_out: Amount, to: &Address) -> Result<()>;
     fn skim(&mut self, to: &Address) -> Result<()>;
     fn sync(&mut self) -> Result<()>;

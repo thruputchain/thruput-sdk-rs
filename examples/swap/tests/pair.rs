@@ -1,8 +1,8 @@
 use erc20::interface::ERC20;
 use erc20::interface::client::ERC20Client;
+use sdk::prelude::*;
 use swap::*;
 use swap::Result;
-use sdk::prelude::*;
 
 #[test]
 fn swap_test() {
@@ -51,7 +51,7 @@ fn swap_test_inner(
     // Deploy & initialize the swap-pair contract
     let swap_addr = deploy(&nonce, swap_hash);
     let mut swap_pair = ISwapV2PairClient::new(&swap_addr);
-    ISwapV2Pair::initialize(Some(&mut swap_pair), &factory_addr, &token0_addr, &token1_addr)?;
+    ISwapV2Pair::initialize_pair(Some(&mut swap_pair), &factory_addr, &token0_addr, &token1_addr)?;
 
     let (r0, r1, _ts) = swap_pair.get_reserves()?;
 
@@ -59,11 +59,16 @@ fn swap_test_inner(
     assert_eq!(r1, 0);
 
     swap_pair.sync()?;
-
     swap_pair.skim(&token_admin)?;
+
+    // let lp_addr = ContractAddress::from([42; 32]);
+    // swap_pair.mint_lp(&lp_addr)?; // LPTokenFailure
+    // swap_pair.burn_lp(&lp_addr)?; // Divide by zero!
 
     Ok(())
 }
+
+// below helpers should be somehow replaced by sdk features
 
 fn deploy(nonce: &SHA256Hash, contract_hash: &SHA256Hash) -> ContractAddress {
     let addr = deploy_contract(nonce, contract_hash).unwrap_or_else(|e| {
@@ -90,11 +95,21 @@ mod hex {
     {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             let slice: &[u8] = self.0.as_ref();
-            for b in slice {
-                write!(f, "{:x}", b)?;
+            if slice.len() > 16 {
+                for b in &slice[0..4] {
+                    write!(f, "{:02x}", b)?;
+                }
+                write!(f, "...")?;
+                for b in &slice[slice.len() - 4 ..] {
+                    write!(f, "{:02x}", b)?;
+                }
+            } else {
+                for b in slice {
+                    write!(f, "{:02x}", b)?;
+                }
             }
             Ok(())
         }
     }
 }
-use hex::Hex;
+use hex::*;

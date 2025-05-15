@@ -12,12 +12,12 @@ primitive-types = { version = "0.13.1", default-features = false, features = ["s
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-# this should be replaced by an ERC20 interface provided by the SDK
-erc20 = { path = "../erc20", features = ["client"] }
+# the ERC20 interface should be provided by the SDK
+erc20 = { path = "../erc20" }
 
 [features]
-client = []
-guest = []
+client = ["erc20/client"]
+guest = ["erc20/guest"]
 mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]

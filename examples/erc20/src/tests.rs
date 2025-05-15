@@ -4,15 +4,15 @@ use crate::interface::ERC20;
 use sdk::prelude::*;
 
 #[test]
-fn check_mint() {
+fn test_erc20() {
     let mut env = sdk::TestEnvironment::new();
 
     let test_contract = implementation::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
-    sdk::TestEnvironment::enable_syscall_logging();
+    // sdk::TestEnvironment::enable_syscall_logging();
 
     let mut handler = env.prepare_test(move || -> i32 {
-        match check_mint_inner(&contract_hash) {
+        match test_erc20_inner(&contract_hash) {
             Ok(_) => 0,
             Err(error) => panic!("test failed: {}", error),
         }
@@ -22,7 +22,7 @@ fn check_mint() {
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
-fn check_mint_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
+fn test_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address()?;
