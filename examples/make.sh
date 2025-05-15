@@ -43,13 +43,22 @@ function build_contracts {
 function test_contract {
     contract=${1:?Please specify contract to build}
 
-    HOGD="../../hogd"
-    if [ ! -d "$HOGD" ]; then
+    if [ -z "${HOGD_SRC}" ]; then
+        HOGD_SRC="../../hogd"
+    fi
+    HOGD_SRC=$(realpath "${HOGD_SRC}")
+
+    if [ ! -d "$HOGD_SRC" ]; then
         echo "Couldn't find hogd sources"
         exit 1
     fi
 
-    CC=gcc CXX=g++ HOGD_SRC="$HOGD" \
+    # pull in build config
+    SCRIPT_DIR="${HOGD_SRC}/scripts"
+    # shellcheck source="../../hogd/scripts/env.sh"
+    source "${SCRIPT_DIR}/env.sh"
+
+    CC="${CC}" CXX="${CXX}" HOGD_SRC="${HOGD_SRC}" \
         $cargo -v test \
             --color=always \
             --package "$contract" \

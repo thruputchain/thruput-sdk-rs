@@ -1,9 +1,29 @@
 #!/bin/bash
 
+cargo="cargo +nightly"
+
+function cargo_native {
+    if [ -z "${HOGD_SRC}" ]; then
+        HOGD_SRC="../hogd"
+    fi
+    HOGD_SRC=$(realpath "${HOGD_SRC}")
+
+    if [ ! -d "${HOGD_SRC}" ]; then
+        echo "Couldn't find hogd sources"
+        exit 1
+    fi
+
+    # pull in build config
+    SCRIPT_DIR="${HOGD_SRC}/scripts"
+    # shellcheck source="../hogd/scripts/env.sh"
+    source "${SCRIPT_DIR}/env.sh"
+
+    CC="${CC}" CXX="${CXX}" HOGD_SRC="${HOGD_SRC}" \
+        $cargo "$@"
+}
+
 verb=${1:?}
 shift
-
-cargo="cargo +nightly"
 
 case "$verb" in
     doc)
@@ -14,7 +34,7 @@ case "$verb" in
         (cd examples && bash make.sh "$@")
         ;;
     test)
-        $cargo test --jobs=1 --features=mock
+        cargo_native test --jobs=1 --features=mock
         ;;
     check)
         $cargo check --features=std
@@ -26,7 +46,7 @@ case "$verb" in
         $cargo clippy --no-deps --features=std
         ;;
     lint_mock)
-        $cargo clippy --no-deps --features=mock
+        cargo_native clippy --no-deps --features=mock
         ;;
     lint_macros)
         $cargo clippy --no-deps -p macros
@@ -37,7 +57,7 @@ case "$verb" in
             groundhog_xdr \
             protocol_macros \
             native_exec \
-            "$(ls examples | grep -v Makefile)"
+            "$(cd examples && bash make.sh ls)"
         ;;
     tree)
         # Show the dependency graph
