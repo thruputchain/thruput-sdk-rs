@@ -140,6 +140,7 @@ impl ISwapV2Pair for SwapV2Pair {
             this.factory = factory.clone();
             this.token0 = token0.clone();
             this.token1 = token1.clone();
+
             let lp_contract_owner = &factory; // TODO: temp
             this.lp._init(lp_contract_owner);
         }).unwrap();
@@ -164,6 +165,7 @@ impl ISwapV2Pair for SwapV2Pair {
         let amount0 = balance0.strict_sub(self.reserve0.into());
         let amount1 = balance1.strict_sub(self.reserve1.into());
 
+        // XXX: added this check
         require(amount0 > 0 && amount1 > 0,
             Error::InsufficientLiquidityMinted)?;
 
@@ -211,6 +213,8 @@ impl ISwapV2Pair for SwapV2Pair {
 
         let fee_on = self._mint_fee();
         let total_liquidity = try_lp(self.lp.total_supply())?;
+
+        // XXX: added this check
         require(total_liquidity > 0, Error::NoLiquidityToBurn)?;
 
         let amount0 = liquidity.strict_mul(balance0) / total_liquidity;

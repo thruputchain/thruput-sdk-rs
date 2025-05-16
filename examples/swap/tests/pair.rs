@@ -2,7 +2,17 @@ use erc20::interface::ERC20;
 use erc20::interface::client::ERC20Client;
 use sdk::prelude::*;
 use swap::*;
-use swap::{Result, Error};
+use swap::Error as SwapError;
+use sdk::contract_result::Error as TokenError;
+use core::result::Result;
+
+#[derive(Debug, Error)]
+enum TestError {
+    #[error("Swap error: {}", 0)]
+    SwapErr(#[from] SwapError),
+    #[error("Token error: {}", 0)]
+    TokenErr(#[from] TokenError),
+}
 
 #[test]
 fn swap_test() {
@@ -32,45 +42,87 @@ fn swap_test_inner(
     swap_hash: &SHA256Hash,
     token0_hash: &SHA256Hash,
     token1_hash: &SHA256Hash,
-    ) -> Result<()> {
-    //
-    // Deploy & initialize the swap-pair contract
+    ) -> Result<(), TestError> {
+
+    let test_addr = get_current_address().unwrap();
+
+    // Deploy the swap-pair contract
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
-    let swap_addr = deploy(&nonce, swap_hash);
-    let mut swap_pair = ISwapV2PairClient::new(&swap_addr);
+    let pair_addr = deploy(&nonce, swap_hash);
+    let mut pair = ISwapV2PairClient::new(&pair_addr);
+    let mut lp_token = ERC20Client::new(&pair_addr);
 
-    // The swap contract is the "owner" of the token contracts
-    let token_owner = &swap_addr;
-
-    // Deploy & initialize two token contracts
+    // Deploy two token contracts
     let nonce0 = SHA256Hash::from(ByteArray::from([90; 32]));
     let nonce1 = SHA256Hash::from(ByteArray::from([91; 32]));
     let token0_addr = deploy(&nonce0, token0_hash);
     let token1_addr = deploy(&nonce1, token1_hash);
     let mut token0 = ERC20Client::new(&token0_addr);
     let mut token1 = ERC20Client::new(&token1_addr);
-    ERC20::initialize(Some(&mut token0), token_owner).unwrap();
-    ERC20::initialize(Some(&mut token1), token_owner).unwrap();
 
-    let factory_addr = get_current_address().unwrap(); // whatever, for now
+    // Initialize the token contracts, putting them under our control
+    let token_owner = &test_addr;
+    ERC20::initialize(Some(&mut token0), &token_owner).unwrap();
+    ERC20::initialize(Some(&mut token1), &token_owner).unwrap();
 
-    ISwapV2Pair::initialize_pair(Some(&mut swap_pair), &factory_addr, &token0_addr, &token1_addr)?;
+    // Initialize the swap-pair contract with the two tokens
+    let factory_addr = &test_addr;
+    ISwapV2Pair::initialize_pair(Some(&mut pair), &factory_addr, &token0_addr, &token1_addr)?;
 
-    let (r0, r1, _ts) = swap_pair.get_reserves()?;
+
+    // Check how the initial state behaves
+
+    let (r0, r1, _ts) = pair.get_reserves()?;
     assert_eq!(r0, 0);
     assert_eq!(r1, 0);
 
-    let liquidity = swap_pair.get_liquidity()?;
+    let liquidity = pair.get_liquidity()?;
     assert_eq!(0, liquidity);
 
-    swap_pair.sync()?;
+    pair.sync()?;
 
     let somebody = ContractAddress::from([42; 32]);
-    swap_pair.skim(&somebody)?;
+    pair.skim(&somebody)?;
 
     let lp_addr = ContractAddress::from([43; 32]);
-    assert_eq!(swap_pair.mint_lp(&lp_addr), Err(Error::InsufficientLiquidityMinted));
-    assert_eq!(swap_pair.burn_lp(&lp_addr), Err(Error::NoLiquidityToBurn));
+    assert_eq!(pair.mint_lp(&lp_addr), Err(SwapError::InsufficientLiquidityMinted));
+    assert_eq!(pair.burn_lp(&lp_addr), Err(SwapError::NoLiquidityToBurn));
+
+    // Create some tokens for swapping, giving them to alice
+    let alice = &test_addr; // XXX
+    token0.mint(alice, 1_000_000_000)?;
+    token1.mint(alice, 2_000_000_000)?;
+
+    // As alice, provide liquidity:
+    {
+        // Transfer some tokens into the pair
+        token0.transfer(&pair_addr, 1_000_000)?;
+        token1.transfer(&pair_addr, 2_000_000)?;
+
+        // Mint LP tokens to alice in exchange for the tokens
+        pair.mint_lp(alice)?; // SysErr(-1)
+
+        println!("LP token supply: {}", lp_token.total_supply()?);
+    }
+
+    /*
+    // As alice, retrieve tokens:
+    {
+        let lp_amount = lp_token.get_balance()?;
+        println!("Alice has {} LP tokens", lp_amount);
+
+        // Return LP tokens to pair contract
+        lp_token.transfer(&pair_addr, lp_amount)?;
+
+        // Burn the LP tokens in exchange for pair tokens
+        pair.burn_lp(alice)?;
+
+        let lp_amount = lp_token.get_balance()?;
+        println!("Alice has {} LP tokens left", lp_amount);
+        println!("Alice has ({}, {}) of (token0, token1)",
+            token0.get_balance()?, token1.get_balance()?);
+    }
+    */
 
     Ok(())
 }
