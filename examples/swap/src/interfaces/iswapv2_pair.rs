@@ -5,11 +5,12 @@ use sdk::prelude::contract;
 
 pub use crate::bignum::{U112, U256};
 
-#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[derive(Error, Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Error {
     InitializeFailed,
     AlreadyInitialized,
+    NoLiquidityToBurn,
     InsufficientOutputAmount,
     InsufficientInputAmount,
     InsufficientLiquidity,
@@ -20,7 +21,7 @@ pub enum Error {
     Overflow,
     TransferFailed,
     PairTokenFail,  // temporary
-    LPTokenFailure(sdk::prelude::Error),
+    LPTokenFailure, // (sdk::prelude::Error)
 }
 
 // TODO: Wrap the above error type in one that can also

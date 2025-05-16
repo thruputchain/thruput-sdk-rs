@@ -34,7 +34,7 @@ case "$verb" in
         (cd examples && bash make.sh "$@")
         ;;
     test)
-        cargo_native test --jobs=1 --features=mock
+        cargo_native test --features=mock
         ;;
     check)
         $cargo check --features=std

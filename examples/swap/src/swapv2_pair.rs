@@ -164,6 +164,9 @@ impl ISwapV2Pair for SwapV2Pair {
         let amount0 = balance0.strict_sub(self.reserve0.into());
         let amount1 = balance1.strict_sub(self.reserve1.into());
 
+        require(amount0 > 0 && amount1 > 0,
+            Error::InsufficientLiquidityMinted)?;
+
         let fee_on = self._mint_fee();
 
         let total_liquidity = try_lp(self.lp.total_supply())?;
@@ -208,6 +211,8 @@ impl ISwapV2Pair for SwapV2Pair {
 
         let fee_on = self._mint_fee();
         let total_liquidity = try_lp(self.lp.total_supply())?;
+        require(total_liquidity > 0, Error::NoLiquidityToBurn)?;
+
         let amount0 = liquidity.strict_mul(balance0) / total_liquidity;
         let amount1 = liquidity.strict_mul(balance1) / total_liquidity;
         require(amount0 > 0 && amount1 > 0,
@@ -316,7 +321,7 @@ impl ISwapV2Pair for SwapV2Pair {
 }
 
 fn try_lp<T>(x: sdk::prelude::Result<T>) -> Result<T> {
-    x.map_err(|e| Error::LPTokenFailure(e))
+    x.map_err(|_e| Error::LPTokenFailure)
 }
 
 // Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112
