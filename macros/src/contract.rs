@@ -490,9 +490,6 @@ mod gen {
 
         let mut export = quote! {
 
-            #[cfg(feature = "mock")]
-            pub const #export_num_name : u32 = #export_num;
-
             #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
             pub extern "C" fn #extern_name() -> i32 {
                 #internal_name()
