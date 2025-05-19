@@ -6,13 +6,14 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
+test = false # suppress output from our zero unit-tests
 
 [dependencies]
 primitive-types = { version = "0.13.1", default-features = false, features = ["serde_no_std"] }
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-# the ERC20 interface should be provided by the SDK
+# TODO: the ERC20 interface should be provided by the SDK
 erc20 = { path = "../erc20" }
 
 [features]

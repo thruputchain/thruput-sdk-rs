@@ -16,12 +16,18 @@ pub use interfaces::iswapv2_pair::client::*;
 #[cfg(feature = "guest")]
 mod swapv2_pair;
 
-// Contract methods exposed with C ABI, for running as guest
+// Swap contract methods exposed with C ABI, for running as guest
 #[cfg(feature = "guest")]
-pub use swapv2_pair::guest_exports::*;
+pub use swapv2_pair::swap_exports::*;
 
-// A helper for running tests
+// ERC20 methods exposed with C ABI, for running as guest
+#[cfg(feature = "guest")]
+pub use swapv2_pair::erc20_exports::*;
+
 #[cfg(feature = "mock")]
-pub use swapv2_pair::test_setup;
+pub use swapv2_pair::swap_test_setup;
+
+#[cfg(feature = "mock")]
+pub use swapv2_pair::erc20_test_setup;
 
 mod bignum;

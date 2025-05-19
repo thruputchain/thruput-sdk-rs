@@ -10,6 +10,7 @@ use core::cmp::min;
 use sdk::storage_prelude::*;
 use erc20::interface::client::ERC20Client;
 use erc20::interface::ERC20;
+use erc20::interface::Result as ERC20Result;
 use erc20::implementation::CoinContract;
 use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pair};
 use crate::bignum::{U112, U256};
@@ -34,7 +35,6 @@ pub struct SwapV2Pair {
     pub k_last: U256,
 
     // An embedded ERC20 contract, implementing the LP token
-    // TODO: how to "forward" ERC20 method calls to this?
     lp: CoinContract,
 }
 
@@ -125,7 +125,86 @@ impl SwapV2Pair {
     }
 }
 
-#[contract(exports = "guest_exports")]
+impl AsRef<CoinContract> for SwapV2Pair {
+    fn as_ref(&self) -> &CoinContract {
+        &self.lp
+    }
+}
+
+impl AsMut<CoinContract> for SwapV2Pair {
+    fn as_mut(&mut self) -> &mut CoinContract {
+        &mut self.lp
+    }
+}
+
+#[contract(exports = "erc20_exports", test_setup = "erc20_test_setup")]
+impl ERC20 for SwapV2Pair {
+    fn initialize(
+        _maybe_self: Option<&mut Self>,
+        _contract_owner: &ContractAddress,
+    ) -> ERC20Result<()> {
+        panic!("embedded contract is initialized by parent");
+    }
+
+    fn transfer(
+        &mut self,
+        receiver: &ContractAddress,
+        amount: Amount,
+    ) -> ERC20Result<()> {
+        let lp: &mut CoinContract = self.as_mut();
+        lp.transfer(receiver, amount)
+    }
+
+    fn transfer_from(
+        &mut self,
+        owner: &ContractAddress,
+        receiver: &ContractAddress,
+        amount: Amount,
+    ) -> ERC20Result<()> {
+        let lp: &mut CoinContract = self.as_mut();
+        lp.transfer_from(owner, receiver, amount)
+    }
+
+    fn adjust_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        amount: Amount,
+    ) -> ERC20Result<()> {
+        let lp: &mut CoinContract = self.as_mut();
+        lp.adjust_allowance(spender, amount)
+    }
+
+    fn get_balance_of(&self, addr: &ContractAddress) -> ERC20Result<Amount> {
+        let lp: &CoinContract = self.as_ref();
+        lp.get_balance_of(addr)
+    }
+
+    fn get_balance(&self) -> ERC20Result<Amount> {
+        let lp: &CoinContract = self.as_ref();
+        lp.get_balance()
+    }
+
+    fn mint(
+        &mut self,
+        receiver: &ContractAddress,
+        amount: Amount,
+    ) -> ERC20Result<()> {
+        let lp: &mut CoinContract = self.as_mut();
+        lp.mint(receiver, amount)
+    }
+
+    fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> ERC20Result<()> {
+        let lp: &mut CoinContract = self.as_mut();
+        lp.mint(owner, amount)
+    }
+
+    fn total_supply(&self) -> ERC20Result<Amount> {
+        let lp: &CoinContract = self.as_ref();
+        lp.total_supply()
+    }
+}
+
+#[contract(exports = "swap_exports", test_setup = "swap_test_setup")]
 impl ISwapV2Pair for SwapV2Pair {
     fn initialize_pair(
         this: Option<&mut Self>,

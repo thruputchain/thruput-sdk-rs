@@ -1,8 +1,9 @@
 use erc20::interface::ERC20;
 use erc20::interface::client::ERC20Client;
 use sdk::prelude::*;
-use swap::*;
+use swap::{ISwapV2Pair, ISwapV2PairClient};
 use swap::Error as SwapError;
+use swap::{erc20_test_setup, swap_test_setup};
 use sdk::contract_result::Error as TokenError;
 use core::result::Result;
 
@@ -24,8 +25,18 @@ fn swap_test() {
     let token1_hash = env.setup_create_contract(&erc20_contract);
 
     // Register and instantiate swap
-    let swap_contract = test_setup::register(&mut env);
+    let swap_contract = {
+        let mut c = env.add_contract();
+
+        // Register methods for both interfaces provided by the swap contract
+        erc20_test_setup::register_mock(&mut c);
+        swap_test_setup::register_mock(&mut c);
+        c.as_contract()
+    };
+    // let swap_contract = test_setup::register(&mut env);
     let swap_hash = env.setup_create_contract(&swap_contract);
+
+    // sdk::TestEnvironment::enable_syscall_logging();
 
     let mut handler = env.prepare_test(move || -> i32 {
         match swap_test_inner(&swap_hash, &token0_hash, &token1_hash) {
@@ -45,6 +56,7 @@ fn swap_test_inner(
     ) -> Result<(), TestError> {
 
     let test_addr = get_current_address().unwrap();
+    println!("Test address: {:x}", Hex(&test_addr));
 
     // Deploy the swap-pair contract
     let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
@@ -66,6 +78,7 @@ fn swap_test_inner(
     ERC20::initialize(Some(&mut token1), &token_owner).unwrap();
 
     // Initialize the swap-pair contract with the two tokens
+    // (This also initializes the embedded ERC20 implementation.)
     let factory_addr = &test_addr;
     ISwapV2Pair::initialize_pair(Some(&mut pair), &factory_addr, &token0_addr, &token1_addr)?;
 
@@ -93,6 +106,9 @@ fn swap_test_inner(
     token0.mint(alice, 1_000_000_000)?;
     token1.mint(alice, 2_000_000_000)?;
 
+    println!("token0 total_supply = {}", token0.total_supply()?);
+    println!("token1 total_supply = {}", token1.total_supply()?);
+
     // As alice, provide liquidity:
     {
         // Transfer some tokens into the pair
@@ -100,12 +116,17 @@ fn swap_test_inner(
         token1.transfer(&pair_addr, 2_000_000)?;
 
         // Mint LP tokens to alice in exchange for the tokens
-        pair.mint_lp(alice)?; // SysErr(-1)
+        let amount_minted = pair.mint_lp(alice)?;
 
-        println!("LP token supply: {}", lp_token.total_supply()?);
+        println!("Minted LP tokens for alice: {}", amount_minted);
+
+        println!("LP token total_supply: {}", pair.get_liquidity()?);
+
+        // We can interrogate the embedded ERC20 implementation either
+        // by a direct contract call, or via the swap contract
+        assert_eq!(lp_token.total_supply()?, pair.get_liquidity()?);
     }
 
-    /*
     // As alice, retrieve tokens:
     {
         let lp_amount = lp_token.get_balance()?;
@@ -122,7 +143,6 @@ fn swap_test_inner(
         println!("Alice has ({}, {}) of (token0, token1)",
             token0.get_balance()?, token1.get_balance()?);
     }
-    */
 
     Ok(())
 }

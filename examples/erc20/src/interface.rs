@@ -1,5 +1,6 @@
 use sdk::prelude::*;
 
+pub use sdk::prelude::Result;
 pub type Amount = u128;
 
 #[contract(client = "client")]
