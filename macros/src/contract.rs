@@ -104,6 +104,7 @@ mod sig {
     pub struct Config {
         pub exports: Option<String>,
         pub client: Option<String>,
+        pub test_setup: Option<String>,
     }
 
     impl Config {
@@ -113,6 +114,10 @@ mod sig {
 
         pub fn client_mod_ident(&self) -> syn::Ident {
             ident_or(&self.client, "client")
+        }
+
+        pub fn test_setup_mod_ident(&self) -> syn::Ident {
+            ident_or(&self.test_setup, "test_setup")
         }
     }
 
@@ -406,16 +411,18 @@ mod gen {
         contract: &sig::ContractImpl,
         config: &sig::Config,
     ) -> Result<TokenStream2> {
+        let test_setup_mod_ident = config.test_setup_mod_ident();
         let exports_mod_ident = config.exports_mod_ident();
         let mut registrations = TokenStream2::new();
         for method in &contract.methods {
             registrations.extend(registration_from_method_signature(method)?);
         }
+        let mock_registrations = registrations.clone();
 
         Ok(quote! {
 
             #[cfg(feature="mock")]
-            pub mod test_setup {
+            pub mod #test_setup_mod_ident {
                 use super::#exports_mod_ident::*;
 
                 #[allow(dead_code)]
@@ -425,6 +432,10 @@ mod gen {
                     #registrations
 
                     contract.as_contract()
+                }
+
+                pub fn register_mock(contract: &mut ::sdk::MockContract<'_>) {
+                    #mock_registrations
                 }
             }
 
@@ -479,11 +490,13 @@ mod gen {
 
         let mut export = quote! {
 
+            #[cfg(feature = "mock")]
+            pub const #export_num_name : u32 = #export_num;
+
             #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
             pub extern "C" fn #extern_name() -> i32 {
                 #internal_name()
             }
-
         };
 
         if let Some(contract) = contract {
