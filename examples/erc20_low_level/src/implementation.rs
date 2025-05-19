@@ -50,28 +50,28 @@ fn ensure_caller_is_owner() -> Result<()> {
     caller_ensure(caller == owner, "Caller must be owner")
 }
 
-fn add_to_total_supply(amount: Amount) -> Result<()> {
+fn add_to_total_supply(amount: i128) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_total_supply_key(),
-        amount as i128,
+        amount,
     )?)
 }
 
-fn add_to_balance(addr: &ContractAddress, amount: Amount) -> Result<()> {
+fn add_to_balance(addr: &ContractAddress, amount: i128) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_balance_key(addr),
-        amount as i128,
+        amount,
     )?)
 }
 
 fn add_to_allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
-    amount: Amount,
+    amount: i128,
 ) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_allowance_key(owner, spender),
-        amount as i128,
+        amount,
     )?)
 }
 
@@ -94,7 +94,8 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
 
 #[contract]
 pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
-    caller_ensure(amount >= 0, "Transfer amount must be non-negative")?;
+    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
+    let amount = amount as i128;
 
     let caller = get_caller()?;
 
@@ -109,7 +110,8 @@ pub fn transfer_from(
     to: &ContractAddress,
     amount: Amount,
 ) -> Result<()> {
-    caller_ensure(amount >= 0, "Transfer amount must be non-negative")?;
+    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
+    let amount = amount as i128;
 
     let caller = get_caller()?;
     add_to_allowance(owner, &caller, -amount)?;
@@ -124,6 +126,9 @@ pub fn adjust_allowance(
     spender: &ContractAddress,
     amount: Amount,
 ) -> Result<()> {
+    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
+    let amount = amount as i128;
+
     let caller = get_caller()?;
 
     add_to_allowance(&caller, spender, amount)?;
@@ -143,7 +148,9 @@ pub fn get_balance() -> Result<Amount> {
 #[contract]
 pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
-    caller_ensure(amount >= 0, "Mint amount must be non-negative")?;
+
+    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
+    let amount = amount as i128;
 
     add_to_balance(to, amount)?;
     add_to_total_supply(amount)
@@ -152,7 +159,9 @@ pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
 #[contract]
 pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
-    caller_ensure(amount >= 0, "Burn amount must be non-negative")?;
+
+    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
+    let amount = amount as i128;
 
     add_to_balance(to, -amount)?;
     add_to_total_supply(-amount)
