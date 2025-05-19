@@ -1,6 +1,8 @@
 #!/bin/bash
 
-cargo="cargo +nightly"
+[ -z "${HOGD_SRC}" ] && HOGD_SRC="../../hogd"
+
+source ./cargo.sh
 
 declare -a example_contracts
 for d in * ; do
@@ -43,23 +45,7 @@ function build_contracts {
 function test_contract {
     contract=${1:?Please specify contract to build}
 
-    if [ -z "${HOGD_SRC}" ]; then
-        HOGD_SRC="../../hogd"
-    fi
-    HOGD_SRC=$(realpath "${HOGD_SRC}")
-
-    if [ ! -d "$HOGD_SRC" ]; then
-        echo "Couldn't find hogd sources"
-        exit 1
-    fi
-
-    # pull in build config
-    SCRIPT_DIR="${HOGD_SRC}/scripts"
-    # shellcheck source="../../hogd/scripts/env.sh"
-    source "${SCRIPT_DIR}/env.sh"
-
-    CC="${CC}" CXX="${CXX}" HOGD_SRC="${HOGD_SRC}" \
-        $cargo -v test \
+    cargo_native -v test \
             --color=always \
             --package "$contract" \
             -- --nocapture
