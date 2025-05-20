@@ -108,8 +108,8 @@ pub mod prelude {
     #[doc(inline)]
     pub use super::bytestring::*;
 
-    // #[doc(inline)]
-    // pub use super::retrocausal_queue::*;
+    #[doc(inline)]
+    pub use super::retrocausal_queue::*;
 }
 
 /// Storage-layer facilities

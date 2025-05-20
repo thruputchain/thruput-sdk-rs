@@ -849,6 +849,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rcq_test"
+version = "0.1.0"
+dependencies = [
+ "rcq_test",
+ "sdk_rs",
+]
+
+[[package]]
 name = "regex"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
