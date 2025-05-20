@@ -1,6 +1,6 @@
 use sdk::prelude::*;
 
-pub use sdk::prelude::Result;
+pub use sdk::prelude::{Error, Result};
 pub type Amount = u128;
 
 #[contract(client = "client")]

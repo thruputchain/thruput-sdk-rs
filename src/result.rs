@@ -63,11 +63,11 @@ impl From<SerializationError> for Error {
 // dropped when compiled for contract deployment
 
 #[cfg(not(feature = "mock"))]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorMsg;
 
 #[cfg(feature = "mock")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorMsg(String);
 
 impl ErrorMsg {

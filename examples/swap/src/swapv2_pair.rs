@@ -55,12 +55,10 @@ impl SwapV2Pair {
     fn _get_token_balances(&self) -> Result<(Amount, Amount)> {
         let balance0 = ERC20Client::new(&self.token0)
             .get_balance_of(this_contract())
-            .map_err(|_| Error::PairTokenFail)?
-            as u128; // TODO: fix ERC20 interface to use unsigned balances
+            .map_err(|_| Error::PairTokenFail)?;
         let balance1 = ERC20Client::new(&self.token1)
             .get_balance_of(this_contract())
-            .map_err(|_| Error::PairTokenFail)?
-            as u128;
+            .map_err(|_| Error::PairTokenFail)?;
 
         Ok((balance0, balance1))
     }
@@ -220,7 +218,7 @@ impl ISwapV2Pair for SwapV2Pair {
             this.token0 = token0.clone();
             this.token1 = token1.clone();
 
-            let lp_contract_owner = &factory; // TODO: temp
+            let lp_contract_owner = factory; // or this_contract() ?
             this.lp._init(lp_contract_owner);
         }).unwrap();
 
@@ -403,8 +401,8 @@ impl ISwapV2Pair for SwapV2Pair {
     }
 }
 
-fn try_lp<T>(x: sdk::prelude::Result<T>) -> Result<T> {
-    x.map_err(|_e| Error::LPTokenFailure)
+fn try_lp<T>(x: erc20::interface::Result<T>) -> Result<T> {
+    x.map_err(|e| Error::LPTokenFailure(e))
 }
 
 // Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112

@@ -11,6 +11,7 @@ use core::result::Result;
 enum TestError {
     #[error("Swap error: {}", 0)]
     SwapErr(#[from] SwapError),
+
     #[error("Token error: {}", 0)]
     TokenErr(#[from] TokenError),
 }
@@ -33,7 +34,6 @@ fn swap_test() {
         swap_test_setup::register_mock(&mut c);
         c.as_contract()
     };
-    // let swap_contract = test_setup::register(&mut env);
     let swap_hash = env.setup_create_contract(&swap_contract);
 
     // sdk::TestEnvironment::enable_syscall_logging();
@@ -102,7 +102,7 @@ fn swap_test_inner(
     assert_eq!(pair.burn_lp(&lp_addr), Err(SwapError::NoLiquidityToBurn));
 
     // Create some tokens for swapping, giving them to alice
-    let alice = &test_addr; // XXX
+    let alice = &test_addr; // this test contract
     token0.mint(alice, 1_000_000_000)?;
     token1.mint(alice, 2_000_000_000)?;
 
@@ -127,22 +127,38 @@ fn swap_test_inner(
         assert_eq!(lp_token.total_supply()?, pair.get_liquidity()?);
     }
 
-    // As alice, retrieve tokens:
+    // As alice, retrieve pair tokens:
     {
+        // TODO: check that these numbers (from a trial run) are actually right
+
         let lp_amount = lp_token.get_balance()?;
         println!("Alice has {} LP tokens", lp_amount);
+
+        assert_eq!(lp_token.get_balance()?, 1413213);
 
         // Return LP tokens to pair contract
         lp_token.transfer(&pair_addr, lp_amount)?;
 
+        // Alice should have zero LP tokens now
+        assert_eq!(lp_token.get_balance()?, 0);
+
         // Burn the LP tokens in exchange for pair tokens
         pair.burn_lp(alice)?;
 
-        let lp_amount = lp_token.get_balance()?;
-        println!("Alice has {} LP tokens left", lp_amount);
+        // All liquidity has been drained, except a retained fee
+        assert_eq!(pair.get_liquidity()?, 1000);
+
         println!("Alice has ({}, {}) of (token0, token1)",
             token0.get_balance()?, token1.get_balance()?);
+
+        // Alice should now have what she started with, minus
+        // transaction fees
+        assert_eq!(token0.get_balance()?, 999999292);
+        assert_eq!(token1.get_balance()?, 1999998585);
     }
+
+    // TODO: check swap()
+    // TODO: check other contract error paths
 
     Ok(())
 }

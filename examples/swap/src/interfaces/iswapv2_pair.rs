@@ -21,7 +21,7 @@ pub enum Error {
     Overflow,
     TransferFailed,
     PairTokenFail,  // temporary
-    LPTokenFailure, // (sdk::prelude::Error)
+    LPTokenFailure(erc20::interface::Error),
 }
 
 // TODO: Wrap the above error type in one that can also
