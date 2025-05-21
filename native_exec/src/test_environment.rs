@@ -114,6 +114,16 @@ impl<'a> TestEnvironment {
         assert_eq!(res, 0);
     }
 
+    pub fn setup_grant_storage_tokens(
+        &mut self,
+        addr: &ContractAddress,
+        tokens: i64,
+    ) {
+        unsafe {
+            setup_grant_contract_storage_tokens(self.db, addr.as_ptr(), tokens)
+        }
+    }
+
     pub fn advance_block(&mut self) {
         unsafe { advance_new_block(self.db) }
     }
