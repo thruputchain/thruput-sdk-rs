@@ -334,7 +334,7 @@ mod gen {
     }
 
     fn call_from_method_signature(
-        method_index: u32,
+        method_index: MethodID,
         method: &syn::Signature,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
