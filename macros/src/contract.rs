@@ -282,6 +282,7 @@ mod gen {
     use quote::{quote, quote_spanned};
     use syn::parse::Result;
     use syn::spanned::Spanned;
+    use groundhog_xdr::types::MethodID;
 
     // Generate a module `client` that contains the client type
     // (a wrapper around a contract address) and an implementation
@@ -578,7 +579,7 @@ mod gen {
         })
     }
 
-    fn get_method_num(arg: &str) -> u32 {
+    fn get_method_num(arg: &str) -> MethodID {
         use sha2::Digest;
 
         let mut hasher = sha2::Sha256::new();
@@ -587,7 +588,7 @@ mod gen {
 
         let prefix = &result[0..4];
 
-        u32::from_be_bytes(prefix.try_into().unwrap())
+        MethodID::from_be_bytes(prefix.try_into().unwrap())
     }
 
     fn get_method_name(arg: &str) -> String {
