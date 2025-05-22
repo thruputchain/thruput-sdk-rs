@@ -8,6 +8,7 @@ use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
+use groundhog_xdr::byte_array::ByteArray;
 use sha2::{Digest, Sha256};
 use std::panic::UnwindSafe;
 

@@ -8,7 +8,7 @@ fn main() {
     use std::path::PathBuf;
 
     let hogd_src =
-        env::var("HOGD_SRC").unwrap_or_else(|_| "default".to_string());
+        env::var("HOGD_SRC").unwrap_or_else(|_| "../hogd/".to_string());
     println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
     println!("cargo:rerun-if-env-changed=HOGD_SRC");
     println!("cargo:rerun-if-changed={}", hogd_src);
