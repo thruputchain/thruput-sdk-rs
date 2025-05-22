@@ -586,7 +586,7 @@ mod gen {
         hasher.update(arg.as_bytes());
         let result = hasher.finalize();
 
-        let prefix = &result[0..4];
+        let prefix = &result[0..8];
 
         MethodID::from_be_bytes(prefix.try_into().unwrap())
     }

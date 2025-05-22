@@ -5,7 +5,7 @@ use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::byte_array::ByteArray;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
-use groundhog_xdr::types::SHA256Hash;
+use groundhog_xdr::types::{MethodID, SHA256Hash};
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: u32,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
-    funcs: HashMap<u32, Box<dyn Fn() -> ForeignInvokeResult>>,
+    funcs: HashMap<MethodID, Box<dyn Fn() -> ForeignInvokeResult>>,
 }
 
 pub struct MockContract<'a> {
@@ -38,17 +38,17 @@ impl<'a> MockContract<'a> {
         }
     }
 
-    pub fn method_name_from_int(method_id: u32) -> String {
+    pub fn method_name_from_int(method_id: MethodID) -> String {
         format!("{:X}", method_id)
     }
 
-    pub fn method_int_from_sdk_name(name: &str) -> u32 {
+    pub fn method_int_from_sdk_name(name: &str) -> MethodID {
         let mut hasher = Sha256::new();
         hasher.update(name.as_bytes());
         let result = hasher.finalize();
 
-        let prefix = &result[0..4];
-        let num: u32 = u32::from_be_bytes(prefix.try_into().unwrap());
+        let prefix = &result[0..8];
+        let num: MethodID = MethodID::from_be_bytes(prefix.try_into().unwrap());
         num
     }
 
@@ -60,11 +60,11 @@ impl<'a> MockContract<'a> {
         unsafe { &(*self.contract).hash }
     }
 
-    pub fn register_method(self: &mut Self, id: u32, func: fn() -> i32) {
+    pub fn register_method(self: &mut Self, id: MethodID, func: fn() -> i32) {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
 
-    pub fn register_func<F>(self: &mut Self, id: u32, func: F)
+    pub fn register_func<F>(self: &mut Self, id: MethodID, func: F)
     where
         F: Fn() -> i32 + UnwindSafe + Clone + 'static,
     {
@@ -96,7 +96,7 @@ impl MockContractInner {
 
     pub fn get_func(
         &self,
-        method: u32,
+        method: MethodID,
     ) -> Option<&Box<dyn Fn() -> ForeignInvokeResult>> {
         self.funcs.get(&method)
     }

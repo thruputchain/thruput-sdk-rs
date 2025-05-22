@@ -27,7 +27,7 @@ pub struct TestEnvironment {
 
 unsafe extern "C" fn trampoline(
     context: *mut c_void,
-    method: u32,
+    method: MethodID,
 ) -> ForeignInvokeResult {
     let c: *mut MockContractInner = unsafe { core::mem::transmute(context) };
 
