@@ -1,6 +1,6 @@
 use crate::crypto::sha_256;
 use crate::serialize::{self, Serialize};
-use crate::types::StorageKey;
+use crate::types::StorageKeyContractData;
 use alloc::{vec, vec::Vec};
 use core::fmt::Debug;
 
@@ -20,7 +20,7 @@ impl Keypath {
         Self { path: vec![] }
     }
 
-    pub fn from_key(key: &StorageKey) -> Self {
+    pub fn from_key(key: &StorageKeyContractData) -> Self {
         let mut keypath = Keypath::new();
         keypath.push_item(key);
         keypath
@@ -52,7 +52,7 @@ impl Keypath {
         out
     }
 
-    pub fn generate_key(&self) -> StorageKey {
+    pub fn generate_key(&self) -> StorageKeyContractData {
         sha_256(self.flattened().as_slice()).unwrap().into()
     }
 
@@ -126,14 +126,14 @@ mod test_keypath {
 pub use keycache::*;
 mod keycache {
     use super::Keypath;
-    use crate::types::StorageKey;
+    use crate::types::StorageKeyContractData;
     use core::cell::OnceCell;
     use core::ops::Deref;
 
     #[derive(Debug)]
     pub struct KeyCache {
         keypath: Keypath,
-        key: OnceCell<StorageKey>,
+        key: OnceCell<StorageKeyContractData>,
     }
 
     impl From<Keypath> for KeyCache {
@@ -153,7 +153,7 @@ mod keycache {
             }
         }
 
-        pub fn get(&self) -> &StorageKey {
+        pub fn get(&self) -> &StorageKeyContractData {
             self.key.get_or_init(|| self.keypath.generate_key())
         }
 
@@ -163,7 +163,7 @@ mod keycache {
     }
 
     impl Deref for KeyCache {
-        type Target = StorageKey;
+        type Target = StorageKeyContractData;
 
         fn deref(&self) -> &Self::Target {
             self.get()

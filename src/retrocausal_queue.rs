@@ -2,19 +2,19 @@
 
 use crate::result::SysResult as Result;
 use crate::sys;
-use crate::types::{RuntimeMemoryLength, StorageKey};
+use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 
 use core::mem::MaybeUninit;
 
 pub fn retrocausal_queue_insert(
-    key: &StorageKey,
+    key: &StorageKeyContractData,
     queue_entry: &[u8],
 ) -> Result<()> {
     sys::raw_RetrocausalQueueInsert(key, queue_entry)
 }
 
 pub fn retrocausal_queue_consume_sized<const N: usize>(
-    key: &StorageKey,
+    key: &StorageKeyContractData,
 ) -> Result<[u8; N]> {
     let mut queue_entry = [MaybeUninit::uninit(); N];
     let mut written_len: RuntimeMemoryLength = 0;
@@ -30,7 +30,7 @@ pub fn retrocausal_queue_consume_sized<const N: usize>(
 }
 
 pub fn retrocausal_queue_peek_sized<const N: usize>(
-    key: &StorageKey,
+    key: &StorageKeyContractData,
 ) -> Result<[u8; N]> {
     let mut queue_entry = [MaybeUninit::uninit(); N];
     let mut written_len: RuntimeMemoryLength = 0;

@@ -39,13 +39,14 @@ mod cross_call {
     use crate::sys;
     use crate::types::{
         ContractAddress, /* InvocationFlagSet, InvocationFlags, */
+        MethodID,
         RuntimeMemoryLength,
     };
     use alloc::{vec, vec::Vec};
 
     pub fn invoke<ARGS, RET>(
         address: &ContractAddress,
-        method: u32,
+        method: MethodID,
         gas_limit: u64,
         args: &ARGS,
     ) -> RET
@@ -72,7 +73,7 @@ mod cross_call {
 
     fn invoke_inner(
         address: &ContractAddress,
-        method: u32,
+        method: MethodID,
         gas_limit: u64,
         call_data: &[u8],
     ) -> Vec<u8> {

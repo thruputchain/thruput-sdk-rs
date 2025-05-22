@@ -4,7 +4,7 @@ use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{Load, LoadKeypath};
 use super::store::Store;
 use crate::serialize::Serialize;
-use crate::types::StorageKey;
+use crate::types::StorageKeyContractData;
 use core::fmt::Debug;
 
 #[derive(Debug, Serialize)]
@@ -140,7 +140,7 @@ impl<T> Vector<T> {
         keypath
     }
 
-    fn make_index_key(&self, index: u64) -> StorageKey {
+    fn make_index_key(&self, index: u64) -> StorageKeyContractData {
         self.make_index_keypath(index).generate_key()
     }
 }

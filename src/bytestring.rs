@@ -10,7 +10,7 @@ use crate::result::SysResult as Result;
 use crate::sys;
 #[allow(unused_imports)] // import is for docs
 use crate::sys::SyscallErrorCode;
-use crate::types::{RuntimeMemoryLength, StorageKey};
+use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
@@ -22,7 +22,7 @@ pub use bytestring_get_alloc::*;
 /// If an item of another type exists there, returns an error with code
 /// [`SyscallErrorCode::kInvalidInput`].
 ///
-pub fn bytestring_exists(key: &StorageKey) -> Result<bool> {
+pub fn bytestring_exists(key: &StorageKeyContractData) -> Result<bool> {
     match bytestring_get_len(key) {
         Ok(_) => Ok(true),
         Err(error) => {
@@ -39,7 +39,7 @@ pub fn bytestring_exists(key: &StorageKey) -> Result<bool> {
 ///
 /// Returns an error in the same situations as [`bytestring_get`].
 ///
-pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
+pub fn bytestring_get_len(key: &StorageKeyContractData) -> Result<u32> {
     let mut out: RuntimeMemoryLength = 0;
     sys::raw_BytestringGetLen(key, &mut out)?;
 
@@ -54,7 +54,7 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, both writes will be allowed.
 ///
-pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
+pub fn bytestring_set(key: &StorageKeyContractData, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(key, slice /*, 0 */)?;
     Ok(())
 }
@@ -84,7 +84,7 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
 /// Beware that large bytestrings may overflow your execution stack.
 ///
 pub fn bytestring_get_sized<const N: usize>(
-    key: &StorageKey,
+    key: &StorageKeyContractData,
 ) -> Result<Option<[u8; N]>> {
     let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
     let mut len = MaybeUninit::uninit();
@@ -107,7 +107,7 @@ mod bytestring_get_alloc {
     use crate::sys;
     #[allow(unused_imports)] // import is for docs
     use crate::sys::SyscallErrorCode;
-    use crate::types::StorageKey;
+    use crate::types::StorageKeyContractData;
     use ::alloc::boxed::Box;
     use core::mem::MaybeUninit;
 
@@ -117,7 +117,7 @@ mod bytestring_get_alloc {
     /// or [`SyscallErrorCode::kInvalidInput`] if an item of another type is there.
     /// This routine requires feature `alloc`.
     ///
-    pub fn bytestring_get(key: &StorageKey) -> Result<Box<[u8]>> {
+    pub fn bytestring_get(key: &StorageKeyContractData) -> Result<Box<[u8]>> {
         let len = super::bytestring_get_len(key)?;
         let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
         let mut written_len = MaybeUninit::uninit();
@@ -131,7 +131,7 @@ mod bytestring_get_alloc {
         Ok(unsafe { vec.assume_init() })
     }
 
-    pub fn bytestring_try_get(key: &StorageKey) -> Result<Option<Box<[u8]>>> {
+    pub fn bytestring_try_get(key: &StorageKeyContractData) -> Result<Option<Box<[u8]>>> {
         let len = match super::bytestring_get_len(key) {
             Ok(len) => len,
             Err(e) => {

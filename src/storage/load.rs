@@ -2,13 +2,13 @@ use super::error::Result;
 use super::keypath::*;
 use crate::bytestring::bytestring_get;
 use crate::serialize::{self, DeserializeOwned};
-use crate::types::StorageKey;
+use crate::types::StorageKeyContractData;
 
 /// Must implement at least `load`
 pub trait Load: Sized {
-    fn load(key: &StorageKey) -> Result<Self>;
+    fn load(key: &StorageKeyContractData) -> Result<Self>;
 
-    fn try_load(key: &StorageKey) -> Result<Option<Self>> {
+    fn try_load(key: &StorageKeyContractData) -> Result<Option<Self>> {
         match Self::load(key) {
             Ok(v) => Ok(Some(v)),
             Err(error) => {
@@ -26,7 +26,7 @@ impl<T> Load for T
 where
     T: DeserializeOwned,
 {
-    fn load(key: &StorageKey) -> Result<Self> {
+    fn load(key: &StorageKeyContractData) -> Result<Self> {
         let buf = bytestring_get(key)?;
         let val = deserialize_owned(buf.as_ref())?;
         Ok(val)
