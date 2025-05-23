@@ -353,11 +353,10 @@ mod gen {
         let (receiver_arg, receiver_param) = if has_receiver {
             let first_arg = method.inputs.first().unwrap();
             let receiver_arg = get_arg_name(first_arg).unwrap();
-            (quote! { &#receiver_arg.address }, receiver_arg)
+            (quote! { &#receiver_arg.address }, quote! { &#receiver_arg })
         } else { 
             (quote! { &self.address }, quote! { &self }) 
         };
-
 
         let mut params = method.inputs.iter();
         if has_receiver {
