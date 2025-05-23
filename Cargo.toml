@@ -6,7 +6,6 @@ members = [
     "protocol-rs/groundhog_xdr", 
     "protocol-rs/protocol_macros", 
     "native_exec",
-    "examples/*",
 ]
 
 [package]

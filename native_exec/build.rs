@@ -17,6 +17,15 @@ fn main() {
         println!("{key}={value}");
     }
 
+    // native exec builds for host, not for the cargo target (which might be wasm)
+    let host = std::env::var("HOST").unwrap();
+    let target = std::env::var("TARGET").unwrap();
+
+    if target == "wasm32-unknown-unknown" {
+        println!("cargo:warning=Skipping native exec build for wasm32-unknown-unknown");
+        return;
+    }
+
     let native_exec_bindings =
         PathBuf::from(hogd_src.clone()).join("hogd/test_ffi/test_bindings.h");
 
@@ -34,15 +43,12 @@ fn main() {
 
     // Generate cmake build
 
-    let host = std::env::var("HOST").unwrap();
-
     let mut cfg = cmake::Config::new(hogd_src);
     cfg.define("CMAKE_BUILD_TYPE", "Release")
         // run cargo b -vv to see the full cmake output
         .define("CMAKE_VERBOSE_MAKEFILE", "ON")
         .define("CMAKE_OSX_SYSROOT", "")
-        .define("ENABLE_TEST_FFI", "ON")
-        .target(&host);
+        .define("ENABLE_TEST_FFI", "ON");
 
     // Don't force re-configuration before building
     cfg.always_configure(false);
