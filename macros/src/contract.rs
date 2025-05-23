@@ -333,30 +333,37 @@ mod gen {
 
         })
     }
+    
+    fn first_arg_is_receiver(method: &syn::Signature) -> bool {
+        if method.inputs.len() == 0 {
+            return false;
+        }
+        let first_arg = method.inputs.first().unwrap();
+        is_receiver(first_arg)
+    }
 
     fn call_from_method_signature(
         method_index: MethodID,
         method: &syn::Signature,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
-        let mut params = method.inputs.iter();
 
-        // Pop the "receiver" parameter
-        let receiver_param = {
-            if let Some(p) = params.next() {
-                Ok(p)
-            } else {
-                err(method, "No receiver param in contract method")
-            }
-        }
-        .unwrap();
-        let receiver_arg = get_arg_name(receiver_param)?;
-        let address = if is_receiver(receiver_param) {
-            quote! { &#receiver_arg.address }
-        } else {
-            // It's an Option<&mut Self> pseudo-receiver
-            quote! { &#receiver_arg.unwrap().address }
+        let has_receiver = first_arg_is_receiver(method);
+
+        let (receiver_arg, receiver_param) = if has_receiver {
+            let first_arg = method.inputs.first().unwrap();
+            let receiver_arg = get_arg_name(first_arg).unwrap();
+            (quote! { &#receiver_arg.address }, receiver_arg)
+        } else { 
+            (quote! { &self.address }, quote! { &self }) 
         };
+
+
+        let mut params = method.inputs.iter();
+        if has_receiver {
+            params.next();
+        }
+
         let sent_params: Vec<&syn::FnArg> = params.collect();
         let sent_args: Vec<&syn::Pat> =
             sent_params.iter().cloned().filter_map(arg_pat).collect();
@@ -374,7 +381,7 @@ mod gen {
             fn #ident(#receiver_param, #(#sent_params),* ) #return_type
             {
                 let args = #args_tuple;
-                invoke(#address, #method_index, #gas_limit, &args)
+                invoke(#receiver_arg, #method_index, #gas_limit, &args)
             }
 
         })
