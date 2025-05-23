@@ -3,7 +3,7 @@ use ::cmake;
 
 // Compiler should be selected by setting CC/CXX environment vars
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::env;
     use std::path::PathBuf;
 
@@ -13,17 +13,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=HOGD_SRC");
     println!("cargo:rerun-if-changed={}", hogd_src);
 
-    for (key, value) in std::env::vars() {
-        println!("{key}={value}");
-    }
-
     // native exec builds for host, not for the cargo target (which might be wasm)
-    let host = std::env::var("HOST").unwrap();
     let target = std::env::var("TARGET").unwrap();
 
+    println!("cargo:warning=TARGET is '{}'", target);
+
     if target == "wasm32-unknown-unknown" {
-        println!("cargo:warning=Skipping native exec build for wasm32-unknown-unknown");
-        return;
+        return Err("native_exec does not build for wasm32-unknown-unknown".into());
     }
 
     let native_exec_bindings =
@@ -65,4 +61,5 @@ fn main() {
         dst.display()
     );
     println!("cargo:rustc-link-lib=dylib=test_ffi");
+    Ok(())
 }
