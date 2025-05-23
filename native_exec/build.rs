@@ -13,6 +13,10 @@ fn main() {
     println!("cargo:rerun-if-env-changed=HOGD_SRC");
     println!("cargo:rerun-if-changed={}", hogd_src);
 
+    for (key, value) in std::env::vars() {
+        println!("{key}={value}");
+    }
+
     let native_exec_bindings =
         PathBuf::from(hogd_src.clone()).join("hogd/test_ffi/test_bindings.h");
 
@@ -30,12 +34,15 @@ fn main() {
 
     // Generate cmake build
 
+    let host = std::env::var("HOST").unwrap();
+
     let mut cfg = cmake::Config::new(hogd_src);
     cfg.define("CMAKE_BUILD_TYPE", "Release")
         // run cargo b -vv to see the full cmake output
         .define("CMAKE_VERBOSE_MAKEFILE", "ON")
         .define("CMAKE_OSX_SYSROOT", "")
-        .define("ENABLE_TEST_FFI", "ON");
+        .define("ENABLE_TEST_FFI", "ON")
+        .target(&host);
 
     // Don't force re-configuration before building
     cfg.always_configure(false);
