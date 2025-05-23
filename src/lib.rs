@@ -13,7 +13,7 @@ mod rt;
 #[cfg(all(feature = "alloc", target_family = "wasm"))]
 pub mod allocator;
 
-#[cfg(all(feature = "alloc", not(target_family = "wasm")))]
+#[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
 compile_error!("building with nostd (or just the alloc feature) is not supported outside of wasm");
 
 #[doc(inline)]
