@@ -1,0 +1,46 @@
+cargo-features = ["trim-paths", "profile-rustflags"] #unstable
+
+[workspace]
+resolver = "2"
+
+[package]
+name = "{{ crate_name }}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdk = { package = "sdk_rs", git = "ssh://git@github.com/groundhogchain/sdk_rs.git", features = ["storage"] }
+serde = { version = "1.0.217", default-features = false, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+default = ["guest"]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+{{ crate_name }} = { path = ".", features = ["mock", "client"] }
+
+
+[profile.dev]
+opt-level = "z"
+overflow-checks = false
+debug = false
+strip = "debuginfo"
+panic = "abort"
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+trim-paths = "all" # unstable
+rustflags = [ "-C", "link-args=-zstack-size=64000" ]
