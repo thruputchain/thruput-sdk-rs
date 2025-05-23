@@ -9,7 +9,7 @@ members = [
     "examples/*"
 ]
 exclude = [
-    "template/*",
+    "template",
 ]
 
 [package]
