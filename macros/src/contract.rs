@@ -305,13 +305,14 @@ mod gen {
         let client_mod_ident = config.client_mod_ident();
 
         let mut method_stubs = TokenStream2::new();
-        let mut index : u16 = 0;
-        for method in contract.methods.iter() {
+        let mut methods : Vec<_> = contract.methods.iter().collect();
+        methods.sort_by(|a,b| a.ident.to_string().cmp(&b.ident.to_string()));
+        
+        for (index, method) in methods.iter().enumerate() {
             method_stubs.extend(call_from_method_signature(
-                get_method_num(&trait_ident.to_string(), "0.1.0", index),
+                get_method_num(&trait_ident.to_string(), "0.1.0", index.try_into().unwrap()),
                 method,
             )?);
-            index += 1;
         }
 
         Ok(quote! {
@@ -380,10 +381,16 @@ mod gen {
         let return_type = &method.output;
         let gas_limit = u64::MAX;
 
+        let export_name = get_method_name(method_index);
+
+        let comment_text = format!("/// Export as {}", export_name);
+        let comment_tokens: proc_macro2::TokenStream = comment_text.parse().unwrap();
+
         Ok(quote_spanned! {method.span()=>
 
             fn #ident(#receiver_param, #(#sent_params),* ) #return_type
             {
+                #comment_tokens
                 let args = #args_tuple;
                 invoke(#address, #method_index, #gas_limit, &args)
             }
@@ -466,12 +473,12 @@ mod gen {
 
         let exports_mod_ident = config.exports_mod_ident();
         let mut exports = TokenStream2::new();
-        let mut index : u16 = 0;
-        for method in &contract.methods {
-            let method_id = get_method_num(&contract.trait_ident.to_string(), "0.1.0", index);
+        let mut methods : Vec<_> = contract.methods.iter().collect();
+        methods.sort_by(|a,b| a.ident.to_string().cmp(&b.ident.to_string()));
+        for (index, method) in methods.iter().enumerate() {
+            let method_id = get_method_num(&contract.trait_ident.to_string(), "0.1.0", index.try_into().unwrap());
             exports
                 .extend(export_from_method_signature(Some(contract), method, method_id)?);
-            index += 1;
         }
 
         let use_trait = if let Some(trait_) = &contract.trait_ {
