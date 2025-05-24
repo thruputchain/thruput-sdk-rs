@@ -314,12 +314,13 @@ mod gen {
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
 
         for (index, method) in methods.iter().enumerate() {
+            let method_id = get_method_num(
+                &trait_ident.to_string(),
+                "0.1.0",
+                index.try_into().unwrap(),
+            );
             method_stubs.extend(call_from_method_signature(
-                get_method_num(
-                    &trait_ident.to_string(),
-                    "0.1.0",
-                    index.try_into().unwrap(),
-                ),
+                method_id,
                 method,
             )?);
         }
@@ -396,12 +397,19 @@ mod gen {
         let comment_tokens: proc_macro2::TokenStream =
             comment_text.parse().unwrap();
 
+        let print_string = format!("[sdk] Client: Calling method {}", ident);
+
+        let log_call = quote! { 
+            ::sdk::debug_log!("{} with args {:?}", #print_string, #args_tuple); 
+        };
+
         Ok(quote_spanned! {method.span()=>
 
             fn #ident(#receiver_param, #(#sent_params),* ) #return_type
             {
                 #comment_tokens
                 let args = #args_tuple;
+                #log_call
                 invoke(#address, #method_index, #gas_limit, &args)
             }
 
@@ -443,17 +451,17 @@ mod gen {
         let test_setup_mod_ident = config.test_setup_mod_ident();
         let exports_mod_ident = config.exports_mod_ident();
         let mut registrations = TokenStream2::new();
-        let mut index: u16 = 0;
-        for method in &contract.methods {
+        let mut methods: Vec<_> = contract.methods.iter().collect();
+        methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
+        for (index, method) in methods.iter().enumerate() {
             let method_id = get_method_num(
                 &contract.trait_ident.to_string(),
                 "0.1.0",
-                index,
+                index.try_into().unwrap(),
             );
             registrations.extend(registration_from_method_signature(
                 method, method_id,
             )?);
-            index += 1;
         }
         let mock_registrations = registrations.clone();
 
@@ -497,6 +505,7 @@ mod gen {
                 "0.1.0",
                 index.try_into().unwrap(),
             );
+
             exports.extend(export_from_method_signature(
                 Some(contract),
                 method,
@@ -536,6 +545,11 @@ mod gen {
         let export_num_name =
             format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
+        let print_string = format!("[sdk] Guest: Calling method {}", ident);
+        let log_guest_call = quote! { 
+            ::sdk::debug_log!("{} ", #print_string); 
+        };
+
         let mut export = quote! {
 
             #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
@@ -555,6 +569,7 @@ mod gen {
                 export.extend(quote! {
 
                     pub fn #internal_name() -> i32 {
+                        #log_guest_call
                         ::sdk::internal::handle_call(| #received_args | {
                             let mut state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
                                 .expect("Failed loading state")
@@ -577,6 +592,7 @@ mod gen {
                 export.extend(quote! {
 
                     pub fn #internal_name() -> i32 {
+                        #log_guest_call
                         ::sdk::internal::handle_call(| #received_args | {
                             let mut maybe_state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
                                 .expect("Failed loading state");
@@ -599,6 +615,7 @@ mod gen {
             export.extend(quote! {
 
                 pub fn #internal_name() -> i32 {
+                    #log_guest_call  
                     ::sdk::internal::handle_call(| #received_args | {
                         #ident( #provided_args )
                     }).into()
