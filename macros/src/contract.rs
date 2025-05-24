@@ -74,7 +74,13 @@ fn item_to_contract_helpers(
             let sig = parse::method_signature_from_sig(&item.sig);
             let mut out = TokenStream2::new();
 
-            out.extend(gen::export_from_method_signature(None, &sig)?);
+            // TODO(geoff): My understanding is that this case is for functions that
+            // are exported not as part of an interface.  What should their method ID be?
+            let method_id =
+                gen::get_method_num(&item.sig.ident.to_string(), "0.1.0", 0);
+            out.extend(gen::export_from_method_signature(
+                None, &sig, method_id,
+            )?);
 
             Ok(out)
         }
@@ -146,6 +152,7 @@ mod sig {
         #[allow(unused)]
         pub span: Span,
         pub trait_: Option<syn::Path>,
+        pub trait_ident: syn::Ident,
         #[allow(unused)]
         pub generics: syn::Generics,
         pub self_ty: Box<syn::Type>,
@@ -204,6 +211,10 @@ mod parse {
     ) -> Result<sig::ContractImpl> {
         // Get the contract trait being implemented, if any
         let trait_ = item.trait_.clone().map(|(_, path, _)| path);
+        let trait_ident = trait_
+            .as_ref()
+            .map(|path| path.segments.last().unwrap().ident.clone())
+            .unwrap();
 
         // Pull out the function items
         let methods = item
@@ -227,6 +238,7 @@ mod parse {
         Ok(sig::ContractImpl {
             span: item.span(),
             trait_,
+            trait_ident,
             generics: item.generics.clone(),
             self_ty: item.self_ty.clone(),
             methods,
@@ -277,12 +289,14 @@ mod gen {
 
     use super::err;
     use super::sig;
+    use groundhog_xdr::contract::ContractEntrypointID;
+    use groundhog_xdr::serialize::{Limits, WriteXdr};
+    use groundhog_xdr::types::MethodID;
     use proc_macro2::TokenStream as TokenStream2;
     use quote::format_ident;
     use quote::{quote, quote_spanned};
     use syn::parse::Result;
     use syn::spanned::Spanned;
-    use groundhog_xdr::types::MethodID;
 
     // Generate a module `client` that contains the client type
     // (a wrapper around a contract address) and an implementation
@@ -296,9 +310,16 @@ mod gen {
         let client_mod_ident = config.client_mod_ident();
 
         let mut method_stubs = TokenStream2::new();
-        for method in contract.methods.iter() {
+        let mut methods: Vec<_> = contract.methods.iter().collect();
+        methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
+
+        for (index, method) in methods.iter().enumerate() {
             method_stubs.extend(call_from_method_signature(
-                get_method_num(&method.ident.to_string()),
+                get_method_num(
+                    &trait_ident.to_string(),
+                    "0.1.0",
+                    index.try_into().unwrap(),
+                ),
                 method,
             )?);
         }
@@ -369,10 +390,17 @@ mod gen {
         let return_type = &method.output;
         let gas_limit = u64::MAX;
 
+        let export_name = get_method_name(method_index);
+
+        let comment_text = format!("/// Export as {}", export_name);
+        let comment_tokens: proc_macro2::TokenStream =
+            comment_text.parse().unwrap();
+
         Ok(quote_spanned! {method.span()=>
 
             fn #ident(#receiver_param, #(#sent_params),* ) #return_type
             {
+                #comment_tokens
                 let args = #args_tuple;
                 invoke(#address, #method_index, #gas_limit, &args)
             }
@@ -415,8 +443,17 @@ mod gen {
         let test_setup_mod_ident = config.test_setup_mod_ident();
         let exports_mod_ident = config.exports_mod_ident();
         let mut registrations = TokenStream2::new();
+        let mut index: u16 = 0;
         for method in &contract.methods {
-            registrations.extend(registration_from_method_signature(method)?);
+            let method_id = get_method_num(
+                &contract.trait_ident.to_string(),
+                "0.1.0",
+                index,
+            );
+            registrations.extend(registration_from_method_signature(
+                method, method_id,
+            )?);
+            index += 1;
         }
         let mock_registrations = registrations.clone();
 
@@ -452,9 +489,19 @@ mod gen {
 
         let exports_mod_ident = config.exports_mod_ident();
         let mut exports = TokenStream2::new();
-        for method in &contract.methods {
-            exports
-                .extend(export_from_method_signature(Some(contract), method)?);
+        let mut methods: Vec<_> = contract.methods.iter().collect();
+        methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
+        for (index, method) in methods.iter().enumerate() {
+            let method_id = get_method_num(
+                &contract.trait_ident.to_string(),
+                "0.1.0",
+                index.try_into().unwrap(),
+            );
+            exports.extend(export_from_method_signature(
+                Some(contract),
+                method,
+                method_id,
+            )?);
         }
 
         let use_trait = if let Some(trait_) = &contract.trait_ {
@@ -480,10 +527,10 @@ mod gen {
     pub fn export_from_method_signature(
         contract: Option<&sig::ContractImpl>,
         method: &sig::Method,
+        export_num: MethodID,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
-        let export_num = get_method_num(&ident.to_string());
-        let export_name = get_method_name(&ident.to_string());
+        let export_name = get_method_name(export_num);
         let extern_name = format_ident!("{}_extern", ident);
         let internal_name = format_ident!("{}_internal", ident);
         let export_num_name =
@@ -567,9 +614,9 @@ mod gen {
 
     fn registration_from_method_signature(
         method: &sig::Method,
+        export_num: MethodID,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
-        let export_num = get_method_num(&ident.to_string());
         let internal_name = format_ident!("{}_internal", ident);
 
         Ok(quote! {
@@ -579,21 +626,39 @@ mod gen {
         })
     }
 
-    fn get_method_num(arg: &str) -> MethodID {
+    pub fn get_method_num(
+        trait_name: &str,
+        version_str: &str,
+        method_index: u16,
+    ) -> MethodID {
         use sha2::Digest;
 
+        let preimage =
+            ::groundhog_xdr::contract::ContractInterfaceIDPreimage {
+                name: trait_name.to_string().as_bytes().try_into().unwrap(),
+                vers: version_str.to_string().as_bytes().try_into().unwrap(),
+            };
+
         let mut hasher = sha2::Sha256::new();
-        hasher.update(arg.as_bytes());
+        let preimage_bytes = preimage.to_xdr(Limits::none()).unwrap();
+        hasher.update(preimage_bytes);
         let result = hasher.finalize();
 
-        let prefix = &result[0..8];
+        let prefix: &[u8; 6] = &result[0..6].try_into().unwrap();
 
-        MethodID::from_be_bytes(prefix.try_into().unwrap())
+        let id = ContractEntrypointID {
+            contract_interface_id: prefix.clone().try_into().unwrap(),
+            contract_method_id: method_index.to_le_bytes().into(),
+        };
+
+        let mut id_bytes: [u8; 8] = [0; 8];
+        id_bytes[0..6].copy_from_slice(id.contract_interface_id.as_slice());
+        id_bytes[6..8].copy_from_slice(id.contract_method_id.as_slice());
+
+        MethodID::from_le_bytes(id_bytes)
     }
 
-    fn get_method_name(arg: &str) -> String {
-        let num = get_method_num(arg);
-
+    fn get_method_name(num: MethodID) -> String {
         format!("{:X}", num)
     }
 
