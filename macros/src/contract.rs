@@ -396,12 +396,19 @@ mod gen {
         let comment_tokens: proc_macro2::TokenStream =
             comment_text.parse().unwrap();
 
+        let print_string = format!("[sdk] Client: Calling method {}", ident);
+
+        let log_call = quote! { 
+            ::sdk::debug_log!("{} with args {:?}", #print_string, #args_tuple); 
+        };
+
         Ok(quote_spanned! {method.span()=>
 
             fn #ident(#receiver_param, #(#sent_params),* ) #return_type
             {
                 #comment_tokens
                 let args = #args_tuple;
+                #log_call
                 invoke(#address, #method_index, #gas_limit, &args)
             }
 
