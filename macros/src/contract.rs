@@ -74,10 +74,7 @@ fn item_to_contract_helpers(
             let sig = parse::method_signature_from_sig(&item.sig);
             let mut out = TokenStream2::new();
 
-            // TODO(geoff): My understanding is that this case is for functions that
-            // are exported not as part of an interface.  What should their method ID be?
-            let method_id =
-                gen::get_method_num(&item.sig.ident.to_string(), "0.1.0", 0);
+            let method_id = gen::get_method_num(None, None, &item.sig.ident, 0);
             out.extend(gen::export_from_method_signature(
                 None, &sig, method_id,
             )?);
@@ -113,6 +110,47 @@ mod sig {
         pub test_setup: Option<String>,
     }
 
+    #[derive(Debug)]
+    pub struct Contract {
+        #[allow(unused)]
+        pub span: Span,
+        pub ident: syn::Ident,
+        #[allow(unused)]
+        pub generics: syn::Generics,
+        pub methods: Vec<syn::Signature>,
+    }
+
+    #[derive(Debug)]
+    pub struct ContractImpl {
+        #[allow(unused)]
+        pub span: Span,
+        pub trait_: Option<syn::Path>,
+        #[allow(unused)]
+        pub generics: syn::Generics,
+        pub self_ty: Box<syn::Type>,
+        pub methods: Vec<Method>,
+    }
+
+    #[derive(Debug)]
+    pub struct Method {
+        #[allow(unused)]
+        pub span: Span,
+        pub ident: syn::Ident,
+        pub receiver: Option<syn::Receiver>,
+        pub args: Vec<Arg>,
+    }
+
+    #[derive(Debug)]
+    pub struct Arg {
+        pub ident: syn::Ident,
+        pub ty: syn::Type,
+    }
+}
+
+mod sig_impls {
+    use super::sig::*;
+    use proc_macro2::Span;
+
     impl Config {
         pub fn exports_mod_ident(&self) -> syn::Ident {
             ident_or(&self.exports, "exports")
@@ -137,41 +175,21 @@ mod sig {
         }
     }
 
-    #[derive(Debug)]
-    pub struct Contract {
-        #[allow(unused)]
-        pub span: Span,
-        pub ident: syn::Ident,
-        #[allow(unused)]
-        pub generics: syn::Generics,
-        pub methods: Vec<syn::Signature>,
+    impl Contract {
+        pub fn interface_trait_ident(&self) -> Option<&syn::Ident> {
+            Some(&self.ident)
+        }
     }
 
-    #[derive(Debug)]
-    pub struct ContractImpl {
-        #[allow(unused)]
-        pub span: Span,
-        pub trait_: Option<syn::Path>,
-        pub trait_ident: syn::Ident,
-        #[allow(unused)]
-        pub generics: syn::Generics,
-        pub self_ty: Box<syn::Type>,
-        pub methods: Vec<Method>,
+    impl ContractImpl {
+        pub fn interface_trait_ident(&self) -> Option<&syn::Ident> {
+            self.trait_.as_ref().map(path_last_segment_ident)
+        }
     }
 
-    #[derive(Debug)]
-    pub struct Method {
-        #[allow(unused)]
-        pub span: Span,
-        pub ident: syn::Ident,
-        pub receiver: Option<syn::Receiver>,
-        pub args: Vec<Arg>,
-    }
-
-    #[derive(Debug)]
-    pub struct Arg {
-        pub ident: syn::Ident,
-        pub ty: syn::Type,
+    fn path_last_segment_ident(path: &syn::Path) -> &syn::Ident {
+        let seg = path.segments.last().unwrap();
+        &seg.ident
     }
 }
 
@@ -211,10 +229,6 @@ mod parse {
     ) -> Result<sig::ContractImpl> {
         // Get the contract trait being implemented, if any
         let trait_ = item.trait_.clone().map(|(_, path, _)| path);
-        let trait_ident = trait_
-            .as_ref()
-            .map(|path| path.segments.last().unwrap().ident.clone())
-            .unwrap();
 
         // Pull out the function items
         let methods = item
@@ -238,7 +252,6 @@ mod parse {
         Ok(sig::ContractImpl {
             span: item.span(),
             trait_,
-            trait_ident,
             generics: item.generics.clone(),
             self_ty: item.self_ty.clone(),
             methods,
@@ -315,9 +328,10 @@ mod gen {
 
         for (index, method) in methods.iter().enumerate() {
             let method_id = get_method_num(
-                &trait_ident.to_string(),
-                "0.1.0",
-                index.try_into().unwrap(),
+                contract.interface_trait_ident(),
+                None,
+                &method.ident,
+                index
             );
             method_stubs.extend(call_from_method_signature(
                 method_id,
@@ -451,18 +465,21 @@ mod gen {
         let test_setup_mod_ident = config.test_setup_mod_ident();
         let exports_mod_ident = config.exports_mod_ident();
         let mut registrations = TokenStream2::new();
+
         let mut methods: Vec<_> = contract.methods.iter().collect();
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
         for (index, method) in methods.iter().enumerate() {
             let method_id = get_method_num(
-                &contract.trait_ident.to_string(),
-                "0.1.0",
-                index.try_into().unwrap(),
-            );
+                contract.interface_trait_ident(),
+                None,
+                &method.ident,
+                index
+                );
             registrations.extend(registration_from_method_signature(
                 method, method_id,
             )?);
         }
+
         let mock_registrations = registrations.clone();
 
         Ok(quote! {
@@ -501,11 +518,10 @@ mod gen {
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
         for (index, method) in methods.iter().enumerate() {
             let method_id = get_method_num(
-                &contract.trait_ident.to_string(),
-                "0.1.0",
-                index.try_into().unwrap(),
-            );
-
+                contract.interface_trait_ident(),
+                None,
+                &method.ident,
+                index);
             exports.extend(export_from_method_signature(
                 Some(contract),
                 method,
@@ -621,7 +637,7 @@ mod gen {
                     }).into()
                 }
 
-                pub const #export_num_name : u32 = #export_num;
+                pub const #export_num_name : u64 = #export_num;
 
             });
         }
@@ -644,16 +660,24 @@ mod gen {
     }
 
     pub fn get_method_num(
-        trait_name: &str,
-        version_str: &str,
-        method_index: u16,
+        trait_ident: Option<&syn::Ident>,
+        version_str: Option<&str>,
+        method_ident: &syn::Ident,
+        method_index: usize,
     ) -> MethodID {
         use sha2::Digest;
 
+        let iface_ident = trait_ident.unwrap_or(method_ident);
+        let iface_name = iface_ident.to_string();
+        let version_str = version_str.unwrap_or("0.0.0");
+        let method_index: u16 = method_index.try_into().unwrap();
+
+        // println!("METHOD if:<{}> v:<{}> ix:<{}>", iface_name, version_str, method_index);
+
         let preimage =
             ::groundhog_xdr::contract::ContractInterfaceIDPreimage {
-                name: trait_name.to_string().as_bytes().try_into().unwrap(),
-                vers: version_str.to_string().as_bytes().try_into().unwrap(),
+                name: iface_name.as_bytes().try_into().unwrap(),
+                vers: version_str.as_bytes().try_into().unwrap(),
             };
 
         let mut hasher = sha2::Sha256::new();

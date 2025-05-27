@@ -11,12 +11,12 @@ cargo="cargo +nightly"
 
 function cargo_native {
     if [ -z "${HOGD_SRC}" ]; then
-        HOGD_SRC="../hogd"
+        HOGD_SRC="hogd"
     fi
     HOGD_SRC=$(realpath "${HOGD_SRC}")
 
     if [ ! -d "${HOGD_SRC}" ]; then
-        echo "Couldn't find hogd sources"
+        echo "Couldn't find hogd sources at " "${HOGD_SRC}"
         exit 1
     fi
 

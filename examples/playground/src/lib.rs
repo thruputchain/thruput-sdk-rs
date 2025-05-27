@@ -1,6 +1,6 @@
 //! ERC20 contract interface and implementation
 
-#![no_std]
+#![cfg_attr(not(feature = "mock"), no_std)]
 
 // A trait describing the contract interface
 pub mod interface;

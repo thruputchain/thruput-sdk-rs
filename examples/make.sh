@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[ -z "${HOGD_SRC}" ] && HOGD_SRC="../../hogd"
+[ -z "${HOGD_SRC}" ] && HOGD_SRC="../hogd"
 
 source ./cargo.sh
 

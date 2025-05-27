@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "mock"), no_std)]
 #![feature(strict_overflow_ops)]
 
 extern crate alloc;

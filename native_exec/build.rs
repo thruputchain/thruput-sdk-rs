@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
     println!("cargo:rerun-if-env-changed=HOGD_SRC");
     println!("cargo:rerun-if-changed={}", hogd_src);
+    println!("cargo:rerun-if-changed=.");
 
     // native exec builds for host, not for the cargo target (which might be wasm)
     let target = std::env::var("TARGET").unwrap();

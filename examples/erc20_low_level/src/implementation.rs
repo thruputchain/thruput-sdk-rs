@@ -87,7 +87,7 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
     }
 
     // Store ourselves
-    bytestring_set(&key, owner.as_slice())?;
+    bytestring_set(&key, owner.as_ref())?;
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "mock"), no_std)]
 
 extern crate alloc;
 use alloc::vec::Vec;

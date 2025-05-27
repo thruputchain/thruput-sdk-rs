@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "mock"), no_std)]
 #![feature(maybe_uninit_slice)]
 
 use erc20::client::ERC20Client;

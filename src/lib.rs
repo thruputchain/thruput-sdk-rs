@@ -1,9 +1,6 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
-
-#[cfg(feature = "std")]
-extern crate std;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

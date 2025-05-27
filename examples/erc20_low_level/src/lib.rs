@@ -1,6 +1,6 @@
 //! ERC20 low-level implementation
 
-#![no_std]
+#![cfg_attr(not(feature = "mock"), no_std)]
 
 pub mod interface;
 

@@ -45,7 +45,7 @@ case "$verb" in
         ;;
     tree)
         # Show the dependency graph
-        cargo +nightly tree \
+        $cargo tree \
             --target wasm32-unknown-unknown \
             --edges normal,build \
             "$@"
