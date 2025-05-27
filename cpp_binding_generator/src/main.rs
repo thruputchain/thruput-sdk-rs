@@ -96,15 +96,36 @@ fn strip_result(ret: &ReturnType) -> String {
     }
 }
 
-
 fn main() {
-    let src_path = PathBuf::from("src/interface.rs");
-    let header_path = PathBuf::from("include/exported_api.h");
+    use clap::{Arg, Command};
 
-    let code = fs::read_to_string(&src_path).expect("Failed to read lib.rs");
-    let syntax = syn::parse_file(&code).expect("Failed to parse lib.rs");
+    let matches = Command::new("cpp_binding_generator")
+        .arg(Arg::new("input")
+            .long("input")
+            .short('i')
+            .value_name("INPUT.rs")
+            .help("Input Rust source file")
+            .required(true))
+        .arg(Arg::new("trait")
+            .long("trait") 
+            .short('t')
+            .value_name("TRAIT_NAME")
+            .help("Trait name")
+            .required(true))
+        .arg(Arg::new("output")
+            .long("output")
+            .short('o')
+            .value_name("OUTPUT.h")
+            .help("Output C++ header file")
+            .required(true))
+        .get_matches();
 
-    let trait_name = "ERC20"; // Hardcoded or pass as CLI arg
+    let src_path = PathBuf::from(matches.get_one::<String>("input").unwrap());
+    let trait_name = matches.get_one::<String>("trait").unwrap();
+    let header_path = PathBuf::from(matches.get_one::<String>("output").unwrap());
+
+    let code = fs::read_to_string(&src_path).expect("Failed to read source file");
+    let syntax = syn::parse_file(&code).expect("Failed to parse source file");
 
     let my_trait: ItemTrait = syntax.items.into_iter().find_map(|item| {
         if let Item::Trait(tr) = item {
@@ -120,7 +141,7 @@ fn main() {
 
     let mut out = String::from("// Auto-generated C++ header\n#pragma once\n\n");
 
-    out.push_str(&format!("struct {} {{\n    ", trait_name));
+    out.push_str(&format!("struct {} {{\n", trait_name));
 
     out.push_str(&format!("    constexpr static std::string_view kTraitName = \"{}\";\n", trait_name));
     out.push_str(&format!("    constexpr static std::string_view kVersion = \"0.1.0\";\n"));
