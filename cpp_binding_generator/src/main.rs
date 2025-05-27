@@ -118,7 +118,12 @@ fn main() {
         }
     }).expect("Trait not found");
 
-    let mut out = String::from("// Auto-generated C++ header\n#pragma once\n\nextern \"C\" {\n");
+    let mut out = String::from("// Auto-generated C++ header\n#pragma once\n\n");
+
+    out.push_str(&format!("struct {} {{\n    ", trait_name));
+
+    out.push_str(&format!("    constexpr static std::string_view kTraitName = \"{}\";\n", trait_name));
+    out.push_str(&format!("    constexpr static std::string_view kVersion = \"0.1.0\";\n"));
 
     let methods : Vec<_> = my_trait
         .items
@@ -171,18 +176,9 @@ fn main() {
     
     out.push_str(&format!("    using export_types = std::tuple<\n            {}>;\n", method_sigs_str));
 
-    for item in my_trait.items {
-        if let syn::TraitItem::Fn(method) = item {
-            let name = method.sig.ident.to_string();
-            let ret = match &method.sig.output {
-                syn::ReturnType::Default => "void".to_string(),
-                syn::ReturnType::Type(_, ty) => quote::quote!(#ty).to_string(),
-            };
-            out.push_str(&format!("  {} {}();\n", ret, name));
-        }
-    } 
+    out.push_str("};\n");
 
-    out.push_str("}\n");
+
 
     fs::create_dir_all(header_path.parent().unwrap()).unwrap();
     fs::write(&header_path, out).unwrap();
