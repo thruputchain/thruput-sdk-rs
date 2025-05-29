@@ -2,7 +2,6 @@ use crate::test_environment::TestEnvironment;
 
 use crate::bindings::ForeignInvokeResult;
 use crate::invoke_error::invoke_wrapper;
-use groundhog_xdr::byte_array::ByteArray;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
 use groundhog_xdr::types::{MethodID, SHA256Hash};
@@ -82,10 +81,9 @@ impl MockContractInner {
         let contract = u32_to_contract(n);
         hasher.update(contract.to_xdr(Limits::none()).unwrap());
         let result: [u8; 32] = hasher.finalize().into();
-        let bytearray: ByteArray<32> = result.into();
         Self {
             index: n,
-            hash: bytearray.into(),
+            hash: result.into(),
             funcs: HashMap::new(),
         }
     }

@@ -7,19 +7,17 @@ pub fn static_key_output(input: syn::LitStr, internal: bool) -> TokenStream {
     if internal {
         TokenStream::from(quote::quote! {
             {
-                use crate::types::byte_array::ByteArray;
                 use crate::types::byte_array::StorageKey;
 
-                StorageKey::new(ByteArray::new([#(#res),*]))
+                StorageKey::new([#(#res),*])
             }
         })
     } else {
         TokenStream::from(quote::quote! {
             {
-                use ::sdk::types::ByteArray;
                 use ::sdk::types::StorageKey;
 
-                StorageKey::new(ByteArray::new([#(#res),*]))
+                StorageKey::new([#(#res),*])
             }
         })
     }

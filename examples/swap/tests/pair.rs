@@ -59,14 +59,14 @@ fn swap_test_inner(
     println!("Test address: {:x}", Hex(&test_addr));
 
     // Deploy the swap-pair contract
-    let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
+    let nonce: SHA256Hash = [7; 32].into();
     let pair_addr = deploy(&nonce, swap_hash);
     let mut pair = ISwapV2PairClient::new(&pair_addr);
     let mut lp_token = ERC20Client::new(&pair_addr);
 
     // Deploy two token contracts
-    let nonce0 = SHA256Hash::from(ByteArray::from([90; 32]));
-    let nonce1 = SHA256Hash::from(ByteArray::from([91; 32]));
+    let nonce0: SHA256Hash = [90; 32].into();
+    let nonce1: SHA256Hash = [91; 32].into();
     let token0_addr = deploy(&nonce0, token0_hash);
     let token1_addr = deploy(&nonce1, token1_hash);
     let mut token0 = ERC20Client::new(&token0_addr);

@@ -3,7 +3,6 @@ use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
-use groundhog_xdr::byte_array::ByteArray;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
@@ -88,8 +87,7 @@ impl<'a> TestEnvironment {
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
         let res: [u8; 32] = hasher.finalize().into();
-        let bytearray: ByteArray<32> = res.into();
-        bytearray.into()
+        res.into()
     }
 
     pub fn setup_create_deployment(
@@ -102,8 +100,7 @@ impl<'a> TestEnvironment {
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
         let res: [u8; 32] = hasher.finalize().into();
-        let bytearray: ByteArray<32> = res.into();
-        let contract_hash: SHA256Hash = bytearray.into();
+        let contract_hash: SHA256Hash = res.into();
 
         let res = unsafe {
             setup_deploy_contract(

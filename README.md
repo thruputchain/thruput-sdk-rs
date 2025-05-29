@@ -48,15 +48,9 @@ To generate and open the SDK documentation:
 ./make.sh test_examples
 ```
 
-## Testing
-
-```shell
-make test_contracts
-```
-
 ## Development
 
-See `make.sh` for these useful targets:
+See `make.sh` for various useful targets, including:
 - `check`
 - `test`
 - `lint`

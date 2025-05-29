@@ -22,7 +22,7 @@ fn erc20_ll_check() {
 }
 
 fn check_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
-    let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
+    let nonce: SHA256Hash = [7; 32].into();
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address().unwrap();
 
@@ -35,7 +35,7 @@ fn check_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
     client.mint(&owner, 100)?;
     assert_eq!(client.get_balance()?, 100);
 
-    let other = ContractAddress::from(ByteArray::from([0xBB; 32]));
+    let other: ContractAddress = [0xBB; 32].into();
     client.transfer(&other, 25)?;
     assert_eq!(client.get_balance_of(&other)?, 25);
     assert_eq!(client.get_balance_of(&owner)?, 75);

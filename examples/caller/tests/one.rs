@@ -26,7 +26,7 @@ fn caller_test() {
 }
 
 fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Result<()> {
-    let erc20_nonce = SHA256Hash::from(ByteArray::from([6; 32]));
+    let erc20_nonce = SHA256Hash::from([6; 32]);
     let erc20_addr = deploy_contract(&erc20_nonce, erc20_hash)?;
     let erc20_owner = get_current_address().unwrap();
 
@@ -36,7 +36,7 @@ fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Res
     assert_eq!(erc20.total_supply()?, 0);
     assert_eq!(erc20.get_balance()?, 0);
 
-    let nonce = SHA256Hash::from(ByteArray::from([7; 32]));
+    let nonce = SHA256Hash::from([7; 32]);
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
 
     let mut caller = ICallerClient::new(&deployed_addr);

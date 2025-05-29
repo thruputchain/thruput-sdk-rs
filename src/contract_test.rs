@@ -16,9 +16,7 @@ macro_rules! contract_test {
             let contract_hash = env.setup_create_contract(&test_contract);
 
             let mut handler = env.prepare_test(move || -> i32 {
-                let nonce = sdk::types::SHA256Hash::from(
-                    sdk::types::ByteArray::from([7; 32]),
-                );
+                let nonce = sdk::types::SHA256Hash::from([7; 32]);
                 let deployed_addr =
                     sdk::deploy::deploy_contract(&nonce, &contract_hash)
                         .unwrap();
