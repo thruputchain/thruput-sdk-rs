@@ -7,15 +7,15 @@ macro_rules! contract_test {
 
             let test_contract = {
                 let mut contract = env.add_contract();
-                contract.register_method(1, || -> i32 {
-                    sdk::internal::handle_call(|()| $test_body).into()
+                contract.register_method(1, || -> () {
+                    sdk::internal::handle_call(|()| $test_body);
                 });
                 contract.as_contract()
             };
 
             let contract_hash = env.setup_create_contract(&test_contract);
 
-            let mut handler = env.prepare_test(move || -> i32 {
+            let mut handler = env.prepare_test(move || -> () {
                 let nonce = sdk::types::SHA256Hash::from([7; 32]);
                 let deployed_addr =
                     sdk::deploy::deploy_contract(&nonce, &contract_hash)
@@ -28,8 +28,6 @@ macro_rules! contract_test {
                     u64::MAX,
                     &(),
                 );
-
-                0
             });
 
             let res = handler.root_invoke();

@@ -14,9 +14,9 @@ fn caller_test() {
     let test_contract = caller::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    let mut handler = env.prepare_test(move || -> i32 {
+    let mut handler = env.prepare_test(move || -> () {
         match caller_test_inner(&erc20_hash, &contract_hash) {
-            Ok(_) => 0,
+            Ok(_) => (),
             Err(error) => panic!("test failed: {}", error),
         }
     });

@@ -10,9 +10,9 @@ fn check_playground() {
     let test_contract = implementation::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    let mut handler = env.prepare_test(move || -> i32 {
+    let mut handler = env.prepare_test(move || -> () {
         match check_playground_inner(&contract_hash) {
-            Ok(_) => 0,
+            Ok(_) => (),
             Err(error) => panic!("test failed: {}", error),
         }
     });
