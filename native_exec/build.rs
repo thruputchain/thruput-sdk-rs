@@ -45,7 +45,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // run cargo b -vv to see the full cmake output
         .define("CMAKE_VERBOSE_MAKEFILE", "ON")
         .define("CMAKE_OSX_SYSROOT", "")
-        .define("ENABLE_TEST_FFI", "ON");
+        .define("ENABLE_TEST_FFI", "ON")
+        .define("ENABLE_TEST_CONTRACTS", "OFF");
 
     // Don't force re-configuration before building
     cfg.always_configure(false);

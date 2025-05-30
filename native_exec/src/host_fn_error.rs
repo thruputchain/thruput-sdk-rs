@@ -19,7 +19,7 @@ impl ForeignHostFnResult {
                 panic_any(crate::invoke_error::return_error());
             }
             x if x == HostFnErrorCode::kHostExit as i32 => {
-                panic_any(crate::invoke_error::exit_error(self.result_code));
+                panic_any(crate::invoke_error::exit_error());
             }
             x if x == HostFnErrorCode::kHostValidationFailure as i32 => {
                 panic_any(crate::invoke_error::validation_error());

@@ -36,7 +36,6 @@ unsafe extern "C" fn trampoline(
         }
         None => {
             return ForeignInvokeResult {
-                result_code: 0,
                 panic: InvokeErrorCode::kInvokeDeterministic as i32,
             }
         }
@@ -155,7 +154,7 @@ impl<'a> TestEnvironment {
         test: F,
     ) -> TransactionHandler<'a>
     where
-        F: Fn() -> i32 + 'a + UnwindSafe + Clone + 'static,
+        F: Fn() -> () + 'a + UnwindSafe + Clone + 'static,
     {
         let mut test_contract = self.add_contract();
         test_contract.register_func(0, test);

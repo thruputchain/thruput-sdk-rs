@@ -10,9 +10,9 @@ fn erc20_ll_check() {
     let test_contract = test::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    let mut handler = env.prepare_test(move || -> i32 {
+    let mut handler = env.prepare_test(move || -> () {
         match check_erc20_inner(&contract_hash) {
-            Ok(_) => 0,
+            Ok(_) => (),
             Err(error) => panic!("test failed: {}", error),
         }
     });

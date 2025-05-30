@@ -569,7 +569,7 @@ mod gen {
         let mut export = quote! {
 
             #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
-            pub extern "C" fn #extern_name() -> i32 {
+            pub extern "C" fn #extern_name() -> () {
                 #internal_name()
             }
         };
@@ -584,14 +584,14 @@ mod gen {
                 // Load the contract object and call the method on it
                 export.extend(quote! {
 
-                    pub fn #internal_name() -> i32 {
+                    pub fn #internal_name() -> () {
                         #log_guest_call
                         ::sdk::internal::handle_call(| #received_args | {
                             let mut state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
                                 .expect("Failed loading state")
                                 .expect("Contract state not present");
                             state.#ident( #provided_args )
-                        }).into()
+                        });
                     }
 
                 });
@@ -607,7 +607,7 @@ mod gen {
                 // Call the associated function (without pre-loading contract state)
                 export.extend(quote! {
 
-                    pub fn #internal_name() -> i32 {
+                    pub fn #internal_name() -> () {
                         #log_guest_call
                         ::sdk::internal::handle_call(| #received_args | {
                             let mut maybe_state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
@@ -618,7 +618,7 @@ mod gen {
                                 None
                             };
                             #self_ty_full::#ident(state_ref, #provided_args )
-                        }).into()
+                        });
                     }
 
                 });
@@ -630,11 +630,11 @@ mod gen {
             // Call the free function
             export.extend(quote! {
 
-                pub fn #internal_name() -> i32 {
+                pub fn #internal_name() -> () {
                     #log_guest_call  
                     ::sdk::internal::handle_call(| #received_args | {
                         #ident( #provided_args )
-                    }).into()
+                    });
                 }
 
                 pub const #export_num_name : u64 = #export_num;
