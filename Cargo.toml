@@ -1,4 +1,4 @@
-cargo-features = ["trim-paths", "profile-rustflags"] #unstable
+cargo-features = ["trim-paths"] #unstable
 
 [workspace]
 members = [
@@ -48,19 +48,12 @@ storage = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
 
-# Below from rs_contract_sdk/Cargo.toml
-
 [profile.dev]
 opt-level = "z"
 overflow-checks = false
 debug = false
 strip = "debuginfo"
 panic = "abort"
-
-# Note: if you want to build on mac with nostd, you need to add
-# rustflags = [ "-C", "link-arg=-lSystem" ]
-# to the profile sections
-# Or alternatively, use `RUSTFLAGS="-C link-arg=-lSystem" cargo build ...`
 
 [profile.test]
 # settings inherited from profile.dev
@@ -79,4 +72,4 @@ panic = "abort"
 lto = true
 codegen-units = 1
 trim-paths = "all" # unstable
-rustflags = [ "-C", "link-args=-zstack-size=64000" ]
+# also see rust flags set in .cargo/config.toml
