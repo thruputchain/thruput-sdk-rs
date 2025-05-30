@@ -1,0 +1,7 @@
+-- width to 90 or 100?
+-- wrap xdr: MethodId, etc.
+-- get_method_num -> MethodId::new(...)
+-- maybe the one-way-func on interface id is good 
+-- fix space remainder generated comment
+-- semver validation
+-- identifier validation

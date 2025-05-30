@@ -1,4 +1,5 @@
 use erc20::interface::ERC20;
+use erc20::interface::Result as ERC20Result;
 use erc20::interface::client::ERC20Client;
 use caller::interface::ICaller;
 use caller::interface::client::ICallerClient;
@@ -31,10 +32,13 @@ fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Res
     let erc20_owner = get_current_address().unwrap();
 
     let mut erc20 = ERC20Client::new(&erc20_addr);
-    ERC20::initialize(Some(&mut erc20), &erc20_owner)?;
+    assert_eq!(
+        ERC20::initialize(Some(&mut erc20), &erc20_owner),
+        ERC20Result::Ok(()),
+    );
 
-    assert_eq!(erc20.total_supply()?, 0);
-    assert_eq!(erc20.get_balance()?, 0);
+    assert_eq!(erc20.total_supply(), ERC20Result::Ok(0));
+    assert_eq!(erc20.get_balance(), ERC20Result::Ok(0));
 
     let nonce = SHA256Hash::from([7; 32]);
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;

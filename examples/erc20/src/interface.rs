@@ -1,6 +1,9 @@
-use sdk::prelude::*;
+mod error;
 
-pub use sdk::prelude::{Error, Result};
+pub use error::*;
+use sdk::types::ContractAddress;
+use sdk::storage_prelude::contract;
+
 pub type Amount = u128;
 
 #[contract(client = "client")]

@@ -349,6 +349,7 @@ dependencies = [
  "erc20",
  "sdk_rs",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -357,6 +358,8 @@ version = "0.1.1"
 dependencies = [
  "erc20_low_level",
  "sdk_rs",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

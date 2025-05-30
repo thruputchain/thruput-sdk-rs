@@ -4,21 +4,21 @@
 // below will be necessary
 #![allow(clippy::unnecessary_cast)]
 
-use super::interface::{Amount, ERC20};
+use super::interface::{Amount, ERC20, Error, Result};
 use sdk::storage_prelude::*;
 
 type Balance = NNInt;
 type Allowance = NNInt;
 
 #[derive(Storage, Debug, Serialize)]
-pub struct CoinContract {
+pub struct TokenContract {
     contract_owner: ContractAddress,
     balances: Map<ContractAddress, Balance>,
     allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
     total_supply: NNInt,
 }
 
-impl CoinContract {
+impl TokenContract {
     // These internal functions use the underlying storage to
     // create an abstraction whereby all balances and allowances
     // exist, defaulting to zero if never set.  They also, via
@@ -37,8 +37,8 @@ impl CoinContract {
 
     // Balance stored at given owner address, or zero if empty
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Result<Amount> {
-        let balance = self.balances.get(owner)?;
-        let amount = balance.try_get()?.unwrap_or(0) as Amount;
+        let balance_cell = self.balances.get(owner)?;
+        let amount = balance_cell.try_get()?.unwrap_or(0) as Amount;
         Ok(amount)
     }
 
@@ -86,14 +86,14 @@ impl CoinContract {
 // an exported entrypoint for each method; these will be placed in a
 // module with the specified name ("guest_exports").
 #[contract(exports = "guest_exports")]
-impl ERC20 for CoinContract {
+impl ERC20 for TokenContract {
     fn initialize(
         this: Option<&mut Self>,
         contract_owner: &ContractAddress,
     ) -> Result<()> {
         // Make sure we haven't already been initialized
         if this.is_some() {
-            panic!("Contract already initialized");
+            return Err(Error::AlreadyInitialized);
         }
 
         // Create a default storage value, pass it to
@@ -156,7 +156,7 @@ impl ERC20 for CoinContract {
         let caller = get_caller()?;
         caller_ensure(
             &caller == self._contract_owner(),
-            "Minter must be contract owner",
+            Error::MustBeContractOwner,
         )?;
 
         self._adjust_balance(receiver, amount as i128)?;
@@ -167,7 +167,7 @@ impl ERC20 for CoinContract {
         let caller = get_caller()?;
         caller_ensure(
             &caller == self._contract_owner(),
-            "Burner must be contract owner",
+            Error::MustBeContractOwner,
         )?;
 
         self._adjust_balance(owner, -(amount as i128))?;
@@ -176,5 +176,13 @@ impl ERC20 for CoinContract {
 
     fn total_supply(&self) -> Result<Amount> {
         self._total_supply()
+    }
+}
+
+fn caller_ensure(pred: bool, error: Error) -> Result<()> {
+    if pred {
+        Ok(())
+    } else {
+        Err(error)
     }
 }

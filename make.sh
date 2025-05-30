@@ -20,10 +20,7 @@ case "$verb" in
         cargo_native expand --features=mock "$@"
         ;;
     check)
-        $cargo check --features=std "$@"
-        ;;
-    check_guest)
-        $cargo check --features=std,guest "$@"
+        $cargo check --features=mock "$@"
         ;;
     lint)
         $cargo clippy --no-deps --features=std "$@"

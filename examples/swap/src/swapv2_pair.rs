@@ -11,11 +11,11 @@ use sdk::storage_prelude::*;
 use erc20::interface::client::ERC20Client;
 use erc20::interface::ERC20;
 use erc20::interface::Result as ERC20Result;
-use erc20::implementation::CoinContract;
+use erc20::implementation::TokenContract;
 use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pair};
 use crate::bignum::{U112, U256};
 
-// We need to derive `Storage` because CoinContract is `Storage`
+// We need to derive `Storage` because TokenContract is `Storage`
 #[derive(Debug, Storage, Serialize)]
 pub struct SwapV2Pair {
     pub factory: Address,
@@ -35,7 +35,7 @@ pub struct SwapV2Pair {
     pub k_last: U256,
 
     // An embedded ERC20 contract, implementing the LP token
-    lp: CoinContract,
+    lp: TokenContract,
 }
 
 impl SwapV2Pair {
@@ -123,14 +123,14 @@ impl SwapV2Pair {
     }
 }
 
-impl AsRef<CoinContract> for SwapV2Pair {
-    fn as_ref(&self) -> &CoinContract {
+impl AsRef<TokenContract> for SwapV2Pair {
+    fn as_ref(&self) -> &TokenContract {
         &self.lp
     }
 }
 
-impl AsMut<CoinContract> for SwapV2Pair {
-    fn as_mut(&mut self) -> &mut CoinContract {
+impl AsMut<TokenContract> for SwapV2Pair {
+    fn as_mut(&mut self) -> &mut TokenContract {
         &mut self.lp
     }
 }
@@ -149,7 +149,7 @@ impl ERC20 for SwapV2Pair {
         receiver: &ContractAddress,
         amount: Amount,
     ) -> ERC20Result<()> {
-        let lp: &mut CoinContract = self.as_mut();
+        let lp: &mut TokenContract = self.as_mut();
         lp.transfer(receiver, amount)
     }
 
@@ -159,7 +159,7 @@ impl ERC20 for SwapV2Pair {
         receiver: &ContractAddress,
         amount: Amount,
     ) -> ERC20Result<()> {
-        let lp: &mut CoinContract = self.as_mut();
+        let lp: &mut TokenContract = self.as_mut();
         lp.transfer_from(owner, receiver, amount)
     }
 
@@ -168,17 +168,17 @@ impl ERC20 for SwapV2Pair {
         spender: &ContractAddress,
         amount: Amount,
     ) -> ERC20Result<()> {
-        let lp: &mut CoinContract = self.as_mut();
+        let lp: &mut TokenContract = self.as_mut();
         lp.adjust_allowance(spender, amount)
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> ERC20Result<Amount> {
-        let lp: &CoinContract = self.as_ref();
+        let lp: &TokenContract = self.as_ref();
         lp.get_balance_of(addr)
     }
 
     fn get_balance(&self) -> ERC20Result<Amount> {
-        let lp: &CoinContract = self.as_ref();
+        let lp: &TokenContract = self.as_ref();
         lp.get_balance()
     }
 
@@ -187,17 +187,17 @@ impl ERC20 for SwapV2Pair {
         receiver: &ContractAddress,
         amount: Amount,
     ) -> ERC20Result<()> {
-        let lp: &mut CoinContract = self.as_mut();
+        let lp: &mut TokenContract = self.as_mut();
         lp.mint(receiver, amount)
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> ERC20Result<()> {
-        let lp: &mut CoinContract = self.as_mut();
+        let lp: &mut TokenContract = self.as_mut();
         lp.mint(owner, amount)
     }
 
     fn total_supply(&self) -> ERC20Result<Amount> {
-        let lp: &CoinContract = self.as_ref();
+        let lp: &TokenContract = self.as_ref();
         lp.total_supply()
     }
 }
