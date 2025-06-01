@@ -57,7 +57,13 @@ See `make.sh` for various useful targets, including:
 - `doc`
 - `fmt`
 
-### Expand macros to view exports
+### Expand macros to view syscall bindings
+
+```shell
+./make.sh expand syscall::bindings
+```
+
+### Expand macros to view example contract exports
 
 ```shell
 ./make.sh expand -p swap swapv2_pair::swap_exports

@@ -19,6 +19,9 @@ case "$verb" in
     expand)
         cargo_native expand --features=mock "$@"
         ;;
+    expand_xdr)
+        cargo_native expand --color=always -F std -p groundhog_xdr "$@"
+        ;;
     check)
         $cargo check --features=mock "$@"
         ;;

@@ -8,5 +8,5 @@ function mkx23 {
 
 function genrs {
   (cd $protrs && XDRC="$XDRC" scripts/generate.sh)
-  (cd $protrs/groundhog_xdr/src && git st)
+  (cd $protrs/groundhog_xdr/src && git st .)
 }
