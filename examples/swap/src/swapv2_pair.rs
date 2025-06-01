@@ -12,7 +12,7 @@ use erc20::interface::client::ERC20Client;
 use erc20::interface::ERC20;
 use erc20::interface::Result as ERC20Result;
 use erc20::implementation::TokenContract;
-use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pair};
+use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, Difference, ISwapV2Pair};
 use crate::bignum::{U112, U256};
 
 // We need to derive `Storage` because TokenContract is `Storage`
@@ -166,10 +166,10 @@ impl ERC20 for SwapV2Pair {
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        amount: Amount,
+        difference: Difference,
     ) -> ERC20Result<()> {
         let lp: &mut TokenContract = self.as_mut();
-        lp.adjust_allowance(spender, amount)
+        lp.adjust_allowance(spender, difference)
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> ERC20Result<Amount> {

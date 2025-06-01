@@ -1,4 +1,5 @@
 use erc20::interface::ERC20;
+use erc20::interface::ERC20::Error as ERC20Error;
 use erc20::interface::client::ERC20Client;
 use sdk::prelude::*;
 use swap::{ISwapV2Pair, ISwapV2PairClient};
@@ -14,6 +15,9 @@ enum TestError {
 
     #[error("Token error: {}", 0)]
     TokenErr(#[from] TokenError),
+
+    #[error("ERC20 error: {}", 0)]
+    ERC20(#[from] ERC20Error),
 }
 
 #[test]
@@ -38,9 +42,9 @@ fn swap_test() {
 
     // sdk::TestEnvironment::enable_syscall_logging();
 
-    let mut handler = env.prepare_test(move || -> i32 {
+    let mut handler = env.prepare_test(move || -> () {
         match swap_test_inner(&swap_hash, &token0_hash, &token1_hash) {
-            Ok(_) => 0,
+            Ok(_) => (),
             Err(error) => panic!("test failed: {:?}", error),
         }
     });

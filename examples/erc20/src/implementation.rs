@@ -4,7 +4,7 @@
 // below will be necessary
 #![allow(clippy::unnecessary_cast)]
 
-use super::interface::{Amount, ERC20, Error, Result};
+use super::interface::{Amount, Difference, ERC20, Error, Result};
 use sdk::storage_prelude::*;
 
 type Balance = NNInt;
@@ -63,16 +63,16 @@ impl TokenContract {
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
-        amount: i128,
+        difference: Difference,
     ) -> Result<()> {
         let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
-        spender_allowance.add_default_zero(amount)?;
+        spender_allowance.add_default_zero(difference)?;
         Ok(())
     }
 
-    fn _adjust_total_supply(&mut self, amount: i128) -> Result<()> {
-        self.total_supply.add_default_zero(amount)?;
+    fn _adjust_total_supply(&mut self, difference: Difference) -> Result<()> {
+        self.total_supply.add_default_zero(difference)?;
         Ok(())
     }
 
@@ -133,10 +133,10 @@ impl ERC20 for TokenContract {
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        amount: Amount,
+        difference: Difference,
     ) -> Result<()> {
         let owner = get_caller()?;
-        self._adjust_allowance(&owner, spender, amount as i128)
+        self._adjust_allowance(&owner, spender, difference)
     }
 
     fn get_balance_of(&self, owner: &ContractAddress) -> Result<Amount> {

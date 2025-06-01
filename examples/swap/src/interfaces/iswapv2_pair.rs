@@ -41,6 +41,8 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 // (For other integer types, we use the same number of bits as in UniswapV2.)
 pub type Amount = u128;
 
+pub type Difference = i128;
+
 pub type Address = sdk::prelude::ContractAddress;
 
 #[contract(client = "client")]
