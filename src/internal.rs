@@ -39,14 +39,14 @@ mod cross_call {
     use crate::sys;
     use crate::types::{
         ContractAddress, /* InvocationFlagSet, InvocationFlags, */
-        MethodID,
         RuntimeMemoryLength,
     };
+    use ::groundhog_xdr::contract::ContractEntrypointID;
     use alloc::{vec, vec::Vec};
 
     pub fn invoke<ARGS, RET>(
         address: &ContractAddress,
-        method: MethodID,
+        entrypoint: ContractEntrypointID,
         gas_limit: u64,
         args: &ARGS,
     ) -> RET
@@ -60,7 +60,7 @@ mod cross_call {
 
         // Invoke the method
         let return_buf =
-            invoke_inner(address, method, gas_limit, call_data.as_slice());
+            invoke_inner(address, entrypoint, gas_limit, call_data.as_slice());
 
         // Deserialize the buffer into a return value ...
         let return_buf = &return_buf.as_slice();
@@ -73,16 +73,17 @@ mod cross_call {
 
     fn invoke_inner(
         address: &ContractAddress,
-        method: MethodID,
+        entrypoint: ContractEntrypointID,
         gas_limit: u64,
         call_data: &[u8],
     ) -> Vec<u8> {
         // Perform the cross-contract call
 
         let mut return_len = 0;
+        let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
         sys::raw_Invoke(
             address,
-            method,
+            entrypoint,
             gas_limit,
             call_data,
             0, // TODO(geoff): invoke flags go here

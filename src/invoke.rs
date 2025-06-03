@@ -45,12 +45,12 @@ pub fn contract_return(buf: &[u8]) -> ! {
     sys::raw_Return(buf);
 }
 
-pub fn contract_exit(code: i32) -> ! {
-    sys::raw_Exit(code);
+pub fn contract_exit(_code: i32) -> ! {
+    sys::raw_Exit();
 }
 
 pub fn contract_revert() -> ! {
-    sys::raw_Exit(crate::syscall::SyscallErrorCode::kDeterministicWasm as i32);
+    sys::raw_Exit(/* crate::syscall::SyscallErrorCode::kDeterministicWasm as i32 */);
 }
 
 pub fn get_source_transaction_hash() -> Result<SHA256Hash> {

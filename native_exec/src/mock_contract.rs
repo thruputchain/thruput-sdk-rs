@@ -4,7 +4,8 @@ use crate::bindings::ForeignInvokeResult;
 use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
-use groundhog_xdr::types::{MethodID, SHA256Hash};
+use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::types::SHA256Hash;
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: u32,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
-    funcs: HashMap<MethodID, Box<dyn Fn() -> ForeignInvokeResult>>,
+    funcs: HashMap<ContractEntrypointID, Box<dyn Fn() -> ForeignInvokeResult>>,
 }
 
 pub struct MockContract<'a> {
@@ -37,6 +38,7 @@ impl<'a> MockContract<'a> {
         }
     }
 
+    /*
     pub fn method_name_from_int(method_id: MethodID) -> String {
         format!("{:X}", method_id)
     }
@@ -50,6 +52,7 @@ impl<'a> MockContract<'a> {
         let num: MethodID = MethodID::from_be_bytes(prefix.try_into().unwrap());
         num
     }
+    */
 
     pub fn as_contract(&self) -> Contract {
         u32_to_contract(unsafe { (*self.contract).index })
@@ -59,11 +62,11 @@ impl<'a> MockContract<'a> {
         unsafe { &(*self.contract).hash }
     }
 
-    pub fn register_method(self: &mut Self, id: MethodID, func: fn() -> ()) {
+    pub fn register_method(self: &mut Self, id: ContractEntrypointID, func: fn() -> ()) {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
 
-    pub fn register_func<F>(self: &mut Self, id: MethodID, func: F)
+    pub fn register_func<F>(self: &mut Self, id: ContractEntrypointID, func: F)
     where
         F: Fn() -> () + UnwindSafe + Clone + 'static,
     {
@@ -94,7 +97,7 @@ impl MockContractInner {
 
     pub fn get_func(
         &self,
-        method: MethodID,
+        method: ContractEntrypointID,
     ) -> Option<&Box<dyn Fn() -> ForeignInvokeResult>> {
         self.funcs.get(&method)
     }

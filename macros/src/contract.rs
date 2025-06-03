@@ -74,9 +74,9 @@ fn item_to_contract_helpers(
             let sig = parse::method_signature_from_sig(&item.sig);
             let mut out = TokenStream2::new();
 
-            let method_id = gen::get_method_num(None, None, &item.sig.ident, 0);
+            let entrypoint = gen::get_method_num(None, None, &item.sig.ident, 0);
             out.extend(gen::export_from_method_signature(
-                None, &sig, method_id,
+                None, &sig, entrypoint,
             )?);
 
             Ok(out)
@@ -302,9 +302,8 @@ mod gen {
 
     use super::err;
     use super::sig;
-    use groundhog_xdr::contract::ContractEntrypointID;
     use groundhog_xdr::serialize::{Limits, WriteXdr};
-    use groundhog_xdr::types::MethodID;
+    use groundhog_xdr::contract::ContractEntrypointID;
     use proc_macro2::TokenStream as TokenStream2;
     use quote::format_ident;
     use quote::{quote, quote_spanned};
@@ -327,14 +326,14 @@ mod gen {
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
 
         for (index, method) in methods.iter().enumerate() {
-            let method_id = get_method_num(
+            let entrypoint = get_method_num(
                 contract.interface_trait_ident(),
                 None,
                 &method.ident,
                 index
             );
             method_stubs.extend(call_from_method_signature(
-                method_id,
+                entrypoint,
                 method,
             )?);
         }
@@ -343,6 +342,7 @@ mod gen {
 
             pub mod #client_mod_ident {
                 use ::sdk::types::ContractAddress;
+                use ::sdk::types::ContractEntrypointID;
                 use ::sdk::types::RuntimeMemoryLength;
                 use ::sdk::internal::invoke;
 
@@ -371,7 +371,7 @@ mod gen {
     }
 
     fn call_from_method_signature(
-        method_index: MethodID,
+        entrypoint: ContractEntrypointID,
         method: &syn::Signature,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
@@ -405,7 +405,8 @@ mod gen {
         let return_type = &method.output;
         let gas_limit = u64::MAX;
 
-        let export_name = get_method_name(method_index);
+        let export_name = get_method_name(entrypoint);
+        let entrypoint_lit = entrypoint_literal(entrypoint);
 
         let comment_text = format!("/// Export as {}", export_name);
         let comment_tokens: proc_macro2::TokenStream =
@@ -422,9 +423,12 @@ mod gen {
             fn #ident(#receiver_param, #(#sent_params),* ) #return_type
             {
                 #comment_tokens
+                let entrypoint = #entrypoint_lit;
                 let args = #args_tuple;
+
                 #log_call
-                invoke(#address, #method_index, #gas_limit, &args)
+
+                invoke(#address, entrypoint, #gas_limit, &args)
             }
 
         })
@@ -517,7 +521,7 @@ mod gen {
         let mut methods: Vec<_> = contract.methods.iter().collect();
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
         for (index, method) in methods.iter().enumerate() {
-            let method_id = get_method_num(
+            let entrypoint = get_method_num(
                 contract.interface_trait_ident(),
                 None,
                 &method.ident,
@@ -525,7 +529,7 @@ mod gen {
             exports.extend(export_from_method_signature(
                 Some(contract),
                 method,
-                method_id,
+                entrypoint,
             )?);
         }
 
@@ -542,6 +546,7 @@ mod gen {
                 use super::#self_ty;
                 use ::sdk::storage::{Keypath, LoadKeypath};
                 use ::sdk::serialize::Serialize;
+                use ::sdk::types::ContractEntrypointID;
 
                 #exports
             }
@@ -552,10 +557,10 @@ mod gen {
     pub fn export_from_method_signature(
         contract: Option<&sig::ContractImpl>,
         method: &sig::Method,
-        export_num: MethodID,
+        entrypoint: ContractEntrypointID,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
-        let export_name = get_method_name(export_num);
+        let export_name = get_method_name(entrypoint);
         let extern_name = format_ident!("{}_extern", ident);
         let internal_name = format_ident!("{}_internal", ident);
         let export_num_name =
@@ -627,6 +632,8 @@ mod gen {
             let provided_args = provided_args(method, false);
             let received_args = received_args(method, false);
 
+            let entrypoint_lit = entrypoint_literal(entrypoint);
+
             // Call the free function
             export.extend(quote! {
 
@@ -637,7 +644,7 @@ mod gen {
                     });
                 }
 
-                pub const #export_num_name : u64 = #export_num;
+                pub const #export_num_name : ContractEntrypointID = #entrypoint_lit;
 
             });
         }
@@ -647,14 +654,15 @@ mod gen {
 
     fn registration_from_method_signature(
         method: &sig::Method,
-        export_num: MethodID,
+        entrypoint: ContractEntrypointID,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
         let internal_name = format_ident!("{}_internal", ident);
+        let entrypoint = entrypoint_literal(entrypoint);
 
         Ok(quote! {
 
-            contract.register_method(#export_num, #internal_name);
+            contract.register_method(#entrypoint, #internal_name);
 
         })
     }
@@ -664,7 +672,7 @@ mod gen {
         version_str: Option<&str>,
         method_ident: &syn::Ident,
         method_index: usize,
-    ) -> MethodID {
+    ) -> ContractEntrypointID {
         use sha2::Digest;
 
         let iface_ident = trait_ident.unwrap_or(method_ident);
@@ -685,22 +693,30 @@ mod gen {
         hasher.update(preimage_bytes);
         let result = hasher.finalize();
 
-        let prefix: &[u8; 6] = &result[0..6].try_into().unwrap();
+        let interface_id: &[u8; 6] = &result[0..6].try_into().unwrap();
+        let method_id: [u8; 2] = method_index.to_be_bytes().into();
 
-        let id = ContractEntrypointID {
-            contract_interface_id: prefix.clone().try_into().unwrap(),
-            contract_method_id: method_index.to_le_bytes().into(),
-        };
+        let mut entrypoint_id: [u8; 8] = [0; 8];
+        entrypoint_id[0..6].copy_from_slice(interface_id);
+        entrypoint_id[6..8].copy_from_slice(&method_id);
 
-        let mut id_bytes: [u8; 8] = [0; 8];
-        id_bytes[0..6].copy_from_slice(id.contract_interface_id.as_slice());
-        id_bytes[6..8].copy_from_slice(id.contract_method_id.as_slice());
-
-        MethodID::from_le_bytes(id_bytes)
+        ContractEntrypointID::from(entrypoint_id)
     }
 
-    fn get_method_name(num: MethodID) -> String {
-        format!("{:X}", num)
+    fn get_method_name(id: ContractEntrypointID) -> String {
+        let mut s = String::new();
+        let bytes: &[u8] = id.as_ref();
+        for b in bytes {
+            s.push_str(&format!("{:2X}", b));
+        }
+        s
+    }
+
+    fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream2 {
+        let bytes: &[u8] = entrypoint.as_ref();
+        quote!(
+            sdk::types::ContractEntrypointID::new([#(#bytes),*])
+        )
     }
 
     fn provided_args(method: &sig::Method, drop_first: bool) -> TokenStream2 {

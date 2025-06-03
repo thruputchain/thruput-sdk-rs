@@ -6,6 +6,7 @@ use core::ffi::c_void;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::serialize::{Limits, WriteXdr};
+use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 use sha2::{Digest, Sha256};
@@ -26,9 +27,11 @@ pub struct TestEnvironment {
 
 unsafe extern "C" fn trampoline(
     context: *mut c_void,
-    method: MethodID,
+    method: u64,
 ) -> ForeignInvokeResult {
     let c: *mut MockContractInner = unsafe { core::mem::transmute(context) };
+
+    let method: ContractEntrypointID = method.to_be_bytes().into();
 
     match unsafe { (*c).get_func(method) } {
         Some(x) => {
@@ -157,7 +160,8 @@ impl<'a> TestEnvironment {
         F: Fn() -> () + 'a + UnwindSafe + Clone + 'static,
     {
         let mut test_contract = self.add_contract();
-        test_contract.register_func(0, test);
+        let entrypoint = ContractEntrypointID::from([0; 8]);
+        test_contract.register_func(entrypoint, test);
         self.setup_create_contract(&test_contract.as_contract());
 
         let invoke_addr: ContractAddress = [0xFF; 32].into();
@@ -174,7 +178,7 @@ impl<'a> TestEnvironment {
                 id: [0; 16].into(),
                 invocation: Invocation {
                     invoked_address: invoke_addr,
-                    method: 0,
+                    entrypoint: entrypoint,
                     gas_limit: u64::MAX,
                     calldata: [].try_into().unwrap(),
                 },
