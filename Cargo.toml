@@ -30,6 +30,7 @@ serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
+ciborium = { version = "0.2.2", default-features = false, optional = true }
 
 [workspace.dependencies]
 macros = { path = "macros" }
@@ -42,11 +43,12 @@ thiserror = { version = "2.0.12", default-features = false }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
-default = ["alloc"]
+default = ["alloc", "cbor"]
 mock = ["std", "dep:native_exec"]
 storage = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc"]
-std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
+std = ["alloc", "serde/std", "bcs/std", "ciborium/std", "groundhog_xdr/std"]
+cbor = ["dep:ciborium"]
 
 [profile.dev]
 opt-level = "z"
@@ -57,10 +59,11 @@ panic = "abort"
 
 [profile.test]
 # settings inherited from profile.dev
-# opt-level = 0
-# overflow-checks = true
-# debug = true
-# strip = false
+opt-level = 0
+overflow-checks = true
+debug = true
+strip = false
+panic = "unwind"
 
 [profile.release]
 opt-level = 3

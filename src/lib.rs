@@ -30,7 +30,9 @@ pub mod log;
 pub mod serialize {
     #[cfg(feature = "alloc")]
     pub use ::bcs::to_bytes;
+
     pub use ::bcs::{from_bytes, from_bytes_seed};
+
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
 }
 pub mod contract_result;
