@@ -6,47 +6,32 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 #[derive(Error, Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
+#[repr(i32)]
 pub enum Error {
+    #[error("None")]
+    None,
+
     #[error("Contract already initialized")]
     AlreadyInitialized,
 
     #[error("Caller must be contract owner")]
     MustBeContractOwner,
 
-    #[error("Internal contract error: {0:?}")]
-    ContractErr(#[from] ContractError),
-}
-
-#[derive(Error, Debug, PartialEq, Clone, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum ContractError {
-    #[error("Storage-layer error")]
+    #[error("Internal contract error (storage layer)")]
     StorageErr,
 
-    #[error("System error")]
+    #[error("Internal contract error (system call)")]
     SystemErr,
 }
 
-impl From<StorageError> for ContractError {
-    fn from(_err: StorageError) -> Self {
-        ContractError::StorageErr
-    }
-}
-
 impl From<StorageError> for Error {
-    fn from(err: StorageError) -> Self {
-        ContractError::from(err).into()
-    }
-}
-
-impl From<SysErr> for ContractError {
-    fn from(_err: SysErr) -> Self {
-        ContractError::SystemErr
+    fn from(_err: StorageError) -> Self {
+        Error::StorageErr
     }
 }
 
 impl From<SysErr> for Error {
-    fn from(err: SysErr) -> Self {
-        ContractError::from(err).into()
+    fn from(_err: SysErr) -> Self {
+        Error::SystemErr
     }
 }
