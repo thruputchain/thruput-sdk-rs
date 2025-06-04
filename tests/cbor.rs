@@ -7,22 +7,21 @@ struct Data {
     bytes: [u8; 32],
 }
 
-use ::groundhog_xdr::types::*;
 use ::groundhog_xdr::transaction::*;
-use ::groundhog_xdr::{CBOR, to_cbor};
+use ::groundhog_xdr::CBOR;
 use ::groundhog_xdr::cbor;
 
 fn mk_data() -> SignedTransaction {
     let invocation = Invocation {
         invoked_address: Default::default(),
         entrypoint: Default::default(),
-        gas_limit: Default::default(),
+        gas_limit: 0xdeadbeefdeadbeef,
         calldata: Default::default(),
     };
 
     let tx = Transaction {
         id: Default::default(),
-        created: Default::default(),
+        created: 0xdecafdecaffaf,
         invocation,
         contracts_to_deploy: Default::default(),
     };
