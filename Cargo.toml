@@ -22,7 +22,7 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-bcs = { path = "external/bcs", default-features = false }
+bcs = { path = "external/bcs", default-features = false, optional = true }
 macros = { workspace = true }
 native_exec = { path = "native_exec", optional = true}
 groundhog_xdr = { workspace = true }
@@ -49,6 +49,7 @@ storage = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "ciborium/std", "groundhog_xdr/std"]
 cbor = ["dep:ciborium"]
+bcs = ["dep:bcs"]
 
 [profile.dev]
 opt-level = "z"

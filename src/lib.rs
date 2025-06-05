@@ -27,6 +27,8 @@ pub mod deploy;
 pub mod hash;
 pub mod invoke;
 pub mod log;
+
+#[cfg(feature = "bcs")]
 pub mod serialize {
     #[cfg(feature = "alloc")]
     pub use ::bcs::to_bytes;
@@ -35,6 +37,11 @@ pub mod serialize {
 
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
 }
+
+#[cfg(feature = "cbor")]
+pub mod serialize {
+}
+
 pub mod contract_result;
 pub mod contract_test;
 
