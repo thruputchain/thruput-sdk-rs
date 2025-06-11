@@ -706,9 +706,8 @@ mod gen {
     fn get_method_name(id: ContractEntrypointID) -> String {
         let mut s = String::new();
         let bytes: &[u8] = id.as_ref();
-        for b in bytes {
-            s.push_str(&format!("{:2X}", b));
-        }
+        let method : u64 = u64::from_be_bytes(bytes.try_into().unwrap());
+        s.push_str(&format!("{:X}", method));
         s
     }
 
