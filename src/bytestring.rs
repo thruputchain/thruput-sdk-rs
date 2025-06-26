@@ -20,7 +20,7 @@ pub use bytestring_get_alloc::*;
 ///
 /// Returns `false` if nothing is there.
 /// If an item of another type exists there, returns an error with code
-/// [`SyscallErrorCode::kInvalidInput`].
+/// [`SyscallErrorCode::kInvalidSyscallInput`].
 ///
 pub fn bytestring_exists(key: &StorageKeyContractData) -> Result<bool> {
     match bytestring_get_len(key) {
@@ -50,7 +50,7 @@ pub fn bytestring_get_len(key: &StorageKeyContractData) -> Result<u32> {
 /// (**TODO**: Check semantics)
 ///
 /// Creates the bytestring item if the location is empty.
-/// Returns [`SyscallErrorCode::kInvalidInput`] if an item of another type is there.
+/// Returns [`SyscallErrorCode::kInvalidSyscallInput`] if an item of another type is there.
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, both writes will be allowed.
 ///
@@ -64,7 +64,7 @@ pub fn bytestring_set(key: &StorageKeyContractData, slice: &[u8]) -> Result<()> 
 /// (**TODO**: Check semantics)
 ///
 /// Creates the bytestring item if the location is empty.
-/// Returns [`SyscallErrorCode::kInvalidInput`] if an item of another type is there.
+/// Returns [`SyscallErrorCode::kInvalidSyscallInput`] if an item of another type is there.
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, the contract instance that writes last will be aborted.
 ///
@@ -114,7 +114,7 @@ mod bytestring_get_alloc {
     /// Returns a new allocation with the contents of the bytestring stored at the given key.
     ///
     /// Returns [`SyscallErrorCode::kStorageKeyNotExist`] if there is none,
-    /// or [`SyscallErrorCode::kInvalidInput`] if an item of another type is there.
+    /// or [`SyscallErrorCode::kInvalidSyscallInput`] if an item of another type is there.
     /// This routine requires feature `alloc`.
     ///
     pub fn bytestring_get(key: &StorageKeyContractData) -> Result<Box<[u8]>> {

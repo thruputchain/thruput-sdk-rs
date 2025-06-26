@@ -25,7 +25,7 @@ found in their own modules: [`bytestring`], [`nonnegative_int`],
 
 If feature `alloc` is enabled:
 *   The [`alloc`] crate is linked in, giving access to allocating
-    datatypes like [`String`](alloc::string::String) and [`Vec`](alloc::vec::Vec)
+    datatypes like [`String`] and [`Vec`]
     from the prelude.  Direct access to heap allocation is available from
     module [`boxed`](alloc::boxed).
 *   A simple "bump-allocator" is installed for heap allocation.  It never
