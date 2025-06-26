@@ -1,0 +1,21 @@
+[package]
+name = "erc20_no_storage"
+version = "0.1.1"
+edition = "2021"
+
+[dependencies]
+sdk = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+erc20_no_storage = { path = ".", features = ["mock"] }

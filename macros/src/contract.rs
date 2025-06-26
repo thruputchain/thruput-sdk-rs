@@ -13,10 +13,10 @@ pub fn contract_output(
     let config = match NestedMeta::parse_meta_list(attr_args.into()) {
         Ok(meta_list) => match sig::Config::from_list(&meta_list) {
             Ok(config) => config,
-            Err(e) => return TokenStream::from(e.write_errors()),
+            Err(e) => return e.write_errors().into(),
         },
         Err(e) => {
-            return TokenStream::from(darling::Error::from(e).write_errors());
+            return darling::Error::from(e).write_errors().into();
         }
     };
 
@@ -65,7 +65,7 @@ fn item_to_contract_helpers(
             out.extend(exports.clone());
 
             let test_registration =
-                gen::test_registration_from_method_signature(&sig, config)?;
+                gen::test_registration_from_contract_signature(&sig, config)?;
             out.extend(test_registration.clone());
 
             Ok(out)
@@ -76,7 +76,7 @@ fn item_to_contract_helpers(
 
             let entrypoint = gen::get_method_num(None, None, &item.sig.ident, 0);
             out.extend(gen::export_from_method_signature(
-                None, &sig, entrypoint,
+                None, &sig, entrypoint, config,
             )?);
 
             Ok(out)
@@ -108,6 +108,7 @@ mod sig {
         pub exports: Option<String>,
         pub client: Option<String>,
         pub test_setup: Option<String>,
+        pub storage: Option<String>,
     }
 
     #[derive(Debug)]
@@ -162,6 +163,14 @@ mod sig_impls {
 
         pub fn test_setup_mod_ident(&self) -> syn::Ident {
             ident_or(&self.test_setup, "test_setup")
+        }
+
+        pub fn storage(&self) -> bool {
+            if let Some(setting) = &self.storage {
+                setting.as_str() == "true"
+            } else {
+                true // default if no storage attr present
+            }
         }
     }
 
@@ -335,6 +344,7 @@ mod gen {
             method_stubs.extend(call_from_method_signature(
                 entrypoint,
                 method,
+                config,
             )?);
         }
 
@@ -373,6 +383,7 @@ mod gen {
     fn call_from_method_signature(
         entrypoint: ContractEntrypointID,
         method: &syn::Signature,
+        _config: &sig::Config,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
         let mut params = method.inputs.iter();
@@ -462,7 +473,7 @@ mod gen {
         }
     }
 
-    pub fn test_registration_from_method_signature(
+    pub fn test_registration_from_contract_signature(
         contract: &sig::ContractImpl,
         config: &sig::Config,
     ) -> Result<TokenStream2> {
@@ -530,6 +541,7 @@ mod gen {
                 Some(contract),
                 method,
                 entrypoint,
+                config,
             )?);
         }
 
@@ -539,12 +551,20 @@ mod gen {
             quote! {}
         };
 
+        let use_storage = if config.storage() {
+            quote! {
+                use ::sdk::storage::{Keypath, LoadKeypath};
+            }
+        } else {
+            quote! {}
+        };
+
         Ok(quote! {
 
             pub mod #exports_mod_ident {
                 #use_trait
                 use super::#self_ty;
-                use ::sdk::storage::{Keypath, LoadKeypath};
+                #use_storage
                 use ::sdk::serialize::Serialize;
                 use ::sdk::types::ContractEntrypointID;
 
@@ -558,6 +578,7 @@ mod gen {
         contract: Option<&sig::ContractImpl>,
         method: &sig::Method,
         entrypoint: ContractEntrypointID,
+        config: &sig::Config,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
         let export_name = get_method_name(entrypoint);
@@ -585,16 +606,26 @@ mod gen {
             if method.receiver.is_some() {
                 let provided_args = provided_args(method, false);
                 let received_args = received_args(method, false);
+                let load_state = if config.storage() {
+                    quote! {
+                        let mut state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
+                            .expect("Failed loading state")
+                            .expect("Contract state not present");
+                    }
+                } else {
+                    // If not using storage, we just create a stub object to call the method on
+                    quote! {
+                        let mut state = #self_ty;
+                    }
+                };
 
                 // Load the contract object and call the method on it
                 export.extend(quote! {
 
                     pub fn #internal_name() -> () {
                         #log_guest_call
+                        #load_state
                         ::sdk::internal::handle_call(| #received_args | {
-                            let mut state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                                .expect("Failed loading state")
-                                .expect("Contract state not present");
                             state.#ident( #provided_args )
                         });
                     }
@@ -608,20 +639,29 @@ mod gen {
                 } else {
                     quote! { #self_ty }
                 };
+                let load_state = if config.storage() {
+                    quote! {
+                        let mut maybe_state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
+                            .expect("Failed loading state");
+                        let state_ref = if let Some(ref mut state) = &mut maybe_state {
+                            Some(state)
+                        } else {
+                            None
+                        };
+                    }
+                } else {
+                    quote! {
+                        let state_ref = None;
+                    }
+                };
 
-                // Call the associated function (without pre-loading contract state)
+                // Call the associated function (fallibly loading contract state)
                 export.extend(quote! {
 
                     pub fn #internal_name() -> () {
                         #log_guest_call
+                        #load_state
                         ::sdk::internal::handle_call(| #received_args | {
-                            let mut maybe_state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                                .expect("Failed loading state");
-                            let state_ref = if let Some(ref mut state) = &mut maybe_state {
-                                Some(state)
-                            } else {
-                                None
-                            };
                             #self_ty_full::#ident(state_ref, #provided_args )
                         });
                     }
