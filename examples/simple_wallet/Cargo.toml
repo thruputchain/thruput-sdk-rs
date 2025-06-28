@@ -1,5 +1,5 @@
 [package]
-name = "simple_wallet"
+name = "simple_wallet_disabled"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,4 +17,4 @@ guest = []
 mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]
-simple_wallet = { path = ".", features = ["mock", "client"] }
+simple_wallet_disabled = { path = ".", features = ["mock", "client"] }
