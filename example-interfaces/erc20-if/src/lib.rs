@@ -1,15 +1,19 @@
-mod error;
+#![no_std]
 
+#[cfg(feature = "std")]
+extern crate std;
+
+mod error;
 pub use error::*;
-use sdk::types::ContractAddress;
-use sdk::storage_prelude::contract;
+
+use sdk::prelude::{ContractAddress, contract};
 
 pub type Amount = u128;
 
 #[contract(client = "client")]
 pub trait ERC20 {
     fn initialize(
-        maybe_self: Option<&mut Self>,
+        &mut self,
         contract_owner: &ContractAddress,
     ) -> Result<()>;
 

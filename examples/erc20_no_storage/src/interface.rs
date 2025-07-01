@@ -1,1 +1,0 @@
-../../erc20/src/interface.rs

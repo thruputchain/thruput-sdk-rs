@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true }
 erc20 = { package = "erc20_low_level", path = "../erc20_low_level/", features = ["client"] }
+erc20-if = { workspace = true, features = ["client"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -14,7 +15,8 @@ crate-type = ["cdylib", "rlib"]
 [features]
 client = []
 guest = []
-mock = ["guest", "sdk/mock"]
+mock = ["guest", "sdk/mock", "std"]
+std = ["erc20-if/std"]
 
 [dev-dependencies]
 simple_wallet_disabled = { path = ".", features = ["mock", "client"] }

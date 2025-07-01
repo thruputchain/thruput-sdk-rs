@@ -27,25 +27,12 @@ impl Wallet {
     }
 
     pub fn initialize(
-        _maybe_self: Option<&mut Self>,
+        &mut self,
         pk: &Ed25519PublicKey,
         token_addr: &ContractAddress,
     ) {
-        let keypath = Keypath::root();
-        let key = keypath.generate_key();
-
-        // Make sure we haven't already been initialized
-        if bytestring_exists(&key).unwrap() {
-            panic!("Contract already initialized");
-        }
-
-        let value = Wallet {
-            pk: pk.clone(),
-            token_addr: token_addr.clone(),
-        };
-
-        // Store ourselves
-        store(&key, &value).unwrap();
+        self.pk = pk.clone();
+        self.token_addr = token_addr.clone();
     }
 
     pub fn get_balance(&self) -> Amount {

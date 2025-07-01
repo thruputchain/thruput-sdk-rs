@@ -2,7 +2,11 @@ use crate::syscall::SysErr;
 use bcs::Error as SerializationError;
 use core::fmt;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use ::thiserror::Error;
+use ::xdrs::{ReadXDR, WriteXDR};
+
+#[cfg(feature = "mock")]
+use alloc::string::{String, ToString};
 
 // For whose only error is a SysErr (syscalls or syscall-wrappers)
 pub type SysResult<T> = core::result::Result<T, SysErr>;
@@ -11,7 +15,7 @@ pub type SysResult<T> = core::result::Result<T, SysErr>;
 pub type Result<T> = core::result::Result<T, Error>;
 
 // Error type for general SDK functions
-#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub enum Error {
     #[error("System call error: {0}")]
     SystemErr(#[from] SysErr),
@@ -34,16 +38,11 @@ impl Error {
             .map(SysErr::is_storage_key_not_exist)
             .unwrap_or(false)
     }
+
+    pub fn serialization<M: fmt::Display>(msg: M) -> Self {
+        Error::SerializationErr(ErrorMsg::new(msg))
+    }
 }
-
-#[cfg(feature = "mock")]
-use alloc::borrow::ToOwned;
-
-#[cfg(feature = "mock")]
-use alloc::string::String;
-
-#[cfg(feature = "mock")]
-use alloc::string::ToString;
 
 #[cfg(feature = "mock")]
 impl From<SerializationError> for Error {
@@ -63,21 +62,21 @@ impl From<SerializationError> for Error {
 // dropped when compiled for contract deployment
 
 #[cfg(not(feature = "mock"))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub struct ErrorMsg;
 
 #[cfg(feature = "mock")]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub struct ErrorMsg(String);
 
 impl ErrorMsg {
     #[cfg(feature = "mock")]
-    pub fn new(msg: &str) -> Self {
-        Self(msg.to_owned())
+    pub fn new<M: fmt::Display>(msg: M) -> Self {
+        Self(msg.to_string())
     }
 
     #[cfg(not(feature = "mock"))]
-    pub fn new(_msg: &str) -> Self {
+    pub fn new<M: fmt::Display>(_msg: M) -> Self {
         Self
     }
 

@@ -142,6 +142,7 @@ mod sig {
     }
 
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct Arg {
         pub ident: syn::Ident,
         pub ty: syn::Type,
@@ -311,7 +312,7 @@ mod gen {
 
     use super::err;
     use super::sig;
-    use groundhog_xdr::serialize::{Limits, WriteXdr};
+    use xdrs::serialize_txs;
     use groundhog_xdr::contract::ContractEntrypointID;
     use proc_macro2::TokenStream as TokenStream2;
     use quote::format_ident;
@@ -529,6 +530,7 @@ mod gen {
 
         let exports_mod_ident = config.exports_mod_ident();
         let mut exports = TokenStream2::new();
+
         let mut methods: Vec<_> = contract.methods.iter().collect();
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
         for (index, method) in methods.iter().enumerate() {
@@ -553,7 +555,7 @@ mod gen {
 
         let use_storage = if config.storage() {
             quote! {
-                use ::sdk::storage::{Keypath, LoadKeypath};
+                use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
             }
         } else {
             quote! {}
@@ -567,6 +569,7 @@ mod gen {
                 #use_storage
                 use ::sdk::serialize::Serialize;
                 use ::sdk::types::ContractEntrypointID;
+                use ::sdk::contract_panic;
 
                 #exports
             }
@@ -574,6 +577,10 @@ mod gen {
         })
     }
 
+    // Generate an exported function for:
+    // - An impl or impl-trait method with self-parameter
+    // - An impl or impl-trait associated function
+    // - A free function
     pub fn export_from_method_signature(
         contract: Option<&sig::ContractImpl>,
         method: &sig::Method,
@@ -593,99 +600,148 @@ mod gen {
         };
 
         let mut export = quote! {
-
             #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
             pub extern "C" fn #extern_name() -> () {
                 #internal_name()
             }
         };
 
-        if let Some(contract) = contract {
-            let self_ty = &contract.self_ty;
+        let arg_names = arg_names(method);
 
-            if method.receiver.is_some() {
-                let provided_args = provided_args(method, false);
-                let received_args = received_args(method, false);
-                let load_state = if config.storage() {
-                    quote! {
-                        let mut state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                            .expect("Failed loading state")
-                            .expect("Contract state not present");
-                    }
-                } else {
-                    // If not using storage, we just create a stub object to call the method on
-                    quote! {
-                        let mut state = #self_ty;
-                    }
-                };
+        // The function is a method that takes a self-parameter
+        let is_method = contract.is_some() && method.receiver.is_some();
 
-                // Load the contract object and call the method on it
-                export.extend(quote! {
+        // The function is associated with a type
+        let is_associated = contract.is_some();
 
-                    pub fn #internal_name() -> () {
-                        #log_guest_call
-                        #load_state
-                        ::sdk::internal::handle_call(| #received_args | {
-                            state.#ident( #provided_args )
-                        });
-                    }
+        // How to call the function
+        let function_or_method = if is_method {
+            // Invoke the method on a state object
+            quote! { state.#ident }
+        } else if is_associated {
+            // Invoke the associated function on the contract type
+            let self_ty = &contract.unwrap().self_ty;
+            quote! { #self_ty::#ident }
+        } else {
+            // Invoke the free function
+            quote! { #ident }
+        };
 
-                });
-            } else {
-                let provided_args = provided_args(method, true);
-                let received_args = received_args(method, true);
-                let self_ty_full = if let Some(trait_) = &contract.trait_ {
-                    quote! { <#self_ty as #trait_> }
-                } else {
-                    quote! { #self_ty }
-                };
-                let load_state = if config.storage() {
-                    quote! {
-                        let mut maybe_state = <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                            .expect("Failed loading state");
-                        let state_ref = if let Some(ref mut state) = &mut maybe_state {
-                            Some(state)
-                        } else {
-                            None
-                        };
-                    }
-                } else {
-                    quote! {
-                        let state_ref = None;
-                    }
-                };
+        // The method takes a mutable self-parameter
+        let is_mut = is_method && method.receiver.as_ref().map(|r| r.mutability.is_some()).unwrap_or(false);
 
-                // Call the associated function (fallibly loading contract state)
-                export.extend(quote! {
+        // The method is marked "init": storage should be uninitialized before calling
+        // TODO: use a method attribute to mark initialization methods
+        let is_init = is_method && ident.to_string().as_str() == "initialize";
 
-                    pub fn #internal_name() -> () {
-                        #log_guest_call
-                        #load_state
-                        ::sdk::internal::handle_call(| #received_args | {
-                            #self_ty_full::#ident(state_ref, #provided_args )
-                        });
-                    }
+        let assert_uninitialized = if is_method && config.storage() && is_init {
+            let self_ty = &contract.unwrap().self_ty;
 
-                });
+            quote! {
+                // Assert that the storage does not yet exist
+                if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
+                    .unwrap_or_else(|_| contract_panic!("Failed loading contract storage")).is_some()
+                {
+                    contract_panic!("#[contract(init)] method called when contract storage already exists");
+                }
             }
         } else {
-            let provided_args = provided_args(method, false);
-            let received_args = received_args(method, false);
+            quote! {}
+        };
 
+        // Load the stored contract state (when appropriate)
+        let load_state = if is_method {
+            let self_ty = &contract.unwrap().self_ty;
+            let mutability = if is_mut { quote! { mut } } else { quote! {} };
+
+            if config.storage() {
+                if is_init {
+                    // Get a default value to initialize in this method
+                    quote! {
+                        let #mutability state =
+                            <#self_ty as DefaultFromKeypath>::default_from_keypath(&Keypath::root());
+                    }
+                } else {
+                    // Load the previously-stored value
+                    quote! {
+                        let #mutability state =
+                            <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
+                                .unwrap_or_else(|_| contract_panic!("Failed loading contract storage"))
+                                .unwrap_or_else(|| contract_panic!("Contract storage not present"));
+                    }
+                }
+            } else {
+                // If not using storage, we just create a default object to call the method on
+                quote! {
+                    let #mutability state = <#self_ty as Default>::default();
+                }
+            }
+        } else {
+            // Free function: no state variable at all
+            quote! {}
+        };
+
+        // Save the contract state after calling the method, if it takes a mutable ref to the state
+        let save_state = if is_method && config.storage() && is_mut {
+            quote! {
+                state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
+                    contract_panic!("Failed saving contract storage"));
+            }
+        } else {
+            quote! {}
+        };
+
+        let use_alloc = if cfg!(feature = "alloc") {
+            quote! {
+                extern crate alloc;
+                use alloc::boxed::Box;
+            }
+        } else { quote! {} };
+
+        export.extend(quote! {
+            pub fn #internal_name() -> () {
+                use sdk::invoke::{contract_return, get_calldata};
+                use sdk::serialize::{encode_xdr, decode_xdr};
+                #use_alloc
+
+                // Debug mode: log the method-call
+                #log_guest_call
+
+                #assert_uninitialized
+
+                #load_state
+
+                // Get the encoded argument data from the VM
+                let call_data: Box<[u8]> = get_calldata().unwrap_or_else(|_|
+                    sdk::contract_panic!("get_calldata() failed"));
+
+                // Decode the arguments expected by the method
+                let (#arg_names) = decode_xdr(call_data.as_ref()).unwrap_or_else(|_|
+                    sdk::contract_panic!("failed decoding contract-call arguments"));
+
+                // Call the free function or contract-type method
+                let result = #function_or_method(#arg_names);
+
+                // Save any mutations
+                #save_state
+
+                // Encode the result
+                let result_bytes = encode_xdr(&result).unwrap_or_else(|_|
+                    sdk::contract_panic!("failed encoding contract-call result"));
+
+                // Return the contract-call result to the VM
+                contract_return(result_bytes.as_slice());
+
+                // notreached
+            }
+        });
+
+        // A hack for test setup
+        if contract.is_none() {
             let entrypoint_lit = entrypoint_literal(entrypoint);
 
-            // Call the free function
             export.extend(quote! {
-
-                pub fn #internal_name() -> () {
-                    #log_guest_call  
-                    ::sdk::internal::handle_call(| #received_args | {
-                        #ident( #provided_args )
-                    });
-                }
-
                 pub const #export_num_name : ContractEntrypointID = #entrypoint_lit;
-
             });
         }
 
@@ -729,7 +785,7 @@ mod gen {
             };
 
         let mut hasher = sha2::Sha256::new();
-        let preimage_bytes = preimage.to_xdr(Limits::none()).unwrap();
+        let preimage_bytes = serialize_txs::encode(&preimage).unwrap();
         hasher.update(preimage_bytes);
         let result = hasher.finalize();
 
@@ -758,54 +814,12 @@ mod gen {
         )
     }
 
-    fn provided_args(method: &sig::Method, drop_first: bool) -> TokenStream2 {
-        let skip_n = if drop_first { 1 } else { 0 };
-        let args = method.args.iter().skip(skip_n);
+    fn arg_names(method: &sig::Method) -> TokenStream2 {
+        let args: Vec<TokenStream2> = method.args.iter().map(|arg| {
+            let ident = &arg.ident;
+            quote! { #ident }
+        }).collect();
 
-        let provided_args: Vec<TokenStream2> =
-            args.map(provided_arg).collect();
-        quote! { #(#provided_args),* }
-    }
-
-    fn provided_arg(arg: &sig::Arg) -> TokenStream2 {
-        let ident = &arg.ident;
-        let ty = &arg.ty;
-        match ty {
-            // If the interface expects a reference ...
-            syn::Type::Reference(_) =>
-            // ... pass a reference into the deserialized calldata
-            {
-                quote! { &#ident }
-            }
-            _ =>
-            // Else, pass the owned value
-            {
-                quote! { #ident }
-            }
-        }
-    }
-
-    fn received_args(method: &sig::Method, drop_first: bool) -> TokenStream2 {
-        let skip_n = if drop_first { 1 } else { 0 };
-        let args = method.args.iter().skip(skip_n);
-
-        let received_args: Vec<TokenStream2> =
-            args.map(received_arg).collect();
-        quote! { ( #(#received_args),* ) }
-    }
-
-    fn received_arg(arg: &sig::Arg) -> TokenStream2 {
-        let ident = &arg.ident;
-        /*
-        let ty = &arg.ty;
-        let ty_no_ref = match ty {
-            syn::Type::Reference(ref_ty) => {
-                // Strip the reference from the argument type
-                &*ref_ty.elem
-            }
-            _ => ty,
-        };
-        */
-        quote! { #ident }
+        quote! { #( #args ),* }
     }
 }

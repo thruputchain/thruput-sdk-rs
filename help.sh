@@ -3,7 +3,7 @@ XDRC="$X23/x23c/x23c"
 protrs="/home/dbg/gh/all/sdk_rs/protocol-rs"
 
 function mkx23 {
-  (cd "$X23" && make)
+  (cd "$X23" && make x23c)
 }
 
 function genrs {

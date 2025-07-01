@@ -3,9 +3,10 @@ use crate::serialize::{Deserialize, Serialize};
 #[cfg(feature = "storage")]
 use crate::storage::error::Error as StorageErr;
 use crate::syscall::SysErr;
-use thiserror::Error;
+use ::thiserror::Error;
+use ::xdrs::{ReadXDR, WriteXDR};
 
-#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub enum Error {
     #[error("Caller error{0}")]
     Caller(ErrorMsg),
@@ -14,7 +15,7 @@ pub enum Error {
     Contract(#[from] ContractError),
 }
 
-#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub enum ContractError {
     #[error(": {0}")]
     Custom(ErrorMsg),

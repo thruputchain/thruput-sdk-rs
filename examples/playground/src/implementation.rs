@@ -92,24 +92,23 @@ impl CoinContract {
 // module with the specified name ("guest_exports").
 #[contract(exports = "guest_exports")]
 impl ERC20 for CoinContract {
-    fn initialize(
-        this: Option<&mut Self>,
-        contract_owner: &ContractAddress,
-    ) -> Result<()> {
-        // Make sure we haven't already been initialized
-        if this.is_some() {
-            panic!("Contract already initialized");
-        }
-
-        // Create a default storage value, pass it to
-        // the given closure for initialization, and
-        // store it at the root key.
-        initialize_root(|storage: &mut Self| {
-            storage.contract_owner = contract_owner.clone()
-        })?;
+    // TODO: attribute #[init]: panic if storage already present; otherwise provide default value
+    fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
+        self.contract_owner = contract_owner.clone();
 
         Ok(())
     }
+
+    fn hello(&mut self, addr: &ContractAddress, buf: &[u8]) -> Result<u32> {
+        self._adjust_balance(addr, 1)?;
+        Ok(buf.len() as u32)
+    }
+
+    fn goodbye(&self, _addr: &ContractAddress) -> Result<u32> {
+        Ok(1)
+    }
+
+    // fn associated(n: u32) -> Result<u32> { Ok(n) }
 
     fn transfer(
         &mut self,
@@ -218,4 +217,9 @@ impl ERC20 for CoinContract {
         let count = frottage.count.get()?;
         Ok(count as Amount)
     }
+}
+
+#[contract(exports = "guest_exports")]
+fn free_function(n: u32, _addr: &ContractAddress) -> Result<u32> {
+    Ok(n)
 }

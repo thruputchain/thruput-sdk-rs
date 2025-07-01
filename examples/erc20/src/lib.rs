@@ -9,7 +9,7 @@ extern crate std;
 extern crate alloc;
 
 // A trait describing the contract interface
-pub mod interface;
+pub use erc20_if as interface;
 
 // A client stub that provides the interface via cross-contract calls
 #[cfg(feature = "client")]

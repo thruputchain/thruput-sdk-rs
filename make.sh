@@ -18,10 +18,7 @@ case "$verb" in
         (cd integration_test_contracts && bash make.sh "$@")
         ;;
     test)
-        cargo_native test --features=mock "$@"
-        ;;
-    expand)
-        cargo_native expand --features=mock "$@"
+        cargo_native test --features=mock,storage "$@"
         ;;
     check)
         $cargo check --features=mock "$@"

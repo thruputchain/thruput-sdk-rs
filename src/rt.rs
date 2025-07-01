@@ -31,3 +31,16 @@ mod test_rt {
 #[allow(dead_code)]
 #[allow(unused)]
 pub use test_rt::trap;
+
+#[macro_export]
+macro_rules! contract_panic {
+    ( $($expr:expr),* ) => {
+        {
+            #[cfg(feature = "mock")]
+            panic!($($expr),*);
+
+            // Guest
+            ::sdk::rt::trap();
+        }
+    };
+}

@@ -8,6 +8,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 groundhog_xdr = {path = "../protocol-rs/groundhog_xdr", features = ["std"]}
+xdrs = { workspace = true }
 sha2 = {version = "0.10"}
 
 [build-dependencies]

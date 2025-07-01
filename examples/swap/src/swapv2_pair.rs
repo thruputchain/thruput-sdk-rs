@@ -138,7 +138,7 @@ impl AsMut<TokenContract> for SwapV2Pair {
 #[contract(exports = "erc20_exports", test_setup = "erc20_test_setup")]
 impl ERC20 for SwapV2Pair {
     fn initialize(
-        _maybe_self: Option<&mut Self>,
+        &mut self,
         _contract_owner: &ContractAddress,
     ) -> ERC20Result<()> {
         panic!("embedded contract is initialized by parent");
@@ -204,23 +204,19 @@ impl ERC20 for SwapV2Pair {
 
 #[contract(exports = "swap_exports", test_setup = "swap_test_setup")]
 impl ISwapV2Pair for SwapV2Pair {
-    fn initialize_pair(
-        this: Option<&mut Self>,
+    fn initialize(
+        &mut self,
         factory: &Address,
         token0: &Address,
         token1: &Address,
         ) -> Result<()> {
-        // Make sure we haven't already been initialized
-        require(this.is_none(), Error::AlreadyInitialized)?;
 
-        initialize_root(|this: &mut Self| {
-            this.factory = factory.clone();
-            this.token0 = token0.clone();
-            this.token1 = token1.clone();
+        self.factory = factory.clone();
+        self.token0 = token0.clone();
+        self.token1 = token1.clone();
 
-            let lp_contract_owner = factory; // or this_contract() ?
-            this.lp._init(lp_contract_owner);
-        }).unwrap();
+        let lp_contract_owner = factory; // or this_contract() ?
+        self.lp._init(lp_contract_owner);
 
         Ok(())
     }

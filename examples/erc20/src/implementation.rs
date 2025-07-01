@@ -88,21 +88,10 @@ impl TokenContract {
 #[contract(exports = "guest_exports")]
 impl ERC20 for TokenContract {
     fn initialize(
-        this: Option<&mut Self>,
+        &mut self,
         contract_owner: &ContractAddress,
     ) -> Result<()> {
-        // Make sure we haven't already been initialized
-        if this.is_some() {
-            return Err(Error::AlreadyInitialized);
-        }
-
-        // Create a default storage value, pass it to
-        // the given closure for initialization, and
-        // store it at the root key.
-        initialize_root(|storage: &mut Self| {
-            storage._init(contract_owner)
-        })?;
-
+        self._init(contract_owner);
         Ok(())
     }
 

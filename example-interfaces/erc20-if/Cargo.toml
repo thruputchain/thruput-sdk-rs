@@ -1,0 +1,19 @@
+[package]
+name = "erc20-if"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+storage = ["sdk/storage"]
+client = []
+std = []
+
+[dependencies]
+sdk = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+xdrs = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false

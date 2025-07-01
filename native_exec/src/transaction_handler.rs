@@ -1,9 +1,9 @@
 use crate::bindings::*;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use groundhog_xdr::serialize::{Limits, WriteXdr};
 use groundhog_xdr::transaction::SignedTransaction;
 use std::marker::PhantomData;
+use xdrs::serialize_txs;
 
 // Can run one, and only one, transaction,
 // and then get the results
@@ -20,7 +20,7 @@ pub struct TransactionHandler<'a> {
 
 impl<'a> TransactionHandler<'a> {
     pub fn new(env: &'a TestEnvironment, stx: &SignedTransaction) -> Self {
-        let tx_bytes = stx.to_xdr(Limits::none()).unwrap();
+        let tx_bytes = serialize_txs::encode(stx).unwrap();
         let out = unsafe {
             Self {
                 handler: open_syscall_handler(

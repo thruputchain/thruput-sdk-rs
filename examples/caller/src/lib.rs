@@ -18,19 +18,8 @@ pub struct Caller {
 
 #[contract]
 impl ICaller for Caller {
-    fn initialize(this: Option<&mut Self>, token_contract: &ContractAddress) {
-
-        // Make sure we haven't already been initialized
-        if this.is_some() {
-            panic!("Contract already initialized");
-        }
-
-        // Create a default storage value, pass it to
-        // the given closure for initialization, and
-        // store it at the root key.
-        initialize_root(|storage: &mut Self| {
-            storage.token_contract = token_contract.clone()
-        }).unwrap();
+    fn initialize(&mut self, token_contract: ContractAddress) {
+        self.token_contract = token_contract.clone();
     }
 
     fn check_balance(&self, account: &ContractAddress) -> Amount {

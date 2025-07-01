@@ -1,5 +1,6 @@
 use crate::crypto::{sha_256, SHA256Hash};
-use crate::result::Result;
+use crate::result::{Result, Error};
+use xdrs::WriteXDR;
 
 pub type Hash256 = SHA256Hash;
 
@@ -13,13 +14,14 @@ pub trait Hash {
     }
 }
 
-use crate::serialize::{self, Serialize};
 impl<T> Hash for T
 where
-    T: Serialize,
+    T: WriteXDR,
 {
     fn try_hash(&self) -> Result<Hash256> {
-        let buf = serialize::to_bytes(&self)?;
+        let buf = xdrs::serialize_txs::encode(&self).map_err(|e|
+            Error::serialization(e))?;
+
         let hash = sha_256(&buf)?;
         Ok(hash)
     }

@@ -5,12 +5,12 @@ use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
-use groundhog_xdr::serialize::{Limits, WriteXdr};
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 use sha2::{Digest, Sha256};
 use std::panic::UnwindSafe;
+use xdrs::serialize_txs;
 
 // TODO(geoff): I cannot figure out how to prevent rust from moving objects
 // without just converting back to raw pointers.
@@ -76,7 +76,7 @@ impl<'a> TestEnvironment {
         &mut self,
         contract: &Contract,
     ) -> SHA256Hash {
-        let contract_bytes = contract.to_xdr(Limits::none()).unwrap();
+        let contract_bytes = serialize_txs::encode(&contract).unwrap();
         let res = unsafe {
             setup_create_contract(
                 self.contract_context,
@@ -97,7 +97,7 @@ impl<'a> TestEnvironment {
         addr: &ContractAddress,
         contract: &Contract,
     ) {
-        let contract_bytes = contract.to_xdr(Limits::none()).unwrap();
+        let contract_bytes = serialize_txs::encode(&contract).unwrap();
 
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);

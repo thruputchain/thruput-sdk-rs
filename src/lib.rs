@@ -5,7 +5,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-mod rt;
+pub mod rt;
 
 #[cfg(all(feature = "alloc", target_family = "wasm"))]
 pub mod allocator;
@@ -27,12 +27,7 @@ pub mod deploy;
 pub mod hash;
 pub mod invoke;
 pub mod log;
-pub mod serialize {
-    #[cfg(feature = "alloc")]
-    pub use ::bcs::to_bytes;
-    pub use ::bcs::{from_bytes, from_bytes_seed};
-    pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
-}
+pub mod serialize;
 pub mod contract_result;
 pub mod contract_test;
 
@@ -49,7 +44,7 @@ pub mod result;
 pub mod internal;
 
 // Storage layer
-#[cfg(feature = "alloc")]
+#[cfg(feature = "storage")]
 pub mod storage;
 
 #[cfg(feature = "mock")]
@@ -85,13 +80,19 @@ mod prelude_base {
     pub use super::hash::*;
 
     #[doc(inline)]
-    pub use super::serialize::{self, Deserialize, Serialize};
+    pub use super::serialize::{self, Deserialize, Serialize, serialize_xdr};
+
+    #[doc(inline)]
+    pub use ::xdrs::{ReadXDR, WriteXDR};
 
     #[doc(inline)]
     pub use super::macros::contract;
 
     #[doc(inline)]
     pub use super::contract_result::*;
+
+    #[doc(inline)]
+    pub use super::rt::*;
 }
 
 /// Lower-level contract facilities
@@ -113,7 +114,7 @@ pub mod prelude {
 }
 
 /// Storage-layer facilities
-#[cfg(feature = "alloc")]
+#[cfg(feature = "storage")]
 pub mod storage_prelude {
     #[doc(inline)]
     pub use super::prelude_base::*;

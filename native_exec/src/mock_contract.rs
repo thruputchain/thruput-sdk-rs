@@ -3,7 +3,7 @@ use crate::test_environment::TestEnvironment;
 use crate::bindings::ForeignInvokeResult;
 use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::contract::Contract;
-use groundhog_xdr::serialize::{Limits, WriteXdr};
+use xdrs::serialize_txs;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::types::SHA256Hash;
 use sha2::{Digest, Sha256};
@@ -82,7 +82,7 @@ impl MockContractInner {
     pub fn new(n: u32) -> Self {
         let mut hasher = Sha256::new();
         let contract = u32_to_contract(n);
-        hasher.update(contract.to_xdr(Limits::none()).unwrap());
+        hasher.update(serialize_txs::encode(&contract).unwrap());
         let result: [u8; 32] = hasher.finalize().into();
         Self {
             index: n,

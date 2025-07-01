@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 sdk = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+erc20-if = { workspace = true, features = ["client"] }
+xdrs = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
 [lib]
@@ -15,7 +16,8 @@ doctest = false
 [features]
 client = []
 guest = []
-mock = ["guest", "sdk/mock"]
+mock = ["guest", "sdk/mock", "std"]
+std = ["erc20-if/std"]
 
 [dev-dependencies]
 erc20_no_storage = { path = ".", features = ["mock"] }

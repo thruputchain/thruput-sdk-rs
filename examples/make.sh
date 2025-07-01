@@ -41,6 +41,19 @@ function build_contracts {
     done
 }
 
+function expand_contract {
+    contract=${1:?Please specify contract to expand}
+    shift
+
+    $cargo expand \
+        --features "guest" \
+        --target wasm32-unknown-unknown \
+        --release \
+        --package "$contract" \
+        --color=always \
+        "$@"
+}
+
 function test_contract {
     contract=${1:?Please specify contract to build}
 
@@ -70,6 +83,9 @@ case "$what" in
         else
             build_contracts
         fi
+        ;;
+    expand)
+        expand_contract "$1"
         ;;
     test)
         if [ -n "$1" ]; then

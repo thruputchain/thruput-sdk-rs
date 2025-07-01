@@ -5,8 +5,10 @@ pub use handle::handle_call;
 
 mod handle {
     use crate::invoke::{contract_return, get_calldata};
-    use crate::serialize::{self, DeserializeOwned, Serialize};
     use crate::syscall::{SysErr, SyscallErrorCode};
+
+    use ::xdrs::{ReadXDROwned, WriteXDR};
+    use ::xdrs::serialize_txs::{encode, decode};
 
     // Run a handler function on the invocation arguments
     // available in serialized form via `GetCalldata`,
@@ -14,28 +16,30 @@ mod handle {
     pub fn handle_call<F, ARGS, RES>(f: F) -> SysErr
     where
         F: FnOnce(ARGS) -> RES,
-        ARGS: DeserializeOwned,
-        RES: Serialize,
+        ARGS: ReadXDROwned,
+        RES: WriteXDR,
     {
-        let call_data = match get_calldata() {
+        let boxed_call_data = match get_calldata() {
             Ok(x) => x,
             Err(e) => return e, // == SyscallErrorCode::kCalldataParseError
         };
-        let args: ARGS = match serialize::from_bytes(&call_data) {
+        let call_data: &[u8] = boxed_call_data.as_ref();
+        let args: ARGS = match decode(call_data) {
             Ok(args) => args,
             Err(_) => return SyscallErrorCode::kCalldataParseError.into(),
         };
+
         let result: RES = f(args);
-        let result_bytes = match serialize::to_bytes(&result) {
-            Ok(bytes) => bytes,
-            Err(_) => return SyscallErrorCode::kCalldataParseError.into(),
+        let result_bytes = match encode(&result) {
+            Ok(r) => r,
+            Err(_) => return SyscallErrorCode::kReturnParseError.into(),
         };
+
         contract_return(result_bytes.as_slice());
     }
 }
 
 mod cross_call {
-    use crate::serialize::{self, DeserializeOwned, Serialize};
     use crate::sys;
     use crate::types::{
         ContractAddress, /* InvocationFlagSet, InvocationFlags, */
@@ -43,6 +47,8 @@ mod cross_call {
     };
     use ::groundhog_xdr::contract::ContractEntrypointID;
     use alloc::{vec, vec::Vec};
+    use ::xdrs::{ReadXDROwned, WriteXDR};
+    use ::xdrs::serialize_txs::{encode, decode};
 
     pub fn invoke<ARGS, RET>(
         address: &ContractAddress,
@@ -51,12 +57,11 @@ mod cross_call {
         args: &ARGS,
     ) -> RET
     where
-        ARGS: Serialize,
-        RET: DeserializeOwned,
+        ARGS: WriteXDR,
+        RET: ReadXDROwned,
     {
         // Encode the args
-        let call_data =
-            serialize::to_bytes(args).expect("Couldn't serialize call data");
+        let call_data = encode(args).expect("Couldn't serialize call data");
 
         // Invoke the method
         let return_buf =
@@ -65,12 +70,14 @@ mod cross_call {
         // Deserialize the buffer into a return value ...
         let return_buf = &return_buf.as_slice();
         #[allow(clippy::let_and_return)]
-        let return_value = serialize::from_bytes(return_buf)
+        let return_value = decode(return_buf)
             .expect("Couldn't deserialize return value");
 
         return_value
     }
 
+    // At least this part won't be monomorphized multiple times
+    #[inline(never)]
     fn invoke_inner(
         address: &ContractAddress,
         entrypoint: ContractEntrypointID,

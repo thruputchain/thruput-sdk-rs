@@ -72,12 +72,13 @@ fn add_to_allowance(
     )?)
 }
 
+#[derive(Default)]
 struct Token;
 
 #[contract(storage = "false")]
 impl ERC20 for Token {
     fn initialize(
-        _this: Option<&mut Self>,
+        &mut self,
         contract_owner: &ContractAddress,
     ) -> Result<()> {
         let key = get_owner_key();
