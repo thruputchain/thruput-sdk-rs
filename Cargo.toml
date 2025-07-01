@@ -30,6 +30,7 @@ serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
+xdrs = { workspace = true, optional = true }
 
 [workspace.dependencies]
 macros = { path = "macros" }
@@ -39,6 +40,8 @@ sdk = { package = "sdk_rs", path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
+# xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", default-features = false }
+xdrs = { path = "../../xdrs", default-features = false }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
@@ -47,6 +50,7 @@ mock = ["std", "dep:native_exec"]
 storage = ["alloc"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
+xdrs = ["dep:xdrs"]
 
 [profile.dev]
 opt-level = "z"
