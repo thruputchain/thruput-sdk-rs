@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
+xdrs = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
 [lib]

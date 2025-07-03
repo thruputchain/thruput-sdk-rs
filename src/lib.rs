@@ -88,6 +88,9 @@ mod prelude_base {
     pub use super::serialize::{self, Deserialize, Serialize};
 
     #[doc(inline)]
+    pub use ::xdrs::{ReadXDR, WriteXDR};
+
+    #[doc(inline)]
     pub use super::macros::contract;
 
     #[doc(inline)]

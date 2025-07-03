@@ -5,9 +5,11 @@ pub mod bindings;
 #[rustfmt::skip]
 mod error_helper;
 
+use ::xdrs::{ReadXDR, WriteXDR};
+
 use thiserror::Error;
 #[derive(
-    Error, Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize,
+    Error, Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ReadXDR, WriteXDR
 )]
 #[error("SysErr({0})")]
 pub struct SysErr(i32);

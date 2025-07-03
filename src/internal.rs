@@ -5,8 +5,11 @@ pub use handle::handle_call;
 
 mod handle {
     use crate::invoke::{contract_return, get_calldata};
-    use crate::serialize::{self, DeserializeOwned, Serialize};
+    // use crate::serialize::{self, DeserializeOwned, Serialize};
     use crate::syscall::{SysErr, SyscallErrorCode};
+
+    use ::xdrs::{ReadXDROwned, WriteXDR};
+    use ::xdrs::serialize_cxs::{encode, decode};
 
     // Run a handler function on the invocation arguments
     // available in serialized form via `GetCalldata`,
@@ -14,22 +17,21 @@ mod handle {
     pub fn handle_call<F, ARGS, RES>(f: F) -> SysErr
     where
         F: FnOnce(ARGS) -> RES,
-        ARGS: DeserializeOwned,
-        RES: Serialize,
+        ARGS: ReadXDROwned,
+        RES: WriteXDR,
     {
-        let call_data = match get_calldata() {
+        let boxed_call_data = match get_calldata() {
             Ok(x) => x,
             Err(e) => return e, // == SyscallErrorCode::kCalldataParseError
         };
-        let args: ARGS = match serialize::from_bytes(&call_data) {
+        let call_data: &[u8] = boxed_call_data.as_ref();
+        let args: ARGS = match decode(call_data) {
             Ok(args) => args,
             Err(_) => return SyscallErrorCode::kCalldataParseError.into(),
         };
+
         let result: RES = f(args);
-        let result_bytes = match serialize::to_bytes(&result) {
-            Ok(bytes) => bytes,
-            Err(_) => return SyscallErrorCode::kCalldataParseError.into(),
-        };
+        let result_bytes = encode(&result);
         contract_return(result_bytes.as_slice());
     }
 }

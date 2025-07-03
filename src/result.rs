@@ -2,7 +2,8 @@ use crate::syscall::SysErr;
 use bcs::Error as SerializationError;
 use core::fmt;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use ::thiserror::Error;
+use ::xdrs::{ReadXDR, WriteXDR};
 
 // For whose only error is a SysErr (syscalls or syscall-wrappers)
 pub type SysResult<T> = core::result::Result<T, SysErr>;
@@ -11,7 +12,7 @@ pub type SysResult<T> = core::result::Result<T, SysErr>;
 pub type Result<T> = core::result::Result<T, Error>;
 
 // Error type for general SDK functions
-#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub enum Error {
     #[error("System call error: {0}")]
     SystemErr(#[from] SysErr),
@@ -63,11 +64,11 @@ impl From<SerializationError> for Error {
 // dropped when compiled for contract deployment
 
 #[cfg(not(feature = "mock"))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub struct ErrorMsg;
 
 #[cfg(feature = "mock")]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 pub struct ErrorMsg(String);
 
 impl ErrorMsg {

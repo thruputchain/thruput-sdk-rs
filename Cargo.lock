@@ -350,6 +350,7 @@ dependencies = [
  "sdk_rs",
  "serde",
  "thiserror",
+ "xdrs",
 ]
 
 [[package]]
@@ -370,6 +371,7 @@ dependencies = [
  "sdk_rs",
  "serde",
  "thiserror",
+ "xdrs",
 ]
 
 [[package]]
