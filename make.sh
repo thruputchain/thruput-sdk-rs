@@ -13,6 +13,10 @@ case "$verb" in
         # e.g. "examples build erc20"
         (cd examples && bash make.sh "$@")
         ;;
+    integration_test_contracts)
+        # e.g. "integration_test_contracts build erc20"
+        (cd integration_test_contracts && bash make.sh "$@")
+        ;;
     test)
         cargo_native test --features=mock "$@"
         ;;
