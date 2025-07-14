@@ -86,8 +86,6 @@ struct Arg {
     primitive_type: bool, // default to false
     #[serde(default)]
     optional: bool, // default to false
-    #[serde(default)]
-    custom_parsing: bool, // default to false
 }
 
 impl Arg {
@@ -163,46 +161,6 @@ impl Arg {
                     #name.len() as u64,
                 },
             ];
-        }
-
-        if self.custom_parsing {
-            assert!(is_input);
-            // custom parsing implementations:
-            // 1. Signature
-            if self.typename.clone().unwrap() == "Signature" {
-                return vec![
-                    quote! {
-                        #name.scheme() as u64,
-                    },
-                    quote! {
-                        match #name {
-                            Signature::Ed25519 { ed25519: sig } => sig.as_ptr() as u64,
-                            #[allow(unreachable_patterns)]
-                            _ => {
-                                crate::rt::trap();
-                            }
-                        },
-                    },
-                ];
-            }
-            // 2. PublicKey
-            if self.typename.clone().unwrap() == "PublicKey" {
-                return vec![
-                    quote! {
-                        #name.scheme() as u64,
-                    },
-                    quote! {
-                        match #name {
-                            PublicKey::Ed25519 { ed25519: pk } => pk.as_ptr() as u64,
-                            #[allow(unreachable_patterns)]
-                            _ => {
-                                crate::rt::trap();
-                            }
-                        },
-                    },
-                ];
-            }
-            unimplemented!("Unknown custom parsing type");
         }
 
         if let Some(_) = self.fixed_size_typename(type_map) {
