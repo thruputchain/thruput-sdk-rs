@@ -5,7 +5,7 @@ pub use crate::types::SHA256Hash;
 
 use crate::result::SysResult as Result;
 use crate::sys;
-use crate::types::{PublicKey, Signature};
+use crate::types::{CryptographicScheme, Ed25519PublicKey, Ed25519Signature};
 
 pub fn sha_256(input: &[u8]) -> Result<SHA256Hash> {
     let mut out_hash = core::mem::MaybeUninit::<SHA256Hash>::uninit();
@@ -14,10 +14,10 @@ pub fn sha_256(input: &[u8]) -> Result<SHA256Hash> {
     Ok(hash)
 }
 
-pub fn verify_signature(
-    pk: &PublicKey,
-    signature: &Signature,
+pub fn verify_signature_ed25519(
+    pk: &Ed25519PublicKey,
+    signature: &Ed25519Signature,
     message: &[u8],
 ) -> Result<()> {
-    sys::uninit_VerifySignature(signature, pk, message)
+    sys::uninit_VerifySignature(CryptographicScheme::Ed25519 as i32, signature.as_slice(), pk.as_slice(), message)
 }
