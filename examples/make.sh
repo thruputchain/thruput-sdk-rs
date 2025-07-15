@@ -25,7 +25,6 @@ function build_contract {
         --features "guest" \
         --target wasm32-unknown-unknown \
         --release \
-        --verbose \
         --package "$contract" \
         --color=always \
         -Zbuild-std=alloc,core \
