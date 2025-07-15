@@ -44,7 +44,7 @@ pub mod result;
 pub mod internal;
 
 // Storage layer
-#[cfg(feature = "storage")]
+#[cfg(any(doc, feature = "storage"))]
 pub mod storage;
 
 #[cfg(feature = "mock")]
@@ -114,7 +114,7 @@ pub mod prelude {
 }
 
 /// Storage-layer facilities
-#[cfg(feature = "storage")]
+#[cfg(any(doc, feature = "storage"))]
 pub mod storage_prelude {
     #[doc(inline)]
     pub use super::prelude_base::*;

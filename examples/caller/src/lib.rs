@@ -18,7 +18,7 @@ pub struct Caller {
 
 #[contract]
 impl ICaller for Caller {
-    fn initialize(&mut self, token_contract: ContractAddress) {
+    fn initialize(&mut self, token_contract: &ContractAddress) {
         self.token_contract = token_contract.clone();
     }
 

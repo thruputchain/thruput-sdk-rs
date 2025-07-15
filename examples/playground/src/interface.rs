@@ -6,9 +6,7 @@ pub type Amount = i128;
 pub trait ERC20 {
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()>;
 
-    fn hello(&mut self, addr: &ContractAddress, buf: &[u8]) -> Result<u32>;
-
-    fn goodbye(&self, addr: &ContractAddress) -> Result<u32>;
+    fn hello(&mut self, buf: &[u8]) -> Result<u32>;
 
     // We need to patch the generated client code to make this work
     // fn associated(n: u32) -> Result<u32>;

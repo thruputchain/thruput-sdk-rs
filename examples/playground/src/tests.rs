@@ -29,21 +29,21 @@ fn check_playground_inner(
     let owner = get_current_address().unwrap();
 
     let mut client = ERC20Client::new(&deployed_addr);
-    ERC20Client::initialize(Some(&mut client), owner)?;
+    ERC20Client::initialize(&mut client, &owner)?;
 
     assert_eq!(client.total_supply()?, 0);
     assert_eq!(client.get_balance()?, 0);
 
-    client.mint(owner, 100)?;
+    client.mint(&owner, 100)?;
     assert_eq!(client.get_balance()?, 100);
 
     let other: ContractAddress = [0xBB; 32].into();
-    client.transfer(other, 25)?;
-    assert_eq!(client.get_balance_of(other)?, 25);
-    assert_eq!(client.get_balance_of(owner)?, 75);
+    client.transfer(&other, 25)?;
+    assert_eq!(client.get_balance_of(&other)?, 25);
+    assert_eq!(client.get_balance_of(&owner)?, 75);
 
-    client.burn(other, 5)?;
-    assert_eq!(client.get_balance_of(other)?, 20);
+    client.burn(&other, 5)?;
+    assert_eq!(client.get_balance_of(&other)?, 20);
 
     assert_eq!(client.total_supply()?, 95);
 
@@ -53,7 +53,7 @@ fn check_playground_inner(
 
     let buf = [0u8, 1, 2];
     let len_reported = client.hello(&buf[..]);
-    assert_eq!(len_reported, buf.len());
+    assert_eq!(len_reported, Ok(buf.len() as u32));
 
     Ok(())
 }

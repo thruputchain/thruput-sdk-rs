@@ -33,7 +33,7 @@ fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Res
 
     let mut erc20 = ERC20Client::new(&erc20_addr);
     assert_eq!(
-        ERC20::initialize(Some(&mut erc20), &erc20_owner),
+        ERC20::initialize(&mut erc20, &erc20_owner),
         ERC20Result::Ok(()),
     );
 
@@ -44,7 +44,7 @@ fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Res
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
 
     let mut caller = ICallerClient::new(&deployed_addr);
-    ICaller::initialize(Some(&mut caller), &erc20_addr);
+    ICaller::initialize(&mut caller, &erc20_addr);
 
     let some_account = ContractAddress::zero();
     assert_eq!(caller.check_balance(&some_account), 0);

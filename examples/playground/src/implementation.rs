@@ -99,13 +99,8 @@ impl ERC20 for CoinContract {
         Ok(())
     }
 
-    fn hello(&mut self, addr: &ContractAddress, buf: &[u8]) -> Result<u32> {
-        self._adjust_balance(addr, 1)?;
+    fn hello(&mut self, buf: &[u8]) -> Result<u32> {
         Ok(buf.len() as u32)
-    }
-
-    fn goodbye(&self, _addr: &ContractAddress) -> Result<u32> {
-        Ok(1)
     }
 
     // fn associated(n: u32) -> Result<u32> { Ok(n) }
@@ -219,7 +214,8 @@ impl ERC20 for CoinContract {
     }
 }
 
+#[allow(dead_code)]
 #[contract(exports = "guest_exports")]
-fn free_function(n: u32, _addr: &ContractAddress) -> Result<u32> {
+pub fn free_function(n: u32, _addr: &ContractAddress) -> Result<u32> {
     Ok(n)
 }

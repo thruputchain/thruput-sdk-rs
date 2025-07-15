@@ -54,6 +54,17 @@ function expand_contract {
         "$@"
 }
 
+function expand_test_contract {
+    contract=${1:?Please specify contract to expand}
+    shift
+
+    cargo_native expand \
+        --features "mock" \
+        --package "$contract" \
+        --color=always \
+        "$@"
+}
+
 function test_contract {
     contract=${1:?Please specify contract to build}
 
@@ -86,6 +97,9 @@ case "$what" in
         ;;
     expand)
         expand_contract "$1"
+        ;;
+    expand-test)
+        expand_test_contract "$1"
         ;;
     test)
         if [ -n "$1" ]; then

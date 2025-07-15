@@ -28,7 +28,7 @@ fn test_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
     let owner = get_current_address()?;
 
     let mut client = ERC20Client::new(&deployed_addr);
-    ERC20Client::initialize(Some(&mut client), &owner)?;
+    ERC20Client::initialize(&mut client, &owner)?;
 
     assert_eq!(client.total_supply().unwrap(), 0);
     assert_eq!(client.get_balance().unwrap(), 0);

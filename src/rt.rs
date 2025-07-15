@@ -39,7 +39,7 @@ macro_rules! contract_panic {
             #[cfg(feature = "mock")]
             panic!($($expr),*);
 
-            // Guest
+            #[cfg(not(feature = "mock"))]
             ::sdk::rt::trap();
         }
     };
