@@ -5,8 +5,7 @@ edition = "2024"
 
 [features]
 storage = ["sdk/storage"]
-client = []
-std = []
+mock = ["sdk/mock"]
 
 [dependencies]
 sdk = { workspace = true }

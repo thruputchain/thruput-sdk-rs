@@ -136,6 +136,7 @@ version = "0.1.0"
 dependencies = [
  "caller",
  "erc20",
+ "erc20-if",
  "sdk_rs",
  "serde",
 ]
@@ -1306,14 +1307,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple_wallet_disabled"
+name = "simple_wallet_old"
 version = "0.1.0"
 dependencies = [
  "erc20-if",
  "erc20_low_level",
  "sdk_rs",
  "serde",
- "simple_wallet_disabled",
+ "simple_wallet_old",
 ]
 
 [[package]]

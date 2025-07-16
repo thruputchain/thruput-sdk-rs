@@ -1,11 +1,11 @@
 [package]
 name = "erc20_no_storage"
 version = "0.1.1"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 sdk = { workspace = true }
-erc20-if = { workspace = true, features = ["client"] }
+erc20-if = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
@@ -16,8 +16,7 @@ doctest = false
 [features]
 client = []
 guest = []
-mock = ["guest", "sdk/mock", "std"]
-std = ["erc20-if/std"]
+mock = ["guest", "sdk/mock", "erc20-if/mock"]
 
 [dev-dependencies]
 erc20_no_storage = { path = ".", features = ["mock"] }

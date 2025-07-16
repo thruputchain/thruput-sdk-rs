@@ -29,7 +29,7 @@ fn check_playground_inner(
     let owner = get_current_address().unwrap();
 
     let mut client = ERC20Client::new(&deployed_addr);
-    ERC20Client::initialize(&mut client, &owner)?;
+    client.initialize(&owner)?;
 
     assert_eq!(client.total_supply()?, 0);
     assert_eq!(client.get_balance()?, 0);

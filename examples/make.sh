@@ -68,9 +68,9 @@ function expand_test_contract {
 function test_contract {
     contract=${1:?Please specify contract to build}
 
-    cargo_native -v test \
-            --color=always \
+    cargo_native test \
             --package "$contract" \
+            --color=always \
             -- --nocapture
 }
 

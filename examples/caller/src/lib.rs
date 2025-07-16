@@ -2,12 +2,10 @@
 
 #![cfg_attr(not(feature = "mock"), no_std)]
 
-extern crate alloc;
-
 pub mod interface;
 
-use erc20::interface::client::ERC20Client;
-use erc20::interface::{Amount, ERC20};
+use erc20_if::client::ERC20Client;
+use erc20_if::{Amount, ERC20};
 use sdk::storage_prelude::*;
 use crate::interface::ICaller;
 

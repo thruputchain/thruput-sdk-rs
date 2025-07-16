@@ -1,4 +1,4 @@
-use erc20::interface::Amount;
+use erc20_if::Amount;
 use sdk::prelude::*;
 
 #[contract(client = "client")]

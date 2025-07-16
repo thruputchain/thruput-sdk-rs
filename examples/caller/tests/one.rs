@@ -1,6 +1,7 @@
-use erc20::interface::ERC20;
-use erc20::interface::Result as ERC20Result;
-use erc20::interface::client::ERC20Client;
+use erc20_if as interface;
+use interface::ERC20;
+use interface::Result as ERC20Result;
+use interface::client::ERC20Client;
 use caller::interface::ICaller;
 use caller::interface::client::ICallerClient;
 use sdk::prelude::*;

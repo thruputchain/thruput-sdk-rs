@@ -10,7 +10,7 @@ fn erc20_ll_check() {
 
     let test_contract = test::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
-    sdk::TestEnvironment::enable_syscall_logging();
+    // sdk::TestEnvironment::enable_syscall_logging();
 
     let mut handler = env.prepare_test(move || -> () {
         match check_erc20_inner(&contract_hash) {
@@ -29,7 +29,7 @@ fn check_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> ERC20Result<()> 
     let owner = get_current_address().unwrap();
 
     let mut client = ERC20Client::new(&deployed_addr);
-    ERC20Client::initialize(Some(&mut client), &owner)?;
+    client.initialize(&owner)?;
 
     assert_eq!(client.total_supply()?, 0);
     assert_eq!(client.get_balance()?, 0);

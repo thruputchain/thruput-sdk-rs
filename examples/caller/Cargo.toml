@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true }
-erc20 = { path = "../erc20", features = ["client"] }
+erc20-if = { workspace = true }
+erc20 = { path = "../erc20" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -15,8 +16,8 @@ doctest = false
 [features]
 client = []
 guest = []
-mock = ["guest", "sdk/mock"]
+mock = ["guest", "sdk/mock", "erc20-if/mock"]
 
 [dev-dependencies]
-erc20 = { path = "../erc20", features = ["mock", "client"] }
 caller = { path = ".", features = ["mock", "client"] }
+erc20 = { path = "../erc20", features = ["mock"] }

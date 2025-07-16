@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-erc20-if = { workspace = true, features = ["client", "storage"] }
+erc20-if = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 xdrs = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
@@ -15,11 +15,9 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [features]
-client = ["erc20-if/client"]
+client = []
 guest = []
-alloc = ["sdk/alloc"]
-std = ["alloc", "sdk/std", "erc20-if/std"]
-mock = ["guest", "std", "sdk/mock"]
+mock = ["guest", "sdk/mock", "erc20-if/mock"]
 
 [dev-dependencies]
 erc20 = { path = ".", features = ["mock", "client"] }

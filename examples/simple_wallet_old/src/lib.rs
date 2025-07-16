@@ -3,7 +3,6 @@
 
 use erc20::client::ERC20Client;
 use erc20::interface::{Amount, ERC20};
-use sdk::bytestring::bytestring_exists;
 use sdk::storage_prelude::*;
 
 // TODO: Replay prevention?
@@ -70,16 +69,7 @@ impl Wallet {
         // TODO some kind of replay mechanism
         let auth_message = self.compute_auth_message(to_addr, amount);
 
-        sdk::crypto::verify_signature(
-            &PublicKey::Ed25519 {
-                ed25519: self.pk.clone(),
-            },
-            &Signature::Ed25519 {
-                ed25519: signature.clone(),
-            },
-            &auth_message,
-        )
-        .unwrap();
+        sdk::crypto::verify_signature_ed25519(&self.pk, signature, &auth_message).unwrap();
     }
 
     pub fn send_payment(
