@@ -700,7 +700,7 @@ mod gen {
 
         export.extend(quote! {
             pub fn #internal_name() -> () {
-                use sdk::invoke::{contract_return, get_calldata};
+                use sdk::invoke::{contract_return, get_calldata_sized};
                 use sdk::serialize::{encode_xdr, decode_xdr};
                 #use_alloc
 
@@ -711,8 +711,8 @@ mod gen {
 
                 #load_state
 
-                // Get the encoded argument data from the VM
-                let call_data: Box<[u8]> = get_calldata().unwrap_or_else(|_|
+                const CALLDATA_BUFSZ = 1000;
+                let calldata: [u8, CALLDATA_BUFSZ] = get_calldata_sized().unwrap_or_else(|e|
                     sdk::contract_panic!("get_calldata() failed"));
 
                 // Decode the arguments expected by the method
@@ -737,7 +737,7 @@ mod gen {
         });
 
         // A hack for test setup
-        if contract.is_none() {
+        if contract.is_none() && cfg!(feature = "alloc") {
             let entrypoint_lit = entrypoint_literal(entrypoint);
 
             export.extend(quote! {

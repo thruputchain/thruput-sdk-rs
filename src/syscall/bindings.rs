@@ -2,7 +2,7 @@ use core::hint::unreachable_unchecked;
 use core::mem::MaybeUninit;
 
 use crate::syscall::{SysErr, SyscallResult};
-use groundhog_xdr::transaction::*;
+// use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 
 macros::generate_syscall_numbers!("protocol-rs/protocol/syscalls.yaml");

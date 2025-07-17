@@ -18,5 +18,4 @@ groundhog_xdr = { workspace = true, features = ["std"] }
 xdrs = { workspace = true, features = ["txs"] }
 
 [features]
-default = ["alloc"]
 alloc = []

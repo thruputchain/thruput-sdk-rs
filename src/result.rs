@@ -1,9 +1,11 @@
 use crate::syscall::SysErr;
-use bcs::Error as SerializationError;
 use core::fmt;
 use serde::{Deserialize, Serialize};
 use ::thiserror::Error;
 use ::xdrs::{ReadXDR, WriteXDR};
+
+#[cfg(feature = "storage")]
+use bcs::Error as SerializationError;
 
 #[cfg(feature = "mock")]
 use alloc::string::{String, ToString};
@@ -20,16 +22,25 @@ pub enum Error {
     #[error("System call error: {0}")]
     SystemErr(#[from] SysErr),
 
+    #[cfg(feature = "storage")]
     #[error("Serialization error{0}")]
     SerializationErr(ErrorMsg),
 }
 
 impl Error {
+    #[cfg(feature = "storage")]
     pub fn get_sys_err(&self) -> Option<SysErr> {
         if let Error::SystemErr(err) = self {
             Some(*err)
         } else {
             None
+        }
+    }
+
+    #[cfg(not(feature = "storage"))]
+    pub fn get_sys_err(&self) -> Option<SysErr> {
+        match self {
+            Error::SystemErr(err) => Some(*err)
         }
     }
 
@@ -39,19 +50,20 @@ impl Error {
             .unwrap_or(false)
     }
 
+    #[cfg(feature = "storage")]
     pub fn serialization<M: fmt::Display>(msg: M) -> Self {
         Error::SerializationErr(ErrorMsg::new(msg))
     }
 }
 
-#[cfg(feature = "mock")]
+#[cfg(all(feature = "storage", feature = "mock"))]
 impl From<SerializationError> for Error {
     fn from(err: SerializationError) -> Self {
         Self::SerializationErr(err.to_string().into())
     }
 }
 
-#[cfg(not(feature = "mock"))]
+#[cfg(all(feature = "storage", not(feature = "mock")))]
 impl From<SerializationError> for Error {
     fn from(_err: SerializationError) -> Self {
         Self::SerializationErr(ErrorMsg::empty())

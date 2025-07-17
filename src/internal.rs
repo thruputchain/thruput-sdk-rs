@@ -1,8 +1,15 @@
 #![doc(hidden)]
 
+// for the error values ignored in `contract_panic!`
+#[allow(unused_variables)]
+
 pub use cross_call::invoke;
+
+#[cfg(feature = "alloc")]
 pub use handle::handle_call;
 
+#[cfg(feature = "alloc")]
+// This is deprecated; it is currently used only by tests
 mod handle {
     use crate::invoke::{contract_return, get_calldata};
     use crate::syscall::{SysErr, SyscallErrorCode};
@@ -45,10 +52,11 @@ mod cross_call {
         ContractAddress, /* InvocationFlagSet, InvocationFlags, */
         RuntimeMemoryLength,
     };
+    use crate::contract_panic;
     use ::groundhog_xdr::contract::ContractEntrypointID;
-    use alloc::{vec, vec::Vec};
     use ::xdrs::{ReadXDROwned, WriteXDR};
-    use ::xdrs::serialize_txs::{encode, decode};
+    use ::xdrs::serialize_txs::{encode_into, decode};
+    use core::mem::MaybeUninit as MU;
 
     pub fn invoke<ARGS, RET>(
         address: &ContractAddress,
@@ -61,19 +69,28 @@ mod cross_call {
         RET: ReadXDROwned,
     {
         // Encode the args
-        let call_data = encode(args).expect("Couldn't serialize call data");
+        const CALLDATA_BUFSZ: usize = 1000;
+        let mut calldata_mu: [MU<u8>; CALLDATA_BUFSZ] =
+            [const { MU::uninit() }; CALLDATA_BUFSZ];
+
+        let written = encode_into(args, &mut calldata_mu).unwrap_or_else(|e|
+            contract_panic!("couldn't serialize call data: {}", e));
+
+        let call_data: &[u8] = unsafe { (&calldata_mu[..written]).assume_init_ref() };
+
+        // Make a buffer to receive the result
+        const RETURN_BUFSZ: usize = 1000;
+        let mut return_buf: [u8; RETURN_BUFSZ] = [0; RETURN_BUFSZ];
 
         // Invoke the method
-        let return_buf =
-            invoke_inner(address, entrypoint, gas_limit, call_data.as_slice());
+        let written =
+            invoke_inner(address, entrypoint, gas_limit, call_data, &mut return_buf);
+
+        let return_buf = &return_buf[..written];
 
         // Deserialize the buffer into a return value ...
-        let return_buf = &return_buf.as_slice();
-        #[allow(clippy::let_and_return)]
-        let return_value = decode(return_buf)
-            .expect("Couldn't deserialize return value");
-
-        return_value
+        decode(return_buf).unwrap_or_else(|e|
+            contract_panic!("couldn't deserialize return value: {}", e))
     }
 
     // At least this part won't be monomorphized multiple times
@@ -83,11 +100,12 @@ mod cross_call {
         entrypoint: ContractEntrypointID,
         gas_limit: u64,
         call_data: &[u8],
-    ) -> Vec<u8> {
-        // Perform the cross-contract call
-
+        return_buf: &mut [u8],
+    ) -> usize {
         let mut return_len = 0;
         let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
+
+        // Perform the cross-contract call
         sys::raw_Invoke(
             address,
             entrypoint,
@@ -95,18 +113,21 @@ mod cross_call {
             call_data,
             0, // TODO(geoff): invoke flags go here
             &mut return_len,
-        )
-        .expect("Contract invocation failed");
+        ).unwrap_or_else(|_| contract_panic!("contract invocation failed"));
 
-        let mut return_buf = vec![0; return_len as usize];
-        let mut written: RuntimeMemoryLength = 0;
-        sys::raw_GetReturnedBuffer(return_buf.as_mut_slice(), &mut written)
-            .expect("Couldn't get returned buffer");
-
-        if written != return_len {
-            panic!("Unexpected return buffer length");
+        let return_len = return_len as usize;
+        if return_len > return_buf.len() {
+            contract_panic!("contract call return data too large for static buffer");
         }
 
-        return_buf
+        let mut written: RuntimeMemoryLength = 0;
+        sys::raw_GetReturnedBuffer(return_buf, &mut written).unwrap_or_else(|e|
+            contract_panic!("couldn't get returned buffer: {}", e));
+
+        if written as usize != return_len {
+            contract_panic!("unexpected return buffer length");
+        }
+
+        return_len
     }
 }

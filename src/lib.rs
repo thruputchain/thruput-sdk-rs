@@ -2,6 +2,8 @@
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "../../../etc/groundhog.png")]
 
+#![feature(maybe_uninit_slice)]
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -29,6 +31,7 @@ pub mod invoke;
 pub mod log;
 pub mod serialize;
 pub mod contract_result;
+#[cfg(feature = "alloc")]
 pub mod contract_test;
 
 // Lower-level
@@ -40,7 +43,6 @@ pub mod retrocausal_queue;
 // #[cfg(feature = "alloc")]
 pub mod result;
 
-#[cfg(feature = "alloc")]
 pub mod internal;
 
 // Storage layer
@@ -80,7 +82,10 @@ mod prelude_base {
     pub use super::hash::*;
 
     #[doc(inline)]
-    pub use super::serialize::{self, Deserialize, Serialize, serialize_xdr};
+    pub use super::serialize::{self, Deserialize, Serialize};
+    #[cfg(feature = "alloc")]
+    #[doc(inline)]
+    pub use super::serialize::serialize_xdr;
 
     #[doc(inline)]
     pub use ::xdrs::{ReadXDR, WriteXDR};
