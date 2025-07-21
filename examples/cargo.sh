@@ -7,7 +7,10 @@
 #
 # use `cargo_native` for tests using `native_exec`
 
-cargo="cargo +nightly"
+# deprecated; we used to set config here but it's better
+# to put it in ~/.config/cargo.toml (e.g. for --verbose)
+# or rust-toolchain.toml (for specifying nightly)
+cargo="cargo"
 
 function cargo_native {
     if [ -z "${HOGD_SRC}" ]; then
@@ -26,5 +29,5 @@ function cargo_native {
     source "${SCRIPT_DIR}/env.sh"
 
     CC="${CC}" CXX="${CXX}" HOGD_SRC="${HOGD_SRC}" \
-        $cargo "$@"
+        cargo "$@"
 }
