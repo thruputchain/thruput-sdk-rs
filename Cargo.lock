@@ -664,6 +664,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "itc_erc20"
+version = "0.1.1"
+dependencies = [
+ "erc20-if",
+ "itc_erc20",
+ "sdk_rs",
+ "thiserror",
+ "xdrs",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
