@@ -2,7 +2,7 @@
 #![feature(maybe_uninit_slice)]
 
 use erc20::client::ERC20Client;
-use erc20::interface::{Amount, ERC20};
+use erc20::interface::Amount;
 use sdk::storage_prelude::*;
 
 // TODO: Replay prevention?

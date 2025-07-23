@@ -1,6 +1,5 @@
 use erc20_no_storage::test_setup;
 use erc20_no_storage::interface::client::ERC20Client;
-use erc20_no_storage::interface::ERC20;
 use erc20_no_storage::interface::Result as ERC20Result;
 use sdk::prelude::*;
 

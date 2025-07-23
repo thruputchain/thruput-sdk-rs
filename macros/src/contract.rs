@@ -74,7 +74,14 @@ fn item_to_contract_helpers(
             let sig = parse::method_signature_from_sig(&item.sig);
             let mut out = TokenStream2::new();
 
-            let entrypoint = gen::get_method_num(None, None, &item.sig.ident, 0);
+            // Get a macro-attribute-configured interface name, if any
+            let iface = config.interface_ident();
+
+            // Get a macro-attribute-configured interface index, if any
+            let index = config.interface_index().map(|i| i as usize).unwrap_or(0);
+
+            let entrypoint = gen::get_method_num(iface.as_ref(), None, &item.sig.ident, index);
+
             out.extend(gen::export_from_method_signature(
                 None, &sig, entrypoint, config,
             )?);
@@ -97,6 +104,16 @@ where
     Err(Error::new(spanned.span(), msg.as_ref()))
 }
 
+// Produce an error referencing a particular code span
+#[allow(dead_code)]
+fn error<S, M>(spanned: &S, msg: M) -> Error
+where
+    S: Spanned,
+    M: AsRef<str>,
+{
+    Error::new(spanned.span(), msg.as_ref())
+}
+
 mod sig {
     //! Represent contract signatures
 
@@ -109,6 +126,8 @@ mod sig {
         pub client: Option<String>,
         pub test_setup: Option<String>,
         pub storage: Option<String>,
+        pub interface: Option<String>,
+        pub index: Option<u16>,
     }
 
     #[derive(Debug)]
@@ -164,6 +183,14 @@ mod sig_impls {
 
         pub fn test_setup_mod_ident(&self) -> syn::Ident {
             ident_or(&self.test_setup, "test_setup")
+        }
+
+        pub fn interface_ident(&self) -> Option<syn::Ident> {
+            self.interface.as_ref().map(|s| syn::Ident::new(s, Span::call_site()))
+        }
+
+        pub fn interface_index(&self) -> Option<u16> {
+            self.index
         }
 
         pub fn storage(&self) -> bool {
@@ -310,7 +337,6 @@ mod parse {
 mod gen {
     //! Generate code from contract signature
 
-    use super::err;
     use super::sig;
     use xdrs::serialize_txs;
     use groundhog_xdr::contract::ContractEntrypointID;
@@ -357,10 +383,7 @@ mod gen {
                 use ::sdk::types::RuntimeMemoryLength;
                 use ::sdk::internal::invoke;
 
-                use super::#trait_ident;
-
                 // The below implementation may require other public definitions
-                // that the trait definition used
                 use super::*;
 
                 pub struct #client_ident {
@@ -371,9 +394,7 @@ mod gen {
                     pub fn new(address: &ContractAddress) -> Self {
                         Self { address: address.clone() }
                     }
-                }
 
-                impl #trait_ident for #client_ident {
                     #method_stubs
                 }
             }
@@ -387,24 +408,15 @@ mod gen {
         _config: &sig::Config,
     ) -> Result<TokenStream2> {
         let ident = &method.ident;
-        let mut params = method.inputs.iter();
+        let mut params = method.inputs.iter().peekable();
 
-        // Pop the "receiver" parameter
-        let receiver_param = {
-            if let Some(p) = params.next() {
-                Ok(p)
-            } else {
-                err(method, "No receiver param in contract method")
+        // Pop the self parameter, if any
+        if let Some(param) = params.peek() {
+            if is_receiver(param) {
+                let _ = params.next().unwrap();
             }
         }
-        .unwrap();
-        let receiver_arg = get_arg_name(receiver_param)?;
-        let address = if is_receiver(receiver_param) {
-            quote! { &#receiver_arg.address }
-        } else {
-            // It's an Option<&mut Self> pseudo-receiver
-            quote! { &#receiver_arg.unwrap().address }
-        };
+
         let sent_params: Vec<&syn::FnArg> = params.collect();
         let sent_args: Vec<&syn::Pat> =
             sent_params.iter().cloned().filter_map(arg_pat).collect();
@@ -414,6 +426,7 @@ mod gen {
         } else {
             quote! { ( #(#sent_args),* ) }
         };
+
         let return_type = &method.output;
         let gas_limit = u64::MAX;
 
@@ -432,7 +445,7 @@ mod gen {
 
         Ok(quote_spanned! {method.span()=>
 
-            fn #ident(#receiver_param, #(#sent_params),* ) #return_type
+            pub fn #ident(&mut self, #(#sent_params),* ) #return_type
             {
                 #comment_tokens
                 let entrypoint = #entrypoint_lit;
@@ -440,27 +453,10 @@ mod gen {
 
                 #log_call
 
-                invoke(#address, entrypoint, #gas_limit, &args)
+                invoke(&self.address, entrypoint, #gas_limit, &args)
             }
 
         })
-    }
-
-    fn get_arg_name(fn_arg: &syn::FnArg) -> Result<TokenStream2> {
-        match fn_arg {
-            syn::FnArg::Receiver(ref r) => {
-                let token = &r.self_token;
-                Ok(quote! { #token })
-            }
-            syn::FnArg::Typed(ref pat_type) => {
-                if let syn::Pat::Ident(ref pat_ident) = pat_type.pat.as_ref() {
-                    let ident = &pat_ident.ident;
-                    Ok(quote! { #ident })
-                } else {
-                    super::err(fn_arg, "Can't handle non-ident arg pattern")
-                }
-            }
-        }
     }
 
     fn is_receiver(fn_arg: &syn::FnArg) -> bool {
@@ -539,6 +535,7 @@ mod gen {
                 None,
                 &method.ident,
                 index);
+
             exports.extend(export_from_method_signature(
                 Some(contract),
                 method,
@@ -774,7 +771,7 @@ mod gen {
         let iface_ident = trait_ident.unwrap_or(method_ident);
         let iface_name = iface_ident.to_string();
         let version_str = version_str.unwrap_or("0.0.0");
-        let method_index: u16 = method_index.try_into().unwrap();
+        let method_index: u16 = method_index.try_into().expect("requested method index doesn't fit into u16");
 
         // println!("METHOD if:<{}> v:<{}> ix:<{}>", iface_name, version_str, method_index);
 

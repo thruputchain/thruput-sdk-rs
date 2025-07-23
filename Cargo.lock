@@ -709,6 +709,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyd"
+version = "0.1.0"
+dependencies = [
+ "keyd",
+ "sdk_rs",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -828,6 +836,7 @@ dependencies = [
  "playground",
  "sdk_rs",
  "serde",
+ "xdrs",
 ]
 
 [[package]]
@@ -1795,7 +1804,7 @@ dependencies = [
 [[package]]
 name = "xdr-derive"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#b4c6347a3205f03997b56900d874937c66d81658"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#d92cc1e8a69d61624b2138ee1b0210bbc685822c"
 dependencies = [
  "darling",
  "proc-macro2 1.0.95",
@@ -1806,7 +1815,7 @@ dependencies = [
 [[package]]
 name = "xdrs"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#b4c6347a3205f03997b56900d874937c66d81658"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#d92cc1e8a69d61624b2138ee1b0210bbc685822c"
 dependencies = [
  "thiserror",
  "xdr-derive",

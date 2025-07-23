@@ -77,7 +77,7 @@ fn add_to_allowance(
 
 // Exposed contract functions
 
-#[contract]
+#[contract(interface = "ERC20", index = 4)]
 pub fn initialize(owner: &ContractAddress) -> Result<()> {
     let key = get_owner_key();
 
@@ -92,7 +92,7 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
     Ok(())
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 7)]
 pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
     caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
     let amount = amount as i128;
@@ -104,7 +104,7 @@ pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
     Ok(())
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 8)]
 pub fn transfer_from(
     owner: &ContractAddress,
     to: &ContractAddress,
@@ -121,7 +121,7 @@ pub fn transfer_from(
     Ok(())
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 0)]
 pub fn adjust_allowance(
     spender: &ContractAddress,
     amount: Amount,
@@ -135,17 +135,17 @@ pub fn adjust_allowance(
     Ok(())
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 3)]
 pub fn get_balance_of(addr: &ContractAddress) -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_balance_key(addr))? as Amount)
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 2)]
 pub fn get_balance() -> Result<Amount> {
     get_balance_of(&get_caller()?)
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 5)]
 pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
@@ -156,7 +156,7 @@ pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     add_to_total_supply(amount)
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 1)]
 pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
@@ -167,7 +167,7 @@ pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     add_to_total_supply(-amount)
 }
 
-#[contract]
+#[contract(interface = "ERC20", index = 6)]
 pub fn total_supply() -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
 }

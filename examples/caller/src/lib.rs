@@ -5,7 +5,7 @@
 pub mod interface;
 
 use erc20_if::client::ERC20Client;
-use erc20_if::{Amount, ERC20};
+use erc20_if::Amount;
 use sdk::storage_prelude::*;
 use crate::interface::ICaller;
 
@@ -21,7 +21,7 @@ impl ICaller for Caller {
     }
 
     fn check_balance(&self, account: &ContractAddress) -> Amount {
-        let token = ERC20Client::new(&self.token_contract);
+        let mut token = ERC20Client::new(&self.token_contract);
 
         token.get_balance_of(account).unwrap()
     }
