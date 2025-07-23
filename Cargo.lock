@@ -149,9 +149,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.29"
+version = "1.2.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c1599538de2394445747c8cf7935946e3cc27e9625f889d979bfb2aaf569362"
+checksum = "deec109607ca693028562ed836a5f1c4b8bd77755c4e132fc5ce11b0b6211ae7"
 dependencies = [
  "shlex",
 ]
@@ -317,9 +317,9 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "4.2.0"
+version = "4.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "373b7c5dbd637569a2cca66e8d66b8c446a1e7bf064ea321d265d7b3dfe7c97e"
+checksum = "97fb8b7c4503de7d6ae7b42ab72a5a59857b4c937ec27a3d4539dba95b5ab2be"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -507,9 +507,9 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "fiat-crypto"
-version = "0.3.0"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
+checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
 name = "fibonacci"
@@ -605,9 +605,9 @@ checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 name = "groundhog_xdr"
 version = "0.1.0"
 dependencies = [
- "protocol_macros",
  "serde",
  "serde_arrays",
+ "xdr_common",
  "xdrs",
 ]
 
@@ -706,14 +706,6 @@ checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "keyd"
-version = "0.1.0"
-dependencies = [
- "keyd",
- "sdk_rs",
 ]
 
 [[package]]
@@ -944,15 +936,6 @@ dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
  "syn 0.15.44",
-]
-
-[[package]]
-name = "protocol_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2 1.0.95",
- "quote 1.0.40",
- "syn 2.0.104",
 ]
 
 [[package]]
@@ -1250,9 +1233,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
+checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
 dependencies = [
  "itoa",
  "memchr",
@@ -1804,7 +1787,7 @@ dependencies = [
 [[package]]
 name = "xdr-derive"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#d92cc1e8a69d61624b2138ee1b0210bbc685822c"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#ba3572fff34ba1c5a10794188ad85d754821c686"
 dependencies = [
  "darling",
  "proc-macro2 1.0.95",
@@ -1813,12 +1796,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "xdr_common"
+version = "0.1.0"
+source = "git+ssh://git@github.com/groundhogchain/xdr_common.git#fe9df26f21f9e69c6d3cd18ac2409aef5abcec25"
+
+[[package]]
 name = "xdrs"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#d92cc1e8a69d61624b2138ee1b0210bbc685822c"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#ba3572fff34ba1c5a10794188ad85d754821c686"
 dependencies = [
  "thiserror",
  "xdr-derive",
+ "xdr_common",
 ]
 
 [[package]]

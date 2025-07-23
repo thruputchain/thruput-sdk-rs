@@ -4,7 +4,6 @@ cargo-features = ["trim-paths"] #unstable
 members = [
     "macros", 
     "protocol-rs/groundhog_xdr", 
-    "protocol-rs/protocol_macros", 
     "native_exec",
     "examples/*",
     "example-interfaces/*",
@@ -32,7 +31,7 @@ serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
-xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "txs"] }
+xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs"] }
 
 [workspace.dependencies]
 macros = { path = "macros" }
@@ -43,7 +42,7 @@ sdk = { package = "sdk_rs", path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
