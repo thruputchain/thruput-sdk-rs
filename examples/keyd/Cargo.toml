@@ -1,0 +1,18 @@
+[package]
+name = "keyd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sdk = { workspace = true, features = ["keyed"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+keyd = { path = ".", features = ["mock", "client"] }
