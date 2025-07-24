@@ -31,7 +31,7 @@ serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
-xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs"] }
+xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs", "xdr_common"] }
 
 [workspace.dependencies]
 macros = { path = "macros" }
@@ -43,6 +43,7 @@ serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
+xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
