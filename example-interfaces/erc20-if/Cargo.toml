@@ -10,7 +10,7 @@ mock = ["sdk/mock"]
 [dependencies]
 sdk = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-xdrs = { workspace = true, features = ["derive", "extras"] }
+xdrs = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
 [lib]

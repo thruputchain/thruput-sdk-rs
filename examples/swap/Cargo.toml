@@ -16,10 +16,9 @@ thiserror = { workspace = true }
 erc20 = { path = "../erc20" }
 
 [features]
-client = ["erc20/client"]
 guest = ["erc20/guest"]
 mock = ["guest", "sdk/mock"]
 
 [dev-dependencies]
-swap = { path = ".", features = ["mock", "client"] }
-erc20 = { path = "../erc20", features = ["mock", "client"] }
+swap = { path = ".", features = ["mock"] }
+erc20 = { path = "../erc20", features = ["mock"] }

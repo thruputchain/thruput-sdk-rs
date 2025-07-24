@@ -1,0 +1,16 @@
+[package]
+name = "bencher"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+sdk = { workspace = true, features = ["mock"] }
+erc20-if = { workspace = true, features = ["mock"] }
+xdrs = { workspace = true, features = ["extras"] }
+
+[features]
+default = ["mock"]
+mock = []

@@ -15,9 +15,8 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [features]
-client = []
 guest = []
 mock = ["guest", "sdk/mock", "erc20-if/mock"]
 
 [dev-dependencies]
-erc20 = { path = ".", features = ["mock", "client"] }
+erc20 = { path = ".", features = ["mock"] }

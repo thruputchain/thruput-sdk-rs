@@ -1,6 +1,6 @@
-use crate::implementation;
-use crate::interface::Result;
-use crate::ERC20Client;
+use erc20::implementation;
+use erc20::interface::Result;
+use erc20::ERC20Client;
 use sdk::prelude::*;
 
 #[test]
