@@ -19,4 +19,4 @@ guest = []
 mock = ["guest", "sdk/mock", "erc20-if/mock"]
 
 [dev-dependencies]
-erc20_low_level = { path = ".", features = ["mock"] }
+erc20_low_level = { path = ".", features = ["mock", "client"] }

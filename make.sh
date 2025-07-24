@@ -7,7 +7,7 @@ shift
 
 case "$verb" in
     doc)
-        $cargo doc --features=std "$@"
+        cargo doc --features=std "$@"
         ;;
     examples)
         # e.g. "examples build erc20"
@@ -21,19 +21,19 @@ case "$verb" in
         cargo_native test --features=mock,storage "$@"
         ;;
     check)
-        $cargo check --features=mock "$@"
+        cargo check --features=mock "$@"
         ;;
     lint)
-        $cargo clippy --no-deps --features=std "$@"
+        cargo clippy --no-deps --features=std "$@"
         ;;
     lint_mock)
         cargo_native clippy --no-deps --features=mock "$@"
         ;;
     lint_macros)
-        $cargo clippy --no-deps -p macros "$@"
+        cargo clippy --no-deps -p macros "$@"
         ;;
     fmt)
-        $cargo fmt --package \
+        cargo fmt --package \
             macros \
             groundhog_xdr \
             protocol_macros \
@@ -43,7 +43,7 @@ case "$verb" in
         ;;
     tree)
         # Show the dependency graph
-        $cargo tree \
+        cargo tree \
             --target wasm32-unknown-unknown \
             --edges normal,build \
             "$@"

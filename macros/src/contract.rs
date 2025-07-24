@@ -68,6 +68,10 @@ fn item_to_contract_helpers(
                 gen::test_registration_from_contract_signature(&sig, config)?;
             out.extend(test_registration.clone());
 
+            if config.client_ident().is_some() {
+                out.extend(gen::client_from_contract_impl(&sig, config));
+            }
+
             Ok(out)
         }
         syn::Item::Fn(item) => {
@@ -123,11 +127,17 @@ mod sig {
     #[derive(Debug, FromMeta)]
     pub struct Config {
         pub exports: Option<String>,
-        pub client: Option<String>,
+        client: Option<syn::Ident>,
         pub test_setup: Option<String>,
         pub storage: Option<String>,
         pub interface: Option<String>,
         pub index: Option<u16>,
+    }
+
+    impl Config {
+        pub fn client_ident(&self) -> Option<&syn::Ident> {
+            self.client.as_ref()
+        }
     }
 
     #[derive(Debug)]
@@ -149,6 +159,7 @@ mod sig {
         pub generics: syn::Generics,
         pub self_ty: Box<syn::Type>,
         pub methods: Vec<Method>,
+        pub method_sigs: Vec<syn::Signature>,
     }
 
     #[derive(Debug)]
@@ -175,10 +186,6 @@ mod sig_impls {
     impl Config {
         pub fn exports_mod_ident(&self) -> syn::Ident {
             ident_or(&self.exports, "exports")
-        }
-
-        pub fn client_mod_ident(&self) -> syn::Ident {
-            ident_or(&self.client, "client")
         }
 
         pub fn test_setup_mod_ident(&self) -> syn::Ident {
@@ -286,12 +293,33 @@ mod parse {
                 }
             })
             .collect();
+
+        let method_sigs = item
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let syn::ImplItem::Fn(ref impl_fn) = item {
+                    let is_pub = is_visible(&impl_fn.vis);
+
+                    // Only include public functions if this is not a trait impl
+                    if trait_.is_some() || is_pub {
+                        Some(impl_fn.sig.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         Ok(sig::ContractImpl {
             span: item.span(),
             trait_,
             generics: item.generics.clone(),
             self_ty: item.self_ty.clone(),
             methods,
+            method_sigs,
         })
     }
 
@@ -337,7 +365,7 @@ mod parse {
 mod gen {
     //! Generate code from contract signature
 
-    use super::sig;
+    use super::{sig, error};
     use xdrs::serialize_txs;
     use groundhog_xdr::contract::ContractEntrypointID;
     use proc_macro2::TokenStream as TokenStream2;
@@ -346,28 +374,54 @@ mod gen {
     use syn::parse::Result;
     use syn::spanned::Spanned;
 
-    // Generate a module `client` that contains the client type
-    // (a wrapper around a contract address) and an implementation
-    // of the contract trait that performs cross-contract calls.
+    // Generate a client type (a wrapper around a contract address)
+    // that has stub methods for performing cross-contract calls.
     pub fn client_from_contract_signature(
         contract: &sig::Contract,
         config: &sig::Config,
     ) -> Result<TokenStream2> {
         let trait_ident = &contract.ident;
-        let client_ident = format_ident!("{}Client", trait_ident);
-        let client_mod_ident = config.client_mod_ident();
+        let default_client_ident = format_ident!("{}Client", trait_ident);
+        let client_ident = config.client_ident().unwrap_or(&default_client_ident);
 
-        let mut method_stubs = TokenStream2::new();
-        let mut methods: Vec<_> = contract.methods.iter().collect();
+        let methods: Vec<_> = contract.methods.iter().collect();
+
+        let iface = contract.interface_trait_ident();
+
+        make_client(iface, client_ident, methods, config)
+    }
+
+    pub fn client_from_contract_impl(
+        contract: &sig::ContractImpl,
+        config: &sig::Config,
+    ) -> Result<TokenStream2> {
+        let client_ident = config.client_ident().ok_or_else(||
+            error(&contract.span, "contract client identifier must be given by 'client = ClientName' attribute"))?;
+
+        let methods: Vec<_> = contract.method_sigs.iter().collect();
+
+        let iface = contract.interface_trait_ident();
+
+        make_client(iface, &client_ident, methods, config)
+    }
+
+    fn make_client(
+        iface: Option<&syn::Ident>,
+        client_ident: &syn::Ident,
+        mut methods: Vec<&syn::Signature>,
+        config: &sig::Config
+    ) -> Result<TokenStream2> {
         methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
 
+        let mut method_stubs = TokenStream2::new();
         for (index, method) in methods.iter().enumerate() {
             let entrypoint = get_method_num(
-                contract.interface_trait_ident(),
+                iface,
                 None,
                 &method.ident,
                 index
             );
+
             method_stubs.extend(call_from_method_signature(
                 entrypoint,
                 method,
@@ -377,18 +431,15 @@ mod gen {
 
         Ok(quote! {
 
-            pub mod #client_mod_ident {
+            pub struct #client_ident {
+                address: ::sdk::types::ContractAddress
+            }
+
+            const _: () = {
                 use ::sdk::types::ContractAddress;
                 use ::sdk::types::ContractEntrypointID;
                 use ::sdk::types::RuntimeMemoryLength;
                 use ::sdk::internal::invoke;
-
-                // The below implementation may require other public definitions
-                use super::*;
-
-                pub struct #client_ident {
-                    address: ContractAddress
-                }
 
                 impl #client_ident {
                     pub fn new(address: &ContractAddress) -> Self {
@@ -397,7 +448,7 @@ mod gen {
 
                     #method_stubs
                 }
-            }
+            };
 
         })
     }

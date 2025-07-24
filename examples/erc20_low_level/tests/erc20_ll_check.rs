@@ -1,5 +1,5 @@
 use erc20_low_level::test;
-use erc20_low_level::interface::client::ERC20Client;
+use erc20_low_level::ERC20Client;
 use erc20_low_level::interface::Result as ERC20Result;
 use sdk::prelude::*;
 

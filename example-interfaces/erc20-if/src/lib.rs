@@ -7,7 +7,7 @@ use sdk::prelude::{ContractAddress, contract};
 
 pub type Amount = u128;
 
-#[contract(client = "client")]
+#[contract(client = ERC20Client)]
 pub trait ERC20 {
     fn initialize(
         &mut self,

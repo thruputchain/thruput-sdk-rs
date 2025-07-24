@@ -1,7 +1,6 @@
-use erc20_if as interface;
-use interface::Result as ERC20Result;
-use interface::client::ERC20Client;
-use caller::interface::client::ICallerClient;
+use erc20_if::Result as ERC20Result;
+use erc20_if::ERC20Client;
+use caller::CallerClient;
 use sdk::prelude::*;
 
 #[test]
@@ -42,7 +41,7 @@ fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Res
     let nonce = SHA256Hash::from([7; 32]);
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
 
-    let mut caller = ICallerClient::new(&deployed_addr);
+    let mut caller = CallerClient::new(&deployed_addr);
     caller.initialize(&erc20_addr);
 
     let some_account = ContractAddress::zero();

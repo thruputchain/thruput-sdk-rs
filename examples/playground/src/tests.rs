@@ -1,5 +1,5 @@
 use crate::implementation;
-use crate::interface::client::ERC20Client;
+use crate::ERC20Client;
 use sdk::prelude::*;
 
 #[test]

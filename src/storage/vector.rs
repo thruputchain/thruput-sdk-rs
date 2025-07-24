@@ -65,7 +65,7 @@ impl<T> Vector<T> {
         }
     }
 
-    pub fn load(&self, index: u64) -> Result<ElemRef<T>>
+    pub fn load<'a>(&'a self, index: u64) -> Result<ElemRef<'a, T>>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
@@ -73,7 +73,7 @@ impl<T> Vector<T> {
         Ok(ElemRef::new(self, val))
     }
 
-    pub fn load_mut(&mut self, index: u64) -> Result<ElemRefMut<T>>
+    pub fn load_mut<'a>(&'a mut self, index: u64) -> Result<ElemRefMut<'a, T>>
     where
         T: LoadKeypath + DefaultFromKeypath + Store,
     {

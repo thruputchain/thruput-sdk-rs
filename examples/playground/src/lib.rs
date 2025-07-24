@@ -7,7 +7,7 @@ pub mod interface;
 
 // A client stub that provides the interface via cross-contract calls
 #[cfg(feature = "client")]
-pub use interface::client;
+pub use interface::ERC20Client;
 
 // An implementation of the contract interface
 #[cfg(feature = "guest")]

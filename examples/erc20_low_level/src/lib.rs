@@ -2,11 +2,11 @@
 
 #![cfg_attr(not(feature = "mock"), no_std)]
 
-pub use ::erc20_if as interface;
+pub use erc20_if as interface;
 
 // A client stub that provides the interface via cross-contract calls
 #[cfg(feature = "client")]
-pub use interface::client;
+pub use interface::ERC20Client;
 
 // An implementation of the contract interface
 #[cfg(feature = "guest")]
