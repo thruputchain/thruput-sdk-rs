@@ -176,9 +176,17 @@ impl Arg {
             }
             if self.optional {
                 assert!(is_input);
+                if self.uses_as_ptr(type_map) {
+                    return vec![quote! {
+                        match #name {
+                            Some(x) => x.as_ptr() as u64,
+                            None => u64::MAX,
+                        },
+                    }];
+                }
                 return vec![quote! {
                     match #name {
-                        Some(x) => x.as_ptr() as u64,
+                        Some(x) => x as *const _ as u64,
                         None => u64::MAX,
                     },
                 }];
