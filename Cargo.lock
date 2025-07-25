@@ -343,6 +343,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cxs_roundtrip"
+version = "0.1.0"
+dependencies = [
+ "cxs_roundtrip",
+ "sdk_rs",
+ "serde",
+ "xdr_common",
+ "xdrs",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
