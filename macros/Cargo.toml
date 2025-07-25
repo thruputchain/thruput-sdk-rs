@@ -20,3 +20,4 @@ xdrs = { workspace = true, features = ["txs"] }
 [features]
 default = ["alloc"]
 alloc = []
+mock = []

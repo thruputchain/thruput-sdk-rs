@@ -64,9 +64,11 @@ fn item_to_contract_helpers(
             let exports = gen::exports_from_contract_signature(&sig, config)?;
             out.extend(exports.clone());
 
-            let test_registration =
-                gen::test_registration_from_contract_signature(&sig, config)?;
-            out.extend(test_registration.clone());
+            if cfg!(feature = "mock") {
+                let test_registration =
+                    gen::test_registration_from_contract_signature(&sig, config)?;
+                out.extend(test_registration.clone());
+            }
 
             if config.client_ident().is_some() {
                 out.extend(gen::client_from_contract_impl(&sig, config));
@@ -547,7 +549,6 @@ mod gen {
 
         Ok(quote! {
 
-            #[cfg(feature="mock")]
             pub mod #test_setup_mod_ident {
                 use super::#exports_mod_ident::*;
 
