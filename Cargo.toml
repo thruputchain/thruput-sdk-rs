@@ -47,7 +47,7 @@ xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
-default = ["alloc"]
+default = ["alloc", "groundhog_xdr/xdrs"]
 mock = ["std", "dep:native_exec"]
 storage = ["alloc", "dep:bcs"]
 alloc = ["serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]

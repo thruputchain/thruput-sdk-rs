@@ -38,8 +38,8 @@ impl NNInt {
     }
 
     pub fn get_values(&self) -> Result<(i128, i128)> {
-        let vals = non_negative_int_get_values(&self.keypath.generate_key())?;
-        Ok(vals)
+        let (s, a) = non_negative_int_get_values(&self.keypath.generate_key(), true)?;
+        Ok((s.unwrap(), a))
     }
 
     pub fn get(&self) -> Result<i128> {
@@ -89,7 +89,7 @@ impl NNInt {
     pub fn set_add(&mut self, set_value: i128, add_value: i128) -> Result<()> {
         non_negative_int_set_add(
             &self.keypath.generate_key(),
-            set_value,
+            Some(set_value),
             add_value,
         )?;
         Ok(())
