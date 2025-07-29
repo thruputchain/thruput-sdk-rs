@@ -47,8 +47,8 @@ pub mod internal;
 #[cfg(any(doc, feature = "storage"))]
 pub mod storage;
 
-// "Keyed" storage
-pub mod keyed;
+// Resource storage
+pub mod resource;
 
 #[cfg(feature = "mock")]
 pub use ::groundhog_xdr::ffi_enums::*;

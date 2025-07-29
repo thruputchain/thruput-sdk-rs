@@ -68,6 +68,10 @@ impl Keypath {
         self.path.push(KeypathComponent::Index(index));
     }
 
+    pub fn push_component(&mut self, c: KeypathComponent) {
+        self.path.push(c);
+    }
+
     pub fn enter_seq(&mut self) {
         self.push_index(0);
     }
