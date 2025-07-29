@@ -3,11 +3,12 @@ cargo-features = ["trim-paths"] #unstable
 [workspace]
 members = [
     "macros", 
+    "iface",
     "protocol-rs/groundhog_xdr", 
     "native_exec",
     "examples/*",
     "example-interfaces/*",
-    "integration_test_contracts/*",
+    "integration_test_contracts/*", "iface",
     ]
 
 [package]
@@ -34,6 +35,7 @@ sha2 = { workspace = true }
 xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs", "xdr_common"] }
 
 [workspace.dependencies]
+iface = { path = "iface" }
 macros = { path = "macros" }
 erc20-if = { path = "example-interfaces/erc20-if" }
 groundhog_xdr = { path = "protocol-rs/groundhog_xdr", default-features = false }
