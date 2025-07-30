@@ -2,621 +2,72 @@ use darling::ast::NestedMeta;
 use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use syn::parse::{Error, Result};
-use syn::spanned::Spanned;
-use iface::entrypoint::*;
+use syn::parse::Result;
+use iface::util::*;
 
-pub fn contract_output(
+pub fn generate_output(
     attr_args: TokenStream,
     item_tokens: TokenStream,
-) -> TokenStream {
-    // Parse the attributes
-    let config = match NestedMeta::parse_meta_list(attr_args.clone().into()) {
-        Ok(meta_list) => match sig::Config::from_list(&meta_list) {
-            Ok(config) => config,
-            Err(e) => return e.write_errors().into(),
-        },
-        Err(e) => {
-            return darling::Error::from(e).write_errors().into();
-        }
-    };
+    contract: syn::Item,
+) -> Result<TokenStream2> {
 
-    let iface_config: iface::Config = match NestedMeta::parse_meta_list(attr_args.clone().into()) {
-        Ok(meta_list) => match iface::Config::from_list(&meta_list) {
-            Ok(config) => config,
-            Err(e) => return e.write_errors().into(),
-        },
-        Err(e) => {
-            return darling::Error::from(e).write_errors().into();
-        }
-    };
-
-
-    // Parse the item tokens into syntax defined in `syn`
-    let item = {
-        let item_tokens = item_tokens.clone();
-
-        syn::parse_macro_input!(item_tokens as syn::Item)
-    };
+    // Parse the attributes to a `Config`
+    let config: iface::Config = {
+        let meta_list = NestedMeta::parse_meta_list(attr_args.into())
+                            .map_err(|e| darling::Error::from(e))?;
+        iface::Config::from_list(&meta_list)
+    }?;
 
     // Generate the helper code
-    let helper_tokens = match item_to_contract_helpers(&item, &config, &iface_config) {
-        Ok(x) => x,
-        Err(err) => return Error::into_compile_error(err).into(),
-    };
+    let helpers = generate_helpers(&contract, &config)?;
 
-    // Construct the output
-    let mut output = TokenStream::new();
+    // Output the original item, followed by the helpers
+    let mut output: TokenStream2 = item_tokens.into();
+    output.extend(helpers);
 
-    // First output the original item
-    output.extend(item_tokens);
-
-    // Then add the helper items
-    let helper_tokens: TokenStream = helper_tokens.into();
-    output.extend(helper_tokens);
-
-    output
+    Ok(output)
 }
 
-fn item_to_contract_helpers(
+fn generate_helpers(
     item: &syn::Item,
-    config: &sig::Config,
-    iface_config: &iface::Config,
+    config: &iface::Config,
 ) -> Result<TokenStream2> {
     match item {
-        syn::Item::Trait(item) => Ok(iface::client::generate(item, iface_config)?),
+        syn::Item::Trait(item) => {
+            // Generate client interface
+            Ok(iface::client::generate(item, config)?)
+        },
         syn::Item::Impl(item) => {
-            let sig = parse::contract_signature_from_impl(item)?;
             let mut out = TokenStream2::new();
 
-            let exports = generate::exports_from_contract_signature(&sig, config)?;
-            out.extend(exports.clone());
+            // Generate exports
+            out.extend(iface::exports::generate(item, config)?);
 
             if cfg!(feature = "mock") {
-                let test_registration =
-                    generate::test_registration_from_contract_signature(&sig, config)?;
-                out.extend(test_registration.clone());
+                // Generate test registration
+                out.extend(iface::test_reg::generate(item, config)?);
             }
 
             if config.client_ident().is_some() {
-                out.extend(iface::client::generate(item, iface_config)?);
+                // Generate client interface
+                out.extend(iface::client::generate(item, config)?);
             }
 
             Ok(out)
         }
         syn::Item::Fn(item) => {
-            let sig = parse::method_signature_from_sig(&item.sig);
-            let mut out = TokenStream2::new();
-
-            // Get a macro-attribute-configured interface name, if any
-            let iface = config.interface_ident();
-
             // Get a macro-attribute-configured interface index, if any
-            let index = config.interface_index().map(|i| i as usize).unwrap_or(0);
+            let index = config.interface_index()
+                .map(|i| i as usize).unwrap_or(0);
 
-            let entrypoint = contract_entrypoint_id(iface.as_ref(), None, &item.sig.ident, index);
+            let iface_name = config.interface_name();
+            let iface_name = iface_name.as_ref().map(|s| s.as_str());
 
-            out.extend(generate::export_from_method_signature(
-                None, &sig, entrypoint, config,
-            )?);
+            let contract: Option<&syn::ItemImpl> = None;
 
-            Ok(out)
+            // Generate exports
+            Ok(iface::exports::generate_method(index, iface_name, contract, &item.sig, config)?)
         }
-        _ => err(
-            item,
-            format!("Can't generate contract helpers for item {:?}", item),
-        ),
-    }
-}
-
-// Produce an error referencing a particular code span
-fn err<T, S, M>(spanned: &S, msg: M) -> Result<T>
-where
-    S: Spanned,
-    M: AsRef<str>,
-{
-    Err(Error::new(spanned.span(), msg.as_ref()))
-}
-
-// Produce an error referencing a particular code span
-#[allow(dead_code)]
-fn error<S, M>(spanned: &S, msg: M) -> Error
-where
-    S: Spanned,
-    M: AsRef<str>,
-{
-    Error::new(spanned.span(), msg.as_ref())
-}
-
-mod sig {
-    //! Represent contract signatures
-
-    use darling::FromMeta;
-    use proc_macro2::Span;
-
-    #[derive(Debug, FromMeta)]
-    pub struct Config {
-        pub exports: Option<String>,
-        client: Option<syn::Ident>,
-        pub test_setup: Option<String>,
-        pub storage: Option<String>,
-        pub interface: Option<String>,
-        pub index: Option<u16>,
-    }
-
-    impl Config {
-        pub fn client_ident(&self) -> Option<&syn::Ident> {
-            self.client.as_ref()
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct ContractImpl {
-        #[allow(unused)]
-        pub span: Span,
-        pub trait_: Option<syn::Path>,
-        #[allow(unused)]
-        pub generics: syn::Generics,
-        pub self_ty: Box<syn::Type>,
-        pub methods: Vec<Method>,
-    }
-
-    #[derive(Debug)]
-    pub struct Method {
-        #[allow(unused)]
-        pub span: Span,
-        pub ident: syn::Ident,
-        pub receiver: Option<syn::Receiver>,
-        pub args: Vec<Arg>,
-    }
-
-    #[derive(Debug)]
-    #[allow(dead_code)]
-    pub struct Arg {
-        pub ident: syn::Ident,
-        pub ty: syn::Type,
-    }
-}
-
-mod sig_impls {
-    use super::sig::*;
-    use proc_macro2::Span;
-
-    impl Config {
-        pub fn exports_mod_ident(&self) -> syn::Ident {
-            ident_or(&self.exports, "exports")
-        }
-
-        pub fn test_setup_mod_ident(&self) -> syn::Ident {
-            ident_or(&self.test_setup, "test_setup")
-        }
-
-        pub fn interface_ident(&self) -> Option<syn::Ident> {
-            self.interface.as_ref().map(|s| syn::Ident::new(s, Span::call_site()))
-        }
-
-        pub fn interface_index(&self) -> Option<u16> {
-            self.index
-        }
-
-        pub fn storage(&self) -> bool {
-            if let Some(setting) = &self.storage {
-                setting.as_str() == "true"
-            } else {
-                true // default if no storage attr present
-            }
-        }
-    }
-
-    fn ident_or(maybe_name: &Option<String>, default: &str) -> syn::Ident {
-        let span = Span::call_site();
-        match maybe_name {
-            Some(ref name_string) => {
-                syn::Ident::new(name_string.as_ref(), span)
-            }
-            None => syn::Ident::new(default, span),
-        }
-    }
-
-    impl ContractImpl {
-        pub fn interface_trait_ident(&self) -> Option<&syn::Ident> {
-            self.trait_.as_ref().map(path_last_segment_ident)
-        }
-    }
-
-    fn path_last_segment_ident(path: &syn::Path) -> &syn::Ident {
-        let seg = path.segments.last().unwrap();
-        &seg.ident
-    }
-}
-
-mod parse {
-    //! Parse syntax to contract signature
-
-    use super::sig;
-    use syn::parse::Result;
-    use syn::spanned::Spanned;
-
-    pub fn contract_signature_from_impl(
-        item: &syn::ItemImpl,
-    ) -> Result<sig::ContractImpl> {
-        // Get the contract trait being implemented, if any
-        let trait_ = item.trait_.clone().map(|(_, path, _)| path);
-
-        // Pull out the function items
-        let methods = item
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let syn::ImplItem::Fn(ref impl_fn) = item {
-                    let is_pub = is_visible(&impl_fn.vis);
-
-                    // Only include public functions if this is not a trait impl
-                    if trait_.is_some() || is_pub {
-                        Some(method_signature_from_sig(&impl_fn.sig))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        Ok(sig::ContractImpl {
-            span: item.span(),
-            trait_,
-            generics: item.generics.clone(),
-            self_ty: item.self_ty.clone(),
-            methods,
-        })
-    }
-
-    fn is_visible(vis: &syn::Visibility) -> bool {
-        matches!(vis, syn::Visibility::Public(_))
-    }
-
-    pub fn method_signature_from_sig(sig: &syn::Signature) -> sig::Method {
-        let span = sig.span();
-        let ident = sig.ident.clone();
-        let mut receiver = None;
-        let args = sig
-            .inputs
-            .iter()
-            .filter_map(|fn_arg| match fn_arg {
-                syn::FnArg::Typed(pat_type) => arg_from_pat_type(pat_type),
-                syn::FnArg::Receiver(rcvr) => {
-                    receiver = Some(rcvr.clone());
-                    None
-                }
-            })
-            .collect();
-        sig::Method {
-            span,
-            ident,
-            receiver,
-            args,
-        }
-    }
-
-    fn arg_from_pat_type(pat_type: &syn::PatType) -> Option<sig::Arg> {
-        let ident =
-            if let syn::Pat::Ident(ref pat_ident) = pat_type.pat.as_ref() {
-                pat_ident.ident.clone()
-            } else {
-                panic!("Can't handle non-ident arg pattern");
-            };
-        let ty = (*pat_type.ty).clone();
-        Some(sig::Arg { ident, ty })
-    }
-}
-
-mod generate {
-    //! Generate code from contract signature
-
-    use super::sig;
-    use iface::entrypoint::*;
-    use groundhog_xdr::contract::ContractEntrypointID;
-    use proc_macro2::TokenStream as TokenStream2;
-    use quote::format_ident;
-    use quote::quote;
-    use syn::parse::Result;
-
-    pub fn test_registration_from_contract_signature(
-        contract: &sig::ContractImpl,
-        config: &sig::Config,
-    ) -> Result<TokenStream2> {
-        let test_setup_mod_ident = config.test_setup_mod_ident();
-        let exports_mod_ident = config.exports_mod_ident();
-        let mut registrations = TokenStream2::new();
-
-        let mut methods: Vec<_> = contract.methods.iter().collect();
-        methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
-        for (index, method) in methods.iter().enumerate() {
-            let method_id = contract_entrypoint_id(
-                contract.interface_trait_ident(),
-                None,
-                &method.ident,
-                index
-                );
-            registrations.extend(registration_from_method_signature(
-                method, method_id,
-            )?);
-        }
-
-        let mock_registrations = registrations.clone();
-
-        Ok(quote! {
-
-            pub mod #test_setup_mod_ident {
-                use super::#exports_mod_ident::*;
-
-                #[allow(dead_code)]
-                pub fn register(env : &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
-                    let mut contract = env.add_contract();
-
-                    #registrations
-
-                    contract.as_contract()
-                }
-
-                pub fn register_mock(contract: &mut ::sdk::MockContract<'_>) {
-                    #mock_registrations
-                }
-            }
-
-        })
-    }
-
-    pub fn exports_from_contract_signature(
-        contract: &sig::ContractImpl,
-        config: &sig::Config,
-    ) -> Result<TokenStream2> {
-        let self_ty = &contract.self_ty;
-        // let generics = &contract.generics;
-
-        let exports_mod_ident = config.exports_mod_ident();
-        let mut exports = TokenStream2::new();
-
-        let mut methods: Vec<_> = contract.methods.iter().collect();
-        methods.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
-        for (index, method) in methods.iter().enumerate() {
-            let entrypoint = contract_entrypoint_id(
-                contract.interface_trait_ident(),
-                None,
-                &method.ident,
-                index);
-
-            exports.extend(export_from_method_signature(
-                Some(contract),
-                method,
-                entrypoint,
-                config,
-            )?);
-        }
-
-        let use_trait = if let Some(trait_) = &contract.trait_ {
-            quote! { use super::#trait_; }
-        } else {
-            quote! {}
-        };
-
-        let use_storage = if config.storage() {
-            quote! {
-                use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
-            }
-        } else {
-            quote! {}
-        };
-
-        Ok(quote! {
-
-            pub mod #exports_mod_ident {
-                #use_trait
-                use super::#self_ty;
-                #use_storage
-                use ::sdk::serialize::Serialize;
-                use ::sdk::types::ContractEntrypointID;
-                use ::sdk::contract_panic;
-
-                #exports
-            }
-
-        })
-    }
-
-    // Generate an exported function for:
-    // - An impl or impl-trait method with self-parameter
-    // - An impl or impl-trait associated function
-    // - A free function
-    pub fn export_from_method_signature(
-        contract: Option<&sig::ContractImpl>,
-        method: &sig::Method,
-        entrypoint: ContractEntrypointID,
-        config: &sig::Config,
-    ) -> Result<TokenStream2> {
-        let ident = &method.ident;
-        let export_name = entrypoint_export_name(entrypoint);
-        let extern_name = format_ident!("{}_extern", ident);
-        let internal_name = format_ident!("{}_internal", ident);
-        let export_num_name =
-            format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
-
-        let print_string = format!("[sdk] Guest: Calling method {}", ident);
-        let log_guest_call = quote! { 
-            ::sdk::debug_log!("{} ", #print_string); 
-        };
-
-        let mut export = quote! {
-            #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
-            pub extern "C" fn #extern_name() -> () {
-                #internal_name()
-            }
-        };
-
-        let arg_names = arg_names(method);
-
-        // The function is a method that takes a self-parameter
-        let is_method = contract.is_some() && method.receiver.is_some();
-
-        // The function is associated with a type
-        let is_associated = contract.is_some();
-
-        // How to call the function
-        let function_or_method = if is_method {
-            // Invoke the method on a state object
-            quote! { state.#ident }
-        } else if is_associated {
-            // Invoke the associated function on the contract type
-            let self_ty = &contract.unwrap().self_ty;
-            quote! { #self_ty::#ident }
-        } else {
-            // Invoke the free function
-            quote! { #ident }
-        };
-
-        // The method takes a mutable self-parameter
-        let is_mut = is_method && method.receiver.as_ref().map(|r| r.mutability.is_some()).unwrap_or(false);
-
-        // The method is marked "init": storage should be uninitialized before calling
-        // TODO: use a method attribute to mark initialization methods
-        let is_init = is_method && ident.to_string().as_str() == "initialize";
-
-        let assert_uninitialized = if is_method && config.storage() && is_init {
-            let self_ty = &contract.unwrap().self_ty;
-
-            quote! {
-                // Assert that the storage does not yet exist
-                if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                    .unwrap_or_else(|_| contract_panic!("Failed loading contract storage")).is_some()
-                {
-                    contract_panic!("#[contract(init)] method called when contract storage already exists");
-                }
-            }
-        } else {
-            quote! {}
-        };
-
-        // Load the stored contract state (when appropriate)
-        let load_state = if is_method {
-            let self_ty = &contract.unwrap().self_ty;
-            let mutability = if is_mut { quote! { mut } } else { quote! {} };
-
-            if config.storage() {
-                if is_init {
-                    // Get a default value to initialize in this method
-                    quote! {
-                        let #mutability state =
-                            <#self_ty as DefaultFromKeypath>::default_from_keypath(&Keypath::root());
-                    }
-                } else {
-                    // Load the previously-stored value
-                    quote! {
-                        let #mutability state =
-                            <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                                .unwrap_or_else(|_| contract_panic!("Failed loading contract storage"))
-                                .unwrap_or_else(|| contract_panic!("Contract storage not present"));
-                    }
-                }
-            } else {
-                // If not using storage, we just create a default object to call the method on
-                quote! {
-                    let #mutability state = <#self_ty as Default>::default();
-                }
-            }
-        } else {
-            // Free function: no state variable at all
-            quote! {}
-        };
-
-        // Save the contract state after calling the method, if it takes a mutable ref to the state
-        let save_state = if is_method && config.storage() && is_mut {
-            quote! {
-                state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
-                    contract_panic!("Failed saving contract storage"));
-            }
-        } else {
-            quote! {}
-        };
-
-        let use_alloc = if cfg!(feature = "alloc") {
-            quote! {
-                extern crate alloc;
-                use alloc::boxed::Box;
-            }
-        } else { quote! {} };
-
-        export.extend(quote! {
-            pub fn #internal_name() -> () {
-                use sdk::invoke::{contract_return, get_calldata};
-                use sdk::serialize::{encode_xdr, decode_xdr};
-                #use_alloc
-
-                // Debug mode: log the method-call
-                #log_guest_call
-
-                #assert_uninitialized
-
-                #load_state
-
-                // Get the encoded argument data from the VM
-                let call_data: Box<[u8]> = get_calldata().unwrap_or_else(|_|
-                    sdk::contract_panic!("get_calldata() failed"));
-
-                // Decode the arguments expected by the method
-                let (#arg_names) = decode_xdr(call_data.as_ref()).unwrap_or_else(|_|
-                    sdk::contract_panic!("failed decoding contract-call arguments"));
-
-                // Call the free function or contract-type method
-                let result = #function_or_method(#arg_names);
-
-                // Save any mutations
-                #save_state
-
-                // Encode the result
-                let result_bytes = encode_xdr(&result).unwrap_or_else(|_|
-                    sdk::contract_panic!("failed encoding contract-call result"));
-
-                // Return the contract-call result to the VM
-                contract_return(result_bytes.as_slice());
-
-                // notreached
-            }
-        });
-
-        // A hack for test setup
-        if contract.is_none() {
-            let entrypoint_lit = entrypoint_literal(entrypoint);
-
-            export.extend(quote! {
-                pub const #export_num_name : ContractEntrypointID = #entrypoint_lit;
-            });
-        }
-
-        Ok(export)
-    }
-
-    fn arg_names(method: &sig::Method) -> TokenStream2 {
-        let args: Vec<TokenStream2> = method.args.iter().map(|arg| {
-            let ident = &arg.ident;
-            quote! { #ident }
-        }).collect();
-
-        quote! { #( #args ),* }
-    }
-
-    fn registration_from_method_signature(
-        method: &sig::Method,
-        entrypoint: ContractEntrypointID,
-    ) -> Result<TokenStream2> {
-        let ident = &method.ident;
-        let internal_name = format_ident!("{}_internal", ident);
-        let entrypoint = entrypoint_literal(entrypoint);
-
-        Ok(quote! {
-
-            contract.register_method(#entrypoint, #internal_name);
-
-        })
+        _ => Err(error(item, format!("Can't generate contract helpers for item {:?}", item)))
     }
 }

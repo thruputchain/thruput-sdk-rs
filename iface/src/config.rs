@@ -3,19 +3,28 @@
 use darling::FromMeta;
 use proc_macro2::Span;
 
-#[derive(Debug, FromMeta)]
+#[derive(Clone, Debug, FromMeta)]
 pub struct Config {
     pub exports: Option<String>,
-    client: Option<syn::Ident>,
     pub test_setup: Option<String>,
     pub storage: Option<String>,
     pub interface: Option<String>,
     pub index: Option<u16>,
+
+    client: Option<syn::Ident>,
 }
 
 impl Config {
     pub fn client_ident(&self) -> Option<syn::Ident> {
         self.client.clone()
+    }
+
+    pub fn interface_name(&self) -> Option<String> {
+        self.interface.clone()
+    }
+
+    pub fn interface_index(&self) -> Option<u16> {
+        self.index
     }
 
     pub fn exports_mod_ident(&self) -> syn::Ident {
@@ -26,14 +35,6 @@ impl Config {
         ident_or(&self.test_setup, "test_setup")
     }
 
-    pub fn interface_ident(&self) -> Option<syn::Ident> {
-        self.interface.as_ref().map(|s| syn::Ident::new(s, Span::call_site()))
-    }
-
-    pub fn interface_index(&self) -> Option<u16> {
-        self.index
-    }
-
     pub fn storage(&self) -> bool {
         if let Some(setting) = &self.storage {
             setting.as_str() == "true"
@@ -41,7 +42,6 @@ impl Config {
             true // default if no storage attr present
         }
     }
-
 }
 
 fn ident_or(maybe_name: &Option<String>, default: &str) -> syn::Ident {

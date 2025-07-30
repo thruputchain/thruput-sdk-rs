@@ -4,17 +4,18 @@ use groundhog_xdr::contract::ContractEntrypointID;
 use xdrs::serialize_txs;
 use quote::quote;
 use proc_macro2::TokenStream;
+use std::str::FromStr;
 
 pub fn contract_entrypoint_id(
-    trait_ident: Option<&syn::Ident>,
+    interface_name: Option<&str>,
     version_str: Option<&str>,
     method_ident: &syn::Ident,
     method_index: usize,
 ) -> ContractEntrypointID {
     use sha2::Digest;
 
-    let iface_ident = trait_ident.unwrap_or(method_ident);
-    let iface_name = iface_ident.to_string();
+    let method_name = method_ident.to_string();
+    let iface_name = interface_name.unwrap_or(&method_name);
     let version_str = version_str.unwrap_or("0.0.0");
     let method_index: u16 = method_index.try_into().expect("requested method index doesn't fit into u16");
 
@@ -42,16 +43,14 @@ pub fn contract_entrypoint_id(
 }
 
 pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
-    let mut s = String::new();
-    let bytes: &[u8] = id.as_ref();
-    let method : u64 = u64::from_be_bytes(bytes.try_into().unwrap());
-    s.push_str(&format!("{:X}", method));
-    s
+    format!("{:016X}", u64::from_be_bytes(*id))
 }
 
 pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {
-    let bytes: &[u8] = entrypoint.as_ref();
+    let name = entrypoint_export_name(entrypoint);
+    let lit = proc_macro2::Literal::from_str(&format!("0x{name}")).unwrap();
+
     quote!(
-        sdk::types::ContractEntrypointID::new([#(#bytes),*])
+        sdk::types::ContractEntrypointID::from_u64(#lit)
     )
 }

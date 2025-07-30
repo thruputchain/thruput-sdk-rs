@@ -11,3 +11,6 @@ syn = { version = "2.0.93" , features = [ "full" , "extra-traits", "visit", "pri
 xdrs = { workspace = true, features = ["strict", "derive", "txs"] }
 groundhog_xdr = { workspace = true, features = ["std", "xdrs"] }
 sha2 = { workspace = true }
+
+[features]
+alloc = []
