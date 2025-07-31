@@ -76,9 +76,6 @@ mod prelude_base {
     #[doc(inline)]
     pub use super::invoke::*;
 
-    #[doc(inline)]
-    pub use super::invoke_config::*;
-
     #[cfg(feature = "alloc")]
     #[doc(inline)]
     pub use super::hash::*;
