@@ -8,10 +8,6 @@ pub(crate) mod interfaces;
 // Contract interfaces
 pub use interfaces::iswapv2_pair::*;
 
-// A client stub that provides the interface via cross-contract calls
-#[cfg(feature = "client")]
-pub use interfaces::iswapv2_pair::client::*;
-
 // An implementation of the contract interface
 #[cfg(feature = "guest")]
 mod swapv2_pair;

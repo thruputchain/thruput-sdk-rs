@@ -43,7 +43,7 @@ pub type Amount = u128;
 
 pub type Address = sdk::prelude::ContractAddress;
 
-#[contract(client = "client")]
+#[contract(client = ISwapV2PairClient)]
 pub trait ISwapV2Pair {
     // event Approval
     // event Transfer
