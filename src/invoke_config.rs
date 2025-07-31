@@ -12,11 +12,6 @@ impl InvokeConfig {
             flags: InvokeFlagSet::default(),
         }
     }
-
-    pub fn limit_gas(&mut self, gas_limit: u64) -> &mut Self {
-        self.gas_limit = gas_limit;
-        self
-    }
 }
 
 impl Default for InvokeConfig {
