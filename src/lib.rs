@@ -26,6 +26,7 @@ pub mod deploy;
 #[cfg(feature = "alloc")]
 pub mod hash;
 pub mod invoke;
+pub mod invoke_config;
 pub mod log;
 pub mod serialize;
 pub mod contract_result;
