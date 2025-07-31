@@ -28,7 +28,8 @@ pub fn generate(
 
     let client: TokenStream = quote! {
         pub struct #client_ident {
-            address: ::sdk::types::ContractAddress
+            address: ::sdk::types::ContractAddress,
+            config: ::sdk::invoke_config::InvokeConfig
         }
 
         const _: () = {
@@ -39,7 +40,15 @@ pub fn generate(
 
             impl #client_ident {
                 pub fn new(address: &ContractAddress) -> Self {
-                    Self { address: address.clone() }
+                    Self { 
+                        address: address.clone(),
+                        config: ::sdk::invoke_config::InvokeConfig::new()
+                    }
+                }
+
+                pub fn with_gas_limit(&mut self, gas_limit: u64) -> &mut Self {
+                    self.config.gas_limit = gas_limit;
+                    self
                 }
 
                 #method_stubs
@@ -87,7 +96,6 @@ fn generate_client_fn(
     };
 
     let return_type = &method.output;
-    let gas_limit = u64::MAX;
 
     let entrypoint_lit = entrypoint_literal(entrypoint);
 
@@ -103,11 +111,10 @@ fn generate_client_fn(
         {
             let entrypoint = #entrypoint_lit;
             let args = #args_tuple;
-            let gas_limit = #gas_limit;
 
             #log_call
 
-            invoke(&self.address, entrypoint, gas_limit, &args)
+            invoke(&self.address, entrypoint, self.config.gas_limit, &args)
         }
 
     })
