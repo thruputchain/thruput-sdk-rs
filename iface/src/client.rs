@@ -95,7 +95,10 @@ fn generate_client_fn(
         quote! { ( #(#sent_args),* ) }
     };
 
-    let return_type = &method.output;
+    let return_type = match &method.output {
+        syn::ReturnType::Default => quote! { Result<(), ::sdk::prelude::SysErr> },
+        syn::ReturnType::Type(_, ty) => quote! { Result<#ty, ::sdk::prelude::SysErr> },
+    };
 
     let entrypoint_lit = entrypoint_literal(entrypoint);
 
@@ -107,7 +110,7 @@ fn generate_client_fn(
 
     Ok(quote_spanned! {method.span()=>
 
-        pub fn #ident(&mut self, #(#sent_params),* ) #return_type
+        pub fn #ident(&mut self, #(#sent_params),* ) -> #return_type
         {
             let entrypoint = #entrypoint_lit;
             let args = #args_tuple;
