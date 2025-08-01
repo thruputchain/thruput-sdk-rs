@@ -55,7 +55,7 @@ mod cross_call {
         entrypoint: ContractEntrypointID,
         gas_limit: u64,
         args: &ARGS,
-    ) -> RET
+    ) -> Result<RET, crate::syscall::SysErr>
     where
         ARGS: WriteXDR,
         RET: ReadXDROwned,
@@ -70,10 +70,10 @@ mod cross_call {
         // Deserialize the buffer into a return value ...
         let return_buf = &return_buf.as_slice();
         #[allow(clippy::let_and_return)]
-        let return_value = decode(return_buf)
+        let return_value : RET = decode(return_buf)
             .expect("Couldn't deserialize return value");
 
-        return_value
+        Ok(return_value)
     }
 
     // At least this part won't be monomorphized multiple times
