@@ -28,6 +28,7 @@ pub mod hash;
 pub mod invoke;
 pub mod invoke_config;
 pub mod log;
+pub mod returnable;
 pub mod serialize;
 pub mod contract_result;
 pub mod contract_test;
@@ -75,6 +76,9 @@ mod prelude_base {
 
     #[doc(inline)]
     pub use super::invoke::*;
+
+    #[doc(inline)]
+    pub use super::returnable::*;
 
     #[cfg(feature = "alloc")]
     #[doc(inline)]

@@ -41,8 +41,8 @@ pub fn get_calldata_sized<const N: usize>() -> Result<[u8; N]> {
     Ok(calldata)
 }
 
-pub fn contract_return(buf: &[u8]) -> ! {
-    sys::raw_Return(buf);
+pub fn contract_return(buf: &[u8], do_revert: bool) -> ! {
+    sys::raw_Return(buf, do_revert);
 }
 
 pub fn contract_exit(_code: i32) -> ! {
