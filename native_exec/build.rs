@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate cmake build
 
     let mut cfg = cmake::Config::new(hogd_src);
-    cfg.define("CMAKE_BUILD_TYPE", "Release")
+    cfg.define("CMAKE_BUILD_TYPE", "Debug")
         // run cargo b -vv to see the full cmake output
         .define("CMAKE_VERBOSE_MAKEFILE", "ON")
         .define("CMAKE_OSX_SYSROOT", "")
