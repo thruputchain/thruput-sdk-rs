@@ -7,25 +7,27 @@ use ::thiserror::Error;
 use ::xdrs::{ReadXDR, WriteXDR};
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[repr(i32)]
 pub enum Error {
     #[error("Caller error{0}")]
-    Caller(ErrorMsg),
+    Caller(ErrorMsg) = ::groundhog_xdr::contract_error::ErrorType::kErrorTypeCaller as i32,
 
     #[error("Contract internal error{0}")]
-    Contract(#[from] ContractError),
+    Contract(#[from] ContractError) = ::groundhog_xdr::contract_error::ErrorType::kErrorTypeContract as i32,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[repr(i32)]
 pub enum ContractError {
     #[error(": {0}")]
-    Custom(ErrorMsg),
+    Custom(ErrorMsg) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeCustom as i32,
 
     #[error(": failed due to syscall error: {0}")]
-    Syscall(#[from] SysErr),
+    Syscall(#[from] SysErr) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeSyscall as i32,
 
     #[cfg(feature = "storage")]
     #[error(": failed due to storage error: {0}")]
-    Storage(#[from] StorageErr),
+    Storage(#[from] StorageErr) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeStorage as i32,
 }
 
 impl From<SysErr> for Error {

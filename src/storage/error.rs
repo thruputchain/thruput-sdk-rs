@@ -7,15 +7,16 @@ use ::xdrs::{ReadXDR, WriteXDR};
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[repr(i32)]
 pub enum Error {
     #[error("Storage error due to {0}")]
-    Syscall(#[from] SysErr),
+    Syscall(#[from] SysErr) = ::groundhog_xdr::contract_error::StorageErrorType::kStorageErrorTypeSyscall as i32,
 
     #[error("Storage error due to serialization")]
-    Serialization,
+    Serialization = ::groundhog_xdr::contract_error::StorageErrorType::kStorageErrorTypeSerialization as i32,
 
     #[error("Vector index out of bounds: len={len}, access={access}")]
-    IndexOutOfBounds { len: u64, access: u64 },
+    IndexOutOfBounds { len: u64, access: u64 } = ::groundhog_xdr::contract_error::StorageErrorType::kStorageErrorTypeIndexOutOfBounds as i32,
 }
 
 impl From<SerializationError> for Error {
