@@ -79,9 +79,14 @@ pub fn generate_method(
     let export_num_name =
         format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
-    let print_string = format!("[sdk] Guest: Calling method {}", ident);
-    let log_guest_call = quote! { 
-        ::sdk::debug_log!("{} ", #print_string); 
+    let log_guest_call = if cfg!(feature = "logging") {
+        let print_string = format!("[sdk] Guest: Calling method {}", ident);
+
+        quote! {
+            ::sdk::debug_log!("{} ", #print_string);
+        }
+    } else {
+        quote! {}
     };
 
     let mut export = quote! {

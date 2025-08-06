@@ -14,7 +14,7 @@ pub mod allocator;
 compile_error!("building with nostd (or just the alloc feature) is not supported outside of wasm");
 
 #[doc(inline)]
-pub use ::macros;
+pub use macros;
 
 // Base
 pub mod syscall;

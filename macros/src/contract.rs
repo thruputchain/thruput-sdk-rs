@@ -3,7 +3,8 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use syn::parse::Result;
-use iface::util::*;
+use gen::util::*;
+use gen::Config;
 
 pub fn generate_output(
     attr_args: TokenStream,
@@ -12,10 +13,10 @@ pub fn generate_output(
 ) -> Result<TokenStream2> {
 
     // Parse the attributes to a `Config`
-    let config: iface::Config = {
+    let config: Config = {
         let meta_list = NestedMeta::parse_meta_list(attr_args.into())
                             .map_err(|e| darling::Error::from(e))?;
-        iface::Config::from_list(&meta_list)
+        Config::from_list(&meta_list)
     }?;
 
     // Generate the helper code
@@ -30,27 +31,27 @@ pub fn generate_output(
 
 fn generate_helpers(
     item: &syn::Item,
-    config: &iface::Config,
+    config: &Config,
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
             // Generate client interface
-            Ok(iface::client::generate(item, config)?)
+            Ok(gen::client::generate(item, config)?)
         },
         syn::Item::Impl(item) => {
             let mut out = TokenStream2::new();
 
             // Generate exports
-            out.extend(iface::exports::generate(item, config)?);
+            out.extend(gen::exports::generate(item, config)?);
 
             if cfg!(feature = "mock") {
                 // Generate test registration
-                out.extend(iface::test_reg::generate(item, config)?);
+                out.extend(gen::test_reg::generate(item, config)?);
             }
 
             if config.client_ident().is_some() {
                 // Generate client interface
-                out.extend(iface::client::generate(item, config)?);
+                out.extend(gen::client::generate(item, config)?);
             }
 
             Ok(out)
@@ -66,7 +67,7 @@ fn generate_helpers(
             let contract: Option<&syn::ItemImpl> = None;
 
             // Generate exports
-            Ok(iface::exports::generate_method(index, iface_name, contract, &item.sig, config)?)
+            Ok(gen::exports::generate_method(index, iface_name, contract, &item.sig, config)?)
         }
         _ => Err(error(item, format!("Can't generate contract helpers for item {:?}", item)))
     }

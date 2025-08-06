@@ -7,7 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-iface = { workspace = true }
+gen = { workspace = true }
 darling = "0.20.10"
 proc-macro2 = "1.0.92"
 quote = "1.0.38"
@@ -20,5 +20,6 @@ xdrs = { workspace = true, features = ["txs"] }
 
 [features]
 default = ["alloc"]
-alloc = ["iface/alloc"]
+alloc = ["gen/alloc"]
+logging = ["gen/logging"]
 mock = []

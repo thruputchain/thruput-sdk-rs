@@ -4,8 +4,8 @@
 //! - bare impls
 
 use quote::format_ident;
-use super::util::cmp_method_ref_by_name;
-use super::config::Config;
+use crate::util::cmp_method_ref_by_name;
+use crate::config::Config;
 
 pub trait ContractSrc {
     fn trait_path(&self) -> Option<syn::Path>;

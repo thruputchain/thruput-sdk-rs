@@ -1,5 +1,5 @@
 [package]
-name = "iface"
+name = "gen"
 version = "0.1.0"
 edition = "2024"
 
@@ -14,3 +14,4 @@ sha2 = { workspace = true }
 
 [features]
 alloc = []
+logging = []

@@ -55,7 +55,6 @@ function expand_contract {
         --target wasm32-unknown-unknown \
         --release \
         --package "$contract" \
-        --color=always \
         "$@"
 }
 
@@ -66,21 +65,22 @@ function expand_test_contract {
     cargo_native expand \
         --features "mock" \
         --package "$contract" \
-        --color=always \
         "$@"
 }
 
 function test_contract {
     contract=${1:?Please specify contract to build}
+    shift
 
     cargo_native test \
             --package "$contract" \
+            "$@" \
             -- --nocapture
 }
 
 function test_contracts {
     for contract in "${example_contracts[@]}" ; do
-        if ! test_contract "$contract" ; then
+        if ! test_contract "$contract" "$@"; then
             echo
             echo ">> ${contract}: Test failed"
             exit 1
@@ -106,10 +106,10 @@ case "$what" in
         expand_test_contract "$1"
         ;;
     test)
-        if [ -n "$1" ]; then
-            test_contract "$1"
+        if [[ -n "$1" && "$1" != "-"* ]]; then
+            test_contract "$@"
         else
-            test_contracts
+            test_contracts "$@"
         fi
         ;;
     ls)

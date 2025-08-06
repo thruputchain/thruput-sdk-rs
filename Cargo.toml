@@ -3,12 +3,12 @@ cargo-features = ["trim-paths"] #unstable
 [workspace]
 members = [
     "macros", 
-    "iface",
+    "gen",
     "protocol-rs/groundhog_xdr", 
     "native_exec",
     "examples/*",
     "example-interfaces/*",
-    "integration_test_contracts/*", "iface",
+    "integration_test_contracts/*",
     ]
 
 [package]
@@ -35,7 +35,7 @@ sha2 = { workspace = true }
 xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs", "xdr_common"] }
 
 [workspace.dependencies]
-iface = { path = "iface" }
+gen = { path = "gen" }
 macros = { path = "macros" }
 erc20-if = { path = "example-interfaces/erc20-if" }
 groundhog_xdr = { path = "protocol-rs/groundhog_xdr", default-features = false }
@@ -55,6 +55,7 @@ storage = ["alloc", "dep:bcs"]
 alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
 xdrs = ["dep:xdrs"]
+logging = ["macros/logging"]
 
 [profile.dev]
 opt-level = 3

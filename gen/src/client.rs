@@ -27,6 +27,7 @@ pub fn generate(
     }
 
     let client: TokenStream = quote! {
+
         pub struct #client_ident {
             address: ::sdk::types::ContractAddress,
             config: ::sdk::invoke_config::InvokeConfig
@@ -40,7 +41,7 @@ pub fn generate(
 
             impl #client_ident {
                 pub fn new(address: &ContractAddress) -> Self {
-                    Self { 
+                    Self {
                         address: address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig::new()
                     }
@@ -97,10 +98,14 @@ fn generate_client_fn(
 
     let entrypoint_lit = entrypoint_literal(entrypoint);
 
-    let print_string = format!("[sdk] Client: Calling method {}", ident);
+    let log_call = if cfg!(feature = "logging") {
+        let print_string = format!("[sdk] Client: Calling method {}", ident);
 
-    let log_call = quote! { 
-        ::sdk::debug_log!("{} with args {:?}", #print_string, #args_tuple); 
+        quote! {
+            ::sdk::debug_log!("{} with args {:?}", #print_string, #args_tuple);
+        }
+    } else {
+        quote! {}
     };
 
     let explicit_type = if let syn::ReturnType::Type(_, ty) = &method.output {
