@@ -118,7 +118,7 @@ name = "calldata_raw"
 version = "0.1.0"
 dependencies = [
  "calldata_raw",
- "sdk_rs",
+ "sdk",
 ]
 
 [[package]]
@@ -126,7 +126,7 @@ name = "calldata_wrapper"
 version = "0.1.0"
 dependencies = [
  "calldata_wrapper",
- "sdk_rs",
+ "sdk",
  "serde",
 ]
 
@@ -137,7 +137,7 @@ dependencies = [
  "caller",
  "erc20",
  "erc20-if",
- "sdk_rs",
+ "sdk",
  "serde",
  "thiserror",
  "xdrs",
@@ -349,7 +349,7 @@ name = "cxs_roundtrip"
 version = "0.1.0"
 dependencies = [
  "cxs_roundtrip",
- "sdk_rs",
+ "sdk",
  "serde",
  "xdrs",
 ]
@@ -394,7 +394,7 @@ name = "delegate_call_test"
 version = "0.1.0"
 dependencies = [
  "delegate_call_test",
- "sdk_rs",
+ "sdk",
  "serde",
 ]
 
@@ -450,7 +450,7 @@ dependencies = [
  "ed25519-dalek",
  "ed25519_verify_wrapper",
  "rand 0.8.5",
- "sdk_rs",
+ "sdk",
  "serde",
 ]
 
@@ -472,7 +472,7 @@ version = "0.1.2"
 dependencies = [
  "erc20",
  "erc20-if",
- "sdk_rs",
+ "sdk",
  "serde",
  "thiserror",
  "xdrs",
@@ -482,7 +482,7 @@ dependencies = [
 name = "erc20-if"
 version = "0.1.0"
 dependencies = [
- "sdk_rs",
+ "sdk",
  "serde",
  "thiserror",
  "xdrs",
@@ -494,7 +494,7 @@ version = "0.1.1"
 dependencies = [
  "erc20-if",
  "erc20_low_level",
- "sdk_rs",
+ "sdk",
  "serde",
  "thiserror",
 ]
@@ -505,7 +505,7 @@ version = "0.1.1"
 dependencies = [
  "erc20-if",
  "erc20_no_storage",
- "sdk_rs",
+ "sdk",
  "thiserror",
  "xdrs",
 ]
@@ -537,7 +537,7 @@ name = "fibonacci"
 version = "0.1.0"
 dependencies = [
  "fibonacci",
- "sdk_rs",
+ "sdk",
  "serde",
 ]
 
@@ -547,7 +547,7 @@ version = "0.1.0"
 dependencies = [
  "fibonacci",
  "fibonacci_call",
- "sdk_rs",
+ "sdk",
  "serde",
 ]
 
@@ -556,7 +556,7 @@ name = "fibonacci_raw"
 version = "0.1.0"
 dependencies = [
  "fibonacci_raw",
- "sdk_rs",
+ "sdk",
 ]
 
 [[package]]
@@ -589,7 +589,7 @@ name = "genesis_deployer"
 version = "0.1.0"
 dependencies = [
  "genesis_deployer",
- "sdk_rs",
+ "sdk",
 ]
 
 [[package]]
@@ -713,7 +713,7 @@ version = "0.1.1"
 dependencies = [
  "erc20-if",
  "itc_erc20",
- "sdk_rs",
+ "sdk",
  "thiserror",
  "xdrs",
 ]
@@ -808,7 +808,7 @@ version = "0.1.0"
 dependencies = [
  "manual_revert_caller",
  "manual_revert_test",
- "sdk_rs",
+ "sdk",
  "serde",
 ]
 
@@ -817,7 +817,7 @@ name = "manual_revert_test"
 version = "0.1.0"
 dependencies = [
  "manual_revert_test",
- "sdk_rs",
+ "sdk",
 ]
 
 [[package]]
@@ -889,7 +889,7 @@ name = "playground"
 version = "0.1.0"
 dependencies = [
  "playground",
- "sdk_rs",
+ "sdk",
  "serde",
  "thiserror",
  "xdrs",
@@ -1137,7 +1137,7 @@ name = "rcq_test"
 version = "0.1.0"
 dependencies = [
  "rcq_test",
- "sdk_rs",
+ "sdk",
 ]
 
 [[package]]
@@ -1146,7 +1146,7 @@ version = "0.1.0"
 dependencies = [
  "groundhog_xdr",
  "read_only_test",
- "sdk_rs",
+ "sdk",
  "serde",
  "xdr_common",
  "xdrs",
@@ -1249,7 +1249,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdk_rs"
+name = "sdk"
 version = "0.0.1"
 dependencies = [
  "bcs",
@@ -1347,7 +1347,7 @@ dependencies = [
 name = "sha256_raw"
 version = "0.1.0"
 dependencies = [
- "sdk_rs",
+ "sdk",
  "sha256_raw",
 ]
 
@@ -1355,7 +1355,7 @@ dependencies = [
 name = "sha256_wrapper"
 version = "0.1.0"
 dependencies = [
- "sdk_rs",
+ "sdk",
  "serde",
  "sha2",
  "sha256_wrapper",
@@ -1380,7 +1380,7 @@ dependencies = [
 name = "simple_wallet"
 version = "0.1.0"
 dependencies = [
- "sdk_rs",
+ "sdk",
  "serde",
  "simple_wallet",
 ]
@@ -1391,7 +1391,7 @@ version = "0.1.0"
 dependencies = [
  "erc20-if",
  "erc20_low_level",
- "sdk_rs",
+ "sdk",
  "serde",
  "simple_wallet_old",
 ]
@@ -1431,7 +1431,7 @@ dependencies = [
  "erc20",
  "erc20-if",
  "primitive-types",
- "sdk_rs",
+ "sdk",
  "serde",
  "swap",
  "thiserror",
@@ -1476,7 +1476,7 @@ dependencies = [
 name = "test_bytestring"
 version = "0.1.0"
 dependencies = [
- "sdk_rs",
+ "sdk",
  "test_bytestring",
 ]
 

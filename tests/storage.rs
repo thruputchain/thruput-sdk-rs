@@ -1,6 +1,5 @@
 use sdk::contract_test;
 use sdk::storage_prelude::*;
-use sdk_rs as sdk;
 
 #[derive(Debug, Serialize, Storage)]
 struct Data {
