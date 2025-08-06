@@ -9,7 +9,6 @@ mod handle {
 
     use ::xdrs::{ReadXDROwned, WriteXDR};
     use ::xdrs::serialize_txs::{encode, decode};
-    use crate::returnable::Returnable;
 
     // Run a handler function on the invocation arguments
     // available in serialized form via `GetCalldata`,
@@ -18,7 +17,7 @@ mod handle {
     where
         F: FnOnce(ARGS) -> RES,
         ARGS: ReadXDROwned,
-        RES: WriteXDR + Returnable
+        RES: WriteXDR,
     {
         let boxed_call_data = match get_calldata() {
             Ok(x) => x,
@@ -36,7 +35,7 @@ mod handle {
             Err(_) => return SyscallErrorCode::kReturnParseError.into(),
         };
 
-        contract_return(result_bytes.as_slice(), result.force_revert());
+        contract_return(result_bytes.as_slice());
     }
 }
 

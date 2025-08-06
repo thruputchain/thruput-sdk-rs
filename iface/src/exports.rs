@@ -184,7 +184,6 @@ pub fn generate_method(
         pub fn #internal_name() -> () {
             use sdk::invoke::{contract_return, get_calldata};
             use sdk::serialize::{encode_xdr, decode_xdr};
-            use sdk::returnable::Returnable;
             #use_alloc
 
             // Debug mode: log the method-call
@@ -213,7 +212,7 @@ pub fn generate_method(
                 sdk::contract_panic!("failed encoding contract-call result"));
 
             // Return the contract-call result to the VM
-            contract_return(result_bytes.as_slice(), result.force_revert());
+            contract_return(result_bytes.as_slice());
 
             // notreached
         }
