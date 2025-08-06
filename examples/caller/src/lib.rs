@@ -20,6 +20,6 @@ impl Caller {
     pub fn check_balance(&self, account: &ContractAddress) -> Amount {
         let mut token = ERC20Client::new(&self.token_contract);
 
-        token.get_balance_of(account).unwrap().unwrap()
+        token.get_balance_of(account).unwrap()
     }
 }

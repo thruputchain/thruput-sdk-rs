@@ -35,11 +35,11 @@ impl Wallet {
     }
 
     pub fn get_balance(&self) -> Amount {
-        self.token().get_balance().unwrap().unwrap()
+        self.token().get_balance().unwrap()
     }
 
     pub fn test_expect_balance(&self, expect: Amount) {
-        let bal = self.token().get_balance().unwrap().unwrap();
+        let bal = self.token().get_balance().unwrap();
         assert_eq!(bal, expect);
     }
 
@@ -80,7 +80,7 @@ impl Wallet {
     ) {
         self.check_payment_authorization(to_addr, amount, signature);
 
-        self.token().transfer(to_addr, amount).unwrap().unwrap();
+        self.token().transfer(to_addr, amount).unwrap();
     }
 
     /*
@@ -96,6 +96,6 @@ impl Wallet {
     */
 
     pub fn mint(&self, to_addr: &ContractAddress, amount: Amount) {
-        self.token().mint(to_addr, amount).unwrap().unwrap();
+        self.token().mint(to_addr, amount).unwrap();
     }
 }

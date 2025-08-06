@@ -7,8 +7,6 @@ use sdk::prelude::*;
 fn caller_test() {
     let mut env = sdk::TestEnvironment::new();
 
-    sdk::TestEnvironment::enable_syscall_logging();
-
     let erc20_contract = erc20::test_setup::register(&mut env);
     let erc20_hash = env.setup_create_contract(&erc20_contract);
 
@@ -34,20 +32,20 @@ fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Res
     let mut erc20 = ERC20Client::new(&erc20_addr);
     assert_eq!(
         erc20.initialize(&erc20_owner),
-        Ok(ERC20Result::Ok(())),
+        ERC20Result::Ok(()),
     );
 
-    assert_eq!(erc20.total_supply(), Ok(ERC20Result::Ok(0)));
-    assert_eq!(erc20.get_balance(), Ok(ERC20Result::Ok(0)));
+    assert_eq!(erc20.total_supply(), ERC20Result::Ok(0));
+    assert_eq!(erc20.get_balance(), ERC20Result::Ok(0));
 
     let nonce = SHA256Hash::from([7; 32]);
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
 
     let mut caller = CallerClient::new(&deployed_addr);
-    caller.initialize(&erc20_addr).unwrap();
+    caller.initialize(&erc20_addr);
 
     let some_account = ContractAddress::zero();
-    assert_eq!(caller.check_balance(&some_account), Ok(0));
+    assert_eq!(caller.check_balance(&some_account), 0);
 
     Ok(())
 }

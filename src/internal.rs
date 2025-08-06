@@ -55,25 +55,25 @@ mod cross_call {
         entrypoint: ContractEntrypointID,
         gas_limit: u64,
         args: &ARGS,
-    ) -> Result<RET, crate::syscall::SysErr>
+    ) -> RET
     where
         ARGS: WriteXDR,
         RET: ReadXDROwned,
     {
         // Encode the args
-        let call_data = encode(args).or(Err(crate::syscall::SyscallErrorCode::kCalldataParseError))?;
+        let call_data = encode(args).expect("Couldn't serialize call data");
 
         // Invoke the method
         let return_buf =
-            invoke_inner(address, entrypoint, gas_limit, call_data.as_slice())?;
+            invoke_inner(address, entrypoint, gas_limit, call_data.as_slice());
 
         // Deserialize the buffer into a return value ...
         let return_buf = &return_buf.as_slice();
         #[allow(clippy::let_and_return)]
-        let return_value : RET = decode(return_buf)
-            .or(Err(crate::syscall::SyscallErrorCode::kReturnParseError))?;
+        let return_value = decode(return_buf)
+            .expect("Couldn't deserialize return value");
 
-        Ok(return_value)
+        return_value
     }
 
     // At least this part won't be monomorphized multiple times
@@ -83,7 +83,7 @@ mod cross_call {
         entrypoint: ContractEntrypointID,
         gas_limit: u64,
         call_data: &[u8],
-    ) -> Result<Vec<u8>, crate::syscall::SysErr> {
+    ) -> Vec<u8> {
         // Perform the cross-contract call
 
         let mut return_len = 0;
@@ -95,16 +95,18 @@ mod cross_call {
             call_data,
             0, // TODO(geoff): invoke flags go here
             &mut return_len,
-        )?;
+        )
+        .expect("Contract invocation failed");
 
         let mut return_buf = vec![0; return_len as usize];
         let mut written: RuntimeMemoryLength = 0;
-        sys::raw_GetReturnedBuffer(return_buf.as_mut_slice(), &mut written)?;
+        sys::raw_GetReturnedBuffer(return_buf.as_mut_slice(), &mut written)
+            .expect("Couldn't get returned buffer");
 
         if written != return_len {
             panic!("Unexpected return buffer length");
         }
 
-        Ok(return_buf)
+        return_buf
     }
 }

@@ -28,23 +28,23 @@ fn test_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<()> {
     let owner = get_current_address()?;
 
     let mut client = ERC20Client::new(&deployed_addr);
-    client.initialize(&owner)??;
+    client.initialize(&owner)?;
 
-    assert_eq!(client.total_supply().unwrap().unwrap(), 0);
-    assert_eq!(client.get_balance().unwrap().unwrap(), 0);
+    assert_eq!(client.total_supply().unwrap(), 0);
+    assert_eq!(client.get_balance().unwrap(), 0);
 
-    client.mint(&owner.clone().into(), 100).unwrap().unwrap();
-    assert_eq!(client.get_balance().unwrap().unwrap(), 100);
+    client.mint(&owner.clone().into(), 100).unwrap();
+    assert_eq!(client.get_balance().unwrap(), 100);
 
     let other: ContractAddress = [0xBB; 32].into();
-    client.transfer(&other, 25)??;
-    assert_eq!(client.get_balance_of(&other)??, 25);
-    assert_eq!(client.get_balance_of(&owner)??, 75);
+    client.transfer(&other, 25)?;
+    assert_eq!(client.get_balance_of(&other)?, 25);
+    assert_eq!(client.get_balance_of(&owner)?, 75);
 
-    client.burn(&other, 5).unwrap().unwrap();
-    assert_eq!(client.get_balance_of(&other).unwrap().unwrap(), 20);
+    client.burn(&other, 5).unwrap();
+    assert_eq!(client.get_balance_of(&other).unwrap(), 20);
 
-    assert_eq!(client.total_supply().unwrap().unwrap(), 95);
+    assert_eq!(client.total_supply().unwrap(), 95);
 
     Ok(())
 }
