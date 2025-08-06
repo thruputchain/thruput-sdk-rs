@@ -351,7 +351,6 @@ dependencies = [
  "cxs_roundtrip",
  "sdk_rs",
  "serde",
- "xdr_common",
  "xdrs",
 ]
 
@@ -388,6 +387,15 @@ dependencies = [
  "darling_core",
  "quote 1.0.40",
  "syn 2.0.104",
+]
+
+[[package]]
+name = "delegate_call_test"
+version = "0.1.0"
+dependencies = [
+ "delegate_call_test",
+ "sdk_rs",
+ "serde",
 ]
 
 [[package]]
@@ -529,6 +537,16 @@ name = "fibonacci"
 version = "0.1.0"
 dependencies = [
  "fibonacci",
+ "sdk_rs",
+ "serde",
+]
+
+[[package]]
+name = "fibonacci_call"
+version = "0.1.0"
+dependencies = [
+ "fibonacci",
+ "fibonacci_call",
  "sdk_rs",
  "serde",
 ]
@@ -782,6 +800,24 @@ dependencies = [
  "sha2",
  "syn 2.0.104",
  "xdrs",
+]
+
+[[package]]
+name = "manual_revert_caller"
+version = "0.1.0"
+dependencies = [
+ "manual_revert_caller",
+ "manual_revert_test",
+ "sdk_rs",
+ "serde",
+]
+
+[[package]]
+name = "manual_revert_test"
+version = "0.1.0"
+dependencies = [
+ "manual_revert_test",
+ "sdk_rs",
 ]
 
 [[package]]
@@ -1102,6 +1138,18 @@ version = "0.1.0"
 dependencies = [
  "rcq_test",
  "sdk_rs",
+]
+
+[[package]]
+name = "read_only_test"
+version = "0.1.0"
+dependencies = [
+ "groundhog_xdr",
+ "read_only_test",
+ "sdk_rs",
+ "serde",
+ "xdr_common",
+ "xdrs",
 ]
 
 [[package]]
