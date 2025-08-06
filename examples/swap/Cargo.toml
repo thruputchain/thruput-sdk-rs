@@ -13,13 +13,12 @@ primitive-types = { version = "0.13.1", default-features = false, features = ["s
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-erc20 = { path = "../erc20", features = ["client"] }
+erc20-if = { workspace = true }
+erc20 = { path = "../erc20" }
 
 [features]
-client = ["erc20/client"]
 guest = ["erc20/guest"]
-mock = ["guest", "sdk/mock"]
+mock = ["guest", "sdk/mock", "erc20/mock"]
 
 [dev-dependencies]
-swap = { path = ".", features = ["mock", "client"] }
-erc20 = { path = "../erc20", features = ["mock", "client"] }
+swap = { path = ".", features = ["mock"] }

@@ -1,102 +1,112 @@
-#![allow(non_snake_case)]
-
-use crate::result::SysResult as Result;
 use crate::sys;
-use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::contract_panic;
-use core::mem::MaybeUninit;
-use xdrs::WriteXDR;
+use crate::types::{
+    ContractAddress, /* InvocationFlagSet, InvocationFlags, */
+    RuntimeMemoryLength,
+};
+use groundhog_xdr::contract::ContractEntrypointID;
+use alloc::{vec, vec::Vec};
+use xdrs::{ReadXDROwned, WriteXDR};
+use xdrs::serialize_txs::{encode, decode};
+use core::error::Error;
 
-pub fn get_caller() -> Result<ContractAddress> {
-    let mut out_addr: MaybeUninit<ContractAddress> =
-        MaybeUninit::<ContractAddress>::uninit();
-    sys::uninit_GetMsgSender(&mut out_addr)?;
-    Ok(unsafe { out_addr.assume_init() })
+pub use crate::invoke_error::*;
+
+pub fn invoke<ARGS, RET>(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &ARGS,
+) -> InvokeResult<RET>
+where
+    ARGS: WriteXDR,
+    RET: ReadXDROwned,
+{
+    // Encode the args
+    let call_data = encode(args).map_err(|_| InvokeError::EncodeArgs)?;
+
+    // Invoke the method
+    let return_buf =
+        invoke_inner(address, entrypoint, gas_limit, call_data.as_slice())?;
+
+    // Deserialize the buffer into a return value ...
+    let return_val = decode(return_buf.as_slice())
+        .map_err(|_| InvokeError::DecodeReturnVal(return_buf))?;
+
+    Ok(return_val)
 }
 
-pub fn get_current_address() -> Result<ContractAddress> {
-    let mut out_addr: MaybeUninit<ContractAddress> =
-        MaybeUninit::<ContractAddress>::uninit();
-    sys::uninit_GetCurrentAddress(&mut out_addr)?;
-    Ok(unsafe { out_addr.assume_init() })
-}
+// At least this part won't be monomorphized multiple times
+#[inline(never)]
+fn invoke_inner(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    call_data: &[u8],
+) -> InvokeResult<Vec<u8>> {
+    // Perform the cross-contract call
 
-pub fn get_calldata_len() -> Result<RuntimeMemoryLength> {
-    let mut out: RuntimeMemoryLength = 0;
-    sys::raw_GetCalldataLen(&mut out)?;
-    Ok(out)
-}
+    let mut return_len = 0;
+    let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
 
-pub fn get_calldata_sized<const N: usize>() -> Result<[u8; N]> {
-    let mut calldata_mu = [::core::mem::MaybeUninit::<u8>::uninit(); N];
+    let result = sys::raw_Invoke(
+        address,
+        entrypoint,
+        gas_limit,
+        call_data,
+        0, // TODO(geoff): invoke flags go here
+        &mut return_len,
+    ).map_err(InvokeError::Syscall);
 
-    let mut calldata_len: RuntimeMemoryLength = 0;
+    let is_ok = match result {
+        Ok(()) => true,
+        Err(InvokeError::Syscall(syserr)) if syserr.is_aborted() => false,
+        Err(e) => {
+            return Err(e)
+        }
+    };
 
-    sys::uninit_GetCalldata(&mut calldata_mu, &mut calldata_len)?;
-
-    if calldata_len != N as u32 {
-        panic!("Unexpected calldata size");
+    // Ok or abort: get the return buffer
+    let mut return_buf = vec![0; return_len as usize];
+    let mut written: RuntimeMemoryLength = 0;
+    sys::raw_GetReturnedBuffer(return_buf.as_mut_slice(), &mut written)
+        .map_err(InvokeError::Syscall)?;
+    if written != return_len {
+        contract_panic!("unexpected return buffer length");
     }
 
-    let calldata: [u8; N] =
-        unsafe { calldata_mu.map(|c| MaybeUninit::assume_init(c)) };
-    Ok(calldata)
+    if is_ok {
+        Ok(return_buf)
+    } else {
+        Err(InvokeError::Aborted(return_buf))
+    }
 }
 
-pub fn contract_return(buf: &[u8]) -> ! {
-    let revert = false;
-
-    sys::raw_Return(buf, revert);
-}
-
-pub fn contract_exit(_code: i32) -> ! {
-    sys::raw_Exit();
-}
-
-pub fn contract_revert() -> ! {
-    sys::raw_Exit(/* crate::syscall::SyscallErrorCode::kDeterministicWasm as i32 */);
-}
-
-pub fn contract_abort(err: &impl WriteXDR) -> ! {
-    use ::xdrs::serialize_txs::encode;
-
-    let return_buf = encode(err).unwrap_or_else(|_| {
-        contract_panic!("abort: failed uncoding return value")});
-    let revert = true;
-
-    sys::raw_Return(&return_buf, revert);
-}
-
-pub fn get_source_transaction_hash() -> Result<SHA256Hash> {
-    let mut out_hash: MaybeUninit<SHA256Hash> =
-        MaybeUninit::<SHA256Hash>::uninit();
-    sys::uninit_GetSourceTransactionHash(&mut out_hash)?;
-    Ok(unsafe { out_hash.assume_init() })
-}
-
-#[cfg(feature = "alloc")]
-pub use get_calldata_alloc::*;
-
-#[cfg(feature = "alloc")]
-mod get_calldata_alloc {
-    use crate::result::SysResult as Result;
-    use crate::sys;
-    use crate::types::RuntimeMemoryLength;
-    use alloc::boxed::Box;
-
-    pub fn get_calldata() -> Result<Box<[u8]>> {
-        let len: RuntimeMemoryLength = super::get_calldata_len()?;
-
-        let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
-
-        let mut written_len: RuntimeMemoryLength = 0;
-
-        sys::uninit_GetCalldata(&mut vec, &mut written_len)?;
-
-        if written_len != len {
-            panic!("Unexpected calldata size");
+// Invoke a client contract where we know the error type (which
+// is produced on abort)
+pub fn client_invoke<ARGS, RET, ERR>(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &ARGS,
+) -> ClientResult<RET, ERR>
+where
+    ARGS: WriteXDR,
+    RET: ReadXDROwned,
+    ERR: ReadXDROwned + WriteXDR + Error,
+{
+    match invoke(address, entrypoint, gas_limit, args) {
+        Ok(ret) => Ok(ret),
+        Err(err) => {
+            match err {
+                InvokeError::Aborted(buf) => {
+                    match decode(&buf) {
+                        Ok(val) => Err(ClientError::Aborted(val)),
+                        Err(_) => Err(ClientError::AbortDecodeFailed),
+                    }
+                }
+                _ => Err(ClientError::Invoke(err))
+            }
         }
-
-        Ok(unsafe { vec.assume_init() })
     }
 }

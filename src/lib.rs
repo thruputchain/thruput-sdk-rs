@@ -18,6 +18,7 @@ pub use ::macros;
 
 // Base
 pub mod syscall;
+pub mod syscall_op;
 pub mod types;
 #[doc(inline)]
 pub use syscall::bindings as sys;
@@ -25,8 +26,10 @@ pub mod crypto;
 pub mod deploy;
 #[cfg(feature = "alloc")]
 pub mod hash;
+pub mod handle;
 pub mod invoke;
 pub mod invoke_config;
+pub mod invoke_error;
 pub mod log;
 pub mod serialize;
 pub mod contract_result;
@@ -40,12 +43,6 @@ pub mod retrocausal_queue;
 
 // #[cfg(feature = "alloc")]
 pub mod result;
-
-#[cfg(feature = "alloc")]
-pub mod internal;
-
-#[cfg(feature = "alloc")]
-pub mod client_error;
 
 // Storage layer
 #[cfg(any(doc, feature = "storage"))]
@@ -67,6 +64,9 @@ mod prelude_base {
 
     #[doc(inline)]
     pub use super::syscall::SysErr;
+
+    #[doc(inline)]
+    pub use super::syscall_op::*;
 
     #[doc(inline)]
     pub use super::sys::SyscallErrorCode;
@@ -94,10 +94,6 @@ mod prelude_base {
 
     #[doc(inline)]
     pub use super::rt::*;
-
-    #[cfg(feature = "alloc")]
-    #[doc(inline)]
-    pub use super::client_error::*;
 }
 
 /// Lower-level contract facilities

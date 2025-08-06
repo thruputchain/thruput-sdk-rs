@@ -36,8 +36,7 @@ pub fn generate(
             use ::sdk::types::ContractAddress;
             use ::sdk::types::ContractEntrypointID;
             use ::sdk::types::RuntimeMemoryLength;
-            use ::sdk::internal::{client_invoke, invoke, InvokeResult};
-            use ::sdk::client_error::ClientResult;
+            use ::sdk::invoke::{invoke, InvokeResult, client_invoke, ClientResult};
 
             impl #client_ident {
                 pub fn new(address: &ContractAddress) -> Self {

@@ -50,7 +50,7 @@ pub fn generate(
             use ::sdk::serialize::Serialize;
             use ::sdk::types::ContractEntrypointID;
             use ::sdk::contract_panic;
-            use ::sdk::invoke::contract_abort;
+            use ::sdk::syscall_op::contract_abort;
 
             #exports
         }
@@ -197,7 +197,7 @@ pub fn generate_method(
 
     export.extend(quote! {
         pub fn #internal_name() -> () {
-            use sdk::invoke::{contract_return, get_calldata};
+            use sdk::syscall_op::{contract_return, get_calldata};
             use sdk::serialize::{encode_xdr, decode_xdr};
             #use_alloc
 

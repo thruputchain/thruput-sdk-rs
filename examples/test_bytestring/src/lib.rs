@@ -1,6 +1,5 @@
 #![no_std]
 
-use sdk::invoke::get_calldata;
 use sdk::prelude::*;
 
 #[cfg_attr(target_family = "wasm", export_name = "0")]

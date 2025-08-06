@@ -1429,6 +1429,7 @@ name = "swap"
 version = "0.1.0"
 dependencies = [
  "erc20",
+ "erc20-if",
  "primitive-types",
  "sdk_rs",
  "serde",
