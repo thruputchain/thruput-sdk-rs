@@ -40,7 +40,7 @@ macro_rules! contract_panic {
             panic!($($expr),*);
 
             #[cfg(not(feature = "mock"))]
-            ::sdk::rt::trap();
+            $crate::rt::trap();
         }
     };
 }

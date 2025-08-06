@@ -5,6 +5,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use super::interface::{Amount, ERC20};
+use sdk::contract_result::*;
 use sdk::storage_prelude::*;
 
 type Balance = NNInt;
@@ -90,7 +91,7 @@ impl CoinContract {
 // This implements the ERC20 interface.  The `contract` macro provides
 // an exported entrypoint for each method; these will be placed in a
 // module with the specified name ("guest_exports").
-#[contract(exports = "guest_exports")]
+#[contract(exports = "guest_exports", err_type = Error)]
 impl ERC20 for CoinContract {
     // TODO: attribute #[init]: panic if storage already present; otherwise provide default value
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {

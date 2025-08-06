@@ -55,6 +55,7 @@ function expand_contract {
         --target wasm32-unknown-unknown \
         --release \
         --package "$contract" \
+        --color=always \
         "$@"
 }
 
@@ -65,6 +66,7 @@ function expand_test_contract {
     cargo_native expand \
         --features "mock" \
         --package "$contract" \
+        --color=always \
         "$@"
 }
 

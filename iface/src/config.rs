@@ -12,6 +12,7 @@ pub struct Config {
     pub index: Option<u16>,
 
     client: Option<syn::Ident>,
+    err_type: Option<syn::Ident>,
 }
 
 impl Config {
@@ -41,6 +42,10 @@ impl Config {
         } else {
             true // default if no storage attr present
         }
+    }
+
+    pub fn err_type(&self) -> Option<&syn::Ident> {
+        self.err_type.as_ref()
     }
 }
 

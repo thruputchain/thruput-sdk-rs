@@ -75,7 +75,7 @@ fn add_to_allowance(
 #[derive(Default)]
 struct Token;
 
-#[contract(storage = "false")]
+#[contract(storage = "false", err_type = Error)]
 impl ERC20 for Token {
     fn initialize(
         &mut self,

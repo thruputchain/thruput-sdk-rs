@@ -26,8 +26,8 @@ impl TokenContract {
     // and allowances are non-negative.  They do _not_ check
     // authorization.
 
-    // (pub so we can embed this implementation in another contract)
-    pub fn _init(&mut self, contract_owner: &ContractAddress) {
+    // #[contract(init)]
+    fn _init(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner = contract_owner.clone();
     }
 
@@ -85,12 +85,15 @@ impl TokenContract {
 // This implements the ERC20 interface.  The `contract` macro provides
 // an exported entrypoint for each method; these will be placed in a
 // module with the specified name ("guest_exports").
-#[contract(exports = "guest_exports")]
+#[contract(exports = "guest_exports", err_type = Error)]
 impl ERC20 for TokenContract {
+    // #[init]
     fn initialize(
         &mut self,
         contract_owner: &ContractAddress,
     ) -> Result<()> {
+        // contract_abort(&Error::MustBeContractOwner);
+
         self._init(contract_owner);
         Ok(())
     }

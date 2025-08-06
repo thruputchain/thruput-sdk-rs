@@ -6,11 +6,11 @@ pub mod bindings;
 mod error_helper;
 
 use ::xdrs::{ReadXDR, WriteXDR};
-
 use thiserror::Error;
-#[derive(
-    Error, Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ReadXDR, WriteXDR
-)]
+
+#[derive(Error, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(ReadXDR, WriteXDR)]
 #[error("SysErr({0})")]
 pub struct SysErr(i32);
 
@@ -35,6 +35,11 @@ impl SysErr {
 
     pub fn is_storage_key_not_exist(self) -> bool {
         self.is_code(SyscallErrorCode::kStorageKeyNotExist)
+    }
+
+    pub fn is_aborted(self) -> bool {
+        // XXX
+        false
     }
 }
 

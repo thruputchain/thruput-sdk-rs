@@ -44,6 +44,9 @@ pub mod result;
 #[cfg(feature = "alloc")]
 pub mod internal;
 
+#[cfg(feature = "alloc")]
+pub mod client_error;
+
 // Storage layer
 #[cfg(any(doc, feature = "storage"))]
 pub mod storage;
@@ -90,10 +93,11 @@ mod prelude_base {
     pub use super::macros::contract;
 
     #[doc(inline)]
-    pub use super::contract_result::*;
-
-    #[doc(inline)]
     pub use super::rt::*;
+
+    #[cfg(feature = "alloc")]
+    #[doc(inline)]
+    pub use super::client_error::*;
 }
 
 /// Lower-level contract facilities

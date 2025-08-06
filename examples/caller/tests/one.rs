@@ -1,6 +1,6 @@
-use erc20_if::Result as ERC20Result;
+use erc20_if::Error as ERC20Error;
 use erc20_if::ERC20Client;
-use caller::CallerClient;
+use caller::{CallerClient, CallerError};
 use sdk::prelude::*;
 
 #[test]
@@ -14,38 +14,54 @@ fn caller_test() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        match caller_test_inner(&erc20_hash, &contract_hash) {
-            Ok(_) => (),
-            Err(error) => panic!("test failed: {}", error),
-        }
+        caller_test_inner(&erc20_hash, &contract_hash).unwrap_or_else(|e|
+            panic!("test failed: {e}"))
     });
 
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
-fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) -> Result<()> {
+#[derive(Error, Debug, Clone)]
+enum TestError {
+    #[error("caller error: {0}")]
+    Caller(#[from] CallerError),
+
+    #[error("ERC20 error: {0}")]
+    ERC20(#[from] ERC20Error),
+
+    #[error("client error: {0}")]
+    Client(#[from] ClientError<ERC20Error>),
+
+    #[error("invoke error: {0}")]
+    Invoke(#[from] InvokeError),
+
+    #[error("system error: {0}")]
+    Sys(#[from] SysErr),
+}
+
+fn caller_test_inner(
+    erc20_hash: &SHA256Hash,
+    contract_hash: &SHA256Hash
+) -> Result<(), TestError> {
     let erc20_nonce = SHA256Hash::from([6; 32]);
     let erc20_addr = deploy_contract(&erc20_nonce, erc20_hash)?;
-    let erc20_owner = get_current_address().unwrap();
+    let erc20_owner = get_current_address()?;
 
     let mut erc20 = ERC20Client::new(&erc20_addr);
-    assert_eq!(
-        erc20.initialize(&erc20_owner),
-        ERC20Result::Ok(()),
-    );
+    erc20.initialize(&erc20_owner)?;
 
-    assert_eq!(erc20.total_supply(), ERC20Result::Ok(0));
-    assert_eq!(erc20.get_balance(), ERC20Result::Ok(0));
+    assert_eq!(0, erc20.total_supply()?);
+    assert_eq!(0, erc20.get_balance()?);
 
     let nonce = SHA256Hash::from([7; 32]);
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
 
     let mut caller = CallerClient::new(&deployed_addr);
-    caller.initialize(&erc20_addr);
+    caller.initialize(&erc20_addr)?;
 
     let some_account = ContractAddress::zero();
-    assert_eq!(caller.check_balance(&some_account), 0);
+    assert_eq!(0, caller.check_balance(&some_account)??);
 
     Ok(())
 }

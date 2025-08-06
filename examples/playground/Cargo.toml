@@ -8,6 +8,7 @@ sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 # get non-standard i128 impls
 xdrs = { workspace = true, features = ["extras"] }
+thiserror.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

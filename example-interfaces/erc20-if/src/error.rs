@@ -1,10 +1,10 @@
 use sdk::prelude::{ReadXDR, WriteXDR, SysErr};
-use sdk::prelude::{Serialize, Deserialize};
 use thiserror::Error;
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
-#[derive(Error, Debug, PartialEq, Clone, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(ReadXDR, WriteXDR)]
 #[non_exhaustive]
 #[repr(i32)]
 pub enum Error {
