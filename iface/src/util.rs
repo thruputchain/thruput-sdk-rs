@@ -61,3 +61,20 @@ where
 {
     Error::new(spanned.span(), msg.as_ref())
 }
+
+pub fn generic_type_first_arg(ty: &syn::Type) -> Option<&syn::Type> {
+    if let syn::Type::Path(tp) = ty {
+        // let mut segments = &tp.path.segments.iter();
+        let seg = tp.path.segments.iter().next().unwrap();
+        if seg.ident.to_string() == "Result" {
+            if let syn::PathArguments::AngleBracketed(bracket_args) = &seg.arguments {
+                let arg = bracket_args.args.iter().next().unwrap();
+                if let syn::GenericArgument::Type(ty) = arg {
+                    return Some(ty)
+                }
+            }
+        }
+    }
+
+    return None;
+}

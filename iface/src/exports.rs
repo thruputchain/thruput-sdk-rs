@@ -2,7 +2,7 @@
 
 use super::entrypoint::*;
 use super::util::*;
-use super::ContractSrc;
+use super::contract::{ContractSrc, ConfiguredContract};
 use super::Config;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -14,6 +14,8 @@ pub fn generate(
     contract: &impl ContractSrc,
     config: &Config,
 ) -> Result<TokenStream> {
+    let contract = ConfiguredContract::new(config.clone(), contract);
+
     let self_ty = contract.self_ty();
 
     let exports_mod_ident = config.exports_mod_ident();
@@ -37,7 +39,7 @@ pub fn generate(
 
     let mut exports = TokenStream::new();
     for (index, method) in contract.methods_sorted().into_iter().enumerate() {
-        exports.extend(generate_method(index, iface_name, Some(contract), method, config)?);
+        exports.extend(generate_method(index, iface_name, Some(&contract), method, config)?);
     }
 
     Ok(quote! {
@@ -48,6 +50,7 @@ pub fn generate(
             use ::sdk::serialize::Serialize;
             use ::sdk::types::ContractEntrypointID;
             use ::sdk::contract_panic;
+            use ::sdk::invoke::contract_abort;
 
             #exports
         }
@@ -162,6 +165,7 @@ pub fn generate_method(
     };
 
     // Save the contract state after calling the method, if it takes a mutable ref to the state
+    // TODO: use an attribute to request no saving
     let save_state = if is_method && config.storage() && is_mut {
         quote! {
             state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
@@ -175,6 +179,17 @@ pub fn generate_method(
         quote! {
             extern crate alloc;
             use alloc::boxed::Box;
+        }
+    } else { quote! {} };
+
+    let has_err_type = contract.and_then(|c| c.err_type()).is_some()
+        // generate_method() might be called directly, so check config too
+        || config.err_type().is_some();
+
+    let unwrap_abort = if has_err_type {
+        quote! {
+            let result = result.unwrap_or_else(|e|
+                contract_abort(&e));
         }
     } else { quote! {} };
 
@@ -203,6 +218,10 @@ pub fn generate_method(
 
             // Call the free function or contract-type method
             let result = #function_or_method(#arg_names);
+
+            // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
+            // and call contract_abort in the error case
+            #unwrap_abort
 
             // Save any mutations
             #save_state

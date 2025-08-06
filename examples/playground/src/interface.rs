@@ -1,8 +1,9 @@
 use sdk::prelude::*;
+use sdk::contract_result::{Error, Result};
 
 pub type Amount = i128;
 
-#[contract(client = ERC20Client)]
+#[contract(client = ERC20Client, err_type = Error)]
 pub trait ERC20 {
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()>;
 

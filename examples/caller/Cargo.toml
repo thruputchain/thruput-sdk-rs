@@ -8,6 +8,8 @@ sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true }
 erc20-if = { workspace = true }
 erc20 = { path = "../erc20" }
+thiserror = { workspace = true }
+xdrs = { workspace = true, features = ["derive"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

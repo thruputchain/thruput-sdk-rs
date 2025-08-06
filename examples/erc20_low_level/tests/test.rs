@@ -1,6 +1,6 @@
 use erc20_low_level::test;
 use erc20_low_level::ERC20Client;
-use erc20_low_level::interface::Result as ERC20Result;
+use erc20_low_level::interface::Error as ERC20Error;
 use sdk::prelude::*;
 
 #[test]
@@ -12,22 +12,20 @@ fn erc20_ll_check() {
     // sdk::TestEnvironment::enable_syscall_logging();
 
     let mut handler = env.prepare_test(move || -> () {
-        match check_erc20_inner(&contract_hash) {
-            Ok(_) => (),
-            Err(error) => panic!("test failed: {}", error),
-        }
+        let nonce: SHA256Hash = [7; 32].into();
+        let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
+        let mut client = ERC20Client::new(&deployed_addr);
+
+        check_inner(&mut client).unwrap_or_else(|e|
+            panic!("test failed: {e}"))
     });
 
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
-fn check_erc20_inner(contract_hash: &sdk::types::SHA256Hash) -> ERC20Result<()> {
-    let nonce: SHA256Hash = [7; 32].into();
-    let deployed_addr = deploy_contract(&nonce, contract_hash)?;
+fn check_inner(client: &mut ERC20Client) -> ClientResult<(), ERC20Error> {
     let owner = get_current_address().unwrap();
-
-    let mut client = ERC20Client::new(&deployed_addr);
     client.initialize(&owner)?;
 
     assert_eq!(client.total_supply()?, 0);

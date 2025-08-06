@@ -139,6 +139,8 @@ dependencies = [
  "erc20-if",
  "sdk_rs",
  "serde",
+ "thiserror",
+ "xdrs",
 ]
 
 [[package]]
@@ -853,6 +855,7 @@ dependencies = [
  "playground",
  "sdk_rs",
  "serde",
+ "thiserror",
  "xdrs",
 ]
 

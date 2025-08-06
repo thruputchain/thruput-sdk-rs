@@ -3,7 +3,9 @@
 use crate::result::SysResult as Result;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
+use crate::contract_panic;
 use core::mem::MaybeUninit;
+use xdrs::WriteXDR;
 
 pub fn get_caller() -> Result<ContractAddress> {
     let mut out_addr: MaybeUninit<ContractAddress> =
@@ -42,7 +44,9 @@ pub fn get_calldata_sized<const N: usize>() -> Result<[u8; N]> {
 }
 
 pub fn contract_return(buf: &[u8]) -> ! {
-    sys::raw_Return(buf);
+    let revert = false;
+
+    sys::raw_Return(buf, revert);
 }
 
 pub fn contract_exit(_code: i32) -> ! {
@@ -51,6 +55,16 @@ pub fn contract_exit(_code: i32) -> ! {
 
 pub fn contract_revert() -> ! {
     sys::raw_Exit(/* crate::syscall::SyscallErrorCode::kDeterministicWasm as i32 */);
+}
+
+pub fn contract_abort(err: &impl WriteXDR) -> ! {
+    use ::xdrs::serialize_txs::encode;
+
+    let return_buf = encode(err).unwrap_or_else(|_| {
+        contract_panic!("abort: failed uncoding return value")});
+    let revert = true;
+
+    sys::raw_Return(&return_buf, revert);
 }
 
 pub fn get_source_transaction_hash() -> Result<SHA256Hash> {

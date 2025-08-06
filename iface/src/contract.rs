@@ -16,6 +16,10 @@ pub trait ContractSrc {
 
     fn self_ty(&self) -> Option<&syn::Type>;
 
+    fn err_type(&self) -> Option<&syn::Ident> {
+        None
+    }
+
     fn methods(&self) -> impl Iterator<Item = &syn::Signature>;
 
     fn methods_sorted(&self) -> impl IntoIterator<Item = &syn::Signature> {
@@ -126,6 +130,11 @@ where
     fn client_ident(&self) -> Option<syn::Ident> {
         self.config.client_ident().or_else(||
             self.contract.client_ident())
+    }
+
+    fn err_type(&self) -> Option<&syn::Ident> {
+        self.config.err_type().or_else(||
+            self.contract.err_type())
     }
 
     fn self_ty(&self) -> Option<&syn::Type> {

@@ -10,6 +10,7 @@
 
 use crate::interface::Amount;
 use sdk::prelude::*;
+use sdk::contract_result::*;
 
 // Compute keys for storing things
 
@@ -77,7 +78,7 @@ fn add_to_allowance(
 
 // Exposed contract functions
 
-#[contract(interface = "ERC20", index = 4)]
+#[contract(interface = "ERC20", index = 4, err_type = Error)]
 pub fn initialize(owner: &ContractAddress) -> Result<()> {
     let key = get_owner_key();
 
@@ -92,7 +93,7 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 7)]
+#[contract(interface = "ERC20", index = 7, err_type = Error)]
 pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
     caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
     let amount = amount as i128;
@@ -104,7 +105,7 @@ pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 8)]
+#[contract(interface = "ERC20", index = 8, err_type = Error)]
 pub fn transfer_from(
     owner: &ContractAddress,
     to: &ContractAddress,
@@ -121,7 +122,7 @@ pub fn transfer_from(
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 0)]
+#[contract(interface = "ERC20", index = 0, err_type = Error)]
 pub fn adjust_allowance(
     spender: &ContractAddress,
     amount: Amount,
@@ -135,17 +136,17 @@ pub fn adjust_allowance(
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 3)]
+#[contract(interface = "ERC20", index = 3, err_type = Error)]
 pub fn get_balance_of(addr: &ContractAddress) -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_balance_key(addr))? as Amount)
 }
 
-#[contract(interface = "ERC20", index = 2)]
+#[contract(interface = "ERC20", index = 2, err_type = Error)]
 pub fn get_balance() -> Result<Amount> {
     get_balance_of(&get_caller()?)
 }
 
-#[contract(interface = "ERC20", index = 5)]
+#[contract(interface = "ERC20", index = 5, err_type = Error)]
 pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
@@ -156,7 +157,7 @@ pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     add_to_total_supply(amount)
 }
 
-#[contract(interface = "ERC20", index = 1)]
+#[contract(interface = "ERC20", index = 1, err_type = Error)]
 pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
@@ -167,7 +168,7 @@ pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     add_to_total_supply(-amount)
 }
 
-#[contract(interface = "ERC20", index = 6)]
+#[contract(interface = "ERC20", index = 6, err_type = Error)]
 pub fn total_supply() -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
 }
