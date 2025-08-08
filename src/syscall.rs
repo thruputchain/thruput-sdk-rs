@@ -38,8 +38,7 @@ impl SysErr {
     }
 
     pub fn is_aborted(self) -> bool {
-        // XXX
-        false
+        self.is_code(SyscallErrorCode::kFrameReverted)
     }
 }
 
