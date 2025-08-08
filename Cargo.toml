@@ -34,6 +34,9 @@ thiserror = { workspace = true }
 sha2 = { workspace = true }
 xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs", "xdr_common"] }
 
+[dev-dependencies]
+hex-literal = "1.0.0"
+
 [workspace.dependencies]
 gen = { path = "gen" }
 macros = { path = "macros" }

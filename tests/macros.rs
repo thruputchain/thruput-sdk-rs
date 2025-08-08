@@ -1,7 +1,5 @@
-use sdk_rs::macros::static_key;
+use sdk::macros::static_key;
 use hex_literal::hex;
-
-use sdk_rs as sdk;
 
 // Simple test to make sure the macro matches what is happening on the hogd side
 #[test]
