@@ -63,7 +63,6 @@ function expand_test_contract {
     shift
 
     cargo_native expand \
-        --features "mock" \
         --package "$contract" \
         "$@"
 }

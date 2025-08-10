@@ -1,4 +1,8 @@
--- width to 90 or 100?
+-- document #[contract] macro
+    - err_type (in quotes?  path type?)
+    - client
+    - exports
+-- contract_result::Error but handle client calls?
 -- wrap xdr: MethodId, etc.
 -- get_method_num -> MethodId::new(...)
 -- maybe the one-way-func on interface id is good 

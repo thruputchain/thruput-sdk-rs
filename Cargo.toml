@@ -32,7 +32,8 @@ serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
-xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs", "xdr_common"] }
+xdrs = { workspace = true, optional = true, features = ["xdr_common"] }
+xdr-repr = { workspace = true, features = ["ns", "xdr_common"] }
 
 [workspace.dependencies]
 gen = { path = "gen" }
@@ -44,13 +45,16 @@ sdk = { path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
+# xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", branch = "dbg/repr" }
+xdr-repr = { git = "ssh://git@github.com/groundhogchain/xdrs.git", branch = "dbg/repr" }
+xdr-derive = { git = "ssh://git@github.com/groundhogchain/xdrs.git", branch = "dbg/repr" }
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
 default = ["alloc", "groundhog_xdr/xdrs"]
-mock = ["macros/mock", "std", "dep:native_exec"]
+mock = ["std", "dep:native_exec", "macros/mock"]
 storage = ["alloc", "dep:bcs"]
 alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]

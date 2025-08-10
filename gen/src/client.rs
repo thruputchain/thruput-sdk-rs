@@ -5,7 +5,7 @@ use super::config::Config;
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, format_ident};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 
@@ -13,7 +13,6 @@ pub fn generate(
     contract: &(impl ContractSrc + Spanned),
     config: &Config,
 ) -> Result<TokenStream> {
-
     let contract = ConfiguredContract::new(config.clone(), contract);
 
     let client_ident = contract.client_ident().ok_or_else(||
@@ -21,12 +20,15 @@ pub fn generate(
                 "contract client identifier must be given \
                  by 'client = ClientName' attribute"))?;
 
-    let mut method_stubs = TokenStream::new();
-    for (index, method) in contract.methods_sorted().into_iter().enumerate() {
-        method_stubs.extend(generate_client_fn(index, method, &contract)?);
-    }
+    let define_repr_fn = generate_repr_fn(&contract, config)?;
 
-    let client: TokenStream = quote! {
+    let method_stubs = contract.methods_sorted()
+        .into_iter().enumerate().map(|(index, method)|
+            generate_client_fn(index, method, &contract)).collect::<Result<Vec<TokenStream>>>()?;
+
+    let client = quote! {
+
+        #define_repr_fn
 
         pub struct #client_ident {
             address: ::sdk::types::ContractAddress,
@@ -52,12 +54,29 @@ pub fn generate(
                     self
                 }
 
-                #method_stubs
+                #(#method_stubs)*
             }
         };
     };
 
     Ok(client)
+}
+
+fn generate_repr_fn(
+    contract: &impl ContractSrc,
+    _config: &Config,
+) -> Result<TokenStream> {
+    #[allow(unused)]
+    let repr_ident = format_ident!("{}_REPR", contract.interface_name().unwrap_or("CONTRACT".into()));
+    let repr_fn = format_ident!("{}_repr", contract.interface_name().unwrap_or("contract".into()));
+    let repr = crate::repr::contract_repr(contract)?;
+
+    Ok(quote! {
+        pub fn #repr_fn() -> ::sdk::interface::Contract {
+
+            #repr
+        }
+    })
 }
 
 fn generate_client_fn(

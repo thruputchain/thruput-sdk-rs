@@ -1,11 +1,14 @@
-#![cfg_attr(not(feature = "mock"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 mod error;
 pub use error::*;
 
+mod ints;
+pub use ints::*;
+
 use sdk::prelude::{ContractAddress, contract};
 
-pub type Amount = u128;
+pub type Amount = U128;
 
 #[contract(client = ERC20Client, err_type = Error)]
 pub trait ERC20 {

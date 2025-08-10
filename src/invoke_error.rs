@@ -15,6 +15,7 @@ use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[derive(ReadXDR, WriteXDR)]
+#[repr(i32)]
 pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
     #[error("client invocation failed: {0}")]
     Invoke(#[from] InvokeError),
@@ -30,6 +31,7 @@ pub type ClientResult<T, E> = Result<T, ClientError<E>>;
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[derive(ReadXDR, WriteXDR)]
+#[repr(i32)]
 pub enum InvokeError {
     #[error("invoke: error encoding arguments")]
     EncodeArgs,
