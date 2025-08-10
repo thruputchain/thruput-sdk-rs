@@ -1,0 +1,11 @@
+[package]
+name = "test-exec"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sdk = { workspace = true, features = ["mock"]}
+xdrs = { workspace = true, features = ["xdr_common", "alloc"] }
+thiserror = { workspace = true, default-features = true }
+native_exec = { workspace = true }
+xdr_common = { workspace = true, features = ["alloc"] }

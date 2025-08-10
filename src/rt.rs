@@ -32,15 +32,18 @@ mod test_rt {
 #[allow(unused)]
 pub use test_rt::trap;
 
+#[cfg(feature = "mock")]
 #[macro_export]
 macro_rules! contract_panic {
     ( $($expr:expr),* ) => {
-        {
-            #[cfg(feature = "mock")]
-            panic!($($expr),*);
+        panic!($($expr),*)
+    };
+}
 
-            #[cfg(not(feature = "mock"))]
-            $crate::rt::trap();
-        }
+#[cfg(not(feature = "mock"))]
+#[macro_export]
+macro_rules! contract_panic {
+    ( $($expr:expr),* ) => {
+        $crate::rt::trap()
     };
 }

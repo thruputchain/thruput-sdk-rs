@@ -1480,6 +1480,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-exec"
+version = "0.1.0"
+dependencies = [
+ "native_exec",
+ "sdk",
+ "thiserror",
+ "xdr_common",
+ "xdrs",
+]
+
+[[package]]
 name = "test_bytestring"
 version = "0.1.0"
 dependencies = [

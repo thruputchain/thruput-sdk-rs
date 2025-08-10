@@ -6,6 +6,7 @@ members = [
     "gen",
     "protocol-rs/groundhog_xdr", 
     "native_exec",
+    "test-exec",
     "examples/*",
     "example-interfaces/*",
     "integration_test_contracts/*",
@@ -26,7 +27,7 @@ doctest = false
 [dependencies]
 bcs = { path = "external/bcs", optional = true, default-features = false }
 macros = { workspace = true }
-native_exec = { path = "native_exec", optional = true}
+native_exec = { workspace = true, optional = true}
 groundhog_xdr = { workspace = true }
 serde = { workspace = true }
 serde_arrays = { workspace = true }
@@ -46,9 +47,10 @@ sha2 = { version = "0.10.8", default-features = false }
 sdk = { path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
-thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
+native_exec = { path = "native_exec" }
+thiserror = { version = "2.0.12", default-features = false }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module

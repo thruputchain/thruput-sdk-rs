@@ -3,6 +3,7 @@ use crate::serialize::{Deserialize, Serialize};
 #[cfg(feature = "storage")]
 use crate::storage::error::Error as StorageErr;
 use crate::syscall::SysErr;
+use crate::invoke_error::InvokeError;
 use ::thiserror::Error;
 use ::xdrs::{ReadXDR, WriteXDR};
 
@@ -25,6 +26,10 @@ pub enum ContractError {
     #[error(": failed due to syscall error: {0}")]
     Syscall(#[from] SysErr) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeSyscall as i32,
 
+    // TODO:put the InvokeError here
+    #[error(": failed due to cross-contract call failing or aborting")]
+    Call = groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeCall as i32,
+
     #[cfg(feature = "storage")]
     #[error(": failed due to storage error: {0}")]
     Storage(#[from] StorageErr) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeStorage as i32,
@@ -33,6 +38,12 @@ pub enum ContractError {
 impl From<SysErr> for Error {
     fn from(err: SysErr) -> Self {
         Error::Contract(err.into())
+    }
+}
+
+impl From<InvokeError> for Error {
+    fn from(_err: InvokeError) -> Self {
+        Error::Contract(ContractError::Call)
     }
 }
 
