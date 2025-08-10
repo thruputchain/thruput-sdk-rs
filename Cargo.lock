@@ -1266,7 +1266,9 @@ dependencies = [
  "serde",
  "serde_arrays",
  "sha2",
+ "test-exec",
  "thiserror",
+ "xdr_common",
  "xdrs",
 ]
 

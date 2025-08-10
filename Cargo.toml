@@ -37,6 +37,9 @@ xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs"
 
 [dev-dependencies]
 hex-literal = "1.0.0"
+test-exec = { workspace = true }
+xdr_common = { workspace = true }
+xdrs = { workspace = true }
 
 [workspace.dependencies]
 gen = { path = "gen" }
@@ -51,6 +54,7 @@ xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
 native_exec = { path = "native_exec" }
 thiserror = { version = "2.0.12", default-features = false }
+test-exec = { path = "test-exec" }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
