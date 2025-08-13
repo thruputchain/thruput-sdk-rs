@@ -2,9 +2,13 @@ use crate::contract::ContractSrc;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Result;
-use crate::util::error;
+use crate::util::*;
 
 pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
+    let iface_name = contract.interface_name().ok_or_else(||
+        span_error(contract.span(), "Contract has no interface name"))?;
+    let iface_vers = "0.1.0";
+
     let method_reprs: Vec<_> =
         contract.methods_sorted()
             .into_iter().enumerate().map(|(index, method)|
@@ -13,11 +17,12 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
     Ok(quote! {
         {
             use ::sdk::interface::*;
-            use ::xdr_repr::xdr as xdr;
-            use ::xdr_repr::ty::*;
+            use ::xdr_repr::*;
             use ::std::vec;
 
             Contract {
+                interface_id: #iface_name.to_string(),
+                interface_vers: #iface_vers.to_string(),
                 methods: vec![ #(#method_reprs),* ]
             }
         }
@@ -30,13 +35,24 @@ fn method_repr(_index: usize, method: &syn::Signature, _contract: &impl Contract
         .collect::<Result<Vec<Option<TokenStream>>>>()?
         .into_iter()
         .flatten();
+    let ret = ret_repr(&method.output);
 
     Ok(quote! {
         Method {
             name: #name.to_owned(),
-            args: vec![ #(#args),* ]
+            args: vec![ #(#args),* ],
+            ret: #ret
         }
     })
+}
+
+fn ret_repr(ret_ty: &syn::ReturnType) -> TokenStream {
+    match ret_ty {
+        syn::ReturnType::Default => quote! { None },
+        syn::ReturnType::Type(_, ty) => quote! {
+            Some(<#ty as HasTypeSpec>::type_spec())
+        },
+    }
 }
 
 fn arg_repr(fn_arg: &syn::FnArg) -> Result<Option<TokenStream>> {
@@ -48,7 +64,7 @@ fn arg_repr(fn_arg: &syn::FnArg) -> Result<Option<TokenStream>> {
         Ok(Some(quote! {
             Arg {
                 name: #name.to_owned(),
-                decl: <#ty as Declare>::declare(),
+                decl: <#ty as Declare>::declare(ident(#name)),
             }
         }))
     } else {

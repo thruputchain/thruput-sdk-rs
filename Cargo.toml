@@ -34,6 +34,7 @@ thiserror = { workspace = true }
 sha2 = { workspace = true }
 xdrs = { workspace = true, optional = true, features = ["xdr_common"] }
 xdr-repr = { workspace = true, features = ["ns", "xdr_common"] }
+xdr_common = { workspace = true }
 
 [workspace.dependencies]
 gen = { path = "gen" }

@@ -13,12 +13,11 @@ sdk = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 xdrs = { workspace = true, features = ["derive", "alloc"] }
 thiserror.workspace = true
-# xdr-repr = { path = "/home/dbg/gh/xdrs/xdr-repr" }
 xdr-repr = { workspace = true }
+xdr-derive = { workspace = true }
 gen = { workspace = true }
 groundhog_xdr = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
-test = false
