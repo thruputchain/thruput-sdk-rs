@@ -69,7 +69,7 @@ mod prelude_base {
     pub use super::syscall_op::*;
 
     #[doc(inline)]
-    pub use super::sys::SyscallErrorCode;
+    pub use groundhog_xdr::syscall_error::SyscallErrorCode;
 
     pub use thiserror::Error;
 

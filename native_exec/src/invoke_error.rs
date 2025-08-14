@@ -61,6 +61,12 @@ pub fn validation_error() -> InvokeError {
     }
 }
 
+pub fn abort_transaction_error() -> InvokeError {
+    InvokeError {
+        error_type: InvokeErrorCode::kInvokeAbortTransaction,
+    }
+}
+
 pub fn trap() -> ! {
     panic_any(Box::new(deterministic_error()))
 }

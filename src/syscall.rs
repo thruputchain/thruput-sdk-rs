@@ -1,10 +1,6 @@
 /// Rust bindings for the syscalls
 pub mod bindings;
 
-// provides TryInto<SyscallErrorCode> for SysErr
-#[rustfmt::skip]
-mod error_helper;
-
 use ::xdrs::{ReadXDR, WriteXDR};
 use thiserror::Error;
 
@@ -14,15 +10,16 @@ use thiserror::Error;
 #[error("SysErr({0})")]
 pub struct SysErr(i32);
 
-pub use bindings::SyscallErrorCode;
+pub use groundhog_xdr::syscall_error::SyscallErrorCode;
 
 impl SysErr {
     pub fn is_code(self, code: SyscallErrorCode) -> bool {
-        if let Ok(c) = TryInto::<SyscallErrorCode>::try_into(self) {
+        self.0 == code as i32
+        /* if let Ok(c) = TryInto::<SyscallErrorCode>::try_into(self.0) {
             c == code
         } else {
             false
-        }
+        } */
     }
 
     pub fn is_none(self) -> bool {

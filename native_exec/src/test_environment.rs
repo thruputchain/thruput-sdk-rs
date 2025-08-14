@@ -175,7 +175,7 @@ impl<'a> TestEnvironment {
             signature: Signature::default(),
             tx: Transaction {
                 created: 0,
-                id: [0; 16].into(),
+                origin_id: [0; 16].into(),
                 invocation: Invocation {
                     invoked_address: invoke_addr,
                     entrypoint: entrypoint,

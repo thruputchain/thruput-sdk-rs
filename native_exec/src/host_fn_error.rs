@@ -24,6 +24,9 @@ impl ForeignHostFnResult {
             x if x == HostFnErrorCode::kHostValidationFailure as i32 => {
                 panic_any(crate::invoke_error::validation_error());
             }
+            x if x == HostFnErrorCode::kHostAbortTransaction as i32 => {
+                panic_any(crate::invoke_error::abort_transaction_error());
+            }
             _ => {
                 panic_any(crate::invoke_error::unrecoverable_error());
             }

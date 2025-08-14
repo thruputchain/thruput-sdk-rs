@@ -46,13 +46,3 @@ pub fn generate_syscall_decls(input: TokenStream) -> TokenStream {
 pub fn generate_syscall_numbers(input: TokenStream) -> TokenStream {
     syscalls::generate_syscall_numbers(input)
 }
-
-#[proc_macro]
-pub fn generate_syscall_error_codes(input: TokenStream) -> TokenStream {
-    syscalls::generate_syscall_error_codes(input)
-}
-
-#[proc_macro]
-pub fn generate_syscall_error_helper(input: TokenStream) -> TokenStream {
-    syscalls::generate_syscall_error_helper(input)
-}

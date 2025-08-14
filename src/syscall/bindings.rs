@@ -6,7 +6,6 @@ use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 
 macros::generate_syscall_numbers!("protocol-rs/protocol/syscalls.yaml");
-macros::generate_syscall_error_codes!("protocol-rs/protocol/syscalls.yaml");
 
 #[cfg(not(feature = "mock"))]
 #[link(wasm_import_module = "marmot")]
