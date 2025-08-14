@@ -9,7 +9,6 @@ erc20-if = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 xdrs = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
-gen = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -5,4 +5,4 @@ pub use StorageKeyContractData as StorageKey;
 
 pub use ::groundhog_xdr::contract::*;
 
-pub use ::xdr_common::*;
+pub use ::xdrs::xdr_common::*;

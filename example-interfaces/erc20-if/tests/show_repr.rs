@@ -1,6 +1,6 @@
 #[test]
-fn show_repr() {
-    let contract = erc20_if::ERC20_repr();
+fn show_spec() {
+    let spec = erc20_if::ERC20_spec();
 
-    println!("\n{contract}");
+    println!("\n{spec}");
 }

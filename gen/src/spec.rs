@@ -5,8 +5,7 @@ use syn::parse::Result;
 use crate::util::*;
 
 pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
-    let iface_name = contract.interface_name().ok_or_else(||
-        span_error(contract.span(), "Contract has no interface name"))?;
+    let iface_name = contract.interface_name().unwrap_or_else(|| String::new());
     let iface_vers = "0.1.0";
 
     let method_reprs: Vec<_> =
@@ -16,9 +15,11 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
 
     Ok(quote! {
         {
-            use ::sdk::interface::*;
-            use ::xdr_repr::*;
+            use ::xdrs::xdr_repr::*;
+            use ::sdk::spec::*;
             use ::std::vec;
+            use ::std::string::*;
+            use ::std::format;
 
             Contract {
                 interface_id: #iface_name.to_string(),

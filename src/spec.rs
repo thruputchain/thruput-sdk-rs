@@ -1,10 +1,10 @@
 //! Specification of contract interfaces
 
-pub use xdr_repr::*;
-pub use std::vec;
-pub use xdr_common::*;
+pub use xdrs::xdr_repr::*;
+pub use xdrs::xdr_common::*;
 pub use groundhog_xdr::types::*;
 pub use groundhog_xdr::contract::*;
+pub use std::vec;
 
 #[derive(Debug)]
 pub struct Contract {

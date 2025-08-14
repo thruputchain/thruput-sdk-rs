@@ -3,12 +3,9 @@
 mod error;
 pub use error::*;
 
-mod ints;
-pub use ints::*;
-
 use sdk::prelude::{ContractAddress, contract};
 
-pub type Amount = U128;
+pub type Amount = u128;
 
 #[contract(client = ERC20Client, err_type = Error)]
 pub trait ERC20 {

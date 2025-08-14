@@ -8,12 +8,11 @@ darling = "0.20.10"
 proc-macro2 = "1.0.92"
 quote = "1.0.38"
 syn = { version = "2.0.93" , features = [ "full" , "extra-traits", "visit", "printing" ] }
-xdrs = { workspace = true, features = ["strict", "derive", "txs", "alloc"] }
-xdr-derive = { workspace = true }
-xdr-repr = { workspace = true }
+xdrs = { workspace = true, features = ["derive", "alloc"] }
 groundhog_xdr = { workspace = true, features = ["std", "xdrs"] }
 sha2 = { workspace = true }
 
 [features]
+spec = ["alloc", "groundhog_xdr/spec", "xdrs/repr"]
 alloc = []
 logging = []

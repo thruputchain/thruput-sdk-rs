@@ -46,6 +46,19 @@ function build_contracts {
     done
 }
 
+function tree_contract {
+    contract=${1:?Please specify contract to tree}
+    shift
+
+    cargo tree \
+        --features "guest" \
+        --target wasm32-unknown-unknown \
+        --package "$contract" \
+        -Zbuild-std=alloc,core \
+        -Zbuild-std-features=panic_immediate_abort \
+        "$@"
+}
+
 function expand_contract {
     contract=${1:?Please specify contract to expand}
     shift
@@ -110,6 +123,9 @@ case "$what" in
         else
             test_contracts "$@"
         fi
+        ;;
+    tree)
+        tree_contract "$@"
         ;;
     ls)
         ls_contracts

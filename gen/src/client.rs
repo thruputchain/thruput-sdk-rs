@@ -20,7 +20,11 @@ pub fn generate(
                 "contract client identifier must be given \
                  by 'client = ClientName' attribute"))?;
 
-    let define_repr_fn = generate_repr_fn(&contract, config)?;
+    let define_spec_fn = if cfg!(feature = "spec") {
+        generate_spec_fn(&contract, config)?
+    } else {
+        quote! {}
+    };
 
     let method_stubs = contract.methods_sorted()
         .into_iter().enumerate().map(|(index, method)|
@@ -28,7 +32,7 @@ pub fn generate(
 
     let client = quote! {
 
-        #define_repr_fn
+        #define_spec_fn
 
         pub struct #client_ident {
             address: ::sdk::types::ContractAddress,
@@ -62,19 +66,18 @@ pub fn generate(
     Ok(client)
 }
 
-fn generate_repr_fn(
+fn generate_spec_fn(
     contract: &impl ContractSrc,
     _config: &Config,
 ) -> Result<TokenStream> {
     #[allow(unused)]
-    let repr_ident = format_ident!("{}_REPR", contract.interface_name().unwrap_or("CONTRACT".into()));
-    let repr_fn = format_ident!("{}_repr", contract.interface_name().unwrap_or("contract".into()));
-    let repr = crate::repr::contract_repr(contract)?;
+    let spec_fn = format_ident!("{}_spec", contract.interface_name().unwrap_or("contract".into()));
+    let spec = crate::spec::contract_repr(contract)?;
 
     Ok(quote! {
-        pub fn #repr_fn() -> ::sdk::interface::Contract {
+        pub fn #spec_fn() -> ::sdk::spec::Contract {
 
-            #repr
+            #spec
         }
     })
 }

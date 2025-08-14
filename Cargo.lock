@@ -62,7 +62,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -341,7 +341,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -375,7 +375,7 @@ dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
  "strsim",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -386,7 +386,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -472,7 +472,6 @@ version = "0.1.2"
 dependencies = [
  "erc20",
  "erc20-if",
- "gen",
  "sdk",
  "serde",
  "thiserror",
@@ -483,13 +482,9 @@ dependencies = [
 name = "erc20-if"
 version = "0.1.0"
 dependencies = [
- "gen",
- "groundhog_xdr",
  "sdk",
  "serde",
  "thiserror",
- "xdr-derive",
- "xdr-repr",
  "xdrs",
 ]
 
@@ -588,9 +583,7 @@ dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
  "sha2",
- "syn 2.0.104",
- "xdr-derive",
- "xdr-repr",
+ "syn 2.0.105",
  "xdrs",
 ]
 
@@ -658,8 +651,6 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_arrays",
- "xdr-repr",
- "xdr_common",
  "xdrs",
 ]
 
@@ -806,7 +797,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "sha2",
- "syn 2.0.104",
+ "syn 2.0.105",
  "xdrs",
 ]
 
@@ -947,7 +938,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff24dfcda44452b9816fff4cd4227e1bb73ff5a2f1bc1105aa92fb8565ce44d2"
 dependencies = [
  "proc-macro2 1.0.97",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -1122,9 +1113,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b418a60154510ca1a002a752ca9714984e21e4241e804d32555251faf8b78ffa"
+checksum = "368f01d005bf8fd9b1206fb6fa653e6c4a81ceb1466406b81792d87c5677a58f"
 dependencies = [
  "either",
  "rayon-core",
@@ -1132,9 +1123,9 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.12.1"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
+checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
@@ -1156,7 +1147,6 @@ dependencies = [
  "read_only_test",
  "sdk",
  "serde",
- "xdr_common",
  "xdrs",
 ]
 
@@ -1268,8 +1258,6 @@ dependencies = [
  "serde_arrays",
  "sha2",
  "thiserror",
- "xdr-repr",
- "xdr_common",
  "xdrs",
 ]
 
@@ -1314,7 +1302,7 @@ checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
 dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -1460,9 +1448,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.104"
+version = "2.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17b6f705963418cdb9927482fa304bc562ece2fdd4f616084c50b7023b435a40"
+checksum = "7bc3fcb250e53458e712715cf74285c1f889686520d79294a9ef3bd7aa1fc619"
 dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
@@ -1516,7 +1504,7 @@ checksum = "cc5b44b4ab9c2fdd0e0512e6bece8388e214c0749f5862b114cc5b7a25daf227"
 dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -1639,7 +1627,7 @@ dependencies = [
  "log",
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
  "wasm-bindgen-shared",
 ]
 
@@ -1661,7 +1649,7 @@ checksum = "8ae87ea40c9f689fc23f209965b6fb8a99ad69aeeb0231408be24920604395de"
 dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -1881,18 +1869,18 @@ dependencies = [
 [[package]]
 name = "xdr-derive"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git?branch=dbg%2Frepr#ba2d44a4d6b8cc2ed9721a1d752aabaf369b5a9b"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#bbe8797f5e8dc11347a36133748dcd805ebffa37"
 dependencies = [
  "darling",
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
 name = "xdr-repr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git?branch=dbg%2Frepr#ba2d44a4d6b8cc2ed9721a1d752aabaf369b5a9b"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#bbe8797f5e8dc11347a36133748dcd805ebffa37"
 dependencies = [
  "xdr_common",
 ]
@@ -1905,7 +1893,7 @@ source = "git+ssh://git@github.com/groundhogchain/xdr_common.git#fe9df26f21f9e69
 [[package]]
 name = "xdrs"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git?branch=dbg%2Frepr#ba2d44a4d6b8cc2ed9721a1d752aabaf369b5a9b"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#bbe8797f5e8dc11347a36133748dcd805ebffa37"
 dependencies = [
  "thiserror",
  "xdr-derive",
@@ -1930,7 +1918,7 @@ checksum = "9ecf5b4cc5364572d7f4c329661bcc82724222973f2cab6f050a4e5c22f75181"
 dependencies = [
  "proc-macro2 1.0.97",
  "quote 1.0.40",
- "syn 2.0.104",
+ "syn 2.0.105",
 ]
 
 [[package]]
