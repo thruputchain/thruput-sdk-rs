@@ -1,7 +1,7 @@
 use syn::parse::Error;
 use core::cmp::Ordering;
 use quote::quote;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 
 pub fn cmp_method_ref_by_name(a: &&syn::Signature, b: &&syn::Signature) -> Ordering {
     cmp_method_by_name(*a, *b)
@@ -60,6 +60,14 @@ where
     M: AsRef<str>,
 {
     Error::new(spanned.span(), msg.as_ref())
+}
+
+// Produce an error referencing a particular code span
+pub fn span_error<M>(span: Span, msg: M) -> Error
+where
+    M: AsRef<str>,
+{
+    Error::new(span, msg.as_ref())
 }
 
 pub fn generic_type_first_arg(ty: &syn::Type) -> Option<&syn::Type> {

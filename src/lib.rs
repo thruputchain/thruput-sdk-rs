@@ -16,6 +16,9 @@ compile_error!("building with nostd (or just the alloc feature) is not supported
 #[doc(inline)]
 pub use macros;
 
+#[cfg(feature = "spec")]
+pub mod spec;
+
 // Base
 pub mod syscall;
 pub mod syscall_op;

@@ -32,7 +32,7 @@ serde = { workspace = true }
 serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
-xdrs = { workspace = true, optional = true, features = ["strict", "alloc", "cxs", "txs", "xdr_common"] }
+xdrs = { workspace = true, optional = true }
 
 [dev-dependencies]
 hex-literal = "1.0.0"
@@ -41,24 +41,23 @@ hex-literal = "1.0.0"
 gen = { path = "gen" }
 macros = { path = "macros" }
 erc20-if = { path = "example-interfaces/erc20-if" }
-groundhog_xdr = { path = "protocol-rs/groundhog_xdr", default-features = false }
+groundhog_xdr = { path = "protocol-rs/groundhog_xdr", features = ["xdrs", "serde"] }
 sha2 = { version = "0.10.8", default-features = false }
 sdk = { path = "." }
 serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git"}
-xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr", "xdr_common", "derive", "ns"] }
 
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
 default = ["alloc", "groundhog_xdr/xdrs"]
-mock = ["macros/mock", "std", "dep:native_exec"]
+mock = ["std", "dep:native_exec", "macros/mock"]
 storage = ["alloc", "dep:bcs"]
 alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
-xdrs = ["dep:xdrs"]
 logging = ["macros/logging"]
+spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
 
 [profile.dev]
 opt-level = 3
@@ -89,3 +88,7 @@ lto = true
 codegen-units = 1
 trim-paths = "all" # unstable
 # also see rust flags set in .cargo/config.toml
+
+[[test]]
+name = "int128"
+required-features = ["std"]

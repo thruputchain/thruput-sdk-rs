@@ -4,10 +4,14 @@
 //! - bare impls
 
 use quote::format_ident;
+use proc_macro2::Span;
+use syn::spanned::Spanned;
 use crate::util::cmp_method_ref_by_name;
 use crate::config::Config;
 
 pub trait ContractSrc {
+    fn span(&self) -> Span;
+
     fn trait_path(&self) -> Option<syn::Path>;
 
     fn interface_name(&self) -> Option<String>;
@@ -30,6 +34,10 @@ pub trait ContractSrc {
 }
 
 impl ContractSrc for syn::ItemTrait {
+    fn span(&self) -> Span {
+        <Self as Spanned>::span(self)
+    }
+
     fn trait_path(&self) -> Option<syn::Path> {
         Some(self.ident.clone().into())
     }
@@ -61,6 +69,10 @@ impl ContractSrc for syn::ItemTrait {
 }
 
 impl ContractSrc for syn::ItemImpl {
+    fn span(&self) -> Span {
+        <Self as Spanned>::span(self)
+    }
+
     fn trait_path(&self) -> Option<syn::Path> {
         self.trait_.as_ref().map(|(_, path, _)| path.clone())
     }
@@ -118,6 +130,10 @@ impl<'a, T> ContractSrc for ConfiguredContract<'a, T>
 where
     T: ContractSrc
 {
+    fn span(&self) -> Span {
+        self.contract.span()
+    }
+
     fn trait_path(&self) -> Option<syn::Path> {
         self.contract.trait_path()
     }

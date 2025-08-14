@@ -5,7 +5,7 @@ use super::config::Config;
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, format_ident};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 
@@ -13,7 +13,6 @@ pub fn generate(
     contract: &(impl ContractSrc + Spanned),
     config: &Config,
 ) -> Result<TokenStream> {
-
     let contract = ConfiguredContract::new(config.clone(), contract);
 
     let client_ident = contract.client_ident().ok_or_else(||
@@ -21,12 +20,19 @@ pub fn generate(
                 "contract client identifier must be given \
                  by 'client = ClientName' attribute"))?;
 
-    let mut method_stubs = TokenStream::new();
-    for (index, method) in contract.methods_sorted().into_iter().enumerate() {
-        method_stubs.extend(generate_client_fn(index, method, &contract)?);
-    }
+    let define_spec_fn = if cfg!(feature = "spec") {
+        generate_spec_fn(&contract, config)?
+    } else {
+        quote! {}
+    };
 
-    let client: TokenStream = quote! {
+    let method_stubs = contract.methods_sorted()
+        .into_iter().enumerate().map(|(index, method)|
+            generate_client_fn(index, method, &contract)).collect::<Result<Vec<TokenStream>>>()?;
+
+    let client = quote! {
+
+        #define_spec_fn
 
         pub struct #client_ident {
             address: ::sdk::types::ContractAddress,
@@ -52,12 +58,28 @@ pub fn generate(
                     self
                 }
 
-                #method_stubs
+                #(#method_stubs)*
             }
         };
     };
 
     Ok(client)
+}
+
+fn generate_spec_fn(
+    contract: &impl ContractSrc,
+    _config: &Config,
+) -> Result<TokenStream> {
+    #[allow(unused)]
+    let spec_fn = format_ident!("{}_spec", contract.interface_name().unwrap_or("contract".into()));
+    let spec = crate::spec::contract_repr(contract)?;
+
+    Ok(quote! {
+        pub fn #spec_fn() -> ::sdk::spec::Contract {
+
+            #spec
+        }
+    })
 }
 
 fn generate_client_fn(

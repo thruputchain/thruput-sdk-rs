@@ -5,13 +5,15 @@ edition = "2024"
 
 [features]
 storage = ["sdk/storage"]
-mock = ["sdk/mock"]
+mock = ["std", "sdk/mock"]
+std = ["sdk/std"]
+spec = ["sdk/spec", "std"]
 
 [dependencies]
 sdk = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-xdrs = { workspace = true, features = ["derive", "extras"] }
-thiserror.workspace = true
+xdrs = { workspace = true, features = ["derive", "alloc", "extras", "int128_xdr"] }
+thiserror = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

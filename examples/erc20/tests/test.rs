@@ -1,6 +1,6 @@
 use erc20::implementation;
 use erc20::ERC20Client;
-use erc20::interface::*;
+use erc20::interface::Error;
 use sdk::prelude::*;
 
 #[test]

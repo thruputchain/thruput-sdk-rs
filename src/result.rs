@@ -16,6 +16,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 // Error type for general SDK functions
 #[derive(Error, Debug, Clone, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[repr(i32)]
 pub enum Error {
     #[error("System call error: {0}")]
     SystemErr(#[from] SysErr),
