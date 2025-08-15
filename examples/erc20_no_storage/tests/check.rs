@@ -2,6 +2,7 @@ use erc20_no_storage::test_setup;
 use erc20_no_storage::ERC20Client;
 use erc20_no_storage::interface::Error as ERC20Error;
 use sdk::*;
+use thiserror::Error;
 
 #[test]
 fn check() {

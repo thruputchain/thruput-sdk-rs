@@ -1,5 +1,5 @@
 use xdrs::serialize_txs::encode;
-use groundhog_xdr::types::{int128_xdr, uint128_xdr};
+use sdk::types::{int128_xdr, uint128_xdr};
 
 // Can we roundtrip-convert u128->uint128_xdr->u128?
 #[test]

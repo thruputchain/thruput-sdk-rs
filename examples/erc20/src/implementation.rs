@@ -4,8 +4,10 @@
 // below will be necessary
 #![allow(clippy::unnecessary_cast)]
 
-use super::interface::{Amount, ERC20, Error, Result};
+use crate::interface::*;
 use sdk::*;
+use sdk::storage::{NNInt, Map};
+use sdk::serialize::*;
 
 type Balance = NNInt;
 type Allowance = NNInt;
@@ -46,7 +48,7 @@ impl TokenContract {
     fn _adjust_balance(
         &mut self,
         owner: &ContractAddress,
-        amount: i128,
+        diff: Difference,
     ) -> Result<()> {
         let mut balance = self.balances.get(owner)?;
 
@@ -54,7 +56,7 @@ impl TokenContract {
         // number results in a non-negative value.
         // For never-stored-to addresses, it acts as
         // if the address had contained (0, 0).
-        balance.add_default_zero(amount)?;
+        balance.add_default_zero(diff)?;
         Ok(())
     }
 
@@ -63,16 +65,16 @@ impl TokenContract {
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
-        amount: i128,
+        diff: Difference,
     ) -> Result<()> {
         let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
-        spender_allowance.add_default_zero(amount)?;
+        spender_allowance.add_default_zero(diff)?;
         Ok(())
     }
 
-    fn _adjust_total_supply(&mut self, amount: i128) -> Result<()> {
-        self.total_supply.add_default_zero(amount)?;
+    fn _adjust_total_supply(&mut self, diff: Difference) -> Result<()> {
+        self.total_supply.add_default_zero(diff)?;
         Ok(())
     }
 
@@ -105,8 +107,9 @@ impl ERC20 for TokenContract {
     ) -> Result<()> {
         let owner = get_caller()?;
 
-        self._adjust_balance(&owner, -(amount as i128))?;
-        self._adjust_balance(receiver, amount as i128)
+        let diff = amount_to_diff(amount)?;
+        self._adjust_balance(&owner, -diff)?;
+        self._adjust_balance(receiver, diff)
     }
 
     fn transfer_from(
@@ -116,19 +119,21 @@ impl ERC20 for TokenContract {
         amount: Amount,
     ) -> Result<()> {
         let spender = get_caller()?;
-        self._adjust_allowance(owner, &spender, -(amount as i128))?;
 
-        self._adjust_balance(owner, -(amount as i128))?;
-        self._adjust_balance(receiver, amount as i128)
+        let diff = amount_to_diff(amount)?;
+        self._adjust_allowance(owner, &spender, -diff)?;
+        self._adjust_balance(owner, -diff)?;
+        self._adjust_balance(receiver, diff)
     }
 
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        amount: Amount,
+        diff: Difference,
     ) -> Result<()> {
         let owner = get_caller()?;
-        self._adjust_allowance(&owner, spender, amount as i128)
+
+        self._adjust_allowance(&owner, spender, diff)
     }
 
     fn get_balance_of(&self, owner: &ContractAddress) -> Result<Amount> {
@@ -151,8 +156,9 @@ impl ERC20 for TokenContract {
             Error::MustBeContractOwner,
         )?;
 
-        self._adjust_balance(receiver, amount as i128)?;
-        self._adjust_total_supply(amount as i128)
+        let diff = amount_to_diff(amount)?;
+        self._adjust_balance(receiver, diff)?;
+        self._adjust_total_supply(diff)
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
@@ -162,19 +168,12 @@ impl ERC20 for TokenContract {
             Error::MustBeContractOwner,
         )?;
 
-        self._adjust_balance(owner, -(amount as i128))?;
-        self._adjust_total_supply(-(amount as i128))
+        let diff = amount_to_diff(amount)?;
+        self._adjust_balance(owner, -diff)?;
+        self._adjust_total_supply(-diff)
     }
 
     fn total_supply(&self) -> Result<Amount> {
         self._total_supply()
-    }
-}
-
-fn caller_ensure(pred: bool, error: Error) -> Result<()> {
-    if pred {
-        Ok(())
-    } else {
-        Err(error)
     }
 }

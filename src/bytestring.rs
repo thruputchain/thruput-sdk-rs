@@ -106,6 +106,8 @@ mod bytestring_get_alloc {
     use crate::sysresult::SysResult as Result;
     use crate::sys;
     use crate::types::StorageKeyContractData;
+    #[allow(unused_imports)] // import is for docs
+    use crate::syscall::SyscallErrorCode;
     use alloc::boxed::Box;
     use core::mem::MaybeUninit;
 

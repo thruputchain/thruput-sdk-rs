@@ -2,13 +2,6 @@
 
 #![cfg_attr(not(feature = "mock"), no_std)]
 
-// A trait describing the contract interface
-pub mod interface;
-
-// A client stub that provides the interface via cross-contract calls
-#[cfg(feature = "client")]
-pub use interface::ERC20Client;
-
 // An implementation of the contract interface
 #[cfg(feature = "guest")]
 mod implementation;

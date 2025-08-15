@@ -1,3 +1,5 @@
+//! Hash trait
+
 use crate::crypto::{sha_256, SHA256Hash};
 use crate::sysresult::{Result, Error};
 

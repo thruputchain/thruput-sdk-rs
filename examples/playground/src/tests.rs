@@ -1,5 +1,4 @@
-use crate::implementation;
-use crate::ERC20Client;
+use crate::implementation::{MyClient, Error, test_setup};
 use sdk::*;
 use thiserror::Error;
 
@@ -7,7 +6,7 @@ use thiserror::Error;
 fn check_playground() {
     let mut env = sdk::TestEnvironment::new();
 
-    let test_contract = implementation::test_setup::register(&mut env);
+    let test_contract = test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> () {
@@ -40,24 +39,8 @@ fn check_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<(), TestError> 
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address().unwrap();
 
-    let mut client = ERC20Client::new(&deployed_addr);
+    let mut client = MyClient::new(&deployed_addr);
     client.initialize(&owner)?;
-
-    assert_eq!(client.total_supply()?, 0);
-    assert_eq!(client.get_balance()?, 0);
-
-    client.mint(&owner, 100)?;
-    assert_eq!(client.get_balance()?, 100);
-
-    let other: ContractAddress = [0xBB; 32].into();
-    client.transfer(&other, 25)?;
-    assert_eq!(client.get_balance_of(&other)?, 25);
-    assert_eq!(client.get_balance_of(&owner)?, 75);
-
-    client.burn(&other, 5)?;
-    assert_eq!(client.get_balance_of(&other)?, 20);
-
-    assert_eq!(client.total_supply()?, 95);
 
     client.add_frot(10)?;
     let f = client.get_frot()?;

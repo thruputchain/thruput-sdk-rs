@@ -5,7 +5,8 @@
 use erc20_if::Error as ERC20Error;
 use erc20_if::ERC20Client;
 use erc20_if::Amount;
-use sdk::storage_prelude::*;
+use sdk::*;
+use sdk::serialize::*;
 use thiserror::Error;
 
 #[derive(Default, Debug, Serialize, Deserialize)]

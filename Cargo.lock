@@ -713,6 +713,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "initial_token_claim"
+version = "0.1.0"
+dependencies = [
+ "initial_token_claim",
+ "sdk",
+ "serde",
+]
+
+[[package]]
 name = "itc_erc20"
 version = "0.1.1"
 dependencies = [
@@ -1399,6 +1408,7 @@ dependencies = [
  "erc20-if",
  "erc20_low_level",
  "sdk",
+ "serde",
  "simple_wallet_old",
 ]
 

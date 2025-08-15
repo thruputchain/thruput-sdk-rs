@@ -5,7 +5,7 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(clippy::useless_conversion)]
 
-use crate::interface::{Amount, ERC20, Error, Result};
+use crate::interface::*;
 use sdk::*;
 
 // Compute keys for storing things
@@ -47,28 +47,28 @@ fn ensure_caller_is_owner() -> Result<()> {
     caller_ensure(caller == owner, Error::MustBeContractOwner)
 }
 
-fn add_to_total_supply(amount: i128) -> Result<()> {
+fn add_to_total_supply(diff: Difference) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_total_supply_key(),
-        amount,
+        diff,
     )?)
 }
 
-fn add_to_balance(addr: &ContractAddress, amount: i128) -> Result<()> {
+fn add_to_balance(addr: &ContractAddress, diff: Difference) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_balance_key(addr),
-        amount,
+        diff,
     )?)
 }
 
 fn add_to_allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
-    amount: i128,
+    diff: Difference,
 ) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_allowance_key(owner, spender),
-        amount,
+        diff,
     )?)
 }
 
@@ -95,14 +95,10 @@ impl ERC20 for Token {
     }
 
     fn transfer(&mut self, to: &ContractAddress, amount: Amount) -> Result<()> {
-        assert!(amount <= i128::MAX as u128, "Amount too large");
-        let amount = amount as i128;
-
         let caller = get_caller()?;
-
-        add_to_balance(&caller, -amount)?;
-        add_to_balance(to, amount)?;
-        Ok(())
+        let diff = amount_to_diff(amount)?;
+        add_to_balance(&caller, -diff)?;
+        add_to_balance(to, diff)
     }
 
     fn transfer_from(
@@ -111,29 +107,21 @@ impl ERC20 for Token {
         to: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        assert!(amount <= i128::MAX as u128, "Amount too large");
-        let amount = amount as i128;
-
         let caller = get_caller()?;
-        add_to_allowance(owner, &caller, -amount)?;
-
-        add_to_balance(owner, -amount)?;
-        add_to_balance(to, amount)?;
-        Ok(())
+        let diff = amount_to_diff(amount)?;
+        add_to_allowance(owner, &caller, -diff)?;
+        add_to_balance(owner, -diff)?;
+        add_to_balance(to, diff)
     }
 
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        amount: Amount,
+        diff: Difference,
     ) -> Result<()> {
-        assert!(amount <= i128::MAX as u128, "Amount too large");
-        let amount = amount as i128;
-
         let caller = get_caller()?;
 
-        add_to_allowance(&caller, spender, amount)?;
-        Ok(())
+        add_to_allowance(&caller, spender, diff)
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Result<Amount> {
@@ -147,40 +135,20 @@ impl ERC20 for Token {
     fn mint(&mut self, to: &ContractAddress, amount: Amount) -> Result<()> {
         ensure_caller_is_owner()?;
 
-        assert!(amount <= i128::MAX as u128, "Amount too large");
-        let amount = amount as i128;
-
-        add_to_balance(to, amount)?;
-        add_to_total_supply(amount)
+        let diff = amount_to_diff(amount)?;
+        add_to_balance(to, diff)?;
+        add_to_total_supply(diff)
     }
 
     fn burn(&mut self, to: &ContractAddress, amount: Amount) -> Result<()> {
         ensure_caller_is_owner()?;
 
-        assert!(amount <= i128::MAX as u128, "Amount too large");
-        let amount = amount as i128;
-
-        add_to_balance(to, -amount)?;
-        add_to_total_supply(-amount)
+        let diff = amount_to_diff(amount)?;
+        add_to_balance(to, -diff)?;
+        add_to_total_supply(-diff)
     }
 
     fn total_supply(&self) -> Result<Amount> {
         Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
-    }
-}
-
-pub fn internal_err<T, M: AsRef<str>>(_msg: M) -> Result<T> {
-    Err(Error::SystemErr)
-}
-
-pub fn caller_error<T>(err: Error) -> Result<T> {
-    Err(err)
-}
-
-pub fn caller_ensure(pred: bool, err: Error) -> Result<()> {
-    if pred {
-        Ok(())
-    } else {
-        Err(err)
     }
 }

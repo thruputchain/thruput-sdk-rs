@@ -8,7 +8,7 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(clippy::useless_conversion)]
 
-use crate::interface::{Amount, Result};
+use crate::interface::*;
 use sdk::*;
 
 // Compute keys for storing things
@@ -47,31 +47,31 @@ fn get_owner() -> Result<ContractAddress> {
 fn ensure_caller_is_owner() -> Result<()> {
     let caller = get_caller()?;
     let owner = get_owner()?;
-    caller_ensure(caller == owner, "Caller must be owner")
+    caller_ensure(caller == owner, Error::MustBeContractOwner)
 }
 
-fn add_to_total_supply(amount: i128) -> Result<()> {
+fn add_to_total_supply(diff: Difference) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_total_supply_key(),
-        amount,
+        diff,
     )?)
 }
 
-fn add_to_balance(addr: &ContractAddress, amount: i128) -> Result<()> {
+fn add_to_balance(addr: &ContractAddress, diff: Difference) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_balance_key(addr),
-        amount,
+        diff,
     )?)
 }
 
 fn add_to_allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
-    amount: i128,
+    diff: Difference,
 ) -> Result<()> {
     Ok(non_negative_int_add_default_zero(
         &get_allowance_key(owner, spender),
-        amount,
+        diff,
     )?)
 }
 
@@ -83,7 +83,7 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
 
     // Make sure we haven't already been initialized
     if bytestring_exists(&key)? {
-        return caller_error("Contract already initialized");
+        return caller_error(Error::AlreadyInitialized);
     }
 
     // Store ourselves
@@ -94,14 +94,10 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
 
 #[contract(interface = "ERC20", index = 7, err_type = Error)]
 pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
-    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
-    let amount = amount as i128;
-
     let caller = get_caller()?;
-
-    add_to_balance(&caller, -amount)?;
-    add_to_balance(to, amount)?;
-    Ok(())
+    let diff = amount_to_diff(amount)?;
+    add_to_balance(&caller, -diff)?;
+    add_to_balance(to, diff)
 }
 
 #[contract(interface = "ERC20", index = 8, err_type = Error)]
@@ -110,29 +106,20 @@ pub fn transfer_from(
     to: &ContractAddress,
     amount: Amount,
 ) -> Result<()> {
-    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
-    let amount = amount as i128;
-
     let caller = get_caller()?;
-    add_to_allowance(owner, &caller, -amount)?;
-
-    add_to_balance(owner, -amount)?;
-    add_to_balance(to, amount)?;
-    Ok(())
+    let diff = amount_to_diff(amount)?;
+    add_to_allowance(owner, &caller, -diff)?;
+    add_to_balance(owner, -diff)?;
+    add_to_balance(to, diff)
 }
 
 #[contract(interface = "ERC20", index = 0, err_type = Error)]
 pub fn adjust_allowance(
     spender: &ContractAddress,
-    amount: Amount,
+    diff: Difference,
 ) -> Result<()> {
-    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
-    let amount = amount as i128;
-
     let caller = get_caller()?;
-
-    add_to_allowance(&caller, spender, amount)?;
-    Ok(())
+    add_to_allowance(&caller, spender, diff)
 }
 
 #[contract(interface = "ERC20", index = 3, err_type = Error)]
@@ -149,35 +136,23 @@ pub fn get_balance() -> Result<Amount> {
 pub fn mint(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
-    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
-    let amount = amount as i128;
-
-    add_to_balance(to, amount)?;
-    add_to_total_supply(amount)
+    let diff = amount_to_diff(amount)?;
+    add_to_balance(to, diff)?;
+    add_to_total_supply(diff)
 }
 
 #[contract(interface = "ERC20", index = 1, err_type = Error)]
 pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
-    caller_ensure(amount <= i128::MAX as u128, "Amount too large")?;
-    let amount = amount as i128;
-
-    add_to_balance(to, -amount)?;
-    add_to_total_supply(-amount)
+    let diff = amount_to_diff(amount)?;
+    add_to_balance(to, -diff)?;
+    add_to_total_supply(-diff)
 }
 
 #[contract(interface = "ERC20", index = 6, err_type = Error)]
 pub fn total_supply() -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
-}
-
-fn caller_ensure(pred: bool, error: Error) -> Result<()> {
-    if pred {
-        Ok(())
-    } else {
-        Err(error)
-    }
 }
 
 // TODO: Something better

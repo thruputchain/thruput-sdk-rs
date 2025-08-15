@@ -7,7 +7,7 @@ pub type SyscallResult<T> = core::result::Result<T, SysErr>;
 #[derive(xdrs::ReadXDR, xdrs::WriteXDR)]
 #[derive(Error, Copy, Clone, Debug, PartialEq, Eq)]
 #[error("SysErr({0})")]
-pub struct SysErr(i32);
+pub struct SysErr(pub i32);
 
 /// Error codes
 pub use groundhog_xdr::syscall_error::SyscallErrorCode;

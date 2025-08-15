@@ -1,5 +1,7 @@
 use sdk::contract_test;
-use sdk::storage_prelude::*;
+use sdk::*;
+use sdk::serialize::Serialize;
+use sdk::storage::*;
 
 #[derive(Debug, Serialize, Storage)]
 struct Data {
@@ -10,8 +12,6 @@ struct Data {
 }
 
 contract_test!(test_storable {
-    use sdk::storage_prelude::*;
-
     let data_keypath = Keypath::new();
     let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
     data.store_keypath(&data_keypath).unwrap();
@@ -33,8 +33,6 @@ contract_test!(test_storable {
 });
 
 contract_test!(test_storable_lazy {
-    use sdk::storage_prelude::*;
-
     let data_keypath = Keypath::new();
     let mut handle: Handle<Data> = Handle::new(&data_keypath);
 
@@ -59,8 +57,6 @@ contract_test!(test_storable_lazy {
 });
 
 contract_test!(test_load_default {
-    use sdk::storage_prelude::*;
-
     let data_keypath = Keypath::new();
     let mut handle: Handle<Data> = Handle::new(&data_keypath);
 
@@ -88,8 +84,6 @@ contract_test!(test_load_default {
 });
 
 contract_test!(test_bytestring {
-    use sdk::storage_prelude::*;
-
     let mut handle: Handle<Data> = Handle::root();
 
     let data = handle.load().unwrap();
@@ -111,8 +105,6 @@ contract_test!(test_bytestring {
 });
 
 contract_test!(test_vector {
-    use sdk::storage_prelude::*;
-
     let mut vec: Vector<u32> = Vector::from(Keypath::root());
 
     assert_eq!(0, vec.len());
@@ -127,8 +119,6 @@ contract_test!(test_vector {
 });
 
 contract_test!(test_handled_vector {
-    use sdk::storage_prelude::*;
-
     let mut handle: Handle<Vector<u32>> = Handle::root();
 
     let vec = handle.load().unwrap();
@@ -151,8 +141,6 @@ contract_test!(test_handled_vector {
 });
 
 contract_test!(test_vector_data {
-    use sdk::storage_prelude::*;
-
     let mut handle: Handle<Vector<Data>> = Handle::root();
 
     let vec = handle.load().unwrap();

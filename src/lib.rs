@@ -8,7 +8,7 @@ extern crate alloc;
 
 pub mod rt;
 
-#[cfg(all(feature = "alloc", target_family = "wasm"))]
+#[cfg(any(doc, all(feature = "alloc", target_family = "wasm")))]
 pub mod allocator;
 
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
@@ -41,6 +41,9 @@ pub mod serialize;
 pub mod contract_result;
 pub mod contract_test;
 
+#[cfg(any(doc, feature = "storage"))]
+pub mod storage;
+
 // Direct exports
 
 pub use syscall::*;
@@ -61,6 +64,12 @@ pub use xdrs::{ReadXDR, WriteXDR};
 pub use macros::contract;
 pub use macros::static_key;
 
+#[cfg(feature = "alloc")]
+pub use alloc::{vec, vec::Vec, format};
+
+#[cfg(feature = "alloc")]
+pub use alloc::string::*;
+
 #[cfg(feature = "spec")]
 pub mod spec;
 
@@ -73,10 +82,5 @@ pub use native_exec::{
     test_environment::TestEnvironment,
 };
 
-#[cfg(any(doc, feature = "storage"))]
-pub use storage::*;
-
-#[cfg(any(doc, feature = "storage"))]
+#[cfg(feature = "storage")]
 pub use macros::Storage;
-
-// pub use serialize::{self, Deserialize, Serialize, serialize_xdr};

@@ -6,6 +6,7 @@ pub use error::*;
 use sdk::{ContractAddress, contract};
 
 pub type Amount = u128;
+pub type Difference = i128;
 
 #[contract(client = ERC20Client, err_type = Error)]
 pub trait ERC20 {
@@ -33,7 +34,7 @@ pub trait ERC20 {
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        amount: Amount,
+        diff: Difference,
     ) -> Result<()>;
 
     /// Get balance for given address

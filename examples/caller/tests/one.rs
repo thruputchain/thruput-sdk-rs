@@ -1,7 +1,8 @@
 use erc20_if::Error as ERC20Error;
 use erc20_if::ERC20Client;
 use caller::{CallerClient, CallerError};
-use sdk::prelude::*;
+use sdk::*;
+use thiserror::Error;
 
 #[test]
 fn caller_test() {

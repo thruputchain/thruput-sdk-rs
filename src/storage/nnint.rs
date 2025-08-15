@@ -3,7 +3,7 @@ use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use crate::nonnegative_int::*;
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use core::fmt::Debug;
 
 #[derive(Debug)]

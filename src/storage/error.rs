@@ -1,8 +1,8 @@
 use crate::serialize::{Deserialize, Serialize};
 use crate::syscall::SysErr;
-use ::bcs::Error as SerializationError;
-use ::thiserror::Error;
-use ::xdrs::{ReadXDR, WriteXDR};
+use crate::{ReadXDR, WriteXDR};
+use bcs::Error as SerializationError;
+use thiserror::Error;
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 

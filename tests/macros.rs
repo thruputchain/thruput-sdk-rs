@@ -1,4 +1,4 @@
-use sdk::macros::static_key;
+use sdk::static_key;
 use hex_literal::hex;
 
 // Simple test to make sure the macro matches what is happening on the hogd side
