@@ -1,33 +1,38 @@
-use crate::result::ErrorMsg;
+//! General-purpose result type for contracts
+
+use thiserror::Error;
+use xdrs::{ReadXDR, WriteXDR};
+use crate::sysresult::ErrorMsg;
 use crate::serialize::{Deserialize, Serialize};
+use crate::syscall::SysErr;
+
 #[cfg(feature = "storage")]
 use crate::storage::error::Error as StorageErr;
-use crate::syscall::SysErr;
-use ::thiserror::Error;
-use ::xdrs::{ReadXDR, WriteXDR};
+
+use groundhog_xdr::contract_error as gh;
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum Error {
     #[error("Caller error{0}")]
-    Caller(ErrorMsg) = ::groundhog_xdr::contract_error::ErrorType::kErrorTypeCaller as i32,
+    Caller(ErrorMsg) = gh::ErrorType::kErrorTypeCaller as i32,
 
     #[error("Contract internal error{0}")]
-    Contract(#[from] ContractError) = ::groundhog_xdr::contract_error::ErrorType::kErrorTypeContract as i32,
+    Contract(#[from] ContractError) = gh::ErrorType::kErrorTypeContract as i32,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ContractError {
     #[error(": {0}")]
-    Custom(ErrorMsg) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeCustom as i32,
+    Custom(ErrorMsg) = gh::ContractErrorType::kContractErrorTypeCustom as i32,
 
     #[error(": failed due to syscall error: {0}")]
-    Syscall(#[from] SysErr) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeSyscall as i32,
+    Syscall(#[from] SysErr) = gh::ContractErrorType::kContractErrorTypeSyscall as i32,
 
     #[cfg(feature = "storage")]
     #[error(": failed due to storage error: {0}")]
-    Storage(#[from] StorageErr) = ::groundhog_xdr::contract_error::ContractErrorType::kContractErrorTypeStorage as i32,
+    Storage(#[from] StorageErr) = gh::ContractErrorType::kContractErrorTypeStorage as i32,
 }
 
 impl From<SysErr> for Error {

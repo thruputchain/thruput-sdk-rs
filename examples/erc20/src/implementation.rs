@@ -5,7 +5,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use super::interface::{Amount, ERC20, Error, Result};
-use sdk::storage_prelude::*;
+use sdk::*;
 
 type Balance = NNInt;
 type Allowance = NNInt;

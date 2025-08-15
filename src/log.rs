@@ -1,6 +1,6 @@
-#![allow(non_snake_case)]
+//! System functions: logging
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 
 pub fn log(buffer: &[u8]) -> Result<()> {
@@ -25,4 +25,3 @@ macro_rules! debug_log {
 macro_rules! debug_log {
     ($($arg:tt)*) => {};
 }
-

@@ -1,7 +1,7 @@
 use erc20_low_level::test;
 use erc20_low_level::ERC20Client;
 use erc20_low_level::interface::Error as ERC20Error;
-use sdk::prelude::*;
+use sdk::*;
 
 #[test]
 fn erc20_ll_check() {

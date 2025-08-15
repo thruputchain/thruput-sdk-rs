@@ -1,6 +1,7 @@
-#![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README-lib.md")]
-// #![doc(html_logo_url = "../../../etc/groundhog.png")]
+// #![doc(html_logo_url = "groundhog.png")]
+
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -11,23 +12,24 @@ pub mod rt;
 pub mod allocator;
 
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
-compile_error!("building with nostd (or just the alloc feature) is not supported outside of wasm");
+compile_error!("building with nostd (or just the alloc feature) is \
+                not supported outside of wasm");
 
-#[doc(inline)]
-pub use macros;
-
-#[cfg(feature = "spec")]
-pub mod spec;
-
-// Base
+// Syscall utilities
 pub mod syscall;
-pub mod syscall_op;
+pub mod syscall_bindings;
+pub mod sysresult;
+
+// Syscall wrappers
+pub mod contract_op;
+pub mod bytestring;
+pub mod delete;
+pub mod nonnegative_int;
+pub mod retrocausal_queue;
+
 pub mod types;
-#[doc(inline)]
-pub use syscall::bindings as sys;
 pub mod crypto;
 pub mod deploy;
-#[cfg(feature = "alloc")]
 pub mod hash;
 pub mod handle;
 pub mod invoke;
@@ -35,97 +37,46 @@ pub mod invoke_config;
 pub mod invoke_error;
 pub mod log;
 pub mod serialize;
+
 pub mod contract_result;
 pub mod contract_test;
 
-// Lower-level
-pub mod bytestring;
-pub mod delete;
-pub mod nonnegative_int;
-pub mod retrocausal_queue;
+// Direct exports
 
-// #[cfg(feature = "alloc")]
-pub mod result;
+pub use syscall::*;
+pub use syscall_bindings as sys;
+pub use contract_op::*;
+pub use log::*;
+pub use invoke::*;
+pub use deploy::*;
+pub use nonnegative_int::*;
+pub use bytestring::*;
+pub use retrocausal_queue::*;
 
-// Storage layer
-#[cfg(any(doc, feature = "storage"))]
-pub mod storage;
+pub use rt::*;
+pub use types::*;
+pub use hash::*;
+pub use xdrs::{ReadXDR, WriteXDR};
+
+pub use macros::contract;
+pub use macros::static_key;
+
+#[cfg(feature = "spec")]
+pub mod spec;
 
 #[cfg(feature = "mock")]
-pub use ::groundhog_xdr::ffi_enums::*;
+pub use groundhog_xdr::ffi_enums::*;
 
 #[cfg(feature = "mock")]
-pub use ::native_exec::{
+pub use native_exec::{
     mock_contract::MockContract,
     test_environment::TestEnvironment,
 };
 
-// Available from any prelude
-mod prelude_base {
-    #[doc(inline)]
-    pub use super::types::*;
-
-    #[doc(inline)]
-    pub use super::syscall::SysErr;
-
-    #[doc(inline)]
-    pub use super::syscall_op::*;
-
-    #[doc(inline)]
-    pub use groundhog_xdr::syscall_error::SyscallErrorCode;
-
-    pub use thiserror::Error;
-
-    #[doc(inline)]
-    pub use super::log::*;
-
-    #[doc(inline)]
-    pub use super::invoke::*;
-
-    #[cfg(feature = "alloc")]
-    #[doc(inline)]
-    pub use super::hash::*;
-
-    #[doc(inline)]
-    pub use super::serialize::{self, Deserialize, Serialize, serialize_xdr};
-
-    #[doc(inline)]
-    pub use ::xdrs::{ReadXDR, WriteXDR};
-
-    #[doc(inline)]
-    pub use super::macros::contract;
-
-    #[doc(inline)]
-    pub use super::rt::*;
-}
-
-/// Lower-level contract facilities
-pub mod prelude {
-    #[doc(inline)]
-    pub use super::prelude_base::*;
-
-    #[doc(inline)]
-    pub use super::deploy::*;
-
-    #[doc(inline)]
-    pub use super::nonnegative_int::*;
-
-    #[doc(inline)]
-    pub use super::bytestring::*;
-
-    #[doc(inline)]
-    pub use super::retrocausal_queue::*;
-}
-
-/// Storage-layer facilities
 #[cfg(any(doc, feature = "storage"))]
-pub mod storage_prelude {
-    #[doc(inline)]
-    pub use super::prelude_base::*;
+pub use storage::*;
 
-    #[doc(inline)]
-    pub use super::storage::*;
+#[cfg(any(doc, feature = "storage"))]
+pub use macros::Storage;
 
-    #[doc(inline)]
-    pub use super::macros::Storage;
-}
+// pub use serialize::{self, Deserialize, Serialize, serialize_xdr};

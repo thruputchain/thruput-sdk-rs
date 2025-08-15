@@ -1,6 +1,6 @@
-#![allow(non_snake_case)]
+//! System functions: retro-causal queues
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 

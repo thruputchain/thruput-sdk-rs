@@ -1,6 +1,6 @@
-#![allow(non_snake_case)]
+//! System functions: non-negative integers
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::StorageKeyContractData;
 

@@ -1,5 +1,5 @@
-use ::core::cmp::Ord;
-use ::serde::{Serialize, Deserialize};
+use core::cmp::Ord;
+use serde::{Serialize, Deserialize};
 
 pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 

@@ -1,6 +1,6 @@
 #![no_std]
 
-use sdk::prelude::*;
+use sdk::*;
 
 #[cfg_attr(target_family = "wasm", export_name = "0")]
 pub extern "C" fn write_bytestring() -> i32 {

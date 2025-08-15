@@ -1,3 +1,5 @@
+//! System functions: trap and panic
+
 #[cfg(target_arch = "wasm32")]
 #[inline(always)]
 pub fn trap() -> ! {
@@ -18,7 +20,7 @@ fn handle_panic(_: &core::panic::PanicInfo) -> ! {
 
 #[cfg(feature = "mock")]
 mod test_rt {
-    use ::native_exec::invoke_error::deterministic_error;
+    use native_exec::invoke_error::deterministic_error;
     use std::boxed::Box;
     use std::panic::panic_any;
 

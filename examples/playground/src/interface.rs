@@ -1,5 +1,5 @@
-use sdk::prelude::*;
-use sdk::contract_result::{Error, Result};
+use sdk::*;
+pub use sdk::contract_result::{Error, Result};
 
 pub type Amount = i128;
 

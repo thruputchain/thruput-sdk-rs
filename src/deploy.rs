@@ -1,6 +1,6 @@
-#![allow(non_snake_case)]
+//! System functions: Contract deployment
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;

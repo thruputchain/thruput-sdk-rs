@@ -1,11 +1,54 @@
--- document #[contract] macro
-    - err_type (in quotes?  path type?)
+CLEANUP
+- protocol files:
+    - convention
+    - enforced by the sdk
+    - enforced by other components
+- guest_exports
+- remove serde
+
+SDK
+- contract specs
+- contract performance (gas measurements)
+- wasm test runner
+- generate XDR for InvokeError, ClientError
+- test `err_type` w/ `contract_abort` after geoff's adding revert support
+- remove BCS
+- remove alloc
+- contract attributes:
+    - `#[contract(init)]`
+    - `#[contract(no_save)]` (or just no mut?)
+- minimum supported rust version?
+- events
+- contract macro: generate code from XDR spec alone?
+
+DOCUMENT
+- #[contract] macro
+    - err_type (string vs. ident?)
     - client
     - exports
--- contract_result::Error but handle client calls?
--- wrap xdr: MethodId, etc.
--- get_method_num -> MethodId::new(...)
--- maybe the one-way-func on interface id is good 
--- fix space remainder generated comment
--- semver validation
--- identifier validation
+- storage layer
+- VM
+    - deploy
+    - invoke
+    - handle (get_calldata, return, exit)
+    - trap/fault
+    - get_current_address
+    - kv store
+- sdk_rs package
+    - guest (w/ generated call marshalling)
+    - client (w/ generated call marshalling)
+    - sdk-lib
+        - gen
+        - macros
+        - native_exec
+        - protocol-rs
+- sdk_rs features
+    default = ["alloc", "groundhog_xdr/xdrs"]
+    std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
+    alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]
+
+    mock = ["std", "dep:native_exec", "macros/mock"]
+    storage = ["alloc", "dep:bcs"]
+    logging = ["macros/logging"]
+    spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
+- examples

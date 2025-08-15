@@ -1,15 +1,15 @@
-/// Rust bindings for the syscalls
-pub mod bindings;
-
-use ::xdrs::{ReadXDR, WriteXDR};
 use thiserror::Error;
 
-#[derive(Error, Copy, Clone, Debug, PartialEq, Eq)]
+pub type SyscallResult<T> = core::result::Result<T, SysErr>;
+
+/// Error type for syscalls
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(ReadXDR, WriteXDR)]
+#[derive(xdrs::ReadXDR, xdrs::WriteXDR)]
+#[derive(Error, Copy, Clone, Debug, PartialEq, Eq)]
 #[error("SysErr({0})")]
 pub struct SysErr(i32);
 
+/// Error codes
 pub use groundhog_xdr::syscall_error::SyscallErrorCode;
 
 impl SysErr {
@@ -50,5 +50,3 @@ impl From<SysErr> for i32 {
         err.0
     }
 }
-
-pub type SyscallResult<T> = core::result::Result<T, SysErr>;

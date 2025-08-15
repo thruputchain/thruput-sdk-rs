@@ -1,10 +1,10 @@
 //! A deprecated utility
 
 use crate::syscall::{SysErr, SyscallErrorCode};
-use crate::syscall_op::{contract_return, get_calldata};
+use crate::contract_op::{contract_return, get_calldata};
 
-use ::xdrs::{ReadXDROwned, WriteXDR};
-use ::xdrs::serialize_txs::{encode, decode};
+use xdrs::{ReadXDROwned, WriteXDR};
+use xdrs::serialize_txs::{encode, decode};
 
 // Run a handler function on the invocation arguments
 // available in serialized form via `GetCalldata`,

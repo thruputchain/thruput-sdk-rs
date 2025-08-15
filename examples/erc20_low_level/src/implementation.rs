@@ -8,9 +8,8 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(clippy::useless_conversion)]
 
-use crate::interface::Amount;
-use sdk::prelude::*;
-use sdk::contract_result::*;
+use crate::interface::{Amount, Result};
+use sdk::*;
 
 // Compute keys for storing things
 
@@ -171,6 +170,14 @@ pub fn burn(to: &ContractAddress, amount: Amount) -> Result<()> {
 #[contract(interface = "ERC20", index = 6, err_type = Error)]
 pub fn total_supply() -> Result<Amount> {
     Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
+}
+
+fn caller_ensure(pred: bool, error: Error) -> Result<()> {
+    if pred {
+        Ok(())
+    } else {
+        Err(error)
+    }
 }
 
 // TODO: Something better

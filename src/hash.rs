@@ -1,6 +1,5 @@
 use crate::crypto::{sha_256, SHA256Hash};
-use crate::result::{Result, Error};
-use xdrs::WriteXDR;
+use crate::sysresult::{Result, Error};
 
 pub type Hash256 = SHA256Hash;
 
@@ -14,9 +13,10 @@ pub trait Hash {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T> Hash for T
 where
-    T: WriteXDR,
+    T: xdrs::WriteXDR,
 {
     fn try_hash(&self) -> Result<Hash256> {
         let buf = xdrs::serialize_txs::encode(&self).map_err(|e|

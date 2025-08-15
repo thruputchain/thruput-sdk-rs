@@ -1,7 +1,6 @@
 use crate::implementation;
 use crate::ERC20Client;
-use sdk::contract_result::Error;
-use sdk::prelude::*;
+use sdk::*;
 use thiserror::Error;
 
 #[test]

@@ -3,11 +3,11 @@
 
 use erc20::ERC20Client;
 use erc20::interface::Amount;
-use sdk::storage_prelude::*;
+use sdk::*;
 
 // TODO: Replay prevention?
 
-#[derive(Storage, Debug, Serialize)]
+#[derive(Storage, Debug, ReadXDR, WriteXDR)]
 struct Wallet {
     token_addr: ContractAddress,
     pk: Ed25519PublicKey,

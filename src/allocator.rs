@@ -1,3 +1,5 @@
+//! An optional "bump" allocator
+
 // This code is copied from https://github.com/stellar/rs-soroban-sdk/blob/main/soroban-sdk/src/alloc.rs,
 // which in turn is adapted from https://github.com/wenyuzhao/bump-allocator-rs
 

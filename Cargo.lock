@@ -1399,7 +1399,6 @@ dependencies = [
  "erc20-if",
  "erc20_low_level",
  "sdk",
- "serde",
  "simple_wallet_old",
 ]
 

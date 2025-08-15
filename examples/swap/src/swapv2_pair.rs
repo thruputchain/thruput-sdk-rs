@@ -7,7 +7,7 @@
 
 use core::ops::Mul;
 use core::cmp::min;
-use sdk::storage_prelude::*;
+use sdk::*;
 use erc20::interface::client::ERC20Client;
 use erc20::interface::ERC20;
 use erc20::interface::Result as ERC20Result;

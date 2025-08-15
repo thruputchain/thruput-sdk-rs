@@ -1,3 +1,5 @@
+//! System functions: invoke, client_invoke
+
 use crate::sys;
 use crate::contract_panic;
 use crate::types::{

@@ -1,7 +1,7 @@
 use erc20::implementation;
 use erc20::ERC20Client;
 use erc20::interface::Error;
-use sdk::prelude::*;
+use sdk::*;
 
 #[test]
 fn test_erc20() {

@@ -1,7 +1,7 @@
-use ::core::fmt;
-use ::serde::{Serialize, Deserialize};
-use ::thiserror::Error;
-use sdk::prelude::contract;
+use core::fmt;
+use serde::{Serialize, Deserialize};
+use thiserror::Error;
+use sdk::contract;
 
 pub use crate::bignum::{U112, U256};
 

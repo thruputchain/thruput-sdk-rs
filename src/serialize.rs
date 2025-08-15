@@ -1,12 +1,9 @@
 pub use xdrs::{WriteXDR, ReadXDR, ReadXDROwned};
-
 pub use xdrs::serialize_txs::decode as decode_xdr;
-
 #[cfg(feature = "alloc")]
 pub use xdrs::serialize_txs::encode as encode_xdr;
 
-#[cfg(feature = "alloc")]
-use crate::result::{Error, Result};
+use crate::sysresult::{Error, Result};
 
 #[cfg(feature = "alloc")]
 pub fn serialize_xdr<T: WriteXDR + ?Sized>(x: &T) -> Result<alloc::vec::Vec<u8>> {
@@ -19,6 +16,3 @@ pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub use ::bcs::{from_bytes, from_bytes_seed};
 #[cfg(feature = "alloc")]
 pub use ::bcs::to_bytes;
-
-
-

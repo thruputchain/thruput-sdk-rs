@@ -3,7 +3,7 @@
 mod error;
 pub use error::*;
 
-use sdk::prelude::{ContractAddress, contract};
+use sdk::{ContractAddress, contract};
 
 pub type Amount = u128;
 

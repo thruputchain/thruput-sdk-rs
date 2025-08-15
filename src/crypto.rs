@@ -1,9 +1,8 @@
-#![allow(non_snake_case)]
-#![allow(unreachable_patterns)]
+//! System functions: hash and signature
 
 pub use crate::types::SHA256Hash;
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::{CryptographicScheme, Ed25519PublicKey, Ed25519Signature};
 

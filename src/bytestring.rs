@@ -1,15 +1,15 @@
 //! Routines for manipulating the storage type `Bytestring`.
 //!
 //! These routines are thin wrappers around VM syscalls,
-//! and return the type [`SysResult<T>`](crate::result::SysResult).  This is
-//! is a standard [`Result<T, E>`](core::result::Result) where `E` is
-//! a [`SysErr`](crate::syscall::SysErr) that contains
-//! an error code in the case of an underlying syscall failure.
+//! and return the type [`SysResult<T>`](crate::sysresult::SysResult).  This is
+//! is a [`Result<T, E>`](core::result::Result) where `E` is
+//! a [`SysErr`](crate::syscall::SysErr) containing
+//! an error code in the case of a syscall failure.
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 #[allow(unused_imports)] // import is for docs
-use groundhog_xdr::syscall_error::SyscallErrorCode;
+use crate::syscall::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 use core::mem::MaybeUninit;
 
@@ -103,12 +103,10 @@ pub fn bytestring_get_sized<const N: usize>(
 
 #[cfg(feature = "alloc")]
 mod bytestring_get_alloc {
-    use crate::result::SysResult as Result;
+    use crate::sysresult::SysResult as Result;
     use crate::sys;
-    #[allow(unused_imports)] // import is for docs
-    use groundhog_xdr::syscall_error::SyscallErrorCode;
     use crate::types::StorageKeyContractData;
-    use ::alloc::boxed::Box;
+    use alloc::boxed::Box;
     use core::mem::MaybeUninit;
 
     /// Returns a new allocation with the contents of the bytestring stored at the given key.

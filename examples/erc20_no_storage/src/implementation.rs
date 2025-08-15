@@ -6,7 +6,7 @@
 #![allow(clippy::useless_conversion)]
 
 use crate::interface::{Amount, ERC20, Error, Result};
-use sdk::prelude::*;
+use sdk::*;
 
 // Compute keys for storing things
 

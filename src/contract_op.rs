@@ -1,6 +1,6 @@
-#![allow(non_snake_case)]
+//! System functions: get invocation args, return values, etc.
 
-use crate::result::SysResult as Result;
+use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::contract_panic;
@@ -79,7 +79,7 @@ pub use get_calldata_alloc::*;
 
 #[cfg(feature = "alloc")]
 mod get_calldata_alloc {
-    use crate::result::SysResult as Result;
+    use crate::sysresult::SysResult as Result;
     use crate::sys;
     use crate::types::RuntimeMemoryLength;
     use alloc::boxed::Box;

@@ -2,8 +2,8 @@ use crate::syscall::SysErr;
 use bcs::Error as SerializationError;
 use core::fmt;
 use serde::{Deserialize, Serialize};
-use ::thiserror::Error;
-use ::xdrs::{ReadXDR, WriteXDR};
+use thiserror::Error;
+use xdrs::{ReadXDR, WriteXDR};
 
 #[cfg(feature = "mock")]
 use alloc::string::{String, ToString};
