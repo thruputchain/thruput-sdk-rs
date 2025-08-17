@@ -1,13 +1,19 @@
 [package]
-name = "erc20-if"
+name = "groundhog-erc20-if"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "ERC20 standard interface for Groundhog smart contracts"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
 
 [features]
-storage = ["sdk/storage"]
 mock = ["std", "sdk/mock"]
 std = ["sdk/std"]
 spec = ["sdk/spec", "std"]
+# Needs storage feature for error conversion from StorageError
+storage = ["sdk/storage"]
 
 [dependencies]
 sdk = { workspace = true }

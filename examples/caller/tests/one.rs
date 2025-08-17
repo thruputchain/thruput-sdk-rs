@@ -1,5 +1,5 @@
-use erc20_if::Error as ERC20Error;
-use erc20_if::ERC20Client;
+use groundhog_erc20_if::Error as ERC20Error;
+use groundhog_erc20_if::ERC20Client;
 use caller::{CallerClient, CallerError};
 use sdk::*;
 use thiserror::Error;

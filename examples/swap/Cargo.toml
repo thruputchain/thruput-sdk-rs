@@ -13,7 +13,7 @@ primitive-types = { version = "0.13.1", default-features = false, features = ["s
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-erc20-if = { workspace = true }
+groundhog-erc20-if = { workspace = true }
 erc20 = { path = "../erc20" }
 
 [features]

@@ -3,7 +3,7 @@
 #![cfg_attr(not(feature = "mock"), no_std)]
 
 // A trait describing the contract interface
-pub use erc20_if as interface;
+pub use groundhog_erc20_if as interface;
 
 // A client stub that provides the interface via cross-contract calls
 #[cfg(feature = "client")]

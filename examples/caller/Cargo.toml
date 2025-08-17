@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 serde = { workspace = true }
-erc20-if = { workspace = true }
+groundhog-erc20-if = { workspace = true, features = ["storage"] }
 erc20 = { path = "../erc20" }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
@@ -17,7 +17,7 @@ doctest = false
 
 [features]
 guest = []
-mock = ["guest", "sdk/mock", "erc20-if/mock"]
+mock = ["guest", "sdk/mock", "groundhog-erc20-if/mock"]
 logging = ["sdk/logging"]
 
 [dev-dependencies]

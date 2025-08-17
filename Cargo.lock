@@ -136,7 +136,7 @@ version = "0.1.0"
 dependencies = [
  "caller",
  "erc20",
- "erc20-if",
+ "groundhog-erc20-if",
  "sdk",
  "serde",
  "thiserror",
@@ -471,17 +471,7 @@ name = "erc20"
 version = "0.1.2"
 dependencies = [
  "erc20",
- "erc20-if",
- "sdk",
- "serde",
- "thiserror",
- "xdrs",
-]
-
-[[package]]
-name = "erc20-if"
-version = "0.1.0"
-dependencies = [
+ "groundhog-erc20-if",
  "sdk",
  "serde",
  "thiserror",
@@ -492,8 +482,8 @@ dependencies = [
 name = "erc20_low_level"
 version = "0.1.1"
 dependencies = [
- "erc20-if",
  "erc20_low_level",
+ "groundhog-erc20-if",
  "sdk",
  "serde",
  "thiserror",
@@ -503,9 +493,10 @@ dependencies = [
 name = "erc20_no_storage"
 version = "0.1.1"
 dependencies = [
- "erc20-if",
  "erc20_no_storage",
+ "groundhog-erc20-if",
  "sdk",
+ "serde",
  "thiserror",
  "xdrs",
 ]
@@ -646,6 +637,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
+name = "groundhog-erc20-if"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+ "serde",
+ "thiserror",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
 dependencies = [
@@ -725,9 +726,10 @@ dependencies = [
 name = "itc_erc20"
 version = "0.1.1"
 dependencies = [
- "erc20-if",
+ "groundhog-erc20-if",
  "itc_erc20",
  "sdk",
+ "serde",
  "thiserror",
  "xdrs",
 ]
@@ -1405,8 +1407,8 @@ dependencies = [
 name = "simple_wallet_old"
 version = "0.1.0"
 dependencies = [
- "erc20-if",
  "erc20_low_level",
+ "groundhog-erc20-if",
  "sdk",
  "serde",
  "simple_wallet_old",
@@ -1445,7 +1447,7 @@ name = "swap"
 version = "0.1.0"
 dependencies = [
  "erc20",
- "erc20-if",
+ "groundhog-erc20-if",
  "primitive-types",
  "sdk",
  "serde",
