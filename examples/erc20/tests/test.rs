@@ -1,6 +1,6 @@
 use erc20::implementation;
 use erc20::ERC20Client;
-use erc20::interface::Error;
+use erc20::interface::ERC20Error;
 use sdk::*;
 
 #[test]
@@ -25,7 +25,7 @@ fn test_erc20() {
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 }
 
-fn test_inner(client: &mut ERC20Client) -> ClientResult<(), Error> {
+fn test_inner(client: &mut ERC20Client) -> ClientResult<(), ERC20Error> {
     let owner = get_current_address().unwrap();
     client.initialize(&owner)?;
 

@@ -8,7 +8,7 @@ use sdk::{ContractAddress, contract};
 pub type Amount = u128;
 pub type Difference = i128;
 
-#[contract(client = ERC20Client, err_type = Error)]
+#[contract(client = ERC20Client, err_type = ERC20Error)]
 pub trait ERC20 {
     fn initialize(
         &mut self,

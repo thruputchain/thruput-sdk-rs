@@ -153,7 +153,7 @@ impl ERC20 for TokenContract {
         let caller = get_caller()?;
         caller_ensure(
             &caller == self._contract_owner(),
-            Error::MustBeContractOwner,
+            ERC20Error::MustBeContractOwner,
         )?;
 
         let diff = amount_to_diff(amount)?;
@@ -165,7 +165,7 @@ impl ERC20 for TokenContract {
         let caller = get_caller()?;
         caller_ensure(
             &caller == self._contract_owner(),
-            Error::MustBeContractOwner,
+            ERC20Error::MustBeContractOwner,
         )?;
 
         let diff = amount_to_diff(amount)?;

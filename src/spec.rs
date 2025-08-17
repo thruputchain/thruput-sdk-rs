@@ -33,6 +33,32 @@ impl Contract {
         id[6..8].copy_from_slice(&method_bytes);
         id.into()
     }
+    // JSON-like display format
+    pub fn print_json_summary(&self) -> String {
+        let mut result = format!("{{\n  \"interface\": \"{}\",\n  \"version\": \"{}\",\n  \"methods\": [", 
+                                &self.interface_id, &self.interface_vers);
+        
+        for (i, method) in self.methods.iter().enumerate() {
+            if i > 0 { result.push_str(","); }
+            let ret = if let Some(ret) = method.ret.as_ref() {
+                ret.to_string()
+            } else {
+                "void".to_owned()
+            };
+            let args = method.args.iter().map(|arg| arg.print_json_summary()).collect::<Vec<String>>().join(",\n");
+            result.push_str("\n    {");
+            result.push_str(&format!("\n      \"name\": \"{}\"", method.name));
+            result.push_str(&format!(",\n      \"return\": \"{}\"", ret));
+            if let Some(err) = method.err.as_ref() {
+                result.push_str(&format!(",\n      \"err\": \"{}\"", err));
+            }
+            result.push_str(&format!(",\n      \"entrypoint\": \"{}\"", display_entrypoint(self.entrypoint_id(i))));
+            result.push_str(&format!(",\n      \"args\": [\n{}\n      ]", args));
+            result.push_str("\n    }");
+        }
+        result.push_str("\n  ]\n}");
+        result
+    }
 }
 
 fn display_entrypoint(id: ContractEntrypointID) -> String {
@@ -44,13 +70,22 @@ fn display_entrypoint(id: ContractEntrypointID) -> String {
 pub struct Method {
     pub name: String,
     pub args: Vec<Arg>,
+    // Returns ret if the frame succeeds,
+    // err if the frame reverts
     pub ret: Option<xdr::TypeSpec>,
+    pub err: Option<xdr::TypeSpec>,
 }
 
 #[derive(Debug)]
 pub struct Arg {
     pub name: String,
     pub decl: xdr::Declaration,
+}
+
+impl Arg {
+    pub fn print_json_summary(&self) -> String {
+        format!("        {{\n          \"name\": \"{}\",\n          \"typespec\": \"{}\"\n        }}", self.name, self.decl.get_type_json())
+    }
 }
 
 const _: () = {
@@ -66,6 +101,7 @@ const _: () = {
                 } else {
                     "void".to_owned()
                 };
+                // TODO: something with the error type
                 write!(f, "\t{}\n", ret)?;
                 write!(f, "\t{}(\n", &method.name)?;
                 for arg in &method.args {

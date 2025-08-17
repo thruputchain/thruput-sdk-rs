@@ -4,7 +4,7 @@
 
 pub use groundhog_erc20_if as erc20_if;
 
-use erc20_if::Error as ERC20Error;
+use erc20_if::ERC20Error as ERC20Error;
 use erc20_if::ERC20Client;
 use erc20_if::Amount;
 use sdk::*;

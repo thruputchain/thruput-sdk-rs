@@ -30,19 +30,27 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
     })
 }
 
-fn method_repr(_index: usize, method: &syn::Signature, _contract: &impl ContractSrc) -> Result<TokenStream> {
+fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractSrc) -> Result<TokenStream> {
     let name = method.ident.to_string();
     let args = method.inputs.iter().map(arg_repr)
         .collect::<Result<Vec<Option<TokenStream>>>>()?
         .into_iter()
         .flatten();
     let ret = ret_repr(&method.output);
+    let err = if let Some(err) = contract.err_type() {
+        quote! {
+            Some(<#err as HasTypeSpec>::type_spec())
+        }
+    } else {
+        quote! { None }
+    };
 
     Ok(quote! {
         Method {
             name: #name.to_owned(),
             args: vec![ #(#args),* ],
-            ret: #ret
+            ret: #ret,
+            err: #err
         }
     })
 }

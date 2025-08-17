@@ -44,7 +44,7 @@ fn get_owner() -> Result<ContractAddress> {
 fn ensure_caller_is_owner() -> Result<()> {
     let caller = get_caller()?;
     let owner = get_owner()?;
-    caller_ensure(caller == owner, Error::MustBeContractOwner)
+    caller_ensure(caller == owner, ERC20Error::MustBeContractOwner)
 }
 
 fn add_to_total_supply(diff: Difference) -> Result<()> {
@@ -85,7 +85,7 @@ impl ERC20 for Token {
 
         // Make sure we haven't already been initialized
         if bytestring_exists(&key)? {
-            return caller_error(Error::AlreadyInitialized);
+            return caller_error(ERC20Error::AlreadyInitialized);
         }
 
         // Store ourselves

@@ -1,4 +1,4 @@
-use groundhog_erc20_if::Error as ERC20Error;
+use groundhog_erc20_if::ERC20Error as ERC20Error;
 use groundhog_erc20_if::ERC20Client;
 use caller::{CallerClient, CallerError};
 use sdk::*;

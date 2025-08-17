@@ -1,13 +1,17 @@
 use sdk::{ReadXDR, WriteXDR, SysErr};
 use thiserror::Error;
 
-pub type Result<T, E = Error> = core::result::Result<T, E>;
+pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
+
+#[cfg(feature = "spec")]
+use xdrs::XDR;
 
 #[derive(Error, Debug, PartialEq, Clone)]
 #[derive(ReadXDR, WriteXDR)]
+#[cfg_attr(feature = "spec", derive(XDR))]
 #[non_exhaustive]
 #[repr(i32)]
-pub enum Error {
+pub enum ERC20Error {
     #[error("None")]
     None = 0,
 
@@ -27,9 +31,9 @@ pub enum Error {
     StorageErr = 5,
 }
 
-impl From<SysErr> for Error {
+impl From<SysErr> for ERC20Error {
     fn from(_err: SysErr) -> Self {
-        Error::SystemErr
+        ERC20Error::SystemErr
     }
 }
 
@@ -37,9 +41,9 @@ impl From<SysErr> for Error {
 const _: () = {
     use sdk::storage::error::Error as StorageError;
 
-    impl From<StorageError> for Error {
+    impl From<StorageError> for ERC20Error {
         fn from(_err: StorageError) -> Self {
-            Error::StorageErr
+            ERC20Error::StorageErr
         }
     }
 };
@@ -47,14 +51,14 @@ const _: () = {
 // Contract routines for generating errors
 
 pub fn internal_err<T, M: AsRef<str>>(_msg: M) -> Result<T> {
-    Err(Error::SystemErr)
+    Err(ERC20Error::SystemErr)
 }
 
-pub fn caller_error<T>(err: Error) -> Result<T> {
+pub fn caller_error<T>(err: ERC20Error) -> Result<T> {
     Err(err)
 }
 
-pub fn caller_ensure(pred: bool, err: Error) -> Result<()> {
+pub fn caller_ensure(pred: bool, err: ERC20Error) -> Result<()> {
     if pred {
         Ok(())
     } else {
@@ -63,5 +67,5 @@ pub fn caller_ensure(pred: bool, err: Error) -> Result<()> {
 }
 
 pub fn amount_to_diff(n: u128) -> Result<i128> {
-    n.try_into().map_err(|_| Error::TooLarge)
+    n.try_into().map_err(|_| ERC20Error::TooLarge)
 }
