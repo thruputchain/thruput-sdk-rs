@@ -45,14 +45,23 @@ fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractS
         quote! { None }
     };
 
+    let err_match = err_ty(&method.output);
+
     Ok(quote! {
         Method {
             name: #name.to_owned(),
             args: vec![ #(#args),* ],
             ret: #ret,
-            err: #err
+            err: if #err_match == #err { #err } else { panic!("Mismatch between contract err_type {:?} and method's returned Result type {:?}", #err_match, #err) }
         }
     })
+}
+
+fn err_ty(ret_ty: &syn::ReturnType) -> TokenStream {
+    match ret_ty {
+        syn::ReturnType::Default => quote! { None },
+        syn::ReturnType::Type(_, ty) => quote! { <#ty as GetErrorType>::get_error_type() },
+    }
 }
 
 fn ret_repr(ret_ty: &syn::ReturnType) -> TokenStream {
