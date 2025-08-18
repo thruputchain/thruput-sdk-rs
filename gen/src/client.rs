@@ -70,6 +70,11 @@ fn generate_spec_fn(
     contract: &impl ContractSrc,
     _config: &Config,
 ) -> Result<TokenStream> {
+    let client_ident = contract.client_ident().ok_or_else(||
+            error(&contract.span(),
+                "contract client identifier must be given \
+                 by 'client = ClientName' attribute"))?;
+
     #[allow(unused)]
     let spec_fn = format_ident!("{}_spec", contract.interface_name().unwrap_or("contract".into()));
     let spec = crate::spec::contract_repr(contract)?;
@@ -78,6 +83,12 @@ fn generate_spec_fn(
         pub fn #spec_fn() -> ::sdk::spec::Contract {
 
             #spec
+        }
+
+        impl ::sdk::spec::HasContractSpec for #client_ident {
+            fn contract_spec() -> ::sdk::spec::Contract {
+                #spec_fn()
+            }
         }
     })
 }
