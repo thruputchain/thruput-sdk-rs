@@ -41,14 +41,14 @@ impl Contract {
         for (i, method) in self.methods.iter().enumerate() {
             if i > 0 { result.push_str(","); }
             let ret = if let Some(ret) = method.ret.as_ref() {
-                ret.to_string()
+                ret.get_type_json()
             } else {
-                "void".to_owned()
+                " { \"type\": \"void\" }".to_owned()
             };
             let args = method.args.iter().map(|arg| arg.print_json_summary()).collect::<Vec<String>>().join(",\n");
             result.push_str("\n    {");
             result.push_str(&format!("\n      \"name\": \"{}\"", method.name));
-            result.push_str(&format!(",\n      \"return\": \"{}\"", ret));
+            result.push_str(&format!(",\n      \"return\": {}", ret));
             if let Some(err) = method.err.as_ref() {
                 result.push_str(&format!(",\n      \"err\": \"{}\"", err));
             }
@@ -72,7 +72,7 @@ pub struct Method {
     pub args: Vec<Arg>,
     // Returns ret if the frame succeeds,
     // err if the frame reverts
-    pub ret: Option<xdr::TypeSpec>,
+    pub ret: Option<xdr::Declaration>,
     pub err: Option<xdr::TypeSpec>,
 }
 

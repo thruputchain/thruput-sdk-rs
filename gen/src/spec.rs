@@ -58,8 +58,10 @@ fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractS
 fn ret_repr(ret_ty: &syn::ReturnType) -> TokenStream {
     match ret_ty {
         syn::ReturnType::Default => quote! { None },
+        // TODO(geoff): I switched this to use a Declaration instead of a typespec;
+        // the TypeSpec was dropping the inner type info from types like Vec.
         syn::ReturnType::Type(_, ty) => quote! {
-            Some(<#ty as HasTypeSpec>::type_spec())
+            Some(<#ty as Declare>::declare(ident("")))
         },
     }
 }
