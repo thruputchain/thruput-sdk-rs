@@ -47,6 +47,8 @@ serde = { version = "1.0.217", default-features = false }
 serde_arrays = { path = "protocol-rs/external/serde_arrays", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr", "xdr_common", "derive", "ns"] }
+xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
+
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }
 

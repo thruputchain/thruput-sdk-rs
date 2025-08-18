@@ -42,17 +42,26 @@ fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractS
             Some(<#err as HasTypeSpec>::type_spec())
         }
     } else {
-        quote! { None }
+        quote! { None::<TypeSpec> }
     };
 
-    let err_match = err_ty(&method.output);
+    // only check via GetErrorType trait if the contract has an err_type
+    let err_match = if contract.err_type().is_some() {
+        err_ty(&method.output)
+    } else {
+        quote! { None::<TypeSpec> }
+    };
 
     Ok(quote! {
         Method {
             name: #name.to_owned(),
             args: vec![ #(#args),* ],
             ret: #ret,
-            err: if #err_match == #err { #err } else { panic!("Mismatch between contract err_type {:?} and method's returned Result type {:?}", #err_match, #err) }
+            err: if #err_match == #err { 
+                    #err 
+                  } else { 
+                    panic!("Mismatch between contract err_type {:?} and method's returned Result type {:?}", #err_match, #err) 
+                  }
         }
     })
 }
