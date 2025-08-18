@@ -84,7 +84,7 @@ pub struct Arg {
 
 impl Arg {
     pub fn print_json_summary(&self) -> String {
-        format!("        {{\n          \"name\": \"{}\",\n          \"typespec\": \"{}\"\n        }}", self.name, self.decl.get_type_json())
+        format!("        {{\n          \"name\": \"{}\",\n          \"typespec\": {}\n        }}", self.name, self.decl.get_type_json())
     }
 }
 
