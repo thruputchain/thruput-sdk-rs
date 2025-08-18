@@ -114,3 +114,25 @@ const _: () = {
         }
     }
 };
+
+pub trait HasContractSpec {
+    fn contract_spec() -> Contract;
+}
+
+pub fn json_spec_main<T : HasContractSpec>() {
+    use std::env;
+    use std::fs::File;
+    use std::io::Write;
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        eprintln!("Usage: {} <output_filename>", args[0]);
+        std::process::exit(1);
+    }
+    
+    let output_path = &args[1];
+    let spec = T::contract_spec();
+    let json_summary = spec.print_json_summary();
+    
+    let mut file = File::create(output_path).unwrap();
+    file.write_all(json_summary.as_bytes()).unwrap();
+}
