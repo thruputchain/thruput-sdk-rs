@@ -80,11 +80,13 @@ fn generate_spec_fn(
     let spec = crate::spec::contract_repr(contract)?;
 
     Ok(quote! {
+        #[cfg(feature = "spec")]
         pub fn #spec_fn() -> ::sdk::spec::Contract {
 
             #spec
         }
 
+        #[cfg(feature = "spec")]
         impl ::sdk::spec::HasContractSpec for #client_ident {
             fn contract_spec() -> ::sdk::spec::Contract {
                 #spec_fn()
