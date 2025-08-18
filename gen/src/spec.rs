@@ -6,7 +6,7 @@ use crate::util::*;
 
 pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
     let iface_name = contract.interface_name().unwrap_or_else(|| String::new());
-    let iface_vers = "0.1.0";
+    let iface_vers = contract.interface_vers().unwrap_or_else(|| "0.0.0".to_string());
 
     let method_reprs: Vec<_> =
         contract.methods_sorted()

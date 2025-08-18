@@ -70,8 +70,13 @@ pub fn generate_method(
 ) -> Result<TokenStream> {
 
     let ident = &method.ident;
-    let version = None;
-    let entrypoint = contract_entrypoint_id(iface_name, version, ident, index);
+    let version = if contract.is_some() {
+        contract.unwrap().defaulted_interface_vers()
+    } else {
+        "0.0.0".to_string()
+    };
+
+    let entrypoint = contract_entrypoint_id(iface_name, &version, ident, index);
 
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);

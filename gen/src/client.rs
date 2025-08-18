@@ -101,10 +101,9 @@ fn generate_client_fn(
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_ref().map(|s| s.as_str());
 
-    let version = None;
     let entrypoint = contract_entrypoint_id(
         iface_name,
-        version,
+        &contract.defaulted_interface_vers(),
         &method.ident,
         index
     );

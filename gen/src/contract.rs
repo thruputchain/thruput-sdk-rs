@@ -16,6 +16,14 @@ pub trait ContractSrc {
 
     fn interface_name(&self) -> Option<String>;
 
+    fn interface_vers(&self) -> Option<String>;
+
+    // Default is 0.0.0; setting default in one place to avoid
+    // errors in method definitions later.
+    fn defaulted_interface_vers(&self) -> String {
+        self.interface_vers().unwrap_or_else(|| "0.0.0".to_string())
+    }
+
     fn client_ident(&self) -> Option<syn::Ident>;
 
     fn self_ty(&self) -> Option<&syn::Type>;
@@ -46,6 +54,11 @@ impl ContractSrc for syn::ItemTrait {
         let ident = &self.ident;
 
         Some(ident.to_string())
+    }
+
+    fn interface_vers(&self) -> Option<String> {
+        // TODO: some mechanism for specifying a version
+        None
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
@@ -81,6 +94,11 @@ impl ContractSrc for syn::ItemImpl {
         let ident = self.trait_.as_ref().map(|(_, path, _)|
                         path_last_segment_ident(path));
         ident.map(|i| i.to_string())
+    }
+
+    fn interface_vers(&self) -> Option<String> {
+        // TODO: some mechanism for specifying a version
+        None
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
@@ -141,6 +159,11 @@ where
     fn interface_name(&self) -> Option<String> {
         self.config.interface_name().or_else(||
             self.contract.interface_name())
+    }
+
+    fn interface_vers(&self) -> Option<String> {
+        // TODO: connect version to whatever the config defines
+        self.contract.interface_vers()
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {

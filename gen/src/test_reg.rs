@@ -59,7 +59,7 @@ fn generate_method(
 ) -> Result<TokenStream> {
     let ident = &method.ident;
     let internal_name = format_ident!("{}_internal", ident);
-    let version = None;
+    let version = "0.0.0";
     let entrypoint_id = contract_entrypoint_id(iface_name, version, ident, index);
     let entrypoint = entrypoint_literal(entrypoint_id);
 

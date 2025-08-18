@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
-    version_str: Option<&str>,
+    version_str: &str,
     method_ident: &syn::Ident,
     method_index: usize,
 ) -> ContractEntrypointID {
@@ -16,7 +16,6 @@ pub fn contract_entrypoint_id(
 
     let method_name = method_ident.to_string();
     let iface_name = interface_name.unwrap_or(&method_name);
-    let version_str = version_str.unwrap_or("0.0.0");
     let method_index: u16 = method_index.try_into().expect("requested method index doesn't fit into u16");
 
     // println!("METHOD if:<{}> v:<{}> ix:<{}>", iface_name, version_str, method_index);
