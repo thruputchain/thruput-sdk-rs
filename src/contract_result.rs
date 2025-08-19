@@ -11,53 +11,64 @@ use crate::storage::error::Error as StorageErr;
 
 use groundhog_xdr::contract_error as gh;
 
+#[cfg(feature = "spec")]
+use xdrs::xdr_repr::XDR;
+
+
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 #[repr(i32)]
-#[cfg_attr(feature = "spec", derive(XDR))]
+#[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum Error {
-    #[error("Caller error{0}")]
-    Caller(ErrorMsg) = gh::ErrorType::kErrorTypeCaller as i32,
-
-    #[error("Contract internal error{0}")]
-    Contract(#[from] ContractError) = gh::ErrorType::kErrorTypeContract as i32,
+    #[error("Caller error: {msg}")]
+    Caller { msg: ErrorMsg } = gh::ErrorType::kErrorTypeCaller as i32,
+    #[error("Contract internal error: {contract_error}")]
+    Contract {
+        #[from]
+        contract_error: ContractError
+    } = gh::ErrorType::kErrorTypeContract as i32,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 #[repr(i32)]
-#[cfg_attr(feature = "spec", derive(XDR))]
+#[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum ContractError {
-    #[error(": {0}")]
-    Custom(ErrorMsg) = gh::ContractErrorType::kContractErrorTypeCustom as i32,
+    #[error(": {msg}")]
+    Custom { msg: ErrorMsg } = gh::ContractErrorType::kContractErrorTypeCustom as i32,
 
-    #[error(": failed due to syscall error: {0}")]
-    Syscall(#[from] SysErr) = gh::ContractErrorType::kContractErrorTypeSyscall as i32,
+    #[error(": failed due to syscall error: {syscall_error}")]
+    Syscall {
+        #[from]
+        syscall_error: SysErr
+    } = gh::ContractErrorType::kContractErrorTypeSyscall as i32,
 
     #[cfg(feature = "storage")]
-    #[error(": failed due to storage error: {0}")]
-    Storage(#[from] StorageErr) = gh::ContractErrorType::kContractErrorTypeStorage as i32,
+    #[error(": failed due to storage error: {storage_error}")]
+    Storage {
+        #[from]
+        storage_error: StorageErr
+    } = gh::ContractErrorType::kContractErrorTypeStorage as i32,
 }
 
 impl From<SysErr> for Error {
     fn from(err: SysErr) -> Self {
-        Error::Contract(err.into())
+        Error::Contract{contract_error: err.into()}
     }
 }
 
 #[cfg(feature = "storage")]
-#[cfg_attr(feature = "spec", derive(XDR))]
 impl From<StorageErr> for Error {
     fn from(err: StorageErr) -> Self {
-        Error::Contract(err.into())
+        Error::Contract{contract_error: err.into()}
     }
 }
 
 impl Error {
     pub fn is_caller_err(&self) -> bool {
-        matches!(self, Error::Caller(_))
+        matches!(self, Error::Caller{msg : _})
     }
 
     pub fn is_contract_err(&self) -> bool {
-        matches!(self, Error::Contract(_))
+        matches!(self, Error::Contract{contract_error : _})
     }
 }
 
@@ -65,14 +76,14 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 pub fn internal_err<T, M: AsRef<str>>(msg: M) -> Result<T> {
     let msg = ErrorMsg::new(msg.as_ref());
-    let contract_err = ContractError::Custom(msg);
-    let error = Error::Contract(contract_err);
+    let contract_err = ContractError::Custom{msg};
+    let error = Error::Contract{contract_error: contract_err};
 
     Err(error)
 }
 
 pub fn caller_error<T, M: AsRef<str>>(msg: M) -> Result<T> {
-    Err(Error::Caller(ErrorMsg::new(msg.as_ref())))
+    Err(Error::Caller{msg : ErrorMsg::new(msg.as_ref())})
 }
 
 pub fn caller_ensure<M: AsRef<str>>(pred: bool, msg: M) -> Result<()> {

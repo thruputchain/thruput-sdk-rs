@@ -62,12 +62,17 @@ impl From<SerializationError> for Error {
 // Error strings will be preserved for testing, but
 // dropped when compiled for contract deployment
 
+#[cfg(feature = "spec")]
+use xdrs::XDR;
+
 #[cfg(not(feature = "mock"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[cfg_attr(feature = "spec", derive(XDR))]
 pub struct ErrorMsg;
 
 #[cfg(feature = "mock")]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[cfg_attr(feature = "spec", derive(XDR))]
 pub struct ErrorMsg(String);
 
 impl ErrorMsg {
