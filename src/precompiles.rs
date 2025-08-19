@@ -9,7 +9,7 @@ pub const fn get_precompile_addr(addr: GenesisContractAddresses) -> ContractAddr
     bytes[28] = addr_bytes[0];
     bytes[29] = addr_bytes[1];
     bytes[30] = addr_bytes[2];
-    bytes[31] = addr_byte   s[3];
+    bytes[31] = addr_bytes[3];
     ContractAddress::new(bytes)
 }
 
