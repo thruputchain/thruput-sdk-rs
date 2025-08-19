@@ -13,6 +13,7 @@ use groundhog_xdr::contract_error as gh;
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 #[repr(i32)]
+#[cfg_attr(feature = "spec", derive(XDR))]
 pub enum Error {
     #[error("Caller error{0}")]
     Caller(ErrorMsg) = gh::ErrorType::kErrorTypeCaller as i32,
@@ -23,6 +24,7 @@ pub enum Error {
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
 #[repr(i32)]
+#[cfg_attr(feature = "spec", derive(XDR))]
 pub enum ContractError {
     #[error(": {0}")]
     Custom(ErrorMsg) = gh::ContractErrorType::kContractErrorTypeCustom as i32,
@@ -42,6 +44,7 @@ impl From<SysErr> for Error {
 }
 
 #[cfg(feature = "storage")]
+#[cfg_attr(feature = "spec", derive(XDR))]
 impl From<StorageErr> for Error {
     fn from(err: StorageErr) -> Self {
         Error::Contract(err.into())
