@@ -21,7 +21,7 @@ use xdrs::serialize_txs;
 pub struct TestEnvironment {
     pub(crate) db: *mut c_void,
     pub(crate) contract_context: *mut c_void,
-    mock_contract_index: u32,
+    mock_contract_index: i32,
     contracts: Vec<*mut MockContractInner>, // owns these contracts
 }
 
@@ -141,7 +141,7 @@ impl<'a> TestEnvironment {
         let res = unsafe {
             register_new_contract(
                 self.contract_context,
-                new_id,
+                new_id as u32,
                 Some(trampoline),
                 out as *mut c_void,
             )

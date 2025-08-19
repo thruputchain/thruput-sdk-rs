@@ -36,6 +36,7 @@ pub mod invoke;
 pub mod invoke_config;
 pub mod invoke_error;
 pub mod log;
+pub mod precompiles;
 pub mod serialize;
 
 pub mod contract_result;

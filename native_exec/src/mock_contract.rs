@@ -14,7 +14,7 @@ use std::panic::UnwindSafe;
 
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
-    index: u32,
+    index: i32,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
     funcs: HashMap<ContractEntrypointID, Box<dyn Fn() -> ForeignInvokeResult>>,
 }
@@ -24,7 +24,7 @@ pub struct MockContract<'a> {
     _marker: PhantomData<&'a TestEnvironment>,
 }
 
-fn u32_to_contract(index: u32) -> Contract {
+fn i32_to_contract(index: i32) -> Contract {
     Contract::kMockTest {
         mock_contract_id: index,
     }
@@ -55,7 +55,7 @@ impl<'a> MockContract<'a> {
     */
 
     pub fn as_contract(&self) -> Contract {
-        u32_to_contract(unsafe { (*self.contract).index })
+        i32_to_contract(unsafe { (*self.contract).index })
     }
 
     pub fn as_hash(&self) -> &SHA256Hash {
@@ -79,9 +79,9 @@ impl<'a> MockContract<'a> {
 }
 
 impl MockContractInner {
-    pub fn new(n: u32) -> Self {
+    pub fn new(n: i32) -> Self {
         let mut hasher = Sha256::new();
-        let contract = u32_to_contract(n);
+        let contract = i32_to_contract(n);
         hasher.update(serialize_txs::encode(&contract).unwrap());
         let result: [u8; 32] = hasher.finalize().into();
         Self {
