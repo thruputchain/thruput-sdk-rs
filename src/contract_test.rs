@@ -1,8 +1,12 @@
+// TODO: fail the test on panic
+
 #[macro_export]
 macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
         #[test]
         fn $name() {
+            sdk::TestEnvironment::enable_syscall_logging();
+
             let mut env = sdk::TestEnvironment::new();
 
             let test_contract = {

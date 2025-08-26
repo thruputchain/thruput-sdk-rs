@@ -15,7 +15,7 @@ pub use keypath::*;
 
 use core::ops::{Deref, DerefMut};
 use core::marker::PhantomData;
-use xdrs::{ReadXDROwned, WriteXDR};
+use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 use crate::contract_panic;
 
 pub struct Resource<T> {
@@ -38,7 +38,7 @@ impl<T> DerefMut for Resource<T> {
 }
 
 impl<T> Resource<T> {
-    pub fn new(keypath: &Keypath, value: T) -> Self {
+    fn new(keypath: &Keypath, value: T) -> Self {
         Self {
             keypath: keypath.clone(),
             value,
@@ -56,6 +56,36 @@ impl<T> Resource<T> {
     }
 }
 
+use error::Result;
+
+impl<T: Load> Resource<T> {
+    pub fn load_path(keypath: &Keypath) -> Result<Self> {
+        let value = Load::load(&keypath.generate_key())?;
+        Ok(Resource::new(keypath, value))
+    }
+
+    pub fn try_load_path(keypath: &Keypath) -> Result<Option<Self>> {
+        match Self::load_path(keypath) {
+            Ok(r) => Ok(Some(r)),
+            Err(e) => if e.is_storage_key_not_exist() {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
+impl<T: Store> Resource<T> {
+    pub fn flush(&mut self) {
+        self.value.store(&self.keypath.generate_key()).unwrap_or_else(|e|
+            contract_panic!("Resource::flush: {e}"))
+    }
+}
+
+// -----------------------------------------------------------------
+
+#[derive(Debug, ReadXDR, WriteXDR, PartialEq)]
 pub struct Handle<T> {
     keypath: Keypath,
     _marker: PhantomData<fn() -> T>,
@@ -71,8 +101,15 @@ impl<T> From<Keypath> for Handle<T> {
 }
 
 impl<T> Handle<T> {
-    pub fn new(keypath: &Keypath) -> Self {
+    fn new(keypath: &Keypath) -> Self {
         Handle::from(keypath.clone())
+    }
+
+    pub fn get(&self) -> Resource<T>
+        where T: ReadXDROwned
+    {
+        Resource::load_path(&self.keypath).unwrap_or_else(|e|
+            contract_panic!("Handle::get: Resource::load_path: {e}"))
     }
 
     pub fn load(&self) -> T
@@ -83,29 +120,54 @@ impl<T> Handle<T> {
             contract_panic!("Handle::load failed: {e}"))
     }
 
-    pub fn store(&mut self, value: T)
+    pub fn store(&mut self, value: &T)
         where T: WriteXDR
     {
         let key = self.keypath.generate_key();
         value.store(&key).unwrap_or_else(|e|
             contract_panic!("Handle::store failed: {e}"))
     }
+
+    pub fn root() -> Self {
+        Keypath::root().into()
+    }
 }
 
-/*
-pub use kvec::*;
-pub use kmap::*;
+pub struct Region {
+    name: &'static str,
+    i: u64
+}
 
-mod kvec {
+impl Region {
+    pub fn new(name: &'static str) -> Self {
+        Self { name, i: 0 }
+    }
+
+    pub fn alloc<T>(&mut self) -> Handle<T> {
+        let mut kp = Keypath::root();
+        kp.push_item(self.name.as_bytes());
+        kp.push_index(self.i);
+
+        self.i += 1;
+
+        kp.into()
+    }
+}
+
+pub use hvec::*;
+mod hvec {
     use super::*;
+    use xdrs::{ReadXDR, WriteXDR};
 
     #[derive(ReadXDR, WriteXDR)]
-    pub struct KVec<T> {
+    pub struct HVec<T> {
         length: u64,
         _marker: PhantomData<T>,
     }
 }
 
+/*
+pub use kmap::*;
 mod kmap {
     use super::*;
 
