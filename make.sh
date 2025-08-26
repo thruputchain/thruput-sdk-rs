@@ -20,6 +20,9 @@ case "$verb" in
     test)
         cargo_native test --features=mock,storage "$@"
         ;;
+    test-res)
+        cargo_native test --features=mock,resource "$@"
+        ;;
     check)
         cargo check --features=mock "$@"
         ;;

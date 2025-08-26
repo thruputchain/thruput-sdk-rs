@@ -61,6 +61,7 @@ alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/all
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
 logging = ["macros/logging"]
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
+resource = []
 
 [profile.dev]
 opt-level = 3

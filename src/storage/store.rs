@@ -2,10 +2,10 @@ use super::error::Result;
 use super::keypath::*;
 use crate::bytestring::*;
 use crate::serialize::{self, Serialize};
-use crate::types::StorageKeyContractData;
+use crate::types::StorageKey;
 
 pub trait Store {
-    fn store(&self, key: &StorageKeyContractData) -> Result<()>;
+    fn store(&self, key: &StorageKey) -> Result<()>;
 
     fn store_keypath(&self, keypath: &Keypath) -> Result<()> {
         let key = keypath.generate_key();
@@ -17,7 +17,7 @@ impl<T> Store for T
 where
     T: Serialize,
 {
-    fn store(&self, key: &StorageKeyContractData) -> Result<()> {
+    fn store(&self, key: &StorageKey) -> Result<()> {
         // Load any previous value and drop it? XXX
         if let Some(prev) = bytestring_try_get(key)? {
             drop(prev);
@@ -29,7 +29,7 @@ where
     }
 }
 
-pub fn store<T: Store>(key: &StorageKeyContractData, val: &T) -> Result<()> {
+pub fn store<T: Store>(key: &StorageKey, val: &T) -> Result<()> {
     val.store(key)
 }
 

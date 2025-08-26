@@ -45,6 +45,9 @@ pub mod contract_test;
 #[cfg(any(doc, feature = "storage"))]
 pub mod storage;
 
+#[cfg(feature = "resource")]
+pub mod resource;
+
 // Direct exports
 
 pub use syscall::*;

@@ -42,7 +42,14 @@ macro_rules! contract_panic {
             panic!($($expr),*);
 
             #[cfg(not(feature = "mock"))]
-            $crate::rt::trap();
+            {
+                // Reference the expressions to avoid complaints
+                // about unused variables.
+                // TODO: does this actually compile away?
+                let _ = format_args!($($expr),*);
+
+                $crate::rt::trap();
+            }
         }
     };
 }
