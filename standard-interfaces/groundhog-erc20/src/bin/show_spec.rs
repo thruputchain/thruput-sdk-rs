@@ -1,5 +1,4 @@
-#[test]
-fn show_spec() {
+fn main() {
     let spec = groundhog_erc20_if::ERC20_spec();
 
     println!("\n{spec}");

@@ -29,3 +29,7 @@ doctest = false
 name = "generate_erc20_spec"
 path = "src/bin/generate_spec.rs"
 required-features = ["spec"]
+
+[[bin]]
+name = "show_spec"
+required-features = ["spec"]
