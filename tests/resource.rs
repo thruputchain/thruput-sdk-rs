@@ -1,13 +1,31 @@
-use sdk::contract_test;
+use sdk::{bytestring_get, contract_test, WriteXDR};
 
 contract_test!(test_storable {
     use sdk::resource::*;
-    use xdrs::{ReadXDR, WriteXDR};
+    use xdrs::serialize_cxs::buf_reader::*;
 
-    #[derive(Debug, ReadXDR, WriteXDR, PartialEq)]
+    #[derive(Debug, PartialEq, WriteXDR)]
     struct Foo {
         n: u32,
         child: Option<Handle<Foo>>,
+    }
+
+    impl LoadPath for Foo {
+        fn load_path(keypath: &Keypath) -> Result<Self> {
+            let buf = bytestring_get(&keypath.generate_key())?;
+            let mut reader = BufReader::new(buf.as_ref());
+            let reader = &mut reader;
+
+            let mut kp = keypath.clone();
+            kp.enter_seq();
+            let n = ReadPath::read_path(&kp, reader)?;
+
+            kp.seq_next();
+            let child = ReadPath::read_path(&kp, reader)?;
+
+            let value = Foo { n, child };
+            Ok(value)
+        }
     }
 
     let foo = Foo { n: 12, child: None };

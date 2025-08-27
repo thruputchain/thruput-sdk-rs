@@ -3,6 +3,13 @@
 #![allow(dead_code)]
 
 mod error;
+pub use error::*;
+
+mod keypath;
+pub use keypath::*;
+
+mod read_path;
+pub use read_path::*;
 
 mod load;
 use load::*;
@@ -10,12 +17,9 @@ use load::*;
 mod store;
 use store::*;
 
-mod keypath;
-pub use keypath::*;
-
 use core::ops::{Deref, DerefMut};
 use core::marker::PhantomData;
-use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
+use xdrs::{ReadXDR, WriteXDR, Writer, WriteResult};
 use crate::contract_panic;
 
 pub struct Resource<T> {
@@ -37,7 +41,7 @@ impl<T> DerefMut for Resource<T> {
     }
 }
 
-impl<T> Resource<T> {
+impl<T: LoadPath> Resource<T> {
     fn new(keypath: &Keypath, value: T) -> Self {
         Self {
             keypath: keypath.clone(),
@@ -56,15 +60,27 @@ impl<T> Resource<T> {
     }
 }
 
-use error::Result;
-
-impl<T: Load> Resource<T> {
-    pub fn load_path(keypath: &Keypath) -> Result<Self> {
-        let value = Load::load(&keypath.generate_key())?;
+impl<T: LoadPath> LoadPath for Resource<T> {
+    fn load_path(keypath: &Keypath) -> Result<Self> {
+        let value = LoadPath::load_path(keypath)?;
         Ok(Resource::new(keypath, value))
     }
+}
 
-    pub fn try_load_path(keypath: &Keypath) -> Result<Option<Self>> {
+impl<T: Store> Resource<T> {
+    pub fn flush(&mut self) {
+        self.value.store(&self.keypath.generate_key()).unwrap_or_else(|e|
+            contract_panic!("Resource::flush: {e}"))
+    }
+}
+
+// --------------------
+
+pub trait LoadPath: Sized {
+    fn load_path(keypath: &Keypath) -> Result<Self>;
+
+    fn try_load_path(keypath: &Keypath) -> Result<Option<Self>>
+    {
         match Self::load_path(keypath) {
             Ok(r) => Ok(Some(r)),
             Err(e) => if e.is_storage_key_not_exist() {
@@ -76,10 +92,60 @@ impl<T: Load> Resource<T> {
     }
 }
 
-impl<T: Store> Resource<T> {
-    pub fn flush(&mut self) {
-        self.value.store(&self.keypath.generate_key()).unwrap_or_else(|e|
-            contract_panic!("Resource::flush: {e}"))
+impl<T: Load> LoadPath for T {
+    fn load_path(keypath: &Keypath) -> Result<Self> {
+        Load::load(&keypath.generate_key())
+    }
+}
+
+// -----------------------------------------------------------------
+
+#[derive(Debug, PartialEq)]
+pub struct Link<T> {
+    keypath: Keypath,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> From<Keypath> for Link<T> {
+    fn from(keypath: Keypath) -> Self {
+        Self {
+            keypath,
+            _marker: PhantomData
+        }
+    }
+}
+
+impl<T> Link<T> {
+    fn new(keypath: &Keypath) -> Self {
+        Self::from(keypath.clone())
+    }
+
+    pub fn get(&self) -> Resource<T>
+        where T: LoadPath
+    {
+        Resource::load_path(&self.keypath).unwrap_or_else(|e|
+            contract_panic!("Handle::get: Resource::load_path: {e}"))
+    }
+
+    pub fn put(&mut self, val: &T)
+        where T: WriteXDR
+    {
+        val.store_keypath(&self.keypath).unwrap_or_else(|e|
+            contract_panic!("Link::put: {e}"));
+    }
+}
+
+impl<T> LoadPath for Link<T>
+    where T: LoadPath
+{
+    fn load_path(keypath: &Keypath) -> Result<Self> {
+        Ok(keypath.clone().into())
+    }
+}
+
+impl<T> WriteXDR for Link<T> {
+    fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult {
+        Ok(())
     }
 }
 
@@ -106,19 +172,20 @@ impl<T> Handle<T> {
     }
 
     pub fn get(&self) -> Resource<T>
-        where T: ReadXDROwned
+        where T: LoadPath
     {
         Resource::load_path(&self.keypath).unwrap_or_else(|e|
             contract_panic!("Handle::get: Resource::load_path: {e}"))
     }
 
+    /*
     pub fn load(&self) -> T
-        where T: ReadXDROwned
+        where T: LoadPath
     {
-        let key = self.keypath.generate_key();
-        T::load(&key).unwrap_or_else(|e|
+        T::load_path(&self.keypath).unwrap_or_else(|e|
             contract_panic!("Handle::load failed: {e}"))
     }
+    */
 
     pub fn store(&mut self, value: &T)
         where T: WriteXDR

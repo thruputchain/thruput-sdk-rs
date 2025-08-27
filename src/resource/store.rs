@@ -19,7 +19,8 @@ where
     T: WriteXDR,
 {
     fn store(&self, key: &StorageKey) -> Result<()> {
-        // Load any previous value and drop it? XXX
+        // Load any previous value and drop it?
+        // TODO: skip this for non-Drop types
         if let Some(prev) = bytestring_try_get(key)? {
             drop(prev);
         }
@@ -28,9 +29,3 @@ where
         Ok(())
     }
 }
-
-/*
-pub fn store<T: Store>(key: &StorageKey, val: &T) -> Result<()> {
-    val.store(key)
-}
-*/
