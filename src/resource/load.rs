@@ -1,9 +1,9 @@
-use super::error::Result;
-// use super::keypath::*;
 use crate::bytestring::bytestring_get;
 use crate::types::StorageKey;
 use xdrs::ReadXDROwned;
 use xdrs::serialize_cxs::decode as decode_xdr;
+use super::error::*;
+use super::keypath::*;
 
 /// Must implement at least `load`
 pub trait Load: Sized {
@@ -31,5 +31,27 @@ where
         let buf = bytestring_get(key)?;
         let val = decode_xdr(buf.as_ref())?;
         Ok(val)
+    }
+}
+
+pub trait LoadPath: Sized {
+    fn load_path(keypath: &Keypath) -> Result<Self>;
+
+    fn try_load_path(keypath: &Keypath) -> Result<Option<Self>>
+    {
+        match Self::load_path(keypath) {
+            Ok(r) => Ok(Some(r)),
+            Err(e) => if e.is_storage_key_not_exist() {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
+impl<T: Load> LoadPath for T {
+    fn load_path(keypath: &Keypath) -> Result<Self> {
+        Load::load(&keypath.generate_key())
     }
 }

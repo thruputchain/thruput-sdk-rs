@@ -1,8 +1,11 @@
 use sdk::{bytestring_get, contract_test, WriteXDR};
+use sdk::resource::*;
+use sdk::resource::keypath::*;
+use sdk::resource::load::*;
+use sdk::resource::read_path::*;
+use xdrs::serialize_cxs::buf_reader::*;
 
 contract_test!(test_storable {
-    use sdk::resource::*;
-    use xdrs::serialize_cxs::buf_reader::*;
 
     #[derive(Debug, PartialEq, WriteXDR)]
     struct Foo {

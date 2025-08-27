@@ -117,19 +117,6 @@ impl Into<Vec<u8>> for Keypath {
     }
 }
 
-pub trait DefaultFromKeypath {
-    fn default_from_keypath(keypath: &Keypath) -> Self;
-}
-
-impl<T> DefaultFromKeypath for T
-where
-    T: Default,
-{
-    fn default_from_keypath(_: &Keypath) -> Self {
-        Default::default()
-    }
-}
-
 #[cfg(test)]
 mod test_keypath {
 
@@ -147,7 +134,7 @@ mod test_keypath {
     }
 }
 
-// pub use keycache::*;
+#[cfg(any())]
 mod keycache {
     use super::Keypath;
     use crate::types::StorageKey;
