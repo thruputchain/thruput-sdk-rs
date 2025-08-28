@@ -1,0 +1,29 @@
+[package]
+name = "groundhog-erc1271-if"
+version = "0.1.0"
+edition = "2021"
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "ERC1271 standard interface for Groundhog smart contracts"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+
+[features]
+mock = ["std", "sdk/mock"]
+std = ["sdk/std"]
+spec = ["sdk/spec", "std"]
+
+[dependencies]
+sdk = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+xdrs = { workspace = true, features = ["derive", "alloc", "extras"] }
+thiserror = { workspace = true }
+
+[[bin]]
+name = "show_spec"
+required-features = ["spec"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
