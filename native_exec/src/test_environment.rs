@@ -141,7 +141,7 @@ impl<'a> TestEnvironment {
         let res = unsafe {
             register_new_contract(
                 self.contract_context,
-                new_id as u32,
+                new_id,
                 Some(trampoline),
                 out as *mut c_void,
             )
