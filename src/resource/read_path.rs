@@ -6,17 +6,19 @@ use super::error::*;
 use super::link::*;
 use super::handle::*;
 
+pub fn read_path<'r, T>(keypath: &mut Keypath, reader: &mut BufReader<'r>) -> Result<T>
+    where T: ReadPath<'r>
+{
+    let precursor = read_xdr(reader)?;
+    let value = T::from_path_via(keypath, precursor);
+    Ok(value)
+}
+
 pub trait ReadPath<'r>: Sized {
     // An XDR-mapped type that can be combined with a keypath to produce Self
     type Precursor: ReadXDR<'r>;
 
     fn from_path_via(keypath: &Keypath, precursor: Self::Precursor) -> Self;
-
-    fn read_path(keypath: &Keypath, reader: &mut BufReader<'r>) -> Result<Self> {
-        let precursor = read_xdr(reader)?;
-        let value = Self::from_path_via(keypath, precursor);
-        Ok(value)
-    }
 }
 
 impl<'r, T: ReadPath<'r>> ReadPath<'r> for Link<T> {

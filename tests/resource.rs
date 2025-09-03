@@ -21,10 +21,13 @@ contract_test!(test_storable {
 
             let mut kp = keypath.clone();
             kp.enter_seq();
-            let n = ReadPath::read_path(&kp, reader)?;
+            let s = reader.seq(Some(2));
 
-            kp.seq_next();
-            let child = ReadPath::read_path(&kp, reader)?;
+            let n = read_path(&mut kp, reader)?;
+            s.next();
+
+            let child = read_path(&mut kp, reader)?;
+            s.end();
 
             let value = Foo { n, child };
             Ok(value)
