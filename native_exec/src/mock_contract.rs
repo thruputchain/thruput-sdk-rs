@@ -62,7 +62,10 @@ impl<'a> MockContract<'a> {
         unsafe { &(*self.contract).hash }
     }
 
-    pub fn register_method(self: &mut Self, id: ContractEntrypointID, func: fn() -> ()) {
+    pub fn register_method<F>(self: &mut Self, id: ContractEntrypointID, func: F)
+    where
+        F: Fn() -> () + UnwindSafe + Clone + 'static,
+    {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
 

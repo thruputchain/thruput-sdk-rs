@@ -3,8 +3,7 @@
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
 use crate::sysresult::ErrorMsg;
-use crate::serialize::{Deserialize, Serialize};
-use crate::syscall::SysErr;
+use groundhog_xdr::syscalls::SysErr;
 
 #[cfg(feature = "storage")]
 use crate::storage::error::Error as StorageErr;
@@ -15,7 +14,7 @@ use groundhog_xdr::contract_error as gh;
 use xdrs::xdr_repr::XDR;
 
 
-#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum Error {
@@ -28,7 +27,7 @@ pub enum Error {
     } = gh::ErrorType::kErrorTypeContract as i32,
 }
 
-#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum ContractError {

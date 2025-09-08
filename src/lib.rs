@@ -16,7 +16,7 @@ compile_error!("building with nostd (or just the alloc feature) is \
                 not supported outside of wasm");
 
 // Syscall utilities
-pub mod syscall;
+//pub mod syscall;
 pub mod syscall_bindings;
 pub mod sysresult;
 
@@ -47,8 +47,10 @@ pub mod storage;
 
 // Direct exports
 
-pub use syscall::*;
-pub use syscall_bindings as sys;
+//pub use syscall::*;
+//pub use syscall_bindings as sys;
+pub use groundhog_xdr::syscalls as sys;
+pub use groundhog_xdr::syscalls::SysErr;
 pub use contract_op::*;
 pub use log::*;
 pub use invoke::*;

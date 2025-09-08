@@ -9,7 +9,7 @@
 use crate::sysresult::SysResult as Result;
 use crate::sys;
 #[allow(unused_imports)] // import is for docs
-use crate::syscall::SyscallErrorCode;
+use ::groundhog_xdr::syscall_error::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 use core::mem::MaybeUninit;
 
@@ -20,7 +20,7 @@ pub use bytestring_get_alloc::*;
 ///
 /// Returns `false` if nothing is there.
 /// If an item of another type exists there, returns an error with code
-/// [`SyscallErrorCode::kInvalidSyscallInput`].
+/// [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`].
 ///
 pub fn bytestring_exists(key: &StorageKeyContractData) -> Result<bool> {
     match bytestring_get_len(key) {
@@ -107,14 +107,14 @@ mod bytestring_get_alloc {
     use crate::sys;
     use crate::types::StorageKeyContractData;
     #[allow(unused_imports)] // import is for docs
-    use crate::syscall::SyscallErrorCode;
+    use ::groundhog_xdr::syscall_error::SyscallErrorCode;
     use alloc::boxed::Box;
     use core::mem::MaybeUninit;
 
     /// Returns a new allocation with the contents of the bytestring stored at the given key.
     ///
-    /// Returns [`SyscallErrorCode::kStorageKeyNotExist`] if there is none,
-    /// or [`SyscallErrorCode::kInvalidSyscallInput`] if an item of another type is there.
+    /// Returns [`SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist`] if there is none,
+    /// or [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
     /// This routine requires feature `alloc`.
     ///
     pub fn bytestring_get(key: &StorageKeyContractData) -> Result<Box<[u8]>> {

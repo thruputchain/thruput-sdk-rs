@@ -32,7 +32,11 @@ macro_rules! contract_test {
                 );
             });
 
+            println!("handler.root_invoke");
             let res = handler.root_invoke();
+            println!("res: {:?}", res);
+            println!("res.result.panic: {:?}", res.result.panic);
+            println!("sdk::InvokeErrorCode::kInvokeNone as i32: {:?}", sdk::InvokeErrorCode::kInvokeNone as i32);
             assert_eq!(
                 res.result.panic,
                 sdk::InvokeErrorCode::kInvokeNone as i32

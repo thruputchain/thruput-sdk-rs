@@ -1,9 +1,6 @@
 [submodule "external/bcs"]
 	path = external/bcs
 	url = git@github.com:groundhogchain/bcs.git
-[submodule "protocol-rs"]
-	path = protocol-rs
-	url = git@github.com:groundhogchain/protocol-rs.git
 [submodule "hogd"]
 	path = hogd
 	url = git@github.com:groundhogchain/hogd.git

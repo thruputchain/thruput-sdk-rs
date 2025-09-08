@@ -20,7 +20,7 @@ macro_rules! debug_log {
     };
 }
 
-#[cfg(not(feature = "mock"))]
+#[cfg(not(feature = "std"))]
 #[macro_export]
 macro_rules! debug_log {
     ($($arg:tt)*) => {};

@@ -24,7 +24,7 @@ impl SysErr {
     }
 
     pub fn is_none(self) -> bool {
-        self.is_code(SyscallErrorCode::kNone)
+        self.is_code(SyscallErrorCode::kSyscallErrorCodeNone)
     }
 
     pub fn is_some(self) -> bool {
@@ -32,11 +32,11 @@ impl SysErr {
     }
 
     pub fn is_storage_key_not_exist(self) -> bool {
-        self.is_code(SyscallErrorCode::kStorageKeyNotExist)
+        self.is_code(SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)
     }
 
     pub fn is_aborted(self) -> bool {
-        self.is_code(SyscallErrorCode::kFrameReverted)
+        self.is_code(SyscallErrorCode::kSyscallErrorCodeFrameReverted)
     }
 }
 

@@ -172,10 +172,14 @@ impl<'a> TestEnvironment {
         );
 
         let stx = SignedTransaction {
-            signature: Signature::default(),
+            signatures: vec![].try_into().unwrap(),
+            aux_signatures: vec![].try_into().unwrap(),
             tx: Transaction {
-                created: 0,
                 origin_id: [0; 16].into(),
+                uniquifier: Uniquifier {
+                    block_expiry_height: 0,
+                    nonce: 0,
+                },
                 invocation: Invocation {
                     invoked_address: invoke_addr,
                     entrypoint: entrypoint,
