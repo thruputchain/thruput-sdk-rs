@@ -1,9 +1,8 @@
-use crate::syscall::SysErr;
 use bcs::Error as SerializationError;
 use core::fmt;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
+use ::groundhog_xdr::syscalls::SysErr;
 
 #[cfg(feature = "mock")]
 use alloc::string::{String, ToString};
@@ -15,7 +14,7 @@ pub type SysResult<T> = core::result::Result<T, SysErr>;
 pub type Result<T> = core::result::Result<T, Error>;
 
 // Error type for general SDK functions
-#[derive(Error, Debug, Clone, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, Clone, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum Error {
     #[error("System call error: {0}")]
@@ -66,12 +65,12 @@ impl From<SerializationError> for Error {
 use xdrs::XDR;
 
 #[cfg(not(feature = "mock"))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(XDR))]
 pub struct ErrorMsg;
 
 #[cfg(feature = "mock")]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(XDR))]
 pub struct ErrorMsg(String);
 

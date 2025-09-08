@@ -38,9 +38,7 @@ pub fn generate(
             #[allow(dead_code)]
             pub fn register(env : &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
                 let mut contract = env.add_contract();
-
-                #registrations
-
+                register_mock(&mut contract);
                 contract.as_contract()
             }
 

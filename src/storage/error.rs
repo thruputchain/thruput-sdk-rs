@@ -1,5 +1,4 @@
-use crate::serialize::{Deserialize, Serialize};
-use crate::syscall::SysErr;
+use groundhog_xdr::syscalls::SysErr;
 use crate::{ReadXDR, WriteXDR};
 use bcs::Error as SerializationError;
 use thiserror::Error;
@@ -9,7 +8,7 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 #[cfg(feature = "spec")]
 use xdrs::xdr_repr::XDR;
 
-#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 #[repr(i32)]
 pub enum Error {

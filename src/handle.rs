@@ -1,6 +1,7 @@
 //! A deprecated utility
 
-use crate::syscall::{SysErr, SyscallErrorCode};
+use groundhog_xdr::syscalls::SysErr;
+use groundhog_xdr::syscall_error::SyscallErrorCode;
 use crate::contract_op::{contract_return, get_calldata};
 
 use xdrs::{ReadXDROwned, WriteXDR};
@@ -22,13 +23,13 @@ where
     let call_data: &[u8] = boxed_call_data.as_ref();
     let args: ARGS = match decode(call_data) {
         Ok(args) => args,
-        Err(_) => return SyscallErrorCode::kCalldataParseError.into(),
+        Err(_) => return SyscallErrorCode::kSyscallErrorCodeCalldataParseError.into(),
     };
 
     let result: RES = f(args);
     let result_bytes = match encode(&result) {
         Ok(r) => r,
-        Err(_) => return SyscallErrorCode::kReturnParseError.into(),
+        Err(_) => return SyscallErrorCode::kSyscallErrorCodeReturnParseError.into(),
     };
 
     contract_return(result_bytes.as_slice());

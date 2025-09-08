@@ -12,24 +12,34 @@ struct Data {
 }
 
 contract_test!(test_storable {
+    native_exec::test_environment::TestEnvironment::enable_syscall_logging();
+    println!("test_storable");
     let data_keypath = Keypath::new();
     let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
     data.store_keypath(&data_keypath).unwrap();
 
+    println!("load_keypath");
     let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
 
+    println!("push");
     for i in 0..3 {
         let n = i;
         data.nums.push(n).unwrap();
     }
 
+    println!("store_keypath");
     data.store_keypath(&data_keypath).unwrap();
 
+    println!("load_keypath");
     let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
     for i in 0..3 {
+        println!("get");
         let n = data.nums.get(i).unwrap();
+        println!("n: {:?}", n);
         assert_eq!(n, i);
+        println!("assert_eq");
     }
+    println!("end");
 });
 
 contract_test!(test_storable_lazy {
@@ -166,3 +176,4 @@ contract_test!(test_vector_data {
     }
     drop(vec);
 });
+
