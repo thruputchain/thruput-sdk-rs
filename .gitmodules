@@ -7,6 +7,3 @@
 [submodule "integration_test_contracts"]
 	path = integration_test_contracts
 	url = git@github.com:groundhogchain/integration_test_contracts.git
-[submodule "protocol"]
-	path = protocol
-	url = git@github.com:groundhogchain/protocol.git
