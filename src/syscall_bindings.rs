@@ -1,21 +1,6 @@
 use groundhog_xdr::syscalls::SyscallNo;
 use groundhog_xdr::syscalls::SysErr;
 
-#[cfg(not(feature = "mock"))]
-#[link(wasm_import_module = "marmot")]
-extern "C" {
-    pub fn syscall_wrapper_impl(
-        syscall_no: SyscallNo,
-        arg1: u64,
-        arg2: u64,
-        arg3: u64,
-        arg4: u64,
-        arg5: u64,
-        arg6: u64,
-        arg7: u64,
-    ) -> SysErr;
-}
-
 #[no_mangle]
 #[cfg(feature = "mock")]
 pub extern "C-unwind" fn syscall_wrapper_impl(

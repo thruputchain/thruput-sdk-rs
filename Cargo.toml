@@ -57,7 +57,7 @@ groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 [features]
 # can probably remove this by removing the alloc dependency in the `internal` module
 default = ["alloc"]
-mock = ["std", "dep:native_exec", "macros/mock"]
+mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc", "dep:bcs"]
 alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]
 std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]

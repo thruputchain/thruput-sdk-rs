@@ -16,7 +16,7 @@ compile_error!("building with nostd (or just the alloc feature) is \
                 not supported outside of wasm");
 
 // Syscall utilities
-//pub mod syscall;
+#[cfg(feature = "mock")]
 pub mod syscall_bindings;
 pub mod sysresult;
 
