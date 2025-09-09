@@ -127,7 +127,6 @@ version = "0.1.0"
 dependencies = [
  "calldata_wrapper",
  "sdk",
- "serde",
 ]
 
 [[package]]

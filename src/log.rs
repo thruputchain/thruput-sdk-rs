@@ -12,7 +12,7 @@ pub fn log_str<S: AsRef<str>>(msg: S) {
     std::println!("::LOG:: {}", msg.as_ref());
 }
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "std")]
 #[macro_export] 
 macro_rules! debug_log {
     ($($arg:tt)*) => {
