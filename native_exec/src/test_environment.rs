@@ -174,8 +174,8 @@ impl<'a> TestEnvironment {
         let stx = SignedTransaction {
             signatures: vec![].try_into().unwrap(),
             aux_signatures: vec![].try_into().unwrap(),
+            signature_weight: 0,
             tx: Transaction {
-                origin_id: [0; 16].into(),
                 uniquifier: Uniquifier {
                     block_expiry_height: 0,
                     nonce: 0,
