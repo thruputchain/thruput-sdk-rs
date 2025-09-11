@@ -30,6 +30,7 @@ pub mod bytestring;
 pub mod delete;
 pub mod nonnegative_int;
 pub mod retrocausal_queue;
+pub mod stats;
 
 pub mod types;
 pub mod crypto;

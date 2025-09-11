@@ -72,7 +72,7 @@ fn invoke_inner(
     let mut return_buf = vec![0; return_len as usize];
     let mut written: RuntimeMemoryLength = 0;
     sys::raw_GetReturnedBuffer(return_buf.as_mut_slice(), &mut written)
-        .map_err(InvokeError::Syscall)?;
+        .unwrap_or_else(|_| contract_panic!("couldn't get return buffer"));
     if written != return_len {
         contract_panic!("unexpected return buffer length");
     }
