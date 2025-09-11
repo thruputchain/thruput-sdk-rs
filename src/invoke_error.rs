@@ -33,16 +33,16 @@ pub type ClientResult<T, E> = Result<T, ClientError<E>>;
 #[derive(ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum InvokeError {
-    #[error("invoke: error encoding arguments")]
+    #[error("error encoding arguments")]
     EncodeArgs,
 
-    #[error("invoke: error decoding return value from {0:?}")]
+    #[error("error decoding return value from {0:?}")]
     DecodeReturnVal(Vec<u8>),
 
-    #[error("invoke: error making a syscall")]
-    Syscall(#[from] SysErr),
+    #[error("invoke() syscall failed: {0}")]
+    Syscall(SysErr),
 
-    #[error("invoke: contract aborted")]
+    #[error("contract aborted")]
     Aborted(Vec<u8>),
 }
 

@@ -1,7 +1,8 @@
 use core::fmt;
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
-use ::groundhog_xdr::syscalls::SysErr;
+use crate::SysErr;
+use crate::InvokeError;
 
 #[cfg(feature = "mock")]
 use alloc::string::{String, ToString};
@@ -18,6 +19,9 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     #[error("System call error: {0}")]
     SystemErr(#[from] SysErr),
+
+    #[error("Invoke error: {0}")]
+    InvokeErr(#[from] InvokeError),
 
     #[error("Serialization error{0}")]
     SerializationErr(ErrorMsg),

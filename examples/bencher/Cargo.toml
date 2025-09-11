@@ -1,0 +1,16 @@
+[package]
+name = "bencher"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+sdk = { workspace = true }
+groundhog-erc20-if = { workspace = true }
+
+[features]
+default = ["mock"]
+mock = ["sdk/mock", "groundhog-erc20-if/mock"]
+guest = []
