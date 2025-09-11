@@ -221,6 +221,7 @@ impl TestEnvironment {
 
         let stx = SignedTransaction {
             signatures: vec![].try_into().unwrap(),
+            signature_weight: 0,
             aux_signatures: vec![].try_into().unwrap(),
             signature_weight: 0,
             tx: Transaction {
