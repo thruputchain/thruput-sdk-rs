@@ -1,7 +1,7 @@
 use groundhog_xdr::syscalls::SyscallNo;
 use groundhog_xdr::syscalls::SysErr;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(feature = "mock")]
 pub extern "C-unwind" fn syscall_wrapper_impl(
     syscall_no: SyscallNo,

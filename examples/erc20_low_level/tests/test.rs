@@ -9,7 +9,6 @@ fn erc20_ll_check() {
 
     let test_contract = test::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
-    // sdk::TestEnvironment::enable_syscall_logging();
 
     let mut handler = env.prepare_test(move || -> () {
         let nonce: SHA256Hash = [7; 32].into();

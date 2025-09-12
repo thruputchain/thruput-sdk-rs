@@ -77,6 +77,7 @@ tree_contract() {
     shift
 
     cargo_guest tree \
+        --edges normal,build,no-proc-macro \
         --package "$package" \
         "$@"
 }
@@ -143,6 +144,22 @@ ls_contracts() {
     done
 }
 
+ls_contract_packages() {
+    local contracts_dir="$1"
+    shift
+
+    local contract
+    for contract in "$contracts_dir"/* ; do
+        [ -d "$contract" ] || continue;
+        [ ! -f "$contract"/disabled ] || continue;
+
+        local c
+        c="$(basename "$contract")"
+
+        echo "$c"
+    done
+}
+
 make_contracts() {
     local contracts_dir=${1}
     local action=${2}
@@ -182,8 +199,56 @@ make_contracts() {
 
             tree_contract "$contract" "$@"
             ;;
+        llvm-lines)
+            local contract="$1" ; shift
+
+            # also do: cargo install cargo-llvm-lines
+            cargo_guest llvm-lines -p "$contract"
+            ;;
+        fns)
+            local contract="$1" ; shift
+            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+
+            # get this utility at: https://github.com/WebAssembly/wabt
+            # also do: cargo install rustfilt
+            wasm-objdump -x -j Code "$unoptimized_wasm" | rustfilt
+            ;;
+        sections)
+            local contract="$1" ; shift
+            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+
+            # get this utility at: https://github.com/WebAssembly/wabt
+            wasm-objdump -h "$unoptimized_wasm"
+            ;;
+        decompile)
+            local contract="$1" ; shift
+            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+
+            # get this utility at: https://github.com/WebAssembly/wabt
+            # also do: cargo install rustfilt
+            wasm-decompile "$unoptimized_wasm" | perl -pe 's/\W(ZN\w*)\W/<_$1>/g' | rustfilt
+            ;;
+        dominators)
+            local contract="$1" ; shift
+            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+
+            # cargo install twiggy
+            # https://github.com/AlexEne/twiggy/blob/master/guide/src/SUMMARY.md
+            twiggy dominators "$unoptimized_wasm"
+            ;;
+        top-fns)
+            local contract="$1" ; shift
+            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+
+            # cargo install twiggy
+            # https://github.com/AlexEne/twiggy/blob/master/guide/src/SUMMARY.md
+            twiggy top "$unoptimized_wasm"
+            ;;
         ls)
             ls_contracts "$contracts_dir"
+            ;;
+        ls-packages)
+            ls_contract_packages "$contracts_dir"
             ;;
         ls-wasms)
             ls -l "$TARGET_DIR"/optimized/*.wasm

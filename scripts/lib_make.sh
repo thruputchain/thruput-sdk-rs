@@ -3,7 +3,13 @@
 set -u
 
 cargo() {
-    env cargo --locked "$@"
+  local locked=""
+
+  if [ -n "${CARGO_UNLOCK:-}" ]; then
+    locked="--locked"
+  fi
+
+  env cargo $locked "$@"
 }
 
 # use `cargo_native` for tests using `native_exec`
@@ -39,10 +45,12 @@ make() {
             make_contracts "integration_test_contracts" "$@"
             ;;
         doc)
-            cargo doc --features=std "$@"
+            cargo doc --features=std,storage "$@"
             ;;
         test)
-            cargo_native test --features=mock,storage "$@"
+            # we need dynamic_bufs when using `contract_test`, which
+            # can have multiple concurrent contract invocations
+            cargo_native test --features=mock,storage,dynamic_bufs "$@"
             ;;
         test-spec)
             cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
@@ -51,6 +59,27 @@ make() {
 #        check)
 #            cargo check --features=mock "$@"
 #            ;;
+        todo | TODO)
+            rg -i --ignore-file .local_src_ignore TODO
+            ;;
+        xxx | XXX)
+            rg -i \
+                --ignore-file .local_src_ignore \
+                --ignore-file .xxx_ignore \
+                XXX
+            ;;
+        xxx-clean)
+            printf "\n"
+            make xxx
+            if [ $? -eq 1 ]; then
+                # No matches found and no errors
+                return 0;
+            else
+                # Matches found, or error
+                printf "\n>> XXX annotations found\n"
+                return 1;
+            fi
+            ;;
         lint)
             cargo clippy --no-deps --features=std "$@"
             ;;
@@ -61,13 +90,24 @@ make() {
             cargo clippy --no-deps -p macros "$@"
             ;;
         fmt)
-            cargo fmt --package \
-                macros \
-                groundhog_xdr \
-                protocol_macros \
-                native_exec \
-                "$(ls_contracts examples)" \
+            local example_contracts
+            readarray -t example_contracts < <(make examples ls-packages)
+
+            cargo fmt \
+                --package \
+                    gen \
+                    macros \
+                    native_exec \
+                    "${example_contracts[@]}" \
                 "$@"
+
+            # TODO: tests, standard-interfaces
+            ;;
+        fmt-clean)
+            make fmt --check --quiet || {
+                echo ">> Formatting required!"
+                return 1;
+            }
             ;;
         tree)
             # Show the dependency graph

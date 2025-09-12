@@ -9,7 +9,7 @@
 use crate::sysresult::SysResult as Result;
 use crate::sys;
 #[allow(unused_imports)] // import is for docs
-use ::groundhog_xdr::syscall_error::SyscallErrorCode;
+use crate::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 use core::mem::MaybeUninit;
 
@@ -107,7 +107,7 @@ mod bytestring_get_alloc {
     use crate::sys;
     use crate::types::StorageKeyContractData;
     #[allow(unused_imports)] // import is for docs
-    use ::groundhog_xdr::syscall_error::SyscallErrorCode;
+    use crate::SyscallErrorCode;
     use alloc::boxed::Box;
     use core::mem::MaybeUninit;
 

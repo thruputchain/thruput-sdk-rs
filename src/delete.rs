@@ -3,6 +3,7 @@
 use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::StorageKeyContractData;
+use crate::storage_delta_flags::*;
 
 /// Delete anything stored at the given key
 ///
@@ -11,9 +12,9 @@ use crate::types::StorageKeyContractData;
 /// any type may be stored there.
 pub fn delete(key: &StorageKeyContractData, exclusive: bool) -> Result<()> {
     let flags = if exclusive {
-        groundhog_xdr::storage_delta_flags::kStorageExclusiveLock as i32
+        kStorageExclusiveLock as i32
     } else {
-        groundhog_xdr::storage_delta_flags::kStorageNone as i32
+        kStorageNone as i32
     };
     sys::raw_DeleteObject(key, flags as i32)
 }

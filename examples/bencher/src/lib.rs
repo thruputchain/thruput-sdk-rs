@@ -20,6 +20,8 @@ impl Bencher {
                 contract_panic!("Failed calling ERC20::initialize: {e}"));
 
             let _ = erc20.get_balance().unwrap();
+            erc20.mint(&owner.clone().into(), 100).unwrap();
+            assert_eq!(erc20.get_balance().unwrap(), 100);
         }
         let gas_end = stats::gas_remaining();
 

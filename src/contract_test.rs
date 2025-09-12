@@ -7,7 +7,7 @@ macro_rules! contract_test {
 
             let test_contract = {
                 let mut contract = env.add_contract();
-                let method = sdk::types::ContractEntrypointID::from(1u64.to_be_bytes());
+                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
                     sdk::handle::handle_call(|()| {
                         $test_body
@@ -26,7 +26,7 @@ macro_rules! contract_test {
                         .unwrap();
 
                 // Invoke contract method 1
-                let method = sdk::types::ContractEntrypointID::from(1u64.to_be_bytes());
+                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 sdk::invoke::invoke::<(), ()>(
                     &deployed_addr,
                     method,

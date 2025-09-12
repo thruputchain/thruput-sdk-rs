@@ -1,7 +1,5 @@
-
-
-use groundhog_xdr::genesis::GenesisContractAddresses;
-use groundhog_xdr::types::ContractAddress;
+use crate::ContractAddress;
+use crate::genesis::GenesisContractAddresses;
 
 pub const fn get_precompile_addr(addr: GenesisContractAddresses) -> ContractAddress {
     let mut bytes : [u8; 32] = [0; 32];

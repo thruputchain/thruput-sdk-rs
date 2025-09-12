@@ -1,7 +1,7 @@
 //! A deprecated utility
 
-use groundhog_xdr::syscalls::SysErr;
-use groundhog_xdr::syscall_error::SyscallErrorCode;
+use crate::SysErr;
+use crate::SyscallErrorCode;
 use crate::contract_op::{contract_return, get_calldata};
 
 use xdrs::{ReadXDROwned, WriteXDR};

@@ -16,23 +16,15 @@ pub fn generate(
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), contract);
 
-    let self_ty = contract.self_ty();
-
     let exports_mod_ident = config.exports_mod_ident();
 
-    let use_trait = if let Some(trait_path) = contract.trait_path() {
-        quote! { use super::#trait_path; }
-    } else {
-        quote! {}
-    };
-
-    let use_storage = if config.storage() {
-        quote! {
-            use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
-        }
-    } else {
-        quote! {}
-    };
+    let self_ty = contract.self_ty();
+    let mut uses = vec![quote! {
+        use super::#self_ty;
+    }];
+    if let Some(trait_path) = contract.trait_path() {
+        uses.push(quote! { use super::#trait_path; });
+    }
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_ref().map(|s| s.as_str());
@@ -44,12 +36,7 @@ pub fn generate(
 
     Ok(quote! {
         pub mod #exports_mod_ident {
-            #use_trait
-            use super::#self_ty;
-            #use_storage
-            use ::sdk::types::ContractEntrypointID;
-            use ::sdk::contract_panic;
-            use ::sdk::contract_op::contract_abort;
+            #(#uses)*
 
             #exports
         }
@@ -83,12 +70,19 @@ pub fn generate_method(
     let export_num_name =
         format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
+    let mut uses = vec![quote! {
+        use ::sdk::contract::ContractEntrypointID;
+        use ::sdk::contract_panic;
+        use ::sdk::contract_op::{get_calldata, return_result, contract_abort};
+        use ::sdk::internal::decode_xdr;
+    }];
+
     let log_guest_call = if cfg!(feature = "logging") {
+        uses.push(quote!{ use ::sdk::debug_log; });
+
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
 
-        quote! {
-            ::sdk::debug_log!("{} ", #print_string);
-        }
+        quote! { debug_log!("{} ", #print_string); }
     } else {
         quote! {}
     };
@@ -128,7 +122,6 @@ pub fn generate_method(
 
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();
-
         quote! {
             // Assert that the storage does not yet exist
             if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
@@ -137,9 +130,7 @@ pub fn generate_method(
                 contract_panic!("#[contract(init)] method called when contract storage already exists");
             }
         }
-    } else {
-        quote! {}
-    };
+    } else { quote! {} };
 
     // Load the stored contract state (when appropriate)
     let load_state = if is_method {
@@ -147,6 +138,10 @@ pub fn generate_method(
         let mutability = if is_mut { quote! { mut } } else { quote! {} };
 
         if config.storage() {
+            uses.push(quote! {
+                use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
+            });
+
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
@@ -180,15 +175,6 @@ pub fn generate_method(
             state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
                 contract_panic!("Failed saving contract storage"));
         }
-    } else {
-        quote! {}
-    };
-
-    let use_alloc = if cfg!(feature = "alloc") {
-        quote! {
-            extern crate alloc;
-            use alloc::boxed::Box;
-        }
     } else { quote! {} };
 
     let has_err_type = contract.and_then(|c| c.err_type()).is_some()
@@ -204,29 +190,36 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method);
 
-    export.extend(quote! {
-        pub fn #internal_name() -> () {
-            use sdk::contract_op::{contract_return, get_calldata};
-            use sdk::serialize::{encode_xdr, decode_xdr};
-            #use_alloc
+    let inline = if !cfg!(feature = "no_inline_methods") {
+        quote! { #[inline(always)] }
+    } else { quote! {} };
 
-            // Debug mode: log the method-call
+    export.extend(quote! {
+        #inline
+        pub fn #internal_name() -> () {
+            #(#uses)*
+
+            // If debug mode: log the method-call
             #log_guest_call
 
+            // Error if this is an "init" method and the contract state already exists
             #assert_uninitialized
 
             #load_state
 
-            // Get the encoded argument data from the VM
-            let call_data: Box<[u8]> = get_calldata().unwrap_or_else(|_|
-                sdk::contract_panic!("get_calldata() failed"));
+            // Fetch the calldata from the VM
+            let calldata = get_calldata().unwrap_or_else(|e|
+                contract_panic!("get_calldata() failed: {}", e));
 
-            // Decode the arguments expected by the method
-            let (#arg_names) = decode_xdr(call_data.as_ref()).unwrap_or_else(|_|
-                sdk::contract_panic!("failed decoding contract-call arguments"));
+            // Decode the args
+            let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
+                contract_panic!("failed decoding contract-call arguments: {}", e));
 
             // Call the free function or contract-type method
             let result = #function_or_method(#arg_names);
+
+            // Drop the calldata buffer so it can be used for return
+            drop(calldata);
 
             // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
             // and call contract_abort in the error case
@@ -235,14 +228,10 @@ pub fn generate_method(
             // Save any mutations
             #save_state
 
-            // Encode the result
-            let result_bytes = encode_xdr(&result).unwrap_or_else(|_|
-                sdk::contract_panic!("failed encoding contract-call result"));
+            // Return the contract-call result to the VM, ending execution of this contract
+            return_result(&result);
 
-            // Return the contract-call result to the VM
-            contract_return(result_bytes.as_slice());
-
-            // notreached
+            // Not reached
         }
     });
 
@@ -251,7 +240,7 @@ pub fn generate_method(
         let entrypoint_lit = entrypoint_literal(entrypoint);
 
         export.extend(quote! {
-            pub const #export_num_name : ContractEntrypointID = #entrypoint_lit;
+            pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
         });
     }
 

@@ -35,14 +35,13 @@ pub fn generate(
         #define_spec_fn
 
         pub struct #client_ident {
-            address: ::sdk::types::ContractAddress,
+            address: ::sdk::ContractAddress,
             config: ::sdk::invoke_config::InvokeConfig
         }
 
         const _: () = {
-            use ::sdk::types::ContractAddress;
-            use ::sdk::types::ContractEntrypointID;
-            use ::sdk::types::RuntimeMemoryLength;
+            use ::sdk::{ContractAddress, RuntimeMemoryLength};
+            use ::sdk::contract::ContractEntrypointID;
             use ::sdk::invoke::{invoke, InvokeResult, client_invoke, ClientResult};
 
             impl #client_ident {

@@ -1,4 +1,4 @@
-use groundhog_xdr::transaction::InvokeFlagSet;
+use crate::transaction::InvokeFlagSet;
 
 pub struct InvokeConfig {
     pub gas_limit: u64,

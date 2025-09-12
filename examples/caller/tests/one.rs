@@ -8,9 +8,6 @@ use thiserror::Error;
 fn caller_test() {
     let mut env = sdk::TestEnvironment::new();
 
-    #[cfg(feature = "logging")]
-    sdk::TestEnvironment::enable_syscall_logging();
-
     let erc20_contract = erc20::test_setup::register(&mut env);
     let erc20_hash = env.setup_create_contract(&erc20_contract);
     let test_contract = caller::test_setup::register(&mut env);

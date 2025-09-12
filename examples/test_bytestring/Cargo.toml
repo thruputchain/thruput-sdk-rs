@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["alloc"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
