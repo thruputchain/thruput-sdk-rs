@@ -38,11 +38,19 @@ pub use test_rt::trap;
 macro_rules! contract_panic {
     ( $($expr:expr),* ) => {
         {
+            // TODO: confirm that this distinction is no longer necessary because we are using
+            // `panic_immediate_abort`
+
             #[cfg(feature = "mock")]
             panic!($($expr),*);
 
             #[cfg(not(feature = "mock"))]
-            $crate::rt::trap();
+            {
+                // "use" any variables in the panic args
+                let _ = ($($expr),*);
+
+                $crate::rt::trap();
+            }
         }
     };
 }

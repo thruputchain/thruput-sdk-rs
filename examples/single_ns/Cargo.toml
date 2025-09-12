@@ -1,0 +1,21 @@
+[package]
+name = "single_ns"
+version = "0.1.1"
+edition = "2024"
+
+[dependencies]
+sdk = { workspace = true }
+# xdrs = { workspace = true, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+logging = ["sdk/logging"]
+
+[dev-dependencies]
+single_ns = { path = ".", features = ["mock", "client"] }

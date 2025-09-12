@@ -9,21 +9,22 @@
 
 use thiserror::Error;
 use core::error::Error;
-use groundhog_xdr::syscalls::SysErr;
+use crate::SysErr;
 use xdrs::{ReadXDROwned, ReadXDR, WriteXDR};
-use alloc::vec::Vec;
+
+// TODO: Reconsider naming of `ClientError`, `InvokeError`
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[derive(ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
-    #[error("client invocation failed: {0}")]
+    #[error("contract invocation failed: {0}")]
     Invoke(#[from] InvokeError),
 
-    #[error("client aborted: {0}")]
+    #[error("the called contract aborted: {0}")]
     Aborted(#[source] E),
 
-    #[error("client aborted but could not decode error value")]
+    #[error("the called contract aborted, but we couldn't decode the returned error value")]
     AbortDecodeFailed,
 }
 
@@ -33,17 +34,17 @@ pub type ClientResult<T, E> = Result<T, ClientError<E>>;
 #[derive(ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum InvokeError {
-    #[error("error encoding arguments")]
+    #[error("error encoding contract-call arguments")]
     EncodeArgs,
 
-    #[error("error decoding return value from {0:?}")]
-    DecodeReturnVal(Vec<u8>),
+    #[error("error decoding contract-call return-value")]
+    DecodeReturnVal,
 
     #[error("invoke() syscall failed: {0}")]
     Syscall(SysErr),
 
-    #[error("contract aborted")]
-    Aborted(Vec<u8>),
+    #[error("the called contract aborted")]
+    Aborted,
 }
 
 pub type InvokeResult<T> = Result<T, InvokeError>;

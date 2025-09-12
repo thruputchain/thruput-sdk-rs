@@ -8,10 +8,19 @@ source "${SDK_SCRIPT_DIR}/env.sh"
 # shellcheck source="scripts/lib_make.sh"
 source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
-set -e # exit on error
+# error on warning
+export RUSTFLAGS="-D warnings"
 
 echo "using CC: $CC"
 echo "using CXX: $CXX"
+
+cleanup() {
+    echo "!! FAILED CI CHECKS"
+}
+
+trap cleanup EXIT;
+
+set -o errexit
 
 make test
 make doc
@@ -22,6 +31,14 @@ make examples test
 make integration_test_contracts build
 make integration_test_contracts test
 
+# TODO: test dynamic_bufs
+# TODO: test invocation under wasm
+# TODO: test aborts
+
 make test-spec
 
-echo "CI-CLEAN!"
+make fmt-clean
+
+make xxx-clean
+
+echo ">> CI-CLEAN!"

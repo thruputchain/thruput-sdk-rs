@@ -6,8 +6,6 @@ use sdk::sys::raw_LogEvent;
 fn test_event() {
     let env = sdk::TestEnvironment::new();
 
-    sdk::TestEnvironment::enable_syscall_logging();
-
     let test_contract = {
         let mut contract = env.add_contract();
         let method = sdk::types::ContractEntrypointID::from(1u64.to_be_bytes());

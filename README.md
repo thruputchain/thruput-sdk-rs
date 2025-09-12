@@ -18,6 +18,8 @@ git submodule update --init --recursive
 
 ## Requirements
 
+### Rust toolchain
+
 You can use [rustup](https://rustup.rs/) to get a Rust toolchain.
 
 Then install the WASM target:
@@ -32,6 +34,10 @@ recompile them in a more compact form to reduce code size:
 ```shell
 rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
 ```
+
+### Ccache
+
+Install [ccache](https://ccache.dev/) with your package manager.
 
 ## Documentation
 

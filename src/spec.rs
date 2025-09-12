@@ -1,10 +1,10 @@
 //! Specification of contract interfaces
 
+pub use std::{vec, format, eprintln, string::*, borrow::ToOwned};
 pub use xdrs::xdr_repr::*;
 pub use xdrs::xdr_common::*;
-pub use groundhog_xdr::types::*;
-pub use groundhog_xdr::contract::*;
-pub use std::vec;
+pub use crate::types::*;
+pub use crate::contract::*;
 
 #[derive(Debug)]
 pub struct Contract {

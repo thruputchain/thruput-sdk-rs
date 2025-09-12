@@ -1,12 +1,10 @@
 use erc20::implementation;
 use erc20::ERC20Client;
-// use erc20::interface::ERC20Error;
 use sdk::*;
 
 #[test]
 fn test_erc20() {
     let mut env = sdk::TestEnvironment::new();
-    // sdk::TestEnvironment::enable_syscall_logging();
 
     let test_contract = implementation::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
@@ -27,7 +25,8 @@ fn test_erc20() {
 
 fn test_inner(client: &mut ERC20Client) {
     let owner = get_current_address().unwrap();
-    client.initialize(&owner).unwrap();
+    client.initialize(&owner).unwrap_or_else(|e|
+        panic!("Contract-call failed: {e}"));
 
     assert_eq!(client.total_supply().unwrap(), 0);
 

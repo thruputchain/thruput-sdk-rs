@@ -6,7 +6,7 @@ use sdk::*;
 pub extern "C" fn write_bytestring() -> i32 {
     let calldata = get_calldata().unwrap();
 
-    let calldata: &[u8] = &*calldata;
+    let calldata: &[u8] = calldata.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
 
@@ -21,7 +21,7 @@ pub extern "C" fn write_bytestring() -> i32 {
 pub extern "C" fn log_bytestring() -> i32 {
     let calldata = get_calldata().unwrap();
 
-    let calldata: &[u8] = &*calldata;
+    let calldata: &[u8] = calldata.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
 
@@ -40,7 +40,7 @@ pub extern "C" fn log_bytestring() -> i32 {
 pub extern "C" fn expect_bytestring() -> i32 {
     let calldata = get_calldata().unwrap();
 
-    let calldata: &[u8] = &*calldata;
+    let calldata: &[u8] = calldata.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
 

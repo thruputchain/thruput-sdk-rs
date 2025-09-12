@@ -1,4 +1,4 @@
-use groundhog_xdr::transaction::kTxStatGasRemaining;
+use crate::transaction::kTxStatGasRemaining;
 use crate::sys;
 use crate::contract_panic;
 
