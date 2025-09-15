@@ -1,25 +1,20 @@
-CLEANUP
-- protocol files:
-    - convention
-    - enforced by the sdk
-    - enforced by other components
-- guest_exports
-- remove serde
-
 SDK
-- contract specs
-- contract performance (gas measurements)
-- wasm test runner
-- generate XDR for InvokeError, ClientError
-- test `err_type` w/ `contract_abort` after geoff's adding revert support
-- remove BCS
-- remove alloc
-- contract attributes:
-    - `#[contract(init)]`
-    - `#[contract(no_save)]` (or just no mut?)
+- create contract test harness
+    - count cycles and memory use
+- generate structured events
+- remove BCS serialization from storage layer (for code-size improvement)
+- contract macro:
+    - add attributes:
+      - #[init] methods (assert no state object exists yet)
+      - #[no_save] methods for methods taking `&mut self`
+    - instead of guest_exports module, put
+      exports directly in place?
+    - generate client code from XDR spec alone?
+- allow no-alloc contracts
+- improve documentation
+    - complete the API reference
+    - add tutorials
 - minimum supported rust version?
-- events
-- contract macro: generate code from XDR spec alone?
 
 DOCUMENT
 - #[contract] macro
