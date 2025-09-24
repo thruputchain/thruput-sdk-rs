@@ -1,8 +1,9 @@
-use super::error::Result;
+use super::error::{Error, Result};
 use super::keypath::*;
 use crate::bytestring::*;
-use crate::serialize::{self, Serialize};
 use crate::types::StorageKeyContractData;
+use xdrs::{WriteXDR};
+use xdrs::serialize_cxs;
 
 pub trait Store {
     fn store(&self, key: &StorageKeyContractData) -> Result<()>;
@@ -15,7 +16,7 @@ pub trait Store {
 
 impl<T> Store for T
 where
-    T: Serialize,
+    T: WriteXDR,
 {
     fn store(&self, key: &StorageKeyContractData) -> Result<()> {
         // Load any previous value and drop it? XXX
@@ -23,7 +24,8 @@ where
             drop(prev);
         }
 
-        let buf = serialize::to_bytes(self)?;
+        let buf = serialize_cxs::encode(self).map_err(|_|
+            Error::Serialization)?;
         bytestring_set(key, buf.as_slice())?;
         Ok(())
     }

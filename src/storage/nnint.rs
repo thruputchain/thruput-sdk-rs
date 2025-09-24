@@ -96,5 +96,15 @@ impl NNInt {
     }
 }
 
+const _: () = {
+    use xdrs::{WriteXDR, Writer, WriteResult};
+
+    impl WriteXDR for NNInt {
+        fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult {
+            Ok(())
+        }
+    }
+};
+
 serialize_unit_impl!(NNInt);
 deserialize_keypath_impl!(NNInt, "an NNInt");

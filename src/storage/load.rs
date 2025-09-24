@@ -1,8 +1,9 @@
-use super::error::Result;
+use super::error::{Error, Result};
 use super::keypath::*;
 use crate::bytestring::bytestring_get;
-use crate::serialize::{self, DeserializeOwned};
 use crate::types::StorageKeyContractData;
+use xdrs::ReadXDROwned;
+use xdrs::serialize_cxs;
 
 /// Must implement at least `load`
 pub trait Load: Sized {
@@ -24,21 +25,14 @@ pub trait Load: Sized {
 
 impl<T> Load for T
 where
-    T: DeserializeOwned,
+    T: ReadXDROwned
 {
     fn load(key: &StorageKeyContractData) -> Result<Self> {
         let buf = bytestring_get(key)?;
-        let val = deserialize_owned(buf.as_ref())?;
+        let val = serialize_cxs::decode(buf.as_ref()).map_err(|_|
+            Error::Serialization)?;
         Ok(val)
     }
-}
-
-fn deserialize_owned<T>(buf: &[u8]) -> Result<T>
-where
-    T: DeserializeOwned,
-{
-    let val = serialize::from_bytes(buf)?;
-    Ok(val)
 }
 
 pub trait LoadKeypath: Sized {
