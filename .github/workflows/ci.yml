@@ -22,6 +22,8 @@ jobs:
           ${{ secrets.SDK_TO_PROTOCOL_RS }}
           ${{ secrets.SDK_TO_BCS_KEY }}
           ${{ secrets.SDK_TO_ITC }}
+          ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+          ${{ secrets.SDK_TO_BCS_CPP_KEY }}
           
     - uses: actions/checkout@v4
       with:
