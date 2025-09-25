@@ -18,6 +18,12 @@ use xdrs::serialize_txs;
 // It would be nice to avoid this later of indirection, as that would make passing
 // (or at least seem to make) passing closures in as parameters to test functions
 // much easier.
+
+// When deploying a new contract, hogd accounts for the storage cost of the contract
+// based on its size.  We don't have access to contract size here (because it's not built),
+// so we pick a default (nonzero) value as a placeholder.
+// Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
+const TEST_CONTRACT_SIZE: u32 = 1024;
 pub struct TestEnvironment {
     pub(crate) db: *mut c_void,
     pub(crate) contract_context: *mut c_void,
@@ -104,11 +110,19 @@ impl<'a> TestEnvironment {
         let res: [u8; 32] = hasher.finalize().into();
         let contract_hash: SHA256Hash = res.into();
 
+        let contract_size = match contract {
+            Contract::kNative { .. } => 0,
+            Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
+            Contract::kWasmi { wasmi_contract } => wasmi_contract.len() as u32,
+            Contract::Default { contract_type } => panic!("unsupported contract type {}", contract_type),
+        };
+
         let res = unsafe {
             setup_deploy_contract(
                 self.db,
                 addr.as_ptr(),
                 contract_hash.as_ptr(),
+                contract_size,
             )
         };
         assert_eq!(res, 0);
