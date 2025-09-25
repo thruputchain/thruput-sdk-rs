@@ -44,9 +44,9 @@ make() {
         test)
             cargo_native test --features=mock,storage "$@"
             ;;
-        check)
-            cargo check --features=mock "$@"
-            ;;
+#        check)
+#            cargo check --features=mock "$@"
+#            ;;
         lint)
             cargo clippy --no-deps --features=std "$@"
             ;;

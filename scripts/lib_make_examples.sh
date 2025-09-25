@@ -4,18 +4,26 @@
 
 set -u
 
+cargo_guest() {
+    local cmd="$1"
+    shift
+
+    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" \
+    cargo "$cmd" \
+        --features "guest" \
+        --target wasm32-unknown-unknown \
+        -Zbuild-std=alloc,core \
+        "$@"
+}
+
 build_wasm() {
     local package
     package="$(basename "$1")"
     shift
 
-    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" \
-    cargo build \
-        --features "guest" \
-        --target wasm32-unknown-unknown \
+    cargo_guest build \
         --release \
         --package "$package" \
-        -Zbuild-std=alloc,core \
         "$@"
 }
 
@@ -29,7 +37,8 @@ make_compressed_wasm() {
     local release="${TARGET_DIR}/wasm32-unknown-unknown/release/${package}.wasm"
     local optimized="${TARGET_DIR}/optimized/${package}.wasm"
 
-    # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only very slightly better)
+    # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
+    # very slightly better)
     wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${release}"
 }
 
@@ -66,12 +75,8 @@ tree_contract() {
     package="$(basename "$1")"
     shift
 
-    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" \
-    cargo tree \
-        --features "guest" \
-        --target wasm32-unknown-unknown \
+    cargo_guest tree \
         --package "$package" \
-        -Zbuild-std=alloc,core \
         "$@"
 }
 
@@ -80,10 +85,7 @@ expand_contract() {
     package="$(basename "$1")"
     shift
 
-    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" \
-    cargo expand \
-        --features "guest" \
-        --target wasm32-unknown-unknown \
+    cargo_guest expand \
         --release \
         --package "$package" \
         "$@"
@@ -148,19 +150,16 @@ make_contracts() {
     case "$action" in
         build)
             if [[ -n "${1:-}" && "$1" != "-"* ]]; then
-                local contract="$contracts_dir/$1"
-                shift
+                local contract="$contracts_dir/$1" ; shift
 
                 build_contract "$contract" "$@"
             else
-
                 build_contracts "$contracts_dir" "$@"
             fi
             ;;
         test)
             if [[ -n "${1:-}" && "$1" != "-"* ]]; then
-                local contract="$contracts_dir/$1"
-                shift
+                local contract="$contracts_dir/$1" ; shift
 
                 test_contract "$contract" "$@"
             else
@@ -168,13 +167,19 @@ make_contracts() {
             fi
             ;;
         expand)
-            expand_contract "$contracts_dir/$1" "$@"
+            local contract="$contracts_dir/$1" ; shift
+
+            expand_contract "$contract" "$@"
             ;;
         expand-test)
-            expand_test_contract "$contracts_dir/$1" "$@"
+            local contract="$contracts_dir/$1" ; shift
+
+            expand_test_contract "$contract" "$@"
             ;;
         tree)
-            tree_contract "$contracts_dir/$1" "$@"
+            local contract="$contracts_dir/$1" ; shift
+
+            tree_contract "$contract" "$@"
             ;;
         ls)
             ls_contracts "$contracts_dir"
