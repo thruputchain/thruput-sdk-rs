@@ -12,7 +12,7 @@ struct Data {
 }
 
 contract_test!(test_storable {
-    native_exec::test_environment::TestEnvironment::enable_syscall_logging();
+    // native_exec::test_environment::TestEnvironment::enable_syscall_logging();
     println!("test_storable");
     let data_keypath = Keypath::new();
     let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
