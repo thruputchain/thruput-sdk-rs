@@ -26,6 +26,9 @@ jobs:
           ${{ secrets.SDK_TO_BCS_CPP_KEY }}
           ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
           ${{ secrets.SDK_TO_XDRS_KEY }}
+          ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+          ${{ secrets.SDK_TO_CHUCKD_KEY }}
+          ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
   
     - uses: actions/checkout@v4
       with:
