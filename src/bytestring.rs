@@ -3,7 +3,7 @@
 //! These routines are thin wrappers around VM syscalls,
 //! and return the type [`SysResult<T>`](crate::sysresult::SysResult).  This is
 //! is a [`Result<T, E>`](core::result::Result) where `E` is
-//! a [`SysErr`](crate::syscall::SysErr) containing
+//! a [`SysErr`](crate::SysErr) containing
 //! an error code in the case of a syscall failure.
 
 use crate::sysresult::SysResult as Result;
@@ -50,7 +50,7 @@ pub fn bytestring_get_len(key: &StorageKeyContractData) -> Result<u32> {
 /// (**TODO**: Check semantics)
 ///
 /// Creates the bytestring item if the location is empty.
-/// Returns [`SyscallErrorCode::kInvalidSyscallInput`] if an item of another type is there.
+/// Returns [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, both writes will be allowed.
 ///
@@ -64,7 +64,7 @@ pub fn bytestring_set(key: &StorageKeyContractData, slice: &[u8]) -> Result<()> 
 /// (**TODO**: Check semantics)
 ///
 /// Creates the bytestring item if the location is empty.
-/// Returns [`SyscallErrorCode::kInvalidSyscallInput`] if an item of another type is there.
+/// Returns [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, the contract instance that writes last will be aborted.
 ///

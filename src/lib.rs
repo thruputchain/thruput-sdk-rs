@@ -3,6 +3,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![cfg_attr(doc, deny(warnings))]
+
+#![deny(warnings)]
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 

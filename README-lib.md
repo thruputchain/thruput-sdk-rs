@@ -13,8 +13,8 @@ The SDK provides convenient wrappers around Groundhog syscalls:
     - [`nonnegative_int`]
     - [`retrocausal_queue`]
 - Low-level bindings:
-    - [`syscall`]: Error types for syscalls
-    - [`syscall_bindings`]: Low-level wrappers
+    - [`SysErr`]: Error type for syscalls
+    - [`sys`]: Low-level wrappers
 
 Other things:
 - [`types`]: Types related to system facilities, like:
