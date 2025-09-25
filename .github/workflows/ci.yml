@@ -20,6 +20,8 @@ jobs:
         ssh-private-key: |
           ${{ secrets.HOGD_ACCESS_KEY }}
           ${{ secrets.SDK_TO_PROTOCOL_RS }}
+          ${{ secrets.SDK_TO_BCS }}
+          ${{ secrets.SDK_TO_ITC }}
           
     - uses: actions/checkout@v4
       with:
