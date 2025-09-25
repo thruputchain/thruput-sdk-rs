@@ -19,7 +19,6 @@ make examples test
 make integration_test_contracts build
 make integration_test_contracts test
 
-cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null
-cargo run -p fibonacci -F spec --bin generate_spec -- /dev/null
+make test-spec
 
 echo "CI-CLEAN!"
