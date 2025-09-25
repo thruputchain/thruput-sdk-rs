@@ -24,7 +24,9 @@ jobs:
           ${{ secrets.SDK_TO_ITC }}
           ${{ secrets.SDK_TO_PROTOCOL_KEY }}
           ${{ secrets.SDK_TO_BCS_CPP_KEY }}
-          
+          ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+          ${{ secrets.SDK_TO_XDRS_KEY }}
+  
     - uses: actions/checkout@v4
       with:
         submodules: recursive
@@ -39,5 +41,5 @@ jobs:
     - name: cargo version check
       run: cargo --version
     - name: check
-      run: ./scripts/ci.sh
+      run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
 
