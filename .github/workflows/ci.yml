@@ -1,0 +1,48 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [ "main" ]  
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+    - name: Clean up .gitconfig
+      run: |
+        echo "Cleaning up .gitconfig"
+        rm -f /home/hogci/.gitconfig
+    - uses: webfactory/ssh-agent@v0.9.1
+      with:
+        ssh-private-key: |
+          ${{ secrets.HOGD_ACCESS_KEY }}
+          ${{ secrets.SDK_TO_PROTOCOL_RS }}
+          ${{ secrets.SDK_TO_BCS_KEY }}
+          ${{ secrets.SDK_TO_ITC }}
+          ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+          ${{ secrets.SDK_TO_BCS_CPP_KEY }}
+          ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+          ${{ secrets.SDK_TO_XDRS_KEY }}
+          ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+          ${{ secrets.SDK_TO_CHUCKD_KEY }}
+          ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+  
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: gcc version check
+      run: gcc --version
+    - name: clang version check
+      run: clang --version
+    - name: Add Cargo to PATH
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    - name: path check
+      run: echo $PATH
+    - name: cargo version check
+      run: cargo --version
+    - name: check
+      run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
+
