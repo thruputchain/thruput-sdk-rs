@@ -13,6 +13,7 @@ cargo_guest() {
         --features "guest" \
         --target wasm32-unknown-unknown \
         -Zbuild-std=alloc,core \
+        -Zbuild-std-features="std/optimize_for_size" \
         "$@"
 }
 
