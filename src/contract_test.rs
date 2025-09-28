@@ -35,15 +35,10 @@ macro_rules! contract_test {
                 ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
             });
 
-            println!("handler.root_invoke");
             let res = handler.root_invoke();
-            println!("res: {:?}", res);
-            println!("res.result.panic: {:?}", res.result.panic);
-            println!("sdk::InvokeErrorCode::kInvokeNone as i32: {:?}", sdk::InvokeErrorCode::kInvokeNone as i32);
-            assert_eq!(
-                res.result.panic,
-                sdk::InvokeErrorCode::kInvokeNone as i32
-            );
+            if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
+                panic!("root invocation panicked with code {}", res.result.panic);
+            }
         }
     };
 }

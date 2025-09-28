@@ -1,23 +1,36 @@
 //! System functions: non-negative integers
+//!
+//! A non-negative integer has a "set" value determined
+//! at the start of the transaction, and an "add" value
+//! that may be modified during the transaction.  The
+//! "current" value is the sum of these.
 
 use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::StorageKeyContractData;
 
+/// Get the "set" value (if requested by `force_load_set`) and the "add" value.
 pub fn non_negative_int_get_values(key: &StorageKeyContractData, force_load_set: bool) -> Result<(Option<i128>, i128)> {
     let mut set_result: i128 = 0;
-    let mut add_result: i128 = 0;
     let mut set_loaded: bool = false;
+    let mut add_result: i128 = 0;
     sys::raw_NonnegativeIntGet(key, force_load_set, &mut set_result, &mut set_loaded, &mut add_result)?;
-    Ok((if set_loaded { Some(set_result) } else { None }, add_result))
+
+    debug_assert!(force_load_set && set_loaded);
+
+    let set_result_opt = if set_loaded { Some(set_result) } else { None };
+
+    Ok((set_result_opt, add_result))
 }
 
+/// Get the "current" ("set" + "add") value.
 pub fn non_negative_int_get(key: &StorageKeyContractData) -> Result<i128> {
     let (s, a) = non_negative_int_get_values(key, true)?;
+
     Ok(s.unwrap() + a)
 }
 
-// pub use non_negative_int_set_add as NonnegativeIntSetAdd;
+/// Add an amount, optionally asserting the "set" value.
 pub fn non_negative_int_set_add(
     key: &StorageKeyContractData,
     set_value: Option<i128>,
@@ -26,32 +39,34 @@ pub fn non_negative_int_set_add(
     sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
 }
 
+/// Add an amount, after querying the "set" value.
 pub fn non_negative_int_add(key: &StorageKeyContractData, amount: i128) -> Result<()> {
     let (s, a) = non_negative_int_get_values(key, false)?;
+
     non_negative_int_set_add(key, s, a + amount)
 }
 
-/// Add an amount, to zero if key previously unset
+/// Add an amount, to zero if previously unset.
 pub fn non_negative_int_add_default_zero(
     key: &StorageKeyContractData,
     amount: i128,
 ) -> Result<()> {
     let (s, a) = non_negative_int_get_values_default_zero(key)?;
+
     non_negative_int_set_add(key, Some(s), a + amount)
 }
 
-/// Get the current value, or zero if key previously unset
+/// Get the "current" ("set" + "add") value, or zero if previously unset.
 pub fn non_negative_int_get_default_zero(key: &StorageKeyContractData) -> Result<i128> {
     let (s, a) = non_negative_int_get_values_default_zero(key)?;
+
     Ok(s + a)
 }
 
-/// Get the values, or zero if key previously unset
+/// Get the "set" and "add" values, or zero if previously unset.
 pub fn non_negative_int_get_values_default_zero(
     key: &StorageKeyContractData,
 ) -> Result<(i128, i128)> {
-    // get_values with true will guarantee loading the set value,
-    // so the unwrap is infallible
     match non_negative_int_get_values(key, true) {
         Ok((s, a)) => Ok((s.unwrap(), a)),
         Err(syserr) => {

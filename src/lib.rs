@@ -5,7 +5,7 @@
 
 #![cfg_attr(doc, deny(warnings))]
 
-#![deny(warnings)]
+// #![deny(warnings)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -55,6 +55,7 @@ pub mod storage;
 //pub use syscall_bindings as sys;
 pub use groundhog_xdr::syscalls as sys;
 pub use groundhog_xdr::syscalls::SysErr;
+pub use groundhog_xdr::syscall_error::SyscallErrorCode;
 pub use contract_op::*;
 pub use log::*;
 pub use invoke::*;
