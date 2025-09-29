@@ -23,6 +23,7 @@ pub trait Load: Sized {
     }
 }
 
+/*
 impl<T> Load for T
 where
     T: ReadXDROwned
@@ -34,6 +35,7 @@ where
         Ok(val)
     }
 }
+*/
 
 pub trait LoadKeypath: Sized {
     fn load_keypath(keypath: &Keypath) -> Result<Self>;
@@ -52,6 +54,7 @@ pub trait LoadKeypath: Sized {
     }
 }
 
+/*
 impl<V> LoadKeypath for V
 where
     V: Load,
@@ -61,3 +64,27 @@ where
         Self::load(key)
     }
 }
+*/
+
+const _: () = {
+    use super::error::{Error, Result};
+    use super::read_xdr_path::*;
+    use xdrs::serialize_cxs::buf_reader::BufReader;
+
+    impl<V> LoadKeypath for V
+    where
+        V: ReadXDRPath
+    {
+        fn load_keypath(keypath: &Keypath) -> Result<Self> {
+            let key = &keypath.generate_key();
+            let buf = bytestring_get(key)?;
+
+            let xdr_reader = BufReader::new(buf.as_ref());
+            let path = keypath.clone();
+            let mut kpr = KeypathReader { xdr_reader, path };
+
+            ReadXDRPath::read_xdr_path(&mut kpr).map_err(|_|
+                Error::Serialization)
+        }
+    }
+};

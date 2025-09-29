@@ -5,8 +5,9 @@ use sdk::storage::load::*;
 use sdk::storage::store::*;
 use sdk::storage::nnint::*;
 use sdk::SyscallErrorCode;
+use xdrs::WriteXDR;
 
-#[derive(Debug)]
+#[derive(Debug, WriteXDR)]
 struct Data {
     num: i32,
     nnint: NNInt,
@@ -26,20 +27,23 @@ impl DefaultFromKeypath for Data {
     }
 }
 
+/*
 impl LoadKeypath for Data {
     fn load_keypath(keypath: &Keypath) -> Result<Self> {
         let mut kp = keypath.clone();
 
         kp.enter_seq();
-        let num = LoadKeypath::load_keypath(keypath)?;
+        let num = LoadKeypath::load_keypath(&kp)?;
 
         kp.seq_next();
-        let nnint = LoadKeypath::load_keypath(keypath)?;
+        let nnint = LoadKeypath::load_keypath(&kp)?;
 
         Ok(Data { num, nnint })
     }
 }
+*/
 
+/*
 // derive
 const _: () = {
     use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
@@ -49,6 +53,28 @@ const _: () = {
             write_xdr(&self.num, w)?;
             write_xdr(&self.nnint, w)?;
             Ok(())
+        }
+    }
+};
+*/
+
+const _: () = {
+    use xdrs::ReadResult;
+    use sdk::storage::read_xdr_path::*;
+
+    impl ReadXDRPath for Data {
+        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
+        where
+            R: ReaderPath<'r, Keypath>
+        {
+            r.seq_begin();
+            let num = ReadXDRPath::read_xdr_path(r)?;
+
+            r.seq_next();
+            let nnint = ReadXDRPath::read_xdr_path(r)?;
+
+            r.seq_end();
+            Ok(Data { num, nnint })
         }
     }
 };
@@ -63,13 +89,14 @@ contract_test!(test_path {
     data.store_keypath(&data_keypath).unwrap();
 
     let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-    let v = data.nnint.try_get()
+
+    let n = data.nnint.try_get()
         .unwrap_or_else(|e| {
             let code: Result<SyscallErrorCode, _> = e.0.try_into();
             panic!("try_get failed: {code:?}");
         })
         .unwrap_or(0);
-    assert_eq!(0, v);
+    assert_eq!(0, n);
 
     data.nnint.add(72).unwrap();
     data.store_keypath(&data_keypath).unwrap();

@@ -27,12 +27,14 @@ impl From<Keypath> for NNInt {
     }
 }
 
+/*
 impl LoadKeypath for NNInt {
     fn load_keypath(keypath: &Keypath) -> StorageResult<Self> {
         // No I/O necessary
         Ok(NNInt::new(keypath))
     }
 }
+*/
 
 impl DefaultFromKeypath for NNInt {
     fn default_from_keypath(keypath: &Keypath) -> Self {
@@ -102,7 +104,7 @@ impl NNInt {
         Ok(())
     }
 
-    /* Is there any point to this?
+    /* Is there any need for this?
      *
     /// Add an amount after querying the "set" value, defaulting the latter to zero.
     pub fn add_default_zero(&mut self, add_value: i128) -> Result<()> {
@@ -121,6 +123,20 @@ const _: () = {
     impl WriteXDR for NNInt {
         fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult {
             Ok(())
+        }
+    }
+};
+
+const _: () = {
+    use xdrs::ReadResult;
+    use super::read_xdr_path::*;
+
+    impl ReadXDRPath for NNInt {
+        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
+        where
+            R: ReaderPath<'r, Keypath>
+        {
+            Ok(r.path().into())
         }
     }
 };

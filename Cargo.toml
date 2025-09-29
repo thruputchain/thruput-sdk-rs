@@ -34,6 +34,7 @@ serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
 xdrs = { workspace = true, optional = true }
+delegate = "0.13.4"
 
 [dev-dependencies]
 hex-literal = "1.0.0"

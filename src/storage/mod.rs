@@ -9,6 +9,9 @@ pub use keypath::*;
 pub mod keypath_seed;
 pub use keypath_seed::*;
 
+pub mod read_xdr_path;
+pub use read_xdr_path::*;
+
 pub mod load;
 pub use load::*;
 
@@ -27,5 +30,5 @@ pub use handle::*;
 pub mod map;
 pub use map::*;
 
-pub mod vector;
-pub use vector::*;
+// pub mod vector;
+// pub use vector::*;
