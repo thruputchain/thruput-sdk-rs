@@ -85,7 +85,7 @@ fn impl_read_xdr_path(
     Ok(quote! {
         const _: () = {
             use xdrs::ReadResult;
-            use sdk::storage::read_xdr_path::*;
+            use sdk::storage::*;
 
             impl<#generic_params> ReadXDRPath for #ty {
                 fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>

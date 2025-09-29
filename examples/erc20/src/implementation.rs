@@ -7,12 +7,11 @@
 use crate::interface::*;
 use sdk::*;
 use sdk::storage::{NNInt, Map};
-use sdk::serialize::*;
 
 type Balance = NNInt;
 type Allowance = NNInt;
 
-#[derive(Storage, Debug, Serialize)]
+#[derive(Debug, WriteXDR, Storage)]
 pub struct TokenContract {
     contract_owner: ContractAddress,
     balances: Map<ContractAddress, Balance>,

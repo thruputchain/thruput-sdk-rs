@@ -92,6 +92,16 @@ impl NNInt {
         )?;
         Ok(())
     }
+
+    /// Add an amount after querying the "set" value, defaulting the latter to zero.
+    // XXX: What does this accomplish?
+    pub fn add_default_zero(&mut self, add_value: i128) -> Result<()> {
+        non_negative_int_add_default_zero(
+            &self.keypath.generate_key(),
+            add_value,
+        )?;
+        Ok(())
+    }
 }
 
 impl_read_xdr_path_via_from! { NNInt }
