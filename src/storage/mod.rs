@@ -30,5 +30,5 @@ pub use handle::*;
 pub mod map;
 pub use map::*;
 
-// pub mod vector;
-// pub use vector::*;
+pub mod vector;
+pub use vector::*;

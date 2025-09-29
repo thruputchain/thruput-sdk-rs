@@ -1,10 +1,12 @@
-use super::error::{Error, Result};
+// use super::error::{Error, Result};
+use super::error::Result;
 use super::keypath::*;
 use crate::bytestring::bytestring_get;
-use crate::types::StorageKeyContractData;
-use xdrs::ReadXDROwned;
-use xdrs::serialize_cxs;
+// use crate::types::StorageKeyContractData;
+// use xdrs::ReadXDROwned;
+// use xdrs::serialize_cxs;
 
+/*
 /// Must implement at least `load`
 pub trait Load: Sized {
     fn load(key: &StorageKeyContractData) -> Result<Self>;
@@ -22,6 +24,7 @@ pub trait Load: Sized {
         }
     }
 }
+*/
 
 /*
 impl<T> Load for T
@@ -52,6 +55,13 @@ pub trait LoadKeypath: Sized {
             }
         }
     }
+}
+
+pub fn load_keypath<T>(keypath: &Keypath) -> Result<T>
+where
+    T: LoadKeypath
+{
+    LoadKeypath::load_keypath(keypath)
 }
 
 /*

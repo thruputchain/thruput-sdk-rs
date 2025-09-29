@@ -80,7 +80,7 @@ pub trait ReadXDRPath: Sized
 
 impl<T> ReadXDRPath for T
 where
-    T: ReadXDROwned
+    T: for<'a> ReadXDR<'a>
 {
     fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
     where
@@ -89,6 +89,20 @@ where
         ReadXDR::read_xdr(r)
     }
 }
+
+/*
+impl<T> ReadXDRPath for T
+where
+    T: FromKeypath
+{
+    fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
+    where
+        R: ReaderPath<'r, Keypath>
+    {
+        Ok(from_keypath(r.path()))
+    }
+}
+*/
 
 /*
 macro_rules! delegate_read_xdr_path {

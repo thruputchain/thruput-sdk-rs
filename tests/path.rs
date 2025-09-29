@@ -27,37 +27,6 @@ impl DefaultFromKeypath for Data {
     }
 }
 
-/*
-impl LoadKeypath for Data {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        let mut kp = keypath.clone();
-
-        kp.enter_seq();
-        let num = LoadKeypath::load_keypath(&kp)?;
-
-        kp.seq_next();
-        let nnint = LoadKeypath::load_keypath(&kp)?;
-
-        Ok(Data { num, nnint })
-    }
-}
-*/
-
-/*
-// derive
-const _: () = {
-    use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
-
-    impl WriteXDR for Data {
-        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
-            write_xdr(&self.num, w)?;
-            write_xdr(&self.nnint, w)?;
-            Ok(())
-        }
-    }
-};
-*/
-
 const _: () = {
     use xdrs::ReadResult;
     use sdk::storage::read_xdr_path::*;

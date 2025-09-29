@@ -1,10 +1,9 @@
 use super::error::{oob_err, Result};
 use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
-use super::load::{Load, LoadKeypath};
+use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
 use crate::serialize::Serialize;
-use crate::types::StorageKey;
 use core::fmt::Debug;
 
 #[derive(Debug, Serialize)]
@@ -27,6 +26,14 @@ impl<T> Vector<T> {
         }
     }
 
+    pub fn new_from(keypath: Keypath) -> Self {
+        Self {
+            len: 0,
+            keypath: keypath,
+            _marker: core::marker::PhantomData,
+        }
+    }
+
     pub fn keypath(&self) -> &Keypath {
         &self.keypath
     }
@@ -41,28 +48,29 @@ impl<T> Vector<T> {
 
     pub fn get(&self, index: u64) -> Result<T>
     where
-        T: Load,
+        T: LoadKeypath,
     {
-        if index < self.len {
-            let key = &self.make_index_key(index);
-            <T as Load>::load(key)
-        } else {
-            oob_err(self.len, index)
+        if index >= self.len {
+            return oob_err(self.len, index);
         }
+
+        let keypath = self.make_index_keypath(index);
+
+        load_keypath(&keypath)
     }
 
     pub fn get_default(&self, index: u64) -> Result<T>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        if index < self.len {
-            let keypath = self.make_index_keypath(index);
-            let val = T::try_load_keypath(&keypath)?
-                .unwrap_or_else(|| T::default_from_keypath(&keypath));
-            Ok(val)
-        } else {
-            oob_err(self.len, index)
+        if index >= self.len {
+            return oob_err(self.len, index);
         }
+
+        let keypath = self.make_index_keypath(index);
+
+        Ok(T::try_load_keypath(&keypath)?
+            .unwrap_or_else(|| T::default_from_keypath(&keypath)))
     }
 
     pub fn load<'a>(&'a self, index: u64) -> Result<ElemRef<'a, T>>
@@ -140,11 +148,14 @@ impl<T> Vector<T> {
         keypath
     }
 
+    /*
     fn make_index_key(&self, index: u64) -> StorageKey {
         self.make_index_keypath(index).generate_key()
     }
+    */
 }
 
+/*
 impl<T> From<Keypath> for Vector<T> {
     fn from(keypath: Keypath) -> Self {
         let len = 0;
@@ -156,17 +167,19 @@ impl<T> From<Keypath> for Vector<T> {
         }
     }
 }
-
-impl<T> LoadKeypath for Vector<T> {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        let len = Load::load(&keypath.generate_key())?;
-        Ok(Vector::new(keypath, len))
-    }
-}
+*/
 
 impl<T> DefaultFromKeypath for Vector<T> {
     fn default_from_keypath(keypath: &Keypath) -> Self {
         Vector::new(keypath, 0)
+    }
+}
+
+/*
+impl<T> LoadKeypath for Vector<T> {
+    fn load_keypath(keypath: &Keypath) -> Result<Self> {
+        let len = load_keypath(keypath)?;
+        Ok(Vector::new(keypath, len))
     }
 }
 
@@ -178,6 +191,36 @@ where
         Store::store(&self.len, key)
     }
 }
+*/
+
+const _: () = {
+    use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
+
+    impl<T> WriteXDR for Vector<T> {
+        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+            write_xdr(&self.len, w)
+        }
+    }
+};
+
+const _: () = {
+    use xdrs::{read_xdr, ReadResult};
+    use super::read_xdr_path::*;
+
+    impl<T> ReadXDRPath for Vector<T> {
+        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
+        where
+            R: ReaderPath<'r, Keypath>
+        {
+            let len = read_xdr(r)?;
+            Ok(Self {
+                len,
+                keypath: r.path(),
+                _marker: core::marker::PhantomData,
+            })
+        }
+    }
+};
 
 pub use vref::*;
 mod vref {

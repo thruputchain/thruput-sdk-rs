@@ -1,7 +1,5 @@
-use super::error::Result as StorageResult;
 use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
-use super::load::LoadKeypath;
 use crate::nonnegative_int::*;
 use crate::sysresult::SysResult as Result;
 use core::fmt::Debug;
@@ -26,15 +24,6 @@ impl From<Keypath> for NNInt {
         Self { keypath }
     }
 }
-
-/*
-impl LoadKeypath for NNInt {
-    fn load_keypath(keypath: &Keypath) -> StorageResult<Self> {
-        // No I/O necessary
-        Ok(NNInt::new(keypath))
-    }
-}
-*/
 
 impl DefaultFromKeypath for NNInt {
     fn default_from_keypath(keypath: &Keypath) -> Self {
@@ -103,18 +92,6 @@ impl NNInt {
         )?;
         Ok(())
     }
-
-    /* Is there any need for this?
-     *
-    /// Add an amount after querying the "set" value, defaulting the latter to zero.
-    pub fn add_default_zero(&mut self, add_value: i128) -> Result<()> {
-        non_negative_int_add_default_zero(
-            &self.keypath.generate_key(),
-            add_value,
-        )?;
-        Ok(())
-    }
-    */
 }
 
 const _: () = {
@@ -126,6 +103,7 @@ const _: () = {
         }
     }
 };
+
 
 const _: () = {
     use xdrs::ReadResult;
