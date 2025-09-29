@@ -101,7 +101,6 @@ contract_test!(test_storable_lazy {
     assert!(data.nums.get(100).is_err());
 });
 
-/*
 contract_test!(test_load_default {
     let data_keypath = Keypath::new();
     let mut handle: Handle<Data> = Handle::new(&data_keypath);
@@ -131,7 +130,6 @@ contract_test!(test_load_default {
         assert_eq!(n, n_expected);
     }
 });
-*/
 
 contract_test!(test_bytestring {
     let mut handle: Handle<Data> = Handle::root();
@@ -155,7 +153,7 @@ contract_test!(test_bytestring {
 });
 
 contract_test!(test_vector {
-    let mut vec: Vector<u32> = Vector::new_from(Keypath::root());
+    let mut vec: Vector<u32> = Vector::new_from(Keypath::root(), 0);
 
     assert_eq!(0, vec.len());
     for i in 0..3 {

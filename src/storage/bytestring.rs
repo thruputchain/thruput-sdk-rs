@@ -65,37 +65,5 @@ impl DefaultFromKeypath for Bytestring {
     }
 }
 
-const _: () = {
-    use xdrs::ReadResult;
-    use super::read_xdr_path::*;
-
-    impl ReadXDRPath for Bytestring {
-        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-        where
-            R: ReaderPath<'r, Keypath>
-        {
-            Ok(r.path().into())
-        }
-    }
-};
-
-const _: () = {
-    use xdrs::{WriteXDR, Writer, WriteResult};
-
-    impl WriteXDR for Bytestring {
-        fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult {
-            Ok(())
-        }
-    }
-};
-
-/*
-impl LoadKeypath for Bytestring {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        Ok(Bytestring::new(keypath))
-    }
-}
-*/
-
-serialize_unit_impl!(Bytestring);
-deserialize_keypath_impl!(Bytestring, "a Bytestring");
+impl_read_xdr_path_via_from! { Bytestring }
+impl_write_xdr_empty! { Bytestring }

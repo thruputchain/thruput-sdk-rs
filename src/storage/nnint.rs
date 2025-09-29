@@ -94,30 +94,5 @@ impl NNInt {
     }
 }
 
-const _: () = {
-    use xdrs::{WriteXDR, Writer, WriteResult};
-
-    impl WriteXDR for NNInt {
-        fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult {
-            Ok(())
-        }
-    }
-};
-
-
-const _: () = {
-    use xdrs::ReadResult;
-    use super::read_xdr_path::*;
-
-    impl ReadXDRPath for NNInt {
-        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-        where
-            R: ReaderPath<'r, Keypath>
-        {
-            Ok(r.path().into())
-        }
-    }
-};
-
-serialize_unit_impl!(NNInt);
-deserialize_keypath_impl!(NNInt, "an NNInt");
+impl_read_xdr_path_via_from! { NNInt }
+impl_write_xdr_empty! { NNInt }

@@ -3,14 +3,11 @@ use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
-use crate::serialize::Serialize;
 use core::fmt::Debug;
 
-#[derive(Debug, Serialize)]
-#[serde(transparent)]
+#[derive(Debug)]
 pub struct Vector<T> {
     len: u64,
-    #[serde(skip)]
     keypath: Keypath,
     // This type should be covariant in T, but (for drop
     // purposes) doesn't actually own values of that type
@@ -19,17 +16,13 @@ pub struct Vector<T> {
 
 impl<T> Vector<T> {
     pub fn new(keypath: &Keypath, len: u64) -> Self {
-        Self {
-            len,
-            keypath: keypath.clone(),
-            _marker: core::marker::PhantomData,
-        }
+        Self::new_from(keypath.clone(), len)
     }
 
-    pub fn new_from(keypath: Keypath) -> Self {
+    pub fn new_from(keypath: Keypath, len: u64) -> Self {
         Self {
-            len: 0,
-            keypath: keypath,
+            len,
+            keypath,
             _marker: core::marker::PhantomData,
         }
     }
@@ -155,43 +148,11 @@ impl<T> Vector<T> {
     */
 }
 
-/*
-impl<T> From<Keypath> for Vector<T> {
-    fn from(keypath: Keypath) -> Self {
-        let len = 0;
-        let _marker = core::marker::PhantomData;
-        Self {
-            len,
-            keypath,
-            _marker,
-        }
-    }
-}
-*/
-
 impl<T> DefaultFromKeypath for Vector<T> {
     fn default_from_keypath(keypath: &Keypath) -> Self {
         Vector::new(keypath, 0)
     }
 }
-
-/*
-impl<T> LoadKeypath for Vector<T> {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        let len = load_keypath(keypath)?;
-        Ok(Vector::new(keypath, len))
-    }
-}
-
-impl<T> Store for Vector<T>
-where
-    T: Store
-{
-    fn store(&self, key: &StorageKey) -> Result<()> {
-        Store::store(&self.len, key)
-    }
-}
-*/
 
 const _: () = {
     use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
@@ -212,12 +173,9 @@ const _: () = {
         where
             R: ReaderPath<'r, Keypath>
         {
+            let keypath = r.path();
             let len = read_xdr(r)?;
-            Ok(Self {
-                len,
-                keypath: r.path(),
-                _marker: core::marker::PhantomData,
-            })
+            Ok(Self::new_from(keypath, len))
         }
     }
 };
@@ -278,63 +236,6 @@ mod vref {
         fn drop(&mut self) {
             // Flush any changes
             self.vec.set(self.idx, &self.val).unwrap();
-        }
-    }
-}
-
-mod deserialize_impl {
-    use super::Vector;
-    use crate::storage::{Keypath, KeypathSeed, KeypathSeeded};
-    use core::fmt;
-    use core::marker::PhantomData;
-    use serde::de::{DeserializeSeed, Visitor};
-    use serde::Deserializer;
-
-    impl<T> KeypathSeeded for Vector<T> {
-        type Seed = KeypathSeed<Vector<T>>;
-
-        fn seed(keypath: &Keypath) -> Self::Seed {
-            KeypathSeed::new(keypath)
-        }
-    }
-
-    impl<'de, T> DeserializeSeed<'de> for KeypathSeed<Vector<T>> {
-        type Value = Vector<T>;
-
-        fn deserialize<_D>(
-            self,
-            deserializer: _D,
-        ) -> Result<Self::Value, _D::Error>
-        where
-            _D: Deserializer<'de>,
-        {
-            struct KeypathVisitor<'a, T> {
-                keypath: &'a mut Keypath,
-                marker: PhantomData<T>,
-            }
-
-            impl<T> Visitor<'_> for KeypathVisitor<'_, T> {
-                type Value = Vector<T>;
-
-                fn expecting(
-                    &self,
-                    formatter: &mut fmt::Formatter,
-                ) -> fmt::Result {
-                    write!(formatter, "a Vector<T>")
-                }
-
-                fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> {
-                    Ok(Vector::new(self.keypath, v))
-                }
-            }
-
-            let mut keypath = self.keypath.clone();
-            let visitor = KeypathVisitor {
-                keypath: &mut keypath,
-                marker: PhantomData,
-            };
-
-            deserializer.deserialize_u64(visitor)
         }
     }
 }

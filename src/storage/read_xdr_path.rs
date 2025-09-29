@@ -2,8 +2,6 @@ use xdrs::*;
 use super::Keypath;
 use delegate::delegate;
 
-//////////////////////////////////////////////////////////////
-
 pub trait PathHandler {
     type Path;
 
@@ -91,20 +89,6 @@ where
 }
 
 /*
-impl<T> ReadXDRPath for T
-where
-    T: FromKeypath
-{
-    fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-    where
-        R: ReaderPath<'r, Keypath>
-    {
-        Ok(from_keypath(r.path()))
-    }
-}
-*/
-
-/*
 macro_rules! delegate_read_xdr_path {
     { $($ty:ty),* $(,)? } => { $(
 
@@ -127,19 +111,6 @@ delegate_read_xdr_path! {
 */
 
 /*
-impl<T> ReadXDRPath for Vec<T>
-where
-    T: ReadXDRPath
-{
-    fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-    where
-        R: ReaderPath<'r, Keypath>,
-    {
-        let elt = <T as ReadXDRPath>::read_xdr_path(r)?;
-        Ok(vec![elt]) // XXX
-    }
-}
-
 impl<T, E> ReadXDRPath for Result<T, E>
 where
     T: ReadXDRPath,

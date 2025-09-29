@@ -1,8 +1,8 @@
 use crate::crypto::sha_256;
-use crate::serialize::{self, Serialize};
-use crate::types::StorageKeyContractData;
+use crate::types::StorageKey;
 use alloc::{vec, vec::Vec};
 use core::fmt::Debug;
+use xdrs::{WriteXDR, serialize_cxs::encode};
 
 #[derive(Debug, Clone)]
 pub struct Keypath {
@@ -20,7 +20,7 @@ impl Keypath {
         Self { path: vec![] }
     }
 
-    pub fn from_key(key: &StorageKeyContractData) -> Self {
+    pub fn from_key(key: &StorageKey) -> Self {
         let mut keypath = Keypath::new();
         keypath.push_item(key);
         keypath
@@ -44,7 +44,7 @@ impl Keypath {
                     out.extend_from_slice(v.as_slice());
                 }
                 KeypathComponent::Index(i) => {
-                    let v = serialize::to_bytes(i).unwrap();
+                    let v = encode(i).unwrap();
                     out.extend_from_slice(v.as_slice());
                 }
             }
@@ -52,7 +52,7 @@ impl Keypath {
         out
     }
 
-    pub fn generate_key(&self) -> StorageKeyContractData {
+    pub fn generate_key(&self) -> StorageKey {
         sha_256(self.flattened().as_slice()).unwrap().into()
     }
 
@@ -60,8 +60,8 @@ impl Keypath {
         self.path.push(KeypathComponent::Bytes(Vec::from(slice)))
     }
 
-    pub fn push_item<I: Serialize + ?Sized>(&mut self, item: &I) {
-        self.push_bytes(serialize::to_bytes(item).unwrap().as_slice())
+    pub fn push_item<I: WriteXDR + ?Sized>(&mut self, item: &I) {
+        self.push_bytes(encode(item).unwrap().as_slice())
     }
 
     pub fn push_index(&mut self, index: u64) {

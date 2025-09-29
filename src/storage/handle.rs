@@ -12,12 +12,6 @@ pub struct Handle<T> {
     marker: PhantomData<fn() -> T>,
 }
 
-impl<T> LoadKeypath for Handle<T> {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        Ok(Handle::new(keypath))
-    }
-}
-
 impl<T> DefaultFromKeypath for Handle<T> {
     fn default_from_keypath(keypath: &Keypath) -> Self {
         Handle::new(keypath)
@@ -100,8 +94,8 @@ impl<T> Handle<T> {
     }
 }
 
-serialize_unit_impl!(Handle<T>);
-deserialize_keypath_impl!(Handle<T>, "a Handle<T>");
+impl_read_xdr_path_via_from! { Handle<T> }
+impl_write_xdr_empty! { Handle<T> }
 
 pub use refs::*;
 mod refs {
