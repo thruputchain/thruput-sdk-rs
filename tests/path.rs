@@ -5,14 +5,17 @@ use sdk::storage::load::*;
 use sdk::storage::store::*;
 use sdk::storage::nnint::*;
 use sdk::SyscallErrorCode;
+use sdk::Storage;
 use xdrs::WriteXDR;
 
-#[derive(Debug, WriteXDR)]
+#[derive(Debug, WriteXDR, Storage)]
 struct Data {
     num: i32,
     nnint: NNInt,
 }
 
+/* These are auto-derived above ...
+ *
 impl DefaultFromKeypath for Data {
     fn default_from_keypath(keypath: &Keypath) -> Self {
         let mut kp = keypath.clone();
@@ -47,6 +50,7 @@ const _: () = {
         }
     }
 };
+*/
 
 contract_test!(test_path {
     native_exec::test_environment::TestEnvironment::enable_syscall_logging();
