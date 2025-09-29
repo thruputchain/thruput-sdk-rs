@@ -1,7 +1,6 @@
 use sdk::contract_test;
 use sdk::storage::*;
 
-// #[derive(Debug, Serialize, Storage)]
 #[derive(Debug, xdrs::WriteXDR)]
 struct Data {
     num: i32,
@@ -14,7 +13,7 @@ impl DefaultFromKeypath for Data {
     fn default_from_keypath(keypath: &Keypath) -> Self {
         let mut kp = keypath.clone();
 
-        kp.enter_seq();
+        kp.seq_begin();
         let num = DefaultFromKeypath::default_from_keypath(&kp);
 
         kp.seq_next();

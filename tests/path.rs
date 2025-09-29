@@ -17,7 +17,7 @@ impl DefaultFromKeypath for Data {
     fn default_from_keypath(keypath: &Keypath) -> Self {
         let mut kp = keypath.clone();
 
-        kp.enter_seq();
+        kp.seq_begin();
         let num = DefaultFromKeypath::default_from_keypath(&kp);
 
         kp.seq_next();

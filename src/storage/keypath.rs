@@ -68,7 +68,7 @@ impl Keypath {
         self.path.push(KeypathComponent::Index(index));
     }
 
-    pub fn enter_seq(&mut self) {
+    pub fn seq_begin(&mut self) {
         self.push_index(0);
     }
 
@@ -80,7 +80,7 @@ impl Keypath {
         }
     }
 
-    pub fn leave_seq(&mut self) {
+    pub fn seq_end(&mut self) {
         if !matches!(self.path.pop(), Some(KeypathComponent::Index(_))) {
             panic!("Keypath: leave_seq() called when last path component is not an index");
         }

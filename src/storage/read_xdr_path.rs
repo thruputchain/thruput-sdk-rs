@@ -33,11 +33,8 @@ where
 
     delegate! {
         to self.path {
-            #[call(enter_seq)]
             fn seq_begin(&mut self);
-            #[call(seq_next)]
             fn seq_next(&mut self);
-            #[call(leave_seq)]
             fn seq_end(&mut self);
         }
     }
