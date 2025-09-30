@@ -45,29 +45,3 @@ where
 }
 
 impl_load_via_read! { bool, i16, u16, i32, u32, i64, u64, }
-
-/*
-const _: () = {
-    use super::error::{Error, Result};
-    use super::read_xdr_path::*;
-    use xdrs::serialize_cxs::buf_reader::BufReader;
-    use crate::bytestring::bytestring_get;
-
-    impl<V> LoadKeypath for V
-    where
-        V: ReadXDRPath
-    {
-        fn load_keypath(keypath: &Keypath) -> Result<Self> {
-            let key = &keypath.generate_key();
-            let buf = bytestring_get(key)?;
-
-            let xdr_reader = BufReader::new(buf.as_ref());
-            let path = keypath.clone();
-            let mut kpr = KeypathReader { xdr_reader, path };
-
-            ReadXDRPath::read_xdr_path(&mut kpr).map_err(|_|
-                Error::Serialization)
-        }
-    }
-};
-*/

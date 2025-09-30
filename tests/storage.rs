@@ -24,7 +24,10 @@ contract_test!(test_map {
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
         let mut cell: NNInt = data.map.get(&slot).unwrap();
-        cell.set_add(0, 7).unwrap();
+
+        // Below results in `non_negative_int_set_add(None, 7)` on this
+        // previously-unset location
+        cell.add(7).unwrap();
     }
 
     {
