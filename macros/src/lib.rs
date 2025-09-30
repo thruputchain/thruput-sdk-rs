@@ -31,7 +31,25 @@ pub fn contract(
 pub fn derive_storage(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-    storage::generate(&input)
+    storage::generate_impls(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
+}
+
+/// Attribute-macro `storage` simply decorates the item
+/// with `#[derive(WriteXDR, Storage)]`
+#[proc_macro_attribute]
+pub fn storage(
+    _attr_args: TokenStream,
+    item_tokens: TokenStream,
+) -> TokenStream {
+    let item = {
+        let item_tokens = item_tokens.clone();
+        syn::parse_macro_input!(item_tokens as syn::Item)
+    };
+
+    quote::quote! {
+        #[derive(WriteXDR, Storage)]
+        #item
+    }.into()
 }

@@ -8,10 +8,9 @@ use erc20_if::ERC20Error as ERC20Error;
 use erc20_if::ERC20Client;
 use erc20_if::Amount;
 use sdk::*;
-use sdk::serialize::*;
 use thiserror::Error;
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[storage]
 pub struct Caller {
     token_contract: ContractAddress,
 }

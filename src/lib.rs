@@ -92,3 +92,5 @@ pub use native_exec::{
 
 #[cfg(feature = "storage")]
 pub use macros::Storage;
+#[cfg(feature = "storage")]
+pub use macros::storage;

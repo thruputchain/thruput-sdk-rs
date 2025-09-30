@@ -6,8 +6,8 @@ use syn::Result;
 
 /// Generate trait implementations allowing a struct
 /// containing various `storage` types (e.g. `Map`)
-/// to be loaded and stored.
-pub fn generate(input: &syn::DeriveInput) -> Result<TokenStream> {
+/// to be loaded.
+pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     let item = &input.data;
     let storage_impls = generate_from_data(input, item)?;
 

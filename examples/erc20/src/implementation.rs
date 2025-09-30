@@ -11,7 +11,8 @@ use sdk::storage::{NNInt, Map};
 type Balance = NNInt;
 type Allowance = NNInt;
 
-#[derive(Debug, WriteXDR, Storage)]
+#[derive(Debug)]
+#[sdk::storage]
 pub struct TokenContract {
     contract_owner: ContractAddress,
     balances: Map<ContractAddress, Balance>,

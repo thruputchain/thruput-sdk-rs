@@ -1464,6 +1464,7 @@ dependencies = [
  "sdk",
  "serde",
  "simple_wallet_old",
+ "xdrs",
 ]
 
 [[package]]

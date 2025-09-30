@@ -3,9 +3,8 @@
 use sdk::*;
 pub use sdk::contract_result::*;
 use sdk::storage::{Bytestring, NNInt, Handle};
-use sdk::serialize::*;
 
-#[derive(Storage, Debug, Serialize)]
+#[storage]
 pub struct MyContract {
     contract_owner: ContractAddress,
     silly: bool,
@@ -13,7 +12,7 @@ pub struct MyContract {
     hbool1: Handle<bool>,
 }
 
-#[derive(Storage, Debug, Serialize)]
+#[storage]
 pub struct Frottage {
     touched: bool,
     count: NNInt,
