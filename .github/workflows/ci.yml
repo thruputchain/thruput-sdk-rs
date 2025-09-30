@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]  
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,6 +30,7 @@ jobs:
           ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
           ${{ secrets.SDK_TO_CHUCKD_KEY }}
           ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+          ${{ secrets.SDK_TO_METRICS_HISTORY }}
   
     - uses: actions/checkout@v4
       with:
@@ -45,4 +47,10 @@ jobs:
       run: cargo --version
     - name: check
       run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
+    - name: log metrics
+      # Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
+      # time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
+      # stats to track; for now, however, we are just tracking contract sizes,
+      # which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
+      run: ./scripts/metrics.sh
 
