@@ -48,7 +48,7 @@ jobs:
     - name: check
       run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
     - name: log metrics
-      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      #if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       # Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
       # time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
       # stats to track; for now, however, we are just tracking contract sizes,
