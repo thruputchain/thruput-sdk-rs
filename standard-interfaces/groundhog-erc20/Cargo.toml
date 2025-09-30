@@ -17,7 +17,6 @@ storage = ["sdk/storage"]
 
 [dependencies]
 sdk = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 xdrs = { workspace = true, features = ["derive", "alloc", "extras", "int128_xdr"] }
 thiserror = { workspace = true }
 

@@ -1,4 +1,3 @@
-use bcs::Error as SerializationError;
 use core::fmt;
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
@@ -41,20 +40,6 @@ impl Error {
 
     pub fn serialization<M: fmt::Display>(msg: M) -> Self {
         Error::SerializationErr(ErrorMsg::new(msg))
-    }
-}
-
-#[cfg(feature = "mock")]
-impl From<SerializationError> for Error {
-    fn from(err: SerializationError) -> Self {
-        Self::SerializationErr(err.to_string().into())
-    }
-}
-
-#[cfg(not(feature = "mock"))]
-impl From<SerializationError> for Error {
-    fn from(_err: SerializationError) -> Self {
-        Self::SerializationErr(ErrorMsg::empty())
     }
 }
 

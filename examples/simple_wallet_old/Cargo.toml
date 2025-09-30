@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-serde = { workspace = true }
 erc20 = { package = "erc20_low_level", path = "../erc20_low_level/", features = ["client"] }
 groundhog-erc20-if = { workspace = true }
 xdrs = { workspace = true }

@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 sdk = { workspace = true }
-serde = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }

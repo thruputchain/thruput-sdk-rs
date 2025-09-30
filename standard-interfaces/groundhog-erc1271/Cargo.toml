@@ -15,7 +15,6 @@ spec = ["sdk/spec", "std"]
 
 [dependencies]
 sdk = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 xdrs = { workspace = true, features = ["derive", "alloc", "extras"] }
 thiserror = { workspace = true }
 

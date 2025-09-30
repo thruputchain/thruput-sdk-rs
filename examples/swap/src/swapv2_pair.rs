@@ -16,7 +16,7 @@ use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pai
 use crate::bignum::{U112, U256};
 
 // We need to derive `Storage` because TokenContract is `Storage`
-#[derive(Debug, Storage, Serialize)]
+#[storage]
 pub struct SwapV2Pair {
     pub factory: Address,
     pub token0: Address,

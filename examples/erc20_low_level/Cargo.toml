@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
 [lib]

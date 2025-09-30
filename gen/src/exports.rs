@@ -47,7 +47,6 @@ pub fn generate(
             #use_trait
             use super::#self_ty;
             #use_storage
-            use ::sdk::serialize::Serialize;
             use ::sdk::types::ContractEntrypointID;
             use ::sdk::contract_panic;
             use ::sdk::contract_op::contract_abort;
