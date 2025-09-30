@@ -44,8 +44,7 @@ where
         .map_err(|_| Error::Serialization)
 }
 
-impl_load_via_read! { u32 }
-impl_load_via_read! { u64 }
+impl_load_via_read! { bool, i16, u16, i32, u32, i64, u64, }
 
 /*
 const _: () = {

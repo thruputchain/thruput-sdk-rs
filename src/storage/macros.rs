@@ -28,16 +28,18 @@ macro_rules! impl_load_via_keypath {
 }
 
 macro_rules! impl_load_via_read {
-    { $id:ident$(<$($param:ident),+>)? } => {
+    { $( $id:ident$(<$($param:ident),+>)? ),+ $(,)? } => {
         const _: () = {
             use crate::storage::*;
             use crate::storage::error::Result;
 
+            $(
             impl$(<$($param),+>)? LoadKeypath for $id$(<$($param),+>)? {
                 fn load_keypath(keypath: &Keypath) -> Result<Self> {
                     load_readable(keypath)
                 }
             }
+            )*
         };
     };
 }
