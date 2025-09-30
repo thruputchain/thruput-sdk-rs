@@ -1,0 +1,25 @@
+commit 8092bf21f6b12e44fb34a6a59c39010b53b2a1c5
+-rw-r--r-- 1 dbg dbg  1619 Sep 30 11:58 target/optimized/calldata_raw.wasm
+-rw-r--r-- 1 dbg dbg  2097 Sep 30 11:58 target/optimized/calldata_wrapper.wasm
+-rw-r--r-- 1 dbg dbg  8124 Sep 30 11:58 target/optimized/caller.wasm
+-rw-r--r-- 1 dbg dbg  3456 Sep 30 11:58 target/optimized/delegate_call_test.wasm
+-rw-r--r-- 1 dbg dbg  2615 Sep 30 11:58 target/optimized/ed25519_verify_wrapper.wasm
+-rw-r--r-- 1 dbg dbg 21029 Sep 30 11:58 target/optimized/erc20.wasm
+-rw-r--r-- 1 dbg dbg  8763 Sep 30 11:58 target/optimized/erc20_low_level.wasm
+-rw-r--r-- 1 dbg dbg  8763 Sep 30 11:58 target/optimized/erc20_no_storage.wasm
+-rw-r--r-- 1 dbg dbg  2198 Sep 30 11:58 target/optimized/fibonacci.wasm
+-rw-r--r-- 1 dbg dbg  8287 Sep 30 11:58 target/optimized/fibonacci_call.wasm
+-rw-r--r-- 1 dbg dbg   237 Sep 30 11:58 target/optimized/fibonacci_raw.wasm
+-rw-r--r-- 1 dbg dbg    71 Sep 30 11:58 target/optimized/genesis_deployer.wasm
+-rw-r--r-- 1 dbg dbg  5062 Sep 30 11:58 target/optimized/initial_token_claim.wasm
+-rw-r--r-- 1 dbg dbg  8763 Sep 30 11:58 target/optimized/itc_erc20.wasm
+-rw-r--r-- 1 dbg dbg 25355 Sep 30 11:58 target/optimized/manual_revert_caller.wasm
+-rw-r--r-- 1 dbg dbg 11632 Sep 30 11:58 target/optimized/manual_revert_test.wasm
+-rw-r--r-- 1 dbg dbg 22206 Sep 30 11:58 target/optimized/playground.wasm
+-rw-r--r-- 1 dbg dbg  2975 Sep 30 11:58 target/optimized/rcq_test.wasm
+-rw-r--r-- 1 dbg dbg  1190 Sep 30 11:58 target/optimized/read_only_test.wasm
+-rw-r--r-- 1 dbg dbg   796 Sep 30 11:58 target/optimized/sha256_raw.wasm
+-rw-r--r-- 1 dbg dbg  2429 Sep 30 11:58 target/optimized/sha256_wrapper.wasm
+-rw-r--r-- 1 dbg dbg 11213 Sep 30 11:58 target/optimized/simple_wallet.wasm
+-rw-r--r-- 1 dbg dbg 12647 Sep 30 11:58 target/optimized/simple_wallet_old.wasm
+-rw-r--r-- 1 dbg dbg  1673 Sep 30 11:58 target/optimized/test_bytestring.wasm
