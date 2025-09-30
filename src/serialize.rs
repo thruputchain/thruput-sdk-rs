@@ -1,4 +1,4 @@
-pub use xdrs::{WriteXDR, ReadXDR, ReadXDROwned};
+pub use xdrs::{WriteXDR, WriteResult, write_xdr, ReadXDR, ReadResult, read_xdr, ReadXDROwned};
 pub use xdrs::serialize_txs::decode as decode_xdr;
 #[cfg(feature = "alloc")]
 pub use xdrs::serialize_txs::encode as encode_xdr;

@@ -106,7 +106,7 @@ fn impl_read_xdr_path(
 
     Ok(quote! {
         const _: () = {
-            use xdrs::ReadResult;
+            use sdk::serialize::ReadResult;
             use sdk::storage::*;
 
             impl<#generic_params> ReadXDRPath for #ty {
