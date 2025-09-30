@@ -8,18 +8,10 @@ use syn::Result;
 /// containing various `storage` types (e.g. `Map`)
 /// to be loaded and stored.
 pub fn generate(input: &syn::DeriveInput) -> Result<TokenStream> {
+    let item = &input.data;
+    let storage_impls = generate_from_data(input, item)?;
+
     let ident = &input.ident;
-    let generics = &input.generics;
-
-    let mut output = TokenStream::new();
-
-    output.extend(match &input.data {
-        syn::Data::Struct(ref item) => {
-            generate_for_struct(ident, generics, item)?
-        }
-        _ => err(input, "Can only derive Storage for structs")?,
-    });
-
     let ident_lower =
         Ident::new(&ident.to_string().to_lowercase(), ident.span());
     let impl_mod = format_ident!("_{}_storage_impls", ident_lower);
@@ -29,21 +21,51 @@ pub fn generate(input: &syn::DeriveInput) -> Result<TokenStream> {
         mod #impl_mod {
             use super::*;
 
-            #output
+            #storage_impls
         }
 
     })
 }
 
-fn generate_for_struct(
-    ident: &syn::Ident,
-    generics: &syn::Generics,
-    item: &syn::DataStruct,
-) -> Result<TokenStream> {
+fn generate_from_data(input: &syn::DeriveInput, item: &syn::Data) -> Result<TokenStream> {
+    let mut output = TokenStream::new();
+
+    output.extend(match item {
+        syn::Data::Struct(ref item) => {
+            generate_from_struct(input, item)
+        }
+        _ => err(input, "Can only derive Storage for structs")?,
+    });
+
+    output.extend(impl_load_via_read(input));
+
+    Ok(output)
+}
+
+fn impl_load_via_read(input: &syn::DeriveInput) -> Result<TokenStream> {
+    let ident = &input.ident;
+    let generics = &input.generics;
+
+    Ok(quote! {
+        const _: () = {
+            use sdk::storage::*;
+            use sdk::storage::error::Result;
+
+            impl #generics LoadKeypath for #ident #generics {
+                fn load_keypath(keypath: &Keypath) -> Result<Self> {
+                    load_readable(keypath)
+                }
+            }
+        };
+    })
+}
+
+fn generate_from_struct(input: &syn::DeriveInput, item: &syn::DataStruct) -> Result<TokenStream> {
+    let ident = &input.ident;
+    let generics = &input.generics;
     let fields = &item.fields;
 
     let mut output = TokenStream::new();
-
     output.extend(impl_read_xdr_path(ident, generics, fields)?);
     output.extend(impl_default_from_keypath(ident, generics, fields)?);
 

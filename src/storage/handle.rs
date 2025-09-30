@@ -12,12 +12,6 @@ pub struct Handle<T> {
     marker: PhantomData<fn() -> T>,
 }
 
-impl<T> DefaultFromKeypath for Handle<T> {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Handle::new(keypath)
-    }
-}
-
 impl<T> From<Keypath> for Handle<T> {
     fn from(keypath: Keypath) -> Self {
         Self {
@@ -26,6 +20,11 @@ impl<T> From<Keypath> for Handle<T> {
         }
     }
 }
+
+impl_load_via_keypath! { Handle<T> }
+impl_default_via_keypath! { Handle<T> }
+impl_read_via_keypath! { Handle<T> }
+impl_write_xdr_empty! { Handle<T> }
 
 impl<T> Handle<T> {
     pub fn new(keypath: &Keypath) -> Self {
@@ -93,9 +92,6 @@ impl<T> Handle<T> {
         Ok(HandleRefMut::new(self, val))
     }
 }
-
-impl_read_xdr_path_via_from! { Handle<T> }
-impl_write_xdr_empty! { Handle<T> }
 
 pub use refs::*;
 mod refs {

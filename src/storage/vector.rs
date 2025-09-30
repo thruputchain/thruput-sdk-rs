@@ -14,6 +14,43 @@ pub struct Vector<T> {
     _marker: core::marker::PhantomData<fn() -> T>,
 }
 
+impl<T> From<Keypath> for Vector<T> {
+    fn from(keypath: Keypath) -> Self {
+        Self::new_from(keypath, 0)
+    }
+}
+
+impl_default_via_keypath! { Vector<T> }
+
+const _: () = {
+    use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
+
+    impl<T> WriteXDR for Vector<T> {
+        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+            write_xdr(&self.len, w)
+        }
+    }
+};
+
+const _: () = {
+    use xdrs::{read_xdr, ReadResult};
+    use super::read_xdr_path::*;
+
+    impl<T> ReadXDRPath for Vector<T> {
+        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
+        where
+            R: ReaderPath<'r, Keypath>
+        {
+            let keypath = r.path();
+            let len = read_xdr(r)?;
+
+            Ok(Self::new_from(keypath, len))
+        }
+    }
+};
+
+impl_load_via_read! { Vector<T> }
+
 impl<T> Vector<T> {
     pub fn new(keypath: &Keypath, len: u64) -> Self {
         Self::new_from(keypath.clone(), len)
@@ -147,38 +184,6 @@ impl<T> Vector<T> {
     }
     */
 }
-
-impl<T> DefaultFromKeypath for Vector<T> {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Vector::new(keypath, 0)
-    }
-}
-
-const _: () = {
-    use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
-
-    impl<T> WriteXDR for Vector<T> {
-        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
-            write_xdr(&self.len, w)
-        }
-    }
-};
-
-const _: () = {
-    use xdrs::{read_xdr, ReadResult};
-    use super::read_xdr_path::*;
-
-    impl<T> ReadXDRPath for Vector<T> {
-        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-        where
-            R: ReaderPath<'r, Keypath>
-        {
-            let keypath = r.path();
-            let len = read_xdr(r)?;
-            Ok(Self::new_from(keypath, len))
-        }
-    }
-};
 
 pub use vref::*;
 mod vref {

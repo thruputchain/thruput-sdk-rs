@@ -1,4 +1,3 @@
-use super::keypath::DefaultFromKeypath;
 use super::keypath::{KeyCache, Keypath};
 use crate::bytestring::*;
 use alloc::boxed::Box;
@@ -9,6 +8,19 @@ use core::fmt::Debug;
 pub struct Bytestring {
     key: KeyCache,
 }
+
+impl From<Keypath> for Bytestring {
+    fn from(keypath: Keypath) -> Self {
+        Self {
+            key: KeyCache::from(keypath),
+        }
+    }
+}
+
+impl_load_via_keypath! { Bytestring }
+impl_default_via_keypath! { Bytestring }
+impl_read_via_keypath! { Bytestring }
+impl_write_xdr_empty! { Bytestring }
 
 impl Bytestring {
     pub fn new(keypath: &Keypath) -> Self {
@@ -50,20 +62,3 @@ impl Bytestring {
         })
     }
 }
-
-impl From<Keypath> for Bytestring {
-    fn from(keypath: Keypath) -> Self {
-        Self {
-            key: KeyCache::from(keypath),
-        }
-    }
-}
-
-impl DefaultFromKeypath for Bytestring {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Bytestring::new(keypath)
-    }
-}
-
-impl_read_xdr_path_via_from! { Bytestring }
-impl_write_xdr_empty! { Bytestring }

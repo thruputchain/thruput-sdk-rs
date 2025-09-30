@@ -14,44 +14,6 @@ struct Data {
     nnint: NNInt,
 }
 
-/* These are auto-derived above ...
- *
-impl DefaultFromKeypath for Data {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        let mut kp = keypath.clone();
-
-        kp.seq_begin();
-        let num = DefaultFromKeypath::default_from_keypath(&kp);
-
-        kp.seq_next();
-        let nnint = DefaultFromKeypath::default_from_keypath(&kp);
-
-        Data { num, nnint }
-    }
-}
-
-const _: () = {
-    use xdrs::ReadResult;
-    use sdk::storage::read_xdr_path::*;
-
-    impl ReadXDRPath for Data {
-        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-        where
-            R: ReaderPath<'r, Keypath>
-        {
-            r.seq_begin();
-            let num = ReadXDRPath::read_xdr_path(r)?;
-
-            r.seq_next();
-            let nnint = ReadXDRPath::read_xdr_path(r)?;
-
-            r.seq_end();
-            Ok(Data { num, nnint })
-        }
-    }
-};
-*/
-
 contract_test!(test_path {
     native_exec::test_environment::TestEnvironment::enable_syscall_logging();
 

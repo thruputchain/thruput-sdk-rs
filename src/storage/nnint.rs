@@ -1,4 +1,3 @@
-use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
 use crate::nonnegative_int::*;
 use crate::sysresult::SysResult as Result;
@@ -25,11 +24,10 @@ impl From<Keypath> for NNInt {
     }
 }
 
-impl DefaultFromKeypath for NNInt {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        NNInt::new(keypath)
-    }
-}
+impl_load_via_keypath! { NNInt }
+impl_default_via_keypath! { NNInt }
+impl_read_via_keypath! { NNInt }
+impl_write_xdr_empty! { NNInt }
 
 impl NNInt {
     pub fn new(keypath: &Keypath) -> Self {
@@ -103,6 +101,3 @@ impl NNInt {
         Ok(())
     }
 }
-
-impl_read_xdr_path_via_from! { NNInt }
-impl_write_xdr_empty! { NNInt }

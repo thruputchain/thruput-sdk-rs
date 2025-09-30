@@ -1,63 +1,41 @@
 use sdk::contract_test;
 use sdk::storage::*;
+use sdk::Storage;
 
-#[derive(Debug, xdrs::WriteXDR)]
+#[derive(Debug, xdrs::WriteXDR, Storage)]
 struct Data {
     num: i32,
     nums: Vector<u64>,
     nnints: Vector<NNInt>,
     bytes: Bytestring,
+    map: Map<u32, NNInt>,
 }
 
-impl DefaultFromKeypath for Data {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        let mut kp = keypath.clone();
+contract_test!(test_map {
+    // native_exec::test_environment::TestEnvironment::enable_syscall_logging();
 
-        kp.seq_begin();
-        let num = DefaultFromKeypath::default_from_keypath(&kp);
-
-        kp.seq_next();
-        let nums = DefaultFromKeypath::default_from_keypath(&kp);
-
-        kp.seq_next();
-        let nnints = DefaultFromKeypath::default_from_keypath(&kp);
-
-        kp.seq_next();
-        let bytes = DefaultFromKeypath::default_from_keypath(&kp);
-
-        Data { num, nums, nnints, bytes }
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath).unwrap();
     }
-}
 
-const _: () = {
-    use xdrs::ReadResult;
-    use sdk::storage::read_xdr_path::*;
-
-    impl ReadXDRPath for Data {
-        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-        where
-            R: ReaderPath<'r, Keypath>
-        {
-            r.seq_begin();
-            let num = ReadXDRPath::read_xdr_path(r)?;
-
-            r.seq_next();
-            let nums = ReadXDRPath::read_xdr_path(r)?;
-
-            r.seq_next();
-            let nnints = ReadXDRPath::read_xdr_path(r)?;
-
-            r.seq_next();
-            let bytes = ReadXDRPath::read_xdr_path(r)?;
-
-            r.seq_end();
-            Ok(Data { num, nums, nnints, bytes })
-        }
+    let slot: u32 = 3;
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut cell: NNInt = data.map.get(&slot).unwrap();
+        cell.set_add(0, 7).unwrap();
     }
-};
+
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let cell = data.map.get(&slot).unwrap();
+        let v = cell.get().unwrap();
+        assert_eq!(v, 7);
+    }
+});
 
 contract_test!(test_storable {
-    // native_exec::test_environment::TestEnvironment::enable_syscall_logging();
     let data_keypath = Keypath::new();
     let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
     data.store_keypath(&data_keypath).unwrap();
@@ -213,4 +191,3 @@ contract_test!(test_vector_data {
     }
     drop(vec);
 });
-

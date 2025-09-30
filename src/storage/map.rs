@@ -1,5 +1,4 @@
 use super::error::Result;
-use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use core::fmt::Debug;
@@ -21,11 +20,10 @@ impl<K, V> From<Keypath> for Map<K, V> {
     }
 }
 
-impl<K, V> DefaultFromKeypath for Map<K, V> {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Self::new(keypath)
-    }
-}
+impl_load_via_keypath! { Map<K, V> }
+impl_default_via_keypath! { Map<K, V> }
+impl_read_via_keypath! { Map<K, V> }
+impl_write_xdr_empty! { Map<K, V> }
 
 impl<K, V> Map<K, V> {
     pub fn new(keypath: &Keypath) -> Self {
@@ -61,6 +59,3 @@ impl<K, V> Map<K, V> {
         keypath
     }
 }
-
-impl_read_xdr_path_via_from! { Map<K, V> }
-impl_write_xdr_empty! { Map<K, V> }
