@@ -25,15 +25,13 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-bcs = { path = "external/bcs", optional = true, default-features = false }
 macros = { workspace = true }
 native_exec = { path = "native_exec", optional = true}
 groundhog_xdr = { workspace = true }
-serde = { workspace = true }
-serde_arrays = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
 xdrs = { workspace = true, optional = true }
+delegate = "0.13.4"
 
 [dev-dependencies]
 hex-literal = "1.0.0"
@@ -41,11 +39,9 @@ hex-literal = "1.0.0"
 [workspace.dependencies]
 gen = { path = "gen" }
 macros = { path = "macros" }
-groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "serde", "syscalls"] }
+groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"] }
 sha2 = { version = "0.10.8", default-features = false }
 sdk = { path = "." }
-serde = { version = "1.0.217", default-features = false }
-serde_arrays = { git = "ssh://git@github.com/groundhogchain/serde_arrays.git", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr", "xdr_common", "derive", "ns"] }
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
@@ -58,9 +54,9 @@ groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 # can probably remove this by removing the alloc dependency in the `internal` module
 default = ["alloc"]
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
-storage = ["alloc", "dep:bcs"]
-alloc = ["macros/alloc", "serde/alloc", "serde_arrays/alloc", "groundhog_xdr/alloc", "bcs/alloc", "xdrs/alloc"]
-std = ["alloc", "serde/std", "bcs/std", "groundhog_xdr/std"]
+storage = ["alloc"]
+alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
+std = ["alloc", "groundhog_xdr/std"]
 logging = ["macros/logging"]
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
 

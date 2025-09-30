@@ -4,11 +4,10 @@
 use erc20::ERC20Client;
 use erc20::interface::Amount;
 use sdk::*;
-use sdk::serialize::*;
 
 // TODO: Replay prevention?
 
-#[derive(Storage, Debug, Serialize)]
+#[storage]
 struct Wallet {
     token_addr: ContractAddress,
     pk: Ed25519PublicKey,
@@ -54,7 +53,7 @@ impl Wallet {
         let self_addr = get_current_address().unwrap();
 
         let input = (&self_addr, to_addr, amount);
-        let buf = sdk::serialize::to_bytes(&input).unwrap();
+        let buf = sdk::serialize::serialize_xdr(&input).unwrap();
 
         let bytes: [u8; 80] = buf.try_into().unwrap();
 

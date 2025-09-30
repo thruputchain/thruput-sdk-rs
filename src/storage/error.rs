@@ -1,7 +1,6 @@
 use groundhog_xdr::syscalls::SysErr;
-use crate::{ReadXDR, WriteXDR};
-use bcs::Error as SerializationError;
 use thiserror::Error;
+use crate::{ReadXDR, WriteXDR};
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
@@ -20,12 +19,6 @@ pub enum Error {
 
     #[error("Vector index out of bounds: len={len}, access={access}")]
     IndexOutOfBounds { len: u64, access: u64 } = ::groundhog_xdr::contract_error::StorageErrorType::kStorageErrorTypeIndexOutOfBounds as i32,
-}
-
-impl From<SerializationError> for Error {
-    fn from(_err: SerializationError) -> Self {
-        Error::Serialization
-    }
 }
 
 impl Error {

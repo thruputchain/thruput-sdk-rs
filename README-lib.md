@@ -35,9 +35,7 @@ If feature `alloc` is enabled:
 Datatypes defined by third-party libraries or by the user may be
 used in memory and in persistent storage, noting that:
 *   Heap allocation requires feature [`alloc`].
-*   A datatype must implement the [`serde`](https://docs.rs/serde/latest/serde/) traits
-    [`Serialize`](serialize::Serialize) and
-    [`Deserialize`](serialize::Deserialize)
+*   Datatypes should be decorated with the [`storage`](storage) attribute-macro.
 
 # Storage
 

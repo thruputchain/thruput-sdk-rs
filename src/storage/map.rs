@@ -1,10 +1,9 @@
 use super::error::Result;
-use super::keypath::DefaultFromKeypath;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
-use crate::serialize::Serialize;
 use core::fmt::Debug;
 use core::marker::PhantomData;
+use xdrs::WriteXDR;
 
 #[derive(Debug)]
 pub struct Map<K, V> {
@@ -21,17 +20,10 @@ impl<K, V> From<Keypath> for Map<K, V> {
     }
 }
 
-impl<K, V> LoadKeypath for Map<K, V> {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        Ok(Self::new(keypath))
-    }
-}
-
-impl<K, V> DefaultFromKeypath for Map<K, V> {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Self::new(keypath)
-    }
-}
+impl_load_via_keypath! { Map<K, V> }
+impl_default_via_keypath! { Map<K, V> }
+impl_read_via_keypath! { Map<K, V> }
+impl_write_xdr_empty! { Map<K, V> }
 
 impl<K, V> Map<K, V> {
     pub fn new(keypath: &Keypath) -> Self {
@@ -47,7 +39,7 @@ impl<K, V> Map<K, V> {
 
     pub fn get(&self, entry_key: &K) -> Result<V>
     where
-        K: Serialize,
+        K: WriteXDR,
         V: LoadKeypath,
     {
         let keypath = &self.make_entry_keypath(entry_key);
@@ -60,14 +52,10 @@ impl<K, V> Map<K, V> {
 
     fn make_entry_keypath(&self, entry_key: &K) -> Keypath
     where
-        K: Serialize,
+        K: WriteXDR,
     {
         let mut keypath = self.keypath.clone();
         keypath.push_item(entry_key);
         keypath
     }
 }
-
-serialize_unit_impl!(Map<K, V>);
-
-deserialize_keypath_impl!(Map<K, V>, "a Map<K, V>");

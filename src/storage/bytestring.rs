@@ -1,7 +1,4 @@
-use super::error::Result;
-use super::keypath::DefaultFromKeypath;
 use super::keypath::{KeyCache, Keypath};
-use super::load::LoadKeypath;
 use crate::bytestring::*;
 use alloc::boxed::Box;
 use alloc::vec;
@@ -11,6 +8,19 @@ use core::fmt::Debug;
 pub struct Bytestring {
     key: KeyCache,
 }
+
+impl From<Keypath> for Bytestring {
+    fn from(keypath: Keypath) -> Self {
+        Self {
+            key: KeyCache::from(keypath),
+        }
+    }
+}
+
+impl_load_via_keypath! { Bytestring }
+impl_default_via_keypath! { Bytestring }
+impl_read_via_keypath! { Bytestring }
+impl_write_xdr_empty! { Bytestring }
 
 impl Bytestring {
     pub fn new(keypath: &Keypath) -> Self {
@@ -52,26 +62,3 @@ impl Bytestring {
         })
     }
 }
-
-impl From<Keypath> for Bytestring {
-    fn from(keypath: Keypath) -> Self {
-        Self {
-            key: KeyCache::from(keypath),
-        }
-    }
-}
-
-impl DefaultFromKeypath for Bytestring {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Bytestring::new(keypath)
-    }
-}
-
-impl LoadKeypath for Bytestring {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        Ok(Bytestring::new(keypath))
-    }
-}
-
-serialize_unit_impl!(Bytestring);
-deserialize_keypath_impl!(Bytestring, "a Bytestring");

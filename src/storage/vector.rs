@@ -1,28 +1,65 @@
 use super::error::{oob_err, Result};
 use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
-use super::load::{Load, LoadKeypath};
+use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
-use crate::serialize::Serialize;
-use crate::types::StorageKeyContractData;
 use core::fmt::Debug;
 
-#[derive(Debug, Serialize)]
-#[serde(transparent)]
+#[derive(Debug)]
 pub struct Vector<T> {
     len: u64,
-    #[serde(skip)]
     keypath: Keypath,
     // This type should be covariant in T, but (for drop
     // purposes) doesn't actually own values of that type
     _marker: core::marker::PhantomData<fn() -> T>,
 }
 
+impl<T> From<Keypath> for Vector<T> {
+    fn from(keypath: Keypath) -> Self {
+        Self::new_from(keypath, 0)
+    }
+}
+
+impl_default_via_keypath! { Vector<T> }
+
+const _: () = {
+    use xdrs::{WriteXDR, Writer, WriteResult, write_xdr};
+
+    impl<T> WriteXDR for Vector<T> {
+        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+            write_xdr(&self.len, w)
+        }
+    }
+};
+
+const _: () = {
+    use xdrs::{read_xdr, ReadResult};
+    use super::read_xdr_path::*;
+
+    impl<T> ReadXDRPath for Vector<T> {
+        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
+        where
+            R: ReaderPath<'r, Keypath>
+        {
+            let keypath = r.path();
+            let len = read_xdr(r)?;
+
+            Ok(Self::new_from(keypath, len))
+        }
+    }
+};
+
+impl_load_via_read! { Vector<T> }
+
 impl<T> Vector<T> {
     pub fn new(keypath: &Keypath, len: u64) -> Self {
+        Self::new_from(keypath.clone(), len)
+    }
+
+    pub fn new_from(keypath: Keypath, len: u64) -> Self {
         Self {
             len,
-            keypath: keypath.clone(),
+            keypath,
             _marker: core::marker::PhantomData,
         }
     }
@@ -41,28 +78,29 @@ impl<T> Vector<T> {
 
     pub fn get(&self, index: u64) -> Result<T>
     where
-        T: Load,
+        T: LoadKeypath,
     {
-        if index < self.len {
-            let key = &self.make_index_key(index);
-            <T as Load>::load(key)
-        } else {
-            oob_err(self.len, index)
+        if index >= self.len {
+            return oob_err(self.len, index);
         }
+
+        let keypath = self.make_index_keypath(index);
+
+        load_keypath(&keypath)
     }
 
     pub fn get_default(&self, index: u64) -> Result<T>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        if index < self.len {
-            let keypath = self.make_index_keypath(index);
-            let val = T::try_load_keypath(&keypath)?
-                .unwrap_or_else(|| T::default_from_keypath(&keypath));
-            Ok(val)
-        } else {
-            oob_err(self.len, index)
+        if index >= self.len {
+            return oob_err(self.len, index);
         }
+
+        let keypath = self.make_index_keypath(index);
+
+        Ok(T::try_load_keypath(&keypath)?
+            .unwrap_or_else(|| T::default_from_keypath(&keypath)))
     }
 
     pub fn load<'a>(&'a self, index: u64) -> Result<ElemRef<'a, T>>
@@ -140,34 +178,11 @@ impl<T> Vector<T> {
         keypath
     }
 
-    fn make_index_key(&self, index: u64) -> StorageKeyContractData {
+    /*
+    fn make_index_key(&self, index: u64) -> StorageKey {
         self.make_index_keypath(index).generate_key()
     }
-}
-
-impl<T> From<Keypath> for Vector<T> {
-    fn from(keypath: Keypath) -> Self {
-        let len = 0;
-        let _marker = core::marker::PhantomData;
-        Self {
-            len,
-            keypath,
-            _marker,
-        }
-    }
-}
-
-impl<T> LoadKeypath for Vector<T> {
-    fn load_keypath(keypath: &Keypath) -> Result<Self> {
-        let len = Load::load(&keypath.generate_key())?;
-        Ok(Vector::new(keypath, len))
-    }
-}
-
-impl<T> DefaultFromKeypath for Vector<T> {
-    fn default_from_keypath(keypath: &Keypath) -> Self {
-        Vector::new(keypath, 0)
-    }
+    */
 }
 
 pub use vref::*;
@@ -226,63 +241,6 @@ mod vref {
         fn drop(&mut self) {
             // Flush any changes
             self.vec.set(self.idx, &self.val).unwrap();
-        }
-    }
-}
-
-mod deserialize_impl {
-    use super::Vector;
-    use crate::storage::{Keypath, KeypathSeed, KeypathSeeded};
-    use core::fmt;
-    use core::marker::PhantomData;
-    use serde::de::{DeserializeSeed, Visitor};
-    use serde::Deserializer;
-
-    impl<T> KeypathSeeded for Vector<T> {
-        type Seed = KeypathSeed<Vector<T>>;
-
-        fn seed(keypath: &Keypath) -> Self::Seed {
-            KeypathSeed::new(keypath)
-        }
-    }
-
-    impl<'de, T> DeserializeSeed<'de> for KeypathSeed<Vector<T>> {
-        type Value = Vector<T>;
-
-        fn deserialize<_D>(
-            self,
-            deserializer: _D,
-        ) -> Result<Self::Value, _D::Error>
-        where
-            _D: Deserializer<'de>,
-        {
-            struct KeypathVisitor<'a, T> {
-                keypath: &'a mut Keypath,
-                marker: PhantomData<T>,
-            }
-
-            impl<T> Visitor<'_> for KeypathVisitor<'_, T> {
-                type Value = Vector<T>;
-
-                fn expecting(
-                    &self,
-                    formatter: &mut fmt::Formatter,
-                ) -> fmt::Result {
-                    write!(formatter, "a Vector<T>")
-                }
-
-                fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> {
-                    Ok(Vector::new(self.keypath, v))
-                }
-            }
-
-            let mut keypath = self.keypath.clone();
-            let visitor = KeypathVisitor {
-                keypath: &mut keypath,
-                marker: PhantomData,
-            };
-
-            deserializer.deserialize_u64(visitor)
         }
     }
 }

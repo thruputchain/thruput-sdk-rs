@@ -15,7 +15,6 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
 
     Ok(quote! {
         {
-            use ::xdrs::xdr_repr::*;
             use ::sdk::spec::*;
             use ::std::vec;
             use ::std::string::*;

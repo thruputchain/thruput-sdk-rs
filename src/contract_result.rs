@@ -20,6 +20,7 @@ use xdrs::xdr_repr::XDR;
 pub enum Error {
     #[error("Caller error: {msg}")]
     Caller { msg: ErrorMsg } = gh::ErrorType::kErrorTypeCaller as i32,
+
     #[error("Contract internal error: {contract_error}")]
     Contract {
         #[from]
@@ -31,17 +32,17 @@ pub enum Error {
 #[repr(i32)]
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum ContractError {
-    #[error(": {msg}")]
+    #[error("Message: {msg}")]
     Custom { msg: ErrorMsg } = gh::ContractErrorType::kContractErrorTypeCustom as i32,
 
-    #[error(": failed due to syscall error: {syscall_error}")]
+    #[error("Syscall failed: {syscall_error}")]
     Syscall {
         #[from]
         syscall_error: SysErr
     } = gh::ContractErrorType::kContractErrorTypeSyscall as i32,
 
     #[cfg(feature = "storage")]
-    #[error(": failed due to storage error: {storage_error}")]
+    #[error("Storage failure: {storage_error}")]
     Storage {
         #[from]
         storage_error: StorageErr

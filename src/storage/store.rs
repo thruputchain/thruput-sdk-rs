@@ -1,11 +1,12 @@
-use super::error::Result;
+use super::error::{Error, Result};
 use super::keypath::*;
 use crate::bytestring::*;
-use crate::serialize::{self, Serialize};
-use crate::types::StorageKeyContractData;
+use crate::types::StorageKey;
+use xdrs::{WriteXDR};
+use xdrs::serialize_cxs;
 
 pub trait Store {
-    fn store(&self, key: &StorageKeyContractData) -> Result<()>;
+    fn store(&self, key: &StorageKey) -> Result<()>;
 
     fn store_keypath(&self, keypath: &Keypath) -> Result<()> {
         let key = keypath.generate_key();
@@ -15,21 +16,22 @@ pub trait Store {
 
 impl<T> Store for T
 where
-    T: Serialize,
+    T: WriteXDR,
 {
-    fn store(&self, key: &StorageKeyContractData) -> Result<()> {
+    fn store(&self, key: &StorageKey) -> Result<()> {
         // Load any previous value and drop it? XXX
         if let Some(prev) = bytestring_try_get(key)? {
             drop(prev);
         }
 
-        let buf = serialize::to_bytes(self)?;
+        let buf = serialize_cxs::encode(self).map_err(|_|
+            Error::Serialization)?;
         bytestring_set(key, buf.as_slice())?;
         Ok(())
     }
 }
 
-pub fn store<T: Store>(key: &StorageKeyContractData, val: &T) -> Result<()> {
+pub fn store<T: Store>(key: &StorageKey, val: &T) -> Result<()> {
     val.store(key)
 }
 

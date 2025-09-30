@@ -3,29 +3,29 @@ mod macros;
 
 pub mod error;
 
-mod keypath;
+pub mod keypath;
 pub use keypath::*;
 
-mod load;
+pub mod read_xdr_path;
+pub use read_xdr_path::*;
+
+pub mod load;
 pub use load::*;
 
-mod store;
+pub mod store;
 pub use store::*;
 
-mod keypath_seed;
-pub use keypath_seed::*;
-
-mod bytestring;
+pub mod bytestring;
 pub use bytestring::*;
 
-mod nnint;
+pub mod nnint;
 pub use nnint::*;
 
-mod handle;
+pub mod handle;
 pub use handle::*;
 
-mod map;
+pub mod map;
 pub use map::*;
 
-mod vector;
+pub mod vector;
 pub use vector::*;

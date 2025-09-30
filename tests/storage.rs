@@ -1,45 +1,60 @@
 use sdk::contract_test;
-use sdk::*;
-use sdk::serialize::Serialize;
 use sdk::storage::*;
+use sdk::Storage;
 
-#[derive(Debug, Serialize, Storage)]
+#[derive(Debug, xdrs::WriteXDR, Storage)]
 struct Data {
     num: i32,
     nums: Vector<u64>,
     nnints: Vector<NNInt>,
     bytes: Bytestring,
+    map: Map<u32, NNInt>,
 }
 
-contract_test!(test_storable {
+contract_test!(test_map {
     // native_exec::test_environment::TestEnvironment::enable_syscall_logging();
-    println!("test_storable");
+
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath).unwrap();
+    }
+
+    let slot: u32 = 3;
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut cell: NNInt = data.map.get(&slot).unwrap();
+
+        // Below results in `non_negative_int_set_add(None, 7)` on this
+        // previously-unset location
+        cell.add(7).unwrap();
+    }
+
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let cell = data.map.get(&slot).unwrap();
+        let v = cell.get().unwrap();
+        assert_eq!(v, 7);
+    }
+});
+
+contract_test!(test_storable {
     let data_keypath = Keypath::new();
     let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
     data.store_keypath(&data_keypath).unwrap();
 
-    println!("load_keypath");
     let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-
-    println!("push");
     for i in 0..3 {
         let n = i;
         data.nums.push(n).unwrap();
     }
-
-    println!("store_keypath");
     data.store_keypath(&data_keypath).unwrap();
 
-    println!("load_keypath");
     let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
     for i in 0..3 {
-        println!("get");
         let n = data.nums.get(i).unwrap();
-        println!("n: {:?}", n);
         assert_eq!(n, i);
-        println!("assert_eq");
     }
-    println!("end");
 });
 
 contract_test!(test_storable_lazy {
@@ -80,13 +95,16 @@ contract_test!(test_load_default {
         assert_eq!(nnint.try_get().unwrap(), None);
 
         let n = 72 + i;
-        nnint.add_default_zero(n as i128).unwrap();
+        nnint.add(n as i128).unwrap();
     }
     drop(data);
 
     let data = handle.load().unwrap();
     for i in 0..3 {
-        let nnint = data.nnints.get_default(i).unwrap();
+        let nnint = data.nnints.get_default(i)
+            .unwrap_or_else(|e| {
+                panic!("try_get {i} failed: {e}");
+            });
         let n = nnint.get().unwrap() as u64;
         let n_expected = 72 + i;
         assert_eq!(n, n_expected);
@@ -115,7 +133,7 @@ contract_test!(test_bytestring {
 });
 
 contract_test!(test_vector {
-    let mut vec: Vector<u32> = Vector::from(Keypath::root());
+    let mut vec: Vector<u32> = Vector::new_from(Keypath::root(), 0);
 
     assert_eq!(0, vec.len());
     for i in 0..3 {
@@ -176,4 +194,3 @@ contract_test!(test_vector_data {
     }
     drop(vec);
 });
-
