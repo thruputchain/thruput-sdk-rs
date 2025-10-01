@@ -74,6 +74,22 @@ pub fn get_source_transaction_hash() -> Result<SHA256Hash> {
     Ok(unsafe { out_hash.assume_init() })
 }
 
+pub fn get_calldata_static() -> Result<(*mut u8, RuntimeMemoryLength)> {
+    const SZ: usize = 1000;
+    static mut CALLDATA: MaybeUninit<[u8; SZ]> = MaybeUninit::zeroed(); // BSS
+
+    let calldata_mu_ptr: *mut MaybeUninit<[u8; SZ]> = &raw mut CALLDATA;
+    let calldata_ptr: &mut [u8; SZ] = unsafe {
+        (*calldata_mu_ptr).assume_init_mut()
+    };
+    let calldata: &mut [u8] = &mut calldata_ptr[..];
+    let mut written_len: RuntimeMemoryLength = 0;
+
+    sys::raw_GetCalldata(calldata, &mut written_len)?;
+
+    Ok((calldata.as_mut_ptr(), written_len))
+}
+
 #[cfg(feature = "alloc")]
 pub use get_calldata_alloc::*;
 

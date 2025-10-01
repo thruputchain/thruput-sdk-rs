@@ -13,6 +13,16 @@ groundhog_xdr = { workspace = true, features = ["std", "xdrs"] }
 sha2 = { workspace = true }
 
 [features]
+default = [
+#    "optsize",
+    "calldata_static",
+    ]
 spec = ["alloc", "groundhog_xdr/spec", "xdrs/repr"]
 alloc = []
 logging = []
+# Inline *_internal methods directly into their exported entrypoints
+#   (recommended except when debugging)
+optsize = []
+# Fetch calldata into a static buffer instead of allocating
+#   (recommended unless get_calldata() fails due to static buffer too small)
+calldata_static = []

@@ -42,7 +42,12 @@ macro_rules! contract_panic {
             panic!($($expr),*);
 
             #[cfg(not(feature = "mock"))]
-            $crate::rt::trap();
+            {
+                // "use" any variables in the panic args
+                let _ = ($($expr),*);
+
+                $crate::rt::trap();
+            }
         }
     };
 }

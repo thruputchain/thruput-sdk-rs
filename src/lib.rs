@@ -5,7 +5,7 @@
 
 #![cfg_attr(doc, deny(warnings))]
 
-// #![deny(warnings)]
+#![deny(warnings)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

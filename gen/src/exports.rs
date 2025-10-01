@@ -204,25 +204,50 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method);
 
+    let inline = if cfg!(feature = "optsize") {
+        quote! { #[inline(always)] }
+    } else { quote! {} };
+
+    let get_calldata = if cfg!(feature = "calldata_static") {
+        // Fetch calldata into a static buffer (see `get_calldata_static` for size).
+        quote! {
+            let (ptr, len) = sdk::contract_op::get_calldata_static().unwrap_or_else(|e|
+                sdk::contract_panic!("get_calldata() failed: {e}"));
+
+            let calldata: &[u8] = unsafe {
+                core::slice::from_raw_parts(ptr, len as usize)
+            };
+        }
+    } else {
+        // Ask system for the length of the calldata and then allocate
+        // a buffer to receive it.
+        quote! {
+            let calldata_box: Box<[u8]> = sdk::contract_op::get_calldata().unwrap_or_else(|e|
+                sdk::contract_panic!("get_calldata() failed: {e}"));
+
+            let calldata: &[u8] = calldata_box.as_ref();
+        }
+    };
+
     export.extend(quote! {
+        #inline
         pub fn #internal_name() -> () {
-            use sdk::contract_op::{contract_return, get_calldata};
             use sdk::serialize::{encode_xdr, decode_xdr};
             #use_alloc
 
             // Debug mode: log the method-call
             #log_guest_call
 
+            // Error if this is an "init" method and the contract state already exists
             #assert_uninitialized
 
             #load_state
 
             // Get the encoded argument data from the VM
-            let call_data: Box<[u8]> = get_calldata().unwrap_or_else(|_|
-                sdk::contract_panic!("get_calldata() failed"));
+            #get_calldata
 
             // Decode the arguments expected by the method
-            let (#arg_names) = decode_xdr(call_data.as_ref()).unwrap_or_else(|_|
+            let (#arg_names) = decode_xdr(calldata).unwrap_or_else(|_|
                 sdk::contract_panic!("failed decoding contract-call arguments"));
 
             // Call the free function or contract-type method
@@ -240,7 +265,7 @@ pub fn generate_method(
                 sdk::contract_panic!("failed encoding contract-call result"));
 
             // Return the contract-call result to the VM
-            contract_return(result_bytes.as_slice());
+            sdk::contract_op::contract_return(result_bytes.as_slice());
 
             // notreached
         }

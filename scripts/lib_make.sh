@@ -3,7 +3,13 @@
 set -u
 
 cargo() {
-    env cargo --locked "$@"
+  local locked=""
+
+  if [ -n "${CARGO_UNLOCK:-}" ]; then
+    locked="--locked"
+  fi
+
+  env cargo $locked "$@"
 }
 
 # use `cargo_native` for tests using `native_exec`

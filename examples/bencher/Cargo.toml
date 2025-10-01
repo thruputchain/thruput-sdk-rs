@@ -5,6 +5,7 @@ edition = "2024"
 
 [lib]
 crate-type = ["rlib"]
+doctest = false
 
 [dependencies]
 sdk = { workspace = true }
