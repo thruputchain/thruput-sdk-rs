@@ -16,23 +16,15 @@ pub fn generate(
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), contract);
 
-    let self_ty = contract.self_ty();
-
     let exports_mod_ident = config.exports_mod_ident();
 
-    let use_trait = if let Some(trait_path) = contract.trait_path() {
-        quote! { use super::#trait_path; }
-    } else {
-        quote! {}
-    };
-
-    let use_storage = if config.storage() {
-        quote! {
-            use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
-        }
-    } else {
-        quote! {}
-    };
+    let self_ty = contract.self_ty();
+    let mut uses = vec![quote! {
+        use super::#self_ty;
+    }];
+    if let Some(trait_path) = contract.trait_path() {
+        uses.push(quote! { use super::#trait_path; });
+    }
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_ref().map(|s| s.as_str());
@@ -44,12 +36,7 @@ pub fn generate(
 
     Ok(quote! {
         pub mod #exports_mod_ident {
-            #use_trait
-            use super::#self_ty;
-            #use_storage
-            use ::sdk::types::ContractEntrypointID;
-            use ::sdk::contract_panic;
-            use ::sdk::contract_op::contract_abort;
+            #(#uses)*
 
             #exports
         }
@@ -87,7 +74,7 @@ pub fn generate_method(
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
 
         quote! {
-            ::sdk::debug_log!("{} ", #print_string);
+            debug_log!("{} ", #print_string);
         }
     } else {
         quote! {}
@@ -128,7 +115,6 @@ pub fn generate_method(
 
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();
-
         quote! {
             // Assert that the storage does not yet exist
             if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
@@ -137,9 +123,7 @@ pub fn generate_method(
                 contract_panic!("#[contract(init)] method called when contract storage already exists");
             }
         }
-    } else {
-        quote! {}
-    };
+    } else { quote! {} };
 
     // Load the stored contract state (when appropriate)
     let load_state = if is_method {
@@ -180,15 +164,6 @@ pub fn generate_method(
             state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
                 contract_panic!("Failed saving contract storage"));
         }
-    } else {
-        quote! {}
-    };
-
-    let use_alloc = if cfg!(feature = "alloc") {
-        quote! {
-            extern crate alloc;
-            use alloc::boxed::Box;
-        }
     } else { quote! {} };
 
     let has_err_type = contract.and_then(|c| c.err_type()).is_some()
@@ -211,8 +186,8 @@ pub fn generate_method(
     let get_calldata = if cfg!(feature = "calldata_static") {
         // Fetch calldata into a static buffer (see `get_calldata_static` for size).
         quote! {
-            let (ptr, len) = sdk::contract_op::get_calldata_static().unwrap_or_else(|e|
-                sdk::contract_panic!("get_calldata() failed: {e}"));
+            let (ptr, len) = get_calldata_static().unwrap_or_else(|e|
+                contract_panic!("get_calldata() failed: {e}"));
 
             let calldata: &[u8] = unsafe {
                 core::slice::from_raw_parts(ptr, len as usize)
@@ -222,18 +197,35 @@ pub fn generate_method(
         // Ask system for the length of the calldata and then allocate
         // a buffer to receive it.
         quote! {
-            let calldata_box: Box<[u8]> = sdk::contract_op::get_calldata().unwrap_or_else(|e|
-                sdk::contract_panic!("get_calldata() failed: {e}"));
+            let calldata_box: Box<[u8]> = get_calldata().unwrap_or_else(|e|
+                contract_panic!("get_calldata() failed: {e}"));
 
             let calldata: &[u8] = calldata_box.as_ref();
         }
     };
 
+    let mut uses = vec![quote! {
+        use ::sdk::contract::ContractEntrypointID;
+        use ::sdk::{debug_log, contract_panic};
+        use ::sdk::contract_op::{contract_abort, contract_return, get_calldata, get_calldata_static};
+        use ::sdk::serialize::{encode_xdr, decode_xdr};
+    }];
+    if cfg!(feature = "alloc") {
+        uses.push(quote! {
+            extern crate alloc;
+            use alloc::boxed::Box;
+        });
+    }
+    if is_method && config.storage() {
+        uses.push(quote! {
+            use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
+        });
+    }
+
     export.extend(quote! {
         #inline
         pub fn #internal_name() -> () {
-            use sdk::serialize::{encode_xdr, decode_xdr};
-            #use_alloc
+            #(#uses)*
 
             // Debug mode: log the method-call
             #log_guest_call
@@ -248,7 +240,7 @@ pub fn generate_method(
 
             // Decode the arguments expected by the method
             let (#arg_names) = decode_xdr(calldata).unwrap_or_else(|_|
-                sdk::contract_panic!("failed decoding contract-call arguments"));
+                contract_panic!("failed decoding contract-call arguments"));
 
             // Call the free function or contract-type method
             let result = #function_or_method(#arg_names);
@@ -262,10 +254,10 @@ pub fn generate_method(
 
             // Encode the result
             let result_bytes = encode_xdr(&result).unwrap_or_else(|_|
-                sdk::contract_panic!("failed encoding contract-call result"));
+                contract_panic!("failed encoding contract-call result"));
 
             // Return the contract-call result to the VM
-            sdk::contract_op::contract_return(result_bytes.as_slice());
+            contract_return(result_bytes.as_slice());
 
             // notreached
         }
@@ -276,7 +268,7 @@ pub fn generate_method(
         let entrypoint_lit = entrypoint_literal(entrypoint);
 
         export.extend(quote! {
-            pub const #export_num_name : ContractEntrypointID = #entrypoint_lit;
+            pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
         });
     }
 

@@ -1,9 +1,9 @@
 //! Construct and manipulate contract entrypoint IDs
 
-use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::contract::{ContractEntrypointID, ContractInterfaceIDPreimage};
 use xdrs::serialize_txs;
 use quote::quote;
-use proc_macro2::TokenStream;
+use proc_macro2::{Literal, TokenStream};
 use std::str::FromStr;
 
 pub fn contract_entrypoint_id(
@@ -20,8 +20,7 @@ pub fn contract_entrypoint_id(
 
     // println!("METHOD if:<{}> v:<{}> ix:<{}>", iface_name, version_str, method_index);
 
-    let preimage =
-        ::groundhog_xdr::contract::ContractInterfaceIDPreimage {
+    let preimage = ContractInterfaceIDPreimage {
             name: iface_name.as_bytes().try_into().unwrap(),
             vers: version_str.as_bytes().try_into().unwrap(),
         };
@@ -47,9 +46,9 @@ pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
 
 pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {
     let name = entrypoint_export_name(entrypoint);
-    let lit = proc_macro2::Literal::from_str(&format!("0x{name}")).unwrap();
+    let lit = Literal::from_str(&format!("0x{name}")).unwrap();
 
     quote!(
-        sdk::types::ContractEntrypointID::from_u64(#lit)
+        ::sdk::contract::ContractEntrypointID::from_u64(#lit)
     )
 }

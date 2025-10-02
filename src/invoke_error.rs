@@ -9,7 +9,7 @@
 
 use thiserror::Error;
 use core::error::Error;
-use groundhog_xdr::syscalls::SysErr;
+use crate::SysErr;
 use xdrs::{ReadXDROwned, ReadXDR, WriteXDR};
 use alloc::vec::Vec;
 

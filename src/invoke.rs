@@ -1,12 +1,9 @@
 //! System functions: invoke, client_invoke
 
 use crate::sys;
+use crate::types::{ ContractAddress, RuntimeMemoryLength };
+use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
-use crate::types::{
-    ContractAddress, /* InvocationFlagSet, InvocationFlags, */
-    RuntimeMemoryLength,
-};
-use groundhog_xdr::contract::ContractEntrypointID;
 use alloc::{vec, vec::Vec};
 use xdrs::{ReadXDROwned, WriteXDR};
 use xdrs::serialize_txs::{encode, decode};

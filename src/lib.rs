@@ -10,8 +10,6 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-pub mod rt;
-
 #[cfg(any(doc, all(feature = "alloc", target_family = "wasm")))]
 pub mod allocator;
 
@@ -19,11 +17,9 @@ pub mod allocator;
 compile_error!("building with nostd (or just the alloc feature) is \
                 not supported outside of wasm");
 
-// Syscall utilities
 #[cfg(feature = "mock")]
 pub mod syscall_bindings;
-pub mod sysresult;
-
+//
 // Syscall wrappers
 pub mod contract_op;
 pub mod bytestring;
@@ -32,6 +28,7 @@ pub mod nonnegative_int;
 pub mod retrocausal_queue;
 pub mod stats;
 
+pub mod rt;
 pub mod types;
 pub mod crypto;
 pub mod deploy;
@@ -44,6 +41,7 @@ pub mod log;
 pub mod precompiles;
 pub mod serialize;
 
+pub mod sysresult;
 pub mod contract_result;
 pub mod contract_test;
 
@@ -52,11 +50,6 @@ pub mod storage;
 
 // Direct exports
 
-//pub use syscall::*;
-//pub use syscall_bindings as sys;
-pub use groundhog_xdr::syscalls as sys;
-pub use groundhog_xdr::syscalls::SysErr;
-pub use groundhog_xdr::syscall_error::SyscallErrorCode;
 pub use contract_op::*;
 pub use log::*;
 pub use invoke::*;
@@ -68,16 +61,15 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use types::*;
 pub use hash::*;
-pub use xdrs::{ReadXDR, WriteXDR};
+pub use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 
 pub use macros::contract;
 pub use macros::static_key;
+#[cfg(feature = "storage")]
+pub use macros::{Storage, storage};
 
 #[cfg(feature = "alloc")]
-pub use alloc::{vec, vec::Vec, format};
-
-#[cfg(feature = "alloc")]
-pub use alloc::string::*;
+pub use alloc::{vec, vec::Vec, string::*, format};
 
 #[cfg(feature = "spec")]
 pub mod spec;
@@ -90,8 +82,3 @@ pub use native_exec::{
     mock_contract::MockContract,
     test_environment::TestEnvironment,
 };
-
-#[cfg(feature = "storage")]
-pub use macros::Storage;
-#[cfg(feature = "storage")]
-pub use macros::storage;
