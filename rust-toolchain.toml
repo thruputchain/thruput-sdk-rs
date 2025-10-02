@@ -1,5 +1,14 @@
 [toolchain]
+# see doc: https://rust-lang.github.io/rustup/overrides.html
+
 channel = "nightly-2025-09-24"
-targets = ["wasm32-unknown-unknown"] # in addition to host target
+
+targets = ["wasm32-unknown-unknown"]
+# (in addition to host target)
+
 profile = "default"
-components = ["rust-src"]
+# "minimal" components: rustc, rust-std, cargo
+# "default" components: "minimal" + rust-docs, rustfmt, clippy
+
+components = ["rust-src"] # needed for build-std
+# (in addition to components from profile)
