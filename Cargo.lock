@@ -981,6 +981,7 @@ name = "single"
 version = "0.1.1"
 dependencies = [
  "sdk",
+ "single",
  "xdrs",
 ]
 
@@ -989,6 +990,7 @@ name = "single_ns"
 version = "0.1.1"
 dependencies = [
  "sdk",
+ "single_ns",
 ]
 
 [[package]]

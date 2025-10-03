@@ -8,6 +8,7 @@ pub use groundhog_xdr::syscalls::SysErr;
 pub use groundhog_xdr::syscall_error::*;
 pub use groundhog_xdr::storage_delta_flags;
 pub use groundhog_xdr::contract;
+pub use groundhog_xdr::contract::Contract;
 pub use groundhog_xdr::contract::ContractEntrypointID;
 pub use groundhog_xdr::contract_error;
 pub use groundhog_xdr::transaction;

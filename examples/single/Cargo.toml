@@ -14,5 +14,8 @@ doctest = false
 [features]
 client = []
 guest = []
+mock = ["guest", "sdk/mock"]
 logging = ["sdk/logging"]
-mock = []
+
+[dev-dependencies]
+single = { path = ".", features = ["mock", "client"] }

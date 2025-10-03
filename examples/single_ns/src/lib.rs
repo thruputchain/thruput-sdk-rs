@@ -7,3 +7,6 @@ mod implementation;
 // Contract methods exposed with C ABI for running as guest
 #[cfg(feature = "guest")]
 pub use implementation::*;
+
+#[cfg(feature = "mock")]
+pub use implementation::test_setup;

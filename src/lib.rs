@@ -14,8 +14,7 @@ extern crate alloc;
 pub mod allocator;
 
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
-compile_error!("building with nostd (or just the alloc feature) is \
-                not supported outside of wasm");
+compile_error!("except when building a wasm, sdk feature \"std\" is required");
 
 #[cfg(feature = "mock")]
 pub mod syscall_bindings;
