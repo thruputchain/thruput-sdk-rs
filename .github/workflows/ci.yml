@@ -1,4 +1,4 @@
-name: C++ CI
+name: SDK CI
 
 on:
   push:
@@ -31,6 +31,7 @@ jobs:
           ${{ secrets.SDK_TO_CHUCKD_KEY }}
           ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
           ${{ secrets.SDK_TO_METRICS_HISTORY }}
+          ${{ secrets.SDK_TO_GROUNDHOG_GO}}
   
     - uses: actions/checkout@v4
       with:
