@@ -179,11 +179,11 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method);
 
-    let inline = if cfg!(feature = "optsize") {
+    let inline = if !cfg!(feature = "no_inline_methods") {
         quote! { #[inline(always)] }
     } else { quote! {} };
 
-    let get_calldata = if cfg!(feature = "calldata_static") {
+    let get_calldata = if !cfg!(feature = "no_calldata_static") {
         // Fetch calldata into a static buffer (see `get_calldata_static` for size).
         quote! {
             let (ptr, len) = get_calldata_static().unwrap_or_else(|e|
@@ -194,6 +194,9 @@ pub fn generate_method(
             };
         }
     } else {
+        #[cfg(not(feature = "alloc"))]
+        compile_error!("Feature \"no_calldata_static\" requires feature \"alloc\"");
+
         // Ask system for the length of the calldata and then allocate
         // a buffer to receive it.
         quote! {

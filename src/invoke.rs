@@ -22,7 +22,7 @@ where
     RET: ReadXDROwned,
 {
     // Encode the args
-    let call_data = encode(args).map_err(|_| InvokeError::EncodeArgs)?;
+    let call_data = encode(args).or(Err(InvokeError::EncodeArgs))?;
 
     // Invoke the method
     let return_buf =

@@ -1,9 +1,8 @@
 //! Hash trait
 
-use crate::crypto::{sha_256, SHA256Hash};
 use crate::sysresult::{Result, Error};
 
-pub type Hash256 = SHA256Hash;
+pub type Hash256 = crate::crypto::SHA256Hash;
 
 pub trait Hash {
     fn try_hash(&self) -> Result<Hash256>;
@@ -24,7 +23,7 @@ where
         let buf = xdrs::serialize_txs::encode(&self).map_err(|e|
             Error::serialization(e))?;
 
-        let hash = sha_256(&buf)?;
+        let hash = crate::crypto::sha_256(&buf)?;
         Ok(hash)
     }
 }

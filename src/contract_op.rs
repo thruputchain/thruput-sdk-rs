@@ -58,9 +58,7 @@ pub fn contract_revert() -> ! {
 }
 
 pub fn contract_abort(err: &impl WriteXDR) -> ! {
-    use ::xdrs::serialize_txs::encode;
-
-    let return_buf = encode(err).unwrap_or_else(|_| {
+    let return_buf = xdrs::serialize_txs::encode(err).unwrap_or_else(|_| {
         contract_panic!("abort: failed uncoding return value")});
     let revert = true;
 

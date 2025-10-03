@@ -30,7 +30,7 @@ native_exec = { path = "native_exec", optional = true}
 groundhog_xdr = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
-xdrs = { workspace = true, optional = true }
+xdrs = { workspace = true }
 delegate = "0.13.4"
 
 [dev-dependencies]
