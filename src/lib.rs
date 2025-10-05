@@ -1,3 +1,6 @@
+#![feature(maybe_uninit_array_assume_init)]
+#![feature(core_io_borrowed_buf)]
+
 #![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "groundhog.png")]
 
@@ -16,9 +19,16 @@ pub mod allocator;
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
 compile_error!("except when building a wasm, sdk feature \"std\" is required");
 
+// #[cfg(all(feature = "alloc", target_family = "wasm"))]
+// compile_error!("TESTING wasm build with alloc disabled");
+
 #[cfg(feature = "mock")]
 pub mod syscall_bindings;
-//
+
+#[cfg(feature = "mock")]
+// This is used only by contract_test
+pub mod handle;
+
 // Syscall wrappers
 pub mod contract_op;
 pub mod bytestring;
@@ -32,7 +42,6 @@ pub mod types;
 pub mod crypto;
 pub mod deploy;
 pub mod hash;
-pub mod handle;
 pub mod invoke;
 pub mod invoke_config;
 pub mod invoke_error;

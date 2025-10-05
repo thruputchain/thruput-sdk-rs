@@ -32,6 +32,7 @@ thiserror = { workspace = true }
 sha2 = { workspace = true }
 xdrs = { workspace = true }
 delegate = "0.13.4"
+heapless = "0.9.1"
 
 [dev-dependencies]
 hex-literal = "1.0.0"
@@ -51,8 +52,8 @@ groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
 [features]
-# can probably remove this by removing the alloc dependency in the `internal` module
-default = ["alloc"]
+default = ["alloc"] # , "dynamic_bufs"]
+dynamic_bufs = [] # use resizable instead of static bufs for invocation
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]

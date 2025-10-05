@@ -11,8 +11,8 @@ use thiserror::Error;
 use core::error::Error;
 use crate::SysErr;
 use xdrs::{ReadXDROwned, ReadXDR, WriteXDR};
-use alloc::vec::Vec;
 
+// XXX: "Client" error?  naming vs InvokeError?
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[derive(ReadXDR, WriteXDR)]
 #[repr(i32)]
@@ -20,9 +20,10 @@ pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
     #[error("client invocation failed: {0}")]
     Invoke(#[from] InvokeError),
 
-    #[error("client aborted: {0}")]
+    #[error("client aborted: {0}")] // XXX peer contract aborted?
     Aborted(#[source] E),
 
+    // XXX peer contract aborted but _we_ could not decode the error value
     #[error("client aborted but could not decode error value")]
     AbortDecodeFailed,
 }
@@ -36,14 +37,14 @@ pub enum InvokeError {
     #[error("error encoding arguments")]
     EncodeArgs,
 
-    #[error("error decoding return value from {0:?}")]
-    DecodeReturnVal(Vec<u8>),
+    #[error("error decoding return value")]
+    DecodeReturnVal,
 
     #[error("invoke() syscall failed: {0}")]
     Syscall(SysErr),
 
     #[error("contract aborted")]
-    Aborted(Vec<u8>),
+    Aborted,
 }
 
 pub type InvokeResult<T> = Result<T, InvokeError>;
