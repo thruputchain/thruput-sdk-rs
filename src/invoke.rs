@@ -4,28 +4,17 @@ use crate::sys;
 use crate::types::{ ContractAddress, RuntimeMemoryLength };
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
+use crate::static_mu_buf;
 use xdrs::{ReadXDROwned, WriteXDR};
 use xdrs::serialize_txs::{encode, decode};
 use core::error::Error;
 
+pub use crate::internal::*;
 pub use crate::invoke_error::*;
 
-// #[cfg(not(feature = "dynamic_bufs"))]
-mod bufs {
-    use crate::static_mu_buf;
-
-    static_mu_buf! {
-        pub get_static_return_data<200>() -> ReturnData
-    }
+static_mu_buf! {
+    get_static_return_data<500>() -> ReturnData;
 }
-
-/*
-#[cfg(feature = "dynamic_bufs")]
-mod bufs {
-}
-*/
-
-use bufs::*;
 
 pub fn invoke<ARGS, RET>(
     address: &ContractAddress,
@@ -131,7 +120,7 @@ fn invoke_raw(
     };
 
     // Ok or abort: get the return data from the VM ...
- 
+
     let mut written: RuntimeMemoryLength = 0;
     let mut return_data = get_static_return_data();
 
@@ -139,7 +128,7 @@ fn invoke_raw(
         .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
-        contract_panic!("unexpected return data length; \
+        contract_panic!("unexpected return-data length: \
             written = {written}, \
             return_len = {return_len}");
     }
