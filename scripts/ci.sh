@@ -2,8 +2,6 @@
 
 SDK_SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 
-set -x
-
 # shellcheck source="scripts/env.sh"
 source "${SDK_SCRIPT_DIR}/env.sh"
 
