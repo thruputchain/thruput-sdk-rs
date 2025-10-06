@@ -25,23 +25,75 @@ where
     let call_data = encode(args).or(Err(InvokeError::EncodeArgs))?;
 
     // Invoke the method
-    let return_data = invoke_inner(address, entrypoint, gas_limit, call_data.as_slice())?;
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_slice()).map_err(|e|
+        match e {
+            RawError::Sys(syserr) => InvokeError::Syscall(syserr),
+            RawError::Aborted(_) => InvokeError::Aborted,
+        })?;
 
-    // Deserialize the return data into a return value ...
-    let return_val = decode(return_data.filled())
+    // SAFETY: We use `ReturnData::set_len` appropriately
+    let return_data = unsafe { return_data.filled() };
+
+    let return_val = decode(return_data)
         .map_err(|_| InvokeError::DecodeReturnVal)?;
 
     Ok(return_val)
 }
 
+// Invoke a client contract where we know the error type (which
+// is produced on abort)
+pub fn client_invoke<ARGS, RET, ERR>(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &ARGS,
+) -> ClientResult<RET, ERR>
+where
+    ARGS: WriteXDR,
+    RET: ReadXDROwned,
+    ERR: ReadXDROwned + WriteXDR + Error,
+{
+    // Encode the args
+    let call_data = encode(args).or(Err(InvokeError::EncodeArgs))?;
+
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_slice()).map_err(|inner_err| {
+        match inner_err {
+            RawError::Aborted(return_data) => {
+                // SAFETY: We use `ReturnData::set_len` appropriately
+                let return_data = unsafe { return_data.filled() };
+
+                match decode(return_data) {
+                    Ok(val) => ClientError::Aborted(val),
+                    Err(_) => ClientError::AbortDecodeFailed,
+                }
+            },
+            RawError::Sys(syserr) =>
+                ClientError::Invoke(InvokeError::Syscall(syserr)),
+        }
+    })?;
+
+    // SAFETY: We use `ReturnData::set_len` appropriately
+    let return_data = unsafe { return_data.filled() };
+
+    let return_val = decode(return_data)
+        .map_err(|_| InvokeError::DecodeReturnVal)?;
+
+    Ok(return_val)
+}
+
+enum RawError {
+    Sys(crate::SysErr),
+    Aborted(ReturnData),
+}
+
 // At least this part won't be monomorphized multiple times
 #[inline(never)]
-fn invoke_inner(
+fn invoke_raw(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     call_data: &[u8],
-) -> InvokeResult<()> {
+) -> core::result::Result<ReturnData, RawError> {
     // Perform the cross-contract call
 
     let mut return_len = 0;
@@ -59,70 +111,32 @@ fn invoke_inner(
     let is_ok = match result {
         Ok(()) => true,
         Err(syserr) if syserr.is_aborted() => false,
-        Err(syserr) => return Err(InvokeError::Syscall(syserr)),
+        Err(syserr) => return Err(RawError::Sys(syserr)),
     };
 
     // Ok or abort: get the return data from the VM ...
  
-    // SAFETY: This is the only call-site of static_return_data(), and this
-    // function does not re-enter
-    let mut return_data = unsafe { static_return_data() };
-    let mut cursor = return_data.unfilled();
-
-    // SAFETY: We promise not to uninitialize any bytes
-    let cursor_mut = unsafe { cursor.as_mut() };
-
     let mut written: RuntimeMemoryLength = 0;
+    let mut return_data = ReturnData::new();
+    let return_data_slice = unsafe { return_data.as_mut() };
 
-    sys::uninit_GetReturnedBuffer(cursor_mut, &mut written)
+    sys::uninit_GetReturnedBuffer(return_data_slice, &mut written)
         .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
-        contract_panic!("unexpected return data length; written = {written}, \
+        contract_panic!("unexpected return data length; \
+            written = {written}, \
             return_len = {return_len}");
     }
 
     // SAFETY: The VM reports above that it has initialized this many bytes of the cursor
     unsafe {
-        cursor.set_init(written as usize);
+        return_data.set_len(written as usize);
     }
-
-    // We've filled this much of return_data
-    cursor.advance(written as usize);
 
     if is_ok {
-        Ok(())
+        Ok(return_data)
     } else {
-        Err(InvokeError::Aborted)
-    }
-}
-
-// Invoke a client contract where we know the error type (which
-// is produced on abort)
-pub fn client_invoke<ARGS, RET, ERR>(
-    address: &ContractAddress,
-    entrypoint: ContractEntrypointID,
-    gas_limit: u64,
-    args: &ARGS,
-) -> ClientResult<RET, ERR>
-where
-    ARGS: WriteXDR,
-    RET: ReadXDROwned,
-    ERR: ReadXDROwned + WriteXDR + Error,
-{
-    match invoke(address, entrypoint, gas_limit, args) {
-        Ok(ret) => Ok(ret),
-        Err(err) => {
-            match err {
-                InvokeError::Aborted => {
-                    let return_data = unsafe { static_return_data() };
-                    match decode(return_data.filled()) {
-                        Ok(val) => Err(ClientError::Aborted(val)),
-                        Err(_) => Err(ClientError::AbortDecodeFailed),
-                    }
-                }
-                _ => Err(ClientError::Invoke(err))
-            }
-        }
+        Err(RawError::Aborted(return_data))
     }
 }

@@ -1,4 +1,5 @@
 #![feature(maybe_uninit_array_assume_init)]
+#![feature(maybe_uninit_slice)]
 #![feature(core_io_borrowed_buf)]
 
 #![doc = include_str!("../README-lib.md")]

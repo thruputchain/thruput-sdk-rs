@@ -7,39 +7,52 @@ pub use implementation::*;
 // write all MU and set filled len
 
 mod implementation {
-    pub struct ReturnData {
-        buf: core::io::BorrowedBuf<'static>,
+    use core::mem::MaybeUninit as MU;
+
+    const SZ: usize = 200;
+
+    static mut BUF: [MU<u8>; SZ] = [const { MU::uninit() }; SZ];
+
+    /*
+    unsafe fn static_buf_as_mut() {
+        unsafe { &mut *(&raw mut BUF) };
     }
+    */
 
-    // Get a handle to the static return_data buffer.
-    //
-    // Safety: Don't hold more than one handle returned by this function.
-    pub unsafe fn static_return_data() -> ReturnData {
-        use core::mem::MaybeUninit as MU;
-
-        const SZ: usize = 200;
-
-        static mut BYTES: [MU<u8>; SZ] = [const { MU::uninit() }; SZ];
-
-        // SAFETY: If the user promises never to hold more than one value
-        // returned by this function, then there will not be multiple aliases
-        // of the static buffer.
-        let bytes: &'static mut [MU<u8>; SZ] = unsafe {
-            &mut *(&raw mut BYTES)
-        };
-
-        ReturnData { buf: bytes.as_mut_slice().into() }
+    pub struct ReturnData {
+        len: usize,
     }
 
     impl ReturnData {
-        pub fn filled(&self) -> &[u8] {
-            self.buf.filled()
+        pub const fn new() -> Self {
+            Self {
+                len: 0,
+            }
         }
 
-        pub fn as_mut(&self) -> &mut [u8] {
+        // XXX: take mut ref?
+        pub unsafe fn filled(&self) -> &[u8] {
+            // SAFETY: The user is not allowed to have more than one `ReturnData`
+            let buf = unsafe { &mut *(&raw mut BUF) };
+
+            let filled = &buf[..self.len];
+
+            // SAFETY: The user of `ReturnData` has asserted that self.len bytes are initialized
+            unsafe {
+                filled.assume_init_ref()
+            }
         }
 
-        pub fn set_len(
+        pub unsafe fn as_mut(&mut self) -> &mut [MU<u8>] {
+            // SAFETY: The user is not allowed to have more than one `ReturnData`
+            let buf = unsafe { &mut *(&raw mut BUF) };
+
+            &mut buf[..]
+        }
+
+        pub unsafe fn set_len(&mut self, len: usize) {
+            self.len = len;
+        }
     }
 }
 
