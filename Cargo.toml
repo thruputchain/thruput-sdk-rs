@@ -56,7 +56,7 @@ default = [
     "alloc",
     # "dynamic_bufs",
 ]
-dynamic_bufs = [] # use resizable instead of static bufs for invocation (not generally recommended)
+dynamic_bufs = [] # use resizable instead of static bufs for contract invocation (not generally recommended)
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]

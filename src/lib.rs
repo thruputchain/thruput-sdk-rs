@@ -9,7 +9,7 @@
 
 #![cfg_attr(doc, deny(warnings))]
 
-// #![deny(warnings)]
+#![deny(warnings)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -23,6 +23,7 @@ compile_error!("except when building a wasm, sdk feature \"std\" is required");
 // #[cfg(all(feature = "alloc", target_family = "wasm"))]
 // compile_error!("TESTING wasm build with alloc disabled");
 
+#[cfg(not(feature = "dynamic_bufs"))]
 pub(crate) mod internal;
 
 #[cfg(feature = "mock")]

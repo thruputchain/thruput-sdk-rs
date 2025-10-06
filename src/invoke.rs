@@ -4,17 +4,37 @@ use crate::sys;
 use crate::types::{ ContractAddress, RuntimeMemoryLength };
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
-use crate::static_mu_buf;
 use xdrs::{ReadXDROwned, WriteXDR};
 use xdrs::serialize_txs::{encode, decode};
 use core::error::Error;
 
-pub use crate::internal::*;
 pub use crate::invoke_error::*;
 
-static_mu_buf! {
-    get_static_return_data<500>() -> ReturnData;
+#[cfg(not(feature = "dynamic_bufs"))]
+mod bufs {
+    use crate::static_mu_buf;
+
+    const MAX: usize = 500;
+
+    pub const RETURN_BUF_MAX: Option<usize> = Some(MAX);
+
+    static_mu_buf! {
+        pub get_return_buffer<MAX>(size_hint: usize) -> ReturnData;
+    }
 }
+#[cfg(feature = "dynamic_bufs")]
+mod bufs {
+    pub use alloc::vec::Vec;
+
+    pub const RETURN_BUF_MAX: Option<usize> = None;
+
+    pub type ReturnData = Vec<u8>;
+
+    pub fn get_return_buffer(size: usize) -> ReturnData {
+        Vec::with_capacity(size)
+    }
+}
+use bufs::*;
 
 pub fn invoke<ARGS, RET>(
     address: &ContractAddress,
@@ -36,10 +56,7 @@ where
             RawError::Aborted(_) => InvokeError::Aborted,
         })?;
 
-    // SAFETY: We used `ReturnData::set_len` correctly in `invoke_raw`
-    let return_data = unsafe { return_data.filled() };
-
-    let return_val = decode(return_data)
+    let return_val = decode(return_data.as_ref())
         .map_err(|_| InvokeError::DecodeReturnVal)?;
 
     Ok(return_val)
@@ -64,10 +81,7 @@ where
     let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_slice()).map_err(|inner_err| {
         match inner_err {
             RawError::Aborted(return_data) => {
-                // SAFETY: We use `ReturnData::set_len` appropriately
-                let return_data = unsafe { return_data.filled() };
-
-                match decode(return_data) {
+                match decode(return_data.as_ref()) {
                     Ok(val) => ClientError::Aborted(val),
                     Err(_) => ClientError::AbortDecodeFailed,
                 }
@@ -77,10 +91,7 @@ where
         }
     })?;
 
-    // SAFETY: We used `ReturnData::set_len` correctly in `invoke_raw`
-    let return_data = unsafe { return_data.filled() };
-
-    let return_val = decode(return_data)
+    let return_val = decode(return_data.as_ref())
         .map_err(|_| InvokeError::DecodeReturnVal)?;
 
     Ok(return_val)
@@ -122,18 +133,26 @@ fn invoke_raw(
     // Ok or abort: get the return data from the VM ...
 
     let mut written: RuntimeMemoryLength = 0;
-    let mut return_data = get_static_return_data();
 
-    sys::uninit_GetReturnedBuffer(return_data.as_mut(), &mut written)
+    let mut return_data = get_return_buffer(return_len as usize);
+
+    sys::uninit_GetReturnedBuffer(return_data.spare_capacity_mut(), &mut written)
         .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
-        contract_panic!("unexpected return-data length: \
-            written = {written}, \
-            return_len = {return_len}");
+        match RETURN_BUF_MAX {
+            Some(max) if max < return_len as usize =>
+                contract_panic!("overflowed the return-data buffer, \
+                    which has a fixed length of {} bytes", max),
+            _ =>
+                contract_panic!("unexpected return-data length from system call: \
+                    written = {written}, \
+                    return_len = {return_len}"),
+        }
     }
 
-    return_data.set_len(written as usize);
+    // SAFETY: The VM reports above that this many bytes were written
+    unsafe { return_data.set_len(written as usize); }
 
     if is_ok {
         Ok(return_data)

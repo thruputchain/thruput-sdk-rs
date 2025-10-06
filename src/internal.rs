@@ -3,20 +3,21 @@ pub use mu_buf::*;
 mod mu_buf {
     use core::mem::MaybeUninit as MU;
 
+    /*
     pub trait MUBuffer {
         /// Get a reference to the filled/initialized portion of the buffer
-        ///
-        /// _Safety_: Prior use of the `as_mut` and `set_len` methods must
-        /// not have left any uninitialized elements in the portion up to
-        /// the stated length.
-        unsafe fn filled(&self) -> &[u8];
+        fn as_ref(&self) -> &[u8];
 
         /// Get a reference to the maybe-uninitialized buffer
-        fn as_mut(&mut self) -> &mut [MU<u8>];
+        fn spare_capacity_mut(&mut self) -> &mut [MU<u8>];
 
         /// Assert that all elements up to `len - 1` have been initialized
-        fn set_len(&mut self, len: usize);
+        ///
+        /// _Safety_: This length must correctly state the length of initialized
+        /// data before any use of `as_ref`
+        unsafe fn set_len(&mut self, len: usize);
     }
+    */
 
     /// A buffer with an unsafe interface for initializing
     pub struct MUBuf<const SIZE: usize> {
@@ -24,6 +25,7 @@ mod mu_buf {
         len: usize,
     }
 
+    // Note that this is a subset of the Vec interface
     impl<const SIZE: usize> MUBuf<SIZE> {
         pub const fn new() -> Self {
             Self {
@@ -31,15 +33,8 @@ mod mu_buf {
                 buf: [const { MU::uninit() }; SIZE],
             }
         }
-    }
 
-    impl<const SIZE: usize> MUBuffer for MUBuf<SIZE> {
-        /// Get a reference to the filled/initialized portion of the buffer
-        ///
-        /// _Safety_: Prior use of the `as_mut` and `set_len` methods must
-        /// not have left any uninitialized elements in the portion up to
-        /// the stated length.
-        unsafe fn filled(&self) -> &[u8] {
+        pub fn as_ref(&self) -> &[u8] {
             let filled = &self.buf[..self.len];
 
             unsafe {
@@ -47,13 +42,11 @@ mod mu_buf {
             }
         }
 
-        /// Get a reference to the maybe-uninitialized buffer
-        fn as_mut(&mut self) -> &mut [MU<u8>] {
+        pub fn spare_capacity_mut(&mut self) -> &mut [MU<u8>] {
             &mut self.buf[..]
         }
 
-        /// Assert that all elements up to `len - 1` have been initialized
-        fn set_len(&mut self, len: usize) {
+        pub unsafe fn set_len(&mut self, len: usize) {
             self.len = len;
         }
     }
@@ -65,20 +58,21 @@ mod mu_buf {
 // in a panic.
 #[macro_export]
 macro_rules! static_mu_buf {
-    { $( $vis:vis $fn:ident<$size:literal>() -> $ty:ident; )* } => { $(
+    { $( $vis:vis $fn:ident<$size:ident>($size_hint:ident: usize) -> $ty:ident; )* } => { $(
 
         $vis type $ty = core::cell::RefMut<'static, crate::internal::MUBuf<$size>>;
 
-        $vis fn $fn() -> $ty {
-            pub use core::cell::RefCell;
+        $vis fn $fn(_size_hint: usize) -> $ty {
+            use core::cell::RefCell;
+            use crate::internal::MUBuf;
 
-            static mut MU_BUF: RefCell<crate::internal::MUBuf<$size>> =
-                RefCell::new(crate::internal::MUBuf::new());
+            static mut BUF: RefCell<MUBuf<$size>> =
+                RefCell::new(MUBuf::new());
 
             // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
             unsafe {
                 #[allow(static_mut_refs)]
-                MU_BUF.try_borrow_mut().unwrap_or_else(|e| {
+                BUF.try_borrow_mut().unwrap_or_else(|e| {
                     panic!("{}: attempted multiple concurrent borrows of static buffer: {}",
                         stringify!($fn), e)
                 })
