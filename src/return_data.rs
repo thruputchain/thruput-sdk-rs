@@ -8,28 +8,27 @@ pub use implementation::*;
 
 mod implementation {
     use core::mem::MaybeUninit as MU;
+    use core::cell::*;
 
     const SZ: usize = 200;
 
     static mut BUF: [MU<u8>; SZ] = [const { MU::uninit() }; SZ];
 
-    /*
-    unsafe fn static_buf_as_mut() {
-        unsafe { &mut *(&raw mut BUF) };
-    }
-    */
-
-    pub struct ReturnData {
+    pub struct Data {
         len: usize,
     }
 
-    impl ReturnData {
-        pub const fn new() -> Self {
-            Self {
-                len: 0,
-            }
-        }
+    pub type ReturnData = RefMut<'static, Data>;
 
+    static mut RETURN_DATA: RefCell<Data> = RefCell::new(Data { len: 0 });
+
+    pub fn static_return_data() -> RefMut<'static, Data> {
+        #[allow(static_mut_refs)]
+        // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+        unsafe { RETURN_DATA.borrow_mut() }
+    }
+
+    impl Data {
         // XXX: take mut ref?
         pub unsafe fn filled(&self) -> &[u8] {
             // SAFETY: The user is not allowed to have more than one `ReturnData`

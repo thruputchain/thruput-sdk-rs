@@ -117,7 +117,7 @@ fn invoke_raw(
     // Ok or abort: get the return data from the VM ...
  
     let mut written: RuntimeMemoryLength = 0;
-    let mut return_data = ReturnData::new();
+    let mut return_data = static_return_data();
     let return_data_slice = unsafe { return_data.as_mut() };
 
     sys::uninit_GetReturnedBuffer(return_data_slice, &mut written)
