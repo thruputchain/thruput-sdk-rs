@@ -47,6 +47,17 @@ impl<'a> TransactionHandler<'a> {
 
         unsafe { root_invoke(self.handler) }
     }
+
+    pub fn get_event_logs(&self) -> Option<TxEventLog> {
+        let buffer_len : u32 = unsafe { get_event_logs_len(self.handler) };
+        if buffer_len == 0 {
+            return None;
+        }
+
+        let mut buffer = [0u8; buffer_len as usize];
+
+        None
+    }
 }
 
 impl Drop for TransactionHandler<'_> {
