@@ -21,7 +21,7 @@ xdrs = { workspace = true, features = ["derive", "alloc", "extras", "int128_xdr"
 thiserror = { workspace = true }
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 
 [[bin]]

@@ -21,7 +21,7 @@ edition = "2021"
 autoexamples = false
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
