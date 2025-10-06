@@ -113,7 +113,7 @@ impl<'a> TestEnvironment {
         let contract_size = match contract {
             Contract::kNative { .. } => 0,
             Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
-            Contract::kWasmi { wasmi_contract } => wasmi_contract.len() as u32,
+            Contract::kWasmi { wasmi_contract } => wasmi_contract.wasm.len() as u32,
             Contract::Default { contract_type } => panic!("unsupported contract type {}", contract_type),
         };
 
@@ -198,6 +198,7 @@ impl<'a> TestEnvironment {
                     invoked_address: invoke_addr,
                     entrypoint: entrypoint,
                     gas_limit: u64::MAX,
+                    gas_claims: [].try_into().unwrap(),
                     calldata: [].try_into().unwrap(),
                 },
                 contracts_to_deploy: vec![].try_into().unwrap(),
