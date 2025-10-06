@@ -43,6 +43,7 @@ pub mod crypto;
 pub mod deploy;
 pub mod hash;
 pub mod invoke;
+pub mod return_data;
 pub mod invoke_config;
 pub mod invoke_error;
 pub mod log;
