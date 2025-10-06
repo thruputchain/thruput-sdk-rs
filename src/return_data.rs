@@ -1,55 +1,62 @@
 pub use implementation::*;
 
 // #[cfg(not(feature = "dynamic_bufs"))]
-
-// create
-// decode filled
-// write all MU and set filled len
-
 mod implementation {
-    use core::mem::MaybeUninit as MU;
     use core::cell::*;
+    use super::mu_buf::MUBuf;
 
+    pub type ReturnData = RefMut<'static, MUBuf>;
+
+    static mut RETURN_DATA: RefCell<MUBuf> = RefCell::new(MUBuf::new());
+
+    // Get a unique, mutable reference to the buffer
+    pub fn static_return_data() -> ReturnData {
+        // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+        unsafe {
+            #[allow(static_mut_refs)]
+            RETURN_DATA.borrow_mut()
+        }
+    }
+}
+
+mod mu_buf {
     const SZ: usize = 200;
+    use core::mem::MaybeUninit as MU;
 
-    static mut BUF: [MU<u8>; SZ] = [const { MU::uninit() }; SZ];
-
-    pub struct Data {
+    /// A buffer with an unsafe interface for initializing
+    pub struct MUBuf {
+        buf: [MU<u8>; SZ],
         len: usize,
     }
 
-    pub type ReturnData = RefMut<'static, Data>;
+    impl MUBuf {
+        pub const fn new() -> Self {
+            Self {
+                len: 0,
+                buf: [const { MU::uninit() }; SZ],
+            }
+        }
 
-    static mut RETURN_DATA: RefCell<Data> = RefCell::new(Data { len: 0 });
-
-    pub fn static_return_data() -> RefMut<'static, Data> {
-        #[allow(static_mut_refs)]
-        // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
-        unsafe { RETURN_DATA.borrow_mut() }
-    }
-
-    impl Data {
-        // XXX: take mut ref?
+        /// Get a reference to the filled/initialized portion of the buffer
+        ///
+        /// _Safety_: Prior use of the `as_mut` and `set_len` methods must
+        /// not have left any uninitialized elements in the portion up to
+        /// the stated length.
         pub unsafe fn filled(&self) -> &[u8] {
-            // SAFETY: The user is not allowed to have more than one `ReturnData`
-            let buf = unsafe { &mut *(&raw mut BUF) };
+            let filled = &self.buf[..self.len];
 
-            let filled = &buf[..self.len];
-
-            // SAFETY: The user of `ReturnData` has asserted that self.len bytes are initialized
             unsafe {
                 filled.assume_init_ref()
             }
         }
 
-        pub unsafe fn as_mut(&mut self) -> &mut [MU<u8>] {
-            // SAFETY: The user is not allowed to have more than one `ReturnData`
-            let buf = unsafe { &mut *(&raw mut BUF) };
-
-            &mut buf[..]
+        /// Get a reference to the maybe-uninitialized buffer
+        pub fn as_mut(&mut self) -> &mut [MU<u8>] {
+            &mut self.buf[..]
         }
 
-        pub unsafe fn set_len(&mut self, len: usize) {
+        /// Assert that all elements up to `len - 1` have been initialized
+        pub fn set_len(&mut self, len: usize) {
             self.len = len;
         }
     }

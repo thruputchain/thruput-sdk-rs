@@ -31,7 +31,7 @@ where
             RawError::Aborted(_) => InvokeError::Aborted,
         })?;
 
-    // SAFETY: We use `ReturnData::set_len` appropriately
+    // SAFETY: We used `ReturnData::set_len` correctly in `invoke_raw`
     let return_data = unsafe { return_data.filled() };
 
     let return_val = decode(return_data)
@@ -72,7 +72,7 @@ where
         }
     })?;
 
-    // SAFETY: We use `ReturnData::set_len` appropriately
+    // SAFETY: We used `ReturnData::set_len` correctly in `invoke_raw`
     let return_data = unsafe { return_data.filled() };
 
     let return_val = decode(return_data)
@@ -118,9 +118,8 @@ fn invoke_raw(
  
     let mut written: RuntimeMemoryLength = 0;
     let mut return_data = static_return_data();
-    let return_data_slice = unsafe { return_data.as_mut() };
 
-    sys::uninit_GetReturnedBuffer(return_data_slice, &mut written)
+    sys::uninit_GetReturnedBuffer(return_data.as_mut(), &mut written)
         .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
@@ -129,10 +128,7 @@ fn invoke_raw(
             return_len = {return_len}");
     }
 
-    // SAFETY: The VM reports above that it has initialized this many bytes of the cursor
-    unsafe {
-        return_data.set_len(written as usize);
-    }
+    return_data.set_len(written as usize);
 
     if is_ok {
         Ok(return_data)
