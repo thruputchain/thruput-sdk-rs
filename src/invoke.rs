@@ -4,8 +4,8 @@ use crate::sys;
 use crate::types::{ ContractAddress, RuntimeMemoryLength };
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
-use xdrs::{ReadXDROwned, WriteXDR};
-use xdrs::serialize_txs::{encode, decode};
+use xdrs::{ReadXDROwned, WriteXDR, WriteError};
+use xdrs::serialize_txs::{encode_into, decode};
 use core::error::Error;
 
 pub use crate::invoke_error::*;
@@ -15,27 +15,38 @@ pub use crate::invoke_error::*;
 mod bufs {
     use crate::static_mu_buf;
 
-    const MAX: usize = 500;
+    const CD_MAX: usize = 500;
+    pub const CALL_DATA_MAX: Option<usize> = Some(CD_MAX);
 
-    pub const RETURN_BUF_MAX: Option<usize> = Some(MAX);
+    const RB_MAX: usize = 500;
+    pub const RETURN_DATA_MAX: Option<usize> = Some(RB_MAX);
 
     static_mu_buf! {
-        pub fn get_return_buffer<MAX>(size_hint: usize) -> ReturnData;
+        pub fn get_calldata_buffer<CD_MAX>(size_hint: Option<usize>) -> CallData;
+        pub fn get_return_buffer<RB_MAX>(size_hint: Option<usize>) -> ReturnData;
     }
 }
+
 #[cfg(feature = "dynamic_bufs")]
 // Use dynamically-allocated bufs
 mod bufs {
     pub use alloc::vec::Vec;
 
-    pub const RETURN_BUF_MAX: Option<usize> = None;
+    pub const CALL_DATA_MAX: Option<usize> = None;
+    pub const RETURN_DATA_MAX: Option<usize> = None;
 
+    pub type CallData = Vec<u8>;
     pub type ReturnData = Vec<u8>;
 
-    pub fn get_return_buffer(size: usize) -> ReturnData {
-        Vec::with_capacity(size)
+    pub fn get_calldata_buffer(_size_hint: Option<usize>) -> ReturnData {
+        Vec::with_capacity(500)
+    }
+
+    pub fn get_return_buffer(size_hint: Option<usize>) -> CallData {
+        Vec::with_capacity(size_hint.unwrap())
     }
 }
+
 use bufs::*;
 
 pub fn invoke<ARGS, RET>(
@@ -49,10 +60,10 @@ where
     RET: ReadXDROwned,
 {
     // Encode the args
-    let call_data = encode(args).or(Err(InvokeError::EncodeArgs))?;
+    let call_data = encode_into_calldata(args)?;
 
     // Invoke the method
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_slice()).map_err(|e|
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_ref()).map_err(|e|
         match e {
             RawError::Sys(syserr) => InvokeError::Syscall(syserr),
             RawError::Aborted(_) => InvokeError::Aborted,
@@ -78,9 +89,9 @@ where
     ERR: ReadXDROwned + WriteXDR + Error,
 {
     // Encode the args
-    let call_data = encode(args).or(Err(InvokeError::EncodeArgs))?;
+    let call_data = encode_into_calldata(args)?;
 
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_slice()).map_err(|inner_err| {
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_ref()).map_err(|inner_err| {
         match inner_err {
             RawError::Aborted(return_data) => {
                 match decode(return_data.as_ref()) {
@@ -136,13 +147,13 @@ fn invoke_raw(
 
     let mut written: RuntimeMemoryLength = 0;
 
-    let mut return_data = get_return_buffer(return_len as usize);
+    let mut return_data = get_return_buffer(Some(return_len as usize));
 
     sys::uninit_GetReturnedBuffer(return_data.spare_capacity_mut(), &mut written)
         .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
-        match RETURN_BUF_MAX {
+        match RETURN_DATA_MAX {
             Some(max) if max < return_len as usize =>
                 contract_panic!("overflowed the return-data buffer, \
                     which has a fixed length of {} bytes", max),
@@ -161,4 +172,26 @@ fn invoke_raw(
     } else {
         Err(RawError::Aborted(return_data))
     }
+}
+
+fn encode_into_calldata<ARGS>(args: &ARGS) -> InvokeResult<CallData>
+where
+    ARGS: WriteXDR,
+{
+    let mut call_data = get_calldata_buffer(None);
+
+    // XXX: use `encode()` for feature "dynamic_bufs"
+    let len = encode_into(args, call_data.spare_capacity_mut())
+        .inspect_err(|e|
+            if matches!(e, WriteError::SpaceExhausted) {
+                if let Some(max) = CALL_DATA_MAX {
+                    panic!("overflowed calldata buffer, which has fixed size {max}");
+                }
+            })
+        .or_else(|_| Err(InvokeError::EncodeArgs))?;
+
+    // SAFETY: The serializer has reported this many bytes written
+    unsafe { call_data.set_len(len); }
+
+    Ok(call_data)
 }

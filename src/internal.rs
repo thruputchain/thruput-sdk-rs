@@ -47,11 +47,11 @@ mod mu_buf {
 // for retrieving a handle to it.  Attempting to hold more than one such handle will cause a panic.
 #[macro_export]
 macro_rules! static_mu_buf {
-    { $( $vis:vis fn $fn:ident<$size:ident>($size_hint:ident: usize) -> $ty:ident; )* } => { $(
+    { $( $vis:vis fn $fn:ident<$size:ident>($size_hint:ident: Option<usize>) -> $ty:ident; )* } => { $(
 
         $vis type $ty = core::cell::RefMut<'static, crate::internal::MUBuf<$size>>;
 
-        $vis fn $fn(_size_hint: usize) -> $ty {
+        $vis fn $fn(_size_hint: Option<usize>) -> $ty {
             use core::cell::RefCell;
             use crate::internal::MUBuf;
 
