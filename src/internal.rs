@@ -1,39 +1,19 @@
-pub use implementation::*;
-
-// #[cfg(not(feature = "dynamic_bufs"))]
-mod implementation {
-    use core::cell::*;
-    use super::mu_buf::MUBuf;
-
-    pub type ReturnData = RefMut<'static, MUBuf>;
-
-    static mut RETURN_DATA: RefCell<MUBuf> = RefCell::new(MUBuf::new());
-
-    // Get a unique, mutable reference to the buffer
-    pub fn static_return_data() -> ReturnData {
-        // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
-        unsafe {
-            #[allow(static_mut_refs)]
-            RETURN_DATA.borrow_mut()
-        }
-    }
-}
+pub use mu_buf::*;
 
 mod mu_buf {
-    const SZ: usize = 200;
     use core::mem::MaybeUninit as MU;
 
     /// A buffer with an unsafe interface for initializing
-    pub struct MUBuf {
-        buf: [MU<u8>; SZ],
+    pub struct MUBuf<const SIZE: usize> {
+        buf: [MU<u8>; SIZE],
         len: usize,
     }
 
-    impl MUBuf {
+    impl<const SIZE: usize> MUBuf<SIZE> {
         pub const fn new() -> Self {
             Self {
                 len: 0,
-                buf: [const { MU::uninit() }; SZ],
+                buf: [const { MU::uninit() }; SIZE],
             }
         }
 
@@ -60,6 +40,32 @@ mod mu_buf {
             self.len = len;
         }
     }
+}
+
+// Declares a type alias for a StaticMURefMut of a certain size,
+// and also a function for retrieving it.  Attempting to hold
+// more than one value returned from the function will result
+// in a panic.
+#[macro_export]
+macro_rules! static_mu_buf {
+    { $vis:vis $fn:ident<$size:literal>() -> $ty:ident } => {
+
+        $vis type $ty = core::cell::RefMut<'static, crate::internal::MUBuf<$size>>;
+
+        $vis fn $fn() -> $ty {
+            pub use core::cell::RefCell;
+
+            static mut MU_BUF: RefCell<crate::internal::MUBuf<$size>> =
+                RefCell::new(crate::internal::MUBuf::new());
+
+            // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+            unsafe {
+                #[allow(static_mut_refs)]
+                MU_BUF.borrow_mut()
+            }
+        }
+
+    };
 }
 
 /*

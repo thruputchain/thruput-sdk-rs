@@ -7,9 +7,25 @@ use crate::contract_panic;
 use xdrs::{ReadXDROwned, WriteXDR};
 use xdrs::serialize_txs::{encode, decode};
 use core::error::Error;
-use crate::return_data::*;
 
 pub use crate::invoke_error::*;
+
+// #[cfg(not(feature = "dynamic_bufs"))]
+mod bufs {
+    use crate::static_mu_buf;
+
+    static_mu_buf! {
+        pub get_static_return_data<200>() -> ReturnData
+    }
+}
+
+/*
+#[cfg(feature = "dynamic_bufs")]
+mod bufs {
+}
+*/
+
+use bufs::*;
 
 pub fn invoke<ARGS, RET>(
     address: &ContractAddress,
@@ -117,7 +133,7 @@ fn invoke_raw(
     // Ok or abort: get the return data from the VM ...
  
     let mut written: RuntimeMemoryLength = 0;
-    let mut return_data = static_return_data();
+    let mut return_data = get_static_return_data();
 
     sys::uninit_GetReturnedBuffer(return_data.as_mut(), &mut written)
         .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
