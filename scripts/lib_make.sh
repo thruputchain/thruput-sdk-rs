@@ -48,7 +48,9 @@ make() {
             cargo doc --features=std "$@"
             ;;
         test)
-            cargo_native test --features=mock,storage "$@"
+            # we need dynamic_bufs when using `contract_test`, which
+            # can have multiple concurrent contract invocations
+            cargo_native test --features=mock,storage,dynamic_bufs "$@"
             ;;
         test-spec)
             cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&

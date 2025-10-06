@@ -11,6 +11,7 @@ use core::error::Error;
 pub use crate::invoke_error::*;
 
 #[cfg(not(feature = "dynamic_bufs"))]
+// Use statically-allocated bufs
 mod bufs {
     use crate::static_mu_buf;
 
@@ -19,10 +20,11 @@ mod bufs {
     pub const RETURN_BUF_MAX: Option<usize> = Some(MAX);
 
     static_mu_buf! {
-        pub get_return_buffer<MAX>(size_hint: usize) -> ReturnData;
+        pub fn get_return_buffer<MAX>(size_hint: usize) -> ReturnData;
     }
 }
 #[cfg(feature = "dynamic_bufs")]
+// Use dynamically-allocated bufs
 mod bufs {
     pub use alloc::vec::Vec;
 
