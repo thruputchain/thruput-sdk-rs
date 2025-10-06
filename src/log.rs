@@ -4,7 +4,7 @@ use crate::sysresult::SysResult as Result;
 use crate::sys;
 
 pub fn log(buffer: &[u8]) -> Result<()> {
-    sys::raw_Log(buffer)
+    sys::raw_ConsoleLog(buffer)
 }
 
 #[cfg(feature = "mock")]
