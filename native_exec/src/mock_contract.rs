@@ -21,7 +21,7 @@ pub struct MockContractInner {
 
 pub struct MockContract {
     contract: *mut MockContractInner,
-    env: Rc<TestEnvironment>,
+    _env: Rc<TestEnvironment>,
 }
 
 fn i32_to_contract(index: i32) -> Contract {
@@ -34,7 +34,7 @@ impl MockContract {
     pub fn new(inner: *mut MockContractInner, env: Rc<TestEnvironment>) -> Self {
         MockContract {
             contract: inner,
-            env: env,
+            _env: env,
         }
     }
 

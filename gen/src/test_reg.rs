@@ -34,15 +34,16 @@ pub fn generate(
 
         pub mod #test_setup_mod_ident {
             use super::#exports_mod_ident::*;
+            use std::rc::Rc;
 
             #[allow(dead_code)]
-            pub fn register(env : &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
+            pub fn register(env : &Rc<::sdk::TestEnvironment>) -> ::sdk::types::Contract {
                 let mut contract = env.add_contract();
                 register_mock(&mut contract);
                 contract.as_contract()
             }
 
-            pub fn register_mock(contract: &mut ::sdk::MockContract<'_>) {
+            pub fn register_mock(contract: &mut ::sdk::MockContract) {
                 #mock_registrations
             }
         }
