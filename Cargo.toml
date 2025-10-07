@@ -21,7 +21,7 @@ edition = "2021"
 autoexamples = false
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
@@ -39,7 +39,7 @@ hex-literal = "1.0.0"
 [workspace.dependencies]
 gen = { path = "gen" }
 macros = { path = "macros" }
-groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"] }
+groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"], rev = "c638910dda4de601f6743bb6aa4dde4709ee553b" }
 sha2 = { version = "0.10.8", default-features = false }
 sdk = { path = "." }
 thiserror = { version = "2.0.12", default-features = false }

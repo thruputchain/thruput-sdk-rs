@@ -10,6 +10,9 @@ source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
 set -e # exit on error
 
+echo "using CC: $CC"
+echo "using CXX: $CXX"
+
 make test
 make doc
 

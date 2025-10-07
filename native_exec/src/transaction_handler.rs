@@ -1,15 +1,17 @@
 use crate::bindings::*;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
+use std::rc::Rc;
 use groundhog_xdr::transaction::SignedTransaction;
-use std::marker::PhantomData;
 use xdrs::serialize_txs;
+use groundhog_xdr::event::TxEventLog;
 
 // Can run one, and only one, transaction,
 // and then get the results
-pub struct TransactionHandler<'a> {
+pub struct TransactionHandler {
     handler: *mut c_void,
-    _marker: PhantomData<&'a TestEnvironment>,
+    _env: Rc<TestEnvironment>,
+    stx: SignedTransaction,
     // cannot outlive the environment.
 
     // TODO(geoff): we could swap the backing pointer to the db
@@ -18,18 +20,19 @@ pub struct TransactionHandler<'a> {
     invoked: bool,
 }
 
-impl<'a> TransactionHandler<'a> {
-    pub fn new(env: &'a TestEnvironment, stx: &SignedTransaction) -> Self {
+impl TransactionHandler {
+    pub fn new(env: Rc<TestEnvironment>, stx: &SignedTransaction) -> Self {
         let tx_bytes = serialize_txs::encode(stx).unwrap();
         let out = unsafe {
             Self {
                 handler: open_syscall_handler(
-                    env.db,
-                    env.contract_context,
+                    env.inner.borrow().db,
+                    env.inner.borrow().contract_context,
                     tx_bytes.as_ptr(),
                     tx_bytes.len().try_into().unwrap(),
                 ),
-                _marker: PhantomData,
+                _env: env.clone(),
+                stx: stx.clone(),
                 invoked: false,
             }
         };
@@ -49,18 +52,34 @@ impl<'a> TransactionHandler<'a> {
     }
 
     pub fn get_event_logs(&self) -> Option<TxEventLog> {
-        let buffer_len : u32 = unsafe { get_event_logs_len(self.handler) };
+        let buffer_len : u32 = unsafe { get_event_log_len(self.handler) };
         if buffer_len == 0 {
             return None;
         }
 
-        let mut buffer = [0u8; buffer_len as usize];
+        let mut buffer = vec![0u8; buffer_len as usize];
 
-        None
+        unsafe { get_event_log(self.handler, buffer.as_mut_ptr(), buffer_len) };
+
+        let decoded : TxEventLog = serialize_txs::decode(&buffer).unwrap();
+
+        Some(decoded)
+    }
+
+    pub fn get_signed_transaction(&self) -> &SignedTransaction {
+        &self.stx
+    }
+
+    pub fn try_commit_transaction(&self) -> bool {
+        let res = unsafe { try_commit_transaction(self.handler) };
+        if res.panic != 0 {
+            panic!("try_commit_transaction failed: {}", res.panic);
+        }
+        res.result_code == 1
     }
 }
 
-impl Drop for TransactionHandler<'_> {
+impl Drop for TransactionHandler {
     fn drop(&mut self) {
         unsafe { close_syscall_handler(self.handler) }
     }

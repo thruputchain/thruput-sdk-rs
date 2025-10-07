@@ -46,6 +46,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .define("CMAKE_VERBOSE_MAKEFILE", "ON")
         .define("CMAKE_OSX_SYSROOT", "")
         .define("ENABLE_TEST_FFI", "ON")
+        .define("CMAKE_C_COMPILER_LAUNCHER", "ccache")
+        .define("CMAKE_CXX_COMPILER_LAUNCHER", "ccache")
         .define("ENABLE_TEST_CONTRACTS", "OFF");
 
     // Don't force re-configuration before building
