@@ -74,8 +74,8 @@ impl TestEnvironmentInner {
             panic!("failed to initialize contract context!");
         }
 
-        // prepare to accept transactions on the first block
-        unsafe { advance_new_block(out.db) };
+        // the initialization in create_db() advances the block once, so it is prepped for
+        // accepting new transactions (in proposal mode)
 
         out
     }
