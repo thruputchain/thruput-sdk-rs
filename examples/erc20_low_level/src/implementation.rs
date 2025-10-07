@@ -158,9 +158,10 @@ pub fn total_supply() -> Result<Amount> {
 // TODO: Something better
 #[cfg(feature = "mock")]
 pub mod test {
+    use std::rc::Rc;
     use super::*;
 
-    pub fn register(env: &mut ::sdk::TestEnvironment) -> ::sdk::types::Contract {
+    pub fn register(env: &Rc<::sdk::TestEnvironment>) -> ::sdk::types::Contract {
         let mut contract = env.add_contract();
 
         contract.register_method(INITIALIZE_EXPORT_NUM, initialize_internal);

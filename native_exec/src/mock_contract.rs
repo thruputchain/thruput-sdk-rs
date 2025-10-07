@@ -9,8 +9,8 @@ use groundhog_xdr::types::SHA256Hash;
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::panic::UnwindSafe;
+use std::rc::Rc;
 
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
@@ -19,9 +19,9 @@ pub struct MockContractInner {
     funcs: HashMap<ContractEntrypointID, Box<dyn Fn() -> ForeignInvokeResult>>,
 }
 
-pub struct MockContract<'a> {
+pub struct MockContract {
     contract: *mut MockContractInner,
-    _marker: PhantomData<&'a TestEnvironment>,
+    _env: Rc<TestEnvironment>,
 }
 
 fn i32_to_contract(index: i32) -> Contract {
@@ -30,11 +30,11 @@ fn i32_to_contract(index: i32) -> Contract {
     }
 }
 
-impl<'a> MockContract<'a> {
-    pub fn new(inner: *mut MockContractInner) -> Self {
+impl MockContract {
+    pub fn new(inner: *mut MockContractInner, env: Rc<TestEnvironment>) -> Self {
         MockContract {
             contract: inner,
-            _marker: PhantomData,
+            _env: env,
         }
     }
 

@@ -3,6 +3,8 @@ use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
+use std::cell::RefCell;
+use std::rc::Rc;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::contract::ContractEntrypointID;
@@ -24,11 +26,15 @@ use xdrs::serialize_txs;
 // so we pick a default (nonzero) value as a placeholder.
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
 const TEST_CONTRACT_SIZE: u32 = 1024;
-pub struct TestEnvironment {
+pub struct TestEnvironmentInner {
     pub(crate) db: *mut c_void,
     pub(crate) contract_context: *mut c_void,
     mock_contract_index: i32,
     contracts: Vec<*mut MockContractInner>, // owns these contracts
+}
+
+pub struct TestEnvironment {
+    pub(crate) inner: RefCell<TestEnvironmentInner>,
 }
 
 unsafe extern "C" fn trampoline(
@@ -51,7 +57,7 @@ unsafe extern "C" fn trampoline(
     }
 }
 
-impl<'a> TestEnvironment {
+impl TestEnvironmentInner {
     pub fn new() -> Self {
         set_override_panic_hook();
         let out = Self {
@@ -68,8 +74,8 @@ impl<'a> TestEnvironment {
             panic!("failed to initialize contract context!");
         }
 
-        // prepare to accept transactions on the first block
-        unsafe { advance_new_block(out.db) };
+        // the initialization in create_db() advances the block once, so it is prepped for
+        // accepting new transactions (in proposal mode)
 
         out
     }
@@ -142,7 +148,7 @@ impl<'a> TestEnvironment {
         unsafe { advance_new_block(self.db) }
     }
 
-    pub fn add_contract(&mut self) -> MockContract<'a> {
+    pub fn add_contract(&mut self) -> *mut MockContractInner {
         let out: *mut MockContractInner = Box::into_raw(Box::new(
             MockContractInner::new(self.mock_contract_index),
         ));
@@ -163,24 +169,52 @@ impl<'a> TestEnvironment {
         if res != 0 {
             panic!("failed to link fn");
         }
-        MockContract::new(out)
+
+        out
+    }
+}
+
+impl Drop for TestEnvironmentInner {
+    fn drop(&mut self) {
+        unsafe { free_db(self.db) };
+        unsafe { close_runtime_context(self.contract_context) };
+        for contract in &self.contracts {
+            let _ = unsafe { Box::from_raw(*contract) };
+        }
+    }
+}
+
+impl TestEnvironment {
+    pub fn new() -> Rc<Self> {
+        Rc::new(Self {
+            inner: RefCell::new(TestEnvironmentInner::new()),
+        })
+    }
+
+    pub fn enable_syscall_logging() {
+        TestEnvironmentInner::enable_syscall_logging();
+    }
+
+    pub fn add_contract(self: &Rc<TestEnvironment>) -> MockContract {
+        let inner = self.inner.borrow_mut().add_contract();
+        MockContract::new(inner, self.clone())
     }
 
     pub fn prepare_test<F>(
-        self: &'a mut TestEnvironment,
+        self: &Rc<TestEnvironment>,
         test: F,
-    ) -> TransactionHandler<'a>
+    ) -> TransactionHandler
     where
-        F: Fn() -> () + 'a + UnwindSafe + Clone + 'static,
+        F: Fn() -> () + UnwindSafe + Clone + 'static,
     {
         let mut test_contract = self.add_contract();
         let entrypoint = ContractEntrypointID::from([0; 8]);
         test_contract.register_func(entrypoint, test);
-        self.setup_create_contract(&test_contract.as_contract());
+        self.inner.borrow_mut().setup_create_contract(&test_contract.as_contract());
 
         let invoke_addr: ContractAddress = [0xFF; 32].into();
 
-        self.setup_create_deployment(
+        self.inner.borrow_mut().setup_create_deployment(
             &invoke_addr,
             &test_contract.as_contract(),
         );
@@ -205,16 +239,20 @@ impl<'a> TestEnvironment {
             },
         };
 
-        TransactionHandler::new(self, &stx)
+        TransactionHandler::new(self.clone(), &stx)
     }
-}
 
-impl Drop for TestEnvironment {
-    fn drop(&mut self) {
-        unsafe { free_db(self.db) };
-        unsafe { close_runtime_context(self.contract_context) };
-        for contract in &self.contracts {
-            let _ = unsafe { Box::from_raw(*contract) };
-        }
+    pub fn setup_create_contract(self: &Rc<TestEnvironment>, contract: &Contract) -> SHA256Hash {
+        self.inner.borrow_mut().setup_create_contract(contract)
     }
+
+    pub fn setup_create_deployment(self: &Rc<TestEnvironment>, addr: &ContractAddress, contract: &Contract) {
+        self.inner.borrow_mut().setup_create_deployment(addr, contract)
+    }
+
+    pub fn setup_grant_storage_tokens(self: &Rc<TestEnvironment>, addr: &ContractAddress, tokens: i64) {
+        self.inner.borrow_mut().setup_grant_storage_tokens(addr, tokens)
+    }
+    
+    
 }
