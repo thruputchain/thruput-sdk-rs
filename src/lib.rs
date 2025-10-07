@@ -2,35 +2,35 @@
 #![feature(maybe_uninit_slice)]
 #![feature(core_io_borrowed_buf)]
 
-#![doc = include_str!("../README-lib.md")]
 // #![doc(html_logo_url = "groundhog.png")]
-
-#![cfg_attr(not(feature = "std"), no_std)]
-
+#![doc = include_str!("../README-lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 
-#![deny(warnings)]
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(any(doc, all(feature = "alloc", target_family = "wasm")))]
-pub mod allocator;
-
-// XXX find out what dependency is saying `extern crate alloc`, and remove this
-#[cfg(all(target_family = "wasm", not(feature = "alloc")))]
-pub mod allocator_panic;
-
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
 compile_error!("except when building a wasm, sdk feature \"std\" is required");
 
-/*
-#[cfg(all(feature = "alloc", target_family = "wasm"))]
-compile_error!("FOR TESTING wasm build: alloc must be disabled");
+    // XXX
+    #[cfg(all(feature = "alloc", target_family = "wasm"))]
+    compile_error!("FOR TESTING wasm build: alloc must be disabled");
 
-#[cfg(all(feature = "std", target_family = "wasm"))]
-compile_error!("FOR TESTING wasm build: std must be disabled");
-*/
+    // XXX
+    #[cfg(all(feature = "std", target_family = "wasm"))]
+    compile_error!("FOR TESTING wasm build: std must be disabled");
+
+#[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
+pub mod allocator;
+
+// XXX find out what dependency is saying `extern crate alloc`, and remove this
+// #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
+// pub mod allocator_panic;
 
 #[cfg(not(feature = "dynamic_bufs"))]
 pub(crate) mod internal;

@@ -77,6 +77,7 @@ tree_contract() {
     shift
 
     cargo_guest tree \
+        --edges normal,build,no-proc-macro \
         --package "$package" \
         "$@"
 }

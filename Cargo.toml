@@ -11,14 +11,17 @@ members = [
     ]
 exclude = ["integration_test_contracts/xdr"]
 
-
 [package]
 name = "sdk"
-version = "0.0.1"
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
+edition.workspace = true
+version.workspace = true
 autoexamples = false
+
+[workspace.package]
+edition = "2024"
+version = "0.0.1"
 
 [lib]
 crate-type = ["rlib"]
@@ -26,39 +29,38 @@ doctest = false
 
 [dependencies]
 macros = { workspace = true }
-native_exec = { path = "native_exec", optional = true}
 groundhog_xdr = { workspace = true }
 thiserror = { workspace = true }
-sha2 = { workspace = true }
+sha2 = { workspace = true, default-features = false }
 xdrs = { workspace = true }
-delegate = "0.13.4"
-heapless = "0.9.1"
+native_exec = { path = "native_exec", optional = true}
+delegate = { workspace = true, optional = true }
+
+[build-dependencies]
 
 [dev-dependencies]
 hex-literal = "1.0.0"
 
 [workspace.dependencies]
+sdk = { path = "." }
 gen = { path = "gen" }
 macros = { path = "macros" }
-groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"], rev = "c638910dda4de601f6743bb6aa4dde4709ee553b" }
-sha2 = { version = "0.10.8", default-features = false }
-sdk = { path = "." }
+groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"], rev = "533fee0a3c92b71ba47297a3d9c0264a4105d339" }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr", "xdr_common", "derive", "ns"] }
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr"] }
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
+sha2 = { version = "0.10.8", default-features = false }
+delegate = { version = "0.13.4" }
 
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
 [features]
-default = [
-    # "alloc",
-    # "dynamic_bufs",
-]
+default = []
 dynamic_bufs = [] # use resizable instead of static bufs for contract invocation (not generally recommended)
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
-storage = ["alloc"]
+storage = ["alloc", "dep:delegate"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]
 logging = ["macros/logging"]

@@ -183,6 +183,7 @@ pub fn generate_method(
         quote! { #[inline(always)] }
     } else { quote! {} };
 
+    // XXX: remove this feature and let SDK configure the implementation
     let get_calldata = if cfg!(feature = "dynamic_calldata") {
         // Fetch calldata into a dynamically-allocated buffer
 

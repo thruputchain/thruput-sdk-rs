@@ -13,6 +13,8 @@ set -e # exit on error
 echo "using CC: $CC"
 echo "using CXX: $CXX"
 
+RUSTFLAGS="-D warnings"
+
 make test
 make doc
 

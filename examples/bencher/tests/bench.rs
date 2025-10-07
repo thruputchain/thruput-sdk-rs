@@ -1,4 +1,5 @@
 use sdk::*;
+use sdk::contract::ContractBlob;
 use sdk::sysresult::Result;
 use bencher::BencherClient;
 
