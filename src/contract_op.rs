@@ -4,6 +4,7 @@ use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::contract_panic;
+use crate::serialize::encode_xdr;
 use core::mem::MaybeUninit;
 use xdrs::WriteXDR;
 
@@ -58,11 +59,11 @@ pub fn contract_revert() -> ! {
 }
 
 pub fn contract_abort(err: &impl WriteXDR) -> ! {
-    let return_buf = xdrs::serialize_txs::encode(err).unwrap_or_else(|_| {
+    let return_buf = encode_xdr(err).unwrap_or_else(|_| {
         contract_panic!("abort: failed uncoding return value")});
     let revert = true;
 
-    sys::raw_Return(&return_buf, revert);
+    sys::raw_Return(return_buf.as_ref(), revert);
 }
 
 pub fn get_source_transaction_hash() -> Result<SHA256Hash> {

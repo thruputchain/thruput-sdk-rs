@@ -12,6 +12,7 @@ mod mu_buf {
 
     // (Note that this is a subset of the Vec interface)
     impl<const SIZE: usize> MUBuf<SIZE> {
+        /// Create an uninitialized buffer
         pub const fn new() -> Self {
             Self {
                 len: 0,
@@ -19,16 +20,8 @@ mod mu_buf {
             }
         }
 
-        /// Get a reference to the filled/initialized portion of the buffer
-        pub fn as_ref(&self) -> &[u8] {
-            let filled = &self.buf[..self.len];
-
-            unsafe {
-                filled.assume_init_ref()
-            }
-        }
-
         /// Get a mutable reference to the maybe-uninitialized buffer
+        /// TODO: change to `capacity_mut()`, and make a trait for this interface?
         pub fn spare_capacity_mut(&mut self) -> &mut [MU<u8>] {
             &mut self.buf[..]
         }
@@ -39,6 +32,17 @@ mod mu_buf {
         /// data before any use of `as_ref`
         pub unsafe fn set_len(&mut self, len: usize) {
             self.len = len;
+        }
+    }
+
+    impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
+        // Get a reference to the filled/initialized portion of the buffer
+        fn as_ref(&self) -> &[u8] {
+            let filled = &self.buf[..self.len];
+
+            unsafe {
+                filled.assume_init_ref()
+            }
         }
     }
 }
@@ -55,8 +59,7 @@ macro_rules! static_mu_buf {
             use core::cell::RefCell;
             use crate::internal::MUBuf;
 
-            static mut BUF: RefCell<MUBuf<$size>> =
-                RefCell::new(MUBuf::new());
+            static mut BUF: RefCell<MUBuf<$size>> = RefCell::new(MUBuf::new());
 
             // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
             unsafe {

@@ -183,19 +183,11 @@ pub fn generate_method(
         quote! { #[inline(always)] }
     } else { quote! {} };
 
-    let get_calldata = if !cfg!(feature = "no_calldata_static") {
-        // Fetch calldata into a static buffer (see `get_calldata_static` for size).
-        quote! {
-            let (ptr, len) = get_calldata_static().unwrap_or_else(|e|
-                contract_panic!("get_calldata() failed: {e}"));
+    let get_calldata = if cfg!(feature = "dynamic_calldata") {
+        // Fetch calldata into a dynamically-allocated buffer
 
-            let calldata: &[u8] = unsafe {
-                core::slice::from_raw_parts(ptr, len as usize)
-            };
-        }
-    } else {
-        #[cfg(not(feature = "alloc"))]
-        compile_error!("Feature \"no_calldata_static\" requires feature \"alloc\"");
+        #[cfg(all(feature = "dynamic_calldata", not(feature = "alloc")))]
+        compile_error!("Feature \"dynamic_calldata\" requires feature \"alloc\"");
 
         // Ask system for the length of the calldata and then allocate
         // a buffer to receive it.
@@ -205,14 +197,29 @@ pub fn generate_method(
 
             let calldata: &[u8] = calldata_box.as_ref();
         }
+    } else {
+        // Fetch calldata into a static buffer (see `get_calldata_static` for size).
+        quote! {
+            let (ptr, len) = get_calldata_static().unwrap_or_else(|e|
+                contract_panic!("get_calldata() failed: {e}"));
+
+            let calldata: &[u8] = unsafe {
+                core::slice::from_raw_parts(ptr, len as usize)
+            };
+        }
     };
 
     let mut uses = vec![quote! {
         use ::sdk::contract::ContractEntrypointID;
         use ::sdk::{debug_log, contract_panic};
-        use ::sdk::contract_op::{contract_abort, contract_return, get_calldata, get_calldata_static};
+        use ::sdk::contract_op::{contract_abort, contract_return};
         use ::sdk::serialize::{encode_xdr, decode_xdr};
     }];
+    if cfg!(feature = "dynamic_calldata") {
+        uses.push(quote! { use ::sdk::contract_op::get_calldata; });
+    } else {
+        uses.push(quote! { use ::sdk::contract_op::get_calldata_static; });
+    }
     if cfg!(feature = "alloc") {
         uses.push(quote! {
             extern crate alloc;
@@ -256,11 +263,11 @@ pub fn generate_method(
             #save_state
 
             // Encode the result
-            let result_bytes = encode_xdr(&result).unwrap_or_else(|_|
+            let result_encoded = encode_xdr(&result).unwrap_or_else(|_|
                 contract_panic!("failed encoding contract-call result"));
 
             // Return the contract-call result to the VM
-            contract_return(result_bytes.as_slice());
+            contract_return(result_encoded.as_ref());
 
             // notreached
         }

@@ -17,11 +17,20 @@ extern crate alloc;
 #[cfg(any(doc, all(feature = "alloc", target_family = "wasm")))]
 pub mod allocator;
 
+// XXX find out what dependency is saying `extern crate alloc`, and remove this
+#[cfg(all(target_family = "wasm", not(feature = "alloc")))]
+pub mod allocator_panic;
+
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
 compile_error!("except when building a wasm, sdk feature \"std\" is required");
 
-// #[cfg(all(feature = "alloc", target_family = "wasm"))]
-// compile_error!("TESTING wasm build with alloc disabled");
+/*
+#[cfg(all(feature = "alloc", target_family = "wasm"))]
+compile_error!("FOR TESTING wasm build: alloc must be disabled");
+
+#[cfg(all(feature = "std", target_family = "wasm"))]
+compile_error!("FOR TESTING wasm build: std must be disabled");
+*/
 
 #[cfg(not(feature = "dynamic_bufs"))]
 pub(crate) mod internal;

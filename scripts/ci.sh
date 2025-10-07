@@ -24,4 +24,6 @@ make integration_test_contracts test
 
 make test-spec
 
+make xxx-clean
+
 echo "CI-CLEAN!"

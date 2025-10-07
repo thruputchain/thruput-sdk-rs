@@ -53,7 +53,7 @@ groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
 [features]
 default = [
-    "alloc",
+    # "alloc",
     # "dynamic_bufs",
 ]
 dynamic_bufs = [] # use resizable instead of static bufs for contract invocation (not generally recommended)

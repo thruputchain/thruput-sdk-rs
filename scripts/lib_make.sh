@@ -59,6 +59,28 @@ make() {
 #        check)
 #            cargo check --features=mock "$@"
 #            ;;
+        todo)
+            rg -i --ignore-file .local_src_ignore TODO
+            ;;
+        xxx)
+            rg -i \
+                --ignore-file .local_src_ignore \
+                --ignore-file .xxx_ignore \
+                XXX
+            ;;
+        xxx-clean)
+            rg -q -i \
+                --ignore-file .local_src_ignore \
+                --ignore-file .xxx_ignore \
+                XXX
+            if [ $? -eq 1 ]; then
+                # No errors and no matches found
+                return 0;
+            else
+                # ripgrep error, or matches found
+                return 1;
+            fi
+            ;;
         lint)
             cargo clippy --no-deps --features=std "$@"
             ;;
