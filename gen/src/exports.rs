@@ -72,7 +72,7 @@ pub fn generate_method(
 
     let mut uses = vec![quote! {
         use ::sdk::contract::ContractEntrypointID;
-        use ::sdk::{debug_log, contract_panic};
+        use ::sdk::contract_panic;
         use ::sdk::contract_op::{get_calldata, return_result, contract_abort};
         use ::sdk::serialize::decode_xdr;
     }];

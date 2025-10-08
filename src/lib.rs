@@ -18,8 +18,8 @@ extern crate alloc;
 compile_error!("except when building a wasm, sdk feature \"std\" is required");
 
     // XXX
-    #[cfg(all(feature = "alloc", target_family = "wasm"))]
-    compile_error!("FOR TESTING wasm build: alloc must be disabled");
+    // #[cfg(all(feature = "alloc", target_family = "wasm"))]
+    // compile_error!("FOR TESTING wasm build: alloc must be disabled");
 
     // XXX
     #[cfg(all(feature = "std", target_family = "wasm"))]
@@ -28,16 +28,15 @@ compile_error!("except when building a wasm, sdk feature \"std\" is required");
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
-// XXX find out what dependency is saying `extern crate alloc`, and remove this
-// #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
-// pub mod allocator_panic;
+    // XXX find out what dependency is saying `extern crate alloc`, and remove this
+    // #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
+    // pub mod allocator_panic;
 
 #[cfg(all(feature = "dynamic_bufs", not(feature = "alloc")))]
 compile_error!("SDK feature \"dynamic_bufs\" requires liballoc, provided by
     SDK feature \"alloc\".");
 // We avoid silently turning on "alloc", which may not be desired
 
-#[cfg(not(feature = "dynamic_bufs"))]
 pub(crate) mod internal;
 
 #[cfg(feature = "mock")]
@@ -71,7 +70,7 @@ pub mod sysresult;
 pub mod contract_result;
 pub mod contract_test;
 
-#[cfg(any(doc, feature = "storage"))]
+#[cfg(feature = "storage")]
 pub mod storage;
 
 // Direct exports

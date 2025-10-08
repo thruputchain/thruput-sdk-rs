@@ -1,6 +1,6 @@
 //! System functions
 //!
-//! Used by #[contract] macro.
+//! Used by `#[contract]` macro.
 
 use crate::sysresult::SysResult as Result;
 use crate::sys;
@@ -52,7 +52,14 @@ pub fn get_current_address() -> Result<ContractAddress> {
     Ok(unsafe { out_addr.assume_init() })
 }
 
-#[cfg(feature = "dynamic_bufs")]
+#[inline]
+pub fn get_calldata_len() -> Result<RuntimeMemoryLength> {
+    let mut out: RuntimeMemoryLength = 0;
+    sys::raw_GetCalldataLen(&mut out)?;
+    Ok(out)
+}
+
+#[cfg(all(not(feature = "mock"), feature = "dynamic_bufs"))]
 mod get_calldata {
     // This strategy uses a dedicated, statically-allocated `Vec<u8>` (that is, a fat-pointer to a
     // dynamically-allocated buffer).
@@ -68,10 +75,10 @@ mod get_calldata {
 
     pub fn get_calldata() -> Result<CalldataBuf> {
         // Find out how much data the VM has waiting for us
-        let len = get_calldata_len();
+        let len = get_calldata_len()?;
 
         // Get a buffer with at least that many bytes reserved
-        let mut calldata_buf = get_static_calldata_buf(Some(len));
+        let mut calldata_buf = get_static_calldata_buf(Some(len as usize));
 
         let mut written: RuntimeMemoryLength = 0;
         sys::uninit_GetCalldata(calldata_buf.spare_capacity_mut(), &mut written)?;
@@ -81,18 +88,11 @@ mod get_calldata {
         // SAFETY: At least this many bytes of the buffer are now initialized
         unsafe { calldata_buf.set_len(written as usize); }
 
-        Ok(CalldataBuf)
-    }
-
-    #[inline]
-    fn get_calldata_len() -> Result<RuntimeMemoryLength> {
-        let mut out: RuntimeMemoryLength = 0;
-        sys::raw_GetCalldataLen(&mut out)?;
-        Ok(out)
+        Ok(calldata_buf)
     }
 }
 
-#[cfg(not(feature = "dynamic_bufs"))]
+#[cfg(all(not(feature = "mock"), not(feature = "dynamic_bufs")))]
 mod get_calldata {
     // This strategy uses a dedicated, statically-allocated (and fixed-sized) buffer.
     //
@@ -113,6 +113,32 @@ mod get_calldata {
 
         let mut written: RuntimeMemoryLength = 0;
         sys::uninit_GetCalldata(calldata_buf.spare_capacity_mut(), &mut written)?;
+
+        // SAFETY: At least this many bytes of the buffer are now initialized
+        unsafe { calldata_buf.set_len(written as usize); }
+
+        Ok(calldata_buf)
+    }
+}
+
+#[cfg(feature = "mock")]
+mod get_calldata {
+    // This strategy allows contract-invocation to be re-entrant, as is
+    // often the case in the mock-testing environment.
+
+    use super::*;
+    use alloc::vec::Vec;
+
+    pub fn get_calldata() -> Result<Vec<u8>> {
+        // Find out how much data the VM has waiting for us
+        let len = get_calldata_len()?;
+
+        let mut calldata_buf = Vec::with_capacity(len as usize);
+
+        let mut written: RuntimeMemoryLength = 0;
+        sys::uninit_GetCalldata(calldata_buf.spare_capacity_mut(), &mut written)?;
+
+        assert_eq!(written, len, "GetCalldata wrote fewer bytes than reported by GetCalldataLen");
 
         // SAFETY: At least this many bytes of the buffer are now initialized
         unsafe { calldata_buf.set_len(written as usize); }

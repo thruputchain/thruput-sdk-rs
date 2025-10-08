@@ -45,7 +45,7 @@ make() {
             make_contracts "integration_test_contracts" "$@"
             ;;
         doc)
-            cargo doc --features=std "$@"
+            cargo doc --features=std,storage "$@"
             ;;
         test)
             # we need dynamic_bufs when using `contract_test`, which

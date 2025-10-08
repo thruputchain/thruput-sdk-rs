@@ -104,3 +104,7 @@ trim-paths = "all" # unstable
 [[test]]
 name = "int128"
 required-features = ["std"]
+
+[[test]]
+name = "storage"
+required-features = ["storage"]

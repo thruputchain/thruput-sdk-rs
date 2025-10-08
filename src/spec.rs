@@ -1,6 +1,6 @@
 //! Specification of contract interfaces
 
-pub use std::vec;
+pub use std::{vec, format, eprintln, string::*, borrow::ToOwned};
 pub use xdrs::xdr_repr::*;
 pub use xdrs::xdr_common::*;
 pub use crate::types::*;

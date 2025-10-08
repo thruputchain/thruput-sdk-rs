@@ -35,10 +35,10 @@ If feature `alloc` is enabled:
 Datatypes defined by third-party libraries or by the user may be
 used in memory and in persistent storage, noting that:
 *   Heap allocation requires feature [`alloc`].
-*   Datatypes should be decorated with the [`storage`](storage) attribute-macro.
+*   Datatypes should be decorated with the [`storage`](macro@storage) attribute-macro.
 
 # Storage
 
-The [`storage`] module provides a high-level layer for manipulating persistent
+The [`mod@storage`] module provides a high-level layer for manipulating persistent
 storage, and includes collection datatypes like [`Map`](storage::Map) that are
 implemented atop the VM's key-value storage.

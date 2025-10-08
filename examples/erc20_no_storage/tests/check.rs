@@ -10,7 +10,7 @@ fn check() {
 
     let test_contract = test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
-    sdk::TestEnvironment::enable_syscall_logging();
+    // sdk::TestEnvironment::enable_syscall_logging();
 
     let mut handler = env.prepare_test(move || -> () {
         check_inner(&contract_hash).unwrap_or_else(|e|
