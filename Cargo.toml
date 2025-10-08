@@ -21,7 +21,7 @@ autoexamples = false
 
 [workspace.package]
 edition = "2024"
-version = "0.0.1"
+version = "0.1.0"
 
 [lib]
 crate-type = ["rlib"]
