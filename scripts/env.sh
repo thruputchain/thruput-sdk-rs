@@ -12,3 +12,4 @@ SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 
 if [ -f "${SCRIPT_DIR}/conf.sh" ]; then
     source "${SCRIPT_DIR}/conf.sh"
+fi
