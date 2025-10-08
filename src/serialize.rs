@@ -1,3 +1,5 @@
+//! Serialization
+
 pub use xdrs::{WriteXDR, WriteResult, write_xdr, ReadXDR, ReadResult, read_xdr, ReadXDROwned};
 pub use xdrs::serialize_txs::decode as decode_xdr;
 
@@ -16,6 +18,10 @@ mod implementation {
         fn get_encode_buf<ENCODE_MAX>(size_hint: Option<usize>) -> EncodeBuf;
     }
 
+    /// XDR-encode a value into a static buffer.
+    ///
+    /// Panics: Calling this function again before dropping the previously-returned buffer will
+    /// result in a panic.
     pub fn encode_xdr<'a, T>(x: &'a T) -> WriteResult<EncodeBuf>
     where
         T: WriteXDR + ?Sized

@@ -32,6 +32,11 @@ pub mod allocator;
 // #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
 // pub mod allocator_panic;
 
+#[cfg(all(feature = "dynamic_bufs", not(feature = "alloc")))]
+compile_error!("SDK feature \"dynamic_bufs\" requires liballoc, provided by
+    SDK feature \"alloc\".");
+// We avoid silently turning on "alloc", which may not be desired
+
 #[cfg(not(feature = "dynamic_bufs"))]
 pub(crate) mod internal;
 

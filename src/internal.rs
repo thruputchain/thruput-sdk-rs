@@ -1,6 +1,6 @@
 pub use mu_buf::*;
 
-/// Maybe-uninitialized buffers
+/// Maybe-uninitialized buffers of static size
 mod mu_buf {
     use core::mem::MaybeUninit as MU;
 
@@ -47,8 +47,9 @@ mod mu_buf {
     }
 }
 
-// Declares a type alias for a statically-allocated MUBuf of a particular size, and also a function
-// for retrieving a handle to it.  Attempting to hold more than one such handle will cause a panic.
+// Declares a type alias for a handle to an MUBuf of a particular size, and also a function that
+// returns such a handle to a single, statically-allocated MBuf.  Attempting to hold more than one
+// such handle will cause a panic.
 #[macro_export]
 macro_rules! static_mu_buf {
     { $( $vis:vis fn $fn:ident<$size:ident>($size_hint:ident: Option<usize>) -> $ty:ident; )* } => { $(
@@ -69,6 +70,39 @@ macro_rules! static_mu_buf {
                         stringify!($fn), e)
                 })
             }
+        }
+
+    )* };
+}
+
+// Declares a type alias for a handle to a Vec, and also a function that returns such a handle to a
+// single, statically-allocated Vec with capacity at least equal to the size hint, if given.
+// Attempting to hold more than one such handle will cause a panic.
+#[macro_export]
+macro_rules! static_vec {
+    { $( $vis:vis fn $fn:ident($size_hint:ident: Option<usize>) -> $ty:ident; )* } => { $(
+
+        $vis type $ty = core::cell::RefMut<'static, Vec<u8>>;
+
+        $vis fn $fn(size_hint: Option<usize>) -> Vec<u8> {
+
+            static mut VEC: RefCell<Vec<u8>> = RefCell::new(Vec::new());
+
+            // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+            let vec = unsafe {
+                #[allow(static_mut_refs)]
+                VEC.try_borrow_mut().unwrap_or_else(|e| {
+                    panic!("{}: attempted multiple concurrent borrows of static vec: {}",
+                        stringify!($fn), e)
+                })
+            };
+
+            vec.resize(0, 0); // This sets the zero-base for reserve_exact()
+            if let Some(size_hint) = size_hint {
+                vec.reserve_exact(size_hint);
+            }
+
+            vec
         }
 
     )* };

@@ -58,13 +58,17 @@ groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
 [features]
 default = []
-dynamic_bufs = [] # use resizable instead of static bufs for contract invocation (not generally recommended)
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc", "dep:delegate"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]
 logging = ["macros/logging"]
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
+
+# Use resizable instead of static bufs for marshalling arguments and
+# return-data of cross-contract calls (not recommended unless the fixed-size
+# buffers cause problems).
+dynamic_bufs = []
 
 [profile.dev]
 opt-level = 3

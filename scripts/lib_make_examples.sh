@@ -183,6 +183,12 @@ make_contracts() {
 
             tree_contract "$contract" "$@"
             ;;
+        llvm-lines)
+            local contract="$1" ; shift
+
+            # also do: cargo install cargo-llvm-lines
+            cargo_guest llvm-lines -p "$contract"
+            ;;
         fns)
             local contract="$1" ; shift
             local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"

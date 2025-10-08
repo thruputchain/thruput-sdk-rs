@@ -70,12 +70,19 @@ pub fn generate_method(
     let export_num_name =
         format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
+    let mut uses = vec![quote! {
+        use ::sdk::contract::ContractEntrypointID;
+        use ::sdk::{debug_log, contract_panic};
+        use ::sdk::contract_op::{get_calldata, return_result, contract_abort};
+        use ::sdk::serialize::decode_xdr;
+    }];
+
     let log_guest_call = if cfg!(feature = "logging") {
+        uses.push(quote!{ use ::sdk::debug_log; });
+
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
 
-        quote! {
-            debug_log!("{} ", #print_string);
-        }
+        quote! { debug_log!("{} ", #print_string); }
     } else {
         quote! {}
     };
@@ -131,6 +138,10 @@ pub fn generate_method(
         let mutability = if is_mut { quote! { mut } } else { quote! {} };
 
         if config.storage() {
+            uses.push(quote! {
+                use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
+            });
+
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
@@ -183,62 +194,12 @@ pub fn generate_method(
         quote! { #[inline(always)] }
     } else { quote! {} };
 
-    // XXX: remove this feature and let SDK configure the implementation
-    let get_calldata = if cfg!(feature = "dynamic_calldata") {
-        // Fetch calldata into a dynamically-allocated buffer
-
-        #[cfg(all(feature = "dynamic_calldata", not(feature = "alloc")))]
-        compile_error!("Feature \"dynamic_calldata\" requires feature \"alloc\"");
-
-        // Ask system for the length of the calldata and then allocate
-        // a buffer to receive it.
-        quote! {
-            let calldata_box: Box<[u8]> = get_calldata().unwrap_or_else(|e|
-                contract_panic!("get_calldata() failed: {e}"));
-
-            let calldata: &[u8] = calldata_box.as_ref();
-        }
-    } else {
-        // Fetch calldata into a static buffer (see `get_calldata_static` for size).
-        quote! {
-            let (ptr, len) = get_calldata_static().unwrap_or_else(|e|
-                contract_panic!("get_calldata() failed: {e}"));
-
-            let calldata: &[u8] = unsafe {
-                core::slice::from_raw_parts(ptr, len as usize)
-            };
-        }
-    };
-
-    let mut uses = vec![quote! {
-        use ::sdk::contract::ContractEntrypointID;
-        use ::sdk::{debug_log, contract_panic};
-        use ::sdk::contract_op::{contract_abort, contract_return};
-        use ::sdk::serialize::{encode_xdr, decode_xdr};
-    }];
-    if cfg!(feature = "dynamic_calldata") {
-        uses.push(quote! { use ::sdk::contract_op::get_calldata; });
-    } else {
-        uses.push(quote! { use ::sdk::contract_op::get_calldata_static; });
-    }
-    if cfg!(feature = "alloc") {
-        uses.push(quote! {
-            extern crate alloc;
-            use alloc::boxed::Box;
-        });
-    }
-    if is_method && config.storage() {
-        uses.push(quote! {
-            use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
-        });
-    }
-
     export.extend(quote! {
         #inline
         pub fn #internal_name() -> () {
             #(#uses)*
 
-            // Debug mode: log the method-call
+            // If debug mode: log the method-call
             #log_guest_call
 
             // Error if this is an "init" method and the contract state already exists
@@ -246,12 +207,13 @@ pub fn generate_method(
 
             #load_state
 
-            // Get the encoded argument data from the VM
-            #get_calldata
+            // Fetch the calldata from the VM
+            let calldata = get_calldata().unwrap_or_else(|e|
+                contract_panic!("get_calldata() failed: {}", e));
 
-            // Decode the arguments expected by the method
-            let (#arg_names) = decode_xdr(calldata).unwrap_or_else(|_|
-                contract_panic!("failed decoding contract-call arguments"));
+            // Decode the args
+            let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
+                contract_panic!("failed decoding contract-call arguments: {}", e));
 
             // Call the free function or contract-type method
             let result = #function_or_method(#arg_names);
@@ -263,14 +225,10 @@ pub fn generate_method(
             // Save any mutations
             #save_state
 
-            // Encode the result
-            let result_encoded = encode_xdr(&result).unwrap_or_else(|_|
-                contract_panic!("failed encoding contract-call result"));
+            // Return the contract-call result to the VM, ending execution of this contract
+            return_result(&result);
 
-            // Return the contract-call result to the VM
-            contract_return(result_encoded.as_ref());
-
-            // notreached
+            // Not reached
         }
     });
 
