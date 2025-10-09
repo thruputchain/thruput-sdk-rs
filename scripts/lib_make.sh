@@ -83,10 +83,10 @@ make() {
         lint)
             cargo clippy --no-deps --features=std "$@"
             ;;
-        lint_mock)
+        lint-mock)
             cargo_native clippy --no-deps --features=mock "$@"
             ;;
-        lint_macros)
+        lint-macros)
             cargo clippy --no-deps -p macros "$@"
             ;;
         fmt)

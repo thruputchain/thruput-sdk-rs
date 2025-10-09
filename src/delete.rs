@@ -12,9 +12,10 @@ use crate::types::StorageKeyContractData;
 /// any type may be stored there.
 pub fn delete(key: &StorageKeyContractData, exclusive: bool) -> Result<()> {
     let flags = if exclusive {
-        kStorageExclusiveLock as i32
+        kStorageExclusiveLock
     } else {
-        kStorageNone as i32
+        kStorageNone
     };
+
     sys::raw_DeleteObject(key, flags as i32)
 }
