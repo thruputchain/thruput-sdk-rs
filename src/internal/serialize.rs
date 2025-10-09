@@ -30,7 +30,7 @@ mod implementation {
 
     pub fn get_encode_buf(size_hint: Option<usize>) -> EncodeBuf {
         if let Some(size) = size_hint {
-            Vec::with_capacity(size as usize)
+            Vec::with_capacity(size)
         } else {
             Vec::new()
         }
@@ -44,7 +44,7 @@ mod implementation {
 ///
 /// Panics: Calling this function again before dropping the previously-returned buffer will
 /// result in a panic (except in the testing environment, when `feature = "mock"`).
-pub fn encode_xdr<'a, T>(x: &'a T) -> WriteResult<EncodeBuf>
+pub fn encode_xdr<T>(x: &T) -> WriteResult<EncodeBuf>
 where
     T: WriteXDR + ?Sized,
 {

@@ -10,6 +10,7 @@ pub struct MUBuf<const SIZE: usize> {
 // (Note that this is a subset of the Vec interface)
 impl<const SIZE: usize> MUBuf<SIZE> {
     /// Create an uninitialized buffer
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             len: 0,
@@ -17,6 +18,7 @@ impl<const SIZE: usize> MUBuf<SIZE> {
         }
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
     }
@@ -28,8 +30,9 @@ impl<const SIZE: usize> MUBuf<SIZE> {
 
     /// Assert that all elements up to `len - 1` have been initialized
     ///
-    /// _Safety_: This length must correctly state the length of initialized
-    /// data before any use of `as_ref`
+    /// # Safety
+    ///
+    /// The given length must correctly state the length of initialized data before any use of `as_ref`.
     pub unsafe fn set_len(&mut self, len: usize) {
         self.len = len;
     }

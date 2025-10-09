@@ -24,7 +24,7 @@ const _: () = {
     {
         fn try_hash(&self) -> Result<Hash256> {
             let buf = xdrs::serialize_txs::encode(&self)
-                .map_err(|e| Error::serialization(e))?;
+                .map_err(Error::serialization)?;
 
             let hash = crate::crypto::sha_256(&buf)?;
             Ok(hash)
