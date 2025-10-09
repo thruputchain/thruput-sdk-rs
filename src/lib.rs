@@ -45,6 +45,7 @@ pub mod deploy;
 pub mod hash;
 pub mod invoke;
 pub mod invoke_config;
+mod invoke_encode; // TODO: make this a sub-module of invoke
 pub mod invoke_error;
 pub mod log;
 pub mod precompiles;

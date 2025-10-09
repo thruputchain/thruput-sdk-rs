@@ -1,57 +1,14 @@
-//! System functions: invoke, client_invoke
+//! Cross-contract invocation functions: invoke, client_invoke
 
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
+use crate::internal::{ReadXDROwned, WriteXDR};
+use crate::invoke_encode::*;
+#[allow(unused_imports)]
+pub use crate::invoke_error::*;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use core::error::Error;
-use xdrs::serialize_txs::{decode, encode_into};
-use xdrs::{ReadXDROwned, WriteError, WriteXDR};
-
-pub use crate::invoke_error::*;
-
-#[cfg(not(feature = "dynamic_bufs"))]
-// Use one statically-allocated buf for encodings of invocation args and return vals
-mod bufs {
-    use crate::static_mu_buf;
-
-    const INVOKE_MAX: usize = 500;
-
-    static_mu_buf! {
-        pub fn get_invoke_buffer<INVOKE_MAX>(size_hint: Option<usize>) -> InvokeData;
-    }
-
-    pub const CALL_DATA_MAX: Option<usize> = Some(INVOKE_MAX);
-    pub const RETURN_DATA_MAX: Option<usize> = Some(INVOKE_MAX);
-
-    pub type CallData = InvokeData;
-    pub type ReturnData = InvokeData;
-
-    pub use get_invoke_buffer as get_calldata_buffer;
-    pub use get_invoke_buffer as get_return_buffer;
-}
-
-#[cfg(feature = "dynamic_bufs")]
-// Use dynamically-allocated bufs
-mod bufs {
-    pub use alloc::vec::Vec;
-
-    pub const CALL_DATA_MAX: Option<usize> = None;
-    pub const RETURN_DATA_MAX: Option<usize> = None;
-
-    pub type CallData = Vec<u8>;
-    pub type ReturnData = Vec<u8>;
-
-    pub fn get_calldata_buffer(_size_hint: Option<usize>) -> ReturnData {
-        Vec::with_capacity(500)
-    }
-
-    pub fn get_return_buffer(size_hint: Option<usize>) -> CallData {
-        Vec::with_capacity(size_hint.unwrap())
-    }
-}
-
-use bufs::*;
 
 pub fn invoke<ARGS, RET>(
     address: &ContractAddress,
@@ -187,28 +144,4 @@ fn invoke_raw(
     } else {
         Err(RawError::Aborted(return_data))
     }
-}
-
-fn encode_into_calldata<ARGS>(args: &ARGS) -> InvokeResult<CallData>
-where
-    ARGS: WriteXDR,
-{
-    let mut call_data = get_calldata_buffer(None);
-
-    // XXX: use `encode()` for feature "dynamic_bufs"
-    let len = encode_into(args, call_data.spare_capacity_mut())
-        .inspect_err(|e|
-            if matches!(e, WriteError::SpaceExhausted) {
-                if let Some(max) = CALL_DATA_MAX {
-                    panic!("overflowed calldata buffer, which has fixed size {max}");
-                }
-            })
-        .or_else(|_| Err(InvokeError::EncodeArgs))?;
-
-    // SAFETY: The serializer has reported this many bytes written
-    unsafe {
-        call_data.set_len(len);
-    }
-
-    Ok(call_data)
 }
