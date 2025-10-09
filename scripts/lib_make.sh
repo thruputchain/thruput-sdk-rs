@@ -70,16 +70,13 @@ make() {
             ;;
         xxx-clean)
             printf "\n"
-            rg -i \
-                --ignore-file .local_src_ignore \
-                --ignore-file .xxx_ignore \
-                XXX
+            make xxx
             if [ $? -eq 1 ]; then
                 # No matches found and no errors
                 return 0;
             else
                 # Matches found, or error
-                printf "\nXXX found"
+                printf "\n>> XXX annotations found\n"
                 return 1;
             fi
             ;;

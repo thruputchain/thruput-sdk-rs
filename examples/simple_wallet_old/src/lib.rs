@@ -53,7 +53,7 @@ impl Wallet {
         let self_addr = get_current_address().unwrap();
 
         let input = (&self_addr, to_addr, amount);
-        let buf = sdk::serialize::encode_xdr(&input).unwrap();
+        let buf = xdrs::serialize_txs::encode(&input).unwrap();
 
         let bytes: [u8; 80] = buf.try_into().unwrap();
 

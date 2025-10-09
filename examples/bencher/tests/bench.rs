@@ -16,9 +16,10 @@ fn test() {
     let bencher_hash = env.setup_create_contract(&bencher);
 
     // Load erc20.wasm and setup the contract
-    let erc20_bytes = std::fs::read(ERC20_PATH).unwrap_or_else(|e|
-        panic!("couldn't load wasm to test: {}", e));
-    let erc20_blob: ContractBlob = BytesM(erc20_bytes);
+    let wasm = std::fs::read(ERC20_PATH)
+        .map(BytesM)
+        .unwrap_or_else(|e| panic!("couldn't load wasm to test: {}", e));
+    let erc20_blob: ContractBlob = ContractBlob { wasm };
     let erc20 = Contract::kWasmi {
         wasmi_contract: erc20_blob,
     };

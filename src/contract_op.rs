@@ -6,7 +6,7 @@ use crate::sysresult::SysResult as Result;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::contract_panic;
-use crate::serialize::{WriteXDR, encode_xdr};
+use crate::internal::{WriteXDR, encode_xdr};
 use core::mem::MaybeUninit;
 
 pub fn contract_return(buf: &[u8]) -> ! {

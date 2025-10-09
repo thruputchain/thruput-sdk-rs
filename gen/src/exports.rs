@@ -74,7 +74,7 @@ pub fn generate_method(
         use ::sdk::contract::ContractEntrypointID;
         use ::sdk::contract_panic;
         use ::sdk::contract_op::{get_calldata, return_result, contract_abort};
-        use ::sdk::serialize::decode_xdr;
+        use ::sdk::internal::decode_xdr;
     }];
 
     let log_guest_call = if cfg!(feature = "logging") {

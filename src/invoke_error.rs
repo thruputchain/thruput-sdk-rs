@@ -12,19 +12,19 @@ use core::error::Error;
 use crate::SysErr;
 use xdrs::{ReadXDROwned, ReadXDR, WriteXDR};
 
-// XXX: "Client" error?  naming vs InvokeError?
+// TODO: Reconsider naming of `ClientError`, `InvokeError`
+
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[derive(ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
-    #[error("client invocation failed: {0}")]
+    #[error("contract invocation failed: {0}")]
     Invoke(#[from] InvokeError),
 
-    #[error("client aborted: {0}")] // XXX peer contract aborted?
+    #[error("the called contract aborted: {0}")]
     Aborted(#[source] E),
 
-    // XXX peer contract aborted but _we_ could not decode the error value
-    #[error("client aborted but could not decode error value")]
+    #[error("the called contract aborted, but we couldn't decode the returned error value")]
     AbortDecodeFailed,
 }
 
@@ -34,16 +34,16 @@ pub type ClientResult<T, E> = Result<T, ClientError<E>>;
 #[derive(ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum InvokeError {
-    #[error("error encoding arguments")]
+    #[error("error encoding contract-call arguments")]
     EncodeArgs,
 
-    #[error("error decoding return value")]
+    #[error("error decoding contract-call return-value")]
     DecodeReturnVal,
 
     #[error("invoke() syscall failed: {0}")]
     Syscall(SysErr),
 
-    #[error("contract aborted")]
+    #[error("the called contract aborted")]
     Aborted,
 }
 

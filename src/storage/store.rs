@@ -19,7 +19,8 @@ where
     T: WriteXDR,
 {
     fn store(&self, key: &StorageKey) -> Result<()> {
-        // Load any previous value and drop it? XXX
+        // Load any previous value and drop it
+        // TODO: Avoid where there is no Drop impl?
         if let Some(prev) = bytestring_try_get(key)? {
             drop(prev);
         }

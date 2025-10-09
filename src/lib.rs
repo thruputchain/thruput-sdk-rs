@@ -15,29 +15,22 @@ extern crate std;
 extern crate alloc;
 
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
-compile_error!("except when building a wasm, sdk feature \"std\" is required");
-
-    // XXX
-    // #[cfg(all(feature = "alloc", target_family = "wasm"))]
-    // compile_error!("FOR TESTING wasm build: alloc must be disabled");
-
-    // XXX
-    #[cfg(all(feature = "std", target_family = "wasm"))]
-    compile_error!("FOR TESTING wasm build: std must be disabled");
+compile_error!("Except when building a wasm, sdk feature \"std\" is required");
 
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
-    // XXX find out what dependency is saying `extern crate alloc`, and remove this
-    // #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
-    // pub mod allocator_panic;
+//// Install an allocator that just panics
+// #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
+// pub mod allocator_panic;
 
 #[cfg(all(feature = "dynamic_bufs", not(feature = "alloc")))]
 compile_error!("SDK feature \"dynamic_bufs\" requires liballoc, provided by
     SDK feature \"alloc\".");
 // We avoid silently turning on "alloc", which may not be desired
 
-pub(crate) mod internal;
+pub mod internal;
+// (Public because used in contract macros)
 
 // Syscall wrappers
 pub mod contract_op;
@@ -49,6 +42,7 @@ pub mod stats;
 
 pub mod rt;
 pub mod types;
+pub mod serialize;
 pub mod crypto;
 pub mod deploy;
 pub mod hash;
@@ -57,7 +51,6 @@ pub mod invoke_config;
 pub mod invoke_error;
 pub mod log;
 pub mod precompiles;
-pub mod serialize;
 
 pub mod sysresult;
 pub mod contract_result;
