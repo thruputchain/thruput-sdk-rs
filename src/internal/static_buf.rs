@@ -5,7 +5,7 @@
 macro_rules! static_mu_buf {
     { $( $vis:vis fn $fn:ident<$size:ident>($size_hint:ident: Option<usize>) -> $ty:ident; )* } => { $(
 
-        $vis type $ty = core::cell::RefMut<'static, crate::internal::MUBuf<$size>>;
+        $vis type $ty = core::cell::RefMut<'static, $crate::internal::MUBuf<$size>>;
 
         $vis fn $fn(_size_hint: Option<usize>) -> $ty {
             use core::cell::RefCell;
