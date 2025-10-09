@@ -6,11 +6,11 @@
 //! a [`SysErr`](crate::SysErr) containing
 //! an error code in the case of a syscall failure.
 
-use crate::sysresult::SysResult as Result;
 use crate::sys;
+use crate::sysresult::SysResult as Result;
+use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 #[allow(unused_imports)] // import is for docs
 use crate::SyscallErrorCode;
-use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
 use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
@@ -54,7 +54,10 @@ pub fn bytestring_get_len(key: &StorageKeyContractData) -> Result<u32> {
 /// If another contract instance running in parallel sets the bytestring
 /// to the same value, both writes will be allowed.
 ///
-pub fn bytestring_set(key: &StorageKeyContractData, slice: &[u8]) -> Result<()> {
+pub fn bytestring_set(
+    key: &StorageKeyContractData,
+    slice: &[u8],
+) -> Result<()> {
     sys::raw_BytestringSet(key, slice /*, 0 */)?;
     Ok(())
 }
@@ -103,8 +106,8 @@ pub fn bytestring_get_sized<const N: usize>(
 
 #[cfg(feature = "alloc")]
 mod bytestring_get_alloc {
-    use crate::sysresult::SysResult as Result;
     use crate::sys;
+    use crate::sysresult::SysResult as Result;
     use crate::types::StorageKeyContractData;
     #[allow(unused_imports)] // import is for docs
     use crate::SyscallErrorCode;
@@ -131,7 +134,9 @@ mod bytestring_get_alloc {
         Ok(unsafe { vec.assume_init() })
     }
 
-    pub fn bytestring_try_get(key: &StorageKeyContractData) -> Result<Option<Box<[u8]>>> {
+    pub fn bytestring_try_get(
+        key: &StorageKeyContractData,
+    ) -> Result<Option<Box<[u8]>>> {
         let len = match super::bytestring_get_len(key) {
             Ok(len) => len,
             Err(e) => {

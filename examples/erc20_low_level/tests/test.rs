@@ -1,6 +1,6 @@
+use erc20_low_level::interface::ERC20Error;
 use erc20_low_level::test;
 use erc20_low_level::ERC20Client;
-use erc20_low_level::interface::ERC20Error;
 use sdk::*;
 
 #[test]
@@ -15,8 +15,7 @@ fn erc20_ll_check() {
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
         let mut client = ERC20Client::new(&deployed_addr);
 
-        check_inner(&mut client).unwrap_or_else(|e|
-            panic!("test failed: {e}"))
+        check_inner(&mut client).unwrap_or_else(|e| panic!("test failed: {e}"))
     });
 
     let res = handler.root_invoke();

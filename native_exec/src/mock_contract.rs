@@ -3,7 +3,6 @@ use crate::test_environment::TestEnvironment;
 use crate::bindings::ForeignInvokeResult;
 use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::contract::Contract;
-use xdrs::serialize_txs;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::types::SHA256Hash;
 use sha2::{Digest, Sha256};
@@ -11,6 +10,7 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use std::panic::UnwindSafe;
 use std::rc::Rc;
+use xdrs::serialize_txs;
 
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
@@ -31,7 +31,10 @@ fn i32_to_contract(index: i32) -> Contract {
 }
 
 impl MockContract {
-    pub fn new(inner: *mut MockContractInner, env: Rc<TestEnvironment>) -> Self {
+    pub fn new(
+        inner: *mut MockContractInner,
+        env: Rc<TestEnvironment>,
+    ) -> Self {
         MockContract {
             contract: inner,
             _env: env,
@@ -62,8 +65,11 @@ impl MockContract {
         unsafe { &(*self.contract).hash }
     }
 
-    pub fn register_method<F>(self: &mut Self, id: ContractEntrypointID, func: F)
-    where
+    pub fn register_method<F>(
+        self: &mut Self,
+        id: ContractEntrypointID,
+        func: F,
+    ) where
         F: Fn() -> () + UnwindSafe + Clone + 'static,
     {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };

@@ -1,4 +1,4 @@
-use crate::implementation::{MyClient, Error, test_setup};
+use crate::implementation::{test_setup, Error, MyClient};
 use sdk::*;
 use thiserror::Error;
 
@@ -34,7 +34,9 @@ enum TestError {
     Sys(#[from] SysErr),
 }
 
-fn check_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<(), TestError> {
+fn check_inner(
+    contract_hash: &sdk::types::SHA256Hash,
+) -> Result<(), TestError> {
     let nonce: SHA256Hash = [7; 32].into();
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address().unwrap();

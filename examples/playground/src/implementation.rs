@@ -1,8 +1,8 @@
 //! Storage tests
 
-use sdk::*;
 pub use sdk::contract_result::*;
-use sdk::storage::{Bytestring, NNInt, Handle};
+use sdk::storage::{Bytestring, Handle, NNInt};
+use sdk::*;
 
 #[storage]
 pub struct MyContract {
@@ -24,7 +24,10 @@ type Amount = i128;
 #[contract(exports = "guest_exports", err_type = Error, client = MyClient)]
 impl MyContract {
     // TODO: attribute #[init]: panic if storage already present; otherwise provide default value
-    pub fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
+    pub fn initialize(
+        &mut self,
+        contract_owner: &ContractAddress,
+    ) -> Result<()> {
         self.contract_owner = contract_owner.clone();
 
         Ok(())

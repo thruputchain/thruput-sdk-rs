@@ -5,16 +5,25 @@
 //! that may be modified during the transaction.  The
 //! "current" value is the sum of these.
 
-use crate::sysresult::SysResult as Result;
 use crate::sys;
+use crate::sysresult::SysResult as Result;
 use crate::types::StorageKeyContractData;
 
 /// Get the "set" value (if requested by `force_load_set`) and the "add" value.
-pub fn non_negative_int_get_values(key: &StorageKeyContractData, force_load_set: bool) -> Result<(Option<i128>, i128)> {
+pub fn non_negative_int_get_values(
+    key: &StorageKeyContractData,
+    force_load_set: bool,
+) -> Result<(Option<i128>, i128)> {
     let mut set_result: i128 = 0;
     let mut set_loaded: bool = false;
     let mut add_result: i128 = 0;
-    sys::raw_NonnegativeIntGet(key, force_load_set, &mut set_result, &mut set_loaded, &mut add_result)?;
+    sys::raw_NonnegativeIntGet(
+        key,
+        force_load_set,
+        &mut set_result,
+        &mut set_loaded,
+        &mut add_result,
+    )?;
 
     debug_assert!(force_load_set && set_loaded);
 
@@ -40,7 +49,10 @@ pub fn non_negative_int_set_add(
 }
 
 /// Add an amount, after querying the "set" value.
-pub fn non_negative_int_add(key: &StorageKeyContractData, amount: i128) -> Result<()> {
+pub fn non_negative_int_add(
+    key: &StorageKeyContractData,
+    amount: i128,
+) -> Result<()> {
     let (s, a) = non_negative_int_get_values(key, false)?;
 
     non_negative_int_set_add(key, s, a + amount)
@@ -57,7 +69,9 @@ pub fn non_negative_int_add_default_zero(
 }
 
 /// Get the "current" ("set" + "add") value, or zero if previously unset.
-pub fn non_negative_int_get_default_zero(key: &StorageKeyContractData) -> Result<i128> {
+pub fn non_negative_int_get_default_zero(
+    key: &StorageKeyContractData,
+) -> Result<i128> {
     let (s, a) = non_negative_int_get_values_default_zero(key)?;
 
     Ok(s + a)

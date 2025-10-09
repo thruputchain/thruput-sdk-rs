@@ -1,10 +1,12 @@
 //! Construct and manipulate contract entrypoint IDs
 
-use groundhog_xdr::contract::{ContractEntrypointID, ContractInterfaceIDPreimage};
-use xdrs::serialize_txs;
-use quote::quote;
+use groundhog_xdr::contract::{
+    ContractEntrypointID, ContractInterfaceIDPreimage,
+};
 use proc_macro2::{Literal, TokenStream};
+use quote::quote;
 use std::str::FromStr;
+use xdrs::serialize_txs;
 
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
@@ -16,14 +18,16 @@ pub fn contract_entrypoint_id(
 
     let method_name = method_ident.to_string();
     let iface_name = interface_name.unwrap_or(&method_name);
-    let method_index: u16 = method_index.try_into().expect("requested method index doesn't fit into u16");
+    let method_index: u16 = method_index
+        .try_into()
+        .expect("requested method index doesn't fit into u16");
 
     // println!("METHOD if:<{}> v:<{}> ix:<{}>", iface_name, version_str, method_index);
 
     let preimage = ContractInterfaceIDPreimage {
-            name: iface_name.as_bytes().try_into().unwrap(),
-            vers: version_str.as_bytes().try_into().unwrap(),
-        };
+        name: iface_name.as_bytes().try_into().unwrap(),
+        vers: version_str.as_bytes().try_into().unwrap(),
+    };
 
     let mut hasher = sha2::Sha256::new();
     let preimage_bytes = serialize_txs::encode(&preimage).unwrap();

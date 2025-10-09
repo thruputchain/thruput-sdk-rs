@@ -1,10 +1,10 @@
 use crate::bindings::*;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use std::rc::Rc;
-use groundhog_xdr::transaction::SignedTransaction;
-use xdrs::serialize_txs;
 use groundhog_xdr::event::TxEventLog;
+use groundhog_xdr::transaction::SignedTransaction;
+use std::rc::Rc;
+use xdrs::serialize_txs;
 
 // Can run one, and only one, transaction,
 // and then get the results
@@ -52,16 +52,18 @@ impl TransactionHandler {
     }
 
     pub fn get_event_logs(&self) -> Option<TxEventLog> {
-        let buffer_len : u32 = unsafe { get_event_log_len(self.handler) };
+        let buffer_len: u32 = unsafe { get_event_log_len(self.handler) };
         if buffer_len == 0 {
             return None;
         }
 
         let mut buffer = vec![0u8; buffer_len as usize];
 
-        unsafe { get_event_log(self.handler, buffer.as_mut_ptr(), buffer_len) };
+        unsafe {
+            get_event_log(self.handler, buffer.as_mut_ptr(), buffer_len)
+        };
 
-        let decoded : TxEventLog = serialize_txs::decode(&buffer).unwrap();
+        let decoded: TxEventLog = serialize_txs::decode(&buffer).unwrap();
 
         Some(decoded)
     }

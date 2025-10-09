@@ -52,9 +52,7 @@ impl Config {
 fn ident_or(maybe_name: &Option<String>, default: &str) -> syn::Ident {
     let span = Span::call_site();
     match maybe_name {
-        Some(name_string) => {
-            syn::Ident::new(name_string.as_ref(), span)
-        }
+        Some(name_string) => syn::Ident::new(name_string.as_ref(), span),
         None => syn::Ident::new(default, span),
     }
 }

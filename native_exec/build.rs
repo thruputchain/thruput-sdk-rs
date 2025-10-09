@@ -20,7 +20,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:warning=TARGET is '{}'", target);
 
     if target == "wasm32-unknown-unknown" {
-        return Err("native_exec does not build for wasm32-unknown-unknown".into());
+        return Err(
+            "native_exec does not build for wasm32-unknown-unknown".into()
+        );
     }
 
     let native_exec_bindings =

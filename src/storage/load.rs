@@ -21,14 +21,14 @@ pub trait LoadKeypath: Sized {
 
 pub fn load_keypath<T>(keypath: &Keypath) -> Result<T>
 where
-    T: LoadKeypath
+    T: LoadKeypath,
 {
     LoadKeypath::load_keypath(keypath)
 }
 
 pub fn load_readable<T>(keypath: &Keypath) -> Result<T>
 where
-    T: ReadXDRPath
+    T: ReadXDRPath,
 {
     use crate::bytestring::bytestring_get;
     use xdrs::serialize_cxs::buf_reader::BufReader;
@@ -40,8 +40,7 @@ where
     let path = keypath.clone();
     let mut kpr = KeypathReader { xdr_reader, path };
 
-    ReadXDRPath::read_xdr_path(&mut kpr)
-        .map_err(|_| Error::Serialization)
+    ReadXDRPath::read_xdr_path(&mut kpr).map_err(|_| Error::Serialization)
 }
 
 impl_load_via_read! { bool, i16, u16, i32, u32, i64, u64, }

@@ -2,11 +2,11 @@
 //!
 //! Used by `#[contract]` macro.
 
-use crate::sysresult::SysResult as Result;
-use crate::sys;
-use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::contract_panic;
-use crate::internal::{WriteXDR, encode_xdr, EncodeBuf, get_encode_buf};
+use crate::internal::{encode_xdr, get_encode_buf, EncodeBuf, WriteXDR};
+use crate::sys;
+use crate::sysresult::SysResult as Result;
+use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use core::mem::MaybeUninit;
 
 pub fn contract_return(buf: &[u8]) -> ! {
@@ -25,7 +25,8 @@ pub fn contract_revert() -> ! {
 
 pub fn contract_abort(err: &impl WriteXDR) -> ! {
     let return_buf = encode_xdr(err).unwrap_or_else(|_| {
-        contract_panic!("abort: failed uncoding return value")});
+        contract_panic!("abort: failed uncoding return value")
+    });
     let revert = true;
 
     sys::raw_Return(return_buf.as_ref(), revert);
@@ -75,12 +76,20 @@ mod get_calldata {
 
         // Fetch the calldata from the VM
         let mut written: RuntimeMemoryLength = 0;
-        sys::uninit_GetCalldata(calldata_buf.spare_capacity_mut(), &mut written)?;
+        sys::uninit_GetCalldata(
+            calldata_buf.spare_capacity_mut(),
+            &mut written,
+        )?;
 
-        assert_eq!(written, len, "GetCalldata wrote fewer bytes than reported by GetCalldataLen");
+        assert_eq!(
+            written, len,
+            "GetCalldata wrote fewer bytes than reported by GetCalldataLen"
+        );
 
         // SAFETY: At least this many bytes of the buffer are now initialized
-        unsafe { calldata_buf.set_len(written as usize); }
+        unsafe {
+            calldata_buf.set_len(written as usize);
+        }
 
         Ok(calldata_buf)
     }
@@ -98,10 +107,15 @@ mod get_calldata {
 
         // Fetch the calldata from the VM, hoping our buffer is large enough
         let mut written: RuntimeMemoryLength = 0;
-        sys::uninit_GetCalldata(calldata_buf.spare_capacity_mut(), &mut written)?;
+        sys::uninit_GetCalldata(
+            calldata_buf.spare_capacity_mut(),
+            &mut written,
+        )?;
 
         // SAFETY: At least this many bytes of the buffer are now initialized
-        unsafe { calldata_buf.set_len(written as usize); }
+        unsafe {
+            calldata_buf.set_len(written as usize);
+        }
 
         // TODO: Panic if the calldata got truncated.  (Augment the syscall interface to find out,
         // or perhaps do get_calldata_len() if the buffer has been completely filled?)
@@ -114,11 +128,12 @@ pub use get_calldata::*;
 
 pub fn return_result<RET>(result: &RET) -> !
 where
-    RET: WriteXDR
+    RET: WriteXDR,
 {
     // Encode the return value (into a possibly-shared buffer).
-    let result_encoded = encode_xdr(result).unwrap_or_else(|_|
-        contract_panic!("failed encoding contract-call result"));
+    let result_encoded = encode_xdr(result).unwrap_or_else(|_| {
+        contract_panic!("failed encoding contract-call result")
+    });
 
     // Return the contract-call result to the VM
     contract_return(result_encoded.as_ref());

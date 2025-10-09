@@ -11,12 +11,12 @@ mod config;
 pub use config::Config;
 
 mod contract;
-pub use contract::{ContractSrc, ConfiguredContract};
+pub use contract::{ConfiguredContract, ContractSrc};
 
 pub mod entrypoint;
 pub use entrypoint::*;
 
 pub mod client;
-pub mod spec;
 pub mod exports;
+pub mod spec;
 pub mod test_reg;

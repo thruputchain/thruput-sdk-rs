@@ -22,6 +22,10 @@ trap cleanup EXIT;
 
 set -o errexit
 
+# TODO: test dynamic_bufs
+# TODO: test invocation under wasm
+# TODO: test aborts
+
 make test
 make doc
 
@@ -31,14 +35,10 @@ make examples test
 make integration_test_contracts build
 make integration_test_contracts test
 
-# TODO: test dynamic_bufs
-# TODO: test invocation under wasm
-# TODO: test aborts
-
 make test-spec
 
-make fmt-clean
+make fmt-check
 
-make xxx-clean
+make xxx-check
 
 echo ">> CI-CLEAN!"

@@ -158,25 +158,31 @@ pub fn total_supply() -> Result<Amount> {
 // TODO: Something better
 #[cfg(feature = "mock")]
 pub mod test {
-    use std::rc::Rc;
     use super::*;
+    use std::rc::Rc;
 
-    pub fn register(env: &Rc<::sdk::TestEnvironment>) -> ::sdk::types::Contract {
+    pub fn register(
+        env: &Rc<::sdk::TestEnvironment>,
+    ) -> ::sdk::types::Contract {
         let mut contract = env.add_contract();
 
         contract.register_method(INITIALIZE_EXPORT_NUM, initialize_internal);
         contract.register_method(TRANSFER_EXPORT_NUM, transfer_internal);
-        contract.register_method(TRANSFER_FROM_EXPORT_NUM, transfer_from_internal);
+        contract
+            .register_method(TRANSFER_FROM_EXPORT_NUM, transfer_from_internal);
         contract.register_method(
             ADJUST_ALLOWANCE_EXPORT_NUM,
             adjust_allowance_internal,
         );
-        contract
-            .register_method(GET_BALANCE_OF_EXPORT_NUM, get_balance_of_internal);
+        contract.register_method(
+            GET_BALANCE_OF_EXPORT_NUM,
+            get_balance_of_internal,
+        );
         contract.register_method(GET_BALANCE_EXPORT_NUM, get_balance_internal);
         contract.register_method(MINT_EXPORT_NUM, mint_internal);
         contract.register_method(BURN_EXPORT_NUM, burn_internal);
-        contract.register_method(TOTAL_SUPPLY_EXPORT_NUM, total_supply_internal);
+        contract
+            .register_method(TOTAL_SUPPLY_EXPORT_NUM, total_supply_internal);
 
         contract.as_contract()
     }

@@ -3,11 +3,11 @@
 //! - trait impls
 //! - bare impls
 
-use quote::format_ident;
-use proc_macro2::Span;
-use syn::spanned::Spanned;
-use crate::util::cmp_method_ref_by_name;
 use crate::config::Config;
+use crate::util::cmp_method_ref_by_name;
+use proc_macro2::Span;
+use quote::format_ident;
+use syn::spanned::Spanned;
 
 pub trait ContractSrc {
     fn span(&self) -> Span;
@@ -91,8 +91,10 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn interface_name(&self) -> Option<String> {
-        let ident = self.trait_.as_ref().map(|(_, path, _)|
-                        path_last_segment_ident(path));
+        let ident = self
+            .trait_
+            .as_ref()
+            .map(|(_, path, _)| path_last_segment_ident(path));
         ident.map(|i| i.to_string())
     }
 
@@ -146,7 +148,7 @@ impl<'a, T> core::ops::Deref for ConfiguredContract<'a, T> {
 
 impl<'a, T> ContractSrc for ConfiguredContract<'a, T>
 where
-    T: ContractSrc
+    T: ContractSrc,
 {
     fn span(&self) -> Span {
         self.contract.span()
@@ -157,8 +159,9 @@ where
     }
 
     fn interface_name(&self) -> Option<String> {
-        self.config.interface_name().or_else(||
-            self.contract.interface_name())
+        self.config
+            .interface_name()
+            .or_else(|| self.contract.interface_name())
     }
 
     fn interface_vers(&self) -> Option<String> {
@@ -167,13 +170,13 @@ where
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
-        self.config.client_ident().or_else(||
-            self.contract.client_ident())
+        self.config
+            .client_ident()
+            .or_else(|| self.contract.client_ident())
     }
 
     fn err_type(&self) -> Option<&syn::Ident> {
-        self.config.err_type().or_else(||
-            self.contract.err_type())
+        self.config.err_type().or_else(|| self.contract.err_type())
     }
 
     fn self_ty(&self) -> Option<&syn::Type> {

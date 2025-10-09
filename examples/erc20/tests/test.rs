@@ -25,13 +25,15 @@ fn test_erc20() {
 
 fn test_inner(client: &mut ERC20Client) {
     let owner = get_current_address().unwrap();
-    client.initialize(&owner).unwrap_or_else(|e|
-        panic!("Contract-call failed: {e}"));
+    client
+        .initialize(&owner)
+        .unwrap_or_else(|e| panic!("Contract-call failed: {e}"));
 
     assert_eq!(client.total_supply().unwrap(), 0);
 
-    let bal = client.get_balance().unwrap_or_else(|e|
-        panic!("get_balance failed: {e}"));
+    let bal = client
+        .get_balance()
+        .unwrap_or_else(|e| panic!("get_balance failed: {e}"));
 
     assert_eq!(bal, 0);
 

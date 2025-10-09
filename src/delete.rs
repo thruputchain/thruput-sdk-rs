@@ -1,9 +1,9 @@
 //! System function: Delete
 
-use crate::sysresult::SysResult as Result;
-use crate::sys;
-use crate::types::StorageKeyContractData;
 use crate::storage_delta_flags::*;
+use crate::sys;
+use crate::sysresult::SysResult as Result;
+use crate::types::StorageKeyContractData;
 
 /// Delete anything stored at the given key
 ///

@@ -1,6 +1,6 @@
-use groundhog_erc20_if::ERC20Error as ERC20Error;
-use groundhog_erc20_if::ERC20Client;
 use caller::{CallerClient, CallerError};
+use groundhog_erc20_if::ERC20Client;
+use groundhog_erc20_if::ERC20Error;
 use sdk::*;
 use thiserror::Error;
 
@@ -14,8 +14,8 @@ fn caller_test() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        caller_test_inner(&erc20_hash, &contract_hash).unwrap_or_else(|e|
-            panic!("test failed: {e}"))
+        caller_test_inner(&erc20_hash, &contract_hash)
+            .unwrap_or_else(|e| panic!("test failed: {e}"))
     });
 
     let res = handler.root_invoke();
@@ -42,7 +42,7 @@ enum TestError {
 
 fn caller_test_inner(
     erc20_hash: &SHA256Hash,
-    contract_hash: &SHA256Hash
+    contract_hash: &SHA256Hash,
 ) -> Result<(), TestError> {
     let erc20_nonce = SHA256Hash::from([6; 32]);
     let erc20_addr = deploy_contract(&erc20_nonce, erc20_hash)?;

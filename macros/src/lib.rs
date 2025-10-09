@@ -51,5 +51,6 @@ pub fn storage(
     quote::quote! {
         #[derive(WriteXDR, Storage)]
         #item
-    }.into()
+    }
+    .into()
 }
