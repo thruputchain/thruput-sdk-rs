@@ -59,10 +59,10 @@ make() {
 #        check)
 #            cargo check --features=mock "$@"
 #            ;;
-        todo)
+        todo | TODO)
             rg -i --ignore-file .local_src_ignore TODO
             ;;
-        xxx)
+        xxx | XXX)
             rg -i \
                 --ignore-file .local_src_ignore \
                 --ignore-file .xxx_ignore \

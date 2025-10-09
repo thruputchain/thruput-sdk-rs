@@ -22,7 +22,6 @@ impl<const SIZE: usize> MUBuf<SIZE> {
     }
 
     /// Get a mutable reference to the maybe-uninitialized buffer
-    /// TODO: change to `capacity_mut()`, and make a trait for this interface?
     pub fn spare_capacity_mut(&mut self) -> &mut [MU<u8>] {
         &mut self.buf[..]
     }

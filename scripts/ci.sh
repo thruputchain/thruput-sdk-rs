@@ -31,6 +31,8 @@ make examples test
 make integration_test_contracts build
 make integration_test_contracts test
 
+# TODO: test dynamic_bufs
+
 make test-spec
 
 make fmt-clean

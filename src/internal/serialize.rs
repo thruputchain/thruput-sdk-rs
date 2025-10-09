@@ -1,4 +1,10 @@
 //! Serialization
+//!
+//! This provides `decode_xdr` directly from `xdrs`.
+//!
+//! If feature `dynamic_bufs` (and thus `alloc`) is enabled, `encode_xdr` is
+//! provided directly from `xdrs`; otherwise a single, static buffer is used
+//! for all encoding (by `contract_return` and `contract_abort`).
 
 pub use xdrs::{
     WriteXDR,
@@ -12,12 +18,12 @@ pub use xdrs::{
 
 pub use xdrs::serialize_txs::decode as decode_xdr;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "dynamic_bufs")]
 mod implementation {
     pub use xdrs::serialize_txs::encode as encode_xdr;
 }
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "dynamic_bufs"))]
 mod implementation {
     use super::*;
     use crate::static_mu_buf;

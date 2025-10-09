@@ -172,8 +172,6 @@ pub fn return_result<RET>(result: &RET) -> !
 where
     RET: WriteXDR
 {
-    // TODO: hoist the buf out of encode_xdr() and omit the mutex
-
     let result_encoded = encode_xdr(result).unwrap_or_else(|_|
         contract_panic!("failed encoding contract-call result"));
 
