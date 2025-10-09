@@ -186,11 +186,18 @@ impl Drop for TestEnvironmentInner {
 
 impl TestEnvironment {
     pub fn new() -> Rc<Self> {
-        Rc::new(Self {
+        let te = Rc::new(Self {
             inner: RefCell::new(TestEnvironmentInner::new()),
-        })
+        });
+
+        if std::env::var("SDK_TEST_ENABLE_SYSCALL_LOGGING").is_ok() {
+            Self::enable_syscall_logging();
+        }
+
+        te
     }
 
+    // This has effect only after creation of a test environment
     pub fn enable_syscall_logging() {
         TestEnvironmentInner::enable_syscall_logging();
     }

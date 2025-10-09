@@ -39,13 +39,6 @@ compile_error!("SDK feature \"dynamic_bufs\" requires liballoc, provided by
 
 pub(crate) mod internal;
 
-#[cfg(feature = "mock")]
-pub mod syscall_bindings;
-
-#[cfg(feature = "mock")]
-// This is used only by contract_test
-pub mod handle;
-
 // Syscall wrappers
 pub mod contract_op;
 pub mod bytestring;
@@ -99,11 +92,20 @@ pub use alloc::{vec, vec::Vec, string::*, format};
 #[cfg(feature = "spec")]
 pub mod spec;
 
-#[cfg(feature = "mock")]
-pub use groundhog_xdr::ffi_enums::*;
+// Test environment
 
 #[cfg(feature = "mock")]
-pub use native_exec::{
-    mock_contract::MockContract,
-    test_environment::TestEnvironment,
+pub mod syscall_bindings;
+
+#[cfg(feature = "mock")]
+// This is used only by contract_test
+pub mod handle;
+
+#[cfg(feature = "mock")]
+pub use {
+    groundhog_xdr::ffi_enums::*,
+    native_exec::{
+        mock_contract::MockContract,
+        test_environment::TestEnvironment,
+    },
 };
