@@ -69,15 +69,17 @@ make() {
                 XXX
             ;;
         xxx-clean)
-            rg -q -i \
+            printf "\n"
+            rg -i \
                 --ignore-file .local_src_ignore \
                 --ignore-file .xxx_ignore \
                 XXX
             if [ $? -eq 1 ]; then
-                # No errors and no matches found
+                # No matches found and no errors
                 return 0;
             else
-                # ripgrep error, or matches found
+                # Matches found, or error
+                printf "\nXXX found"
                 return 1;
             fi
             ;;

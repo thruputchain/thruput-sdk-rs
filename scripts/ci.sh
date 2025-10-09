@@ -8,24 +8,34 @@ source "${SDK_SCRIPT_DIR}/env.sh"
 # shellcheck source="scripts/lib_make.sh"
 source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
-set -e # exit on error
-
 echo "using CC: $CC"
 echo "using CXX: $CXX"
 
-RUSTFLAGS="-D warnings"
+export RUSTFLAGS="-D warnings"
 
-make test
-make doc
+ci_checks() {
+    local - # save/restore shell options
+    set -e # exit on error
 
-make examples build
-make examples test
+    make test
+    make doc
 
-make integration_test_contracts build
-make integration_test_contracts test
+    make examples build
+    make examples test
 
-make test-spec
+    make integration_test_contracts build
+    make integration_test_contracts test
 
-make xxx-clean
+    make test-spec
 
-echo "CI-CLEAN!"
+    make xxx-clean
+}
+
+if ci_checks
+then
+    echo ">> CI-CLEAN!"
+    exit 0
+else
+    echo "!! FAILED CI CHECKS"
+    exit 1
+fi
