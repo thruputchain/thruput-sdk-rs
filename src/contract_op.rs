@@ -123,8 +123,8 @@ mod get_calldata {
 
 #[cfg(feature = "mock")]
 mod get_calldata {
-    // This strategy allows contract-invocation to be re-entrant, as is
-    // often the case in the mock-testing environment.
+    // This strategy allows contract-invocation to be re-entrant, as is often the case in the
+    // mock-testing environment.  It dynamically-allocates everything.
 
     use super::*;
     use alloc::vec::Vec;

@@ -32,6 +32,8 @@ make integration_test_contracts build
 make integration_test_contracts test
 
 # TODO: test dynamic_bufs
+# TODO: test invocation under wasm
+# TODO: test aborts
 
 make test-spec
 

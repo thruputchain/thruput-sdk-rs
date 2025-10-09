@@ -218,6 +218,9 @@ pub fn generate_method(
             // Call the free function or contract-type method
             let result = #function_or_method(#arg_names);
 
+            // Drop the calldata buffer so it can be used for return
+            drop(calldata);
+
             // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
             // and call contract_abort in the error case
             #unwrap_abort
