@@ -11,20 +11,24 @@ use core::error::Error;
 pub use crate::invoke_error::*;
 
 #[cfg(not(feature = "dynamic_bufs"))]
-// Use statically-allocated bufs
+// Use one statically-allocated buf for encodings of invocation args and return vals
 mod bufs {
     use crate::static_mu_buf;
 
-    const CD_MAX: usize = 500;
-    pub const CALL_DATA_MAX: Option<usize> = Some(CD_MAX);
-
-    const RB_MAX: usize = 500;
-    pub const RETURN_DATA_MAX: Option<usize> = Some(RB_MAX);
+    const INVOKE_MAX: usize = 500;
 
     static_mu_buf! {
-        pub fn get_calldata_buffer<CD_MAX>(size_hint: Option<usize>) -> CallData;
-        pub fn get_return_buffer<RB_MAX>(size_hint: Option<usize>) -> ReturnData;
+        pub fn get_invoke_buffer<INVOKE_MAX>(size_hint: Option<usize>) -> InvokeData;
     }
+
+    pub const CALL_DATA_MAX: Option<usize> = Some(INVOKE_MAX);
+    pub const RETURN_DATA_MAX: Option<usize> = Some(INVOKE_MAX);
+
+    pub type CallData = InvokeData;
+    pub type ReturnData = InvokeData;
+
+    pub use get_invoke_buffer as get_calldata_buffer;
+    pub use get_invoke_buffer as get_return_buffer;
 }
 
 #[cfg(feature = "dynamic_bufs")]
@@ -63,7 +67,7 @@ where
     let call_data = encode_into_calldata(args)?;
 
     // Invoke the method
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_ref()).map_err(|e|
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data).map_err(|e|
         match e {
             RawError::Sys(syserr) => InvokeError::Syscall(syserr),
             RawError::Aborted(_) => InvokeError::Aborted,
@@ -91,7 +95,7 @@ where
     // Encode the args
     let call_data = encode_into_calldata(args)?;
 
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data.as_ref()).map_err(|inner_err| {
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data).map_err(|inner_err| {
         match inner_err {
             RawError::Aborted(return_data) => {
                 match decode(return_data.as_ref()) {
@@ -121,7 +125,7 @@ fn invoke_raw(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
-    call_data: &[u8],
+    call_data: CallData,
 ) -> core::result::Result<ReturnData, RawError> {
     // Perform the cross-contract call
 
@@ -132,10 +136,13 @@ fn invoke_raw(
         address,
         entrypoint,
         gas_limit,
-        call_data,
+        call_data.as_ref(),
         0, // TODO(geoff): invoke flags go here
         &mut return_len,
     );
+
+    // Release the buffer it can be reused for return data
+    drop(call_data);
 
     let is_ok = match result {
         Ok(()) => true,
