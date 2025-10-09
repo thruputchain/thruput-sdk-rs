@@ -90,13 +90,24 @@ make() {
             cargo clippy --no-deps -p macros "$@"
             ;;
         fmt)
-            cargo fmt --package \
-                macros \
-                groundhog_xdr \
-                protocol_macros \
-                native_exec \
-                "$(ls_contracts examples)" \
+            local example_contracts
+            readarray -t example_contracts < <(make examples ls-packages)
+
+            cargo fmt \
+                --package \
+                    gen \
+                    macros \
+                    native_exec \
+                    "${example_contracts[@]}" \
                 "$@"
+
+            # TODO: tests, standard-interfaces
+            ;;
+        fmt-clean)
+            make fmt --check --quiet || {
+                echo ">> Formatting required!"
+                return 1;
+            }
             ;;
         tree)
             # Show the dependency graph

@@ -33,6 +33,8 @@ make integration_test_contracts test
 
 make test-spec
 
+make fmt-clean
+
 make xxx-clean
 
 echo ">> CI-CLEAN!"

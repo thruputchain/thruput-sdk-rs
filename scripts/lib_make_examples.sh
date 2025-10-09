@@ -144,6 +144,22 @@ ls_contracts() {
     done
 }
 
+ls_contract_packages() {
+    local contracts_dir="$1"
+    shift
+
+    local contract
+    for contract in "$contracts_dir"/* ; do
+        [ -d "$contract" ] || continue;
+        [ ! -f "$contract"/disabled ] || continue;
+
+        local c
+        c="$(basename "$contract")"
+
+        echo "$c"
+    done
+}
+
 make_contracts() {
     local contracts_dir=${1}
     local action=${2}
@@ -230,6 +246,9 @@ make_contracts() {
             ;;
         ls)
             ls_contracts "$contracts_dir"
+            ;;
+        ls-packages)
+            ls_contract_packages "$contracts_dir"
             ;;
         ls-wasms)
             ls -l "$TARGET_DIR"/optimized/*.wasm
