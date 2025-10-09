@@ -1,7 +1,7 @@
 //! System functions: Contract deployment
 
-use crate::sysresult::SysResult as Result;
 use crate::sys;
+use crate::sysresult::SysResult as Result;
 use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;
 

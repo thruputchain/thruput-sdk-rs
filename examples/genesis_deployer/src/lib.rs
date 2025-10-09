@@ -19,7 +19,8 @@ impl GenesisDeployer {
         method: MethodID,
         calldata: Vec<u8>,
     ) {
-        let deployed_addr = sdk::deploy_contract(nonce, contract_hash).unwrap();
+        let deployed_addr =
+            sdk::deploy_contract(nonce, contract_hash).unwrap();
         let flags = 0;
 
         let mut return_len = 0;

@@ -1,7 +1,7 @@
 //! System functions: logging
 
-use crate::sysresult::SysResult as Result;
 use crate::sys;
+use crate::sysresult::SysResult as Result;
 
 pub fn log(buffer: &[u8]) -> Result<()> {
     sys::raw_ConsoleLog(buffer)
@@ -13,7 +13,7 @@ pub fn log_str<S: AsRef<str>>(msg: S) {
 }
 
 #[cfg(feature = "std")]
-#[macro_export] 
+#[macro_export]
 macro_rules! debug_log {
     ($($arg:tt)*) => {
         ::std::println!($($arg)*);

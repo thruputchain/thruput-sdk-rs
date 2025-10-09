@@ -7,15 +7,14 @@
 //! methods will return `InvokeResult<T>`, which simply
 //! provides a byte-buffer in the case of contract-abort.
 
-use thiserror::Error;
-use core::error::Error;
 use crate::SysErr;
-use xdrs::{ReadXDROwned, ReadXDR, WriteXDR};
+use core::error::Error;
+use thiserror::Error;
+use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 
 // TODO: Reconsider naming of `ClientError`, `InvokeError`
 
-#[derive(Debug, Clone, Error, PartialEq, Eq)]
-#[derive(ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, Error, PartialEq, Eq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
     #[error("contract invocation failed: {0}")]
@@ -30,8 +29,7 @@ pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
 
 pub type ClientResult<T, E> = Result<T, ClientError<E>>;
 
-#[derive(Debug, Clone, Error, PartialEq, Eq)]
-#[derive(ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, Error, PartialEq, Eq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum InvokeError {
     #[error("error encoding contract-call arguments")]

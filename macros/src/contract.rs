@@ -1,21 +1,20 @@
 use darling::ast::NestedMeta;
 use darling::FromMeta;
+use gen::util::*;
+use gen::Config;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use syn::parse::Result;
-use gen::util::*;
-use gen::Config;
 
 pub fn generate_output(
     attr_args: TokenStream,
     item_tokens: TokenStream,
     contract: syn::Item,
 ) -> Result<TokenStream2> {
-
     // Parse the attributes to a `Config`
     let config: Config = {
         let meta_list = NestedMeta::parse_meta_list(attr_args.into())
-                            .map_err(|e| darling::Error::from(e))?;
+            .map_err(|e| darling::Error::from(e))?;
         Config::from_list(&meta_list)
     }?;
 
@@ -37,7 +36,7 @@ fn generate_helpers(
         syn::Item::Trait(item) => {
             // Generate client interface
             Ok(gen::client::generate(item, config)?)
-        },
+        }
         syn::Item::Impl(item) => {
             let mut out = TokenStream2::new();
 
@@ -58,8 +57,8 @@ fn generate_helpers(
         }
         syn::Item::Fn(item) => {
             // Get a macro-attribute-configured interface index, if any
-            let index = config.interface_index()
-                .map(|i| i as usize).unwrap_or(0);
+            let index =
+                config.interface_index().map(|i| i as usize).unwrap_or(0);
 
             let iface_name = config.interface_name();
             let iface_name = iface_name.as_ref().map(|s| s.as_str());
@@ -67,8 +66,13 @@ fn generate_helpers(
             let contract: Option<&syn::ItemImpl> = None;
 
             // Generate exports
-            Ok(gen::exports::generate_method(index, iface_name, contract, &item.sig, config)?)
+            Ok(gen::exports::generate_method(
+                index, iface_name, contract, &item.sig, config,
+            )?)
         }
-        _ => Err(error(item, format!("Can't generate contract helpers for item {:?}", item)))
+        _ => Err(error(
+            item,
+            format!("Can't generate contract helpers for item {:?}", item),
+        )),
     }
 }

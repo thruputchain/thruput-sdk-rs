@@ -40,8 +40,6 @@ impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
     fn as_ref(&self) -> &[u8] {
         let filled = &self.buf[..self.len];
 
-        unsafe {
-            filled.assume_init_ref()
-        }
+        unsafe { filled.assume_init_ref() }
     }
 }

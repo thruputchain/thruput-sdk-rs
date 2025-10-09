@@ -1,11 +1,11 @@
 //! A deprecated utility
 
+use crate::contract_op::{contract_return, get_calldata};
 use crate::SysErr;
 use crate::SyscallErrorCode;
-use crate::contract_op::{contract_return, get_calldata};
 
+use xdrs::serialize_txs::{decode, encode};
 use xdrs::{ReadXDROwned, WriteXDR};
-use xdrs::serialize_txs::{encode, decode};
 
 // Run a handler function on the invocation arguments
 // available in serialized form via `GetCalldata`,
@@ -23,13 +23,18 @@ where
     let call_data: &[u8] = boxed_call_data.as_ref();
     let args: ARGS = match decode(call_data) {
         Ok(args) => args,
-        Err(_) => return SyscallErrorCode::kSyscallErrorCodeCalldataParseError.into(),
+        Err(_) => {
+            return SyscallErrorCode::kSyscallErrorCodeCalldataParseError
+                .into()
+        }
     };
 
     let result: RES = f(args);
     let result_bytes = match encode(&result) {
         Ok(r) => r,
-        Err(_) => return SyscallErrorCode::kSyscallErrorCodeReturnParseError.into(),
+        Err(_) => {
+            return SyscallErrorCode::kSyscallErrorCodeReturnParseError.into()
+        }
     };
 
     contract_return(result_bytes.as_slice());

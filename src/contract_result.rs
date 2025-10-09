@@ -1,18 +1,17 @@
 //! General-purpose result type for contracts
 
-use thiserror::Error;
-use xdrs::{ReadXDR, WriteXDR};
 use crate::sysresult::ErrorMsg;
 use crate::SysErr;
+use thiserror::Error;
+use xdrs::{ReadXDR, WriteXDR};
 
 #[cfg(feature = "storage")]
 use crate::storage::error::Error as StorageErr;
 
-use crate::contract_error::{ErrorType, ContractErrorType};
+use crate::contract_error::{ContractErrorType, ErrorType};
 
 #[cfg(feature = "spec")]
 use xdrs::xdr_repr::XDR;
-
 
 #[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[repr(i32)]
@@ -24,7 +23,7 @@ pub enum Error {
     #[error("Contract internal error: {contract_error}")]
     Contract {
         #[from]
-        contract_error: ContractError
+        contract_error: ContractError,
     } = ErrorType::kErrorTypeContract as i32,
 }
 
@@ -33,42 +32,47 @@ pub enum Error {
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum ContractError {
     #[error("Message: {msg}")]
-    Custom { msg: ErrorMsg } = ContractErrorType::kContractErrorTypeCustom as i32,
+    Custom { msg: ErrorMsg } =
+        ContractErrorType::kContractErrorTypeCustom as i32,
 
     #[error("Syscall failed: {syscall_error}")]
     Syscall {
         #[from]
-        syscall_error: SysErr
+        syscall_error: SysErr,
     } = ContractErrorType::kContractErrorTypeSyscall as i32,
 
     #[cfg(feature = "storage")]
     #[error("Storage failure: {storage_error}")]
     Storage {
         #[from]
-        storage_error: StorageErr
+        storage_error: StorageErr,
     } = ContractErrorType::kContractErrorTypeStorage as i32,
 }
 
 impl From<SysErr> for Error {
     fn from(err: SysErr) -> Self {
-        Error::Contract{contract_error: err.into()}
+        Error::Contract {
+            contract_error: err.into(),
+        }
     }
 }
 
 #[cfg(feature = "storage")]
 impl From<StorageErr> for Error {
     fn from(err: StorageErr) -> Self {
-        Error::Contract{contract_error: err.into()}
+        Error::Contract {
+            contract_error: err.into(),
+        }
     }
 }
 
 impl Error {
     pub fn is_caller_err(&self) -> bool {
-        matches!(self, Error::Caller{msg : _})
+        matches!(self, Error::Caller { msg: _ })
     }
 
     pub fn is_contract_err(&self) -> bool {
-        matches!(self, Error::Contract{contract_error : _})
+        matches!(self, Error::Contract { contract_error: _ })
     }
 }
 
@@ -76,14 +80,18 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 pub fn internal_err<T, M: AsRef<str>>(msg: M) -> Result<T> {
     let msg = ErrorMsg::new(msg.as_ref());
-    let contract_err = ContractError::Custom{msg};
-    let error = Error::Contract{contract_error: contract_err};
+    let contract_err = ContractError::Custom { msg };
+    let error = Error::Contract {
+        contract_error: contract_err,
+    };
 
     Err(error)
 }
 
 pub fn caller_error<T, M: AsRef<str>>(msg: M) -> Result<T> {
-    Err(Error::Caller{msg : ErrorMsg::new(msg.as_ref())})
+    Err(Error::Caller {
+        msg: ErrorMsg::new(msg.as_ref()),
+    })
 }
 
 pub fn caller_ensure<M: AsRef<str>>(pred: bool, msg: M) -> Result<()> {

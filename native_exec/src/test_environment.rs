@@ -3,15 +3,15 @@ use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
-use std::cell::RefCell;
-use std::rc::Rc;
+use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
-use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 use sha2::{Digest, Sha256};
+use std::cell::RefCell;
 use std::panic::UnwindSafe;
+use std::rc::Rc;
 use xdrs::serialize_txs;
 
 // TODO(geoff): I cannot figure out how to prevent rust from moving objects
@@ -119,8 +119,12 @@ impl TestEnvironmentInner {
         let contract_size = match contract {
             Contract::kNative { .. } => 0,
             Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
-            Contract::kWasmi { wasmi_contract } => wasmi_contract.wasm.len() as u32,
-            Contract::Default { contract_type } => panic!("unsupported contract type {}", contract_type),
+            Contract::kWasmi { wasmi_contract } => {
+                wasmi_contract.wasm.len() as u32
+            }
+            Contract::Default { contract_type } => {
+                panic!("unsupported contract type {}", contract_type)
+            }
         };
 
         let res = unsafe {
@@ -217,7 +221,9 @@ impl TestEnvironment {
         let mut test_contract = self.add_contract();
         let entrypoint = ContractEntrypointID::from([0; 8]);
         test_contract.register_func(entrypoint, test);
-        self.inner.borrow_mut().setup_create_contract(&test_contract.as_contract());
+        self.inner
+            .borrow_mut()
+            .setup_create_contract(&test_contract.as_contract());
 
         let invoke_addr: ContractAddress = [0xFF; 32].into();
 
@@ -249,17 +255,30 @@ impl TestEnvironment {
         TransactionHandler::new(self.clone(), &stx)
     }
 
-    pub fn setup_create_contract(self: &Rc<TestEnvironment>, contract: &Contract) -> SHA256Hash {
+    pub fn setup_create_contract(
+        self: &Rc<TestEnvironment>,
+        contract: &Contract,
+    ) -> SHA256Hash {
         self.inner.borrow_mut().setup_create_contract(contract)
     }
 
-    pub fn setup_create_deployment(self: &Rc<TestEnvironment>, addr: &ContractAddress, contract: &Contract) {
-        self.inner.borrow_mut().setup_create_deployment(addr, contract)
+    pub fn setup_create_deployment(
+        self: &Rc<TestEnvironment>,
+        addr: &ContractAddress,
+        contract: &Contract,
+    ) {
+        self.inner
+            .borrow_mut()
+            .setup_create_deployment(addr, contract)
     }
 
-    pub fn setup_grant_storage_tokens(self: &Rc<TestEnvironment>, addr: &ContractAddress, tokens: i64) {
-        self.inner.borrow_mut().setup_grant_storage_tokens(addr, tokens)
+    pub fn setup_grant_storage_tokens(
+        self: &Rc<TestEnvironment>,
+        addr: &ContractAddress,
+        tokens: i64,
+    ) {
+        self.inner
+            .borrow_mut()
+            .setup_grant_storage_tokens(addr, tokens)
     }
-    
-    
 }

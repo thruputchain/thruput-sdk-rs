@@ -14,13 +14,8 @@
 //! a maximum size.
 
 pub use xdrs::{
+    read_xdr, write_xdr, ReadResult, ReadXDR, ReadXDROwned, WriteResult,
     WriteXDR,
-    WriteResult,
-    write_xdr,
-    ReadXDR,
-    ReadResult,
-    read_xdr,
-    ReadXDROwned,
 };
 
 pub use xdrs::serialize_txs::decode as decode_xdr;
@@ -44,7 +39,6 @@ mod implementation {
     pub use xdrs::serialize_txs::encode as encode_xdr;
 }
 
-
 #[cfg(not(feature = "mock"))]
 /// XDR-encode a value into a sequentially-shared buffer.
 ///
@@ -52,11 +46,14 @@ mod implementation {
 /// result in a panic (except in the testing environment, when `feature = "mock"`).
 pub fn encode_xdr<'a, T>(x: &'a T) -> WriteResult<EncodeBuf>
 where
-    T: WriteXDR + ?Sized
+    T: WriteXDR + ?Sized,
 {
     let mut buf = get_encode_buf(None);
-    let written = xdrs::serialize_txs::encode_into(x, buf.spare_capacity_mut())?;
-    unsafe { buf.set_len(written); }
+    let written =
+        xdrs::serialize_txs::encode_into(x, buf.spare_capacity_mut())?;
+    unsafe {
+        buf.set_len(written);
+    }
 
     Ok(buf)
 }

@@ -1,6 +1,6 @@
-use xdrs::*;
 use super::Keypath;
 use delegate::delegate;
+use xdrs::*;
 
 pub trait PathHandler {
     type Path;
@@ -23,7 +23,7 @@ pub struct KeypathReader<R> {
 
 impl<'r, R> PathHandler for KeypathReader<R>
 where
-    R: Reader<'r>
+    R: Reader<'r>,
 {
     type Path = Keypath;
 
@@ -42,7 +42,7 @@ where
 
 impl<'r, R> Reader<'r> for KeypathReader<R>
 where
-    R: Reader<'r>
+    R: Reader<'r>,
 {
     delegate! {
         to self.xdr_reader {
@@ -60,14 +60,11 @@ where
     }
 }
 
-impl<'r, R> ReaderPath<'r, Keypath> for KeypathReader<R>
-where
-    R: Reader<'r> {}
+impl<'r, R> ReaderPath<'r, Keypath> for KeypathReader<R> where R: Reader<'r> {}
 
 //////////////////////////////////////////////////////////////
 
-pub trait ReadXDRPath: Sized
-{
+pub trait ReadXDRPath: Sized {
     fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
     where
         R: ReaderPath<'r, Keypath>;
@@ -75,11 +72,11 @@ pub trait ReadXDRPath: Sized
 
 impl<T> ReadXDRPath for T
 where
-    T: for<'a> ReadXDR<'a>
+    T: for<'a> ReadXDR<'a>,
 {
     fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
     where
-        R: ReaderPath<'r, Keypath>
+        R: ReaderPath<'r, Keypath>,
     {
         ReadXDR::read_xdr(r)
     }
