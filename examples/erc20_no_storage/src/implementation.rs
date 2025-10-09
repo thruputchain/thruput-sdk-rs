@@ -77,10 +77,7 @@ struct Token;
 
 #[contract(storage = "false", err_type = Error)]
 impl ERC20 for Token {
-    fn initialize(
-        &mut self,
-        contract_owner: &ContractAddress,
-    ) -> Result<()> {
+    fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
         let key = get_owner_key();
 
         // Make sure we haven't already been initialized
@@ -94,7 +91,11 @@ impl ERC20 for Token {
         Ok(())
     }
 
-    fn transfer(&mut self, to: &ContractAddress, amount: Amount) -> Result<()> {
+    fn transfer(
+        &mut self,
+        to: &ContractAddress,
+        amount: Amount,
+    ) -> Result<()> {
         let caller = get_caller()?;
         let diff = amount_to_diff(amount)?;
         add_to_balance(&caller, -diff)?;
@@ -125,7 +126,8 @@ impl ERC20 for Token {
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Result<Amount> {
-        Ok(non_negative_int_get_default_zero(&get_balance_key(addr))? as Amount)
+        Ok(non_negative_int_get_default_zero(&get_balance_key(addr))?
+            as Amount)
     }
 
     fn get_balance(&self) -> Result<Amount> {
@@ -149,6 +151,7 @@ impl ERC20 for Token {
     }
 
     fn total_supply(&self) -> Result<Amount> {
-        Ok(non_negative_int_get_default_zero(&get_total_supply_key())? as Amount)
+        Ok(non_negative_int_get_default_zero(&get_total_supply_key())?
+            as Amount)
     }
 }

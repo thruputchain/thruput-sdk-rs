@@ -5,8 +5,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::interface::*;
+use sdk::storage::{Map, NNInt};
 use sdk::*;
-use sdk::storage::{NNInt, Map};
 
 type Balance = NNInt;
 type Allowance = NNInt;
@@ -90,10 +90,7 @@ impl TokenContract {
 #[contract(exports = "guest_exports", err_type = Error)]
 impl ERC20 for TokenContract {
     // #[init]
-    fn initialize(
-        &mut self,
-        contract_owner: &ContractAddress,
-    ) -> Result<()> {
+    fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
         // contract_abort(&Error::MustBeContractOwner);
 
         self._init(contract_owner);

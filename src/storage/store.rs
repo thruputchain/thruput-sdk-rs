@@ -2,8 +2,8 @@ use super::error::{Error, Result};
 use super::keypath::*;
 use crate::bytestring::*;
 use crate::types::StorageKey;
-use xdrs::{WriteXDR};
 use xdrs::serialize_cxs;
+use xdrs::WriteXDR;
 
 pub trait Store {
     fn store(&self, key: &StorageKey) -> Result<()>;
@@ -25,8 +25,8 @@ where
             drop(prev);
         }
 
-        let buf = serialize_cxs::encode(self).map_err(|_|
-            Error::Serialization)?;
+        let buf =
+            serialize_cxs::encode(self).map_err(|_| Error::Serialization)?;
         bytestring_set(key, buf.as_slice())?;
         Ok(())
     }

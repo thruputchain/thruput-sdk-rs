@@ -1,17 +1,22 @@
 use crate::contract::ContractSrc;
+use crate::util::*;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Result;
-use crate::util::*;
 
 pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
-    let iface_name = contract.interface_name().unwrap_or_else(|| String::new());
-    let iface_vers = contract.interface_vers().unwrap_or_else(|| "0.0.0".to_string());
+    let iface_name =
+        contract.interface_name().unwrap_or_else(|| String::new());
+    let iface_vers = contract
+        .interface_vers()
+        .unwrap_or_else(|| "0.0.0".to_string());
 
-    let method_reprs: Vec<_> =
-        contract.methods_sorted()
-            .into_iter().enumerate().map(|(index, method)|
-                method_repr(index, method, contract)).collect::<Result<Vec<TokenStream>>>()?;
+    let method_reprs: Vec<_> = contract
+        .methods_sorted()
+        .into_iter()
+        .enumerate()
+        .map(|(index, method)| method_repr(index, method, contract))
+        .collect::<Result<Vec<TokenStream>>>()?;
 
     Ok(quote! {
         {
@@ -29,9 +34,16 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
     })
 }
 
-fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractSrc) -> Result<TokenStream> {
+fn method_repr(
+    _index: usize,
+    method: &syn::Signature,
+    contract: &impl ContractSrc,
+) -> Result<TokenStream> {
     let name = method.ident.to_string();
-    let args = method.inputs.iter().map(arg_repr)
+    let args = method
+        .inputs
+        .iter()
+        .map(arg_repr)
         .collect::<Result<Vec<Option<TokenStream>>>>()?
         .into_iter()
         .flatten();
@@ -56,10 +68,10 @@ fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractS
             name: #name.to_owned(),
             args: vec![ #(#args),* ],
             ret: #ret,
-            err: if #err_match == #err { 
-                    #err 
-                  } else { 
-                    panic!("Mismatch between contract err_type {:?} and method's returned Result type {:?}", #err_match, #err) 
+            err: if #err_match == #err {
+                    #err
+                  } else {
+                    panic!("Mismatch between contract err_type {:?} and method's returned Result type {:?}", #err_match, #err)
                   }
         }
     })
@@ -68,7 +80,9 @@ fn method_repr(_index: usize, method: &syn::Signature, contract: &impl ContractS
 fn err_ty(ret_ty: &syn::ReturnType) -> TokenStream {
     match ret_ty {
         syn::ReturnType::Default => quote! { None },
-        syn::ReturnType::Type(_, ty) => quote! { <#ty as GetErrorType>::get_error_type() },
+        syn::ReturnType::Type(_, ty) => {
+            quote! { <#ty as GetErrorType>::get_error_type() }
+        }
     }
 }
 
@@ -103,6 +117,6 @@ fn arg_repr(fn_arg: &syn::FnArg) -> Result<Option<TokenStream>> {
 fn pat_type_ident(pt: &syn::PatType) -> Result<&syn::Ident> {
     match pt.pat.as_ref() {
         syn::Pat::Ident(pat_ident) => Ok(&pat_ident.ident),
-        _ => Err(error(pt, "couldn't interpret method arg"))
+        _ => Err(error(pt, "couldn't interpret method arg")),
     }
 }

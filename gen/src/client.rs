@@ -1,11 +1,11 @@
 //! Generate client-stub code from an `impl ContractSrc` and a `Config`
 
-use super::contract::{ContractSrc, ConfiguredContract};
 use super::config::Config;
+use super::contract::{ConfiguredContract, ContractSrc};
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, format_ident};
+use quote::{format_ident, quote, quote_spanned};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 
@@ -15,10 +15,13 @@ pub fn generate(
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), contract);
 
-    let client_ident = contract.client_ident().ok_or_else(||
-            error(&contract.span(),
-                "contract client identifier must be given \
-                 by 'client = ClientName' attribute"))?;
+    let client_ident = contract.client_ident().ok_or_else(|| {
+        error(
+            &contract.span(),
+            "contract client identifier must be given \
+                 by 'client = ClientName' attribute",
+        )
+    })?;
 
     let define_spec_fn = if cfg!(feature = "spec") {
         generate_spec_fn(&contract, config)?
@@ -26,9 +29,12 @@ pub fn generate(
         quote! {}
     };
 
-    let method_stubs = contract.methods_sorted()
-        .into_iter().enumerate().map(|(index, method)|
-            generate_client_fn(index, method, &contract)).collect::<Result<Vec<TokenStream>>>()?;
+    let method_stubs = contract
+        .methods_sorted()
+        .into_iter()
+        .enumerate()
+        .map(|(index, method)| generate_client_fn(index, method, &contract))
+        .collect::<Result<Vec<TokenStream>>>()?;
 
     let client = quote! {
 
@@ -69,13 +75,19 @@ fn generate_spec_fn(
     contract: &impl ContractSrc,
     _config: &Config,
 ) -> Result<TokenStream> {
-    let client_ident = contract.client_ident().ok_or_else(||
-            error(&contract.span(),
-                "contract client identifier must be given \
-                 by 'client = ClientName' attribute"))?;
+    let client_ident = contract.client_ident().ok_or_else(|| {
+        error(
+            &contract.span(),
+            "contract client identifier must be given \
+                 by 'client = ClientName' attribute",
+        )
+    })?;
 
     #[allow(unused)]
-    let spec_fn = format_ident!("{}_spec", contract.interface_name().unwrap_or("contract".into()));
+    let spec_fn = format_ident!(
+        "{}_spec",
+        contract.interface_name().unwrap_or("contract".into())
+    );
     let spec = crate::spec::contract_repr(contract)?;
 
     Ok(quote! {
@@ -106,7 +118,7 @@ fn generate_client_fn(
         iface_name,
         &contract.defaulted_interface_vers(),
         &method.ident,
-        index
+        index,
     );
 
     let ident = &method.ident;
@@ -157,13 +169,15 @@ fn generate_client_fn(
     // (which must be written literally as Result<T, E> or Result<T>)
     // to ClientResult<T, E>
     let return_type = if let Some(err_type) = contract.err_type() {
-        let inner: &syn::Type = explicit_type
-            .and_then(|t| generic_type_first_arg(&*t))
-            .ok_or_else(||
-                error(&method.output,
+        let inner: &syn::Type =
+            explicit_type
+                .and_then(|t| generic_type_first_arg(&*t))
+                .ok_or_else(|| {
+                    error(&method.output,
                     "A method using #[contract(err_type = E)] (or contained \
                      in a trait or impl using that attribute) must return \
-                     type Result<_>"))?;
+                     type Result<_>")
+                })?;
         quote! { ClientResult<#inner, #err_type> }
     } else {
         quote! { InvokeResult<#return_type> }

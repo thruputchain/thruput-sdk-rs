@@ -1,12 +1,12 @@
 //! System functions: invoke, client_invoke
 
-use crate::sys;
-use crate::types::{ ContractAddress, RuntimeMemoryLength };
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
-use xdrs::{ReadXDROwned, WriteXDR, WriteError};
-use xdrs::serialize_txs::{encode_into, decode};
+use crate::sys;
+use crate::types::{ContractAddress, RuntimeMemoryLength};
 use core::error::Error;
+use xdrs::serialize_txs::{decode, encode_into};
+use xdrs::{ReadXDROwned, WriteError, WriteXDR};
 
 pub use crate::invoke_error::*;
 
@@ -67,8 +67,8 @@ where
     let call_data = encode_into_calldata(args)?;
 
     // Invoke the method
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data).map_err(|e|
-        match e {
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data)
+        .map_err(|e| match e {
             RawError::Sys(syserr) => InvokeError::Syscall(syserr),
             RawError::Aborted(_) => InvokeError::Aborted,
         })?;
@@ -95,18 +95,18 @@ where
     // Encode the args
     let call_data = encode_into_calldata(args)?;
 
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data).map_err(|inner_err| {
-        match inner_err {
+    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data)
+        .map_err(|inner_err| match inner_err {
             RawError::Aborted(return_data) => {
                 match decode(return_data.as_ref()) {
                     Ok(val) => ClientError::Aborted(val),
                     Err(_) => ClientError::AbortDecodeFailed,
                 }
-            },
-            RawError::Sys(syserr) =>
-                ClientError::Invoke(InvokeError::Syscall(syserr)),
-        }
-    })?;
+            }
+            RawError::Sys(syserr) => {
+                ClientError::Invoke(InvokeError::Syscall(syserr))
+            }
+        })?;
 
     let return_val = decode(return_data.as_ref())
         .map_err(|_| InvokeError::DecodeReturnVal)?;
@@ -156,23 +156,31 @@ fn invoke_raw(
 
     let mut return_data = get_return_buffer(Some(return_len as usize));
 
-    sys::uninit_GetReturnedBuffer(return_data.spare_capacity_mut(), &mut written)
-        .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
+    sys::uninit_GetReturnedBuffer(
+        return_data.spare_capacity_mut(),
+        &mut written,
+    )
+    .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
         match RETURN_DATA_MAX {
-            Some(max) if max < return_len as usize =>
-                contract_panic!("overflowed the return-data buffer, \
-                    which has a fixed length of {} bytes", max),
-            _ =>
-                contract_panic!("unexpected return-data length from system call: \
+            Some(max) if max < return_len as usize => contract_panic!(
+                "overflowed the return-data buffer, \
+                    which has a fixed length of {} bytes",
+                max
+            ),
+            _ => contract_panic!(
+                "unexpected return-data length from system call: \
                     written = {written}, \
-                    return_len = {return_len}"),
+                    return_len = {return_len}"
+            ),
         }
     }
 
     // SAFETY: The VM reports above that this many bytes were written
-    unsafe { return_data.set_len(written as usize); }
+    unsafe {
+        return_data.set_len(written as usize);
+    }
 
     if is_ok {
         Ok(return_data)
@@ -198,7 +206,9 @@ where
         .or_else(|_| Err(InvokeError::EncodeArgs))?;
 
     // SAFETY: The serializer has reported this many bytes written
-    unsafe { call_data.set_len(len); }
+    unsafe {
+        call_data.set_len(len);
+    }
 
     Ok(call_data)
 }

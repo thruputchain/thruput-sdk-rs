@@ -1,6 +1,6 @@
+use erc20_no_storage::interface::ERC20Error;
 use erc20_no_storage::test_setup;
 use erc20_no_storage::ERC20Client;
-use erc20_no_storage::interface::ERC20Error;
 use sdk::*;
 use thiserror::Error;
 
@@ -12,8 +12,8 @@ fn check() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        check_inner(&contract_hash).unwrap_or_else(|e|
-            panic!("test failed: {e}"))
+        check_inner(&contract_hash)
+            .unwrap_or_else(|e| panic!("test failed: {e}"))
     });
 
     let res = handler.root_invoke();
@@ -32,7 +32,9 @@ enum TestError {
     Sys(#[from] SysErr),
 }
 
-fn check_inner(contract_hash: &sdk::types::SHA256Hash) -> Result<(), TestError> {
+fn check_inner(
+    contract_hash: &sdk::types::SHA256Hash,
+) -> Result<(), TestError> {
     let nonce: SHA256Hash = [7; 32].into();
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let mut client = ERC20Client::new(&deployed_addr);

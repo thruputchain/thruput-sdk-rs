@@ -27,13 +27,14 @@ pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     })
 }
 
-fn generate_from_data(input: &syn::DeriveInput, item: &syn::Data) -> Result<TokenStream> {
+fn generate_from_data(
+    input: &syn::DeriveInput,
+    item: &syn::Data,
+) -> Result<TokenStream> {
     let mut output = TokenStream::new();
 
     output.extend(match item {
-        syn::Data::Struct(ref item) => {
-            generate_from_struct(input, item)
-        }
+        syn::Data::Struct(ref item) => generate_from_struct(input, item),
         _ => err(input, "Can only derive Storage for structs")?,
     });
 
@@ -60,7 +61,10 @@ fn impl_load_via_read(input: &syn::DeriveInput) -> Result<TokenStream> {
     })
 }
 
-fn generate_from_struct(input: &syn::DeriveInput, item: &syn::DataStruct) -> Result<TokenStream> {
+fn generate_from_struct(
+    input: &syn::DeriveInput,
+    item: &syn::DataStruct,
+) -> Result<TokenStream> {
     let ident = &input.ident;
     let generics = &input.generics;
     let fields = &item.fields;
@@ -93,12 +97,12 @@ fn impl_read_xdr_path(
         let field_name = &field.ident;
         field_names.extend(quote! { #field_name, });
 
-        field_initializers.extend(quote!{
+        field_initializers.extend(quote! {
             let #field_name = ReadXDRPath::read_xdr_path(r)?;
         });
 
         if i + 1 < n_fields {
-            field_initializers.extend(quote!{
+            field_initializers.extend(quote! {
                 r.seq_next();
             });
         }
@@ -129,7 +133,6 @@ fn impl_read_xdr_path(
     })
 }
 
-
 fn impl_default_from_keypath(
     ident: &syn::Ident,
     generics: &syn::Generics,
@@ -156,7 +159,7 @@ fn impl_default_from_keypath(
         });
 
         if (i + 1) < n_fields {
-            field_initializers.extend(quote!{
+            field_initializers.extend(quote! {
                 keypath.seq_next();
             });
         }

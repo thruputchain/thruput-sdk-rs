@@ -1,8 +1,8 @@
 //! Generate exports
 
+use super::contract::{ConfiguredContract, ContractSrc};
 use super::entrypoint::*;
 use super::util::*;
-use super::contract::{ContractSrc, ConfiguredContract};
 use super::Config;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -31,7 +31,13 @@ pub fn generate(
 
     let mut exports = TokenStream::new();
     for (index, method) in contract.methods_sorted().into_iter().enumerate() {
-        exports.extend(generate_method(index, iface_name, Some(&contract), method, config)?);
+        exports.extend(generate_method(
+            index,
+            iface_name,
+            Some(&contract),
+            method,
+            config,
+        )?);
     }
 
     Ok(quote! {
@@ -54,7 +60,6 @@ pub fn generate_method(
     method: &syn::Signature,
     config: &Config,
 ) -> Result<TokenStream> {
-
     let ident = &method.ident;
     let version = if contract.is_some() {
         contract.unwrap().defaulted_interface_vers()
@@ -62,7 +67,8 @@ pub fn generate_method(
         "0.0.0".to_string()
     };
 
-    let entrypoint = contract_entrypoint_id(iface_name, &version, ident, index);
+    let entrypoint =
+        contract_entrypoint_id(iface_name, &version, ident, index);
 
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);
@@ -78,7 +84,7 @@ pub fn generate_method(
     }];
 
     let log_guest_call = if cfg!(feature = "logging") {
-        uses.push(quote!{ use ::sdk::debug_log; });
+        uses.push(quote! { use ::sdk::debug_log; });
 
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
 
@@ -114,7 +120,12 @@ pub fn generate_method(
     };
 
     // The method takes a mutable self-parameter
-    let is_mut = is_method && method.receiver().as_ref().map(|r| r.mutability.is_some()).unwrap_or(false);
+    let is_mut = is_method
+        && method
+            .receiver()
+            .as_ref()
+            .map(|r| r.mutability.is_some())
+            .unwrap_or(false);
 
     // The method is marked "init": storage should be uninitialized before calling
     // TODO: use a method attribute to mark initialization methods
@@ -130,12 +141,18 @@ pub fn generate_method(
                 contract_panic!("#[contract(init)] method called when contract storage already exists");
             }
         }
-    } else { quote! {} };
+    } else {
+        quote! {}
+    };
 
     // Load the stored contract state (when appropriate)
     let load_state = if is_method {
         let self_ty = &contract.unwrap().self_ty();
-        let mutability = if is_mut { quote! { mut } } else { quote! {} };
+        let mutability = if is_mut {
+            quote! { mut }
+        } else {
+            quote! {}
+        };
 
         if config.storage() {
             uses.push(quote! {
@@ -175,7 +192,9 @@ pub fn generate_method(
             state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
                 contract_panic!("Failed saving contract storage"));
         }
-    } else { quote! {} };
+    } else {
+        quote! {}
+    };
 
     let has_err_type = contract.and_then(|c| c.err_type()).is_some()
         // generate_method() might be called directly, so check config too
@@ -186,13 +205,17 @@ pub fn generate_method(
             let result = result.unwrap_or_else(|e|
                 contract_abort(&e));
         }
-    } else { quote! {} };
+    } else {
+        quote! {}
+    };
 
     let arg_names = method_arg_name_list(method);
 
     let inline = if !cfg!(feature = "no_inline_methods") {
         quote! { #[inline(always)] }
-    } else { quote! {} };
+    } else {
+        quote! {}
+    };
 
     export.extend(quote! {
         #inline

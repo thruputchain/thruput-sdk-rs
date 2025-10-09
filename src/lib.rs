@@ -1,11 +1,9 @@
 #![feature(maybe_uninit_array_assume_init)]
 #![feature(maybe_uninit_slice)]
 #![feature(core_io_borrowed_buf)]
-
 // #![doc(html_logo_url = "groundhog.png")]
 #![doc = include_str!("../README-lib.md")]
 #![cfg_attr(doc, deny(warnings))]
-
 #![no_std]
 
 #[cfg(feature = "std")]
@@ -25,24 +23,23 @@ pub mod allocator;
 // pub mod allocator_panic;
 
 #[cfg(all(feature = "dynamic_bufs", not(feature = "alloc")))]
-compile_error!("SDK feature \"dynamic_bufs\" requires liballoc, provided by
-    SDK feature \"alloc\".");
+compile_error!(
+    "SDK feature \"dynamic_bufs\" requires liballoc, provided by
+    SDK feature \"alloc\"."
+);
 // We avoid silently turning on "alloc", which may not be desired
 
 pub mod internal;
 // (Public because used in contract macros)
 
 // Syscall wrappers
-pub mod contract_op;
 pub mod bytestring;
+pub mod contract_op;
 pub mod delete;
 pub mod nonnegative_int;
 pub mod retrocausal_queue;
 pub mod stats;
 
-pub mod rt;
-pub mod types;
-pub mod serialize;
 pub mod crypto;
 pub mod deploy;
 pub mod hash;
@@ -51,38 +48,42 @@ pub mod invoke_config;
 pub mod invoke_error;
 pub mod log;
 pub mod precompiles;
+pub mod rt;
+pub mod serialize;
+pub mod types;
 
-pub mod sysresult;
 pub mod contract_result;
 pub mod contract_test;
+pub mod sysresult;
 
 #[cfg(feature = "storage")]
 pub mod storage;
 
 // Direct exports
 
-pub use contract_op::*;
-pub use log::*;
-pub use invoke::*;
-pub use deploy::*;
-pub use nonnegative_int::*;
 pub use bytestring::*;
+pub use contract_op::*;
+pub use deploy::*;
+pub use invoke::*;
+pub use log::*;
+pub use nonnegative_int::*;
 pub use retrocausal_queue::*;
 
+pub use hash::*;
 pub use rt::*;
 pub use types::*;
-pub use hash::*;
 pub use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 
 pub use macros::contract;
 pub use macros::static_key;
 #[cfg(feature = "storage")]
-pub use macros::{Storage, storage};
+pub use macros::{storage, Storage};
 
 #[cfg(feature = "alloc")]
-pub use alloc::{vec, vec::Vec, string::*, format};
+pub use alloc::{format, string::*, vec, vec::Vec};
 
 #[cfg(feature = "spec")]
+#[rustfmt::skip]
 pub mod spec;
 
 // Test environment
@@ -98,7 +99,6 @@ pub mod handle;
 pub use {
     groundhog_xdr::ffi_enums::*,
     native_exec::{
-        mock_contract::MockContract,
-        test_environment::TestEnvironment,
+        mock_contract::MockContract, test_environment::TestEnvironment,
     },
 };

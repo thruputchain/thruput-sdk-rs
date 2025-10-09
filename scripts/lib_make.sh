@@ -68,7 +68,7 @@ make() {
                 --ignore-file .xxx_ignore \
                 XXX
             ;;
-        xxx-clean)
+        xxx-check)
             printf "\n"
             make xxx
             if [ $? -eq 1 ]; then
@@ -95,6 +95,7 @@ make() {
 
             cargo fmt \
                 --package \
+                    sdk \
                     gen \
                     macros \
                     native_exec \
@@ -103,7 +104,7 @@ make() {
 
             # TODO: tests, standard-interfaces
             ;;
-        fmt-clean)
+        fmt-check)
             make fmt --check --quiet || {
                 echo ">> Formatting required!"
                 return 1;
