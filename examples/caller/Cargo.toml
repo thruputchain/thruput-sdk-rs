@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdk = { workspace = true, features = ["storage", "dynamic_bufs"] }
+sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
 erc20 = { path = "../erc20" }
 thiserror = { workspace = true }
