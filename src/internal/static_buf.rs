@@ -62,3 +62,14 @@ macro_rules! static_vec {
 
     )* };
 }
+
+/* In some cases we could avoid the mutex and just do:
+ *
+    const SZ: usize = 1000;
+    static mut BUF: MaybeUninit<[u8; SZ]> = MaybeUninit::uninit();
+
+    let mu_ptr: *mut MaybeUninit<[u8; SZ]> = &raw mut BUF;
+    let ref: &mut [u8; SZ] = unsafe {
+        (*mu_ptr).assume_init_mut()
+    };
+*/
