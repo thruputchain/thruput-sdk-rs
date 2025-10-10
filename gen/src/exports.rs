@@ -27,7 +27,7 @@ pub fn generate(
     }
 
     let iface_name = contract.interface_name();
-    let iface_name = iface_name.as_ref().map(|s| s.as_str());
+    let iface_name = iface_name.as_deref();
 
     let mut exports = TokenStream::new();
     for (index, method) in contract.methods_sorted().into_iter().enumerate() {
@@ -61,8 +61,8 @@ pub fn generate_method(
     config: &Config,
 ) -> Result<TokenStream> {
     let ident = &method.ident;
-    let version = if contract.is_some() {
-        contract.unwrap().defaulted_interface_vers()
+    let version = if let Some(contract) = contract {
+        contract.defaulted_interface_vers()
     } else {
         "0.0.0".to_string()
     };

@@ -27,3 +27,6 @@ no_inline_methods = []
 # (Not recommended unless get_calldata() fails due to static buffer too small.)
 # Requires feature "alloc"; this is checked at compile time.
 dynamic_calldata = []
+
+[lints.clippy]
+collapsible_if = "allow"

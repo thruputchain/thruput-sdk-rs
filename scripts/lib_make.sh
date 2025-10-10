@@ -69,25 +69,30 @@ make() {
                 XXX
             ;;
         xxx-check)
-            printf "\n"
-            make xxx
-            if [ $? -eq 1 ]; then
-                # No matches found and no errors
-                return 0;
-            else
+            local rg
+
+            # capture exit code without triggering errexit
+            make xxx && rg=$? || rg=$?
+
+            if [ $rg -ne 1 ]; then
                 # Matches found, or error
                 printf "\n>> XXX annotations found\n"
-                return 1;
+                return 1
+            else
+                return 0
             fi
             ;;
         lint)
-            cargo clippy --no-deps --features=std "$@"
+            cargo clippy --features=std "$@"
             ;;
         lint-mock)
-            cargo_native clippy --no-deps --features=mock "$@"
+            cargo_native clippy --features=mock "$@"
             ;;
-        lint-macros)
-            cargo clippy --no-deps -p macros "$@"
+        lint-check)
+            make lint "$@" >& /dev/null || {
+                echo ">> Trapped lint!"
+                return 1;
+            }
             ;;
         fmt)
             local example_contracts
@@ -105,7 +110,7 @@ make() {
             # TODO: tests, standard-interfaces
             ;;
         fmt-check)
-            make fmt --check --quiet || {
+            make fmt "$@" --check --quiet || {
                 echo ">> Formatting required!"
                 return 1;
             }

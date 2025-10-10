@@ -65,11 +65,16 @@ mod implementation {
         let mut call_data = get_calldata_buffer(None);
 
         let len = encode_into(args, call_data.spare_capacity_mut())
-            .inspect_err(|e|
-                if matches!(e, WriteError::SpaceExhausted)
-                    && let Some(max) = CALL_DATA_MAX {
-                        contract_panic!("overflowed calldata buffer, which has fixed size {}", max);
-                    })
+            .inspect_err(|e| {
+                if matches!(e, WriteError::SpaceExhausted) {
+                    if let Some(max) = CALL_DATA_MAX {
+                        contract_panic!(
+                            "overflowed calldata buffer, which has fixed size {}",
+                            max
+                        );
+                    }
+                }
+            })
             .map_err(|_| InvokeError::EncodeArgs)?;
 
         // SAFETY: The serializer has reported this many bytes written
