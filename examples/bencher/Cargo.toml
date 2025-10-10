@@ -14,4 +14,4 @@ groundhog-erc20-if = { workspace = true }
 [features]
 default = ["mock"]
 mock = ["sdk/mock", "groundhog-erc20-if/mock"]
-guest = []
+# guest = [] # We're not intented for the wasm target

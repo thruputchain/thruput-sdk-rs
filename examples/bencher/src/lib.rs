@@ -1,4 +1,5 @@
-// Only to be compiled for native_exec
+#[cfg(target_family = "wasm")]
+compile_error!("The bencher contract is only designed to be compiled for the test environmment");
 
 use sdk::*;
 use groundhog_erc20_if::ERC20Client;
@@ -20,7 +21,9 @@ impl Bencher {
                 contract_panic!("Failed calling ERC20::initialize: {e}"));
 
             let _ = erc20.get_balance().unwrap();
+
             erc20.mint(&owner.clone().into(), 100).unwrap();
+
             assert_eq!(erc20.get_balance().unwrap(), 100);
         }
         let gas_end = stats::gas_remaining();
