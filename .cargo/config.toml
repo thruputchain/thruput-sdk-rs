@@ -1,5 +1,2 @@
-[target.wasm32-unknown-unknown]
-rustflags = [ "-C", "link-args=-zstack-size=64000" ]
-
 [target.'all(cfg(target_os = "macos"), not(target_family = "wasm"))']
 rustflags = [ "-C", "link-arg=-lSystem" ]
