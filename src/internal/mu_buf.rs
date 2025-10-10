@@ -1,3 +1,6 @@
+#![allow(clippy::len_without_is_empty)]
+#![allow(clippy::new_without_default)]
+
 //! Maybe-uninitialized buffers of static size
 use core::mem::MaybeUninit as MU;
 
@@ -10,7 +13,6 @@ pub struct MUBuf<const SIZE: usize> {
 // (Note that this is a subset of the Vec interface)
 impl<const SIZE: usize> MUBuf<SIZE> {
     /// Create an uninitialized buffer
-    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             len: 0,
@@ -18,7 +20,6 @@ impl<const SIZE: usize> MUBuf<SIZE> {
         }
     }
 
-    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
     }

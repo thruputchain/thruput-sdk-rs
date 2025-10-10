@@ -7,7 +7,7 @@ pub fn cmp_method_ref_by_name(
     a: &&syn::Signature,
     b: &&syn::Signature,
 ) -> Ordering {
-    cmp_method_by_name(*a, *b)
+    cmp_method_by_name(a, b)
 }
 
 pub fn cmp_method_by_name(a: &syn::Signature, b: &syn::Signature) -> Ordering {
@@ -82,7 +82,7 @@ pub fn generic_type_first_arg(ty: &syn::Type) -> Option<&syn::Type> {
     if let syn::Type::Path(tp) = ty {
         // let mut segments = &tp.path.segments.iter();
         let seg = tp.path.segments.iter().next().unwrap();
-        if seg.ident.to_string() == "Result" {
+        if seg.ident == "Result" {
             if let syn::PathArguments::AngleBracketed(bracket_args) =
                 &seg.arguments
             {
@@ -94,5 +94,5 @@ pub fn generic_type_first_arg(ty: &syn::Type) -> Option<&syn::Type> {
         }
     }
 
-    return None;
+    None
 }

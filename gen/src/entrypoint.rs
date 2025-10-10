@@ -35,7 +35,7 @@ pub fn contract_entrypoint_id(
     let result = hasher.finalize();
 
     let interface_id: &[u8; 6] = &result[0..6].try_into().unwrap();
-    let method_id: [u8; 2] = method_index.to_be_bytes().into();
+    let method_id: [u8; 2] = method_index.to_be_bytes();
 
     let mut entrypoint_id: [u8; 8] = [0; 8];
     entrypoint_id[0..6].copy_from_slice(interface_id);

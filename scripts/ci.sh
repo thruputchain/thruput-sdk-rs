@@ -14,15 +14,13 @@ export RUSTFLAGS="-D warnings"
 echo "using CC: $CC"
 echo "using CXX: $CXX"
 
-cleanup() {
-    echo "!! FAILED CI CHECKS"
+fail() {
+    printf "\n!! CI-FAIL\n"
+    exit 1
 }
 
-trap cleanup EXIT;
+trap fail ERR;
 
-set -o errexit
-
-# TODO: test dynamic_bufs
 # TODO: test invocation under wasm
 # TODO: test aborts
 
@@ -37,8 +35,8 @@ make integration_test_contracts test
 
 make test-spec
 
+make lint-check
 make fmt-check
-
 make xxx-check
 
-echo ">> CI-CLEAN!"
+printf "\n>> CI-CLEAN!\n"
