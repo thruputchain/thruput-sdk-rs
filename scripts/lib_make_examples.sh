@@ -8,7 +8,7 @@ cargo_guest() {
     local cmd="$1"
     shift
 
-    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" \
+    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000" \
     cargo "$cmd" \
         --features "guest" \
         --target wasm32-unknown-unknown \
