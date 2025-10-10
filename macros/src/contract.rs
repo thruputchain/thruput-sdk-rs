@@ -14,7 +14,7 @@ pub fn generate_output(
     // Parse the attributes to a `Config`
     let config: Config = {
         let meta_list = NestedMeta::parse_meta_list(attr_args.into())
-            .map_err(|e| darling::Error::from(e))?;
+            .map_err(darling::Error::from)?;
         Config::from_list(&meta_list)
     }?;
 
@@ -61,7 +61,7 @@ fn generate_helpers(
                 config.interface_index().map(|i| i as usize).unwrap_or(0);
 
             let iface_name = config.interface_name();
-            let iface_name = iface_name.as_ref().map(|s| s.as_str());
+            let iface_name = iface_name.as_deref();
 
             let contract: Option<&syn::ItemImpl> = None;
 

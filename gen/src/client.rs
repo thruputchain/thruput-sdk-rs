@@ -112,7 +112,7 @@ fn generate_client_fn(
     contract: &impl ContractSrc,
 ) -> Result<TokenStream> {
     let iface_name = contract.interface_name();
-    let iface_name = iface_name.as_ref().map(|s| s.as_str());
+    let iface_name = iface_name.as_deref();
 
     let entrypoint = contract_entrypoint_id(
         iface_name,
@@ -171,7 +171,7 @@ fn generate_client_fn(
     let return_type = if let Some(err_type) = contract.err_type() {
         let inner: &syn::Type =
             explicit_type
-                .and_then(|t| generic_type_first_arg(&*t))
+                .and_then(|t| generic_type_first_arg(t))
                 .ok_or_else(|| {
                     error(&method.output,
                     "A method using #[contract(err_type = E)] (or contained \

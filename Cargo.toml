@@ -108,3 +108,6 @@ required-features = ["std"]
 [[test]]
 name = "storage"
 required-features = ["storage"]
+
+[lints.clippy]
+collapsible_if = "allow"

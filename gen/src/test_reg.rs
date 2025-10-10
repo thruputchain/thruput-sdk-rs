@@ -15,7 +15,7 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), item);
 
     let iface_name = contract.interface_name();
-    let iface_name = iface_name.as_ref().map(|s| s.as_str());
+    let iface_name = iface_name.as_deref();
 
     for (index, method) in contract.methods_sorted().into_iter().enumerate() {
         registrations.extend(generate_method(index, iface_name, method)?);
