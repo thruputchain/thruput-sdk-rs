@@ -8,9 +8,6 @@ source "${SDK_SCRIPT_DIR}/env.sh"
 # shellcheck source="scripts/lib_make.sh"
 source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
-# error on warning
-export RUSTFLAGS="-D warnings"
-
 echo "using CC: $CC"
 echo "using CXX: $CXX"
 

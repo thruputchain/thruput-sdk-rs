@@ -4,6 +4,9 @@ HOGD_SRC="$(realpath "${HOGD_SRC}")"
 CC=gcc
 CXX=g++
 
+# error on warnings (affects all cargo warnings: rustc, clippy, etc.)
+export RUSTFLAGS="-D warnings"
+
 # Other useful settings:
 #
 ## run cargo without --locked
@@ -12,7 +15,7 @@ CXX=g++
 ## enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=1
 
-# Include any local settings
+# Augment/override with any local settings
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 if [ -f "${SCRIPT_DIR}/conf.sh" ]; then
     source "${SCRIPT_DIR}/conf.sh"
