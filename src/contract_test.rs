@@ -44,25 +44,28 @@ macro_rules! contract_test {
 }
 
 mod contract_test_wasm {
-    use alloc::boxed::Box;
     use crate::SHA256Hash;
+    use alloc::boxed::Box;
     use core::error::Error;
 
     pub trait ContractTest {
-        fn run(&self, contract_hash: &SHA256Hash) -> Result<(), Box<dyn Error>>;
+        fn run(
+            &self,
+            contract_hash: &SHA256Hash,
+        ) -> Result<(), Box<dyn Error>>;
     }
 }
 
 pub use contract_test_wasm::*;
 
 pub fn test_wasm<P, T>(path: P, test: T)
-    where
-        P: AsRef<std::path::Path>,
-        T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
+where
+    P: AsRef<std::path::Path>,
+    T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
 {
-    use crate::*;
     use crate::contract::ContractBlob;
     use crate::TestEnvironment;
+    use crate::*;
 
     let env = TestEnvironment::new();
     TestEnvironment::enable_syscall_logging();
@@ -78,15 +81,18 @@ pub fn test_wasm<P, T>(path: P, test: T)
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        test.run(&contract_hash).unwrap_or_else(|e|
-            panic!("contract test failed: {}", e));
+        test.run(&contract_hash)
+            .unwrap_or_else(|e| panic!("contract test failed: {}", e));
     });
 
     let res = handler.root_invoke();
 
     match res.result.panic.try_into() {
-        Ok(InvokeErrorCode::kInvokeNone) => { /* success */ },
+        Ok(InvokeErrorCode::kInvokeNone) => { /* success */ }
         Ok(invoke_err) => panic!("test-invoke failed ({:?})", invoke_err),
-        Err(_) => panic!("test-invoke failed with unknown error ({})", res.result.panic),
+        Err(_) => panic!(
+            "test-invoke failed with unknown error ({})",
+            res.result.panic
+        ),
     }
 }

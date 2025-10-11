@@ -1,6 +1,6 @@
-use sdk::*;
-use sdk::contract_test::*;
 use core::error::Error;
+use sdk::contract_test::*;
+use sdk::*;
 
 use erc20_no_storage::ERC20Client;
 
