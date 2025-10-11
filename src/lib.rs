@@ -54,7 +54,6 @@ pub mod serialize;
 pub mod types;
 
 pub mod contract_result;
-pub mod contract_test;
 pub mod sysresult;
 
 #[cfg(feature = "storage")]
@@ -95,6 +94,9 @@ pub mod syscall_bindings;
 #[cfg(feature = "mock")]
 // This is used only by contract_test
 pub mod handle;
+
+#[cfg(feature = "mock")]
+pub mod contract_test;
 
 #[cfg(feature = "mock")]
 pub use {
