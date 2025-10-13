@@ -58,7 +58,12 @@ mod contract_test_wasm {
 
 pub use contract_test_wasm::*;
 
-pub fn test_wasm<P, T>(path: P, test: T)
+#[derive(Copy, Clone, Debug)]
+pub struct Stats {
+   pub gas_consumed: u64,
+}
+
+pub fn test_wasm<P, T>(path: P, test: T) -> Stats
 where
     P: AsRef<std::path::Path>,
     T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
@@ -67,22 +72,24 @@ where
     use crate::TestEnvironment;
     use crate::*;
 
-    let env = TestEnvironment::new();
-    TestEnvironment::enable_syscall_logging();
-
-    // Load the wasm and setup the contract
+    // Load the wasm
     let wasm = std::fs::read(path.as_ref())
         .map(BytesM)
-        .unwrap_or_else(|e| panic!("couldn't load wasm to test: {}", e));
+        .unwrap_or_else(|e| panic!("{}: couldn't load wasm to test: {}",
+                path.as_ref().to_str().unwrap_or("?"), e));
     let contract: ContractBlob = ContractBlob { wasm };
     let contract = Contract::kWasmi {
         wasmi_contract: contract,
     };
+
+    // Set up the contract
+    let env = TestEnvironment::new();
+    TestEnvironment::enable_syscall_logging();
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        test.run(&contract_hash)
-            .unwrap_or_else(|e| panic!("contract test failed: {}", e));
+        let _ = test.run(&contract_hash).unwrap_or_else(|e|
+            panic!("run method failed: {}", e));
     });
 
     let res = handler.root_invoke();
@@ -95,4 +102,31 @@ where
             res.result.panic
         ),
     }
+
+    let gas_consumed = res.gas_consumed;
+
+    // std::println!("gas consumed: {}", gas_consumed);
+
+    Stats { gas_consumed }
+}
+
+#[allow(unused)]
+fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
+    let gas_start = crate::stats::gas_remaining();
+    let result = f();
+    let gas_end = crate::stats::gas_remaining();
+
+    if gas_end > gas_start {
+        panic!("consumed negative {} gas", gas_end - gas_start);
+    }
+
+    let gas_consumed = gas_start.checked_sub(gas_end).unwrap_or_else(||
+            panic!("consumed negative {} gas", gas_end - gas_start));
+
+    std::println!("Gas start ({}) - end ({}) = consumed ({})",
+        gas_start, gas_end, gas_consumed);
+
+    let stats = Stats { gas_consumed };
+
+    (stats, result)
 }
