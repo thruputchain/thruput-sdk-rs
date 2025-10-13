@@ -120,6 +120,23 @@ test_contract() {
     }
 }
 
+metric_contract() {
+    local package
+    package="$(basename "$1")"
+    shift
+
+    local metric="${1:?}"
+    shift
+
+    cargo_native run \
+        --package "$package" \
+        --features "mock,client" \
+        --profile "test" \
+        "$@" \
+        --example $metric \
+        -- "$@"
+}
+
 test_contracts() {
     local contracts_dir="$1"
     shift
@@ -183,6 +200,11 @@ make_contracts() {
             else
                 test_contracts "$contracts_dir" "$@"
             fi
+            ;;
+        metric)
+            local contract="$contracts_dir/$1" ; shift
+
+            metric_contract "$contract" "$@"
             ;;
         expand)
             local contract="$contracts_dir/$1" ; shift

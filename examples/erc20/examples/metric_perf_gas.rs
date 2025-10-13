@@ -2,14 +2,16 @@ use core::error::Error;
 use sdk::contract_test::*;
 use sdk::*;
 
-use erc20_no_storage::ERC20Client;
+use erc20::ERC20Client;
 
-// working directory for tests is the (test) package root
-const WASM_PATH: &str = "../../target/optimized/erc20_no_storage.wasm";
+// assume working directory is sdk root
+const WASM_PATH: &str = "target/optimized/erc20.wasm";
 
-#[test]
-fn run() {
-    test_wasm(WASM_PATH, Test::default());
+pub fn main() {
+    let stats = test_wasm(WASM_PATH, Test::default());
+    // println!("stats: {:?}", stats);
+
+    println!("{}", stats.gas_consumed);
 }
 
 #[derive(Copy, Clone, Default)]

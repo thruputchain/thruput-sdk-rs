@@ -45,12 +45,25 @@ else
   echo "metrics_history/ already exists and is a git repository."
 fi
 
-# Put metrics to run here
+produce_metric() {
+    local metric="${1:?}"
+    shift
 
-# Codesize metrics
-## sdk_codesizes
-./metrics_history/scripts/make_metric_file.sh sdk_codesizes $branch $commit $commit_time
-./scripts/metrics/codesize.sh target/optimized/ >metrics_history/metrics/sdk_codesizes/$branch/${commit_time}_$commit
+    local metric_file="metrics_history/metrics/$metric/$branch/${commit_time}_$commit"
+    local metric_script="./scripts/metrics/$metric.sh"
+
+    # create metric file (and parent dirs as necessary)
+    ./metrics_history/scripts/make_metric_file.sh $metric $branch $commit $commit_time
+
+    # produce metric output
+    "$metric_script" "$@" > "$metric_file"
+}
+
+# METRIC: sdk_codesizes
+produce_metric sdk_codesizes "target/optimized"
+
+# METRIC: sdk_perf_gas
+produce_metric sdk_perf_gas
 
 # Push metrics_history/ to groundhogchain/metrics_history.git
 cd metrics_history/

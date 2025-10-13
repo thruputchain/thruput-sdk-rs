@@ -3,9 +3,7 @@ HOGD_SRC="hogd"
 HOGD_SRC="$(realpath "${HOGD_SRC}")"
 CC=gcc
 CXX=g++
-
-# error on warnings (affects all cargo warnings: rustc, clippy, etc.)
-export RUSTFLAGS="-D warnings"
+DENY_WARNINGS=1
 
 # Other useful settings:
 #
@@ -14,9 +12,17 @@ export RUSTFLAGS="-D warnings"
 #
 ## enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=1
+#
+## don't turn cargo/rust warnings into errors
+# unset DENY_WARNINGS
 
 # Augment/override with any local settings
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 if [ -f "${SCRIPT_DIR}/conf.sh" ]; then
     source "${SCRIPT_DIR}/conf.sh"
+fi
+
+if [ -n "$DENY_WARNINGS" ]; then
+    # error on warnings (affects all cargo warnings: rustc, clippy, etc.)
+    export RUSTFLAGS="-D warnings"
 fi
