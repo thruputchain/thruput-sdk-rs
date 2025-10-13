@@ -21,8 +21,3 @@ logging = ["sdk/logging"]
 
 [dev-dependencies]
 erc20_no_storage = { path = ".", features = ["mock", "client"] }
-
-[[bin]]
-name = "perf_test"
-path = "bin/perf_test.rs"
-required-features = ["mock", "client"]
