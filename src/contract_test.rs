@@ -60,7 +60,7 @@ pub use contract_test_wasm::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Stats {
-   pub gas_consumed: u64,
+    pub gas_consumed: u64,
 }
 
 pub fn test_wasm<P, T>(path: P, test: T) -> Stats
@@ -75,8 +75,13 @@ where
     // Load the wasm
     let wasm = std::fs::read(path.as_ref())
         .map(BytesM)
-        .unwrap_or_else(|e| panic!("{}: couldn't load wasm to test: {}",
-                path.as_ref().to_str().unwrap_or("?"), e));
+        .unwrap_or_else(|e| {
+            panic!(
+                "{}: couldn't load wasm to test: {}",
+                path.as_ref().to_str().unwrap_or("?"),
+                e
+            )
+        });
     let contract: ContractBlob = ContractBlob { wasm };
     let contract = Contract::kWasmi {
         wasmi_contract: contract,
@@ -88,8 +93,9 @@ where
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        let _ = test.run(&contract_hash).unwrap_or_else(|e|
-            panic!("run method failed: {}", e));
+        let _ = test
+            .run(&contract_hash)
+            .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
 
     let res = handler.root_invoke();
@@ -120,11 +126,16 @@ fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
         panic!("consumed negative {} gas", gas_end - gas_start);
     }
 
-    let gas_consumed = gas_start.checked_sub(gas_end).unwrap_or_else(||
-            panic!("consumed negative {} gas", gas_end - gas_start));
+    let gas_consumed = gas_start.checked_sub(gas_end).unwrap_or_else(|| {
+        panic!("consumed negative {} gas", gas_end - gas_start)
+    });
 
-    std::println!("Gas start ({}) - end ({}) = consumed ({})",
-        gas_start, gas_end, gas_consumed);
+    std::println!(
+        "Gas start ({}) - end ({}) = consumed ({})",
+        gas_start,
+        gas_end,
+        gas_consumed
+    );
 
     let stats = Stats { gas_consumed };
 
