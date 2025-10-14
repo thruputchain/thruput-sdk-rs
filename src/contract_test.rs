@@ -1,3 +1,5 @@
+use crate::{Contract, TestEnvironment, InvokeErrorCode, BytesM};
+
 #[macro_export]
 macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
@@ -68,24 +70,7 @@ where
     P: AsRef<std::path::Path>,
     T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
 {
-    use crate::contract::ContractBlob;
-    use crate::TestEnvironment;
-    use crate::*;
-
-    // Load the wasm
-    let wasm = std::fs::read(path.as_ref())
-        .map(BytesM)
-        .unwrap_or_else(|e| {
-            panic!(
-                "{}: couldn't load wasm to test: {}",
-                path.as_ref().to_str().unwrap_or("?"),
-                e
-            )
-        });
-    let contract: ContractBlob = ContractBlob { wasm };
-    let contract = Contract::kWasmi {
-        wasmi_contract: contract,
-    };
+    let contract = load_wasm_contract(path);
 
     // Set up the contract
     let env = TestEnvironment::new();
@@ -114,6 +99,29 @@ where
     // std::println!("gas consumed: {}", gas_consumed);
 
     Stats { gas_consumed }
+}
+
+pub fn load_wasm_contract<P>(path: P) -> Contract
+where
+    P: AsRef<std::path::Path>,
+{
+    use crate::contract::ContractBlob;
+
+    let wasm = std::fs::read(path.as_ref())
+        .map(BytesM)
+        .unwrap_or_else(|e| {
+            panic!(
+                "{}: couldn't load wasm: {}",
+                path.as_ref().to_str().unwrap_or("?"),
+                e
+            )
+        });
+
+    let contract: ContractBlob = ContractBlob { wasm };
+
+    Contract::kWasmi {
+        wasmi_contract: contract,
+    }
 }
 
 #[allow(unused)]
