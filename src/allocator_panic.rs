@@ -6,10 +6,10 @@ pub struct Allocator;
 
 unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
-        unreachable!()
+        contract_panic!("Called alloc on allocator_panic");
     }
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        unreachable!();
+        contract_panic!("Called dealloc on allocator_panic");
     }
 }
 

@@ -1,19 +1,20 @@
+use crate::bignum::{U112, U256};
+use crate::interfaces::iswapv2_pair::{
+    Address, Amount, Error, ISwapV2Pair, Result,
+};
+use core::cmp::min;
 /// A port of UniswapV2 from Solidity to groundhog
 ///
 /// Refer to the UniswapV2 [whitepaper] and [v2-core] repository for details.
 ///
 /// [whitepaper](https://docs.uniswap.org/whitepaper.pdf)
 /// [v2-core](https://github.com/Uniswap/v2-core)
-
 use core::ops::Mul;
-use core::cmp::min;
-use sdk::*;
-use erc20::interface::client::ERC20Client;
-use erc20::interface::ERC20;
-use erc20::interface::Result as ERC20Result;
 use erc20::implementation::TokenContract;
-use crate::interfaces::iswapv2_pair::{Error, Result, Address, Amount, ISwapV2Pair};
-use crate::bignum::{U112, U256};
+use erc20::interface::client::ERC20Client;
+use erc20::interface::Result as ERC20Result;
+use erc20::interface::ERC20;
+use sdk::*;
 
 // We need to derive `Storage` because TokenContract is `Storage`
 #[storage]
@@ -97,17 +98,11 @@ impl SwapV2Pair {
             block_timestamp.wrapping_sub(self.block_timestamp_last);
 
         if time_elapsed > 0 && self.reserve0 != 0 && self.reserve1 != 0 {
-            self.price0_cumulative_last += uq112x112_div_mul(
-                self.reserve1,
-                self.reserve0,
-                time_elapsed,
-            );
+            self.price0_cumulative_last +=
+                uq112x112_div_mul(self.reserve1, self.reserve0, time_elapsed);
 
-            self.price1_cumulative_last += uq112x112_div_mul(
-                self.reserve0,
-                self.reserve1,
-                time_elapsed,
-            );
+            self.price1_cumulative_last +=
+                uq112x112_div_mul(self.reserve0, self.reserve1, time_elapsed);
         }
 
         // These will not fail, due to the checks at the top
@@ -191,7 +186,11 @@ impl ERC20 for SwapV2Pair {
         lp.mint(receiver, amount)
     }
 
-    fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> ERC20Result<()> {
+    fn burn(
+        &mut self,
+        owner: &ContractAddress,
+        amount: Amount,
+    ) -> ERC20Result<()> {
         let lp: &mut TokenContract = self.as_mut();
         lp.mint(owner, amount)
     }
@@ -209,8 +208,7 @@ impl ISwapV2Pair for SwapV2Pair {
         factory: &Address,
         token0: &Address,
         token1: &Address,
-        ) -> Result<()> {
-
+    ) -> Result<()> {
         self.factory = factory.clone();
         self.token0 = token0.clone();
         self.token1 = token1.clone();
@@ -239,8 +237,10 @@ impl ISwapV2Pair for SwapV2Pair {
         let amount1 = balance1.strict_sub(self.reserve1.into());
 
         // NOTE: added this check
-        require(amount0 > 0 && amount1 > 0,
-            Error::InsufficientLiquidityMinted)?;
+        require(
+            amount0 > 0 && amount1 > 0,
+            Error::InsufficientLiquidityMinted,
+        )?;
 
         let fee_on = self._mint_fee();
 
@@ -251,12 +251,19 @@ impl ISwapV2Pair for SwapV2Pair {
             // Permanently lock the first MINIMUM_LIQUIDITY tokens
             try_lp(self.lp.mint(&Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY))?;
 
-            amount0.strict_mul(amount1)
-                   .isqrt()
-                   .strict_sub(Self::MINIMUM_LIQUIDITY)
+            amount0
+                .strict_mul(amount1)
+                .isqrt()
+                .strict_sub(Self::MINIMUM_LIQUIDITY)
         } else {
-            min(amount0.strict_mul(total_liquidity).strict_div(self.reserve0.into()),
-                amount1.strict_mul(total_liquidity).strict_div(self.reserve1.into()))
+            min(
+                amount0
+                    .strict_mul(total_liquidity)
+                    .strict_div(self.reserve0.into()),
+                amount1
+                    .strict_mul(total_liquidity)
+                    .strict_div(self.reserve1.into()),
+            )
         };
 
         require(liquidity > 0, Error::InsufficientLiquidityMinted)?;
@@ -269,7 +276,8 @@ impl ISwapV2Pair for SwapV2Pair {
 
         if fee_on {
             // TODO: check mul?
-            self.k_last = U256::from(self.reserve0).mul(U256::from(self.reserve1));
+            self.k_last =
+                U256::from(self.reserve0).mul(U256::from(self.reserve1));
         }
 
         log(b"MINT").unwrap(); // emit Mint(msg.sender, amount0, amount1)
@@ -292,8 +300,10 @@ impl ISwapV2Pair for SwapV2Pair {
 
         let amount0 = liquidity.strict_mul(balance0) / total_liquidity;
         let amount1 = liquidity.strict_mul(balance1) / total_liquidity;
-        require(amount0 > 0 && amount1 > 0,
-            Error::InsufficientLiquidityBurned)?;
+        require(
+            amount0 > 0 && amount1 > 0,
+            Error::InsufficientLiquidityBurned,
+        )?;
         try_lp(self.lp.burn(this_contract(), liquidity))?;
         self._transfer(0, &to, amount0)?;
         self._transfer(1, &to, amount1)?;
@@ -301,7 +311,8 @@ impl ISwapV2Pair for SwapV2Pair {
 
         self._update(balance0, balance1)?;
         if fee_on {
-            self.k_last = U256::from(self.reserve0).mul(U256::from(self.reserve1));
+            self.k_last =
+                U256::from(self.reserve0).mul(U256::from(self.reserve1));
         }
         log(b"BURN").unwrap(); // emit Burn(msg.sender, amount0, amount1, to);
 
@@ -356,13 +367,17 @@ impl ISwapV2Pair for SwapV2Pair {
             Error::InsufficientInputAmount,
         )?;
 
-        let balance0_adj = balance0.strict_mul(1000).strict_sub(amount0_in * 3);
-        let balance1_adj = balance1.strict_mul(1000).strict_sub(amount1_in * 3);
-        let balance_prod = U256::from(balance0_adj).mul(U256::from(balance1_adj));
+        let balance0_adj =
+            balance0.strict_mul(1000).strict_sub(amount0_in * 3);
+        let balance1_adj =
+            balance1.strict_mul(1000).strict_sub(amount1_in * 3);
+        let balance_prod =
+            U256::from(balance0_adj).mul(U256::from(balance1_adj));
 
         let reserve0_adj = u128::from(self.reserve0) * 1000;
         let reserve1_adj = u128::from(self.reserve1) * 1000;
-        let reserve_prod = U256::from(reserve0_adj).mul(U256::from(reserve1_adj));
+        let reserve_prod =
+            U256::from(reserve0_adj).mul(U256::from(reserve1_adj));
 
         require(balance_prod >= reserve_prod, Error::InvalidSwapProduct)?;
 

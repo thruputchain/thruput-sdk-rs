@@ -36,19 +36,26 @@ pub use test_rt::trap;
 
 #[macro_export]
 macro_rules! contract_panic {
-    ( $($expr:expr),* ) => {
+    ($fmt:expr $(, $expr:tt),* ) => {
         {
             // TODO: confirm that this distinction is no longer necessary because we are using
             // `panic_immediate_abort`
 
             #[cfg(feature = "mock")]
-            panic!($($expr),*);
+            panic!($fmt $(, $expr)*);
 
-            #[cfg(not(feature = "mock"))]
+            #[cfg(all(not(feature = "mock"), not(feature = "logging")))]
             {
                 // "use" any variables in the panic args
                 let _ = ($($expr),*);
+                let _ = $fmt;
 
+                $crate::rt::trap();
+            }
+
+            #[cfg(all(not(feature = "mock"), feature = "logging"))]
+            {
+                $crate::log(alloc::format!($fmt $(, $expr)*).as_bytes()).unwrap();
                 $crate::rt::trap();
             }
         }

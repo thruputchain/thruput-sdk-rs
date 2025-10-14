@@ -3,17 +3,14 @@
 mod error;
 pub use error::*;
 
-use sdk::{ContractAddress, contract};
+use sdk::{contract, ContractAddress};
 
 pub type Amount = u128;
 pub type Difference = i128;
 
 #[contract(client = ERC20Client, err_type = ERC20Error)]
 pub trait ERC20 {
-    fn initialize(
-        &mut self,
-        contract_owner: &ContractAddress,
-    ) -> Result<()>;
+    fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()>;
 
     /// Transfer from caller to `receiver` address
     fn transfer(

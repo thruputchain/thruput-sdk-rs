@@ -230,19 +230,21 @@ pub fn generate_method(
 
             #load_state
 
-            // Fetch the calldata from the VM
-            let calldata = get_calldata().unwrap_or_else(|e|
-                contract_panic!("get_calldata() failed: {}", e));
+            let result = {
 
-            // Decode the args
-            let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
-                contract_panic!("failed decoding contract-call arguments: {}", e));
+                // Fetch the calldata from the VM
+                let calldata = get_calldata().unwrap_or_else(|e|
+                    contract_panic!("get_calldata() failed: {}", e));
 
-            // Call the free function or contract-type method
-            let result = #function_or_method(#arg_names);
+                // Decode the args
+                let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
+                    contract_panic!("failed decoding contract-call arguments: {}", e));
 
-            // Drop the calldata buffer so it can be used for return
-            drop(calldata);
+                // Call the free function or contract-type method
+                let result = #function_or_method(#arg_names);
+
+                result
+            };
 
             // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
             // and call contract_abort in the error case

@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 client = []
 guest = []
 mock = ["guest", "sdk/mock"]
+logging = ["sdk/logging"]
 
 [dev-dependencies]
 rcq_test = { path = ".", features = ["mock", "client"] }

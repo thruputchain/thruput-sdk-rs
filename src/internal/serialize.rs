@@ -54,7 +54,6 @@ where
     unsafe {
         buf.set_len(written);
     }
-
     Ok(buf)
 }
 

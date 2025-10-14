@@ -1,7 +1,7 @@
 use core::fmt;
-use serde::{Serialize, Deserialize};
-use thiserror::Error;
 use sdk::contract;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 pub use crate::bignum::{U112, U256};
 
@@ -20,7 +20,7 @@ pub enum Error {
     InvalidSwapProduct,
     Overflow,
     TransferFailed,
-    PairTokenFail,  // temporary
+    PairTokenFail, // temporary
     LPTokenFailure(erc20::interface::Error),
 }
 
@@ -54,7 +54,7 @@ pub trait ISwapV2Pair {
         factory: &Address,
         token0: &Address,
         token1: &Address,
-        ) -> Result<()>;
+    ) -> Result<()>;
 
     fn get_reserves(&self) -> Result<(U112, U112, u32)>;
     // TODO: macro-generate getters for public members?
@@ -66,7 +66,12 @@ pub trait ISwapV2Pair {
     fn mint_lp(&mut self, to: &Address) -> Result<u128>;
     fn burn_lp(&mut self, to: &Address) -> Result<(Amount, Amount)>;
 
-    fn swap(&mut self, amount0_out: Amount, amount1_out: Amount, to: &Address) -> Result<()>;
+    fn swap(
+        &mut self,
+        amount0_out: Amount,
+        amount1_out: Amount,
+        to: &Address,
+    ) -> Result<()>;
     fn skim(&mut self, to: &Address) -> Result<()>;
     fn sync(&mut self) -> Result<()>;
 }
