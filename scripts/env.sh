@@ -22,6 +22,12 @@ if [ -f "${SCRIPT_DIR}/conf.sh" ]; then
     source "${SCRIPT_DIR}/conf.sh"
 fi
 
+# Export variables to be queried by subprocesses
+
+if [ -n "$SDK_TEST_ENABLE_SYSCALL_LOGGING" ]; then
+    export SDK_TEST_ENABLE_SYSCALL_LOGGING="${SDK_TEST_ENABLE_SYSCALL_LOGGING:?}"
+fi
+
 if [ -n "$DENY_WARNINGS" ]; then
     # error on warnings (affects all cargo warnings: rustc, clippy, etc.)
     export RUSTFLAGS="-D warnings"
