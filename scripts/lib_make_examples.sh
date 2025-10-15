@@ -4,13 +4,12 @@
 
 set -u
 
-cargo_guest() {
+cargo_wasm() {
     local cmd="$1"
     shift
 
     RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000" \
     cargo "$cmd" \
-        --features "guest" \
         --target wasm32-unknown-unknown \
         -Zbuild-std=alloc,core \
         -Zbuild-std-features="std/optimize_for_size" \
@@ -22,9 +21,23 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
-    cargo_guest build \
+    cargo_wasm build \
+        --features "guest" \
         --release \
         --package "$package" \
+        "$@"
+}
+
+build_bottle_test() {
+    local package
+    package="$(basename "$1")"
+    shift
+
+    cargo_wasm build \
+        --features "bottle-test" \
+        --release \
+        --package "$package" \
+        -Zunstable-options --artifact-dir="target/bottle-test/" \
         "$@"
 }
 
@@ -58,6 +71,18 @@ build_contract() {
         echo ">> ${contract}: Failed compressing wasm"
         return 1
     fi
+}
+
+bottle_test_contract() {
+    local contract="$1"
+    shift
+
+    build_contract "$contract" || return 1;
+
+    build_bottle_test "$contract" || return 1;
+
+    // XXX: replace test with a bin
+    make test --test "bottle_tests"
 }
 
 build_contracts() {
@@ -200,6 +225,11 @@ make_contracts() {
             else
                 test_contracts "$contracts_dir" "$@"
             fi
+            ;;
+        bottle-test)
+            local contract="$contracts_dir/$1" ; shift
+
+            bottle_test_contract "$contract" "$@"
             ;;
         metric)
             local contract="$contracts_dir/$1" ; shift

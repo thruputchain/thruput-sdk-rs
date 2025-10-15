@@ -7,7 +7,7 @@ members = [
     "native_exec",
     "examples/*",
     "integration_test_contracts/*",
-    "standard-interfaces/*",
+    "standard-interfaces/*"
     ]
 exclude = ["integration_test_contracts/xdr"]
 
@@ -40,6 +40,7 @@ delegate = { workspace = true, optional = true }
 
 [dev-dependencies]
 hex-literal = "1.0.0"
+bottle-test-if = { workspace = true }
 
 [workspace.dependencies]
 sdk = { path = "." }
@@ -53,6 +54,7 @@ sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
 
 # Standard interface crates
+bottle-test-if = { path = "standard-interfaces/bottle-test" }
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
