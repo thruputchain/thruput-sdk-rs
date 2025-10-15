@@ -1,8 +1,8 @@
 //! A deprecated utility
 
-use crate::contract_op::{contract_return, get_calldata};
 use crate::SysErr;
 use crate::SyscallErrorCode;
+use crate::contract_op::{contract_return, get_calldata};
 
 use xdrs::serialize_txs::{decode, encode};
 use xdrs::{ReadXDROwned, WriteXDR};
@@ -25,7 +25,7 @@ where
         Ok(args) => args,
         Err(_) => {
             return SyscallErrorCode::kSyscallErrorCodeCalldataParseError
-                .into()
+                .into();
         }
     };
 
@@ -33,7 +33,7 @@ where
     let result_bytes = match encode(&result) {
         Ok(r) => r,
         Err(_) => {
-            return SyscallErrorCode::kSyscallErrorCodeReturnParseError.into()
+            return SyscallErrorCode::kSyscallErrorCodeReturnParseError.into();
         }
     };
 

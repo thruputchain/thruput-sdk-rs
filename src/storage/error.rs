@@ -1,12 +1,12 @@
-use crate::contract_error::*;
 use crate::SysErr;
+use crate::contract_error::*;
 use crate::{ReadXDR, WriteXDR};
 use thiserror::Error;
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 #[cfg(feature = "spec")]
-use xdrs::{xdr_repr::XDR, XDR};
+use xdrs::{XDR, xdr_repr::XDR};
 
 #[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(XDR))]

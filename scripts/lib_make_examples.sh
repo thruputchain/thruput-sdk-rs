@@ -4,13 +4,12 @@
 
 set -u
 
-cargo_guest() {
+cargo_wasm() {
     local cmd="$1"
     shift
 
     RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000" \
     cargo "$cmd" \
-        --features "guest" \
         --target wasm32-unknown-unknown \
         -Zbuild-std=alloc,core \
         -Zbuild-std-features="std/optimize_for_size" \
@@ -22,7 +21,8 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
-    cargo_guest build \
+    cargo_wasm build \
+        --features "guest" \
         --release \
         --package "$package" \
         "$@"
@@ -58,6 +58,54 @@ build_contract() {
         echo ">> ${contract}: Failed compressing wasm"
         return 1
     fi
+}
+
+build_bottle_test() {
+    local package
+    package="$(basename "$1")"
+    shift
+
+    cargo_wasm build \
+        --features "bottle-test" \
+        --release \
+        --package "$package" \
+        -Zunstable-options --artifact-dir="target/bottle-test/" \
+        "$@"
+}
+
+bottle_test_contract() {
+    local contract="$1"; shift
+
+    if [ -z "${BOTTLE_TEST_USE_BUILT_TARGET:-}" ]; then
+        build_contract "$contract" || return 1;
+    else
+        echo "(Using already-built target contract for bottle-test.)"
+    fi
+
+    build_bottle_test "$contract" "$@" || return 1;
+
+    local package
+    package="$(basename "$contract")"
+
+    cargo run -p bottle-test "$package"
+}
+
+has_bottle_test() {
+    local contract="$1"; shift
+    local cargo_toml="$contract/Cargo.toml"
+
+    grep "bottle-test" "$cargo_toml" >/dev/null
+}
+
+bottle_test_contracts() {
+    local contracts_dir="$1"; shift
+
+    for contract in $(ls_contracts "$contracts_dir") ; do
+        if has_bottle_test "$contract"; then
+            bottle_test_contract "$contract" "$@" ||
+                return 1
+        fi
+    done
 }
 
 build_contracts() {
@@ -104,6 +152,16 @@ expand_test_contract() {
 }
 
 test_contract() {
+    local contract="$1"; shift
+
+    if [ -n "${PREFER_BOTTLE_TEST:-}" ] && has_bottle_test "$contract"; then
+        bottle_test_contract "$contract" "$@"
+    else
+        native_test_contract "$contract" "$@"
+    fi
+}
+
+native_test_contract() {
     local package
     package="$(basename "$1")"
     shift
@@ -133,7 +191,7 @@ metric_contract() {
         --features "mock,client" \
         --profile "test" \
         "$@" \
-        --example $metric \
+        --example "$metric" \
         -- "$@"
 }
 
@@ -201,6 +259,15 @@ make_contracts() {
                 test_contracts "$contracts_dir" "$@"
             fi
             ;;
+        bottle-test)
+            if [[ -n "${1:-}" && "$1" != "-"* ]]; then
+                local contract="$contracts_dir/$1" ; shift
+
+                bottle_test_contract "$contract" "$@"
+            else
+                bottle_test_contracts "$contracts_dir" "$@"
+            fi
+            ;;
         metric)
             local contract="$contracts_dir/$1" ; shift
 
@@ -220,6 +287,18 @@ make_contracts() {
             local contract="$contracts_dir/$1" ; shift
 
             tree_contract "$contract" "$@"
+            ;;
+        entrypoints)
+            local contract="$1" ; shift
+            local wasm="${TARGET_DIR}/optimized/${contract}.wasm"
+
+            wasm-objdump -x -j Function "$wasm" | rustfilt
+            ;;
+        bottle-test-entrypoints)
+            local contract="$1" ; shift
+            local wasm="${TARGET_DIR}/bottle-test/${contract}.wasm"
+
+            wasm-objdump -x -j Function "$wasm" | rustfilt
             ;;
         llvm-lines)
             local contract="$1" ; shift

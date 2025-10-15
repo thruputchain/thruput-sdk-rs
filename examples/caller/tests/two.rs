@@ -3,8 +3,8 @@
 use caller::{CallerClient, CallerError};
 use groundhog_erc20_if::ERC20Client;
 use groundhog_erc20_if::ERC20Error;
-use sdk::*;
 use sdk::contract_test::load_wasm_contract;
+use sdk::*;
 use thiserror::Error;
 
 // test working directory is example contract directory

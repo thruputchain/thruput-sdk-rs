@@ -3,14 +3,14 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::parse::Error;
 
-pub fn cmp_method_ref_by_name(
+pub fn cmp_sig_ref_by_name(
     a: &&syn::Signature,
     b: &&syn::Signature,
 ) -> Ordering {
-    cmp_method_by_name(a, b)
+    cmp_sig_by_name(a, b)
 }
 
-pub fn cmp_method_by_name(a: &syn::Signature, b: &syn::Signature) -> Ordering {
+pub fn cmp_sig_by_name(a: &syn::Signature, b: &syn::Signature) -> Ordering {
     cmp_ident(&a.ident, &b.ident)
 }
 

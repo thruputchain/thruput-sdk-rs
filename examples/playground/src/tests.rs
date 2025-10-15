@@ -1,4 +1,4 @@
-use crate::implementation::{test_setup, Error, MyClient};
+use crate::implementation::{Error, MyClient, test_setup};
 use sdk::*;
 use thiserror::Error;
 
