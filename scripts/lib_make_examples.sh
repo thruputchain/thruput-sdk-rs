@@ -81,8 +81,10 @@ bottle_test_contract() {
 
     build_bottle_test "$contract" || return 1;
 
-    // XXX: replace test with a bin
-    make test --test "bottle_tests"
+    local package
+    package="$(basename "$contract")"
+
+    cargo run -p bottle-test "$package"
 }
 
 build_contracts() {

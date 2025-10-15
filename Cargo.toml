@@ -7,7 +7,8 @@ members = [
     "native_exec",
     "examples/*",
     "integration_test_contracts/*",
-    "standard-interfaces/*"
+    "standard-interfaces/*",
+    "bottle-test",
     ]
 exclude = ["integration_test_contracts/xdr"]
 

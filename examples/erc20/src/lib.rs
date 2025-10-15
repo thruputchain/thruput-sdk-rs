@@ -19,3 +19,9 @@ pub use implementation::guest_exports::*;
 
 #[cfg(feature = "mock")]
 pub use implementation::test_setup;
+
+#[cfg(feature = "bottle-test")]
+mod bottle_test;
+
+#[cfg(feature = "bottle-test")]
+pub use bottle_test::*;
