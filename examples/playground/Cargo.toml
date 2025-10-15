@@ -17,6 +17,7 @@ doctest = false
 client = []
 guest = []
 mock = ["guest", "sdk/mock"]
+logging = ["sdk/logging"]
 
 [dev-dependencies]
 playground = { path = ".", features = ["mock", "client"] }

@@ -1,4 +1,4 @@
-use sdk::{ReadXDR, WriteXDR, SysErr};
+use sdk::{ReadXDR, SysErr, WriteXDR};
 use thiserror::Error;
 
 pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
@@ -6,8 +6,7 @@ pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
 #[cfg(feature = "spec")]
 use xdrs::XDR;
 
-#[derive(Error, Debug, PartialEq, Clone)]
-#[derive(ReadXDR, WriteXDR)]
+#[derive(Error, Debug, PartialEq, Clone, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[non_exhaustive]
 #[repr(i32)]

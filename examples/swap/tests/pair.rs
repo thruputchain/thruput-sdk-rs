@@ -1,11 +1,11 @@
-use erc20::interface::ERC20;
+use core::result::Result;
 use erc20::interface::client::ERC20Client;
+use erc20::interface::ERC20;
+use sdk::contract_result::Error as TokenError;
 use sdk::prelude::*;
-use swap::{ISwapV2Pair, ISwapV2PairClient};
 use swap::Error as SwapError;
 use swap::{erc20_test_setup, swap_test_setup};
-use sdk::contract_result::Error as TokenError;
-use core::result::Result;
+use swap::{ISwapV2Pair, ISwapV2PairClient};
 
 #[derive(Debug, Error)]
 enum TestError {
@@ -52,8 +52,7 @@ fn swap_test_inner(
     swap_hash: &SHA256Hash,
     token0_hash: &SHA256Hash,
     token1_hash: &SHA256Hash,
-    ) -> Result<(), TestError> {
-
+) -> Result<(), TestError> {
     let test_addr = get_current_address().unwrap();
     println!("Test address: {:x}", Hex(&test_addr));
 
@@ -79,8 +78,12 @@ fn swap_test_inner(
     // Initialize the swap-pair contract with the two tokens
     // (This also initializes the embedded ERC20 implementation.)
     let factory_addr = &test_addr;
-    ISwapV2Pair::initialize_pair(Some(&mut pair), &factory_addr, &token0_addr, &token1_addr)?;
-
+    ISwapV2Pair::initialize_pair(
+        Some(&mut pair),
+        &factory_addr,
+        &token0_addr,
+        &token1_addr,
+    )?;
 
     // Check how the initial state behaves
 
@@ -97,7 +100,10 @@ fn swap_test_inner(
     pair.skim(&somebody)?;
 
     let lp_addr = ContractAddress::from([43; 32]);
-    assert_eq!(pair.mint_lp(&lp_addr), Err(SwapError::InsufficientLiquidityMinted));
+    assert_eq!(
+        pair.mint_lp(&lp_addr),
+        Err(SwapError::InsufficientLiquidityMinted)
+    );
     assert_eq!(pair.burn_lp(&lp_addr), Err(SwapError::NoLiquidityToBurn));
 
     // Create some tokens for swapping, giving them to alice
@@ -147,8 +153,11 @@ fn swap_test_inner(
         // All liquidity has been drained, except a retained fee
         assert_eq!(pair.get_liquidity()?, 1000);
 
-        println!("Alice has ({}, {}) of (token0, token1)",
-            token0.get_balance()?, token1.get_balance()?);
+        println!(
+            "Alice has ({}, {}) of (token0, token1)",
+            token0.get_balance()?,
+            token1.get_balance()?
+        );
 
         // Alice should now have what she started with, minus
         // transaction fees
@@ -167,7 +176,11 @@ fn swap_test_inner(
 fn deploy(nonce: &SHA256Hash, contract_hash: &SHA256Hash) -> ContractAddress {
     let addr = deploy_contract(nonce, contract_hash).unwrap_or_else(|e| {
         if let Ok(errcode) = TryInto::<SyscallErrorCode>::try_into(e) {
-            panic!("deploy failed ({:?}) for {:x}", errcode, Hex(contract_hash));
+            panic!(
+                "deploy failed ({:?}) for {:x}",
+                errcode,
+                Hex(contract_hash)
+            );
         } else {
             panic!("deploy failed: {:?}", e);
         }
@@ -184,8 +197,8 @@ mod hex {
     pub struct Hex<'a, T>(pub &'a T);
 
     impl<'a, T> fmt::LowerHex for Hex<'a, T>
-        where
-            T: AsRef<[u8]>,
+    where
+        T: AsRef<[u8]>,
     {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             let slice: &[u8] = self.0.as_ref();
@@ -194,7 +207,7 @@ mod hex {
                     write!(f, "{:02x}", b)?;
                 }
                 write!(f, "...")?;
-                for b in &slice[slice.len() - 4 ..] {
+                for b in &slice[slice.len() - 4..] {
                     write!(f, "{:02x}", b)?;
                 }
             } else {

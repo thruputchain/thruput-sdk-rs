@@ -1,9 +1,20 @@
 use core::cmp::Ord;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 
-#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+)]
 #[repr(transparent)]
 pub struct U112(u128);
 
