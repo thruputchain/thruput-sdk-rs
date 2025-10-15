@@ -1,7 +1,7 @@
 //! Generate test registration
 
 use super::entrypoint::*;
-use super::{Config, ConfiguredContract, ContractSrc};
+use super::{Config, Method, ConfiguredContract, ContractSrc};
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -18,7 +18,7 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
     let iface_name = iface_name.as_deref();
 
     for (index, method) in contract.methods_sorted().into_iter().enumerate() {
-        registrations.extend(generate_method(index, iface_name, method)?);
+        registrations.extend(generate_method(index, iface_name, &method)?);
     }
 
     let mock_registrations = registrations.clone();
@@ -47,9 +47,9 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
 fn generate_method(
     index: usize,
     iface_name: Option<&str>,
-    method: &syn::Signature,
+    method: &impl Method,
 ) -> Result<TokenStream> {
-    let ident = &method.ident;
+    let ident = &method.sig().ident;
     let internal_name = format_ident!("{}_internal", ident);
     let version = "0.0.0";
     let entrypoint_id =

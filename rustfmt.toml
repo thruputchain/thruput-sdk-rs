@@ -1,3 +1,10 @@
+style_edition = "2024"
+edition = "2024"
+ignore = [
+    "/external/",
+    "/hogd/",
+    "/integration_test_contracts/",
+]
 max_width = 79
 hard_tabs = false
 tab_spaces = 4
@@ -56,8 +63,6 @@ trailing_comma = "Vertical"
 match_block_trailing_comma = false
 blank_lines_upper_bound = 1
 blank_lines_lower_bound = 0
-edition = "2021"
-style_edition = "2021"
 inline_attribute_width = 0
 format_generated_files = true
 generated_marker_line_search_limit = 5
@@ -74,8 +79,5 @@ skip_children = false
 show_parse_errors = true
 error_on_line_overflow = false
 error_on_unformatted = false
-ignore = [
-    "/external/",
-]
 emit_mode = "Files"
 make_backup = false

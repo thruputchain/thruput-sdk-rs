@@ -2,8 +2,8 @@ use super::error::{Error, Result};
 use super::keypath::*;
 use crate::bytestring::*;
 use crate::types::StorageKey;
-use xdrs::serialize_cxs;
 use xdrs::WriteXDR;
+use xdrs::serialize_cxs;
 
 pub trait Store {
     fn store(&self, key: &StorageKey) -> Result<()>;

@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "mock"), no_std)]
 #![feature(maybe_uninit_slice)]
 
-use erc20::interface::Amount;
 use erc20::ERC20Client;
+use erc20::interface::Amount;
 use sdk::*;
 
 // TODO: Replay prevention?

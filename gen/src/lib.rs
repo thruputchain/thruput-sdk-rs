@@ -11,7 +11,7 @@ mod config;
 pub use config::Config;
 
 mod contract;
-pub use contract::{ConfiguredContract, ContractSrc};
+pub use contract::{Method, ConfiguredContract, ContractSrc};
 
 pub mod entrypoint;
 pub use entrypoint::*;
@@ -19,4 +19,5 @@ pub use entrypoint::*;
 pub mod client;
 pub mod exports;
 pub mod spec;
+pub mod strip;
 pub mod test_reg;

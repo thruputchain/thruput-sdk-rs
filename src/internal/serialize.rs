@@ -14,8 +14,8 @@
 //! a maximum size.
 
 pub use xdrs::{
-    read_xdr, write_xdr, ReadError, ReadResult, ReadXDR, ReadXDROwned,
-    WriteError, WriteResult, WriteXDR,
+    ReadError, ReadResult, ReadXDR, ReadXDROwned, WriteError, WriteResult,
+    WriteXDR, read_xdr, write_xdr,
 };
 
 pub use xdrs::serialize_txs::decode as decode_xdr;

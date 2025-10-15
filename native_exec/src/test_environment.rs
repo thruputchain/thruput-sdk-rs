@@ -90,7 +90,7 @@ unsafe extern "C" fn trampoline(
         None => {
             return ForeignInvokeResult {
                 panic: InvokeErrorCode::kInvokeDeterministic as i32,
-            }
+            };
         }
     }
 }
@@ -334,8 +334,10 @@ impl Drop for TestEnvironmentInner {
     }
 }
 
+pub type TestEnvironmentHandle = Rc<TestEnvironment>;
+
 impl TestEnvironment {
-    pub fn new() -> Rc<Self> {
+    pub fn new() -> TestEnvironmentHandle {
         let te = Rc::new(Self {
             inner: RefCell::new(TestEnvironmentInner::new()),
         });
@@ -352,13 +354,17 @@ impl TestEnvironment {
         TestEnvironmentInner::enable_syscall_logging();
     }
 
-    pub fn add_contract(self: &Rc<TestEnvironment>) -> MockContract {
+    pub fn advance_block(self: &TestEnvironmentHandle) {
+        self.inner.borrow_mut().advance_block()
+    }
+
+    pub fn add_contract(self: &TestEnvironmentHandle) -> MockContract {
         let inner = self.inner.borrow_mut().add_contract();
         MockContract::new(inner, self.clone())
     }
 
     pub fn prepare_test<F>(
-        self: &Rc<TestEnvironment>,
+        self: &TestEnvironmentHandle,
         test: F,
     ) -> TransactionHandler
     where
@@ -401,14 +407,14 @@ impl TestEnvironment {
     }
 
     pub fn setup_create_contract(
-        self: &Rc<TestEnvironment>,
+        self: &TestEnvironmentHandle,
         contract: &Contract,
     ) -> SHA256Hash {
         self.inner.borrow_mut().setup_create_contract(contract)
     }
 
     pub fn setup_create_deployment(
-        self: &Rc<TestEnvironment>,
+        self: &TestEnvironmentHandle,
         addr: &ContractAddress,
         contract: &Contract,
     ) {
@@ -418,7 +424,7 @@ impl TestEnvironment {
     }
 
     pub fn setup_grant_storage_tokens(
-        self: &Rc<TestEnvironment>,
+        self: &TestEnvironmentHandle,
         addr: &ContractAddress,
         tokens: i64,
     ) {

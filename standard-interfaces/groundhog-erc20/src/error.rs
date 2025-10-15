@@ -58,11 +58,7 @@ pub fn caller_error<T>(err: ERC20Error) -> Result<T> {
 }
 
 pub fn caller_ensure(pred: bool, err: ERC20Error) -> Result<()> {
-    if pred {
-        Ok(())
-    } else {
-        Err(err)
-    }
+    if pred { Ok(()) } else { Err(err) }
 }
 
 pub fn amount_to_diff(n: u128) -> Result<i128> {

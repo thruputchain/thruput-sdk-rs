@@ -38,8 +38,8 @@ mod implementation {
     use super::*;
     use crate::contract_panic;
     use crate::static_mu_buf;
-    use xdrs::serialize_txs::encode_into;
     use xdrs::WriteError;
+    use xdrs::serialize_txs::encode_into;
 
     const INVOKE_MAX: usize = 500;
 

@@ -8,6 +8,9 @@ sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror.workspace = true
 
+# Optional testing dependencies
+erc20-bottle-test = { workspace = true, optional = true }
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
@@ -17,6 +20,8 @@ client = []
 guest = []
 mock = ["guest", "sdk/mock", "groundhog-erc20-if/mock"]
 logging = ["sdk/logging"]
+bottle-test = ["dep:erc20-bottle-test"]
 
 [dev-dependencies]
 erc20_low_level = { path = ".", features = ["mock", "client"] }
+erc20-result-test.workspace = true

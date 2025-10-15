@@ -18,7 +18,6 @@ fail() {
 
 trap fail ERR;
 
-# TODO: test invocation under wasm
 # TODO: test aborts
 
 make test

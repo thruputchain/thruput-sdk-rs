@@ -1,16 +1,18 @@
-use darling::ast::NestedMeta;
 use darling::FromMeta;
-use gen::util::*;
+use darling::ast::NestedMeta;
 use gen::Config;
+use gen::util::*;
+use gen::strip::*;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use syn::parse::Result;
+use quote::ToTokens;
 
-pub fn generate_output(
+pub fn apply(
     attr_args: TokenStream,
-    item_tokens: TokenStream,
     contract: syn::Item,
 ) -> Result<TokenStream2> {
+
     // Parse the attributes to a `Config`
     let config: Config = {
         let meta_list = NestedMeta::parse_meta_list(attr_args.into())
@@ -18,27 +20,29 @@ pub fn generate_output(
         Config::from_list(&meta_list)
     }?;
 
-    // Generate the helper code
-    let helpers = generate_helpers(&contract, &config)?;
-
-    // Output the original item, followed by the helpers
-    let mut output: TokenStream2 = item_tokens.into();
-    output.extend(helpers);
-
-    Ok(output)
+    apply_with_config(&contract, &config)
 }
 
-fn generate_helpers(
+fn apply_with_config(
     item: &syn::Item,
     config: &Config,
 ) -> Result<TokenStream2> {
+
     match item {
         syn::Item::Trait(item) => {
+
+            // Start with the item itself, stripped of proprietary attributes
+            let mut out = item.strip_our_attributes().into_token_stream();
+
             // Generate client interface
-            Ok(gen::client::generate(item, config)?)
+            out.extend(gen::client::generate(item, config)?);
+
+            Ok(out)
         }
         syn::Item::Impl(item) => {
-            let mut out = TokenStream2::new();
+
+            // Start with the item itself, stripped of proprietary attributes
+            let mut out = item.strip_our_attributes().into_token_stream();
 
             // Generate exports
             out.extend(gen::exports::generate(item, config)?);
@@ -56,6 +60,10 @@ fn generate_helpers(
             Ok(out)
         }
         syn::Item::Fn(item) => {
+
+            // Start with the item itself, stripped of proprietary attributes
+            let mut out = item.strip_our_attributes().into_token_stream();
+
             // Get a macro-attribute-configured interface index, if any
             let index =
                 config.interface_index().map(|i| i as usize).unwrap_or(0);
@@ -66,13 +74,15 @@ fn generate_helpers(
             let contract: Option<&syn::ItemImpl> = None;
 
             // Generate exports
-            Ok(gen::exports::generate_method(
-                index, iface_name, contract, &item.sig, config,
-            )?)
+            out.extend(gen::exports::generate_method(
+                index, iface_name, contract, item, config,
+            )?);
+
+            Ok(out)
         }
         _ => Err(error(
             item,
-            format!("Can't generate contract helpers for item {:?}", item),
+            format!("Can't apply attribute to item {:?}", item),
         )),
     }
 }

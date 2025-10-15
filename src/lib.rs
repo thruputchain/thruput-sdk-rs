@@ -77,7 +77,7 @@ pub use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 pub use macros::contract;
 pub use macros::static_key;
 #[cfg(feature = "storage")]
-pub use macros::{storage, Storage};
+pub use macros::{Storage, storage};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};

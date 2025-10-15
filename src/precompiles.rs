@@ -1,5 +1,5 @@
-use crate::genesis::GenesisContractAddresses;
 use crate::ContractAddress;
+use crate::genesis::GenesisContractAddresses;
 
 pub const fn get_precompile_addr(
     addr: GenesisContractAddresses,

@@ -10,6 +10,7 @@ xdrs = { workspace = true, features = ["derive"] }
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
+test = false
 
 [features]
 client = []

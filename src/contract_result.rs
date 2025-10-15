@@ -1,7 +1,7 @@
 //! General-purpose result type for contracts
 
-use crate::sysresult::ErrorMsg;
 use crate::SysErr;
+use crate::sysresult::ErrorMsg;
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
 
@@ -95,9 +95,5 @@ pub fn caller_error<T, M: AsRef<str>>(msg: M) -> Result<T> {
 }
 
 pub fn caller_ensure<M: AsRef<str>>(pred: bool, msg: M) -> Result<()> {
-    if pred {
-        Ok(())
-    } else {
-        caller_error(msg)
-    }
+    if pred { Ok(()) } else { caller_error(msg) }
 }

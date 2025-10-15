@@ -3,8 +3,8 @@ use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use std::error::Error;
 use std::fmt;
 use std::panic;
-use std::panic::panic_any;
 use std::panic::UnwindSafe;
+use std::panic::panic_any;
 
 impl PartialEq for ForeignInvokeResult {
     fn eq(&self, other: &Self) -> bool {
@@ -117,7 +117,7 @@ where
             Ok(_) => {
                 return ForeignInvokeResult {
                     panic: InvokeErrorCode::kInvokeNone as i32,
-                }
+                };
             }
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
