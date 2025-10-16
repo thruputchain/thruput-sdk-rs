@@ -9,6 +9,9 @@ sdk = { workspace = true, features = ["storage"] }
 xdrs = { workspace = true, features = ["extras", "int128_xdr"]}
 thiserror.workspace = true
 
+# Optional
+bottle-test-if = { workspace = true, optional = true }
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
@@ -18,6 +21,7 @@ client = []
 guest = []
 mock = ["guest", "sdk/mock"]
 logging = ["sdk/logging"]
+bottle-test = ["dep:bottle-test-if", "client"]
 
 [dev-dependencies]
 playground = { path = ".", features = ["mock", "client"] }

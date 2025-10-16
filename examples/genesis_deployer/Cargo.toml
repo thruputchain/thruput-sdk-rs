@@ -8,6 +8,8 @@ sdk = { workspace = true, features = ["alloc"] }
 
 [lib]
 crate-type = ["cdylib"]
+doctest = false
+test = false
 
 [features]
 client = []

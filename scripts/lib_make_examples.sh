@@ -74,12 +74,15 @@ build_bottle_test() {
 }
 
 bottle_test_contract() {
-    local contract="$1"
-    shift
+    local contract="$1"; shift
 
-    build_contract "$contract" || return 1;
+    if [ -z "${BOTTLE_TEST_USE_BUILT_TARGET:-}" ]; then
+        build_contract "$contract" || return 1;
+    else
+        echo "(Using already-built target contract for bottle-test.)"
+    fi
 
-    build_bottle_test "$contract" || return 1;
+    build_bottle_test "$contract" "$@" || return 1;
 
     local package
     package="$(basename "$contract")"
@@ -87,16 +90,22 @@ bottle_test_contract() {
     cargo run -p bottle-test "$package"
 }
 
+has_bottle_test() {
+    local contract="$1"; shift
+    local cargo_toml="$contract/Cargo.toml"
+
+    grep "bottle-test" "$cargo_toml" >/dev/null
+}
+
 bottle_test_contracts() {
     local contracts_dir="$1"; shift
 
-    # run just the ones currently available
-    if [ "$contracts_dir" = "examples" ]; then
-        for c in examples/erc20* ; do
-            bottle_test_contract "$c" ||
+    for contract in $(ls_contracts "$contracts_dir") ; do
+        if has_bottle_test "$contract"; then
+            bottle_test_contract "$contract" "$@" ||
                 return 1
-        done
-    fi
+        fi
+    done
 }
 
 build_contracts() {
@@ -143,6 +152,16 @@ expand_test_contract() {
 }
 
 test_contract() {
+    local contract="$1"; shift
+
+    if [ -n "${PREFER_BOTTLE_TEST:-}" ] && has_bottle_test "$contract"; then
+        bottle_test_contract "$contract" "$@"
+    else
+        native_test_contract "$contract" "$@"
+    fi
+}
+
+native_test_contract() {
     local package
     package="$(basename "$1")"
     shift

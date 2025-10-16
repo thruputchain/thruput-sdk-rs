@@ -3,7 +3,6 @@
 #![cfg_attr(not(feature = "mock"), no_std)]
 
 // An implementation of the contract interface
-#[cfg(feature = "guest")]
 mod implementation;
 
 // Contract methods exposed with C ABI for running as guest
@@ -12,3 +11,8 @@ pub use implementation::guest_exports::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "bottle-test")]
+mod bottle_test;
+#[cfg(feature = "bottle-test")]
+pub use bottle_test::*;

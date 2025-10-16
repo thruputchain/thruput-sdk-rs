@@ -86,6 +86,7 @@ dependencies = [
 name = "calldata_wrapper"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "calldata_wrapper",
  "sdk",
 ]
@@ -402,6 +403,7 @@ checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 name = "fibonacci"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "fibonacci",
  "sdk",
  "xdrs",
@@ -582,6 +584,7 @@ dependencies = [
 name = "itc_erc20"
 version = "0.1.1"
 dependencies = [
+ "erc20-bottle-test",
  "groundhog-erc20-if",
  "itc_erc20",
  "sdk",
@@ -721,6 +724,7 @@ dependencies = [
 name = "playground"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "playground",
  "sdk",
  "thiserror",
@@ -817,6 +821,7 @@ dependencies = [
 name = "read_only_test"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "groundhog_xdr",
  "read_only_test",
  "sdk",
@@ -968,6 +973,7 @@ dependencies = [
 name = "sha256_wrapper"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "sdk",
  "sha2",
  "sha256_wrapper",
