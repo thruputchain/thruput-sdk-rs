@@ -18,7 +18,6 @@ fail() {
 
 trap fail ERR;
 
-# TODO: test invocation under wasm
 # TODO: test aborts
 
 make test
@@ -26,6 +25,7 @@ make doc
 
 make examples build
 make examples test
+make examples bottle-test
 
 make integration_test_contracts build
 make integration_test_contracts test

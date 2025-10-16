@@ -1,6 +1,8 @@
+#![no_std]
+
+pub use bottle_test_if::*;
+use groundhog_erc20_if::ERC20Client;
 use sdk::*;
-use bottle_test_if::*;
-use crate::interface::ERC20Client;
 
 #[derive(Copy, Clone, Default)]
 pub struct BT;
@@ -10,7 +12,8 @@ impl BottleTest for BT {
     fn run(&mut self, target_contract_hash: &SHA256Hash) {
         // Deploy an ERC20 contract
         let nonce: SHA256Hash = [7; 32].into();
-        let deployed_addr = deploy_contract(&nonce, target_contract_hash).unwrap();
+        let deployed_addr =
+            deploy_contract(&nonce, target_contract_hash).unwrap();
         let mut client = ERC20Client::new(&deployed_addr);
 
         let owner = get_current_address().unwrap();

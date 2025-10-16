@@ -34,30 +34,22 @@ mod test_rt {
 #[allow(unused)]
 pub use test_rt::trap;
 
+// The `panic!()` args get compiled out under `panic_immediate_abort`
+#[cfg(any(feature = "mock", not(feature = "logging")))]
+#[macro_export]
+macro_rules! contract_panic {
+    ($fmt:expr $(, $expr:tt),* ) => {
+        panic!($fmt $(, $expr)*)
+    };
+}
+
+#[cfg(all(not(feature = "mock"), feature = "logging"))]
 #[macro_export]
 macro_rules! contract_panic {
     ($fmt:expr $(, $expr:tt),* ) => {
         {
-            // TODO: confirm that this distinction is no longer necessary because we are using
-            // `panic_immediate_abort`
-
-            #[cfg(feature = "mock")]
-            panic!($fmt $(, $expr)*);
-
-            #[cfg(all(not(feature = "mock"), not(feature = "logging")))]
-            {
-                // "use" any variables in the panic args
-                let _ = ($($expr),*);
-                let _ = $fmt;
-
-                $crate::rt::trap();
-            }
-
-            #[cfg(all(not(feature = "mock"), feature = "logging"))]
-            {
-                $crate::log(alloc::format!($fmt $(, $expr)*).as_bytes()).unwrap();
-                $crate::rt::trap();
-            }
+            $crate::log(alloc::format!($fmt $(, $expr)*).as_bytes()).unwrap();
+            $crate::rt::trap();
         }
     };
 }

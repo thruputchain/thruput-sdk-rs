@@ -8,7 +8,9 @@ sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
-bottle-test-if = { workspace = true, optional = true }
+
+# Optional testing dependencies
+erc20-bottle-test = { workspace = true, optional = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -19,7 +21,8 @@ client = []
 guest = []
 mock = ["guest", "sdk/mock", "groundhog-erc20-if/mock"]
 logging = ["sdk/logging"]
-bottle-test = ["dep:bottle-test-if"]
+bottle-test = ["dep:erc20-bottle-test"]
 
 [dev-dependencies]
 erc20 = { path = ".", features = ["mock", "client"] }
+erc20-result-test.workspace = true

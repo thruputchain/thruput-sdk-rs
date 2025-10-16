@@ -91,7 +91,7 @@ fn generate_spec_fn(
     let spec = crate::spec::contract_repr(contract)?;
 
     Ok(quote! {
-        #[cfg(feature = "spec")]
+        #[cfg(feature = "spec")] // contract-macro-user must define feature "spec"
         pub fn #spec_fn() -> ::sdk::spec::Contract {
 
             #spec

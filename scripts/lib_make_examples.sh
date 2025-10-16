@@ -28,19 +28,6 @@ build_wasm() {
         "$@"
 }
 
-build_bottle_test() {
-    local package
-    package="$(basename "$1")"
-    shift
-
-    cargo_wasm build \
-        --features "bottle-test" \
-        --release \
-        --package "$package" \
-        -Zunstable-options --artifact-dir="target/bottle-test/" \
-        "$@"
-}
-
 make_compressed_wasm() {
     local package
     package="$(basename "$1")"
@@ -73,6 +60,19 @@ build_contract() {
     fi
 }
 
+build_bottle_test() {
+    local package
+    package="$(basename "$1")"
+    shift
+
+    cargo_wasm build \
+        --features "bottle-test" \
+        --release \
+        --package "$package" \
+        -Zunstable-options --artifact-dir="target/bottle-test/" \
+        "$@"
+}
+
 bottle_test_contract() {
     local contract="$1"
     shift
@@ -85,6 +85,18 @@ bottle_test_contract() {
     package="$(basename "$contract")"
 
     cargo run -p bottle-test "$package"
+}
+
+bottle_test_contracts() {
+    local contracts_dir="$1"; shift
+
+    # run just the ones currently available
+    if [ "$contracts_dir" = "examples" ]; then
+        for c in examples/erc20* ; do
+            bottle_test_contract "$c" ||
+                return 1
+        done
+    fi
 }
 
 build_contracts() {
@@ -160,7 +172,7 @@ metric_contract() {
         --features "mock,client" \
         --profile "test" \
         "$@" \
-        --example $metric \
+        --example "$metric" \
         -- "$@"
 }
 
@@ -229,9 +241,13 @@ make_contracts() {
             fi
             ;;
         bottle-test)
-            local contract="$contracts_dir/$1" ; shift
+            if [[ -n "${1:-}" && "$1" != "-"* ]]; then
+                local contract="$contracts_dir/$1" ; shift
 
-            bottle_test_contract "$contract" "$@"
+                bottle_test_contract "$contract" "$@"
+            else
+                bottle_test_contracts "$contracts_dir" "$@"
+            fi
             ;;
         metric)
             local contract="$contracts_dir/$1" ; shift

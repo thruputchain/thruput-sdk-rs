@@ -1,0 +1,9 @@
+[package]
+name = "erc20-result-test"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+sdk = { workspace = true }
+groundhog-erc20-if = { workspace = true }
+thiserror = { workspace = true }

@@ -8,6 +8,7 @@ members = [
     "examples/*",
     "integration_test_contracts/*",
     "standard-interfaces/*",
+    "standard-tests/*",
     "bottle-test",
     ]
 exclude = ["integration_test_contracts/xdr"]
@@ -55,9 +56,13 @@ sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
 
 # Standard interface crates
-bottle-test-if = { path = "standard-interfaces/bottle-test" }
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
+
+# Standard test crates
+bottle-test-if = { path = "standard-tests/bottle-test-if" }
+erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
+erc20-result-test = { path = "standard-tests/erc20-result-test" }
 
 [features]
 default = []

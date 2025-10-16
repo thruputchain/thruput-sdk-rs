@@ -340,8 +340,9 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 name = "erc20"
 version = "0.1.2"
 dependencies = [
- "bottle-test-if",
  "erc20",
+ "erc20-bottle-test",
+ "erc20-result-test",
  "groundhog-erc20-if",
  "sdk",
  "thiserror",
@@ -349,9 +350,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc20-bottle-test"
+version = "0.1.0"
+dependencies = [
+ "bottle-test-if",
+ "groundhog-erc20-if",
+ "sdk",
+]
+
+[[package]]
+name = "erc20-result-test"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "erc20_low_level"
 version = "0.1.1"
 dependencies = [
+ "erc20-bottle-test",
+ "erc20-result-test",
  "erc20_low_level",
  "groundhog-erc20-if",
  "sdk",
@@ -362,7 +383,8 @@ dependencies = [
 name = "erc20_no_storage"
 version = "0.1.1"
 dependencies = [
- "bottle-test-if",
+ "erc20-bottle-test",
+ "erc20-result-test",
  "erc20_no_storage",
  "groundhog-erc20-if",
  "sdk",

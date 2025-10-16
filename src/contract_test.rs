@@ -1,4 +1,4 @@
-use crate::{Contract, TestEnvironment, InvokeErrorCode, BytesM};
+use crate::{BytesM, Contract, InvokeErrorCode, TestEnvironment};
 
 #[macro_export]
 macro_rules! contract_test {
