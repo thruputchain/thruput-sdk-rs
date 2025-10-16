@@ -1,6 +1,6 @@
+use sdk::Storage;
 use sdk::contract_test;
 use sdk::storage::*;
-use sdk::Storage;
 
 #[derive(Debug, xdrs::WriteXDR, Storage)]
 struct Data {

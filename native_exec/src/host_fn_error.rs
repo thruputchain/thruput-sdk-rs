@@ -1,5 +1,5 @@
-use crate::bindings::mock_syscall_entrypoint;
 use crate::bindings::ForeignHostFnResult;
+use crate::bindings::mock_syscall_entrypoint;
 use groundhog_xdr::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
 

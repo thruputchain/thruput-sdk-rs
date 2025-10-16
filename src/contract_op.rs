@@ -3,7 +3,7 @@
 //! Used by `#[contract]` macro.
 
 use crate::contract_panic;
-use crate::internal::{encode_xdr, get_encode_buf, EncodeBuf, WriteXDR};
+use crate::internal::{EncodeBuf, WriteXDR, encode_xdr, get_encode_buf};
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};

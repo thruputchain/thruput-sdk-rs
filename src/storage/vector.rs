@@ -1,7 +1,7 @@
-use super::error::{oob_err, Result};
+use super::error::{Result, oob_err};
 use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
-use super::load::{load_keypath, LoadKeypath};
+use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
 use core::fmt::Debug;
 
@@ -23,7 +23,7 @@ impl<T> From<Keypath> for Vector<T> {
 impl_default_via_keypath! { Vector<T> }
 
 const _: () = {
-    use xdrs::{write_xdr, WriteResult, WriteXDR, Writer};
+    use xdrs::{WriteResult, WriteXDR, Writer, write_xdr};
 
     impl<T> WriteXDR for Vector<T> {
         fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
@@ -34,7 +34,7 @@ const _: () = {
 
 const _: () = {
     use super::read_xdr_path::*;
-    use xdrs::{read_xdr, ReadResult};
+    use xdrs::{ReadResult, read_xdr};
 
     impl<T> ReadXDRPath for Vector<T> {
         fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>

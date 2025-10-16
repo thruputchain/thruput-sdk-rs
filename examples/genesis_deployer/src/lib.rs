@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use sdk::{sys, MethodID, SHA256Hash};
+use sdk::{MethodID, SHA256Hash, sys};
 
 pub struct GenesisDeployer;
 

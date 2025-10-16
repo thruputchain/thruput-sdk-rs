@@ -1,9 +1,9 @@
 //! Generate exports
 
+use super::Config;
 use super::contract::{ConfiguredContract, ContractSrc};
 use super::entrypoint::*;
 use super::util::*;
-use super::Config;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;

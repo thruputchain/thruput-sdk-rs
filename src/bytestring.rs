@@ -6,11 +6,11 @@
 //! a [`SysErr`](crate::SysErr) containing
 //! an error code in the case of a syscall failure.
 
+#[allow(unused_imports)] // import is for docs
+use crate::SyscallErrorCode;
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKeyContractData};
-#[allow(unused_imports)] // import is for docs
-use crate::SyscallErrorCode;
 use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
@@ -106,11 +106,11 @@ pub fn bytestring_get_sized<const N: usize>(
 
 #[cfg(feature = "alloc")]
 mod bytestring_get_alloc {
+    #[allow(unused_imports)] // import is for docs
+    use crate::SyscallErrorCode;
     use crate::sys;
     use crate::sysresult::SysResult as Result;
     use crate::types::StorageKeyContractData;
-    #[allow(unused_imports)] // import is for docs
-    use crate::SyscallErrorCode;
     use alloc::boxed::Box;
     use core::mem::MaybeUninit;
 

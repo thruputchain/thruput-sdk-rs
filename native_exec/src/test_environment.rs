@@ -81,7 +81,7 @@ unsafe extern "C" fn trampoline(
         None => {
             return ForeignInvokeResult {
                 panic: InvokeErrorCode::kInvokeDeterministic as i32,
-            }
+            };
         }
     }
 }

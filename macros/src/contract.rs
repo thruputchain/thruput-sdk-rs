@@ -1,7 +1,7 @@
-use darling::ast::NestedMeta;
 use darling::FromMeta;
-use gen::util::*;
+use darling::ast::NestedMeta;
 use gen::Config;
+use gen::util::*;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use syn::parse::Result;

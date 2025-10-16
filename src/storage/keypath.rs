@@ -2,7 +2,7 @@ use crate::crypto::sha_256;
 use crate::types::StorageKey;
 use alloc::{vec, vec::Vec};
 use core::fmt::Debug;
-use xdrs::{serialize_cxs::encode, WriteXDR};
+use xdrs::{WriteXDR, serialize_cxs::encode};
 
 #[derive(Debug, Clone)]
 pub struct Keypath {
@@ -76,13 +76,17 @@ impl Keypath {
         if let Some(KeypathComponent::Index(i)) = self.path.pop() {
             self.path.push(KeypathComponent::Index(i + 1))
         } else {
-            panic!("Keypath: seq_next() called when last path component is not an index");
+            panic!(
+                "Keypath: seq_next() called when last path component is not an index"
+            );
         }
     }
 
     pub fn seq_end(&mut self) {
         if !matches!(self.path.pop(), Some(KeypathComponent::Index(_))) {
-            panic!("Keypath: leave_seq() called when last path component is not an index");
+            panic!(
+                "Keypath: leave_seq() called when last path component is not an index"
+            );
         }
     }
 }

@@ -169,15 +169,16 @@ fn generate_client_fn(
     // (which must be written literally as Result<T, E> or Result<T>)
     // to ClientResult<T, E>
     let return_type = if let Some(err_type) = contract.err_type() {
-        let inner: &syn::Type =
-            explicit_type
-                .and_then(|t| generic_type_first_arg(t))
-                .ok_or_else(|| {
-                    error(&method.output,
+        let inner: &syn::Type = explicit_type
+            .and_then(|t| generic_type_first_arg(t))
+            .ok_or_else(|| {
+                error(
+                    &method.output,
                     "A method using #[contract(err_type = E)] (or contained \
                      in a trait or impl using that attribute) must return \
-                     type Result<_>")
-                })?;
+                     type Result<_>",
+                )
+            })?;
         quote! { ClientResult<#inner, #err_type> }
     } else {
         quote! { InvokeResult<#return_type> }

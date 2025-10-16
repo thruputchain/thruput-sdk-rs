@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::spanned::Spanned;
 use syn::Ident;
 use syn::Result;
+use syn::spanned::Spanned;
 
 /// Generate trait implementations allowing a struct
 /// containing various `storage` types (e.g. `Map`)
