@@ -5,7 +5,7 @@ set -u
 cargo() {
   local locked=""
 
-  if [ -n "${CARGO_UNLOCK:-}" ]; then
+  if [ -z "${CARGO_UNLOCK:-}" ]; then
     locked="--locked"
   fi
 
@@ -48,9 +48,7 @@ make() {
             cargo doc --features=std,storage "$@"
             ;;
         test)
-            # we need dynamic_bufs when using `contract_test`, which
-            # can have multiple concurrent contract invocations
-            cargo_native test --features=mock,storage,dynamic_bufs "$@"
+            cargo_native test --features=mock,storage "$@"
             ;;
         test-spec)
             cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
@@ -76,7 +74,7 @@ make() {
 
             if [ $rg -ne 1 ]; then
                 # Matches found, or error
-                printf "\n>> XXX annotations found\n"
+                printf "\n>> XXX annotations found!\n"
                 return 1
             else
                 return 0
@@ -90,28 +88,16 @@ make() {
             ;;
         lint-check)
             make lint "$@" >& /dev/null || {
-                echo ">> Trapped lint!"
+                printf "\n>> Trapped lint!\n"
                 return 1;
             }
             ;;
         fmt)
-            local example_contracts
-            readarray -t example_contracts < <(make examples ls-packages)
-
-            cargo fmt \
-                --package \
-                    sdk \
-                    gen \
-                    macros \
-                    native_exec \
-                    "${example_contracts[@]}" \
-                "$@"
-
-            # TODO: tests, standard-interfaces
+            cargo fmt "$@"
             ;;
         fmt-check)
-            make fmt "$@" --check --quiet || {
-                echo ">> Formatting required!"
+            make fmt --check --quiet "$@" || {
+                printf "\n>> Formatting required!\n"
                 return 1;
             }
             ;;
