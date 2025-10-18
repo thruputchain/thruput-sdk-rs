@@ -288,6 +288,18 @@ make_contracts() {
 
             tree_contract "$contract" "$@"
             ;;
+        entrypoints)
+            local contract="$1" ; shift
+            local wasm="${TARGET_DIR}/optimized/${contract}.wasm"
+
+            wasm-objdump -x -j Function "$wasm" | rustfilt
+            ;;
+        bottle-test-entrypoints)
+            local contract="$1" ; shift
+            local wasm="${TARGET_DIR}/bottle-test/${contract}.wasm"
+
+            wasm-objdump -x -j Function "$wasm" | rustfilt
+            ;;
         llvm-lines)
             local contract="$1" ; shift
 

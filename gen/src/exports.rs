@@ -94,6 +94,7 @@ pub fn generate_method(
     };
 
     let mut export = quote! {
+        #[doc=#export_name]
         #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
         pub extern "C" fn #extern_name() -> () {
             #internal_name()
