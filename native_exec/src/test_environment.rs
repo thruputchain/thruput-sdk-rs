@@ -26,9 +26,38 @@ use xdrs::serialize_txs;
 // so we pick a default (nonzero) value as a placeholder.
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
 const TEST_CONTRACT_SIZE: u32 = 1024;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u32)]
+pub(crate) enum FFIErrorCode {
+    None = TestFFIErrorCode_kTestFFIErrorCodeNone,
+    InvalidPointer = TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
+    DeployNonexistentContract =
+        TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
+    CreateNonexistentMockContract =
+        TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
+    DeserializeError = TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
+    UnrecoverableError = TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
+    EventLogNotFound = TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
+}
+
+impl From<TestFFIErrorCode> for FFIErrorCode {
+    fn from(error: TestFFIErrorCode) -> Self {
+        match error {
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeNone => FFIErrorCode::None,
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer => FFIErrorCode::InvalidPointer,
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract => FFIErrorCode::DeployNonexistentContract,
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
+            x if x == TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound => FFIErrorCode::EventLogNotFound,
+            _ => panic!("unknown FFI error code: {}", error),
+        }
+    }
+}
 pub struct TestEnvironmentInner {
-    pub(crate) db: *mut c_void,
-    pub(crate) contract_context: *mut c_void,
+    pub(crate) db: DBWrapper,
+    pub(crate) contract_context: RuntimeContextWrapper,
     mock_contract_index: i32,
     contracts: Vec<*mut MockContractInner>, // owns these contracts
 }
@@ -57,22 +86,69 @@ unsafe extern "C" fn trampoline(
     }
 }
 
+pub(crate) struct DBWrapper {
+    pub(crate) db: *mut c_void,
+}
+
+impl DBWrapper {
+    pub fn new() -> Self {
+        let res = unsafe { create_db() };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to create db: {}", res.ffi_error_code);
+        }
+        assert!(res.db != core::ptr::null_mut());
+        Self { db: res.db }
+    }
+}
+
+impl Drop for DBWrapper {
+    fn drop(&mut self) {
+        let r = unsafe { free_db(self.db) };
+        let err: FFIErrorCode = r.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to free db: {:?}", err);
+        }
+    }
+}
+
+pub(crate) struct RuntimeContextWrapper {
+    pub context: *mut c_void,
+}
+
+impl RuntimeContextWrapper {
+    pub fn new() -> Self {
+        let res = unsafe { open_runtime_context() };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to create runtime context: {}", res.ffi_error_code);
+        }
+        assert!(res.context != core::ptr::null_mut());
+        Self {
+            context: res.context,
+        }
+    }
+}
+
+impl Drop for RuntimeContextWrapper {
+    fn drop(&mut self) {
+        let r = unsafe { close_runtime_context(self.context) };
+        let err: FFIErrorCode = r.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to close runtime context: {:?}", err);
+        }
+    }
+}
+
 impl TestEnvironmentInner {
     pub fn new() -> Self {
         set_override_panic_hook();
         let out = Self {
-            db: unsafe { create_db() },
-            contract_context: unsafe { open_runtime_context() },
+            db: DBWrapper::new(),
+            contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
         };
-
-        if out.db == core::ptr::null_mut() {
-            panic!("failed to initialize database!");
-        }
-        if out.contract_context == core::ptr::null_mut() {
-            panic!("failed to initialize contract context!");
-        }
 
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
@@ -91,8 +167,8 @@ impl TestEnvironmentInner {
         let contract_bytes = serialize_txs::encode(&contract).unwrap();
         let res = unsafe {
             setup_create_contract(
-                self.contract_context,
-                self.db,
+                self.contract_context.context,
+                self.db.db,
                 contract_bytes.as_ptr(),
                 contract_bytes.len().try_into().unwrap(),
             )
@@ -129,13 +205,16 @@ impl TestEnvironmentInner {
 
         let res = unsafe {
             setup_deploy_contract(
-                self.db,
+                self.db.db,
                 addr.as_ptr(),
                 contract_hash.as_ptr(),
                 contract_size,
             )
         };
-        assert_eq!(res, 0);
+        let err: FFIErrorCode = res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to setup new contract deployment: {:?}", err);
+        }
     }
 
     pub fn setup_grant_storage_tokens(
@@ -143,13 +222,25 @@ impl TestEnvironmentInner {
         addr: &ContractAddress,
         tokens: i64,
     ) {
-        unsafe {
-            setup_grant_contract_storage_tokens(self.db, addr.as_ptr(), tokens)
+        let res = unsafe {
+            setup_grant_contract_storage_tokens(
+                self.db.db,
+                addr.as_ptr(),
+                tokens,
+            )
+        };
+        let err: FFIErrorCode = res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to setup grant storage tokens: {:?}", err);
         }
     }
 
     pub fn advance_block(&mut self) {
-        unsafe { advance_new_block(self.db) }
+        let res = unsafe { advance_new_block(self.db.db) };
+        let err: FFIErrorCode = res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to advance block: {:?}", err);
+        }
     }
 
     pub fn add_contract(&mut self) -> *mut MockContractInner {
@@ -164,14 +255,15 @@ impl TestEnvironmentInner {
 
         let res = unsafe {
             register_new_contract(
-                self.contract_context,
+                self.contract_context.context,
                 new_id,
                 Some(trampoline),
                 out as *mut c_void,
             )
         };
-        if res != 0 {
-            panic!("failed to link fn");
+        let err: FFIErrorCode = res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to link fn: {:?}", err);
         }
 
         out
@@ -180,8 +272,6 @@ impl TestEnvironmentInner {
 
 impl Drop for TestEnvironmentInner {
     fn drop(&mut self) {
-        unsafe { free_db(self.db) };
-        unsafe { close_runtime_context(self.contract_context) };
         for contract in &self.contracts {
             let _ = unsafe { Box::from_raw(*contract) };
         }
@@ -234,18 +324,17 @@ impl TestEnvironment {
 
         let stx = SignedTransaction {
             signatures: vec![].try_into().unwrap(),
-            aux_signatures: vec![].try_into().unwrap(),
-            signature_weight: 0,
             tx: Transaction {
                 uniquifier: Uniquifier {
                     block_expiry_height: 0,
                     nonce: 0,
                 },
+                auth_claims: vec![].try_into().unwrap(),
+                gas_claims: vec![].try_into().unwrap(),
                 invocation: Invocation {
                     invoked_address: invoke_addr,
                     entrypoint: entrypoint,
                     gas_limit: u64::MAX,
-                    gas_claims: [].try_into().unwrap(),
                     calldata: [].try_into().unwrap(),
                 },
                 contracts_to_deploy: vec![].try_into().unwrap(),
