@@ -78,18 +78,17 @@ fn make_signed_transaction(
 
     SignedTransaction {
         signatures: vec![].try_into().unwrap(),
-        aux_signatures: vec![].try_into().unwrap(),
-        signature_weight: 0,
         tx: Transaction {
             uniquifier: Uniquifier {
                 block_expiry_height: 0,
                 nonce: 0,
             },
+            gas_claims: [].try_into().unwrap(),
+            auth_claims: [].try_into().unwrap(),
             invocation: Invocation {
                 invoked_address: *recipient_address,
                 entrypoint: entrypoint,
                 gas_limit: u64::MAX,
-                gas_claims: [].try_into().unwrap(),
                 calldata: serialize_txs::encode(args)
                     .unwrap().try_into().unwrap(),
             },
