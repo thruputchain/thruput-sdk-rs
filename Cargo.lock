@@ -93,6 +93,7 @@ dependencies = [
  "bottle-test-if",
  "calldata_wrapper",
  "sdk",
+ "xdrs",
 ]
 
 [[package]]
@@ -521,9 +522,9 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=bfbf8e12bd8f24017387b49074d8e12be58dfd0b#bfbf8e12bd8f24017387b49074d8e12be58dfd0b"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=beed53c2686ae61cb1e151bff3ad015795d39508#beed53c2686ae61cb1e151bff3ad015795d39508"
 dependencies = [
- "macros 0.1.0 (git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=bfbf8e12bd8f24017387b49074d8e12be58dfd0b)",
+ "macros 0.1.0 (git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=beed53c2686ae61cb1e151bff3ad015795d39508)",
  "serde",
  "serde_arrays",
  "thiserror",
@@ -651,7 +652,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=bfbf8e12bd8f24017387b49074d8e12be58dfd0b#bfbf8e12bd8f24017387b49074d8e12be58dfd0b"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=beed53c2686ae61cb1e151bff3ad015795d39508#beed53c2686ae61cb1e151bff3ad015795d39508"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -981,6 +982,7 @@ dependencies = [
  "sdk",
  "sha2",
  "sha256_wrapper",
+ "xdrs",
 ]
 
 [[package]]
