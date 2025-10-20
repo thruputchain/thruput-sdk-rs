@@ -53,6 +53,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bottle-test"
+version = "0.1.0"
+dependencies = [
+ "bottle-test-if",
+ "sdk",
+]
+
+[[package]]
+name = "bottle-test-if"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -70,8 +86,10 @@ dependencies = [
 name = "calldata_wrapper"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "calldata_wrapper",
  "sdk",
+ "xdrs",
 ]
 
 [[package]]
@@ -325,6 +343,8 @@ name = "erc20"
 version = "0.1.2"
 dependencies = [
  "erc20",
+ "erc20-bottle-test",
+ "erc20-result-test",
  "groundhog-erc20-if",
  "sdk",
  "thiserror",
@@ -332,9 +352,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc20-bottle-test"
+version = "0.1.0"
+dependencies = [
+ "bottle-test-if",
+ "groundhog-erc20-if",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
+name = "erc20-result-test"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "erc20_low_level"
 version = "0.1.1"
 dependencies = [
+ "erc20-bottle-test",
+ "erc20-result-test",
  "erc20_low_level",
  "groundhog-erc20-if",
  "sdk",
@@ -345,6 +386,8 @@ dependencies = [
 name = "erc20_no_storage"
 version = "0.1.1"
 dependencies = [
+ "erc20-bottle-test",
+ "erc20-result-test",
  "erc20_no_storage",
  "groundhog-erc20-if",
  "sdk",
@@ -362,6 +405,7 @@ checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 name = "fibonacci"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "fibonacci",
  "sdk",
  "xdrs",
@@ -542,6 +586,7 @@ dependencies = [
 name = "itc_erc20"
 version = "0.1.1"
 dependencies = [
+ "erc20-bottle-test",
  "groundhog-erc20-if",
  "itc_erc20",
  "sdk",
@@ -681,6 +726,7 @@ dependencies = [
 name = "playground"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "playground",
  "sdk",
  "thiserror",
@@ -777,6 +823,7 @@ dependencies = [
 name = "read_only_test"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "groundhog_xdr",
  "read_only_test",
  "sdk",
@@ -837,6 +884,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 name = "sdk"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "delegate",
  "groundhog_xdr",
  "hex-literal",
@@ -927,9 +975,11 @@ dependencies = [
 name = "sha256_wrapper"
 version = "0.1.0"
 dependencies = [
+ "bottle-test-if",
  "sdk",
  "sha2",
  "sha256_wrapper",
+ "xdrs",
 ]
 
 [[package]]
