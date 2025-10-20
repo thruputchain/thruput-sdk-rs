@@ -8,6 +8,7 @@ use sdk::contract_test::load_wasm_contract;
 use sdk::*;
 use sha2::{Digest, Sha256};
 use xdrs::serialize_txs;
+use hex_literal::*;
 
 pub fn main() {
     let package = std::env::args()
@@ -47,9 +48,14 @@ fn bottle_test(package: &str) {
 
     println!("BOTTLE SETUP OK");
 
+    // Use the appropriate target address, found in the syscall traces
+    let t: [u8; 32] = hex!("c5d9562c2d5462e49f8afb2ddfbd7d25932adbe061745b6b543a413cf6943f20");
+    let target_address = ContractAddress::from(t);
+
     // Invoke the `run` method on the tester contract
     let run_entrypoint = contract_entrypoint_id(Some("BottleTest"), "0.0.0", "run", BOTTLE_TEST_RUN);
-    let gas_consumed = perform_contract_call(&env, &tester_addr, run_entrypoint, &())
+    let run_args = &(target_address,);
+    let gas_consumed = perform_contract_call(&env, &tester_addr, run_entrypoint, run_args)
         .unwrap_or_else(|e| panic!("bottle-test run failed: {}", e));
 
     println!(

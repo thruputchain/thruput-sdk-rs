@@ -10,3 +10,4 @@ sha2 = { workspace = true }
 xdrs = { workspace = true }
 groundhog_xdr = { workspace = true }
 native_exec = { workspace = true }
+hex-literal = "1.0.0"

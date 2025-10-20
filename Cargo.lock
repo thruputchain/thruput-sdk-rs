@@ -58,6 +58,7 @@ version = "0.1.0"
 dependencies = [
  "bottle-test-if",
  "groundhog_xdr",
+ "hex-literal",
  "native_exec",
  "sdk",
  "sha2",
