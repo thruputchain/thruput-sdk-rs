@@ -30,11 +30,7 @@ impl TryFrom<u128> for U112 {
     type Error = ();
 
     fn try_from(n: u128) -> Result<Self, ()> {
-        if n <= U112_MAX {
-            Ok(Self(n))
-        } else {
-            Err(())
-        }
+        if n <= U112_MAX { Ok(Self(n)) } else { Err(()) }
     }
 }
 

@@ -2,14 +2,13 @@ use groundhog_xdr::contract::*;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
-use sdk::*;
-use sdk::contract_test::load_wasm_contract;
 use native_exec::transaction_handler::TransactionHandler;
+use sdk::contract_test::load_wasm_contract;
+use sdk::*;
+use sha2::{Digest, Sha256};
 use xdrs::serialize_txs;
-use sha2::{Sha256, Digest};
 
 pub fn main() {
-
     let package = std::env::args()
         .skip(1)
         .next()
@@ -19,7 +18,6 @@ pub fn main() {
 }
 
 fn bottle_test(package: &str) {
-
     let target_contract =
         load_wasm_contract(format!("target/optimized/{package}.wasm"));
 
@@ -40,12 +38,8 @@ fn bottle_test(package: &str) {
     env.setup_create_deployment(&tester_addr, &tester_contract);
 
     // Construct the call `tester.run(&target_hash)`
-    let entrypoint = contract_entrypoint_id(
-        Some("BottleTest"),
-        "0.0.0",
-        "run",
-        0,
-    );
+    let entrypoint =
+        contract_entrypoint_id(Some("BottleTest"), "0.0.0", "run", 0);
     let args = &target_hash;
     let stx = make_signed_transaction(&tester_addr, entrypoint, args);
 
@@ -53,10 +47,14 @@ fn bottle_test(package: &str) {
     let mut run_test = TransactionHandler::new(env.clone(), &stx);
 
     // Run the transaction
-    let gas_consumed = run_transaction(&mut run_test).unwrap_or_else(|e|
-        panic!("root invocation panicked with code {}", e));
+    let gas_consumed = run_transaction(&mut run_test).unwrap_or_else(|e| {
+        panic!("root invocation panicked with code {}", e)
+    });
 
-    println!(">> Bottle test completed successfully (gas consumed: {})", gas_consumed);
+    println!(
+        ">> Bottle test completed successfully (gas consumed: {})",
+        gas_consumed
+    );
 }
 
 //
@@ -65,7 +63,9 @@ fn bottle_test(package: &str) {
 
 fn run_transaction(tx: &mut TransactionHandler) -> Result<u64, i32> {
     match tx.root_invoke() {
-        r if r.result.panic == InvokeErrorCode::kInvokeNone as i32 => Ok(r.gas_consumed),
+        r if r.result.panic == InvokeErrorCode::kInvokeNone as i32 => {
+            Ok(r.gas_consumed)
+        }
         r => Err(r.result.panic),
     }
 }
@@ -75,7 +75,6 @@ fn make_signed_transaction(
     entrypoint: ContractEntrypointID,
     args: &impl WriteXDR,
 ) -> SignedTransaction {
-
     SignedTransaction {
         signatures: vec![].try_into().unwrap(),
         tx: Transaction {
@@ -90,7 +89,9 @@ fn make_signed_transaction(
                 entrypoint: entrypoint,
                 gas_limit: u64::MAX,
                 calldata: serialize_txs::encode(args)
-                    .unwrap().try_into().unwrap(),
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
             },
             contracts_to_deploy: vec![].try_into().unwrap(),
         },
@@ -117,11 +118,10 @@ fn get_deploy_address(
     nonce: &SHA256Hash,
     contract_hash: &SHA256Hash,
 ) -> ContractAddress {
-
     let preimage = ContractDeploymentHashPreimage {
         deployer_address: *sender,
         nonce: *nonce,
-        contract_hash: *contract_hash
+        contract_hash: *contract_hash,
     };
     let encoding = serialize_txs::encode(&preimage).unwrap();
     let hash = Sha256::digest(encoding.as_slice());
@@ -135,7 +135,6 @@ fn contract_entrypoint_id(
     method_name: &str,
     method_index: u16,
 ) -> ContractEntrypointID {
-
     let iface_name = interface_name.unwrap_or(method_name);
 
     let preimage = ContractInterfaceIDPreimage {
@@ -157,8 +156,13 @@ fn contract_entrypoint_id(
 
     let id = ContractEntrypointID::from(entrypoint_raw);
 
-    println!("  ENTRYPOINT({}_v{}::method_{}) -> {}",
-        iface_name, version_str, method_index, entrypoint_export_name(id));
+    println!(
+        "  ENTRYPOINT({}_v{}::method_{}) -> {}",
+        iface_name,
+        version_str,
+        method_index,
+        entrypoint_export_name(id)
+    );
 
     id
 }

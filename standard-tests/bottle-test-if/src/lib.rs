@@ -3,7 +3,7 @@
 
 #![no_std]
 
-use sdk::{contract, SHA256Hash};
+use sdk::{SHA256Hash, contract};
 
 #[contract(client = BottleTestClient)]
 pub trait BottleTest {

@@ -3,7 +3,7 @@
 mod error;
 pub use error::*;
 
-use sdk::{contract, ContractAddress};
+use sdk::{ContractAddress, contract};
 
 pub type Amount = u128;
 pub type Difference = i128;

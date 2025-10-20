@@ -11,9 +11,9 @@ use core::cmp::min;
 /// [v2-core](https://github.com/Uniswap/v2-core)
 use core::ops::Mul;
 use erc20::implementation::TokenContract;
-use erc20::interface::client::ERC20Client;
-use erc20::interface::Result as ERC20Result;
 use erc20::interface::ERC20;
+use erc20::interface::Result as ERC20Result;
+use erc20::interface::client::ERC20Client;
 use sdk::*;
 
 // We need to derive `Storage` because TokenContract is `Storage`
@@ -445,9 +445,5 @@ fn get_block_timestamp() -> u64 {
 }
 
 fn require(cond: bool, err: Error) -> Result<()> {
-    if cond {
-        Ok(())
-    } else {
-        Err(err)
-    }
+    if cond { Ok(()) } else { Err(err) }
 }

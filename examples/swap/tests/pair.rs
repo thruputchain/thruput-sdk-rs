@@ -1,11 +1,11 @@
 use core::result::Result;
-use erc20::interface::client::ERC20Client;
 use erc20::interface::ERC20;
+use erc20::interface::client::ERC20Client;
 use sdk::contract_result::Error as TokenError;
 use sdk::prelude::*;
 use swap::Error as SwapError;
-use swap::{erc20_test_setup, swap_test_setup};
 use swap::{ISwapV2Pair, ISwapV2PairClient};
+use swap::{erc20_test_setup, swap_test_setup};
 
 #[derive(Debug, Error)]
 enum TestError {
