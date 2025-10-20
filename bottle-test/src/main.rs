@@ -81,10 +81,18 @@ fn perform_contract_call(
     let stx = make_signed_transaction(contract_address, entrypoint, args);
 
     // Construct the transaction
-    let mut run_test = TransactionHandler::new(env.clone(), &stx);
+    let mut tx = TransactionHandler::new(env.clone(), &stx);
 
     // Run the transaction
-    run_transaction(&mut run_test)
+    let gas_consumed = run_transaction(&mut tx);
+
+    if !tx.try_commit_transaction() {
+        panic!("Couldn't commit transaction");
+    }
+
+    env.advance_block();
+
+    gas_consumed
 }
 
 fn run_transaction(tx: &mut TransactionHandler) -> Result<GasAmount, InvErr> {

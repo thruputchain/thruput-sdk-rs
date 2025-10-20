@@ -298,6 +298,10 @@ impl TestEnvironment {
         TestEnvironmentInner::enable_syscall_logging();
     }
 
+    pub fn advance_block(self: &TestEnvironmentHandle) {
+        self.inner.borrow_mut().advance_block()
+    }
+
     pub fn add_contract(self: &TestEnvironmentHandle) -> MockContract {
         let inner = self.inner.borrow_mut().add_contract();
         MockContract::new(inner, self.clone())
