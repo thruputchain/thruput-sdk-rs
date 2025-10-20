@@ -1,8 +1,7 @@
-use crate::contract_panic;
-use crate::sys;
+use crate::{GasAmount, contract_panic, sys};
 use crate::transaction::kTxStatGasRemaining;
 
-pub fn gas_remaining() -> u64 {
+pub fn gas_remaining() -> GasAmount {
     let mut n: u64 = 0;
 
     sys::raw_GetTransactionStatistics(kTxStatGasRemaining, &mut n)

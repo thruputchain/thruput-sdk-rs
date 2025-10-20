@@ -14,3 +14,7 @@ xdrs = { workspace = true, features = ["derive", "extras", "int128_xdr"] }
 [lib]
 crate-type = ["rlib"]
 doctest = false
+
+[features]
+mock = ["std", "sdk/mock"]
+std = ["sdk/std"]

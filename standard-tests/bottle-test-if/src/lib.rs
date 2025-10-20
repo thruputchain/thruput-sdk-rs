@@ -3,14 +3,17 @@
 
 #![no_std]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 use sdk::*;
 
 #[contract(client = BottleTestClient)]
 pub trait BottleTest {
 
     // Perform setup operations to be excluded from performance metrics
-    fn setup(&mut self, target_contract_hash: &SHA256Hash) -> ContractAddress;
+    fn setup(&mut self, target_contract_hash: &SHA256Hash);
 
     // Run the test
-    fn run(&mut self, target_contract_addr: &ContractAddress);
+    fn run(&mut self);
 }

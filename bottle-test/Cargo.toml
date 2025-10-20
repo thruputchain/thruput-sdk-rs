@@ -5,9 +5,4 @@ version.workspace = true
 
 [dependencies]
 sdk = { workspace = true, features = ["mock"] }
-bottle-test-if = { workspace = true }
-sha2 = { workspace = true }
-xdrs = { workspace = true }
-groundhog_xdr = { workspace = true }
-native_exec = { workspace = true }
-hex-literal = "1.0.0"
+bottle-test-if = { workspace = true, features = ["mock"] }
