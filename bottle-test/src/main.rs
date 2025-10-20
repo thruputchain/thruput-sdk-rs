@@ -102,7 +102,7 @@ fn contract_deploy_address(_contract: &Contract) -> ContractAddress {
     [0xFF; 32].into()
 
     /* ... i guess we don't have to bother with all this ...
-    let sender_addr = ContractAddress::default(); // XXX: ?
+    let sender_addr = ContractAddress::default(); // ?
     let tester_nonce = SHA256Hash::from([8; 32]);
     let tester_bytes = serialize_txs::encode(&tester_contract).unwrap();
     let tester_hash = Sha256::digest(tester_bytes.as_slice());
