@@ -4,10 +4,54 @@
 //! - bare impls
 
 use crate::config::Config;
-use crate::util::cmp_method_ref_by_name;
+use crate::util::cmp_sig_by_name;
 use proc_macro2::Span;
 use quote::format_ident;
 use syn::spanned::Spanned;
+use syn::Attribute;
+use darling::FromMeta;
+use darling::ast::NestedMeta;
+
+pub trait Method {
+    fn sig(&self) -> &syn::Signature;
+
+    fn attrs(&self) -> Vec<Attribute> {
+        vec![]
+    }
+
+    fn config(&self) -> Config {
+        let meta_list: Vec<NestedMeta> = self.attrs().into_iter().map(|a| NestedMeta::Meta(a.meta)).collect();
+        Config::from_list(&meta_list)
+            .unwrap_or_else(|e| panic!("Couldn't parse attributes: {}", e))
+    }
+}
+
+impl Method for syn::ItemFn {
+    fn sig(&self) -> &syn::Signature {
+        &self.sig
+    }
+    fn attrs(&self) -> Vec<Attribute> {
+        self.attrs.clone()
+    }
+}
+
+impl Method for syn::ImplItemFn {
+    fn sig(&self) -> &syn::Signature {
+        &self.sig
+    }
+    fn attrs(&self) -> Vec<Attribute> {
+        self.attrs.clone()
+    }
+}
+
+impl Method for syn::TraitItemFn {
+    fn sig(&self) -> &syn::Signature {
+        &self.sig
+    }
+    fn attrs(&self) -> Vec<Attribute> {
+        self.attrs.clone()
+    }
+}
 
 pub trait ContractSrc {
     fn span(&self) -> Span;
@@ -32,13 +76,21 @@ pub trait ContractSrc {
         None
     }
 
-    fn methods(&self) -> impl Iterator<Item = &syn::Signature>;
+    fn methods(&self) -> impl Iterator<Item = impl Method>;
 
-    fn methods_sorted(&self) -> impl IntoIterator<Item = &syn::Signature> {
+    fn methods_sorted(&self) -> impl IntoIterator<Item = impl Method> {
         let mut mm = self.methods().collect::<Vec<_>>();
-        mm.sort_by(cmp_method_ref_by_name);
+        mm.sort_by(cmp_method_by_name);
         mm
     }
+}
+
+use core::cmp::Ordering;
+pub fn cmp_method_by_name(
+    a: &impl Method,
+    b: &impl Method,
+) -> Ordering {
+    cmp_sig_by_name(a.sig(), b.sig())
 }
 
 impl ContractSrc for syn::ItemTrait {
@@ -70,11 +122,11 @@ impl ContractSrc for syn::ItemTrait {
         None
     }
 
-    fn methods(&self) -> impl Iterator<Item = &syn::Signature> {
+    fn methods(&self) -> impl Iterator<Item = impl Method> {
         self.items.iter().filter_map(|item|
             // Extract all trait methods
             if let syn::TraitItem::Fn(trait_fn) = item {
-                Some(&trait_fn.sig)
+                Some(trait_fn.clone())
             } else {
                 None
             })
@@ -111,7 +163,7 @@ impl ContractSrc for syn::ItemImpl {
         Some(self.self_ty.as_ref())
     }
 
-    fn methods(&self) -> impl Iterator<Item = &syn::Signature> {
+    fn methods(&self) -> impl Iterator<Item = impl Method> {
         let is_trait_impl = self.trait_.is_some();
 
         self.items.iter().filter_map(move |item| {
@@ -119,7 +171,7 @@ impl ContractSrc for syn::ItemImpl {
                 syn::ImplItem::Fn(impl_fn)
                     // Include only public functions unless this is a trait impl
                     if is_visible(&impl_fn.vis) || is_trait_impl =>
-                        Some(&impl_fn.sig),
+                        Some(impl_fn.clone()),
                 _ => None
             }
         })
@@ -183,7 +235,7 @@ where
         self.contract.self_ty()
     }
 
-    fn methods(&self) -> impl Iterator<Item = &syn::Signature> {
+    fn methods(&self) -> impl Iterator<Item = impl Method> {
         self.contract.methods()
     }
 }

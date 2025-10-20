@@ -1,7 +1,7 @@
 //! Generate exports
 
 use super::Config;
-use super::contract::{ConfiguredContract, ContractSrc};
+use super::contract::{Method, ConfiguredContract, ContractSrc};
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
@@ -35,7 +35,7 @@ pub fn generate(
             index,
             iface_name,
             Some(&contract),
-            method,
+            &method,
             config,
         )?);
     }
@@ -57,10 +57,10 @@ pub fn generate_method(
     index: usize,
     iface_name: Option<&str>,
     contract: Option<&impl ContractSrc>,
-    method: &syn::Signature,
+    method: &impl Method,
     config: &Config,
 ) -> Result<TokenStream> {
-    let ident = &method.ident;
+    let ident = &method.sig().ident;
     let version = if let Some(contract) = contract {
         contract.defaulted_interface_vers()
     } else {
@@ -102,7 +102,7 @@ pub fn generate_method(
     };
 
     // The function is a method that takes a self-parameter
-    let is_method = contract.is_some() && method.receiver().is_some();
+    let is_method = contract.is_some() && method.sig().receiver().is_some();
 
     // The function is associated with a type
     let is_associated = contract.is_some();
@@ -123,14 +123,16 @@ pub fn generate_method(
     // The method takes a mutable self-parameter
     let is_mut = is_method
         && method
-            .receiver()
+            .sig().receiver()
             .as_ref()
             .map(|r| r.mutability.is_some())
             .unwrap_or(false);
 
-    // The method is marked "init": storage should be uninitialized before calling
-    // TODO: use a method attribute to mark initialization methods
-    let is_init = is_method && ident.to_string().as_str() == "initialize";
+    // The method is marked "init": storage must be uninitialized before calling
+    let is_init = is_method && (method.config().init.is_present()
+        || ident.to_string().as_str() == "initialize" // XXX
+        || ident.to_string().as_str() == "setup" // XXX
+        );
 
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();
@@ -210,7 +212,7 @@ pub fn generate_method(
         quote! {}
     };
 
-    let arg_names = method_arg_name_list(method);
+    let arg_names = method_arg_name_list(method.sig());
 
     let inline = if !cfg!(feature = "no_inline_methods") {
         quote! { #[inline(always)] }

@@ -67,7 +67,7 @@ fn generate_helpers(
 
             // Generate exports
             Ok(gen::exports::generate_method(
-                index, iface_name, contract, &item.sig, config,
+                index, iface_name, contract, item, config,
             )?)
         }
         _ => Err(error(

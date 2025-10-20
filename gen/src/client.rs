@@ -1,7 +1,7 @@
 //! Generate client-stub code from an `impl ContractSrc` and a `Config`
 
 use super::config::Config;
-use super::contract::{ConfiguredContract, ContractSrc};
+use super::contract::{Method, ConfiguredContract, ContractSrc};
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
@@ -33,7 +33,7 @@ pub fn generate(
         .methods_sorted()
         .into_iter()
         .enumerate()
-        .map(|(index, method)| generate_client_fn(index, method, &contract))
+        .map(|(index, method)| generate_client_fn(index, &method, &contract))
         .collect::<Result<Vec<TokenStream>>>()?;
 
     let client = quote! {
@@ -108,7 +108,7 @@ fn generate_spec_fn(
 
 fn generate_client_fn(
     index: usize,
-    method: &syn::Signature,
+    method: &impl Method,
     contract: &impl ContractSrc,
 ) -> Result<TokenStream> {
     let iface_name = contract.interface_name();
@@ -117,12 +117,12 @@ fn generate_client_fn(
     let entrypoint = contract_entrypoint_id(
         iface_name,
         &contract.defaulted_interface_vers(),
-        &method.ident,
+        &method.sig().ident,
         index,
     );
 
-    let ident = &method.ident;
-    let mut params = method.inputs.iter().peekable();
+    let ident = &method.sig().ident;
+    let mut params = method.sig().inputs.iter().peekable();
 
     // Pop the self parameter, if any
     if let Some(param) = params.peek() {
@@ -153,7 +153,7 @@ fn generate_client_fn(
         quote! {}
     };
 
-    let explicit_type = if let syn::ReturnType::Type(_, ty) = &method.output {
+    let explicit_type = if let syn::ReturnType::Type(_, ty) = &method.sig().output {
         Some(ty)
     } else {
         None
@@ -173,7 +173,7 @@ fn generate_client_fn(
             .and_then(|t| generic_type_first_arg(t))
             .ok_or_else(|| {
                 error(
-                    &method.output,
+                    &method.sig().output,
                     "A method using #[contract(err_type = E)] (or contained \
                      in a trait or impl using that attribute) must return \
                      type Result<_>",
@@ -190,7 +190,7 @@ fn generate_client_fn(
         quote! { invoke }
     };
 
-    Ok(quote_spanned! {method.span()=>
+    Ok(quote_spanned! {method.sig().span()=>
 
         pub fn #ident(&mut self, #(#sent_params),* ) -> #return_type
         {

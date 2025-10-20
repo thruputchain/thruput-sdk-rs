@@ -48,7 +48,11 @@ macro_rules! contract_panic {
 macro_rules! contract_panic {
     ($fmt:expr $(, $expr:tt),* ) => {
         {
-            $crate::log(alloc::format!($fmt $(, $expr)*).as_bytes()).unwrap();
+            // $crate::log(alloc::format!($fmt $(, $expr)*).as_bytes()).unwrap(); // XXX
+            //   Making alloc available was a pain at this moment, so just skip the format args:
+            let _ = ($($expr),*);
+            $crate::log($fmt.as_bytes()).unwrap();
+
             $crate::rt::trap();
         }
     };

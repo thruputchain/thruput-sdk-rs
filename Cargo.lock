@@ -362,6 +362,7 @@ dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
  "sdk",
+ "xdrs",
 ]
 
 [[package]]

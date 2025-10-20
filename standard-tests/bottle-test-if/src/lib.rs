@@ -7,5 +7,10 @@ use sdk::{SHA256Hash, contract};
 
 #[contract(client = BottleTestClient)]
 pub trait BottleTest {
-    fn run(&mut self, target_contract_hash: &SHA256Hash);
+
+    // Perform setup operations to be excluded from performance metrics
+    fn setup(&mut self, target_contract_hash: &SHA256Hash);
+
+    // Run the test
+    fn run(&mut self);
 }

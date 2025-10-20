@@ -1,4 +1,4 @@
-use crate::contract::ContractSrc;
+use crate::contract::{Method, ContractSrc};
 use crate::util::*;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -14,7 +14,7 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
         .methods_sorted()
         .into_iter()
         .enumerate()
-        .map(|(index, method)| method_repr(index, method, contract))
+        .map(|(index, method)| method_repr(index, &method, contract))
         .collect::<Result<Vec<TokenStream>>>()?;
 
     Ok(quote! {
@@ -35,18 +35,18 @@ pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
 
 fn method_repr(
     _index: usize,
-    method: &syn::Signature,
+    method: &impl Method,
     contract: &impl ContractSrc,
 ) -> Result<TokenStream> {
-    let name = method.ident.to_string();
+    let name = method.sig().ident.to_string();
     let args = method
-        .inputs
+        .sig().inputs
         .iter()
         .map(arg_repr)
         .collect::<Result<Vec<Option<TokenStream>>>>()?
         .into_iter()
         .flatten();
-    let ret = ret_repr(&method.output);
+    let ret = ret_repr(&method.sig().output);
     let err = if let Some(err) = contract.err_type() {
         quote! {
             Some(<#err as HasTypeSpec>::type_spec())
@@ -57,7 +57,7 @@ fn method_repr(
 
     // only check via GetErrorType trait if the contract has an err_type
     let err_match = if contract.err_type().is_some() {
-        err_ty(&method.output)
+        err_ty(&method.sig().output)
     } else {
         quote! { None::<TypeSpec> }
     };

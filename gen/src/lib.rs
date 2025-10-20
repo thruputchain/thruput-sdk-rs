@@ -11,7 +11,7 @@ mod config;
 pub use config::Config;
 
 mod contract;
-pub use contract::{ConfiguredContract, ContractSrc};
+pub use contract::{Method, ConfiguredContract, ContractSrc};
 
 pub mod entrypoint;
 pub use entrypoint::*;

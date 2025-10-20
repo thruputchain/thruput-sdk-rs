@@ -3,6 +3,7 @@ use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 use native_exec::transaction_handler::TransactionHandler;
+use native_exec::test_environment::TestEnvironmentHandle;
 use sdk::contract_test::load_wasm_contract;
 use sdk::*;
 use sha2::{Digest, Sha256};
@@ -17,6 +18,9 @@ pub fn main() {
     bottle_test(&package);
 }
 
+const BOTTLE_TEST_SETUP: u16 = 1;
+const BOTTLE_TEST_RUN: u16 = 0;
+
 fn bottle_test(package: &str) {
     let target_contract =
         load_wasm_contract(format!("target/optimized/{package}.wasm"));
@@ -26,30 +30,27 @@ fn bottle_test(package: &str) {
 
     let env = TestEnvironment::new();
 
-    // Create target contract.  The tester can then deploy the target contract.
-    // TODO: Should we do it anyway, to remove the deployment from gas calculations?
-    // Or perhaps the test interface should include an initialization method, to be
-    // run before run().
+    // Create the target contract
     let target_hash = env.setup_create_contract(&target_contract);
 
-    // Create and deploy tester contract
+    // Create and deploy the tester contract
     let _tester_hash = env.setup_create_contract(&tester_contract);
     let tester_addr = contract_deploy_address(&tester_contract);
     env.setup_create_deployment(&tester_addr, &tester_contract);
 
-    // Construct the call `tester.run(&target_hash)`
-    let entrypoint =
-        contract_entrypoint_id(Some("BottleTest"), "0.0.0", "run", 0);
-    let args = &target_hash;
-    let stx = make_signed_transaction(&tester_addr, entrypoint, args);
+    // Invoke the `setup` method on the tester contract, allowing it to, e.g.,
+    // deploy the target contract before running the test
+    let setup_entrypoint = contract_entrypoint_id(Some("BottleTest"), "0.0.0", "setup", BOTTLE_TEST_SETUP);
+    let setup_args = &target_hash;
+    let _ = perform_contract_call(&env, &tester_addr, setup_entrypoint, setup_args)
+        .unwrap_or_else(|e| panic!("bottle-test setup failed: {}", e));
 
-    // Construct the transaction
-    let mut run_test = TransactionHandler::new(env.clone(), &stx);
+    println!("BOTTLE SETUP OK");
 
-    // Run the transaction
-    let gas_consumed = run_transaction(&mut run_test).unwrap_or_else(|e| {
-        panic!("root invocation panicked with code {}", e)
-    });
+    // Invoke the `run` method on the tester contract
+    let run_entrypoint = contract_entrypoint_id(Some("BottleTest"), "0.0.0", "run", BOTTLE_TEST_RUN);
+    let gas_consumed = perform_contract_call(&env, &tester_addr, run_entrypoint, &())
+        .unwrap_or_else(|e| panic!("bottle-test run failed: {}", e));
 
     println!(
         ">> Bottle test completed successfully (gas consumed: {})",
@@ -61,7 +62,26 @@ fn bottle_test(package: &str) {
 // Remainder of file: general test utilities
 //
 
-fn run_transaction(tx: &mut TransactionHandler) -> Result<u64, i32> {
+type InvErr = i32;
+
+fn perform_contract_call(
+    env: &TestEnvironmentHandle,
+    contract_address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    args: &impl WriteXDR,
+) -> Result<GasAmount, InvErr>
+{
+    // Construct the call
+    let stx = make_signed_transaction(contract_address, entrypoint, args);
+
+    // Construct the transaction
+    let mut run_test = TransactionHandler::new(env.clone(), &stx);
+
+    // Run the transaction
+    run_transaction(&mut run_test)
+}
+
+fn run_transaction(tx: &mut TransactionHandler) -> Result<GasAmount, InvErr> {
     match tx.root_invoke() {
         r if r.result.panic == InvokeErrorCode::kInvokeNone as i32 => {
             Ok(r.gas_consumed)
@@ -98,21 +118,18 @@ fn make_signed_transaction(
     }
 }
 
-fn contract_deploy_address(_contract: &Contract) -> ContractAddress {
-    [0xFF; 32].into()
+fn contract_deploy_address(contract: &Contract) -> ContractAddress {
+    let sender_addr = ContractAddress::default();
+    let nonce = SHA256Hash::from([8; 32]);
 
-    /* ... i guess we don't have to bother with all this ...
-    let sender_addr = ContractAddress::default(); // ?
-    let tester_nonce = SHA256Hash::from([8; 32]);
-    let tester_bytes = serialize_txs::encode(&tester_contract).unwrap();
-    let tester_hash = Sha256::digest(tester_bytes.as_slice());
-    let tester_hash: [u8; 32] = tester_hash.into();
-    let tester_hash: SHA256Hash = tester_hash.into();
-    let tester_addr = get_deploy_address(&sender_addr, &tester_nonce, &tester_hash);
-    */
+    let contract_bytes = serialize_txs::encode(&contract).unwrap();
+    let contract_hash = Sha256::digest(contract_bytes.as_slice());
+    let contract_hash: [u8; 32] = contract_hash.into();
+    let contract_hash: SHA256Hash = contract_hash.into();
+
+    get_deploy_address(&sender_addr, &nonce, &contract_hash)
 }
 
-#[allow(unused)]
 fn get_deploy_address(
     sender: &ContractAddress,
     nonce: &SHA256Hash,
@@ -156,6 +173,7 @@ fn contract_entrypoint_id(
 
     let id = ContractEntrypointID::from(entrypoint_raw);
 
+    /*
     println!(
         "  ENTRYPOINT({}_v{}::method_{}) -> {}",
         iface_name,
@@ -163,10 +181,12 @@ fn contract_entrypoint_id(
         method_index,
         entrypoint_export_name(id)
     );
+    */
 
     id
 }
 
+#[allow(unused)]
 fn entrypoint_export_name(id: ContractEntrypointID) -> String {
     format!("{:016X}", u64::from_be_bytes(*id))
 }
