@@ -35,6 +35,7 @@ fn bottle_test(package: &str) {
     let target_hash = env.setup_create_contract(&target_contract);
 
     // Create and deploy tester contract
+    let _tester_hash = env.setup_create_contract(&tester_contract);
     let tester_addr = contract_deploy_address(&tester_contract);
     env.setup_create_deployment(&tester_addr, &tester_contract);
 
