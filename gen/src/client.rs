@@ -1,7 +1,7 @@
 //! Generate client-stub code from an `impl ContractSrc` and a `Config`
 
 use super::config::Config;
-use super::contract::{Method, ConfiguredContract, ContractSrc};
+use super::contract::{ConfiguredContract, ContractSrc, Method};
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
@@ -153,11 +153,12 @@ fn generate_client_fn(
         quote! {}
     };
 
-    let explicit_type = if let syn::ReturnType::Type(_, ty) = &method.sig().output {
-        Some(ty)
-    } else {
-        None
-    };
+    let explicit_type =
+        if let syn::ReturnType::Type(_, ty) = &method.sig().output {
+            Some(ty)
+        } else {
+            None
+        };
 
     let return_type = if let Some(ty) = explicit_type {
         quote! { #ty }
