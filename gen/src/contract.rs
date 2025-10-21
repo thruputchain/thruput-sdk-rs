@@ -28,10 +28,7 @@ pub trait Method {
 }
 
 fn is_doc_attr(attr: &Attribute) -> bool {
-    match &attr.meta {
-        Meta::NameValue(MetaNameValue { path, .. }) if path.is_ident("doc") => true,
-        _ => false
-    }
+    matches!(&attr.meta, Meta::NameValue(MetaNameValue { path, .. }) if path.is_ident("doc"))
 }
 
 impl Method for syn::ItemFn {
