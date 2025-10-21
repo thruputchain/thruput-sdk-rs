@@ -1,8 +1,8 @@
 use crate::InvokeError;
 use crate::SysErr;
+use crate::serialize::{ReadXDR, WriteError, WriteXDR};
 use core::fmt;
 use thiserror::Error;
-use xdrs::{ReadXDR, WriteXDR};
 
 #[cfg(feature = "mock")]
 use alloc::string::{String, ToString};
@@ -59,6 +59,12 @@ pub fn nnint_overflow() -> Error {
 
 pub fn nnint_underflow() -> Error {
     Error::NonNegativeIntUnderflow
+}
+
+impl From<WriteError> for Error {
+    fn from(e: WriteError) -> Self {
+        Error::serialization(e)
+    }
 }
 
 // Error strings will be preserved for testing, but

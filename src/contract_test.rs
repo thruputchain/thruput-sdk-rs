@@ -11,7 +11,7 @@ macro_rules! contract_test {
                 let mut contract = env.add_contract();
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
-                    sdk::handle::handle_call(|()| {
+                    sdk::contract_test_handle::handle_call(|()| {
                         $test_body
                         return ();
                     });
@@ -36,6 +36,62 @@ macro_rules! contract_test {
                     &(),
                 ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
             });
+
+            let res = handler.root_invoke();
+            if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
+                panic!("root invocation panicked with code {}", res.result.panic);
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! contract_test_env {
+    (
+        fn env_hook($env:ident, $handler:ident) $env_hook:tt
+        fn $name:ident() $test_body:tt
+    ) => {
+
+        #[test]
+        fn $name() {
+            let mut env = sdk::TestEnvironment::new();
+
+            let test_contract = {
+                let mut contract = env.add_contract();
+                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
+                contract.register_method(method, || -> () {
+                    sdk::contract_test_handle::handle_call(|()| {
+                        $test_body
+                        return ();
+                    });
+                });
+                contract.as_contract()
+            };
+
+            let contract_hash = env.setup_create_contract(&test_contract);
+
+            let mut handler = env.prepare_test(move || -> () {
+                let nonce = sdk::types::SHA256Hash::from([7; 32]);
+                let deployed_addr =
+                    sdk::deploy::deploy_contract(&nonce, &contract_hash)
+                        .unwrap();
+
+                // Invoke contract method 1
+                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
+                sdk::invoke::invoke::<(), ()>(
+                    &deployed_addr,
+                    method,
+                    u64::MAX,
+                    &(),
+                ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
+            });
+
+            fn env_hook(
+                $env: &std::rc::Rc<sdk::TestEnvironment>,
+                $handler: &mut native_exec::transaction_handler::TransactionHandler,
+            ) -> () $env_hook
+
+            env_hook(&mut env, &mut handler);
 
             let res = handler.root_invoke();
             if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {

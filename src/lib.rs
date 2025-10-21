@@ -42,6 +42,7 @@ pub mod stats;
 
 pub mod crypto;
 pub mod deploy;
+pub mod event;
 pub mod hash;
 pub mod invoke;
 pub mod invoke_config;
@@ -71,8 +72,8 @@ pub use retrocausal_queue::*;
 
 pub use hash::*;
 pub use rt::*;
+pub use serialize::*;
 pub use types::*;
-pub use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 
 pub use macros::contract;
 pub use macros::static_key;
@@ -93,7 +94,7 @@ pub mod syscall_bindings;
 
 #[cfg(feature = "mock")]
 // This is used only by contract_test
-pub mod handle;
+pub mod contract_test_handle;
 
 #[cfg(feature = "mock")]
 pub mod contract_test;
