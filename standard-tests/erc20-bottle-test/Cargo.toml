@@ -16,7 +16,3 @@ xdrs = { workspace = true }
 [lib]
 crate-type = ["rlib"]
 doctest = false
-
-[features]
-default = ["logging"]
-logging = ["sdk/logging"]
