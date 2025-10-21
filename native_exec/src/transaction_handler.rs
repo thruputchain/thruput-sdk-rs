@@ -20,6 +20,8 @@ pub struct TransactionHandler {
     // to be a shared ptr, and have handler hold a reference,
     // like we do with the mock contract context.
     invoked: bool,
+    committed: bool,
+    aborted: bool,
 }
 
 impl TransactionHandler {
@@ -44,19 +46,41 @@ impl TransactionHandler {
             _env: env.clone(),
             stx: stx.clone(),
             invoked: false,
+            committed: false,
+            aborted: false,
         }
     }
 
+    /// Invokes the transaction represented by the TransactionHandler.
+    /// This must be called before other methods that rely on actions taken within the transaction.
+    /// This method must only be called once per transaction.
+    ///
+    /// Returns the result of the root invocation.
+    /// This does NOT commit the transaction to the database.
+    /// The caller should subsequently call try_commit_transaction or abort_transaction
+    /// before advancing to the next block.
+    ///
+    /// try_commit_transaction checks the result of the root invocation,
+    /// and will abort the transaction if the root invocation failed.
+    /// So it is safe to call either try_commit_transaction or abort_transaction
+    /// after root_invoke, regardless of whether the root invocation succeeded or failed.
     pub fn root_invoke(&mut self) -> ForeignRootInvokeResult {
         if self.invoked {
             panic!("cannot double invoke on a TransactionHandler")
         }
         self.invoked = true;
+        assert!(!self.committed && !self.aborted);
 
         unsafe { root_invoke(self.handler) }
     }
 
     pub fn get_event_logs(&self) -> Option<TxEventLog> {
+        if !self.invoked {
+            panic!("cannot get event logs for a transaction that has not been invoked");
+        }
+        if !self.committed && !self.aborted {
+            panic!("cannot get event logs for a transaction that has not been committed or aborted");
+        }
         let buffer_len_res = unsafe { get_event_log_len(self.handler) };
         let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
         if err != FFIErrorCode::None {
@@ -86,12 +110,43 @@ impl TransactionHandler {
         &self.stx
     }
 
-    pub fn try_commit_transaction(&self) -> bool {
+    /// Tries to commit the transaction to the database.
+    /// This must be called after root_invoke, and only once per transaction.
+    ///
+    /// Returns true if the transaction commits, false otherwise.
+    ///
+    /// This will abort the transaction if the root invocation failed.
+    /// So it is safe to call either try_commit_transaction or abort_transaction
+    /// after root_invoke, regardless of whether the root invocation succeeded or failed.
+    pub fn try_commit_transaction(&mut self) -> bool {
+        if !self.invoked {
+            panic!(
+                "cannot try to commit a transaction that has not been invoked"
+            );
+        }
+        if self.committed || self.aborted {
+            panic!("cannot try to commit a transaction that has already been committed or aborted");
+        }
+        self.committed = true;
         let res = unsafe { try_commit_transaction(self.handler) };
         if res.panic != 0 {
             panic!("try_commit_transaction failed: {}", res.panic);
         }
         res.result_code == 1
+    }
+
+    /// Aborts the transaction.
+    /// This must be called after root_invoke, and only once per transaction.
+    pub fn abort_transaction(&mut self) {
+        if !self.invoked {
+            panic!("cannot abort a transaction that has not been invoked");
+        }
+        if self.committed || self.aborted {
+            panic!("cannot abort a transaction that has already been committed or aborted");
+        }
+        self.aborted = true;
+
+        panic!("not yet implemented");
     }
 }
 
