@@ -2,6 +2,12 @@
 
 SDK_SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 
+# do the in-wasm "bottle test" instead of the native test
+PREFER_BOTTLE_TEST=1
+
+# below, each contract is built before being tested
+BOTTLE_TEST_USE_BUILT_TARGET=1
+
 # shellcheck source="scripts/env.sh"
 source "${SDK_SCRIPT_DIR}/env.sh"
 
