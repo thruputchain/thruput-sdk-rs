@@ -152,6 +152,7 @@ impl TransactionHandler {
 
 impl Drop for TransactionHandler {
     fn drop(&mut self) {
+        // TODO(geoff): abort the transaction if it has been invoked but not committed or aborted
         let res = unsafe { close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
