@@ -1,4 +1,4 @@
-use crate::contract::{Method, ContractSrc};
+use crate::contract::{ContractSrc, Method};
 use crate::util::*;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -40,7 +40,8 @@ fn method_repr(
 ) -> Result<TokenStream> {
     let name = method.sig().ident.to_string();
     let args = method
-        .sig().inputs
+        .sig()
+        .inputs
         .iter()
         .map(arg_repr)
         .collect::<Result<Vec<Option<TokenStream>>>>()?

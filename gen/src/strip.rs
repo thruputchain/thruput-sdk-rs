@@ -1,4 +1,4 @@
-use syn::fold::{Fold};
+use syn::fold::Fold;
 use syn::*;
 
 struct StripOurAttributes;

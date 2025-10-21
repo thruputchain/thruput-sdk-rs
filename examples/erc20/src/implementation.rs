@@ -88,7 +88,6 @@ impl TokenContract {
 // module with the specified name ("guest_exports").
 #[contract(exports = "guest_exports", err_type = Error)]
 impl ERC20 for TokenContract {
-
     #[init]
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
         // contract_abort(&Error::MustBeContractOwner);

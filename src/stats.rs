@@ -1,5 +1,5 @@
-use crate::{GasAmount, contract_panic, sys};
 use crate::transaction::kTxStatGasRemaining;
+use crate::{GasAmount, contract_panic, sys};
 
 pub fn gas_remaining() -> GasAmount {
     let mut n: u64 = 0;
