@@ -6,20 +6,20 @@ CXX=g++
 DENY_WARNINGS=1
 
 # Other useful settings:
-#
+
 ## Run cargo without --locked
 # CARGO_UNLOCK=1
-#
+
 ## Enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=1
-#
+
 ## Don't turn cargo/rust warnings into errors
 # unset DENY_WARNINGS
-#
+
 ## Where available, run a contract's bottle-test instead of its package tests
 # PREFER_BOTTLE_TEST=1
-#
-## Use the already-built contract wasm for bottle-tests instead of rebuilding it
+
+## Use an already-built contract wasm for bottle-tests instead of rebuilding it
 # BOTTLE_TEST_USE_BUILT_TARGET=1
 
 # Augment/override with any local settings

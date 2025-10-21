@@ -77,6 +77,8 @@ struct Token;
 
 #[contract(storage = "false", err_type = Error)]
 impl ERC20 for Token {
+
+    #[init]
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
         let key = get_owner_key();
 

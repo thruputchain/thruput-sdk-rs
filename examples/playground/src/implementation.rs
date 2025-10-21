@@ -23,7 +23,8 @@ type Amount = i128;
 
 #[contract(exports = "guest_exports", err_type = Error, client = MyClient)]
 impl MyContract {
-    // TODO: attribute #[init]: panic if storage already present; otherwise provide default value
+
+    #[init]
     pub fn initialize(
         &mut self,
         contract_owner: &ContractAddress,

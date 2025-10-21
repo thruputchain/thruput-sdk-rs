@@ -28,7 +28,6 @@ impl TokenContract {
     // and allowances are non-negative.  They do _not_ check
     // authorization.
 
-    // #[contract(init)]
     fn _init(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner = contract_owner.clone();
     }
@@ -89,7 +88,8 @@ impl TokenContract {
 // module with the specified name ("guest_exports").
 #[contract(exports = "guest_exports", err_type = Error)]
 impl ERC20 for TokenContract {
-    // #[init]
+
+    #[init]
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
         // contract_abort(&Error::MustBeContractOwner);
 

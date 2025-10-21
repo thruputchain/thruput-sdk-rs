@@ -7,6 +7,7 @@ mod storage;
 #[proc_macro]
 pub fn static_key(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::LitStr);
+
     static_key::static_key_output(input)
 }
 
@@ -17,12 +18,10 @@ pub fn contract(
     item_tokens: TokenStream,
 ) -> TokenStream {
     // Parse the item tokens into syntax defined in `syn`
-    let item = {
-        let item_tokens = item_tokens.clone();
-        syn::parse_macro_input!(item_tokens as syn::Item)
-    };
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
 
-    contract::generate_output(attr_args, item_tokens, item)
+    // Apply `#[contract]` to its target item
+    contract::apply(attr_args, item)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

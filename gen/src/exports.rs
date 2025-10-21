@@ -129,10 +129,8 @@ pub fn generate_method(
             .unwrap_or(false);
 
     // The method is marked "init": storage must be uninitialized before calling
-    let is_init = is_method && (method.config().init.is_present()
-        || ident.to_string().as_str() == "initialize" // XXX
-        || ident.to_string().as_str() == "setup" // XXX
-        );
+    let is_init = is_method && method.config().init.is_present();
+    // TODO: complain about #[init] in inappropriate positions
 
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();
@@ -179,6 +177,7 @@ pub fn generate_method(
             }
         } else {
             // If not using storage, we just create a default object to call the method on
+            // TODO: if !config.storage(), assert presence of Default impl
             quote! {
                 let #mutability state = <#self_ty as Default>::default();
             }

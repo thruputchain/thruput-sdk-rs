@@ -56,7 +56,10 @@ produce_metric() {
     ./metrics_history/scripts/make_metric_file.sh $metric $branch $commit $commit_time
 
     # produce metric output
-    "$metric_script" "$@" > "$metric_file"
+    "$metric_script" "$@" > "$metric_file" || {
+        printf "%s: metric script failed", "$metric_script" >&2;
+        exit 1;
+    }
 }
 
 # METRIC: sdk_codesizes

@@ -12,8 +12,7 @@ pub struct BT {
 
 #[contract]
 impl BottleTest for BT {
-    // #[init]
-    // this is method 1
+    #[init]
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         // Deploy an ERC20 contract
         let nonce: SHA256Hash = [7; 32].into();
@@ -22,7 +21,6 @@ impl BottleTest for BT {
         self.target_addr = Some(target_addr);
     }
 
-    // this is method 0
     fn run(&mut self) {
         let target_addr = self.target_addr.as_ref().unwrap_or_else(||
             contract_panic!("erc20-bottle-test: target_addr unset; please run setup() before run()"));

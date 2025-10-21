@@ -26,6 +26,9 @@ fn bottle_test(package: &str) {
     // Create and deploy the tester contract
     let tester_hash = env.setup_create_contract(&tester_contract);
 
+    // Something we can move into the test closure
+    let package = package.to_string();
+
     let mut handler = env.prepare_test(move || -> () {
 
         let nonce: SHA256Hash = [7; 32].into();
@@ -33,16 +36,23 @@ fn bottle_test(package: &str) {
 
         let mut tester = BottleTestClient::new(&tester_addr);
 
-        tester.setup(&target_hash).unwrap();
+        tester.setup(&target_hash).unwrap_or_else(|e|
+            panic!("BottleTest::setup() failed: {}", e));
 
         let gas_start = stats::gas_remaining();
-        tester.run().unwrap();
+
+        tester.run().unwrap_or_else(|e|
+            panic!("BottleTest::run() failed: {}", e));
+
         let gas_end = stats::gas_remaining();
 
         let gas_consumed = gas_start.checked_sub(gas_end).unwrap_or_else(||
             panic!("Negative gas consumed!"));
 
-        println!("Bottle test succeeded (gas consumed: {}", gas_consumed);
+        eprintln!("Bottle test succeeded (gas consumed: {})", gas_consumed);
+
+        // Emit metrics
+        println!("{}\tgas_consumed\t{}", package, gas_consumed);
     });
 
     let res = handler.root_invoke();
