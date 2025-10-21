@@ -23,7 +23,6 @@ type Amount = i128;
 
 #[contract(exports = "guest_exports", err_type = Error, client = MyClient)]
 impl MyContract {
-
     #[init]
     pub fn initialize(
         &mut self,

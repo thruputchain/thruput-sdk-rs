@@ -1,18 +1,17 @@
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use gen::Config;
-use gen::util::*;
 use gen::strip::*;
+use gen::util::*;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use syn::parse::Result;
 use quote::ToTokens;
+use syn::parse::Result;
 
 pub fn apply(
     attr_args: TokenStream,
     contract: syn::Item,
 ) -> Result<TokenStream2> {
-
     // Parse the attributes to a `Config`
     let config: Config = {
         let meta_list = NestedMeta::parse_meta_list(attr_args.into())
@@ -27,10 +26,8 @@ fn apply_with_config(
     item: &syn::Item,
     config: &Config,
 ) -> Result<TokenStream2> {
-
     match item {
         syn::Item::Trait(item) => {
-
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
@@ -40,7 +37,6 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
-
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
@@ -60,7 +56,6 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Fn(item) => {
-
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 

@@ -1,7 +1,7 @@
 //! Generate exports
 
 use super::Config;
-use super::contract::{Method, ConfiguredContract, ContractSrc};
+use super::contract::{ConfiguredContract, ContractSrc, Method};
 use super::entrypoint::*;
 use super::util::*;
 use proc_macro2::TokenStream;
@@ -123,7 +123,8 @@ pub fn generate_method(
     // The method takes a mutable self-parameter
     let is_mut = is_method
         && method
-            .sig().receiver()
+            .sig()
+            .receiver()
             .as_ref()
             .map(|r| r.mutability.is_some())
             .unwrap_or(false);

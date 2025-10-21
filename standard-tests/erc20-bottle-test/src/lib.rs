@@ -16,7 +16,8 @@ impl BottleTest for BT {
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         // Deploy an ERC20 contract
         let nonce: SHA256Hash = [7; 32].into();
-        let target_addr = deploy_contract(&nonce, target_contract_hash).unwrap();
+        let target_addr =
+            deploy_contract(&nonce, target_contract_hash).unwrap();
 
         self.target_addr = Some(target_addr);
     }

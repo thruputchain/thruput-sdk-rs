@@ -10,7 +10,6 @@ use sdk::*;
 
 #[contract(client = BottleTestClient)]
 pub trait BottleTest {
-
     // Perform setup operations to be excluded from performance metrics
     fn setup(&mut self, target_contract_hash: &SHA256Hash);
 

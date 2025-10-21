@@ -5,12 +5,12 @@
 
 use crate::config::Config;
 use crate::util::cmp_sig_by_name;
+use darling::FromMeta;
+use darling::ast::NestedMeta;
 use proc_macro2::Span;
 use quote::format_ident;
 use syn::spanned::Spanned;
 use syn::*;
-use darling::FromMeta;
-use darling::ast::NestedMeta;
 
 pub trait Method {
     fn sig(&self) -> &syn::Signature;
@@ -20,8 +20,12 @@ pub trait Method {
     }
 
     fn config(&self) -> Config {
-        let meta_list: Vec<NestedMeta> =
-            self.attrs().into_iter().filter(|a| !is_doc_attr(a)).map(|a| NestedMeta::Meta(a.meta)).collect();
+        let meta_list: Vec<NestedMeta> = self
+            .attrs()
+            .into_iter()
+            .filter(|a| !is_doc_attr(a))
+            .map(|a| NestedMeta::Meta(a.meta))
+            .collect();
         Config::from_list(&meta_list)
             .unwrap_or_else(|e| panic!("Couldn't parse attributes: {}", e))
     }
@@ -91,10 +95,7 @@ pub trait ContractSrc {
 }
 
 use core::cmp::Ordering;
-pub fn cmp_method_by_name(
-    a: &impl Method,
-    b: &impl Method,
-) -> Ordering {
+pub fn cmp_method_by_name(a: &impl Method, b: &impl Method) -> Ordering {
     cmp_sig_by_name(a.sig(), b.sig())
 }
 
