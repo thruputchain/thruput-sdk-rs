@@ -8,7 +8,7 @@ use crate::util::cmp_sig_by_name;
 use proc_macro2::Span;
 use quote::format_ident;
 use syn::spanned::Spanned;
-use syn::Attribute;
+use syn::*;
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 
@@ -20,9 +20,17 @@ pub trait Method {
     }
 
     fn config(&self) -> Config {
-        let meta_list: Vec<NestedMeta> = self.attrs().into_iter().map(|a| NestedMeta::Meta(a.meta)).collect();
+        let meta_list: Vec<NestedMeta> =
+            self.attrs().into_iter().filter(|a| !is_doc_attr(a)).map(|a| NestedMeta::Meta(a.meta)).collect();
         Config::from_list(&meta_list)
             .unwrap_or_else(|e| panic!("Couldn't parse attributes: {}", e))
+    }
+}
+
+fn is_doc_attr(attr: &Attribute) -> bool {
+    match &attr.meta {
+        Meta::NameValue(MetaNameValue { path, .. }) if path.is_ident("doc") => true,
+        _ => false
     }
 }
 

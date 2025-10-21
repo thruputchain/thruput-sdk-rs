@@ -29,6 +29,8 @@ pub type CallerResult<T> = Result<T, CallerError>;
 
 #[contract(client = CallerClient)]
 impl Caller {
+
+    #[init]
     pub fn initialize(&mut self, token_contract: &ContractAddress) {
         self.token_contract = token_contract.clone();
     }
