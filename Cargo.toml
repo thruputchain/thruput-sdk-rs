@@ -45,7 +45,7 @@ hex-literal = "1.0.0"
 sdk = { path = "." }
 gen = { path = "gen" }
 macros = { path = "macros" }
-groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"], rev = "42755cd1727facdec79d57a7c60d235078d47e81" }
+groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"], rev = "bfbf8e12bd8f24017387b49074d8e12be58dfd0b" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr"] }
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
