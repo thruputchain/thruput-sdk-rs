@@ -47,7 +47,7 @@ jobs:
     - name: cargo version check
       run: cargo --version
     - name: check
-      run: CARGO_NET_GIT_FETCH_WITH_CLI=true BOTTLE_TEST_USE_BUILT_TARGET=1 ./scripts/ci.sh
+      run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
     - name: log metrics
       if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       # Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
