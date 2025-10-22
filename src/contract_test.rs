@@ -50,6 +50,7 @@ macro_rules! contract_test_env {
     (
         fn env_hook($env:ident, $handler:ident) $env_hook:tt
         fn $name:ident() $test_body:tt
+        fn post_hook($handler2:ident) $post_hook:tt
     ) => {
 
         #[test]
@@ -97,6 +98,15 @@ macro_rules! contract_test_env {
             if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
                 panic!("root invocation panicked with code {}", res.result.panic);
             }
+
+            let commit_res = handler.try_commit_transaction();
+            assert!(commit_res);
+
+            fn post_hook(
+                $handler2: &mut native_exec::transaction_handler::TransactionHandler,
+            ) -> () $post_hook
+
+            post_hook(&mut handler);
         }
     };
 }
