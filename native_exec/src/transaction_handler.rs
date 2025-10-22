@@ -76,10 +76,14 @@ impl TransactionHandler {
 
     pub fn get_event_logs(&self) -> Option<TxEventLog> {
         if !self.invoked {
-            panic!("cannot get event logs for a transaction that has not been invoked");
+            panic!(
+                "cannot get event logs for a transaction that has not been invoked"
+            );
         }
         if !self.committed && !self.aborted {
-            panic!("cannot get event logs for a transaction that has not been committed or aborted");
+            panic!(
+                "cannot get event logs for a transaction that has not been committed or aborted"
+            );
         }
         let buffer_len_res = unsafe { get_event_log_len(self.handler) };
         let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
@@ -125,7 +129,9 @@ impl TransactionHandler {
             );
         }
         if self.committed || self.aborted {
-            panic!("cannot try to commit a transaction that has already been committed or aborted");
+            panic!(
+                "cannot try to commit a transaction that has already been committed or aborted"
+            );
         }
         self.committed = true;
         let res = unsafe { try_commit_transaction(self.handler) };
@@ -142,7 +148,9 @@ impl TransactionHandler {
             panic!("cannot abort a transaction that has not been invoked");
         }
         if self.committed || self.aborted {
-            panic!("cannot abort a transaction that has already been committed or aborted");
+            panic!(
+                "cannot abort a transaction that has already been committed or aborted"
+            );
         }
         self.aborted = true;
 
