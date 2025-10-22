@@ -34,10 +34,14 @@ pub(crate) enum FFIErrorCode {
     None = TestFFIErrorCode_kTestFFIErrorCodeNone,
     #[error("Invalid pointer")]
     InvalidPointer = TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
-    #[error("Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)")]
+    #[error(
+        "Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)"
+    )]
     DeployNonexistentContract =
         TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
-    #[error("Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)")]
+    #[error(
+        "Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)"
+    )]
     CreateNonexistentMockContract =
         TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
     #[error(
