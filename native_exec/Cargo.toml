@@ -10,6 +10,7 @@ crate-type = ["rlib"]
 groundhog_xdr = { workspace = true, features = ["std", "xdrs"]}
 xdrs = { workspace = true }
 sha2 = {version = "0.10"}
+thiserror = { version = "2.0.12", default-features = false }
 
 [build-dependencies]
 cmake = "0.1"

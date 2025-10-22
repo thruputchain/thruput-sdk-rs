@@ -27,17 +27,26 @@ use xdrs::serialize_txs;
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
 const TEST_CONTRACT_SIZE: u32 = 1024;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
 pub(crate) enum FFIErrorCode {
+    #[error("No error")]
     None = TestFFIErrorCode_kTestFFIErrorCodeNone,
+    #[error("Invalid pointer")]
     InvalidPointer = TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
+    #[error("Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)")]
     DeployNonexistentContract =
         TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
+    #[error("Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)")]
     CreateNonexistentMockContract =
         TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
+    #[error(
+        "Supplied data structs failed to deserialize into expected format"
+    )]
     DeserializeError = TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
+    #[error("Unrecoverable error")]
     UnrecoverableError = TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
+    #[error("Event log not found")]
     EventLogNotFound = TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
 }
 
@@ -160,6 +169,20 @@ impl TestEnvironmentInner {
         unsafe { enable_syscall_logging() };
     }
 
+    /// Creates a new contract within groundhog.
+    /// This new contract is not deployed at any particular address.
+    ///
+    /// In the test framework, the semantics of the setup_{create,deploy}_contract functions
+    /// are that after the function is called, the effects on the database are as though that
+    /// contract had been {created,deployed} during the previous block.
+    ///
+    /// This contract can be subsequently deployed, either by the setup_create_deployment function,
+    /// or by the syscalls within a transaction.
+    ///
+    /// Returns the hash of the contract, which is used to identify the contract when deploying it.
+    ///
+    /// Note: Even if a mock contract is added to the test environment (via add_contract),
+    /// this function must be called to create the contract within groundhog.
     pub fn setup_create_contract(
         &mut self,
         contract: &Contract,
@@ -180,6 +203,19 @@ impl TestEnvironmentInner {
         res.into()
     }
 
+    /// Deploys the specified contract at the specified address.
+    /// The contract must already have been created, either by a transaction in an earlier block
+    /// or (in the test framework) by the setup_create_contract function.
+    ///
+    /// In the test framework, the semantics of the setup_{create,deploy}_contract functions
+    /// are that after the function is called, the effects on the database are as though that
+    /// contract had been {created,deployed} during the previous block.
+    ///
+    /// This address can be subsequently invoked.
+    ///
+    /// This contract will fail if the contract hash does not exist as an existing contract within groundhog
+    /// (i.e. if the contract was not created by the setup_create_contract function,
+    /// or was not created by a transaction in an earlier block).
     pub fn setup_create_deployment(
         &mut self,
         addr: &ContractAddress,
@@ -217,6 +253,14 @@ impl TestEnvironmentInner {
         }
     }
 
+    /// Grants the specified number of storage tokens to the specified contract address.
+    ///
+    /// In the test framework, the semantics of this function is that
+    /// after this function is called, the effects on the database are as though that
+    /// contract had been granted the specified number of storage tokens during the previous block.
+    ///
+    /// This function should not be called once the contract has been deployed and invoked;
+    /// the internal accounting of storage tokens will be incorrect if that occurs.
     pub fn setup_grant_storage_tokens(
         &mut self,
         addr: &ContractAddress,
@@ -235,6 +279,10 @@ impl TestEnvironmentInner {
         }
     }
 
+    /// Advances the test state to the next block.
+    /// This makes the effects of the previous block visible to the next block.
+    /// Only the transactions that were successfully committed will be visible to the next block.
+    /// An error may occur if there are any transactions that executed but did not commit or abort.
     pub fn advance_block(&mut self) {
         let res = unsafe { advance_new_block(self.db.db) };
         let err: FFIErrorCode = res.into();
@@ -243,6 +291,14 @@ impl TestEnvironmentInner {
         }
     }
 
+    /// Registers a new mock contract with the test environment.
+    /// This does not create the contract as something visible within Groundhog,
+    /// nor does it deploy it at a particular address.
+    ///
+    /// This contract (a Contract(ContractType::kMockTest))
+    /// can subsequently be created by the setup_create_contract functions,
+    /// or by being attached as one of the newly created contracts
+    /// on a SignedTransaction.
     pub fn add_contract(&mut self) -> *mut MockContractInner {
         let out: *mut MockContractInner = Box::into_raw(Box::new(
             MockContractInner::new(self.mock_contract_index),
