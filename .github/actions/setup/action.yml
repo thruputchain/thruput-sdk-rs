@@ -1,0 +1,23 @@
+name: "Prepare Environment"
+description: "Prepare the environment for building the SDK"
+runs:
+  using: "composite"
+  steps:
+    - name: gcc version check
+      run: gcc --version
+      shell: bash
+    - name: clang version check
+      run: clang --version
+      shell: bash
+    - name: Add Cargo to PATH
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      shell: bash
+    - name: path check
+      run: echo $PATH
+      shell: bash
+    - name: cargo version check
+      run: cargo --version
+      shell: bash
+    - name: cargo clean
+      run: cargo clean
+      shell: bash

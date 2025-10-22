@@ -36,16 +36,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: gcc version check
-      run: gcc --version
-    - name: clang version check
-      run: clang --version
-    - name: Add Cargo to PATH
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-    - name: path check
-      run: echo $PATH
-    - name: cargo version check
-      run: cargo --version
+    - uses: ./.github/actions/setup
     - name: check
       run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
     - name: log metrics
