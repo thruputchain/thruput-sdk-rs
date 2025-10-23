@@ -1,8 +1,8 @@
-use crate::sysresult::Result;
-use crate::sys;
 use crate::WriteXDR;
-use crate::internal::encode_xdr;
 use crate::hash::*;
+use crate::internal::encode_xdr;
+use crate::sys;
+use crate::sysresult::Result;
 
 pub const EVENT_MAX_TOPICS: usize = 3;
 
@@ -31,7 +31,7 @@ pub fn log_event(event: &impl Event) -> Result<()> {
         topic0.as_ref(),
         topic1.as_ref(),
         topic2.as_ref(),
-        data.as_ref()
+        data.as_ref(),
     )?;
 
     Ok(())
