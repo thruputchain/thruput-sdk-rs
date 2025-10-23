@@ -1,0 +1,79 @@
+/// ERC20 Events
+///
+/// See (EIP-20)[https://eips.ethereum.org/EIPS/eip-20#events].
+///
+/// # Transfer
+///
+/// `event Transfer(address indexed _from, address indexed _to, uint256 _value)`
+///
+/// "MUST trigger when tokens are transferred, including zero value transfers. A token contract
+/// which creates new tokens SHOULD trigger a Transfer event with the `_from` address set to `0x0`
+/// when tokens are created."
+///
+/// # Approval
+///
+/// `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
+///
+/// "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+
+use sdk::{ContractAddress, Event, Topic, TopicSrc, WriteXDR, ReadXDR};
+// use groundhog_xdr::standard_asset_events as standard;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, WriteXDR, ReadXDR)]
+pub struct TransferEvent<'a> {
+    from: &'a ContractAddress,
+    to: &'a ContractAddress,
+    amount: u128,
+}
+
+impl<'a> TransferEvent<'a> {
+    pub fn new(
+        from: &'a ContractAddress,
+        to: &'a ContractAddress,
+        amount: u128,
+    ) -> Self {
+        Self { from, to, amount }
+    }
+}
+
+pub const TRANSFER_EVENT_SIG: Topic = Topic([47; 32]);
+pub const ALLOCATE_EVENT_SIG: Topic = Topic([48; 32]);
+
+impl<'a> Event for TransferEvent<'a> {
+    fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
+        match index {
+            0 => Some(TopicSrc::Shared(&TRANSFER_EVENT_SIG)),
+            1 => Some(TopicSrc::Hashed(self.from)),
+            2 => Some(TopicSrc::Hashed(self.to)),
+            _ => None
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, WriteXDR, ReadXDR)]
+pub struct ApprovalEvent<'a> {
+    owner: &'a ContractAddress,
+    spender: &'a ContractAddress,
+    amount: u128,
+}
+
+impl<'a> ApprovalEvent<'a> {
+    pub fn new(
+        owner: &'a ContractAddress,
+        spender: &'a ContractAddress,
+        amount: u128,
+    ) -> Self {
+        Self { owner, spender, amount }
+    }
+}
+
+impl<'a> Event for ApprovalEvent<'a> {
+    fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
+        match index {
+            0 => Some(TopicSrc::Shared(&ALLOCATE_EVENT_SIG)),
+            1 => Some(TopicSrc::Hashed(self.owner)),
+            2 => Some(TopicSrc::Hashed(self.spender)),
+            _ => None
+        }
+    }
+}

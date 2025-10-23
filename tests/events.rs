@@ -45,13 +45,13 @@ struct OwnedEvent {
 }
 
 impl Event for OwnedEvent {
-    // The `topic` method allows us to construct arbitrary hashes
-    fn topic(&self, index: u32) -> Option<Hash256> {
-        let payer_payee = (&self.payer, &self.payee).hash();
+    fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
+        // Here we need to hash something we don't have a reference to:
+        let payer_payee = (&self.payer, &self.payee).hash().into();
 
         match index {
-            0 => Some(payer_payee),
-            1 => Some(self.currency.hash()),
+            0 => Some(TopicSrc::Owned(payer_payee)),
+            1 => Some(TopicSrc::Hashed(&self.currency)),
             _ => None,
         }
     }
@@ -60,40 +60,6 @@ impl Event for OwnedEvent {
 single_event_test! {
     fn test_owned_event() {
         let event = OwnedEvent::default();
-        log_event(&event).unwrap();
-    }
-}
-
-//-------------------------------------------------------------------------
-// An event structure using owned data
-#[derive(Default, WriteXDR)]
-struct OwnedEvent2 {
-    // Things that become topics:
-    payer: ContractAddress,
-    payee: ContractAddress,
-    currency: String,
-
-    // Additional data:
-    amount: u128,
-    memo: String,
-}
-
-impl Event for OwnedEvent2 {
-    // The `topic_by_ref` method may save some copying, in the case
-    // that we can reference topic data in `self`:
-    fn topic_by_ref(&self, index: u32) -> Option<&dyn Hash> {
-        match index {
-            0 => return Some(&self.payer),
-            1 => return Some(&self.payee),
-            2 => return Some(&self.currency),
-            _ => return None,
-        }
-    }
-}
-
-single_event_test! {
-    fn test_owned_event2() {
-        let event = OwnedEvent2::default();
         log_event(&event).unwrap();
     }
 }
@@ -112,58 +78,18 @@ struct BorrowedEvent<'a> {
 }
 
 impl<'a> Event for BorrowedEvent<'a> {
-    // This method allows us to construct arbitrary hashes
-    fn topic(&self, index: u32) -> Option<Hash256> {
-        let payer_payee = (self.payer, self.payee).hash();
-
+    fn topic<'t>(&'t self, index: u32) -> Option<TopicSrc<'t>> {
         match index {
-            0 => Some(payer_payee),
-            1 => Some(self.currency.hash()),
-            _ => None,
-        }
-    }
-}
-
-single_event_test! {
-    fn test_borrowed_event() {
-        let payer = ContractAddress::default();
-        let payee = ContractAddress::default();
-        let currency = "USD";
-        let amount = 33;
-        let memo = "dinner";
-        let event = BorrowedEvent { payer: &payer, payee: &payee, currency, amount, memo };
-
-        log_event(&event).unwrap();
-    }
-}
-
-//-------------------------------------------------------------------------
-// An event structure using pointers to minimize copying
-#[allow(unused)]
-#[derive(WriteXDR)]
-struct BorrowedEvent2<'a> {
-    payer: &'a ContractAddress,
-    payee: &'a ContractAddress,
-    currency: &'a str,
-
-    amount: u128,
-    memo: &'a str,
-}
-
-impl<'a> Event for BorrowedEvent2<'a> {
-    // This way may save copying
-    fn topic_by_ref(&self, index: u32) -> Option<&dyn Hash> {
-        match index {
-            0 => return Some(self.payer),
-            1 => return Some(self.payee),
-            2 => return Some(&self.currency),
+            0 => return Some(TopicSrc::Hashed(self.payer)),
+            1 => return Some(TopicSrc::Hashed(self.payee)),
+            2 => return Some(TopicSrc::Hashed(&self.currency)),
             _ => return None,
         }
     }
 }
 
 single_event_test! {
-    fn test_borrowed_event2() {
+    fn test_borrowed_event() {
         let payer = ContractAddress::default();
         let payee = ContractAddress::default();
         let currency = "USD";

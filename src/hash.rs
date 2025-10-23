@@ -1,16 +1,21 @@
 //! Hash trait
 
 use crate::sysresult::Result;
+use crate::crypto::sha_256;
 
 pub type Hash256 = crate::crypto::SHA256Hash;
 
 pub trait Hash {
-    fn try_hash(&self) -> Result<Hash256>;
+    fn try_hash(&self) -> Result<Hash256> {
+        Ok(self.hash())
+    }
 
-    /// Panics where `try_hash` returns `Err`
+    /// Should panic where `try_hash` gives an error.
+    /// If hashing may fail for some reason other than the hash syscall failing (which case is best
+    /// to handle with a panic), implement `try_hash` instead.
     fn hash(&self) -> Hash256 {
         self.try_hash()
-            .unwrap_or_else(|e| panic!("Hash syscall failed: {}", e))
+            .unwrap_or_else(|e| panic!("Hash failed: {}", e))
     }
 }
 
@@ -26,7 +31,7 @@ const _: () = {
             let buf = xdrs::serialize_txs::encode(&self)
                 .map_err(Error::serialization)?;
 
-            let hash = crate::crypto::sha_256(&buf)?;
+            let hash = sha_256(&buf)?;
             Ok(hash)
         }
     }
@@ -65,7 +70,7 @@ const _: () = {
                 hash_buf.set_len(written);
             }
 
-            let hash = crate::crypto::sha_256(hash_buf.as_ref())?;
+            let hash = sha_256(hash_buf.as_ref())?;
             Ok(hash)
         }
     }

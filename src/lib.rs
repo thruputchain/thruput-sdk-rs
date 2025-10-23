@@ -65,6 +65,7 @@ pub mod storage;
 pub use bytestring::*;
 pub use contract_op::*;
 pub use deploy::*;
+pub use event::*;
 pub use invoke::*;
 pub use log::*;
 pub use non_negative_int::*;

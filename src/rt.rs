@@ -12,12 +12,6 @@ pub fn trap() -> ! {
     panic!("unreachable");
 }
 
-#[cfg(not(feature = "std"))]
-#[panic_handler]
-fn handle_panic(_: &core::panic::PanicInfo) -> ! {
-    trap();
-}
-
 #[cfg(feature = "mock")]
 mod test_rt {
     use native_exec::invoke_error::deterministic_error;
@@ -33,6 +27,13 @@ mod test_rt {
 #[allow(dead_code)]
 #[allow(unused)]
 pub use test_rt::trap;
+
+
+#[cfg(not(feature = "std"))]
+#[panic_handler]
+fn handle_panic(_: &core::panic::PanicInfo) -> ! {
+    trap();
+}
 
 // The `panic!()` args get compiled out under `panic_immediate_abort`
 #[cfg(any(feature = "mock", not(feature = "logging")))]

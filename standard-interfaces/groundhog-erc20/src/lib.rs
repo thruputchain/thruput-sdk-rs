@@ -3,6 +3,9 @@
 mod error;
 pub use error::*;
 
+mod events;
+pub use events::*;
+
 use sdk::{ContractAddress, contract};
 
 pub type Amount = u128;
