@@ -15,9 +15,32 @@
 /// `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
 ///
 /// "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+use sdk::{
+    ContractAddress, Event, ReadXDR, Topic, TopicSrc, WriteXDR, log_event,
+    sysresult::Result,
+};
 
-use sdk::{ContractAddress, Event, Topic, TopicSrc, WriteXDR, ReadXDR};
-// use groundhog_xdr::standard_asset_events as standard;
+// TODO: conversion of the types defined below into those in `groundhog_xdr::standard_asset_events`
+
+pub fn log_transfer_event(
+    from: &ContractAddress,
+    to: &ContractAddress,
+    amount: u128,
+) -> Result<()> {
+    let event = TransferEvent::new(from, to, amount);
+
+    log_event(&event)
+}
+
+pub fn log_approval_event(
+    owner: &ContractAddress,
+    spender: &ContractAddress,
+    amount: u128,
+) -> Result<()> {
+    let event = ApprovalEvent::new(owner, spender, amount);
+
+    log_event(&event)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, WriteXDR, ReadXDR)]
 pub struct TransferEvent<'a> {
@@ -45,7 +68,7 @@ impl<'a> Event for TransferEvent<'a> {
             0 => Some(TopicSrc::Shared(&TRANSFER_EVENT_SIG)),
             1 => Some(TopicSrc::Hashed(self.from)),
             2 => Some(TopicSrc::Hashed(self.to)),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -63,7 +86,11 @@ impl<'a> ApprovalEvent<'a> {
         spender: &'a ContractAddress,
         amount: u128,
     ) -> Self {
-        Self { owner, spender, amount }
+        Self {
+            owner,
+            spender,
+            amount,
+        }
     }
 }
 
@@ -73,7 +100,7 @@ impl<'a> Event for ApprovalEvent<'a> {
             0 => Some(TopicSrc::Shared(&ALLOCATE_EVENT_SIG)),
             1 => Some(TopicSrc::Hashed(self.owner)),
             2 => Some(TopicSrc::Hashed(self.spender)),
-            _ => None
+            _ => None,
         }
     }
 }

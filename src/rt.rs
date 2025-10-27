@@ -28,7 +28,6 @@ mod test_rt {
 #[allow(unused)]
 pub use test_rt::trap;
 
-
 #[cfg(not(feature = "std"))]
 #[panic_handler]
 fn handle_panic(_: &core::panic::PanicInfo) -> ! {

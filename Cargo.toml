@@ -35,6 +35,8 @@ groundhog_xdr = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
 xdrs = { workspace = true }
+
+# Optional dependencies
 native_exec = { workspace = true, optional = true }
 delegate = { workspace = true, optional = true }
 

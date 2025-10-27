@@ -1,7 +1,7 @@
 //! Hash trait
 
-use crate::sysresult::Result;
 use crate::crypto::sha_256;
+use crate::sysresult::Result;
 
 pub type Hash256 = crate::crypto::SHA256Hash;
 

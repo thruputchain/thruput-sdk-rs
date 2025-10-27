@@ -104,6 +104,7 @@ pub mod contract_test;
 pub use {
     groundhog_xdr::ffi_enums::*,
     native_exec::{
-        mock_contract::MockContract, test_environment::TestEnvironment,
+        mock_contract::MockContract,
+        test_environment::{TestEnvironment, TestEnvironmentHandle},
     },
 };

@@ -1,7 +1,6 @@
 use native_exec::transaction_handler::TransactionHandler;
 use sdk::event::*;
 use sdk::*;
-use std::rc::Rc;
 
 macro_rules! single_event_test {
     { fn $name:ident() $body:tt } =>
@@ -23,6 +22,7 @@ macro_rules! single_event_test {
     };
 }
 
+//-------------------------------------------------------------------------
 // Log an event with the raw syscall
 single_event_test! {
     fn test_event_no_topics() {
@@ -104,7 +104,7 @@ single_event_test! {
 // utilities
 
 fn grant_storage_tokens(
-    env: &Rc<TestEnvironment>,
+    env: &TestEnvironmentHandle,
     handler: &TransactionHandler,
 ) {
     env.setup_grant_storage_tokens(

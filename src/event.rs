@@ -48,9 +48,12 @@ pub trait Event: WriteXDR {
 }
 
 pub fn log_event(event: &impl Event) -> Result<()> {
-    let topic0: Option<Topic> = event.topic(0).map(|t| t.try_into()).transpose()?;
-    let topic1: Option<Topic> = event.topic(1).map(|t| t.try_into()).transpose()?;
-    let topic2: Option<Topic> = event.topic(2).map(|t| t.try_into()).transpose()?;
+    let topic0: Option<Topic> =
+        event.topic(0).map(|t| t.try_into()).transpose()?;
+    let topic1: Option<Topic> =
+        event.topic(1).map(|t| t.try_into()).transpose()?;
+    let topic2: Option<Topic> =
+        event.topic(2).map(|t| t.try_into()).transpose()?;
 
     let data = encode_xdr(event)?;
 

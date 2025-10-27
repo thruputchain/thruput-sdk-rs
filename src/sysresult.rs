@@ -31,6 +31,9 @@ pub enum Error {
 
     #[error("Non-negative integer underflow")]
     NonNegativeIntUnderflow,
+
+    #[error("Integer overflow")]
+    IntegerOverflow,
 }
 
 impl Error {

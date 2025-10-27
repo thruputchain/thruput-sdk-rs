@@ -1,5 +1,9 @@
 use super::keypath::Keypath;
+<<<<<<< HEAD
 use crate::non_negative_int::*;
+=======
+use crate::nonnegative_int::*;
+>>>>>>> a3f5a1f (use erc20 events in examples/erc20)
 use crate::sysresult::Result;
 use core::fmt::Debug;
 
