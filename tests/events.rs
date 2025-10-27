@@ -1,22 +1,31 @@
 use native_exec::transaction_handler::TransactionHandler;
 use sdk::event::*;
 use sdk::*;
+use sdk::types::event::TxEmittedEvent;
+use sdk::internal::decode_xdr;
 
 macro_rules! single_event_test {
-    { fn $name:ident() $body:tt } =>
+    {
+        fn $test_name:ident() $body:tt
+        fn event_check($event:ident) $body_event_check:tt
+    } =>
     {
         contract_test_env! {
             fn env_hook(env, handler) {
                 grant_storage_tokens(env, handler);
             }
 
-            fn $name() $body
+            fn $test_name() $body
 
             fn post_hook(handler) {
                 let event_log = handler.get_event_logs().unwrap();
                 let events = &event_log.events;
 
                 assert_eq!(events.len(), 1);
+                let event = &event_log.events[0];
+
+                let event_check = |$event: &TxEmittedEvent| $body_event_check;
+                event_check(event);
             }
         }
     };
@@ -28,11 +37,17 @@ single_event_test! {
     fn test_event_no_topics() {
         sys::raw_LogEvent(None, None, None, b"test").unwrap();
     }
+
+    fn event_check(event) {
+        assert_eq!(event.num_topics, 0);
+        assert_eq!(event.serialized_event.len(), 4);
+    }
 }
+
 
 //-------------------------------------------------------------------------
 // An event structure using owned data
-#[derive(Default, WriteXDR)]
+#[derive(Debug, Default, PartialEq, WriteXDR, ReadXDR)]
 struct OwnedEvent {
     // Things that become topics:
     payer: ContractAddress,
@@ -62,19 +77,26 @@ single_event_test! {
         let event = OwnedEvent::default();
         log_event(&event).unwrap();
     }
+    fn event_check(event) {
+        assert_eq!(event.num_topics, 2);
+
+        let payload = event_payload(event);
+        let event: OwnedEvent = decode_xdr(payload).unwrap();
+        assert_eq!(event, OwnedEvent::default());
+    }
 }
 
 //-------------------------------------------------------------------------
 // An event structure using pointers to minimize copying
 #[allow(unused)]
-#[derive(WriteXDR)]
+#[derive(WriteXDR, ReadXDR)]
 struct BorrowedEvent<'a> {
     payer: &'a ContractAddress,
     payee: &'a ContractAddress,
-    currency: &'a str,
+    currency: &'a [u8],
 
     amount: u128,
-    memo: &'a str,
+    memo: &'a [u8],
 }
 
 impl<'a> Event for BorrowedEvent<'a> {
@@ -92,16 +114,29 @@ single_event_test! {
     fn test_borrowed_event() {
         let payer = ContractAddress::default();
         let payee = ContractAddress::default();
-        let currency = "USD";
+        let currency = "USD".as_bytes();
         let amount = 33;
-        let memo = "dinner";
+        let memo = "dinner".as_bytes();
         let event = BorrowedEvent { payer: &payer, payee: &payee, currency, amount, memo };
 
         log_event(&event).unwrap();
     }
+    fn event_check(event) {
+        assert_eq!(event.num_topics, 3);
+
+        let payload = event_payload(event);
+        let event: BorrowedEvent = decode_xdr(payload).unwrap();
+        assert_eq!(event.memo, "dinner".as_bytes());
+    }
 }
 
 // utilities
+
+fn event_payload(event: &TxEmittedEvent) -> &[u8] {
+    let topics_len = 32 * event.num_topics as usize;
+
+    &event.serialized_event[topics_len..]
+}
 
 fn grant_storage_tokens(
     env: &TestEnvironmentHandle,
