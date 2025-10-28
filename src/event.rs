@@ -57,7 +57,7 @@ pub fn log_event(event: &impl Event) -> Result<()> {
 
     let data = encode_xdr(event)?;
 
-    #[cfg(feature = "mock")]
+    #[cfg(feature = "mock")] // XXX
     crate::log::log_str(std::format!("--> Encoded event data: {} bytes", data.len()));
 
     // TODO: change syscall signature to take [u8; u32]
