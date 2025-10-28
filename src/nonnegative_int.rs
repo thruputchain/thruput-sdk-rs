@@ -1,9 +1,8 @@
 //! System functions: non-negative integers
 //!
-//! A non-negative integer has a "set" value determined
-//! at the start of the transaction, and an "add" value
-//! that may be modified during the transaction.  The
-//! "current" value is the sum of these.
+//! A non-negative integer has a "set" value determined at the start of the transaction and an
+//! "add" value that is initially zero.  Both values may be modified during the transaction.  The
+//! "current" value is the sum of "set" and "add".
 
 use crate::sys;
 use crate::sysresult::SysResult as Result;
@@ -25,7 +24,7 @@ pub fn non_negative_int_get_values(
         &mut add_result,
     )?;
 
-    debug_assert!(force_load_set && set_loaded);
+    debug_assert!(if force_load_set { set_loaded } else { true });
 
     let set_result_opt = if set_loaded { Some(set_result) } else { None };
 
@@ -39,7 +38,7 @@ pub fn non_negative_int_get(key: &StorageKeyContractData) -> Result<i128> {
     Ok(s.unwrap() + a)
 }
 
-/// Add an amount, optionally asserting the "set" value.
+/// Set the "add" value, and either set the "set" value also or, if not provided, clear it to zero
 pub fn non_negative_int_set_add(
     key: &StorageKeyContractData,
     set_value: Option<i128>,
@@ -48,17 +47,26 @@ pub fn non_negative_int_set_add(
     sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
 }
 
-/// Add an amount, after querying the "set" value.
+/// Set the "set" value and clear "add" to zero
+pub fn non_negative_int_set(
+    key: &StorageKeyContractData,
+    set_value: i128,
+) -> Result<()> {
+    let add_value = 0;
+
+    non_negative_int_set_add(key, Some(set_value), add_value)
+}
+
+/// Set the "add" value and clear the "set" value to zero
 pub fn non_negative_int_add(
     key: &StorageKeyContractData,
-    amount: i128,
+    add_value: i128,
 ) -> Result<()> {
-    let (s, a) = non_negative_int_get_values(key, false)?;
-
-    non_negative_int_set_add(key, s, a + amount)
+    non_negative_int_set_add(key, None, add_value)
 }
 
 /// Add an amount, to zero if previously unset.
+/// TODO: fix/document actual semantics
 pub fn non_negative_int_add_default_zero(
     key: &StorageKeyContractData,
     amount: i128,
@@ -69,6 +77,7 @@ pub fn non_negative_int_add_default_zero(
 }
 
 /// Get the "current" ("set" + "add") value, or zero if previously unset.
+/// TODO: fix/document actual semantics
 pub fn non_negative_int_get_default_zero(
     key: &StorageKeyContractData,
 ) -> Result<i128> {
@@ -78,6 +87,7 @@ pub fn non_negative_int_get_default_zero(
 }
 
 /// Get the "set" and "add" values, or zero if previously unset.
+/// TODO: fix/document actual semantics
 pub fn non_negative_int_get_values_default_zero(
     key: &StorageKeyContractData,
 ) -> Result<(i128, i128)> {
