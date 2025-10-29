@@ -79,25 +79,8 @@ spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
 # buffers cause overflows).
 dynamic_bufs = []
 
-[profile.dev]
-opt-level = 3
-overflow-checks = false
-debug = false
-strip = "none"
-panic = "abort"
-lto = true
-codegen-units = 1
-trim-paths = "all" # unstable
-
-[profile.test]
-# settings inherited from profile.dev
-opt-level = 0
-overflow-checks = true
-debug = true
-strip = "none"
-debug-assertions = true
-
-[profile.release]
+[profile.contract]
+inherits = "release"
 opt-level = 3
 overflow-checks = false
 debug = false
