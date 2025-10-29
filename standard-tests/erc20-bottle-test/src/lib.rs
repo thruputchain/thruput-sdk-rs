@@ -1,13 +1,34 @@
 #![no_std]
 
 pub use bottle_test_if::*;
-use groundhog_erc20_if::ERC20Client;
+use groundhog_erc20_if::{ERC20Client, ERC20Error};
 use sdk::*;
 
 #[derive(Debug)]
 #[storage]
 pub struct BT {
     target_addr: Option<ContractAddress>,
+}
+
+const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
+
+#[derive(Default)]
+struct Model {
+    pub total_supply: u128,
+    pub owner_bal: u128,
+    pub other_bal: u128,
+}
+
+impl Model {
+    pub fn check_total_supply(&self, client: &mut ERC20Client) {
+        assert_eq!(client.total_supply().unwrap(), self.total_supply);
+    }
+    pub fn check_owner_balance(&self, client: &mut ERC20Client) {
+        assert_eq!(client.get_balance().unwrap(), self.owner_bal);
+    }
+    pub fn check_other_balance(&self, client: &mut ERC20Client) {
+        assert_eq!(client.get_balance_of(&OTHER).unwrap(), self.other_bal);
+    }
 }
 
 #[contract]
@@ -23,28 +44,59 @@ impl BottleTest for BT {
     }
 
     fn run(&mut self) {
+        // Keep our own model of contract state to compare against
+        let mut m = Model::default();
+
         let target_addr = self.target_addr.as_ref().unwrap_or_else(||
             contract_panic!("erc20-bottle-test: target_addr unset; please run setup() before run()"));
 
-        let mut client = ERC20Client::new(target_addr);
-
         let owner = get_current_address().unwrap();
-        client.initialize(&owner).unwrap();
+        let owner = &owner;
+        let other = &OTHER;
 
-        assert_eq!(client.total_supply().unwrap(), 0);
-        assert_eq!(client.get_balance().unwrap(), 0);
+        let mut client = ERC20Client::new(target_addr);
+        let client = &mut client;
+        client.initialize(owner).unwrap();
 
+        // Total supply and owner's balance are zero
+        m.check_total_supply(client);
+        m.check_owner_balance(client);
+
+        // Mint
+        let amt = 100;
         client.mint(&owner, 100).unwrap();
-        assert_eq!(client.get_balance().unwrap(), 100);
+        m.total_supply += amt;
+        m.owner_bal += amt;
+        m.check_total_supply(client);
+        m.check_owner_balance(client);
 
-        let other: ContractAddress = [0xBB; 32].into();
-        client.transfer(&other, 25).unwrap();
-        assert_eq!(client.get_balance_of(&other).unwrap(), 25);
-        assert_eq!(client.get_balance_of(&owner).unwrap(), 75);
+        // Burn
+        let amt = 50;
+        client.burn(&owner, amt).unwrap();
+        m.total_supply -= amt;
+        m.owner_bal -= amt;
+        m.check_total_supply(client);
+        m.check_owner_balance(client);
 
+        // Burn too much
+        client.burn(owner, 60).unwrap();
+        assert_eq!(client.get_balance(), Err(ClientError::Aborted(ERC20Error::TooLarge)));
+        // let _ = client.get_balance().unwrap();
+
+        // Transfer
+        let amt = 25;
+        client.transfer(other, amt).unwrap();
+        m.owner_bal -= amt;
+        m.other_bal += amt;
+        m.check_owner_balance(client);
+        m.check_other_balance(client);
+
+        // Burn
         client.burn(&other, 5).unwrap();
-        assert_eq!(client.get_balance_of(&other).unwrap(), 20);
+        m.total_supply -= 5;
+        m.owner_bal -= 5;
+        m.check_owner_balance(client);
 
-        assert_eq!(client.total_supply().unwrap(), 95);
+        m.check_total_supply(client);
     }
 }

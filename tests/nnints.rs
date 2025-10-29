@@ -1,68 +1,63 @@
-use sdk::*;
+//! Test the semantics of the SDK's non_negative_int functions
 
-#[rustfmt::skip]
+use sdk::*;
+use sdk::sysresult::Error;
+
 contract_test!(test_nnints {
     let key = StorageKey::default();
     let key = &key;
 
-    let mut set = 0;
-    let mut add = 0;
+    // Assuming no previous activity at this storage location, this is the effective
+    // value stored there:
+    let mut n = 0;
 
-        // Get (without forcing) on a previously-unset location returns "add" == zero
-        assert_eq!(non_negative_int_get_values(key, false), Ok((None, add)));
+    // Getting a previously-unset location gives an error
+    assert!(matches!(non_negative_int_get(key), Err(e) if e.is_storage_key_not_exist()));
 
-        // Get (forcing) on a previously-unset location fails
-        assert!(matches!(non_negative_int_get_values(key, true), Err(e) if e.is_storage_key_not_exist()));
+    // Incrementing a previously-unset location succeeds
+    let inc = 3;
+    non_negative_int_inc(key, inc).unwrap();
 
-    // Add to a previously-unset location succeeds
-    add = 100;
-    assert_eq!(non_negative_int_add(key, add), Ok(()));
+    // Getting an incremented-only location succeeds as if the previous value had been zero
+    n += inc;
+    assert_eq!(non_negative_int_get(key), Ok(n));
 
-        // We get just the "add" value back when not forcing
-        assert_eq!(non_negative_int_get_values(key, false), Ok((None, add)));
+    // Incrementing again succeeds
+    let inc = 7;
+    non_negative_int_inc(key, inc).unwrap();
 
-        // We get the "set" and "add" values back when forcing; "set" has defaulted to zero
-        assert_eq!(non_negative_int_get_values(key, true), Ok((Some(set), add)));
+    // Getting yields the cumulative sum of increments, plus any set value from this transaction or
+    // the value at the start of the transaction.
+    n += inc;
+    assert_eq!(non_negative_int_get(key), Ok(n));
 
-    // Adding again to the location succeeds
-    add = 3;
-    assert_eq!(non_negative_int_add(key, add), Ok(()));
+    // Setting succeeds
+    n = 27;
+    non_negative_int_set(key, n).unwrap();
 
-        // The "add" value is now what we provided in the last call, NOT a running sum
-        assert_eq!(non_negative_int_get_values(key, true), Ok((Some(set), add)));
+    // Getting yields the just-set value
+    assert_eq!(non_negative_int_get(key), Ok(n));
 
-        // We still get just the "add" value back when not forcing, even though it
-        // has been forced (but not set) before
-        assert_eq!(non_negative_int_get_values(key, false), Ok((None, add)));
+    // Incrementing from here succeeds
+    let inc = 100;
+    non_negative_int_inc(key, inc).unwrap();
 
-    // We finally provide a "set" value, clearing "add"
-    set = 7;
-    add = 0;
-    assert_eq!(non_negative_int_set(key, set), Ok(()));
+    // Getting yields the cumulative sum of increments, plus any set value from this transaction or
+    // the value at the start of the transaction.
+    n += inc;
+    assert_eq!(non_negative_int_get(key), Ok(n));
 
-        // Even if we don't force, we'll see the cached "set" value
-        assert_eq!(non_negative_int_get_values(key, false), Ok((Some(set), add)));
+    // Revert restores the value at the start of the transaction
+    non_negative_int_revert(key).unwrap();
+    n = 0;
+    assert_eq!(non_negative_int_get(key), Ok(n));
 
-        // Same happens if we do force
-        assert_eq!(non_negative_int_get_values(key, true), Ok((Some(set), add)));
+    // We can set the conditions for an overflow without failure ...
+    n = i128::MAX;
+    let inc = 5;
+    non_negative_int_set(key, n).unwrap();
+    non_negative_int_inc(key, inc).unwrap();
 
-    // Here we just specify "add" again ...
-    add = 17;
-    assert_eq!(non_negative_int_add(key, add), Ok(()));
-
-        // The unspecified "set" value HAS BEEN CLEARED TO ZERO
-        set = 0;
-        assert_eq!(non_negative_int_get_values(key, true), Ok((Some(set), add)));
-
-    // We can provide "set" and "add" at the same time, for whatever that's
-    // worth
-    set = 8;
-    add = 2;
-    assert_eq!(non_negative_int_set_add(key, Some(set), add), Ok(()));
-
-        // They've both been updated
-        assert_eq!(non_negative_int_get_values(key, true), Ok((Some(set), add)));
-
-    // TODO: test behavior with `delete` and changes of value-type (using
-    // `bytestring_set`, etc.)
+    // ... but retrieving the result fails
+    assert!(matches!(non_negative_int_get(key), Err(Error::NonNegativeIntOverflow)));
 });

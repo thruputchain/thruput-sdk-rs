@@ -1,9 +1,15 @@
 TARGET_DIR="target"
 HOGD_SRC="hogd"
 HOGD_SRC="$(realpath "${HOGD_SRC}")"
+
 CC=gcc
 CXX=g++
+
+# Fail build on cargo warnings
 DENY_WARNINGS=1
+
+# Where available, run a contract's bottle-test instead of its package tests
+PREFER_BOTTLE_TEST=1
 
 # Other useful settings:
 
@@ -15,9 +21,6 @@ DENY_WARNINGS=1
 
 ## Don't turn cargo/rust warnings into errors
 # unset DENY_WARNINGS
-
-## Where available, run a contract's bottle-test instead of its package tests
-# PREFER_BOTTLE_TEST=1
 
 ## Use an already-built contract-wasm for bottle-tests instead of rebuilding it
 ## (This is set in ci.sh, which builds contracts before running tests.)

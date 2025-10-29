@@ -36,7 +36,7 @@ pub mod internal;
 pub mod bytestring;
 pub mod contract_op;
 pub mod delete;
-pub mod nonnegative_int;
+pub mod non_negative_int;
 pub mod retrocausal_queue;
 pub mod stats;
 
@@ -66,7 +66,7 @@ pub use contract_op::*;
 pub use deploy::*;
 pub use invoke::*;
 pub use log::*;
-pub use nonnegative_int::*;
+pub use non_negative_int::*;
 pub use retrocausal_queue::*;
 
 pub use hash::*;
