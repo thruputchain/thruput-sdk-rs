@@ -16,7 +16,10 @@ cargo_wasm() {
     local cmd="$1"
     shift
 
-    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000" \
+    flags="${RUSTFLAGS} -Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000"
+    # echo "RUSTFLAGS=\"$flags\""
+
+    RUSTFLAGS="$flags" \
     cargo "$cmd" \
         --target wasm32-unknown-unknown \
         -Zbuild-std=alloc,core \

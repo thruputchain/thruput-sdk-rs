@@ -44,7 +44,7 @@ impl MyContract {
 
         frottage.touched = true;
         frottage.bytes.set(&[0, 1, 2, 3, 4]);
-        frottage.count.add_default_zero(amount as i128)?;
+        frottage.count.inc(amount as i128)?;
 
         let mut hbool1 = self.hbool1.load_mut()?;
         assert_eq!(*hbool1, false);

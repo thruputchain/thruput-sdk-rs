@@ -50,12 +50,15 @@ impl NNInt {
         }
     }
 
-    /// Add an amount (without querying the "set" value).
+    /// Increment by an amount (without querying the current value).
     pub fn inc(&mut self, increment: i128) -> Result<()> {
-        non_negative_int_inc(
-            &self.keypath.generate_key(),
-            increment,
-        )?;
+        non_negative_int_inc(&self.keypath.generate_key(), increment)?;
+        Ok(())
+    }
+
+    /// Increment_by an amount, failing in case of a negative result.
+    pub fn checked_inc(&mut self, increment: i128) -> Result<()> {
+        non_negative_int_checked_inc(&self.keypath.generate_key(), increment)?;
         Ok(())
     }
 }

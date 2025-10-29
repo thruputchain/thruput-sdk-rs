@@ -27,7 +27,7 @@ contract_test!(test_map {
 
         // Below results in `set_add(None, 7)` on this
         // previously-unset location
-        cell.inc(7).unwrap();
+        cell.checked_inc(7).unwrap();
     }
 
     {
@@ -95,7 +95,7 @@ contract_test!(test_load_default {
         assert_eq!(nnint.try_get().unwrap(), None);
 
         let n = 72 + i;
-        nnint.inc(n as i128).unwrap();
+        nnint.checked_inc(n as i128).unwrap();
     }
     drop(data);
 

@@ -28,6 +28,9 @@ pub enum Error {
 
     #[error("Non-negative integer overflow")]
     NonNegativeIntOverflow,
+
+    #[error("Non-negative integer underflow")]
+    NonNegativeIntUnderflow,
 }
 
 impl Error {
@@ -52,6 +55,10 @@ impl Error {
 
 pub fn nnint_overflow() -> Error {
     Error::NonNegativeIntOverflow
+}
+
+pub fn nnint_underflow() -> Error {
+    Error::NonNegativeIntUnderflow
 }
 
 // Error strings will be preserved for testing, but

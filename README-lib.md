@@ -10,7 +10,7 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 - Key-value storage:
     - [`delete`]
     - [`bytestring`]
-    - [`nonnegative_int`]
+    - [`non_negative_int`]
     - [`retrocausal_queue`]
 - Low-level bindings:
     - [`SysErr`]: Error type for syscalls

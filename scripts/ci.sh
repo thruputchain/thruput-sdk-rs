@@ -16,7 +16,7 @@ source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
 echo "using CC: $CC"
 echo "using CXX: $CXX"
-echo "RUSTFLAGS=$RUSTFLAGS"
+echo "RUSTFLAGS=\"${RUSTFLAGS}\""
 
 fail() {
     printf "\n!! CI-FAIL\n"

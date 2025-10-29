@@ -1,7 +1,7 @@
 //! Test the semantics of the SDK's non_negative_int functions
 
-use sdk::*;
 use sdk::sysresult::Error;
+use sdk::*;
 
 contract_test!(test_nnints {
     let key = StorageKey::default();

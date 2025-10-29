@@ -1,5 +1,11 @@
 #![no_std]
 
+// XXX
+#![allow(dead_code)] 
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
+
 pub use bottle_test_if::*;
 use groundhog_erc20_if::{ERC20Client, ERC20Error};
 use sdk::*;
@@ -56,7 +62,9 @@ impl BottleTest for BT {
 
         let mut client = ERC20Client::new(target_addr);
         let client = &mut client;
-        client.initialize(owner).unwrap();
+        client.initialize(owner).unwrap_or_else(|e| {
+            contract_panic!("erc20-bottle-test: initialize() failed: {}", e)
+        });
 
         // Total supply and owner's balance are zero
         m.check_total_supply(client);
@@ -79,9 +87,7 @@ impl BottleTest for BT {
         m.check_owner_balance(client);
 
         // Burn too much
-        client.burn(owner, 60).unwrap();
-        assert_eq!(client.get_balance(), Err(ClientError::Aborted(ERC20Error::TooLarge)));
-        // let _ = client.get_balance().unwrap();
+        assert_eq!(client.burn(owner, 60), Err(ClientError::Aborted(ERC20Error::TooLarge)));
 
         // Transfer
         let amt = 25;
@@ -91,12 +97,14 @@ impl BottleTest for BT {
         m.check_owner_balance(client);
         m.check_other_balance(client);
 
-        // Burn
+        // Transfer too much
+        assert_eq!(client.transfer(other, 1000), Err(ClientError::Aborted(ERC20Error::TooLarge)));
+
+        // Burn from other address
         client.burn(&other, 5).unwrap();
         m.total_supply -= 5;
-        m.owner_bal -= 5;
+        m.other_bal -= 5;
         m.check_owner_balance(client);
-
         m.check_total_supply(client);
     }
 }

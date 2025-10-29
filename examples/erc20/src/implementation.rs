@@ -48,11 +48,10 @@ impl TokenContract {
     ) -> Result<()> {
         let mut balance = self.balances.get(owner)?;
 
-        // The NNInt datatype ensures that `add` with a negative
-        // number results in a non-negative value. XXX
-        // For never-stored-to addresses, it acts as
-        // if the address had contained (0, 0).
-        balance.inc(diff)?;
+        // For never-stored-to addresses, this acts as
+        // if the value was zero.  If the resulting balance
+        // would be negative, this fails.
+        balance.checked_inc(diff)?;
         Ok(())
     }
 
@@ -66,12 +65,13 @@ impl TokenContract {
         let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
 
-        spender_allowance.inc(diff)?;
+        // This fails if the result would be negative
+        spender_allowance.checked_inc(diff)?;
         Ok(())
     }
 
     fn _adjust_total_supply(&mut self, diff: Difference) -> Result<()> {
-        self.total_supply.inc(diff).unwrap();
+        self.total_supply.checked_inc(diff).unwrap();
         Ok(())
     }
 
@@ -88,8 +88,6 @@ impl TokenContract {
 impl ERC20 for TokenContract {
     #[init]
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
-        // contract_abort(&Error::MustBeContractOwner);
-
         self._init(contract_owner);
         Ok(())
     }
