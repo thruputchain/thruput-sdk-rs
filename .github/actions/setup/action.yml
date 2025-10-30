@@ -21,3 +21,7 @@ runs:
     - name: cargo clean
       run: cargo clean
       shell: bash
+    - name: cargo log target dir
+      run: cargo metadata --format-version=1 --no-deps | jq -r '.target_directory'
+      shell: bash
+
