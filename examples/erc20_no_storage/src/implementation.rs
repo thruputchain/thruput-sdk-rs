@@ -48,17 +48,11 @@ fn ensure_caller_is_owner() -> Result<()> {
 }
 
 fn add_to_total_supply(diff: Difference) -> Result<()> {
-    Ok(non_negative_int_add_default_zero(
-        &get_total_supply_key(),
-        diff,
-    )?)
+    Ok(non_negative_int_checked_inc(&get_total_supply_key(), diff)?)
 }
 
 fn add_to_balance(addr: &ContractAddress, diff: Difference) -> Result<()> {
-    Ok(non_negative_int_add_default_zero(
-        &get_balance_key(addr),
-        diff,
-    )?)
+    Ok(non_negative_int_checked_inc(&get_balance_key(addr), diff)?)
 }
 
 fn add_to_allowance(
@@ -66,7 +60,7 @@ fn add_to_allowance(
     spender: &ContractAddress,
     diff: Difference,
 ) -> Result<()> {
-    Ok(non_negative_int_add_default_zero(
+    Ok(non_negative_int_checked_inc(
         &get_allowance_key(owner, spender),
         diff,
     )?)
@@ -127,8 +121,10 @@ impl ERC20 for Token {
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Result<Amount> {
-        Ok(non_negative_int_get_default_zero(&get_balance_key(addr))?
-            as Amount)
+        Ok(
+            non_negative_int_try_get(&get_balance_key(addr))?.unwrap_or(0)
+                as Amount,
+        )
     }
 
     fn get_balance(&self) -> Result<Amount> {
@@ -152,7 +148,9 @@ impl ERC20 for Token {
     }
 
     fn total_supply(&self) -> Result<Amount> {
-        Ok(non_negative_int_get_default_zero(&get_total_supply_key())?
-            as Amount)
+        Ok(
+            non_negative_int_try_get(&get_total_supply_key())?.unwrap_or(0)
+                as Amount,
+        )
     }
 }

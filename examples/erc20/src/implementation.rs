@@ -21,12 +21,9 @@ pub struct TokenContract {
 }
 
 impl TokenContract {
-    // These internal functions use the underlying storage to
-    // create an abstraction whereby all balances and allowances
-    // exist, defaulting to zero if never set.  They also, via
-    // the NNInt datatype, enforce the invariant that balances
-    // and allowances are non-negative.  They do _not_ check
-    // authorization.
+    // These internal functions use the underlying storage to create an
+    // abstraction whereby all balances and allowances exist, defaulting to
+    // zero if never set. They do _not_ check authorization.
 
     fn _init(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner = contract_owner.clone();
@@ -51,11 +48,10 @@ impl TokenContract {
     ) -> Result<()> {
         let mut balance = self.balances.get(owner)?;
 
-        // The NNInt datatype ensures that `add` with a negative
-        // number results in a non-negative value.
-        // For never-stored-to addresses, it acts as
-        // if the address had contained (0, 0).
-        balance.add_default_zero(diff)?;
+        // For never-stored-to addresses, this acts as
+        // if the value was zero.  If the resulting balance
+        // would be negative, this fails.
+        balance.checked_inc(diff)?;
         Ok(())
     }
 
@@ -68,12 +64,14 @@ impl TokenContract {
     ) -> Result<()> {
         let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
-        spender_allowance.add_default_zero(diff)?;
+
+        // This fails if the result would be negative
+        spender_allowance.checked_inc(diff)?;
         Ok(())
     }
 
     fn _adjust_total_supply(&mut self, diff: Difference) -> Result<()> {
-        self.total_supply.add_default_zero(diff)?;
+        self.total_supply.checked_inc(diff).unwrap();
         Ok(())
     }
 
@@ -90,8 +88,6 @@ impl TokenContract {
 impl ERC20 for TokenContract {
     #[init]
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
-        // contract_abort(&Error::MustBeContractOwner);
-
         self._init(contract_owner);
         Ok(())
     }

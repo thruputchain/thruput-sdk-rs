@@ -4,11 +4,22 @@
 
 set -u
 
+# cargo profile for production contracts
+PRODUCTION_PROFILE="contract"
+
+# Directories for built contracts
+CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/contract"
+OPTIMIZED="${TARGET_DIR}/optimized"
+BOTTLE_TEST="${TARGET_DIR}/bottle-test"
+
 cargo_wasm() {
     local cmd="$1"
     shift
 
-    RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000" \
+    flags="${RUSTFLAGS} -Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000"
+    # echo "RUSTFLAGS=\"$flags\""
+
+    RUSTFLAGS="$flags" \
     cargo "$cmd" \
         --target wasm32-unknown-unknown \
         -Zbuild-std=alloc,core \
@@ -23,24 +34,24 @@ build_wasm() {
 
     cargo_wasm build \
         --features "guest" \
-        --release \
+        --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
         "$@"
 }
 
-make_compressed_wasm() {
+make_optimized_wasm() {
     local package
     package="$(basename "$1")"
     shift
 
     (cd "$TARGET_DIR" && mkdir -p optimized) || return 1
 
-    local release="${TARGET_DIR}/wasm32-unknown-unknown/release/${package}.wasm"
-    local optimized="${TARGET_DIR}/optimized/${package}.wasm"
+    local contract="${CONTRACT}/${package}.wasm"
+    local optimized="${OPTIMIZED}/${package}.wasm"
 
     # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
     # very slightly better)
-    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${release}"
+    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 build_contract() {
@@ -53,9 +64,9 @@ build_contract() {
         return 1
     fi
 
-    if ! make_compressed_wasm "$contract" ; then
+    if ! make_optimized_wasm "$contract" ; then
         echo
-        echo ">> ${contract}: Failed compressing wasm"
+        echo ">> ${contract}: Failed optimizing wasm"
         return 1
     fi
 }
@@ -67,7 +78,7 @@ build_bottle_test() {
 
     cargo_wasm build \
         --features "bottle-test" \
-        --release \
+        --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
         -Zunstable-options --artifact-dir="target/bottle-test/" \
         "$@"
@@ -87,7 +98,7 @@ bottle_test_contract() {
     local package
     package="$(basename "$contract")"
 
-    cargo run -p bottle-test "$package"
+    cargo run -p bottle-test --profile dev "$package"
 }
 
 has_bottle_test() {
@@ -136,7 +147,7 @@ expand_contract() {
     shift
 
     cargo_guest expand \
-        --release \
+        --profile "contract" \
         --package "$package" \
         "$@"
 }
@@ -290,13 +301,13 @@ make_contracts() {
             ;;
         entrypoints)
             local contract="$1" ; shift
-            local wasm="${TARGET_DIR}/optimized/${contract}.wasm"
+            local wasm="${OPTIMIZED}/${contract}.wasm"
 
             wasm-objdump -x -j Function "$wasm" | rustfilt
             ;;
         bottle-test-entrypoints)
             local contract="$1" ; shift
-            local wasm="${TARGET_DIR}/bottle-test/${contract}.wasm"
+            local wasm="${BOTTLE_TEST}/${contract}.wasm"
 
             wasm-objdump -x -j Function "$wasm" | rustfilt
             ;;
@@ -308,42 +319,42 @@ make_contracts() {
             ;;
         fns)
             local contract="$1" ; shift
-            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+            local wasm="${CONTRACT}/${contract}.wasm"
 
             # get this utility at: https://github.com/WebAssembly/wabt
             # also do: cargo install rustfilt
-            wasm-objdump -x -j Code "$unoptimized_wasm" | rustfilt
+            wasm-objdump -x -j Code "$wasm" | rustfilt
             ;;
         sections)
             local contract="$1" ; shift
-            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+            local wasm="${CONTRACT}/${contract}.wasm"
 
             # get this utility at: https://github.com/WebAssembly/wabt
-            wasm-objdump -h "$unoptimized_wasm"
+            wasm-objdump -h "$wasm"
             ;;
         decompile)
             local contract="$1" ; shift
-            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+            local wasm="${CONTRACT}/${contract}.wasm"
 
             # get this utility at: https://github.com/WebAssembly/wabt
             # also do: cargo install rustfilt
-            wasm-decompile "$unoptimized_wasm" | perl -pe 's/\W(ZN\w*)\W/<_$1>/g' | rustfilt
+            wasm-decompile "$wasm" | perl -pe 's/\W(ZN\w*)\W/<_$1>/g' | rustfilt
             ;;
         dominators)
             local contract="$1" ; shift
-            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+            local wasm="${CONTRACT}/${contract}.wasm"
 
             # cargo install twiggy
             # https://github.com/AlexEne/twiggy/blob/master/guide/src/SUMMARY.md
-            twiggy dominators "$unoptimized_wasm"
+            twiggy dominators "$wasm"
             ;;
         top-fns)
             local contract="$1" ; shift
-            local unoptimized_wasm="${TARGET_DIR}/wasm32-unknown-unknown/release/${contract}.wasm"
+            local wasm="${CONTRACT}/${contract}.wasm"
 
             # cargo install twiggy
             # https://github.com/AlexEne/twiggy/blob/master/guide/src/SUMMARY.md
-            twiggy top "$unoptimized_wasm"
+            twiggy top "$wasm"
             ;;
         ls)
             ls_contracts "$contracts_dir"
@@ -352,10 +363,10 @@ make_contracts() {
             ls_contract_packages "$contracts_dir"
             ;;
         ls-wasms)
-            ls -l "$TARGET_DIR"/optimized/*.wasm
+            ls -l "$OPTIMIZED"/*.wasm
             ;;
         ls-wasms-unoptimized)
-            ls -l "$TARGET_DIR"/wasm32-unknown-unknown/release/*.wasm
+            ls -l "$CONTRACT"/*.wasm
             ;;
         * )
             echo "Sorry, didn't understand action '$action'."

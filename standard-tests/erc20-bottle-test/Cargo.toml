@@ -16,3 +16,6 @@ xdrs = { workspace = true }
 [lib]
 crate-type = ["rlib"]
 doctest = false
+
+[features]
+fail-fast = []

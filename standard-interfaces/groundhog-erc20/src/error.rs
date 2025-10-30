@@ -36,6 +36,18 @@ impl From<SysErr> for ERC20Error {
     }
 }
 
+// TODO: rework SDK errors
+use sdk::sysresult::Error as SystemError;
+impl From<SystemError> for ERC20Error {
+    fn from(err: SystemError) -> Self {
+        match err {
+            SystemError::NonNegativeIntOverflow => ERC20Error::TooLarge,
+            SystemError::NonNegativeIntUnderflow => ERC20Error::TooLarge,
+            _ => ERC20Error::SystemErr,
+        }
+    }
+}
+
 #[cfg(feature = "storage")]
 const _: () = {
     use sdk::storage::error::Error as StorageError;

@@ -1,9 +1,15 @@
 TARGET_DIR="target"
 HOGD_SRC="hogd"
 HOGD_SRC="$(realpath "${HOGD_SRC}")"
+
 CC=gcc
 CXX=g++
+
+# Fail build on cargo warnings
 DENY_WARNINGS=1
+
+# Where available, run a contract's bottle-test instead of its package tests
+PREFER_BOTTLE_TEST=1
 
 # Other useful settings:
 
@@ -16,12 +22,12 @@ DENY_WARNINGS=1
 ## Don't turn cargo/rust warnings into errors
 # unset DENY_WARNINGS
 
-## Where available, run a contract's bottle-test instead of its package tests
-# PREFER_BOTTLE_TEST=1
-
 ## Use an already-built contract-wasm for bottle-tests instead of rebuilding it
 ## (This is set in ci.sh, which builds contracts before running tests.)
 # BOTTLE_TEST_USE_BUILT_TARGET=1
+
+## Always do a cmake reconfiguration before building native_exec
+# NATIVE_EXEC_ALWAYS_RECONFIGURE=1
 
 # Augment/override with any local settings
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
@@ -33,6 +39,10 @@ fi
 
 if [ -n "$SDK_TEST_ENABLE_SYSCALL_LOGGING" ]; then
     export SDK_TEST_ENABLE_SYSCALL_LOGGING="${SDK_TEST_ENABLE_SYSCALL_LOGGING:?}"
+fi
+
+if [ -n "$NATIVE_EXEC_ALWAYS_RECONFIGURE" ]; then
+    export NATIVE_EXEC_ALWAYS_RECONFIGURE="${NATIVE_EXEC_ALWAYS_RECONFIGURE:?}"
 fi
 
 if [ -n "$DENY_WARNINGS" ]; then

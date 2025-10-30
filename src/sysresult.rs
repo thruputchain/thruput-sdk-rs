@@ -14,7 +14,7 @@ pub type SysResult<T> = core::result::Result<T, SysErr>;
 pub type Result<T> = core::result::Result<T, Error>;
 
 // Error type for general SDK functions
-#[derive(Error, Debug, Clone, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum Error {
     #[error("System call error: {0}")]
@@ -25,6 +25,12 @@ pub enum Error {
 
     #[error("Serialization error{0}")]
     SerializationErr(ErrorMsg),
+
+    #[error("Non-negative integer overflow")]
+    NonNegativeIntOverflow,
+
+    #[error("Non-negative integer underflow")]
+    NonNegativeIntUnderflow,
 }
 
 impl Error {
@@ -45,6 +51,14 @@ impl Error {
     pub fn serialization<M: fmt::Display>(msg: M) -> Self {
         Error::SerializationErr(ErrorMsg::new(msg))
     }
+}
+
+pub fn nnint_overflow() -> Error {
+    Error::NonNegativeIntOverflow
+}
+
+pub fn nnint_underflow() -> Error {
+    Error::NonNegativeIntUnderflow
 }
 
 // Error strings will be preserved for testing, but
