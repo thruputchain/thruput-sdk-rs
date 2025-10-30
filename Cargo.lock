@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "aho-corasick"
-version = "1.1.3"
+version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e60d3430d3a69478ad0993f19238d2df97c507009a52b3c10addcd7f6bcb916"
+checksum = "ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301"
 dependencies = [
  "memchr",
 ]
@@ -39,9 +39,9 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
-version = "2.9.4"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2261d10cca569e4643e526d8dc2e62e433cc8aba21ab764233731f8d369bf394"
+checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "block-buffer"
@@ -106,9 +106,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.41"
+version = "1.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac9fe6cdbb24b6ade63616c0a0688e45bb56732262c158df3c0c4bea4ca47cb7"
+checksum = "739eb0f94557554b3ca9a86d2d37bebd49c5e6d0c1d2bda35ba5bdac830befc2"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -519,9 +519,9 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=e4a7408a2f2557750a916e8c030ddf3db578952a#e4a7408a2f2557750a916e8c030ddf3db578952a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#64e7119aea0e766402b523d5dfb5b23faf6c762e"
 dependencies = [
- "macros 0.1.0 (git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=e4a7408a2f2557750a916e8c030ddf3db578952a)",
+ "macros 0.1.0 (git+ssh://git@github.com/groundhogchain/protocol-rs.git)",
  "serde",
  "serde_arrays",
  "thiserror",
@@ -543,9 +543,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hex-literal"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcaaec4551594c969335c98c903c1397853d4198408ea609190f420500f6be71"
+checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "ident_case"
@@ -649,7 +649,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git?rev=e4a7408a2f2557750a916e8c030ddf3db578952a#e4a7408a2f2557750a916e8c030ddf3db578952a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#64e7119aea0e766402b523d5dfb5b23faf6c762e"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -766,9 +766,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.101"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89ae43fd86e4158d6db51ad8e2b80f313af9cc74f5c0e03ccb87de09998732de"
+checksum = "5ee95bc4ef87b8d5ba32e8b7714ccc834865276eab0aed5c9958d00ec45f49e8"
 dependencies = [
  "unicode-ident",
 ]
@@ -1078,9 +1078,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.107"
+version = "2.0.108"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a26dbd934e5451d21ef060c018dae56fc073894c5a7896f882928a76e6d081b"
+checksum = "da58917d35242480a05c2897064da0a80589a2a0476c9a3f2fdc83b53502e917"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1145,9 +1145,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.19"
+version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
+checksum = "9312f7c4f6ff9069b165498234ce8be658059c6728633667c526e27dc2cf1df5"
 
 [[package]]
 name = "unsafe-libyaml"
@@ -1176,7 +1176,7 @@ checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 [[package]]
 name = "xdr-derive"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git?rev=1abdc50233c56de9680bf6174bf942aa306ed155#1abdc50233c56de9680bf6174bf942aa306ed155"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#6b32bbe75d3229b9c4c7826e28fe7013e3525474"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1187,7 +1187,7 @@ dependencies = [
 [[package]]
 name = "xdr-repr"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git?rev=1abdc50233c56de9680bf6174bf942aa306ed155#1abdc50233c56de9680bf6174bf942aa306ed155"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#6b32bbe75d3229b9c4c7826e28fe7013e3525474"
 dependencies = [
  "xdr_common",
 ]
@@ -1195,12 +1195,12 @@ dependencies = [
 [[package]]
 name = "xdr_common"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdr_common.git?rev=fe9df26f21f9e69c6d3cd18ac2409aef5abcec25#fe9df26f21f9e69c6d3cd18ac2409aef5abcec25"
+source = "git+ssh://git@github.com/groundhogchain/xdr_common.git#fe9df26f21f9e69c6d3cd18ac2409aef5abcec25"
 
 [[package]]
 name = "xdrs"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git?rev=1abdc50233c56de9680bf6174bf942aa306ed155#1abdc50233c56de9680bf6174bf942aa306ed155"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#6b32bbe75d3229b9c4c7826e28fe7013e3525474"
 dependencies = [
  "thiserror",
  "xdr-derive",

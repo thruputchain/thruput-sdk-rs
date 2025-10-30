@@ -48,10 +48,10 @@ bottle-test-if = { workspace = true }
 sdk = { path = "." }
 gen = { path = "gen" }
 macros = { path = "macros" }
-groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"], rev = "e4a7408a2f2557750a916e8c030ddf3db578952a" }
+groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"] }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr"], rev = "1abdc50233c56de9680bf6174bf942aa306ed155" }
-xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git", rev = "fe9df26f21f9e69c6d3cd18ac2409aef5abcec25" }
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr"] }
+xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
 sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
 native_exec = { path = "native_exec" }
@@ -102,7 +102,6 @@ required-features = ["storage"]
 
 [[test]]
 name = "events"
-test = false # TODO: re-enable this once we've upgraded protocol-rs
 
 [lints.clippy]
 collapsible_if = "allow"
