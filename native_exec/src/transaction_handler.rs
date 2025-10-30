@@ -106,7 +106,13 @@ impl TransactionHandler {
         }
 
         let decoded: TxEventLog = serialize_txs::decode(&buffer)
-            .unwrap_or_else(|e| panic!("failed to decode event log ({} bytes): {}", buffer.len(), e));
+            .unwrap_or_else(|e| {
+                panic!(
+                    "failed to decode event log ({} bytes): {}",
+                    buffer.len(),
+                    e
+                )
+            });
 
         Some(decoded)
     }

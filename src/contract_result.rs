@@ -1,8 +1,8 @@
 //! General-purpose result type for contracts
 
 use crate::SysErr;
-use crate::sysresult::ErrorMsg;
 use crate::sysresult;
+use crate::sysresult::ErrorMsg;
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
 
@@ -54,7 +54,9 @@ impl From<sysresult::Error> for Error {
     // XXX: hack pending revamp of error stuff
     fn from(_err: sysresult::Error) -> Self {
         Error::Contract {
-            contract_error: ContractError::Custom { msg: ErrorMsg::new("sysresult::Error hack") }
+            contract_error: ContractError::Custom {
+                msg: ErrorMsg::new("sysresult::Error hack"),
+            },
         }
     }
 }

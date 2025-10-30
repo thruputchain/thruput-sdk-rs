@@ -59,17 +59,16 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
         diff: Difference,
-    ) -> Result<Amount> {
+    ) -> Result<()> {
         let owner_allowances = self.allowances.get(owner)?;
         let mut spender_allowance = owner_allowances.get(spender)?;
 
         // This fails if the result would be negative
         spender_allowance.checked_inc(diff)?;
 
-        // XXX
-        let new_amount = spender_allowance.try_get()?.unwrap_or(0);
+        // TODO: emit event?
 
-        Ok(new_amount)
+        Ok(())
     }
 
     fn _adjust_total_supply(&mut self, diff: Difference) -> Result<()> {
@@ -136,11 +135,7 @@ impl ERC20 for TokenContract {
     ) -> Result<()> {
         let owner = get_caller()?;
 
-        let total_approved = self._adjust_allowance(&owner, spender, diff)?;
-
-        log_approval_event(&owner, spender, total_approved)?;
-
-        Ok(())
+        self._adjust_allowance(&owner, spender, diff)
     }
 
     fn get_balance_of(&self, owner: &ContractAddress) -> Result<Amount> {

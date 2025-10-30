@@ -1,8 +1,8 @@
 use native_exec::transaction_handler::TransactionHandler;
 use sdk::event::*;
-use sdk::*;
-use sdk::types::event::TxEmittedEvent;
 use sdk::internal::decode_xdr;
+use sdk::types::event::TxEmittedEvent;
+use sdk::*;
 
 macro_rules! single_event_test {
     {
@@ -43,7 +43,6 @@ single_event_test! {
         assert_eq!(event.serialized_event.len(), 4);
     }
 }
-
 
 //-------------------------------------------------------------------------
 // An event structure using owned data
