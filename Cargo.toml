@@ -100,5 +100,9 @@ required-features = ["std"]
 name = "storage"
 required-features = ["storage"]
 
+[[test]]
+name = "events"
+test = false # TODO: re-enable this once we've upgraded protocol-rs
+
 [lints.clippy]
 collapsible_if = "allow"

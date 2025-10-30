@@ -26,6 +26,9 @@ PREFER_BOTTLE_TEST=1
 ## (This is set in ci.sh, which builds contracts before running tests.)
 # BOTTLE_TEST_USE_BUILT_TARGET=1
 
+## Always do a cmake reconfiguration before building native_exec
+# NATIVE_EXEC_ALWAYS_RECONFIGURE=1
+
 # Augment/override with any local settings
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 if [ -f "${SCRIPT_DIR}/conf.sh" ]; then
@@ -36,6 +39,10 @@ fi
 
 if [ -n "$SDK_TEST_ENABLE_SYSCALL_LOGGING" ]; then
     export SDK_TEST_ENABLE_SYSCALL_LOGGING="${SDK_TEST_ENABLE_SYSCALL_LOGGING:?}"
+fi
+
+if [ -n "$NATIVE_EXEC_ALWAYS_RECONFIGURE" ]; then
+    export NATIVE_EXEC_ALWAYS_RECONFIGURE="${NATIVE_EXEC_ALWAYS_RECONFIGURE:?}"
 fi
 
 if [ -n "$DENY_WARNINGS" ]; then

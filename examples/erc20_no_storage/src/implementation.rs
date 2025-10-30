@@ -48,11 +48,11 @@ fn ensure_caller_is_owner() -> Result<()> {
 }
 
 fn add_to_total_supply(diff: Difference) -> Result<()> {
-    Ok(non_negative_int_inc(&get_total_supply_key(), diff)?)
+    Ok(non_negative_int_checked_inc(&get_total_supply_key(), diff)?)
 }
 
 fn add_to_balance(addr: &ContractAddress, diff: Difference) -> Result<()> {
-    Ok(non_negative_int_inc(&get_balance_key(addr), diff)?)
+    Ok(non_negative_int_checked_inc(&get_balance_key(addr), diff)?)
 }
 
 fn add_to_allowance(
@@ -60,7 +60,7 @@ fn add_to_allowance(
     spender: &ContractAddress,
     diff: Difference,
 ) -> Result<()> {
-    Ok(non_negative_int_inc(
+    Ok(non_negative_int_checked_inc(
         &get_allowance_key(owner, spender),
         diff,
     )?)

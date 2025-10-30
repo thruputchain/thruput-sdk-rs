@@ -52,8 +52,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .define("CMAKE_CXX_COMPILER_LAUNCHER", "ccache")
         .define("ENABLE_TEST_CONTRACTS", "OFF");
 
-    // Don't force re-configuration before building
-    cfg.always_configure(false);
+    // Force re-configuration before building, if requested
+    cfg.always_configure(
+        env::var("NATIVE_EXEC_ALWAYS_CONFIGURE").is_ok_and(|s| s.len() > 0),
+    );
 
     // important: only build a limit set of targets.  If we do this wrong
     // we could easily wind up with some kind of nonsense recursive build.

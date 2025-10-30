@@ -36,9 +36,15 @@ impl From<SysErr> for ERC20Error {
     }
 }
 
-impl From<sdk::sysresult::Error> for ERC20Error {
-    fn from(_err: sdk::sysresult::Error) -> Self {
-        ERC20Error::TooLarge // XXX
+// TODO: rework SDK errors
+use sdk::sysresult::Error as SystemError;
+impl From<SystemError> for ERC20Error {
+    fn from(err: SystemError) -> Self {
+        match err {
+            SystemError::NonNegativeIntOverflow => ERC20Error::TooLarge,
+            SystemError::NonNegativeIntUnderflow => ERC20Error::TooLarge,
+            _ => ERC20Error::SystemErr,
+        }
     }
 }
 

@@ -1,10 +1,23 @@
 //! Wrappers for the raw nnint syscalls
+//!
+//! A storage location can be in the following states:
+//! - never before set
+//! - set to an item-type other than non-negative-int
+//! - set to a value
+//!
+//! During a transaction, pending "set" and "add" values are maintained for the cell, notionally
+//! with types `Option<i128>` and `i128`, respectively.
+//!
+//! Calling `set_add(s, a)` replaces these pending values, and calling `get_values` (without
+//! forcing) returns them.
+//!
+//! The function `get_values_force` retrieves the pending "set" value if it
+//! is present, or else loads from the database the value committed in the last block.
 
 use crate::sysresult::SysResult as Result;
 use crate::*;
 
-/// Update (don't increment) the "set" (if provided) and "add" values.  If `set_value` is `None`,
-/// the "set" value will be restored to its state at the start of the transaction.
+/// Replace the "set" and "add" values.  (This discards any values previously present.)
 pub fn set_add(
     key: &StorageKey,
     set_value: Option<i128>,
@@ -13,9 +26,8 @@ pub fn set_add(
     sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
 }
 
-// Get the "set" value (either the latest set by the transaction or, if requested by
-// `force_load_set`, the value ) and the "add" value.  Fails if `force_load_set` is true and the
-// location does not contain a non-negative integer. (TODO: check semantics)
+// Fails if `force_load_set` is true and the
+// location does not contain a non-negative integer.
 fn _get_values(
     key: &StorageKey,
     force_load_set: bool,
@@ -38,25 +50,25 @@ fn _get_values(
     Ok((set_result_opt, add_result))
 }
 
-pub fn get_values(
-    key: &StorageKey,
-) -> Result<(Option<i128>, i128)> {
+// Get the pending "set" and "add" settings
+pub fn get_values(key: &StorageKey) -> Result<(Option<i128>, i128)> {
     _get_values(key, false)
 }
 
-pub fn get_values_force(
-    key: &StorageKey,
-) -> Result<(i128, i128)> {
+// Like `get_values`, except if the pending "set" value is `None`,
+// we instead load and return the last-committed value.
+pub fn get_values_force(key: &StorageKey) -> Result<(i128, i128)> {
     let (s_opt, a) = _get_values(key, true)?;
 
+    // The "set" value is guaranteed to be present now because we specified "force"
     let s = s_opt.unwrap();
 
     Ok((s, a))
 }
 
-pub fn try_get_values(
-    key: &StorageKey,
-) -> Result<Option<(i128, i128)>> {
+// Like `get_values_force`, except return `None` if the storage location has never been written or
+// currently contains an item of another type.
+pub fn try_get_values(key: &StorageKey) -> Result<Option<(i128, i128)>> {
     match get_values_force(key) {
         Ok(values) => Ok(Some(values)),
         Err(e) if e.is_storage_key_not_exist() => Ok(None),

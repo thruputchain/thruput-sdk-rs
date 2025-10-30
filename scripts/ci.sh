@@ -34,7 +34,7 @@ make examples build
 make examples test
 
 make integration_test_contracts build
-make integration_test_contracts test
+PREFER_BOTTLE_TEST="" make integration_test_contracts test
 
 make test-spec
 

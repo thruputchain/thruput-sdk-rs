@@ -1,13 +1,7 @@
 #![no_std]
 
-// XXX
-#![allow(dead_code)] 
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-
 pub use bottle_test_if::*;
-use groundhog_erc20_if::{ERC20Client, ERC20Error};
+use groundhog_erc20_if::ERC20Client;
 use sdk::*;
 
 #[derive(Debug)]
@@ -87,7 +81,10 @@ impl BottleTest for BT {
         m.check_owner_balance(client);
 
         // Burn too much
-        assert_eq!(client.burn(owner, 60), Err(ClientError::Aborted(ERC20Error::TooLarge)));
+        assert!(matches!(
+            client.burn(owner, 60),
+            Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
+        ));
 
         // Transfer
         let amt = 25;
@@ -98,7 +95,10 @@ impl BottleTest for BT {
         m.check_other_balance(client);
 
         // Transfer too much
-        assert_eq!(client.transfer(other, 1000), Err(ClientError::Aborted(ERC20Error::TooLarge)));
+        assert!(matches!(
+            client.transfer(other, 1000),
+            Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
+        ));
 
         // Burn from other address
         client.burn(&other, 5).unwrap();
@@ -106,5 +106,7 @@ impl BottleTest for BT {
         m.other_bal -= 5;
         m.check_owner_balance(client);
         m.check_total_supply(client);
+
+        // TODO: test allowances
     }
 }

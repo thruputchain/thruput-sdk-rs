@@ -4,7 +4,7 @@ use sdk::internal::nnint::*;
 use sdk::*;
 
 #[rustfmt::skip]
-contract_test!(test_sys_nnints {
+contract_test!(test_internal_nnints {
     let key = StorageKey::default();
     let key = &key;
 
@@ -13,10 +13,10 @@ contract_test!(test_sys_nnints {
     let mut set = 0;
     let mut add = 0;
 
-        // Get (without forcing) on a previously-unset location returns "add" == zero
+        // Get (without forcing) on a location not yet set in this transaction returns "add" == zero
         assert_eq!(get_values(key), Ok((None, add)));
 
-        // Get (forcing) on a previously-unset location fails
+        // Get (forcing) on a never-before-set location fails
         assert!(matches!(get_values_force(key), Err(e) if e.is_storage_key_not_exist()));
 
     // `set_add` (specifying only "add") to a previously-unset location succeeds
@@ -69,12 +69,17 @@ contract_test!(test_sys_nnints {
         // They've both been updated
         assert_eq!(get_values_force(key), Ok((set, add)));
 
-    // We can explicitly set a negative value
-    add = -40;
-    set_add(key, None, add).unwrap();
+    // We can explicitly give a "set" value that is negative
+    set = -4;
+    add = 0;
+    set_add(key, Some(set), add).unwrap();
 
-        set = 0;
         assert_eq!(get_values_force(key), Ok((set, add)));
+
+    // We can't give "set" and "add" values whose sum would be negative
+    set = 1;
+    add = -40;
+    assert_eq!(set_add(key, Some(set), add), Err(SysErr(8)));
 
     // We can set "set" and "add" to values whose sum would overflow an `i128`
     set = i128::MAX;

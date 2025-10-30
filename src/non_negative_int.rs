@@ -1,8 +1,7 @@
 //! System functions: non-negative integers
 //!
-//! A non-negative integer has a "set" value determined at the start of the transaction and an
-//! "add" value that is initially zero.  Both values may be modified during the transaction.  The
-//! "current" value is the sum of "set" and "add".
+//! A non-negative integer has a value determined at the start of the transaction, and
+//! can be re-set or incremented.
 
 use crate::internal::nnint;
 use crate::sysresult::{Result, nnint_overflow, nnint_underflow};
@@ -17,6 +16,8 @@ pub fn non_negative_int_get(key: &StorageKey) -> Result<i128> {
     Ok(cur)
 }
 
+/// Like `non_negative_int_get`, but returns `None` if the storage location does not contain a
+/// non-negative-integer item.
 pub fn non_negative_int_try_get(key: &StorageKey) -> Result<Option<i128>> {
     non_negative_int_get(key).map(Some).or_else(|e| {
         if e.is_storage_key_not_exist() {
@@ -37,6 +38,9 @@ pub fn non_negative_int_set(key: &StorageKey, set_value: i128) -> Result<()> {
 }
 
 /// Increment the value.
+///
+/// If the result would be negative, this function may not fail, but the current transaction will
+/// ultimately fail.
 pub fn non_negative_int_inc(key: &StorageKey, amount: i128) -> Result<()> {
     let (s, a) = nnint::get_values(key)?;
 
@@ -47,8 +51,13 @@ pub fn non_negative_int_inc(key: &StorageKey, amount: i128) -> Result<()> {
     Ok(())
 }
 
-/// Increment the value.  Fails if the result would be negative.
-pub fn non_negative_int_checked_inc(key: &StorageKey, amount: i128) -> Result<()> {
+/// Increment the value.
+///
+/// Fails immediately if the result would be negative.
+pub fn non_negative_int_checked_inc(
+    key: &StorageKey,
+    amount: i128,
+) -> Result<()> {
     let (s, a) = nnint::try_get_values(key)?.unwrap_or((0, 0));
 
     let add_value = a.checked_add(amount).ok_or_else(nnint_overflow)?;
@@ -78,6 +87,7 @@ pub fn non_negative_int_get_default_zero(key: &StorageKey) -> Result<i128> {
 }
 
 /// *Deprecated.*  Same as `non_negative_int_inc`.
+#[inline]
 pub fn non_negative_int_add_default_zero(
     key: &StorageKey,
     amount: i128,
