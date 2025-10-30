@@ -511,6 +511,7 @@ dependencies = [
 name = "groundhog-erc20-if"
 version = "0.1.0"
 dependencies = [
+ "groundhog_xdr",
  "sdk",
  "thiserror",
  "xdrs",

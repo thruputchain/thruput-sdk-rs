@@ -76,18 +76,6 @@ impl From<StorageErr> for Error {
     }
 }
 
-use crate::sysresult::Error as LibraryError;
-
-impl From<LibraryError> for Error {
-    fn from(_err: LibraryError) -> Self {
-        let msg = ErrorMsg::new("library");
-        let contract_err = ContractError::Custom { msg };
-        Error::Contract {
-            contract_error: contract_err,
-        }
-    }
-}
-
 impl Error {
     pub fn is_caller_err(&self) -> bool {
         matches!(self, Error::Caller { msg: _ })
