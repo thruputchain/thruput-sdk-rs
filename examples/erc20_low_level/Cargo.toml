@@ -9,7 +9,7 @@ groundhog-erc20-if = { workspace = true }
 thiserror.workspace = true
 
 # Optional testing dependencies
-erc20-bottle-test = { workspace = true, optional = true }
+erc20-bottle-test = { workspace = true, optional = true, features = ["fail-fast"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

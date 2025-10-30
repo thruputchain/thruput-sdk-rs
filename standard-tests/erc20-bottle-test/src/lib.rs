@@ -80,7 +80,8 @@ impl BottleTest for BT {
         m.check_total_supply(client);
         m.check_owner_balance(client);
 
-        // Burn too much
+        // Burn too much (only caught immediately if the erc20 contract uses "checked" increment)
+        #[cfg(feature = "fail-fast")]
         assert!(matches!(
             client.burn(owner, 60),
             Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
@@ -94,7 +95,8 @@ impl BottleTest for BT {
         m.check_owner_balance(client);
         m.check_other_balance(client);
 
-        // Transfer too much
+        // Transfer too much (only caught immediately if the erc20 contract uses "checked" increment)
+        #[cfg(feature = "fail-fast")]
         assert!(matches!(
             client.transfer(other, 1000),
             Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
