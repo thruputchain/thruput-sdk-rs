@@ -50,7 +50,7 @@ impl From<SystemError> for ERC20Error {
 
 #[cfg(feature = "storage")]
 const _: () = {
-    use sdk::storage::error::Error as StorageError;
+    use sdk::storage::error::StorageError;
 
     impl From<StorageError> for ERC20Error {
         fn from(_err: StorageError) -> Self {

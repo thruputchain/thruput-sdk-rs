@@ -6,7 +6,7 @@ use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
 
 #[cfg(feature = "storage")]
-use crate::storage::error::Error as StorageErr;
+use crate::storage::error::StorageError as StorageErr;
 
 use crate::contract_error::{ContractErrorType, ErrorType};
 

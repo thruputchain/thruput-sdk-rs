@@ -3,7 +3,7 @@ use crate::contract_error::*;
 use crate::{ReadXDR, WriteXDR};
 use thiserror::Error;
 
-pub type Result<T, E = Error> = core::result::Result<T, E>;
+pub type Result<T, E = StorageError> = core::result::Result<T, E>;
 
 #[cfg(feature = "spec")]
 use xdrs::{XDR, xdr_repr::XDR};
@@ -11,7 +11,7 @@ use xdrs::{XDR, xdr_repr::XDR};
 #[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[repr(i32)]
-pub enum Error {
+pub enum StorageError {
     #[error("Storage error due to {syscall_error}")]
     Syscall {
         #[from]
@@ -26,9 +26,9 @@ pub enum Error {
         StorageErrorType::kStorageErrorTypeIndexOutOfBounds as i32,
 }
 
-impl Error {
+impl StorageError {
     pub fn is_storage_key_not_exist(&self) -> bool {
-        if let Error::Syscall { syscall_error: err } = self {
+        if let StorageError::Syscall { syscall_error: err } = self {
             err.is_storage_key_not_exist()
         } else {
             false
@@ -37,5 +37,5 @@ impl Error {
 }
 
 pub fn oob_err<T>(len: u64, access: u64) -> Result<T> {
-    Err(Error::IndexOutOfBounds { len, access })
+    Err(StorageError::IndexOutOfBounds { len, access })
 }
