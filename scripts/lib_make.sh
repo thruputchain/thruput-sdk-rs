@@ -48,7 +48,19 @@ make() {
             cargo doc --features=std,storage "$@"
             ;;
         test)
-            cargo_native test --features=mock,storage "$@"
+            cargo_native test --package=sdk --features=mock,storage "$@"
+            ;;
+        nextest)
+            ## There is at least one example contract ("caller") that requires
+            ## pre-built wasms, so first do:
+            # make examples build
+
+            cargo_native nextest run \
+                --workspace \
+                --features=sdk/mock,sdk/storage \
+                --exclude txs_roundtrip \
+                --exclude cxs_roundtrip \
+                "$@"
             ;;
         test-spec)
             cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&

@@ -3,6 +3,10 @@ name = "erc20-result-test"
 edition.workspace = true
 version.workspace = true
 
+[lib]
+doctest = false
+test = false
+
 [dependencies]
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }

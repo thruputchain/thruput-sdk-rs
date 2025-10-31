@@ -25,4 +25,4 @@ required-features = ["spec"]
 [lib]
 crate-type = ["rlib"]
 doctest = false
-
+test = false
