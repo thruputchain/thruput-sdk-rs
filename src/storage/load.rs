@@ -1,4 +1,4 @@
-use super::error::{Error, Result};
+use super::error::{Result, StorageError};
 use super::keypath::*;
 use super::read_xdr_path::*;
 
@@ -40,7 +40,8 @@ where
     let path = keypath.clone();
     let mut kpr = KeypathReader { xdr_reader, path };
 
-    ReadXDRPath::read_xdr_path(&mut kpr).map_err(|_| Error::Serialization)
+    ReadXDRPath::read_xdr_path(&mut kpr)
+        .map_err(|_| StorageError::Serialization)
 }
 
 impl_load_via_read! { bool, i16, u16, i32, u32, i64, u64, }

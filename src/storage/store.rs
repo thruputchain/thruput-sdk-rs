@@ -1,4 +1,4 @@
-use super::error::{Error, Result};
+use super::error::{Result, StorageError};
 use super::keypath::*;
 use crate::bytestring::*;
 use crate::types::StorageKey;
@@ -25,8 +25,8 @@ where
             drop(prev);
         }
 
-        let buf =
-            serialize_cxs::encode(self).map_err(|_| Error::Serialization)?;
+        let buf = serialize_cxs::encode(self)
+            .map_err(|_| StorageError::Serialization)?;
         bytestring_set(key, buf.as_slice())?;
         Ok(())
     }
