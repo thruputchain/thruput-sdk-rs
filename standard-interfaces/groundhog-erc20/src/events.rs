@@ -35,7 +35,7 @@ pub fn log_transfer_event(
 pub fn log_approval_event(
     owner: &ContractAddress,
     spender: &ContractAddress,
-    amount: u128,
+    amount: i128,
 ) -> Result<()> {
     let event = ApprovalEvent::new(owner, spender, amount);
 
@@ -77,14 +77,14 @@ impl<'a> Event for TransferEvent<'a> {
 pub struct ApprovalEvent<'a> {
     owner: &'a ContractAddress,
     spender: &'a ContractAddress,
-    amount: u128,
+    amount: i128,
 }
 
 impl<'a> ApprovalEvent<'a> {
     pub fn new(
         owner: &'a ContractAddress,
         spender: &'a ContractAddress,
-        amount: u128,
+        amount: i128,
     ) -> Self {
         Self {
             owner,

@@ -60,10 +60,11 @@ fn add_to_allowance(
     spender: &ContractAddress,
     diff: Difference,
 ) -> Result<()> {
-    Ok(non_negative_int_checked_inc(
-        &get_allowance_key(owner, spender),
-        diff,
-    )?)
+    non_negative_int_checked_inc(&get_allowance_key(owner, spender), diff)?;
+
+    log_approval_event(owner, spender, diff)?;
+
+    Ok(())
 }
 
 #[derive(Default)]

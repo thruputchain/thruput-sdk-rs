@@ -66,7 +66,7 @@ impl TokenContract {
         // This fails if the result would be negative
         spender_allowance.checked_inc(diff)?;
 
-        // TODO: emit event?
+        log_approval_event(owner, spender, diff)?;
 
         Ok(())
     }
