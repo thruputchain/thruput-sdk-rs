@@ -51,11 +51,11 @@ pub enum ContractError {
 }
 
 impl From<sysresult::Error> for Error {
-    // XXX: hack pending revamp of error stuff
+    // TODO: rework error hierarchy
     fn from(_err: sysresult::Error) -> Self {
         Error::Contract {
             contract_error: ContractError::Custom {
-                msg: ErrorMsg::new("sysresult::Error hack"),
+                msg: ErrorMsg::new("library error"),
             },
         }
     }
