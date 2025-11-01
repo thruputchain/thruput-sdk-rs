@@ -142,7 +142,7 @@ impl TransactionHandler {
     }
 
     /// Aborts the transaction.
-    /// This must be called after root_invoke, and only once per transaction.
+    /// This can only be called after root_invoke, and can only be called once per transaction.
     pub fn abort_transaction(&mut self) {
         if !self.invoked {
             panic!("cannot abort a transaction that has not been invoked");
@@ -154,13 +154,20 @@ impl TransactionHandler {
         }
         self.aborted = true;
 
-        panic!("not yet implemented");
+        let res = unsafe { abort_transaction(self.handler) };
+        let err: FFIErrorCode = res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to abort transaction: {:?}", err);
+        }
     }
 }
 
 impl Drop for TransactionHandler {
     fn drop(&mut self) {
-        // TODO(geoff): abort the transaction if it has been invoked but not committed or aborted
+        if self.invoked && !self.committed && !self.aborted {
+            self.abort_transaction();
+        }
+
         let res = unsafe { close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
