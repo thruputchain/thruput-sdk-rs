@@ -15,4 +15,11 @@ fn check() {
 
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
+
+    assert!(handler.try_commit_transaction());
+
+    let event_log = handler.get_event_logs().unwrap();
+    let events = &event_log.events;
+
+    erc20_test_event_log_check(events);
 }

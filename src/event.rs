@@ -3,7 +3,6 @@ use crate::hash::*;
 use crate::internal::encode_xdr;
 use crate::sys;
 use crate::sysresult::Result;
-
 pub const EVENT_MAX_TOPICS: usize = 3;
 
 #[derive(Debug, Clone)]
@@ -67,3 +66,20 @@ pub fn log_event(event: &impl Event) -> Result<()> {
 
     Ok(())
 }
+
+mod emitted_event {
+    use crate::types::event::TxEmittedEvent;
+
+    pub fn event_payload(event: &TxEmittedEvent) -> Option<&[u8]> {
+        let topics_len = 32 * event.num_topics as usize;
+
+        if event.serialized_event.len() < topics_len {
+            return None;
+        }
+
+        let payload = &event.serialized_event[topics_len..];
+
+        Some(payload)
+    }
+}
+pub use emitted_event::*;
