@@ -38,7 +38,7 @@ pub use test_rt::trap;
 #[cfg(any(feature = "mock", not(feature = "logging")))]
 #[macro_export]
 macro_rules! contract_panic {
-    ($fmt:expr $(, $expr:tt),* ) => {
+    ($fmt:expr $(, $expr:tt)* $(,)? ) => {
         panic!($fmt $(, $expr)*)
     };
 }
@@ -46,9 +46,9 @@ macro_rules! contract_panic {
 #[cfg(all(not(feature = "mock"), feature = "logging"))]
 #[macro_export]
 macro_rules! contract_panic {
-    ($fmt:expr $(, $expr:tt),* ) => {
+    ($fmt:expr $(, $expr:tt)* $(,)? ) => {
         {
-            $crate::log(alloc::format!($fmt $(, $expr)*).as_bytes()).unwrap();
+            $crate::log($crate::format!($fmt $(, $expr)*).as_bytes()).unwrap();
 
             $crate::rt::trap();
         }

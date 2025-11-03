@@ -71,7 +71,7 @@ mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc", "dep:delegate"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]
-logging = ["macros/logging"]
+logging = ["macros/logging", "alloc"]
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
 
 # Use resizable instead of static bufs for marshalling arguments and
