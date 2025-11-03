@@ -16,7 +16,7 @@
 ///
 /// "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
 use sdk::{
-    ContractAddress, Event, ReadXDR, Topic, TopicSrc, WriteXDR, log_event,
+    ContractAddress, Event, ReadXDR, TopicSrc, WriteXDR, log_event,
     sysresult::Result,
 };
 
@@ -59,13 +59,12 @@ impl<'a> TransferEvent<'a> {
     }
 }
 
-pub const TRANSFER_EVENT_SIG: Topic = Topic([47; 32]);
-pub const ALLOCATE_EVENT_SIG: Topic = Topic([48; 32]);
+pub const TRANSFER_EVENT_SIG: TopicSrc = TopicSrc::Hashed(&"TransferEvent");
 
 impl<'a> Event for TransferEvent<'a> {
     fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
-            0 => Some(TopicSrc::Shared(&TRANSFER_EVENT_SIG)),
+            0 => Some(TRANSFER_EVENT_SIG),
             1 => Some(TopicSrc::Hashed(self.from)),
             2 => Some(TopicSrc::Hashed(self.to)),
             _ => None,
@@ -94,10 +93,12 @@ impl<'a> ApprovalEvent<'a> {
     }
 }
 
+pub const APPROVAL_EVENT_SIG: TopicSrc = TopicSrc::Hashed(&"ApprovalEvent");
+
 impl<'a> Event for ApprovalEvent<'a> {
     fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
-            0 => Some(TopicSrc::Shared(&ALLOCATE_EVENT_SIG)),
+            0 => Some(APPROVAL_EVENT_SIG),
             1 => Some(TopicSrc::Hashed(self.owner)),
             2 => Some(TopicSrc::Hashed(self.spender)),
             _ => None,
