@@ -135,8 +135,9 @@ tree_contract() {
     package="$(basename "$1")"
     shift
 
-    cargo_guest tree \
+    cargo_wasm tree \
         --edges normal,build,no-proc-macro \
+        --features "guest" \
         --package "$package" \
         "$@"
 }
@@ -146,8 +147,8 @@ expand_contract() {
     package="$(basename "$1")"
     shift
 
-    cargo_guest expand \
-        --profile "contract" \
+    cargo_wasm expand \
+        --features "guest" \
         --package "$package" \
         "$@"
 }
@@ -315,7 +316,10 @@ make_contracts() {
             local contract="$1" ; shift
 
             # also do: cargo install cargo-llvm-lines
-            cargo_guest llvm-lines -p "$contract"
+            cargo_wasm llvm-lines \
+                -p "$contract" \
+                --features "guest" \
+                "$@"
             ;;
         fns)
             local contract="$1" ; shift

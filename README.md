@@ -39,33 +39,45 @@ rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
 
 Install [ccache](https://ccache.dev/) with your package manager.
 
+## Building
+
+```shell
+# Retrieve needed cargo packages before building in offline mode in next step
+./hogd/scripts/fetch.sh
+
+# Run the CI test to ensure everything builds; this also runs many tests
+./scripts/ci.sh
+```
+
 ## Documentation
 
 To generate and open the SDK documentation:
 
 ```shell
-./make.sh doc --open
-```
-
-## Testing
-
-```shell
-./make.sh test
-./make.sh test_examples
+./scripts/make.sh doc --open
 ```
 
 ## Development
 
-See `make.sh` for various useful targets, including:
-- `check`
-- `test`
-- `lint`
-- `doc`
-- `fmt`
+### Testing
 
-### Expand macros to view exports
+The CI script above includes various tests that may be run on their own:
 
 ```shell
-./make.sh expand -p swap swapv2_pair::swap_exports
-./make.sh expand -p swap swapv2_pair::erc20_exports
+# Test the SDK
+./scripts/make.sh test
+
+# Test the example contracts
+./scripts/make.sh examples test
+
+# Test the erc20 example contract
+./scripts/make.sh examples test erc20
+```
+
+See `scripts/lib_make.sh` for other useful targets.
+
+### Expand macros to view contract exports
+
+```shell
+./scripts/make.sh examples expand erc20
 ```
