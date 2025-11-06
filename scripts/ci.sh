@@ -6,9 +6,6 @@ source "${SDK_SCRIPT_DIR}/env.sh"
     # shellcheck source="scripts/lib_make.sh"
 source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
-# Do the in-wasm "bottle test" instead of the native test
-PREFER_BOTTLE_TEST=yes
-
 # Below, each contract is built before being tested;
 # this skips any attempt to rebuild
 BOTTLE_TEST_USE_BUILT_TARGET=yes

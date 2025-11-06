@@ -24,9 +24,6 @@ HOGD_SRC="$(realpath "${HOGD_SRC}")"
 # Fail build on cargo warnings
 : ${DENY_WARNINGS:="yes"}
 
-# Where available, run a contract's bottle-test instead of its package tests
-: ${PREFER_BOTTLE_TEST:="yes"}
-
 # Run cargo without --locked
 : ${CARGO_UNLOCK:="yes"}
 

@@ -164,10 +164,11 @@ expand_test_contract() {
         "$@"
 }
 
+# Use bottle-test if it exists, else use native test
 test_contract() {
     local contract="$1"; shift
 
-    if bool_true "${PREFER_BOTTLE_TEST:-}" && has_bottle_test "$contract"; then
+    if has_bottle_test "$contract"; then
         bottle_test_contract "$contract" "$@"
     else
         native_test_contract "$contract" "$@"
@@ -215,6 +216,17 @@ test_contracts() {
     local contract
     for contract in $(ls_contracts "$contracts_dir") ; do
         test_contract "$contract" "$@" ||
+            return 1
+    done
+}
+
+native_test_contracts() {
+    local contracts_dir="$1"
+    shift
+
+    local contract
+    for contract in $(ls_contracts "$contracts_dir") ; do
+        native_test_contract "$contract" "$@" ||
             return 1
     done
 }
@@ -270,6 +282,15 @@ make_contracts() {
                 test_contract "$contract" "$@"
             else
                 test_contracts "$contracts_dir" "$@"
+            fi
+            ;;
+        native-test)
+            if [[ -n "${1:-}" && "$1" != "-"* ]]; then
+                local contract="$contracts_dir/$1" ; shift
+
+                native_test_contract "$contract" "$@"
+            else
+                native_test_contracts "$contracts_dir" "$@"
             fi
             ;;
         bottle-test)
