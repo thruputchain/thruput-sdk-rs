@@ -111,6 +111,20 @@ macro_rules! contract_test_env {
     };
 }
 
+pub fn grant_storage_tokens(
+    env: &native_exec::test_environment::TestEnvironmentHandle,
+    handler: &native_exec::transaction_handler::TransactionHandler,
+) {
+    env.setup_grant_storage_tokens(
+        &handler
+            .get_signed_transaction()
+            .tx
+            .invocation
+            .invoked_address,
+        1_000_000_000,
+    );
+}
+
 mod contract_test_wasm {
     use crate::SHA256Hash;
     use alloc::boxed::Box;

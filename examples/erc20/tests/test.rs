@@ -13,6 +13,8 @@ fn check() {
             .unwrap_or_else(|e| panic!("test failed: {e}"))
     });
 
+    sdk::contract_test::grant_storage_tokens(&env, &handler);
+
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 

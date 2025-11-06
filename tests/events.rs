@@ -1,7 +1,7 @@
-use native_exec::transaction_handler::TransactionHandler;
 use sdk::event::*;
 use sdk::internal::decode_xdr;
 use sdk::types::event::TxEmittedEvent;
+use sdk::contract_test::grant_storage_tokens;
 use sdk::*;
 
 macro_rules! single_event_test {
@@ -135,18 +135,4 @@ fn event_payload(event: &TxEmittedEvent) -> &[u8] {
     let topics_len = 32 * event.num_topics as usize;
 
     &event.serialized_event[topics_len..]
-}
-
-fn grant_storage_tokens(
-    env: &TestEnvironmentHandle,
-    handler: &TransactionHandler,
-) {
-    env.setup_grant_storage_tokens(
-        &handler
-            .get_signed_transaction()
-            .tx
-            .invocation
-            .invoked_address,
-        1_000_000_000,
-    );
 }
