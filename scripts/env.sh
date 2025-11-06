@@ -1,51 +1,66 @@
-TARGET_DIR="target"
-HOGD_SRC="hogd"
+# shellcheck shell=bash
+
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+source "${SCRIPT_DIR}/lib_util.sh"
+
+# Variables here may be overriden in the environment or in `scripts/conf.sh`
+# (which may overwrite the environment).
+#
+# For boolean flags in `scripts/`, variables that are unset, empty, or equal to
+# words like "false", "no", or "0" are false; other variables are true.  See
+# `lib_util.sh` for the complete definition.
+
+### Set some defaults
+
+# For cargo:
+: ${TARGET_DIR:="target"}
+
+# For native_exec:
+: ${CC:="gcc"}
+: ${CXX:="g++"}
+: ${HOGD_SRC:="hogd"}
 HOGD_SRC="$(realpath "${HOGD_SRC}")"
 
-CC=gcc
-CXX=g++
-
 # Fail build on cargo warnings
-DENY_WARNINGS=1
+: ${DENY_WARNINGS:="yes"}
 
 # Where available, run a contract's bottle-test instead of its package tests
-PREFER_BOTTLE_TEST=1
+: ${PREFER_BOTTLE_TEST:="yes"}
 
-# Other useful settings:
+# Run cargo without --locked
+: ${CARGO_UNLOCK:="yes"}
 
-## Run cargo without --locked
-# CARGO_UNLOCK=1
+### Document default-unset variables; uncomment to enable
 
 ## Enable logging of syscalls in the test executor
-# SDK_TEST_ENABLE_SYSCALL_LOGGING=1
-
-## Don't turn cargo/rust warnings into errors
-# unset DENY_WARNINGS
+# SDK_TEST_ENABLE_SYSCALL_LOGGING=yes
 
 ## Use an already-built contract-wasm for bottle-tests instead of rebuilding it
 ## (This is set in ci.sh, which builds contracts before running tests.)
-# BOTTLE_TEST_USE_BUILT_TARGET=1
+# BOTTLE_TEST_USE_BUILT_TARGET=yes
 
 ## Always do a cmake reconfiguration before building native_exec
-# NATIVE_EXEC_ALWAYS_RECONFIGURE=1
+# NATIVE_EXEC_ALWAYS_RECONFIGURE=yes
 
 # Augment/override with any local settings
-SCRIPT_DIR="$(dirname "$(realpath "$0")")"
-if [ -f "${SCRIPT_DIR}/conf.sh" ]; then
+# (Note that `conf.sh` may override settings already in the environment,
+# depending on how it is written.)
+[ -f "${SCRIPT_DIR}/conf.sh" ] &&
     source "${SCRIPT_DIR}/conf.sh"
+
+# In case these were set in `conf.sh`, export them for subprocesses
+
+if bool_true "${SDK_TEST_ENABLE_SYSCALL_LOGGING:-}"; then
+    export SDK_TEST_ENABLE_SYSCALL_LOGGING
 fi
 
-# Export variables to be queried by subprocesses
-
-if [ -n "$SDK_TEST_ENABLE_SYSCALL_LOGGING" ]; then
-    export SDK_TEST_ENABLE_SYSCALL_LOGGING="${SDK_TEST_ENABLE_SYSCALL_LOGGING:?}"
+if bool_true "${NATIVE_EXEC_ALWAYS_RECONFIGURE:-}"; then
+    export NATIVE_EXEC_ALWAYS_RECONFIGURE
 fi
 
-if [ -n "$NATIVE_EXEC_ALWAYS_RECONFIGURE" ]; then
-    export NATIVE_EXEC_ALWAYS_RECONFIGURE="${NATIVE_EXEC_ALWAYS_RECONFIGURE:?}"
-fi
+# Export other variables needed by subprocesses
 
-if [ -n "$DENY_WARNINGS" ]; then
+if bool_true "${DENY_WARNINGS:-}"; then
     # error on warnings (affects all cargo warnings: rustc, clippy, etc.)
-    export RUSTFLAGS="-D warnings"
+    export RUSTFLAGS="${RUSTFLAGS:-} -D warnings"
 fi

@@ -87,10 +87,11 @@ build_bottle_test() {
 bottle_test_contract() {
     local contract="$1"; shift
 
-    if [ -z "${BOTTLE_TEST_USE_BUILT_TARGET:-}" ]; then
-        build_contract "$contract" || return 1;
-    else
+    if bool_true "${BOTTLE_TEST_USE_BUILT_TARGET:-}"; then
         echo "(Using already-built target contract for bottle-test.)"
+    else
+        # Build the contract wasm itself
+        build_contract "$contract" || return 1;
     fi
 
     build_bottle_test "$contract" "$@" || return 1;
@@ -166,7 +167,7 @@ expand_test_contract() {
 test_contract() {
     local contract="$1"; shift
 
-    if [ -n "${PREFER_BOTTLE_TEST:-}" ] && has_bottle_test "$contract"; then
+    if bool_true "${PREFER_BOTTLE_TEST:-}" && has_bottle_test "$contract"; then
         bottle_test_contract "$contract" "$@"
     else
         native_test_contract "$contract" "$@"

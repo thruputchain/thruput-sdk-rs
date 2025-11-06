@@ -2,10 +2,13 @@
 
 set -u
 
+# shellcheck source="scripts/lib_make_examples.sh"
+source "$SDK_SCRIPT_DIR"/lib_make_examples.sh
+
 cargo() {
   local locked=""
 
-  if [ -z "${CARGO_UNLOCK:-}" ]; then
+  if bool_true "${CARGO_UNLOCK:-}"; then
     locked="--locked"
   fi
 
@@ -27,9 +30,6 @@ cargo_native() {
     CC="${CC:-}" CXX="${CXX:-}" HOGD_SRC="${HOGD_SRC}" \
         cargo "$@"
 }
-
-# shellcheck source="scripts/lib_make_examples.sh"
-source "$SDK_SCRIPT_DIR"/lib_make_examples.sh
 
 make() {
     local action="$1"
