@@ -16,7 +16,7 @@ cargo_wasm() {
     local cmd="$1"
     shift
 
-    flags="${RUSTFLAGS} -Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000"
+    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000"
     # echo "RUSTFLAGS=\"$flags\""
 
     RUSTFLAGS="$flags" \
