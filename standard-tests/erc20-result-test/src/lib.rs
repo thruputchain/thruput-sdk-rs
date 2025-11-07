@@ -121,12 +121,12 @@ pub fn erc20_test(
 }
 
 pub fn erc20_test_event_log_check(events: &[sdk::types::event::TxEmittedEvent]) {
-
     // TODO: check that the event log looks like it should
 
-    // We can't get here yet ...
     assert_eq!(events.len(), 1);
     let event = &events[0];
     let payload = event_payload(event).expect("malformed event");
-    let _: TransferEvent = sdk::internal::decode_xdr(payload).unwrap();
+    let e: TransferEvent = sdk::internal::decode_xdr(payload).unwrap();
+
+    println!("{:?}", e);
 }

@@ -1,19 +1,24 @@
 use erc20::implementation::test_setup;
 use erc20_result_test::*;
+use sdk::*;
+
+const DEPLOYER: ContractAddress = ContractAddress::new([0xff; 32]);
+const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 
 #[test]
 fn check() {
     let mut env = sdk::TestEnvironment::new();
 
     let test_contract = test_setup::register(&mut env);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let test_contract_hash = env.setup_create_contract(&test_contract);
+    let test_contract_addr = deploy_address(&DEPLOYER, &NONCE, &test_contract_hash);
+
+    env.setup_grant_storage_tokens(&test_contract_addr, 1_000_000_000);
 
     let mut handler = env.prepare_test(move || -> () {
-        erc20_test(&contract_hash)
+        erc20_test(&test_contract_hash)
             .unwrap_or_else(|e| panic!("test failed: {e}"))
     });
-
-    sdk::contract_test::grant_storage_tokens(&env, &handler);
 
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
@@ -25,3 +30,32 @@ fn check() {
 
     erc20_test_event_log_check(events);
 }
+
+fn deploy_address(
+    deployer_address: &ContractAddress,
+    nonce: &Hash256,
+    contract_hash: &Hash256,
+) -> ContractAddress {
+    use sha2::{Sha256, Digest};
+    use groundhog_xdr::contract::{ContractDeploymentHashPreimage};
+
+    let preimage =
+        ContractDeploymentHashPreimage {
+            deployer_address: *deployer_address,
+            nonce: *nonce,
+            contract_hash: *contract_hash,
+        };
+    let preimage: Vec<u8> = xdrs::serialize_txs::encode(&preimage).unwrap();
+
+    let mut hasher = Sha256::new();
+    hasher.update(preimage.as_slice());
+
+    let mut addr = [1u8; 32];
+    hasher.finalize_into((&mut addr).into());
+
+    addr.into()
+}
+/*
+use hex_lit::hex;
+const CADDR: ContractAddress = ContractAddress::new(hex!("6302f141ef296d365df0a95cfe68243d7e23deac621f14b27c6f995f1817e456"));
+*/
