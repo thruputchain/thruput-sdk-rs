@@ -1,4 +1,6 @@
-use groundhog_erc20_if::{ERC20Client, ERC20Error, TransferEvent};
+#![allow(unused)]
+
+use groundhog_erc20_if::{ERC20Client, ERC20Error, ERC20Event, TransferEvent};
 use sdk::*;
 use thiserror::Error;
 
@@ -23,9 +25,20 @@ struct Model {
     pub total_supply: u128,
     pub owner_bal: u128,
     pub other_bal: u128,
+    pub events: Vec<ERC20Event<'static>>,
 }
 
 impl Model {
+    pub fn log_transfer_event(&mut self,
+        from: &'static ContractAddress,
+        to: &'static ContractAddress,
+        amount: u128,
+    ) {
+        let event = TransferEvent::new(from, to, amount);
+
+        self.events.push(ERC20Event::Transfer(event));
+    }
+
     pub fn check_total_supply(&self, client: &mut ERC20Client) {
         assert_eq!(client.total_supply().unwrap(), self.total_supply);
     }
@@ -84,13 +97,12 @@ pub fn erc20_test(
     m.check_total_supply(client);
     m.check_owner_balance(client);
 
-    /*
     // Burn too much
+    assert!(m.owner_bal < 60);
     assert!(matches!(
         client.burn(owner, 60),
         Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
     ));
-    */
 
     // Transfer
     let amt = 25;
@@ -100,13 +112,12 @@ pub fn erc20_test(
     m.check_owner_balance(client);
     m.check_other_balance(client);
 
-    /*
     // Transfer too much
+    assert!(m.owner_bal < 1000);
     assert!(matches!(
         client.transfer(other, 1000),
         Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
     ));
-    */
 
     // Burn from other address
     client.burn(&other, 5).unwrap();
@@ -126,7 +137,7 @@ pub fn erc20_test_event_log_check(events: &[sdk::types::event::TxEmittedEvent]) 
     assert_eq!(events.len(), 1);
     let event = &events[0];
     let payload = event_payload(event).expect("malformed event");
-    let e: TransferEvent = sdk::internal::decode_xdr(payload).unwrap();
+    let amount: i128 = sdk::internal::decode_xdr(payload).unwrap();
 
-    println!("{:?}", e);
+    println!("{:?}", amount);
 }

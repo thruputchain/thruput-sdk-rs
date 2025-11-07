@@ -67,11 +67,15 @@ pub fn log_event(event: &impl Event) -> Result<()> {
     Ok(())
 }
 
+// This should go in a test-utils area
 mod emitted_event {
     use crate::types::event::TxEmittedEvent;
+    use crate::hash::*;
+
+    pub const TOPIC_SIZE: usize = 32;
 
     pub fn event_payload(event: &TxEmittedEvent) -> Option<&[u8]> {
-        let topics_len = 32 * event.num_topics as usize;
+        let topics_len = TOPIC_SIZE * event.num_topics as usize;
 
         if event.serialized_event.len() < topics_len {
             return None;
@@ -80,6 +84,17 @@ mod emitted_event {
         let payload = &event.serialized_event[topics_len..];
 
         Some(payload)
+    }
+
+    pub fn event_topic(event: &TxEmittedEvent, index: u32) -> Option<Hash256> {
+        if index > event.num_topics {
+            return None;
+        }
+        let topic_offset = TOPIC_SIZE * index as usize;
+        let topic_bytes = &event.serialized_event[topic_offset..topic_offset + TOPIC_SIZE];
+        let topic_bytes: [u8; TOPIC_SIZE] = topic_bytes.try_into().unwrap();
+
+        Some(Hash256::from(topic_bytes))
     }
 }
 pub use emitted_event::*;

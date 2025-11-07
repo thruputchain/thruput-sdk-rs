@@ -1,24 +1,26 @@
-/// ERC20 Events
-///
-/// See (EIP-20)[https://eips.ethereum.org/EIPS/eip-20#events].
-///
-/// # Transfer
-///
-/// `event Transfer(address indexed _from, address indexed _to, uint256 _value)`
-///
-/// "MUST trigger when tokens are transferred, including zero value transfers. A token contract
-/// which creates new tokens SHOULD trigger a Transfer event with the `_from` address set to `0x0`
-/// when tokens are created."
-///
-/// # Approval
-///
-/// `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
-///
-/// "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+//! ERC20 Events
+//!
+//! See (EIP-20)[https://eips.ethereum.org/EIPS/eip-20#events].
+//!
+//! # Transfer
+//!
+//! `event Transfer(address indexed _from, address indexed _to, uint256 _value)`
+//!
+//! "MUST trigger when tokens are transferred, including zero value transfers. A token contract
+//! which creates new tokens SHOULD trigger a Transfer event with the `_from` address set to `0x0`
+//! when tokens are created."
+//!
+//! # Approval
+//!
+//! `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
+//!
+//! "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+
 use sdk::{
-    ContractAddress, Event, ReadXDR, TopicSrc, WriteXDR, log_event,
+    ContractAddress, Event, TopicSrc, WriteXDR, WriteResult, log_event,
     sysresult::Result,
 };
+use xdrs::Writer;
 
 // TODO: conversion of the types defined below into those in `groundhog_xdr::standard_asset_events`
 
@@ -42,7 +44,7 @@ pub fn log_approval_event(
     log_event(&event)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, WriteXDR, ReadXDR)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransferEvent<'a> {
     from: &'a ContractAddress,
     to: &'a ContractAddress,
@@ -59,6 +61,13 @@ impl<'a> TransferEvent<'a> {
     }
 }
 
+impl<'a> WriteXDR for TransferEvent<'a> {
+    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+        // Don't serialize the addresses, which are topics
+        self.amount.write_xdr(w)
+    }
+}
+
 pub const TRANSFER_EVENT_SIG: TopicSrc = TopicSrc::Hashed(&"TransferEvent");
 
 impl<'a> Event for TransferEvent<'a> {
@@ -72,11 +81,18 @@ impl<'a> Event for TransferEvent<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, WriteXDR, ReadXDR)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovalEvent<'a> {
     owner: &'a ContractAddress,
     spender: &'a ContractAddress,
     amount: i128,
+}
+
+impl<'a> WriteXDR for ApprovalEvent<'a> {
+    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+        // Don't serialize the addresses, which are topics
+        self.amount.write_xdr(w)
+    }
 }
 
 impl<'a> ApprovalEvent<'a> {
@@ -104,4 +120,9 @@ impl<'a> Event for ApprovalEvent<'a> {
             _ => None,
         }
     }
+}
+
+pub enum ERC20Event<'a> {
+    Transfer(TransferEvent<'a>),
+    Approval(ApprovalEvent<'a>),
 }
