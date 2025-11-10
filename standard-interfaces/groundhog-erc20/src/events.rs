@@ -17,8 +17,8 @@
 //! "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
 
 use sdk::{
-    ContractAddress, Event, TopicSrc, WriteXDR, WriteResult, log_event,
-    sysresult::Result,
+    ContractAddress, Event, Topic, TopicSrc, WriteResult, WriteXDR, log_event,
+    sysresult::Result, topic_hashed_from,
 };
 use xdrs::Writer;
 
@@ -68,14 +68,14 @@ impl<'a> WriteXDR for TransferEvent<'a> {
     }
 }
 
-pub const TRANSFER_EVENT_SIG: TopicSrc = TopicSrc::Hashed(&"TransferEvent");
+pub const TRANSFER_EVENT_SIG: &Topic = &topic_hashed_from!("TransferEvent");
 
 impl<'a> Event for TransferEvent<'a> {
     fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
-            0 => Some(TRANSFER_EVENT_SIG),
-            1 => Some(TopicSrc::Hashed(self.from)),
-            2 => Some(TopicSrc::Hashed(self.to)),
+            0 => Some(TopicSrc::Shared(TRANSFER_EVENT_SIG)),
+            1 => Some(TopicSrc::Shared(self.from)),
+            2 => Some(TopicSrc::Shared(self.to)),
             _ => None,
         }
     }
@@ -109,14 +109,14 @@ impl<'a> ApprovalEvent<'a> {
     }
 }
 
-pub const APPROVAL_EVENT_SIG: TopicSrc = TopicSrc::Hashed(&"ApprovalEvent");
+pub const APPROVAL_EVENT_SIG: &Topic = &topic_hashed_from!("ApprovalEvent");
 
 impl<'a> Event for ApprovalEvent<'a> {
     fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
-            0 => Some(APPROVAL_EVENT_SIG),
-            1 => Some(TopicSrc::Hashed(self.owner)),
-            2 => Some(TopicSrc::Hashed(self.spender)),
+            0 => Some(TopicSrc::Shared(APPROVAL_EVENT_SIG)),
+            1 => Some(TopicSrc::Shared(self.owner)),
+            2 => Some(TopicSrc::Shared(self.spender)),
             _ => None,
         }
     }

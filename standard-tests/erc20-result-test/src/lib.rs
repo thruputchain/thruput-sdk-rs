@@ -1,6 +1,7 @@
 #![allow(unused)]
 
-use groundhog_erc20_if::{ERC20Client, ERC20Error, ERC20Event, TransferEvent};
+use groundhog_erc20_if::*;
+use hex;
 use sdk::*;
 use thiserror::Error;
 
@@ -29,7 +30,8 @@ struct Model {
 }
 
 impl Model {
-    pub fn log_transfer_event(&mut self,
+    pub fn log_transfer_event(
+        &mut self,
         from: &'static ContractAddress,
         to: &'static ContractAddress,
         amount: u128,
@@ -131,13 +133,52 @@ pub fn erc20_test(
     Ok(())
 }
 
-pub fn erc20_test_event_log_check(events: &[sdk::types::event::TxEmittedEvent]) {
+pub fn erc20_test_event_log_check(
+    events: &[sdk::types::event::TxEmittedEvent],
+) {
     // TODO: check that the event log looks like it should
 
-    assert_eq!(events.len(), 1);
-    let event = &events[0];
-    let payload = event_payload(event).expect("malformed event");
-    let amount: i128 = sdk::internal::decode_xdr(payload).unwrap();
+    for e in events {
+        let sig = event_topic(e, 0).expect("no event signature");
 
-    println!("{:?}", amount);
+        match sig {
+            TRANSFER_EVENT_SIG => {
+                let from: &ContractAddress =
+                    event_topic(e, 1).expect("no from address").into();
+                let to: &ContractAddress =
+                    event_topic(e, 2).expect("no to address").into();
+                let payload = event_payload(e).expect("malformed event");
+                let amount: i128 = sdk::internal::decode_xdr(payload).unwrap();
+
+                if from == CONTRACT_ADDR_ZERO {
+                    println!(
+                        "MINT_TO {} amount:{:?}",
+                        hex::encode(to),
+                        amount
+                    );
+                } else if to == CONTRACT_ADDR_ZERO {
+                    println!(
+                        "BURN_FROM {} amount:{:?}",
+                        hex::encode(from),
+                        amount
+                    );
+                } else {
+                    println!(
+                        "TRANSFER {} {} amount:{:?}",
+                        hex::encode(from),
+                        hex::encode(to),
+                        amount,
+                    );
+                }
+            }
+            APPROVAL_EVENT_SIG => {
+                let payload = event_payload(e).expect("malformed event");
+                let amount: i128 = sdk::internal::decode_xdr(payload).unwrap();
+                println!("APPROVE {:?}", amount);
+            }
+            _ => {
+                panic!("Unexpected topic signature");
+            }
+        }
+    }
 }

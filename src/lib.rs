@@ -72,14 +72,10 @@ pub use non_negative_int::*;
 pub use retrocausal_queue::*;
 
 pub use hash::*;
+pub use macros::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
-
-pub use macros::contract;
-pub use macros::static_key;
-#[cfg(feature = "storage")]
-pub use macros::{Storage, storage};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};

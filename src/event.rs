@@ -3,22 +3,10 @@ use crate::hash::*;
 use crate::internal::encode_xdr;
 use crate::sys;
 use crate::sysresult::Result;
+
 pub const EVENT_MAX_TOPICS: usize = 3;
 
-#[derive(Debug, Clone)]
-pub struct Topic(pub [u8; 32]);
-
-impl From<Hash256> for Topic {
-    fn from(hash: Hash256) -> Self {
-        Self(hash.into_inner())
-    }
-}
-
-impl From<Topic> for Hash256 {
-    fn from(topic: Topic) -> Self {
-        crate::SHA256Hash::new(topic.0)
-    }
-}
+pub type Topic = [u8; 32];
 
 pub enum TopicSrc<'a> {
     Hashed(&'a dyn Hash),
@@ -26,14 +14,12 @@ pub enum TopicSrc<'a> {
     Shared(&'a Topic),
 }
 
-impl<'a> TryFrom<TopicSrc<'a>> for Topic {
-    type Error = crate::sysresult::Error;
-
-    fn try_from(src: TopicSrc<'a>) -> Result<Topic> {
+impl<'a> From<TopicSrc<'a>> for Topic {
+    fn from(src: TopicSrc<'a>) -> Topic {
         match src {
-            TopicSrc::Hashed(hashable) => hashable.try_hash().map(Into::into),
-            TopicSrc::Owned(topic) => Ok(topic),
-            TopicSrc::Shared(topic) => Ok(topic.clone()),
+            TopicSrc::Hashed(hashable) => hashable.hash().into_inner(),
+            TopicSrc::Owned(topic) => topic,
+            TopicSrc::Shared(topic) => topic.clone(),
         }
     }
 }
@@ -47,12 +33,9 @@ pub trait Event: WriteXDR {
 }
 
 pub fn log_event(event: &impl Event) -> Result<()> {
-    let topic0: Option<Topic> =
-        event.topic(0).map(|t| t.try_into()).transpose()?;
-    let topic1: Option<Topic> =
-        event.topic(1).map(|t| t.try_into()).transpose()?;
-    let topic2: Option<Topic> =
-        event.topic(2).map(|t| t.try_into()).transpose()?;
+    let topic0: Option<Topic> = event.topic(0).map(|t| t.into());
+    let topic1: Option<Topic> = event.topic(1).map(|t| t.into());
+    let topic2: Option<Topic> = event.topic(2).map(|t| t.into());
 
     let data = encode_xdr(event)?;
 
@@ -69,8 +52,8 @@ pub fn log_event(event: &impl Event) -> Result<()> {
 
 // This should go in a test-utils area
 mod emitted_event {
+    use crate::event::Topic;
     use crate::types::event::TxEmittedEvent;
-    use crate::hash::*;
 
     pub const TOPIC_SIZE: usize = 32;
 
@@ -86,15 +69,16 @@ mod emitted_event {
         Some(payload)
     }
 
-    pub fn event_topic(event: &TxEmittedEvent, index: u32) -> Option<Hash256> {
+    pub fn event_topic(event: &TxEmittedEvent, index: u32) -> Option<&Topic> {
         if index > event.num_topics {
             return None;
         }
         let topic_offset = TOPIC_SIZE * index as usize;
-        let topic_bytes = &event.serialized_event[topic_offset..topic_offset + TOPIC_SIZE];
-        let topic_bytes: [u8; TOPIC_SIZE] = topic_bytes.try_into().unwrap();
+        let topic_bytes =
+            &event.serialized_event[topic_offset..topic_offset + TOPIC_SIZE];
+        let topic: &[u8; TOPIC_SIZE] = topic_bytes.try_into().unwrap();
 
-        Some(Hash256::from(topic_bytes))
+        Some(topic)
     }
 }
 pub use emitted_event::*;

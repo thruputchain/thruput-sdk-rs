@@ -369,6 +369,7 @@ name = "erc20-result-test"
 version = "0.1.0"
 dependencies = [
  "groundhog-erc20-if",
+ "hex",
  "sdk",
  "thiserror",
 ]

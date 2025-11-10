@@ -1,7 +1,7 @@
+use sdk::contract_test::grant_storage_tokens;
 use sdk::event::*;
 use sdk::internal::decode_xdr;
 use sdk::types::event::TxEmittedEvent;
-use sdk::contract_test::grant_storage_tokens;
 use sdk::*;
 
 macro_rules! single_event_test {
@@ -61,7 +61,7 @@ struct OwnedEvent {
 impl Event for OwnedEvent {
     fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
         // Here we need to hash something we don't have a reference to:
-        let payer_payee = (&self.payer, &self.payee).hash().into();
+        let payer_payee = (&self.payer, &self.payee).hash().into_inner();
 
         match index {
             0 => Some(TopicSrc::Owned(payer_payee)),

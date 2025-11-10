@@ -11,6 +11,9 @@ use sdk::{ContractAddress, contract};
 pub type Amount = u128;
 pub type Difference = i128;
 
+pub const CONTRACT_ADDR_ZERO: &ContractAddress =
+    &ContractAddress::new([0; 32]);
+
 #[contract(client = ERC20Client, err_type = ERC20Error)]
 pub trait ERC20 {
     fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()>;

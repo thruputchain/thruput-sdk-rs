@@ -11,7 +11,8 @@ fn check() {
 
     let test_contract = test_setup::register(&mut env);
     let test_contract_hash = env.setup_create_contract(&test_contract);
-    let test_contract_addr = deploy_address(&DEPLOYER, &NONCE, &test_contract_hash);
+    let test_contract_addr =
+        deploy_address(&DEPLOYER, &NONCE, &test_contract_hash);
 
     env.setup_grant_storage_tokens(&test_contract_addr, 1_000_000_000);
 
@@ -36,15 +37,14 @@ fn deploy_address(
     nonce: &Hash256,
     contract_hash: &Hash256,
 ) -> ContractAddress {
-    use sha2::{Sha256, Digest};
-    use groundhog_xdr::contract::{ContractDeploymentHashPreimage};
+    use groundhog_xdr::contract::ContractDeploymentHashPreimage;
+    use sha2::{Digest, Sha256};
 
-    let preimage =
-        ContractDeploymentHashPreimage {
-            deployer_address: *deployer_address,
-            nonce: *nonce,
-            contract_hash: *contract_hash,
-        };
+    let preimage = ContractDeploymentHashPreimage {
+        deployer_address: *deployer_address,
+        nonce: *nonce,
+        contract_hash: *contract_hash,
+    };
     let preimage: Vec<u8> = xdrs::serialize_txs::encode(&preimage).unwrap();
 
     let mut hasher = Sha256::new();
@@ -55,7 +55,3 @@ fn deploy_address(
 
     addr.into()
 }
-/*
-use hex_lit::hex;
-const CADDR: ContractAddress = ContractAddress::new(hex!("6302f141ef296d365df0a95cfe68243d7e23deac621f14b27c6f995f1817e456"));
-*/

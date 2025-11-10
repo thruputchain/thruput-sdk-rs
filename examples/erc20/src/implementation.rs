@@ -160,7 +160,11 @@ impl ERC20 for TokenContract {
 
         let diff = amount_to_diff(amount)?;
         self._adjust_balance(receiver, diff)?;
-        self._adjust_total_supply(diff)
+        self._adjust_total_supply(diff)?;
+
+        log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount)?;
+
+        Ok(())
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
@@ -172,7 +176,11 @@ impl ERC20 for TokenContract {
 
         let diff = amount_to_diff(amount)?;
         self._adjust_balance(owner, -diff)?;
-        self._adjust_total_supply(-diff)
+        self._adjust_total_supply(-diff)?;
+
+        log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount)?;
+
+        Ok(())
     }
 
     fn total_supply(&self) -> Result<Amount> {

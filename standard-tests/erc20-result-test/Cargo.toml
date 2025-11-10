@@ -11,3 +11,4 @@ test = false
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror = { workspace = true }
+hex = { version = "0.4.3" }
