@@ -18,6 +18,7 @@ doctest = false
 test = false
 
 [features]
+default = ["logging"]
 client = []
 guest = []
 mock = ["guest", "sdk/mock", "groundhog-erc20-if/mock"]

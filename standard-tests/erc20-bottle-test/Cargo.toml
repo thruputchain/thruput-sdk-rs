@@ -8,7 +8,7 @@ description = "ERC20 Bottle-test"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true, features = ["storage", "logging"] }
 groundhog-erc20-if = { workspace = true }
 bottle-test-if = { workspace = true }
 xdrs = { workspace = true }

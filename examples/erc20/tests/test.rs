@@ -2,9 +2,6 @@ use erc20::implementation::test_setup;
 use erc20_result_test::*;
 use sdk::*;
 
-const DEPLOYER: ContractAddress = ContractAddress::new([0xff; 32]);
-const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
-
 #[test]
 fn check() {
     let mut env = sdk::TestEnvironment::new();
@@ -12,7 +9,7 @@ fn check() {
     let test_contract = test_setup::register(&mut env);
     let test_contract_hash = env.setup_create_contract(&test_contract);
     let test_contract_addr =
-        deploy_address(&DEPLOYER, &NONCE, &test_contract_hash);
+        deploy_address(&OWNER, &NONCE, &test_contract_hash);
 
     env.setup_grant_storage_tokens(&test_contract_addr, 1_000_000_000);
 
@@ -32,6 +29,7 @@ fn check() {
     erc20_test_event_log_check(events);
 }
 
+// (General test utility)
 fn deploy_address(
     deployer_address: &ContractAddress,
     nonce: &Hash256,

@@ -46,9 +46,9 @@ pub fn log_approval_event(
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransferEvent<'a> {
-    from: &'a ContractAddress,
-    to: &'a ContractAddress,
-    amount: u128,
+    pub from: &'a ContractAddress,
+    pub to: &'a ContractAddress,
+    pub amount: u128,
 }
 
 impl<'a> TransferEvent<'a> {
@@ -83,9 +83,9 @@ impl<'a> Event for TransferEvent<'a> {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovalEvent<'a> {
-    owner: &'a ContractAddress,
-    spender: &'a ContractAddress,
-    amount: i128,
+    pub owner: &'a ContractAddress,
+    pub spender: &'a ContractAddress,
+    pub amount: i128,
 }
 
 impl<'a> WriteXDR for ApprovalEvent<'a> {
@@ -122,6 +122,7 @@ impl<'a> Event for ApprovalEvent<'a> {
     }
 }
 
+#[derive(Clone)]
 pub enum ERC20Event<'a> {
     Transfer(TransferEvent<'a>),
     Approval(ApprovalEvent<'a>),
