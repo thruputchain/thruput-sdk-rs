@@ -127,3 +127,114 @@ pub enum ERC20Event<'a> {
     Transfer(TransferEvent<'a>),
     Approval(ApprovalEvent<'a>),
 }
+
+// TODO: generate this code via the same macros that will derive `Event`, etc.
+#[cfg(feature = "mock")]
+mod emitted {
+    use sdk::types::event::TxEmittedEvent;
+    use super::*;
+    use sdk::{event_topic, event_payload};
+    use core::fmt;
+    use crate::CONTRACT_ADDR_ZERO;
+
+    struct Hex<'a>(&'a [u8]);
+
+    impl<'a> fmt::Display for Hex<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::result::Result<(), fmt::Error> {
+            // f.write_str("hex!(\"")?;
+            for b in self.0 {
+                write!(f, "{:02x}", b)?;
+            }
+            // f.write_str("\")")?;
+            Ok(())
+        }
+    }
+
+    fn hex_encode<'a, B: AsRef<[u8]>>(b: &'a B) -> Hex<'a> {
+        Hex(b.as_ref())
+    }
+
+    pub fn to_erc20_event(e: &TxEmittedEvent) -> ERC20Event<'_> {
+        let sig = event_topic(e, 0).expect("no event signature");
+        match sig {
+            TRANSFER_EVENT_SIG => {
+                ERC20Event::Transfer(to_transfer_event(e))
+            }
+            APPROVAL_EVENT_SIG => {
+                ERC20Event::Approval(to_approval_event(e))
+            }
+            _ => panic!("Unexpected event signature: {}", hex_encode(sig)),
+        }
+    }
+
+    fn to_transfer_event(e: &TxEmittedEvent) -> TransferEvent<'_> {
+        let sig = event_topic(e, 0).expect("no event signature");
+        assert_eq!(sig, TRANSFER_EVENT_SIG, "Unexpected event signature");
+
+        let from: &ContractAddress = event_topic(e, 1).expect("Missing topic").into();
+        let to: &ContractAddress = event_topic(e, 2).expect("Missing topic").into();
+
+        let payload = event_payload(e).expect("malformed event");
+        let amount: u128 = sdk::internal::decode_xdr(payload).expect("couldn't parse event payload");
+
+        TransferEvent::new(from, to, amount)
+    }
+
+    fn to_approval_event(e: &TxEmittedEvent) -> ApprovalEvent<'_> {
+        let sig = event_topic(e, 0).expect("no event signature");
+        assert_eq!(sig, APPROVAL_EVENT_SIG, "Unexpected event signature");
+
+        let owner: &ContractAddress = event_topic(e, 1).expect("Missing topic").into();
+        let spender: &ContractAddress = event_topic(e, 2).expect("Missing topic").into();
+
+        let payload = event_payload(e).expect("malformed event");
+        let amount: i128 = sdk::internal::decode_xdr(payload).expect("couldn't parse event payload");
+
+        ApprovalEvent::new(owner, spender, amount)
+    }
+
+    pub fn print_event(e: &TxEmittedEvent) {
+        let sig = event_topic(e, 0).expect("no event signature");
+
+        match sig {
+            TRANSFER_EVENT_SIG => {
+                let from: &ContractAddress =
+                    event_topic(e, 1).expect("no from address").into();
+                let to: &ContractAddress =
+                    event_topic(e, 2).expect("no to address").into();
+                let payload = event_payload(e).expect("malformed event");
+                let amount: u128 = sdk::internal::decode_xdr(payload).unwrap();
+
+                if from == CONTRACT_ADDR_ZERO {
+                    println!(
+                        "\tMINT_TO {} amount:{:?}",
+                        hex_encode(to),
+                        amount
+                    );
+                } else if to == CONTRACT_ADDR_ZERO {
+                    println!(
+                        "\tBURN_FROM {} amount:{:?}",
+                        hex_encode(from),
+                        amount
+                    );
+                } else {
+                    println!(
+                        "\tTRANSFER {} {} amount:{:?}",
+                        hex_encode(from),
+                        hex_encode(to),
+                        amount,
+                    );
+                }
+            }
+            APPROVAL_EVENT_SIG => {
+                let payload = event_payload(e).expect("malformed event");
+                let amount: i128 = sdk::internal::decode_xdr(payload).unwrap();
+                println!("\tAPPROVE {:?}", amount);
+            }
+            _ => {
+                panic!("Unexpected topic signature");
+            }
+        }
+    }
+}
+pub use emitted::*;

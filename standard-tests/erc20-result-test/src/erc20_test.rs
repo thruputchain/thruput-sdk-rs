@@ -1,5 +1,4 @@
 use groundhog_erc20_if::*;
-use hex;
 use sdk::*;
 use thiserror::Error;
 use crate::model::Model;
@@ -143,88 +142,5 @@ pub fn erc20_test_event_log_check(events: &[TxEmittedEvent]) {
 
     if events.len() > 0 {
         panic!("Test contract produced {} more events than expected", events.len());
-    }
-}
-
-fn to_erc20_event(e: &TxEmittedEvent) -> ERC20Event<'_> {
-    let sig = event_topic(e, 0).expect("no event signature");
-    match sig {
-        TRANSFER_EVENT_SIG => {
-            ERC20Event::Transfer(to_transfer_event(e))
-        }
-        APPROVAL_EVENT_SIG => {
-            ERC20Event::Approval(to_approval_event(e))
-        }
-        _ => panic!("Unexpected event signature: {}", hex::encode(sig)),
-    }
-}
-
-fn to_transfer_event(e: &TxEmittedEvent) -> TransferEvent<'_> {
-    let sig = event_topic(e, 0).expect("no event signature");
-    assert_eq!(sig, TRANSFER_EVENT_SIG, "Unexpected event signature");
-
-    let from: &ContractAddress = event_topic(e, 1).expect("Missing topic").into();
-    let to: &ContractAddress = event_topic(e, 2).expect("Missing topic").into();
-
-    let payload = event_payload(e).expect("malformed event");
-    let amount: u128 = sdk::internal::decode_xdr(payload).expect("couldn't parse event payload");
-
-    TransferEvent::new(from, to, amount)
-}
-
-fn to_approval_event(e: &TxEmittedEvent) -> ApprovalEvent<'_> {
-    let sig = event_topic(e, 0).expect("no event signature");
-    assert_eq!(sig, APPROVAL_EVENT_SIG, "Unexpected event signature");
-
-    let owner: &ContractAddress = event_topic(e, 1).expect("Missing topic").into();
-    let spender: &ContractAddress = event_topic(e, 2).expect("Missing topic").into();
-
-    let payload = event_payload(e).expect("malformed event");
-    let amount: i128 = sdk::internal::decode_xdr(payload).expect("couldn't parse event payload");
-
-    ApprovalEvent::new(owner, spender, amount)
-}
-
-fn print_event(e: &TxEmittedEvent) {
-    let sig = event_topic(e, 0).expect("no event signature");
-
-    match sig {
-        TRANSFER_EVENT_SIG => {
-            let from: &ContractAddress =
-                event_topic(e, 1).expect("no from address").into();
-            let to: &ContractAddress =
-                event_topic(e, 2).expect("no to address").into();
-            let payload = event_payload(e).expect("malformed event");
-            let amount: u128 = sdk::internal::decode_xdr(payload).unwrap();
-
-            if from == CONTRACT_ADDR_ZERO {
-                println!(
-                    "\tMINT_TO {} amount:{:?}",
-                    hex::encode(to),
-                    amount
-                );
-            } else if to == CONTRACT_ADDR_ZERO {
-                println!(
-                    "\tBURN_FROM {} amount:{:?}",
-                    hex::encode(from),
-                    amount
-                );
-            } else {
-                println!(
-                    "\tTRANSFER {} {} amount:{:?}",
-                    hex::encode(from),
-                    hex::encode(to),
-                    amount,
-                );
-            }
-        }
-        APPROVAL_EVENT_SIG => {
-            let payload = event_payload(e).expect("malformed event");
-            let amount: i128 = sdk::internal::decode_xdr(payload).unwrap();
-            println!("\tAPPROVE {:?}", amount);
-        }
-        _ => {
-            panic!("Unexpected topic signature");
-        }
     }
 }
