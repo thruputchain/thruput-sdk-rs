@@ -1,0 +1,130 @@
+use groundhog_erc20_if::*;
+use sdk::*;
+use std::collections::HashMap;
+
+/// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
+#[derive(Default, Clone)]
+pub struct Model {
+    pub contract_owner: Option<&'static ContractAddress>,
+    pub total_supply: u128,
+    pub balances: HashMap<&'static ContractAddress, Amount>,
+    pub allowances: HashMap<(&'static ContractAddress, &'static ContractAddress), Amount>,
+    pub events: Vec<ERC20Event<'static>>,
+}
+
+// Implement the same interface that ERC20 does, and keep track of
+// the expected state
+impl Model {
+    pub fn initialize(&mut self, owner: &'static ContractAddress) {
+        assert_eq!(self.contract_owner, None, "Model contract has already been initialized");
+
+        self.contract_owner = Some(owner);
+    }
+
+    fn get_caller(&self) -> &'static ContractAddress {
+        // In testing, the caller is always the contract owner
+        self.contract_owner.expect("Model contract has not yet been initialized")
+    }
+
+    pub fn mint(&mut self, receiver: &'static ContractAddress, amount: Amount) {
+        self.total_supply = self.total_supply.checked_add(amount).unwrap();
+
+        let balance = self.balances.entry(receiver).or_insert(0);
+
+        *balance = (*balance).checked_add(amount).unwrap();
+
+        self.log_transfer_event(&CONTRACT_ADDR_ZERO, receiver, 100);
+    }
+
+    pub fn burn(&mut self, owner: &'static ContractAddress, amount: Amount) {
+        self.total_supply = self.total_supply.checked_sub(amount).unwrap();
+
+        let balance = self.balances.entry(owner).or_insert(0);
+
+        *balance = (*balance).checked_sub(amount).unwrap();
+
+        self.log_transfer_event(owner, &CONTRACT_ADDR_ZERO, amount);
+    }
+
+    pub fn adjust_allowance(&mut self,
+        spender: &'static ContractAddress,
+        diff: Difference,
+    ) {
+        let owner = self.get_caller();
+        let entry = self.allowances.entry((owner, spender)).or_insert(0);
+
+        *entry = (*entry).checked_add_signed(diff).unwrap();
+
+        self.log_approval_event(owner, spender, diff);
+    }
+
+    pub fn transfer(&mut self,
+        receiver: &'static ContractAddress,
+        amount: Amount,
+    ) {
+        let owner = self.get_caller();
+        let diff: Difference = amount.try_into().unwrap();
+
+        self.adjust_balance(owner, -diff);
+        self.adjust_balance(receiver, diff);
+
+        self.log_transfer_event(owner, receiver, amount);
+    }
+
+    fn adjust_balance(&mut self, owner: &'static ContractAddress, diff: Difference) {
+        let bal = self.balances.entry(owner).or_insert(0);
+
+        *bal = (*bal).checked_add_signed(diff).unwrap();
+    }
+
+    fn log_transfer_event(
+        &mut self,
+        from: &'static ContractAddress,
+        to: &'static ContractAddress,
+        amount: u128,
+    ) {
+        let event = TransferEvent::new(from, to, amount);
+
+        self.events.push(ERC20Event::Transfer(event));
+    }
+
+    fn log_approval_event(
+        &mut self,
+        owner: &'static ContractAddress,
+        spender: &'static ContractAddress,
+        amount: i128,
+    ) {
+        let event = ApprovalEvent::new(owner, spender, amount);
+
+        self.events.push(ERC20Event::Approval(event));
+    }
+}
+
+// Check our state against that of a supplied ERC20 contract
+impl Model {
+    pub fn check_total_supply(&self, client: &mut ERC20Client) {
+        assert_eq!(client.total_supply().unwrap(), self.total_supply);
+    }
+
+    pub fn check_balances(&self, client: &mut ERC20Client) {
+        for (addr, model_bal) in &self.balances {
+            let client_bal = client.get_balance_of(addr).unwrap();
+
+            assert_eq!(&client_bal, model_bal);
+        }
+    }
+
+    pub fn check_allowances(&self, client: &mut ERC20Client) {
+        for ((owner, spender), model_allowance) in &self.allowances {
+            let allowance = client.allowance(owner, spender).unwrap();
+
+            assert_eq!(&allowance, model_allowance);
+        }
+    }
+
+    pub fn check(&self, client: &mut ERC20Client) {
+        self.check_total_supply(client);
+        self.check_balances(client);
+        self.check_allowances(client);
+    }
+}

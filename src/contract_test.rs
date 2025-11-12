@@ -229,3 +229,31 @@ fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
 
     (stats, result)
 }
+
+use crate::types::*;
+use crate::hash::*;
+use std::vec::Vec;
+
+pub fn deploy_address(
+    deployer_address: &ContractAddress,
+    nonce: &Hash256,
+    contract_hash: &Hash256,
+) -> ContractAddress {
+    use groundhog_xdr::contract::ContractDeploymentHashPreimage;
+    use sha2::{Digest, Sha256};
+
+    let preimage = ContractDeploymentHashPreimage {
+        deployer_address: *deployer_address,
+        nonce: *nonce,
+        contract_hash: *contract_hash,
+    };
+    let preimage: Vec<u8> = xdrs::serialize_txs::encode(&preimage).unwrap();
+
+    let mut hasher = Sha256::new();
+    hasher.update(preimage.as_slice());
+
+    let mut addr = [1u8; 32];
+    hasher.finalize_into((&mut addr).into());
+
+    addr.into()
+}

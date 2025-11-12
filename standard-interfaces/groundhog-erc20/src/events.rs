@@ -122,7 +122,7 @@ impl<'a> Event for ApprovalEvent<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ERC20Event<'a> {
     Transfer(TransferEvent<'a>),
     Approval(ApprovalEvent<'a>),

@@ -52,6 +52,18 @@ impl TokenContract {
         Ok(())
     }
 
+    fn _allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount> {
+
+        let owner_allowances = self.allowances.get(owner)?;
+        let spender_allowance = owner_allowances.get(spender)?;
+
+        Ok(spender_allowance.try_get()?.unwrap_or(0) as Amount)
+    }
+
     // Adjust allowance for owner and spender, from zero if empty.
     // Returns resulting allowance.
     fn _adjust_allowance(
@@ -136,6 +148,14 @@ impl ERC20 for TokenContract {
         let owner = get_caller()?;
 
         self._adjust_allowance(&owner, spender, diff)
+    }
+
+    fn allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount> {
+        self._allowance(owner, spender)
     }
 
     fn get_balance_of(&self, owner: &ContractAddress) -> Result<Amount> {

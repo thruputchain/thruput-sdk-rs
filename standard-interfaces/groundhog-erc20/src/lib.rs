@@ -40,6 +40,13 @@ pub trait ERC20 {
         diff: Difference,
     ) -> Result<()>;
 
+    /// Get `spender`'s allowance of `owner`'s tokens
+    fn allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount>;
+
     /// Get balance for given address
     fn get_balance_of(&self, addr: &ContractAddress) -> Result<Amount>;
 
