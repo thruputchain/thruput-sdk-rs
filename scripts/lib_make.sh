@@ -6,10 +6,10 @@ set -u
 source "$SDK_SCRIPT_DIR"/lib_make_examples.sh
 
 cargo() {
-  local locked=""
+  local locked="--locked"
 
   if bool_true "${CARGO_UNLOCK:-}"; then
-    locked="--locked"
+    locked=""
   fi
 
   env cargo $locked "$@"
