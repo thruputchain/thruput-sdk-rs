@@ -121,26 +121,8 @@ pub fn erc20_test(
 /// Check that the given event log matches what the model predicted
 pub fn erc20_test_event_log_check(events: &[TxEmittedEvent]) {
 
-    eprintln!("Event log:");
-    events.iter().for_each(print_event);
-
     // Retrieve the last-constructed model from a global
     let model = MODEL.lock().unwrap().clone().unwrap();
 
-    // assert_eq!(events.len(), model.events.len());
-
-    let mut events = events.iter();
-
-    // For each event from the modelled event log ...
-    for (i, model_event) in model.events.iter().enumerate() {
-        // Get the next event from the test event log
-        let emitted_event = events.next().expect("Unexpected end of event log");
-        let event = to_erc20_event(emitted_event);
-
-        assert_eq!(&event, model_event, "Event {} doesn't match", i);
-    }
-
-    if events.len() > 0 {
-        panic!("Test contract produced {} more events than expected", events.len());
-    }
+    model.check_events(events);
 }

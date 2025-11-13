@@ -1,6 +1,7 @@
 use groundhog_erc20_if::*;
 use sdk::*;
 use std::collections::HashMap;
+use sdk::types::event::TxEmittedEvent;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]
@@ -126,5 +127,29 @@ impl Model {
         self.check_total_supply(client);
         self.check_balances(client);
         self.check_allowances(client);
+    }
+}
+
+impl Model {
+    /// Check model state against events emitted by a transaction
+    pub fn check_events(&self, events: &[TxEmittedEvent]) {
+        let mut events = events.iter();
+
+        // For each event from our modelled event log ...
+        for (i, model_event) in self.events.iter().enumerate() {
+            // Get the next event from the transaction event log
+            let emitted_event = events.next().expect("Unexpected end of event log");
+
+            let event: ERC20Event = emitted_event.try_into().unwrap_or_else(|e|
+                panic!("Couldn't parse emitted event as an ERC20 event: {}", e));
+
+            eprintln!("\tevent {:?}: {}", i, event);
+
+            assert_eq!(&event, model_event, "Event {} doesn't match", i);
+        }
+
+        if events.len() > 0 {
+            panic!("Test contract produced {} more events than expected", events.len());
+        }
     }
 }

@@ -53,6 +53,7 @@ pub mod precompiles;
 pub mod rt;
 pub mod serialize;
 pub mod types;
+pub mod hex;
 
 pub mod contract_result;
 pub mod sysresult;
@@ -76,6 +77,7 @@ pub use macros::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+pub use hex::*;
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
