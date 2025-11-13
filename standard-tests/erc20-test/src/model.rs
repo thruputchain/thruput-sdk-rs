@@ -1,16 +1,15 @@
 use groundhog_erc20_if::*;
 use sdk::types::event::TxEmittedEvent;
 use sdk::*;
-use std::collections::HashMap;
+use alloc::collections::BTreeMap as Map;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]
 pub struct Model {
     pub contract_owner: Option<&'static ContractAddress>,
     pub total_supply: u128,
-    pub balances: HashMap<&'static ContractAddress, Amount>,
-    pub allowances:
-        HashMap<(&'static ContractAddress, &'static ContractAddress), Amount>,
+    pub balances: Map<&'static ContractAddress, Amount>,
+    pub allowances: Map<(&'static ContractAddress, &'static ContractAddress), Amount>,
     pub events: Vec<ERC20Event<'static>>,
 }
 
@@ -163,8 +162,6 @@ impl Model {
                         e
                     )
                 });
-
-            eprintln!("\tevent {:?}: {}", i, event);
 
             assert_eq!(&event, model_event, "Event {} doesn't match", i);
         }

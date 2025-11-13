@@ -1,5 +1,5 @@
 [package]
-name = "erc20-result-test"
+name = "erc20-native-test"
 edition.workspace = true
 version.workspace = true
 
@@ -11,4 +11,4 @@ test = false
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror = { workspace = true }
-hex = { version = "0.4.3" }
+erc20-test = { workspace = true }

@@ -1,9 +1,7 @@
-use crate::model::Model;
 use groundhog_erc20_if::*;
-use sdk::types::event::TxEmittedEvent;
 use sdk::*;
-use std::sync::Mutex;
 use thiserror::Error;
+use crate::model::Model;
 
 #[derive(Error, Debug, Clone)]
 pub enum ERC20TestError {
@@ -23,16 +21,18 @@ pub const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
 const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
 
-// It's currently difficult to extract state from mock contracts, so we use this global to record
-// the results of a test run. (This won't work if the below functions are not run one after the
-// other, or if concurrent tests are run in different threads.)
-static MODEL: Mutex<Option<Model>> = Mutex::new(None);
+pub fn erc20_test_setup(
+    target_contract_hash: &SHA256Hash,
+) -> ERC20TestResult<ContractAddress> {
+    let deployed_addr = deploy_contract(&NONCE, target_contract_hash)?;
+
+    Ok(deployed_addr)
+}
 
 /// Test the logic of an ERC20 contract
 pub fn erc20_test(
-    target_contract_hash: &sdk::types::SHA256Hash,
-) -> ERC20TestResult<()> {
-    let deployed_addr = deploy_contract(&NONCE, target_contract_hash)?;
+    deployed_addr: &ContractAddress,
+) -> ERC20TestResult<Model> {
     let mut client = ERC20Client::new(&deployed_addr);
     let client = &mut client;
 
@@ -101,16 +101,5 @@ pub fn erc20_test(
     // Check everything against the model
     m.check(client);
 
-    // Store the model in a global, for retrieval in the function below
-    *MODEL.lock().unwrap() = Some(m);
-
-    Ok(())
-}
-
-/// Check that the given event log matches what the model predicted
-pub fn erc20_test_event_log_check(events: &[TxEmittedEvent]) {
-    // Retrieve the last-constructed model from a global
-    let m = MODEL.lock().unwrap().clone().unwrap();
-
-    m.check_events(events);
+    Ok(m)
 }

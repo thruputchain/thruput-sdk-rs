@@ -64,8 +64,9 @@ groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
 # Standard test crates
 bottle-test-if = { path = "standard-tests/bottle-test-if" }
+erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
-erc20-result-test = { path = "standard-tests/erc20-result-test" }
+erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
 default = []
@@ -107,3 +108,7 @@ name = "events"
 
 [lints.clippy]
 collapsible_if = "allow"
+
+# XXX
+[patch.'ssh://git@github.com/groundhogchain/protocol-rs.git']
+groundhog_xdr = { path = "../protocol-rs/groundhog_xdr" }

@@ -344,7 +344,7 @@ version = "0.1.2"
 dependencies = [
  "erc20",
  "erc20-bottle-test",
- "erc20-result-test",
+ "erc20-native-test",
  "groundhog-erc20-if",
  "groundhog_xdr",
  "hex_lit",
@@ -359,17 +359,27 @@ name = "erc20-bottle-test"
 version = "0.1.0"
 dependencies = [
  "bottle-test-if",
+ "erc20-test",
  "groundhog-erc20-if",
  "sdk",
  "xdrs",
 ]
 
 [[package]]
-name = "erc20-result-test"
+name = "erc20-native-test"
+version = "0.1.0"
+dependencies = [
+ "erc20-test",
+ "groundhog-erc20-if",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
+name = "erc20-test"
 version = "0.1.0"
 dependencies = [
  "groundhog-erc20-if",
- "hex",
  "sdk",
  "thiserror",
 ]
@@ -379,7 +389,7 @@ name = "erc20_low_level"
 version = "0.1.1"
 dependencies = [
  "erc20-bottle-test",
- "erc20-result-test",
+ "erc20-native-test",
  "erc20_low_level",
  "groundhog-erc20-if",
  "sdk",
@@ -391,7 +401,7 @@ name = "erc20_no_storage"
 version = "0.1.1"
 dependencies = [
  "erc20-bottle-test",
- "erc20-result-test",
+ "erc20-native-test",
  "erc20_no_storage",
  "groundhog-erc20-if",
  "sdk",
@@ -524,14 +534,25 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#64e7119aea0e766402b523d5dfb5b23faf6c762e"
 dependencies = [
- "macros 0.1.0 (git+ssh://git@github.com/groundhogchain/protocol-rs.git)",
+ "groundhog_xdr_macros",
  "serde",
  "serde_arrays",
  "thiserror",
  "xdr_common",
  "xdrs",
+]
+
+[[package]]
+name = "groundhog_xdr_macros"
+version = "0.1.0"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_yaml",
+ "syn",
 ]
 
 [[package]]
@@ -655,19 +676,6 @@ dependencies = [
  "sha2",
  "syn",
  "xdrs",
-]
-
-[[package]]
-name = "macros"
-version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#64e7119aea0e766402b523d5dfb5b23faf6c762e"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "serde",
- "serde_yaml",
- "syn",
 ]
 
 [[package]]
@@ -900,7 +908,7 @@ dependencies = [
  "delegate",
  "groundhog_xdr",
  "hex-literal",
- "macros 0.1.0",
+ "macros",
  "native_exec",
  "sha2",
  "thiserror",
