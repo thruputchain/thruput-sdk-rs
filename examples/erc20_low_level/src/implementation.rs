@@ -135,8 +135,8 @@ pub fn allowance(
     spender: &ContractAddress,
 ) -> Result<Amount> {
     Ok(
-        non_negative_int_try_get(&get_allowance_key(owner, spender))?.unwrap_or(0)
-            as Amount
+        non_negative_int_try_get(&get_allowance_key(owner, spender))?
+            .unwrap_or(0) as Amount,
     )
 }
 

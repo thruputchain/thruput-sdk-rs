@@ -1,14 +1,18 @@
-mod model;
 mod erc20_test;
+mod model;
 
 use erc20_test::*;
-use sdk::types::Contract;
 use sdk::TestEnvironmentHandle;
 use sdk::contract_test::deploy_address;
+use sdk::types::Contract;
 
-pub fn test_erc20_contract(env: &TestEnvironmentHandle, test_contract: &Contract) {
+pub fn test_erc20_contract(
+    env: &TestEnvironmentHandle,
+    test_contract: &Contract,
+) {
     let test_contract_hash = env.setup_create_contract(test_contract);
-    let test_contract_addr = deploy_address(&OWNER, &NONCE, &test_contract_hash);
+    let test_contract_addr =
+        deploy_address(&OWNER, &NONCE, &test_contract_hash);
 
     env.setup_grant_storage_tokens(&test_contract_addr, 1_000_000_000);
 

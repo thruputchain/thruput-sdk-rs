@@ -230,8 +230,8 @@ fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
     (stats, result)
 }
 
-use crate::types::*;
 use crate::hash::*;
+use crate::types::*;
 use std::vec::Vec;
 
 pub fn deploy_address(

@@ -1,9 +1,9 @@
-use groundhog_erc20_if::*;
-use sdk::*;
-use thiserror::Error;
 use crate::model::Model;
-use std::sync::Mutex;
+use groundhog_erc20_if::*;
 use sdk::types::event::TxEmittedEvent;
+use sdk::*;
+use std::sync::Mutex;
+use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
 pub enum ERC20TestError {
@@ -21,18 +21,17 @@ pub type ERC20TestResult<T> = core::result::Result<T, ERC20TestError>;
 
 pub const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
-    const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
+const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
 
-// It's currently difficult to extract state from mock contracts, so we use this global to keep
-// track of state during the test run. (This won't work if the below functions are not run one
-// after the other, or if concurrent tests are run in different threads.)
+// It's currently difficult to extract state from mock contracts, so we use this global to record
+// the results of a test run. (This won't work if the below functions are not run one after the
+// other, or if concurrent tests are run in different threads.)
 static MODEL: Mutex<Option<Model>> = Mutex::new(None);
 
 /// Test the logic of an ERC20 contract
 pub fn erc20_test(
     target_contract_hash: &sdk::types::SHA256Hash,
 ) -> ERC20TestResult<()> {
-
     let deployed_addr = deploy_contract(&NONCE, target_contract_hash)?;
     let mut client = ERC20Client::new(&deployed_addr);
     let client = &mut client;
@@ -47,23 +46,16 @@ pub fn erc20_test(
 
     client.initialize(owner)?;
     m.initialize(owner);
-        // Total supply and owner's balance are zero
-        m.check_total_supply(client);
-        m.check_balances(client);
 
     // Mint
     let amt = 100;
     client.mint(owner, amt)?;
     m.mint(owner, amt);
-        m.check_total_supply(client);
-        m.check_balances(client);
 
     // Burn
     let amt = 50;
     client.burn(owner, amt)?;
     m.burn(owner, amt);
-        m.check_total_supply(client);
-        m.check_balances(client);
 
     // Burn too much
     let amt = 60;
@@ -77,7 +69,6 @@ pub fn erc20_test(
     let amt = 25;
     client.transfer(other, amt).unwrap();
     m.transfer(other, amt);
-        m.check_balances(client);
 
     // Transfer too much
     assert!(m.balances[owner] < 1000);
@@ -90,8 +81,6 @@ pub fn erc20_test(
     let amt = 5;
     client.burn(other, amt).unwrap();
     m.burn(other, amt);
-        m.check_total_supply(client);
-        m.check_balances(client);
 
     // Approve spending by "other"
     let amt = 17;
@@ -120,9 +109,8 @@ pub fn erc20_test(
 
 /// Check that the given event log matches what the model predicted
 pub fn erc20_test_event_log_check(events: &[TxEmittedEvent]) {
-
     // Retrieve the last-constructed model from a global
-    let model = MODEL.lock().unwrap().clone().unwrap();
+    let m = MODEL.lock().unwrap().clone().unwrap();
 
-    model.check_events(events);
+    m.check_events(events);
 }

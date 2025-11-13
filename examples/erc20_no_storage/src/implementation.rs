@@ -127,8 +127,8 @@ impl ERC20 for Token {
         spender: &ContractAddress,
     ) -> Result<Amount> {
         Ok(
-            non_negative_int_try_get(&get_allowance_key(owner, spender))?.unwrap_or(0)
-                as Amount
+            non_negative_int_try_get(&get_allowance_key(owner, spender))?
+                .unwrap_or(0) as Amount,
         )
     }
 
@@ -153,7 +153,11 @@ impl ERC20 for Token {
         self.get_balance_of(&get_caller()?)
     }
 
-    fn mint(&mut self, recipient: &ContractAddress, amount: Amount) -> Result<()> {
+    fn mint(
+        &mut self,
+        recipient: &ContractAddress,
+        amount: Amount,
+    ) -> Result<()> {
         ensure_caller_is_owner()?;
 
         let diff = amount_to_diff(amount)?;

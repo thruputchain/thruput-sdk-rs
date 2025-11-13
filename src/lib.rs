@@ -44,6 +44,7 @@ pub mod crypto;
 pub mod deploy;
 pub mod event;
 pub mod hash;
+pub mod hex;
 pub mod invoke;
 pub mod invoke_config;
 mod invoke_encode; // TODO: make this a sub-module of invoke
@@ -53,7 +54,6 @@ pub mod precompiles;
 pub mod rt;
 pub mod serialize;
 pub mod types;
-pub mod hex;
 
 pub mod contract_result;
 pub mod sysresult;
@@ -73,11 +73,11 @@ pub use non_negative_int::*;
 pub use retrocausal_queue::*;
 
 pub use hash::*;
+pub use hex::*;
 pub use macros::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
-pub use hex::*;
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};

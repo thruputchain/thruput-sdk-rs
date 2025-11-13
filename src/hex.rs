@@ -3,12 +3,10 @@ use core::fmt;
 pub struct Hex<'a>(&'a [u8]);
 
 impl<'a> fmt::Display for Hex<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::result::Result<(), fmt::Error> {
-        // f.write_str("hex!(\"")?;
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         for b in self.0 {
             write!(f, "{:02x}", b)?;
         }
-        // f.write_str("\")")?;
         Ok(())
     }
 }

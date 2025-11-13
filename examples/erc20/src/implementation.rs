@@ -57,7 +57,6 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Result<Amount> {
-
         let owner_allowances = self.allowances.get(owner)?;
         let spender_allowance = owner_allowances.get(spender)?;
 

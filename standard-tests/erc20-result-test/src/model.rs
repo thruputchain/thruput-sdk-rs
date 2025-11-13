@@ -1,7 +1,7 @@
 use groundhog_erc20_if::*;
+use sdk::types::event::TxEmittedEvent;
 use sdk::*;
 use std::collections::HashMap;
-use sdk::types::event::TxEmittedEvent;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]
@@ -9,7 +9,8 @@ pub struct Model {
     pub contract_owner: Option<&'static ContractAddress>,
     pub total_supply: u128,
     pub balances: HashMap<&'static ContractAddress, Amount>,
-    pub allowances: HashMap<(&'static ContractAddress, &'static ContractAddress), Amount>,
+    pub allowances:
+        HashMap<(&'static ContractAddress, &'static ContractAddress), Amount>,
     pub events: Vec<ERC20Event<'static>>,
 }
 
@@ -17,17 +18,25 @@ pub struct Model {
 // the expected state
 impl Model {
     pub fn initialize(&mut self, owner: &'static ContractAddress) {
-        assert_eq!(self.contract_owner, None, "Model contract has already been initialized");
+        assert_eq!(
+            self.contract_owner, None,
+            "Model contract has already been initialized"
+        );
 
         self.contract_owner = Some(owner);
     }
 
     fn get_caller(&self) -> &'static ContractAddress {
         // In testing, the caller is always the contract owner
-        self.contract_owner.expect("Model contract has not yet been initialized")
+        self.contract_owner
+            .expect("Model contract has not yet been initialized")
     }
 
-    pub fn mint(&mut self, receiver: &'static ContractAddress, amount: Amount) {
+    pub fn mint(
+        &mut self,
+        receiver: &'static ContractAddress,
+        amount: Amount,
+    ) {
         self.total_supply = self.total_supply.checked_add(amount).unwrap();
 
         let balance = self.balances.entry(receiver).or_insert(0);
@@ -47,7 +56,8 @@ impl Model {
         self.log_transfer_event(owner, &CONTRACT_ADDR_ZERO, amount);
     }
 
-    pub fn adjust_allowance(&mut self,
+    pub fn adjust_allowance(
+        &mut self,
         spender: &'static ContractAddress,
         diff: Difference,
     ) {
@@ -59,7 +69,8 @@ impl Model {
         self.log_approval_event(owner, spender, diff);
     }
 
-    pub fn transfer(&mut self,
+    pub fn transfer(
+        &mut self,
         receiver: &'static ContractAddress,
         amount: Amount,
     ) {
@@ -72,7 +83,11 @@ impl Model {
         self.log_transfer_event(owner, receiver, amount);
     }
 
-    fn adjust_balance(&mut self, owner: &'static ContractAddress, diff: Difference) {
+    fn adjust_balance(
+        &mut self,
+        owner: &'static ContractAddress,
+        diff: Difference,
+    ) {
         let bal = self.balances.entry(owner).or_insert(0);
 
         *bal = (*bal).checked_add_signed(diff).unwrap();
@@ -138,10 +153,16 @@ impl Model {
         // For each event from our modelled event log ...
         for (i, model_event) in self.events.iter().enumerate() {
             // Get the next event from the transaction event log
-            let emitted_event = events.next().expect("Unexpected end of event log");
+            let emitted_event =
+                events.next().expect("Unexpected end of event log");
 
-            let event: ERC20Event = emitted_event.try_into().unwrap_or_else(|e|
-                panic!("Couldn't parse emitted event as an ERC20 event: {}", e));
+            let event: ERC20Event =
+                emitted_event.try_into().unwrap_or_else(|e| {
+                    panic!(
+                        "Couldn't parse emitted event as an ERC20 event: {}",
+                        e
+                    )
+                });
 
             eprintln!("\tevent {:?}: {}", i, event);
 
@@ -149,7 +170,10 @@ impl Model {
         }
 
         if events.len() > 0 {
-            panic!("Test contract produced {} more events than expected", events.len());
+            panic!(
+                "Test contract produced {} more events than expected",
+                events.len()
+            );
         }
     }
 }
