@@ -13,6 +13,9 @@ pub enum ERC20TestError {
 
     #[error("system error: {0}")]
     Sys(#[from] SysErr),
+
+    #[error("erc20-test error: {0}")]
+    Custom(String),
 }
 
 pub type ERC20TestResult<T> = core::result::Result<T, ERC20TestError>;
@@ -24,6 +27,7 @@ const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
 pub fn erc20_test_setup(
     target_contract_hash: &SHA256Hash,
 ) -> ERC20TestResult<ContractAddress> {
+    // Deploy the target contract
     let deployed_addr = deploy_contract(&NONCE, target_contract_hash)?;
 
     Ok(deployed_addr)
@@ -33,45 +37,47 @@ pub fn erc20_test_setup(
 pub fn erc20_test(
     deployed_addr: &ContractAddress,
 ) -> ERC20TestResult<Model> {
-    let mut client = ERC20Client::new(&deployed_addr);
-    let client = &mut client;
 
     let owner = get_current_address()?;
-    assert_eq!(owner, OWNER);
-
-    let owner = &OWNER;
     let other = &OTHER;
 
     let mut m = Model::default();
 
-    client.initialize(owner)?;
-    m.initialize(owner);
+    let mut client = ERC20Client::new(&deployed_addr);
+    let client = &mut client;
+
+    client.initialize(&owner)?;
+    m.initialize(&owner);
+
+    let _ = client.total_supply().map_err(|e| err(format!("TS: {}", e)))?;
+    m.check_total_supply(client);
+    m.check_balances(client);
 
     // Mint
     let amt = 100;
-    client.mint(owner, amt)?;
-    m.mint(owner, amt);
+    client.mint(&owner, amt)?;
+    m.mint(&owner, amt);
 
     // Burn
     let amt = 50;
-    client.burn(owner, amt)?;
-    m.burn(owner, amt);
+    client.burn(&owner, amt)?;
+    m.burn(&owner, amt);
 
     // Burn too much
     let amt = 60;
-    assert!(m.balances[owner] < amt);
+    assert!(m.balances[&owner] < amt);
     assert!(matches!(
-        client.burn(owner, amt),
+        client.burn(&owner, amt),
         Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
     ));
 
     // Transfer
     let amt = 25;
-    client.transfer(other, amt).unwrap();
+    client.transfer(other, amt)?;
     m.transfer(other, amt);
 
     // Transfer too much
-    assert!(m.balances[owner] < 1000);
+    assert!(m.balances[&owner] < 1000);
     assert!(matches!(
         client.transfer(other, 1000),
         Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
@@ -98,7 +104,7 @@ pub fn erc20_test(
     client.adjust_allowance(other, -amt)?;
     m.adjust_allowance(other, -amt);
 
-    // Check everything against the model
+    // Check client state against the model
     m.check(client);
 
     Ok(m)

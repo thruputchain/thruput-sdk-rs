@@ -29,6 +29,12 @@ HOGD_SRC="$(realpath "${HOGD_SRC}")"
 ## Run cargo without --locked?
 # CARGO_UNLOCK=yes
 
+## For wasm contracts, use the log() syscall to report panic messages
+# PANIC_LOGGING=yes
+
+## For native testing, print diagnostics for each contract call
+# SDK_CALL_LOGGING
+
 ## Enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=yes
 

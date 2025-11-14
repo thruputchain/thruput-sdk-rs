@@ -4,5 +4,5 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
-sdk = { workspace = true, features = ["mock"] }
+sdk = { workspace = true, features = ["mock", "logging"] }
 bottle-test-if = { workspace = true, features = ["mock"] }

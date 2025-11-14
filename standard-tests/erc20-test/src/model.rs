@@ -6,49 +6,48 @@ use alloc::collections::BTreeMap as Map;
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]
 pub struct Model {
-    pub contract_owner: Option<&'static ContractAddress>,
+    pub contract_owner: Option<ContractAddress>,
     pub total_supply: u128,
-    pub balances: Map<&'static ContractAddress, Amount>,
-    pub allowances: Map<(&'static ContractAddress, &'static ContractAddress), Amount>,
-    pub events: Vec<ERC20Event<'static>>,
+    pub balances: Map<ContractAddress, Amount>,
+    pub allowances: Map<(ContractAddress, ContractAddress), Amount>,
+    pub events: Vec<StdERC20Event>,
 }
 
 // Implement the same interface that ERC20 does, and keep track of
 // the expected state
 impl Model {
-    pub fn initialize(&mut self, owner: &'static ContractAddress) {
+    pub fn initialize(&mut self, owner: &ContractAddress) {
         assert_eq!(
             self.contract_owner, None,
             "Model contract has already been initialized"
         );
 
-        self.contract_owner = Some(owner);
+        self.contract_owner = Some(*owner);
     }
 
-    fn get_caller(&self) -> &'static ContractAddress {
+    fn get_caller(&self) -> ContractAddress {
         // In testing, the caller is always the contract owner
-        self.contract_owner
-            .expect("Model contract has not yet been initialized")
+        self.contract_owner.expect("Model contract has not yet been initialized")
     }
 
     pub fn mint(
         &mut self,
-        receiver: &'static ContractAddress,
+        receiver: &ContractAddress,
         amount: Amount,
     ) {
         self.total_supply = self.total_supply.checked_add(amount).unwrap();
 
-        let balance = self.balances.entry(receiver).or_insert(0);
+        let balance = self.balances.entry(*receiver).or_insert(0);
 
         *balance = (*balance).checked_add(amount).unwrap();
 
         self.log_transfer_event(&CONTRACT_ADDR_ZERO, receiver, 100);
     }
 
-    pub fn burn(&mut self, owner: &'static ContractAddress, amount: Amount) {
+    pub fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
         self.total_supply = self.total_supply.checked_sub(amount).unwrap();
 
-        let balance = self.balances.entry(owner).or_insert(0);
+        let balance = self.balances.entry(*owner).or_insert(0);
 
         *balance = (*balance).checked_sub(amount).unwrap();
 
@@ -57,15 +56,15 @@ impl Model {
 
     pub fn adjust_allowance(
         &mut self,
-        spender: &'static ContractAddress,
+        spender: &ContractAddress,
         diff: Difference,
     ) {
         let owner = self.get_caller();
-        let entry = self.allowances.entry((owner, spender)).or_insert(0);
+        let entry = self.allowances.entry((owner, *spender)).or_insert(0);
 
         *entry = (*entry).checked_add_signed(diff).unwrap();
 
-        self.log_approval_event(owner, spender, diff);
+        self.log_approval_event(&owner, spender, diff);
     }
 
     pub fn transfer(
@@ -76,42 +75,42 @@ impl Model {
         let owner = self.get_caller();
         let diff: Difference = amount.try_into().unwrap();
 
-        self.adjust_balance(owner, -diff);
+        self.adjust_balance(&owner, -diff);
         self.adjust_balance(receiver, diff);
 
-        self.log_transfer_event(owner, receiver, amount);
+        self.log_transfer_event(&owner, receiver, amount);
     }
 
     fn adjust_balance(
         &mut self,
-        owner: &'static ContractAddress,
+        owner: &ContractAddress,
         diff: Difference,
     ) {
-        let bal = self.balances.entry(owner).or_insert(0);
+        let bal = self.balances.entry(*owner).or_insert(0);
 
         *bal = (*bal).checked_add_signed(diff).unwrap();
     }
 
     fn log_transfer_event(
         &mut self,
-        from: &'static ContractAddress,
-        to: &'static ContractAddress,
+        from: &ContractAddress,
+        to: &ContractAddress,
         amount: u128,
     ) {
-        let event = TransferEvent::new(from, to, amount);
+        let event = ERC20Event::Transfer(TransferEvent::new(from, to, amount));
 
-        self.events.push(ERC20Event::Transfer(event));
+        self.events.push((&event).into());
     }
 
     fn log_approval_event(
         &mut self,
-        owner: &'static ContractAddress,
-        spender: &'static ContractAddress,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
         amount: i128,
     ) {
-        let event = ApprovalEvent::new(owner, spender, amount);
+        let event = ERC20Event::Approval(ApprovalEvent::new(owner, spender, amount));
 
-        self.events.push(ERC20Event::Approval(event));
+        self.events.push((&event).into());
     }
 }
 
@@ -151,6 +150,7 @@ impl Model {
 
         // For each event from our modelled event log ...
         for (i, model_event) in self.events.iter().enumerate() {
+
             // Get the next event from the transaction event log
             let emitted_event =
                 events.next().expect("Unexpected end of event log");
@@ -162,6 +162,8 @@ impl Model {
                         e
                     )
                 });
+
+            let event: StdERC20Event = (&event).into();
 
             assert_eq!(&event, model_event, "Event {} doesn't match", i);
         }

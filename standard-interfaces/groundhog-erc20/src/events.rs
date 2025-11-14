@@ -24,8 +24,7 @@ use sdk::{
     topic_hashed_from, types::event::TxEmittedEvent,
 };
 use xdrs::Writer;
-
-// TODO: conversion of the types defined below into those in `groundhog_xdr::standard_asset_events`
+use groundhog_xdr::standard_asset_events as stdevt;
 
 pub fn log_transfer_event(
     from: &ContractAddress,
@@ -99,6 +98,17 @@ impl<'a> TryFrom<&'a TxEmittedEvent> for TransferEvent<'a> {
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(TransferEvent::new(from, to, amount))
+    }
+}
+
+
+impl<'a> Into<stdevt::TransferEvent> for &TransferEvent<'a> {
+    fn into(self) -> stdevt::TransferEvent {
+        stdevt::TransferEvent {
+            from_address: *self.from,
+            to_address: *self.to,
+            amount: TryInto::<i128>::try_into(self.amount).unwrap().into(),
+        }
     }
 }
 
@@ -212,6 +222,16 @@ impl<'a> TryFrom<&'a TxEmittedEvent> for ApprovalEvent<'a> {
     }
 }
 
+impl<'a> Into<stdevt::ApprovalEvent> for &ApprovalEvent<'a> {
+    fn into(self) -> stdevt::ApprovalEvent {
+        stdevt::ApprovalEvent {
+            owner_address: *self.owner,
+            spender_address: *self.spender,
+            amount: self.difference.into(),
+        }
+    }
+}
+
 impl<'a> fmt::Display for ApprovalEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -255,6 +275,21 @@ impl<'a> fmt::Display for ERC20Event<'a> {
         match self {
             ERC20Event::Transfer(e) => e.fmt(f),
             ERC20Event::Approval(e) => e.fmt(f),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StdERC20Event {
+    Transfer(stdevt::TransferEvent),
+    Approval(stdevt::ApprovalEvent),
+}
+
+impl<'a> Into<StdERC20Event> for &ERC20Event<'a> {
+    fn into(self) -> StdERC20Event {
+        match self {
+            ERC20Event::Transfer(e) => StdERC20Event::Transfer(e.into()),
+            ERC20Event::Approval(e) => StdERC20Event::Approval(e.into()),
         }
     }
 }

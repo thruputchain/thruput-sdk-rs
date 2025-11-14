@@ -1,5 +1,3 @@
-extern crate std;
-
 use groundhog_erc20_if::*;
 pub use erc20_test::*;
 

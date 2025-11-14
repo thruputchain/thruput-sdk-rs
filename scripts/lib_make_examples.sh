@@ -7,6 +7,8 @@ set -u
 # cargo profile for production contracts
 PRODUCTION_PROFILE="contract"
 
+STACK_SIZE="30000"
+
 # Directories for built contracts
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/contract"
 OPTIMIZED="${TARGET_DIR}/optimized"
@@ -16,7 +18,14 @@ cargo_wasm() {
     local cmd="$1"
     shift
 
-    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000"
+    local panic="immediate-abort"
+    if bool_true "${PANIC_LOGGING:-}"; then
+        # This allows us to capture the panic message
+        # before the abort
+        panic="abort"
+    fi
+
+    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=$panic -Clink-args=-zstack-size=$STACK_SIZE"
     # echo "RUSTFLAGS=\"$flags\""
 
     RUSTFLAGS="$flags" \
@@ -32,8 +41,14 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
+    features="guest"
+
+    if bool_true "${PANIC_LOGGING:-}"; then
+        features="$features,sdk/panic_logging"
+    fi
+
     cargo_wasm build \
-        --features "guest" \
+        --features "$features" \
         --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
         "$@"
@@ -180,8 +195,15 @@ native_test_contract() {
     package="$(basename "$1")"
     shift
 
+    local features = "mock,client,sdk/mock"
+
+    if bool_true "${SDK_CALL_LOGGING:-}"; then
+        features="$features,sdk/logging"
+    fi
+
     cargo_native test \
         --package "$package" \
+        --features $features \
         "$@" \
         -- --nocapture \
         ||
