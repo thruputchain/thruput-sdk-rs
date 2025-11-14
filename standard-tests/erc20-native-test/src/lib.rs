@@ -1,3 +1,5 @@
+extern crate std;
+
 use groundhog_erc20_if::*;
 pub use erc20_test::*;
 
@@ -5,12 +7,6 @@ use sdk::TestEnvironmentHandle;
 use sdk::contract_test::deploy_address;
 use sdk::types::Contract;
 use sdk::types::event::TxEmittedEvent;
-
-// It's currently difficult to extract state from mock contracts, so we use this global to record
-// the results of a test run. (This won't work if the below functions are not run one after the
-// other, or if concurrent tests are run in different threads.)
-use std::sync::Mutex;
-static MODEL: Mutex<Option<Model>> = Mutex::new(None);
 
 pub fn test_erc20_contract(
     env: &TestEnvironmentHandle,
@@ -22,14 +18,20 @@ pub fn test_erc20_contract(
 
     env.setup_grant_storage_tokens(&test_contract_addr, 1_000_000_000);
 
+    // It's currently difficult to extract state from mock contracts,
+    // so we'll allocate shared storage for the model we want to extract
+    // after the test run:
+    use std::sync::{Arc, Mutex};
+    let model: Arc<Mutex<Option<Model>>> = Arc::new(Mutex::new(None));
+    let model2 = model.clone();
+
     let mut handler = env.prepare_test(move || -> () {
         let deployed_addr = erc20_test_setup(&test_contract_hash).unwrap();
 
         let model = erc20_test(&deployed_addr)
             .unwrap_or_else(|e| panic!("test failed: {e}"));
 
-        // Store the model in a global, for retrieval in the function below
-        *MODEL.lock().unwrap() = Some(model);
+        *model2.lock().unwrap() = Some(model);
     });
 
     let res = handler.root_invoke();
@@ -46,8 +48,7 @@ pub fn test_erc20_contract(
         eprintln!("\tevent {:?}: {}", i, event);
     }
 
-    // Retrieve the last-constructed model
-    let m = MODEL.lock().unwrap().clone().unwrap();
+    let m = model.lock().unwrap().clone().unwrap();
 
     // Check that the event log matches the model
     m.check_events(events);
