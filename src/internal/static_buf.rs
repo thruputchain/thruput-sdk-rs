@@ -17,8 +17,6 @@ macro_rules! static_mu_buf {
             unsafe {
                 #[allow(static_mut_refs)]
                 BUF.try_borrow_mut().unwrap_or_else(|e| {
-                    $crate::log(b"BAD BUF").unwrap();
-
                     panic!("{}: attempted multiple concurrent borrows of static buffer: {}",
                         stringify!($fn), e)
                 })

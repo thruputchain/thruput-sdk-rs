@@ -12,16 +12,20 @@ STACK_SIZE="30000"
 # Directories for built contracts
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/contract"
 OPTIMIZED="${TARGET_DIR}/optimized"
+BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 
 cargo_wasm() {
     local cmd="$1"
     shift
 
+    # On panic!(), abort immediately without calling a panic handler.
+    # (This removes panic messages from the binary entirely.)
     local panic="immediate-abort"
+
     if bool_true "${PANIC_LOGGING:-}"; then
-        # This allows us to capture the panic message
-        # before the abort
+        # Call the panic handler, allowing us to capture and log the panic message.
+        # (This inflates contract codesize.)
         panic="abort"
     fi
 
@@ -43,9 +47,10 @@ build_wasm() {
 
     features="guest"
 
-#    if bool_true "${PANIC_LOGGING:-}"; then
-#        features="$features,sdk/panic_logging"
-#    fi
+    if bool_true "${PANIC_LOGGING:-}"; then
+        # report panic messages via log() syscall
+        features="$features,sdk/panic_logging"
+    fi
 
     cargo_wasm build \
         --features "$features" \
@@ -95,8 +100,12 @@ build_bottle_test() {
         --features "bottle-test" \
         --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
-        -Zunstable-options --artifact-dir="target/bottle-test/" \
-        "$@"
+        -Zunstable-options --artifact-dir="$BOTTLE_TEST_RAW" \
+        "$@" || return 1;
+
+    local contract="$BOTTLE_TEST_RAW/${package}.wasm"
+    local optimized="$BOTTLE_TEST/${package}.wasm"
+    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 bottle_test_contract() {
