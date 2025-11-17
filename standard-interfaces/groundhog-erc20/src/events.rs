@@ -33,7 +33,9 @@ pub fn log_transfer_event(
 ) -> Result<()> {
     let event = TransferEvent::new(from, to, amount);
 
-    log_event(&event)
+    log_event(&event)?;
+
+    Ok(())
 }
 
 /// An event emitted when ERC20 tokens are transferred between addresses.

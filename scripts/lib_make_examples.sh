@@ -43,9 +43,9 @@ build_wasm() {
 
     features="guest"
 
-    if bool_true "${PANIC_LOGGING:-}"; then
-        features="$features,sdk/panic_logging"
-    fi
+#    if bool_true "${PANIC_LOGGING:-}"; then
+#        features="$features,sdk/panic_logging"
+#    fi
 
     cargo_wasm build \
         --features "$features" \
@@ -195,7 +195,7 @@ native_test_contract() {
     package="$(basename "$1")"
     shift
 
-    local features = "mock,client,sdk/mock"
+    local features="mock,client,sdk/mock"
 
     if bool_true "${SDK_CALL_LOGGING:-}"; then
         features="$features,sdk/logging"

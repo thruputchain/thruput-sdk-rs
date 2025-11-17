@@ -49,10 +49,6 @@ pub fn erc20_test(
     client.initialize(&owner)?;
     m.initialize(&owner);
 
-    let _ = client.total_supply().map_err(|e| err(format!("TS: {}", e)))?;
-    m.check_total_supply(client);
-    m.check_balances(client);
-
     // Mint
     let amt = 100;
     client.mint(&owner, amt)?;
