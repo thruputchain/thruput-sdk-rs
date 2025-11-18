@@ -19,7 +19,7 @@ impl<'a> From<TopicSrc<'a>> for Topic {
         match src {
             TopicSrc::Hashed(hashable) => hashable.hash().into_inner(),
             TopicSrc::Owned(topic) => topic,
-            TopicSrc::Shared(topic) => topic.clone(),
+            TopicSrc::Shared(topic) => *topic,
         }
     }
 }
