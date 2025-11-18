@@ -43,21 +43,24 @@ pub use test_rt::trap;
 fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
     #[cfg(feature = "panic_logging")]
     {
+        use crate::log;
         use core::fmt::Write;
         use heapless::String;
-        use crate::log;
 
         let mut msg: String<150> = String::new();
 
-        write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(|_| {
-            // Failure only happens in case the static `msg` buffer is too small,
-            // which may be discovered after a partial write.  We could just log
-            // whatever has been written, but that's not usually useful, so instead:
+        write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(
+            |_| {
+                // Failure only happens in case the static `msg` buffer is too small,
+                // which may be discovered after a partial write.  We could just log
+                // whatever has been written, but that's not usually useful, so instead:
 
-            let _ = log(b"Contract panic: <couldn't format panic message>");
+                let _ =
+                    log(b"Contract panic: <couldn't format panic message>");
 
-            trap();
-        });
+                trap();
+            },
+        );
 
         let _ = log(msg.as_str().as_bytes());
     }

@@ -18,13 +18,13 @@
 
 use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
+use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
     ContractAddress, Event, Topic, TopicSrc, WriteResult, WriteXDR,
     event_payload, event_topic, hex_encode, log_event, sysresult::Result,
     topic_hashed_from, types::event::TxEmittedEvent,
 };
 use xdrs::Writer;
-use groundhog_xdr::standard_asset_events as stdevt;
 
 pub fn log_transfer_event(
     from: &ContractAddress,
@@ -102,7 +102,6 @@ impl<'a> TryFrom<&'a TxEmittedEvent> for TransferEvent<'a> {
         Ok(TransferEvent::new(from, to, amount))
     }
 }
-
 
 impl<'a> Into<stdevt::TransferEvent> for &TransferEvent<'a> {
     fn into(self) -> stdevt::TransferEvent {

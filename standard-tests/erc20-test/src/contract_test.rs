@@ -1,7 +1,7 @@
+use crate::model::Model;
 use groundhog_erc20_if::*;
 use sdk::*;
 use thiserror::Error;
-use crate::model::Model;
 
 #[derive(Error, Debug, Clone)]
 pub enum ERC20TestError {
@@ -34,10 +34,7 @@ pub fn erc20_test_setup(
 }
 
 /// Test the logic of an ERC20 contract
-pub fn erc20_test(
-    deployed_addr: &ContractAddress,
-) -> ERC20TestResult<Model> {
-
+pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
     let owner = get_current_address()?;
     let other = &OTHER;
 

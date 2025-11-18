@@ -1,5 +1,5 @@
-use groundhog_erc20_if::*;
 pub use erc20_test::*;
+use groundhog_erc20_if::*;
 
 use sdk::TestEnvironmentHandle;
 use sdk::contract_test::deploy_address;

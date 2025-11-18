@@ -1,7 +1,7 @@
+use alloc::collections::BTreeMap as Map;
 use groundhog_erc20_if::*;
 use sdk::types::event::TxEmittedEvent;
 use sdk::*;
-use alloc::collections::BTreeMap as Map;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]
@@ -27,14 +27,11 @@ impl Model {
 
     fn get_caller(&self) -> ContractAddress {
         // In testing, the caller is always the contract owner
-        self.contract_owner.expect("Model contract has not yet been initialized")
+        self.contract_owner
+            .expect("Model contract has not yet been initialized")
     }
 
-    pub fn mint(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    ) {
+    pub fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
         self.total_supply = self.total_supply.checked_add(amount).unwrap();
 
         let balance = self.balances.entry(*receiver).or_insert(0);
@@ -81,11 +78,7 @@ impl Model {
         self.log_transfer_event(&owner, receiver, amount);
     }
 
-    fn adjust_balance(
-        &mut self,
-        owner: &ContractAddress,
-        diff: Difference,
-    ) {
+    fn adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
         let bal = self.balances.entry(*owner).or_insert(0);
 
         *bal = (*bal).checked_add_signed(diff).unwrap();
@@ -108,7 +101,8 @@ impl Model {
         spender: &ContractAddress,
         amount: i128,
     ) {
-        let event = ERC20Event::Approval(ApprovalEvent::new(owner, spender, amount));
+        let event =
+            ERC20Event::Approval(ApprovalEvent::new(owner, spender, amount));
 
         self.events.push((&event).into());
     }
@@ -150,7 +144,6 @@ impl Model {
 
         // For each event from our modelled event log ...
         for (i, model_event) in self.events.iter().enumerate() {
-
             // Get the next event from the transaction event log
             let emitted_event =
                 events.next().expect("Unexpected end of event log");

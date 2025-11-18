@@ -51,7 +51,8 @@ const _: () = {
         T: xdrs::WriteXDR,
     {
         fn try_hash(&self) -> Result<Hash256> {
-            let buf = crate::internal::encode_xdr(self).map_err(|e| Error::serialization(e))?;
+            let buf = crate::internal::encode_xdr(self)
+                .map_err(|e| Error::serialization(e))?;
 
             let hash = sha_256(buf.as_ref())?;
             Ok(hash)
