@@ -1,6 +1,7 @@
 pub use erc20_test::*;
 use groundhog_erc20_if::*;
 
+use sdk::EmittedEvent;
 use sdk::TestEnvironmentHandle;
 use sdk::contract_test::deploy_address;
 use sdk::types::Contract;
@@ -45,6 +46,7 @@ pub fn test_erc20_contract(
 
     // Print out the transaction's event log
     for (i, event) in events.iter().enumerate() {
+        let event: EmittedEvent = event.into();
         let event: ERC20Event = event.try_into().unwrap();
         eprintln!("\tevent {:?}: {}", i, event);
     }

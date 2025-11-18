@@ -145,8 +145,8 @@ impl Model {
         // For each event from our modelled event log ...
         for (i, model_event) in self.events.iter().enumerate() {
             // Get the next event from the transaction event log
-            let emitted_event =
-                events.next().expect("Unexpected end of event log");
+            let emitted_event: EmittedEvent =
+                events.next().expect("Unexpected end of event log").into();
 
             let event: ERC20Event =
                 emitted_event.try_into().unwrap_or_else(|e| {

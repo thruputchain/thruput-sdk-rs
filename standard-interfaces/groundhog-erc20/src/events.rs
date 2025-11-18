@@ -20,9 +20,8 @@ use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
-    ContractAddress, Event, Topic, TopicSrc, WriteResult, WriteXDR,
-    event_payload, event_topic, hex_encode, log_event, sysresult::Result,
-    topic_hashed_from, types::event::TxEmittedEvent,
+    ContractAddress, EmittedEvent, Event, Topic, TopicSrc, WriteResult,
+    WriteXDR, hex_encode, log_event, sysresult::Result, topic_hashed_from,
 };
 use xdrs::Writer;
 
@@ -78,25 +77,24 @@ impl<'a> Event for TransferEvent<'a> {
     }
 }
 
-impl<'a> TryFrom<&'a TxEmittedEvent> for TransferEvent<'a> {
+impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
     type Error = &'static str;
 
     fn try_from(
-        e: &'a TxEmittedEvent,
+        event: EmittedEvent<'a>,
     ) -> core::result::Result<Self, Self::Error> {
-        let sig = event_topic(e, 0).ok_or("No event signature")?;
+        let sig = event.topic(0).ok_or("No event signature")?;
 
         if sig != TRANSFER_EVENT_SIG {
             return Err("Unexpected event signature");
         }
 
         let from: &ContractAddress =
-            event_topic(e, 1).ok_or("Missing topic")?.into();
+            event.topic(1).ok_or("Missing topic")?.into();
         let to: &ContractAddress =
-            event_topic(e, 2).ok_or("Missing topic")?.into();
+            event.topic(2).ok_or("Missing topic")?.into();
 
-        let payload = event_payload(e).ok_or("Missing payload")?;
-        let amount: u128 = sdk::internal::decode_xdr(payload)
+        let amount: u128 = sdk::internal::decode_xdr(event.payload())
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(TransferEvent::new(from, to, amount))
@@ -198,25 +196,24 @@ impl<'a> Event for ApprovalEvent<'a> {
     }
 }
 
-impl<'a> TryFrom<&'a TxEmittedEvent> for ApprovalEvent<'a> {
+impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
     type Error = &'static str;
 
     fn try_from(
-        e: &'a TxEmittedEvent,
+        event: EmittedEvent<'a>,
     ) -> core::result::Result<Self, Self::Error> {
-        let sig = event_topic(e, 0).ok_or("No event signature")?;
+        let sig = event.topic(0).ok_or("No event signature")?;
 
         if sig != APPROVAL_EVENT_SIG {
             return Err("Unexpected event signature");
         }
 
         let owner: &ContractAddress =
-            event_topic(e, 1).ok_or("Missing topic")?.into();
+            event.topic(1).ok_or("Missing topic")?.into();
         let spender: &ContractAddress =
-            event_topic(e, 2).ok_or("Missing topic")?.into();
+            event.topic(2).ok_or("Missing topic")?.into();
 
-        let payload = event_payload(e).ok_or("Missing payload")?;
-        let difference: i128 = sdk::internal::decode_xdr(payload)
+        let difference: i128 = sdk::internal::decode_xdr(event.payload())
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(ApprovalEvent::new(owner, spender, difference))
@@ -253,17 +250,17 @@ pub enum ERC20Event<'a> {
     Approval(ApprovalEvent<'a>),
 }
 
-impl<'a> TryFrom<&'a TxEmittedEvent> for ERC20Event<'a> {
+impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
     type Error = &'static str;
 
     fn try_from(
-        e: &'a TxEmittedEvent,
+        event: EmittedEvent<'a>,
     ) -> core::result::Result<Self, Self::Error> {
-        let sig = event_topic(e, 0).ok_or("No event signature")?;
+        let sig = event.topic(0).ok_or("No event signature")?;
 
         match sig {
-            TRANSFER_EVENT_SIG => Ok(ERC20Event::Transfer(e.try_into()?)),
-            APPROVAL_EVENT_SIG => Ok(ERC20Event::Approval(e.try_into()?)),
+            TRANSFER_EVENT_SIG => Ok(ERC20Event::Transfer(event.try_into()?)),
+            APPROVAL_EVENT_SIG => Ok(ERC20Event::Approval(event.try_into()?)),
             _ => Err("Unexpected event signature"),
         }
     }
