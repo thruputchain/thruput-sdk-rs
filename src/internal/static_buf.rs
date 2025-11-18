@@ -1,3 +1,5 @@
+// TODO: remove unused clauses; remove repetition
+
 // Declares a type alias for a handle to an MUBuf of a particular size, and also a function that
 // returns such a handle to a single, statically-allocated MBuf.  Attempting to hold more than one
 // such handle will cause a panic.
@@ -106,6 +108,34 @@ macro_rules! static_vec {
 
             vec.resize(0, 0); // This sets the zero-base for reserve_exact()
             vec.reserve_exact(size);
+
+            vec
+        }
+
+    )* };
+
+    { $( $vis:vis fn $fn:ident<$size:ident>() -> $ty:ident; )* } => { $(
+
+        use alloc::vec::Vec;
+        use core::cell::RefCell;
+
+        $vis type $ty = core::cell::RefMut<'static, Vec<u8>>;
+
+        $vis fn $fn() -> $ty {
+
+            static mut VEC: RefCell<Vec<u8>> = RefCell::new(Vec::new());
+
+            // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+            let mut vec = unsafe {
+                #[allow(static_mut_refs)]
+                VEC.try_borrow_mut().unwrap_or_else(|e| {
+                    panic!("{}: attempted multiple concurrent borrows of static vec: ({})",
+                        stringify!($fn), e)
+                })
+            };
+
+            vec.resize(0, 0); // This sets the zero-base for reserve_exact()
+            vec.reserve_exact($size);
 
             vec
         }

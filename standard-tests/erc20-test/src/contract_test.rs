@@ -59,25 +59,31 @@ pub fn erc20_test(
     client.burn(&owner, amt)?;
     m.burn(&owner, amt);
 
-    // Burn too much
-    let amt = 60;
-    assert!(m.balances[&owner] < amt);
-    assert!(matches!(
-        client.burn(&owner, amt),
-        Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
-    ));
+    #[cfg(not(feature = "no_check_aborts"))]
+    {
+        // Burn too much
+        let amt = 60;
+        assert!(m.balances[&owner] < amt);
+        assert!(matches!(
+            client.burn(&owner, amt),
+            Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
+        ));
+    }
 
     // Transfer
     let amt = 25;
     client.transfer(other, amt)?;
     m.transfer(other, amt);
 
-    // Transfer too much
-    assert!(m.balances[&owner] < 1000);
-    assert!(matches!(
-        client.transfer(other, 1000),
-        Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
-    ));
+    #[cfg(not(feature = "no_check_aborts"))]
+    {
+        // Transfer too much
+        assert!(m.balances[&owner] < 1000);
+        assert!(matches!(
+            client.transfer(other, 1000),
+            Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
+        ));
+    }
 
     // Burn from other address
     let amt = 5;
@@ -89,6 +95,7 @@ pub fn erc20_test(
     client.adjust_allowance(other, amt)?;
     m.adjust_allowance(other, amt);
 
+    #[cfg(not(feature = "no_check_aborts"))]
     // Withdraw too much approval
     assert!(matches!(
         client.adjust_allowance(other, -20),

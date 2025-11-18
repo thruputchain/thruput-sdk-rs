@@ -21,16 +21,19 @@ pub fn test_erc20_contract(
     // after the test run:
     use std::sync::{Arc, Mutex};
     let model: Arc<Mutex<Option<Model>>> = Arc::new(Mutex::new(None));
-    let model2 = model.clone();
 
-    let mut handler = env.prepare_test(move || -> () {
-        let deployed_addr = erc20_test_setup(&test_contract_hash).unwrap();
+    let mut handler = {
+        let model_handle = model.clone();
 
-        let model = erc20_test(&deployed_addr)
-            .unwrap_or_else(|e| panic!("test failed: {e}"));
+        env.prepare_test(move || -> () {
+            let deployed_addr = erc20_test_setup(&test_contract_hash).unwrap();
 
-        *model2.lock().unwrap() = Some(model);
-    });
+            let model = erc20_test(&deployed_addr)
+                .unwrap_or_else(|e| panic!("test failed: {e}"));
+
+            *model_handle.lock().unwrap() = Some(model);
+        })
+    };
 
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);

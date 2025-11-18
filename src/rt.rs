@@ -38,7 +38,7 @@ pub use test_rt::trap;
 // `handle_panic`. (That setting is useful because it results in panic strings not being included
 // in the binary.) The build scripts may be configured to instead choose `panic=abort`, which will
 // enable the logging below.
-#[cfg(not(feature = "mock"))]
+#[cfg(not(feature = "std"))]
 #[panic_handler]
 fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
     #[cfg(feature = "panic_logging")]

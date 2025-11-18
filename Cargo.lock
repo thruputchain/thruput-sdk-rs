@@ -346,7 +346,6 @@ dependencies = [
  "erc20-native-test",
  "groundhog-erc20-if",
  "groundhog_xdr",
- "hex_lit",
  "sdk",
  "sha2",
  "thiserror",
@@ -592,12 +591,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
-name = "hex_lit"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3011d1213f159867b13cfd6ac92d2cd5f1345762c63be3554e84092d85a50bbd"
-
-[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -637,6 +630,7 @@ name = "itc_erc20"
 version = "0.1.1"
 dependencies = [
  "erc20-bottle-test",
+ "erc20-native-test",
  "groundhog-erc20-if",
  "itc_erc20",
  "sdk",

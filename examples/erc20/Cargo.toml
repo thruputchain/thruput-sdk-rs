@@ -10,7 +10,7 @@ thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
 
 # Optional testing dependencies
-erc20-bottle-test = { workspace = true, optional = true, features = ["fail-fast"] }
+erc20-bottle-test = { workspace = true, optional = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -27,4 +27,3 @@ bottle-test = ["dep:erc20-bottle-test"]
 erc20-native-test.workspace = true
 sha2.workspace = true
 groundhog_xdr.workspace = true
-hex_lit = { version = "0.1.1", features = ["rust_v_1_46"] }

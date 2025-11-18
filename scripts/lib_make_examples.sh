@@ -53,9 +53,9 @@ build_wasm() {
     fi
 
     cargo_wasm build \
-        --features "$features" \
-        --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
+        --profile "$PRODUCTION_PROFILE" \
+        --features "$features" \
         "$@"
 }
 
@@ -96,10 +96,17 @@ build_bottle_test() {
     package="$(basename "$1")"
     shift
 
+    local features="bottle-test"
+
+    if bool_true "${PANIC_LOGGING:-}"; then
+        # report panic messages via log() syscall
+        features="$features,sdk/panic_logging"
+    fi
+
     cargo_wasm build \
-        --features "bottle-test" \
-        --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
+        --features "$features" \
+        --profile "$PRODUCTION_PROFILE" \
         -Zunstable-options --artifact-dir="$BOTTLE_TEST_RAW" \
         "$@" || return 1;
 

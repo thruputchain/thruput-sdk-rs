@@ -12,3 +12,6 @@ sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror = { workspace = true }
 erc20-test = { workspace = true }
+
+[features]
+no_check_aborts = ["erc20-test/no_check_aborts"]

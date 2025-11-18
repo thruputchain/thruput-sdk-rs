@@ -12,6 +12,8 @@
 //! maximum size must be chosen.  Otherwise the storage is static and we choose
 //! a maximum size.
 
+const ENCODE_MAX: usize = 500;
+
 pub use xdrs::{
     ReadError, ReadResult, ReadXDR, ReadXDROwned, WriteError, WriteResult,
     WriteXDR, read_xdr, write_xdr,
@@ -27,7 +29,7 @@ pub fn encode_xdr<T>(x: &T) -> WriteResult<EncodeBuf>
 where
     T: WriteXDR + ?Sized,
 {
-    let mut buf = get_encode_buf(None);
+    let mut buf = get_encode_buf();
     let written =
         xdrs::serialize_txs::encode_into(x, buf.spare_capacity_mut())?;
     unsafe {
@@ -36,7 +38,24 @@ where
     Ok(buf)
 }
 
-#[cfg(feature = "dynamic_bufs")]
+use get_encode_buf_impl::*;
+
+#[cfg(feature = "mock")]
+mod get_encode_buf_impl {
+    // During mock testing, multiple contracts may execute in the same address-space and may call
+    // each other. Thus, we need to allocate a fresh buffer for each encode operation.
+
+    use super::*;
+    use alloc::vec::Vec;
+
+    pub type EncodeBuf = Vec<u8>;
+
+    pub fn get_encode_buf() -> EncodeBuf {
+        Vec::with_capacity(ENCODE_MAX)
+    }
+}
+
+#[cfg(all(feature = "dynamic_bufs", not(feature = "mock")))]
 mod get_encode_buf_impl {
     // This strategy requires liballoc (via feature "alloc") and uses a dedicated,
     // statically-allocated `Vec<u8>` (that is, a fat-pointer to a dynamically-allocated buffer).
@@ -47,11 +66,11 @@ mod get_encode_buf_impl {
     // before dropping the previous handle will result in a panic.
 
     crate::static_vec! {
-        pub fn get_encode_buf(size_hint: Option<usize>) -> EncodeBuf;
+        pub fn get_encode_buf<ENCODE_MAX>() -> EncodeBuf;
     }
 }
 
-#[cfg(not(feature = "dynamic_bufs"))]
+#[cfg(all(not(feature = "dynamic_bufs"), not(feature = "mock")))]
 mod get_encode_buf_impl {
     // This strategy uses a dedicated buffer with static storage.
     // It ignores the size hint.
@@ -59,11 +78,9 @@ mod get_encode_buf_impl {
     // A handle to this buffer is returned on each call to `get_encode_buf`.
     // Calling the function again before dropping the previous handle will result in a panic.
 
-    const ENCODE_MAX: usize = 500;
+    use super::*;
 
     crate::static_mu_buf! {
-        pub fn get_encode_buf<ENCODE_MAX>(size_hint: Option<usize>) -> EncodeBuf;
+        pub fn get_encode_buf<ENCODE_MAX>() -> EncodeBuf;
     }
 }
-
-pub use get_encode_buf_impl::*;

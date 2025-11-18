@@ -11,3 +11,7 @@ test = false
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror = { workspace = true }
+
+[features]
+# don't check operations expected to cause erc20 abort
+no_check_aborts = []
