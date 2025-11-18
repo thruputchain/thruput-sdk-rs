@@ -6,8 +6,7 @@
 //!
 //! # Encoding
 //!
-//! With `feature = mock`, we dynamically-allocate everything.  Otherwise a single
-//! buffer is re-used (by `get_calldata`, `contract_return`, and `contract_abort`).
+//! A single buffer is re-used (currently by `log_event`).
 //!
 //! With `feature = dynamic_bufs`, the re-used buf is resized as necessary, so no
 //! maximum size must be chosen.  Otherwise the storage is static and we choose
@@ -20,26 +19,6 @@ pub use xdrs::{
 
 pub use xdrs::serialize_txs::decode as decode_xdr;
 
-#[cfg(feature = "mock")]
-mod implementation {
-    // Dynamically allocate a buffer each time.
-
-    use alloc::vec::Vec;
-
-    pub type EncodeBuf = Vec<u8>;
-
-    pub fn get_encode_buf(size_hint: Option<usize>) -> EncodeBuf {
-        if let Some(size) = size_hint {
-            Vec::with_capacity(size)
-        } else {
-            Vec::new()
-        }
-    }
-
-    pub use xdrs::serialize_txs::encode as encode_xdr;
-}
-
-#[cfg(not(feature = "mock"))]
 /// XDR-encode a value into a sequentially-shared buffer.
 ///
 /// Panics: Calling this function again before dropping the previously-returned buffer will
@@ -57,24 +36,27 @@ where
     Ok(buf)
 }
 
-#[cfg(all(not(feature = "mock"), feature = "dynamic_bufs"))]
-mod implementation {
-    // This strategy uses a dedicated, statically-allocated `Vec<u8>` (that is, a fat-pointer to a
-    // dynamically-allocated buffer).
+#[cfg(feature = "dynamic_bufs")]
+mod get_encode_buf_impl {
+    // This strategy requires liballoc (via feature "alloc") and uses a dedicated,
+    // statically-allocated `Vec<u8>` (that is, a fat-pointer to a dynamically-allocated buffer).
+    // It is reallocated as necessary (only increasing in size) to accommodate the hinted size
+    // requirement.
     //
-    // A handle to this vec is returned on each call to `get_calldata`.
-    // Calling the function again before dropping the previous handle will result in a panic.
+    // A handle to this vec is returned on each call to `get_encode_buf`. Calling the function again
+    // before dropping the previous handle will result in a panic.
 
     crate::static_vec! {
         pub fn get_encode_buf(size_hint: Option<usize>) -> EncodeBuf;
     }
 }
 
-#[cfg(all(not(feature = "mock"), not(feature = "dynamic_bufs")))]
-mod implementation {
+#[cfg(not(feature = "dynamic_bufs"))]
+mod get_encode_buf_impl {
     // This strategy uses a dedicated buffer with static storage.
+    // It ignores the size hint.
     //
-    // A handle to this buffer is returned on each call to `get_calldata`.
+    // A handle to this buffer is returned on each call to `get_encode_buf`.
     // Calling the function again before dropping the previous handle will result in a panic.
 
     const ENCODE_MAX: usize = 500;
@@ -84,4 +66,4 @@ mod implementation {
     }
 }
 
-pub use implementation::*;
+pub use get_encode_buf_impl::*;

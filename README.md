@@ -74,6 +74,14 @@ The CI script above includes various tests that may be run on their own:
 ./scripts/make.sh examples test erc20
 ```
 
+### Diagnostics
+
+In contracts compiled to wasm for testing (e.g. in "bottle tests"), panic
+messages will be lost unless configured with `PANIC_LOGGING=yes`, which sends
+panic messages to the `log` syscall. If the test environment is then configured
+with `SDK_TEST_ENABLE_SYSCALL_LOGGING=yes`, these messages will be printed to
+the terminal.
+
 See `scripts/lib_make.sh` for other useful targets.
 
 ### Expand macros to view contract exports

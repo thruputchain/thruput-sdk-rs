@@ -47,10 +47,15 @@ fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
         use heapless::String;
         use crate::log;
 
-        let mut msg: String<500> = String::new();
+        let mut msg: String<150> = String::new();
 
         write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(|_| {
+            // Failure only happens in case the static `msg` buffer is too small,
+            // which may be discovered after a partial write.  We could just log
+            // whatever has been written, but that's not usually useful, so instead:
+
             let _ = log(b"Contract panic: <couldn't format panic message>");
+
             trap();
         });
 

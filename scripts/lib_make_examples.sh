@@ -204,7 +204,7 @@ native_test_contract() {
     package="$(basename "$1")"
     shift
 
-    local features="mock,client,sdk/mock"
+    local features="mock"
 
     if bool_true "${SDK_CALL_LOGGING:-}"; then
         features="$features,sdk/logging"

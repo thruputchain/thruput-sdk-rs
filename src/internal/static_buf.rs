@@ -17,7 +17,29 @@ macro_rules! static_mu_buf {
             unsafe {
                 #[allow(static_mut_refs)]
                 BUF.try_borrow_mut().unwrap_or_else(|e| {
-                    panic!("{}: attempted multiple concurrent borrows of static buffer: {}",
+                    panic!("{}: attempted multiple concurrent borrows of static buffer ({})",
+                        stringify!($fn), e)
+                })
+            }
+        }
+
+    )* };
+
+    { $( $vis:vis fn $fn:ident<$size:ident>() -> $ty:ident; )* } => { $(
+
+        $vis type $ty = core::cell::RefMut<'static, $crate::internal::MUBuf<$size>>;
+
+        $vis fn $fn() -> $ty {
+            use core::cell::RefCell;
+            use $crate::internal::MUBuf;
+
+            static mut BUF: RefCell<MUBuf<$size>> = RefCell::new(MUBuf::new());
+
+            // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+            unsafe {
+                #[allow(static_mut_refs)]
+                BUF.try_borrow_mut().unwrap_or_else(|e| {
+                    panic!("{}: attempted multiple concurrent borrows of static buffer ({})",
                         stringify!($fn), e)
                 })
             }
@@ -47,7 +69,7 @@ macro_rules! static_vec {
             let mut vec = unsafe {
                 #[allow(static_mut_refs)]
                 VEC.try_borrow_mut().unwrap_or_else(|e| {
-                    panic!("{}: attempted multiple concurrent borrows of static vec: {}",
+                    panic!("{}: attempted multiple concurrent borrows of static vec: ({})",
                         stringify!($fn), e)
                 })
             };
@@ -56,6 +78,34 @@ macro_rules! static_vec {
             if let Some(size_hint) = size_hint {
                 vec.reserve_exact(size_hint);
             }
+
+            vec
+        }
+
+    )* };
+
+    { $( $vis:vis fn $fn:ident($size:ident: usize) -> $ty:ident; )* } => { $(
+
+        use alloc::vec::Vec;
+        use core::cell::RefCell;
+
+        $vis type $ty = core::cell::RefMut<'static, Vec<u8>>;
+
+        $vis fn $fn(size: usize) -> $ty {
+
+            static mut VEC: RefCell<Vec<u8>> = RefCell::new(Vec::new());
+
+            // SAFETY: We're single-threaded, so the RefCell is enough to prevent aliasing (at runtime)
+            let mut vec = unsafe {
+                #[allow(static_mut_refs)]
+                VEC.try_borrow_mut().unwrap_or_else(|e| {
+                    panic!("{}: attempted multiple concurrent borrows of static vec: ({})",
+                        stringify!($fn), e)
+                })
+            };
+
+            vec.resize(0, 0); // This sets the zero-base for reserve_exact()
+            vec.reserve_exact(size);
 
             vec
         }

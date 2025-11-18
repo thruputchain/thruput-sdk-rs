@@ -53,7 +53,7 @@ make() {
         nextest)
             ## There is at least one example contract ("caller") that requires
             ## pre-built wasms, so first do:
-            # make examples build
+            make examples build
 
             cargo_native nextest run \
                 --workspace \

@@ -4,17 +4,20 @@ use groundhog_erc20_if::ERC20Error;
 use sdk::*;
 use thiserror::Error;
 
+// Load two contracts into the same test environment, and
+// have one call the other.
 #[test]
 fn caller_test() {
     let mut env = sdk::TestEnvironment::new();
 
     let erc20_contract = erc20::test_setup::register(&mut env);
     let erc20_hash = env.setup_create_contract(&erc20_contract);
-    let test_contract = caller::test_setup::register(&mut env);
-    let contract_hash = env.setup_create_contract(&test_contract);
+
+    let caller_contract = caller::test_setup::register(&mut env);
+    let caller_hash = env.setup_create_contract(&caller_contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        caller_test_inner(&erc20_hash, &contract_hash)
+        caller_test_inner(&erc20_hash, &caller_hash)
             .unwrap_or_else(|e| panic!("test failed: {e}"))
     });
 
