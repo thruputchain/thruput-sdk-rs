@@ -54,14 +54,14 @@ where
 const RETURN_MAX: usize = 500;
 
 crate::static_mu_buf! {
-    fn get_return_buf<RETURN_MAX>(size_hint: Option<usize>) -> EncodeBuf;
+    fn get_return_buf<RETURN_MAX>() -> EncodeBuf;
 }
 
 fn encode_return_value<RET>(result: &RET) -> xdrs::WriteResult<EncodeBuf>
 where
     RET: WriteXDR + ?Sized,
 {
-    let mut buf = get_return_buf(None);
+    let mut buf = get_return_buf();
 
     let written =
         xdrs::serialize_txs::encode_into(result, buf.spare_capacity_mut())?;
