@@ -5,7 +5,10 @@ use crate::sys;
 use crate::sysresult::Result;
 
 /// Maximum number of topics per event
-pub const EVENT_MAX_TOPICS: usize = 3;
+pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;
+
+/// Maximum size of serialized event data (including the topics)
+pub const EVENT_MAX_DATA: u32 = groundhog_xdr::event::kMaxEventLength;
 
 /// A topic is a fixed-length, opaque array
 pub type Topic = [u8; 32];
@@ -34,6 +37,9 @@ impl<'a> From<TopicSrc<'a>> for Topic {
 }
 
 pub trait Event: WriteXDR {
+    /// Number of topics
+    fn num_topics(&self) -> u32;
+
     /// Retrieve the topic at a given index
     fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
         let _ = index;
@@ -44,9 +50,20 @@ pub trait Event: WriteXDR {
 
 /// Emit an event
 pub fn log_event(event: &impl Event) -> Result<()> {
-    let topic0: Option<Topic> = event.topic(0).map(|t| t.into());
-    let topic1: Option<Topic> = event.topic(1).map(|t| t.into());
-    let topic2: Option<Topic> = event.topic(2).map(|t| t.into());
+    let n = event.num_topics();
+
+    let topic = |i| {
+        if i < n {
+            let t = event.topic(i)?;
+            Some(t.into())
+        } else {
+            None
+        }
+    };
+
+    let topic0: Option<Topic> = topic(0);
+    let topic1: Option<Topic> = topic(1);
+    let topic2: Option<Topic> = topic(2);
 
     let data = encode_xdr(event)?;
 
@@ -67,12 +84,13 @@ mod emitted_event {
     use crate::types::event::TxEmittedEvent;
     use core::cmp::min;
 
+    // Size of each topic in serialized event data
     pub const TOPIC_SIZE: usize = 32;
 
     pub struct EmittedEvent<'a>(&'a TxEmittedEvent);
 
     impl<'a> EmittedEvent<'a> {
-        pub fn payload(self) -> &'a [u8] {
+        pub fn payload(&self) -> &'a [u8] {
             let event = self.0;
 
             let topics_extent = min(
@@ -103,6 +121,10 @@ mod emitted_event {
             let topic: &[u8; TOPIC_SIZE] = topic_bytes.try_into().unwrap();
 
             Some(topic)
+        }
+
+        pub fn num_topics(&self) -> u32 {
+            self.0.num_topics
         }
     }
 

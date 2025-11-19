@@ -33,7 +33,7 @@ HOGD_SRC="$(realpath "${HOGD_SRC}")"
 # PANIC_LOGGING=yes
 
 ## For native testing, print diagnostics for each contract call
-# SDK_CALL_LOGGING
+# SDK_CALL_LOGGING=1
 
 ## Enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=yes

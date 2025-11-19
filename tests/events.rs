@@ -59,12 +59,19 @@ struct OwnedEvent {
 }
 
 impl Event for OwnedEvent {
-    fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
-        // Here we need to hash something we don't have a reference to:
-        let payer_payee = (&self.payer, &self.payee).hash().into_inner();
+    fn num_topics(&self) -> u32 {
+        2
+    }
 
+    fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
-            0 => Some(TopicSrc::Owned(payer_payee)),
+            0 => {
+                // Here we need to hash something we don't have a reference to:
+                let payer_payee =
+                    (&self.payer, &self.payee).hash().into_inner();
+
+                Some(TopicSrc::Owned(payer_payee))
+            }
             1 => Some(TopicSrc::Hashed(&self.currency)),
             _ => None,
         }
@@ -99,10 +106,14 @@ struct BorrowedEvent<'a> {
 }
 
 impl<'a> Event for BorrowedEvent<'a> {
+    fn num_topics(&self) -> u32 {
+        3
+    }
+
     fn topic<'t>(&'t self, index: u32) -> Option<TopicSrc<'t>> {
         match index {
-            0 => return Some(TopicSrc::Hashed(self.payer)),
-            1 => return Some(TopicSrc::Hashed(self.payee)),
+            0 => return Some(TopicSrc::Shared(self.payer)),
+            1 => return Some(TopicSrc::Shared(self.payee)),
             2 => return Some(TopicSrc::Hashed(&self.currency)),
             _ => return None,
         }

@@ -67,6 +67,10 @@ impl<'a> WriteXDR for TransferEvent<'a> {
 pub const TRANSFER_EVENT_SIG: &Topic = &topic_hashed_from!("TransferEvent");
 
 impl<'a> Event for TransferEvent<'a> {
+    fn num_topics(&self) -> u32 {
+        3
+    }
+
     fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
             0 => Some(TopicSrc::Shared(TRANSFER_EVENT_SIG)),
@@ -186,6 +190,10 @@ impl<'a> ApprovalEvent<'a> {
 pub const APPROVAL_EVENT_SIG: &Topic = &topic_hashed_from!("ApprovalEvent");
 
 impl<'a> Event for ApprovalEvent<'a> {
+    fn num_topics(&self) -> u32 {
+        3
+    }
+
     fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
             0 => Some(TopicSrc::Shared(APPROVAL_EVENT_SIG)),
