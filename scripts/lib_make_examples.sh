@@ -10,7 +10,7 @@ PRODUCTION_PROFILE="contract"
 STACK_SIZE="30000"
 
 # Directories for built contracts
-CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/contract"
+CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/${PRODUCTION_PROFILE}"
 OPTIMIZED="${TARGET_DIR}/optimized"
 BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
@@ -64,7 +64,7 @@ make_optimized_wasm() {
     package="$(basename "$1")"
     shift
 
-    (cd "$TARGET_DIR" && mkdir -p optimized) || return 1
+    mkdir -p "$OPTIMIZED" || return 1
 
     local contract="${CONTRACT}/${package}.wasm"
     local optimized="${OPTIMIZED}/${package}.wasm"
@@ -109,6 +109,8 @@ build_bottle_test() {
         --profile "$PRODUCTION_PROFILE" \
         -Zunstable-options --artifact-dir="$BOTTLE_TEST_RAW" \
         "$@" || return 1;
+
+    mkdir -p "$BOTTLE_TEST" || return 1
 
     local contract="$BOTTLE_TEST_RAW/${package}.wasm"
     local optimized="$BOTTLE_TEST/${package}.wasm"
