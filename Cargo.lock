@@ -706,6 +706,7 @@ dependencies = [
 name = "manual_revert_test"
 version = "0.1.0"
 dependencies = [
+ "groundhog_xdr",
  "manual_revert_test",
  "sdk",
  "thiserror",
