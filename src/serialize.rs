@@ -1,4 +1,4 @@
 pub use xdrs::{
-    ReadResult, ReadXDR, ReadXDROwned, WriteResult, WriteXDR, read_xdr,
-    write_xdr,
+    ReadError, ReadResult, ReadXDR, ReadXDROwned, WriteError, WriteResult,
+    WriteXDR, read_xdr, write_xdr,
 };

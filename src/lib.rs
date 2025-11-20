@@ -42,7 +42,9 @@ pub mod stats;
 
 pub mod crypto;
 pub mod deploy;
+pub mod event;
 pub mod hash;
+pub mod hex;
 pub mod invoke;
 pub mod invoke_config;
 mod invoke_encode; // TODO: make this a sub-module of invoke
@@ -64,20 +66,18 @@ pub mod storage;
 pub use bytestring::*;
 pub use contract_op::*;
 pub use deploy::*;
+pub use event::*;
 pub use invoke::*;
 pub use log::*;
 pub use non_negative_int::*;
 pub use retrocausal_queue::*;
 
 pub use hash::*;
+pub use hex::*;
+pub use macros::*;
 pub use rt::*;
+pub use serialize::*;
 pub use types::*;
-pub use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
-
-pub use macros::contract;
-pub use macros::static_key;
-#[cfg(feature = "storage")]
-pub use macros::{Storage, storage};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
@@ -93,7 +93,7 @@ pub mod syscall_bindings;
 
 #[cfg(feature = "mock")]
 // This is used only by contract_test
-pub mod handle;
+pub mod contract_test_handle;
 
 #[cfg(feature = "mock")]
 pub mod contract_test;
@@ -102,6 +102,7 @@ pub mod contract_test;
 pub use {
     groundhog_xdr::ffi_enums::*,
     native_exec::{
-        mock_contract::MockContract, test_environment::TestEnvironment,
+        mock_contract::MockContract,
+        test_environment::{TestEnvironment, TestEnvironmentHandle},
     },
 };

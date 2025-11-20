@@ -11,7 +11,7 @@ macro_rules! contract_test {
                 let mut contract = env.add_contract();
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
-                    sdk::handle::handle_call(|()| {
+                    sdk::contract_test_handle::handle_call(|()| {
                         $test_body
                         return ();
                     });
@@ -43,6 +43,86 @@ macro_rules! contract_test {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! contract_test_env {
+    (
+        fn env_hook($env:ident, $handler:ident) $env_hook:tt
+        fn $name:ident() $test_body:tt
+        fn post_hook($handler2:ident) $post_hook:tt
+    ) => {
+
+        #[test]
+        fn $name() {
+            let mut env = sdk::TestEnvironment::new();
+
+            let test_contract = {
+                let mut contract = env.add_contract();
+                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
+                contract.register_method(method, || -> () {
+                    sdk::contract_test_handle::handle_call(|()| {
+                        $test_body
+                        return ();
+                    });
+                });
+                contract.as_contract()
+            };
+
+            let contract_hash = env.setup_create_contract(&test_contract);
+
+            let mut handler = env.prepare_test(move || -> () {
+                let nonce = sdk::types::SHA256Hash::from([7; 32]);
+                let deployed_addr =
+                    sdk::deploy::deploy_contract(&nonce, &contract_hash)
+                        .unwrap();
+
+                // Invoke contract method 1
+                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
+                sdk::invoke::invoke::<(), ()>(
+                    &deployed_addr,
+                    method,
+                    u64::MAX,
+                    &(),
+                ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
+            });
+
+            fn env_hook(
+                $env: &std::rc::Rc<sdk::TestEnvironment>,
+                $handler: &mut native_exec::transaction_handler::TransactionHandler,
+            ) -> () $env_hook
+
+            env_hook(&mut env, &mut handler);
+
+            let res = handler.root_invoke();
+            if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
+                panic!("root invocation panicked with code {}", res.result.panic);
+            }
+
+            let commit_res = handler.try_commit_transaction();
+            assert!(commit_res);
+
+            fn post_hook(
+                $handler2: &mut native_exec::transaction_handler::TransactionHandler,
+            ) -> () $post_hook
+
+            post_hook(&mut handler);
+        }
+    };
+}
+
+pub fn grant_storage_tokens(
+    env: &native_exec::test_environment::TestEnvironmentHandle,
+    handler: &native_exec::transaction_handler::TransactionHandler,
+) {
+    env.setup_grant_storage_tokens(
+        &handler
+            .get_signed_transaction()
+            .tx
+            .invocation
+            .invoked_address,
+        1_000_000_000,
+    );
 }
 
 mod contract_test_wasm {
@@ -148,4 +228,32 @@ fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
     let stats = Stats { gas_consumed };
 
     (stats, result)
+}
+
+use crate::hash::*;
+use crate::types::*;
+use std::vec::Vec;
+
+pub fn deploy_address(
+    deployer_address: &ContractAddress,
+    nonce: &Hash256,
+    contract_hash: &Hash256,
+) -> ContractAddress {
+    use groundhog_xdr::contract::ContractDeploymentHashPreimage;
+    use sha2::{Digest, Sha256};
+
+    let preimage = ContractDeploymentHashPreimage {
+        deployer_address: *deployer_address,
+        nonce: *nonce,
+        contract_hash: *contract_hash,
+    };
+    let preimage: Vec<u8> = xdrs::serialize_txs::encode(&preimage).unwrap();
+
+    let mut hasher = Sha256::new();
+    hasher.update(preimage.as_slice());
+
+    let mut addr = [1u8; 32];
+    hasher.finalize_into((&mut addr).into());
+
+    addr.into()
 }

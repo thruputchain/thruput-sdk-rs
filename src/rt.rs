@@ -12,12 +12,6 @@ pub fn trap() -> ! {
     panic!("unreachable");
 }
 
-#[cfg(not(feature = "std"))]
-#[panic_handler]
-fn handle_panic(_: &core::panic::PanicInfo) -> ! {
-    trap();
-}
-
 #[cfg(feature = "mock")]
 mod test_rt {
     use native_exec::invoke_error::deterministic_error;
@@ -34,23 +28,50 @@ mod test_rt {
 #[allow(unused)]
 pub use test_rt::trap;
 
-// The `panic!()` args get compiled out under `panic_immediate_abort`
-#[cfg(any(feature = "mock", not(feature = "logging")))]
+// When natively-compiled contracts panic, we'll see a message printed from the panic handler that
+// comes with the standard library.
+//
+// For wasm contracts, we can instead use the `log()` syscall to report the panic. Enable feature
+// "panic_logging" for this.
+//
+// A contract compiled with the rustc flag `-Cpanic=immediate_abort` won't ever call
+// `handle_panic`. (That setting is useful because it results in panic strings not being included
+// in the binary.) The build scripts may be configured to instead choose `panic=abort`, which will
+// enable the logging below.
+#[cfg(not(feature = "std"))]
+#[panic_handler]
+fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
+    #[cfg(feature = "panic_logging")]
+    {
+        use crate::log;
+        use core::fmt::Write;
+        use heapless::String;
+
+        let mut msg: String<150> = String::new();
+
+        write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(
+            |_| {
+                // Failure only happens in case the static `msg` buffer is too small,
+                // which may be discovered after a partial write.  We could just log
+                // whatever has been written, but that's not usually useful, so instead:
+
+                let _ =
+                    log(b"Contract panic: <couldn't format panic message>");
+
+                trap();
+            },
+        );
+
+        let _ = log(msg.as_str().as_bytes());
+    }
+
+    trap();
+}
+
+// Deprecated; use panic!()
 #[macro_export]
 macro_rules! contract_panic {
     ($fmt:expr $(, $expr:tt)* $(,)? ) => {
         panic!($fmt $(, $expr)*)
-    };
-}
-
-#[cfg(all(not(feature = "mock"), feature = "logging"))]
-#[macro_export]
-macro_rules! contract_panic {
-    ($fmt:expr $(, $expr:tt)* $(,)? ) => {
-        {
-            $crate::log($crate::format!($fmt $(, $expr)*).as_bytes()).unwrap();
-
-            $crate::rt::trap();
-        }
     };
 }

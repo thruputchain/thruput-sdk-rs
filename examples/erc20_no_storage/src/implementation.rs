@@ -60,10 +60,11 @@ fn add_to_allowance(
     spender: &ContractAddress,
     diff: Difference,
 ) -> Result<()> {
-    Ok(non_negative_int_checked_inc(
-        &get_allowance_key(owner, spender),
-        diff,
-    )?)
+    non_negative_int_checked_inc(&get_allowance_key(owner, spender), diff)?;
+
+    log_approval_event(owner, spender, diff)?;
+
+    Ok(())
 }
 
 #[derive(Default)]
@@ -91,23 +92,44 @@ impl ERC20 for Token {
         to: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        let caller = get_caller()?;
+        let from = get_caller()?;
         let diff = amount_to_diff(amount)?;
-        add_to_balance(&caller, -diff)?;
-        add_to_balance(to, diff)
+
+        add_to_balance(&from, -diff)?;
+        add_to_balance(to, diff)?;
+
+        log_transfer_event(&from, to, amount)?;
+
+        Ok(())
     }
 
     fn transfer_from(
         &mut self,
         owner: &ContractAddress,
-        to: &ContractAddress,
+        recipient: &ContractAddress,
         amount: Amount,
     ) -> Result<()> {
-        let caller = get_caller()?;
+        let spender = get_caller()?;
         let diff = amount_to_diff(amount)?;
-        add_to_allowance(owner, &caller, -diff)?;
+
+        add_to_allowance(owner, &spender, -diff)?;
         add_to_balance(owner, -diff)?;
-        add_to_balance(to, diff)
+        add_to_balance(recipient, diff)?;
+
+        log_transfer_event(owner, recipient, amount)?;
+
+        Ok(())
+    }
+
+    fn allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount> {
+        Ok(
+            non_negative_int_try_get(&get_allowance_key(owner, spender))?
+                .unwrap_or(0) as Amount,
+        )
     }
 
     fn adjust_allowance(
@@ -131,20 +153,32 @@ impl ERC20 for Token {
         self.get_balance_of(&get_caller()?)
     }
 
-    fn mint(&mut self, to: &ContractAddress, amount: Amount) -> Result<()> {
+    fn mint(
+        &mut self,
+        recipient: &ContractAddress,
+        amount: Amount,
+    ) -> Result<()> {
         ensure_caller_is_owner()?;
 
         let diff = amount_to_diff(amount)?;
-        add_to_balance(to, diff)?;
-        add_to_total_supply(diff)
+        add_to_balance(recipient, diff)?;
+        add_to_total_supply(diff)?;
+
+        log_transfer_event(&CONTRACT_ADDR_ZERO, recipient, amount)?;
+
+        Ok(())
     }
 
-    fn burn(&mut self, to: &ContractAddress, amount: Amount) -> Result<()> {
+    fn burn(&mut self, loser: &ContractAddress, amount: Amount) -> Result<()> {
         ensure_caller_is_owner()?;
 
         let diff = amount_to_diff(amount)?;
-        add_to_balance(to, -diff)?;
-        add_to_total_supply(-diff)
+        add_to_balance(loser, -diff)?;
+        add_to_total_supply(-diff)?;
+
+        log_transfer_event(loser, &CONTRACT_ADDR_ZERO, amount)?;
+
+        Ok(())
     }
 
     fn total_supply(&self) -> Result<Amount> {

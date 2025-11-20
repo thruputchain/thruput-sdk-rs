@@ -1,5 +1,5 @@
 [package]
-name = "erc20-result-test"
+name = "erc20-test"
 edition.workspace = true
 version.workspace = true
 
@@ -11,3 +11,7 @@ test = false
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 thiserror = { workspace = true }
+
+[features]
+# don't check operations expected to cause erc20 abort
+no_check_aborts = []

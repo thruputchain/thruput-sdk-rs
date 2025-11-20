@@ -17,7 +17,6 @@ doctest = false
 [features]
 guest = []
 mock = ["guest", "sdk/mock", "groundhog-erc20-if/mock"]
-logging = ["sdk/logging"]
 
 [dev-dependencies]
 caller = { path = ".", features = ["mock"] }

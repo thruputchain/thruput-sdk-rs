@@ -79,7 +79,7 @@ pub fn generate_method(
     let mut uses = vec![quote! {
         use ::sdk::contract::ContractEntrypointID;
         use ::sdk::contract_panic;
-        use ::sdk::contract_op::{get_calldata, return_result, contract_abort};
+        use ::sdk::contract_op::{get_calldata, contract_return_encoded, contract_abort_encoded};
         use ::sdk::internal::decode_xdr;
     }];
 
@@ -206,7 +206,7 @@ pub fn generate_method(
     let unwrap_abort = if has_err_type {
         quote! {
             let result = result.unwrap_or_else(|e|
-                contract_abort(&e));
+                contract_abort_encoded(&e));
         }
     } else {
         quote! {}
@@ -257,7 +257,7 @@ pub fn generate_method(
             #save_state
 
             // Return the contract-call result to the VM, ending execution of this contract
-            return_result(&result);
+            contract_return_encoded(&result);
 
             // Not reached
         }

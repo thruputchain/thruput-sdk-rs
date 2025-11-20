@@ -3,10 +3,16 @@
 mod error;
 pub use error::*;
 
+mod events;
+pub use events::*;
+
 use sdk::{ContractAddress, contract};
 
 pub type Amount = u128;
 pub type Difference = i128;
+
+pub const CONTRACT_ADDR_ZERO: &ContractAddress =
+    &ContractAddress::new([0; 32]);
 
 #[contract(client = ERC20Client, err_type = ERC20Error)]
 pub trait ERC20 {
@@ -33,6 +39,13 @@ pub trait ERC20 {
         spender: &ContractAddress,
         diff: Difference,
     ) -> Result<()>;
+
+    /// Get `spender`'s allowance of `owner`'s tokens
+    fn allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount>;
 
     /// Get balance for given address
     fn get_balance_of(&self, addr: &ContractAddress) -> Result<Amount>;

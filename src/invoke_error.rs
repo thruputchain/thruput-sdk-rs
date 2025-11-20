@@ -24,7 +24,8 @@ pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
     Aborted(#[source] E),
 
     #[error(
-        "the called contract aborted, but we couldn't decode the returned error value"
+        "the called contract aborted, but we couldn't decode the \
+            returned error value"
     )]
     AbortDecodeFailed,
 }

@@ -7,16 +7,29 @@ set -u
 # cargo profile for production contracts
 PRODUCTION_PROFILE="contract"
 
+STACK_SIZE="30000"
+
 # Directories for built contracts
-CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/contract"
+CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/${PRODUCTION_PROFILE}"
 OPTIMIZED="${TARGET_DIR}/optimized"
+BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 
 cargo_wasm() {
     local cmd="$1"
     shift
 
-    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=immediate-abort -Clink-args=-zstack-size=30000"
+    # On panic!(), abort immediately without calling a panic handler.
+    # (This removes panic messages from the binary entirely.)
+    local panic="immediate-abort"
+
+    if bool_true "${PANIC_LOGGING:-}"; then
+        # Call the panic handler, allowing us to capture and log the panic message.
+        # (This inflates contract codesize.)
+        panic="abort"
+    fi
+
+    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=$panic -Clink-args=-zstack-size=$STACK_SIZE"
     # echo "RUSTFLAGS=\"$flags\""
 
     RUSTFLAGS="$flags" \
@@ -32,10 +45,17 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
+    features="guest"
+
+    if bool_true "${PANIC_LOGGING:-}"; then
+        # report panic messages via log() syscall
+        features="$features,sdk/panic_logging"
+    fi
+
     cargo_wasm build \
-        --features "guest" \
-        --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
+        --profile "$PRODUCTION_PROFILE" \
+        --features "$features" \
         "$@"
 }
 
@@ -44,7 +64,7 @@ make_optimized_wasm() {
     package="$(basename "$1")"
     shift
 
-    (cd "$TARGET_DIR" && mkdir -p optimized) || return 1
+    mkdir -p "$OPTIMIZED" || return 1
 
     local contract="${CONTRACT}/${package}.wasm"
     local optimized="${OPTIMIZED}/${package}.wasm"
@@ -76,12 +96,25 @@ build_bottle_test() {
     package="$(basename "$1")"
     shift
 
+    local features="bottle-test"
+
+    if bool_true "${PANIC_LOGGING:-}"; then
+        # report panic messages via log() syscall
+        features="$features,sdk/panic_logging"
+    fi
+
     cargo_wasm build \
-        --features "bottle-test" \
-        --profile "$PRODUCTION_PROFILE" \
         --package "$package" \
-        -Zunstable-options --artifact-dir="target/bottle-test/" \
-        "$@"
+        --features "$features" \
+        --profile "$PRODUCTION_PROFILE" \
+        -Zunstable-options --artifact-dir="$BOTTLE_TEST_RAW" \
+        "$@" || return 1;
+
+    mkdir -p "$BOTTLE_TEST" || return 1
+
+    local contract="$BOTTLE_TEST_RAW/${package}.wasm"
+    local optimized="$BOTTLE_TEST/${package}.wasm"
+    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 bottle_test_contract() {
@@ -180,8 +213,15 @@ native_test_contract() {
     package="$(basename "$1")"
     shift
 
+    local features="mock"
+
+    if bool_true "${SDK_CALL_LOGGING:-}"; then
+        features="$features,sdk/logging"
+    fi
+
     cargo_native test \
         --package "$package" \
+        --features $features \
         "$@" \
         -- --nocapture \
         ||

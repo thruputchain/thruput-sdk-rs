@@ -1,9 +1,5 @@
 //! An implementation of ERC20
 
-// If the interface's `Amount` type changes away from `i128`, our casts
-// below will be necessary
-#![allow(clippy::unnecessary_cast)]
-
 use crate::interface::*;
 use sdk::storage::{Map, NNInt};
 use sdk::*;
@@ -37,6 +33,7 @@ impl TokenContract {
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Result<Amount> {
         let balance_cell = self.balances.get(owner)?;
         let amount = balance_cell.try_get()?.unwrap_or(0) as Amount;
+
         Ok(amount)
     }
 
@@ -55,7 +52,19 @@ impl TokenContract {
         Ok(())
     }
 
-    // Adjust allowance for owner and spender, from zero if empty
+    fn _allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount> {
+        let owner_allowances = self.allowances.get(owner)?;
+        let spender_allowance = owner_allowances.get(spender)?;
+
+        Ok(spender_allowance.try_get()?.unwrap_or(0) as Amount)
+    }
+
+    // Adjust allowance for owner and spender, from zero if empty.
+    // Returns resulting allowance.
     fn _adjust_allowance(
         &mut self,
         owner: &ContractAddress,
@@ -67,6 +76,9 @@ impl TokenContract {
 
         // This fails if the result would be negative
         spender_allowance.checked_inc(diff)?;
+
+        log_approval_event(owner, spender, diff)?;
+
         Ok(())
     }
 
@@ -76,8 +88,9 @@ impl TokenContract {
     }
 
     fn _total_supply(&self) -> Result<Amount> {
-        let amount = self.total_supply.try_get()?.unwrap_or(0) as Amount;
-        Ok(amount)
+        let supply = self.total_supply.try_get()?.unwrap_or(0) as Amount;
+
+        Ok(supply)
     }
 }
 
@@ -101,7 +114,11 @@ impl ERC20 for TokenContract {
 
         let diff = amount_to_diff(amount)?;
         self._adjust_balance(&owner, -diff)?;
-        self._adjust_balance(receiver, diff)
+        self._adjust_balance(receiver, diff)?;
+
+        log_transfer_event(&owner, receiver, amount)?;
+
+        Ok(())
     }
 
     fn transfer_from(
@@ -115,7 +132,11 @@ impl ERC20 for TokenContract {
         let diff = amount_to_diff(amount)?;
         self._adjust_allowance(owner, &spender, -diff)?;
         self._adjust_balance(owner, -diff)?;
-        self._adjust_balance(receiver, diff)
+        self._adjust_balance(receiver, diff)?;
+
+        log_transfer_event(&owner, receiver, amount)?;
+
+        Ok(())
     }
 
     fn adjust_allowance(
@@ -126,6 +147,14 @@ impl ERC20 for TokenContract {
         let owner = get_caller()?;
 
         self._adjust_allowance(&owner, spender, diff)
+    }
+
+    fn allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Result<Amount> {
+        self._allowance(owner, spender)
     }
 
     fn get_balance_of(&self, owner: &ContractAddress) -> Result<Amount> {
@@ -150,7 +179,11 @@ impl ERC20 for TokenContract {
 
         let diff = amount_to_diff(amount)?;
         self._adjust_balance(receiver, diff)?;
-        self._adjust_total_supply(diff)
+        self._adjust_total_supply(diff)?;
+
+        log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount)?;
+
+        Ok(())
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
@@ -162,7 +195,11 @@ impl ERC20 for TokenContract {
 
         let diff = amount_to_diff(amount)?;
         self._adjust_balance(owner, -diff)?;
-        self._adjust_total_supply(-diff)
+        self._adjust_total_supply(-diff)?;
+
+        log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount)?;
+
+        Ok(())
     }
 
     fn total_supply(&self) -> Result<Amount> {

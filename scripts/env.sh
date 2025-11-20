@@ -21,13 +21,19 @@ source "${SCRIPT_DIR}/lib_util.sh"
 : ${HOGD_SRC:="hogd"}
 HOGD_SRC="$(realpath "${HOGD_SRC}")"
 
-# Fail build on cargo warnings
+# Fail build on cargo warnings?
 : ${DENY_WARNINGS:="yes"}
 
-# Run cargo without --locked
-: ${CARGO_UNLOCK:="yes"}
-
 ### Document default-unset variables; uncomment to enable
+
+## Run cargo without --locked?
+# CARGO_UNLOCK=yes
+
+## For wasm contracts, use the log() syscall to report panic messages
+# PANIC_LOGGING=yes
+
+## For native testing, print diagnostics for each contract call
+# SDK_CALL_LOGGING=1
 
 ## Enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=yes

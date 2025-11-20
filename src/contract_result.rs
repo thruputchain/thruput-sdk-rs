@@ -1,6 +1,7 @@
 //! General-purpose result type for contracts
 
 use crate::SysErr;
+use crate::sysresult;
 use crate::sysresult::ErrorMsg;
 use thiserror::Error;
 use xdrs::{ReadXDR, WriteXDR};
@@ -49,6 +50,17 @@ pub enum ContractError {
     } = ContractErrorType::kContractErrorTypeStorage as i32,
 }
 
+impl From<sysresult::Error> for Error {
+    // TODO: rework error hierarchy
+    fn from(_err: sysresult::Error) -> Self {
+        Error::Contract {
+            contract_error: ContractError::Custom {
+                msg: ErrorMsg::new("library error"),
+            },
+        }
+    }
+}
+
 impl From<SysErr> for Error {
     fn from(err: SysErr) -> Self {
         Error::Contract {
@@ -62,18 +74,6 @@ impl From<StorageErr> for Error {
     fn from(err: StorageErr) -> Self {
         Error::Contract {
             contract_error: err.into(),
-        }
-    }
-}
-
-use crate::sysresult::Error as LibraryError;
-
-impl From<LibraryError> for Error {
-    fn from(_err: LibraryError) -> Self {
-        let msg = ErrorMsg::new("library");
-        let contract_err = ContractError::Custom { msg };
-        Error::Contract {
-            contract_error: contract_err,
         }
     }
 }

@@ -10,6 +10,7 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true }
+erc20-test = { workspace = true }
 bottle-test-if = { workspace = true }
 xdrs = { workspace = true }
 
@@ -19,4 +20,5 @@ doctest = false
 test = false
 
 [features]
-fail-fast = []
+# don't check operations expected to cause erc20 abort
+no_check_aborts = ["erc20-test/no_check_aborts"]

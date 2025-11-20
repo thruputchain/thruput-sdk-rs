@@ -1,63 +1,149 @@
-use sdk::sys::raw_LogEvent;
+use sdk::contract_test::grant_storage_tokens;
+use sdk::event::*;
+use sdk::internal::decode_xdr;
+use sdk::types::event::TxEmittedEvent;
+use sdk::*;
 
-// Simple test to demonstrate reading events that were emitted by a contract.
-#[test]
-fn test_event() {
-    let env = sdk::TestEnvironment::new();
+macro_rules! single_event_test {
+    {
+        fn $test_name:ident() $body:tt
+        fn event_check($event:ident) $body_event_check:tt
+    } =>
+    {
+        contract_test_env! {
+            fn env_hook(env, handler) {
+                grant_storage_tokens(env, handler);
+            }
 
-    let test_contract = {
-        let mut contract = env.add_contract();
-        let method =
-            sdk::types::ContractEntrypointID::from(1u64.to_be_bytes());
-        contract.register_method(method, || -> () {
-            sdk::handle::handle_call(|()| {
-                log_event();
-                return ();
-            });
-        });
-        contract.as_contract()
+            fn $test_name() $body
+
+            fn post_hook(handler) {
+                let event_log = handler.get_event_logs().unwrap();
+                let events = &event_log.events;
+
+                assert_eq!(events.len(), 1);
+                let event = &event_log.events[0];
+
+                let event_check = |$event: &TxEmittedEvent| $body_event_check;
+                event_check(event);
+            }
+        }
     };
-
-    let contract_hash = env.setup_create_contract(&test_contract);
-
-    let mut handler = env.prepare_test(move || -> () {
-        let nonce = sdk::types::SHA256Hash::from([7; 32]);
-        let deployed_addr =
-            sdk::deploy::deploy_contract(&nonce, &contract_hash).unwrap();
-
-        // Invoke contract method 1
-        let method =
-            sdk::types::ContractEntrypointID::from(1u64.to_be_bytes());
-        sdk::invoke::invoke::<(), ()>(&deployed_addr, method, u64::MAX, &())
-            .unwrap_or_else(|e| panic!("contract test body failed: {}", e));
-    });
-
-    env.setup_grant_storage_tokens(
-        &handler
-            .get_signed_transaction()
-            .tx
-            .invocation
-            .invoked_address,
-        1_000_000_000,
-    );
-
-    let res = handler.root_invoke();
-    if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
-        panic!("root invocation panicked with code {}", res.result.panic);
-    }
-
-    let commit_res = handler.try_commit_transaction();
-    assert!(commit_res);
-
-    println!("event logged");
-
-    let event_log = handler.get_event_logs();
-    assert!(&event_log.is_some());
-    //assert_eq!(event_log.as_ref().unwrap().events.len(), 1usize);
-    //assert_eq!(&event_log.unwrap().events[0].contract_address, &deployed_addr);
 }
 
-fn log_event() {
-    println!("logging event");
-    raw_LogEvent(None, None, None, b"test").unwrap();
+//-------------------------------------------------------------------------
+// Log an event with the raw syscall
+single_event_test! {
+    fn test_event_no_topics() {
+        sys::raw_LogEvent(None, None, None, b"test").unwrap();
+    }
+
+    fn event_check(event) {
+        assert_eq!(event.num_topics, 0);
+        assert_eq!(event.serialized_event.len(), 4);
+    }
+}
+
+//-------------------------------------------------------------------------
+// An event structure using owned data
+#[derive(Debug, Default, PartialEq, WriteXDR, ReadXDR)]
+struct OwnedEvent {
+    // Things that become topics:
+    payer: ContractAddress,
+    payee: ContractAddress,
+    currency: String,
+
+    // Additional data:
+    amount: u128,
+    memo: String,
+}
+
+impl Event for OwnedEvent {
+    fn num_topics(&self) -> u32 {
+        2
+    }
+
+    fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
+        match index {
+            0 => {
+                // Here we need to hash something we don't have a reference to:
+                let payer_payee =
+                    (&self.payer, &self.payee).hash().into_inner();
+
+                Some(TopicSrc::Owned(payer_payee))
+            }
+            1 => Some(TopicSrc::Hashed(&self.currency)),
+            _ => None,
+        }
+    }
+}
+
+single_event_test! {
+    fn test_owned_event() {
+        let event = OwnedEvent::default();
+        log_event(&event).unwrap();
+    }
+    fn event_check(event) {
+        assert_eq!(event.num_topics, 2);
+
+        let payload = event_payload(event);
+        let event: OwnedEvent = decode_xdr(payload).unwrap();
+        assert_eq!(event, OwnedEvent::default());
+    }
+}
+
+//-------------------------------------------------------------------------
+// An event structure using pointers to minimize copying
+#[allow(unused)]
+#[derive(WriteXDR, ReadXDR)]
+struct BorrowedEvent<'a> {
+    payer: &'a ContractAddress,
+    payee: &'a ContractAddress,
+    currency: &'a [u8],
+
+    amount: u128,
+    memo: &'a [u8],
+}
+
+impl<'a> Event for BorrowedEvent<'a> {
+    fn num_topics(&self) -> u32 {
+        3
+    }
+
+    fn topic<'t>(&'t self, index: u32) -> Option<TopicSrc<'t>> {
+        match index {
+            0 => return Some(TopicSrc::Shared(self.payer)),
+            1 => return Some(TopicSrc::Shared(self.payee)),
+            2 => return Some(TopicSrc::Hashed(&self.currency)),
+            _ => return None,
+        }
+    }
+}
+
+single_event_test! {
+    fn test_borrowed_event() {
+        let payer = ContractAddress::default();
+        let payee = ContractAddress::default();
+        let currency = "USD".as_bytes();
+        let amount = 33;
+        let memo = "dinner".as_bytes();
+        let event = BorrowedEvent { payer: &payer, payee: &payee, currency, amount, memo };
+
+        log_event(&event).unwrap();
+    }
+    fn event_check(event) {
+        assert_eq!(event.num_topics, 3);
+
+        let payload = event_payload(event);
+        let event: BorrowedEvent = decode_xdr(payload).unwrap();
+        assert_eq!(event.memo, "dinner".as_bytes());
+    }
+}
+
+// utilities
+
+fn event_payload(event: &TxEmittedEvent) -> &[u8] {
+    let topics_len = 32 * event.num_topics as usize;
+
+    &event.serialized_event[topics_len..]
 }

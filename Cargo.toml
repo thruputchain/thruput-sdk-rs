@@ -35,8 +35,11 @@ groundhog_xdr = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
 xdrs = { workspace = true }
+
+# Optional dependencies
 native_exec = { workspace = true, optional = true }
 delegate = { workspace = true, optional = true }
+heapless = { workspace = true, optional = true }
 
 [build-dependencies]
 
@@ -55,6 +58,7 @@ xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
 sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
 native_exec = { path = "native_exec" }
+heapless = { version = "0.9.2" }
 
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }
@@ -62,22 +66,24 @@ groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271" }
 
 # Standard test crates
 bottle-test-if = { path = "standard-tests/bottle-test-if" }
+erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
-erc20-result-test = { path = "standard-tests/erc20-result-test" }
+erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
 default = []
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
-storage = ["alloc", "dep:delegate"]
+storage = ["alloc", "dep:delegate", "macros/storage"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]
-logging = ["macros/logging", "alloc"]
+logging = ["macros/logging", "alloc"] # trace contract calls when testing
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
+panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
 
 # Use resizable instead of static bufs for marshalling arguments and
 # return-data of cross-contract calls (not recommended unless the fixed-size
 # buffers cause overflows).
-dynamic_bufs = []
+dynamic_bufs = ["alloc"]
 
 [profile.contract]
 inherits = "release"
