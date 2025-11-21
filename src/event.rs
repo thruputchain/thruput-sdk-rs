@@ -67,11 +67,10 @@ pub fn log_event(event: &impl Event) -> Result<()> {
 
     let data = encode_xdr(event)?;
 
-    // TODO: change syscall signature to take [u8; u32]
     sys::uninit_LogEvent(
-        topic0.map(Into::into).as_ref(),
-        topic1.map(Into::into).as_ref(),
-        topic2.map(Into::into).as_ref(),
+        topic0.as_ref(),
+        topic1.as_ref(),
+        topic2.as_ref(),
         data.as_ref(),
     )?;
 
