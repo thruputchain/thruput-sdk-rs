@@ -58,9 +58,6 @@ pub mod types;
 pub mod contract_result;
 pub mod sysresult;
 
-#[cfg(feature = "storage")]
-pub mod storage;
-
 // Direct exports
 
 pub use bytestring::*;
@@ -79,8 +76,6 @@ pub use serialize::*;
 pub use types::*;
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
-#[doc = include_str!("../doc/macro-storage.md")]
-pub use macros::storage;
 // These must be enumerated to avoid stomping on the above docstrings
 pub use macros::{static_key, sha256_static, topic_hashed_from};
 
@@ -90,6 +85,16 @@ pub use alloc::{format, string::*, vec, vec::Vec};
 #[cfg(feature = "spec")]
 #[rustfmt::skip]
 pub mod spec;
+
+// "Storage" module
+
+#[cfg(feature = "storage")]
+pub mod storage;
+#[cfg(feature = "storage")]
+pub use macros::Storage;
+#[cfg(feature = "storage")]
+#[doc = include_str!("../doc/macro-storage.md")]
+pub use macros::storage;
 
 // Test environment
 
