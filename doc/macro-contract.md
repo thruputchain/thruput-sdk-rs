@@ -3,6 +3,8 @@ Expose methods for cross-contract calls.
 This macro may be applied to a trait, a trait implementation,
 an inherent implementation, or a free function.
 
+Usage **examples** are in the top-level [documentation](mod@crate).
+
 #### Client object
 
 If the attribute arguments `client = ClientTypeName` are given, a client-stub object will be

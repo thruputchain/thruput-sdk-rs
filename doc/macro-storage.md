@@ -8,3 +8,4 @@ Deriving `Storage`, in turn, provides implementations of
 [LoadKeypath](crate::storage::LoadKeypath) and
 [DefaultFromKeypath](crate::storage::DefaultFromKeypath).
 
+Usage **examples** are in the top-level [documentation](mod@crate).
