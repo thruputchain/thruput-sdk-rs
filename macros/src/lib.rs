@@ -27,7 +27,6 @@ pub fn topic_hashed_from(item: TokenStream) -> TokenStream {
     static_hash::topic_hashed_from(input)
 }
 
-/// Generate contract-related code
 #[proc_macro_attribute]
 pub fn contract(
     attr_args: TokenStream,
@@ -52,8 +51,6 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Attribute-macro `storage` simply decorates the item
-/// with `#[derive(WriteXDR, Storage)]`
 #[cfg(feature = "storage")]
 #[proc_macro_attribute]
 pub fn storage(

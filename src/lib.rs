@@ -2,7 +2,7 @@
 #![feature(maybe_uninit_slice)]
 #![feature(core_io_borrowed_buf)]
 // #![doc(html_logo_url = "groundhog.png")]
-#![doc = include_str!("../README-lib.md")]
+#![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
 
@@ -74,10 +74,15 @@ pub use retrocausal_queue::*;
 
 pub use hash::*;
 pub use hex::*;
-pub use macros::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+#[doc = include_str!("../doc/macro-contract.md")]
+pub use macros::contract;
+#[doc = include_str!("../doc/macro-storage.md")]
+pub use macros::storage;
+// These must be enumerated to avoid stomping on the above docstrings
+pub use macros::{static_key, sha256_static, topic_hashed_from};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
