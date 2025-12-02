@@ -1,6 +1,7 @@
 //! System functions
 //!
-//! Used by `#[contract]` macro.
+//! The functions are used by the [`contract`](macro@crate::contract) macro,
+//! and are also available for lower-level code.
 
 use crate::WriteXDR;
 use crate::sys;

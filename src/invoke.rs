@@ -1,4 +1,7 @@
-//! Cross-contract invocation functions: invoke, client_invoke
+//! Cross-contract invocation functions.
+//!
+//! These functions are usually called via methods on "client" objects defined by the
+//! [contract](macro@crate::contract) macro.
 
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;

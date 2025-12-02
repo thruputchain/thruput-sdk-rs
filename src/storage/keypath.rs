@@ -130,14 +130,14 @@ mod test_keypath {
 pub use keycache::*;
 mod keycache {
     use super::Keypath;
-    use crate::types::StorageKeyContractData;
+    use crate::types::StorageKey;
     use core::cell::OnceCell;
     use core::ops::Deref;
 
     #[derive(Debug)]
     pub struct KeyCache {
         keypath: Keypath,
-        key: OnceCell<StorageKeyContractData>,
+        key: OnceCell<StorageKey>,
     }
 
     impl From<Keypath> for KeyCache {
@@ -157,7 +157,7 @@ mod keycache {
             }
         }
 
-        pub fn get(&self) -> &StorageKeyContractData {
+        pub fn get(&self) -> &StorageKey {
             self.key.get_or_init(|| self.keypath.generate_key())
         }
 
@@ -167,7 +167,7 @@ mod keycache {
     }
 
     impl Deref for KeyCache {
-        type Target = StorageKeyContractData;
+        type Target = StorageKey;
 
         fn deref(&self) -> &Self::Target {
             self.get()

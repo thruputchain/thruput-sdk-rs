@@ -42,3 +42,40 @@ used in memory and in persistent storage, noting that:
 The [`mod@storage`] module provides a high-level layer for manipulating persistent
 storage, and includes collection datatypes like [`Map`](storage::Map) that are
 implemented atop the VM's key-value storage.
+
+*TODO*: Rename this module
+
+# Macros
+
+The [`storage`](macro@crate::storage) macro derives traits necessary for
+storing data in the key-value store.
+
+The [`contract`](macro@crate::contract) macro exports a contract's methods for
+responding to cross-contract calls, and also creates "client" objects for
+performing those calls.
+
+# Example contract
+```
+#[storage]
+pub struct MyContract {
+    contract_owner: ContractAddress,
+}
+
+pub struct MyError;
+
+pub type Result<T, E = MyError> = Result<T, E>;
+
+#[contract(exports = "guest_exports", err_type = MyError, client = MyClient)]
+impl MyContract {
+    #[init]
+    pub fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
+        self.contract_owner = contract_owner.clone();
+        Ok(())
+    }
+
+    pub fn get_owner(&self) -> Result<ContractAddress> {
+        self.contract_owner.clone()
+    }
+}
+```
+

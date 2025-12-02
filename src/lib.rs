@@ -2,7 +2,7 @@
 #![feature(maybe_uninit_slice)]
 #![feature(core_io_borrowed_buf)]
 // #![doc(html_logo_url = "groundhog.png")]
-#![doc = include_str!("../README-lib.md")]
+#![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
 
@@ -58,9 +58,6 @@ pub mod types;
 pub mod contract_result;
 pub mod sysresult;
 
-#[cfg(feature = "storage")]
-pub mod storage;
-
 // Direct exports
 
 pub use bytestring::*;
@@ -74,10 +71,14 @@ pub use retrocausal_queue::*;
 
 pub use hash::*;
 pub use hex::*;
-pub use macros::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+
+#[doc = include_str!("../doc/macro-contract.md")]
+pub use macros::contract;
+// These must be enumerated to avoid stomping on the above docstrings
+pub use macros::{sha256_static, static_key, topic_hashed_from};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
@@ -85,6 +86,18 @@ pub use alloc::{format, string::*, vec, vec::Vec};
 #[cfg(feature = "spec")]
 #[rustfmt::skip]
 pub mod spec;
+
+// "Storage" module
+
+#[cfg(feature = "storage")]
+pub mod storage;
+
+#[cfg(feature = "storage")]
+pub use macros::Storage;
+
+#[cfg(feature = "storage")]
+#[doc = include_str!("../doc/macro-storage.md")]
+pub use macros::storage;
 
 // Test environment
 
