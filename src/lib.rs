@@ -74,10 +74,11 @@ pub use hex::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
-pub use macros::{static_key, sha256_static, topic_hashed_from};
+pub use macros::{sha256_static, static_key, topic_hashed_from};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
@@ -90,8 +91,10 @@ pub mod spec;
 
 #[cfg(feature = "storage")]
 pub mod storage;
+
 #[cfg(feature = "storage")]
 pub use macros::Storage;
+
 #[cfg(feature = "storage")]
 #[doc = include_str!("../doc/macro-storage.md")]
 pub use macros::storage;
