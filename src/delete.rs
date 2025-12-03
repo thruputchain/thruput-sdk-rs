@@ -10,12 +10,16 @@ use crate::types::StorageKey;
 /// Succeeds no matter what type of item is stored there, or if none
 /// is. After calling this function for a particular key, an item of
 /// any type may be stored there.
-pub fn delete(key: &StorageKey, exclusive: bool) -> Result<()> {
-    let flags = if exclusive {
-        kStorageExclusiveLock
-    } else {
-        kStorageNone
-    };
+pub fn delete(key: &StorageKey) -> Result<()> {
+    let flags = kStorageNone;
 
     sys::raw_DeleteObject(key, flags as i32)
 }
+
+/// Like [`delete`], but ... ?
+pub fn delete_exclusive(key: &StorageKey) -> Result<()> {
+    let flags = kStorageExclusiveLock;
+
+    sys::raw_DeleteObject(key, flags as i32)
+}
+

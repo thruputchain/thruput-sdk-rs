@@ -2,6 +2,7 @@ use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use super::store::*;
+use crate::delete;
 use crate::types::StorageKey;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -45,52 +46,54 @@ impl<K, V> Map<K, V> {
         K: WriteXDR,
         V: LoadKeypath,
     {
-        let keypath = &self.make_entry_keypath(entry_key);
+        let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::load_keypath(keypath)
+        LoadKeypath::load_keypath(&keypath)
     }
 
-    pub fn set(&self, entry_key: &K, value: &V) -> Result<()>
-    where
-        K: WriteXDR,
-        V: Store,
-    {
-        let mut keypath = self.keypath().clone();
-        keypath.push_item(entry_key);
-        let key = keypath.generate_key();
-
-        value.store(&key)
-    }
-
-    /*
-    pub fn entry<'m, 'k>(
-        &'m self,
-        key: &'k K,
-    ) -> Result<Entry<'m, 'k, K, V>>
+    pub fn try_get(&self, entry_key: &K) -> Result<Option<V>>
     where
         K: WriteXDR,
         V: LoadKeypath,
     {
-        let keypath = &self.make_entry_keypath(key);
-        let value = LoadKeypath::load_keypath(keypath)?;
+        let keypath = self.make_entry_keypath(entry_key);
 
-        Ok(Entry { key, value, map: PhantomData })
+        LoadKeypath::try_load_keypath(&keypath)
     }
-    */
+
+    pub fn set(&mut self, entry_key: &K, value: &V) -> Result<()>
+    where
+        K: WriteXDR,
+        V: Store,
+    {
+        let key = self.make_entry_storage_key(entry_key);
+
+        value.store(&key)
+    }
+
+    pub fn delete(&mut self, entry_key: &K) -> Result<()>
+    where
+        K: WriteXDR,
+    {
+        let key = self.make_entry_storage_key(entry_key);
+
+        delete(&key)?;
+
+        Ok(())
+    }
 
     pub fn entry<'m, 'k>(
         &'m mut self,
         entry_key: &'k K,
-    ) -> Result<EntryMut<'m, 'k, K, V>>
+    ) -> Result<Entry<'m, 'k, K, V>>
     where
         K: WriteXDR,
         V: LoadKeypath + Store,
     {
         let keypath = &self.make_entry_keypath(entry_key);
-        let value = LoadKeypath::load_keypath(keypath)?;
-        let key = keypath.generate_key();
+        let value = LoadKeypath::try_load_keypath(keypath)?;
 
-        Ok(EntryMut { key, value, map: self })
+        Ok(Entry { entry_key, value, map: self })
     }
 
     fn make_entry_keypath(&self, entry_key: &K) -> Keypath
@@ -111,76 +114,58 @@ impl<K, V> Map<K, V> {
     }
 }
 
-use core::ops::{Deref, DerefMut};
-
-#[derive(Clone)]
-pub struct Entry<'m, 'k, K, V> {
-    key: &'k K,
-    value: V,
-    map: PhantomData<&'m Map<K, V>>
+/// A view into a single entry in the map
+pub struct Entry<'m, 'k, K, V>
+where
+    K: WriteXDR,
+    V: Store,
+{
+    entry_key: &'k K,
+    value: Option<V>,
+    map: &'m mut Map<K, V>,
+    // XXX: cache the keypath/storagekey (instead of the entry_key)?
 }
 
-impl<'m, 'k, K, V> Deref for Entry<'m, 'k, K, V> {
-    type Target = V;
-
-    fn deref(&self) -> &Self::Target {
+impl<'m, 'k, K, V> Entry<'m, 'k, K, V>
+where
+    K: WriteXDR,
+    V: Store,
+{
+    pub fn get(&self) -> &Option<V> {
         &self.value
     }
-}
 
-pub struct EntryMut<'m, 'k, K, V>
-where
-    K: WriteXDR,
-    V: Store,
-{
-    key: &'k K,
-    value: V,
-    map: &'m Map<K, V>,
-}
+    pub fn get_mut(&mut self) -> &mut Option<V> {
+        &mut self.value
+    }
 
-impl<'m, 'k, K, V> EntryMut<'m, 'k, K, V>
-where
-    K: WriteXDR,
-    V: Store,
-{
-    /// Store the entry value back to its storage location
-    pub fn save(&self) -> Result<()>
+    /// Store a new value into the entry.  This just
+    /// calls `set` on the `Map` containing this entry.
+    pub fn set(&mut self, value: &V) -> Result<()>
     where
         K: WriteXDR,
         V: Store,
     {
-        self.map.set(self.key, &self.value)
+        self.map.set(self.entry_key, value)
+    }
+
+    /// Store the current entry value back to its storage location
+    pub fn save(&mut self) -> Result<()>
+    {
+        if let Some(value) = self.value.as_ref() {
+            self.map.set(self.entry_key, value)
+        } else {
+            self.map.delete(self.entry_key)
+        }
     }
 }
 
-impl<'m, 'k, K, V> Drop for EntryMut<'m, 'k, K, V>
+impl<'m, 'k, K, V> Drop for Entry<'m, 'k, K, V>
 where
     K: WriteXDR,
     V: Store,
 {
     fn drop(&mut self) {
         self.save().unwrap()
-    }
-}
-
-impl<'m, 'k, K, V> Deref for EntryMut<'m, 'k, K, V>
-where
-    K: WriteXDR,
-    V: Store,
-{
-    type Target = V;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl<'m, 'k, K, V> DerefMut for EntryMut<'m, 'k, K, V>
-where
-    K: WriteXDR,
-    V: Store,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
     }
 }

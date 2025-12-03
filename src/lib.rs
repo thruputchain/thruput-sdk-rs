@@ -29,8 +29,7 @@ compile_error!(
 );
 // We avoid silently turning on "alloc", which may not be desired
 
-pub mod internal;
-// (Public because used in contract macros)
+pub mod internal; // Public because used in contract macros
 
 // Syscall wrappers
 pub mod bytestring;
@@ -39,7 +38,6 @@ pub mod delete;
 pub mod non_negative_int;
 pub mod retrocausal_queue;
 pub mod stats;
-
 pub mod crypto;
 pub mod deploy;
 pub mod event;
@@ -62,13 +60,13 @@ pub mod sysresult;
 
 pub use bytestring::*;
 pub use contract_op::*;
+pub use delete::*;
+pub use non_negative_int::*;
+pub use retrocausal_queue::*;
 pub use deploy::*;
 pub use event::*;
 pub use invoke::*;
 pub use log::*;
-pub use non_negative_int::*;
-pub use retrocausal_queue::*;
-
 pub use hash::*;
 pub use hex::*;
 pub use rt::*;

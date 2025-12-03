@@ -9,11 +9,10 @@ struct Data {
     nnints: Vector<NNInt>,
     bytes: Bytestring,
     map: Map<u32, NNInt>,
+    map2: Map<u32, i32>,
 }
 
 contract_test!(test_map {
-    // native_exec::test_environment::TestEnvironment::enable_syscall_logging();
-
     let data_keypath = Keypath::new();
     {
         let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
@@ -35,6 +34,29 @@ contract_test!(test_map {
         let cell = data.map.get(&slot).unwrap();
         let v = cell.get().unwrap();
         assert_eq!(v, 7);
+    }
+});
+
+contract_test!(test_map_entry {
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath).unwrap();
+    }
+
+    let slot: u32 = 3;
+    let value: i32 = -14;
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut entry = data.map2.entry(&slot).unwrap();
+
+        entry.set(&value).unwrap();
+    }
+
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let opt = data.map2.try_get(&slot).unwrap();
+        assert_eq!(opt, Some(value));
     }
 });
 
