@@ -1,3 +1,6 @@
+//! A handle is a typed wrapper around a `Keypath`.  It is used as a
+//! typed reference to a storage location.
+
 use super::error::Result;
 use super::keypath::*;
 use super::load::*;
@@ -8,15 +11,17 @@ use core::marker::PhantomData;
 #[derive(Debug)]
 pub struct Handle<T> {
     key: KeyCache,
+
     // `Handle` is covariant in `T`
-    marker: PhantomData<fn() -> T>,
+    _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> From<Keypath> for Handle<T> {
     fn from(keypath: Keypath) -> Self {
         Self {
             key: KeyCache::from(keypath),
-            marker: PhantomData,
+
+            _marker: PhantomData,
         }
     }
 }
@@ -30,7 +35,8 @@ impl<T> Handle<T> {
     pub fn new(keypath: &Keypath) -> Self {
         Self {
             key: KeyCache::new(keypath),
-            marker: PhantomData,
+
+            _marker: PhantomData,
         }
     }
 
@@ -40,7 +46,7 @@ impl<T> Handle<T> {
         Self::from(root_keypath)
     }
 
-    fn keypath(&self) -> &Keypath {
+    pub fn keypath(&self) -> &Keypath {
         self.key.keypath()
     }
 
@@ -63,10 +69,8 @@ impl<T> Handle<T> {
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        let val = self.try_get()?.unwrap_or_else(|| {
-            DefaultFromKeypath::default_from_keypath(self.keypath())
-        });
-        Ok(val)
+        Ok(self.try_get()?.unwrap_or_else(||
+            DefaultFromKeypath::default_from_keypath(self.keypath())))
     }
 
     pub(crate) fn set(&mut self, val: &T) -> Result<()>
@@ -91,6 +95,7 @@ impl<T> Handle<T> {
         let val = self.get_or_default()?;
         Ok(HandleRefMut::new(self, val))
     }
+
 }
 
 pub use refs::*;
@@ -109,8 +114,7 @@ mod refs {
 
     impl<'a, T> HandleRef<'a, T> {
         pub fn new(_handle: &'a Handle<T>, val: T) -> Self {
-            let handle = PhantomData;
-            Self { handle, val }
+            Self { handle: PhantomData, val }
         }
     }
 
@@ -150,6 +154,7 @@ mod refs {
 
     impl<T: Store> Drop for HandleRefMut<'_, T> {
         fn drop(&mut self) {
+            // Store the current value back to the key-value store
             self.handle.set(&self.val).unwrap();
         }
     }

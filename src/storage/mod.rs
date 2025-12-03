@@ -1,3 +1,5 @@
+//! Datatypes backed by the key-value store.
+
 #[macro_use]
 mod macros;
 
