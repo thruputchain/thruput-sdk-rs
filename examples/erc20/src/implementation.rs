@@ -104,6 +104,7 @@ impl ERC20 for TokenContract {
         Ok(())
     }
 
+    #[no_save]
     fn transfer(
         &mut self,
         receiver: &ContractAddress,
@@ -120,6 +121,7 @@ impl ERC20 for TokenContract {
         Ok(())
     }
 
+    #[no_save]
     fn transfer_from(
         &mut self,
         owner: &ContractAddress,
@@ -138,6 +140,7 @@ impl ERC20 for TokenContract {
         Ok(())
     }
 
+    #[no_save]
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
@@ -165,6 +168,7 @@ impl ERC20 for TokenContract {
         self._balance_amount_of(&owner)
     }
 
+    #[no_save]
     fn mint(
         &mut self,
         receiver: &ContractAddress,
@@ -185,6 +189,7 @@ impl ERC20 for TokenContract {
         Ok(())
     }
 
+    #[no_save]
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) -> Result<()> {
         let caller = get_caller()?;
         caller_ensure(

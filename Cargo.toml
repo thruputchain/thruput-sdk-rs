@@ -71,7 +71,7 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
-default = []
+default = ["short_storage_keys"] # XXX
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc", "dep:delegate", "macros/storage"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
@@ -79,6 +79,7 @@ std = ["alloc", "groundhog_xdr/std"]
 logging = ["macros/logging", "alloc"] # trace contract calls when testing
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
+short_storage_keys = []
 
 # Use resizable instead of static bufs for marshalling arguments and
 # return-data of cross-contract calls (not recommended unless the fixed-size

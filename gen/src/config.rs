@@ -12,6 +12,7 @@ pub struct Config {
     pub interface: Option<String>,
     pub index: Option<u16>,
     pub init: Flag,
+    pub no_save: Flag,
     pub doc: Option<String>,
 
     client: Option<syn::Ident>,

@@ -189,8 +189,7 @@ pub fn generate_method(
     };
 
     // Save the contract state after calling the method, if it takes a mutable ref to the state
-    // TODO: use an attribute to request no saving
-    let save_state = if is_method && config.storage() && is_mut {
+    let save_state = if is_method && config.storage() && is_mut && !method.config().no_save.is_present() {
         quote! {
             state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
                 contract_panic!("Failed saving contract storage"));

@@ -53,7 +53,23 @@ impl Keypath {
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        sha_256(self.flattened().as_slice()).unwrap().into()
+        let path_bytes = self.flattened();
+        let path_bytes = path_bytes.as_slice();
+
+        #[cfg(feature = "short_storage_keys")]
+        {
+            // If the keypath contents already fit into a StorageKey,
+            // use them directly instead of hashing.
+
+            let len = path_bytes.len();
+            if len <= 32 {
+                let mut key_array = [0; 32];
+                key_array.as_mut_slice()[0..len].clone_from_slice(path_bytes);
+                return key_array.into()
+            }
+        }
+
+        sha_256(path_bytes).unwrap().into()
     }
 
     fn push_bytes(&mut self, slice: &[u8]) {

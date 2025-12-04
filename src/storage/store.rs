@@ -19,11 +19,13 @@ where
     T: WriteXDR,
 {
     fn store(&self, key: &StorageKey) -> Result<()> {
-        // Load any previous value and drop it
-        // TODO: Avoid where there is no Drop impl?
+        /* TODO: Garbage collection?
+
+        // Load any previous value and drop it?
         if let Some(prev) = bytestring_try_get(key)? {
             drop(prev);
         }
+        */
 
         let buf = serialize_cxs::encode(self)
             .map_err(|_| StorageError::Serialization)?;
