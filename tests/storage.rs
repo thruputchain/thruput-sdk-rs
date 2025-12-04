@@ -39,20 +39,81 @@ contract_test!(test_map {
 
 contract_test!(test_map_entry {
     let data_keypath = Keypath::new();
+    let slot: u32 = 3;
+
+    // Check that the data is absent
+    {
+        let data: Option<Data> = LoadKeypath::try_load_keypath(&data_keypath).unwrap();
+        assert!(data.is_none())
+    }
+
+    // Store the default value
     {
         let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
         data.store_keypath(&data_keypath).unwrap();
     }
 
-    let slot: u32 = 3;
-    let value: i32 = -14;
+    // Check that the entry starts empty
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let entry = data.map2.entry(&slot).unwrap_or_else(|e|
+            panic!("entry(): {}", e));
+
+        assert_eq!(*entry.get(), None);
+    }
+
+    // Check that the entry starts empty (another way)
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let opt = data.map2.try_get(&slot).unwrap();
+
+        assert_eq!(opt, None);
+    }
+
+    let mut value: i32 = -14;
+
+    // Set the entry via `Map::set`
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        data.map2.set(&slot, &value).unwrap();
+    }
+
+    // Check that the entry has the value
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let opt = data.map2.try_get(&slot).unwrap();
+        assert_eq!(opt, Some(value));
+    }
+
+    value += 1;
+
+    // Set the entry via `Entry::set`
     {
         let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
         let mut entry = data.map2.entry(&slot).unwrap();
 
-        entry.set(&value).unwrap();
+        entry.set(&value);
     }
 
+    // Check that the entry has the value
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let opt = data.map2.try_get(&slot).unwrap();
+        assert_eq!(opt, Some(value));
+    }
+
+    value += 1;
+
+    // Set the entry via `Entry::get_mut`
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut entry = data.map2.entry(&slot).unwrap_or_else(|e|
+            panic!("entry(): {}", e));
+
+        *entry.get_mut() = Some(value);
+    }
+
+    // Check that the entry has the value
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
         let opt = data.map2.try_get(&slot).unwrap();

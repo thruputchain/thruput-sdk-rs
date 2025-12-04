@@ -2,7 +2,7 @@ use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use super::store::*;
-use crate::delete;
+use crate::delete_shared;
 use crate::types::StorageKey;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -77,7 +77,7 @@ impl<K, V> Map<K, V> {
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete(&key)?;
+        delete_shared(&key)?;
 
         Ok(())
     }
@@ -93,7 +93,7 @@ impl<K, V> Map<K, V> {
         let keypath = &self.make_entry_keypath(entry_key);
         let value = LoadKeypath::try_load_keypath(keypath)?;
 
-        Ok(Entry { entry_key, value, map: self })
+        Ok(Entry { entry_key, value, map: self, dirty: false })
     }
 
     fn make_entry_keypath(&self, entry_key: &K) -> Keypath
@@ -123,6 +123,7 @@ where
     entry_key: &'k K,
     value: Option<V>,
     map: &'m mut Map<K, V>,
+    dirty: bool,
     // XXX: cache the keypath/storagekey (instead of the entry_key)?
 }
 
@@ -136,26 +137,38 @@ where
     }
 
     pub fn get_mut(&mut self) -> &mut Option<V> {
+        self.dirty = true;
+
         &mut self.value
     }
 
-    /// Store a new value into the entry.  This just
-    /// calls `set` on the `Map` containing this entry.
-    pub fn set(&mut self, value: &V) -> Result<()>
+    /// Set the entry to a new value.  The change
+    /// will be saved to the backing store when the
+    /// `Entry` is dropped.
+    pub fn set(&mut self, value: &V)
     where
-        K: WriteXDR,
-        V: Store,
+        V: Clone
     {
-        self.map.set(self.entry_key, value)
+        self.value = Some(value.clone());
+
+        self.dirty = true;
     }
 
     /// Store the current entry value back to its storage location
-    pub fn save(&mut self) -> Result<()>
-    {
-        if let Some(value) = self.value.as_ref() {
-            self.map.set(self.entry_key, value)
-        } else {
-            self.map.delete(self.entry_key)
+    /// if it could have changed since being loaded.  (This is
+    /// usually not necessary because it is called automatically
+    /// when the `Entry` is dropped.)
+    fn flush(&mut self) {
+        if self.dirty {
+            if let Some(value) = self.value.as_ref() {
+                self.map.set(self.entry_key, value).unwrap_or_else(|e|
+                    panic!("Failed flushing a Map::Entry to the store with Map::set(): {}", e));
+            } else {
+                self.map.delete(self.entry_key).unwrap_or_else(|e|
+                    panic!("Failed flushing a Map::Entry to the store with Map::delete(): {}", e));
+            }
+
+            self.dirty = false;
         }
     }
 }
@@ -166,6 +179,6 @@ where
     V: Store,
 {
     fn drop(&mut self) {
-        self.save().unwrap()
+        self.flush();
     }
 }
