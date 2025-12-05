@@ -1,4 +1,8 @@
 //! Datatypes backed by the key-value store.
+//!
+//! Note: Using lower-level syscall wrappers like `bytestring_set` can
+//! interfere with this module's use of the database, resulting in
+//! unexpected application errors.
 
 #[macro_use]
 mod macros;

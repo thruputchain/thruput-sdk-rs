@@ -18,16 +18,12 @@ compile_error!("Except when building a wasm, sdk feature \"std\" is required");
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
-//// Install an allocator that just panics
-// #[cfg(all(target_family = "wasm", not(feature = "alloc")))]
-// pub mod allocator_panic;
-
 #[cfg(all(feature = "dynamic_bufs", not(feature = "alloc")))]
+// We avoid silently turning on "alloc", which may not be desired
 compile_error!(
     "SDK feature \"dynamic_bufs\" requires liballoc, provided by
     SDK feature \"alloc\"."
 );
-// We avoid silently turning on "alloc", which may not be desired
 
 pub mod internal; // Public because used in contract macros
 

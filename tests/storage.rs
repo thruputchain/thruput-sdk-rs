@@ -1,3 +1,5 @@
+//! Test "storage" datatypes: keypaths, handles, vectors and maps
+
 use sdk::Storage;
 use sdk::contract_test;
 use sdk::storage::*;
