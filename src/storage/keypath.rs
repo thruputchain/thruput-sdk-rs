@@ -58,21 +58,28 @@ impl Keypath {
 
         #[cfg(feature = "short_storage_keys")]
         {
-            // If the keypath contents already fit into a StorageKey,
-            // use them directly instead of hashing.
-
             let len = path_bytes.len();
-            if len <= 32 {
-                let mut key_array = [0; 32];
-                key_array.as_mut_slice()[0..len].clone_from_slice(path_bytes);
-                return key_array.into()
+
+            // If the keypath contents (plus a length byte) already fit into a StorageKey, use them
+            // directly instead of hashing.
+            if len < 32 {
+                // Start with known contents, as all 32 bytes are part of the key
+                let mut key_array = [0xff; 32];
+
+                // Overwrite the first byte with the length of the path
+                key_array[0] = len as u8;
+
+                // After that, overwrite with the path bytes themselves
+                key_array.as_mut_slice()[1..len+1].clone_from_slice(path_bytes);
+
+                return key_array.into();
             }
         }
 
         sha_256(path_bytes).unwrap().into()
     }
 
-    fn push_bytes(&mut self, slice: &[u8]) {
+    pub fn push_bytes(&mut self, slice: &[u8]) {
         self.path.push(KeypathComponent::Bytes(Vec::from(slice)))
     }
 

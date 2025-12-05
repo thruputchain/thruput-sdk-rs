@@ -12,6 +12,42 @@ struct Data {
     map2: Map<u32, i32>,
 }
 
+contract_test!(test_corner_case_paths {
+    use hex_literal::hex;
+
+    { // 0 bytes
+        let path = Keypath::new();
+        let key = path.generate_key();
+        assert_eq!(&*key, &hex!("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+    }
+    { // 1 byte
+        let mut path = Keypath::new();
+        path.push_bytes(b"@");
+        let key = path.generate_key();
+        assert_eq!(&*key, &hex!("0140ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+    }
+    { // 31 bytes
+        let mut path = Keypath::new();
+        path.push_bytes(b"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        let key = path.generate_key();
+        assert_eq!(&*key, &hex!("1f40404040404040404040404040404040404040404040404040404040404040"));
+    }
+    {
+        let mut path = Keypath::new();
+        // 32 bytes
+        path.push_bytes(b"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        let key = path.generate_key();
+        assert_eq!(&*key, &hex!("92b7eb5290d8d6e3ac79215cb4bdb07fe89629ee720be4332b3daa842b7ec80a"));
+    }
+    {
+        let mut path = Keypath::new();
+        // 33 bytes
+        path.push_bytes(b"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        let key = path.generate_key();
+        assert_eq!(&*key, &hex!("fa80cb94fa63bcef8ef2076d2f754cc374927fb02e2316174494e013325560bd"));
+    }
+});
+
 contract_test!(test_map {
     let data_keypath = Keypath::new();
     {
