@@ -7,12 +7,6 @@ contract_test!(test_bytestring {
     let key = StorageKey::default();
     let key = &key;
 
-    // Deleting a previously-unstored location is okay
-    // assert!(matches!(delete_shared(key), Ok(())));
-    //
-    // XXX: test corrected semantics once "previously-unstored"
-    // gets unified with "deleted".
-
     // Getting a previously-unset location gives a not-exist error (or None)
     assert!(matches!(bytestring_get(key), Err(e) if e.is_storage_key_not_exist()));
     assert!(matches!(bytestring_try_get(key), Ok(None)));
