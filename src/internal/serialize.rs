@@ -73,7 +73,6 @@ mod get_encode_buf_impl {
 #[cfg(all(not(feature = "dynamic_bufs"), not(feature = "mock")))]
 mod get_encode_buf_impl {
     // This strategy uses a dedicated buffer with static storage.
-    // It ignores the size hint.
     //
     // A handle to this buffer is returned on each call to `get_encode_buf`.
     // Calling the function again before dropping the previous handle will result in a panic.

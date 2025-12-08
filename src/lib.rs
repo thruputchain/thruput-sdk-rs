@@ -27,9 +27,9 @@ compile_error!(
 
 pub mod internal; // Public because used in contract macros
 
-// Syscall wrappers
 pub mod bytestring;
 pub mod contract_op;
+pub mod contract_result;
 pub mod crypto;
 pub mod delete;
 pub mod deploy;
@@ -40,6 +40,7 @@ pub mod invoke;
 pub mod invoke_config;
 mod invoke_encode; // TODO: make this a sub-module of invoke
 pub mod invoke_error;
+pub mod key;
 pub mod log;
 pub mod non_negative_int;
 pub mod precompiles;
@@ -47,21 +48,20 @@ pub mod retrocausal_queue;
 pub mod rt;
 pub mod serialize;
 pub mod stats;
+pub mod sysresult;
 pub mod types;
 
-pub mod contract_result;
-pub mod sysresult;
-
-// Direct exports
-
+// Re-exports
 pub use bytestring::*;
 pub use contract_op::*;
+pub use crypto::*;
 pub use delete::*;
 pub use deploy::*;
 pub use event::*;
 pub use hash::*;
 pub use hex::*;
 pub use invoke::*;
+pub use key::*;
 pub use log::*;
 pub use non_negative_int::*;
 pub use retrocausal_queue::*;

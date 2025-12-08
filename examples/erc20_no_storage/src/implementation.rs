@@ -8,27 +8,44 @@
 use crate::interface::*;
 use sdk::*;
 
-// Compute keys for storing things
+#[derive(WriteXDR)]
+#[repr(i32)]
+enum KeyKind {
+    Owner,
+    TotalSupply,
+    Allowance,
+    // Balance,
+}
 
 fn get_owner_key() -> StorageKey {
-    b"owner".hash().into()
+    KeyKind::Owner.as_key::<1>()
 }
 
 fn get_total_supply_key() -> StorageKey {
-    b"total_supply".hash().into()
+    KeyKind::TotalSupply.as_key::<1>()
 }
 
 fn get_balance_key(addr: &ContractAddress) -> StorageKey {
-    (b"balance", addr).hash().into()
+    addr.clone().into()
+
+    // Note: This would be the natural way to construct the key:
+    //
+    //   ((KeyKind::Balance, addr)).as_key::<33>()
+    //
+    // But because this is the only pure-contract-address datum,
+    // we'll use it directly.
 }
 
 fn get_allowance_key(
     owner: &ContractAddress,
     spender: &ContractAddress,
 ) -> StorageKey {
-    debug_assert!(owner != spender, "no allowance needed on spending self");
+    debug_assert!(
+        owner != spender,
+        "no allowance needed when spending from self"
+    );
 
-    (b"allowance", owner, spender).hash().into()
+    ((KeyKind::Allowance, owner, spender)).as_key::<65>()
 }
 
 // Read/write permanent state
