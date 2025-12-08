@@ -219,6 +219,10 @@ native_test_contract() {
         features="$features,sdk/logging"
     fi
 
+    if bool_true "${TRUNC:-}"; then
+        features="$features,erc20-native-test/trunc"
+    fi
+
     cargo_native test \
         --package "$package" \
         --features $features \

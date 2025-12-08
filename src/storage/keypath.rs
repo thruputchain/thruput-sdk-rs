@@ -56,12 +56,13 @@ impl Keypath {
         let path_bytes = self.flattened();
         let path_bytes = path_bytes.as_slice();
 
-        #[cfg(feature = "short_storage_keys")]
+        // XXX #[cfg(feature = "short_storage_keys")]
+        //
+        // If the keypath contents (plus a length byte) already fit into a StorageKey, use them
+        // directly instead of hashing.
         {
             let len = path_bytes.len();
 
-            // If the keypath contents (plus a length byte) already fit into a StorageKey, use them
-            // directly instead of hashing.
             if len < 32 {
                 // Start with known contents, as all 32 bytes are part of the key
                 let mut key_array = [0xff; 32];

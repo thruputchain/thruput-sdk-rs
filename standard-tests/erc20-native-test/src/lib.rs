@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub use erc20_test::*;
 use groundhog_erc20_if::*;
 
@@ -39,6 +41,9 @@ pub fn test_erc20_contract(
     let res = handler.root_invoke();
     assert_eq!(res.result.panic, sdk::InvokeErrorCode::kInvokeNone as i32);
 
+    #[cfg(not(feature = "trunc"))]
+    {
+
     assert!(handler.try_commit_transaction());
 
     let event_log = handler.get_event_logs().unwrap();
@@ -55,4 +60,6 @@ pub fn test_erc20_contract(
 
     // Check that the event log matches the model
     m.check_events(events);
+
+    }
 }

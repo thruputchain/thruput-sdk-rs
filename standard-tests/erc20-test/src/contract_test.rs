@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::model::Model;
 use groundhog_erc20_if::*;
 use sdk::*;
@@ -50,6 +52,9 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
     let amt = 100;
     client.mint(&owner, amt)?;
     m.mint(&owner, amt);
+
+    #[cfg(not(feature = "trunc"))]
+    {
 
     // Burn
     let amt = 50;
@@ -106,6 +111,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
 
     // Check client state against the model
     m.check(client);
+    }
 
     Ok(m)
 }
