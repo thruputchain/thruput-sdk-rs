@@ -51,8 +51,9 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 ///
 /// Creates the bytestring item if the location is empty.
 /// Returns [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
-/// If another contract instance running in parallel sets the bytestring
-/// to the same value, both writes will be allowed.
+///
+/// If another contract invocation running in parallel sets the bytestring
+/// to the same value, this will not cause either contract invocation to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(key, slice /*, 0 */)?;
@@ -65,8 +66,9 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 ///
 /// Creates the bytestring item if the location is empty.
 /// Returns [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
-/// If another contract instance running in parallel sets the bytestring
-/// to the same value, the contract instance that writes last will be aborted.
+///
+/// If other contract invocations running in parallel set the bytestring
+/// to the same value, only one contract invocation can succeed.
 ///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(

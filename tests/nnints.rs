@@ -52,6 +52,11 @@ contract_test!(test_nnints {
     n = 0;
     assert_eq!(non_negative_int_get(key), Ok(n));
 
+    // We can delete the location and then set again
+    n = 0;
+    delete_shared(key).unwrap();
+    non_negative_int_set(key, n).unwrap();
+
     // We can set the conditions for an overflow without failure ...
     n = i128::MAX;
     let inc = 5;
