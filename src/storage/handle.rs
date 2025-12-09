@@ -74,8 +74,9 @@ impl<T> Handle<T> {
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        Ok(self.try_get()?.unwrap_or_else(||
-            DefaultFromKeypath::default_from_keypath(self.keypath())))
+        Ok(self.try_get()?.unwrap_or_else(|| {
+            DefaultFromKeypath::default_from_keypath(self.keypath())
+        }))
     }
 
     pub(crate) fn set(&mut self, val: &T) -> Result<()>
@@ -118,7 +119,10 @@ mod refs {
 
     impl<'a, T> HandleRef<'a, T> {
         pub fn new(_handle: &'a Handle<T>, val: T) -> Self {
-            Self { handle: PhantomData, val }
+            Self {
+                handle: PhantomData,
+                val,
+            }
         }
     }
 

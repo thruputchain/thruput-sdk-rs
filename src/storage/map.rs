@@ -139,7 +139,12 @@ where
     K: WriteXDR,
     V: Store,
 {
-    pub fn new(_map: &'m Map<K, V>, entry_key: &'k K, value: Option<V>, keypath: Keypath) -> Self {
+    pub fn new(
+        _map: &'m Map<K, V>,
+        entry_key: &'k K,
+        value: Option<V>,
+        keypath: Keypath,
+    ) -> Self {
         Self {
             map: PhantomData,
             entry_key,
@@ -170,7 +175,7 @@ where
     /// Set the entry to a new value.
     pub fn set(&mut self, value: &V) -> Result<()>
     where
-        V: Clone
+        V: Clone,
     {
         let new_value = value.clone();
 
@@ -197,7 +202,7 @@ where
     /// when the `Entry` is dropped.)
     pub fn flush(&mut self) -> Result<()> {
         if !self.dirty {
-            return Ok(())
+            return Ok(());
         }
 
         let key = self.make_storage_key();
@@ -235,7 +240,8 @@ where
     V: Store,
 {
     fn drop(&mut self) {
-        self.flush().unwrap_or_else(|e|
-            panic!("Failed flushing a Map::Entry to the store: {}", e))
+        self.flush().unwrap_or_else(|e| {
+            panic!("Failed flushing a Map::Entry to the store: {}", e)
+        })
     }
 }
