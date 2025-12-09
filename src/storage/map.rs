@@ -90,10 +90,10 @@ impl<K, V> Map<K, V> {
         K: WriteXDR,
         V: LoadKeypath + Store,
     {
-        let keypath = &self.make_entry_keypath(entry_key);
-        let value = LoadKeypath::try_load_keypath(keypath)?;
+        let keypath = self.make_entry_keypath(entry_key);
+        let value = LoadKeypath::try_load_keypath(&keypath)?;
 
-        Ok(Entry { entry_key, value, map: self, dirty: false })
+        Ok(Entry::new(self, entry_key, value, keypath))
     }
 
     fn make_entry_keypath(&self, entry_key: &K) -> Keypath
@@ -120,56 +120,112 @@ where
     K: WriteXDR,
     V: Store,
 {
+    // A change to the implementation may require a reference to the map,
+    // so we keep this here to enforce the lifetime constraints:
+    map: PhantomData<&'m mut Map<K, V>>,
+
     entry_key: &'k K,
     value: Option<V>,
-    map: &'m mut Map<K, V>,
+    keypath: Keypath,
     dirty: bool,
-    // XXX: cache the keypath/storagekey (instead of the entry_key)?
 }
+
+// Note: If we omit the `entry_key` field (and give up the `key` method),
+// `Entry` could be replaced with `HandleRefMut`.  Or we could add a
+// separate method `Map::entry_handle(..) -> HandleRefMut<..>`.
 
 impl<'m, 'k, K, V> Entry<'m, 'k, K, V>
 where
     K: WriteXDR,
     V: Store,
 {
+    pub fn new(_map: &'m Map<K, V>, entry_key: &'k K, value: Option<V>, keypath: Keypath) -> Self {
+        Self {
+            map: PhantomData,
+            entry_key,
+            value,
+            keypath,
+            dirty: false,
+        }
+    }
+
+    /// Get a reference to the entry's key.
+    pub fn key(&self) -> &'k K {
+        self.entry_key
+    }
+
+    /// Get a reference to the entry value.
     pub fn get(&self) -> &Option<V> {
         &self.value
     }
 
+    /// Get a mutable reference to the entry value.  Changes will
+    /// be flushed to storage when this `Entry` is dropped.
     pub fn get_mut(&mut self) -> &mut Option<V> {
         self.dirty = true;
 
         &mut self.value
     }
 
-    /// Set the entry to a new value.  The change
-    /// will be saved to the backing store when the
-    /// `Entry` is dropped.
-    pub fn set(&mut self, value: &V)
+    /// Set the entry to a new value.
+    pub fn set(&mut self, value: &V) -> Result<()>
     where
         V: Clone
     {
-        self.value = Some(value.clone());
+        let new_value = value.clone();
 
+        self._set(Some(new_value))
+    }
+
+    /// Delete the entry.
+    pub fn delete(&mut self) -> Result<()> {
+        self._set(None)
+    }
+
+    fn _set(&mut self, value: Option<V>) -> Result<()> {
+        // Cache the new value
+        self.value = value;
         self.dirty = true;
+
+        // Store the now-current value
+        self.flush()
     }
 
     /// Store the current entry value back to its storage location
-    /// if it could have changed since being loaded.  (This is
-    /// usually not necessary because it is called automatically
+    /// if it could have changed since being loaded.  (It is usually
+    /// not necessary to call this because it is called automatically
     /// when the `Entry` is dropped.)
-    fn flush(&mut self) {
-        if self.dirty {
-            if let Some(value) = self.value.as_ref() {
-                self.map.set(self.entry_key, value).unwrap_or_else(|e|
-                    panic!("Failed flushing a Map::Entry to the store with Map::set(): {}", e));
-            } else {
-                self.map.delete(self.entry_key).unwrap_or_else(|e|
-                    panic!("Failed flushing a Map::Entry to the store with Map::delete(): {}", e));
-            }
+    pub fn flush(&mut self) -> Result<()> {
+        if !self.dirty {
+            return Ok(())
+        }
 
+        let key = self.make_storage_key();
+
+        // Store the current value
+        let res = if let Some(value) = &self.value {
+            value.store(&key)
+        } else {
+            delete_shared(&key).map_err(|e| e.into())
+        };
+
+        if res.is_ok() {
             self.dirty = false;
         }
+
+        res
+    }
+
+    // We could cache this (as well as the keypath), but we don't expect
+    // typical usage patterns to include multiple `set` calls for an entry.
+    // (We could also record the key constructed in `Map::entry()`, but there
+    // might not have been one because some objects can be loaded directly from
+    // a keypath.)
+    fn make_storage_key(&self) -> StorageKey
+    where
+        K: WriteXDR,
+    {
+        self.keypath.generate_key()
     }
 }
 
@@ -179,6 +235,7 @@ where
     V: Store,
 {
     fn drop(&mut self) {
-        self.flush();
+        self.flush().unwrap_or_else(|e|
+            panic!("Failed flushing a Map::Entry to the store: {}", e))
     }
 }

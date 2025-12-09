@@ -31,6 +31,11 @@ impl_default_via_keypath! { Handle<T> }
 impl_read_via_keypath! { Handle<T> }
 impl_write_xdr_empty! { Handle<T> }
 
+// TODO: Make better use of the keycache.  Currently we don't take the
+// opportunity to cache a StorageKey in the get operations (partly because a
+// storage key is not necessarily computed in `load_keypath`). This may require
+// adding a `load_keycache` method to the `LoadKeypath` trait.
+
 impl<T> Handle<T> {
     pub fn new(keypath: &Keypath) -> Self {
         Self {
@@ -95,7 +100,6 @@ impl<T> Handle<T> {
         let val = self.get_or_default()?;
         Ok(HandleRefMut::new(self, val))
     }
-
 }
 
 pub use refs::*;
@@ -131,6 +135,9 @@ mod refs {
         handle: &'a mut Handle<T>,
         val: T,
     }
+
+    // TODO: Add a dirty flag to avoid unnecessary stores.
+    // TODO: Store the value as `Option<T>` and add a `delete` operation.
 
     impl<'a, T: Store> HandleRefMut<'a, T> {
         pub fn new(handle: &'a mut Handle<T>, val: T) -> Self {

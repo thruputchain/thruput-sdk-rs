@@ -92,7 +92,7 @@ contract_test!(test_map_entry {
         let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
         let mut entry = data.map2.entry(&slot).unwrap();
 
-        entry.set(&value);
+        entry.set(&value).unwrap();
     }
 
     // Check that the entry has the value
