@@ -1,3 +1,6 @@
+//! A handle is a typed wrapper around a `Keypath`.  It is used as a
+//! typed reference to a storage location.
+
 use super::error::Result;
 use super::keypath::*;
 use super::load::*;
@@ -8,15 +11,17 @@ use core::marker::PhantomData;
 #[derive(Debug)]
 pub struct Handle<T> {
     key: KeyCache,
+
     // `Handle` is covariant in `T`
-    marker: PhantomData<fn() -> T>,
+    _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> From<Keypath> for Handle<T> {
     fn from(keypath: Keypath) -> Self {
         Self {
             key: KeyCache::from(keypath),
-            marker: PhantomData,
+
+            _marker: PhantomData,
         }
     }
 }
@@ -26,11 +31,17 @@ impl_default_via_keypath! { Handle<T> }
 impl_read_via_keypath! { Handle<T> }
 impl_write_xdr_empty! { Handle<T> }
 
+// TODO: Make better use of the keycache.  Currently we don't take the
+// opportunity to cache a StorageKey in the get operations (partly because a
+// storage key is not necessarily computed in `load_keypath`). This may require
+// adding a `load_keycache` method to the `LoadKeypath` trait.
+
 impl<T> Handle<T> {
     pub fn new(keypath: &Keypath) -> Self {
         Self {
             key: KeyCache::new(keypath),
-            marker: PhantomData,
+
+            _marker: PhantomData,
         }
     }
 
@@ -40,7 +51,7 @@ impl<T> Handle<T> {
         Self::from(root_keypath)
     }
 
-    fn keypath(&self) -> &Keypath {
+    pub fn keypath(&self) -> &Keypath {
         self.key.keypath()
     }
 
@@ -63,10 +74,9 @@ impl<T> Handle<T> {
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        let val = self.try_get()?.unwrap_or_else(|| {
+        Ok(self.try_get()?.unwrap_or_else(|| {
             DefaultFromKeypath::default_from_keypath(self.keypath())
-        });
-        Ok(val)
+        }))
     }
 
     pub(crate) fn set(&mut self, val: &T) -> Result<()>
@@ -109,8 +119,10 @@ mod refs {
 
     impl<'a, T> HandleRef<'a, T> {
         pub fn new(_handle: &'a Handle<T>, val: T) -> Self {
-            let handle = PhantomData;
-            Self { handle, val }
+            Self {
+                handle: PhantomData,
+                val,
+            }
         }
     }
 
@@ -127,6 +139,9 @@ mod refs {
         handle: &'a mut Handle<T>,
         val: T,
     }
+
+    // TODO: Add a dirty flag to avoid unnecessary stores.
+    // TODO: Store the value as `Option<T>` and add a `delete` operation.
 
     impl<'a, T: Store> HandleRefMut<'a, T> {
         pub fn new(handle: &'a mut Handle<T>, val: T) -> Self {
@@ -150,6 +165,7 @@ mod refs {
 
     impl<T: Store> Drop for HandleRefMut<'_, T> {
         fn drop(&mut self) {
+            // Store the current value back to the key-value store
             self.handle.set(&self.val).unwrap();
         }
     }

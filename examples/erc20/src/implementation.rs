@@ -32,9 +32,8 @@ impl TokenContract {
     // Balance stored at given owner address, or zero if empty
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Result<Amount> {
         let balance_cell = self.balances.get(owner)?;
-        let amount = balance_cell.try_get()?.unwrap_or(0) as Amount;
 
-        Ok(amount)
+        Ok(balance_cell.try_get()?.unwrap_or(0) as Amount)
     }
 
     // Adjust balance at given owner address, from zero if empty

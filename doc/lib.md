@@ -8,20 +8,20 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 - [`contract_op`]: Contract entrance/exit routines
 - [`crypto`]: Hash and sign
 - Key-value storage:
-    - [`delete`]
-    - [`bytestring`]
-    - [`non_negative_int`]
-    - [`retrocausal_queue`]
+    - [`mod@delete`]
+    - [`mod@bytestring`]
+    - [`mod@non_negative_int`]
+    - [`mod@retrocausal_queue`]
 - Low-level bindings:
     - [`SysErr`]: Error type for syscalls
-    - [`sys`]: Low-level wrappers
+    - [`mod@sys`]: Low-level wrappers
 
 Other things:
-- [`types`]: Types related to system facilities, like:
+- [`mod@types`]: Types related to system facilities, like:
     - [`ContractAddress`](ContractAddress)
     - [`StorageKey`](StorageKey)
     - [`PublicKey`](PublicKey)
-- [`sysresult`]
+- [`mod@sysresult`]
 
 # Allocation
 
