@@ -111,7 +111,3 @@ name = "events"
 
 [lints.clippy]
 collapsible_if = "allow"
-
-# XXX
-[patch.'ssh://git@github.com/groundhogchain/protocol-rs.git']
-groundhog_xdr = { path = "../protocol-rs/groundhog_xdr" }
