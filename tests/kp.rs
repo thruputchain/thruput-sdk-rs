@@ -18,63 +18,57 @@ fn sha256<T: AsRef<[u8]>>(buf: T) -> [u8; 32] {
     Sha256::digest(buf.as_ref()).into()
 }
 
-#[derive(Debug, Clone)]
-pub struct Keypath<'a> {
-    head: Step,
-    tail: Option<&'a Keypath<'a>>,
+// Keypath serialization
+
+#[derive(Debug, Error)]
+#[error("Capacity or XDR-encoding error")]
+enum SerializeFailure {
+    #[error("Capacity error")]
+    Capacity,
+
+    #[error("Encoding error: {0}")]
+    Encoding(#[from] xdrs::WriteError),
 }
 
-impl<'a> Display for Keypath<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(tail) = self.tail {
-            Display::fmt(tail, f)?;
-            f.write_str(" -> ")?;
-        }
+type SerializeResult = Result<(), SerializeFailure>;
 
-        Display::fmt(&self.head, f)?;
-
-        Ok(())
+impl From<u8> for SerializeFailure {
+    fn from(_: u8) -> Self {
+        Self::Capacity
     }
 }
+
+impl From<heapless::CapacityError> for SerializeFailure {
+    fn from(_: heapless::CapacityError) -> Self {
+        Self::Capacity
+    }
+}
+
+// Step: a component of a Keypath
 
 #[derive(Debug, Clone)]
 enum Step {
     Key(StorageKey),
     Bytes(StepBuf),
     Index(u64),
+    Nil,
 }
 
 impl<'a> Display for Step {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Key(key) => write!(f, "k:{}", 0u8 /* hex_encode(key) XXX */),
-            Self::Bytes(buf) => write!(f, "b<{}>:{}", buf.len(), hex_encode(buf)),
-            Self::Index(i) => write!(f, "i<{}>", i),
+            Self::Key(key) => write!(f, "k:{}", hex_encode(key)),
+            Self::Bytes(buf) => write!(f, "b:[{}]", hex_encode(buf)),
+            Self::Index(i) => write!(f, "i:{}", i),
+            Self::Nil => Ok(()),
         }
     }
 }
 
-#[derive(Debug, Error)]
-#[error("Capacity error serializing keypath")]
-struct SerializeFailure;
-
-type SerializeResult = Result<(), SerializeFailure>;
-
-impl From<u8> for SerializeFailure {
-    fn from(_: u8) -> Self { Self }
-}
-
-impl From<heapless::CapacityError> for SerializeFailure {
-    fn from(_: heapless::CapacityError) -> Self { Self }
-}
-
-impl From<xdrs::WriteError> for SerializeFailure {
-    fn from(_: xdrs::WriteError) -> Self { Self }
-}
-
 impl Step {
-    pub fn serialize(&self, dest: &mut PathBuf) -> SerializeResult {
+    pub fn serialize_into(&self, dest: &mut PathBuf) -> SerializeResult {
         match self {
+            Self::Nil => {},
             Self::Key(key) => {
                 dest.push(b'k')?;
 
@@ -98,46 +92,108 @@ impl Step {
     }
 }
 
+// Keypath //
+
+pub struct Keypath<'a> {
+    head: Step,
+    tail: Option<&'a Keypath<'a>>,
+}
+
+impl Default for Keypath<'_> {
+    fn default() -> Self { Keypath { head: Step::Nil, tail: None } }
+}
+
+impl From<StorageKey> for Keypath<'_> {
+    fn from(key: StorageKey) -> Self {
+        Keypath {
+            head: Step::Key(key),
+            tail: None,
+        }
+    }
+}
+
+impl<'a> Display for Keypath<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(tail) = self.tail {
+            Display::fmt(tail, f)?;
+            f.write_str(" / ")?;
+        }
+        Display::fmt(&self.head, f)
+    }
+}
+
 impl<'a> Keypath<'a> {
+    #[deprecated = "Use Keypath::new"]
     pub fn root() -> Self {
         Self::default()
     }
+
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        // sha256(self.flattened().as_slice()).into()
+        let buf = self.serialize();
 
-        let mut key = [0; 32];
-        let raw = self.flattened();
-        let len = raw.len().clamp(0, 32);
-        &key[0..len].copy_from_slice(&raw[0..len]);
-        key.into()
-    }
+        // If the serialized keypath (plus length byte) already fits in a
+        // StorageKey, then use that directly.
+        {
+            let len = buf.len();
+            if len <= 31 {
+                const SDK_STORAGE_KEY_DEFAULT: sdk::SHA256Hash = sdk::sha256_static!("SDK_STORAGE_KEY_DEFAULT");
 
-    fn serialize(&self, buf: &mut PathBuf) -> SerializeResult {
-        // XXX: write in order to avoid stack exhaustion
-        if let Some(tail) = self.tail {
-            tail.serialize(buf)?;
+                // Start with a known pattern
+                let mut key: [u8; 32] = SDK_STORAGE_KEY_DEFAULT.into_inner();
+
+                // Put the length into the first byte
+                key[0] = len as u8;
+
+                // Append the keypath contents
+                key[1..len+1].copy_from_slice(&buf[0..len]);
+
+                return key.into();
+            }
         }
 
-        self.head.serialize(buf)
+        sha256(buf).into()
     }
 
-    pub fn flattened(&self) -> PathBuf {
+    fn serialize_into(&self, buf: &mut PathBuf) -> SerializeResult {
+        self.head.serialize_into(buf)?;
+
+        if let Some(tail) = self.tail {
+            tail.serialize_into(buf)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn serialize(&self) -> PathBuf {
         let mut buf = Vec::new();
 
-        self.serialize(&mut buf).unwrap_or_else(|e|
+        self.serialize_into(&mut buf).unwrap_or_else(|e|
             panic!("{}", e));
 
         buf
     }
 
+    fn to_tail(&'a self) -> Option<&'a Keypath<'a>> {
+        if matches!(self.head, Step::Nil) {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
     fn with(&'a self, step: Step) -> Keypath<'a> {
-        let head = step;
-        let tail = Some(self);
-        Keypath { head, tail }
+        Keypath {
+            head: step,
+            tail: self.to_tail(),
+        }
+    }
+
+    pub fn with_index(&'a self, i: u64) -> Keypath<'a> {
+        self.with(Step::Index(i))
     }
 
     pub fn with_bytes(&'a self, slice: &[u8]) -> Keypath<'a> {
@@ -150,25 +206,12 @@ impl<'a> Keypath<'a> {
         self.with_bytes(encode(item).unwrap().as_slice())
     }
 
-    pub fn with_index(&'a self, i: u64) -> Keypath<'a> {
-        self.with(Step::Index(i))
+    pub fn with_key(&'a self, key: StorageKey) -> Keypath<'a> {
+        self.with(Step::Key(key))
     }
 }
 
-impl From<StorageKey> for Keypath<'_> {
-    fn from(key: StorageKey) -> Self {
-        let head = Step::Key(key);
-        let tail = None;
-
-        Keypath { head, tail }
-    }
-}
-
-impl Default for Keypath<'_> {
-    fn default() -> Self {
-        StorageKey::default().into()
-    }
-}
+// DefaultFromKeypath
 
 pub trait DefaultFromKeypath {
     fn default_from_keypath(keypath: &Keypath) -> Self;
@@ -191,17 +234,19 @@ mod test_keypath {
         { let $var:ident = $value:expr; } => {
             let $var = $value;
 
-            eprintln!("let {} = {{ {} }};\n{}\n",
+            eprintln!("let {} = {{ {} }};\n\
+                <{}> -> [{}]\n",
                 stringify!($var),
                 $var,
-                hex_encode(&$var.flattened()),
+                hex_encode(&$var.serialize()),
+                hex_encode(&$var.generate_key()),
                 );
         };
     }
 
     #[test]
     fn check_keypaths() {
-        show!{ let root = Keypath::root(); }
+        show!{ let root = Keypath::new(); }
 
         show!{ let dict = root.with_index(0); }
 
@@ -210,5 +255,9 @@ mod test_keypath {
         show!{ let vec = root.with_index(1); }
 
         show!{ let vec_23 = vec.with_index(23); }
+
+        show!{ let keyed = root.with_key(StorageKey::default()); }
+
+        show!{ let keyed_bar = keyed.with_bytes(b"bar"); }
     }
 }
