@@ -35,11 +35,11 @@ groundhog_xdr = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
 xdrs = { workspace = true }
+heapless = { workspace = true }
 
 # Optional dependencies
 native_exec = { workspace = true, optional = true }
 delegate = { workspace = true, optional = true }
-heapless = { workspace = true, optional = true }
 
 [build-dependencies]
 
@@ -73,12 +73,12 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 [features]
 default = []
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
-storage = ["dep:heapless", "dep:delegate", "macros/storage"]
+storage = ["alloc", "dep:delegate", "macros/storage"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]
 logging = ["macros/logging", "alloc"] # trace contract calls when testing
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
-panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
+panic_logging = [] # send panic messages to the log() syscall
 
 # Use resizable instead of static bufs for marshalling arguments and
 # return-data of cross-contract calls (not recommended unless the fixed-size

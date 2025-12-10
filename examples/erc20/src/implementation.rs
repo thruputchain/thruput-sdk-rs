@@ -12,7 +12,7 @@ type Allowance = NNInt;
 pub struct TokenContract {
     contract_owner: ContractAddress,
     balances: Map<ContractAddress, Balance>,
-    allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
+    allowances: Map<(ContractAddress, ContractAddress), Allowance>,
     total_supply: NNInt,
 }
 
@@ -56,10 +56,10 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Result<Amount> {
-        let owner_allowances = self.allowances.get(owner)?;
-        let spender_allowance = owner_allowances.get(spender)?;
+        let key = (*owner, *spender);
+        let allowance = self.allowances.get(&key)?;
 
-        Ok(spender_allowance.try_get()?.unwrap_or(0) as Amount)
+        Ok(allowance.try_get()?.unwrap_or(0) as Amount)
     }
 
     // Adjust allowance for owner and spender, from zero if empty.
@@ -70,11 +70,11 @@ impl TokenContract {
         spender: &ContractAddress,
         diff: Difference,
     ) -> Result<()> {
-        let owner_allowances = self.allowances.get(owner)?;
-        let mut spender_allowance = owner_allowances.get(spender)?;
+        let key = (*owner, *spender);
+        let mut allowance = self.allowances.get(&key)?;
 
         // This fails if the result would be negative
-        spender_allowance.checked_inc(diff)?;
+        allowance.checked_inc(diff)?;
 
         log_approval_event(owner, spender, diff)?;
 

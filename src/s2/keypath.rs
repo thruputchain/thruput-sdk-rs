@@ -1,22 +1,27 @@
-use sdk::types::StorageKey;
-use sdk::hex::*;
+use crate::types::StorageKey;
+use crate::hex::*;
+use crate::{sha256_array, crypto::sha256};
 use core::fmt::{self, Display, Debug};
 use xdrs::{WriteXDR, serialize_cxs::encode};
 use heapless::Vec;
 use thiserror::Error;
 
+/*
+// Key
+
+#[derive(Clone)]
+pub struct Key(KeyBuf);
+
+pub enum Key2 {
+    Path(PathBuf),
+    SK(StorageKey),
+}
+*/
+
 const PATH_BUF_SIZE: usize = 100;
 
-type PathBuf = Vec<u8, PATH_BUF_SIZE>;
-
-type StepBuf = Vec<u8, 256>;
-
-#[allow(unused)]
-fn sha256<T: AsRef<[u8]>>(buf: T) -> [u8; 32] {
-    use sha2::{Sha256, Digest};
-
-    Sha256::digest(buf.as_ref()).into()
-}
+pub type PathBuf = Vec<u8, PATH_BUF_SIZE>;
+pub type KeyBuf = Vec<u8, 32>;
 
 // Keypath serialization
 
@@ -45,6 +50,8 @@ impl From<heapless::CapacityError> for SerializeFailure {
 }
 
 // Step: a component of a Keypath
+
+type StepBuf = Vec<u8, 100>;
 
 #[derive(Debug, Clone)]
 enum Step {
@@ -140,10 +147,10 @@ impl<'a> Keypath<'a> {
         {
             let len = buf.len();
             if len <= 31 {
-                const SDK_STORAGE_KEY_DEFAULT: sdk::SHA256Hash = sdk::sha256_static!("SDK_STORAGE_KEY_DEFAULT");
+                const SDK_STORAGE_KEY_DEFAULT: [u8; 32] = sha256_array!("SDK_STORAGE_KEY_DEFAULT");
 
                 // Start with a known pattern
-                let mut key: [u8; 32] = SDK_STORAGE_KEY_DEFAULT.into_inner();
+                let mut key: [u8; 32] = SDK_STORAGE_KEY_DEFAULT;
 
                 // Put the length into the first byte
                 key[0] = len as u8;
@@ -227,14 +234,14 @@ where
 }
 
 #[cfg(test)]
-mod test_keypath {
+mod test_keypath2 {
     use super::*;
 
     macro_rules! show {
         { let $var:ident = $value:expr; } => {
             let $var = $value;
 
-            eprintln!("let {} = {{ {} }};\n\
+            std::eprintln!("let {} = {{ {} }};\n\
                 <{}> -> [{}]\n",
                 stringify!($var),
                 $var,
