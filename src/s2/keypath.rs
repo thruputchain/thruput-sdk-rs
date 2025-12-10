@@ -6,28 +6,73 @@ use xdrs::{WriteXDR, serialize_cxs::encode};
 use heapless::Vec;
 use thiserror::Error;
 
-/*
 // Key
 
-#[derive(Clone)]
-pub struct Key(KeyBuf);
-
-pub enum Key2 {
-    Path(PathBuf),
-    SK(StorageKey),
+pub enum Key {
+    Preimage(PathBuf),
+    Final(StorageKey),
 }
-*/
 
-const PATH_BUF_SIZE: usize = 100;
+pub type PathBuf = Vec<u8, 31>;
 
-pub type PathBuf = Vec<u8, PATH_BUF_SIZE>;
-pub type KeyBuf = Vec<u8, 32>;
+impl<'a> Display for Key {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Preimage(buf) => write!(f, "{{{}}}", hex_encode(buf)),
+            Self::Final(sk) => write!(f, "[{}]", hex_encode(sk)),
+        }
+    }
+}
+
+impl Key {
+    pub fn make_storage_key(&self) -> StorageKey {
+        match self {
+            Key::Preimage(buf) => {
+                let len = buf.len();
+                let mut key = [0; 32];
+                key[0] = len as u8;
+                key[1..len].copy_from_slice(buf.as_slice());
+                key.into()
+            },
+            Key::Final(sk) => sk.clone()
+        }
+    }
+
+    pub fn serialize_into(&self, dest: &mut SerializeBuf) -> SerializeResult {
+        match self {
+            Key::Preimage(buf) => {
+                dest.push(b'p')?;
+                dest.push(buf.len() as u8)?;
+                dest.extend_from_slice(buf.as_slice())?;
+            },
+            Key::Final(sk) => {
+                dest.push(b'k')?;
+                dest.extend_from_slice(sk.as_ref())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl From<StorageKey> for Key {
+    fn from(sk: StorageKey) -> Self {
+        Self::Final(sk)
+    }
+}
+
+impl From<PathBuf> for Key {
+    fn from(buf: PathBuf) -> Self {
+        Self::Preimage(buf)
+    }
+}
 
 // Keypath serialization
 
+pub type SerializeBuf = Vec<u8, 100>;
+
 #[derive(Debug, Error)]
 #[error("Capacity or XDR-encoding error")]
-enum SerializeFailure {
+pub enum SerializeFailure {
     #[error("Capacity error")]
     Capacity,
 
@@ -35,7 +80,7 @@ enum SerializeFailure {
     Encoding(#[from] xdrs::WriteError),
 }
 
-type SerializeResult = Result<(), SerializeFailure>;
+pub type SerializeResult = Result<(), SerializeFailure>;
 
 impl From<u8> for SerializeFailure {
     fn from(_: u8) -> Self {
@@ -53,9 +98,8 @@ impl From<heapless::CapacityError> for SerializeFailure {
 
 type StepBuf = Vec<u8, 100>;
 
-#[derive(Debug, Clone)]
 enum Step {
-    Key(StorageKey),
+    Key(Key),
     Bytes(StepBuf),
     Index(u64),
     Nil,
@@ -64,7 +108,7 @@ enum Step {
 impl<'a> Display for Step {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Key(key) => write!(f, "k:{}", hex_encode(key)),
+            Self::Key(key) => write!(f, "k:{}", key),
             Self::Bytes(buf) => write!(f, "b:[{}]", hex_encode(buf)),
             Self::Index(i) => write!(f, "i:{}", i),
             Self::Nil => Ok(()),
@@ -73,13 +117,11 @@ impl<'a> Display for Step {
 }
 
 impl Step {
-    pub fn serialize_into(&self, dest: &mut PathBuf) -> SerializeResult {
+    pub fn serialize_into(&self, dest: &mut SerializeBuf) -> SerializeResult {
         match self {
             Self::Nil => {},
             Self::Key(key) => {
-                dest.push(b'k')?;
-
-                dest.extend_from_slice(key.as_ref())?;
+                key.serialize_into(dest)?;
             }
             Self::Bytes(buf) => {
                 dest.push(b'b')?;
@@ -110,8 +152,8 @@ impl Default for Keypath<'_> {
     fn default() -> Self { Keypath { head: Step::Nil, tail: None } }
 }
 
-impl From<StorageKey> for Keypath<'_> {
-    fn from(key: StorageKey) -> Self {
+impl From<Key> for Keypath<'_> {
+    fn from(key: Key) -> Self {
         Keypath {
             head: Step::Key(key),
             tail: None,
@@ -165,7 +207,7 @@ impl<'a> Keypath<'a> {
         sha256(buf).into()
     }
 
-    fn serialize_into(&self, buf: &mut PathBuf) -> SerializeResult {
+    fn serialize_into(&self, buf: &mut SerializeBuf) -> SerializeResult {
         self.head.serialize_into(buf)?;
 
         if let Some(tail) = self.tail {
@@ -175,7 +217,7 @@ impl<'a> Keypath<'a> {
         Ok(())
     }
 
-    pub fn serialize(&self) -> PathBuf {
+    pub fn serialize(&self) -> SerializeBuf {
         let mut buf = Vec::new();
 
         self.serialize_into(&mut buf).unwrap_or_else(|e|
@@ -213,25 +255,11 @@ impl<'a> Keypath<'a> {
         self.with_bytes(encode(item).unwrap().as_slice())
     }
 
-    pub fn with_key(&'a self, key: StorageKey) -> Keypath<'a> {
+    pub fn with_key(&'a self, key: Key) -> Keypath<'a> {
         self.with(Step::Key(key))
     }
 }
 
-// DefaultFromKeypath
-
-pub trait DefaultFromKeypath {
-    fn default_from_keypath(keypath: &Keypath) -> Self;
-}
-
-impl<T> DefaultFromKeypath for T
-where
-    T: Default,
-{
-    fn default_from_keypath(_: &Keypath) -> Self {
-        Default::default()
-    }
-}
 
 #[cfg(test)]
 mod test_keypath2 {
@@ -263,8 +291,10 @@ mod test_keypath2 {
 
         show!{ let vec_23 = vec.with_index(23); }
 
-        show!{ let keyed = root.with_key(StorageKey::default()); }
+        show!{ let keyed = root.with_key(StorageKey::default().into()); }
 
         show!{ let keyed_bar = keyed.with_bytes(b"bar"); }
+
+        show!{ let path_keyed = root.with_key(PathBuf::from([1, 2, 3, 4]).into()); }
     }
 }
