@@ -14,8 +14,8 @@ contract_test!(test_bytestring {
     // Deleting any location is okay
     assert!(matches!(delete_shared(key), Ok(())));
 
-    // Getting a deleted location gives "invalid input" (XXX)
-    assert!(matches!(bytestring_get(key), Err(e) if e.is_invalid_input()));
+    // Getting a deleted location gives "not exist"
+    assert!(matches!(bytestring_get(key), Err(e) if e.is_storage_key_not_exist()));
 
     // Getting a location holding an nnint gives "invalid input"
     assert!(matches!(non_negative_int_set(key, 47), Ok(())));
@@ -28,4 +28,3 @@ contract_test!(test_bytestring {
     assert!(matches!(delete_shared(key), Ok(())));
     assert!(matches!(bytestring_set(key, b"hello"), Ok(())));
 });
-

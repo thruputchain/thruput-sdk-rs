@@ -1,11 +1,8 @@
 pub use erc20_test::*;
-use groundhog_erc20_if::*;
 
-use sdk::EmittedEvent;
 use sdk::TestEnvironmentHandle;
 use sdk::contract_test::deploy_address;
 use sdk::types::Contract;
-use sdk::types::event::TxEmittedEvent;
 
 pub fn test_erc20_contract(
     env: &TestEnvironmentHandle,
@@ -41,18 +38,31 @@ pub fn test_erc20_contract(
 
     assert!(handler.try_commit_transaction());
 
-    let event_log = handler.get_event_logs().unwrap();
-    let events: &[TxEmittedEvent] = event_log.events.as_ref();
+    let event_log = handler.get_event_logs();
 
     // Print out the transaction's event log
-    for (i, event) in events.iter().enumerate() {
-        let event: EmittedEvent = event.into();
-        let event: ERC20Event = event.try_into().unwrap();
-        eprintln!("\tevent {:?}: {}", i, event);
+    {
+        use groundhog_erc20_if::*;
+        use sdk::EmittedEvent;
+
+        if let Some(ref log) = event_log {
+            for (i, event) in log.events.iter().enumerate() {
+                let event: EmittedEvent = event.into();
+                let event: ERC20Event = event.try_into().unwrap();
+                eprintln!("\tevent {:?}: {}", i, event);
+            }
+        }
     }
 
-    let m = model.lock().unwrap().clone().unwrap();
-
     // Check that the event log matches the model
-    m.check_events(events);
+    {
+        let m = model.lock().unwrap().clone().unwrap();
+
+        if let Some(ref log) = event_log {
+            m.check_events(&log.events);
+        } else {
+            let no_events = [];
+            m.check_events(&no_events);
+        }
+    }
 }

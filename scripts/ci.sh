@@ -27,10 +27,12 @@ make test
 make doc
 
 make examples build
-make examples test
+make examples native-test
+make examples bottle-test
 
 make integration_test_contracts build
-make integration_test_contracts test
+make integration_test_contracts native-test
+make integration_test_contracts bottle-test
 
 make test-spec
 
