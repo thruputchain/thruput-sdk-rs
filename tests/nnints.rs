@@ -11,7 +11,7 @@ contract_test!(test_nnints {
     // value stored there:
     let mut n = 0;
 
-    // Getting a previously-unset location gives an error
+    // Getting a previously-unset location gives not-exist
     assert!(matches!(non_negative_int_get(key), Err(e) if e.is_storage_key_not_exist()));
 
     // Incrementing a previously-unset location succeeds
@@ -55,6 +55,7 @@ contract_test!(test_nnints {
     // We can delete the location and then set again
     n = 0;
     delete_shared(key).unwrap();
+    assert!(matches!(non_negative_int_get(key), Err(e) if e.is_storage_key_not_exist()));
     non_negative_int_set(key, n).unwrap();
 
     // We can set the conditions for an overflow without failure ...
