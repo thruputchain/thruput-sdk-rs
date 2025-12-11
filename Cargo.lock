@@ -57,6 +57,7 @@ name = "bottle-test"
 version = "0.1.0"
 dependencies = [
  "bottle-test-if",
+ "groundhog-erc20-if",
  "sdk",
 ]
 

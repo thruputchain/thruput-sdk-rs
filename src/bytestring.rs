@@ -46,13 +46,12 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
     Ok(out as u32)
 }
 
-/// Sets the contents of the bytestring at the given key.
-/// (**TODO**: Check semantics)
+/// Sets the value at the given key to the given bytestring.
 ///
-/// Creates the bytestring item if the location is empty.
-/// Returns [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
-/// If another contract instance running in parallel sets the bytestring
-/// to the same value, both writes will be allowed.
+/// This succeeds even if a value of another type was at the location.
+///
+/// If another contract invocation running in parallel sets the location to the same bytestring,
+/// this will not cause either contract invocation to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(key, slice /*, 0 */)?;
@@ -60,13 +59,12 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 }
 
 /*
-/// Sets the contents of the bytestring at the given key.
-/// (**TODO**: Check semantics)
+/// Sets the value at the given key to the given bytestring.
 ///
-/// Creates the bytestring item if the location is empty.
-/// Returns [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
-/// If another contract instance running in parallel sets the bytestring
-/// to the same value, the contract instance that writes last will be aborted.
+/// This succeeds even if a value of another type was at the location.
+///
+/// If other contract invocations running in parallel set the bytestring
+/// to the same value, only one such contract invocation can succeed.
 ///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
@@ -81,7 +79,8 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
 ///
 /// Returns `None` if the bytestring has the wrong length.
 /// Returns an error in the same situations as [`bytestring_get`].
-/// Beware that large bytestrings may overflow your execution stack.
+///
+/// (Beware that large bytestrings may overflow your execution stack.)
 ///
 pub fn bytestring_get_sized<const N: usize>(
     key: &StorageKey,
@@ -115,6 +114,7 @@ mod bytestring_get_alloc {
     ///
     /// Returns [`SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist`] if there is none,
     /// or [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an item of another type is there.
+    ///
     /// This routine requires feature `alloc`.
     ///
     pub fn bytestring_get(key: &StorageKey) -> Result<Box<[u8]>> {
@@ -131,6 +131,8 @@ mod bytestring_get_alloc {
         Ok(unsafe { vec.assume_init() })
     }
 
+    /// Like `bytestring_get`, but returns `None` (instead of an error) when no value is stored at
+    /// the location.
     pub fn bytestring_try_get(key: &StorageKey) -> Result<Option<Box<[u8]>>> {
         let len = match super::bytestring_get_len(key) {
             Ok(len) => len,

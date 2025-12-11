@@ -17,11 +17,11 @@ pub fn delete_exclusive(key: &StorageKey) -> Result<()> {
     sys::raw_DeleteObject(key, flags as i32)
 }
 
-/// Delete anything stored at the given key
+/// Delete anything stored at the given key.
 ///
-/// Succeeds no matter what type of item is stored there, or if none
-/// is. After calling this function for a particular key, an item of
-/// any type may be stored there.
+/// Succeeds no matter what type of item is stored there, or if none is. After
+/// calling this function for a particular key, the storage location behaves as
+/// if it had never been set.  An item of any type may then be stored there.
 pub fn delete(key: &StorageKey, exclusive: bool) -> Result<()> {
     if exclusive {
         delete_exclusive(key)

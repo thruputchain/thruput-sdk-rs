@@ -16,6 +16,8 @@ impl BottleTest for BT {
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let target_addr = erc20_test_setup(target_contract_hash).unwrap();
 
+        log(target_addr.as_ref()).unwrap();
+
         self.target_addr = Some(target_addr);
     }
 
