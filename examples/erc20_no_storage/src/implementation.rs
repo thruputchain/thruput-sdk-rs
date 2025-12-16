@@ -10,30 +10,37 @@ use sdk::*;
 
 #[derive(WriteXDR)]
 #[repr(i32)]
-enum KeyKind {
+enum Key<'a> {
     Owner,
     TotalSupply,
-    Allowance,
-    // Balance,
+    Allowance {
+        owner: &'a ContractAddress,
+        spender: &'a ContractAddress,
+    },
 }
 
 fn get_owner_key() -> StorageKey {
-    KeyKind::Owner.as_key::<1>()
+    Key::Owner.as_key::<1>()
 }
 
 fn get_total_supply_key() -> StorageKey {
-    KeyKind::TotalSupply.as_key::<1>()
+    Key::TotalSupply.as_key::<1>()
 }
 
 fn get_balance_key(addr: &ContractAddress) -> StorageKey {
-    addr.clone().into()
+    // Note: The natural way to construct this key would be:
+    //
+    //   Key::Balance(addr).as_key::<33>()
+    //
+    // But because the contract address fits so nicely into a key,
+    // we'll use it directly (xor'ed with a distinguished pattern)
+    // to save a hash operation.
 
-    // Note: This would be the natural way to construct the key:
-    //
-    //   ((KeyKind::Balance, addr)).as_key::<33>()
-    //
-    // But because this is the only pure-contract-address datum,
-    // we'll use it directly.
+    let mut key = sdk::sha256_array!("balance").into();
+    let addr: &[u8; 32] = addr;
+
+    key ^= addr;
+    key
 }
 
 fn get_allowance_key(
@@ -45,7 +52,7 @@ fn get_allowance_key(
         "no allowance needed when spending from self"
     );
 
-    ((KeyKind::Allowance, owner, spender)).as_key::<65>()
+    Key::Allowance { owner, spender }.as_key::<65>()
 }
 
 // Read/write permanent state

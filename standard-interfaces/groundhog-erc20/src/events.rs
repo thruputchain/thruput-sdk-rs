@@ -21,7 +21,7 @@ use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
     ContractAddress, EmittedEvent, Event, Topic, TopicSrc, WriteResult,
-    WriteXDR, hex_encode, log_event, sysresult::Result, topic_hashed_from,
+    WriteXDR, hex_encode, log_event, sha256_array, sysresult::Result,
 };
 use xdrs::Writer;
 
@@ -64,7 +64,7 @@ impl<'a> WriteXDR for TransferEvent<'a> {
     }
 }
 
-pub const TRANSFER_EVENT_SIG: &Topic = &topic_hashed_from!("TransferEvent");
+pub const TRANSFER_EVENT_SIG: &Topic = &sha256_array!("TransferEvent");
 
 impl<'a> Event for TransferEvent<'a> {
     fn num_topics(&self) -> u32 {
@@ -187,7 +187,7 @@ impl<'a> ApprovalEvent<'a> {
     }
 }
 
-pub const APPROVAL_EVENT_SIG: &Topic = &topic_hashed_from!("ApprovalEvent");
+pub const APPROVAL_EVENT_SIG: &Topic = &sha256_array!("ApprovalEvent");
 
 impl<'a> Event for ApprovalEvent<'a> {
     fn num_topics(&self) -> u32 {

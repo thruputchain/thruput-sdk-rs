@@ -21,9 +21,8 @@ pub trait IntoKey: WriteXDR {
         let buf: MUBuf<MAX_ENCODED_SIZE> = encode_xdr_stack(self);
 
         if buf.len() <= 32 {
-            // Start with a known pattern (one that doesn't happen
-            // to be a valid ContractAddress)
-            let mut key = [0; 32];
+            // Start with a known pattern
+            let mut key = crate::sha256_array!("SDK_KEY");
 
             // Overwrite some prefix with the encoded data
             let key_contents = &mut key[..buf.len()];
