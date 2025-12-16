@@ -66,9 +66,9 @@ make() {
             cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
                 cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null
             ;;
-#        check)
-#            cargo check --features=mock "$@"
-#            ;;
+        rg)
+            rg -i --ignore-file .local_src_ignore "$@"
+            ;;
         todo | TODO)
             rg -i --ignore-file .local_src_ignore TODO
             ;;
