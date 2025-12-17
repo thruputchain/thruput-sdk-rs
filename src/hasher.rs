@@ -17,7 +17,7 @@ impl Hasher {
     /// Get a hasher.  Panics if more than `N_HASHERS` hashers are currently in use.
     pub fn new() -> Hasher {
         Hasher::try_new().unwrap_or_else(|| {
-            panic!("Hasher::new: no hashers are available");
+            panic!("Hasher::new: no more hashers are available");
         })
     }
 
