@@ -30,11 +30,15 @@ crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
+# Indigenous dependencies
 macros = { workspace = true }
 groundhog_xdr = { workspace = true }
+xdrs = { workspace = true }
+
+# External dependencies
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
-xdrs = { workspace = true }
+bitset-core = { workspace = true }
 
 # Optional dependencies
 native_exec = { workspace = true, optional = true }
@@ -60,6 +64,7 @@ delegate = { version = "0.13.4" }
 native_exec = { path = "native_exec" }
 heapless = { version = "0.9.2" }
 hex-literal = "1.0.0"
+bitset-core = { version = "0.1.1" }
 
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20" }

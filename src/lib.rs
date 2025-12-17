@@ -29,12 +29,14 @@ pub mod internal; // Public because used in contract macros
 
 // Syscall wrappers
 pub mod bytestring;
+mod cell;
 pub mod contract_op;
 pub mod crypto;
 pub mod delete;
 pub mod deploy;
 pub mod event;
 pub mod hash;
+pub mod hasher;
 pub mod hex;
 pub mod invoke;
 pub mod invoke_config;
@@ -55,11 +57,13 @@ pub mod sysresult;
 // Direct exports
 
 pub use bytestring::*;
+pub use cell::*;
 pub use contract_op::*;
 pub use delete::*;
 pub use deploy::*;
 pub use event::*;
 pub use hash::*;
+pub use hasher::*;
 pub use hex::*;
 pub use invoke::*;
 pub use log::*;
