@@ -100,7 +100,7 @@ macro_rules! contract_test_env {
             }
 
             let commit_res = handler.try_commit_transaction();
-            assert!(commit_res);
+            assert_eq!(commit_res, groundhog_xdr::exec_result::ExecResult::ExecResultOK);
 
             fn post_hook(
                 $handler2: &mut native_exec::transaction_handler::TransactionHandler,

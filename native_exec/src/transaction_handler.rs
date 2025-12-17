@@ -133,7 +133,9 @@ impl TransactionHandler {
     /// This will abort the transaction if the root invocation failed.
     /// So it is safe to call either try_commit_transaction or abort_transaction
     /// after root_invoke, regardless of whether the root invocation succeeded or failed.
-    pub fn try_commit_transaction(&mut self) -> bool {
+    pub fn try_commit_transaction(
+        &mut self,
+    ) -> groundhog_xdr::exec_result::ExecResult {
         if !self.invoked {
             panic!(
                 "cannot try to commit a transaction that has not been invoked"
@@ -146,10 +148,16 @@ impl TransactionHandler {
         }
         self.committed = true;
         let res = unsafe { try_commit_transaction(self.handler) };
-        if res.panic != 0 {
-            panic!("try_commit_transaction failed: {}", res.panic);
+        if res.ffi_error_code != FFIErrorCode::None as u32 {
+            panic!(
+                "failed to try to commit transaction: {:?}",
+                res.ffi_error_code
+            );
         }
-        res.result_code == 1
+
+        let exec_result: groundhog_xdr::exec_result::ExecResult =
+            res.result_code.try_into().unwrap();
+        exec_result
     }
 
     /// Aborts the transaction.
