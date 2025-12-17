@@ -108,6 +108,7 @@ pub mod contract_test;
 #[cfg(feature = "mock")]
 pub use {
     groundhog_xdr::ffi_enums::*,
+    groundhog_xdr::exec_result::ExecResult,
     native_exec::{
         mock_contract::MockContract,
         test_environment::{TestEnvironment, TestEnvironmentHandle},
