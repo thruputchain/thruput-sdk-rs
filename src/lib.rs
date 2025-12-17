@@ -76,7 +76,7 @@ pub use types::*;
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
-pub use macros::{sha256_static, static_key, topic_hashed_from};
+pub use macros::{hash_to_array, sha256_static, static_key};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};

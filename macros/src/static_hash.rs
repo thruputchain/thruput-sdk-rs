@@ -19,11 +19,29 @@ pub fn sha256_static(input: syn::LitStr) -> TokenStream {
     })
 }
 
-pub fn topic_hashed_from(input: syn::LitStr) -> TokenStream {
-    let string = input.token().to_string();
-    let hash = Sha256::digest(string);
+pub fn sha256_array(input: syn::Lit) -> TokenStream {
+    let value = match lit_bytes(&input) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let hash = Sha256::digest(value);
 
     TokenStream::from(quote::quote! {
         [#(#hash),*]
     })
+}
+
+fn lit_bytes(lit: &syn::Lit) -> Result<Vec<u8>, TokenStream> {
+    use syn::*;
+
+    match lit {
+        Lit::Str(lit_str) => Ok(lit_str.value().as_bytes().into()),
+        Lit::ByteStr(lit_bstr) => Ok(lit_bstr.value()),
+        _ => Err(syn::Error::new(
+            lit.span(),
+            "Can't convert literal to bytestring",
+        )
+        .into_compile_error()
+        .into()),
+    }
 }
