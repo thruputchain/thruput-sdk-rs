@@ -2,33 +2,34 @@
 
 use sdk::*;
 
-contract_test!(test_hasher {
-    let mut hasher = Hasher::new();
+// This uses the sha2 module during macro expansion
+const EXPECTED: SHA256Hash = SHA256Hash::new(hash_to_array!(b"foobar"));
 
-    hasher.update(b"foo");
-    hasher.update(b"bar");
+contract_test!(test_hasher_simple {
+    let mut h = Hasher::new();
 
-    const EXPECTED: SHA256Hash = SHA256Hash::new(hash_to_array!(b"foobar"));
+    h.update(b"foo");
+    h.update(b"bar");
 
-    assert_eq!(hasher.finish(), EXPECTED);
+    assert_eq!(h.finish(), EXPECTED);
 });
 
 contract_test!(test_hasher_exhaustion {
-    let mut hashers = vec![];
+    // Allocate all the available hashers
+    {
+        let mut hashers = vec![];
 
-    for _ in 0..N_HASHERS {
-        let mut h = Hasher::new();
-        h.update(b"foobar");
-        hashers.push(h);
+        for _ in 0..N_HASHERS {
+            let mut h = Hasher::new();
+            h.update(b"foobar");
+            hashers.push(h);
+        }
+
+        // Check and consume the hashers
+        hashers.into_iter().for_each(|h| {
+            assert_eq!(h.finish(), EXPECTED);
+        });
     }
-
-    // Check and consume the hashers
-    hashers.into_iter().for_each(|mut h| {
-        const EXPECTED: SHA256Hash = SHA256Hash::new(hash_to_array!(b"foobar"));
-
-        assert_eq!(h.finish(), EXPECTED);
-    });
-
 
     // Check that we can allocate a new hasher after
     // the others have been dropped

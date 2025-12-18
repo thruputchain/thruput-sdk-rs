@@ -29,7 +29,6 @@ pub mod internal; // Public because used in contract macros
 
 // Syscall wrappers
 pub mod bytestring;
-mod cell;
 pub mod contract_op;
 pub mod crypto;
 pub mod delete;
@@ -53,6 +52,8 @@ pub mod types;
 
 pub mod contract_result;
 pub mod sysresult;
+
+mod cell;
 
 // Direct exports
 
