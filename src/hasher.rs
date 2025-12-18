@@ -8,14 +8,17 @@ pub const N_HASHERS: usize = 8;
 
 type HasherIndex = u8;
 
-/// An incremental hasher
+/// An incremental hasher, implemented by the VM.
 pub struct Hasher {
     index: HasherIndex,
     needs_reset: bool,
 }
 
 impl Hasher {
-    /// Get a hasher.  Panics if more than `N_HASHERS` hashers are currently in use.
+    /// Get a hasher.
+    ///
+    /// Panics if more than [`N_HASHERS`] hashers are currently in use.
+    ///
     pub fn new() -> Hasher {
         Hasher::try_new().unwrap_or_else(|| {
             panic!("Hasher::new: no more hashers are available");
@@ -37,13 +40,13 @@ impl Hasher {
     }
 
     /// Append data to the hasher input.
-    pub fn update(&mut self, input: &[u8]) {
+    pub fn update<I: AsRef<[u8]>>(&mut self, input: &I) {
         let index = self.index as u32;
         let reset = self.needs_reset;
 
         self.needs_reset = false;
 
-        crate::sys::raw_SHA256Update(index, input, reset)
+        crate::sys::raw_SHA256Update(index, input.as_ref(), reset)
             .unwrap_or_else(|e| panic!("SHA256Update: syscall failed: {}", e));
     }
 
@@ -58,6 +61,12 @@ impl Hasher {
 
         // SAFETY: The syscall succeeded, so the output has been initialized
         unsafe { output.assume_init() }
+    }
+}
+
+impl Default for Hasher {
+    fn default() -> Self {
+        Hasher::new()
     }
 }
 
@@ -121,99 +130,22 @@ fn slot_free(i: HasherIndex) -> bool {
     success
 }
 
-#[cfg(test)]
-mod hash_test {
-    use super::*;
+#[test]
+fn test_slots() {
+    use std::vec;
 
-    /*
-    use std::sync::Mutex;
-    static BOX: Mutex<u32> = Mutex::new(0);
+    let mut slots = vec![];
 
-    #[test]
-    fn test_mutex() {
-        let val = {
-            let mut v = BOX.lock().unwrap();
-            *v += 1;
-            *v
-        };
-        std::eprintln!("BOX: {}", val);
+    for _ in 0..N_HASHERS {
+        let slot = slot_alloc().expect("No slots available");
+        // eprintln!("ALLOC {}", slot);
+        slots.push(slot);
     }
 
-    #[test]
-    fn test_mutex2() {
-        let val = {
-            let mut v = BOX.lock().unwrap();
-            *v += 1;
-            *v
-        };
-        std::eprintln!("BOX: {}", val);
-    }
-    */
-
-    fn _test_slots() {
-        use std::eprintln;
-        use std::vec;
-
-        eprintln!("AVAILABLE: {:?}", BitFmt2(AVAILABLE.get()));
-
-        let mut slots = vec![];
-
-        for _ in 0..N_HASHERS/2 {
-            let slot = slot_alloc().expect("No slots available");
-            eprintln!("ALLOC {}", slot);
-            slots.push(slot);
+    for slot in slots.into_iter() {
+        if !slot_free(slot) {
+            panic!("Slot {} already freed", slot);
         }
-
-        eprintln!("ALLOCATED: {:?}", BitFmt2(AVAILABLE.get()));
-
-        for slot in slots.into_iter() {
-            if !slot_free(slot) {
-                panic!("Slot {} already freed", slot);
-            }
-            eprintln!("FREE {}", slot);
-        }
-
-        eprintln!("FREED: {:?}", BitFmt2(AVAILABLE.get()));
-    }
-
-    #[test]
-    fn test_slots_1() {
-        _test_slots();
-    }
-
-    #[test]
-    fn test_slots_2() {
-        _test_slots();
-    }
-
-    struct BitFmt2<T: ?Sized + BitSet>(T);
-
-    impl<T: ?Sized + BitSet> Debug for BitFmt2<T> {
-        fn fmt(&self, f: &mut Formatter) -> Result {
-            bitstring(&self.0, f)
-        }
-    }
-
-    fn bitstring<T: ?Sized + BitSet>(this: &T, f: &mut Formatter) -> Result {
-            const ALPHABET: [u8; 2] = [b'0', b'1'];
-            let mut buf = [0u8; 9];
-            let mut first = true;
-            buf[0] = b'_';
-            let mut i = 0;
-            while i < this.bit_len() {
-                    buf[1] = ALPHABET[this.bit_test(i + 0) as usize];
-                    buf[2] = ALPHABET[this.bit_test(i + 1) as usize];
-                    buf[3] = ALPHABET[this.bit_test(i + 2) as usize];
-                    buf[4] = ALPHABET[this.bit_test(i + 3) as usize];
-                    buf[5] = ALPHABET[this.bit_test(i + 4) as usize];
-                    buf[6] = ALPHABET[this.bit_test(i + 5) as usize];
-                    buf[7] = ALPHABET[this.bit_test(i + 6) as usize];
-                    buf[8] = ALPHABET[this.bit_test(i + 7) as usize];
-                    let s = unsafe { &*((&buf[first as usize..]) as *const _ as *const str) };
-                    f.write_str(s)?;
-                    i += 8;
-                    first = false;
-            }
-            Ok(())
+        // eprintln!("FREE {}", slot);
     }
 }

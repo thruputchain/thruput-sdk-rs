@@ -5,23 +5,15 @@ use sdk::*;
 // This uses the sha2 module during macro expansion
 const EXPECTED: SHA256Hash = SHA256Hash::new(hash_to_array!(b"foobar"));
 
-contract_test!(test_hasher_simple {
-    let mut h = Hasher::new();
-
-    h.update(b"foo");
-    h.update(b"bar");
-
-    assert_eq!(h.finish(), EXPECTED);
-});
-
-contract_test!(test_hasher_exhaustion {
+contract_test!(test_hasher {
     // Allocate all the available hashers
     {
         let mut hashers = vec![];
 
         for _ in 0..N_HASHERS {
             let mut h = Hasher::new();
-            h.update(b"foobar");
+            h.update(b"foo");
+            h.update(b"bar");
             hashers.push(h);
         }
 

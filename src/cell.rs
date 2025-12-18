@@ -1,5 +1,4 @@
-/*
-#[cfg(target_family = "wasm")]
+#[cfg(any(doc, target_family = "wasm"))]
 mod _impl {
     use core::ops::Deref;
 
@@ -25,16 +24,16 @@ mod _impl {
         }
     }
 }
-*/
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(not(any(doc, target_family = "wasm")))]
 mod _impl {
     use std::sync::Mutex;
 
     pub struct Cell<T: ?Sized>(Mutex<T>);
 
     impl<T> Cell<T>
-    where T: Copy
+    where
+        T: Copy,
     {
         pub const fn new(value: T) -> Self {
             Cell(Mutex::new(value))
