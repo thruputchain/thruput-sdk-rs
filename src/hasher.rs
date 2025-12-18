@@ -1,6 +1,4 @@
-use crate::Cell;
 use crate::SHA256Hash;
-use bitset_core::*;
 use core::fmt::*;
 
 /// The maximum number of hashers that can be in existence at once
@@ -85,9 +83,14 @@ impl Debug for Hasher {
 }
 
 ////////////////////////////////////////////////////////////
+use crate::cell::ContractCell;
+use crate::contract_local;
+use bitset_core::*;
 
 // A set of flags marking what hashers are available
-static AVAILABLE: Cell<u32> = Cell::new(0xffff_ffff);
+contract_local! {
+    static AVAILABLE: ContractCell<u32> = const { ContractCell::new(0xffff_ffff) };
+}
 
 fn slot_alloc() -> Option<HasherIndex> {
     let mut slot = None;

@@ -1,16 +1,32 @@
+// Test environment: just alias `core::cell::Cell`.
+// Statics will work if placed in `contract_local!{}`
+#[cfg(not(any(doc, target_family = "wasm")))]
+mod _impl {
+    pub use core::cell::Cell as ContractCell;
+}
+
+// Guest environment: wrap
 #[cfg(any(doc, target_family = "wasm"))]
 mod _impl {
+    // All we need to provide here is interior mutability. By also declaring
+    // our wrapper thread-safe, we can use it in a static.
+
     use core::ops::Deref;
 
-    /// A wrapper of a standard-library `Cell` for the SDK.
-    /// In addition to `Send`, it also implements `Sync`,
-    /// allowing it to be used in a static.
-    pub struct Cell<T: ?Sized>(core::cell::Cell<T>);
+    /// Note: For static storage that works for guests and for tests,
+    /// use, e.g.:
+    ///
+    ///     contract_local! {
+    ///         static VAR: ContractCell<u32> = const { ContractCell::new(0) };
+    ///     }
+    pub struct ContractCell<T: ?Sized>(core::cell::Cell<T>);
 
-    // SAFETY: We are single-threaded and don't get interrupted
-    unsafe impl<T: ?Sized> Sync for Cell<T> {}
+    // SAFETY: We are single-threaded and don't get interrupts
+    unsafe impl<T: ?Sized> Sync for ContractCell<T> {}
 
-    impl<T: ?Sized> Deref for Cell<T> {
+    // Override * to remove the `Cell` wrapper, leaving
+    // the `core::cell::Cell`
+    impl<T: ?Sized> Deref for ContractCell<T> {
         type Target = core::cell::Cell<T>;
 
         fn deref(&self) -> &Self::Target {
@@ -18,37 +34,9 @@ mod _impl {
         }
     }
 
-    impl<T> Cell<T> {
+    impl<T> ContractCell<T> {
         pub const fn new(value: T) -> Self {
             Self(core::cell::Cell::new(value))
-        }
-    }
-}
-
-#[cfg(not(any(doc, target_family = "wasm")))]
-mod _impl {
-    use std::sync::Mutex;
-
-    pub struct Cell<T: ?Sized>(Mutex<T>);
-
-    impl<T> Cell<T>
-    where
-        T: Copy,
-    {
-        pub const fn new(value: T) -> Self {
-            Cell(Mutex::new(value))
-        }
-
-        pub fn get(&self) -> T {
-            *self.0.lock().unwrap()
-        }
-
-        pub fn update(&self, f: impl FnOnce(T) -> T) {
-            let mut value = self.0.lock().unwrap();
-
-            let value_new = f(*value);
-
-            *value = value_new;
         }
     }
 }
