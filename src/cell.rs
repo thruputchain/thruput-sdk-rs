@@ -11,14 +11,22 @@ mod _impl {
     // All we need to provide here is interior mutability. By also declaring
     // our wrapper thread-safe, we can use it in a static.
 
-    use core::ops::Deref;
+    use crate::contract_local;
+    use core::ops::Deref; // for the docs
 
-    /// Note: For static storage that works for guests and for tests,
-    /// use, e.g.:
+    /// A wrapped [`core::cell::Cell`] that implements [`Sync`] so it can be used
+    /// in statics.  Methods of the inner `Cell` are available via this wrapper's [`Deref`]
+    /// implementation.  The wrapper adds no costs to `Cell`.
+    ///
+    /// Note: For static storage that works in the test environment,
+    /// use the [`contract_local!`] macro, e.g.:
     ///
     ///     contract_local! {
     ///         static VAR: ContractCell<u32> = const { ContractCell::new(0) };
     ///     }
+    ///
+    /// (This macro is a no-op in the guest environment.)
+    ///
     pub struct ContractCell<T: ?Sized>(core::cell::Cell<T>);
 
     // SAFETY: We are single-threaded and don't get interrupts

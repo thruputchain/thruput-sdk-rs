@@ -8,7 +8,7 @@ type HasherIndex = u8;
 
 /// An incremental hasher, implemented by the VM.
 ///
-/// This value is meaningful only in the current contract invocation,
+/// A value of this type is meaningful only in the current contract invocation,
 /// so it can't be stored.
 pub struct Hasher {
     index: HasherIndex,
