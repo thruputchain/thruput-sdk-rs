@@ -7,6 +7,9 @@ pub const N_HASHERS: usize = 8;
 type HasherIndex = u8;
 
 /// An incremental hasher, implemented by the VM.
+///
+/// This value is meaningful only in the current contract invocation,
+/// so it can't be stored.
 pub struct Hasher {
     index: HasherIndex,
     needs_reset: bool,
