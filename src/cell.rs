@@ -11,7 +11,6 @@ mod _impl {
     // All we need to provide here is interior mutability. By also declaring
     // our wrapper thread-safe, we can use it in a static.
 
-    use crate::contract_local;
     use core::ops::Deref; // for the docs
 
     /// A wrapped [`core::cell::Cell`] that implements [`Sync`] so it can be used
@@ -19,7 +18,7 @@ mod _impl {
     /// implementation.  The wrapper adds no costs to `Cell`.
     ///
     /// Note: For static storage that works in the test environment,
-    /// use the [`contract_local!`] macro, e.g.:
+    /// use the [`contract_local!`](crate::contract_local) macro, e.g.:
     ///
     ///     contract_local! {
     ///         static VAR: ContractCell<u32> = const { ContractCell::new(0) };
