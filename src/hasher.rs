@@ -73,6 +73,9 @@ impl Default for Hasher {
 
 impl Drop for Hasher {
     fn drop(&mut self) {
+        // We could call `SHA256Finalize` to free the VM slot,
+        // but instead we'll leave it be.  If we use the slot again,
+        // `SHA256Update` with `reset = true` will reset the slot.
         if !slot_free(self.index) {
             panic!("Hasher::drop: internal error: already freed");
         }
