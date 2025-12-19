@@ -1,6 +1,10 @@
 #![feature(maybe_uninit_array_assume_init)]
 #![feature(maybe_uninit_slice)]
 #![feature(core_io_borrowed_buf)]
+#![cfg_attr(
+    not(any(doc, target_family = "wasm")),
+    feature(local_key_cell_update)
+)]
 // #![doc(html_logo_url = "groundhog.png")]
 #![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
@@ -35,6 +39,7 @@ pub mod delete;
 pub mod deploy;
 pub mod event;
 pub mod hash;
+pub mod hasher;
 pub mod hex;
 pub mod invoke;
 pub mod invoke_config;
@@ -52,14 +57,19 @@ pub mod types;
 pub mod contract_result;
 pub mod sysresult;
 
+mod cell;
+mod local;
+
 // Direct exports
 
 pub use bytestring::*;
+pub use cell::*;
 pub use contract_op::*;
 pub use delete::*;
 pub use deploy::*;
 pub use event::*;
 pub use hash::*;
+pub use hasher::*;
 pub use hex::*;
 pub use invoke::*;
 pub use log::*;
@@ -72,7 +82,7 @@ pub use types::*;
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
-pub use macros::{sha256_static, static_key, topic_hashed_from};
+pub use macros::{hash_to_array, sha256_static, static_key};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};

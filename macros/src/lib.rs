@@ -21,10 +21,10 @@ pub fn sha256_static(item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn topic_hashed_from(item: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(item as syn::LitStr);
+pub fn hash_to_array(item: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(item as syn::Lit);
 
-    static_hash::topic_hashed_from(input)
+    static_hash::sha256_array(input)
 }
 
 #[proc_macro_attribute]

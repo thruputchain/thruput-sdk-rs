@@ -7,6 +7,7 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 - [`mod@invoke`]: Calling other contracts
 - [`contract_op`]: Contract entrance/exit routines
 - [`crypto`]: Hash and sign
+- [`Hasher`]: Incremental hashing
 - Key-value storage:
     - [`mod@delete`]
     - [`mod@bytestring`]
@@ -24,6 +25,13 @@ Other things:
 - [`mod@sysresult`]
 
 # Allocation
+
+### Static
+
+Static allocations are facilitated in contracts by [`ContractCell`] and
+[`contract_local!`].
+
+### Heap
 
 If feature `alloc` is enabled:
 *   The [`alloc`] crate is linked in, giving access to allocating
