@@ -19,7 +19,7 @@ pub trait Hash {
     }
 }
 
-// For now, we use a static buffer to hold the entire encoding before hashing.
+// For now, we stack-allocate a buffer to hold the entire encoding before hashing.
 // TODO: Use the incremental-hashing interface.
 
 impl<T> Hash for T
