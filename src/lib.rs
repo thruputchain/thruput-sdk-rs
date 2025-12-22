@@ -43,7 +43,6 @@ pub mod hasher;
 pub mod hex;
 pub mod invoke;
 pub mod invoke_config;
-mod invoke_encode; // TODO: make this a sub-module of invoke
 pub mod invoke_error;
 pub mod log;
 pub mod non_negative_int;

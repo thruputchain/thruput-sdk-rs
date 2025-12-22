@@ -12,11 +12,11 @@
 //! maximum size must be chosen.  Otherwise the storage is static and we choose
 //! a maximum size.
 
+pub use xdrs::serialize_txs::decode as decode_xdr;
 pub use xdrs::{
     ReadError, ReadResult, ReadXDR, ReadXDROwned, WriteError, WriteResult,
     WriteXDR, read_xdr, write_xdr,
 };
-pub use xdrs::serialize_txs::decode as decode_xdr;
 
 use crate::internal::mu_buf::*;
 

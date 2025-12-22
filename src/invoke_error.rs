@@ -8,9 +8,9 @@
 //! provides a byte-buffer in the case of contract-abort.
 
 use crate::SysErr;
+use crate::internal::{ReadXDR, ReadXDROwned, WriteXDR};
 use core::error::Error;
 use thiserror::Error;
-use xdrs::{ReadXDR, ReadXDROwned, WriteXDR};
 
 // TODO: Reconsider naming of `ClientError`, `InvokeError`
 
@@ -21,6 +21,7 @@ pub enum ClientError<E: Error + ReadXDROwned + WriteXDR> {
     Invoke(#[from] InvokeError),
 
     #[error("the called contract aborted: {0}")]
+    #[allow(clippy::large_enum_variant)]
     Aborted(#[source] E),
 
     #[error(

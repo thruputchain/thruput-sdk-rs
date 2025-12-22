@@ -4,11 +4,11 @@
 //! and are also available for lower-level code.
 
 use crate::WriteXDR;
+use crate::internal::MUBuf;
+use crate::internal::encode_xdr;
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
-use crate::internal::encode_xdr;
-use crate::internal::MUBuf;
 use core::mem::MaybeUninit;
 
 const CALLDATA_MAX: usize = 500;
@@ -91,10 +91,7 @@ pub fn get_calldata() -> Result<Calldata> {
 
     // Fetch the calldata from the VM, hoping our buffer is large enough
     let mut written: RuntimeMemoryLength = 0;
-    sys::uninit_GetCalldata(
-        calldata.spare_capacity_mut(),
-        &mut written,
-    )?;
+    sys::uninit_GetCalldata(calldata.spare_capacity_mut(), &mut written)?;
 
     // SAFETY: At least this many bytes of the buffer are now initialized
     unsafe {
