@@ -67,12 +67,10 @@ where
 
     invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
         .map_err(|inner_err| match inner_err {
-        RawError::Aborted => {
-            match decode_xdr(return_data.as_ref()) {
-                Ok(val) => ClientError::Aborted(val),
-                Err(_) => ClientError::AbortDecodeFailed,
-            }
-        }
+        RawError::Aborted => match decode_xdr(return_data.as_ref()) {
+            Ok(val) => ClientError::Aborted(val),
+            Err(_) => ClientError::AbortDecodeFailed,
+        },
         RawError::Sys(syserr) => {
             ClientError::Invoke(InvokeError::Syscall(syserr))
         }

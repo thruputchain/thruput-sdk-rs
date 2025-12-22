@@ -86,11 +86,6 @@ logging = ["macros/logging", "alloc"] # trace contract calls when testing
 spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
 
-# Use resizable instead of static bufs for marshalling arguments and
-# return-data of cross-contract calls (not recommended unless the fixed-size
-# buffers cause overflows).
-dynamic_bufs = ["alloc"]
-
 [profile.contract]
 inherits = "release"
 opt-level = 3

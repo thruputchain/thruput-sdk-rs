@@ -6,11 +6,7 @@
 //!
 //! # Encoding
 //!
-//! A single buffer is re-used (currently by `log_event`).
-//!
-//! With `feature = dynamic_bufs`, the re-used buf is resized as necessary, so no
-//! maximum size must be chosen.  Otherwise the storage is static and we choose
-//! a maximum size.
+//! Allocate a buffer on the stack to receive the encoding.
 
 pub use xdrs::serialize_txs::decode as decode_xdr;
 pub use xdrs::{
