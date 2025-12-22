@@ -30,11 +30,14 @@ where
     // Encode the args
     let call_data = encode_xdr(args).map_err(|_| InvokeError::EncodeArgs)?;
 
+    // Allocate a buffer for receiving the return data
+    let mut return_data = MUBuf::new();
+
     // Invoke the method
-    let return_data = invoke_raw(address, entrypoint, gas_limit, &call_data)
+    invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
         .map_err(|e| match e {
         RawError::Sys(syserr) => InvokeError::Syscall(syserr),
-        RawError::Aborted(_) => InvokeError::Aborted,
+        RawError::Aborted => InvokeError::Aborted,
     })?;
 
     let return_val = decode_xdr(return_data.as_ref())
@@ -59,9 +62,12 @@ where
     // Encode the args
     let call_data = encode_xdr(args).map_err(|_| InvokeError::EncodeArgs)?;
 
-    let return_data = invoke_raw(address, entrypoint, gas_limit, &call_data)
+    // Allocate a buffer for receiving the return data
+    let mut return_data = MUBuf::new();
+
+    invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
         .map_err(|inner_err| match inner_err {
-        RawError::Aborted(return_data) => {
+        RawError::Aborted => {
             match decode_xdr(return_data.as_ref()) {
                 Ok(val) => ClientError::Aborted(val),
                 Err(_) => ClientError::AbortDecodeFailed,
@@ -78,10 +84,9 @@ where
     Ok(return_val)
 }
 
-#[allow(clippy::large_enum_variant)]
 enum RawError {
     Sys(crate::SysErr),
-    Aborted(ReturnData),
+    Aborted,
 }
 
 // At least this part won't be monomorphized multiple times
@@ -92,7 +97,8 @@ fn invoke_raw(
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     call_data: &CallData,
-) -> core::result::Result<ReturnData, RawError> {
+    return_data: &mut ReturnData,
+) -> core::result::Result<(), RawError> {
     // Perform the cross-contract call
 
     let mut return_len = 0;
@@ -117,8 +123,6 @@ fn invoke_raw(
 
     let mut written: RuntimeMemoryLength = 0;
 
-    let mut return_data = MUBuf::new();
-
     sys::uninit_GetReturnedBuffer(
         return_data.spare_capacity_mut(),
         &mut written,
@@ -139,8 +143,8 @@ fn invoke_raw(
     }
 
     if is_ok {
-        Ok(return_data)
+        Ok(())
     } else {
-        Err(RawError::Aborted(return_data))
+        Err(RawError::Aborted)
     }
 }
