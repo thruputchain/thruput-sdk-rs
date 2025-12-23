@@ -5,13 +5,17 @@
 
 use crate::contract::ContractEntrypointID;
 use crate::contract_panic;
-use crate::internal::{ReadXDROwned, WriteXDR};
-use crate::invoke_encode::*;
+use crate::internal::{
+    EncodeBuf, MUBuf, ReadXDROwned, WriteXDR, decode_xdr, encode_xdr,
+};
 #[allow(unused_imports)]
 pub use crate::invoke_error::*;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use core::error::Error;
+
+type CallData = EncodeBuf;
+type ReturnData = EncodeBuf;
 
 pub fn invoke<ARGS, RET>(
     address: &ContractAddress,
@@ -24,16 +28,19 @@ where
     RET: ReadXDROwned,
 {
     // Encode the args
-    let call_data = encode_into_calldata(args)?;
+    let call_data = encode_xdr(args).map_err(|_| InvokeError::EncodeArgs)?;
+
+    // Allocate a buffer for receiving the return data
+    let mut return_data = MUBuf::new();
 
     // Invoke the method
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data)
+    invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
         .map_err(|e| match e {
-            RawError::Sys(syserr) => InvokeError::Syscall(syserr),
-            RawError::Aborted(_) => InvokeError::Aborted,
-        })?;
+        RawError::Sys(syserr) => InvokeError::Syscall(syserr),
+        RawError::Aborted => InvokeError::Aborted,
+    })?;
 
-    let return_val = decode(return_data.as_ref())
+    let return_val = decode_xdr(return_data.as_ref())
         .map_err(|_| InvokeError::DecodeReturnVal)?;
 
     Ok(return_val)
@@ -53,22 +60,23 @@ where
     ERR: ReadXDROwned + WriteXDR + Error,
 {
     // Encode the args
-    let call_data = encode_into_calldata(args)?;
+    let call_data = encode_xdr(args).map_err(|_| InvokeError::EncodeArgs)?;
 
-    let return_data = invoke_raw(address, entrypoint, gas_limit, call_data)
+    // Allocate a buffer for receiving the return data
+    let mut return_data = MUBuf::new();
+
+    invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
         .map_err(|inner_err| match inner_err {
-            RawError::Aborted(return_data) => {
-                match decode(return_data.as_ref()) {
-                    Ok(val) => ClientError::Aborted(val),
-                    Err(_) => ClientError::AbortDecodeFailed,
-                }
-            }
-            RawError::Sys(syserr) => {
-                ClientError::Invoke(InvokeError::Syscall(syserr))
-            }
-        })?;
+        RawError::Aborted => match decode_xdr(return_data.as_ref()) {
+            Ok(val) => ClientError::Aborted(val),
+            Err(_) => ClientError::AbortDecodeFailed,
+        },
+        RawError::Sys(syserr) => {
+            ClientError::Invoke(InvokeError::Syscall(syserr))
+        }
+    })?;
 
-    let return_val = decode(return_data.as_ref())
+    let return_val = decode_xdr(return_data.as_ref())
         .map_err(|_| InvokeError::DecodeReturnVal)?;
 
     Ok(return_val)
@@ -76,17 +84,19 @@ where
 
 enum RawError {
     Sys(crate::SysErr),
-    Aborted(ReturnData),
+    Aborted,
 }
 
 // At least this part won't be monomorphized multiple times
 #[inline(never)]
+#[allow(clippy::result_large_err)]
 fn invoke_raw(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
-    call_data: CallData,
-) -> core::result::Result<ReturnData, RawError> {
+    call_data: &CallData,
+    return_data: &mut ReturnData,
+) -> core::result::Result<(), RawError> {
     // Perform the cross-contract call
 
     let mut return_len = 0;
@@ -101,9 +111,6 @@ fn invoke_raw(
         &mut return_len,
     );
 
-    // Release the buffer it can be reused for return data
-    drop(call_data);
-
     let is_ok = match result {
         Ok(()) => true,
         Err(syserr) if syserr.is_aborted() => false,
@@ -114,8 +121,6 @@ fn invoke_raw(
 
     let mut written: RuntimeMemoryLength = 0;
 
-    let mut return_data = get_return_buffer(Some(return_len as usize));
-
     sys::uninit_GetReturnedBuffer(
         return_data.spare_capacity_mut(),
         &mut written,
@@ -123,18 +128,11 @@ fn invoke_raw(
     .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
 
     if written != return_len {
-        match RETURN_DATA_MAX {
-            Some(max) if max < return_len as usize => contract_panic!(
-                "overflowed the return-data buffer, \
-                    which has a fixed length of {} bytes",
-                max
-            ),
-            _ => contract_panic!(
-                "unexpected return-data length from system call: \
+        panic!(
+            "unexpected return-data length from system call: \
                     written = {written}, \
                     return_len = {return_len}"
-            ),
-        }
+        );
     }
 
     // SAFETY: The VM reports above that this many bytes were written
@@ -143,8 +141,8 @@ fn invoke_raw(
     }
 
     if is_ok {
-        Ok(return_data)
+        Ok(())
     } else {
-        Err(RawError::Aborted(return_data))
+        Err(RawError::Aborted)
     }
 }

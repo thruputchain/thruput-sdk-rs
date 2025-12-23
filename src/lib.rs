@@ -22,13 +22,6 @@ compile_error!("Except when building a wasm, sdk feature \"std\" is required");
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
-#[cfg(all(feature = "dynamic_bufs", not(feature = "alloc")))]
-// We avoid silently turning on "alloc", which may not be desired
-compile_error!(
-    "SDK feature \"dynamic_bufs\" requires liballoc, provided by
-    SDK feature \"alloc\"."
-);
-
 pub mod internal; // Public because used in contract macros
 
 // Syscall wrappers
@@ -44,7 +37,6 @@ pub mod hasher;
 pub mod hex;
 pub mod invoke;
 pub mod invoke_config;
-mod invoke_encode; // TODO: make this a sub-module of invoke
 pub mod invoke_error;
 pub mod log;
 pub mod non_negative_int;

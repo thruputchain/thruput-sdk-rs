@@ -11,7 +11,7 @@ mod _impl {
     // All we need to provide here is interior mutability. By also declaring
     // our wrapper thread-safe, we can use it in a static.
 
-    use core::ops::Deref; // for the docs
+    use core::ops::Deref;
 
     /// A wrapped [`core::cell::Cell`] that implements [`Sync`] so it can be used
     /// in statics.  Methods of the inner `Cell` are available via this wrapper's [`Deref`]
