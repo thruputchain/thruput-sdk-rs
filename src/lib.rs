@@ -32,6 +32,7 @@ compile_error!(
 pub mod internal; // Public because used in contract macros
 
 // Syscall wrappers
+pub mod auth_claim;
 pub mod bytestring;
 pub mod contract_op;
 pub mod crypto;
@@ -62,6 +63,7 @@ mod local;
 
 // Direct exports
 
+pub use auth_claim::*;
 pub use bytestring::*;
 pub use cell::*;
 pub use contract_op::*;
