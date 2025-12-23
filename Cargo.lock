@@ -539,7 +539,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#8662392e7b1498cba93a1ab387ddcf5cadc35339"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#0026093f9822cd29d858f9408b6703124f54d146"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
@@ -552,7 +552,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#8662392e7b1498cba93a1ab387ddcf5cadc35339"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#0026093f9822cd29d858f9408b6703124f54d146"
 dependencies = [
  "darling",
  "proc-macro2",
