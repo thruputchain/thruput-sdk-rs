@@ -2,6 +2,8 @@
 
 pub use xdrs::xdr_common::{BytesM, VecM};
 
+pub use groundhog_xdr::account::GasPermissionConfig;
+pub use groundhog_xdr::account::NonceConfig;
 pub use groundhog_xdr::auth_claim::AuthClaim;
 pub use groundhog_xdr::auth_claim::AuthClaimType;
 pub use groundhog_xdr::auth_claim::KeyID;
