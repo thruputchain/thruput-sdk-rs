@@ -1,0 +1,26 @@
+[package]
+name = "groundhog-nocontract-if"
+version = "0.1.0"
+edition = "2021"
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "Interface for addresses controlled by an external public key, with no contract deployed"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+
+[features]
+mock = ["std", "sdk/mock"]
+std = ["sdk/std"]
+spec = ["sdk/spec", "std"]
+
+[dependencies]
+sdk = { workspace = true }
+
+[[bin]]
+name = "show_spec"
+required-features = ["spec"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false

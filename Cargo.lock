@@ -537,6 +537,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-nocontract-if"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
 source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#00a7d04ab14e8642e2c42f26a9882621a525c88d"
