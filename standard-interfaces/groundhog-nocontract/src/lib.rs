@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sdk::ContractAddress;
-use sdk::contract;
+use sdk::*;
 
 #[contract(client = NoContractClient)]
 pub trait NoContractWallet {
@@ -17,8 +16,14 @@ pub trait NoContractWallet {
         address: &ContractAddress,
         method: &[u8],
         calldata: &[u8],
-    ) -> ();
+    );
 
     // TODO(geoff) and TODO(dobog): Think about what other methods we want on this "default" contract.
     // I.e. editing the auth data?
+
+    /// Deploy a contract in place of this default contract.
+    fn deploy_in_place(
+        &self,
+        contract_hash: &SHA256Hash,
+    );
 }

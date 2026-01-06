@@ -1,0 +1,9 @@
+[package]
+name = "wallet"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+groundhog_xdr.workspace = true
+sha2.workspace = true
+xdrs = { workspace = true, features = ["alloc", "derive"] }

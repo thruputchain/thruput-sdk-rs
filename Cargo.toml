@@ -9,7 +9,7 @@ members = [
     "integration_test_contracts/*",
     "standard-interfaces/*",
     "standard-tests/*",
-    "bottle-test",
+    "bottle-test", "wallet",
     ]
 exclude = ["integration_test_contracts/xdr"]
 
