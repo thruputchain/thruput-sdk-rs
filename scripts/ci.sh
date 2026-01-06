@@ -6,6 +6,9 @@ source "${SDK_SCRIPT_DIR}/env.sh"
     # shellcheck source="scripts/lib_make.sh"
 source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
+# prepare hogd cargo cache
+. ${SDK_SCRIPT_DIR}/hogd/scripts/fetch.sh
+
 # Below, each contract is built before being tested;
 # this skips any attempt to rebuild
 BOTTLE_TEST_USE_BUILT_TARGET=yes
