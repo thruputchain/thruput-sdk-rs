@@ -15,6 +15,7 @@ use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
 pub use bytestring_get_alloc::*;
+use groundhog_xdr::storage_delta_flags::StorageItemRPCFlags;
 
 /// Reports whether a bytestring exists at the given key.
 ///
@@ -54,11 +55,10 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// this will not cause either contract invocation to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice /*, 0 */)?;
+    sys::raw_BytestringSet(key, slice, StorageItemRPCFlags::kStorageNone as i32)?;
     Ok(())
 }
 
-/*
 /// Sets the value at the given key to the given bytestring.
 ///
 /// This succeeds even if a value of another type was at the location.
@@ -70,10 +70,10 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
-        crate::types::StorageDeltaModifier::kLockExclusive as i32,
+        StorageItemRPCFlags::kStorageExclusiveLock as i32,
     )
 }
-*/
+
 
 /// Returns the bytestring contents in a statically-sized array.
 ///

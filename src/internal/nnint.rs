@@ -14,6 +14,8 @@
 //! The function `get_values_force` retrieves the pending "set" value if it
 //! is present, or else loads from the database the value committed in the last block.
 
+use groundhog_xdr::storage_delta_flags::StorageItemRPCFlags;
+
 use crate::sysresult::SysResult as Result;
 use crate::*;
 
@@ -23,7 +25,7 @@ pub fn set_add(
     set_value: Option<i128>,
     add_value: i128,
 ) -> Result<()> {
-    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
+    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value, StorageItemRPCFlags::kStorageNone as i32)
 }
 
 // Fails if `force_load_set` is true and the
