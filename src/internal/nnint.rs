@@ -25,7 +25,12 @@ pub fn set_add(
     set_value: Option<i128>,
     add_value: i128,
 ) -> Result<()> {
-    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value, StorageItemRPCFlags::kStorageNone as i32)
+    sys::raw_NonnegativeIntSetAdd(
+        key,
+        set_value.as_ref(),
+        &add_value,
+        StorageItemRPCFlags::kStorageNone as i32,
+    )
 }
 
 // Fails if `force_load_set` is true and the

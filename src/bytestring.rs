@@ -55,7 +55,11 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// this will not cause either contract invocation to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice, StorageItemRPCFlags::kStorageNone as i32)?;
+    sys::raw_BytestringSet(
+        key,
+        slice,
+        StorageItemRPCFlags::kStorageNone as i32,
+    )?;
     Ok(())
 }
 
@@ -73,7 +77,6 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
         StorageItemRPCFlags::kStorageExclusiveLock as i32,
     )
 }
-
 
 /// Returns the bytestring contents in a statically-sized array.
 ///
