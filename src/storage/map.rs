@@ -71,6 +71,16 @@ impl<K, V> Map<K, V> {
         value.store(&key)
     }
 
+    pub fn set_exclusive(&mut self, entry_key: &K, value: &V) -> Result<()>
+    where
+        K: WriteXDR,
+        V: Store,
+    {
+        let key = self.make_entry_storage_key(entry_key);
+
+        value.store_exclusive(&key)
+    }
+
     pub fn delete(&mut self, entry_key: &K) -> Result<()>
     where
         K: WriteXDR,

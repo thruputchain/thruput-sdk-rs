@@ -50,6 +50,19 @@ impl NNInt {
         }
     }
 
+    /// Set the value
+    pub fn set(&mut self, set_value: i128) -> Result<()> {
+        non_negative_int_set(&self.keypath.generate_key(), set_value)
+    }
+
+    /// Set the value
+    ///
+    /// TODO: semantics
+    ///
+    pub fn set_exclusive(&mut self, set_value: i128) -> Result<()> {
+        non_negative_int_set_exclusive(&self.keypath.generate_key(), set_value)
+    }
+
     /// Increment by an amount (without querying the current value).
     pub fn inc(&mut self, increment: i128) -> Result<()> {
         non_negative_int_inc(&self.keypath.generate_key(), increment)?;

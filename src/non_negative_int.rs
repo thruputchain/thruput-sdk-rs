@@ -37,6 +37,21 @@ pub fn non_negative_int_set(key: &StorageKey, set_value: i128) -> Result<()> {
     Ok(())
 }
 
+/// Set the value.
+///
+/// TODO: semantics
+///
+pub fn non_negative_int_set_exclusive(
+    key: &StorageKey,
+    set_value: i128,
+) -> Result<()> {
+    let add_value = 0;
+
+    nnint::set_add_exclusive(key, Some(set_value), add_value)?;
+
+    Ok(())
+}
+
 /// Increment the value.
 ///
 /// If the result would be negative, this function may not fail, but the current transaction will
@@ -81,12 +96,12 @@ pub fn non_negative_int_revert(key: &StorageKey) -> Result<()> {
 
 // --------------- Deprecated exports ----------------------------------------
 
-/// *Deprecated.*  Use `non_negative_int_try_get`.
+#[deprecated = "Use `non_negative_int_try_get`"]
 pub fn non_negative_int_get_default_zero(key: &StorageKey) -> Result<i128> {
     Ok(non_negative_int_try_get(key)?.unwrap_or(0))
 }
 
-/// *Deprecated.*  Same as `non_negative_int_inc`.
+#[deprecated = "Same as `non_negative_int_inc`"]
 #[inline]
 pub fn non_negative_int_add_default_zero(
     key: &StorageKey,

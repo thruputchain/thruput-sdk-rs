@@ -51,24 +51,25 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 ///
 /// This succeeds even if a value of another type was at the location.
 ///
-/// If another contract invocation running in parallel sets the location to the same bytestring,
-/// this will not cause either contract invocation to abort.
+/// If concurrent contract invocations set the location to the same bytestring,
+/// this will not cause any such invocations to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
         StorageItemRPCFlags::kStorageNone as i32,
-    )?;
-    Ok(())
+    )
 }
 
 /// Sets the value at the given key to the given bytestring.
 ///
 /// This succeeds even if a value of another type was at the location.
 ///
-/// If other contract invocations running in parallel set the bytestring
-/// to the same value, only one such contract invocation can succeed.
+/// If concurrent contract invocations set the bytestring exclusively, only one
+/// such invocation can succeed.
+///
+/// TODO(geoff): What about mixed exclusive/non-exclusive concurrent set?
 ///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
@@ -92,10 +93,12 @@ pub fn bytestring_get_sized<const N: usize>(
     let mut len = MaybeUninit::uninit();
     sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len)?;
 
+    // SAFETY: The syscall returned with success, so the out-args are initialized
     let len = unsafe { len.assume_init() };
     if len != N as u32 {
         return Ok(None);
     }
+
     // Apparently rustc optimizes this well enough:
     // https://github.com/rust-lang/rust/issues/96097#issuecomment-1823511470
     let bytes: [u8; N] =
