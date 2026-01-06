@@ -2,8 +2,8 @@ use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use super::store::*;
-use crate::delete_shared;
 use crate::types::StorageKey;
+use crate::{delete_exclusive, delete_shared};
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use xdrs::WriteXDR;
@@ -71,6 +71,16 @@ impl<K, V> Map<K, V> {
         value.store(&key)
     }
 
+    pub fn set_exclusive(&mut self, entry_key: &K, value: &V) -> Result<()>
+    where
+        K: WriteXDR,
+        V: Store,
+    {
+        let key = self.make_entry_storage_key(entry_key);
+
+        value.store_exclusive(&key)
+    }
+
     pub fn delete(&mut self, entry_key: &K) -> Result<()>
     where
         K: WriteXDR,
@@ -78,6 +88,17 @@ impl<K, V> Map<K, V> {
         let key = self.make_entry_storage_key(entry_key);
 
         delete_shared(&key)?;
+
+        Ok(())
+    }
+
+    pub fn delete_exclusive(&mut self, entry_key: &K) -> Result<()>
+    where
+        K: WriteXDR,
+    {
+        let key = self.make_entry_storage_key(entry_key);
+
+        delete_exclusive(&key)?;
 
         Ok(())
     }

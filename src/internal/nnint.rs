@@ -33,8 +33,27 @@ pub fn set_add(
     )
 }
 
-// Fails if `force_load_set` is true and the
-// location does not contain a non-negative integer.
+/// Replace the "set" and "add" values.  (This discards any values previously present.)
+///
+/// If concurrent contract invocations set the value exclusively, only one such invocation can
+/// succeed.
+///
+/// TODO(geoff): What about mixed exclusive/non-exclusive concurrent set?
+///
+pub fn set_add_exclusive(
+    key: &StorageKey,
+    set_value: Option<i128>,
+    add_value: i128,
+) -> Result<()> {
+    sys::raw_NonnegativeIntSetAdd(
+        key,
+        set_value.as_ref(),
+        &add_value,
+        StorageItemRPCFlags::kStorageExclusiveLock as i32,
+    )
+}
+
+// Fails if `force_load_set` is true and the location does not contain a non-negative integer.
 fn _get_values(
     key: &StorageKey,
     force_load_set: bool,

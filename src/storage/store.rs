@@ -2,11 +2,13 @@ use super::error::{Result, StorageError};
 use super::keypath::*;
 use crate::bytestring::*;
 use crate::types::StorageKey;
+use alloc::vec::Vec;
 use xdrs::WriteXDR;
 use xdrs::serialize_cxs;
 
 pub trait Store {
     fn store(&self, key: &StorageKey) -> Result<()>;
+    fn store_exclusive(&self, key: &StorageKey) -> Result<()>;
 
     fn store_keypath(&self, keypath: &Keypath) -> Result<()> {
         let key = keypath.generate_key();
@@ -19,17 +21,32 @@ where
     T: WriteXDR,
 {
     fn store(&self, key: &StorageKey) -> Result<()> {
-        // Load any previous value and drop it
-        // TODO: Avoid where there is no Drop impl?
-        if let Some(prev) = bytestring_try_get(key)? {
-            drop(prev);
-        }
+        let buf = store_pre(self, key)?;
 
-        let buf = serialize_cxs::encode(self)
-            .map_err(|_| StorageError::Serialization)?;
         bytestring_set(key, buf.as_slice())?;
         Ok(())
     }
+
+    fn store_exclusive(&self, key: &StorageKey) -> Result<()> {
+        let buf = store_pre(self, key)?;
+
+        bytestring_set_exclusive(key, buf.as_slice())?;
+        Ok(())
+    }
+}
+
+// Common part of store/store_exclusive
+fn store_pre<T: WriteXDR>(value: &T, key: &StorageKey) -> Result<Vec<u8>> {
+    // Load any previous value and drop it
+    // TODO: Avoid where there is no Drop impl?
+    if let Some(prev) = bytestring_try_get(key)? {
+        drop(prev);
+    }
+
+    let buf = serialize_cxs::encode(value)
+        .map_err(|_| StorageError::Serialization)?;
+
+    Ok(buf)
 }
 
 pub fn store<T: Store>(key: &StorageKey, val: &T) -> Result<()> {
