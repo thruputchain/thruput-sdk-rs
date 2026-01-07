@@ -12,7 +12,36 @@ struct Data {
     bytes: Bytestring,
     map: Map<u32, NNInt>,
     map2: Map<u32, i32>,
+    map3: Map<u32, Thing>,
 }
+
+#[derive(Debug, xdrs::WriteXDR, Storage)]
+struct Thing {
+    num: i32,
+    bytes: Bytestring,
+}
+
+/*
+contract_test!(test_thing_map {
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath).unwrap();
+    }
+
+    let slot: u32 = 3;
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut thing_entry = data.map3.entry(&slot).unwrap();
+        let maybe_thing = thing_entry.get_mut();
+
+        if let Some(thing) = maybe_thing.as_mut() {
+            thing.num += 1;
+        } else {
+            *maybe_thing = Some(Thing
+    }
+});
+*/
 
 contract_test!(test_map {
     let data_keypath = Keypath::new();

@@ -37,10 +37,11 @@ where
 
 // Common part of store/store_exclusive
 fn store_pre<T: WriteXDR>(value: &T, key: &StorageKey) -> Result<Vec<u8>> {
-    // Load any previous value and drop it
-    // TODO: Avoid where there is no Drop impl?
-    if let Some(prev) = bytestring_try_get(key)? {
-        drop(prev);
+    if core::mem::needs_drop::<T>() {
+        // Load any previous value and drop it
+        if let Some(prev) = bytestring_try_get(key)? {
+            drop(prev);
+        }
     }
 
     let buf = encode(value).map_err(|_| StorageError::Serialization)?;
