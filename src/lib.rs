@@ -26,6 +26,7 @@ pub mod internal; // Public because used in contract macros
 
 // Syscall wrappers
 pub mod auth_claim;
+pub mod block;
 pub mod bytestring;
 pub mod contract_op;
 pub mod crypto;
