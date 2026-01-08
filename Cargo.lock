@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "authclaim_test"
+version = "0.1.0"
+dependencies = [
+ "authclaim_test",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
 name = "base64ct"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -572,6 +581,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash_bug"
+version = "0.1.0"
+dependencies = [
+ "hex-literal",
+ "sha2",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -608,6 +625,16 @@ name = "hex-literal"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
+
+[[package]]
+name = "htlc"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "htlc",
+ "sdk",
+ "xdrs",
+]
 
 [[package]]
 name = "ident_case"
@@ -751,6 +778,14 @@ dependencies = [
  "groundhog_xdr",
  "sha2",
  "thiserror",
+ "xdrs",
+]
+
+[[package]]
+name = "nocontract_wallet"
+version = "0.1.0"
+dependencies = [
+ "sdk",
  "xdrs",
 ]
 
@@ -1058,6 +1093,15 @@ dependencies = [
  "groundhog-erc1271-if",
  "sdk",
  "simple_wallet",
+ "xdrs",
+]
+
+[[package]]
+name = "simple_wallet_authclaim"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+ "simple_wallet_authclaim",
  "xdrs",
 ]
 
