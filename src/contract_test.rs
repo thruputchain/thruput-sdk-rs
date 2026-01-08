@@ -38,8 +38,8 @@ macro_rules! contract_test {
             });
 
             let res = handler.root_invoke();
-            if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
-                panic!("root invocation panicked with code {}", res.result.panic);
+            if res.status != sdk::InvokeErrorCode::kInvokeNone {
+                panic!("root invocation panicked with code {:?}", res.status);
             }
         }
     };
@@ -95,8 +95,8 @@ macro_rules! contract_test_env {
             env_hook(&mut env, &mut handler);
 
             let res = handler.root_invoke();
-            if res.result.panic != sdk::InvokeErrorCode::kInvokeNone as i32 {
-                panic!("root invocation panicked with code {}", res.result.panic);
+            if res.status != sdk::InvokeErrorCode::kInvokeNone {
+                panic!("root invocation panicked with code {:?}", res.status);
             }
 
             let commit_res = handler.try_commit_transaction();
@@ -165,13 +165,9 @@ where
 
     let res = handler.root_invoke();
 
-    match res.result.panic.try_into() {
-        Ok(InvokeErrorCode::kInvokeNone) => { /* success */ }
-        Ok(invoke_err) => panic!("test-invoke failed ({:?})", invoke_err),
-        Err(_) => panic!(
-            "test-invoke failed with unknown error ({})",
-            res.result.panic
-        ),
+    match res.status {
+        InvokeErrorCode::kInvokeNone => { /* success */ }
+        invoke_err => panic!("test-invoke failed ({:?})", invoke_err),
     }
 
     let gas_consumed = res.gas_consumed;

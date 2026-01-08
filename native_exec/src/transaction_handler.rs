@@ -2,6 +2,7 @@ use crate::bindings::*;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_xdr::event::TxEventLog;
+use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::transaction::SignedTransaction;
 use std::rc::Rc;
 use xdrs::serialize_txs;
@@ -22,6 +23,11 @@ pub struct TransactionHandler {
     invoked: bool,
     committed: bool,
     aborted: bool,
+}
+
+pub struct RootInvokeResult {
+    pub status: InvokeErrorCode,
+    pub gas_consumed: u64,
 }
 
 impl TransactionHandler {
@@ -64,14 +70,19 @@ impl TransactionHandler {
     /// and will abort the transaction if the root invocation failed.
     /// So it is safe to call either try_commit_transaction or abort_transaction
     /// after root_invoke, regardless of whether the root invocation succeeded or failed.
-    pub fn root_invoke(&mut self) -> ForeignRootInvokeResult {
+    pub fn root_invoke(&mut self) -> RootInvokeResult {
         if self.invoked {
             panic!("cannot double invoke on a TransactionHandler")
         }
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        unsafe { root_invoke(self.handler) }
+        let foreign_result: ForeignRootInvokeResult =
+            unsafe { root_invoke(self.handler) };
+        RootInvokeResult {
+            status: foreign_result.result.panic.try_into().unwrap(),
+            gas_consumed: foreign_result.gas_consumed,
+        }
     }
 
     pub fn get_event_logs(&self) -> Option<TxEventLog> {

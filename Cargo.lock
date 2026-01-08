@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "authclaim_test"
+version = "0.1.0"
+dependencies = [
+ "authclaim_test",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
 name = "base64ct"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -539,7 +548,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#823317b0ed8b3317b5f3cd680eb1c3f21adb329a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#a985a01d6461175d637b9bf6fa12e67f2f73023f"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
@@ -552,7 +561,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#823317b0ed8b3317b5f3cd680eb1c3f21adb329a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#a985a01d6461175d637b9bf6fa12e67f2f73023f"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -569,6 +578,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
 dependencies = [
  "byteorder",
+]
+
+[[package]]
+name = "hash_bug"
+version = "0.1.0"
+dependencies = [
+ "hex-literal",
+ "sha2",
 ]
 
 [[package]]
@@ -608,6 +625,16 @@ name = "hex-literal"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
+
+[[package]]
+name = "htlc"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "htlc",
+ "sdk",
+ "xdrs",
+]
 
 [[package]]
 name = "ident_case"
@@ -751,6 +778,14 @@ dependencies = [
  "groundhog_xdr",
  "sha2",
  "thiserror",
+ "xdrs",
+]
+
+[[package]]
+name = "nocontract_wallet"
+version = "0.1.0"
+dependencies = [
+ "sdk",
  "xdrs",
 ]
 
@@ -1058,6 +1093,15 @@ dependencies = [
  "groundhog-erc1271-if",
  "sdk",
  "simple_wallet",
+ "xdrs",
+]
+
+[[package]]
+name = "simple_wallet_authclaim"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+ "simple_wallet_authclaim",
  "xdrs",
 ]
 
