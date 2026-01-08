@@ -8,7 +8,7 @@ source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
 # prepare hogd cargo cache
 (
-. ${SDK_SCRIPT_DIR}/../hogd/scripts/fetch.sh
+CARGO_NET_GIT_FETCH_WITH_CLI=true ${SDK_SCRIPT_DIR}/../hogd/scripts/fetch.sh
 )
 
 # Below, each contract is built before being tested;
