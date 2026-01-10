@@ -800,6 +800,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "payment_channel"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "payment_channel",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
 name = "pkcs8"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
