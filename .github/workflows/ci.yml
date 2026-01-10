@@ -33,6 +33,7 @@ jobs:
           ${{ secrets.SDK_TO_METRICS_HISTORY }}
           ${{ secrets.SDK_TO_GROUNDHOG_GO}}
           ${{ secrets.SDK_TO_LIBGO }}
+          ${{ secrets.SDK_TO_SELF }}
 
     - uses: actions/checkout@v4
     - name: Run hog schedule
