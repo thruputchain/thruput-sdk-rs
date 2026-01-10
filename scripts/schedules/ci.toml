@@ -1,0 +1,36 @@
+name = "sanitizer_ci"
+
+[[jobs]]
+name = "{{ .hog_schedule }}_{{ .hog_host }}"
+script = """
+
+set -x
+
+echo 'cloning sdk'
+git init -q .
+git remote add origin git@github.com:{{ .github_repo }}.git
+git fetch --depth 1 origin {{ .git_commit }} --no-progress --quiet
+git checkout -q {{ .git_commit }}
+git submodule update --init --recursive --quiet
+
+echo 'run ci'
+CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
+
+# Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
+# time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
+# stats to track; for now, however, we are just tracking contract sizes,
+# which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
+
+if [ "$GIT_BRANCH" = "main" ]; then
+  ./scripts/metrics.sh
+fi
+
+"""
+
+[jobs.env]
+GIT_BRANCH = "{{ .git_branch }}"
+GIT_REPO = "{{ .git_repo }}"
+GIT_COMMIT = "{{ .git_commit }}"
+
+[jobs.host]
+ci_1 = "?"

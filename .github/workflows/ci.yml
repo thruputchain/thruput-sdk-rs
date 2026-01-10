@@ -33,18 +33,31 @@ jobs:
           ${{ secrets.SDK_TO_METRICS_HISTORY }}
           ${{ secrets.SDK_TO_GROUNDHOG_GO}}
           ${{ secrets.SDK_TO_LIBGO }}
+
+     -uses: actions/checkout@v4
+     - name: Run hog schedule
+      run: |
+        BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+        echo "Branch name: $BRANCH_NAME"
+        hog_sched \
+        --i="${{ github.event.repository.name }}-${{ github.run_id }}" \
+        --key=github_repo --value=${{ github.repository }} \
+        --key=git_commit --value=${{ github.sha }} \
+        --key=git_branch --value=$BRANCH_NAME \
+        --timeout-sec=1800 \
+        ./scripts/schedules/ci.toml
   
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - uses: ./.github/actions/setup
-    - name: check
-      run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
-    - name: log metrics
-      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-      # Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
-      # time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
-      # stats to track; for now, however, we are just tracking contract sizes,
-      # which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
-      run: ./scripts/metrics.sh
+#    - uses: actions/checkout@v4
+#      with:
+#        submodules: recursive
+#    - uses: ./.github/actions/setup
+#    - name: check
+#      run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
+#    - name: log metrics
+#      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+#      # Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
+#      # time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
+#      # stats to track; for now, however, we are just tracking contract sizes,
+#      # which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
+#      run: ./scripts/metrics.sh
 
