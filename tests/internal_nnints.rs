@@ -79,7 +79,7 @@ contract_test!(test_internal_nnints {
     // We can't give "set" and "add" values whose sum would be negative
     set = 1;
     add = -40;
-    assert_eq!(set_add(key, Some(set), add), Err(SysErr(8)));
+    assert_eq!(set_add(key, Some(set), add), Err(SysErr(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput as i32)));
 
     // We can set "set" and "add" to values whose sum would overflow an `i128`
     set = i128::MAX;
