@@ -34,9 +34,9 @@ jobs:
           ${{ secrets.SDK_TO_GROUNDHOG_GO}}
           ${{ secrets.SDK_TO_LIBGO }}
 
-     -uses: actions/checkout@v4
-     - name: Run hog schedule
-      run: |
+    - uses: actions/checkout@v4
+    - name: Run hog schedule
+       run: |
         BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
         echo "Branch name: $BRANCH_NAME"
         hog_sched \
