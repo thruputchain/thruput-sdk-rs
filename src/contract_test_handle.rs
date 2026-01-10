@@ -1,7 +1,5 @@
 //! A deprecated utility
 
-use crate::SysErr;
-use crate::SyscallErrorCode;
 use crate::contract_op::{contract_return, get_calldata};
 
 use xdrs::serialize_txs::{decode, encode};
@@ -10,7 +8,7 @@ use xdrs::{ReadXDROwned, WriteXDR};
 // Run a handler function on the invocation arguments
 // available in serialized form via `GetCalldata`,
 // and serialize the result for passing to `Return`.
-pub fn handle_call<F, ARGS, RES>(f: F) -> SysErr
+pub fn handle_call<F, ARGS, RES>(f: F) -> ()
 where
     F: FnOnce(ARGS) -> RES,
     ARGS: ReadXDROwned,
@@ -18,14 +16,18 @@ where
 {
     let boxed_call_data = match get_calldata() {
         Ok(x) => x,
-        Err(e) => return e, // == SyscallErrorCode::kCalldataParseError
+        Err(e) => {
+            crate::debug_log!("Failed to get calldata: {:?}", e);
+            return;
+        }
     };
     let call_data: &[u8] = boxed_call_data.as_ref();
     let args: ARGS = match decode(call_data) {
         Ok(args) => args,
         Err(_) => {
-            return SyscallErrorCode::kSyscallErrorCodeCalldataParseError
-                .into();
+            // TODO(dobog): what error should be returned here?
+            crate::debug_log!("Failed to decode calldata");
+            return;
         }
     };
 
@@ -33,7 +35,9 @@ where
     let result_bytes = match encode(&result) {
         Ok(r) => r,
         Err(_) => {
-            return SyscallErrorCode::kSyscallErrorCodeReturnParseError.into();
+            // TODO(dobog): what error should be returned here?
+            crate::debug_log!("Failed to encode result");
+            return;
         }
     };
 

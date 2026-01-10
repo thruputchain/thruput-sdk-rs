@@ -111,11 +111,10 @@ pub mod contract_test_handle;
 pub mod contract_test;
 
 #[cfg(feature = "mock")]
-pub use {
-    groundhog_xdr::exec_result::ExecResult,
-    groundhog_xdr::ffi_enums::*,
-    native_exec::{
-        mock_contract::MockContract,
-        test_environment::{TestEnvironment, TestEnvironmentHandle},
-    },
+pub use native_exec::{
+    mock_contract::MockContract,
+    test_environment::{TestEnvironment, TestEnvironmentHandle},
 };
+
+#[cfg(feature = "std")]
+pub use groundhog_xdr::{exec_result::ExecResult, ffi_enums::*};

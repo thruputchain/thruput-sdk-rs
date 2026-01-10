@@ -548,7 +548,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#a985a01d6461175d637b9bf6fa12e67f2f73023f"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#b4877defd1531a85124bfc8f72f57c840f7cffd8"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
@@ -561,7 +561,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#a985a01d6461175d637b9bf6fa12e67f2f73023f"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#b4877defd1531a85124bfc8f72f57c840f7cffd8"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -797,6 +797,16 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
+]
+
+[[package]]
+name = "payment_channel"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "payment_channel",
+ "sdk",
+ "xdrs",
 ]
 
 [[package]]
@@ -1279,7 +1289,7 @@ checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 [[package]]
 name = "xdr-derive"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#cc117aadac1830070598e168da73ae3f97cecde2"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#61c05a9fc4b87a9b149c570097f6d162e16c556c"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1290,7 +1300,7 @@ dependencies = [
 [[package]]
 name = "xdr-repr"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#cc117aadac1830070598e168da73ae3f97cecde2"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#61c05a9fc4b87a9b149c570097f6d162e16c556c"
 dependencies = [
  "xdr_common",
 ]
@@ -1298,12 +1308,12 @@ dependencies = [
 [[package]]
 name = "xdr_common"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdr_common.git#fe9df26f21f9e69c6d3cd18ac2409aef5abcec25"
+source = "git+ssh://git@github.com/groundhogchain/xdr_common.git#6cd51c83ac2fe6defd80f81cb8b02340df5e0620"
 
 [[package]]
 name = "xdrs"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#cc117aadac1830070598e168da73ae3f97cecde2"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#61c05a9fc4b87a9b149c570097f6d162e16c556c"
 dependencies = [
  "thiserror",
  "xdr-derive",
