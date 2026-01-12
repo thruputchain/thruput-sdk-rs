@@ -15,12 +15,16 @@ fn get_owner() -> Result<ContractAddress> {
 #[derive(Default)]
 struct Contract;
 
-#[contract(storage = "false")]
+#[contract(client = ContractClient, storage = "false")]
 impl Contract {
     pub fn initialize(&mut self, contract_owner: &ContractAddress) {
         let key = StorageKey::default();
 
         // Store ourselves
         bytestring_set(&key, contract_owner.as_ref()).unwrap();
+    }
+
+    pub fn test_abort(&mut self) {
+        abort(&"Hello");
     }
 }

@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "abort"
+version = "0.1.0"
+dependencies = [
+ "heapless",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -981,6 +988,7 @@ checksum = "62049b2877bf12821e8f9ad256ee38fdc31db7387ec2d3b3f403024de2034aea"
 name = "sdk"
 version = "0.1.0"
 dependencies = [
+ "abort",
  "bitset-core",
  "bottle-test-if",
  "delegate",

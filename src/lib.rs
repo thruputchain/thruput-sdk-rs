@@ -74,6 +74,9 @@ pub use rt::*;
 pub use serialize::*;
 pub use types::*;
 
+pub use abort::{AbortPayload, abort, default_abort_handler, with_debug_context};
+pub use abort::with_handler as with_abort_handler;
+
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
