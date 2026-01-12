@@ -78,7 +78,6 @@ pub fn generate_method(
 
     let mut uses = vec![quote! {
         use ::sdk::contract::ContractEntrypointID;
-        use ::sdk::contract_panic;
         use ::sdk::contract_op::{get_calldata, contract_return_encoded, contract_abort_encoded};
         use ::sdk::internal::decode_xdr;
     }];
@@ -138,9 +137,9 @@ pub fn generate_method(
         quote! {
             // Assert that the storage does not yet exist
             if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                .unwrap_or_else(|_| contract_panic!("Failed loading contract storage")).is_some()
+                .unwrap_or_else(|_| panic!("Failed loading contract storage")).is_some()
             {
-                contract_panic!("#[contract(init)] method called when contract storage already exists");
+                panic!("#[contract(init)] method called when contract storage already exists");
             }
         }
     } else {
@@ -172,8 +171,8 @@ pub fn generate_method(
                 quote! {
                     let #mutability state =
                         <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                            .unwrap_or_else(|_| contract_panic!("Failed loading contract storage"))
-                            .unwrap_or_else(|| contract_panic!("Contract storage not present"));
+                            .unwrap_or_else(|_| panic!("Failed loading contract storage"))
+                            .unwrap_or_else(|| panic!("Contract storage not present"));
                 }
             }
         } else {
@@ -193,7 +192,7 @@ pub fn generate_method(
     let save_state = if is_method && config.storage() && is_mut {
         quote! {
             state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
-                contract_panic!("Failed saving contract storage"));
+                panic!("Failed saving contract storage"));
         }
     } else {
         quote! {}
@@ -237,11 +236,11 @@ pub fn generate_method(
 
                 // Fetch the calldata from the VM
                 let calldata = get_calldata().unwrap_or_else(|e|
-                    contract_panic!("get_calldata() failed: {}", e));
+                    panic!("get_calldata() failed: {}", e));
 
                 // Decode the args
                 let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
-                    contract_panic!("failed decoding contract-call arguments: {}", e));
+                    panic!("failed decoding contract-call arguments: {}", e));
 
                 // Call the free function or contract-type method
                 let result = #function_or_method(#arg_names);

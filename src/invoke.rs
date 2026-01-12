@@ -4,7 +4,6 @@
 //! [contract](macro@crate::contract) macro.
 
 use crate::contract::ContractEntrypointID;
-use crate::contract_panic;
 use crate::internal::{
     EncodeBuf, MUBuf, ReadXDROwned, WriteXDR, decode_xdr, encode_xdr,
 };
@@ -125,7 +124,7 @@ fn invoke_raw(
         return_data.spare_capacity_mut(),
         &mut written,
     )
-    .unwrap_or_else(|_| contract_panic!("couldn't get return data"));
+    .unwrap_or_else(|_| panic!("couldn't get return data"));
 
     if written != return_len {
         panic!(
