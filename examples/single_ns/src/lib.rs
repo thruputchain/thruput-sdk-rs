@@ -10,5 +10,3 @@ pub use implementation::*;
 
 #[cfg(feature = "mock")]
 pub use implementation::test_setup;
-
-pub use implementation::ContractClient;
