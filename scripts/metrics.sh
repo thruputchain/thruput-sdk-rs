@@ -8,11 +8,13 @@ fi
 set -e
 
 # Get current branch name
-if [[ -z ${GITHUB_HEAD_REF} ]]; then
+if [[ -z ${GITHUB_BRANCH} ]]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
 else
-  branch=${GITHUB_HEAD_REF}
+  branch=${GITHUB_BRANCH}
 fi
+
+echo "Branch: $branch"
 
 # Get current commit hash
 commit=$(git rev-parse HEAD)
@@ -40,7 +42,7 @@ echo "Commit Timestamp: $commit_time"
 # Check if metrics_history/ is a git repo; if not, clone it
 if [ ! -d "metrics_history/.git" ]; then
   echo "Cloning groundhogchain/metrics_history.git into metrics_history/"
-  git clone https://github.com/groundhogchain/metrics_history.git metrics_history/
+  git clone https://github.com/groundhogchain/metrics_history.git metrics_history/ -q
 else
   echo "metrics_history/ already exists and is a git repository."
 fi

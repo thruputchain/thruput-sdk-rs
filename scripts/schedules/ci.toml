@@ -23,10 +23,10 @@ CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
 # stats to track; for now, however, we are just tracking contract sizes,
 # which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
 
-if [ "$GIT_BRANCH" = "main" ]; then
+#if [ "$GIT_BRANCH" = "main" ]; then
   git restore .cargo/config.toml
   ./scripts/metrics.sh
-fi
+#fi
 
 """
 
