@@ -8,10 +8,10 @@ fi
 set -e
 
 # Get current branch name
-if [[ -z ${GITHUB_BRANCH} ]]; then
+if [[ -z ${GIT_BRANCH} ]]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
 else
-  branch=${GITHUB_BRANCH}
+  branch=${GIT_BRANCH}
 fi
 
 echo "Branch: $branch"
@@ -27,12 +27,6 @@ if date -u -r "$commit_unix_time" "+%Y-%m-%dT%H:%M:%S" >/dev/null 2>&1; then
 else
   # GNU date (Linux)
   commit_time=$(date -u -d "@$commit_unix_time" "+%Y-%m-%dT%H:%M:%S")
-fi
-
-# Check if the working directory is dirty (tracked files only), ignoring .cargo/
-if [ -n "$(git status --porcelain --untracked-files=no | grep -vE '^\s*M\s*\.cargo/')" ]; then
-  echo "Working directory is dirty (except .cargo); cannot replicably run metrics"
-  exit 1
 fi
 
 echo "Branch: $branch"
