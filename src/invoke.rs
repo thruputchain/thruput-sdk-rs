@@ -36,7 +36,7 @@ where
     invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
         .map_err(|e| match e {
         RawError::Sys(syserr) => InvokeError::Syscall(syserr),
-        RawError::Aborted => InvokeError::Aborted,
+        RawError::Aborted => InvokeError::AbortedWith(return_data.len() as u32),
     })?;
 
     let return_val = decode_xdr(return_data.as_ref())

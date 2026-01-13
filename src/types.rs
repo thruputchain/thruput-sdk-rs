@@ -19,6 +19,7 @@ pub use groundhog_xdr::syscalls as sys;
 pub use groundhog_xdr::syscalls::SysErr;
 pub use groundhog_xdr::transaction;
 pub use groundhog_xdr::types::*;
+pub use groundhog_xdr::exec_result::*;
 
 // Shorthand for use in contracts
 pub use StorageKeyContractData as StorageKey;

@@ -1,4 +1,58 @@
-use crate::{BytesM, Contract, InvokeErrorCode, TestEnvironment};
+use crate::*;
+use std::panic::UnwindSafe;
+use std::sync::{Arc, Mutex};
+use std::vec::Vec;
+
+pub fn contract_test_invoke<F>(env: TestEnvironmentHandle, f: F) -> InvokeResult<()>
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static
+{
+    let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
+    let test_contract = {
+        let mut contract = env.add_contract();
+        contract.register_method(entrypoint, f);
+        contract.as_contract()
+    };
+
+    let contract_hash = env.setup_create_contract(&test_contract);
+
+    // It's currently difficult to extract state from mock contracts,
+    // so we'll allocate shared storage for the data we want to inspect
+    // after the test run:
+    let invoke_result: Arc<Mutex<Option<InvokeResult<()>>>> = Arc::new(Mutex::new(None));
+
+    let mut handler = {
+        let invoke_result = invoke_result.clone();
+
+        env.prepare_test(move || -> () {
+            let nonce = SHA256Hash::from([7; 32]);
+            let deployed_addr =
+                crate::deploy_contract(&nonce, &contract_hash)
+                    .unwrap();
+
+            let r = invoke::<(), ()>(
+                &deployed_addr,
+                entrypoint,
+                u64::MAX,
+                &(),
+            );
+
+            *invoke_result.lock().unwrap() = Some(r);
+        })
+    };
+
+    let res = handler.root_invoke();
+    if res.status != InvokeErrorCode::kInvokeNone {
+        panic!("root invocation panicked with code {:?}", res.status);
+    }
+
+    match handler.try_commit_transaction() {
+        ExecResultOK => {}
+        r => panic!("Unexpected transaction result: {:?}", r),
+    }
+
+    invoke_result.lock().unwrap().take().unwrap()
+}
 
 #[macro_export]
 macro_rules! contract_test {
@@ -225,10 +279,6 @@ fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
 
     (stats, result)
 }
-
-use crate::hash::*;
-use crate::types::*;
-use std::vec::Vec;
 
 pub fn deploy_address(
     deployer_address: &ContractAddress,

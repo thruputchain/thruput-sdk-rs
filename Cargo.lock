@@ -5,7 +5,6 @@ version = 4
 [[package]]
 name = "abort"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/abort_rs.git#90ac2dc9ad53d79a99a20aeeb1a390a26cd68f82"
 dependencies = [
  "heapless",
 ]
@@ -15,6 +14,7 @@ name = "aborter"
 version = "0.1.1"
 dependencies = [
  "aborter",
+ "groundhog_xdr",
  "sdk",
 ]
 

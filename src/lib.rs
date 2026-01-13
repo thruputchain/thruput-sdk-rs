@@ -47,6 +47,7 @@ pub mod rt;
 pub mod serialize;
 pub mod stats;
 pub mod types;
+pub mod exn;
 
 pub mod contract_result;
 pub mod sysresult;

@@ -11,6 +11,7 @@ use crate::SyscallErrorCode;
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
+use crate::exn::*;
 use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
@@ -45,6 +46,22 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
     sys::raw_BytestringGetLen(key, &mut out)?;
 
     Ok(out as u32)
+}
+
+pub fn _bytestring_get_len(key: &StorageKey) -> u32 {
+    let mut out: RuntimeMemoryLength = 0;
+
+    sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
+        let info = SyscallExn::new(
+            crate::sys::SyscallNo::kBytestringGetLen,
+            errno,
+            #[cfg(feature = "debug")]
+            "BytestringGetLen"
+        );
+        crate::abort(&info);
+    });
+
+    out
 }
 
 /// Sets the value at the given key to the given bytestring.

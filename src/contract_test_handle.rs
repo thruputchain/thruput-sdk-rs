@@ -17,17 +17,14 @@ where
     let boxed_call_data = match get_calldata() {
         Ok(x) => x,
         Err(e) => {
-            crate::debug_log!("Failed to get calldata: {:?}", e);
-            return;
+            panic!("Failed to get calldata: {:?}", e);
         }
     };
     let call_data: &[u8] = boxed_call_data.as_ref();
     let args: ARGS = match decode(call_data) {
         Ok(args) => args,
         Err(_) => {
-            // TODO(dobog): what error should be returned here?
-            crate::debug_log!("Failed to decode calldata");
-            return;
+            panic!("Failed to decode calldata");
         }
     };
 
@@ -35,9 +32,7 @@ where
     let result_bytes = match encode(&result) {
         Ok(r) => r,
         Err(_) => {
-            // TODO(dobog): what error should be returned here?
-            crate::debug_log!("Failed to encode result");
-            return;
+            panic!("Failed to encode result");
         }
     };
 

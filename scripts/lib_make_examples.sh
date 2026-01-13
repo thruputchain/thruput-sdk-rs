@@ -238,7 +238,7 @@ native_test_contract() {
         --package "$package" \
         --features $features \
         "$@" \
-        -- --nocapture \
+        -- --show-output \
         ||
     {
         echo
