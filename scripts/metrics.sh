@@ -29,9 +29,9 @@ else
   commit_time=$(date -u -d "@$commit_unix_time" "+%Y-%m-%dT%H:%M:%S")
 fi
 
-# Check if the working directory is dirty (tracked files only)
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-  echo "Working directory is dirty; cannot replicably run metrics"
+# Check if the working directory is dirty (tracked files only), ignoring .cargo/
+if [ -n "$(git status --porcelain --untracked-files=no | grep -vE '^\s*M\s*\.cargo/')" ]; then
+  echo "Working directory is dirty (except .cargo); cannot replicably run metrics"
   exit 1
 fi
 
