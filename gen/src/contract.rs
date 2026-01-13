@@ -71,10 +71,8 @@ pub trait ContractSrc {
 
     fn interface_vers(&self) -> Option<String>;
 
-    // Default is 0.0.0; setting default in one place to avoid
-    // errors in method definitions later.
     fn defaulted_interface_vers(&self) -> String {
-        self.interface_vers().unwrap_or_else(|| "0.0.0".to_string())
+        self.interface_vers().unwrap_or_else(interface_vers_default)
     }
 
     fn client_ident(&self) -> Option<syn::Ident>;
@@ -92,6 +90,10 @@ pub trait ContractSrc {
         mm.sort_by(cmp_method_by_name);
         mm
     }
+}
+
+pub fn interface_vers_default() -> String {
+    "0.0.0".to_string()
 }
 
 use core::cmp::Ordering;

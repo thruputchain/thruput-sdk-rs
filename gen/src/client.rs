@@ -49,6 +49,8 @@ pub fn generate(
             use ::sdk::{ContractAddress, RuntimeMemoryLength};
             use ::sdk::contract::ContractEntrypointID;
             use ::sdk::invoke::{invoke, InvokeResult, client_invoke, ClientResult};
+            use ::sdk::with_call_tracking;
+            use ::sdk::internal::CallMethod;
 
             impl #client_ident {
                 pub fn new(address: &ContractAddress) -> Self {
@@ -113,15 +115,16 @@ fn generate_client_fn(
 ) -> Result<TokenStream> {
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
+    let iface_vers = contract.defaulted_interface_vers();
+    let ident = &method.sig().ident;
 
     let entrypoint = contract_entrypoint_id(
         iface_name,
-        &contract.defaulted_interface_vers(),
-        &method.sig().ident,
+        &iface_vers,
+        ident,
         index,
     );
 
-    let ident = &method.sig().ident;
     let mut params = method.sig().inputs.iter().peekable();
 
     // Pop the self parameter, if any
@@ -185,14 +188,30 @@ fn generate_client_fn(
         quote! { InvokeResult<#return_type> }
     };
 
+    let call_ident = ident.to_string();
+    let call_iface = match iface_name {
+        Some(iface) => quote!{ Some(#iface) },
+        None => quote!{ None },
+    };
+    let call_info = quote! {
+        CallMethod::new(#call_iface, #iface_vers, #call_ident)
+    };
+
     let invoke_fn = if contract.err_type().is_some() {
         quote! { client_invoke }
     } else {
         quote! { invoke }
     };
 
+    let track_caller = if cfg!(feature = "call_tracking") {
+        quote! { #[track_caller] }
+    } else {
+        quote! {}
+    };
+
     Ok(quote_spanned! {method.sig().span()=>
 
+        #track_caller
         pub fn #ident(&mut self, #(#sent_params),* ) -> #return_type
         {
             let entrypoint = #entrypoint_lit;
@@ -200,7 +219,10 @@ fn generate_client_fn(
 
             #log_call
 
-            #invoke_fn(&self.address, entrypoint, self.config.gas_limit, &args)
+            with_call_tracking!(#call_info, {
+                // with-abort-handler
+                #invoke_fn(&self.address, entrypoint, self.config.gas_limit, &args)
+            })
         }
 
     })

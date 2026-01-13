@@ -53,6 +53,7 @@ pub mod sysresult;
 
 mod cell;
 mod local;
+mod debug;
 
 // Direct exports
 
@@ -74,8 +75,9 @@ pub use rt::*;
 pub use serialize::*;
 pub use types::*;
 
-pub use abort::{AbortPayload, abort, default_abort_handler, with_debug_context};
-pub use abort::with_handler as with_abort_handler;
+pub use abort::{AbortPayload, abort, with_abort_handler, default_abort_handler};
+#[cfg(feature = "call_tracking")]
+pub use abort::with_debug_context;
 
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;

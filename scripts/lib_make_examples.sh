@@ -48,8 +48,13 @@ build_wasm() {
     features="guest"
 
     if bool_true "${PANIC_LOGGING:-}"; then
-        # report panic messages via log() syscall
+        # For wasm contracts, use the log() syscall to report panic messages
         features="$features,sdk/panic_logging"
+    fi
+
+    if bool_true "${CALL_TRACKING:-}"; then
+        # Enable tracking of contract calls for abort backtraces
+        features="$features,sdk/call_tracking"
     fi
 
     cargo_wasm build \
@@ -101,6 +106,11 @@ build_bottle_test() {
     if bool_true "${PANIC_LOGGING:-}"; then
         # report panic messages via log() syscall
         features="$features,sdk/panic_logging"
+    fi
+
+    if bool_true "${CALL_TRACKING:-}"; then
+        # Enable tracking of contract calls for abort backtraces
+        features="$features,sdk/call_tracking"
     fi
 
     cargo_wasm build \
@@ -217,6 +227,11 @@ native_test_contract() {
 
     if bool_true "${SDK_CALL_LOGGING:-}"; then
         features="$features,sdk/logging"
+    fi
+
+    if bool_true "${CALL_TRACKING:-}"; then
+        # Enable tracking of contract calls for abort backtraces
+        features="$features,sdk/call_tracking"
     fi
 
     cargo_native test \

@@ -79,8 +79,8 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
-default = []
-mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock", "abort/debug"]
+call_tracking = ["abort/debug", "macros/call_tracking"]
+mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc", "dep:delegate", "macros/storage"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]

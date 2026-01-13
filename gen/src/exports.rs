@@ -61,14 +61,14 @@ pub fn generate_method(
     config: &Config,
 ) -> Result<TokenStream> {
     let ident = &method.sig().ident;
-    let version = if let Some(contract) = contract {
+    let iface_vers = if let Some(contract) = contract {
         contract.defaulted_interface_vers()
     } else {
-        "0.0.0".to_string()
+        crate::contract::interface_vers_default()
     };
 
     let entrypoint =
-        contract_entrypoint_id(iface_name, &version, ident, index);
+        contract_entrypoint_id(iface_name, &iface_vers, ident, index);
 
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);
@@ -80,6 +80,8 @@ pub fn generate_method(
         use ::sdk::contract::ContractEntrypointID;
         use ::sdk::contract_op::{get_calldata, contract_return_encoded, contract_abort_encoded};
         use ::sdk::internal::decode_xdr;
+        use ::sdk::with_call_tracking;
+        use ::sdk::internal::HandleMethod;
     }];
 
     let log_guest_call = if cfg!(feature = "logging") {
@@ -219,46 +221,56 @@ pub fn generate_method(
         quote! {}
     };
 
+    let method_name = ident.to_string();
+    let iface = match iface_name {
+        Some(iface) => quote!{ Some(#iface) },
+        None => quote!{ None },
+    };
+    let call_info = quote! {
+        HandleMethod::new(#iface, #iface_vers, #method_name)
+    };
+
     export.extend(quote! {
         #inline
         pub fn #internal_name() -> () {
             #(#uses)*
 
-            // If debug mode: log the method-call
-            #log_guest_call
+            with_call_tracking!(#call_info, {
+                // If debug mode: log the method-call
+                #log_guest_call
 
-            // Error if this is an "init" method and the contract state already exists
-            #assert_uninitialized
+                // Error if this is an "init" method and the contract state already exists
+                #assert_uninitialized
 
-            #load_state
+                #load_state
 
-            let result = {
+                let result = {
+                    // Fetch the calldata from the VM
+                    let calldata = get_calldata().unwrap_or_else(|e|
+                        panic!("get_calldata() failed: {}", e));
 
-                // Fetch the calldata from the VM
-                let calldata = get_calldata().unwrap_or_else(|e|
-                    panic!("get_calldata() failed: {}", e));
+                    // Decode the args
+                    let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
+                        panic!("failed decoding contract-call arguments: {}", e));
 
-                // Decode the args
-                let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
-                    panic!("failed decoding contract-call arguments: {}", e));
+                    // Call the free function or contract-type method
+                    let result = #function_or_method(#arg_names);
 
-                // Call the free function or contract-type method
-                let result = #function_or_method(#arg_names);
+                    result
+                };
 
-                result
-            };
+                // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
+                // and call contract_abort in the error case // XXX
+                #unwrap_abort
 
-            // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
-            // and call contract_abort in the error case
-            #unwrap_abort
+                // Save any mutations
+                #save_state
 
-            // Save any mutations
-            #save_state
+                // Return the contract-call result to the VM, ending execution of this contract
+                contract_return_encoded(&result);
 
-            // Return the contract-call result to the VM, ending execution of this contract
-            contract_return_encoded(&result);
-
-            // Not reached
+                // Not reached
+            })
         }
     });
 

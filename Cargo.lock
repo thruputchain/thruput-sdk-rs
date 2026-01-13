@@ -10,6 +10,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "aborter"
+version = "0.1.1"
+dependencies = [
+ "aborter",
+ "sdk",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
