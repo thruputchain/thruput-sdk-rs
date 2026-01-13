@@ -8,11 +8,13 @@ fi
 set -e
 
 # Get current branch name
-if [[ -z ${GITHUB_HEAD_REF} ]]; then
+if [[ -z ${GIT_BRANCH} ]]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
 else
-  branch=${GITHUB_HEAD_REF}
+  branch=${GIT_BRANCH}
 fi
+
+echo "Branch: $branch"
 
 # Get current commit hash
 commit=$(git rev-parse HEAD)
@@ -27,12 +29,6 @@ else
   commit_time=$(date -u -d "@$commit_unix_time" "+%Y-%m-%dT%H:%M:%S")
 fi
 
-# Check if the working directory is dirty (tracked files only)
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-  echo "Working directory is dirty; cannot replicably run metrics"
-  exit 1
-fi
-
 echo "Branch: $branch"
 echo "Commit: $commit"
 echo "Commit Timestamp: $commit_time"
@@ -40,7 +36,7 @@ echo "Commit Timestamp: $commit_time"
 # Check if metrics_history/ is a git repo; if not, clone it
 if [ ! -d "metrics_history/.git" ]; then
   echo "Cloning groundhogchain/metrics_history.git into metrics_history/"
-  git clone https://github.com/groundhogchain/metrics_history.git metrics_history/
+  git clone https://github.com/groundhogchain/metrics_history.git metrics_history/ -q
 else
   echo "metrics_history/ already exists and is a git repository."
 fi
