@@ -223,8 +223,8 @@ pub fn generate_method(
 
     let method_name = ident.to_string();
     let iface = match iface_name {
-        Some(iface) => quote!{ Some(#iface) },
-        None => quote!{ None },
+        Some(iface) => quote! { Some(#iface) },
+        None => quote! { None },
     };
     let call_info = quote! {
         HandleMethod::new(#iface, #iface_vers, #method_name)

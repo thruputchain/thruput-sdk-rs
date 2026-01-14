@@ -8,10 +8,10 @@
 
 #[allow(unused_imports)] // import is for docs
 use crate::SyscallErrorCode;
+use crate::exn::*;
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
-use crate::exn::*;
 use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
@@ -52,10 +52,8 @@ pub fn _bytestring_get_len(key: &StorageKey) -> u32 {
     let mut out: RuntimeMemoryLength = 0;
 
     sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
-        let info = SyscallExn::new(
-            crate::sys::SyscallNo::kBytestringGetLen,
-            errno,
-        );
+        let info =
+            SyscallExn::new(crate::sys::SyscallNo::kBytestringGetLen, errno);
         crate::abort(&info);
     });
 

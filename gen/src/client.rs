@@ -118,12 +118,8 @@ fn generate_client_fn(
     let iface_vers = contract.defaulted_interface_vers();
     let ident = &method.sig().ident;
 
-    let entrypoint = contract_entrypoint_id(
-        iface_name,
-        &iface_vers,
-        ident,
-        index,
-    );
+    let entrypoint =
+        contract_entrypoint_id(iface_name, &iface_vers, ident, index);
 
     let mut params = method.sig().inputs.iter().peekable();
 
@@ -190,8 +186,8 @@ fn generate_client_fn(
 
     let call_ident = ident.to_string();
     let call_iface = match iface_name {
-        Some(iface) => quote!{ Some(#iface) },
-        None => quote!{ None },
+        Some(iface) => quote! { Some(#iface) },
+        None => quote! { None },
     };
     let call_info = quote! {
         CallMethod::new(#call_iface, #iface_vers, #call_ident)

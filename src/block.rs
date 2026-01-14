@@ -1,5 +1,5 @@
-use crate::sys::raw_GetBlockHeight;
 use crate::exn::*;
+use crate::sys::raw_GetBlockHeight;
 use groundhog_xdr::types::BlockHeight;
 
 pub fn get_block_height() -> BlockHeight {
@@ -9,7 +9,7 @@ pub fn get_block_height() -> BlockHeight {
             crate::sys::SyscallNo::kGetBlockHeight,
             errno,
             #[cfg(feature = "debug")]
-            "GetBlockHeight"
+            "GetBlockHeight",
         );
         crate::abort(&info);
     });

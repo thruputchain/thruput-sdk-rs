@@ -1,6 +1,6 @@
 use crate::sys::{SysErr, SyscallNo};
-use core::fmt::{self, Display};
 use crate::{ReadXDR, WriteXDR};
+use core::fmt::{self, Display};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyscallExn {
@@ -9,14 +9,8 @@ pub struct SyscallExn {
 }
 
 impl SyscallExn {
-    pub fn new(
-        callno: SyscallNo,
-        errno: SysErr,
-    ) -> Self {
-        Self {
-            callno,
-            errno,
-        }
+    pub fn new(callno: SyscallNo, errno: SysErr) -> Self {
+        Self { callno, errno }
     }
 }
 
@@ -38,7 +32,7 @@ impl From<SyscallExn> for SyscallExn2 {
     fn from(e: SyscallExn) -> Self {
         Self {
             callno: e.callno as i32,
-            errno: e.errno
+            errno: e.errno,
         }
     }
 }

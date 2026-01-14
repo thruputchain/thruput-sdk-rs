@@ -2,9 +2,9 @@
 
 pub use crate::types::SHA256Hash;
 
+use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{CryptographicScheme, Ed25519PublicKey, Ed25519Signature};
-use crate::sys;
 
 pub fn sha_256(input: &[u8]) -> Result<SHA256Hash> {
     let mut out_hash = core::mem::MaybeUninit::<SHA256Hash>::uninit();

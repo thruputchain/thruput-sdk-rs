@@ -50,7 +50,7 @@ pub enum InvokeError {
 
     // XXX temporary
     #[error("the called contract aborted with return-data of length {0}")]
-    AbortedWith(u32)
+    AbortedWith(u32),
 }
 
 pub type InvokeResult<T> = Result<T, InvokeError>;

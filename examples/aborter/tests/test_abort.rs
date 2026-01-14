@@ -1,5 +1,5 @@
-use sdk::*;
 use sdk::contract_test::*;
+use sdk::*;
 
 #[test]
 fn test_abort_bare() {
@@ -10,8 +10,10 @@ fn test_abort_bare() {
     });
 
     match result {
-        Err(e @ InvokeError::AbortedWith(3)) => println!("Aborted as expected: {e}"),
-        r => panic!("Unexpected invocation result: {:?}", r)
+        Err(e @ InvokeError::AbortedWith(3)) => {
+            println!("Aborted as expected: {e}")
+        }
+        r => panic!("Unexpected invocation result: {:?}", r),
     }
 }
 
@@ -35,5 +37,6 @@ fn test_abort_exn() {
             }
             r => panic!("Unexpected client result: {r:?}"),
         }
-    }).unwrap_or_else(|e| panic!("Unexpected outer harness failure: {e}"));
+    })
+    .unwrap_or_else(|e| panic!("Unexpected outer harness failure: {e}"));
 }

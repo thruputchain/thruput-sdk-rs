@@ -23,14 +23,28 @@ pub struct CallMethod<'a> {
 }
 
 impl<'a> CallMethod<'a> {
-    pub fn new(iface: Option<&'a str>, iface_vers: &'a str, name: &'a str) -> Self {
-        Self { iface, iface_vers, name }
+    pub fn new(
+        iface: Option<&'a str>,
+        iface_vers: &'a str,
+        name: &'a str,
+    ) -> Self {
+        Self {
+            iface,
+            iface_vers,
+            name,
+        }
     }
 }
 
 impl Display for CallMethod<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Call   {}[v{}]::{}(...)", self.iface.unwrap_or(""), self.iface_vers, self.name)
+        write!(
+            f,
+            "Call   {}[v{}]::{}(...)",
+            self.iface.unwrap_or(""),
+            self.iface_vers,
+            self.name
+        )
     }
 }
 
@@ -41,13 +55,27 @@ pub struct HandleMethod<'a> {
 }
 
 impl<'a> HandleMethod<'a> {
-    pub fn new(iface: Option<&'a str>, iface_vers: &'a str, name: &'a str) -> Self {
-        Self { iface, iface_vers, name }
+    pub fn new(
+        iface: Option<&'a str>,
+        iface_vers: &'a str,
+        name: &'a str,
+    ) -> Self {
+        Self {
+            iface,
+            iface_vers,
+            name,
+        }
     }
 }
 
 impl Display for HandleMethod<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Handle {}[v{}]::{}(...)", self.iface.unwrap_or(""), self.iface_vers, self.name)
+        write!(
+            f,
+            "Handle {}[v{}]::{}(...)",
+            self.iface.unwrap_or(""),
+            self.iface_vers,
+            self.name
+        )
     }
 }

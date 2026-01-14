@@ -7,7 +7,7 @@ use std::vec::Vec;
 /// Panic if the invocation or transaction fails.
 pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
     let mut handler = env.prepare_test(f);
 
@@ -32,9 +32,12 @@ where
 /// something we haven't figured out how to do directly from the
 /// TestEnvironment.)
 ///
-pub fn contract_test_invoke<F>(env: TestEnvironmentHandle, f: F) -> InvokeResult<()>
+pub fn contract_test_invoke<F>(
+    env: TestEnvironmentHandle,
+    f: F,
+) -> InvokeResult<()>
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
     let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
     let test_contract = {
@@ -48,7 +51,8 @@ where
     // It's currently difficult to extract state from mock contracts,
     // so we'll allocate shared storage for the data we want to inspect
     // after the test run:
-    let invoke_result: Arc<Mutex<Option<InvokeResult<()>>>> = Arc::new(Mutex::new(None));
+    let invoke_result: Arc<Mutex<Option<InvokeResult<()>>>> =
+        Arc::new(Mutex::new(None));
 
     let mut handler = {
         let invoke_result = invoke_result.clone();
@@ -56,15 +60,10 @@ where
         env.prepare_test(move || -> () {
             let nonce = SHA256Hash::from([7; 32]);
             let deployed_addr =
-                crate::deploy_contract(&nonce, &contract_hash)
-                    .unwrap();
+                crate::deploy_contract(&nonce, &contract_hash).unwrap();
 
-            let r = invoke::<(), ()>(
-                &deployed_addr,
-                entrypoint,
-                u64::MAX,
-                &(),
-            );
+            let r =
+                invoke::<(), ()>(&deployed_addr, entrypoint, u64::MAX, &());
 
             *invoke_result.lock().unwrap() = Some(r);
         })
@@ -95,7 +94,9 @@ macro_rules! contract_test {
         fn $name() {
             let mut env = sdk::TestEnvironment::new();
 
-            $crate::contract_test::contract_test_succeeding(env, || $test_body);
+            $crate::contract_test::contract_test_succeeding(env, || {
+                $test_body
+            });
         }
     };
 }

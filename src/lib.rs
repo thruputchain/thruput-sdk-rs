@@ -33,6 +33,7 @@ pub mod crypto;
 pub mod delete;
 pub mod deploy;
 pub mod event;
+pub mod exn;
 pub mod hash;
 pub mod hasher;
 pub mod hex;
@@ -47,14 +48,13 @@ pub mod rt;
 pub mod serialize;
 pub mod stats;
 pub mod types;
-pub mod exn;
 
 pub mod contract_result;
 pub mod sysresult;
 
 mod cell;
-mod local;
 mod debug;
+mod local;
 
 // Direct exports
 
@@ -65,6 +65,7 @@ pub use contract_op::*;
 pub use delete::*;
 pub use deploy::*;
 pub use event::*;
+pub use exn::*;
 pub use hash::*;
 pub use hasher::*;
 pub use hex::*;
@@ -75,11 +76,13 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
-pub use exn::*;
 
-pub use abort::{AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler, default_abort_handler};
 #[cfg(feature = "call_tracking")]
 pub use abort::with_debug_context;
+pub use abort::{
+    AbortInfo, AbortPayload, Never, abort, abort_with_info,
+    default_abort_handler, with_abort_handler,
+};
 
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
