@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! with_debug_context {
     { $call_info:expr, $body:block } => {
-        crate::with_debug_context(&$call_info, || $body)
+        $crate::with_debug_context(&$call_info, || $body)
     };
 }
 

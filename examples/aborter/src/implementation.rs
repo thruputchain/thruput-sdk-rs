@@ -13,8 +13,12 @@ pub enum AbortType {
 
 #[contract(client = ContractClient, storage = "false", /* abort = AbortType */)]
 impl Contract {
-    pub fn abort_with_message(&self) {
-        abort(&"Hello");
+    pub fn complain(&self) {
+        with_abort_handler(&default_abort_handler, || {
+            with_debug_context(&"This may lead to sadness", || {
+                abort(&"Sadness");
+            });
+        });
     }
 
     pub fn bad_bytestring_length(&self) -> u32 {
