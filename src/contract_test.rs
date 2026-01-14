@@ -5,6 +5,7 @@ use std::vec::Vec;
 
 /// Run some code inside a mock contract.
 /// Panic if the invocation or transaction fails.
+///
 pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
@@ -28,9 +29,8 @@ where
 /// Deploy a mock contract with the given code, and invoke it from another mock
 /// contract.
 ///
-/// (This allows us to get the InvokeResult of the invocation of the code,
-/// something we haven't figured out how to do directly from the
-/// TestEnvironment.)
+/// (This allows us to get the InvokeResult, something I haven't figured out
+/// how to do directly from the TestEnvironment.)
 ///
 pub fn contract_test_invoke<F>(
     env: TestEnvironmentHandle,
@@ -51,6 +51,7 @@ where
     // It's currently difficult to extract state from mock contracts,
     // so we'll allocate shared storage for the data we want to inspect
     // after the test run:
+    //
     let invoke_result: Arc<Mutex<Option<InvokeResult<()>>>> =
         Arc::new(Mutex::new(None));
 
@@ -79,8 +80,9 @@ where
 
     match handler.try_commit_transaction() {
         ExecResultOK => {}
-        // ExecResultTxDeterministicError =>
-        // ExecResultTxRootFrameReverted =>
+        // Note: these results are also deterministic:
+        //     ExecResultTxDeterministicError
+        //     ExecResultTxRootFrameReverted
         r => panic!("Unexpected transaction result: {:?}", r),
     }
 
@@ -118,7 +120,7 @@ macro_rules! contract_test_env {
                 let mut contract = env.add_contract();
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
-                    sdk::contract_test_handle::handle_call(|()| {
+                    sdk::contract_test::handle_call(|()| {
                         $test_body
                         return ();
                     });
@@ -167,6 +169,50 @@ macro_rules! contract_test_env {
         }
     };
 }
+
+mod handle {
+    use crate::contract_op::*;
+    use xdrs::serialize_txs::{decode, encode};
+    use xdrs::{ReadXDROwned, WriteXDR};
+
+    // Run a handler function on the invocation arguments
+    // available in serialized form via `GetCalldata`,
+    // and serialize the result for passing to `Return`.
+    //
+    pub fn handle_call<F, ARGS, RES>(f: F) -> ()
+    where
+        F: FnOnce(ARGS) -> RES,
+        ARGS: ReadXDROwned,
+        RES: WriteXDR,
+    {
+        let boxed_call_data = match get_calldata() {
+            Ok(x) => x,
+            Err(e) => {
+                panic!("Failed to get calldata: {:?}", e);
+            }
+        };
+        let call_data: &[u8] = boxed_call_data.as_ref();
+        let args: ARGS = match decode(call_data) {
+            Ok(args) => args,
+            Err(_) => {
+                panic!("Failed to decode calldata");
+            }
+        };
+
+        // Run the handler
+        let result: RES = f(args);
+
+        let result_bytes = match encode(&result) {
+            Ok(r) => r,
+            Err(_) => {
+                panic!("Failed to encode result");
+            }
+        };
+
+        contract_return(result_bytes.as_slice());
+    }
+}
+pub use handle::*;
 
 pub fn grant_storage_tokens(
     env: &native_exec::test_environment::TestEnvironmentHandle,

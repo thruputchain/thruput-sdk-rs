@@ -236,40 +236,47 @@ pub fn generate_method(
             #(#uses)*
 
             with_call_tracking!(#call_info, {
-                // If debug mode: log the method-call
-                #log_guest_call
 
-                // Error if this is an "init" method and the contract state already exists
-                #assert_uninitialized
+            // If debug mode: log the method-call
+            #log_guest_call
 
-                #load_state
+            // Error if this is an "init" method and the contract state already exists
+            #assert_uninitialized
 
-                let result = {
-                    // Fetch the calldata from the VM
-                    let calldata = get_calldata().unwrap_or_else(|e|
-                        panic!("get_calldata() failed: {}", e));
+            #load_state
 
-                    // Decode the args
-                    let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
-                        panic!("failed decoding contract-call arguments: {}", e));
+            let result = {
+                // Fetch the calldata from the VM
+                let calldata = get_calldata().unwrap_or_else(|e|
+                    panic!("get_calldata() failed: {}", e));
 
-                    // Call the free function or contract-type method
-                    let result = #function_or_method(#arg_names);
+                // Decode the args
+                let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
+                    panic!("failed decoding contract-call arguments: {}", e));
 
-                    result
-                };
+                // Call the free function or contract-type method
+                let result = #function_or_method(#arg_names);
 
-                // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
-                // and call contract_abort in the error case // XXX
-                #unwrap_abort
+                result
+            };
 
-                // Save any mutations
-                #save_state
+            // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
+            // and call contract_abort in the error case.
+            //
+            // TODO: remove the `#[contract(error = ...)]` mechanism, which
+            // is obsoleted by (and incompatible with) the `#[contract(abort =
+            // ...)]` mechanism
+            //
+            #unwrap_abort
 
-                // Return the contract-call result to the VM, ending execution of this contract
-                contract_return_encoded(&result);
+            // Save any mutations
+            #save_state
 
-                // Not reached
+            // Return the contract-call result to the VM, ending execution of this contract
+            contract_return_encoded(&result);
+
+            // Not reached
+
             })
         }
     });

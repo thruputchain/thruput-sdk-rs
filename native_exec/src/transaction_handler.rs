@@ -79,7 +79,6 @@ impl TransactionHandler {
 
         let foreign_result: ForeignRootInvokeResult =
             unsafe { root_invoke(self.handler) };
-
         RootInvokeResult {
             status: foreign_result.result.panic.try_into().unwrap(),
             gas_consumed: foreign_result.gas_consumed,

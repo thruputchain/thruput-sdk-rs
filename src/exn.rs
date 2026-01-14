@@ -20,7 +20,7 @@ impl Display for SyscallExn {
     }
 }
 
-// temporary hack until we can get the XDR impls
+// temporary hack until we can get the XDR impls on SyscallExn
 
 #[derive(Debug, ReadXDR, WriteXDR)]
 pub struct SyscallExn2 {

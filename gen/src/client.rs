@@ -216,7 +216,6 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                // with-abort-handler
                 #invoke_fn(&self.address, entrypoint, self.config.gas_limit, &args)
             })
         }

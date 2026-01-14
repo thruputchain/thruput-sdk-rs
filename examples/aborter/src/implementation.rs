@@ -24,7 +24,7 @@ impl Contract {
             //
             // This should abort with a `SyscallExn` because the storage location is empty
             //
-            _bytestring_get_len(&StorageKey::from([72; 32]))
+            asys::bytestring_get_len(&StorageKey::from([72; 32]))
         })
     }
 
@@ -39,6 +39,7 @@ impl Contract {
 
 // From the given abort info, construct our contract's `AbortType` value and
 // call `contract_abort` with it.
+//
 pub fn abort_handler<'a>(info: AbortInfo<'a>) -> Never {
     use core::any::Any;
 

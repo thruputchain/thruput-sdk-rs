@@ -48,16 +48,28 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
     Ok(out as u32)
 }
 
-pub fn _bytestring_get_len(key: &StorageKey) -> u32 {
-    let mut out: RuntimeMemoryLength = 0;
+pub mod asys {
+    use super::*;
 
-    sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
-        let info =
-            SyscallExn::new(crate::sys::SyscallNo::kBytestringGetLen, errno);
-        crate::abort(&info);
-    });
+    /// Returns the length of the bytestring stored at the given key.
+    ///
+    /// Aborts with a `SyscallExn` when [`super::bytestring_get_len`] would return an error.
+    ///
+    /// TODO: Provide this pattern for all syscalls.
+    ///
+    pub fn bytestring_get_len(key: &StorageKey) -> u32 {
+        let mut out: RuntimeMemoryLength = 0;
 
-    out
+        sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
+            let info = SyscallExn::new(
+                crate::sys::SyscallNo::kBytestringGetLen,
+                errno,
+            );
+            crate::abort(&info);
+        });
+
+        out
+    }
 }
 
 /// Sets the value at the given key to the given bytestring.

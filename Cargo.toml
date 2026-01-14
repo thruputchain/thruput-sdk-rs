@@ -79,7 +79,6 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
-debug = ["call_tracking"]
 call_tracking = ["abort/debug", "macros/call_tracking"]
 mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
 storage = ["alloc", "dep:delegate", "macros/storage"]
@@ -115,6 +114,3 @@ name = "events"
 
 [lints.clippy]
 collapsible_if = "allow"
-
-# [patch."ssh://git@github.com/groundhogchain/abort_rs.git"] # XXX
-# abort = { path = "../abort" }
