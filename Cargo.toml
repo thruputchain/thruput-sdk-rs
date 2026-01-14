@@ -116,5 +116,5 @@ name = "events"
 [lints.clippy]
 collapsible_if = "allow"
 
-[patch."ssh://git@github.com/groundhogchain/abort_rs.git"]
-abort = { path = "../abort" }
+# [patch."ssh://git@github.com/groundhogchain/abort_rs.git"] # XXX
+# abort = { path = "../abort" }

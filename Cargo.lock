@@ -5,6 +5,7 @@ version = 4
 [[package]]
 name = "abort"
 version = "0.1.0"
+source = "git+ssh://git@github.com/groundhogchain/abort_rs.git#aef6482bcbb7fb6b77984cbb78b67ee7bb25b501"
 dependencies = [
  "heapless",
 ]
