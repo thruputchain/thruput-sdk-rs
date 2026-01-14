@@ -13,11 +13,9 @@ pub enum AbortType {
 
 #[contract(client = ContractClient, storage = "false", /* abort = AbortType */)]
 impl Contract {
-    pub fn complain(&self) {
-        with_abort_handler(&default_abort_handler, || {
-            with_debug_context(&"This may lead to sadness", || {
-                abort(&"Sadness");
-            });
+    pub fn uncaught_abort(&self) {
+        with_debug_context!("This may lead to sadness", {
+            abort(&"Sadness");
         });
     }
 

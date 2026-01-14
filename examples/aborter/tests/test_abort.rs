@@ -42,7 +42,6 @@ fn test_abort_exn() {
 }
 
 #[test]
-// #[should_panic] // XXX what's going on here?
 fn test_uncaught_abort() {
     let mut env = TestEnvironment::new();
 
@@ -54,7 +53,23 @@ fn test_uncaught_abort() {
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
         let mut client = aborter::ContractClient::new(&deployed_addr);
 
-        let _ = client.complain();
+        // We are not yet trapping aborts in the method wrappers, so here's
+        // what happens now:
+        // - The client method calls `abort`
+        // - `abort` finds no handlers, so panics "Uncaught abort!"
+        // - our invoke syscall here receives `InvokeError::Syscall`
+        //
+        match client.uncaught_abort() {
+            Err(InvokeError::Syscall(_)) => { /* Expected */ },
+            Err(InvokeError::AbortedWith(_)) => {
+                // Once the client behaves properly (calls `contract_abort` instead of trapping),
+                // we should get here.  For now:
+                //
+                panic!("Unexpected abort");
+            },
+            Err(e) => panic!("Unexpected invoke error: {:?}", e),
+            Ok(()) => panic!("Contract unexpectedly succeeded"),
+        }
     })
     .unwrap_or_else(|e| panic!("Unexpected outer harness failure: {e}"));
 }
