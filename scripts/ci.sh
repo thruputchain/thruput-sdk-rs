@@ -35,10 +35,9 @@ make examples build
 make examples native-test
 make examples bottle-test
 
-# XXX: these still use deprecated symbols
-# make integration_test_contracts build
-# make integration_test_contracts native-test
-# make integration_test_contracts bottle-test
+make integration_test_contracts build
+make integration_test_contracts native-test
+make integration_test_contracts bottle-test
 
 make test-spec
 

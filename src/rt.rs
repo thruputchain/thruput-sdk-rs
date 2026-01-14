@@ -68,11 +68,3 @@ fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
 
     trap();
 }
-
-#[deprecated = "Use panic!()"]
-#[macro_export]
-macro_rules! contract_panic {
-    ($fmt:expr $(, $expr:tt)* $(,)? ) => {
-        panic!($fmt $(, $expr)*)
-    };
-}
