@@ -76,12 +76,13 @@ pub use rt::*;
 pub use serialize::*;
 pub use types::*;
 
-#[cfg(feature = "call_tracking")]
-pub use abort::with_debug_context;
 pub use abort::{
     AbortInfo, AbortPayload, Never, abort, abort_with_info,
-    default_abort_handler, with_abort_handler,
+    clear_abort_handler, default_abort_handler, with_abort_handler,
 };
+
+#[cfg(feature = "call_tracking")]
+pub use abort::with_debug_context;
 
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;

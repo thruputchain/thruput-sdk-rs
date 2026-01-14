@@ -80,7 +80,7 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
 call_tracking = ["abort/debug", "macros/call_tracking"]
-mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock"]
+mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock", "abort/multithreaded"]
 storage = ["alloc", "dep:delegate", "macros/storage"]
 alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog_xdr/std"]

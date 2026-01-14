@@ -60,13 +60,13 @@ fn test_uncaught_abort() {
         // - our invoke syscall here receives `InvokeError::Syscall`
         //
         match client.uncaught_abort() {
-            Err(InvokeError::Syscall(_)) => { /* Expected */ },
-            Err(InvokeError::AbortedWith(_)) => {
+            Err(InvokeError::Syscall(_)) => { /* Expected */ }
+            Err(a @ InvokeError::AbortedWith(_)) => {
                 // Once the client behaves properly (calls `contract_abort` instead of trapping),
                 // we should get here.  For now:
                 //
-                panic!("Unexpected abort");
-            },
+                panic!("Unexpected abort: {a:?}");
+            }
             Err(e) => panic!("Unexpected invoke error: {:?}", e),
             Ok(()) => panic!("Contract unexpectedly succeeded"),
         }
