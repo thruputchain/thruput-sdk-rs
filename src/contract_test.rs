@@ -3,7 +3,31 @@ use std::panic::UnwindSafe;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
 
-pub fn contract_test_invoke<F>(env: TestEnvironmentHandle, f: F) -> InvokeResult<()>
+/// Run some code inside a mock contract.
+/// Panic if the invocation or transaction fails.
+pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static
+{
+    let mut handler = env.prepare_test(f);
+
+    grant_storage_tokens(&env, &handler);
+
+    let res = handler.root_invoke();
+
+    if res.status != InvokeErrorCode::kInvokeNone {
+        panic!("Root invocation panicked with code {:?}", res.status);
+    }
+
+    match handler.try_commit_transaction() {
+        ExecResultOK => {}
+        r => panic!("Unexpected transaction result: {:?}", r),
+    }
+}
+
+/// Deploy a mock contract with the given code, and invoke
+/// it from another mock contract.
+pub fn contract_test_invoke_invoke<F>(env: TestEnvironmentHandle, f: F) -> InvokeResult<()>
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static
 {
@@ -61,6 +85,18 @@ macro_rules! contract_test {
         fn $name() {
             let mut env = sdk::TestEnvironment::new();
 
+            $crate::contract_test::contract_test_succeeding(env, || $test_body);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! contract_test_deprecated {
+    ($name:ident $test_body:tt) => {
+        #[test]
+        fn $name() {
+            let mut env = sdk::TestEnvironment::new();
+
             let test_contract = {
                 let mut contract = env.add_contract();
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
@@ -99,6 +135,7 @@ macro_rules! contract_test {
     };
 }
 
+// TODO: remove (tests/events.rs is only user?)
 #[macro_export]
 macro_rules! contract_test_env {
     (

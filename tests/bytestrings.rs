@@ -1,6 +1,5 @@
 //! Test the semantics of the database (i.e., key-value store)
 
-// use sdk::sysresult::Error;
 use sdk::*;
 
 contract_test!(test_bytestring {

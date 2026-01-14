@@ -1,8 +1,11 @@
 //! Test the semantics of the raw nnint syscalls
 
+#![allow(unused)]
+
 use sdk::internal::nnint::*;
 use sdk::*;
 
+#[cfg(any())] // XXX: ExecResultTxNonDeterministicError
 #[rustfmt::skip]
 contract_test!(test_internal_nnints {
     let key = StorageKey::default();

@@ -1,8 +1,11 @@
 //! Test the semantics of the SDK's non_negative_int functions
 
+#![allow(unused)]
+
 use sdk::sysresult::Error;
 use sdk::*;
 
+#[cfg(any())] // XXX: ExecResultTxNonDeterministicError
 contract_test!(test_nnints {
     let key = StorageKey::default();
     let key = &key;

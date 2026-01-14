@@ -6,7 +6,7 @@ use sdk::contract_test::*;
 fn test_abort() {
     let env = TestEnvironment::new();
 
-    let result = contract_test_invoke(env, || {
+    let result = contract_test_invoke_invoke(env, || {
         contract_abort(&[]);
     });
 
@@ -15,6 +15,7 @@ fn test_abort() {
         r => panic!("Unexpected invocation result: {:?}", r)
     }
 }
+
 
 /*
 fn test_inner(client: &mut ContractClient) -> InvokeResult<()> {
