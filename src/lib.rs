@@ -75,8 +75,9 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+pub use exn::*;
 
-pub use abort::{AbortPayload, abort, with_abort_handler, default_abort_handler};
+pub use abort::{AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler, default_abort_handler};
 #[cfg(feature = "call_tracking")]
 pub use abort::with_debug_context;
 

@@ -48,7 +48,8 @@ pub enum InvokeError {
     #[error("the called contract aborted")]
     Aborted,
 
-    #[error("the called contract aborted returndata of length {0}")]
+    // XXX temporary
+    #[error("the called contract aborted with return-data of length {0}")]
     AbortedWith(u32)
 }
 

@@ -55,8 +55,6 @@ pub fn _bytestring_get_len(key: &StorageKey) -> u32 {
         let info = SyscallExn::new(
             crate::sys::SyscallNo::kBytestringGetLen,
             errno,
-            #[cfg(feature = "debug")]
-            "BytestringGetLen"
         );
         crate::abort(&info);
     });

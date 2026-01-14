@@ -25,9 +25,14 @@ where
     }
 }
 
-/// Deploy a mock contract with the given code, and invoke
-/// it from another mock contract.
-pub fn contract_test_invoke_invoke<F>(env: TestEnvironmentHandle, f: F) -> InvokeResult<()>
+/// Deploy a mock contract with the given code, and invoke it from another mock
+/// contract.
+///
+/// (This allows us to get the InvokeResult of the invocation of the code,
+/// something we haven't figured out how to do directly from the
+/// TestEnvironment.)
+///
+pub fn contract_test_invoke<F>(env: TestEnvironmentHandle, f: F) -> InvokeResult<()>
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static
 {
@@ -65,13 +70,18 @@ where
         })
     };
 
+    grant_storage_tokens(&env, &handler);
+
+    // The root invocation (with the code inside prepare_test) should succeed
     let res = handler.root_invoke();
     if res.status != InvokeErrorCode::kInvokeNone {
-        panic!("root invocation panicked with code {:?}", res.status);
+        panic!("Root invocation panicked with code {:?}", res.status);
     }
 
     match handler.try_commit_transaction() {
         ExecResultOK => {}
+        // ExecResultTxDeterministicError =>
+        // ExecResultTxRootFrameReverted =>
         r => panic!("Unexpected transaction result: {:?}", r),
     }
 
@@ -90,52 +100,7 @@ macro_rules! contract_test {
     };
 }
 
-#[macro_export]
-macro_rules! contract_test_deprecated {
-    ($name:ident $test_body:tt) => {
-        #[test]
-        fn $name() {
-            let mut env = sdk::TestEnvironment::new();
-
-            let test_contract = {
-                let mut contract = env.add_contract();
-                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-                contract.register_method(method, || -> () {
-                    sdk::contract_test_handle::handle_call(|()| {
-                        $test_body
-                        return ();
-                    });
-                });
-                contract.as_contract()
-            };
-
-            let contract_hash = env.setup_create_contract(&test_contract);
-
-            let mut handler = env.prepare_test(move || -> () {
-                let nonce = sdk::types::SHA256Hash::from([7; 32]);
-                let deployed_addr =
-                    sdk::deploy::deploy_contract(&nonce, &contract_hash)
-                        .unwrap();
-
-                // Invoke contract method 1
-                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-                sdk::invoke::invoke::<(), ()>(
-                    &deployed_addr,
-                    method,
-                    u64::MAX,
-                    &(),
-                ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
-            });
-
-            let res = handler.root_invoke();
-            if res.status != sdk::InvokeErrorCode::kInvokeNone {
-                panic!("root invocation panicked with code {:?}", res.status);
-            }
-        }
-    };
-}
-
-// TODO: remove (tests/events.rs is only user?)
+// TODO: remove in favor of something like above functions (tests/events.rs is the only user?)
 #[macro_export]
 macro_rules! contract_test_env {
     (

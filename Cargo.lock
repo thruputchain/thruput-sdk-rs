@@ -16,6 +16,7 @@ dependencies = [
  "aborter",
  "groundhog_xdr",
  "sdk",
+ "xdrs",
 ]
 
 [[package]]

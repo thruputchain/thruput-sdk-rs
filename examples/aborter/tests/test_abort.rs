@@ -1,70 +1,39 @@
 use sdk::*;
 use sdk::contract_test::*;
-// use aborter::*;
 
 #[test]
-fn test_abort() {
+fn test_abort_bare() {
     let env = TestEnvironment::new();
 
-    let result = contract_test_invoke_invoke(env, || {
-        contract_abort(&[]);
+    let result = contract_test_invoke(env, || {
+        contract_abort(&[1u8, 2, 3]);
     });
 
     match result {
-        Err(InvokeError::AbortedWith(_)) => println!("Aborted as expected"),
+        Err(e @ InvokeError::AbortedWith(3)) => println!("Aborted as expected: {e}"),
         r => panic!("Unexpected invocation result: {:?}", r)
     }
 }
 
-
-/*
-fn test_inner(client: &mut ContractClient) -> InvokeResult<()> {
-    let _ = with_debug_context!(&"Testing abort functionality", {
-        with_abort_handler(&default_abort_handler, || {
-            let _ = client.bytestring_failure();
-            Ok(())
-        })
-    });
-
-    contract_return(&[]);
-}
-*/
-
-/*
 #[test]
-fn test_abort() {
-    let mut env = sdk::TestEnvironment::new();
+fn test_abort_exn() {
+    let mut env = TestEnvironment::new();
 
-    let test_contract = test_setup::register(&mut env);
+    let test_contract = aborter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    let mut handler = env.prepare_test(move || -> () {
+    contract_test_invoke(env, move || {
         let nonce = SHA256Hash::from([7; 32]);
-        let _deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
-        // let mut client = ContractClient::new(&deployed_addr);
+        let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
+        let mut client = aborter::ContractClient::new(&deployed_addr);
 
-        let buf = [0, 1, 2];
-        contract_abort(&buf[..]);
-
-        /*
-        match test_inner(&mut client) {
-            Ok(_) => panic!("Unexpected success"),
-            Err(_) => (),
+        // Call a client method that catches a syscall exception with an abort-handler
+        // and returns it via `contract_abort`.
+        match client.bad_bytestring_length() {
+            Err(InvokeError::AbortedWith(8)) => {
+                // Good: we expect an abort with return-data of length 8 (the syscall exn)
+            }
+            r => panic!("Unexpected client result: {r:?}"),
         }
-        */
-    });
-
-    let res = handler.root_invoke();
-    let status = res.status;
-
-    if status != sdk::InvokeErrorCode::kInvokeNone {
-        panic!("Root invocation handler returned {:?}", status);
-    }
-
-    let commit_res = handler.try_commit_transaction();
-
-    if commit_res != ExecResultTxRootFrameReverted {
-        panic!("Unexpected transaction result: {:?}", commit_res);
-    }
+    }).unwrap_or_else(|e| panic!("Unexpected outer harness failure: {e}"));
 }
-*/

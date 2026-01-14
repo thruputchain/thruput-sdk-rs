@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 sdk = { workspace = true }
 groundhog_xdr = { workspace = true }
-# xdrs = { workspace = true, features = ["derive"] }
+xdrs = { workspace = true, features = ["derive"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
