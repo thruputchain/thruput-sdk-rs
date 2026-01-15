@@ -77,8 +77,7 @@ pub use serialize::*;
 pub use types::*;
 
 pub use abort::{
-    AbortInfo, AbortPayload, Never, abort, abort_with_info,
-    clear_abort_handler, default_abort_handler, with_abort_handler,
+    AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler,
 };
 
 #[cfg(feature = "call_tracking")]
