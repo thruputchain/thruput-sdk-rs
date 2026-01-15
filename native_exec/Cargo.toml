@@ -6,6 +6,9 @@ edition = "2021"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+wasm_backtraces = []
+
 [dependencies]
 groundhog_xdr = { workspace = true, features = ["std", "xdrs"]}
 xdrs = { workspace = true }

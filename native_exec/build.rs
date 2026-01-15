@@ -52,6 +52,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .define("CMAKE_CXX_COMPILER_LAUNCHER", "ccache")
         .define("ENABLE_TEST_CONTRACTS", "OFF");
 
+    #[cfg(feature = "wasm_backtraces")]
+    cfg.define("WASM_DEBUG_BACKTRACES", "ON");
+
     // Force re-configuration before building, if requested
     cfg.always_configure(
         env::var("NATIVE_EXEC_ALWAYS_CONFIGURE").is_ok_and(|s| s.len() > 0),
