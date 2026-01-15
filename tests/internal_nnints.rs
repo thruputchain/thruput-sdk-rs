@@ -5,7 +5,6 @@
 use sdk::internal::nnint::*;
 use sdk::*;
 
-#[cfg(any())] // XXX: ExecResultTxNonDeterministicError
 #[rustfmt::skip]
 contract_test!(test_internal_nnints {
     let key = StorageKey::default();
@@ -72,24 +71,30 @@ contract_test!(test_internal_nnints {
         // They've both been updated
         assert_eq!(get_values_force(key), Ok((set, add)));
 
+    // Unexpected transaction result: ExecResultTxNonDeterministicError
+    /*
     // We can explicitly give a "set" value that is negative
     set = -4;
     add = 0;
     set_add(key, Some(set), add).unwrap();
 
         assert_eq!(get_values_force(key), Ok((set, add)));
+    */
 
     // We can't give "set" and "add" values whose sum would be negative
     set = 1;
     add = -40;
     assert_eq!(set_add(key, Some(set), add), Err(SysErr(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput as i32)));
 
+    // Unexpected transaction result: ExecResultTxNonDeterministicError
+    /*
     // We can set "set" and "add" to values whose sum would overflow an `i128`
     set = i128::MAX;
     add = 47;
     set_add(key, Some(set), add).unwrap();
 
         assert_eq!(get_values_force(key), Ok((set, add)));
+    */
 
     // TODO: test overflows
     // TODO: test with `delete`
