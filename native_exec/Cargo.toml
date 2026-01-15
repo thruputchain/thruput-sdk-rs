@@ -6,6 +6,16 @@ edition = "2021"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+# If this feature is enabled, then the native_exec crate will be built with
+# wasm backtraces enabled.  Those will be largely meaningless unless you also
+# build contracts with minimal debug info (line numbers and function names).
+# 
+# This feature also turns on the logging feature in the contracts that are built in integration_test_contracts
+# within hogexec.  The only contract for which that is relevant for the SDK is the initial_token_claim contract,
+# in that this feature will change the gas consumption (and hash) of that contract.
+wasm_backtraces = []
+
 [dependencies]
 groundhog_xdr = { workspace = true, features = ["std", "xdrs"]}
 xdrs = { workspace = true }
