@@ -1,0 +1,23 @@
+[package]
+name = "aborter"
+version = "0.1.1"
+edition = "2024"
+
+[dependencies]
+sdk = { workspace = true }
+groundhog_xdr = { workspace = true }
+xdrs = { workspace = true, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+logging = ["sdk/logging"]
+
+[dev-dependencies]
+aborter = { path = ".", features = ["mock", "client"] }

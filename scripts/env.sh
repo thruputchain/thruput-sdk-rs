@@ -38,6 +38,9 @@ HOGD_SRC="$(realpath "${HOGD_SRC}")"
 ## Enable logging of syscalls in the test executor
 # SDK_TEST_ENABLE_SYSCALL_LOGGING=yes
 
+## Enable tracking of contract calls for abort backtraces
+# CALL_TRACKING=yes
+
 ## Use an already-built contract-wasm for bottle-tests instead of rebuilding it
 ## (This is set in ci.sh, which builds contracts before running tests.)
 # BOTTLE_TEST_USE_BUILT_TARGET=yes

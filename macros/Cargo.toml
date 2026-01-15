@@ -22,6 +22,7 @@ xdrs = { workspace = true, features = ["txs"] }
 default = ["alloc"]
 alloc = ["gen/alloc"]
 logging = ["gen/logging"]
+call_tracking = ["gen/call_tracking"]
 spec = ["gen/spec", "groundhog_xdr/spec"]
 storage = []
 mock = []

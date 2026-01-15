@@ -38,9 +38,11 @@ pub use test_rt::trap;
 // `handle_panic`. (That setting is useful because it results in panic strings not being included
 // in the binary.) The build scripts may be configured to instead choose `panic=abort`, which will
 // enable the logging below.
+//
 #[cfg(not(feature = "std"))]
 #[panic_handler]
 fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
+    // Log the panic message if enabled
     #[cfg(feature = "panic_logging")]
     {
         use crate::log;
@@ -65,13 +67,21 @@ fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
         let _ = log(msg.as_str().as_bytes());
     }
 
-    trap();
-}
+    /*
+    {
+        use core::fmt::Write;
+        use heapless::String;
 
-// Deprecated; use panic!()
-#[macro_export]
-macro_rules! contract_panic {
-    ($fmt:expr $(, $expr:tt)* $(,)? ) => {
-        panic!($fmt $(, $expr)*)
-    };
+        let mut msg: String<150> = String::new();
+
+        write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(|| {
+            msg.set_len(0);
+            let _ = write!(msg, "Contract panic: <couldn't format panic message>");
+        });
+
+        abort(&msg.as_str());
+    }
+    */
+
+    trap();
 }

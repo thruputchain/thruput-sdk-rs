@@ -8,6 +8,7 @@
 
 #[allow(unused_imports)] // import is for docs
 use crate::SyscallErrorCode;
+use crate::exn::*;
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
@@ -45,6 +46,30 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
     sys::raw_BytestringGetLen(key, &mut out)?;
 
     Ok(out as u32)
+}
+
+pub mod asys {
+    use super::*;
+
+    /// Returns the length of the bytestring stored at the given key.
+    ///
+    /// Aborts with a `SyscallExn` when [`super::bytestring_get_len`] would return an error.
+    ///
+    /// TODO: Provide this pattern for all syscalls.
+    ///
+    pub fn bytestring_get_len(key: &StorageKey) -> u32 {
+        let mut out: RuntimeMemoryLength = 0;
+
+        sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
+            let info = SyscallExn::new(
+                crate::sys::SyscallNo::kBytestringGetLen,
+                errno,
+            );
+            crate::abort(&info);
+        });
+
+        out
+    }
 }
 
 /// Sets the value at the given key to the given bytestring.

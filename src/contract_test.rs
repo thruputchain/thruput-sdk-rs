@@ -1,4 +1,93 @@
-use crate::{BytesM, Contract, InvokeErrorCode, TestEnvironment};
+use crate::*;
+use std::panic::UnwindSafe;
+use std::sync::{Arc, Mutex};
+use std::vec::Vec;
+
+/// Run some code inside a mock contract.
+/// Panic if the invocation or transaction fails.
+///
+pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
+{
+    let mut handler = env.prepare_test(f);
+
+    grant_storage_tokens(&env, &handler);
+
+    let res = handler.root_invoke();
+
+    if res.status != InvokeErrorCode::kInvokeNone {
+        panic!("Root invocation panicked with code {:?}", res.status);
+    }
+
+    match handler.try_commit_transaction() {
+        ExecResultOK => {}
+        r => panic!("Unexpected transaction result: {:?}", r),
+    }
+}
+
+/// Deploy a mock contract with the given code, and invoke it from another mock
+/// contract.
+///
+/// (This allows us to get the InvokeResult, something I haven't figured out
+/// how to do directly from the TestEnvironment.)
+///
+pub fn contract_test_invoke<F>(
+    env: TestEnvironmentHandle,
+    f: F,
+) -> InvokeResult<()>
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
+{
+    let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
+    let test_contract = {
+        let mut contract = env.add_contract();
+        contract.register_method(entrypoint, f);
+        contract.as_contract()
+    };
+
+    let contract_hash = env.setup_create_contract(&test_contract);
+
+    // It's currently difficult to extract state from mock contracts,
+    // so we'll allocate shared storage for the data we want to inspect
+    // after the test run:
+    //
+    let invoke_result: Arc<Mutex<Option<InvokeResult<()>>>> =
+        Arc::new(Mutex::new(None));
+
+    let mut handler = {
+        let invoke_result = invoke_result.clone();
+
+        env.prepare_test(move || -> () {
+            let nonce = SHA256Hash::from([7; 32]);
+            let deployed_addr =
+                crate::deploy_contract(&nonce, &contract_hash).unwrap();
+
+            let r =
+                invoke::<(), ()>(&deployed_addr, entrypoint, u64::MAX, &());
+
+            *invoke_result.lock().unwrap() = Some(r);
+        })
+    };
+
+    grant_storage_tokens(&env, &handler);
+
+    // The root invocation (with the code inside prepare_test) should succeed
+    let res = handler.root_invoke();
+    if res.status != InvokeErrorCode::kInvokeNone {
+        panic!("Root invocation panicked with code {:?}", res.status);
+    }
+
+    match handler.try_commit_transaction() {
+        ExecResultOK => {}
+        // Note: these results are also deterministic:
+        //     ExecResultTxDeterministicError
+        //     ExecResultTxRootFrameReverted
+        r => panic!("Unexpected transaction result: {:?}", r),
+    }
+
+    invoke_result.lock().unwrap().take().unwrap()
+}
 
 #[macro_export]
 macro_rules! contract_test {
@@ -7,44 +96,14 @@ macro_rules! contract_test {
         fn $name() {
             let mut env = sdk::TestEnvironment::new();
 
-            let test_contract = {
-                let mut contract = env.add_contract();
-                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-                contract.register_method(method, || -> () {
-                    sdk::contract_test_handle::handle_call(|()| {
-                        $test_body
-                        return ();
-                    });
-                });
-                contract.as_contract()
-            };
-
-            let contract_hash = env.setup_create_contract(&test_contract);
-
-            let mut handler = env.prepare_test(move || -> () {
-                let nonce = sdk::types::SHA256Hash::from([7; 32]);
-                let deployed_addr =
-                    sdk::deploy::deploy_contract(&nonce, &contract_hash)
-                        .unwrap();
-
-                // Invoke contract method 1
-                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-                sdk::invoke::invoke::<(), ()>(
-                    &deployed_addr,
-                    method,
-                    u64::MAX,
-                    &(),
-                ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
+            $crate::contract_test::contract_test_succeeding(env, || {
+                $test_body
             });
-
-            let res = handler.root_invoke();
-            if res.status != sdk::InvokeErrorCode::kInvokeNone {
-                panic!("root invocation panicked with code {:?}", res.status);
-            }
         }
     };
 }
 
+// TODO: remove in favor of something like above functions (tests/events.rs is the only user?)
 #[macro_export]
 macro_rules! contract_test_env {
     (
@@ -61,7 +120,7 @@ macro_rules! contract_test_env {
                 let mut contract = env.add_contract();
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
-                    sdk::contract_test_handle::handle_call(|()| {
+                    sdk::contract_test::handle_call(|()| {
                         $test_body
                         return ();
                     });
@@ -110,6 +169,50 @@ macro_rules! contract_test_env {
         }
     };
 }
+
+mod handle {
+    use crate::contract_op::*;
+    use xdrs::serialize_txs::{decode, encode};
+    use xdrs::{ReadXDROwned, WriteXDR};
+
+    // Run a handler function on the invocation arguments
+    // available in serialized form via `GetCalldata`,
+    // and serialize the result for passing to `Return`.
+    //
+    pub fn handle_call<F, ARGS, RES>(f: F) -> ()
+    where
+        F: FnOnce(ARGS) -> RES,
+        ARGS: ReadXDROwned,
+        RES: WriteXDR,
+    {
+        let boxed_call_data = match get_calldata() {
+            Ok(x) => x,
+            Err(e) => {
+                panic!("Failed to get calldata: {:?}", e);
+            }
+        };
+        let call_data: &[u8] = boxed_call_data.as_ref();
+        let args: ARGS = match decode(call_data) {
+            Ok(args) => args,
+            Err(_) => {
+                panic!("Failed to decode calldata");
+            }
+        };
+
+        // Run the handler
+        let result: RES = f(args);
+
+        let result_bytes = match encode(&result) {
+            Ok(r) => r,
+            Err(_) => {
+                panic!("Failed to encode result");
+            }
+        };
+
+        contract_return(result_bytes.as_slice());
+    }
+}
+pub use handle::*;
 
 pub fn grant_storage_tokens(
     env: &native_exec::test_environment::TestEnvironmentHandle,
@@ -225,10 +328,6 @@ fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
 
     (stats, result)
 }
-
-use crate::hash::*;
-use crate::types::*;
-use std::vec::Vec;
 
 pub fn deploy_address(
     deployer_address: &ContractAddress,

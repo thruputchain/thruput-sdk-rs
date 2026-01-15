@@ -24,15 +24,23 @@ pub mod allocator;
 
 pub mod internal; // Public because used in contract macros
 
-// Syscall wrappers
+mod cell;
+mod debug;
+mod local;
+
+// TODO: Make these modules non-public in order to allow
+// reorganization without breaking changes.
+
 pub mod auth_claim;
 pub mod block;
 pub mod bytestring;
 pub mod contract_op;
+pub mod contract_result;
 pub mod crypto;
 pub mod delete;
 pub mod deploy;
 pub mod event;
+pub mod exn;
 pub mod hash;
 pub mod hasher;
 pub mod hex;
@@ -46,15 +54,8 @@ pub mod retrocausal_queue;
 pub mod rt;
 pub mod serialize;
 pub mod stats;
-pub mod types;
-
-pub mod contract_result;
 pub mod sysresult;
-
-mod cell;
-mod local;
-
-// Direct exports
+pub mod types;
 
 pub use auth_claim::*;
 pub use bytestring::*;
@@ -63,6 +64,7 @@ pub use contract_op::*;
 pub use delete::*;
 pub use deploy::*;
 pub use event::*;
+pub use exn::*;
 pub use hash::*;
 pub use hasher::*;
 pub use hex::*;
@@ -73,6 +75,13 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+
+pub use abort::{
+    AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler,
+};
+
+#[cfg(feature = "call_tracking")]
+pub use abort::with_debug_context;
 
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use macros::contract;
@@ -86,7 +95,7 @@ pub use alloc::{format, string::*, vec, vec::Vec};
 #[rustfmt::skip]
 pub mod spec;
 
-// "Storage" module
+// "Storage" facility
 
 #[cfg(feature = "storage")]
 pub mod storage;
@@ -102,10 +111,6 @@ pub use macros::storage;
 
 #[cfg(feature = "mock")]
 pub mod syscall_bindings;
-
-#[cfg(feature = "mock")]
-// This is used only by contract_test
-pub mod contract_test_handle;
 
 #[cfg(feature = "mock")]
 pub mod contract_test;

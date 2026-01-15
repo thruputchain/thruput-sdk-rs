@@ -34,6 +34,7 @@ jobs:
           ${{ secrets.SDK_TO_GROUNDHOG_GO}}
           ${{ secrets.SDK_TO_LIBGO }}
           ${{ secrets.SDK_TO_SELF }}
+          ${{ secrets.SDK_TO_ABORT_RS }}
 
     - uses: actions/checkout@v4
     - name: Run hog schedule

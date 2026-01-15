@@ -45,7 +45,7 @@ make() {
             make_contracts "integration_test_contracts" "$@"
             ;;
         doc)
-            cargo doc --features=std,storage "$@"
+            cargo doc --features=std,storage,abort/debug "$@"
             ;;
         test)
             cargo_native test --package=sdk --features=mock,storage "$@"

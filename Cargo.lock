@@ -3,6 +3,24 @@
 version = 4
 
 [[package]]
+name = "abort"
+version = "0.1.0"
+source = "git+ssh://git@github.com/groundhogchain/abort_rs.git#b7246e638873b6194373cf3afc8d8cf80868a2c8"
+dependencies = [
+ "heapless",
+]
+
+[[package]]
+name = "aborter"
+version = "0.1.1"
+dependencies = [
+ "aborter",
+ "groundhog_xdr",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -957,6 +975,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
+name = "return_fault_test"
+version = "0.1.0"
+dependencies = [
+ "return_fault_test",
+ "sdk",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -981,6 +1007,7 @@ checksum = "62049b2877bf12821e8f9ad256ee38fdc31db7387ec2d3b3f403024de2034aea"
 name = "sdk"
 version = "0.1.0"
 dependencies = [
+ "abort",
  "bitset-core",
  "bottle-test-if",
  "delegate",

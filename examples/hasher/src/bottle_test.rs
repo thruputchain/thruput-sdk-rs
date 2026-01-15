@@ -21,7 +21,7 @@ impl BottleTest for BT {
 
     fn run(&mut self) {
         let target_addr = self.target_addr.as_ref().unwrap_or_else(||
-            contract_panic!("playground bottle-test: target_addr unset; please run setup() before run()"));
+            panic!("playground bottle-test: target_addr unset; please run setup() before run()"));
 
         let mut client = ContractClient::new(target_addr);
         client.run().unwrap();
