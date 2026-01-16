@@ -45,7 +45,7 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
-    features="guest"
+    features="guest,single-threaded"
 
     if bool_true "${PANIC_LOGGING:-}"; then
         # For wasm contracts, use the log() syscall to report panic messages

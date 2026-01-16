@@ -82,13 +82,14 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
 call_tracking = ["abort/debug", "macros/call_tracking"]
-mock = ["std", "dep:native_exec", "macros/mock", "groundhog-xdr/syscalls_mock", "abort/multithreaded"]
+mock = ["std", "dep:native_exec", "macros/mock", "groundhog-xdr/syscalls_mock"]
 storage = ["alloc", "dep:delegate", "macros/storage"]
 alloc = ["macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
 std = ["alloc", "groundhog-xdr/std"]
 logging = ["macros/logging", "alloc"] # trace contract calls when testing
 spec = ["std", "macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
+single-threaded = ["abort/single-threaded"]
 
 [profile.contract]
 inherits = "release"
