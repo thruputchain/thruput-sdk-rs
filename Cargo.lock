@@ -140,9 +140,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.52"
+version = "1.2.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd4932aefd12402b36c60956a4fe0035421f544799057659ff86f923657aada3"
+checksum = "755d2fce177175ffca841e9a06afdb2c4ab0f593d53b4dee48147dfaade85932"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -483,9 +483,9 @@ dependencies = [
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f449e6c6c08c865631d4890cfacf252b3d396c9bcc83adb6623cdb02a8336c41"
+checksum = "8591b0bcc8a98a64310a2fae1bb3e9b8564dd10e381e6e28010fde8e8e8568db"
 
 [[package]]
 name = "fixed-hash"
@@ -572,7 +572,7 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#65b776489a3977f0fa9b2cc7b5ebfdabb617e664"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#80d3f471050c343059de100dd81394b85110ec3a"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
@@ -585,7 +585,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#65b776489a3977f0fa9b2cc7b5ebfdabb617e664"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#80d3f471050c343059de100dd81394b85110ec3a"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -650,6 +650,15 @@ name = "hex-literal"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
+
+[[package]]
+name = "hogexec-internal"
+version = "0.1.0"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#80d3f471050c343059de100dd81394b85110ec3a"
+dependencies = [
+ "xdr_common",
+ "xdrs",
+]
 
 [[package]]
 name = "htlc"
@@ -801,6 +810,7 @@ dependencies = [
  "bindgen",
  "cmake",
  "groundhog-xdr",
+ "hogexec-internal",
  "sha2",
  "thiserror",
  "xdrs",
@@ -1021,6 +1031,7 @@ dependencies = [
  "groundhog-xdr",
  "heapless",
  "hex-literal",
+ "hogexec-internal",
  "macros",
  "native_exec",
  "sha2",

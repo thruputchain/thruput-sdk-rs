@@ -8,8 +8,8 @@
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use core::mem::MaybeUninit;
-use groundhog_xdr::account::GasPermissionConfig;
-use groundhog_xdr::account::NonceConfig;
+use groundhog_xdr::address_auth::GasPermissionConfig;
+use groundhog_xdr::address_auth::NonceConfig;
 use groundhog_xdr::auth_claim::AuthClaim;
 
 pub use groundhog_xdr::auth_claim::BitMap;

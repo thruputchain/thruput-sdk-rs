@@ -5,7 +5,7 @@ use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
-use groundhog_xdr::ffi_enums::InvokeErrorCode;
+use hogexec_internal::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 use sha2::{Digest, Sha256};
