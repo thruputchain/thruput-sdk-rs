@@ -5,7 +5,7 @@ use groundhog_xdr::event::TxEventLog;
 use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::transaction::SignedTransaction;
 use std::rc::Rc;
-use xdrs::serialize_txs;
+use xdrs::txs;
 
 use crate::test_environment::FFIErrorCode;
 
@@ -32,7 +32,7 @@ pub struct RootInvokeResult {
 
 impl TransactionHandler {
     pub fn new(env: Rc<TestEnvironment>, stx: &SignedTransaction) -> Self {
-        let tx_bytes = serialize_txs::encode(stx).unwrap();
+        let tx_bytes = txs::encode(stx).unwrap();
 
         let handler_res = unsafe {
             open_syscall_handler(
@@ -120,14 +120,13 @@ impl TransactionHandler {
             panic!("failed to get event log: {:?}", err);
         }
 
-        let decoded: TxEventLog = serialize_txs::decode(&buffer)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "failed to decode event log ({} bytes): {}",
-                    buffer.len(),
-                    e
-                )
-            });
+        let decoded: TxEventLog = txs::decode(&buffer).unwrap_or_else(|e| {
+            panic!(
+                "failed to decode event log ({} bytes): {}",
+                buffer.len(),
+                e
+            )
+        });
 
         Some(decoded)
     }

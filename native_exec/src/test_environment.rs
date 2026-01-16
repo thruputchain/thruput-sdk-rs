@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::panic::UnwindSafe;
 use std::rc::Rc;
-use xdrs::serialize_txs;
+use xdrs::txs;
 
 // TODO(geoff): I cannot figure out how to prevent rust from moving objects
 // without just converting back to raw pointers.
@@ -191,7 +191,7 @@ impl TestEnvironmentInner {
         &mut self,
         contract: &Contract,
     ) -> SHA256Hash {
-        let contract_bytes = serialize_txs::encode(&contract).unwrap();
+        let contract_bytes = txs::encode(&contract).unwrap();
         let res = unsafe {
             setup_create_contract(
                 self.contract_context.context,
@@ -225,7 +225,7 @@ impl TestEnvironmentInner {
         addr: &ContractAddress,
         contract: &Contract,
     ) {
-        let contract_bytes = serialize_txs::encode(&contract).unwrap();
+        let contract_bytes = txs::encode(&contract).unwrap();
 
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
@@ -237,9 +237,6 @@ impl TestEnvironmentInner {
             Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
             Contract::kWasmi { wasmi_contract } => {
                 wasmi_contract.wasm.len() as u32
-            }
-            Contract::Default { contract_type } => {
-                panic!("unsupported contract type {}", contract_type)
             }
         };
 

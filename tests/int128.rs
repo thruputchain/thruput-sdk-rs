@@ -1,5 +1,5 @@
 use sdk::types::{int128_xdr, uint128_xdr};
-use xdrs::serialize_txs::encode;
+use xdrs::txs::encode;
 
 // Can we roundtrip-convert u128->uint128_xdr->u128?
 #[test]

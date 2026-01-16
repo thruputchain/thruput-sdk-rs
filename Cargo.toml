@@ -32,7 +32,7 @@ doctest = false
 [dependencies]
 # Indigenous dependencies
 macros = { workspace = true }
-groundhog_xdr = { workspace = true }
+groundhog-xdr = { workspace = true }
 xdrs = { workspace = true }
 abort = { workspace = true }
 
@@ -56,7 +56,7 @@ hex-literal = { workspace = true }
 sdk = { path = "." }
 gen = { path = "gen" }
 macros = { path = "macros" }
-groundhog_xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"] }
+groundhog-xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"] }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr"] }
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }
@@ -80,12 +80,12 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
 call_tracking = ["abort/debug", "macros/call_tracking"]
-mock = ["std", "dep:native_exec", "macros/mock", "groundhog_xdr/syscalls_mock", "abort/multithreaded"]
+mock = ["std", "dep:native_exec", "macros/mock", "groundhog-xdr/syscalls_mock", "abort/multithreaded"]
 storage = ["alloc", "dep:delegate", "macros/storage"]
-alloc = ["macros/alloc", "groundhog_xdr/alloc", "xdrs/alloc"]
-std = ["alloc", "groundhog_xdr/std"]
+alloc = ["macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
+std = ["alloc", "groundhog-xdr/std"]
 logging = ["macros/logging", "alloc"] # trace contract calls when testing
-spec = ["std", "macros/spec", "groundhog_xdr/spec", "xdrs/repr"]
+spec = ["std", "macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
 
 [profile.contract]

@@ -31,7 +31,7 @@ where
     T: ReadXDRPath,
 {
     use crate::bytestring::bytestring_get;
-    use xdrs::serialize_cxs::buf_reader::BufReader;
+    use xdrs::cxs::buf_reader::BufReader;
 
     let key = &keypath.generate_key();
     let buf = bytestring_get(key)?;

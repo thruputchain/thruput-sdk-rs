@@ -6,7 +6,7 @@ use groundhog_xdr::contract::{
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 use std::str::FromStr;
-use xdrs::serialize_txs;
+use xdrs::txs;
 
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
@@ -30,7 +30,7 @@ pub fn contract_entrypoint_id(
     };
 
     let mut hasher = sha2::Sha256::new();
-    let preimage_bytes = serialize_txs::encode(&preimage).unwrap();
+    let preimage_bytes = txs::encode(&preimage).unwrap();
     hasher.update(preimage_bytes);
     let result = hasher.finalize();
 

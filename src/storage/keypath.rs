@@ -2,7 +2,7 @@ use crate::crypto::sha_256;
 use crate::types::StorageKey;
 use alloc::{vec, vec::Vec};
 use core::fmt::Debug;
-use xdrs::{WriteXDR, serialize_cxs::encode};
+use xdrs::{WriteXDR, cxs::encode};
 
 #[derive(Debug, Clone)]
 pub struct Keypath {

@@ -4,7 +4,7 @@ use crate::bytestring::*;
 use crate::types::StorageKey;
 use alloc::vec::Vec;
 use xdrs::WriteXDR;
-use xdrs::serialize_cxs;
+use xdrs::cxs::encode;
 
 pub trait Store {
     fn store(&self, key: &StorageKey) -> Result<()>;
@@ -43,8 +43,7 @@ fn store_pre<T: WriteXDR>(value: &T, key: &StorageKey) -> Result<Vec<u8>> {
         drop(prev);
     }
 
-    let buf = serialize_cxs::encode(value)
-        .map_err(|_| StorageError::Serialization)?;
+    let buf = encode(value).map_err(|_| StorageError::Serialization)?;
 
     Ok(buf)
 }

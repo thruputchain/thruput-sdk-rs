@@ -12,6 +12,9 @@ use groundhog_xdr::account::GasPermissionConfig;
 use groundhog_xdr::account::NonceConfig;
 use groundhog_xdr::auth_claim::AuthClaim;
 
+pub use groundhog_xdr::auth_claim::BitMap;
+pub use groundhog_xdr::auth_claim::Weight;
+
 pub fn get_auth_claim(index: u32) -> Result<AuthClaim> {
     let mut auth_claim = MaybeUninit::uninit();
     sys::uninit_GetAuthClaim(index, &mut auth_claim)?;

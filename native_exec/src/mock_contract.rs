@@ -10,7 +10,7 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use std::panic::UnwindSafe;
 use std::rc::Rc;
-use xdrs::serialize_txs;
+use xdrs::txs;
 
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
@@ -40,22 +40,6 @@ impl MockContract {
             _env: env,
         }
     }
-
-    /*
-    pub fn method_name_from_int(method_id: MethodID) -> String {
-        format!("{:X}", method_id)
-    }
-
-    pub fn method_int_from_sdk_name(name: &str) -> MethodID {
-        let mut hasher = Sha256::new();
-        hasher.update(name.as_bytes());
-        let result = hasher.finalize();
-
-        let prefix = &result[0..8];
-        let num: MethodID = MethodID::from_be_bytes(prefix.try_into().unwrap());
-        num
-    }
-    */
 
     pub fn as_contract(&self) -> Contract {
         i32_to_contract(unsafe { (*self.contract).index })
@@ -91,7 +75,7 @@ impl MockContractInner {
     pub fn new(n: i32) -> Self {
         let mut hasher = Sha256::new();
         let contract = i32_to_contract(n);
-        hasher.update(serialize_txs::encode(&contract).unwrap());
+        hasher.update(txs::encode(&contract).unwrap());
         let result: [u8; 32] = hasher.finalize().into();
         Self {
             index: n,
