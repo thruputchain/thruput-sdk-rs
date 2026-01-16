@@ -26,4 +26,4 @@ bottle-test = ["dep:erc20-bottle-test"]
 [dev-dependencies]
 erc20-native-test.workspace = true
 sha2.workspace = true
-groundhog_xdr.workspace = true
+groundhog-xdr.workspace = true
