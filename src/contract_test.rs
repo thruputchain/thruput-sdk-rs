@@ -1,8 +1,8 @@
 use crate::*;
+use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::panic::UnwindSafe;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
-use hogexec_internal::ffi_enums::InvokeErrorCode;
 
 /// Run some code inside a mock contract.
 /// Panic if the invocation or transaction fails.

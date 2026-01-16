@@ -122,5 +122,5 @@ pub use native_exec::{
 };
 
 #[cfg(feature = "std")]
-pub use groundhog_xdr::{exec_result::ExecResult};
+pub use groundhog_xdr::exec_result::ExecResult;
 pub use hogexec_internal::ffi_enums::*;
