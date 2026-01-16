@@ -1,5 +1,5 @@
 use crate::bindings::ForeignInvokeResult;
-use groundhog_xdr::ffi_enums::InvokeErrorCode;
+use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::error::Error;
 use std::fmt;
 use std::panic;

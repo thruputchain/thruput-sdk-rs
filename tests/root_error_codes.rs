@@ -1,4 +1,4 @@
-use groundhog_xdr::ffi_enums::InvokeErrorCode;
+use sdk::InvokeErrorCode;
 use sdk::TestEnvironment;
 
 #[test]

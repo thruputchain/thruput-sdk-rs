@@ -33,6 +33,7 @@ doctest = false
 # Indigenous dependencies
 macros = { workspace = true }
 groundhog-xdr = { workspace = true }
+hogexec-internal = { workspace = true }
 xdrs = { workspace = true }
 abort = { workspace = true }
 
@@ -57,6 +58,7 @@ sdk = { path = "." }
 gen = { path = "gen" }
 macros = { path = "macros" }
 groundhog-xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git", features = ["xdrs", "syscalls"] }
+hogexec-internal = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git", features = ["extras", "int128_xdr"] }
 xdr_common = { git = "ssh://git@github.com/groundhogchain/xdr_common.git" }

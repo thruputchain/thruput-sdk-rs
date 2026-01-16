@@ -2,8 +2,8 @@ use crate::bindings::*;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_xdr::event::TxEventLog;
-use groundhog_xdr::ffi_enums::InvokeErrorCode;
 use groundhog_xdr::transaction::SignedTransaction;
+use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::rc::Rc;
 use xdrs::txs;
 
