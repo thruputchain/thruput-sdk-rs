@@ -21,7 +21,7 @@ where
     }
 
     match handler.try_commit_transaction() {
-        ExecResultOK => {}
+        ExecResult::ExecResultOK => {}
         r => panic!("Unexpected transaction result: {:?}", r),
     }
 }
@@ -79,7 +79,7 @@ where
     }
 
     match handler.try_commit_transaction() {
-        ExecResultOK => {}
+        ExecResult::ExecResultOK => {}
         // Note: these results are also deterministic:
         //     ExecResultTxDeterministicError
         //     ExecResultTxRootFrameReverted
@@ -172,7 +172,7 @@ macro_rules! contract_test_env {
 
 mod handle {
     use crate::contract_op::*;
-    use xdrs::serialize_txs::{decode, encode};
+    use xdrs::txs::{decode, encode};
     use xdrs::{ReadXDROwned, WriteXDR};
 
     // Run a handler function on the invocation arguments
@@ -342,7 +342,7 @@ pub fn deploy_address(
         nonce: *nonce,
         contract_hash: *contract_hash,
     };
-    let preimage: Vec<u8> = xdrs::serialize_txs::encode(&preimage).unwrap();
+    let preimage: Vec<u8> = xdrs::txs::encode(&preimage).unwrap();
 
     let mut hasher = Sha256::new();
     hasher.update(preimage.as_slice());

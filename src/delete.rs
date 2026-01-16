@@ -6,13 +6,13 @@ use crate::sysresult::SysResult as Result;
 use crate::types::StorageKey;
 
 pub fn delete_shared(key: &StorageKey) -> Result<()> {
-    let flags = kStorageNone;
+    let flags = StorageItemRPCFlags::kStorageNone;
 
     sys::raw_DeleteObject(key, flags as i32)
 }
 
 pub fn delete_exclusive(key: &StorageKey) -> Result<()> {
-    let flags = kStorageExclusiveLock;
+    let flags = StorageItemRPCFlags::kStorageExclusiveLock;
 
     sys::raw_DeleteObject(key, flags as i32)
 }

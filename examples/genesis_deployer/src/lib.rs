@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use sdk::{MethodID, SHA256Hash, sys};
+use sdk::{SHA256Hash, sys};
 
 pub struct GenesisDeployer;
 
@@ -16,7 +16,7 @@ impl GenesisDeployer {
         self,
         nonce: &SHA256Hash,
         contract_hash: &SHA256Hash,
-        method: MethodID,
+        method: u64,
         calldata: Vec<u8>,
     ) {
         let deployed_addr =
