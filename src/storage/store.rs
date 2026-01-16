@@ -43,8 +43,7 @@ fn store_pre<T: WriteXDR>(value: &T, key: &StorageKey) -> Result<Vec<u8>> {
         drop(prev);
     }
 
-    let buf = encode(value)
-        .map_err(|_| StorageError::Serialization)?;
+    let buf = encode(value).map_err(|_| StorageError::Serialization)?;
 
     Ok(buf)
 }

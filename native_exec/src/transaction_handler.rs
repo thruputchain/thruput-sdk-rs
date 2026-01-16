@@ -120,14 +120,13 @@ impl TransactionHandler {
             panic!("failed to get event log: {:?}", err);
         }
 
-        let decoded: TxEventLog = txs::decode(&buffer)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "failed to decode event log ({} bytes): {}",
-                    buffer.len(),
-                    e
-                )
-            });
+        let decoded: TxEventLog = txs::decode(&buffer).unwrap_or_else(|e| {
+            panic!(
+                "failed to decode event log ({} bytes): {}",
+                buffer.len(),
+                e
+            )
+        });
 
         Some(decoded)
     }

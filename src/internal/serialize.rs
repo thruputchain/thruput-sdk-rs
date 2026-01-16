@@ -27,8 +27,7 @@ where
 {
     let mut buf = MUBuf::new();
 
-    let written =
-        xdrs::txs::encode_into(x, buf.spare_capacity_mut())?;
+    let written = xdrs::txs::encode_into(x, buf.spare_capacity_mut())?;
 
     unsafe {
         buf.set_len(written);
