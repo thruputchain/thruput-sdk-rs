@@ -16,15 +16,15 @@ pub struct Contract {
 impl Contract {
     fn interface_id_preimage(&self) -> ContractInterfaceIDPreimage {
         ContractInterfaceIDPreimage {
-            name: BytesM(self.interface_id.as_bytes().to_owned()),
-            vers: BytesM(self.interface_vers.as_bytes().to_owned()),
+            name: StringM(self.interface_id.as_bytes().to_owned()),
+            vers: StringM(self.interface_vers.as_bytes().to_owned()),
         }
     }
 
     fn entrypoint_id(&self, method_idx: usize) -> ContractEntrypointID {
         use sha2::{Sha256, Digest};
 
-        let interface_bytes = xdrs::serialize_txs::encode(&self.interface_id_preimage()).unwrap();
+        let interface_bytes = xdrs::txs::encode(&self.interface_id_preimage()).unwrap();
         let interface_hashed = Sha256::digest(&interface_bytes);
         let mut id: [u8; 8] = [0; 8];
         id[0..6].copy_from_slice(&interface_hashed[0..6]);
