@@ -22,9 +22,9 @@ pub fn get_auth_claim(index: u32) -> Result<AuthClaim> {
 }
 
 pub fn get_auth_claim_count() -> Result<u32> {
-    let mut count: u32 = 0;
+    let mut count: MaybeUninit<u32> = MaybeUninit::uninit();
     sys::uninit_GetAuthClaimCount(&mut count)?;
-    Ok(count)
+    Ok(unsafe { count.assume_init() })
 }
 
 pub fn set_nonce_config(nonce_config: NonceConfig) -> Result<()> {
