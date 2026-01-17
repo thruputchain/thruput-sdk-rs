@@ -11,9 +11,9 @@
 #![no_std]
 
 #[cfg(all(feature = "std", target_family = "wasm"))]
-compile_error!("Features 'std' and 'wasm' cannot be enabled together");
+compile_error!("Feature 'std' cannot be enabled when targetting wasm");
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "alloc")]

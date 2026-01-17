@@ -81,14 +81,23 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
-call_tracking = ["abort/debug", "macros/call_tracking"]
-mock = ["std", "dep:native_exec", "macros/mock", "groundhog-xdr/syscalls_mock"]
-storage = ["alloc", "dep:delegate", "macros/storage"]
+# Enable allocation features
 alloc = ["macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
+
+# Add the "storage" convenience module
+storage = ["alloc", "dep:delegate", "macros/storage"]
+
+# Enable the mock executor for testing
+mock = ["std", "dep:native_exec", "macros/mock", "groundhog-xdr/syscalls_mock"]
 std = ["alloc", "groundhog-xdr/std"]
+
+# Diagnostic features
 logging = ["macros/logging", "alloc"] # trace contract calls when testing
-spec = ["std", "macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
+call_tracking = ["abort/debug", "macros/call_tracking"] # contract-call backtrace
+
+# Generate specs
+spec = ["std", "macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
 
 [profile.contract]
 inherits = "release"
