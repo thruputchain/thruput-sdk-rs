@@ -45,7 +45,7 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
-    features="guest,sdk/single-threaded"
+    features="guest"
 
     if bool_true "${PANIC_LOGGING:-}"; then
         # For wasm contracts, use the log() syscall to report panic messages
@@ -101,7 +101,7 @@ build_bottle_test() {
     package="$(basename "$1")"
     shift
 
-    local features="bottle-test,sdk/single-threaded"
+    local features="bottle-test"
 
     if bool_true "${PANIC_LOGGING:-}"; then
         # report panic messages via log() syscall
