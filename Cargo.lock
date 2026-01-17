@@ -572,7 +572,7 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#6b8d89bdbeccc7f44ce5d571fcfb0d1ed398b614"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#f31e13e61b5152b83d2b5069c797315a18084927"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
@@ -585,7 +585,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#6b8d89bdbeccc7f44ce5d571fcfb0d1ed398b614"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#f31e13e61b5152b83d2b5069c797315a18084927"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -654,7 +654,7 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 [[package]]
 name = "hogexec-internal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#6b8d89bdbeccc7f44ce5d571fcfb0d1ed398b614"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#f31e13e61b5152b83d2b5069c797315a18084927"
 dependencies = [
  "xdr_common",
  "xdrs",
