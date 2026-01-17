@@ -13,6 +13,9 @@
 #[cfg(all(feature = "std", target_family = "wasm"))]
 compile_error!("Feature 'std' cannot be enabled when targetting wasm");
 
+#[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
+compile_error!("Feature 'std' is required when compiling natively");
+
 #[cfg(feature = "std")]
 extern crate std;
 
