@@ -90,8 +90,9 @@ pub fn get_calldata() -> Result<Calldata> {
     let mut calldata: Calldata = MUBuf::new();
 
     // Fetch the calldata from the VM, hoping our buffer is large enough
-    let mut written: RuntimeMemoryLength = 0;
+    let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
     sys::uninit_GetCalldata(calldata.spare_capacity_mut(), &mut written)?;
+    let written = unsafe { written.assume_init() };
 
     // SAFETY: At least this many bytes of the buffer are now initialized
     unsafe {

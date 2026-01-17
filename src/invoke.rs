@@ -120,13 +120,16 @@ fn invoke_raw(
 
     // Ok or abort: get the return data from the VM ...
 
-    let mut written: RuntimeMemoryLength = 0;
+    let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> =
+        core::mem::MaybeUninit::uninit();
 
     sys::uninit_GetReturnedBuffer(
         return_data.spare_capacity_mut(),
-        &mut written,
+        &mut written_mu,
     )
     .unwrap_or_else(|_| panic!("couldn't get return data"));
+
+    let written = unsafe { written_mu.assume_init() };
 
     if written != return_len {
         panic!(
