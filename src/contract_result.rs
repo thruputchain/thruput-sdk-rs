@@ -23,7 +23,7 @@ pub enum Error {
     Contract {
         #[from]
         contract_error: ContractError,
-    }
+    },
 }
 
 #[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
