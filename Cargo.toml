@@ -89,7 +89,6 @@ std = ["alloc", "groundhog-xdr/std"]
 logging = ["macros/logging", "alloc"] # trace contract calls when testing
 spec = ["std", "macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
-single-threaded = ["abort/single-threaded"]
 
 [profile.contract]
 inherits = "release"
@@ -117,3 +116,6 @@ name = "events"
 
 [lints.clippy]
 collapsible_if = "allow"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+abort = { workspace = true, features = ["single-threaded"] }

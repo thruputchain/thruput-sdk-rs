@@ -10,14 +10,14 @@
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", target_family = "wasm"))]
+compile_error!("Features 'std' and 'wasm' cannot be enabled together");
+
+#[cfg(not(target_family = "wasm"))]
 extern crate std;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
-#[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
-compile_error!("Except when building a wasm, sdk feature \"std\" is required");
 
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
