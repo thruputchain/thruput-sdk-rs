@@ -10,7 +10,6 @@ pub use groundhog_xdr::auth_claim::KeyID;
 pub use groundhog_xdr::contract;
 pub use groundhog_xdr::contract::Contract;
 pub use groundhog_xdr::contract::ContractEntrypointID;
-pub use groundhog_xdr::contract_error;
 pub use groundhog_xdr::event;
 pub use groundhog_xdr::exec_result::*;
 pub use groundhog_xdr::genesis;

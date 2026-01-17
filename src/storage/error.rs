@@ -1,5 +1,4 @@
 use crate::SysErr;
-use crate::contract_error::*;
 use crate::{ReadXDR, WriteXDR};
 use thiserror::Error;
 
@@ -16,14 +15,13 @@ pub enum StorageError {
     Syscall {
         #[from]
         syscall_error: SysErr,
-    } = StorageErrorType::kStorageErrorTypeSyscall as i32,
+    },
 
     #[error("Storage error due to serialization")]
-    Serialization = StorageErrorType::kStorageErrorTypeSerialization as i32,
+    Serialization,
 
     #[error("Vector index out of bounds: len={len}, access={access}")]
-    IndexOutOfBounds { len: u64, access: u64 } =
-        StorageErrorType::kStorageErrorTypeIndexOutOfBounds as i32,
+    IndexOutOfBounds { len: u64, access: u64 },
 }
 
 impl StorageError {

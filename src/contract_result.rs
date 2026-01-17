@@ -9,8 +9,6 @@ use xdrs::{ReadXDR, WriteXDR};
 #[cfg(feature = "storage")]
 use crate::storage::error::StorageError as StorageErr;
 
-use crate::contract_error::{ContractErrorType, ErrorType};
-
 #[cfg(feature = "spec")]
 use xdrs::xdr_repr::XDR;
 
@@ -19,13 +17,13 @@ use xdrs::xdr_repr::XDR;
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum Error {
     #[error("Caller error: {msg}")]
-    Caller { msg: ErrorMsg } = ErrorType::kErrorTypeCaller as i32,
+    Caller { msg: ErrorMsg },
 
     #[error("Contract internal error: {contract_error}")]
     Contract {
         #[from]
         contract_error: ContractError,
-    } = ErrorType::kErrorTypeContract as i32,
+    }
 }
 
 #[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
@@ -33,21 +31,20 @@ pub enum Error {
 #[cfg_attr(feature = "spec", derive(xdrs::XDR))]
 pub enum ContractError {
     #[error("Message: {msg}")]
-    Custom { msg: ErrorMsg } =
-        ContractErrorType::kContractErrorTypeCustom as i32,
+    Custom { msg: ErrorMsg },
 
     #[error("Syscall failed: {syscall_error}")]
     Syscall {
         #[from]
         syscall_error: SysErr,
-    } = ContractErrorType::kContractErrorTypeSyscall as i32,
+    },
 
     #[cfg(feature = "storage")]
     #[error("Storage failure: {storage_error}")]
     Storage {
         #[from]
         storage_error: StorageErr,
-    } = ContractErrorType::kContractErrorTypeStorage as i32,
+    },
 }
 
 impl From<sysresult::Error> for Error {
