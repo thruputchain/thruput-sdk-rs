@@ -120,7 +120,8 @@ fn invoke_raw(
 
     // Ok or abort: get the return data from the VM ...
 
-    let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> = core::mem::MaybeUninit::uninit();
+    let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> =
+        core::mem::MaybeUninit::uninit();
 
     sys::uninit_GetReturnedBuffer(
         return_data.spare_capacity_mut(),

@@ -18,7 +18,8 @@ pub fn retrocausal_queue_consume_sized<const N: usize>(
 ) -> Result<[u8; N]> {
     // TODO(geoff) or TODO(dobog): figure out a more natural rcq iface.
     let mut queue_entry = [MaybeUninit::uninit(); N];
-    let mut written_len: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
+    let mut written_len: MaybeUninit<RuntimeMemoryLength> =
+        MaybeUninit::uninit();
     sys::uninit_RetrocausalQueueConsume(
         key,
         false,
@@ -39,7 +40,8 @@ pub fn retrocausal_queue_peek_sized<const N: usize>(
     key: &StorageKey,
 ) -> Result<[u8; N]> {
     let mut queue_entry = [MaybeUninit::uninit(); N];
-    let mut written_len: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
+    let mut written_len: MaybeUninit<RuntimeMemoryLength> =
+        MaybeUninit::uninit();
     sys::uninit_RetrocausalQueueConsume(
         key,
         true,
