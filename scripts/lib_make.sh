@@ -64,7 +64,8 @@ make() {
             ;;
         test-spec)
             cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
-                cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null
+                cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null &&
+                cargo run -p tuple_return -F spec --bin generate_spec_tuple_return -- /dev/null
             ;;
         rg)
             rg -i --ignore-file .local_src_ignore "$@"
