@@ -1,18 +1,18 @@
 //! System function: Delete
 
-use crate::storage_delta_flags::*;
 use crate::sys;
 use crate::sysresult::SysResult as Result;
 use crate::types::StorageKey;
+use groundhog_xdr::storage_item::*;
 
 pub fn delete_shared(key: &StorageKey) -> Result<()> {
-    let flags = StorageItemRPCFlags::kStorageNone;
+    let flags = StorageDeltaFlags::kStorageDeltaFlagNone;
 
     sys::raw_DeleteObject(key, flags as i32)
 }
 
 pub fn delete_exclusive(key: &StorageKey) -> Result<()> {
-    let flags = StorageItemRPCFlags::kStorageExclusiveLock;
+    let flags = StorageDeltaFlags::kStorageDeltaFlagExclusiveLock;
 
     sys::raw_DeleteObject(key, flags as i32)
 }

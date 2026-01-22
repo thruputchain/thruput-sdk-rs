@@ -3,6 +3,7 @@ use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
+use groundhog_xdr::address_auth::AddressAuthData;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::transaction::*;
@@ -325,6 +326,28 @@ impl TestEnvironmentInner {
 
         out
     }
+
+    pub fn run_auth_checks(
+        &self,
+        tx: &SignedTransaction,
+    ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
+        let serialized_tx = txs::encode(tx).unwrap();
+        let ffi_serialized_tx = FFISerializedSignedTransaction {
+            data: serialized_tx.as_ptr() as *mut u8,
+            len: serialized_tx.len().try_into().unwrap(),
+        };
+        let res = unsafe {
+            verify_signed_transaction_auth_from_db(
+                self.db.db,
+                ffi_serialized_tx,
+            )
+        };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to run auth checks: {:?}", err);
+        }
+        res.auth_error_code.try_into().unwrap()
+    }
 }
 
 impl Drop for TestEnvironmentInner {
@@ -432,5 +455,75 @@ impl TestEnvironment {
         self.inner
             .borrow_mut()
             .setup_grant_storage_tokens(addr, tokens)
+    }
+
+    /// Check the auth claims on the provided transaction
+    /// against the auth data loaded from the database.
+    ///
+    /// May perform additional checks (such as checking block height limits)
+    /// not performed by the static version.  Will additionally fail if
+    /// addresses without auth data are referenced.
+    pub fn verify_signed_transaction_auth(
+        self: &TestEnvironmentHandle,
+        tx: &SignedTransaction,
+    ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
+        self.inner.borrow().run_auth_checks(tx)
+    }
+
+    /// Check the auth claims on the provided transaction
+    /// against the provided source and auxiliary auth data.
+    /// Does not load any information from the database.
+    pub fn verify_signed_transaction_auth_static(
+        tx: &SignedTransaction,
+        source_auth_data: &AddressAuthData,
+        aux_auth_data: &Vec<(ContractAddress, AddressAuthData)>,
+    ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
+        let serialized_tx = txs::encode(tx).unwrap();
+        let ffi_serialized_tx = FFISerializedSignedTransaction {
+            data: serialized_tx.as_ptr() as *mut u8,
+            len: serialized_tx.len().try_into().unwrap(),
+        };
+
+        let serialized_source_auth_data =
+            txs::encode(source_auth_data).unwrap();
+        let ffi_serialized_source_auth_data = FFISourceAuthData {
+            data: serialized_source_auth_data.as_ptr() as *mut u8,
+            len: serialized_source_auth_data.len().try_into().unwrap(),
+        };
+
+        let serialized_aux_auth_data: Vec<(ContractAddress, Vec<u8>)> =
+            aux_auth_data
+                .iter()
+                .map(|x| (x.0, txs::encode(&x.1).unwrap()))
+                .collect();
+
+        let ffi_serialized_aux_auth_data: Vec<FFISerializedAuthData> =
+            serialized_aux_auth_data
+                .iter()
+                .map(|x| FFISerializedAuthData {
+                    address: *x.0,
+                    data: x.1.as_ptr() as *mut u8,
+                    len: x.1.len().try_into().unwrap(),
+                })
+                .collect();
+
+        let ffi_auxiliary_auth_data = FFIAuxiliaryAuthData {
+            auth_data: ffi_serialized_aux_auth_data.as_ptr()
+                as *mut FFISerializedAuthData,
+            count: ffi_serialized_aux_auth_data.len().try_into().unwrap(),
+        };
+
+        let res = unsafe {
+            verify_signed_transaction_auth(
+                ffi_serialized_tx,
+                ffi_serialized_source_auth_data,
+                ffi_auxiliary_auth_data,
+            )
+        };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to run auth checks: {:?}", err);
+        }
+        res.auth_error_code.try_into().unwrap()
     }
 }

@@ -16,7 +16,7 @@ use core::mem::MaybeUninit;
 
 #[cfg(feature = "alloc")]
 pub use bytestring_get_alloc::*;
-use groundhog_xdr::storage_delta_flags::StorageItemRPCFlags;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Reports whether a bytestring exists at the given key.
 ///
@@ -83,7 +83,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageItemRPCFlags::kStorageNone as i32,
+        StorageDeltaFlags::kStorageDeltaFlagNone as i32,
     )
 }
 
@@ -100,7 +100,7 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageItemRPCFlags::kStorageExclusiveLock as i32,
+        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock as i32,
     )
 }
 
