@@ -38,8 +38,10 @@ impl TransactionHandler {
             open_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
-                tx_bytes.as_ptr(),
-                tx_bytes.len().try_into().unwrap(),
+                FFISerializedSignedTransaction {
+                    data: tx_bytes.as_ptr() as *mut u8,
+                    len: tx_bytes.len().try_into().unwrap(),
+                },
             )
         };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();

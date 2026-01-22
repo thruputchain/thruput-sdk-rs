@@ -572,7 +572,7 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#f31e13e61b5152b83d2b5069c797315a18084927"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#01382bb3b9729267bbc7c7051ae3fc0285a8ee9a"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
@@ -585,7 +585,7 @@ dependencies = [
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#f31e13e61b5152b83d2b5069c797315a18084927"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#01382bb3b9729267bbc7c7051ae3fc0285a8ee9a"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -654,7 +654,7 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 [[package]]
 name = "hogexec-internal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#f31e13e61b5152b83d2b5069c797315a18084927"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#01382bb3b9729267bbc7c7051ae3fc0285a8ee9a"
 dependencies = [
  "xdr_common",
  "xdrs",
@@ -1356,7 +1356,7 @@ checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 [[package]]
 name = "xdr-derive"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#00917350252928042cf6594c2a460156aa8eaaf3"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#3bb3916500c82722c2085ace50fe531a91e1ccd0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1367,7 +1367,7 @@ dependencies = [
 [[package]]
 name = "xdr-repr"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#00917350252928042cf6594c2a460156aa8eaaf3"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#3bb3916500c82722c2085ace50fe531a91e1ccd0"
 dependencies = [
  "xdr_common",
 ]
@@ -1384,7 +1384,7 @@ dependencies = [
 [[package]]
 name = "xdrs"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#00917350252928042cf6594c2a460156aa8eaaf3"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#3bb3916500c82722c2085ace50fe531a91e1ccd0"
 dependencies = [
  "thiserror",
  "xdr-derive",
