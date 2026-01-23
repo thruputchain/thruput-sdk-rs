@@ -14,6 +14,8 @@ crate-type = ["rlib"]
 # This feature also turns on the logging feature in the contracts that are built in integration_test_contracts
 # within hogexec.  The only contract for which that is relevant for the SDK is the initial_token_claim contract,
 # in that this feature will change the gas consumption (and hash) of that contract.
+#
+# Currently is only available with build from source enabled.
 wasm_backtraces = []
 
 [dependencies]
@@ -26,3 +28,7 @@ thiserror = { version = "2.0.12", default-features = false }
 [build-dependencies]
 cmake = "0.1"
 bindgen = "0.71"
+reqwest = { version = "0.12", features = ["blocking"] }
+tar = "0.4"
+flate2 = "1.0"
+sha2 = "0.10"
