@@ -26,7 +26,7 @@ CARGO_NET_GIT_FETCH_WITH_CLI=true HOGD_FFI_BUILD=1 ./scripts/ci.sh
 # which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
 
 if [ "$GIT_BRANCH" = "main" ]; then
-  ./scripts/metrics.sh
+  HOGD_FFI_BUILD=1 ./scripts/metrics.sh
 fi
 
 """
