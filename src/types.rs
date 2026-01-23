@@ -1,6 +1,6 @@
 //! Types
 
-pub use xdrs::xdr_common::{BytesM, VecM};
+pub use xdrs::{BytesM, VecM};
 
 pub use groundhog_xdr::address_auth::GasPermissionConfig;
 pub use groundhog_xdr::address_auth::NonceConfig;
