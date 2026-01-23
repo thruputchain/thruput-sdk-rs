@@ -5,7 +5,9 @@ use std::process::Command;
 
 /// Parse the test_ffi version from test_bindings.h
 /// Returns version string in the format "MAJOR.MINOR.PATCH"
-fn parse_version_from_header(header_path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
+fn parse_version_from_header(
+    header_path: &PathBuf,
+) -> Result<String, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(header_path)?;
 
     let mut major = None;
@@ -15,16 +17,27 @@ fn parse_version_from_header(header_path: &PathBuf) -> Result<String, Box<dyn st
     for line in content.lines() {
         let line = line.trim();
         if line.starts_with("#define TEST_FFI_VERSION_MAJOR") {
-            major = line.split_whitespace().nth(2).and_then(|s| s.parse::<u32>().ok());
+            major = line
+                .split_whitespace()
+                .nth(2)
+                .and_then(|s| s.parse::<u32>().ok());
         } else if line.starts_with("#define TEST_FFI_VERSION_MINOR") {
-            minor = line.split_whitespace().nth(2).and_then(|s| s.parse::<u32>().ok());
+            minor = line
+                .split_whitespace()
+                .nth(2)
+                .and_then(|s| s.parse::<u32>().ok());
         } else if line.starts_with("#define TEST_FFI_VERSION_PATCH") {
-            patch = line.split_whitespace().nth(2).and_then(|s| s.parse::<u32>().ok());
+            patch = line
+                .split_whitespace()
+                .nth(2)
+                .and_then(|s| s.parse::<u32>().ok());
         }
     }
 
     match (major, minor, patch) {
-        (Some(maj), Some(min), Some(pat)) => Ok(format!("{}.{}.{}", maj, min, pat)),
+        (Some(maj), Some(min), Some(pat)) => {
+            Ok(format!("{}.{}.{}", maj, min, pat))
+        }
         _ => Err("Could not parse version from test_bindings.h".into()),
     }
 }
@@ -63,7 +76,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:warning=TARGET is '{}'", target);
 
     if target == "wasm32-unknown-unknown" {
-        return Err("native_exec does not build for wasm32-unknown-unknown".into());
+        return Err(
+            "native_exec does not build for wasm32-unknown-unknown".into()
+        );
     }
 
     println!("cargo:rerun-if-env-changed=HOGD_FFI_BUILD");
@@ -118,16 +133,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
     // Generate bindings first (needed for all methods)
-    let hogd_src = env::var("HOGD_SRC").unwrap_or_else(|_| "../hogd/".to_string());
+    let hogd_src =
+        env::var("HOGD_SRC").unwrap_or_else(|_| "../hogd/".to_string());
     println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
     println!("cargo:rerun-if-changed={}", hogd_src);
     println!("cargo:rerun-if-changed=.");
 
-    let native_exec_bindings = PathBuf::from(&hogd_src).join("hogd/test_ffi/test_bindings.h");
+    let native_exec_bindings =
+        PathBuf::from(&hogd_src).join("hogd/test_ffi/test_bindings.h");
 
     // Parse version from header file
     let hogd_ffi_version = parse_version_from_header(&native_exec_bindings)?;
-    println!("cargo:warning=Parsed test_ffi version: {}", hogd_ffi_version);
+    println!(
+        "cargo:warning=Parsed test_ffi version: {}",
+        hogd_ffi_version
+    );
 
     // Generate Rust bindings from the C header file
     let bindings = bindgen::Builder::default()
@@ -146,10 +166,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else if use_prebuilt {
         println!(
             "cargo:warning=Platform {}-{} supports prebuilt libraries, downloading...",
-            target_arch(), target_os()
+            target_arch(),
+            target_os()
         );
         verify_hogd_version(&hogd_src, &hogd_ffi_version)?;
-        download_and_extract(&out_dir, &target_arch(), &target_os(), &hogd_ffi_version)?;
+        download_and_extract(
+            &out_dir,
+            &target_arch(),
+            &target_os(),
+            &hogd_ffi_version,
+        )?;
     } else {
         println!("cargo:warning=Building from source (HOGD_FFI_BUILD=1)");
         verify_hogd_version(&hogd_src, &hogd_ffi_version)?;
@@ -160,7 +186,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Verify that the hogd submodule has the correct release tag
-fn verify_hogd_version(hogd_src: &str, version: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn verify_hogd_version(
+    hogd_src: &str,
+    version: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let expected_tag = format!("test-ffi-v{}", version);
 
     let output = Command::new("git")
@@ -201,7 +230,9 @@ fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
     let lib_path = PathBuf::from(lib_dir);
 
     if !lib_path.exists() {
-        return Err(format!("Library directory does not exist: {}", lib_dir).into());
+        return Err(
+            format!("Library directory does not exist: {}", lib_dir).into()
+        );
     }
 
     // Determine the expected library filename based on target platform
@@ -219,7 +250,10 @@ fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     println!("cargo:rustc-link-search=native={}", lib_dir);
     println!("cargo:rustc-link-lib=dylib=test_ffi");
-    println!("cargo:warning=Using prebuilt library from: {} (found: {})", lib_dir, expected_lib);
+    println!(
+        "cargo:warning=Using prebuilt library from: {} (found: {})",
+        lib_dir, expected_lib
+    );
 
     Ok(())
 }
@@ -242,7 +276,7 @@ fn download_and_extract(
                  Please use HOGD_FFI_BUILD=1 to build from source instead.",
                 target_arch, target_os
             )
-            .into())
+            .into());
         }
     };
 
@@ -251,7 +285,10 @@ fn download_and_extract(
         version, archive_name
     );
 
-    println!("cargo:warning=Downloading prebuilt library from: {}", download_url);
+    println!(
+        "cargo:warning=Downloading prebuilt library from: {}",
+        download_url
+    );
 
     // =============================================================================
     // TODO: SWITCH TO DIRECT HTTP DOWNLOADS WHEN REPO BECOMES PUBLIC
@@ -363,10 +400,14 @@ fn download_and_extract(
             .output()?;
 
         if !checksum_output.status.success() {
-            println!("cargo:warning=Checksum file download failed, will skip verification");
+            println!(
+                "cargo:warning=Checksum file download failed, will skip verification"
+            );
         }
     } else {
-        println!("cargo:warning=Checksum file already exists, skipping download");
+        println!(
+            "cargo:warning=Checksum file already exists, skipping download"
+        );
     }
 
     // Read the archive for checksum verification
@@ -375,9 +416,13 @@ fn download_and_extract(
     // Verify checksum if available
     if checksum_path.exists() {
         let checksum_content = fs::read_to_string(&checksum_path)?;
-        let expected_checksum = checksum_content.split_whitespace().next().unwrap().to_string();
+        let expected_checksum = checksum_content
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .to_string();
 
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(&archive_bytes);
         let actual_checksum = format!("{:x}", hasher.finalize());
@@ -393,7 +438,9 @@ fn download_and_extract(
         }
         println!("cargo:warning=Checksum verified: {}", actual_checksum);
     } else {
-        println!("cargo:warning=Checksum file not found, skipping verification");
+        println!(
+            "cargo:warning=Checksum file not found, skipping verification"
+        );
     }
 
     // Extract the archive
@@ -404,11 +451,13 @@ fn download_and_extract(
     let mut archive = tar::Archive::new(tar);
     archive.unpack(&extract_dir)?;
 
-    println!("cargo:warning=Extracted library to: {}", extract_dir.display());
+    println!(
+        "cargo:warning=Extracted library to: {}",
+        extract_dir.display()
+    );
 
     // Verify the library file exists
-    let lib_file = extract_dir.join("libtest_ffi.so")
-        .exists()
+    let lib_file = extract_dir.join("libtest_ffi.so").exists()
         || extract_dir.join("libtest_ffi.dylib").exists()
         || extract_dir.join("test_ffi.dll").exists();
 
@@ -459,7 +508,10 @@ fn build_from_cmake(hogd_src: &str) -> Result<(), Box<dyn std::error::Error>> {
         dst.display()
     );
     println!("cargo:rustc-link-lib=dylib=test_ffi");
-    println!("cargo:warning=Built library from source at: {}", dst.display());
+    println!(
+        "cargo:warning=Built library from source at: {}",
+        dst.display()
+    );
 
     Ok(())
 }
