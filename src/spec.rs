@@ -2,7 +2,7 @@
 
 pub use std::{vec, format, eprintln, string::*, borrow::ToOwned};
 pub use xdrs::xdr_repr::*;
-pub use xdrs::xdr_common::*;
+pub use xdrs::*;
 pub use crate::types::*;
 pub use crate::contract::*;
 
