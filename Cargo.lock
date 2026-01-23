@@ -302,7 +302,6 @@ version = "0.1.0"
 dependencies = [
  "cxs_roundtrip",
  "sdk",
- "xdr_common",
  "xdrs",
 ]
 
@@ -770,20 +769,20 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#01382bb3b9729267bbc7c7051ae3fc0285a8ee9a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#d744a49935819c1f5f679f796d1dd6ead5e4622b"
 dependencies = [
  "groundhog_xdr_macros",
  "serde",
  "serde_arrays",
  "thiserror",
- "xdr_common",
+ "xdr-common",
  "xdrs",
 ]
 
 [[package]]
 name = "groundhog_xdr_macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#01382bb3b9729267bbc7c7051ae3fc0285a8ee9a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#d744a49935819c1f5f679f796d1dd6ead5e4622b"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -871,9 +870,8 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 [[package]]
 name = "hogexec-internal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#01382bb3b9729267bbc7c7051ae3fc0285a8ee9a"
+source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#d744a49935819c1f5f679f796d1dd6ead5e4622b"
 dependencies = [
- "xdr_common",
  "xdrs",
 ]
 
@@ -2305,7 +2303,6 @@ version = "0.1.0"
 dependencies = [
  "sdk",
  "txs_roundtrip",
- "xdr_common",
  "xdrs",
 ]
 
@@ -2682,9 +2679,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "xdr-common"
+version = "0.1.0"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
+dependencies = [
+ "escape-bytes",
+ "hex",
+]
+
+[[package]]
 name = "xdr-derive"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#3bb3916500c82722c2085ace50fe531a91e1ccd0"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2695,29 +2701,20 @@ dependencies = [
 [[package]]
 name = "xdr-repr"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#3bb3916500c82722c2085ace50fe531a91e1ccd0"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
 dependencies = [
- "xdr_common",
-]
-
-[[package]]
-name = "xdr_common"
-version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdr_common.git#776f530f442ca966054a7bce33fb80d427386471"
-dependencies = [
- "escape-bytes",
- "hex",
+ "xdr-common",
 ]
 
 [[package]]
 name = "xdrs"
 version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#3bb3916500c82722c2085ace50fe531a91e1ccd0"
+source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
 dependencies = [
  "thiserror",
+ "xdr-common",
  "xdr-derive",
  "xdr-repr",
- "xdr_common",
 ]
 
 [[package]]
