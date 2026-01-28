@@ -258,7 +258,18 @@ fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Download and extract the prebuilt library from GitHub releases
+fn add_auth_to_curl(cmd: &mut Command, user: &str) {
+    if let Ok(pass) = env::var("HOGD_FFI_PASSWORD") {
+        if !user.is_empty() {
+            println!("cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables.");
+            cmd.arg("-u").arg(format!("{}:{}", user, pass));
+        }
+    } else {
+        println!("cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication.");
+    }
+}
+
+/// Download and extract the prebuilt library from groundhog.dev
 fn download_and_extract(
     out_dir: &PathBuf,
     target_arch: &str,
@@ -281,7 +292,7 @@ fn download_and_extract(
     };
 
     let download_url = format!(
-        "https://github.com/groundhogchain/hogd/releases/download/test-ffi-v{}/{}",
+        "https://groundhog.dev/builds/test-ffi/test-ffi-v{}/{}",
         version, archive_name
     );
 
@@ -290,91 +301,33 @@ fn download_and_extract(
         download_url
     );
 
-    // =============================================================================
-    // TODO: SWITCH TO DIRECT HTTP DOWNLOADS WHEN REPO BECOMES PUBLIC
-    // =============================================================================
-    // Currently using gh CLI because the groundhogchain/hogd repository is private.
-    // Once the repository is made public, replace the gh CLI code below with the
-    // commented-out reqwest HTTP download code for better portability and fewer
-    // dependencies.
-    //
-    // Uncomment this code when the repo is public:
-    //
-    // // Download the archive
-    // let response = reqwest::blocking::get(&download_url)?;
-    //
-    // if !response.status().is_success() {
-    //     return Err(format!(
-    //         "Failed to download prebuilt library: HTTP {}\n\
-    //          URL: {}\n\
-    //          This may indicate that version {} does not have prebuilt releases.\n\
-    //          Please use HOGD_FFI_BUILD=1 to build from source instead.",
-    //         response.status(),
-    //         download_url,
-    //         version
-    //     )
-    //     .into());
-    // }
-    //
-    // let archive_bytes = response.bytes()?;
-    //
-    // // Download and verify checksum
-    // let checksum_url = format!("{}.sha256", download_url);
-    // let checksum_response = reqwest::blocking::get(&checksum_url)?;
-    //
-    // if checksum_response.status().is_success() {
-    //     let expected_checksum = checksum_response.text()?.split_whitespace().next().unwrap().to_string();
-    //
-    //     use sha2::{Sha256, Digest};
-    //     let mut hasher = Sha256::new();
-    //     hasher.update(&archive_bytes);
-    //     let actual_checksum = format!("{:x}", hasher.finalize());
-    //
-    //     if actual_checksum != expected_checksum {
-    //         return Err(format!(
-    //             "Checksum verification failed!\n\
-    //              Expected: {}\n\
-    //              Actual:   {}",
-    //             expected_checksum, actual_checksum
-    //         )
-    //         .into());
-    //     }
-    //     println!("cargo:warning=Checksum verified: {}", actual_checksum);
-    // } else {
-    //     println!("cargo:warning=Checksum file not found, skipping verification");
-    // }
-    // =============================================================================
-
-    // TEMPORARY: Use gh CLI to download from private repository
     let archive_path = out_dir.join(archive_name);
-    let checksum_path = out_dir.join(format!("{}.sha256", archive_name));
 
-    // Download the archive using gh CLI only if it doesn't exist
+    let user = env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
+
     if !archive_path.exists() {
         println!("cargo:warning=Downloading archive...");
-        let output = Command::new("gh")
-            .args(&[
-                "release",
-                "download",
-                &format!("test-ffi-v{}", version),
-                "--repo",
-                "groundhogchain/hogd",
-                "--pattern",
-                archive_name,
-                "--dir",
-                out_dir.to_str().unwrap(),
-            ])
-            .output()?;
+        println!("cargo:rerun-if-env-changed=HOGD_FFI_USER");
+        println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
+
+        let mut cmd = Command::new("curl");
+        cmd.arg("--fail")
+            .arg("-L")
+            .arg("-o")
+            .arg(&archive_path);
+    
+        add_auth_to_curl(&mut cmd, &user);
+
+        cmd.arg(&download_url);
+
+        let output = cmd.output()?;
 
         if !output.status.success() {
             return Err(format!(
-                "Failed to download prebuilt library using gh CLI: {}\n\
-                 URL: {}\n\
-                 Error: {}\n\
-                 Please ensure gh CLI is installed and authenticated, or use HOGD_FFI_BUILD=1 to build from source.",
+                "Failed to download prebuilt library using curl: {}\nURL: {}\nError: {}",
                 String::from_utf8_lossy(&output.stderr),
                 download_url,
-                version
+                output.status
             )
             .into());
         }
@@ -382,35 +335,33 @@ fn download_and_extract(
         println!("cargo:warning=Archive already exists, skipping download");
     }
 
-    // Download the checksum file using gh CLI only if it doesn't exist
+    // Download checksum
+    let checksum_url = format!("{}.sha256", download_url);
+    let checksum_path = out_dir.join(format!("{}.sha256", archive_name));
     if !checksum_path.exists() {
-        println!("cargo:warning=Downloading checksum...");
-        let checksum_output = Command::new("gh")
-            .args(&[
-                "release",
-                "download",
-                &format!("test-ffi-v{}", version),
-                "--repo",
-                "groundhogchain/hogd",
-                "--pattern",
-                &format!("{}.sha256", archive_name),
-                "--dir",
-                out_dir.to_str().unwrap(),
-            ])
-            .output()?;
+        println!("cargo:warning=Downloading checksum from: {}", checksum_url);
+        let mut cmd = Command::new("curl");
+        cmd.arg("--fail").arg("-L").arg("-o").arg(&checksum_path);
+        add_auth_to_curl(&mut cmd, &user);
 
-        if !checksum_output.status.success() {
-            println!(
-                "cargo:warning=Checksum file download failed, will skip verification"
-            );
+        cmd.arg(&checksum_url);
+        let output = cmd.output()?;
+        if !output.status.success() {
+            // curl -o creates the file even if the download fails, so we remove it.
+            let _ = fs::remove_file(&checksum_path);
+            return Err(format!(
+                "Failed to download checksum file from: {}\nStderr: {}",
+                checksum_url,
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .into());
         }
     } else {
-        println!(
-            "cargo:warning=Checksum file already exists, skipping download"
-        );
+        println!("cargo:warning=Checksum file already exists, skipping download.");
     }
 
-    // Read the archive for checksum verification
+
+    // Read the archive for checksum verification and extraction
     let archive_bytes = fs::read(&archive_path)?;
 
     // Verify checksum if available
@@ -419,7 +370,7 @@ fn download_and_extract(
         let expected_checksum = checksum_content
             .split_whitespace()
             .next()
-            .unwrap()
+            .ok_or("Checksum file is empty")?
             .to_string();
 
         use sha2::{Digest, Sha256};
@@ -431,8 +382,9 @@ fn download_and_extract(
             return Err(format!(
                 "Checksum verification failed!\n\
                  Expected: {}\n\
-                 Actual:   {}",
-                expected_checksum, actual_checksum
+                 Actual:   {}\n\
+                 Archive:  {}",
+                expected_checksum, actual_checksum, archive_path.display()
             )
             .into());
         }
