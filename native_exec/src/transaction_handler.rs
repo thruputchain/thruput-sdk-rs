@@ -24,7 +24,6 @@ pub struct TransactionHandler {
     committed: bool,
     aborted: bool,
 }
-
 pub struct RootInvokeResult {
     pub status: InvokeErrorCode,
     pub gas_consumed: u64,
@@ -79,12 +78,34 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        let foreign_result: ForeignRootInvokeResult =
-            unsafe { root_invoke(self.handler) };
-        RootInvokeResult {
-            status: foreign_result.result.panic.try_into().unwrap(),
-            gas_consumed: foreign_result.gas_consumed,
+        struct BorrowBypass {
+            handler: *mut c_void,
         }
+
+        unsafe impl Send for BorrowBypass {}
+        unsafe impl Sync for BorrowBypass {}
+
+        let handler = BorrowBypass {
+            handler: self.handler,
+        };
+        let result = std::thread::Builder::new()
+            .name("root_invoke".to_string())
+            .stack_size(1024 * 1024 * 64)
+            .spawn(move || {
+                let handler = handler;
+                let foreign_result: ForeignRootInvokeResult =
+                    unsafe { root_invoke(handler.handler) };
+                RootInvokeResult {
+                    status: foreign_result.result.panic.try_into().unwrap(),
+                    gas_consumed: foreign_result.gas_consumed,
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+
+        result
+
     }
 
     pub fn get_event_logs(&self) -> Option<TxEventLog> {
