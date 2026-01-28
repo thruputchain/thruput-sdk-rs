@@ -7,7 +7,7 @@ use quote::format_ident;
 use quote::quote;
 use syn::parse::Result;
 
-pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
+pub fn generate(item: &impl ContractSrc, config: &Config) -> Result<TokenStream> {
     let test_setup_mod_ident = config.test_setup_mod_ident();
     let exports_mod_ident = config.exports_mod_ident();
     let mut registrations = TokenStream::new();

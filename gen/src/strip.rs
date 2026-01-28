@@ -33,6 +33,12 @@ impl Strip for ItemTrait {
     }
 }
 
+impl Strip for ItemMod {
+    fn strip_our_attributes(&self) -> Self {
+        StripOurAttributes.fold_item_mod(self.clone())
+    }
+}
+
 impl Strip for ItemFn {
     fn strip_our_attributes(&self) -> Self {
         StripOurAttributes.fold_item_fn(self.clone())

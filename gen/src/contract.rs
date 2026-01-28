@@ -65,19 +65,22 @@ impl Method for syn::TraitItemFn {
 pub trait ContractSrc {
     fn span(&self) -> Span;
 
-    fn trait_path(&self) -> Option<syn::Path>;
+    fn trait_path(&self) -> Option<syn::Path> { None }
 
-    fn interface_name(&self) -> Option<String>;
+    fn interface_name(&self) -> Option<String> { None }
 
-    fn interface_vers(&self) -> Option<String>;
+    fn interface_vers(&self) -> Option<String> { None }
 
     fn defaulted_interface_vers(&self) -> String {
         self.interface_vers().unwrap_or_else(interface_vers_default)
     }
 
-    fn client_ident(&self) -> Option<syn::Ident>;
+    fn client_ident(&self) -> Option<syn::Ident> { None }
 
-    fn self_ty(&self) -> Option<&syn::Type>;
+    fn self_ty(&self) -> Option<&syn::Type> { None }
+
+    /// A module containing the contract functions
+    fn self_mod(&self) -> Option<&syn::Ident> { None }
 
     fn err_type(&self) -> Option<&syn::Ident> {
         None
@@ -158,15 +161,6 @@ impl ContractSrc for syn::ItemImpl {
         ident.map(|i| i.to_string())
     }
 
-    fn interface_vers(&self) -> Option<String> {
-        // TODO: some mechanism for specifying a version
-        None
-    }
-
-    fn client_ident(&self) -> Option<syn::Ident> {
-        None
-    }
-
     fn self_ty(&self) -> Option<&syn::Type> {
         Some(self.self_ty.as_ref())
     }
@@ -183,6 +177,37 @@ impl ContractSrc for syn::ItemImpl {
                 _ => None
             }
         })
+    }
+}
+
+impl ContractSrc for syn::ItemMod {
+    fn span(&self) -> Span {
+        <Self as Spanned>::span(self)
+    }
+
+    fn interface_name(&self) -> Option<String> {
+        Some(self.ident.to_string())
+    }
+
+    fn self_mod(&self) -> Option<&syn::Ident> {
+        Some(&self.ident)
+    }
+
+    fn methods(&self) -> impl Iterator<Item = impl Method> {
+        let items = if let Some((_, items)) = &self.content {
+            items.clone()
+        } else {
+            vec![]
+        };
+
+        items
+            .into_iter()
+            .filter_map(move |item| {
+                match item {
+                    syn::Item::Fn(itemfn @ syn::ItemFn { vis: syn::Visibility::Public(_), .. }) => Some(itemfn),
+                    _ => None
+                }
+            })
     }
 }
 

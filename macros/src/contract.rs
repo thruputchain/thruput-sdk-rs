@@ -27,6 +27,8 @@ fn apply_with_config(
     config: &Config,
 ) -> Result<TokenStream2> {
     match item {
+        // For a trait, generate:
+        // - client interface
         syn::Item::Trait(item) => {
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
@@ -36,6 +38,11 @@ fn apply_with_config(
 
             Ok(out)
         }
+
+        // For a trait impl or inherent impl, generate:
+        // - entrypoints
+        // - test registration
+        // - client interface
         syn::Item::Impl(item) => {
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
@@ -55,6 +62,33 @@ fn apply_with_config(
 
             Ok(out)
         }
+
+        // For a module, generate:
+        // - entrypoints
+        // - test registration
+        // - client interface?
+        syn::Item::Mod(item) => {
+            // Start with the item itself, stripped of proprietary attributes
+            let mut out = item.strip_our_attributes().into_token_stream();
+
+            // Generate exports
+            out.extend(gen::exports::generate(item, config)?);
+
+            if cfg!(feature = "mock") {
+                // Generate test registration
+                out.extend(gen::test_reg::generate(item, config)?);
+            }
+
+            if config.client_ident().is_some() {
+                // Generate client interface
+                out.extend(gen::client::generate(item, config)?);
+            }
+
+            Ok(out)
+        }
+
+        // For a function item, generate:
+        // - entrypoint
         syn::Item::Fn(item) => {
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
@@ -68,13 +102,14 @@ fn apply_with_config(
 
             let contract: Option<&syn::ItemImpl> = None;
 
-            // Generate exports
+            // Generate entrypoint
             out.extend(gen::exports::generate_method(
                 index, iface_name, contract, item, config,
             )?);
 
             Ok(out)
         }
+
         _ => Err(error(
             item,
             format!("Can't apply attribute to item {:?}", item),

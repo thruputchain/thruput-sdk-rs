@@ -29,7 +29,7 @@ cargo_wasm() {
         panic="abort"
     fi
 
-    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=$panic -Clink-args=-zstack-size=$STACK_SIZE"
+    flags="${RUSTFLAGS:-} -Zmacro_backtrace -Zunstable-options -Cpanic=$panic -Clink-args=-zstack-size=$STACK_SIZE"
     # echo "RUSTFLAGS=\"$flags\""
 
     RUSTFLAGS="$flags" \
@@ -238,7 +238,6 @@ native_test_contract() {
         --package "$package" \
         --features $features \
         "$@" \
-        -- --show-output \
         ||
     {
         echo

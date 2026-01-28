@@ -18,10 +18,22 @@ pub fn generate(
 
     let exports_mod_ident = config.exports_mod_ident();
 
-    let self_ty = contract.self_ty();
-    let mut uses = vec![quote! {
-        use super::#self_ty;
-    }];
+    let mut uses = vec![];
+
+    if let Some(self_mod) = contract.self_mod() {
+        // use the module containing the contract functions
+        uses.push(quote! {
+            use super::#self_mod;
+        });
+    }
+
+    if let Some(self_ty) = contract.self_ty() {
+        // use the type containing the contract methods
+        uses.push(quote! {
+            use super::#self_ty;
+        });
+    }
+
     if let Some(trait_path) = contract.trait_path() {
         uses.push(quote! { use super::#trait_path; });
     }
@@ -105,17 +117,19 @@ pub fn generate_method(
     // The function is a method that takes a self-parameter
     let is_method = contract.is_some() && method.sig().receiver().is_some();
 
-    // The function is associated with a type
-    let is_associated = contract.is_some();
-
     // How to call the function
     let function_or_method = if is_method {
         // Invoke the method on a state object
         quote! { state.#ident }
-    } else if is_associated {
+    } else if let Some(contract) = contract {
         // Invoke the associated function on the contract type
-        let self_ty = &contract.unwrap().self_ty();
-        quote! { #self_ty::#ident }
+        if let Some(self_mod) = contract.self_mod() {
+            quote! { #self_mod::#ident }
+        } else if let Some(self_ty) = contract.self_ty() {
+            quote! { #self_ty::#ident }
+        } else {
+            panic!("Don't know how to call contract function");
+        }
     } else {
         // Invoke the free function
         quote! { #ident }
@@ -255,9 +269,7 @@ pub fn generate_method(
                     panic!("failed decoding contract-call arguments: {}", e));
 
                 // Call the free function or contract-type method
-                let result = #function_or_method(#arg_names);
-
-                result
+                #function_or_method(#arg_names)
             };
 
             // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
