@@ -1,5 +1,5 @@
-use sdk::*;
 use sdk::storage::NNInt;
+use sdk::*;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
@@ -20,7 +20,9 @@ impl From<SysErr> for Error {
 impl From<sysresult::Error> for Error {
     fn from(err: sysresult::Error) -> Self {
         match err {
-            sysresult::Error::NonNegativeIntUnderflow => Error::WouldGoNegative,
+            sysresult::Error::NonNegativeIntUnderflow => {
+                Error::WouldGoNegative
+            }
             _ => Error::SysErr,
         }
     }
