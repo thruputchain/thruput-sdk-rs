@@ -463,7 +463,7 @@ fn download_and_extract(
     }
 
     // Extract the archive
-    let extract_dir = out_dir.join("hogd_lib");
+    let extract_dir = out_dir.join(format!("hogd_lib_{}", version));
     fs::create_dir_all(&extract_dir)?;
 
     let tar = flate2::read::GzDecoder::new(&archive_bytes[..]);
