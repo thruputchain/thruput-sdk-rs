@@ -3,6 +3,11 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+/// Hardcoded version for prebuilt downloads.
+/// This must match the version in hogd/test_ffi/test_bindings.h.
+/// When updating, also update the version in README.md.
+const TEST_FFI_VERSION: &str = "0.3.0";
+
 /// Parse the test_ffi version from test_bindings.h
 /// Returns version string in the format "MAJOR.MINOR.PATCH"
 fn parse_version_from_header(
@@ -66,7 +71,37 @@ fn shared_lib_suffix() -> &'static str {
 }
 
 fn shared_lib_name() -> String {
-    format!("{}test_ffi.{}", shared_lib_prefix(), shared_lib_suffix())
+    format!("{}test_ffi{}", shared_lib_prefix(), shared_lib_suffix())
+}
+
+/// Find and copy prebuilt bindings.rs from the extracted tarball directory.
+/// Returns an error if bindings.rs is not found in the tarball.
+fn find_prebuilt_bindings(
+    extract_dir: &PathBuf,
+    out_dir: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let bindings_src = extract_dir.join("bindings.rs");
+    let bindings_dst = out_dir.join("bindings.rs");
+
+    if !bindings_src.exists() {
+        return Err(format!(
+            "bindings.rs not found in extracted tarball at: {}\n\
+             The prebuilt tarball may be from an older version that doesn't include bindings.\n\
+             Either:\n\
+             - Update to a newer prebuilt tarball that includes bindings.rs, or\n\
+             - Use HOGD_FFI_BUILD=1 to build from source (requires hogd submodule)",
+            bindings_src.display()
+        )
+        .into());
+    }
+
+    fs::copy(&bindings_src, &bindings_dst)?;
+    println!(
+        "cargo:warning=Copied bindings.rs from tarball to: {}",
+        bindings_dst.display()
+    );
+
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -132,7 +167,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
-    // Generate bindings first (needed for all methods)
+    // =========================================================================
+    // PREBUILT PATH: Download prebuilt library with bundled bindings.rs
+    // This path does NOT require the hogd submodule to be present.
+    // =========================================================================
+    if use_prebuilt && lib_dir.is_none() {
+        println!(
+            "cargo:warning=Platform {}-{} supports prebuilt libraries, downloading...",
+            target_arch(),
+            target_os()
+        );
+        println!(
+            "cargo:warning=Using hardcoded version: {}",
+            TEST_FFI_VERSION
+        );
+
+        // Download, extract, copy bindings.rs, and link library
+        download_and_extract(
+            &out_dir,
+            &target_arch(),
+            &target_os(),
+            TEST_FFI_VERSION,
+        )?;
+
+        return Ok(());
+    }
+
+    // =========================================================================
+    // SOURCE / CUSTOM-LIB-DIR PATH: Requires hogd submodule for bindings
+    // =========================================================================
     let hogd_src =
         env::var("HOGD_SRC").unwrap_or_else(|_| "../hogd/".to_string());
     println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
@@ -149,6 +212,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         hogd_ffi_version
     );
 
+    // Cross-check: parsed version must match hardcoded version
+    if hogd_ffi_version != TEST_FFI_VERSION {
+        return Err(format!(
+            "Version mismatch between hogd header and build.rs constant.\n\
+             Header version:   {}\n\
+             Constant version: {}\n\
+             Please update TEST_FFI_VERSION in native_exec/build.rs to match the header.",
+            hogd_ffi_version, TEST_FFI_VERSION
+        )
+        .into());
+    }
+
     // Generate Rust bindings from the C header file
     let bindings = bindgen::Builder::default()
         .header(native_exec_bindings.to_str().unwrap())
@@ -163,19 +238,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(dir) = lib_dir {
         println!("cargo:warning=Using custom library directory");
         use_prebuilt_lib(&dir)?;
-    } else if use_prebuilt {
-        println!(
-            "cargo:warning=Platform {}-{} supports prebuilt libraries, downloading...",
-            target_arch(),
-            target_os()
-        );
-        verify_hogd_version(&hogd_src, &hogd_ffi_version)?;
-        download_and_extract(
-            &out_dir,
-            &target_arch(),
-            &target_os(),
-            &hogd_ffi_version,
-        )?;
     } else {
         println!("cargo:warning=Building from source (HOGD_FFI_BUILD=1)");
         verify_hogd_version(&hogd_src, &hogd_ffi_version)?;
@@ -425,6 +487,9 @@ fn download_and_extract(
         )
         .into());
     }
+
+    // Copy bindings.rs from the tarball to OUT_DIR
+    find_prebuilt_bindings(&extract_dir, out_dir)?;
 
     println!("cargo:rustc-link-search=native={}", extract_dir.display());
     println!("cargo:rustc-link-lib=dylib=test_ffi");
