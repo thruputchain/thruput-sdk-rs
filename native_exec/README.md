@@ -4,9 +4,9 @@ The `native_exec` crate provides Rust bindings to the hogd test_ffi library.
 
 ## Default Behavior
 
-**On supported platforms** (x86_64 Linux, aarch64 macOS), the build script will **automatically download** prebuilt libraries from GitHub releases. No environment variables are required.
+**On supported platforms** (x86_64 Linux, aarch64 macOS), the build script will **automatically download** prebuilt libraries from GitHub releases. No environment variables are required, and **the hogd submodule is NOT needed**.
 
-**On unsupported platforms**, you must set either `HOGD_FFI_BUILD=1` or `HOGD_FFI_LIB_DIR`.
+**On unsupported platforms**, you must set either `HOGD_FFI_BUILD=1` or `HOGD_FFI_LIB_DIR` (both require the hogd submodule).
 
 ## Build Methods
 
@@ -21,7 +21,7 @@ This will automatically:
 - Download the prebuilt library from GitHub releases for your platform
 - Verify the SHA256 checksum
 - Extract and link the library
-- Verify that the hogd submodule is checked out to the correct tag
+- Copy the bundled `bindings.rs` from the tarball (no hogd submodule needed)
 
 **Supported platforms:**
 - Linux x86_64: `libtest_ffi-linux-x86_64.tar.gz`
@@ -45,8 +45,11 @@ cargo build
 
 This will:
 - Build the library using CMake (requires CMake, C++, and ccache)
+- Generate bindings using bindgen from the hogd header file
 - Verify that the hogd submodule is checked out to the correct tag
 - Override the default prebuilt download behavior
+
+**Requires:** hogd submodule checked out (`git submodule update --init --recursive`)
 
 **Use this when:**
 - You're on an unsupported platform
@@ -62,8 +65,11 @@ cargo build
 
 This will:
 - Use a prebuilt library from the specified directory
+- Generate bindings using bindgen from the hogd header file
 - The directory must contain the appropriate library file for your platform
 - Override the default prebuilt download behavior
+
+**Requires:** hogd submodule checked out (for generating bindings)
 
 ## Additional Environment Variables
 
@@ -72,24 +78,37 @@ This will:
 
 ## Version Management
 
-The build script automatically parses the version from `hogd/test_ffi/test_bindings.h` by reading the following constants:
+The version is managed differently depending on the build path:
+
+### Prebuilt Download Path (default)
+
+Uses the `TEST_FFI_VERSION` constant in `native_exec/build.rs` to determine which release to download. The prebuilt tarball includes both the library and a pre-generated `bindings.rs`, so no hogd submodule is needed.
+
+Current version: **0.3.4** (tag: `test-ffi-v0.3.4`)
+
+### Source / Custom-lib-dir Path
+
+Parses the version from `hogd/test_ffi/test_bindings.h` by reading the following constants:
 - `TEST_FFI_VERSION_MAJOR`
 - `TEST_FFI_VERSION_MINOR`
 - `TEST_FFI_VERSION_PATCH`
 
-These are combined to form the version string (e.g., `0.1.0`) and used to:
-1. Verify the hogd submodule is at the correct git tag (`test-ffi-v{VERSION}`)
-2. Download the correct prebuilt library from GitHub releases
-
-Current version: **0.1.0** (tag: `test-ffi-v0.1.0`)
+These are combined to form the version string (e.g., `0.3.4`) and used to:
+1. Cross-check against `TEST_FFI_VERSION` in build.rs (must match)
+2. Verify the hogd submodule is at the correct git tag (`test-ffi-v{VERSION}`)
 
 If the version doesn't match, the build will fail with instructions to check out the correct tag:
 
 ```bash
-cd ../hogd && git checkout test-ffi-v0.1.0
+cd ../hogd && git checkout test-ffi-v0.3.4
 ```
 
-**Note**: The version is the single source of truth defined in the C header file, not in Rust code.
+### Updating the Version
+
+When updating to a new test_ffi version:
+1. Update `TEST_FFI_VERSION` in `native_exec/build.rs`
+2. Update the version in this README
+3. Ensure the hogd submodule is at the matching tag (for source builds)
 
 ## Error Handling
 
