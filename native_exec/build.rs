@@ -261,11 +261,15 @@ fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
 fn add_auth_to_curl(cmd: &mut Command, user: &str) {
     if let Ok(pass) = env::var("HOGD_FFI_PASSWORD") {
         if !user.is_empty() {
-            println!("cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables.");
+            println!(
+                "cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables."
+            );
             cmd.arg("-u").arg(format!("{}:{}", user, pass));
         }
     } else {
-        println!("cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication.");
+        println!(
+            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
+        );
     }
 }
 
@@ -303,7 +307,8 @@ fn download_and_extract(
 
     let archive_path = out_dir.join(archive_name);
 
-    let user = env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
+    let user =
+        env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
 
     if !archive_path.exists() {
         println!("cargo:warning=Downloading archive...");
@@ -311,11 +316,8 @@ fn download_and_extract(
         println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
 
         let mut cmd = Command::new("curl");
-        cmd.arg("--fail")
-            .arg("-L")
-            .arg("-o")
-            .arg(&archive_path);
-    
+        cmd.arg("--fail").arg("-L").arg("-o").arg(&archive_path);
+
         add_auth_to_curl(&mut cmd, &user);
 
         cmd.arg(&download_url);
@@ -357,9 +359,10 @@ fn download_and_extract(
             .into());
         }
     } else {
-        println!("cargo:warning=Checksum file already exists, skipping download.");
+        println!(
+            "cargo:warning=Checksum file already exists, skipping download."
+        );
     }
-
 
     // Read the archive for checksum verification and extraction
     let archive_bytes = fs::read(&archive_path)?;
@@ -384,7 +387,9 @@ fn download_and_extract(
                  Expected: {}\n\
                  Actual:   {}\n\
                  Archive:  {}",
-                expected_checksum, actual_checksum, archive_path.display()
+                expected_checksum,
+                actual_checksum,
+                archive_path.display()
             )
             .into());
         }
