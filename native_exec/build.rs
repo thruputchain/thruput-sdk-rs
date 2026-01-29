@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Hardcoded version for prebuilt downloads.
@@ -77,8 +77,8 @@ fn shared_lib_name() -> String {
 /// Find and copy prebuilt bindings.rs from the extracted tarball directory.
 /// Returns an error if bindings.rs is not found in the tarball.
 fn find_prebuilt_bindings(
-    extract_dir: &PathBuf,
-    out_dir: &PathBuf,
+    extract_dir: &Path,
+    out_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let bindings_src = extract_dir.join("bindings.rs");
     let bindings_dst = out_dir.join("bindings.rs");
@@ -171,7 +171,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // PREBUILT PATH: Download prebuilt library with bundled bindings.rs
     // This path does NOT require the hogd submodule to be present.
     // =========================================================================
-    if use_prebuilt && lib_dir.is_none() {
+    if use_prebuilt {
         println!(
             "cargo:warning=Platform {}-{} supports prebuilt libraries, downloading...",
             target_arch(),
