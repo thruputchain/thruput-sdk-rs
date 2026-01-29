@@ -6,7 +6,7 @@ use std::process::Command;
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.3.0";
+const TEST_FFI_VERSION: &str = "0.3.4";
 
 /// Parse the test_ffi version from test_bindings.h
 /// Returns version string in the format "MAJOR.MINOR.PATCH"
