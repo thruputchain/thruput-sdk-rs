@@ -17,17 +17,12 @@ cargo() {
 
 # use `cargo_native` for tests using `native_exec`
 cargo_native() {
-    if [ ! -d "${HOGD_SRC}" ]; then
-        echo "Couldn't find hogd sources at ${HOGD_SRC}"
-        return 1
-    fi
-
     # pull in build config
     SCRIPT_DIR="${HOGD_SRC}/scripts"
     # shellcheck source="hogd/scripts/env.sh"
     source "${SCRIPT_DIR}/env.sh"
 
-    CC="${CC:-}" CXX="${CXX:-}" HOGD_SRC="${HOGD_SRC}" \
+    CC="${CC:-}" CXX="${CXX:-}" \
         cargo "$@"
 }
 
