@@ -1,4 +1,4 @@
-name = "sanitizer_ci"
+name = "ci"
 
 [[jobs]]
 name = "{{ .hog_schedule }}_{{ .hog_host }}"

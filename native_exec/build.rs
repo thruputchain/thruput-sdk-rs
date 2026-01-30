@@ -53,7 +53,13 @@ fn clone_hogd_repo(
     }
 
     let output = Command::new("git")
-        .args(["clone", "--depth=1", "--branch", tag, HOGD_REPO_URL])
+        .args([
+            "clone",
+            "--recurse-submodules",
+            "--branch",
+            tag,
+            HOGD_REPO_URL,
+        ])
         .arg(target_dir)
         .output()?;
 

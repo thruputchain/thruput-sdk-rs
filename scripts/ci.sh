@@ -6,10 +6,9 @@ source "${SDK_SCRIPT_DIR}/env.sh"
     # shellcheck source="scripts/lib_make.sh"
 source "${SDK_SCRIPT_DIR}/lib_make.sh"
 
-# prepare hogd cargo cache
-(
-CARGO_NET_GIT_FETCH_WITH_CLI=true ${SDK_SCRIPT_DIR}/../hogd/scripts/fetch.sh
-)
+# This will fail if hogd tries to build rust contracts with dependencies not present in the cargo cache.
+# But we can't call hogd/scripts/fetch.sh here if we haven't already cloned the hogd repository,
+# since its no longer a submodule.
 
 # Below, each contract is built before being tested;
 # this skips any attempt to rebuild
