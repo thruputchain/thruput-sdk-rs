@@ -8,7 +8,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.3.4";
+const TEST_FFI_VERSION: &str = "0.3.5";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If HOGD_SRC is set and directory exists, use it as-is
@@ -285,8 +285,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed={}", hogd_src);
     println!("cargo:rerun-if-changed=.");
 
-    let native_exec_bindings =
-        hogd_path.join("hogd/test_ffi/test_bindings.h");
+    let native_exec_bindings = hogd_path.join("hogd/test_ffi/test_bindings.h");
 
     // Parse version from header file
     let hogd_ffi_version = parse_version_from_header(&native_exec_bindings)?;
