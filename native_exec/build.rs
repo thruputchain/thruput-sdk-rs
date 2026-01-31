@@ -3,10 +3,78 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
+
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.3.4";
+const TEST_FFI_VERSION: &str = "0.3.5";
+
+/// Clone hogd repository on-demand for build-from-source.
+/// - If HOGD_SRC is set and directory exists, use it as-is
+/// - If HOGD_SRC is set but empty/missing, clone there
+/// - Otherwise, clone to OUT_DIR/hogd_clone
+fn ensure_hogd_clone(
+    out_dir: &Path,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let expected_tag = format!("test-ffi-v{}", TEST_FFI_VERSION);
+
+    // Check if HOGD_SRC is set
+    if let Ok(hogd_src) = env::var("HOGD_SRC") {
+        let hogd_path = PathBuf::from(&hogd_src);
+        if hogd_path.join(".git").exists() {
+            // Repo already exists, use as-is (verify tag later)
+            return Ok(hogd_path);
+        }
+        // HOGD_SRC set but empty - clone there
+        clone_hogd_repo(&hogd_path, &expected_tag)?;
+        return Ok(hogd_path);
+    }
+
+    // Default: clone to OUT_DIR/hogd_clone
+    let hogd_path = out_dir.join("hogd_clone");
+    if !hogd_path.join(".git").exists() {
+        clone_hogd_repo(&hogd_path, &expected_tag)?;
+    }
+    Ok(hogd_path)
+}
+
+fn clone_hogd_repo(
+    target_dir: &Path,
+    tag: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!(
+        "cargo:warning=Cloning hogd repository to: {}",
+        target_dir.display()
+    );
+
+    if let Some(parent) = target_dir.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let output = Command::new("git")
+        .args([
+            "clone",
+            "--recurse-submodules",
+            "--branch",
+            tag,
+            HOGD_REPO_URL,
+        ])
+        .arg(target_dir)
+        .output()?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Failed to clone hogd repository: {}\n\
+             Ensure git is installed and you have network access.",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+
+    println!("cargo:warning=Successfully cloned hogd at tag: {}", tag);
+    Ok(())
+}
 
 /// Parse the test_ffi version from test_bindings.h
 /// Returns version string in the format "MAJOR.MINOR.PATCH"
@@ -194,16 +262,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // =========================================================================
-    // SOURCE / CUSTOM-LIB-DIR PATH: Requires hogd submodule for bindings
+    // CUSTOM LIB DIR PATH: Uses prebuilt library with bundled bindings.rs
     // =========================================================================
-    let hogd_src =
-        env::var("HOGD_SRC").unwrap_or_else(|_| "../hogd/".to_string());
+    if let Some(dir) = lib_dir {
+        println!("cargo:warning=Using custom library directory");
+        // Look for bindings.rs in lib dir (like prebuilt tarball)
+        let lib_path = PathBuf::from(&dir);
+        find_prebuilt_bindings(&lib_path, &out_dir)?;
+        use_prebuilt_lib(&dir)?;
+        return Ok(());
+    }
+
+    // =========================================================================
+    // BUILD FROM SOURCE PATH: Clone hogd on-demand
+    // =========================================================================
+    println!("cargo:warning=Building from source (HOGD_FFI_BUILD=1)");
+
+    let hogd_path = ensure_hogd_clone(&out_dir)?;
+    let hogd_src = hogd_path.to_str().unwrap();
+
     println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
     println!("cargo:rerun-if-changed={}", hogd_src);
     println!("cargo:rerun-if-changed=.");
 
-    let native_exec_bindings =
-        PathBuf::from(&hogd_src).join("hogd/test_ffi/test_bindings.h");
+    let native_exec_bindings = hogd_path.join("hogd/test_ffi/test_bindings.h");
 
     // Parse version from header file
     let hogd_ffi_version = parse_version_from_header(&native_exec_bindings)?;
@@ -234,15 +316,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .write_to_file(out_dir.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 
-    // Execute the chosen build method
-    if let Some(dir) = lib_dir {
-        println!("cargo:warning=Using custom library directory");
-        use_prebuilt_lib(&dir)?;
-    } else {
-        println!("cargo:warning=Building from source (HOGD_FFI_BUILD=1)");
-        verify_hogd_version(&hogd_src, &hogd_ffi_version)?;
-        build_from_cmake(&hogd_src)?;
-    }
+    verify_hogd_version(hogd_src, &hogd_ffi_version)?;
+    build_from_cmake(hogd_src)?;
 
     Ok(())
 }

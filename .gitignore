@@ -1,2 +1,4 @@
 /target/
 /tmp/
+/hogd/
+.DS_Store

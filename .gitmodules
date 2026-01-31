@@ -1,6 +1,3 @@
-[submodule "hogd"]
-	path = hogd
-	url = git@github.com:groundhogchain/hogd.git
 [submodule "integration_test_contracts"]
 	path = integration_test_contracts
 	url = git@github.com:groundhogchain/integration_test_contracts.git
