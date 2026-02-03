@@ -5,7 +5,8 @@ version = 4
 [[package]]
 name = "abort"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/abort_rs.git#39f4c9e1111ca3a704ceb73256777c07f7faa628"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "cff8ab3e7d2ac825da29fd5bc9135174b0b1d7371597656cd99ce089330c02e1"
 dependencies = [
  "heapless",
 ]
@@ -777,22 +778,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-serde_arrays"
+version = "0.2.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "5f38492b48f71b7723c02af35531586816c22057e25c3acf173ef8a9b878ecbf"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "groundhog-xdr"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#d744a49935819c1f5f679f796d1dd6ead5e4622b"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "43e6ac1ce07b09eb1ada0c1c69be333c96eac301f1cc188139be696c938be4ab"
 dependencies = [
- "groundhog_xdr_macros",
+ "groundhog-serde_arrays",
+ "groundhog-xdr-macros",
  "serde",
- "serde_arrays",
  "thiserror",
  "xdr-common",
  "xdrs",
 ]
 
 [[package]]
-name = "groundhog_xdr_macros"
+name = "groundhog-xdr-macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#d744a49935819c1f5f679f796d1dd6ead5e4622b"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "c8ce2be48570b5e09c930971f87dc40a7dcbdc2cebb667f3519731cbcc652a6d"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -880,7 +892,8 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 [[package]]
 name = "hogexec-internal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/protocol-rs.git#d744a49935819c1f5f679f796d1dd6ead5e4622b"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "f5e81816f3592b38112d78d8f50390e8c3730d6864040b8f4e061e496566e6b2"
 dependencies = [
  "xdrs",
 ]
@@ -1836,14 +1849,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_arrays"
-version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/serde_arrays.git#1ed5726fd5c62802d9943f8b4d853aa5087e78c2"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2690,8 +2695,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-common"
-version = "0.1.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
+version = "0.3.2"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "1a526c1b002e424bbab81dcd7379cf6a717d0b2d34baaa3bd2a1d748ca60bfda"
 dependencies = [
  "escape-bytes",
  "hex",
@@ -2699,8 +2705,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-derive"
-version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
+version = "0.3.2"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "7ad81f145f0a6e7a8cf09430d7f7864c554523a78d0b69a2fa285d3ea5278920"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2710,16 +2717,18 @@ dependencies = [
 
 [[package]]
 name = "xdr-repr"
-version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
+version = "0.3.2"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "aba5dfe7010c2b362a3fdcb1137dc6e5242d8825a5a0496ad740e310f3d336e0"
 dependencies = [
  "xdr-common",
 ]
 
 [[package]]
 name = "xdrs"
-version = "0.2.0"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#1d333707e9c3c0b0a011e362252753f17466e761"
+version = "0.3.2"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "dbe90c594e76accd4d805118fed9eda2df09c24ac3f56ddddb69020751c92199"
 dependencies = [
  "thiserror",
  "xdr-common",

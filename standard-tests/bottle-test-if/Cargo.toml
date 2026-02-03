@@ -9,7 +9,7 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
 sdk = { workspace = true }
-xdrs = { workspace = true, features = ["derive", "extras", "int128_xdr"] }
+xdrs = { workspace = true, features = ["derive", "int128"] }
 
 [lib]
 crate-type = ["rlib"]
