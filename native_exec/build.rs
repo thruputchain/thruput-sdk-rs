@@ -362,7 +362,7 @@ fn verify_hogd_version(
             expected_tag, current_tag, hogd_src, expected_tag
         )
         .into());
-    } 
+    }
 
     println!("cargo:warning=hogd version verified: {}", current_tag);
     Ok(())
@@ -460,7 +460,10 @@ fn download_and_extract(
             "cargo:warning=Downloading prebuilt library from: {}",
             download_url
         );
-        println!("cargo:warning=Downloading archive to {}", archive_path.display());
+        println!(
+            "cargo:warning=Downloading archive to {}",
+            archive_path.display()
+        );
 
         let mut cmd = Command::new("curl");
         cmd.arg("--fail").arg("-L").arg("-o").arg(&archive_path);
@@ -481,12 +484,16 @@ fn download_and_extract(
             .into());
         }
     } else {
-        println!("cargo:warning=Archive already exists at {}, skipping download", archive_path.display());
+        println!(
+            "cargo:warning=Archive already exists at {}, skipping download",
+            archive_path.display()
+        );
     }
 
     // Download checksum
     let checksum_url = format!("{}.sha256", download_url);
-    let checksum_path = download_cache_dir.join(format!("{}.sha256", archive_name));
+    let checksum_path =
+        download_cache_dir.join(format!("{}.sha256", archive_name));
     if !checksum_path.exists() {
         println!("cargo:warning=Downloading checksum from: {}", checksum_url);
         let mut cmd = Command::new("curl");
@@ -505,7 +512,10 @@ fn download_and_extract(
             )
             .into());
         } else {
-            println!("cargo:warning=Checksum downloaded to {}", checksum_path.display());
+            println!(
+                "cargo:warning=Checksum downloaded to {}",
+                checksum_path.display()
+            );
         }
     } else {
         println!(
