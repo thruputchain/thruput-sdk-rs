@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: self-hosted
+    env:
+      CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+      CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
     steps:
     - name: Clean up .gitconfig
