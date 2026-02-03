@@ -15,7 +15,6 @@ jobs:
       CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
       # hog ci overwrites the .cargo directory
       CARGO_REGISTRIES_GROUNDHOG_INDEX: sparse+https://groundhog.dev/crates/api/v1/crates/
-      CARGO_REGISTRIES_GROUNDHOG_SOURCE: sparse+https://groundhog.dev/crates/api/v1/crates/
 
     steps:
     - name: Clean up .gitconfig
