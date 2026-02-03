@@ -8,7 +8,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.3.5";
+const TEST_FFI_VERSION: &str = "0.3.6";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If HOGD_SRC is set and directory exists, use it as-is
@@ -22,7 +22,7 @@ fn ensure_hogd_clone(
     // Check if HOGD_SRC is set
     if let Ok(hogd_src) = env::var("HOGD_SRC") {
         let hogd_path = PathBuf::from(&hogd_src);
-        if hogd_path.join(".git").exists() {
+        if hogd_path.exists() {
             // Repo already exists, use as-is (verify tag later)
             return Ok(hogd_path);
         }
@@ -33,7 +33,7 @@ fn ensure_hogd_clone(
 
     // Default: clone to OUT_DIR/hogd_clone
     let hogd_path = out_dir.join("hogd_clone");
-    if !hogd_path.join(".git").exists() {
+    if !hogd_path.exists() {
         clone_hogd_repo(&hogd_path, &expected_tag)?;
     }
     Ok(hogd_path)
@@ -128,6 +128,12 @@ fn shared_lib_prefix() -> &'static str {
         "windows" => "",
         _ => "lib",
     }
+}
+
+fn download_cache_dir() -> PathBuf {
+    PathBuf::from(env::var("OUT_DIR").unwrap())
+        .join("hogd_download_cache")
+        .join(format!("test-ffi-v{}", TEST_FFI_VERSION))
 }
 
 fn shared_lib_suffix() -> &'static str {
@@ -356,7 +362,7 @@ fn verify_hogd_version(
             expected_tag, current_tag, hogd_src, expected_tag
         )
         .into());
-    }
+    } 
 
     println!("cargo:warning=hogd version verified: {}", current_tag);
     Ok(())
@@ -437,20 +443,24 @@ fn download_and_extract(
         version, archive_name
     );
 
-    println!(
-        "cargo:warning=Downloading prebuilt library from: {}",
-        download_url
-    );
+    let download_cache_dir = download_cache_dir();
+    println!("cargo:rerun-if-changed={}", download_cache_dir.display());
 
-    let archive_path = out_dir.join(archive_name);
+    fs::create_dir_all(&download_cache_dir)?;
+    let archive_path = download_cache_dir.join(archive_name);
 
     let user =
         env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
 
+    println!("cargo:rerun-if-env-changed=HOGD_FFI_USER");
+    println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
+
     if !archive_path.exists() {
-        println!("cargo:warning=Downloading archive...");
-        println!("cargo:rerun-if-env-changed=HOGD_FFI_USER");
-        println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
+        println!(
+            "cargo:warning=Downloading prebuilt library from: {}",
+            download_url
+        );
+        println!("cargo:warning=Downloading archive to {}", archive_path.display());
 
         let mut cmd = Command::new("curl");
         cmd.arg("--fail").arg("-L").arg("-o").arg(&archive_path);
@@ -471,12 +481,12 @@ fn download_and_extract(
             .into());
         }
     } else {
-        println!("cargo:warning=Archive already exists, skipping download");
+        println!("cargo:warning=Archive already exists at {}, skipping download", archive_path.display());
     }
 
     // Download checksum
     let checksum_url = format!("{}.sha256", download_url);
-    let checksum_path = out_dir.join(format!("{}.sha256", archive_name));
+    let checksum_path = download_cache_dir.join(format!("{}.sha256", archive_name));
     if !checksum_path.exists() {
         println!("cargo:warning=Downloading checksum from: {}", checksum_url);
         let mut cmd = Command::new("curl");
@@ -494,6 +504,8 @@ fn download_and_extract(
                 String::from_utf8_lossy(&output.stderr)
             )
             .into());
+        } else {
+            println!("cargo:warning=Checksum downloaded to {}", checksum_path.display());
         }
     } else {
         println!(
