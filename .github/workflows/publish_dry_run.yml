@@ -43,4 +43,4 @@ jobs:
       - name: publish dry run
         uses: ./actions/cargo-publish-dry-run
         with:
-          packages: groundhog-contract-util groundhog-sys native_exec groundhog-codegen groundhog-macros
+          packages: groundhog-contract-util groundhog-sys native_exec groundhog-codegen groundhog-macros sdk
