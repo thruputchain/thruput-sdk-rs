@@ -15,6 +15,8 @@ pub fn major_version(version: &Version) -> String {
         version.major.to_string()
     } else if version.minor > 0 {
         format!("{}.{}", version.major, version.minor)
+    } else if version.patch > 0 {
+        format!("{}.{}.{}", version.major, version.minor, version.patch)
     } else {
         version.to_string()
     }

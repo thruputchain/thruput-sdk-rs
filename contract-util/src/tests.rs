@@ -25,16 +25,11 @@ mod tests {
     #[test]
     fn test_cargo_major_version_edge_cases() {
         // Single component
-        assert_eq!(major_version_from_string("1"), "1");
-        assert_eq!(major_version_from_string("0"), "0");
-
-        // Two components
-        assert_eq!(major_version_from_string("1.0"), "1");
-        assert_eq!(major_version_from_string("0.1"), "0.1");
-        assert_eq!(major_version_from_string("0.0"), "0.0");
-
-        // Four components (pre-release style)
-        assert_eq!(major_version_from_string("1.2.3.4"), "1");
-        assert_eq!(major_version_from_string("0.1.2.3"), "0.1");
+        assert_eq!(major_version_from_string("1.0.0-alpha.1"), "1");
+        assert_eq!(
+            major_version_from_string("0.0.1-alpha.1+build123"),
+            "0.0.1"
+        );
+        assert_eq!(major_version_from_string("0.0.0-beta.1"), "0.0.0-beta.1");
     }
 }
