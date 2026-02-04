@@ -16,9 +16,10 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
+    let iface_vers = contract.defaulted_interface_vers();
 
     for method in contract.methods_sorted() {
-        registrations.extend(generate_method(iface_name, &method)?);
+        registrations.extend(generate_method(iface_name, &iface_vers, &method)?);
     }
 
     let mock_registrations = registrations.clone();
@@ -46,13 +47,13 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
 
 fn generate_method(
     iface_name: Option<&str>,
+    iface_vers: &str,
     method: &impl Method,
 ) -> Result<TokenStream> {
     let sig = method.sig();
     let ident = &sig.ident;
     let internal_name = format_ident!("{}_internal", ident);
-    let version = "0.0.0";
-    let entrypoint_id = contract_entrypoint_id(iface_name, version, sig);
+    let entrypoint_id = contract_entrypoint_id(iface_name, iface_vers, sig);
     let entrypoint = entrypoint_literal(entrypoint_id);
 
     Ok(quote! {
