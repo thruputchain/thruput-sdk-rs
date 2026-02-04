@@ -262,8 +262,7 @@ where
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        test
-            .run(&contract_hash)
+        test.run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
 
