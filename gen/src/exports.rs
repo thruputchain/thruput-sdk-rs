@@ -316,14 +316,11 @@ pub fn generate_method(
         }
     });
 
-    // A hack for test setup
-    if contract.is_none() {
-        let entrypoint_lit = entrypoint_literal(entrypoint);
-
-        export.extend(quote! {
-            pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
-        });
-    }
+    // Export the entrypoint ID as a constant for use in tests
+    let entrypoint_lit = entrypoint_literal(entrypoint);
+    export.extend(quote! {
+        pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
+    });
 
     Ok(export)
 }
