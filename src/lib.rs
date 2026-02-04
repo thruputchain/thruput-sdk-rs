@@ -87,9 +87,9 @@ pub use abort::{
 pub use abort::with_debug_context;
 
 #[doc = include_str!("../doc/macro-contract.md")]
-pub use macros::contract;
+pub use groundhog_macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
-pub use macros::{hash_to_array, sha256_static, static_key};
+pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
@@ -104,11 +104,11 @@ pub mod spec;
 pub mod storage;
 
 #[cfg(feature = "storage")]
-pub use macros::Storage;
+pub use groundhog_macros::Storage;
 
 #[cfg(feature = "storage")]
 #[doc = include_str!("../doc/macro-storage.md")]
-pub use macros::storage;
+pub use groundhog_macros::storage;
 
 // Test environment
 

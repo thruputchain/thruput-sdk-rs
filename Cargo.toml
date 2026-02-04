@@ -6,6 +6,7 @@ members = [
     "contract-util",
     "gen",
     "native_exec",
+    "groundhog-sys",
     "examples/*",
     "integration_test_contracts/*",
     "standard-interfaces/*",
@@ -14,17 +15,30 @@ members = [
     ]
 exclude = ["integration_test_contracts/xdr"]
 
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"  
+publish = ["groundhog"]
+repository = "https://github.com/groundhogchain/sdk_rs.git"
+homepage = "https://github.com/groundhogchain/sdk_rs.git"
+keywords = ["groundhog"]
+categories = ["blockchain"]
+
 [package]
 name = "sdk"
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
 edition.workspace = true
 version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "SDK for contract development on the Groundhog blockchain"
 autoexamples = false
-
-[workspace.package]
-edition = "2024"
-version = "0.1.0"
 
 [lib]
 crate-type = ["rlib"]
@@ -32,7 +46,7 @@ doctest = false
 
 [dependencies]
 # Indigenous dependencies
-macros = { workspace = true }
+groundhog-macros = { workspace = true }
 groundhog-xdr = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true }
@@ -57,10 +71,11 @@ hex-literal = { workspace = true }
 [workspace.dependencies]
 #dependencies from this repository
 sdk = { path = "." , registry = "groundhog" }
-gen = { path = "gen" , registry = "groundhog" }
+groundhog-codegen = { path = "gen" , registry = "groundhog" }
 contract-util = { path = "contract-util" , registry = "groundhog" }
 native_exec = { path = "native_exec" , registry = "groundhog" }
-macros = { path = "macros" , registry = "groundhog" }
+groundhog-macros = { path = "macros" , registry = "groundhog" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog" }
 
 #external dependencies
 groundhog-xdr = { registry = "groundhog", version = "0.1.0", features = ["xdrs", "syscalls"] }
@@ -88,22 +103,22 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
 # Enable allocation features
-alloc = ["macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
+alloc = ["groundhog-macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
 
 # Add the "storage" convenience module
-storage = ["alloc", "dep:delegate", "macros/storage"]
+storage = ["alloc", "dep:delegate", "groundhog-macros/storage"]
 
 # Enable the mock executor for testing
-mock = ["std", "dep:native_exec", "macros/mock", "groundhog-xdr/syscalls_mock"]
+mock = ["std", "dep:native_exec", "groundhog-macros/mock", "groundhog-xdr/syscalls_mock"]
 std = ["alloc", "groundhog-xdr/std"]
 
 # Diagnostic features
-logging = ["macros/logging", "alloc"] # trace contract calls when testing
+logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
-call_tracking = ["abort/debug", "macros/call_tracking"] # contract-call backtrace
+call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
-spec = ["std", "macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
+spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
 
 [profile.contract]
 inherits = "release"

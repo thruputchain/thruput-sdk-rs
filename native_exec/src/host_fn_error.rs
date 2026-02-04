@@ -1,38 +1,5 @@
-use crate::bindings::ForeignHostFnResult;
-use crate::bindings::mock_syscall_entrypoint;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
-
-impl ForeignHostFnResult {
-    pub fn unwrap(&self) -> i32 {
-        match self.panic {
-            x if x == HostFnErrorCode::kHostNoneOrRecoverable as i32 => {
-                return self.result_code;
-            }
-            x if x == HostFnErrorCode::kHostOutOfGas as i32 => {
-                panic_any(crate::invoke_error::out_of_gas_error());
-            }
-            x if x == HostFnErrorCode::kHostUnrecoverable as i32 => {
-                panic_any(crate::invoke_error::unrecoverable_error());
-            }
-            x if x == HostFnErrorCode::kHostReturn as i32 => {
-                panic_any(crate::invoke_error::return_error());
-            }
-            x if x == HostFnErrorCode::kHostExit as i32 => {
-                panic_any(crate::invoke_error::exit_error());
-            }
-            x if x == HostFnErrorCode::kHostValidationFailure as i32 => {
-                panic_any(crate::invoke_error::validation_error());
-            }
-            x if x == HostFnErrorCode::kHostAbortTransaction as i32 => {
-                panic_any(crate::invoke_error::abort_transaction_error());
-            }
-            _ => {
-                panic_any(crate::invoke_error::unrecoverable_error());
-            }
-        }
-    }
-}
 
 pub fn perform_mocked_syscall(
     syscall: i32,
@@ -44,11 +11,36 @@ pub fn perform_mocked_syscall(
     arg6: u64,
     arg7: u64,
 ) -> i32 {
-    let result: ForeignHostFnResult = unsafe {
-        mock_syscall_entrypoint(
+    let result: groundhog_sys::ForeignHostFnResult = unsafe {
+        groundhog_sys::mock_syscall_entrypoint(
             syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
         )
     };
 
-    result.unwrap()
+    match result.panic {
+        x if x == HostFnErrorCode::kHostNoneOrRecoverable as i32 => {
+            return result.result_code;
+        }
+        x if x == HostFnErrorCode::kHostOutOfGas as i32 => {
+            panic_any(crate::invoke_error::out_of_gas_error());
+        }
+        x if x == HostFnErrorCode::kHostUnrecoverable as i32 => {
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
+        x if x == HostFnErrorCode::kHostReturn as i32 => {
+            panic_any(crate::invoke_error::return_error());
+        }
+        x if x == HostFnErrorCode::kHostExit as i32 => {
+            panic_any(crate::invoke_error::exit_error());
+        }
+        x if x == HostFnErrorCode::kHostValidationFailure as i32 => {
+            panic_any(crate::invoke_error::validation_error());
+        }
+        x if x == HostFnErrorCode::kHostAbortTransaction as i32 => {
+            panic_any(crate::invoke_error::abort_transaction_error());
+        }
+        _ => {
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
+    };
 }

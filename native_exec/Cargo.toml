@@ -16,7 +16,7 @@ crate-type = ["rlib"]
 # in that this feature will change the gas consumption (and hash) of that contract.
 #
 # Currently is only available with build from source enabled.
-wasm_backtraces = []
+wasm_backtraces = ["groundhog-sys/wasm_backtraces"]
 
 [dependencies]
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"]}
@@ -24,11 +24,4 @@ hogexec-internal = { workspace = true }
 xdrs = { workspace = true }
 sha2 = {version = "0.10"}
 thiserror = { version = "2.0.12", default-features = false }
-
-[build-dependencies]
-cmake = "0.1"
-bindgen = "0.71"
-reqwest = { version = "0.12", features = ["blocking"] }
-tar = "0.4"
-flate2 = "1.0"
-sha2 = "0.10"
+groundhog-sys = { workspace = true }

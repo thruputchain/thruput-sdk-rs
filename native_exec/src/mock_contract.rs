@@ -1,6 +1,5 @@
 use crate::test_environment::TestEnvironment;
 
-use crate::bindings::ForeignInvokeResult;
 use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::contract::ContractEntrypointID;
@@ -16,7 +15,7 @@ pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: i32,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
-    funcs: HashMap<ContractEntrypointID, Box<dyn Fn() -> ForeignInvokeResult>>,
+    funcs: HashMap<ContractEntrypointID, Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>>,
 }
 
 pub struct MockContract {
@@ -91,7 +90,7 @@ impl MockContractInner {
     pub fn get_func(
         &self,
         method: ContractEntrypointID,
-    ) -> Option<&Box<dyn Fn() -> ForeignInvokeResult>> {
+    ) -> Option<&Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>> {
         self.funcs.get(&method)
     }
 }

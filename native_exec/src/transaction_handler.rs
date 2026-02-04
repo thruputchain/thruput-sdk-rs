@@ -1,4 +1,3 @@
-use crate::bindings::*;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_xdr::event::TxEventLog;
@@ -35,10 +34,10 @@ impl TransactionHandler {
         let tx_bytes = txs::encode(stx).unwrap();
 
         let handler_res = unsafe {
-            open_syscall_handler(
+            groundhog_sys::open_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
-                FFISerializedSignedTransaction {
+                groundhog_sys::FFISerializedSignedTransaction {
                     data: tx_bytes.as_ptr() as *mut u8,
                     len: tx_bytes.len().try_into().unwrap(),
                 },
@@ -79,8 +78,8 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        let foreign_result: ForeignRootInvokeResult =
-            unsafe { root_invoke(self.handler) };
+        let foreign_result: groundhog_sys::ForeignRootInvokeResult =
+            unsafe { groundhog_sys::root_invoke(self.handler) };
         RootInvokeResult {
             status: foreign_result.result.panic.try_into().unwrap(),
             gas_consumed: foreign_result.gas_consumed,
@@ -99,7 +98,7 @@ impl TransactionHandler {
             );
         }
 
-        let buffer_len_res = unsafe { get_event_log_len(self.handler) };
+        let buffer_len_res = unsafe { groundhog_sys::get_event_log_len(self.handler) };
         let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
         if err == FFIErrorCode::EventLogNotFound {
             return None;
@@ -115,7 +114,7 @@ impl TransactionHandler {
         let mut buffer = vec![0u8; buffer_len as usize];
 
         let event_log_res = unsafe {
-            get_event_log(self.handler, buffer.as_mut_ptr(), buffer_len)
+            groundhog_sys::get_event_log(self.handler, buffer.as_mut_ptr(), buffer_len)
         };
         let err: FFIErrorCode = event_log_res.into();
         if err != FFIErrorCode::None {
@@ -159,7 +158,7 @@ impl TransactionHandler {
             );
         }
         self.committed = true;
-        let res = unsafe { try_commit_transaction(self.handler) };
+        let res = unsafe { groundhog_sys::try_commit_transaction(self.handler) };
         if res.ffi_error_code != FFIErrorCode::None as u32 {
             panic!(
                 "failed to try to commit transaction: {:?}",
@@ -185,7 +184,7 @@ impl TransactionHandler {
         }
         self.aborted = true;
 
-        let res = unsafe { abort_transaction(self.handler) };
+        let res = unsafe { groundhog_sys::abort_transaction(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             panic!("failed to abort transaction: {:?}", err);
@@ -199,7 +198,7 @@ impl Drop for TransactionHandler {
             self.abort_transaction();
         }
 
-        let res = unsafe { close_syscall_handler(self.handler) };
+        let res = unsafe { groundhog_sys::close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             panic!("failed to close syscall handler: {:?}", err);

@@ -3,7 +3,7 @@
 //! These functions are usually called via methods on "client" objects defined by the
 //! [contract](macro@crate::contract) macro.
 
-use crate::contract::ContractEntrypointID;
+use groundhog_xdr::contract::ContractEntrypointID;
 use crate::internal::{
     EncodeBuf, MUBuf, ReadXDROwned, WriteXDR, decode_xdr, encode_xdr,
 };
