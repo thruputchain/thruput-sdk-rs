@@ -1,4 +1,4 @@
-cargo-features = ["trim-paths"] #unstable
+#cargo-features = ["trim-paths"] #unstable
 
 [workspace]
 members = [
