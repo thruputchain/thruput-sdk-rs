@@ -4,9 +4,11 @@ use super::Config;
 use super::contract::{ConfiguredContract, ContractSrc, Method};
 use super::entrypoint::*;
 use super::util::*;
+use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use std::collections::HashMap;
 use syn::parse::Result;
 
 /// Generate exports
@@ -28,11 +30,15 @@ pub fn generate(
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
+    let iface_vers = contract.defaulted_interface_vers();
+
+    // Collect methods and check for entrypoint ID collisions
+    let methods: Vec<_> = contract.methods_sorted().into_iter().collect();
+    check_entrypoint_collisions(iface_name, &iface_vers, &methods)?;
 
     let mut exports = TokenStream::new();
-    for (index, method) in contract.methods_sorted().into_iter().enumerate() {
+    for method in methods {
         exports.extend(generate_method(
-            index,
             iface_name,
             Some(&contract),
             &method,
@@ -49,26 +55,55 @@ pub fn generate(
     })
 }
 
+/// Check for entrypoint ID collisions among methods
+fn check_entrypoint_collisions(
+    iface_name: Option<&str>,
+    iface_vers: &str,
+    methods: &[impl Method],
+) -> Result<()> {
+    let mut seen: HashMap<ContractEntrypointID, String> = HashMap::new();
+
+    for method in methods {
+        let sig = method.sig();
+        let entrypoint = contract_entrypoint_id(iface_name, iface_vers, sig);
+        let method_name = sig.ident.to_string();
+
+        if let Some(existing) = seen.get(&entrypoint) {
+            return Err(error(
+                sig,
+                format!(
+                    "Entrypoint ID collision: methods '{}' and '{}' produce the same ID {:016X}",
+                    existing,
+                    method_name,
+                    u64::from_be_bytes(*entrypoint)
+                ),
+            ));
+        }
+        seen.insert(entrypoint, method_name);
+    }
+
+    Ok(())
+}
+
 // Generate an exported function for:
 // - An impl or impl-trait method with self-parameter
 // - An impl or impl-trait associated function
 // - A free function
 pub fn generate_method(
-    index: usize,
     iface_name: Option<&str>,
     contract: Option<&impl ContractSrc>,
     method: &impl Method,
     config: &Config,
 ) -> Result<TokenStream> {
-    let ident = &method.sig().ident;
+    let sig = method.sig();
+    let ident = &sig.ident;
     let iface_vers = if let Some(contract) = contract {
         contract.defaulted_interface_vers()
     } else {
         crate::contract::interface_vers_default()
     };
 
-    let entrypoint =
-        contract_entrypoint_id(iface_name, &iface_vers, ident, index);
+    let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
 
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);
@@ -281,14 +316,11 @@ pub fn generate_method(
         }
     });
 
-    // A hack for test setup
-    if contract.is_none() {
-        let entrypoint_lit = entrypoint_literal(entrypoint);
-
-        export.extend(quote! {
-            pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
-        });
-    }
+    // Export the entrypoint ID as a constant for use in tests
+    let entrypoint_lit = entrypoint_literal(entrypoint);
+    export.extend(quote! {
+        pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
+    });
 
     Ok(export)
 }

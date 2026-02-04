@@ -32,8 +32,7 @@ pub fn generate(
     let method_stubs = contract
         .methods_sorted()
         .into_iter()
-        .enumerate()
-        .map(|(index, method)| generate_client_fn(index, &method, &contract))
+        .map(|method| generate_client_fn(&method, &contract))
         .collect::<Result<Vec<TokenStream>>>()?;
 
     let client = quote! {
@@ -109,17 +108,16 @@ fn generate_spec_fn(
 }
 
 fn generate_client_fn(
-    index: usize,
     method: &impl Method,
     contract: &impl ContractSrc,
 ) -> Result<TokenStream> {
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
     let iface_vers = contract.defaulted_interface_vers();
-    let ident = &method.sig().ident;
+    let sig = method.sig();
+    let ident = &sig.ident;
 
-    let entrypoint =
-        contract_entrypoint_id(iface_name, &iface_vers, ident, index);
+    let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
 
     let mut params = method.sig().inputs.iter().peekable();
 

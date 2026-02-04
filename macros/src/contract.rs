@@ -59,10 +59,6 @@ fn apply_with_config(
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
-            // Get a macro-attribute-configured interface index, if any
-            let index =
-                config.interface_index().map(|i| i as usize).unwrap_or(0);
-
             let iface_name = config.interface_name();
             let iface_name = iface_name.as_deref();
 
@@ -70,7 +66,7 @@ fn apply_with_config(
 
             // Generate exports
             out.extend(gen::exports::generate_method(
-                index, iface_name, contract, item, config,
+                iface_name, contract, item, config,
             )?);
 
             Ok(out)
