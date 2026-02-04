@@ -19,7 +19,11 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
     let iface_vers = contract.defaulted_interface_vers();
 
     for method in contract.methods_sorted() {
-        registrations.extend(generate_method(iface_name, &iface_vers, &method)?);
+        registrations.extend(generate_method(
+            iface_name,
+            &iface_vers,
+            &method,
+        )?);
     }
 
     let mock_registrations = registrations.clone();
