@@ -44,6 +44,6 @@ jobs:
         uses: ./actions/cargo-publish-dry-run
         with:
           packages: groundhog-contract-util groundhog-sys native_exec groundhog-codegen groundhog-macros sdk
-          cargo-hack-feature-options: |
-            --feature-powerset -F std --ignore-unknown-features
-            --feature-powerset --skip std --skip mock --target=wasm32-unknown-unknown
+          cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock
+          cargo-hack-wasm32-packages: sdk
