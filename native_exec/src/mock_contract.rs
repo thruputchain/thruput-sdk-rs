@@ -51,19 +51,16 @@ impl MockContract {
         unsafe { &(*self.contract).hash }
     }
 
-    pub fn register_method<F>(
-        self: &mut Self,
-        id: ContractEntrypointID,
-        func: F,
-    ) where
-        F: Fn() -> () + UnwindSafe + Clone + 'static,
+    pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)
+    where
+        F: Fn() + UnwindSafe + Clone + 'static,
     {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
 
-    pub fn register_func<F>(self: &mut Self, id: ContractEntrypointID, func: F)
+    pub fn register_func<F>(&mut self, id: ContractEntrypointID, func: F)
     where
-        F: Fn() -> () + UnwindSafe + Clone + 'static,
+        F: Fn() + UnwindSafe + Clone + 'static,
     {
         unsafe {
             (*self.contract)
@@ -93,7 +90,7 @@ impl MockContractInner {
     pub fn get_func(
         &self,
         method: ContractEntrypointID,
-    ) -> Option<&Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>> {
-        self.funcs.get(&method)
+    ) -> Option<&dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
+        self.funcs.get(&method).map(|boxed| boxed.as_ref())
     }
 }

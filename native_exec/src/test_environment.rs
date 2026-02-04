@@ -90,14 +90,10 @@ unsafe extern "C" fn trampoline(
     let method: ContractEntrypointID = method.to_be_bytes().into();
 
     match unsafe { (*c).get_func(method) } {
-        Some(x) => {
-            return x();
-        }
-        None => {
-            return groundhog_sys::ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeDeterministic as i32,
-            };
-        }
+        Some(x) => x(),
+        None => groundhog_sys::ForeignInvokeResult {
+            panic: InvokeErrorCode::kInvokeDeterministic as i32,
+        },
     }
 }
 
@@ -112,7 +108,7 @@ impl DBWrapper {
         if err != FFIErrorCode::None {
             panic!("failed to create db: {}", res.ffi_error_code);
         }
-        assert!(res.db != core::ptr::null_mut());
+        assert!(!res.db.is_null());
         Self { db: res.db }
     }
 }
@@ -138,7 +134,7 @@ impl RuntimeContextWrapper {
         if err != FFIErrorCode::None {
             panic!("failed to create runtime context: {}", res.ffi_error_code);
         }
-        assert!(res.context != core::ptr::null_mut());
+        assert!(!res.context.is_null());
         Self {
             context: res.context,
         }
@@ -158,17 +154,14 @@ impl Drop for RuntimeContextWrapper {
 impl TestEnvironmentInner {
     pub fn new() -> Self {
         set_override_panic_hook();
-        let out = Self {
+        // the initialization in create_db() advances the block once, so it is prepped for
+        // accepting new transactions (in proposal mode)
+        Self {
             db: DBWrapper::new(),
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
-        };
-
-        // the initialization in create_db() advances the block once, so it is prepped for
-        // accepting new transactions (in proposal mode)
-
-        out
+        }
     }
 
     pub fn enable_syscall_logging() {
@@ -360,6 +353,12 @@ impl Drop for TestEnvironmentInner {
     }
 }
 
+impl Default for TestEnvironmentInner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
 impl TestEnvironment {
@@ -394,7 +393,7 @@ impl TestEnvironment {
         test: F,
     ) -> TransactionHandler
     where
-        F: Fn() -> () + UnwindSafe + Clone + 'static,
+        F: Fn() + UnwindSafe + Clone + 'static,
     {
         let mut test_contract = self.add_contract();
         let entrypoint = ContractEntrypointID::from([0; 8]);
@@ -421,7 +420,7 @@ impl TestEnvironment {
                 gas_claims: vec![].try_into().unwrap(),
                 invocation: Invocation {
                     invoked_address: invoke_addr,
-                    entrypoint: entrypoint,
+                    entrypoint,
                     gas_limit: u64::MAX,
                     calldata: [].try_into().unwrap(),
                 },
@@ -478,7 +477,7 @@ impl TestEnvironment {
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
         source_auth_data: &AddressAuthData,
-        aux_auth_data: &Vec<(ContractAddress, AddressAuthData)>,
+        aux_auth_data: &[(ContractAddress, AddressAuthData)],
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
         let ffi_serialized_tx =

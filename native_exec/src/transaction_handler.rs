@@ -47,7 +47,7 @@ impl TransactionHandler {
         if err != FFIErrorCode::None {
             panic!("failed to open syscall handler: {:?}", err);
         }
-        assert!(handler_res.syscall_handler != core::ptr::null_mut());
+        assert!(!handler_res.syscall_handler.is_null());
         Self {
             handler: handler_res.syscall_handler,
             _env: env.clone(),

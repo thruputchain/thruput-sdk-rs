@@ -1,6 +1,7 @@
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
 
+#[allow(clippy::too_many_arguments)]
 pub fn perform_mocked_syscall(
     syscall: i32,
     arg1: u64,
@@ -19,7 +20,7 @@ pub fn perform_mocked_syscall(
 
     match result.panic {
         x if x == HostFnErrorCode::kHostNoneOrRecoverable as i32 => {
-            return result.result_code;
+            result.result_code
         }
         x if x == HostFnErrorCode::kHostOutOfGas as i32 => {
             panic_any(crate::invoke_error::out_of_gas_error());
@@ -42,5 +43,5 @@ pub fn perform_mocked_syscall(
         _ => {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
-    };
+    }
 }

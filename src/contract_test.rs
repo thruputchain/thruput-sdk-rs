@@ -149,7 +149,7 @@ macro_rules! contract_test_env {
 
             fn env_hook(
                 $env: &std::rc::Rc<sdk::TestEnvironment>,
-                $handler: &mut native_exec::transaction_handler::TransactionHandler,
+                $handler: &mut groundhog_native_exec::transaction_handler::TransactionHandler,
             ) -> () $env_hook
 
             env_hook(&mut env, &mut handler);
@@ -163,7 +163,7 @@ macro_rules! contract_test_env {
             assert_eq!(commit_res, groundhog_xdr::exec_result::ExecResult::ExecResultOK);
 
             fn post_hook(
-                $handler2: &mut native_exec::transaction_handler::TransactionHandler,
+                $handler2: &mut groundhog_native_exec::transaction_handler::TransactionHandler,
             ) -> () $post_hook
 
             post_hook(&mut handler);

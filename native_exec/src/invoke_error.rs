@@ -100,27 +100,25 @@ pub fn invoke_wrapper<'a, F>(
     wrapped: F,
 ) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'a,
+    F: Fn() + UnwindSafe + Clone + 'a,
 {
     Box::new(move || {
         let w = wrapped.clone();
-        let result = panic::catch_unwind(move || w());
+        let result = panic::catch_unwind(w);
 
         match result {
-            Ok(_) => {
-                return groundhog_sys::ForeignInvokeResult {
-                    panic: InvokeErrorCode::kInvokeNone as i32,
-                };
-            }
+            Ok(_) => groundhog_sys::ForeignInvokeResult {
+                panic: InvokeErrorCode::kInvokeNone as i32,
+            },
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     return groundhog_sys::ForeignInvokeResult {
-                        panic: my_error.error_type.clone() as i32,
+                        panic: my_error.error_type as i32,
                     };
                 }
-                return groundhog_sys::ForeignInvokeResult {
+                groundhog_sys::ForeignInvokeResult {
                     panic: InvokeErrorCode::kInvokeUnrecoverable as i32,
-                };
+                }
             }
         }
     })
