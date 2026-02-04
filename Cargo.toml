@@ -131,7 +131,7 @@ debug-assertions = false
 panic = "abort"
 lto = true
 codegen-units = 1
-trim-paths = "all" # unstable
+#trim-paths = "all" # unstable
 # also see rust flags set in .cargo/config.toml
 
 [[test]]
