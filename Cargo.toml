@@ -62,8 +62,6 @@ native_exec = { workspace = true, optional = true }
 delegate = { workspace = true, optional = true }
 heapless = { workspace = true, optional = true }
 
-[build-dependencies]
-
 [dev-dependencies]
 bottle-test-if = { workspace = true }
 hex-literal = { workspace = true }
