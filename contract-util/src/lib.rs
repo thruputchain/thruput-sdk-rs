@@ -13,6 +13,7 @@ pub mod semver;
 // we may consider adding the arguments and return type to the signature
 // as a checksum, if there is a clear way to derive a standardized argument
 // type string at proc-macro runtime.
+//
 pub struct NormalizedMethodSignature {
     method_name: String,
 }
@@ -38,6 +39,7 @@ impl NormalizedMethodSignature {
 ///
 /// For contracts not using the derive macros of the SDK, we would suggest using
 /// some arbitrary domain separator here (such as the name of the contract).
+///
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
     version_str: &str,
@@ -46,7 +48,7 @@ pub fn contract_entrypoint_id(
     let major_version = semver::major_version_from_string(version_str);
     let method_sig = method.get_signature_string();
 
-    // Entrypoint ID = sha256(TRAIT_NAME || MAJOR_VERSION || METHOD_NAME || METHOD_SIGNATURE)[0..8]
+    // Entrypoint ID = sha256(INTERFACE_NAME || MAJOR_VERSION || METHOD_SIGNATURE)[0..8]
     let mut hasher = sha2::Sha256::new();
     hasher.update(interface_name.unwrap_or("_unnamed_interface").as_bytes());
     hasher.update(major_version.as_bytes());
