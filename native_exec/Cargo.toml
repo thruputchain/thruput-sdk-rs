@@ -1,7 +1,13 @@
 [package]
 name = "native_exec"
-version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Native execution environment for testing Groundhog smart contracts"
 
 [lib]
 crate-type = ["rlib"]
