@@ -2,3 +2,7 @@
 /tmp/
 /hogd/
 .DS_Store
+
+# Artifact of the release workflow; this will not be necessary
+# once groundhogchain/actions is a public repository
+actions/
