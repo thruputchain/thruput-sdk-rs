@@ -39,6 +39,7 @@ pub use test_rt::trap;
 // in the binary.) The build scripts may be configured to instead choose `panic=abort`, which will
 // enable the logging below.
 //
+//#[cfg(all(not(feature = "std"), target_family = "wasm"))]
 #[cfg(not(feature = "std"))]
 #[panic_handler]
 fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {
