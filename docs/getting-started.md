@@ -36,11 +36,10 @@ sdk_rs/
 ├── macros/                 # Procedural macros (#[contract], #[storage])
 ├── gen/                    # Code generation used by macros
 ├── examples/               # Example contracts (start here!)
+│   ├── counter/            # Simple counter (best starting point)
 │   ├── erc20/              # Full ERC20 token
-│   ├── counter/            # Simple counter (good first example)
-│   ├── caller/             # Cross-contract calls
-│   ├── hasher/             # Minimal stateless contract
-│   └── ...                 # More examples (swap, aborter, etc.)
+│   ├── crane_rewards/      # DePIN example with low-level storage
+│   └── ...                 # Other examples (caller, hasher, etc.)
 ├── standard-interfaces/    # Trait definitions (ERC20, etc.)
 ├── native_exec/            # Mock execution for testing
 └── tests/                  # SDK unit tests
@@ -50,14 +49,27 @@ sdk_rs/
 
 ## Key Storage Types
 
-Groundhog provides **commutative primitives** - these are fundamentally different from EVM storage:
+Groundhog provides **commutative primitives** - these are fundamentally different from EVM storage.
+
+### Base Primitives
 
 | Type | Purpose | Commutativity |
 |------|---------|---------------|
-| `NNInt` | Non-negative integer (balances) | Pure additive ops always commute |
-| `Map<K, V>` | Persistent key-value store | Keys commute independently |
-| `Vector<T>` | Dynamic array | Append operations commute |
+| `NNInt` | Non-negative integer (balances, counters) | Additive ops always commute |
 | `Bytestring` | Raw bytes | Commutes only if same value written |
+
+These are the two fundamental storage types. `NNInt` is the workhorse - use it for any numeric value that should never go negative (balances, counters, totals).
+
+### Composite Types
+
+| Type | Purpose | Commutativity |
+|------|---------|---------------|
+| `Map<K, V>` | Persistent key-value store | Operations on different keys commute |
+| `Vector<T>` | Dynamic array (**experimental**) | Append operations commute |
+
+`Map` wraps the base primitives - each key is independent, so `map[A] += 5` and `map[B] -= 3` always commute.
+
+`Vector` is experimental. Only append operations commute; the data type's semantics may evolve.
 
 ### Why This Matters
 
@@ -83,49 +95,66 @@ Result: 130 (always, regardless of order)
 
 ### Basic Structure
 
+Here's a minimal counter contract (see `examples/counter/` for the full version):
+
 ```rust
-use sdk::prelude::*;
+use sdk::storage::NNInt;
+use sdk::*;
+use thiserror::Error;
 
-// 1. Define state with #[storage]
-#[derive(Debug)]
-#[sdk::storage]
-pub struct MyToken {
-    balances: Map<ContractAddress, NNInt>,
-    total_supply: NNInt,
-}
-
-// 2. Define error type
-#[derive(Error, Debug, Clone, ReadXDR, WriteXDR)]
+// 1. Define error type
+#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum Error {
-    #[error("Insufficient balance")]
-    InsufficientBalance,
+    #[error("Counter would go negative")]
+    WouldGoNegative = 1,
+    #[error("System error")]
+    SysErr = 2,
+}
+
+impl From<SysErr> for Error {
+    fn from(_: SysErr) -> Self { Error::SysErr }
+}
+
+impl From<sysresult::Error> for Error {
+    fn from(err: sysresult::Error) -> Self {
+        match err {
+            sysresult::Error::NonNegativeIntUnderflow => Error::WouldGoNegative,
+            _ => Error::SysErr,
+        }
+    }
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
+
+// 2. Define state with #[storage]
+#[derive(Debug)]
+#[storage]
+pub struct Counter {
+    value: NNInt,
 }
 
 // 3. Implement with #[contract]
-#[contract(exports = "guest_exports", err_type = Error)]
-impl MyToken {
+#[contract(exports = "guest_exports", err_type = Error, client = CounterClient)]
+impl Counter {
     #[init]
-    pub fn initialize(&mut self, initial_supply: u128) -> Result<(), Error> {
-        let caller = get_caller()?;
-        self.balances.get(&caller)?.checked_inc(initial_supply as i128)?;
-        self.total_supply.checked_inc(initial_supply as i128)?;
+    pub fn initialize(&mut self, initial_value: u64) -> Result<()> {
+        self.value.checked_inc(initial_value as i128)?;
         Ok(())
     }
 
-    pub fn transfer(&mut self, to: &ContractAddress, amount: u128) -> Result<(), Error> {
-        let from = get_caller()?;
-        let diff = amount as i128;
-
-        // Pure additive - these ALWAYS commute!
-        self.balances.get(&from)?.checked_inc(-diff)?;
-        self.balances.get(to)?.checked_inc(diff)?;
-
+    pub fn increment(&mut self, amount: u64) -> Result<()> {
+        self.value.checked_inc(amount as i128)?;
         Ok(())
     }
 
-    pub fn balance_of(&self, addr: &ContractAddress) -> Result<u128, Error> {
-        Ok(self.balances.get(addr)?.try_get()?.unwrap_or(0) as u128)
+    pub fn decrement(&mut self, amount: u64) -> Result<()> {
+        self.value.checked_inc(-(amount as i128))?;
+        Ok(())
+    }
+
+    pub fn get(&self) -> Result<u64> {
+        Ok(self.value.try_get()?.unwrap_or(0) as u64)
     }
 }
 ```
@@ -136,7 +165,7 @@ impl MyToken {
 
 2. **`#[contract]`** - Generates WASM exports and client code. Parameters:
    - `exports` - Module name for exported functions
-   - `err_type` - Your error enum for `Err(...)` aborts
+   - `err_type` - Your error enum
    - `client` - (optional) Generate a client struct for cross-contract calls
 
 3. **`#[init]`** - Initialization method, called only on first invocation.
@@ -147,43 +176,14 @@ impl MyToken {
 
 ### Error Handling
 
-Custom errors require some boilerplate. Your error type needs:
+Your error type needs `From` impls for `SysErr` and `sysresult::Error` (shown in the example above). Add to `Cargo.toml`:
 
-```rust
-use sdk::*;
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
-#[repr(i32)]
-pub enum Error {
-    #[error("Would go negative")]
-    WouldGoNegative = 1,
-    #[error("System error")]
-    SysErr = 2,
-}
-
-// Required: convert low-level syscall errors
-impl From<SysErr> for Error {
-    fn from(_: SysErr) -> Self {
-        Error::SysErr
-    }
-}
-
-// Required: convert SDK errors (e.g., from NNInt operations)
-impl From<sysresult::Error> for Error {
-    fn from(err: sysresult::Error) -> Self {
-        match err {
-            sysresult::Error::NonNegativeIntUnderflow => Error::WouldGoNegative,
-            _ => Error::SysErr,
-        }
-    }
-}
-```
-
-And add to `Cargo.toml`:
 ```toml
+thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
 ```
+
+> **Note:** Error handling is being simplified — see [What's Coming](#whats-coming) for details on the new panic-based approach that eliminates most of this boilerplate.
 
 ---
 
@@ -218,40 +218,37 @@ Tests use the `native_exec` mock environment. On supported platforms (x86_64 Lin
 
 ### Test Patterns
 
-Tests use `TestEnvironment` to set up a mock execution environment:
+Tests use `TestEnvironment` to set up a mock execution environment. From `examples/counter/tests/test.rs`:
 
 ```rust
 use sdk::contract_test::*;
 use sdk::*;
 
 #[test]
-fn test_my_contract() {
-    // Set up mock environment
+fn test_counter_basic() {
     let mut env = TestEnvironment::new();
 
-    // Register your contract
-    let test_contract = my_contract::test_setup::register(&mut env);
+    // Register the contract with the test environment
+    let test_contract = counter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    // Run test inside mock contract context
     contract_test_invoke(env, move || {
-        // Deploy contract
+        // Deploy the contract
         let nonce = SHA256Hash::from([1; 32]);
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
 
-        // Create client and interact
-        let mut client = my_contract::MyContractClient::new(&deployed_addr);
-        client.initialize(100).unwrap();
+        // Create a client to interact with the contract
+        let mut client = counter::CounterClient::new(&deployed_addr);
 
-        // Assertions
-        let value = client.get_value().unwrap();
-        assert_eq!(value, 100);
+        client.initialize(10).unwrap();
+        assert_eq!(client.get().unwrap(), 10);
+
+        client.increment(5).unwrap();
+        assert_eq!(client.get().unwrap(), 15);
     })
     .unwrap();
 }
 ```
-
-See `examples/counter/tests/test.rs` for a complete working example.
 
 ---
 
@@ -314,17 +311,50 @@ pub fn call_other(&self, addr: &ContractAddress) -> Result<u128, Error> {
 
 ## Examples to Study
 
+**Current examples** (actively maintained):
+
 | Example | What It Shows |
 |---------|---------------|
-| `examples/counter/` | Simple counter — best starting point for learning the patterns |
-| `examples/erc20/` | Complete token with events, errors, allowances, trait impl |
+| `examples/counter/` | Simplest complete example — start here |
+| `examples/erc20/` | Production patterns: events, errors, allowances, trait impl |
+| `examples/crane_rewards/` | DePIN pattern: low-level storage, owner checks, real-world use case |
+
+**Other examples** (may be out of date):
+
+| Example | What It Shows |
+|---------|---------------|
 | `examples/caller/` | Cross-contract invocation patterns |
 | `examples/hasher/` | Minimal stateless contract |
-| `examples/aborter/` | Error handling and abort patterns |
 
-Start with `examples/counter/` for the simplest complete example, then study `examples/erc20/src/implementation.rs` for production patterns.
+Start with `counter/`, then study `erc20/src/implementation.rs` for production patterns. The `crane_rewards/` example shows an alternative approach using low-level storage functions directly (useful when you need more control).
 
-*Note: Some examples (swap, etc.) may be disabled during development — check for a `disabled` file in the example directory.*
+---
+
+## What's Coming
+
+The SDK is actively evolving. Here's what's in development:
+
+### Simplified Error Handling (`dbg/panic` branch)
+
+The current `Result<T, Error>` pattern requires boilerplate for error type definitions and `From` impls. The new approach:
+
+- Methods return values directly instead of `Result<T, Error>`
+- `checked_inc()` becomes `strict_inc()` — aborts on underflow instead of returning an error
+- `try_get()` returns `Option<T>` directly
+- Errors abort the transaction via panic rather than propagating through `Result`
+
+This matches blockchain semantics better: if something fails, the transaction should abort anyway.
+
+### Retrocausal Queues (RCQ)
+
+A new storage primitive for **sequencing** in a commutative world. Low-level syscalls exist (`retrocausal_queue_insert`, `retrocausal_queue_consume`), with a high-level `storage::` wrapper coming.
+
+RCQ is a single-consumer, multi-producer FIFO queue:
+- **Insert** operations from multiple parallel transactions commute (all entries are added)
+- **Consume** operations sequence entries in FIFO order
+- The "retrocausal" property: a consumer can see entries inserted by transactions that execute "later" in the same block (since all transactions see the same snapshot)
+
+Use cases: order books, job queues, any pattern requiring deterministic ordering despite parallel execution.
 
 ---
 
