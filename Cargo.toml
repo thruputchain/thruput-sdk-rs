@@ -69,13 +69,16 @@ bottle-test-if = { workspace = true }
 hex-literal = { workspace = true }
 
 [workspace.dependencies]
-#dependencies from this repository
-sdk = { path = "." , registry = "groundhog" }
-groundhog-codegen = { path = "gen" , registry = "groundhog" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog" }
-native_exec = { path = "native_exec" , registry = "groundhog" }
-groundhog-macros = { path = "macros" , registry = "groundhog" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog" }
+# dependencies from this repository
+# These version numbers need to match the overall workspace package version,
+# and must unfortunately be updated manually whenever the workspace package version is updated
+# prior to a new release.
+sdk = { path = "." , registry = "groundhog", version = "=0.1.0" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.1.0" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.1.0" }
+native_exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.0" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.1.0" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.1.0" }
 
 #external dependencies
 groundhog-xdr = { registry = "groundhog", version = "0.1.0", features = ["xdrs", "syscalls"] }
