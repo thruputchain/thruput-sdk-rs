@@ -58,7 +58,7 @@ sha2 = { workspace = true, default-features = false }
 bitset-core = { workspace = true }
 
 # Optional dependencies
-native_exec = { workspace = true, optional = true }
+groundhog-native-exec = { workspace = true, optional = true }
 delegate = { workspace = true, optional = true }
 heapless = { workspace = true, optional = true }
 
@@ -74,7 +74,7 @@ hex-literal = { workspace = true }
 sdk = { path = "." , registry = "groundhog", version = "=0.1.0" }
 groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.1.0" }
 groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.1.0" }
-native_exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.0" }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.0" }
 groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.1.0" }
 groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.1.0" }
 
@@ -110,7 +110,7 @@ alloc = ["groundhog-macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
 storage = ["alloc", "dep:delegate", "groundhog-macros/storage"]
 
 # Enable the mock executor for testing
-mock = ["std", "dep:native_exec", "groundhog-macros/mock", "groundhog-xdr/syscalls_mock"]
+mock = ["std", "dep:groundhog-native-exec", "groundhog-macros/mock", "groundhog-xdr/syscalls_mock"]
 std = ["alloc", "groundhog-xdr/std"]
 
 # Diagnostic features

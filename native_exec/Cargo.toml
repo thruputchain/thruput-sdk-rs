@@ -1,5 +1,5 @@
 [package]
-name = "native_exec"
+name = "groundhog-native-exec"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
@@ -13,7 +13,7 @@ description = "Native execution environment for testing Groundhog smart contract
 crate-type = ["rlib"]
 
 [features]
-# If this feature is enabled, then the native_exec crate will be built with
+# If this feature is enabled, then the groundhog-native-exec crate will be built with
 # wasm backtraces enabled.  Those will be largely meaningless unless you also
 # build contracts with minimal debug info (line numbers and function names).
 # 
