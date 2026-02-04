@@ -216,8 +216,8 @@ mod handle {
 pub use handle::*;
 
 pub fn grant_storage_tokens(
-    env: &native_exec::test_environment::TestEnvironmentHandle,
-    handler: &native_exec::transaction_handler::TransactionHandler,
+    env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
+    handler: &groundhog_native_exec::transaction_handler::TransactionHandler,
 ) {
     env.setup_grant_storage_tokens(
         &handler

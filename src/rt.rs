@@ -14,7 +14,7 @@ pub fn trap() -> ! {
 
 #[cfg(feature = "mock")]
 mod test_rt {
-    use native_exec::invoke_error::deterministic_error;
+    use groundhog_native_exec::invoke_error::deterministic_error;
     use std::boxed::Box;
     use std::panic::panic_any;
 
