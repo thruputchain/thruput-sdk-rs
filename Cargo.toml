@@ -72,7 +72,7 @@ hex-literal = { workspace = true }
 #dependencies from this repository
 sdk = { path = "." , registry = "groundhog" }
 groundhog-codegen = { path = "gen" , registry = "groundhog" }
-contract-util = { path = "contract-util" , registry = "groundhog" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog" }
 native_exec = { path = "native_exec" , registry = "groundhog" }
 groundhog-macros = { path = "macros" , registry = "groundhog" }
 groundhog-sys = { path = "groundhog-sys" , registry = "groundhog" }

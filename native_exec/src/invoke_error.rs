@@ -150,10 +150,7 @@ mod tests {
 
         let boxed = invoke_wrapper(f);
 
-        assert_eq!(
-            (*boxed)().panic,
-            InvokeErrorCode::kInvokeNone as i32
-        );
+        assert_eq!((*boxed)().panic, InvokeErrorCode::kInvokeNone as i32);
     }
 
     fn test_panic() {

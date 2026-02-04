@@ -15,7 +15,10 @@ pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: i32,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
-    funcs: HashMap<ContractEntrypointID, Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>>,
+    funcs: HashMap<
+        ContractEntrypointID,
+        Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>,
+    >,
 }
 
 pub struct MockContract {

@@ -3,7 +3,6 @@
 //! These functions are usually called via methods on "client" objects defined by the
 //! [contract](macro@crate::contract) macro.
 
-use groundhog_xdr::contract::ContractEntrypointID;
 use crate::internal::{
     EncodeBuf, MUBuf, ReadXDROwned, WriteXDR, decode_xdr, encode_xdr,
 };
@@ -12,6 +11,7 @@ pub use crate::invoke_error::*;
 use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use core::error::Error;
+use groundhog_xdr::contract::ContractEntrypointID;
 
 type CallData = EncodeBuf;
 type ReturnData = EncodeBuf;

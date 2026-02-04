@@ -98,7 +98,8 @@ impl TransactionHandler {
             );
         }
 
-        let buffer_len_res = unsafe { groundhog_sys::get_event_log_len(self.handler) };
+        let buffer_len_res =
+            unsafe { groundhog_sys::get_event_log_len(self.handler) };
         let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
         if err == FFIErrorCode::EventLogNotFound {
             return None;
@@ -114,7 +115,11 @@ impl TransactionHandler {
         let mut buffer = vec![0u8; buffer_len as usize];
 
         let event_log_res = unsafe {
-            groundhog_sys::get_event_log(self.handler, buffer.as_mut_ptr(), buffer_len)
+            groundhog_sys::get_event_log(
+                self.handler,
+                buffer.as_mut_ptr(),
+                buffer_len,
+            )
         };
         let err: FFIErrorCode = event_log_res.into();
         if err != FFIErrorCode::None {
@@ -158,7 +163,8 @@ impl TransactionHandler {
             );
         }
         self.committed = true;
-        let res = unsafe { groundhog_sys::try_commit_transaction(self.handler) };
+        let res =
+            unsafe { groundhog_sys::try_commit_transaction(self.handler) };
         if res.ffi_error_code != FFIErrorCode::None as u32 {
             panic!(
                 "failed to try to commit transaction: {:?}",
@@ -198,7 +204,8 @@ impl Drop for TransactionHandler {
             self.abort_transaction();
         }
 
-        let res = unsafe { groundhog_sys::close_syscall_handler(self.handler) };
+        let res =
+            unsafe { groundhog_sys::close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             panic!("failed to close syscall handler: {:?}", err);

@@ -45,7 +45,9 @@ fn apply_with_config(
 
             if cfg!(feature = "mock") {
                 // Generate test registration
-                out.extend(groundhog_codegen::test_reg::generate(item, config)?);
+                out.extend(groundhog_codegen::test_reg::generate(
+                    item, config,
+                )?);
             }
 
             if config.client_ident().is_some() {

@@ -221,17 +221,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
-name = "contract-util"
-version = "0.1.0"
-dependencies = [
- "groundhog-xdr",
- "semver",
- "sha2",
- "syn",
- "xdrs",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -760,11 +749,22 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 name = "groundhog-codegen"
 version = "0.1.0"
 dependencies = [
- "contract-util",
  "darling",
+ "groundhog-contract-util",
  "groundhog-xdr",
  "proc-macro2",
  "quote",
+ "sha2",
+ "syn",
+ "xdrs",
+]
+
+[[package]]
+name = "groundhog-contract-util"
+version = "0.1.0"
+dependencies = [
+ "groundhog-xdr",
+ "semver",
  "sha2",
  "syn",
  "xdrs",

@@ -33,25 +33,27 @@ pub(crate) enum FFIErrorCode {
     #[error("No error")]
     None = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeNone,
     #[error("Invalid pointer")]
-    InvalidPointer = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
+    InvalidPointer =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
     #[error(
         "Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)"
     )]
-    DeployNonexistentContract =
-        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
+    DeployNonexistentContract = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
     #[error(
         "Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)"
     )]
-    CreateNonexistentMockContract =
-        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
+    CreateNonexistentMockContract = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
     #[error(
         "Supplied data structs failed to deserialize into expected format"
     )]
-    DeserializeError = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
+    DeserializeError =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
     #[error("Unrecoverable error")]
-    UnrecoverableError = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
+    UnrecoverableError =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
     #[error("Event log not found")]
-    EventLogNotFound = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
+    EventLogNotFound =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
 }
 
 impl From<groundhog_sys::TestFFIErrorCode> for FFIErrorCode {
@@ -331,10 +333,11 @@ impl TestEnvironmentInner {
         tx: &SignedTransaction,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
-        let ffi_serialized_tx = groundhog_sys::FFISerializedSignedTransaction {
-            data: serialized_tx.as_ptr() as *mut u8,
-            len: serialized_tx.len().try_into().unwrap(),
-        };
+        let ffi_serialized_tx =
+            groundhog_sys::FFISerializedSignedTransaction {
+                data: serialized_tx.as_ptr() as *mut u8,
+                len: serialized_tx.len().try_into().unwrap(),
+            };
         let res = unsafe {
             groundhog_sys::verify_signed_transaction_auth_from_db(
                 self.db.db,
@@ -478,17 +481,19 @@ impl TestEnvironment {
         aux_auth_data: &Vec<(ContractAddress, AddressAuthData)>,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
-        let ffi_serialized_tx = groundhog_sys::FFISerializedSignedTransaction {
-            data: serialized_tx.as_ptr() as *mut u8,
-            len: serialized_tx.len().try_into().unwrap(),
-        };
+        let ffi_serialized_tx =
+            groundhog_sys::FFISerializedSignedTransaction {
+                data: serialized_tx.as_ptr() as *mut u8,
+                len: serialized_tx.len().try_into().unwrap(),
+            };
 
         let serialized_source_auth_data =
             txs::encode(source_auth_data).unwrap();
-        let ffi_serialized_source_auth_data = groundhog_sys::FFISourceAuthData {
-            data: serialized_source_auth_data.as_ptr() as *mut u8,
-            len: serialized_source_auth_data.len().try_into().unwrap(),
-        };
+        let ffi_serialized_source_auth_data =
+            groundhog_sys::FFISourceAuthData {
+                data: serialized_source_auth_data.as_ptr() as *mut u8,
+                len: serialized_source_auth_data.len().try_into().unwrap(),
+            };
 
         let serialized_aux_auth_data: Vec<(ContractAddress, Vec<u8>)> =
             aux_auth_data
@@ -496,15 +501,16 @@ impl TestEnvironment {
                 .map(|x| (x.0, txs::encode(&x.1).unwrap()))
                 .collect();
 
-        let ffi_serialized_aux_auth_data: Vec<groundhog_sys::FFISerializedAuthData> =
-            serialized_aux_auth_data
-                .iter()
-                .map(|x| groundhog_sys::FFISerializedAuthData {
-                    address: *x.0,
-                    data: x.1.as_ptr() as *mut u8,
-                    len: x.1.len().try_into().unwrap(),
-                })
-                .collect();
+        let ffi_serialized_aux_auth_data: Vec<
+            groundhog_sys::FFISerializedAuthData,
+        > = serialized_aux_auth_data
+            .iter()
+            .map(|x| groundhog_sys::FFISerializedAuthData {
+                address: *x.0,
+                data: x.1.as_ptr() as *mut u8,
+                len: x.1.len().try_into().unwrap(),
+            })
+            .collect();
 
         let ffi_auxiliary_auth_data = groundhog_sys::FFIAuxiliaryAuthData {
             auth_data: ffi_serialized_aux_auth_data.as_ptr()
