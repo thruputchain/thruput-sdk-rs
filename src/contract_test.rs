@@ -9,7 +9,7 @@ use std::vec::Vec;
 ///
 pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
     let mut handler = env.prepare_test(f);
 
@@ -38,7 +38,7 @@ pub fn contract_test_invoke<F>(
     f: F,
 ) -> InvokeResult<()>
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
     let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
     let test_contract = {
@@ -180,7 +180,7 @@ mod handle {
     // available in serialized form via `GetCalldata`,
     // and serialize the result for passing to `Return`.
     //
-    pub fn handle_call<F, ARGS, RES>(f: F) -> ()
+    pub fn handle_call<F, ARGS, RES>(f: F)
     where
         F: FnOnce(ARGS) -> RES,
         ARGS: ReadXDROwned,
@@ -262,7 +262,7 @@ where
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        let _ = test
+        test
             .run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
