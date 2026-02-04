@@ -93,7 +93,8 @@ pub trait ContractSrc {
 }
 
 pub fn interface_vers_default() -> String {
-    "0.0.0".to_string()
+    // Get the version from the crate being compiled via Cargo's env var
+    std::env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".to_string())
 }
 
 use core::cmp::Ordering;
