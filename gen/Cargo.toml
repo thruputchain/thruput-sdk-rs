@@ -1,7 +1,15 @@
 [package]
-name = "gen"
-version = "0.1.0"
-edition = "2024"
+name = "groundhog-codegen"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Code generation for Groundhog smart contract macros"
 
 [dependencies]
 darling = "0.20.10"
@@ -11,7 +19,7 @@ syn = { version = "2.0.93" , features = [ "full" , "extra-traits", "visit", "pri
 xdrs = { workspace = true, features = ["derive", "alloc"] }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 sha2 = { workspace = true }
-contract-util = { workspace = true }
+groundhog-contract-util = { workspace = true }
 
 [features]
 # Allow features that require liballoc

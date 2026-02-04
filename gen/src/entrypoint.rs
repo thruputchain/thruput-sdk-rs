@@ -1,5 +1,6 @@
 //! Construct and manipulate contract entrypoint IDs
 
+use groundhog_contract_util as contract_util;
 use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;

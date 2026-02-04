@@ -1,8 +1,8 @@
 use darling::FromMeta;
 use darling::ast::NestedMeta;
-use gen::Config;
-use gen::strip::*;
-use gen::util::*;
+use groundhog_codegen::Config;
+use groundhog_codegen::strip::*;
+use groundhog_codegen::util::*;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
@@ -32,7 +32,7 @@ fn apply_with_config(
             let mut out = item.strip_our_attributes().into_token_stream();
 
             // Generate client interface
-            out.extend(gen::client::generate(item, config)?);
+            out.extend(groundhog_codegen::client::generate(item, config)?);
 
             Ok(out)
         }
@@ -41,16 +41,18 @@ fn apply_with_config(
             let mut out = item.strip_our_attributes().into_token_stream();
 
             // Generate exports
-            out.extend(gen::exports::generate(item, config)?);
+            out.extend(groundhog_codegen::exports::generate(item, config)?);
 
             if cfg!(feature = "mock") {
                 // Generate test registration
-                out.extend(gen::test_reg::generate(item, config)?);
+                out.extend(groundhog_codegen::test_reg::generate(
+                    item, config,
+                )?);
             }
 
             if config.client_ident().is_some() {
                 // Generate client interface
-                out.extend(gen::client::generate(item, config)?);
+                out.extend(groundhog_codegen::client::generate(item, config)?);
             }
 
             Ok(out)
@@ -65,7 +67,7 @@ fn apply_with_config(
             let contract: Option<&syn::ItemImpl> = None;
 
             // Generate exports
-            out.extend(gen::exports::generate_method(
+            out.extend(groundhog_codegen::exports::generate_method(
                 iface_name, contract, item, config,
             )?);
 

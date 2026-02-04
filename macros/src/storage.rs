@@ -34,7 +34,7 @@ fn generate_from_data(
     let mut output = TokenStream::new();
 
     output.extend(match item {
-        syn::Data::Struct(ref item) => generate_from_struct(input, item),
+        syn::Data::Struct(item) => generate_from_struct(input, item),
         _ => err(input, "Can only derive Storage for structs")?,
     });
 
@@ -84,7 +84,7 @@ fn impl_read_xdr_path(
     let ty = generic_type_name(ident, generics);
     let generic_params = &generics.params;
 
-    let fields = if let syn::Fields::Named(ref fields_named) = fields {
+    let fields = if let syn::Fields::Named(fields_named) = fields {
         &fields_named.named
     } else {
         return err(fields, "Can only handle named struct fields");
@@ -141,7 +141,7 @@ fn impl_default_from_keypath(
     let ty = generic_type_name(ident, generics);
     let generic_params = &generics.params;
 
-    let fields = if let syn::Fields::Named(ref fields_named) = fields {
+    let fields = if let syn::Fields::Named(fields_named) = fields {
         &fields_named.named
     } else {
         return err(fields, "Can only handle named struct fields");

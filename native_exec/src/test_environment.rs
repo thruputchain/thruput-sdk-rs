@@ -1,4 +1,3 @@
-use crate::bindings::*;
 use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
@@ -32,39 +31,41 @@ const TEST_CONTRACT_SIZE: u32 = 1024;
 #[repr(u32)]
 pub(crate) enum FFIErrorCode {
     #[error("No error")]
-    None = TestFFIErrorCode_kTestFFIErrorCodeNone,
+    None = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeNone,
     #[error("Invalid pointer")]
-    InvalidPointer = TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
+    InvalidPointer =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
     #[error(
         "Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)"
     )]
-    DeployNonexistentContract =
-        TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
+    DeployNonexistentContract = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
     #[error(
         "Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)"
     )]
-    CreateNonexistentMockContract =
-        TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
+    CreateNonexistentMockContract = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
     #[error(
         "Supplied data structs failed to deserialize into expected format"
     )]
-    DeserializeError = TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
+    DeserializeError =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
     #[error("Unrecoverable error")]
-    UnrecoverableError = TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
+    UnrecoverableError =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
     #[error("Event log not found")]
-    EventLogNotFound = TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
+    EventLogNotFound =
+        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
 }
 
-impl From<TestFFIErrorCode> for FFIErrorCode {
-    fn from(error: TestFFIErrorCode) -> Self {
+impl From<groundhog_sys::TestFFIErrorCode> for FFIErrorCode {
+    fn from(error: groundhog_sys::TestFFIErrorCode) -> Self {
         match error {
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeNone => FFIErrorCode::None,
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer => FFIErrorCode::InvalidPointer,
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract => FFIErrorCode::DeployNonexistentContract,
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
-            x if x == TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound => FFIErrorCode::EventLogNotFound,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeNone => FFIErrorCode::None,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer => FFIErrorCode::InvalidPointer,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract => FFIErrorCode::DeployNonexistentContract,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
+            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound => FFIErrorCode::EventLogNotFound,
             _ => panic!("unknown FFI error code: {}", error),
         }
     }
@@ -83,7 +84,7 @@ pub struct TestEnvironment {
 unsafe extern "C" fn trampoline(
     context: *mut c_void,
     method: u64,
-) -> ForeignInvokeResult {
+) -> groundhog_sys::ForeignInvokeResult {
     let c: *mut MockContractInner = unsafe { core::mem::transmute(context) };
 
     let method: ContractEntrypointID = method.to_be_bytes().into();
@@ -93,7 +94,7 @@ unsafe extern "C" fn trampoline(
             return x();
         }
         None => {
-            return ForeignInvokeResult {
+            return groundhog_sys::ForeignInvokeResult {
                 panic: InvokeErrorCode::kInvokeDeterministic as i32,
             };
         }
@@ -106,7 +107,7 @@ pub(crate) struct DBWrapper {
 
 impl DBWrapper {
     pub fn new() -> Self {
-        let res = unsafe { create_db() };
+        let res = unsafe { groundhog_sys::create_db() };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to create db: {}", res.ffi_error_code);
@@ -118,7 +119,7 @@ impl DBWrapper {
 
 impl Drop for DBWrapper {
     fn drop(&mut self) {
-        let r = unsafe { free_db(self.db) };
+        let r = unsafe { groundhog_sys::free_db(self.db) };
         let err: FFIErrorCode = r.into();
         if err != FFIErrorCode::None {
             panic!("failed to free db: {:?}", err);
@@ -132,7 +133,7 @@ pub(crate) struct RuntimeContextWrapper {
 
 impl RuntimeContextWrapper {
     pub fn new() -> Self {
-        let res = unsafe { open_runtime_context() };
+        let res = unsafe { groundhog_sys::open_runtime_context() };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to create runtime context: {}", res.ffi_error_code);
@@ -146,7 +147,7 @@ impl RuntimeContextWrapper {
 
 impl Drop for RuntimeContextWrapper {
     fn drop(&mut self) {
-        let r = unsafe { close_runtime_context(self.context) };
+        let r = unsafe { groundhog_sys::close_runtime_context(self.context) };
         let err: FFIErrorCode = r.into();
         if err != FFIErrorCode::None {
             panic!("failed to close runtime context: {:?}", err);
@@ -171,7 +172,7 @@ impl TestEnvironmentInner {
     }
 
     pub fn enable_syscall_logging() {
-        unsafe { enable_syscall_logging() };
+        unsafe { groundhog_sys::enable_syscall_logging() };
     }
 
     /// Creates a new contract within groundhog.
@@ -194,7 +195,7 @@ impl TestEnvironmentInner {
     ) -> SHA256Hash {
         let contract_bytes = txs::encode(&contract).unwrap();
         let res = unsafe {
-            setup_create_contract(
+            groundhog_sys::setup_create_contract(
                 self.contract_context.context,
                 self.db.db,
                 contract_bytes.as_ptr(),
@@ -242,7 +243,7 @@ impl TestEnvironmentInner {
         };
 
         let res = unsafe {
-            setup_deploy_contract(
+            groundhog_sys::setup_deploy_contract(
                 self.db.db,
                 addr.as_ptr(),
                 contract_hash.as_ptr(),
@@ -269,7 +270,7 @@ impl TestEnvironmentInner {
         tokens: i64,
     ) {
         let res = unsafe {
-            setup_grant_contract_storage_tokens(
+            groundhog_sys::setup_grant_contract_storage_tokens(
                 self.db.db,
                 addr.as_ptr(),
                 tokens,
@@ -286,7 +287,7 @@ impl TestEnvironmentInner {
     /// Only the transactions that were successfully committed will be visible to the next block.
     /// An error may occur if there are any transactions that executed but did not commit or abort.
     pub fn advance_block(&mut self) {
-        let res = unsafe { advance_new_block(self.db.db) };
+        let res = unsafe { groundhog_sys::advance_new_block(self.db.db) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             panic!("failed to advance block: {:?}", err);
@@ -312,7 +313,7 @@ impl TestEnvironmentInner {
         self.mock_contract_index += 1;
 
         let res = unsafe {
-            register_new_contract(
+            groundhog_sys::register_new_contract(
                 self.contract_context.context,
                 new_id,
                 Some(trampoline),
@@ -332,12 +333,13 @@ impl TestEnvironmentInner {
         tx: &SignedTransaction,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
-        let ffi_serialized_tx = FFISerializedSignedTransaction {
-            data: serialized_tx.as_ptr() as *mut u8,
-            len: serialized_tx.len().try_into().unwrap(),
-        };
+        let ffi_serialized_tx =
+            groundhog_sys::FFISerializedSignedTransaction {
+                data: serialized_tx.as_ptr() as *mut u8,
+                len: serialized_tx.len().try_into().unwrap(),
+            };
         let res = unsafe {
-            verify_signed_transaction_auth_from_db(
+            groundhog_sys::verify_signed_transaction_auth_from_db(
                 self.db.db,
                 ffi_serialized_tx,
             )
@@ -479,17 +481,19 @@ impl TestEnvironment {
         aux_auth_data: &Vec<(ContractAddress, AddressAuthData)>,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
-        let ffi_serialized_tx = FFISerializedSignedTransaction {
-            data: serialized_tx.as_ptr() as *mut u8,
-            len: serialized_tx.len().try_into().unwrap(),
-        };
+        let ffi_serialized_tx =
+            groundhog_sys::FFISerializedSignedTransaction {
+                data: serialized_tx.as_ptr() as *mut u8,
+                len: serialized_tx.len().try_into().unwrap(),
+            };
 
         let serialized_source_auth_data =
             txs::encode(source_auth_data).unwrap();
-        let ffi_serialized_source_auth_data = FFISourceAuthData {
-            data: serialized_source_auth_data.as_ptr() as *mut u8,
-            len: serialized_source_auth_data.len().try_into().unwrap(),
-        };
+        let ffi_serialized_source_auth_data =
+            groundhog_sys::FFISourceAuthData {
+                data: serialized_source_auth_data.as_ptr() as *mut u8,
+                len: serialized_source_auth_data.len().try_into().unwrap(),
+            };
 
         let serialized_aux_auth_data: Vec<(ContractAddress, Vec<u8>)> =
             aux_auth_data
@@ -497,24 +501,25 @@ impl TestEnvironment {
                 .map(|x| (x.0, txs::encode(&x.1).unwrap()))
                 .collect();
 
-        let ffi_serialized_aux_auth_data: Vec<FFISerializedAuthData> =
-            serialized_aux_auth_data
-                .iter()
-                .map(|x| FFISerializedAuthData {
-                    address: *x.0,
-                    data: x.1.as_ptr() as *mut u8,
-                    len: x.1.len().try_into().unwrap(),
-                })
-                .collect();
+        let ffi_serialized_aux_auth_data: Vec<
+            groundhog_sys::FFISerializedAuthData,
+        > = serialized_aux_auth_data
+            .iter()
+            .map(|x| groundhog_sys::FFISerializedAuthData {
+                address: *x.0,
+                data: x.1.as_ptr() as *mut u8,
+                len: x.1.len().try_into().unwrap(),
+            })
+            .collect();
 
-        let ffi_auxiliary_auth_data = FFIAuxiliaryAuthData {
+        let ffi_auxiliary_auth_data = groundhog_sys::FFIAuxiliaryAuthData {
             auth_data: ffi_serialized_aux_auth_data.as_ptr()
-                as *mut FFISerializedAuthData,
+                as *mut groundhog_sys::FFISerializedAuthData,
             count: ffi_serialized_aux_auth_data.len().try_into().unwrap(),
         };
 
         let res = unsafe {
-            verify_signed_transaction_auth(
+            groundhog_sys::verify_signed_transaction_auth(
                 ffi_serialized_tx,
                 ffi_serialized_source_auth_data,
                 ffi_auxiliary_auth_data,

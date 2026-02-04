@@ -285,7 +285,7 @@ pub fn load_wasm_contract<P>(path: P) -> Contract
 where
     P: AsRef<std::path::Path>,
 {
-    use crate::contract::ContractBlob;
+    use groundhog_xdr::contract::ContractBlob;
 
     let wasm = std::fs::read(path.as_ref())
         .map(BytesM)

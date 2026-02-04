@@ -1,16 +1,9 @@
-use crate::bindings::ForeignInvokeResult;
 use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
 use std::panic::panic_any;
-
-impl PartialEq for ForeignInvokeResult {
-    fn eq(&self, other: &Self) -> bool {
-        self.panic == other.panic
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InvokeError {
@@ -105,7 +98,7 @@ pub fn set_override_panic_hook() {
 // that appropriately handles groundhog error codes.
 pub fn invoke_wrapper<'a, F>(
     wrapped: F,
-) -> Box<dyn Fn() -> ForeignInvokeResult + 'a>
+) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
 where
     F: Fn() -> () + UnwindSafe + Clone + 'a,
 {
@@ -115,17 +108,17 @@ where
 
         match result {
             Ok(_) => {
-                return ForeignInvokeResult {
+                return groundhog_sys::ForeignInvokeResult {
                     panic: InvokeErrorCode::kInvokeNone as i32,
                 };
             }
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
-                    return ForeignInvokeResult {
+                    return groundhog_sys::ForeignInvokeResult {
                         panic: my_error.error_type.clone() as i32,
                     };
                 }
-                return ForeignInvokeResult {
+                return groundhog_sys::ForeignInvokeResult {
                     panic: InvokeErrorCode::kInvokeUnrecoverable as i32,
                 };
             }
@@ -157,12 +150,7 @@ mod tests {
 
         let boxed = invoke_wrapper(f);
 
-        assert_eq!(
-            (*boxed)(),
-            ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeNone as i32
-            }
-        );
+        assert_eq!((*boxed)().panic, InvokeErrorCode::kInvokeNone as i32);
     }
 
     fn test_panic() {
@@ -172,10 +160,8 @@ mod tests {
         let boxed = invoke_wrapper(f);
 
         assert_eq!(
-            (*boxed)(),
-            ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeUnrecoverable as i32
-            }
+            (*boxed)().panic,
+            InvokeErrorCode::kInvokeUnrecoverable as i32
         );
     }
 
@@ -187,10 +173,8 @@ mod tests {
         let boxed = invoke_wrapper(f);
 
         assert_eq!(
-            (*boxed)(),
-            ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeValidationFailure as i32
-            }
+            (*boxed)().panic,
+            InvokeErrorCode::kInvokeValidationFailure as i32
         );
     }
 
@@ -203,10 +187,8 @@ mod tests {
         let boxed = invoke_wrapper(f);
 
         assert_eq!(
-            (*boxed)(),
-            ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeDeterministic as i32
-            }
+            (*boxed)().panic,
+            InvokeErrorCode::kInvokeDeterministic as i32
         );
     }
 
@@ -220,10 +202,8 @@ mod tests {
         let boxed = invoke_wrapper(f);
 
         assert_eq!(
-            (*boxed)(),
-            ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeDeterministic as i32
-            }
+            (*boxed)().panic,
+            InvokeErrorCode::kInvokeDeterministic as i32
         );
     }
 
@@ -235,10 +215,8 @@ mod tests {
         let boxed = invoke_wrapper(f);
 
         assert_eq!(
-            (*boxed)(),
-            ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeValidationFailure as i32
-            }
+            (*boxed)().panic,
+            InvokeErrorCode::kInvokeValidationFailure as i32
         );
     }
 }

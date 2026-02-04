@@ -1,13 +1,21 @@
 [package]
-name = "macros"
-version = "0.1.0"
-edition = "2021"
+name = "groundhog-macros"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Macros for Groundhog smart contract development"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-gen = { workspace = true }
+groundhog-codegen = { workspace = true }
 darling = "0.20.10"
 proc-macro2 = "1.0.92"
 quote = "1.0.38"
@@ -20,9 +28,9 @@ xdrs = { workspace = true }
 
 [features]
 default = ["alloc"]
-alloc = ["gen/alloc"]
-logging = ["gen/logging"]
-call_tracking = ["gen/call_tracking"]
-spec = ["gen/spec", "groundhog-xdr/spec"]
+alloc = ["groundhog-codegen/alloc"]
+logging = ["groundhog-codegen/logging"]
+call_tracking = ["groundhog-codegen/call_tracking"]
+spec = ["groundhog-codegen/spec", "groundhog-xdr/spec"]
 storage = []
 mock = []

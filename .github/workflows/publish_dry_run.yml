@@ -1,0 +1,42 @@
+name: Release dry run checks
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+jobs:
+
+ publish:
+    runs-on: hog1
+
+    steps:
+      - name: Clean up .gitconfig
+        run: |
+            echo "Cleaning up .gitconfig"
+            rm -f /home/hogci/.gitconfig
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: |
+            ${{ secrets.ACTIONS_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure git to use SSH
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      - name: Checkout actions repository
+        uses: actions/checkout@v4
+        with:
+          repository: groundhogchain/actions
+          path: actions
+          ref: main
+
+      - name: publish dry run
+        uses: ./actions/cargo-publish-dry-run
+        with:
+          packages: contract-util groundhog-sys native_exec groundhog-macros groundhog-codegen
