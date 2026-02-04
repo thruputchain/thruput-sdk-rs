@@ -225,6 +225,7 @@ name = "contract-util"
 version = "0.1.0"
 dependencies = [
  "groundhog-xdr",
+ "semver",
  "sha2",
  "syn",
  "xdrs",
