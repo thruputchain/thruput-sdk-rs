@@ -150,7 +150,7 @@ fn slot_free(i: HasherIndex) -> bool {
 }
 
 #[cfg(not(any(doc, feature = "std", target_family = "wasm")))]
-fn slot_free(i: HasherIndex) -> bool {
+fn slot_free(_i: HasherIndex) -> bool {
     false
 }
 
