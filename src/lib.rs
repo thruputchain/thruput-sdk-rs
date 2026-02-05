@@ -1,6 +1,6 @@
-#![feature(maybe_uninit_array_assume_init)]
-#![feature(maybe_uninit_slice)]
-#![feature(core_io_borrowed_buf)]
+//#![feature(maybe_uninit_array_assume_init)]
+//#![feature(maybe_uninit_slice)]
+//#![feature(core_io_borrowed_buf)]
 #![cfg_attr(
     not(any(doc, target_family = "wasm")),
     feature(local_key_cell_update)

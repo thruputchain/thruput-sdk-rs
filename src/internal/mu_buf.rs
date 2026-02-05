@@ -42,8 +42,15 @@ impl<const SIZE: usize> MUBuf<SIZE> {
 impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
     // Get a reference to the filled/initialized portion of the buffer
     fn as_ref(&self) -> &[u8] {
-        let filled = &self.buf[..self.len];
+        let filled_mu = &self.buf[..self.len];
 
-        unsafe { filled.assume_init_ref() }
+        let filled: &[u8] = unsafe {
+            std::slice::from_raw_parts(
+                filled_mu.as_ptr() as *const u8,
+                self.len as usize,
+            )
+        };
+
+        filled
     }
 }
