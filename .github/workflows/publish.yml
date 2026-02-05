@@ -1,0 +1,68 @@
+name: Release SDK and related primary packages
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    runs-on: hog1
+
+    steps:
+      - name: Clean up .gitconfig
+        run: |
+            echo "Cleaning up .gitconfig"
+            rm -f /home/hogci/.gitconfig
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: |
+            ${{ secrets.ACTIONS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_SELF }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure git to use SSH
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      - name: Checkout actions repository
+        uses: actions/checkout@v4
+        with:
+          repository: groundhogchain/actions
+          path: actions
+          ref: main
+
+      - name: publishdry run
+        uses: ./actions/cargo-publish-dry-run
+        with:
+          packages: groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
+          cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip spec
+          cargo-hack-wasm32-packages: sdk
+
+
+      - name: tag commit with version
+        id: publish-tag
+        uses: ./actions/cargo-version-tag
+      
+      - name: push tag
+        run: |
+          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}.git
+          git push origin ${{ steps.publish-tag.outputs.tag }}
+          git remote set-url origin git@github.com:${{ github.repository }}.git
+          
+      - name: publish
+        uses: ./actions/cargo-publish
+        with:
+          git-tag: ${{ steps.publish-tag.outputs.tag }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
