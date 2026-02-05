@@ -13,7 +13,7 @@ pub extern "C-unwind" fn syscall_wrapper_impl(
     arg6: u64,
     arg7: u64,
 ) -> SysErr {
-    SysErr(native_exec::perform_mocked_syscall(
+    SysErr(groundhog_native_exec::perform_mocked_syscall(
         syscall_no as i32,
         arg1,
         arg2,

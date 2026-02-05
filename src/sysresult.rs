@@ -84,12 +84,12 @@ pub struct ErrorMsg;
 #[cfg(feature = "mock")]
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "spec", derive(XDR))]
-pub struct ErrorMsg(String);
+pub struct ErrorMsg(xdrs::StringM);
 
 impl ErrorMsg {
     #[cfg(feature = "mock")]
     pub fn new<M: fmt::Display>(msg: M) -> Self {
-        Self(msg.to_string())
+        Self(msg.to_string().parse().unwrap())
     }
 
     #[cfg(not(feature = "mock"))]
@@ -106,7 +106,7 @@ impl ErrorMsg {
 #[cfg(feature = "mock")]
 impl From<String> for ErrorMsg {
     fn from(msg: String) -> Self {
-        Self(msg)
+        Self(msg.parse().unwrap())
     }
 }
 

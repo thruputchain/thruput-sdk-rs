@@ -806,6 +806,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-native-exec"
+version = "0.1.0"
+dependencies = [
+ "groundhog-sys",
+ "groundhog-xdr",
+ "hogexec-internal",
+ "sha2",
+ "thiserror",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-serde_arrays"
 version = "0.2.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
@@ -1380,18 +1392,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "native_exec"
-version = "0.1.0"
-dependencies = [
- "groundhog-sys",
- "groundhog-xdr",
- "hogexec-internal",
- "sha2",
- "thiserror",
- "xdrs",
-]
-
-[[package]]
 name = "nocontract_wallet"
 version = "0.1.0"
 dependencies = [
@@ -1819,11 +1819,11 @@ dependencies = [
  "bottle-test-if",
  "delegate",
  "groundhog-macros",
+ "groundhog-native-exec",
  "groundhog-xdr",
  "heapless",
  "hex-literal",
  "hogexec-internal",
- "native_exec",
  "sha2",
  "thiserror",
  "xdrs",

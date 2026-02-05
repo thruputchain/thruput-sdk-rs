@@ -14,7 +14,7 @@ pub fn trap() -> ! {
 
 #[cfg(feature = "mock")]
 mod test_rt {
-    use native_exec::invoke_error::deterministic_error;
+    use groundhog_native_exec::invoke_error::deterministic_error;
     use std::boxed::Box;
     use std::panic::panic_any;
 
@@ -38,7 +38,6 @@ pub use test_rt::trap;
 // `handle_panic`. (That setting is useful because it results in panic strings not being included
 // in the binary.) The build scripts may be configured to instead choose `panic=abort`, which will
 // enable the logging below.
-//
 #[cfg(not(feature = "std"))]
 #[panic_handler]
 fn handle_panic(#[allow(unused)] info: &core::panic::PanicInfo) -> ! {

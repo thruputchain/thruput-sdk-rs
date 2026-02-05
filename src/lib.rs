@@ -119,7 +119,7 @@ pub mod syscall_bindings;
 pub mod contract_test;
 
 #[cfg(feature = "mock")]
-pub use native_exec::{
+pub use groundhog_native_exec::{
     mock_contract::MockContract,
     test_environment::{TestEnvironment, TestEnvironmentHandle},
 };

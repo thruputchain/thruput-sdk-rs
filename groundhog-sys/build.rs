@@ -336,7 +336,7 @@ fn verify_hogd_version(
     let expected_tag = format!("test-ffi-v{}", version);
 
     let output = Command::new("git")
-        .args(&["describe", "--tags", "--exact-match"])
+        .args(["describe", "--tags", "--exact-match"])
         .current_dir(hogd_src)
         .output()?;
 
@@ -418,7 +418,7 @@ fn add_auth_to_curl(cmd: &mut Command, user: &str) {
 
 /// Download and extract the prebuilt library from groundhog.dev
 fn download_and_extract(
-    out_dir: &PathBuf,
+    out_dir: &Path,
     target_arch: &str,
     target_os: &str,
     version: &str,

@@ -9,7 +9,7 @@ use std::vec::Vec;
 ///
 pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
     let mut handler = env.prepare_test(f);
 
@@ -38,7 +38,7 @@ pub fn contract_test_invoke<F>(
     f: F,
 ) -> InvokeResult<()>
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
     let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
     let test_contract = {
@@ -149,7 +149,7 @@ macro_rules! contract_test_env {
 
             fn env_hook(
                 $env: &std::rc::Rc<sdk::TestEnvironment>,
-                $handler: &mut native_exec::transaction_handler::TransactionHandler,
+                $handler: &mut groundhog_native_exec::transaction_handler::TransactionHandler,
             ) -> () $env_hook
 
             env_hook(&mut env, &mut handler);
@@ -163,7 +163,7 @@ macro_rules! contract_test_env {
             assert_eq!(commit_res, groundhog_xdr::exec_result::ExecResult::ExecResultOK);
 
             fn post_hook(
-                $handler2: &mut native_exec::transaction_handler::TransactionHandler,
+                $handler2: &mut groundhog_native_exec::transaction_handler::TransactionHandler,
             ) -> () $post_hook
 
             post_hook(&mut handler);
@@ -180,7 +180,7 @@ mod handle {
     // available in serialized form via `GetCalldata`,
     // and serialize the result for passing to `Return`.
     //
-    pub fn handle_call<F, ARGS, RES>(f: F) -> ()
+    pub fn handle_call<F, ARGS, RES>(f: F)
     where
         F: FnOnce(ARGS) -> RES,
         ARGS: ReadXDROwned,
@@ -216,8 +216,8 @@ mod handle {
 pub use handle::*;
 
 pub fn grant_storage_tokens(
-    env: &native_exec::test_environment::TestEnvironmentHandle,
-    handler: &native_exec::transaction_handler::TransactionHandler,
+    env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
+    handler: &groundhog_native_exec::transaction_handler::TransactionHandler,
 ) {
     env.setup_grant_storage_tokens(
         &handler
@@ -262,8 +262,7 @@ where
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        let _ = test
-            .run(&contract_hash)
+        test.run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
 

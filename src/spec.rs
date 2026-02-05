@@ -39,7 +39,7 @@ impl Contract {
                                 &self.interface_id, &self.interface_vers);
         
         for (i, method) in self.methods.iter().enumerate() {
-            if i > 0 { result.push_str(","); }
+            if i > 0 { result.push(','); }
             let ret = if let Some(ret) = method.ret.as_ref() {
                 ret.get_type_json()
             } else {
@@ -94,7 +94,7 @@ const _: () = {
 
     impl Display for Contract {
         fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-            write!(f, "{}v{} {{\n", &self.interface_id, &self.interface_vers)?;
+            writeln!(f, "{}v{} {{", &self.interface_id, &self.interface_vers)?;
             for (i, method) in self.methods.iter().enumerate() {
                 let ret = if let Some(ret) = method.ret.as_ref() {
                     ret.to_string()
@@ -102,12 +102,12 @@ const _: () = {
                     "void".to_owned()
                 };
                 // TODO: something with the error type
-                write!(f, "\t{}\n", ret)?;
-                write!(f, "\t{}(\n", &method.name)?;
+                writeln!(f, "\t{}", ret)?;
+                writeln!(f, "\t{}(", &method.name)?;
                 for arg in &method.args {
-                    write!(f, "\t\t{},\n", arg.decl)?;
+                    writeln!(f, "\t\t{},\n", arg.decl)?;
                 }
-                write!(f, "\t) = {};\n\n", display_entrypoint(self.entrypoint_id(i)))?;
+                writeln!(f, "\t) = {};", display_entrypoint(self.entrypoint_id(i)))?;
             }
             f.write_str("}\n")?;
             Ok(())

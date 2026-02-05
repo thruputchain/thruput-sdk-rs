@@ -89,8 +89,10 @@ impl Debug for Hasher {
 }
 
 ////////////////////////////////////////////////////////////
+#[allow(unused)]
 use crate::cell::ContractCell;
 use crate::contract_local;
+#[allow(unused)]
 use bitset_core::*;
 
 // A set of flags marking what hashers are available
@@ -98,6 +100,7 @@ contract_local! {
     static AVAILABLE: ContractCell<u32> = const { ContractCell::new(0xffff_ffff) };
 }
 
+#[cfg(any(doc, feature = "std", target_family = "wasm"))]
 fn slot_alloc() -> Option<HasherIndex> {
     let mut slot = None;
 
@@ -121,6 +124,13 @@ fn slot_alloc() -> Option<HasherIndex> {
     slot
 }
 
+// Suppress compile errors when building for native without std
+#[cfg(not(any(doc, feature = "std", target_family = "wasm")))]
+fn slot_alloc() -> Option<HasherIndex> {
+    None
+}
+
+#[cfg(any(doc, feature = "std", target_family = "wasm"))]
 fn slot_free(i: HasherIndex) -> bool {
     let mut success = false;
 
@@ -137,6 +147,11 @@ fn slot_free(i: HasherIndex) -> bool {
     });
 
     success
+}
+
+#[cfg(not(any(doc, feature = "std", target_family = "wasm")))]
+fn slot_free(_i: HasherIndex) -> bool {
+    false
 }
 
 #[test]

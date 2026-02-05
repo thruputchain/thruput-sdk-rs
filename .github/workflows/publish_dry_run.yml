@@ -21,9 +21,13 @@ jobs:
         with:
           ssh-private-key: |
             ${{ secrets.ACTIONS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_SELF }}
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Configure git to use SSH
         run: |
@@ -39,4 +43,7 @@ jobs:
       - name: publish dry run
         uses: ./actions/cargo-publish-dry-run
         with:
-          packages: contract-util groundhog-sys native_exec groundhog-macros groundhog-codegen
+          packages: groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
+          cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip spec
+          cargo-hack-wasm32-packages: sdk
