@@ -45,7 +45,7 @@ impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
         let filled_mu = &self.buf[..self.len];
 
         let filled: &[u8] = unsafe {
-            std::slice::from_raw_parts(
+            core::slice::from_raw_parts(
                 filled_mu.as_ptr() as *const u8,
                 self.len as usize,
             )
