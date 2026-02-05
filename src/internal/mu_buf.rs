@@ -44,13 +44,7 @@ impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
     fn as_ref(&self) -> &[u8] {
         let filled_mu = &self.buf[..self.len];
 
-        let filled: &[u8] = unsafe {
-            core::slice::from_raw_parts(
-                filled_mu.as_ptr() as *const u8,
-                self.len as usize,
-            )
-        };
+        unsafe { filled_mu.assume_init_ref() }
 
-        filled
     }
 }
