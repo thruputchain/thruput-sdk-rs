@@ -17,7 +17,7 @@ exclude = ["integration_test_contracts/xdr"]
 
 [workspace.package]
 edition = "2024"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"  
 publish = ["groundhog"]
@@ -71,12 +71,12 @@ hex-literal = { workspace = true }
 # These version numbers need to match the overall workspace package version,
 # and must unfortunately be updated manually whenever the workspace package version is updated
 # prior to a new release.
-sdk = { path = "." , registry = "groundhog", version = "=0.1.0" }
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.1.0" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.1.0" }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.0" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.1.0" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.1.0" }
+sdk = { path = "." , registry = "groundhog", version = "=0.1.1" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.1.1" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.1.1" }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.1" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.1.1" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.1.1" }
 
 #external dependencies
 groundhog-xdr = { registry = "groundhog", version = "0.1.0", features = ["xdrs", "syscalls"] }
