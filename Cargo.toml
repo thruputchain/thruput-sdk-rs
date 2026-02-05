@@ -94,8 +94,8 @@ groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0
 groundhog-xdr = { registry = "groundhog", version = "0.1.0", features = ["xdrs", "syscalls"] }
 hogexec-internal = { registry = "groundhog", version = "0.1.0" }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { registry = "groundhog", version = "0.3.2", features = ["int128"] }
-xdr_common = { registry = "groundhog", version = "0.3.2" }
+xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128"] }
+xdr_common = { registry = "groundhog", version = "0.4.0" }
 abort = { registry = "groundhog", version = "0.1.0" }
 
 sha2 = { version = "0.10.8", default-features = false }
