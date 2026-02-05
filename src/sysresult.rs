@@ -1,6 +1,7 @@
 use crate::InvokeError;
 use crate::SysErr;
 use crate::serialize::{ReadXDR, WriteError, WriteXDR};
+use crate::abort;
 use core::fmt;
 use thiserror::Error;
 
@@ -56,8 +57,8 @@ impl Error {
     }
 }
 
-pub fn nnint_overflow() -> Error {
-    Error::NonNegativeIntOverflow
+pub fn nnint_overflow() -> ! {
+    abort(&Error::NonNegativeIntOverflow);
 }
 
 pub fn nnint_underflow() -> Error {

@@ -76,6 +76,9 @@ The CI script above includes various tests that may be run on their own:
 
 ### Diagnostics
 
+TODO: Change these logging things into runtime configs (available
+    only with feature "dev").
+
 In contracts compiled to wasm for testing (e.g. in "bottle tests"), panic
 messages will be lost unless configured with `PANIC_LOGGING=yes`, which sends
 panic messages to the `log` syscall. If the test environment is then configured

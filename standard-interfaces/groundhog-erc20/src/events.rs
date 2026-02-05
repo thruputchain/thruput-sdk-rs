@@ -21,7 +21,7 @@ use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
     ContractAddress, EmittedEvent, Event, Topic, TopicSrc, WriteResult,
-    WriteXDR, hash_to_array, hex_encode, log_event, sysresult::Result,
+    WriteXDR, hash_to_array, hex_encode, log_event, abort,
 };
 use xdrs::Writer;
 
@@ -29,12 +29,10 @@ pub fn log_transfer_event(
     from: &ContractAddress,
     to: &ContractAddress,
     amount: u128,
-) -> Result<()> {
+) {
     let event = TransferEvent::new(from, to, amount);
 
-    log_event(&event)?;
-
-    Ok(())
+    log_event(&event).unwrap_or_else(|e| abort(&e));
 }
 
 /// An event emitted when ERC20 tokens are transferred between addresses.
@@ -149,10 +147,10 @@ pub fn log_approval_event(
     owner: &ContractAddress,
     spender: &ContractAddress,
     amount: i128,
-) -> Result<()> {
+) {
     let event = ApprovalEvent::new(owner, spender, amount);
 
-    log_event(&event)
+    log_event(&event).unwrap_or_else(|e| abort(&e));
 }
 
 /// An event emitted when spending approval has been adjusted

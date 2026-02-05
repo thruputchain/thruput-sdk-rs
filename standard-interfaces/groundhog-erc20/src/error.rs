@@ -1,4 +1,4 @@
-use sdk::{ReadXDR, SysErr, WriteXDR};
+use sdk::{ReadXDR, WriteXDR, abort};
 use thiserror::Error;
 
 pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
@@ -11,8 +11,10 @@ use xdrs::XDR;
 #[non_exhaustive]
 #[repr(i32)]
 pub enum ERC20Error {
+    /* Not used?
     #[error("None")]
     None = 0,
+    */
 
     #[error("Contract already initialized")]
     AlreadyInitialized = 1,
@@ -23,56 +25,27 @@ pub enum ERC20Error {
     #[error("Provided amount too large")]
     TooLarge = 3,
 
-    #[error("Internal contract error (system call)")]
-    SystemErr = 4,
-
-    #[error("Internal contract error (storage layer)")]
-    StorageErr = 5,
+    #[error("Internal error")]
+    Internal = 100,
 }
-
-impl From<SysErr> for ERC20Error {
-    fn from(_err: SysErr) -> Self {
-        ERC20Error::SystemErr
-    }
-}
-
-// TODO: rework SDK errors
-use sdk::sysresult::Error as SystemError;
-impl From<SystemError> for ERC20Error {
-    fn from(err: SystemError) -> Self {
-        match err {
-            SystemError::NonNegativeIntOverflow => ERC20Error::TooLarge,
-            SystemError::NonNegativeIntUnderflow => ERC20Error::TooLarge,
-            _ => ERC20Error::SystemErr,
-        }
-    }
-}
-
-#[cfg(feature = "storage")]
-const _: () = {
-    use sdk::storage::error::StorageError;
-
-    impl From<StorageError> for ERC20Error {
-        fn from(_err: StorageError) -> Self {
-            ERC20Error::StorageErr
-        }
-    }
-};
 
 // Contract routines for generating errors
 
-pub fn internal_err<T, M: AsRef<str>>(_msg: M) -> Result<T> {
-    Err(ERC20Error::SystemErr)
+pub fn internal_err<M: AsRef<str>>(_msg: M) -> ! {
+    abort(&ERC20Error::Internal)
 }
 
-pub fn caller_error<T>(err: ERC20Error) -> Result<T> {
-    Err(err)
+pub fn caller_error(err: ERC20Error) {
+    abort(&err)
 }
 
-pub fn caller_ensure(pred: bool, err: ERC20Error) -> Result<()> {
-    if pred { Ok(()) } else { Err(err) }
+/// TODO temporary ... assert!-like macros to come
+pub fn ensure(pred: bool, err: ERC20Error) {
+    if !pred {
+        abort(&err)
+    }
 }
 
-pub fn amount_to_diff(n: u128) -> Result<i128> {
-    n.try_into().map_err(|_| ERC20Error::TooLarge)
+pub fn amount_to_diff(n: u128) -> i128 {
+    n.try_into().unwrap_or_else(|_| abort(&ERC20Error::TooLarge))
 }

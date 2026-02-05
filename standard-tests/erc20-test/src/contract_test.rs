@@ -28,14 +28,14 @@ pub fn erc20_test_setup(
     target_contract_hash: &SHA256Hash,
 ) -> ERC20TestResult<ContractAddress> {
     // Deploy the target contract
-    let deployed_addr = deploy_contract(&NONCE, target_contract_hash)?;
+    let deployed_addr = deploy_contract(&NONCE, target_contract_hash);
 
     Ok(deployed_addr)
 }
 
 /// Test the logic of an ERC20 contract
 pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
-    let owner = get_current_address()?;
+    let owner = get_current_address();
     let other = &OTHER;
 
     let mut m = Model::default();
@@ -43,17 +43,17 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
     let mut client = ERC20Client::new(&deployed_addr);
     let client = &mut client;
 
-    client.initialize(&owner)?;
+    client.initialize(&owner);
     m.initialize(&owner);
 
     // Mint
     let amt = 100;
-    client.mint(&owner, amt)?;
+    client.mint(&owner, amt);
     m.mint(&owner, amt);
 
     // Burn
     let amt = 50;
-    client.burn(&owner, amt)?;
+    client.burn(&owner, amt);
     m.burn(&owner, amt);
 
     #[cfg(not(feature = "no_check_aborts"))]
@@ -69,7 +69,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
 
     // Transfer
     let amt = 25;
-    client.transfer(other, amt)?;
+    client.transfer(other, amt);
     m.transfer(other, amt);
 
     #[cfg(not(feature = "no_check_aborts"))]
@@ -84,12 +84,12 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
 
     // Burn from other address
     let amt = 5;
-    client.burn(other, amt).unwrap();
+    client.burn(other, amt);
     m.burn(other, amt);
 
     // Approve spending by "other"
     let amt = 17;
-    client.adjust_allowance(other, amt)?;
+    client.adjust_allowance(other, amt);
     m.adjust_allowance(other, amt);
 
     #[cfg(not(feature = "no_check_aborts"))]
@@ -101,7 +101,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
 
     // Withdraw some approval
     let amt = 10;
-    client.adjust_allowance(other, -amt)?;
+    client.adjust_allowance(other, -amt);
     m.adjust_allowance(other, -amt);
 
     // Check client state against the model

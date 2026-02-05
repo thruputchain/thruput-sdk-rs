@@ -8,8 +8,9 @@
 
 #[allow(unused_imports)] // import is for docs
 use crate::SyscallErrorCode;
+use crate::abort;
 use crate::exn::*;
-use crate::sys;
+use crate::sys::{self, SyscallNo};
 use crate::sysresult::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
@@ -51,24 +52,84 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 pub mod asys {
     use super::*;
 
+    /// Reports whether a bytestring exists at the given key.
+    ///
+    /// Returns `false` if nothing is there.
+    ///
+    /// If an item of another type exists there, throws a syscall exception
+    /// with code [`SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`].
+    ///
+    pub fn bytestring_exists(key: &StorageKey) -> bool {
+        super::bytestring_exists(key).unwrap_or_else(|errno| {
+            syscall_abort2(SyscallNo::kBytestringGetLen, errno);
+        })
+    }
+
     /// Returns the length of the bytestring stored at the given key.
     ///
-    /// Aborts with a `SyscallExn` when [`super::bytestring_get_len`] would return an error.
-    ///
-    /// TODO: Provide this pattern for all syscalls.
+    /// Throws `SyscallExn` when [`super::bytestring_get_len`] would return an error.
     ///
     pub fn bytestring_get_len(key: &StorageKey) -> u32 {
         let mut out: RuntimeMemoryLength = 0;
 
         sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
-            let info = SyscallExn::new(
-                crate::sys::SyscallNo::kBytestringGetLen,
-                errno,
-            );
-            crate::abort(&info);
+            syscall_abort2(SyscallNo::kBytestringGetLen, errno);
         });
 
         out
+    }
+
+    /// Returns the bytestring contents in a statically-sized array.
+    ///
+    /// Returns `None` if the bytestring has the wrong length.
+    /// Throws exceptions in the same situations as [`bytestring_get`].
+    ///
+    /// (Beware that large bytestrings may overflow your execution stack.)
+    ///
+    /// TODO: throw exception on wrong size
+    ///
+    pub fn bytestring_get_sized<const N: usize>(
+        key: &StorageKey,
+    ) -> [u8; N] {
+        // Get the bytestring into a buffer of size N
+        let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
+        let mut len = MaybeUninit::uninit();
+        sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len).unwrap_or_else(|errno| {
+            syscall_abort2(SyscallNo::kBytestringGet, errno);
+        });
+
+        // SAFETY: The syscall returned with success, so the out-args are initialized
+        let len = unsafe { len.assume_init() };
+        if len != N as u32 {
+            abort(&LibraryExn::BytestringWrongSize {
+                expected: N as u32,
+                found: len,
+            });
+        }
+
+        // Apparently rustc optimizes this well enough:
+        // https://github.com/rust-lang/rust/issues/96097#issuecomment-1823511470
+        let bytes: [u8; N] =
+            unsafe { bytes_mu.map(|elt| MaybeUninit::assume_init(elt)) };
+
+        bytes
+    }
+
+    /// Sets the value at the given key to the given bytestring.
+    ///
+    /// This succeeds even if a value of another type was at the location.
+    ///
+    /// If concurrent contract invocations set the location to the same bytestring,
+    /// this will not cause any such invocations to abort.
+    ///
+    pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
+        sys::raw_BytestringSet(
+            key,
+            slice,
+            StorageDeltaFlags::kStorageDeltaFlagNone as i32,
+        ).unwrap_or_else(|errno| {
+            syscall_abort2(SyscallNo::kBytestringSet, errno);
+        });
     }
 }
 

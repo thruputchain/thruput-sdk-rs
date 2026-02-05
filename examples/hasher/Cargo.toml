@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
 xdrs = { workspace = true }
 
 # Optional
@@ -16,10 +16,8 @@ doctest = false
 test = false
 
 [features]
-client = []
-guest = []
-mock = ["guest", "sdk/mock"]
-bottle-test = ["dep:bottle-test-if", "client"]
+dev = ["sdk/dev"]
+bottle-test = ["dep:bottle-test-if", "sdk/storage"]
 
 [dev-dependencies]
-hasher = { path = ".", features = ["mock", "client"] }
+hasher = { path = ".", features = ["dev"] }

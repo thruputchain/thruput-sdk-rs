@@ -1,10 +1,10 @@
-#![cfg_attr(not(feature = "mock"), no_std)]
+#![cfg_attr(not(feature = "dev"), no_std)]
 
 mod implementation;
 
 pub use implementation::ContractClient;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use implementation::test_setup;
 
 #[cfg(feature = "bottle-test")]

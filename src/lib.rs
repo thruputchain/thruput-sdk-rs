@@ -7,6 +7,8 @@
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
 
+#![allow(deprecated)] // XXX
+
 #[cfg(all(feature = "std", target_family = "wasm"))]
 compile_error!("Feature 'std' cannot be enabled when targetting wasm");
 
@@ -22,13 +24,18 @@ extern crate alloc;
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
-pub mod internal; // Public because used in contract macros
+#[doc(hidden)]
+pub mod internal;
 
 mod cell;
 mod debug;
 mod local;
+mod panic;
+mod xdr;
 
-// TODO: Make these modules non-public in order to allow
+pub mod call;
+
+// TODO: Make these modules pub(crate) in order to allow
 // reorganization without breaking changes.
 
 pub mod auth_claim;
@@ -71,10 +78,13 @@ pub use hex::*;
 pub use invoke::*;
 pub use log::*;
 pub use non_negative_int::*;
+pub use panic::*;
 pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+
+pub use xdr::*;
 
 pub use abort::{
     AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler,
@@ -113,7 +123,7 @@ pub use groundhog_macros::storage;
 pub mod syscall_bindings;
 
 #[cfg(feature = "mock")]
-pub mod contract_test;
+pub mod dev;
 
 #[cfg(feature = "mock")]
 pub use groundhog_native_exec::{
@@ -121,6 +131,11 @@ pub use groundhog_native_exec::{
     test_environment::{TestEnvironment, TestEnvironmentHandle},
 };
 
+#[cfg(feature = "mock")]
+pub use hogexec_internal::ffi_enums::*;
+
+#[cfg(feature = "mock")]
+pub use dev::*;
+
 #[cfg(feature = "std")]
 pub use groundhog_xdr::exec_result::ExecResult;
-pub use hogexec_internal::ffi_enums::*;

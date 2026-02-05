@@ -7,6 +7,7 @@ use crate::{delete_exclusive, delete_shared};
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use xdrs::WriteXDR;
+use crate::abort;
 
 #[derive(Debug)]
 pub struct Map<K, V> {
@@ -41,7 +42,7 @@ impl<K, V> Map<K, V> {
         &self.keypath
     }
 
-    pub fn get(&self, entry_key: &K) -> Result<V>
+    pub fn get(&self, entry_key: &K) -> V
     where
         K: WriteXDR,
         V: LoadKeypath,
@@ -49,9 +50,10 @@ impl<K, V> Map<K, V> {
         let keypath = self.make_entry_keypath(entry_key);
 
         LoadKeypath::load_keypath(&keypath)
+            .unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn try_get(&self, entry_key: &K) -> Result<Option<V>>
+    pub fn try_get(&self, entry_key: &K) -> Option<V>
     where
         K: WriteXDR,
         V: LoadKeypath,
@@ -59,9 +61,10 @@ impl<K, V> Map<K, V> {
         let keypath = self.make_entry_keypath(entry_key);
 
         LoadKeypath::try_load_keypath(&keypath)
+            .unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn set(&mut self, entry_key: &K, value: &V) -> Result<()>
+    pub fn set(&mut self, entry_key: &K, value: &V)
     where
         K: WriteXDR,
         V: Store,
@@ -69,9 +72,10 @@ impl<K, V> Map<K, V> {
         let key = self.make_entry_storage_key(entry_key);
 
         value.store(&key)
+            .unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn set_exclusive(&mut self, entry_key: &K, value: &V) -> Result<()>
+    pub fn set_exclusive(&mut self, entry_key: &K, value: &V)
     where
         K: WriteXDR,
         V: Store,
@@ -79,28 +83,27 @@ impl<K, V> Map<K, V> {
         let key = self.make_entry_storage_key(entry_key);
 
         value.store_exclusive(&key)
+            .unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn delete(&mut self, entry_key: &K) -> Result<()>
+    pub fn delete(&mut self, entry_key: &K)
     where
         K: WriteXDR,
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete_shared(&key)?;
-
-        Ok(())
+        delete_shared(&key)
+            .unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn delete_exclusive(&mut self, entry_key: &K) -> Result<()>
+    pub fn delete_exclusive(&mut self, entry_key: &K)
     where
         K: WriteXDR,
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete_exclusive(&key)?;
-
-        Ok(())
+        delete_exclusive(&key)
+            .unwrap_or_else(|e| abort(&e))
     }
 
     pub fn entry<'m, 'k>(

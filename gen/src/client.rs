@@ -49,7 +49,6 @@ pub fn generate(
         const _: () = {
             use ::sdk::{ContractAddress, RuntimeMemoryLength};
             use ::sdk::contract::ContractEntrypointID;
-            use ::sdk::invoke::{invoke, InvokeResult, client_invoke, ClientResult};
             use ::sdk::with_call_tracking;
             use ::sdk::internal::CallMethod;
 
@@ -121,6 +120,7 @@ fn generate_client_fn(
 
     let sig = method.sig();
     let ident = &sig.ident;
+    let sig_output = &sig.output;
 
     let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
 
@@ -155,38 +155,6 @@ fn generate_client_fn(
         quote! {}
     };
 
-    let explicit_type =
-        if let syn::ReturnType::Type(_, ty) = &method.sig().output {
-            Some(ty)
-        } else {
-            None
-        };
-
-    let return_type = if let Some(ty) = explicit_type {
-        quote! { #ty }
-    } else {
-        quote! { () }
-    };
-
-    // If using #[contract(err_type = E)], convert a provided Result<T, E>
-    // (which must be written literally as Result<T, E> or Result<T>)
-    // to ClientResult<T, E>
-    let return_type = if let Some(err_type) = contract.err_type() {
-        let inner: &syn::Type = explicit_type
-            .and_then(|t| generic_type_first_arg(t))
-            .ok_or_else(|| {
-                error(
-                    &method.sig().output,
-                    "A method using #[contract(err_type = E)] (or contained \
-                     in a trait or impl using that attribute) must return \
-                     type Result<_>",
-                )
-            })?;
-        quote! { ClientResult<#inner, #err_type> }
-    } else {
-        quote! { InvokeResult<#return_type> }
-    };
-
     let call_ident = ident.to_string();
     let call_iface = match iface_name {
         Some(iface) => quote! { Some(#iface) },
@@ -196,22 +164,39 @@ fn generate_client_fn(
         CallMethod::new(#call_iface, #iface_vers, #call_ident)
     };
 
-    let invoke_fn = if contract.err_type().is_some() {
-        quote! { client_invoke }
-    } else {
-        quote! { invoke }
-    };
-
     let track_caller = if cfg!(feature = "call_tracking") {
         quote! { #[track_caller] }
     } else {
         quote! {}
     };
 
+    let try_ident = format_ident!("try_{}", ident);
+
+    let explicit_type =
+        if let syn::ReturnType::Type(_, ty) = &method.sig().output {
+            Some(ty)
+        } else {
+            None
+       };
+
+    let return_type = if let Some(ty) = explicit_type {
+        quote! { #ty }
+    } else {
+        quote! { () }
+    };
+
+    // TODO: per-method throw-types
+    let error_type = if let Some(e) = contract.throws() {
+        quote! { #e }
+    } else {
+        quote! { ::core::convert::Infallible }
+    };
+
     Ok(quote_spanned! {method.sig().span()=>
 
+        // This method-wrapper aborts if the called contract aborts.
         #track_caller
-        pub fn #ident(&mut self, #(#sent_params),* ) -> #return_type
+        pub fn #ident(&mut self, #(#sent_params),* ) #sig_output
         {
             let entrypoint = #entrypoint_lit;
             let args = #args_tuple;
@@ -219,9 +204,28 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                #invoke_fn(&self.address, entrypoint, self.config.gas_limit, &args)
+                ::sdk::call::try_call(&self.address, entrypoint, self.config.gas_limit, &args)
+                    .unwrap_or_else(|e: ::sdk::call::CallError<#error_type>| {
+                        let exn = ::sdk::CrossExn::<#error_type>::from_call_err(e);
+
+                        ::sdk::abort(&exn)
+                    })
             })
         }
 
+        // This method-wrapper returns a CallResult so that exceptions may be
+        // inspected.
+        #track_caller
+        pub fn #try_ident(&mut self, #(#sent_params),* ) -> ::sdk::call::CallResult<#return_type, #error_type>
+        {
+            let entrypoint = #entrypoint_lit;
+            let args = #args_tuple;
+
+            #log_call
+
+            with_call_tracking!(#call_info, {
+                ::sdk::call::try_call(&self.address, entrypoint, self.config.gas_limit, &args)
+           })
+        }
     })
 }

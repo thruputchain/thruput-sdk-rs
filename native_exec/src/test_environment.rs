@@ -1,4 +1,3 @@
-use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
@@ -141,7 +140,6 @@ impl Drop for RuntimeContextWrapper {
 
 impl TestEnvironmentInner {
     pub fn new(cost_model: Option<&StorageCostModel>) -> Self {
-        set_override_panic_hook();
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
         Self {

@@ -42,19 +42,15 @@ fn bottle_test(package: &str) {
 
     let mut handler = env.prepare_test(move || -> () {
         let tester_addr =
-            deploy_contract(&TESTER_NONCE, &tester_hash).unwrap();
+            deploy_contract(&TESTER_NONCE, &tester_hash);
 
         let mut tester = BottleTestClient::new(&tester_addr);
 
-        tester
-            .setup(&target_hash)
-            .unwrap_or_else(|e| panic!("BottleTest::setup() failed: {}", e));
+        tester.setup(&target_hash);
 
         let gas_start = stats::gas_remaining();
 
-        tester
-            .run()
-            .unwrap_or_else(|e| panic!("BottleTest::run() failed: {}", e));
+        tester.run();
 
         let gas_end = stats::gas_remaining();
 

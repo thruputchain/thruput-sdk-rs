@@ -79,7 +79,7 @@ pub trait ContractSrc {
 
     fn self_ty(&self) -> Option<&syn::Type>;
 
-    fn err_type(&self) -> Option<&syn::Ident> {
+    fn throws(&self) -> Option<&syn::Ident> {
         None
     }
 
@@ -238,8 +238,8 @@ where
             .or_else(|| self.contract.client_ident())
     }
 
-    fn err_type(&self) -> Option<&syn::Ident> {
-        self.config.err_type().or_else(|| self.contract.err_type())
+    fn throws(&self) -> Option<&syn::Ident> {
+        self.config.throws().or_else(|| self.contract.throws())
     }
 
     fn self_ty(&self) -> Option<&syn::Type> {

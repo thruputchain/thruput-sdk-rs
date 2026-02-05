@@ -10,6 +10,8 @@
 
 use crate::interface::*;
 use sdk::*;
+// Override with the non-result versions:
+use sdk::asys::{bytestring_exists, bytestring_get_sized, bytestring_set};
 
 // Compute keys for storing things
 
@@ -36,159 +38,136 @@ fn get_allowance_key(
 
 // Read/write permanent state
 
-fn get_owner() -> Result<ContractAddress> {
-    if let Some(bytes) = bytestring_get_sized(&get_owner_key())? {
-        Ok(bytes.into())
-    } else {
-        internal_err("Unexpected bytestring size")
-    }
+fn get_owner() -> ContractAddress {
+    bytestring_get_sized(&get_owner_key()).into()
 }
 
-fn ensure_caller_is_owner() -> Result<()> {
-    let caller = get_caller()?;
-    let owner = get_owner()?;
-    caller_ensure(caller == owner, ERC20Error::MustBeContractOwner)
+fn ensure_caller_is_owner() {
+    let caller = get_caller();
+    let owner = get_owner();
+    ensure(caller == owner, ERC20Error::MustBeContractOwner)
 }
 
-fn add_to_total_supply(diff: Difference) -> Result<()> {
-    Ok(non_negative_int_checked_inc(&get_total_supply_key(), diff)?)
+fn add_to_total_supply(diff: Difference) {
+    non_negative_int_strict_inc(&get_total_supply_key(), diff)
 }
 
-fn add_to_balance(addr: &ContractAddress, diff: Difference) -> Result<()> {
-    Ok(non_negative_int_checked_inc(&get_balance_key(addr), diff)?)
+fn add_to_balance(addr: &ContractAddress, diff: Difference) {
+    non_negative_int_strict_inc(&get_balance_key(addr), diff)
 }
 
 fn add_to_allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
     diff: Difference,
-) -> Result<()> {
-    non_negative_int_checked_inc(&get_allowance_key(owner, spender), diff)?;
+) {
+    non_negative_int_strict_inc(&get_allowance_key(owner, spender), diff);
 
-    log_approval_event(owner, spender, diff)?;
-
-    Ok(())
+    log_approval_event(owner, spender, diff);
 }
 
 // Exposed contract functions
 
-#[contract(interface = "ERC20", index = 5, err_type = Error, version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.2.0")]
 #[init]
-pub fn initialize(owner: &ContractAddress) -> Result<()> {
+pub fn initialize(owner: &ContractAddress) {
     let key = get_owner_key();
 
     // Make sure we haven't already been initialized
-    if bytestring_exists(&key)? {
-        return caller_error(ERC20Error::AlreadyInitialized);
-    }
+    ensure(!bytestring_exists(&key), ERC20Error::AlreadyInitialized);
 
     // Store ourselves
-    bytestring_set(&key, owner.as_ref())?;
-
-    Ok(())
+    bytestring_set(&key, owner.as_ref());
 }
 
-#[contract(interface = "ERC20", index = 8, err_type = Error, version = "0.2.0")]
-pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
-    let from = get_caller()?;
-    let diff = amount_to_diff(amount)?;
+<<<<<<< HEAD
+#[contract(interface = "ERC20", version = "0.2.0")]
+pub fn transfer(to: &ContractAddress, amount: Amount) {
+    let from = get_caller();
+    let diff = amount_to_diff(amount);
 
-    add_to_balance(&from, -diff)?;
-    add_to_balance(to, diff)?;
+    add_to_balance(&from, -diff);
+    add_to_balance(to, diff);
 
-    log_transfer_event(&from, to, amount)?;
-
-    Ok(())
+    log_transfer_event(&from, to, amount);
 }
 
-#[contract(interface = "ERC20", index = 9, err_type = Error, version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.2.0")]
 pub fn transfer_from(
     owner: &ContractAddress,
     recipient: &ContractAddress,
     amount: Amount,
-) -> Result<()> {
-    let spender = get_caller()?;
-    let diff = amount_to_diff(amount)?;
+) {
+    let spender = get_caller();
+    let diff = amount_to_diff(amount);
 
-    add_to_allowance(owner, &spender, -diff)?;
-    add_to_balance(owner, -diff)?;
-    add_to_balance(recipient, diff)?;
+    add_to_allowance(owner, &spender, -diff);
+    add_to_balance(owner, -diff);
+    add_to_balance(recipient, diff);
 
-    log_transfer_event(owner, recipient, amount)?;
-
-    Ok(())
+    log_transfer_event(owner, recipient, amount);
 }
 
-#[contract(interface = "ERC20", index = 0, err_type = Error, version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.2.0")]
 pub fn adjust_allowance(
     spender: &ContractAddress,
     diff: Difference,
-) -> Result<()> {
-    let caller = get_caller()?;
+) {
+    let caller = get_caller();
 
     add_to_allowance(&caller, spender, diff)
 }
 
-#[contract(interface = "ERC20", index = 1, err_type = Error, version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.2.0")]
 pub fn allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
-) -> Result<Amount> {
-    Ok(
-        non_negative_int_try_get(&get_allowance_key(owner, spender))?
-            .unwrap_or(0) as Amount,
-    )
+) -> Amount {
+    non_negative_int_try_get(&get_allowance_key(owner, spender))
+        .unwrap_or(0) as Amount
 }
 
-#[contract(interface = "ERC20", index = 4, err_type = Error, version = "0.2.0")]
-pub fn get_balance_of(addr: &ContractAddress) -> Result<Amount> {
-    Ok(
-        non_negative_int_try_get(&get_balance_key(addr))?.unwrap_or(0)
-            as Amount,
-    )
+#[contract(interface = "ERC20", version = "0.2.0")]
+pub fn get_balance_of(addr: &ContractAddress) -> Amount {
+    non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0)
+        as Amount
 }
 
-#[contract(interface = "ERC20", index = 3, err_type = Error, version = "0.2.0")]
-pub fn get_balance() -> Result<Amount> {
-    get_balance_of(&get_caller()?)
+#[contract(interface = "ERC20", version = "0.2.0")]
+pub fn get_balance() -> Amount {
+    get_balance_of(&get_caller())
 }
 
-#[contract(interface = "ERC20", index = 6, err_type = Error, version = "0.2.0")]
-pub fn mint(recipient: &ContractAddress, amount: Amount) -> Result<()> {
-    ensure_caller_is_owner()?;
+#[contract(interface = "ERC20", version = "0.2.0")]
+pub fn mint(recipient: &ContractAddress, amount: Amount) {
+    ensure_caller_is_owner();
 
-    let diff = amount_to_diff(amount)?;
-    add_to_balance(recipient, diff)?;
-    add_to_total_supply(diff)?;
+    let diff = amount_to_diff(amount);
+    add_to_balance(recipient, diff);
+    add_to_total_supply(diff);
 
-    log_transfer_event(&CONTRACT_ADDR_ZERO, recipient, amount)?;
-
-    Ok(())
+    log_transfer_event(&CONTRACT_ADDR_ZERO, recipient, amount);
 }
 
-#[contract(interface = "ERC20", index = 2, err_type = Error, version = "0.2.0")]
-pub fn burn(loser: &ContractAddress, amount: Amount) -> Result<()> {
-    ensure_caller_is_owner()?;
+#[contract(interface = "ERC20", version = "0.2.0")]
+pub fn burn(loser: &ContractAddress, amount: Amount) {
+    ensure_caller_is_owner();
 
-    let diff = amount_to_diff(amount)?;
-    add_to_balance(loser, -diff)?;
-    add_to_total_supply(-diff)?;
+    let diff = amount_to_diff(amount);
+    add_to_balance(loser, -diff);
+    add_to_total_supply(-diff);
 
-    log_transfer_event(loser, &CONTRACT_ADDR_ZERO, amount)?;
-
-    Ok(())
+    log_transfer_event(loser, &CONTRACT_ADDR_ZERO, amount);
 }
 
-#[contract(interface = "ERC20", index = 7, err_type = Error, version = "0.2.0")]
-pub fn total_supply() -> Result<Amount> {
-    Ok(
-        non_negative_int_try_get(&get_total_supply_key())?.unwrap_or(0)
-            as Amount,
-    )
+#[contract(interface = "ERC20", version = "0.2.0")]
+pub fn total_supply() -> Amount {
+    non_negative_int_try_get(&get_total_supply_key()).unwrap_or(0)
+        as Amount
 }
 
 // TODO: Something better
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub mod test {
     use super::*;
     use std::rc::Rc;

@@ -1,21 +1,23 @@
 //! Cross-contract invocation functions.
 //!
-//! These functions are usually called via methods on "client" objects defined by the
-//! [contract](macro@crate::contract) macro.
+//! These functions are NO LONGER used by the [contract](macro@crate::contract) macro,
+//! and remain until being phased out of use elsewhere.
 
+use groundhog_xdr::contract::ContractEntrypointID;
 use crate::internal::{
     EncodeBuf, MUBuf, ReadXDROwned, WriteXDR, decode_xdr, encode_xdr,
 };
 #[allow(unused_imports)]
 pub use crate::invoke_error::*;
 use crate::sys;
+use crate::SysErr;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use core::error::Error;
-use groundhog_xdr::contract::ContractEntrypointID;
 
 type CallData = EncodeBuf;
 type ReturnData = EncodeBuf;
 
+#[deprecated]
 pub fn invoke<ARGS, RET>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
@@ -34,21 +36,22 @@ where
 
     // Invoke the method
     invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
-        .map_err(|e| match e {
-        RawError::Sys(syserr) => InvokeError::Syscall(syserr),
-        RawError::Aborted => {
-            InvokeError::AbortedWith(return_data.len() as u32)
-        }
-    })?;
+        .map_err(|syserr|
+            if syserr.is_aborted() {
+                InvokeError::AbortedWith(return_data.len() as u32)
+            } else {
+                InvokeError::Syscall(syserr)
+            }
+        )?;
 
-    let return_val = decode_xdr(return_data.as_ref())
-        .map_err(|_| InvokeError::DecodeReturnVal)?;
-
-    Ok(return_val)
+    // Decode return data
+    decode_xdr(return_data.as_ref())
+        .map_err(|_| InvokeError::DecodeReturnVal)
 }
 
 // Invoke a client contract where we know the error type (which
 // is produced on abort)
+#[deprecated]
 pub fn client_invoke<ARGS, RET, ERR>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
@@ -66,26 +69,21 @@ where
     // Allocate a buffer for receiving the return data
     let mut return_data = MUBuf::new();
 
+    // Invoke the method
     invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
-        .map_err(|inner_err| match inner_err {
-        RawError::Aborted => match decode_xdr(return_data.as_ref()) {
-            Ok(val) => ClientError::Aborted(val),
-            Err(_) => ClientError::AbortDecodeFailed,
-        },
-        RawError::Sys(syserr) => {
-            ClientError::Invoke(InvokeError::Syscall(syserr))
-        }
-    })?;
+        .map_err(|syserr|
+            if syserr.is_aborted() {
+                decode_xdr(return_data.as_ref())
+                    .map(ClientError::Aborted)
+                    .unwrap_or_else(|_| ClientError::AbortDecodeFailed)
+            } else {
+                ClientError::Invoke(InvokeError::Syscall(syserr))
+            }
+        )?;
 
-    let return_val = decode_xdr(return_data.as_ref())
-        .map_err(|_| InvokeError::DecodeReturnVal)?;
-
-    Ok(return_val)
-}
-
-enum RawError {
-    Sys(crate::SysErr),
-    Aborted,
+    // Decode return data
+    decode_xdr(return_data.as_ref())
+        .map_err(|_| ClientError::Invoke(InvokeError::DecodeReturnVal))
 }
 
 // At least this part won't be monomorphized multiple times
@@ -97,7 +95,7 @@ fn invoke_raw(
     gas_limit: u64,
     call_data: &CallData,
     return_data: &mut ReturnData,
-) -> core::result::Result<(), RawError> {
+) -> core::result::Result<(), SysErr> {
     // Perform the cross-contract call
 
     let mut return_len = 0;
@@ -112,11 +110,14 @@ fn invoke_raw(
         &mut return_len,
     );
 
-    let is_ok = match result {
-        Ok(()) => true,
-        Err(syserr) if syserr.is_aborted() => false,
-        Err(syserr) => return Err(RawError::Sys(syserr)),
-    };
+    match &result {
+        Err(syserr) =>
+            if !syserr.is_aborted() {
+                // No return-data to process below
+                return Err(*syserr);
+            },
+        _ => {}
+    }
 
     // Ok or abort: get the return data from the VM ...
 
@@ -144,9 +145,5 @@ fn invoke_raw(
         return_data.set_len(written as usize);
     }
 
-    if is_ok {
-        Ok(())
-    } else {
-        Err(RawError::Aborted)
-    }
+    result
 }

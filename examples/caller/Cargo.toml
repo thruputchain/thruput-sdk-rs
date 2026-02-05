@@ -15,9 +15,12 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [features]
+dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
+
+# ignored
 guest = []
-mock = ["guest", "sdk/mock", "groundhog-erc20-if/mock"]
+mock = []
+client = []
 
 [dev-dependencies]
-caller = { path = ".", features = ["mock"] }
-erc20 = { path = "../erc20", features = ["mock"] }
+caller = { path = ".", features = ["dev"] }

@@ -3,13 +3,18 @@ use groundhog_xdr::transaction::InvocationFrameStatusCode;
 use std::panic::UnwindSafe;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
+use groundhog_native_exec as native_exec;
+use core::convert::Infallible;
+use crate::call::{try_call, CallResult};
+
+pub static TEST_NONCE: SHA256Hash = SHA256Hash::new(hash_to_array!("CONTRACT_TEST_NONCE"));
 
 /// Run some code inside a mock contract.
 /// Panic if the invocation or transaction fails.
 ///
 pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
 where
-    F: Fn() + UnwindSafe + Clone + 'static,
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
     let mut handler = env.prepare_test(f);
 
@@ -32,17 +37,20 @@ where
 /// Deploy a mock contract with the given code, and invoke it from another mock
 /// contract.
 ///
-/// (This allows us to get the InvokeResult, something I haven't figured out
+/// (This allows us to get the CallResult, something I haven't figured out
 /// how to do directly from the TestEnvironment.)
+///
+/// TODO: Support specifying return type and exception type.
 ///
 pub fn contract_test_invoke<F>(
     env: TestEnvironmentHandle,
     f: F,
-) -> InvokeResult<()>
+) -> CallResult<()>
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
     let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
+
     let test_contract = {
         let mut contract = env.add_contract();
         contract.register_method(entrypoint, f);
@@ -55,27 +63,25 @@ where
     // so we'll allocate shared storage for the data we want to inspect
     // after the test run:
     //
-    let invoke_result: Arc<Mutex<Option<InvokeResult<()>>>> =
+    let call_result: Arc<Mutex<Option<CallResult>>> =
         Arc::new(Mutex::new(None));
 
     let mut handler = {
-        let invoke_result = invoke_result.clone();
+        let call_result = call_result.clone();
 
         env.prepare_test(move || -> () {
-            let nonce = SHA256Hash::from([7; 32]);
-            let deployed_addr =
-                crate::deploy_contract(&nonce, &contract_hash).unwrap();
+            let deployed_addr = crate::deploy_contract(&TEST_NONCE, &contract_hash);
 
-            let r =
-                invoke::<(), ()>(&deployed_addr, entrypoint, u64::MAX, &());
+            let cr = try_call::<(), (), Infallible>(
+                &deployed_addr, entrypoint, u64::MAX, &()
+            );
 
-            *invoke_result.lock().unwrap() = Some(r);
+            *call_result.lock().unwrap() = Some(cr);
         })
     };
 
     grant_storage_tokens(&env, &handler);
 
-    // The root invocation (with the code inside prepare_test) should succeed
     let res = handler.root_invoke();
     if res.output.status_code()
         != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
@@ -88,10 +94,10 @@ where
         // Note: these results are also deterministic:
         //     ExecResultTxDeterministicError
         //     ExecResultTxRootFrameReverted
-        r => panic!("Unexpected transaction result: {:?}", r),
+        r => panic!("Transaction failed: {:?}", r),
     }
 
-    invoke_result.lock().unwrap().take().unwrap()
+    call_result.lock().unwrap().take().unwrap()
 }
 
 #[macro_export]
@@ -125,7 +131,7 @@ macro_rules! contract_test_env {
                 let mut contract = env.add_contract();
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
-                    sdk::contract_test::handle_call(|()| {
+                    sdk::dev::internal::handle_call(|()| {
                         $test_body
                         return ();
                     });
@@ -136,14 +142,18 @@ macro_rules! contract_test_env {
             let contract_hash = env.setup_create_contract(&test_contract);
 
             let mut handler = env.prepare_test(move || -> () {
-                let nonce = sdk::types::SHA256Hash::from([7; 32]);
                 let deployed_addr =
-                    sdk::deploy::deploy_contract(&nonce, &contract_hash)
+                    sdk::deploy::deploy_contract(&TEST_NONCE, &contract_hash)
                         .unwrap();
 
                 // Invoke contract method 1
                 let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-                sdk::invoke::invoke::<(), ()>(
+
+                type ARG = ();
+                type RET = ();
+                type EXN = Infallible;
+
+                sdk::call::call::<ARG, RET, EXN>(
                     &deployed_addr,
                     method,
                     u64::MAX,
@@ -153,7 +163,7 @@ macro_rules! contract_test_env {
 
             fn env_hook(
                 $env: &std::rc::Rc<sdk::TestEnvironment>,
-                $handler: &mut groundhog_native_exec::transaction_handler::TransactionHandler,
+                $handler: &mut $crate::native_exec::transaction_handler::TransactionHandler,
             ) -> () $env_hook
 
             env_hook(&mut env, &mut handler);
@@ -167,7 +177,7 @@ macro_rules! contract_test_env {
             assert_eq!(commit_res, groundhog_xdr::exec_result::ExecResult::ExecResultOK);
 
             fn post_hook(
-                $handler2: &mut groundhog_native_exec::transaction_handler::TransactionHandler,
+                $handler2: &mut $crate::native_exec::transaction_handler::TransactionHandler,
             ) -> () $post_hook
 
             post_hook(&mut handler);
@@ -175,53 +185,9 @@ macro_rules! contract_test_env {
     };
 }
 
-mod handle {
-    use crate::contract_op::*;
-    use xdrs::txs::{decode, encode};
-    use xdrs::{ReadXDROwned, WriteXDR};
-
-    // Run a handler function on the invocation arguments
-    // available in serialized form via `GetCalldata`,
-    // and serialize the result for passing to `Return`.
-    //
-    pub fn handle_call<F, ARGS, RES>(f: F)
-    where
-        F: FnOnce(ARGS) -> RES,
-        ARGS: ReadXDROwned,
-        RES: WriteXDR,
-    {
-        let boxed_call_data = match get_calldata() {
-            Ok(x) => x,
-            Err(e) => {
-                panic!("Failed to get calldata: {:?}", e);
-            }
-        };
-        let call_data: &[u8] = boxed_call_data.as_ref();
-        let args: ARGS = match decode(call_data) {
-            Ok(args) => args,
-            Err(_) => {
-                panic!("Failed to decode calldata");
-            }
-        };
-
-        // Run the handler
-        let result: RES = f(args);
-
-        let result_bytes = match encode(&result) {
-            Ok(r) => r,
-            Err(_) => {
-                panic!("Failed to encode result");
-            }
-        };
-
-        contract_return(result_bytes.as_slice());
-    }
-}
-pub use handle::*;
-
 pub fn grant_storage_tokens(
-    env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
-    handler: &groundhog_native_exec::transaction_handler::TransactionHandler,
+    env: &TestEnvironmentHandle,
+    handler: &native_exec::transaction_handler::TransactionHandler,
 ) {
     env.setup_grant_storage_tokens(
         &handler
@@ -266,7 +232,8 @@ where
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = env.prepare_test(move || -> () {
-        test.run(&contract_hash)
+        let _ = test
+            .run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
 
@@ -282,6 +249,14 @@ where
 
     // std::println!("gas consumed: {}", gas_consumed);
 
+    match handler.try_commit_transaction() {
+        ExecResult::ExecResultOK => {}
+        // Note: these results are also deterministic:
+        //     ExecResultTxDeterministicError
+        //     ExecResultTxRootFrameReverted
+        r => panic!("Transaction failed: {:?}", r),
+    }
+
     Stats { gas_consumed }
 }
 
@@ -289,7 +264,7 @@ pub fn load_wasm_contract<P>(path: P) -> Contract
 where
     P: AsRef<std::path::Path>,
 {
-    use groundhog_xdr::contract::ContractBlob;
+    use crate::contract::ContractBlob;
 
     let wasm = std::fs::read(path.as_ref())
         .map(BytesM)

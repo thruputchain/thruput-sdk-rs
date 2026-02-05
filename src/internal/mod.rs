@@ -1,3 +1,7 @@
+//! Internal utilities used in proc-macros.
+//!
+//! *These interfaces are not intended for use by SDK clients, and may change at any time.*
+
 #[allow(unused)]
 mod mu_buf;
 mod serialize;

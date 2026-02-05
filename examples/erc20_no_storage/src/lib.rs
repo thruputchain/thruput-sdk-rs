@@ -1,22 +1,19 @@
 //! ERC20 implementation without storage feature
 
-#![cfg_attr(not(feature = "mock"), no_std)]
+#![cfg_attr(not(feature = "dev"), no_std)]
 
-pub use groundhog_erc20_if as interface;
+use groundhog_erc20_if as interface;
 
 // A client stub that provides the interface via cross-contract calls
-#[cfg(feature = "client")]
 pub use interface::ERC20Client;
 
 // An implementation of the contract interface
-#[cfg(feature = "guest")]
 mod implementation;
 
-// Contract methods exposed with C ABI for running as guest
-#[cfg(feature = "guest")]
-pub use implementation::*;
+// Entrypoints
+pub use implementation::exports::*;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use implementation::test_setup;
 
 #[cfg(feature = "bottle-test")]

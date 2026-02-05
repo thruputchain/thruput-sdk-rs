@@ -5,7 +5,7 @@
 set -u
 
 # cargo profile for production contracts
-PRODUCTION_PROFILE="contract"
+PRODUCTION_PROFILE="release"
 
 STACK_SIZE="30000"
 
@@ -19,24 +19,24 @@ cargo_wasm() {
     local cmd="$1"
     shift
 
-    # On panic!(), abort immediately without calling a panic handler.
-    # (This removes panic messages from the binary entirely.)
-    local panic="immediate-abort"
+        # Get rid of the panic-logging feature?
 
-    if bool_true "${PANIC_LOGGING:-}"; then
-        # Call the panic handler, allowing us to capture and log the panic message.
-        # (This inflates contract codesize.)
-        panic="abort"
-    fi
+        # On panic!(), abort immediately without calling a panic handler.
+        # (This removes panic messages from the binary entirely.)
+        local panic="immediate-abort"
 
-    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=$panic -Clink-args=-zstack-size=$STACK_SIZE"
-    # echo "RUSTFLAGS=\"$flags\""
+        if bool_true "${PANIC_LOGGING:-}"; then
+            # Call the panic handler, allowing us to capture and log the panic message.
+            # (This inflates contract codesize.)
+            panic="abort"
+        fi
 
-    RUSTFLAGS="$flags" \
+        flags="-Cpanic=$panic -Zunstable-options"
+
+        # does this override the --config?
+        RUSTFLAGS="$flags" \
     cargo "$cmd" \
-        --target wasm32-unknown-unknown \
-        -Zbuild-std=alloc,core \
-        -Zbuild-std-features="std/optimize_for_size" \
+        --config contract.toml \
         "$@"
 }
 
@@ -45,7 +45,7 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
-    features="guest"
+    features=""
 
     if bool_true "${PANIC_LOGGING:-}"; then
         # For wasm contracts, use the log() syscall to report panic messages
@@ -181,8 +181,8 @@ tree_contract() {
 
     cargo_wasm tree \
         --edges normal,build,no-proc-macro \
-        --features "guest" \
         --package "$package" \
+        --features "sdk/std" \
         "$@"
 }
 
@@ -192,8 +192,8 @@ expand_contract() {
     shift
 
     cargo_wasm expand \
-        --features "guest" \
         --package "$package" \
+        --features "sdk/std" \
         "$@"
 }
 
@@ -223,7 +223,7 @@ native_test_contract() {
     package="$(basename "$1")"
     shift
 
-    local features="mock"
+    local features="dev"
 
     if bool_true "${SDK_CALL_LOGGING:-}"; then
         features="$features,sdk/logging"
@@ -238,7 +238,6 @@ native_test_contract() {
         --package "$package" \
         --features $features \
         "$@" \
-        -- --show-output \
         ||
     {
         echo
@@ -257,7 +256,7 @@ metric_contract() {
 
     cargo_native run \
         --package "$package" \
-        --features "mock,client" \
+        --features "dev" \
         --profile "test" \
         "$@" \
         --example "$metric" \
@@ -395,7 +394,6 @@ make_contracts() {
             # also do: cargo install cargo-llvm-lines
             cargo_wasm llvm-lines \
                 -p "$contract" \
-                --features "guest" \
                 "$@"
             ;;
         fns)

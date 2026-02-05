@@ -13,8 +13,7 @@ impl BottleTest for BT {
     #[init]
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let nonce: SHA256Hash = [7; 32].into();
-        let target_addr =
-            deploy_contract(&nonce, target_contract_hash).unwrap();
+        let target_addr = deploy_contract(&nonce, target_contract_hash);
 
         self.target_addr = Some(target_addr);
     }
@@ -24,6 +23,6 @@ impl BottleTest for BT {
             panic!("playground bottle-test: target_addr unset; please run setup() before run()"));
 
         let mut client = ContractClient::new(target_addr);
-        client.run().unwrap();
+        client.run();
     }
 }

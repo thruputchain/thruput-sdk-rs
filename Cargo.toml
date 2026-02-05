@@ -8,8 +8,14 @@ members = [
     "native_exec",
     "groundhog-sys",
     "storage-cost",
-    "examples/*",
-    "integration_test_contracts/*",
+#    "examples/*", XXX
+    "examples/exceptions",
+    "examples/erc20",
+    "examples/erc20_no_storage",
+    "examples/erc20_low_level",
+    "examples/caller",
+    "examples/hasher",
+#    "integration_test_contracts/*",
     "standard-interfaces/*",
     "standard-tests/*",
     "bottle-test",
@@ -20,7 +26,7 @@ exclude = ["integration_test_contracts/xdr"]
 edition = "2024"
 version = "0.2.0"
 authors = ["Groundhog Team"]
-license = "Apache-2.0"  
+license = "Apache-2.0"
 publish = ["groundhog"]
 repository = "https://github.com/groundhogchain/sdk_rs.git"
 homepage = "https://github.com/groundhogchain/sdk_rs.git"
@@ -63,8 +69,9 @@ groundhog-macros = { workspace = true }
 groundhog-contract-util = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 hogexec-internal = { workspace = true }
-xdrs = { workspace = true }
+xdrs = { workspace = true, features = ["heapless"] }
 abort = { workspace = true }
+heapless = { workspace = true }
 
 # External dependencies
 thiserror = { workspace = true }
@@ -74,7 +81,6 @@ bitset-core = { workspace = true }
 # Optional dependencies
 groundhog-native-exec = { workspace = true, optional = true }
 delegate = { workspace = true, optional = true }
-heapless = { workspace = true, optional = true }
 
 [dev-dependencies]
 bottle-test-if = { workspace = true }
@@ -98,7 +104,7 @@ groundhog-trace = { registry = "groundhog", version = "0.3.0" }
 groundhog-xdr = { registry = "groundhog", version = "0.3.0", features = ["xdrs", "syscalls"] }
 hogexec-internal = { registry = "groundhog", version = "0.3.0" }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128"] }
+xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128", "heapless"] }
 xdr_common = { registry = "groundhog", version = "0.4.0" }
 abort = { registry = "groundhog", version = "0.1.0" }
 
@@ -119,26 +125,32 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 [features]
+default = ["fault_strings"] # XXX
+
 # Enable allocation features
 alloc = ["groundhog-macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
 
 # Add the "storage" convenience module
 storage = ["alloc", "dep:delegate", "groundhog-macros/storage"]
 
+# Enable development features
+dev = ["mock", "debugging", "call_tracking"]
+
 # Enable the mock executor for testing
 mock = ["std", "dep:groundhog-native-exec", "groundhog-macros/mock", "groundhog-xdr/syscalls_mock"]
 std = ["alloc", "groundhog-xdr/std"]
 
 # Diagnostic features
+debugging = ["abort/debug", "fault_strings"]
+fault_strings = [] # XXX
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
-panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
+panic_logging = [] # send panic messages to the log() syscall
 call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
 spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util"]
 
-[profile.contract]
-inherits = "release"
+[profile.release]
 opt-level = 3
 overflow-checks = false
 debug = false
@@ -166,3 +178,9 @@ collapsible_if = "allow"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 abort = { workspace = true, features = ["single-threaded"] }
+
+[patch.groundhog]
+groundhog-xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git" }
+# groundhog-xdr = { path = "../protocol-rs/groundhog-xdr" }
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
+# xdrs = { path = "../xdrs" }

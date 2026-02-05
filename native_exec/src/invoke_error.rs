@@ -94,6 +94,10 @@ pub fn set_override_panic_hook() {
     }));
 }
 
+pub fn clear_override_panic_hook() {
+    let _ = panic::take_hook();
+}
+
 // Wrap a function (i.e. part of a contract) within a try-catch block
 // that appropriately handles groundhog error codes.
 pub fn invoke_wrapper<'a, F>(
