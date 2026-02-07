@@ -42,8 +42,8 @@ impl<const SIZE: usize> MUBuf<SIZE> {
 impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
     // Get a reference to the filled/initialized portion of the buffer
     fn as_ref(&self) -> &[u8] {
-        let filled = &self.buf[..self.len];
+        let filled_mu = &self.buf[..self.len];
 
-        unsafe { filled.assume_init_ref() }
+        unsafe { filled_mu.assume_init_ref() }
     }
 }
