@@ -9,6 +9,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
+#![allow(dead_code)]
 
 // Private module containing all bindgen-generated bindings
 mod bindings {
@@ -18,6 +19,7 @@ mod bindings {
 // Export all non-weird bindgen symbols (excludes __ prefixed items, _opaque_* structs, etc.)
 
 // Constants
+#[rustfmt::skip]
 pub use bindings::{
     TEST_FFI_VERSION_MAJOR,
     TEST_FFI_VERSION_MINOR,
@@ -32,6 +34,7 @@ pub use bindings::{
 };
 
 // Types
+#[rustfmt::skip]
 pub use bindings::{
     TestFFIErrorCode,
     ForeignInvokeResult,
@@ -52,6 +55,7 @@ pub use bindings::{
 };
 
 // Functions
+#[rustfmt::skip]
 pub use bindings::{
     create_db,
     free_db,
