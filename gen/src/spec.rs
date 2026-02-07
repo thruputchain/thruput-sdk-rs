@@ -6,9 +6,7 @@ use syn::parse::Result;
 
 pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
     let iface_name = contract.interface_name().unwrap_or_default();
-    let iface_vers = contract
-        .interface_vers()
-        .unwrap_or_else(|| "0.0.0".to_string());
+    let iface_vers = contract.defaulted_interface_vers();
 
     let method_reprs: Vec<_> = contract
         .methods_sorted()

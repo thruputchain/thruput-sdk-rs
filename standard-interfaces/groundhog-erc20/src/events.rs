@@ -58,7 +58,7 @@ impl<'a> TransferEvent<'a> {
 }
 
 impl<'a> WriteXDR for TransferEvent<'a> {
-    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         // Don't serialize the addresses, which are topics
         self.amount.write_xdr(w)
     }
@@ -167,7 +167,7 @@ pub struct ApprovalEvent<'a> {
 }
 
 impl<'a> WriteXDR for ApprovalEvent<'a> {
-    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         // Don't serialize the addresses, which are topics
         self.difference.write_xdr(w)
     }

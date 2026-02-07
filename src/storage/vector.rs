@@ -26,7 +26,7 @@ const _: () = {
     use xdrs::{WriteResult, WriteXDR, Writer, write_xdr};
 
     impl<T> WriteXDR for Vector<T> {
-        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult {
+        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
             write_xdr(&self.len, w)
         }
     }
