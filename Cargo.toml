@@ -59,6 +59,7 @@ doctest = false
 [dependencies]
 # Indigenous dependencies
 groundhog-macros = { workspace = true }
+groundhog-contract-util = { workspace = true }
 groundhog-xdr = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true }

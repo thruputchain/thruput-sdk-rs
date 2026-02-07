@@ -15,8 +15,9 @@ description = "Utility functions for contract development"
 xdrs = { workspace = true, features = ["derive", "alloc"] }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 sha2 = { workspace = true }
-syn = { version = "2.0.93" , features = [ "full", "extra-traits", "visit", "printing", "fold" ] }
+syn = { optional = true, version = "2.0.93" , features = [ "full", "extra-traits", "visit", "printing", "fold" ] }
 semver = { version = "1.0.27" }
 
 [features]
+syn = ["dep:syn"]
 

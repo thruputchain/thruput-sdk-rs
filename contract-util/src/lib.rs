@@ -2,7 +2,6 @@
 
 use groundhog_xdr::contract::ContractEntrypointID;
 use sha2::Digest;
-use syn::Signature;
 
 pub mod semver;
 
@@ -19,9 +18,16 @@ pub struct NormalizedMethodSignature {
 }
 
 impl NormalizedMethodSignature {
-    pub fn new(method: &Signature) -> Self {
+    #[cfg(feature = "syn")]
+    pub fn new_from_signature(method: &syn::Signature) -> Self {
         Self {
             method_name: method.ident.to_string(),
+        }
+    }
+
+    pub fn new(method_name: &str) -> Self {
+        Self {
+            method_name: method_name.to_string(),
         }
     }
 

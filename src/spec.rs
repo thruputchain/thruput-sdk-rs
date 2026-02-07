@@ -14,24 +14,9 @@ pub struct Contract {
 }
 
 impl Contract {
-    fn interface_id_preimage(&self) -> ContractInterfaceIDPreimage {
-        ContractInterfaceIDPreimage {
-            name: StringM(self.interface_id.as_bytes().to_owned()),
-            vers: StringM(self.interface_vers.as_bytes().to_owned()),
-        }
-    }
-
-    fn entrypoint_id(&self, method_idx: usize) -> ContractEntrypointID {
-        use sha2::{Sha256, Digest};
-
-        let interface_bytes = xdrs::txs::encode(&self.interface_id_preimage()).unwrap();
-        let interface_hashed = Sha256::digest(&interface_bytes);
-        let mut id: [u8; 8] = [0; 8];
-        id[0..6].copy_from_slice(&interface_hashed[0..6]);
-        let method: u16 = method_idx.try_into().unwrap();
-        let method_bytes: [u8; 2] = method.to_be_bytes();
-        id[6..8].copy_from_slice(&method_bytes);
-        id.into()
+    fn entrypoint_id(&self, method: &Method) -> ContractEntrypointID {
+        let method_signature = groundhog_contract_util::NormalizedMethodSignature::new(&method.name);
+        groundhog_contract_util::contract_entrypoint_id(Some(&self.interface_id), &self.interface_vers, &method_signature)
     }
     // JSON-like display format
     pub fn print_json_summary(&self) -> String {
@@ -52,7 +37,7 @@ impl Contract {
             if let Some(err) = method.err.as_ref() {
                 result.push_str(&format!(",\n      \"err\": \"{}\"", err));
             }
-            result.push_str(&format!(",\n      \"entrypoint\": \"{}\"", display_entrypoint(self.entrypoint_id(i))));
+            result.push_str(&format!(",\n      \"entrypoint\": \"{}\"", display_entrypoint(self.entrypoint_id(&self.methods[i]))));
             result.push_str(&format!(",\n      \"args\": [\n{}\n      ]", args));
             result.push_str("\n    }");
         }
@@ -95,7 +80,7 @@ const _: () = {
     impl Display for Contract {
         fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
             writeln!(f, "{}v{} {{", &self.interface_id, &self.interface_vers)?;
-            for (i, method) in self.methods.iter().enumerate() {
+            for method in self.methods.iter() {
                 let ret = if let Some(ret) = method.ret.as_ref() {
                     ret.to_string()
                 } else {
@@ -107,7 +92,7 @@ const _: () = {
                 for arg in &method.args {
                     writeln!(f, "\t\t{},\n", arg.decl)?;
                 }
-                writeln!(f, "\t) = {};", display_entrypoint(self.entrypoint_id(i)))?;
+                writeln!(f, "\t) = {};", display_entrypoint(self.entrypoint_id(&method)))?;
             }
             f.write_str("}\n")?;
             Ok(())
