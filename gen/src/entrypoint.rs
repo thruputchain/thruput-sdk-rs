@@ -12,7 +12,7 @@ pub fn contract_entrypoint_id(
     method: &syn::Signature,
 ) -> ContractEntrypointID {
     let method_signature =
-        contract_util::NormalizedMethodSignature::new(method);
+        contract_util::NormalizedMethodSignature::new_from_signature(method);
     contract_util::contract_entrypoint_id(
         interface_name,
         version_str,

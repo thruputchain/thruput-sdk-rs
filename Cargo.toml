@@ -59,6 +59,7 @@ doctest = false
 [dependencies]
 # Indigenous dependencies
 groundhog-macros = { workspace = true }
+groundhog-contract-util = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true }
@@ -131,7 +132,7 @@ panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
 call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
-spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr"]
+spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util"]
 
 [profile.contract]
 inherits = "release"
