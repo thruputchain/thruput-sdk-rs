@@ -17,7 +17,7 @@ exclude = ["integration_test_contracts/xdr"]
 
 [workspace.package]
 edition = "2024"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"  
 publish = ["groundhog"]
@@ -84,19 +84,19 @@ hex-literal = { workspace = true }
 # These version numbers need to match the overall workspace package version,
 # and must unfortunately be updated manually whenever the workspace package version is updated
 # prior to a new release.
-sdk = { path = "." , registry = "groundhog", version = "=0.1.2" }
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.1.2" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.1.2" }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.2" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.1.2" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.1.2" }
+sdk = { path = "." , registry = "groundhog", version = "=0.1.3" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.1.3" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.1.3" }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.1.3" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.1.3" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.1.3" }
 
 #external dependencies
 groundhog-xdr = { registry = "groundhog", version = "0.1.3", features = ["xdrs", "syscalls"] }
 hogexec-internal = { registry = "groundhog", version = "0.1.3" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128"] }
-xdr_common = { registry = "groundhog", version = "0.3.2" }
+xdr_common = { registry = "groundhog", version = "0.4.0" }
 abort = { registry = "groundhog", version = "0.1.0" }
 
 sha2 = { version = "0.10.8", default-features = false }
