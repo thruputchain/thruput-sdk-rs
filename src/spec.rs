@@ -92,7 +92,7 @@ const _: () = {
                 for arg in &method.args {
                     writeln!(f, "\t\t{},\n", arg.decl)?;
                 }
-                writeln!(f, "\t) = {};", display_entrypoint(self.entrypoint_id(&method)))?;
+                writeln!(f, "\t) = {};", display_entrypoint(self.entrypoint_id(method)))?;
             }
             f.write_str("}\n")?;
             Ok(())
