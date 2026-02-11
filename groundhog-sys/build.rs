@@ -8,7 +8,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.3.7";
+const TEST_FFI_VERSION: &str = "0.4.1";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If HOGD_SRC is set and directory exists, use it as-is
@@ -315,6 +315,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate Rust bindings from the C header file
     let bindings = bindgen::Builder::default()
         .header(native_exec_bindings.to_str().unwrap())
+        .no_copy("FFIDataBuffer")
         .generate()
         .expect("Unable to generate bindings");
 

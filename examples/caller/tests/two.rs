@@ -16,7 +16,7 @@ fn caller_test() {
     let erc20_contract = load_wasm_contract(ERC20_PATH);
     let caller_contract = load_wasm_contract(CALLER_PATH);
 
-    let env = sdk::TestEnvironment::new();
+    let env = sdk::TestEnvironment::new(None);
 
     let erc20_hash = env.setup_create_contract(&erc20_contract);
     let contract_hash = env.setup_create_contract(&caller_contract);

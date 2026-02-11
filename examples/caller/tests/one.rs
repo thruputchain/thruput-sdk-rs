@@ -8,7 +8,7 @@ use thiserror::Error;
 // have one call the other.
 #[test]
 fn caller_test() {
-    let mut env = sdk::TestEnvironment::new();
+    let mut env = sdk::TestEnvironment::new(None);
 
     let erc20_contract = erc20::test_setup::register(&mut env);
     let erc20_hash = env.setup_create_contract(&erc20_contract);

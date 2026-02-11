@@ -95,7 +95,7 @@ macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
         #[test]
         fn $name() {
-            let mut env = sdk::TestEnvironment::new();
+            let mut env = sdk::TestEnvironment::new(None);
 
             $crate::contract_test::contract_test_succeeding(env, || {
                 $test_body
@@ -115,7 +115,7 @@ macro_rules! contract_test_env {
 
         #[test]
         fn $name() {
-            let mut env = sdk::TestEnvironment::new();
+            let mut env = sdk::TestEnvironment::new(None);
 
             let test_contract = {
                 let mut contract = env.add_contract();
@@ -257,7 +257,7 @@ where
     let contract = load_wasm_contract(path);
 
     // Set up the contract
-    let env = TestEnvironment::new();
+    let env = TestEnvironment::new(None);
     TestEnvironment::enable_syscall_logging();
     let contract_hash = env.setup_create_contract(&contract);
 

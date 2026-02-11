@@ -6,7 +6,7 @@ use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::rc::Rc;
 use xdrs::txs;
 
-use crate::test_environment::FFIErrorCode;
+use groundhog_sys::FFIErrorCode;
 
 // Can run one, and only one, transaction,
 // and then get the results
