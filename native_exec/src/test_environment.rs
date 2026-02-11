@@ -90,7 +90,7 @@ impl DBWrapper {
         if err != FFIErrorCode::None {
             panic!("failed to get cost model: {}", res.ffi_error_code);
         }
-        if (res.data.len == 0) {
+        if res.data.len == 0 {
             panic!("failed to get cost model: no data");
         }
 
@@ -310,6 +310,10 @@ impl TestEnvironmentInner {
         out
     }
 
+    pub fn get_current_cost_model(&self) -> StorageCostModel {
+        self.db.get_cost_model()
+    }
+
     pub fn run_auth_checks(
         &self,
         tx: &SignedTransaction,
@@ -372,6 +376,12 @@ impl TestEnvironment {
 
     pub fn advance_block(self: &TestEnvironmentHandle) {
         self.inner.borrow_mut().advance_block()
+    }
+
+    pub fn get_current_cost_model(
+        self: &TestEnvironmentHandle,
+    ) -> StorageCostModel {
+        self.inner.borrow().get_current_cost_model()
     }
 
     pub fn add_contract(self: &TestEnvironmentHandle) -> MockContract {
