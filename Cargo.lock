@@ -556,7 +556,7 @@ checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
 name = "fibonacci"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "fibonacci",
@@ -921,7 +921,7 @@ checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 
 [[package]]
 name = "hasher"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "hasher",
@@ -1244,9 +1244,8 @@ dependencies = [
 
 [[package]]
 name = "itc_erc20"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
- "erc20-bottle-test",
  "erc20-native-test",
  "groundhog-erc20-if",
  "itc_erc20",
@@ -1515,7 +1514,7 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "playground"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "playground",
@@ -1627,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "read_only_test"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "groundhog-xdr",
@@ -1958,7 +1957,7 @@ dependencies = [
 
 [[package]]
 name = "sha256_wrapper"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "sdk",
