@@ -65,10 +65,8 @@ impl DBWrapper {
             cost_model.map(|model| model.serialize().unwrap());
 
         let ffi_cost_model_bytes: (*const u8, u32) = cost_model_bytes
-            .map(|vec| {
-                (vec.as_ptr() as *const u8, vec.len().try_into().unwrap())
-            })
-            .unwrap_or((core::ptr::null() as *const u8, 0));
+            .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
+            .unwrap_or((core::ptr::null(), 0));
 
         let res = unsafe {
             groundhog_sys::create_db(

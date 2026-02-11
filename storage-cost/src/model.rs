@@ -33,7 +33,7 @@ impl StorageCostModel {
     }
 
     fn bytestring_cost_per_byte(&self) -> i128 {
-        self.cost_model.bytestring_cost_per_byte.clone().into()
+        self.cost_model.bytestring_cost_per_byte.into()
     }
 
     /// Cost of a bytestring of the given length
