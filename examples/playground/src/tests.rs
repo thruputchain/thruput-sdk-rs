@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[test]
 fn check_playground() {
-    let mut env = sdk::TestEnvironment::new();
+    let mut env = sdk::TestEnvironment::new(None);
 
     let test_contract = test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);

@@ -3,7 +3,7 @@ use sdk::*;
 
 #[test]
 fn test_counter_basic() {
-    let mut env = TestEnvironment::new();
+    let mut env = TestEnvironment::new(None);
 
     // Register the contract with the test environment
     let test_contract = counter::test_setup::register(&mut env);
@@ -39,7 +39,7 @@ fn test_counter_basic() {
 
 #[test]
 fn test_counter_underflow() {
-    let mut env = TestEnvironment::new();
+    let mut env = TestEnvironment::new(None);
 
     let test_contract = counter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
