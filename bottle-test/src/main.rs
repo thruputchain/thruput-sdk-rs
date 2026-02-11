@@ -23,7 +23,7 @@ fn bottle_test(package: &str) {
     let tester_contract =
         load_wasm_contract(format!("target/bottle-test/{package}.wasm"));
 
-    let env = TestEnvironment::new();
+    let env = TestEnvironment::new(None);
 
     // Create and deploy the tester contract
     let tester_hash = env.setup_create_contract(&tester_contract);
