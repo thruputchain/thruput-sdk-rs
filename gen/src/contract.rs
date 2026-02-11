@@ -226,8 +226,10 @@ where
     }
 
     fn interface_vers(&self) -> Option<String> {
-        // TODO: connect version to whatever the config defines
-        self.contract.interface_vers()
+        self.config
+            .version
+            .clone()
+            .or_else(|| self.contract.interface_vers())
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {

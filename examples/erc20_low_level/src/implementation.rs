@@ -72,7 +72,7 @@ fn add_to_allowance(
 
 // Exposed contract functions
 
-#[contract(interface = "ERC20", index = 5, err_type = Error)]
+#[contract(interface = "ERC20", index = 5, err_type = Error, version = "0.2.0")]
 #[init]
 pub fn initialize(owner: &ContractAddress) -> Result<()> {
     let key = get_owner_key();
@@ -88,7 +88,7 @@ pub fn initialize(owner: &ContractAddress) -> Result<()> {
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 8, err_type = Error)]
+#[contract(interface = "ERC20", index = 8, err_type = Error, version = "0.2.0")]
 pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
     let from = get_caller()?;
     let diff = amount_to_diff(amount)?;
@@ -101,7 +101,7 @@ pub fn transfer(to: &ContractAddress, amount: Amount) -> Result<()> {
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 9, err_type = Error)]
+#[contract(interface = "ERC20", index = 9, err_type = Error, version = "0.2.0")]
 pub fn transfer_from(
     owner: &ContractAddress,
     recipient: &ContractAddress,
@@ -119,7 +119,7 @@ pub fn transfer_from(
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 0, err_type = Error)]
+#[contract(interface = "ERC20", index = 0, err_type = Error, version = "0.2.0")]
 pub fn adjust_allowance(
     spender: &ContractAddress,
     diff: Difference,
@@ -129,7 +129,7 @@ pub fn adjust_allowance(
     add_to_allowance(&caller, spender, diff)
 }
 
-#[contract(interface = "ERC20", index = 1, err_type = Error)]
+#[contract(interface = "ERC20", index = 1, err_type = Error, version = "0.2.0")]
 pub fn allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
@@ -140,7 +140,7 @@ pub fn allowance(
     )
 }
 
-#[contract(interface = "ERC20", index = 4, err_type = Error)]
+#[contract(interface = "ERC20", index = 4, err_type = Error, version = "0.2.0")]
 pub fn get_balance_of(addr: &ContractAddress) -> Result<Amount> {
     Ok(
         non_negative_int_try_get(&get_balance_key(addr))?.unwrap_or(0)
@@ -148,12 +148,12 @@ pub fn get_balance_of(addr: &ContractAddress) -> Result<Amount> {
     )
 }
 
-#[contract(interface = "ERC20", index = 3, err_type = Error)]
+#[contract(interface = "ERC20", index = 3, err_type = Error, version = "0.2.0")]
 pub fn get_balance() -> Result<Amount> {
     get_balance_of(&get_caller()?)
 }
 
-#[contract(interface = "ERC20", index = 6, err_type = Error)]
+#[contract(interface = "ERC20", index = 6, err_type = Error, version = "0.2.0")]
 pub fn mint(recipient: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
@@ -166,7 +166,7 @@ pub fn mint(recipient: &ContractAddress, amount: Amount) -> Result<()> {
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 2, err_type = Error)]
+#[contract(interface = "ERC20", index = 2, err_type = Error, version = "0.2.0")]
 pub fn burn(loser: &ContractAddress, amount: Amount) -> Result<()> {
     ensure_caller_is_owner()?;
 
@@ -179,7 +179,7 @@ pub fn burn(loser: &ContractAddress, amount: Amount) -> Result<()> {
     Ok(())
 }
 
-#[contract(interface = "ERC20", index = 7, err_type = Error)]
+#[contract(interface = "ERC20", index = 7, err_type = Error, version = "0.2.0")]
 pub fn total_supply() -> Result<Amount> {
     Ok(
         non_negative_int_try_get(&get_total_supply_key())?.unwrap_or(0)

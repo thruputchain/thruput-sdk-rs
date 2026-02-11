@@ -46,12 +46,33 @@ pub fn generate(
         )?);
     }
 
+    // For trait impls, emit a compile-time assertion that the version used
+    // for entrypoint IDs matches the version baked into the trait definition.
+    let version_assertion = if let (Some(trait_path), Some(self_ty)) =
+        (contract.trait_path(), contract.self_ty())
+    {
+        quote! {
+            const _: () = assert!(
+                ::sdk::internal::const_str_eq(
+                    #iface_vers,
+                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_VERSION
+                ),
+                "interface version mismatch: the version specified in #[contract(version = ...)] \
+                 does not match the trait's interface version"
+            );
+        }
+    } else {
+        quote! {}
+    };
+
     Ok(quote! {
         pub mod #exports_mod_ident {
             #(#uses)*
 
             #exports
         }
+
+        #version_assertion
     })
 }
 
@@ -100,7 +121,10 @@ pub fn generate_method(
     let iface_vers = if let Some(contract) = contract {
         contract.defaulted_interface_vers()
     } else {
-        crate::contract::interface_vers_default()
+        config
+            .version
+            .clone()
+            .unwrap_or_else(crate::contract::interface_vers_default)
     };
 
     let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
