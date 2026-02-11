@@ -4,6 +4,7 @@ use super::Config;
 use super::contract::{ConfiguredContract, ContractSrc, Method};
 use super::entrypoint::*;
 use super::util::*;
+use groundhog_contract_util as contract_util;
 use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -46,19 +47,25 @@ pub fn generate(
         )?);
     }
 
-    // For trait impls, emit a compile-time assertion that the version used
-    // for entrypoint IDs matches the version baked into the trait definition.
+    // For trait impls, emit a compile-time assertion that the major version used
+    // for entrypoint IDs matches the major version baked into the trait definition.
     let version_assertion = if let (Some(trait_path), Some(self_ty)) =
         (contract.trait_path(), contract.self_ty())
     {
+        let iface_major = contract_util::semver::major_version_from_string(&iface_vers);
+        let error_msg = format!(
+            "Major version mismatch: the major version specified in #[contract(version = ...)] \
+             is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's \
+             major version (if not specified: requested version defaults to the current crate's \
+             version). Check the trait definition and Cargo.toml to see the trait's major version."
+        );
         quote! {
             const _: () = assert!(
                 ::sdk::internal::const_str_eq(
-                    #iface_vers,
-                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_VERSION
+                    #iface_major,
+                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION
                 ),
-                "interface version mismatch: the version specified in #[contract(version = ...)] \
-                 does not match the trait's interface version"
+                #error_msg
             );
         }
     } else {

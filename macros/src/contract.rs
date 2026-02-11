@@ -29,11 +29,12 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            // Inject the interface version as an associated const
+            // Inject the major version as an associated const
             let mut stripped = item.strip_our_attributes();
             let iface_vers = groundhog_codegen::contract::interface_vers_default();
+            let iface_major = groundhog_contract_util::semver::major_version_from_string(&iface_vers);
             stripped.items.push(parse_quote! {
-                const __GROUNDHOG_IFACE_VERSION: &'static str = #iface_vers;
+                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
             });
 
             let mut out = stripped.into_token_stream();

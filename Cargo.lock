@@ -459,7 +459,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
@@ -795,6 +795,7 @@ version = "0.2.0"
 dependencies = [
  "darling",
  "groundhog-codegen",
+ "groundhog-contract-util",
  "groundhog-xdr",
  "proc-macro2",
  "quote",
