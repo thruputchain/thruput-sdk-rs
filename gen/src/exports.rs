@@ -52,7 +52,8 @@ pub fn generate(
     let version_assertion = if let (Some(trait_path), Some(self_ty)) =
         (contract.trait_path(), contract.self_ty())
     {
-        let iface_major = contract_util::semver::major_version_from_string(&iface_vers);
+        let iface_major =
+            contract_util::semver::major_version_from_string(&iface_vers);
         let error_msg = format!(
             "Major version mismatch: the major version specified in #[contract(version = ...)] \
              is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's \
