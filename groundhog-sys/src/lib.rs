@@ -24,19 +24,11 @@ pub use bindings::{
     TEST_FFI_VERSION_MAJOR,
     TEST_FFI_VERSION_MINOR,
     TEST_FFI_VERSION_PATCH,
-    TestFFIErrorCode_kTestFFIErrorCodeNone,
-    TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
-    TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
-    TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
-    TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
-    TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
-    TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
 };
 
 // Types
 #[rustfmt::skip]
 pub use bindings::{
-    TestFFIErrorCode,
     ForeignInvokeResult,
     ForeignRootInvokeResult,
     ForeignEntryPoint,
@@ -52,6 +44,8 @@ pub use bindings::{
     FFIAuxiliaryAuthData,
     VerifyAuthResult,
     VerifyAuthResultFromDBResult,
+    FFIDataBuffer,
+    GetCostModelResult,
 };
 
 // Functions
@@ -59,6 +53,7 @@ pub use bindings::{
 pub use bindings::{
     create_db,
     free_db,
+    get_cost_model,
     advance_new_block,
     open_runtime_context,
     close_runtime_context,
@@ -78,3 +73,6 @@ pub use bindings::{
     verify_signed_transaction_auth,
     verify_signed_transaction_auth_from_db,
 };
+
+mod impls;
+pub use impls::FFIErrorCode;

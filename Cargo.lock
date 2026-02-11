@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
@@ -115,7 +115,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "sdk",
  "xdrs",
@@ -141,7 +141,7 @@ checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "calldata_raw"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "calldata_raw",
  "sdk",
@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "calldata_wrapper"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "calldata_wrapper",
@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -484,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -494,7 +494,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -747,7 +747,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -761,7 +761,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -781,7 +781,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "groundhog-xdr",
  "sdk",
@@ -791,7 +791,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -807,8 +807,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
+ "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-xdr",
  "hogexec-internal",
@@ -827,8 +828,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-storage-cost"
+version = "0.2.0"
+dependencies = [
+ "groundhog-xdr",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-sys"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -836,6 +845,7 @@ dependencies = [
  "reqwest",
  "sha2",
  "tar",
+ "thiserror",
 ]
 
 [[package]]
@@ -1812,7 +1822,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "abort",
  "bitset-core",

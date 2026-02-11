@@ -1,0 +1,19 @@
+[package]
+name = "groundhog-storage-cost"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Storage cost calculation for Groundhog smart contracts"
+
+[dependencies]
+groundhog-xdr = { workspace = true, features = [] }
+xdrs = { workspace = true, features = ["alloc"] }
+
+[features]
+

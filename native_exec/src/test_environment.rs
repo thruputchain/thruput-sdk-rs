@@ -2,6 +2,8 @@ use crate::invoke_error::set_override_panic_hook;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
+use groundhog_storage_cost::StorageCostModel;
+use groundhog_sys::FFIErrorCode;
 use groundhog_xdr::address_auth::AddressAuthData;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
@@ -26,50 +28,6 @@ use xdrs::txs;
 // so we pick a default (nonzero) value as a placeholder.
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
 const TEST_CONTRACT_SIZE: u32 = 1024;
-
-#[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(u32)]
-pub(crate) enum FFIErrorCode {
-    #[error("No error")]
-    None = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeNone,
-    #[error("Invalid pointer")]
-    InvalidPointer =
-        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
-    #[error(
-        "Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)"
-    )]
-    DeployNonexistentContract = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
-    #[error(
-        "Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)"
-    )]
-    CreateNonexistentMockContract = groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
-    #[error(
-        "Supplied data structs failed to deserialize into expected format"
-    )]
-    DeserializeError =
-        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
-    #[error("Unrecoverable error")]
-    UnrecoverableError =
-        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
-    #[error("Event log not found")]
-    EventLogNotFound =
-        groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
-}
-
-impl From<groundhog_sys::TestFFIErrorCode> for FFIErrorCode {
-    fn from(error: groundhog_sys::TestFFIErrorCode) -> Self {
-        match error {
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeNone => FFIErrorCode::None,
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer => FFIErrorCode::InvalidPointer,
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract => FFIErrorCode::DeployNonexistentContract,
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
-            x if x == groundhog_sys::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound => FFIErrorCode::EventLogNotFound,
-            _ => panic!("unknown FFI error code: {}", error),
-        }
-    }
-}
 pub struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
@@ -102,14 +60,45 @@ pub(crate) struct DBWrapper {
 }
 
 impl DBWrapper {
-    pub fn new() -> Self {
-        let res = unsafe { groundhog_sys::create_db() };
+    pub fn new(cost_model: Option<&StorageCostModel>) -> Self {
+        let cost_model_bytes =
+            cost_model.map(|model| model.serialize().unwrap());
+
+        let ffi_cost_model_bytes: (*const u8, u32) = cost_model_bytes
+            .map(|vec| {
+                (vec.as_ptr() as *const u8, vec.len().try_into().unwrap())
+            })
+            .unwrap_or((core::ptr::null() as *const u8, 0));
+
+        let res = unsafe {
+            groundhog_sys::create_db(
+                ffi_cost_model_bytes.0,
+                ffi_cost_model_bytes.1,
+            )
+        };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to create db: {}", res.ffi_error_code);
         }
         assert!(!res.db.is_null());
         Self { db: res.db }
+    }
+
+    pub fn get_cost_model(&self) -> StorageCostModel {
+        let res = unsafe { groundhog_sys::get_cost_model(self.db) };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to get cost model: {}", res.ffi_error_code);
+        }
+        if (res.data.len == 0) {
+            panic!("failed to get cost model: no data");
+        }
+
+        let data = xdrs::txs::decode::<
+            groundhog_xdr::storage_cost::StorageCostModelXdr,
+        >(res.data.as_slice().unwrap())
+        .unwrap();
+        StorageCostModel::new(data)
     }
 }
 
@@ -152,12 +141,12 @@ impl Drop for RuntimeContextWrapper {
 }
 
 impl TestEnvironmentInner {
-    pub fn new() -> Self {
+    pub fn new(cost_model: Option<&StorageCostModel>) -> Self {
         set_override_panic_hook();
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
         Self {
-            db: DBWrapper::new(),
+            db: DBWrapper::new(cost_model),
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
@@ -355,16 +344,18 @@ impl Drop for TestEnvironmentInner {
 
 impl Default for TestEnvironmentInner {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
 impl TestEnvironment {
-    pub fn new() -> TestEnvironmentHandle {
+    pub fn new(
+        cost_model: Option<&StorageCostModel>,
+    ) -> TestEnvironmentHandle {
         let te = Rc::new(Self {
-            inner: RefCell::new(TestEnvironmentInner::new()),
+            inner: RefCell::new(TestEnvironmentInner::new(cost_model)),
         });
 
         if std::env::var("SDK_TEST_ENABLE_SYSCALL_LOGGING").is_ok() {
