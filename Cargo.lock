@@ -503,7 +503,7 @@ dependencies = [
 
 [[package]]
 name = "erc20_low_level"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
@@ -515,7 +515,7 @@ dependencies = [
 
 [[package]]
 name = "erc20_no_storage"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
