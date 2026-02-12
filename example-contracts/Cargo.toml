@@ -51,3 +51,4 @@ trim-paths = "all" # unstable
 [patch.groundhog] # XXX
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
 sdk = { path = ".." }
+abort = { git = "ssh://git@github.com/groundhogchain/abort_rs.git" }
