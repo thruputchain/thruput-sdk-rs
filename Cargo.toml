@@ -1,5 +1,3 @@
-#cargo-features = ["trim-paths"] #unstable
-
 [workspace]
 members = [
     "macros", 
@@ -45,7 +43,6 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "SDK for contract development on the Groundhog blockchain"
-autoexamples = false
 
 exclude = [
     "rust-toolchain.toml",
@@ -150,15 +147,16 @@ call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-cal
 # Generate specs
 spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util"]
 
-[profile.release]
-opt-level = 3
-overflow-checks = false
-debug = false
-strip = "symbols"
-debug-assertions = false
-panic = "abort"
-lto = true
-codegen-units = 1
+# 
+# [profile.release]
+# opt-level = 3
+# overflow-checks = false
+# debug = false
+# strip = "symbols"
+# debug-assertions = false
+# panic = "abort"
+# lto = true
+# codegen-units = 1
 #trim-paths = "all" # unstable
 # also see rust flags set in .cargo/config.toml
 
@@ -179,7 +177,7 @@ collapsible_if = "allow"
 [target.'cfg(target_family = "wasm")'.dependencies]
 abort = { workspace = true, features = ["single-threaded"] }
 
-[patch.groundhog]
+[patch.groundhog] # XXX
 groundhog-xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git" }
 # groundhog-xdr = { path = "../protocol-rs/groundhog-xdr" }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }

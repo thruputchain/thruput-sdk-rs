@@ -1,15 +1,28 @@
 # This is for building production contracts:
 #
-#    cargo --config contract.toml build -p "$package"
+#    cargo --config ${SDK}/contract.toml build
 #
 
 [build]
 target = "wasm32-unknown-unknown"
+
+[target.wasm32-unknown-unknown]
 rustflags = [
     "-C", "panic=immediate-abort",
     "-C", "link-args=-zstack-size=30000",
     "-Z", "unstable-options",
+    "--deny", "warnings",
     ]
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
 
 [unstable]
 build-std = ["core", "alloc"]

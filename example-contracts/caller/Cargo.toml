@@ -1,0 +1,30 @@
+[package]
+name = "caller"
+description = "A contract exercising cross-calls"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+erc20 = { path = "../erc20" }
+sdk = { workspace = true, features = ["storage"] }
+groundhog-erc20-if = { workspace = true, features = ["storage"] }
+thiserror = { workspace = true }
+xdrs = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+caller = { path = ".", features = ["dev"] }

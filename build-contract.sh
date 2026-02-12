@@ -15,14 +15,14 @@ TARGET_DIR="target"
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/${PROFILE_DIR}"
 OPTIMIZED="${TARGET_DIR}/optimized"
 
-STACK_SIZE="30000"
-
 build_contract() {
-    # This appears to accomplish the same thing as above
+    (
+        cd example-contracts && 
 
-    cargo --config contract.toml \
-        build -p "$package" \
-        --profile "$PROFILE"
+        cargo build -v \
+            --package "$package" \
+            --profile "$PROFILE"
+    )
 }
 
 make_optimized() {

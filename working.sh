@@ -15,15 +15,20 @@ native_test() {
 }
 
 run_working() {
-    export RUSTFLAGS="--deny warnings"
+    ## This somehow negates settings in contract.toml?
+    # export RUSTFLAGS="--deny warnings"
 
-    cargo test --lib -F dev
+    # cargo test --lib -F dev
     # cargo test -F dev
 
     # something very strange is happening, which causes e.g. erc20
     # to have a much larger size when running this script than
     # when using build-contract.sh ... and then the executor chokes
     # on the big contract.
+
+    (cd example-contracts && 
+        cargo build --release --workspace)
+    exit 0
 
     build erc20
     build erc20_no_storage

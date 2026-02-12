@@ -1,13 +1,6 @@
 [target.'all(cfg(target_os = "macos"), not(target_family = "wasm"))']
 rustflags = [ "-C", "link-arg=-lSystem", ]
 
-[target.'target_family = "wasm"']
-rustflags = [
-    "-C", "panic=immediate-abort",
-    "-C", "link-args=-zstack-size=30000",
-    "-Z", "unstable-options", # what's this for?
-    ]
-
 [registries]
 groundhog = { index = "sparse+https://groundhog.dev/crates/api/v1/crates/" }
 
