@@ -21,7 +21,11 @@ build_contract() {
 
         cargo build -v \
             --package "$package" \
-            --profile "$PROFILE"
+            --target "wasm32-unknown-unknown" \
+            --profile "$PROFILE" \
+            -Z unstable-options \
+            -Z build-std=core,alloc \
+            -Z build-std-features=std/optimize_for_size
     )
 }
 
@@ -35,7 +39,6 @@ make_optimized() {
     # very slightly better)
     wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
-
 
 printf "Building '%s' ...\n" "$package"
 
