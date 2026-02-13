@@ -80,30 +80,6 @@ pub fn exceptions_test(
 }
 
 
-mod handler {
-    use sdk::{AbortInfo, Never};
-    use sdk::exn::{Exn, CrossExn};
-
-    /// Handle an abort thrown during a method call
-    ///
-    pub fn test_abort_handler<'a, E>(info: AbortInfo<'a>) -> Never
-    where
-        E: Exn + Clone + 'static
-    {
-        // Downcast to a concrete exception
-        let a = CrossExn::<E>::from_abort_info(info);
-
-        // Encode that and call VM abort
-        sdk::contract_abort_encoded(&a);
-
-        // debugging:
-        // panic!("ABORT: {}", a);
-        // sdk::contract_abort("OHNO OHNO OHNO".as_bytes())
-    }
-
-}
-pub use handler::*;
-
 
 #[allow(unused)]
 pub fn panic_test(contract_hash: &SHA256Hash) {

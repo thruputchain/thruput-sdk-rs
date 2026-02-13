@@ -1,20 +1,16 @@
 //! Development utilities.
 //!
-//! *Requires feature `mock`.*
+//! *Requires feature `dev`.*
 
-pub mod contract_test;
-
-#[doc(hidden)]
-pub mod internal;
+mod contract_test;
+mod handler;
 
 pub use contract_test::*;
+pub use handler::*;
 
 pub use groundhog_native_exec::{
     mock_contract::MockContract,
     test_environment::{TestEnvironment, TestEnvironmentHandle},
 };
-
-#[allow(unused)]
-pub use groundhog_xdr::exec_result::ExecResult;
-
 pub use hogexec_internal::ffi_enums::*;
+pub use core::convert::Infallible;

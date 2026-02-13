@@ -117,25 +117,13 @@ pub use groundhog_macros::Storage;
 #[doc = include_str!("../doc/macro-storage.md")]
 pub use groundhog_macros::storage;
 
-// Test environment
+// Development environment
 
-#[cfg(feature = "mock")]
-pub mod syscall_bindings;
+#[cfg(feature = "dev")]
+mod dev;
 
-#[cfg(feature = "mock")]
-pub mod dev;
-
-#[cfg(feature = "mock")]
-pub use groundhog_native_exec::{
-    mock_contract::MockContract,
-    test_environment::{TestEnvironment, TestEnvironmentHandle},
-};
-
-#[cfg(feature = "mock")]
-pub use hogexec_internal::ffi_enums::*;
-
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use dev::*;
 
-#[cfg(feature = "std")]
-pub use groundhog_xdr::exec_result::ExecResult;
+#[cfg(feature = "dev")]
+pub mod syscall_bindings;

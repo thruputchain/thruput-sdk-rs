@@ -1,4 +1,6 @@
-//! Internal utilities used in proc-macros.
+//! Internal utilities.
+//!
+//! Some are public because used in proc-macros.
 //!
 //! *These interfaces are not intended for use by SDK clients, and may change at any time.*
 
@@ -7,13 +9,14 @@ mod mu_buf;
 mod serialize;
 mod static_buf;
 mod track;
+mod handle_call;
 
 pub mod nnint;
-
 #[allow(unused_imports)]
 pub use mu_buf::*;
 pub use serialize::*;
 pub use track::*;
+pub use handle_call::*;
 
 /// Constant-time string equality check for use in `const` assertions.
 pub const fn const_str_eq(a: &str, b: &str) -> bool {

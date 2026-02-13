@@ -1,8 +1,10 @@
 //! Panic-handling for the test environment
 
+/*
 pub fn init() {
     // std::panic::set_hook(Box::new(&panic_hook));
 }
+*/
 
 /* XXX
 use crate::*;
