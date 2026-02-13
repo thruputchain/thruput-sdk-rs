@@ -78,8 +78,9 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        let foreign_result: groundhog_sys::ForeignRootInvokeResult =
-            unsafe { groundhog_sys::root_invoke(self.handler) };
+        let foreign_result: groundhog_sys::ForeignRootInvokeResult = unsafe {
+            groundhog_sys::root_invoke(self.handler, /*tracing*/ 0)
+        };
         RootInvokeResult {
             status: foreign_result.result.panic.try_into().unwrap(),
             gas_consumed: foreign_result.gas_consumed,
