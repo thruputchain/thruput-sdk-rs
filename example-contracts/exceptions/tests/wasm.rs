@@ -10,7 +10,7 @@ use core::convert::Infallible;
 #[test]
 fn wasm_ok() {
     let contract = sdk::load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new(None);
+    let env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
     let _ = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
@@ -27,7 +27,7 @@ fn wasm_ok() {
 #[test]
 fn wasm_deploy() {
     let contract = sdk::load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new(None);
+    let env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
@@ -42,7 +42,7 @@ fn wasm_deploy() {
 #[test]
 fn wasm_exceptions() {
     let contract = sdk::load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new(None);
+    let env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
@@ -59,7 +59,7 @@ fn wasm_exceptions() {
 #[test]
 fn wasm_panic() {
     let contract = sdk::load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new(None);
+    let env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {

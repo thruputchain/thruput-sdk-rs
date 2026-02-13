@@ -49,6 +49,6 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 trim-paths = "all" # unstable
 
 [patch.groundhog] # XXX
-xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
 sdk = { path = ".." }
+xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
 abort = { git = "ssh://git@github.com/groundhogchain/abort_rs.git" }
