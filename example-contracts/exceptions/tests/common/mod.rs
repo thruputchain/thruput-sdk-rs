@@ -8,15 +8,6 @@ use sdk::call::CallError;
 
 pub static TEST_NONCE: sdk::SHA256Hash = sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
 
-pub fn degenerate(
-    contract_hash: &SHA256Hash,
-) {
-    // Deploy the contract under test
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-
-    // let _ = addr;
-}
-
 pub fn exceptions_test(
     contract_hash: &SHA256Hash,
 ) {

@@ -5,7 +5,7 @@ use common::*;
 // Load two contracts into the same test environment, and
 // have one call the other.
 #[test]
-fn caller_test() {
+fn caller_test_native() {
     let mut env = sdk::TestEnvironment::new(None);
 
     let erc20_contract = erc20::test_setup::register(&mut env);

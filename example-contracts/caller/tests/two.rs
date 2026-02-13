@@ -9,7 +9,7 @@ const ERC20_PATH: &str = "../../target/optimized/erc20.wasm";
 const CALLER_PATH: &str = "../../target/optimized/caller.wasm";
 
 #[test]
-fn caller_test() {
+fn caller_test_wasm() {
     let erc20_contract = load_wasm_contract(ERC20_PATH);
     let caller_contract = load_wasm_contract(CALLER_PATH);
 
