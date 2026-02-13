@@ -3,9 +3,9 @@
 //! *Requires feature `dev`.*
 
 mod contract_test;
-mod handler;
-
 pub use contract_test::*;
+
+mod handler;
 pub use handler::*;
 
 pub use groundhog_native_exec::{
@@ -14,3 +14,15 @@ pub use groundhog_native_exec::{
 };
 pub use hogexec_internal::ffi_enums::*;
 pub use core::convert::Infallible;
+
+// Internal
+
+/*
+mod handle_call;
+
+pub mod internal {
+    use super::*;
+
+    pub use handle_call::*;
+}
+*/

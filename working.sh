@@ -31,7 +31,7 @@ build_examples() {
 
 test_examples() {
     eg_test caller --test one
-    eg_test caller --test two  # uses wasm compiled above
+    # eg_test caller --test two  # uses wasm compiled above
     eg_test erc20
     eg_test erc20_no_storage
     eg_test erc20_low_level

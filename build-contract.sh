@@ -19,13 +19,10 @@ build_contract() {
     (
         cd example-contracts && 
 
-        cargo build \
+        cargo --config ../.cargo/contract.toml \
+            build \
             --package "$package" \
-            --target "wasm32-unknown-unknown" \
-            --profile "$PROFILE" \
-            -Z unstable-options \
-            -Z build-std=core,alloc \
-            -Z build-std-features=std/optimize_for_size
+            --profile "$PROFILE"
     )
 }
 

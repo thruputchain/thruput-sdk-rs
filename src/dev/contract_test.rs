@@ -105,7 +105,7 @@ macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
         #[test]
         fn $name() {
-            let mut env = sdk::TestEnvironment::new(None);
+            let mut env = $crate::TestEnvironment::new(None);
 
             $crate::contract_test::contract_test_succeeding(env, || {
                 $test_body
@@ -125,13 +125,13 @@ macro_rules! contract_test_env {
 
         #[test]
         fn $name() {
-            let mut env = sdk::TestEnvironment::new(None);
+            let mut env = $crate::TestEnvironment::new(None);
 
             let test_contract = {
                 let mut contract = env.add_contract();
-                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
+                let method = $crate::contract::ContractEntrypointID::from(1u64.to_be_bytes());
                 contract.register_method(method, || -> () {
-                    sdk::dev::internal::handle_call(|()| {
+                    $crate::dev::internal::handle_call(|()| {
                         $test_body
                         return ();
                     });
@@ -143,17 +143,17 @@ macro_rules! contract_test_env {
 
             let mut handler = env.prepare_test(move || -> () {
                 let deployed_addr =
-                    sdk::deploy::deploy_contract(&TEST_NONCE, &contract_hash)
+                    $crate::deploy::deploy_contract(&TEST_NONCE, &contract_hash)
                         .unwrap();
 
                 // Invoke contract method 1
-                let method = sdk::contract::ContractEntrypointID::from(1u64.to_be_bytes());
+                let method = $crate::contract::ContractEntrypointID::from(1u64.to_be_bytes());
 
                 type ARG = ();
                 type RET = ();
                 type EXN = Infallible;
 
-                sdk::call::call::<ARG, RET, EXN>(
+                $crate::call::call::<ARG, RET, EXN>(
                     &deployed_addr,
                     method,
                     u64::MAX,
@@ -162,7 +162,7 @@ macro_rules! contract_test_env {
             });
 
             fn env_hook(
-                $env: &std::rc::Rc<sdk::TestEnvironment>,
+                $env: &std::rc::Rc<$crate::TestEnvironment>,
                 $handler: &mut $crate::native_exec::transaction_handler::TransactionHandler,
             ) -> () $env_hook
 

@@ -4,19 +4,17 @@
 const WASM_PATH: &str = "../../target/optimized/exceptions.wasm";
 
 mod common;
-
 use common::*;
-use sdk::contract_test::{load_wasm_contract, deploy_address};
 use core::convert::Infallible;
 
 #[test]
 fn wasm_ok() {
-    let contract = load_wasm_contract(WASM_PATH);
+    let contract = sdk::load_wasm_contract(WASM_PATH);
     let env = sdk::TestEnvironment::new(None);
     let _ = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
-        sdk::with_abort_handler(&test_abort_handler::<Infallible>, || {
+        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
             // Do nothing
         })
     });
@@ -28,7 +26,7 @@ fn wasm_ok() {
 
 #[test]
 fn wasm_degenerate() {
-    let contract = load_wasm_contract(WASM_PATH);
+    let contract = sdk::load_wasm_contract(WASM_PATH);
     let env = sdk::TestEnvironment::new(None);
     let contract_hash = env.setup_create_contract(&contract);
     /*
@@ -39,7 +37,7 @@ fn wasm_degenerate() {
     let result = sdk::contract_test_invoke(env, move || {
         /*
         let me = sdk::get_current_address();
-        let deployed_addr = deploy_address(&me, &TEST_NONCE, contract_hash);
+        let deployed_addr = sdk::deploy_address(&me, &TEST_NONCE, contract_hash);
         let _addr = sdk::deploy_contract(&TEST_NONCE, &contract_hash);
         */
     });
@@ -51,12 +49,12 @@ fn wasm_degenerate() {
 
 #[test]
 fn wasm_exceptions() {
-    let contract = load_wasm_contract(WASM_PATH);
+    let contract = sdk::load_wasm_contract(WASM_PATH);
     let env = sdk::TestEnvironment::new(None);
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
-        sdk::with_abort_handler(&test_abort_handler::<Infallible>, || {
+        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
             exceptions_test(&contract_hash)
         })
     });
@@ -68,12 +66,12 @@ fn wasm_exceptions() {
 
 #[test]
 fn wasm_panic() {
-    let contract = load_wasm_contract(WASM_PATH);
+    let contract = sdk::load_wasm_contract(WASM_PATH);
     let env = sdk::TestEnvironment::new(None);
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
-        sdk::with_abort_handler(&test_abort_handler::<Infallible>, || {
+        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
             panic_test(&contract_hash)
         })
     });

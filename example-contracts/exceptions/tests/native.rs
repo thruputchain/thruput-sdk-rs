@@ -1,10 +1,7 @@
 mod common;
 
-use common::*;
-use sdk::contract_test::*;
 use sdk::*;
 use exceptions::test_setup;
-use core::convert::Infallible;
 
 #[test]
 fn native_exceptions() {

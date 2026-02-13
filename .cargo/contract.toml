@@ -1,6 +1,6 @@
 # This is for building production contracts:
 #
-#    cargo --config ${SDK}/contract.toml build
+#    cargo --config ${SDK}/.cargo/contract.toml --release build
 #
 
 [build]
