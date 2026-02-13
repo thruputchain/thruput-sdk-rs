@@ -3,7 +3,7 @@ use sdk::*;
 #[derive(Default)]
 struct Contract;
 
-#[contract(client = ContractClient, storage = "false")]
+#[contract(client = HasherClient, storage = "false")]
 impl Contract {
     pub fn run() {
         const EXPECTED: SHA256Hash =

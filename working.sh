@@ -8,38 +8,44 @@ build() {
     ./build-contract.sh "$package"
 }
 
-native_test() {
+eg_test() {
     package="$1"; shift
 
     (cd example-contracts &&
         cargo test -p "$package" "$@" -- --show-output)
 }
 
+build_examples() {
+    build "caller"
+    # build "counter"
+    build "erc20"
+    build "erc20_no_storage"
+    build "erc20_low_level"
+    build "exceptions"
+    build "genesis_deployer"
+    build "hasher"
+    build "rcq_test"
+    build "simple_wallet_old"
+    build "test_bytestring"
+}
+
+test_examples() {
+    eg_test caller --test one
+    eg_test caller --test two  # uses wasm compiled above
+    eg_test erc20
+    eg_test erc20_no_storage
+    eg_test erc20_low_level
+    eg_test exceptions --test native
+    # eg_test exceptions --test wasm # uses compiled wasm
+    eg_test hasher
+}
+
 run_working() {
     # cargo test --lib -F dev
     # cargo test -F dev
 
-    # build example contracts (wasm)
-    (cd example-contracts && 
-        cargo build \
-            --workspace \
-            --target "wasm32-unknown-unknown" \
-            --profile release \
-            -Z unstable-options \
-            -Z build-std=core,alloc \
-            -Z build-std-features=std/optimize_for_size
-    )
-
-    # native tests not working yet
-    exit 0
-
-    native_test erc20
-    native_test erc20_no_storage
-    native_test erc20_low_level
-    native_test caller --test one
-    native_test caller --test two  # uses wasm compiled above
-    native_test exceptions --test native
-    # native_test exceptions --test wasm # uses compiled wasm
+    build_examples
+    test_examples
 }
 
 run_working

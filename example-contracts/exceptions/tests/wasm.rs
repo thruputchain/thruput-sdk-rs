@@ -12,7 +12,7 @@ use core::convert::Infallible;
 #[test]
 fn wasm_ok() {
     let contract = load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new();
+    let env = sdk::TestEnvironment::new(None);
     let _ = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
@@ -29,7 +29,7 @@ fn wasm_ok() {
 #[test]
 fn wasm_degenerate() {
     let contract = load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new();
+    let env = sdk::TestEnvironment::new(None);
     let contract_hash = env.setup_create_contract(&contract);
     /*
     let contract_hash = &contract_hash;
@@ -52,7 +52,7 @@ fn wasm_degenerate() {
 #[test]
 fn wasm_exceptions() {
     let contract = load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new();
+    let env = sdk::TestEnvironment::new(None);
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {
@@ -69,7 +69,7 @@ fn wasm_exceptions() {
 #[test]
 fn wasm_panic() {
     let contract = load_wasm_contract(WASM_PATH);
-    let env = sdk::TestEnvironment::new();
+    let env = sdk::TestEnvironment::new(None);
     let contract_hash = env.setup_create_contract(&contract);
 
     let result = sdk::contract_test_invoke(env, move || {

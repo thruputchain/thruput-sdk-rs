@@ -19,7 +19,7 @@ build_contract() {
     (
         cd example-contracts && 
 
-        cargo build -v \
+        cargo build \
             --package "$package" \
             --target "wasm32-unknown-unknown" \
             --profile "$PROFILE" \

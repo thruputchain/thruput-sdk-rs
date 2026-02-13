@@ -2,7 +2,7 @@
 
 mod implementation;
 
-pub use implementation::ContractClient;
+pub use implementation::HasherClient;
 
 #[cfg(feature = "dev")]
 pub use implementation::test_setup;

@@ -6,13 +6,6 @@ members = [
     "native_exec",
     "groundhog-sys",
     "storage-cost",
-#    "examples/*", XXX
-    "examples/exceptions",
-    "examples/erc20",
-    "examples/erc20_no_storage",
-    "examples/erc20_low_level",
-    "examples/caller",
-    "examples/hasher",
 #    "integration_test_contracts/*",
     "standard-interfaces/*",
     "standard-tests/*",
@@ -164,6 +157,5 @@ collapsible_if = "allow"
 abort = { workspace = true, features = ["single-threaded"] }
 
 [patch.groundhog] # XXX
-groundhog-xdr = { git = "ssh://git@github.com/groundhogchain/protocol-rs.git" }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
 abort = { git = "ssh://git@github.com/groundhogchain/abort_rs.git" }
