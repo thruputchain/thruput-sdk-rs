@@ -80,7 +80,6 @@ pub fn initialize(owner: &ContractAddress) {
     bytestring_set(&key, owner.as_ref());
 }
 
-<<<<<<< HEAD
 #[contract(interface = "ERC20", version = "0.2.0")]
 pub fn transfer(to: &ContractAddress, amount: Amount) {
     let from = get_caller();
