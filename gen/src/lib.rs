@@ -10,7 +10,7 @@ pub mod util;
 mod config;
 pub use config::Config;
 
-mod contract;
+pub mod contract;
 pub use contract::{ConfiguredContract, ContractSrc, Method};
 
 pub mod entrypoint;

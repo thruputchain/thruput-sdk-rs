@@ -35,6 +35,8 @@ pub fn generate(
         .map(|method| generate_client_fn(&method, &contract))
         .collect::<Result<Vec<TokenStream>>>()?;
 
+    let iface_vers = contract.defaulted_interface_vers();
+
     let client = quote! {
 
         #define_spec_fn
@@ -65,6 +67,8 @@ pub fn generate(
                 }
 
                 #(#method_stubs)*
+
+                pub const INTERFACE_VERSION: &str = #iface_vers;
             }
         };
     };
@@ -114,6 +118,7 @@ fn generate_client_fn(
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
     let iface_vers = contract.defaulted_interface_vers();
+
     let sig = method.sig();
     let ident = &sig.ident;
 

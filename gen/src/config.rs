@@ -10,6 +10,7 @@ pub struct Config {
     pub test_setup: Option<String>,
     pub storage: Option<String>,
     pub interface: Option<String>,
+    pub version: Option<String>,
     pub index: Option<u16>,
     pub init: Flag,
     pub doc: Option<String>,

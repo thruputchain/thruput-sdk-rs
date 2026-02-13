@@ -7,6 +7,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
 use syn::parse::Result;
+use syn::parse_quote;
 
 pub fn apply(
     attr_args: TokenStream,
@@ -28,8 +29,19 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            // Start with the item itself, stripped of proprietary attributes
-            let mut out = item.strip_our_attributes().into_token_stream();
+            // Inject the major version as an associated const
+            let mut stripped = item.strip_our_attributes();
+            let iface_vers =
+                groundhog_codegen::contract::interface_vers_default();
+            let iface_major =
+                groundhog_contract_util::semver::major_version_from_string(
+                    &iface_vers,
+                );
+            stripped.items.push(parse_quote! {
+                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
+            });
+
+            let mut out = stripped.into_token_stream();
 
             // Generate client interface
             out.extend(groundhog_codegen::client::generate(item, config)?);

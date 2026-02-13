@@ -16,6 +16,7 @@ proc-macro = true
 
 [dependencies]
 groundhog-codegen = { workspace = true }
+groundhog-contract-util = { workspace = true }
 darling = "0.20.10"
 proc-macro2 = "1.0.92"
 quote = "1.0.38"
