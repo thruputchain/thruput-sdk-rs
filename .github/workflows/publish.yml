@@ -44,7 +44,7 @@ jobs:
       - name: publishdry run
         uses: ./actions/cargo-publish-dry-run
         with:
-          packages: groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
+          packages: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
           cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip spec
           cargo-hack-wasm32-packages: sdk
@@ -53,7 +53,7 @@ jobs:
         id: publish-tag
         uses: ./actions/cargo-version-tag
         with:
-          packages: groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
+          packages: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
       
       - name: push tag
         run: |
@@ -64,7 +64,7 @@ jobs:
       - name: publish
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
+          packages: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
           git-tag: ${{ steps.publish-tag.outputs.tag }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
