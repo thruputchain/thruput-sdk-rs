@@ -352,6 +352,7 @@ impl Default for TestEnvironmentInner {
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
 impl TestEnvironment {
+
     pub fn new(
         cost_model: Option<&StorageCostModel>,
     ) -> TestEnvironmentHandle {
@@ -364,6 +365,14 @@ impl TestEnvironment {
         }
 
         te
+    }
+
+    pub fn default() -> TestEnvironmentHandle {
+        Self::new(None)
+    }
+
+    pub fn no_cost() -> TestEnvironmentHandle {
+        Self::new(Some(&groundhog_storage_cost::StorageCostModel::no_cost_model()))
     }
 
     // This has effect only after creation of a test environment

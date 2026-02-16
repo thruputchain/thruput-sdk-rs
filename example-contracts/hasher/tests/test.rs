@@ -4,7 +4,7 @@ pub static TEST_NONCE: sdk::SHA256Hash = sdk::sha256_static!("EXCEPTIONS_TEST_NO
 
 #[test]
 fn hasher_test() {
-    let env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
+    let mut env = sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
     let test_contract = test_setup::register(&mut env);

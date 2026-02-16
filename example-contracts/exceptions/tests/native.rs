@@ -5,7 +5,7 @@ use exceptions::test_setup;
 
 #[test]
 fn native_exceptions() {
-    let mut env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
+    let mut env = sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
     let test_contract = test_setup::register(&mut env);

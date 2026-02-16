@@ -6,7 +6,7 @@ use common::*;
 // have one call the other.
 #[test]
 fn caller_test_native() {
-    let mut env = sdk::TestEnvironment::new(Some(&sdk::StorageCostModel::no_cost_model()));
+    let mut env = sdk::TestEnvironment::default();
 
     let erc20_contract = erc20::test_setup::register(&mut env);
     let erc20_hash = env.setup_create_contract(&erc20_contract);

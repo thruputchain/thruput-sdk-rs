@@ -3,7 +3,7 @@ use sdk::*;
 
 #[test]
 fn test_abort_bare() {
-    let env = TestEnvironment::new(None);
+    let env = TestEnvironment::default(None);
 
     let result = contract_test_invoke(env, || {
         contract_abort(&[1u8, 2, 3]);
@@ -19,7 +19,7 @@ fn test_abort_bare() {
 
 #[test]
 fn test_abort_exn() {
-    let mut env = TestEnvironment::new(None);
+    let mut env = TestEnvironment::default(None);
 
     let test_contract = aborter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
@@ -43,7 +43,7 @@ fn test_abort_exn() {
 
 #[test]
 fn test_uncaught_abort() {
-    let mut env = TestEnvironment::new(None);
+    let mut env = TestEnvironment::default(None);
 
     let test_contract = aborter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);

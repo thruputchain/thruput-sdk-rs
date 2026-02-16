@@ -18,8 +18,7 @@ enum TestError {
 
 #[test]
 fn swap_test() {
-    let mut env = sdk::TestEnvironment::new();
-    // sdk::TestEnvironment::enable_syscall_logging();
+    let mut env = sdk::TestEnvironment::default();
 
     // Register erc20 and instantiate for two tokens
     let erc20_contract = erc20::test_setup::register(&mut env);

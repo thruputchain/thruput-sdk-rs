@@ -4,7 +4,7 @@ use sdk::*;
 
 #[test]
 fn test_abort_exn() {
-    let mut env = TestEnvironment::new();
+    let mut env = TestEnvironment::default();
 
     let test_contract = aborter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
@@ -28,7 +28,7 @@ fn test_abort_exn() {
 
 #[test]
 fn test_uncaught_abort() {
-    let mut env = TestEnvironment::new();
+    let mut env = TestEnvironment::default();
 
     let test_contract = aborter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
