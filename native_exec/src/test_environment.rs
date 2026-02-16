@@ -65,6 +65,7 @@ impl DBWrapper {
             cost_model.map(|model| model.serialize().unwrap());
 
         let ffi_cost_model_bytes: (*const u8, u32) = cost_model_bytes
+            .as_ref()
             .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
             .unwrap_or((core::ptr::null(), 0));
 
