@@ -49,3 +49,4 @@ run_working() {
 }
 
 run_working
+echo "OK!"

@@ -118,7 +118,7 @@ bitset-core = { version = "0.1.1", default-features = false }
 default = ["fault_strings"] # XXX
 
 # Enable allocation features
-alloc = ["groundhog-macros/alloc", "groundhog-xdr/alloc", "xdrs/alloc"]
+alloc = ["groundhog-xdr/alloc", "xdrs/alloc"]
 
 # Add the "storage" convenience module
 storage = ["alloc", "dep:delegate", "groundhog-macros/storage"]
@@ -158,6 +158,5 @@ collapsible_if = "allow"
 abort = { workspace = true, features = ["single-threaded"] }
 
 [patch.groundhog] # XXX
-sdk = { path = "." }
 xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
 abort = { git = "ssh://git@github.com/groundhogchain/abort_rs.git" }

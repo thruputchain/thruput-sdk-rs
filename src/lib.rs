@@ -24,6 +24,10 @@ extern crate alloc;
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
+// XXX: include allocator that something(?) is requiring
+#[cfg(not(feature = "alloc"))]
+pub mod allocator_panic;
+
 #[doc(hidden)]
 pub mod internal;
 

@@ -15,6 +15,21 @@ TARGET_DIR="target"
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/${PROFILE_DIR}"
 OPTIMIZED="${TARGET_DIR}/optimized"
 
+tree_contract() {
+    (
+        cd example-contracts && 
+
+        cargo --config ../.cargo/contract.toml \
+            tree \
+            --package "$package" \
+            --target "wasm32-unknown-unknown" \
+            --edges normal,features \
+            -Z build-std=core,alloc \
+            -Z build-std-features=std/optimize_for_size \
+            #
+    )
+}
+
 build_contract() {
     (
         cd example-contracts && 
@@ -22,6 +37,9 @@ build_contract() {
         cargo --config ../.cargo/contract.toml \
             build \
             --package "$package" \
+            --target "wasm32-unknown-unknown" \
+            -Z build-std=core,alloc \
+            -Z build-std-features=std/optimize_for_size \
             --profile "$PROFILE"
     )
 }
@@ -36,6 +54,9 @@ make_optimized() {
     # very slightly better)
     wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
+
+# tree_contract
+# exit 0
 
 printf "Building '%s' ...\n" "$package"
 

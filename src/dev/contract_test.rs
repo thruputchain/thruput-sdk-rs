@@ -105,7 +105,7 @@ macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
         #[test]
         fn $name() {
-            let mut env = $crate::TestEnvironment::new(None);
+            let mut env = $crate::TestEnvironment::new(Some(&$crate::StorageCostModel::no_cost_model()));
 
             $crate::contract_test::contract_test_succeeding(env, || {
                 $test_body
@@ -125,7 +125,7 @@ macro_rules! contract_test_env {
 
         #[test]
         fn $name() {
-            let mut env = $crate::TestEnvironment::new(None);
+            let mut env = $crate::TestEnvironment::new(Some(&$crate::StorageCostModel::no_cost_model()));
 
             let test_contract = {
                 let mut contract = env.add_contract();
