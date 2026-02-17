@@ -619,6 +619,7 @@ version = "0.2.0"
 dependencies = [
  "groundhog-storage-cost",
  "groundhog-sys",
+ "groundhog-trace",
  "groundhog-xdr",
  "hogexec-internal",
  "sha2",
@@ -654,6 +655,18 @@ dependencies = [
  "sha2",
  "tar",
  "thiserror",
+]
+
+[[package]]
+name = "groundhog-trace"
+version = "0.3.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "e505e57e98b57a428d6f9b6394e3a02cb789d12299799e1936de6f248c0ac87d"
+dependencies = [
+ "groundhog-xdr",
+ "hogexec-internal",
+ "xdr-common",
+ "xdrs",
 ]
 
 [[package]]
