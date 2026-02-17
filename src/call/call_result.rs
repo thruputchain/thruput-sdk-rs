@@ -10,7 +10,7 @@ use crate::call::{ContractResult, ContractError};
 use crate::exn::{Exn, CrossExn, FaultString, CallingError, library_abort};
 use crate::xdr::*;
 use core::convert::Infallible;
-use core::fmt::Debug;
+use core::fmt::{self, Debug};
 use thiserror::Error;
 
 /// The result of a contract call, where `E` is the error-type specific to the
@@ -21,7 +21,7 @@ pub type CallResult<T = (), E = Infallible> = Result<T, CallError<E>>;
 /// An error resulting from a contract call, where `E` is the error-type
 /// specific to the contract or method.
 ///
-#[derive(Debug, PartialEq, Error)]
+#[derive(PartialEq, Error)]
 pub enum CallError<E>
 where
     E: Exn,
@@ -38,6 +38,22 @@ where
     ///
     #[error("The called contract faulted: {0}")]
     Fault(FaultString),
+}
+
+impl<E> Debug for CallError<E>
+where
+    E: Exn
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Abort(exn) => {
+                write!(f, "The called contract aborted \n{:?}", exn)
+            },
+            Self::Fault(fault) => {
+                write!(f, "The called contract faulted: {}", fault)
+            },
+        }
+    }
 }
 
 impl<E> CallError<E>

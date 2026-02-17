@@ -20,7 +20,7 @@ pub enum CallingError {
     #[error("Encoding arguments: {0}")]
     EncodingArgs(FaultString),
 
-    #[error("Calling invoke syscall: {0}")]
+    #[error("Invoke syscall failed: {0}")]
     Syscall(SysErr),
 }
 

@@ -74,7 +74,7 @@ fn display_error(err: &dyn Error, f: &mut fmt::Formatter) -> fmt::Result {
         if n > 0 {
             write!(f, "-> ")?;
         }
-        write!(f, "{}", err)?;
+        writeln!(f, "{}", err)?;
 
         if let Some(err) = err.source() {
             more(err, f, n+1)?;
@@ -83,7 +83,7 @@ fn display_error(err: &dyn Error, f: &mut fmt::Formatter) -> fmt::Result {
         Ok(())
     }
 
-    more(err, f, 0)
+    more(err, f, 1)
 }
 
 // Delegate Display::fmt to &self.exn

@@ -74,10 +74,9 @@ pub fn exceptions_test(
 
 #[allow(unused)]
 pub fn panic_test(contract_hash: &SHA256Hash) {
-    // Deploy the contract under test
+    //
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
-
-    // Create a client to interact with the contract
+    //
     let mut client = ContractClient::new(&addr);
 
     match client.try_panics() {

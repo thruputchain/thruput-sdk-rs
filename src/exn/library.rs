@@ -43,6 +43,7 @@ impl LibraryExn {
     }
 }
 
+#[track_caller]
 pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
     let exn: LibraryExn = e.into();
 
@@ -51,6 +52,7 @@ pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
 
 /// Abort the contract because a syscall produced an error.
 ///
+#[track_caller]
 pub fn syscall_abort2(callno: SyscallNo, errno: SysErr) -> ! {
     abort(&syscall_exn(callno, errno))
 }
@@ -59,14 +61,17 @@ fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
     LibraryExn::Syscall(SyscallExn::new(callno, errno))
 }
 
+#[track_caller]
 pub fn decoding_args_abort<E: Error>(e: E) -> ! {
     library_abort(HandlingError::DecodingArgs(FaultString::from_display(e)))
 }
 
+#[track_caller]
 pub fn encoding_success_abort<E: Error>(e: E) -> ! {
     library_abort(HandlingError::EncodingSuccess(FaultString::from_display(e)))
 }
 
+#[track_caller]
 pub fn encoding_abort_abort<E: Error>(e: E) -> ! {
     library_abort(HandlingError::EncodingAbort(FaultString::from_display(e)))
 }

@@ -84,6 +84,7 @@ fn contract_call(
         Ok(()) => true,
         Err(syserr) if syserr.is_aborted() => false,
         Err(syserr) => {
+            // Neither ok nor aborted
             return Err(syserr)
         }
     };

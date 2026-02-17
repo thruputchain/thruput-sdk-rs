@@ -72,7 +72,10 @@ where
         env.prepare_test(move || -> () {
             let deployed_addr = crate::deploy_contract(&TEST_NONCE, &contract_hash);
 
-            let cr = try_call::<(), (), Infallible>(
+            type ARGS = ();
+            type RET = ();
+            type EXN = Infallible;
+            let cr = try_call::<ARGS, RET, EXN>(
                 &deployed_addr, entrypoint, u64::MAX, &()
             );
 

@@ -19,9 +19,10 @@ fn handle_panic(info: &core::panic::PanicInfo) -> ! {
 
     if abort_handler_is_present() {
         abort(&Panic::from_info(info));
+    } else {
+        let _ = crate::log(b"Panicked but there is no abort handler!");
+        crate::trap();
     }
-
-    crate::fault!();
 }
 
 mod panic_repr {
