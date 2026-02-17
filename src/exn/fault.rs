@@ -38,6 +38,18 @@ impl FaultString {
         }
     }
 
+    pub fn empty() -> Self {
+        #[cfg(feature = "fault_strings")]
+        {
+            Self(String::new())
+        }
+
+        #[cfg(not(feature = "fault_strings"))]
+        {
+            Self
+        }
+    }
+
     pub fn via_display<V>(v: &V) -> Self
     where
         V: Display + ?Sized,

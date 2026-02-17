@@ -6,32 +6,58 @@ use std::vec::Vec;
 use groundhog_native_exec as native_exec;
 use core::convert::Infallible;
 use crate::call::{try_call, CallResult};
+use crate::call::{ContractResult, ContractError, ReturnBuf, AbortBuf};
+use crate::exn::{Exn, FaultString};
 
 pub static TEST_NONCE: SHA256Hash = SHA256Hash::new(hash_to_array!("CONTRACT_TEST_NONCE"));
 
-/// Run some code inside a mock contract.
-/// Panic if the invocation or transaction fails.
-///
-pub fn contract_test_succeeding<F>(env: TestEnvironmentHandle, f: F)
+pub fn contract_exec<F>(env: TestEnvironmentHandle, f: F)
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
+{
+    let _ = contract_test_raw(env, f);
+}
+
+pub fn contract_test<F, RET, EXN>(env: TestEnvironmentHandle, f: F) -> CallResult<RET, EXN>
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    RET: ReadXDROwned,
+    EXN: Exn,
+{
+    crate::call::into_call_result(contract_test_raw(env, f))
+}
+
+pub fn contract_test_raw<F>(env: TestEnvironmentHandle, f: F) -> ContractResult
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
     let mut handler = env.prepare_test(f);
 
-    grant_storage_tokens(&env, &handler);
-
     let res = handler.root_invoke();
 
-    if res.output.status_code()
-        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
-    {
-        panic!("Root invocation panicked with code {:?}", res.output);
-    }
+    use crate::types::transaction::InvocationFrameOutput::*;
+
+    let return_buf = match res.output() {
+        kInvocationFrameStatusCodeReturn { return_buffer }=> {
+            // TODO: Unify these types and skip the copy
+            ReturnBuf::from_slice(return_buffer.as_slice()).unwrap()
+        }
+        kInvocationFrameStatusCodeAbort { abort_buffer } => {
+            // TODO: Unify these types and skip the copy
+            let abort_buf = AbortBuf::from_slice(abort_buffer.as_slice()).unwrap();
+            return Err(ContractError::Abort(abort_buf));
+        }
+        kInvocationFrameStatusCodeFault => {
+            return Err(ContractError::Fault(FaultString::empty()));
+        }
+    };
 
     match handler.try_commit_transaction() {
         ExecResult::ExecResultOK => {}
-        r => panic!("Unexpected transaction result: {:?}", r),
+        r => panic!("Contract test: Unexpected transaction result: {:?}", r),
     }
+
+    Ok(return_buf)
 }
 
 /// Deploy a mock contract with the given code, and invoke it from another mock
@@ -108,10 +134,12 @@ macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
         #[test]
         fn $name() {
-            let mut env = $crate::TestEnvironment::new(Some(&$crate::StorageCostModel::no_cost_model()));
+            let mut env = $crate::TestEnvironment::no_cost();
 
-            $crate::contract_test::contract_test_succeeding(env, || {
+            $crate::contract_exec(env, || {
                 $test_body
+
+                contract_return_empty();
             });
         }
     };

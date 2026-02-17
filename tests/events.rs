@@ -1,4 +1,4 @@
-use sdk::contract_test::grant_storage_tokens;
+use sdk::dev::contract_test::grant_storage_tokens;
 use sdk::event::*;
 use sdk::internal::decode_xdr;
 use sdk::types::event::TxEmittedEvent;

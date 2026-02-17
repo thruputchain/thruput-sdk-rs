@@ -43,6 +43,8 @@ test_examples() {
 run_working() {
     # cargo test --lib -F dev
     # cargo test -F dev
+    cargo test -F dev --test aborts test_panic
+    # cargo test -F dev --test aborts test_abort_raw # unexpected kInvokeNone
 
     build_examples
     test_examples

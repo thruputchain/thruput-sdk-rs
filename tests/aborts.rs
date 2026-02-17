@@ -28,49 +28,47 @@ error: test failed, to rerun pass `--test aborts`
 */
 
 use sdk::*;
-use sdk::call::CallError;
+use sdk::call::{CallError, CallResult};
+use sdk::call::{ContractError};
 
 #[test]
 fn test_panic() {
-    let env = TestEnvironment::new();
+    let env = TestEnvironment::no_cost();
 
-    let result = contract_test_invoke(env, || {
+    type RET = ();
+    type EXN = core::convert::Infallible;
+
+    let result: CallResult<RET, EXN> = contract_test(env, || {
         panic!("Just panic");
     });
 
-    match result {
-        Err(e @ CallError::Abort(exn)) => {
-            if let Some(le) = exn.as_library_exn()
-                && let Some(se) = le.as_syscall_exn()
-                    && se.has_code(SyscallErrorCode::kSyscallErrorCodeDeterministicWasm)
-            {
-                println!("OK: failed as expected: {e}")
-            } else {
-                panic!("Unexpected exception: {exn}");
-            }
-        },
+    match &result {
+        Err(CallError::Fault(_)) => {
+            println!("OK: faulted as expected")
+        }
         r => {
             panic!("Unexpected invocation result: {:?}", r)
         }
     }
 }
 
-/*
 #[test]
-fn test_abort_bare() {
-    let env = TestEnvironment::new();
+fn test_abort_raw() {
+    let env = TestEnvironment::no_cost();
 
-    let result = contract_test_invoke(env, || {
+    let result = contract_test_raw(env, || {
         contract_abort(&[1u8, 2, 3]);
     });
 
     match result {
-        Err(e @ InvokeError::AbortedWith(3)) => {
-            println!("Aborted as expected: {e}")
+        Err(ContractError::Abort(buf)) if buf.as_slice() == &[1u8, 2, 3] => {
+            println!("Aborted as expected!")
+        }
+        Err(ContractError::Fault(_)) => {
+            panic!("Unexpectedly faulted");
         }
         r => {
-            panic!("Unexpected invocation result: {:?}", r)
+            panic!("Unexpected invocation result: {:?}", r);
         }
     }
 }
-*/

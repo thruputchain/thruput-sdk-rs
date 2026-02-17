@@ -33,6 +33,10 @@ pub fn contract_revert() -> ! {
     sys::raw_Exit(/* crate::syscall::SyscallErrorCode::kDeterministicWasm as i32 */);
 }
 
+pub fn contract_return_empty() -> ! {
+    contract_return(&[])
+}
+
 #[inline]
 pub fn contract_abort_encoded<RET>(ret: &RET) -> !
 where
