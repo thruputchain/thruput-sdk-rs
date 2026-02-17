@@ -34,3 +34,4 @@ sha2 = {version = "0.10"}
 thiserror = { version = "2.0.12", default-features = false }
 groundhog-sys = { workspace = true }
 groundhog-storage-cost = { workspace = true }
+groundhog-trace = { workspace = true }

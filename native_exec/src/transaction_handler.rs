@@ -1,5 +1,6 @@
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
+use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEventLog;
 use groundhog_xdr::transaction::SignedTransaction;
 use hogexec_internal::ffi_enums::InvokeErrorCode;
@@ -27,6 +28,7 @@ pub struct TransactionHandler {
 pub struct RootInvokeResult {
     pub status: InvokeErrorCode,
     pub gas_consumed: u64,
+    pub trace: Option<InvocationFrameTrace>,
 }
 
 impl TransactionHandler {
@@ -79,11 +81,15 @@ impl TransactionHandler {
         assert!(!self.committed && !self.aborted);
 
         let foreign_result: groundhog_sys::ForeignRootInvokeResult = unsafe {
-            groundhog_sys::root_invoke(self.handler, /*tracing*/ 0)
+            groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
+        let trace = foreign_result.serialized_trace.as_slice().map(|s| {
+            txs::decode(s).unwrap_or_else(|e| panic!("failed to decode trace: {}", e))
+        });
         RootInvokeResult {
             status: foreign_result.result.panic.try_into().unwrap(),
             gas_consumed: foreign_result.gas_consumed,
+            trace,
         }
     }
 

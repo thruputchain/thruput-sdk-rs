@@ -94,6 +94,7 @@ groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0
 groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.2.0" }
 
 #external dependencies
+groundhog-trace = { registry = "groundhog", version = "0.3.0" }
 groundhog-xdr = { registry = "groundhog", version = "0.3.0", features = ["xdrs", "syscalls"] }
 hogexec-internal = { registry = "groundhog", version = "0.3.0" }
 thiserror = { version = "2.0.12", default-features = false }
