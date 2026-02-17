@@ -58,7 +58,7 @@ doctest = false
 groundhog-macros = { workspace = true }
 groundhog-contract-util = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
-groundhog-storage-cost = { workspace = true }
+groundhog-storage-cost = { workspace = true, optional = true }
 
 # External dependencies
 hogexec-internal = { workspace = true }
@@ -124,7 +124,7 @@ alloc = ["groundhog-xdr/alloc", "xdrs/alloc"]
 storage = ["alloc", "dep:delegate", "groundhog-macros/storage"]
 
 # Enable development features
-dev = ["mock", "debugging", "call_tracking"]
+dev = ["mock", "debugging", "call_tracking", "dep:groundhog-storage-cost"]
 
 # Enable the mock executor for testing
 mock = ["std", "dep:groundhog-native-exec", "groundhog-macros/mock", "groundhog-xdr/syscalls_mock"]

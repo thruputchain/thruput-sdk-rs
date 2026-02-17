@@ -23,5 +23,3 @@ pub use groundhog_xdr::types::*;
 
 // Shorthand for use in contracts
 pub use StorageKeyContractData as StorageKey;
-
-pub use groundhog_storage_cost::*;
