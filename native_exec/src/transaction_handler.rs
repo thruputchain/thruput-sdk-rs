@@ -84,7 +84,8 @@ impl TransactionHandler {
             groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
         let trace = foreign_result.serialized_trace.as_slice().map(|s| {
-            txs::decode(s).unwrap_or_else(|e| panic!("failed to decode trace: {}", e))
+            txs::decode(s)
+                .unwrap_or_else(|e| panic!("failed to decode trace: {}", e))
         });
         RootInvokeResult {
             status: foreign_result.result.panic.try_into().unwrap(),
