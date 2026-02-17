@@ -1388,6 +1388,7 @@ dependencies = [
  "heapless",
  "hex-literal",
  "hogexec-internal",
+ "sdk",
  "sha2",
  "thiserror",
  "xdrs",
