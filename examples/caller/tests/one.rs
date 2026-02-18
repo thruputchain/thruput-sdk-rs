@@ -1,6 +1,7 @@
 use caller::{CallerClient, CallerError};
 use groundhog_erc20_if::ERC20Client;
 use groundhog_erc20_if::ERC20Error;
+use sdk::transaction::InvocationFrameStatusCode;
 use sdk::*;
 use thiserror::Error;
 
@@ -22,7 +23,10 @@ fn caller_test() {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.status, sdk::InvokeErrorCode::kInvokeNone);
+    assert_eq!(
+        res.output.status_code(),
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    );
 }
 
 #[derive(Error, Debug, Clone)]

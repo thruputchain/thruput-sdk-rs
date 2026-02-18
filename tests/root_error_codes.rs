@@ -1,4 +1,4 @@
-use sdk::InvokeErrorCode;
+use groundhog_xdr::transaction::InvocationFrameStatusCode;
 use sdk::TestEnvironment;
 
 #[test]
@@ -10,7 +10,10 @@ fn test_root_frame_revert() {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.status, InvokeErrorCode::kInvokeNone);
+    assert_eq!(
+        res.output.status_code(),
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeAbort as i32
+    );
 
     let commit_res = handler.try_commit_transaction();
     assert_eq!(commit_res, sdk::ExecResult::ExecResultTxRootFrameReverted);

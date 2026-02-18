@@ -1,6 +1,7 @@
 use bottle_test_if::*;
 use sdk::contract_test::deploy_address;
 use sdk::contract_test::load_wasm_contract;
+use sdk::transaction::InvocationFrameStatusCode;
 use sdk::*;
 
 pub fn main() {
@@ -68,7 +69,10 @@ fn bottle_test(package: &str) {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.status, sdk::InvokeErrorCode::kInvokeNone);
+    assert_eq!(
+        res.output.status_code(),
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    );
 
     assert_eq!(
         handler.try_commit_transaction(),

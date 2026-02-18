@@ -1415,6 +1415,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "no_syscall_test"
+version = "0.1.0"
+dependencies = [
+ "no_syscall_test",
+ "sdk",
+]
+
+[[package]]
 name = "nocontract_wallet"
 version = "0.1.0"
 dependencies = [
