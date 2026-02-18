@@ -9,7 +9,7 @@ fn test_counter_basic() {
     let test_contract = counter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    contract_test_invoke(env, move || {
+    contract_exec(env, move || {
         // Deploy the contract
         let nonce = SHA256Hash::from([1; 32]);
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
@@ -44,7 +44,7 @@ fn test_counter_underflow() {
     let test_contract = counter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
-    contract_test_invoke(env, move || {
+    contract_exec(env, move || {
         let nonce = SHA256Hash::from([2; 32]);
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
 

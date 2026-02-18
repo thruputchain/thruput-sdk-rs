@@ -1,21 +1,18 @@
 use crate::*;
+use crate::call::{ContractResult, ContractError, ReturnBuf, AbortBuf, CallResult};
+use crate::exn::{Exn, FaultString};
+use crate::types::transaction::InvocationFrameOutput::*;
 use groundhog_xdr::transaction::InvocationFrameStatusCode;
 use std::panic::UnwindSafe;
-use std::sync::{Arc, Mutex};
 use std::vec::Vec;
 use groundhog_native_exec as native_exec;
 use core::convert::Infallible;
-use crate::call::{try_call, CallResult};
-use crate::call::{ContractResult, ContractError, ReturnBuf, AbortBuf};
-use crate::exn::{Exn, FaultString};
 
-pub static TEST_NONCE: SHA256Hash = SHA256Hash::new(hash_to_array!("CONTRACT_TEST_NONCE"));
-
-pub fn contract_exec<F>(env: TestEnvironmentHandle, f: F)
+pub fn contract_exec<F>(env: TestEnvironmentHandle, f: F) -> CallResult<(), Infallible>
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
-    let _ = contract_test_raw(env, f);
+    contract_test(env, f)
 }
 
 pub fn contract_test<F, RET, EXN>(env: TestEnvironmentHandle, f: F) -> CallResult<RET, EXN>
@@ -32,10 +29,9 @@ where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
     let mut handler = env.prepare_test(f);
+    // XXX env.prepare_test(|| sdk::with_abort_handler(&sdk::test_abort_handler::<core::convert::Infallible>, f))
 
     let res = handler.root_invoke();
-
-    use crate::types::transaction::InvocationFrameOutput::*;
 
     let return_buf = match res.output {
         kInvocationFrameStatusCodeReturn { return_buffer }=> {
@@ -60,75 +56,6 @@ where
     Ok(return_buf)
 }
 
-/// Deploy a mock contract with the given code, and invoke it from another mock
-/// contract.
-///
-/// (This allows us to get the CallResult, something I haven't figured out
-/// how to do directly from the TestEnvironment.)
-///
-/// TODO: Support specifying return type and exception type.
-///
-pub fn contract_test_invoke<F>(
-    env: TestEnvironmentHandle,
-    f: F,
-) -> CallResult<()>
-where
-    F: Fn() + UnwindSafe + Clone + 'static,
-{
-    let entrypoint = ContractEntrypointID::from(1u64.to_be_bytes());
-
-    let test_contract = {
-        let mut contract = env.add_contract();
-        contract.register_method(entrypoint, f);
-        contract.as_contract()
-    };
-
-    let contract_hash = env.setup_create_contract(&test_contract);
-
-    // It's currently difficult to extract state from mock contracts,
-    // so we'll allocate shared storage for the data we want to inspect
-    // after the test run:
-    //
-    let call_result: Arc<Mutex<Option<CallResult>>> =
-        Arc::new(Mutex::new(None));
-
-    let mut handler = {
-        let call_result = call_result.clone();
-
-        env.prepare_test(move || -> () {
-            let deployed_addr = crate::deploy_contract(&TEST_NONCE, &contract_hash);
-
-            type ARGS = ();
-            type RET = ();
-            type EXN = Infallible;
-            let cr = try_call::<ARGS, RET, EXN>(
-                &deployed_addr, entrypoint, u64::MAX, &()
-            );
-
-            *call_result.lock().unwrap() = Some(cr);
-        })
-    };
-
-    grant_storage_tokens(&env, &handler);
-
-    let res = handler.root_invoke();
-    if res.output.status_code()
-        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
-    {
-        panic!("Root invocation panicked with code {:?}", res.output);
-    }
-
-    match handler.try_commit_transaction() {
-        ExecResult::ExecResultOK => {}
-        // Note: these results are also deterministic:
-        //     ExecResultTxDeterministicError
-        //     ExecResultTxRootFrameReverted
-        r => panic!("Transaction failed: {:?}", r),
-    }
-
-    call_result.lock().unwrap().take().unwrap()
-}
-
 #[macro_export]
 macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
@@ -139,8 +66,10 @@ macro_rules! contract_test {
             $crate::contract_exec(env, || {
                 $test_body
 
-                contract_return_empty();
-            });
+                // contract_return_empty(); // unnecessary?
+            })
+            .unwrap_or_else(|e|
+                panic!("Contract test failed: {e}"));
         }
     };
 }
@@ -174,7 +103,7 @@ macro_rules! contract_test_env {
 
             let mut handler = env.prepare_test(move || -> () {
                 let deployed_addr =
-                    $crate::deploy::deploy_contract(&TEST_NONCE, &contract_hash)
+                    $crate::deploy::deploy_contract(&CONTRACT_TEST_NONCE, &contract_hash)
                         .unwrap();
 
                 // Invoke contract method 1
