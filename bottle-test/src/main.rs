@@ -69,7 +69,10 @@ fn bottle_test(package: &str) {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
+    assert_eq!(
+        res.output.status_code(),
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    );
 
     assert_eq!(
         handler.try_commit_transaction(),

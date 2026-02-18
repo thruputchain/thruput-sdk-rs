@@ -2,8 +2,8 @@ pub use erc20_test::*;
 
 use sdk::TestEnvironmentHandle;
 use sdk::contract_test::deploy_address;
-use sdk::types::Contract;
 use sdk::transaction::InvocationFrameStatusCode;
+use sdk::types::Contract;
 
 pub fn test_erc20_contract(
     env: &TestEnvironmentHandle,
@@ -35,7 +35,10 @@ pub fn test_erc20_contract(
     };
 
     let res = handler.root_invoke();
-    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
+    assert_eq!(
+        res.output.status_code(),
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    );
 
     assert_eq!(
         handler.try_commit_transaction(),

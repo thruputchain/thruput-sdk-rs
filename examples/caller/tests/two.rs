@@ -4,8 +4,8 @@ use caller::{CallerClient, CallerError};
 use groundhog_erc20_if::ERC20Client;
 use groundhog_erc20_if::ERC20Error;
 use sdk::contract_test::load_wasm_contract;
-use sdk::*;
 use sdk::transaction::InvocationFrameStatusCode;
+use sdk::*;
 use thiserror::Error;
 
 // test working directory is example contract directory
@@ -28,7 +28,10 @@ fn caller_test() {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
+    assert_eq!(
+        res.output.status_code(),
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    );
 }
 
 #[derive(Error, Debug, Clone)]
