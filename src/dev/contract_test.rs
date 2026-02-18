@@ -37,7 +37,7 @@ where
 
     use crate::types::transaction::InvocationFrameOutput::*;
 
-    let return_buf = match res.output() {
+    let return_buf = match res.output {
         kInvocationFrameStatusCodeReturn { return_buffer }=> {
             // TODO: Unify these types and skip the copy
             ReturnBuf::from_slice(return_buffer.as_slice()).unwrap()

@@ -1384,6 +1384,7 @@ dependencies = [
  "groundhog-contract-util",
  "groundhog-macros",
  "groundhog-native-exec",
+ "groundhog-storage-cost",
  "groundhog-xdr",
  "heapless",
  "hex-literal",
@@ -2269,8 +2270,3 @@ name = "zmij"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd8f3f50b848df28f887acb68e41201b5aea6bc8a8dacc00fb40635ff9a72fea"
-
-[[patch.unused]]
-name = "xdrs"
-version = "0.4.3"
-source = "git+ssh://git@github.com/groundhogchain/xdrs.git#40c08ee0de2b0dcf5a312f0e29c5e99d9465159f"
