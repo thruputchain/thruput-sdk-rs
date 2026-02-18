@@ -51,6 +51,7 @@ run_working() {
     cargo test --test aborts test_panic
     # cargo test --test aborts test_abort_raw # unexpected kInvokeNone
     cargo test --test bytestrings
+    cargo test --test events
 
     build_examples
     test_examples

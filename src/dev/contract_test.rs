@@ -7,7 +7,10 @@ use std::panic::UnwindSafe;
 use std::vec::Vec;
 use groundhog_native_exec as native_exec;
 use core::convert::Infallible;
+use native_exec::transaction_handler::TransactionHandler;
 
+/// Execute the provided thunk in a transaction in the test environment.
+///
 pub fn contract_exec<F>(env: TestEnvironmentHandle, f: F) -> CallResult<(), Infallible>
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
@@ -15,6 +18,19 @@ where
     contract_test(env, f)
 }
 
+/// Execute the provided code in a transaction in the test environment,
+/// controlling the return type and exception type.
+///
+/// # Example:
+/// ```
+/// let RET = ();
+/// let EXN = Infallible;
+///
+/// // Annotate the result type so that `contract_test` knows how to decode the return
+/// // and exception types:
+/// let call_result: CallResult<RET, EXN> = contract_test(env, || { /* whatever */ });
+/// ```
+///
 pub fn contract_test<F, RET, EXN>(env: TestEnvironmentHandle, f: F) -> CallResult<RET, EXN>
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
@@ -24,13 +40,39 @@ where
     crate::call::into_call_result(contract_test_raw(env, f))
 }
 
+/// Execute the provided thunk in a transaction in the test environment,
+/// returning the raw `ContractResult`.
+///
 pub fn contract_test_raw<F>(env: TestEnvironmentHandle, f: F) -> ContractResult
 where
     F: Fn() -> () + UnwindSafe + Clone + 'static,
 {
-    let mut handler = env.prepare_test(f);
-    // XXX env.prepare_test(|| sdk::with_abort_handler(&sdk::test_abort_handler::<core::convert::Infallible>, f))
+    let mut handler = contract_test_handler(env, f);
 
+    contract_handler_exec_raw(&mut handler)
+}
+
+/// Make a transaction handler that will run the provided thunk.
+///
+pub fn contract_test_handler<F>(env: TestEnvironmentHandle, f: F) -> TransactionHandler
+where
+    F: Fn() -> () + UnwindSafe + Clone + 'static,
+{
+    env.prepare_test(f)
+    // XXX env.prepare_test(|| sdk::with_abort_handler(&sdk::test_abort_handler::<core::convert::Infallible>, f))
+}
+
+/// Invoke the handler's root frame and commit the transaction, decoding the
+/// `ContractResult` into a `CallResult`.
+///
+pub fn contract_handler_exec(handler: &mut TransactionHandler) -> CallResult<(), Infallible> {
+    crate::call::into_call_result(contract_handler_exec_raw(handler))
+}
+
+/// Invoke the handler's root frame and commit the transaction.
+///
+pub fn contract_handler_exec_raw(handler: &mut TransactionHandler) -> ContractResult
+{
     let res = handler.root_invoke();
 
     let return_buf = match res.output {
@@ -50,12 +92,14 @@ where
 
     match handler.try_commit_transaction() {
         ExecResult::ExecResultOK => {}
-        r => panic!("Contract test: Unexpected transaction result: {:?}", r),
+        r => panic!("Transaction failed: {:?}", r),
     }
 
     Ok(return_buf)
 }
 
+/// Run some code in the test environment.
+///
 #[macro_export]
 macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
@@ -70,77 +114,6 @@ macro_rules! contract_test {
             })
             .unwrap_or_else(|e|
                 panic!("Contract test failed: {e}"));
-        }
-    };
-}
-
-// TODO: remove in favor of something like above functions (tests/events.rs is the only user?)
-#[macro_export]
-macro_rules! contract_test_env {
-    (
-        fn env_hook($env:ident, $handler:ident) $env_hook:tt
-        fn $name:ident() $test_body:tt
-        fn post_hook($handler2:ident) $post_hook:tt
-    ) => {
-
-        #[test]
-        fn $name() {
-            let mut env = $crate::TestEnvironment::new(Some(&$crate::StorageCostModel::no_cost_model()));
-
-            let test_contract = {
-                let mut contract = env.add_contract();
-                let method = $crate::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-                contract.register_method(method, || -> () {
-                    $crate::dev::internal::handle_call(|()| {
-                        $test_body
-                        return ();
-                    });
-                });
-                contract.as_contract()
-            };
-
-            let contract_hash = env.setup_create_contract(&test_contract);
-
-            let mut handler = env.prepare_test(move || -> () {
-                let deployed_addr =
-                    $crate::deploy::deploy_contract(&CONTRACT_TEST_NONCE, &contract_hash)
-                        .unwrap();
-
-                // Invoke contract method 1
-                let method = $crate::contract::ContractEntrypointID::from(1u64.to_be_bytes());
-
-                type ARG = ();
-                type RET = ();
-                type EXN = Infallible;
-
-                $crate::call::call::<ARG, RET, EXN>(
-                    &deployed_addr,
-                    method,
-                    u64::MAX,
-                    &(),
-                ).unwrap_or_else(|e| panic!("contract test body failed: {}", e));
-            });
-
-            fn env_hook(
-                $env: &std::rc::Rc<$crate::TestEnvironment>,
-                $handler: &mut $crate::native_exec::transaction_handler::TransactionHandler,
-            ) -> () $env_hook
-
-            env_hook(&mut env, &mut handler);
-
-            let res = handler.root_invoke();
-            if res.output.status_code() != ::groundhog_xdr::transaction::InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32 {
-                panic!("root invocation panicked with code {:?}", res.output);
-            }
-
-            let commit_res = handler.try_commit_transaction();
-            assert_eq!(commit_res, groundhog_xdr::exec_result::ExecResult::ExecResultOK);
-
-            fn post_hook(
-                $handler2: &mut $crate::native_exec::transaction_handler::TransactionHandler,
-            ) -> () $post_hook
-
-            post_hook(&mut handler);
         }
     };
 }

@@ -6,8 +6,7 @@ use xdrs::{ReadXDROwned, WriteXDR};
 // available in serialized form via `GetCalldata`,
 // and serialize the result for passing to `Return`.
 //
-// Currently used only in `contract_test_env`, and slated for removal.
-//
+#[allow(unused)]
 pub fn handle_call<F, ARGS, RES>(f: F) -> ()
 where
     F: FnOnce(ARGS) -> RES,

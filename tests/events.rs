@@ -1,4 +1,3 @@
-use sdk::dev::contract_test::grant_storage_tokens;
 use sdk::event::*;
 use sdk::internal::decode_xdr;
 use sdk::types::event::TxEmittedEvent;
@@ -10,23 +9,22 @@ macro_rules! single_event_test {
         fn event_check($event:ident) $body_event_check:tt
     } =>
     {
-        contract_test_env! {
-            fn env_hook(env, handler) {
-                grant_storage_tokens(env, handler);
-            }
+        #[test]
+        fn $test_name() {
+            let env = $crate::TestEnvironment::no_cost();
+            let mut handler = contract_test_handler(env, || { $body });
 
-            fn $test_name() $body
+            contract_handler_exec(&mut handler)
+                .unwrap_or_else(|e| panic!("Invocation failed: {e}"));
 
-            fn post_hook(handler) {
-                let event_log = handler.get_event_logs().unwrap();
-                let events = &event_log.events;
+            let event_log = handler.get_event_logs().unwrap();
+            let events = &event_log.events;
 
-                assert_eq!(events.len(), 1);
-                let event = &event_log.events[0];
+            assert_eq!(events.len(), 1);
+            let event = &event_log.events[0];
 
-                let event_check = |$event: &TxEmittedEvent| $body_event_check;
-                event_check(event);
-            }
+            let event_check = |$event: &TxEmittedEvent| $body_event_check;
+            event_check(event);
         }
     };
 }
