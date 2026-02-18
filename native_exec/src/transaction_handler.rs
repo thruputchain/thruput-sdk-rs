@@ -2,8 +2,8 @@ use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEventLog;
+use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::transaction::SignedTransaction;
-use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::rc::Rc;
 use xdrs::txs;
 
@@ -84,8 +84,11 @@ impl TransactionHandler {
             groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
 
-        if foreign_result.ffi_error_code != FFIErrorCode::None {
-            panic!("FFI error: failed to invoke transaction: {:?}", foreign_result.ffi_error_code);
+        if foreign_result.ffi_error_code != FFIErrorCode::None as u32 {
+            panic!(
+                "FFI error: failed to invoke transaction: {:?}",
+                foreign_result.ffi_error_code
+            );
         }
 
         let trace = foreign_result.serialized_trace.as_slice().map(|s| {
@@ -99,7 +102,7 @@ impl TransactionHandler {
         });
 
         RootInvokeResult {
-            output,
+            output: output.unwrap(),
             gas_consumed: foreign_result.gas_consumed,
             trace,
         }

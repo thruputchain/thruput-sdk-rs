@@ -1,5 +1,5 @@
 use crate::*;
-use hogexec_internal::ffi_enums::InvokeErrorCode;
+use groundhog_xdr::transaction::InvocationFrameStatusCode;
 use std::panic::UnwindSafe;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
@@ -17,8 +17,10 @@ where
 
     let res = handler.root_invoke();
 
-    if res.status != InvokeErrorCode::kInvokeNone {
-        panic!("Root invocation panicked with code {:?}", res.status);
+    if res.output.status_code()
+        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    {
+        panic!("Root invocation panicked with code {:?}", res.output);
     }
 
     match handler.try_commit_transaction() {
@@ -75,8 +77,10 @@ where
 
     // The root invocation (with the code inside prepare_test) should succeed
     let res = handler.root_invoke();
-    if res.status != InvokeErrorCode::kInvokeNone {
-        panic!("Root invocation panicked with code {:?}", res.status);
+    if res.output.status_code()
+        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    {
+        panic!("Root invocation panicked with code {:?}", res.output);
     }
 
     match handler.try_commit_transaction() {
@@ -155,8 +159,8 @@ macro_rules! contract_test_env {
             env_hook(&mut env, &mut handler);
 
             let res = handler.root_invoke();
-            if res.status != sdk::InvokeErrorCode::kInvokeNone {
-                panic!("root invocation panicked with code {:?}", res.status);
+            if res.output.status_code() != ::groundhog_xdr::transaction::InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32 {
+                panic!("root invocation panicked with code {:?}", res.output);
             }
 
             let commit_res = handler.try_commit_transaction();
@@ -268,9 +272,10 @@ where
 
     let res = handler.root_invoke();
 
-    match res.status {
-        InvokeErrorCode::kInvokeNone => { /* success */ }
-        invoke_err => panic!("test-invoke failed ({:?})", invoke_err),
+    if res.output.status_code()
+        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+    {
+        panic!("Root invocation panicked with code {:?}", res.output);
     }
 
     let gas_consumed = res.gas_consumed;
