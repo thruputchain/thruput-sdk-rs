@@ -46,12 +46,20 @@ test_examples() {
 }
 
 run_working() {
-    # cargo test --lib
-    # cargo test
-    cargo test --test aborts test_panic
-    # cargo test --test aborts test_abort_raw # unexpected kInvokeNone
+    cargo test --lib
+
+    # cargo test --tests
+    cargo test --test aborts
     cargo test --test bytestrings
+    cargo test --test delete
     cargo test --test events
+    cargo test --test hasher
+    cargo test --test int128
+    # cargo test --test internal_nnints
+    cargo test --test macros
+    # cargo test --test nnints
+    cargo test --test root_error_codes
+    # cargo test -F storage --test storage
 
     build_examples
     test_examples
