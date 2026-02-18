@@ -1,5 +1,6 @@
 use crate::implementation::{Error, MyClient, test_setup};
 use sdk::*;
+use sdk::transaction::InvocationFrameStatusCode;
 use thiserror::Error;
 
 #[test]
@@ -16,7 +17,7 @@ fn check_playground() {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.status, sdk::InvokeErrorCode::kInvokeNone);
+    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
 }
 
 #[derive(Error, Debug, Clone)]
