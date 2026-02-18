@@ -26,7 +26,7 @@ pub struct TransactionHandler {
 }
 
 pub struct RootInvokeResult {
-    pub status: InvokeErrorCode,
+    pub output: InvocationFrameOutput,
     pub gas_consumed: u64,
     pub trace: Option<InvocationFrameTrace>,
 }
@@ -83,12 +83,23 @@ impl TransactionHandler {
         let foreign_result: groundhog_sys::ForeignRootInvokeResult = unsafe {
             groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
+
+        if foreign_result.ffi_error_code != FFIErrorCode::None {
+            panic!("FFI error: failed to invoke transaction: {:?}", foreign_result.ffi_error_code);
+        }
+
         let trace = foreign_result.serialized_trace.as_slice().map(|s| {
             txs::decode(s)
                 .unwrap_or_else(|e| panic!("failed to decode trace: {}", e))
         });
+
+        let output = foreign_result.serialized_output.as_slice().map(|s| {
+            txs::decode(s)
+                .unwrap_or_else(|e| panic!("failed to decode output: {}", e))
+        });
+
         RootInvokeResult {
-            status: foreign_result.result.panic.try_into().unwrap(),
+            output,
             gas_consumed: foreign_result.gas_consumed,
             trace,
         }
