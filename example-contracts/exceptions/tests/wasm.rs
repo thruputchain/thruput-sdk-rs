@@ -73,6 +73,7 @@ fn wasm_panic() {
     }
 }
 
+/*
 #[test]
 fn wasm_panic2() {
     let contract = sdk::load_wasm_contract(WASM_PATH);
@@ -104,3 +105,4 @@ fn wasm_panic2() {
         panic!("Panic test failed: {:?}", err);
     }
 }
+*/

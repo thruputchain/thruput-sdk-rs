@@ -30,13 +30,18 @@ build_examples() {
 }
 
 test_examples() {
-    eg_test caller --test one
-    eg_test caller --test two  # uses wasm compiled above
+    # some tests require wasms compiled above
+
+    eg_test caller --test native
+    eg_test caller --test wasm
     eg_test erc20
     eg_test erc20_no_storage
     eg_test erc20_low_level
-    # eg_test exceptions --test native
-    # eg_test exceptions --test wasm # uses compiled wasm
+    # eg_test exceptions --test native # segfault!
+    eg_test exceptions --test wasm wasm_ok
+    eg_test exceptions --test wasm wasm_deploy
+    eg_test exceptions --test wasm wasm_exceptions
+    # eg_test exceptions --test wasm wasm_panic # panic confusion
     eg_test hasher
 }
 
@@ -45,6 +50,7 @@ run_working() {
     # cargo test
     cargo test --test aborts test_panic
     # cargo test --test aborts test_abort_raw # unexpected kInvokeNone
+    cargo test --test bytestrings
 
     build_examples
     test_examples

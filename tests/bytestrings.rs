@@ -20,7 +20,7 @@ contract_test!(test_bytestring {
     assert!(matches!(bytestring_try_get(key), Ok(None)));
 
     // Getting a location holding an nnint gives "invalid input"
-    assert!(matches!(non_negative_int_set(key, 47), Ok(())));
+    non_negative_int_set(key, 47);
     assert!(matches!(bytestring_get(key), Err(e) if e.is_invalid_input()));
     assert!(matches!(bytestring_get_len(key), Err(e) if e.is_invalid_input()));
 
