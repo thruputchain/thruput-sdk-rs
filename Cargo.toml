@@ -116,8 +116,6 @@ hex-literal = "1.0.0"
 bitset-core = { version = "0.1.1", default-features = false }
 
 [features]
-default = ["fault_strings"] # XXX
-
 # Enable allocation features
 alloc = ["groundhog-xdr/alloc", "xdrs/alloc"]
 

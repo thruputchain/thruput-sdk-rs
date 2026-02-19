@@ -5,7 +5,7 @@ set -eu
 build() {
     package="$1"; shift
 
-    ./build-contract.sh "$package"
+    ./scripts/build-contract.sh "$package"
 }
 
 eg_test() {
