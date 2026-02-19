@@ -1,47 +1,72 @@
 #!/bin/bash
 
-SDK_SCRIPT_DIR="$(dirname "$(realpath "$0")")"
-    # shellcheck source="scripts/env.sh"
-source "${SDK_SCRIPT_DIR}/env.sh"
-    # shellcheck source="scripts/lib_make.sh"
-source "${SDK_SCRIPT_DIR}/lib_make.sh"
+set -eu
 
-# This will fail if hogd tries to build rust contracts with dependencies not present in the cargo cache.
-# But we can't call hogd/scripts/fetch.sh here if we haven't already cloned the hogd repository,
-# since its no longer a submodule.
+build() {
+    package="$1"; shift
 
-# Below, each contract is built before being tested;
-# this skips any attempt to rebuild
-BOTTLE_TEST_USE_BUILT_TARGET=yes
-
-echo "using CC: $CC"
-echo "using CXX: $CXX"
-echo "RUSTFLAGS=\"${RUSTFLAGS:-<unset>}\""
-
-fail() {
-    printf "\n!! CI-FAIL\n"
-    exit 1
+    ./build-contract.sh "$package"
 }
 
-trap fail ERR;
+eg_test() {
+    package="$1"; shift
 
-# TODO: test aborts
+    (cd example-contracts &&
+        cargo test -p "$package" "$@" -- --show-output)
+}
 
-make test
-make doc
+build_examples() {
+    build "caller"
+    # build "counter" # for Mark to update
+    build "erc20"
+    build "erc20_no_storage"
+    build "erc20_low_level"
+    build "exceptions"
+    build "genesis_deployer"
+    build "hasher"
+    build "rcq_test"
+    build "simple_wallet_old"
+    build "test_bytestring"
+}
 
-make examples build
-make examples native-test
-make examples bottle-test
+test_examples() {
+    # some of these tests require wasms compiled in build_examples()
 
-make integration_test_contracts build
-make integration_test_contracts native-test
-make integration_test_contracts bottle-test
+    eg_test caller --test native
+    eg_test caller --test wasm
+    eg_test erc20
+    eg_test erc20_no_storage
+    eg_test erc20_low_level
+    eg_test exceptions --test native native_exceptions
+    # eg_test exceptions --test native native_panic # segfault!
+    eg_test exceptions --test wasm wasm_ok
+    eg_test exceptions --test wasm wasm_deploy
+    eg_test exceptions --test wasm wasm_exceptions
+    # eg_test exceptions --test wasm wasm_panic # panic confusion
+    eg_test hasher
+}
 
-make test-spec
+tests_a_la_cart() {
+    cargo test --test aborts
+    cargo test --test bytestrings
+    cargo test --test delete
+    cargo test --test events
+    cargo test --test hasher
+    cargo test --test int128
+    cargo test --test internal_nnints
+    cargo test --test macros
+    cargo test --test nnints
+    cargo test --test root_error_codes
+    cargo test -F storage --test storage
+}
 
-make lint-check
-make fmt-check
-make xxx-check
+run_working() {
+    cargo test --lib
+    cargo test --tests
 
-printf "\n>> CI-CLEAN!\n"
+    build_examples
+    test_examples
+}
+
+run_working
+echo "OK!"

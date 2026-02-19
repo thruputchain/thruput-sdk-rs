@@ -1,3 +1,6 @@
+[build]
+rustflags = [ "--deny", "warnings" ]
+
 [target.'all(cfg(target_os = "macos"), not(target_family = "wasm"))']
 rustflags = [ "-C", "link-arg=-lSystem", ]
 
