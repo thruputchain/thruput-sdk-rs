@@ -186,8 +186,7 @@ where
         err_code: SyscallErrorCode,
     ) -> bool {
         self.as_library_exn()
-            .map(|e| e.as_syscall_exn())
-            .flatten()
+            .and_then(|e| e.as_syscall_exn())
             .map(|e| e.is(call_no, err_code))
             .unwrap_or(false)
     }

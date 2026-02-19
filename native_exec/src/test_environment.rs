@@ -366,6 +366,7 @@ impl TestEnvironment {
         te
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> TestEnvironmentHandle {
         Self::new(None)
     }

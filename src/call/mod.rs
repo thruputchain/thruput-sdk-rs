@@ -4,13 +4,13 @@
 //! - Call invoke syscall
 //! - Decode result
 
-mod call;
 mod call_result;
+mod calls;
 mod contract_result;
 mod handle;
 
-pub use call::*;
 pub use call_result::*;
+pub use calls::*;
 pub use contract_result::*;
 pub use handle::*;
 

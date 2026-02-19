@@ -87,7 +87,6 @@ where
 
 // At least this part won't be monomorphized multiple times
 #[inline(never)]
-#[allow(clippy::result_large_err)]
 fn invoke_raw(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
@@ -109,14 +108,11 @@ fn invoke_raw(
         &mut return_len,
     );
 
-    match &result {
-        Err(syserr) => {
-            if !syserr.is_aborted() {
-                // No return-data to process below
-                return Err(*syserr);
-            }
+    if let Err(syserr) = &result {
+        if !syserr.is_aborted() {
+            // No return-data to process below
+            return Err(*syserr);
         }
-        _ => {}
     }
 
     // Ok or abort: get the return data from the VM ...

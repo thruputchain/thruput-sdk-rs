@@ -7,6 +7,8 @@
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
 #![allow(deprecated)] // XXX
+#![allow(clippy::result_large_err)]
+#![allow(clippy::large_enum_variant)]
 
 #[cfg(all(feature = "std", target_family = "wasm"))]
 compile_error!("Feature 'std' cannot be enabled when targetting wasm");
