@@ -1,10 +1,10 @@
-use crate::xdr::*;
 use crate::call::{ContractResult, ReturnBuf};
-use crate::exn::{library_abort, HandlingError, FaultString};
+use crate::exn::{FaultString, HandlingError, library_abort};
+use crate::xdr::*;
 
 pub fn contract_call_decode<'b, T>(bytes: &'b [u8]) -> Result<T, ReadError>
 where
-    T: ReadXDR<'b>
+    T: ReadXDR<'b>,
 {
     cxs::decode(bytes)
 }
@@ -33,17 +33,23 @@ pub fn encode_success<T>(v: &T) -> ReturnBuf
 where
     T: WriteXDR + ?Sized,
 {
-    contract_call_encode(v)
-        .unwrap_or_else(|e|
-            library_abort(HandlingError::EncodingSuccess(FaultString::from_display(e))))
+    contract_call_encode(v).unwrap_or_else(|e| {
+        library_abort(HandlingError::EncodingSuccess(
+            FaultString::from_display(e),
+        ))
+    })
 }
 
 pub fn contract_result_encode(r: &ContractResult) -> ReturnBuf {
-    contract_call_encode(r)
-        .unwrap_or_else(|e|
-            if r.is_ok() {
-                library_abort(HandlingError::EncodingSuccess(FaultString::from_display(e)))
-            } else {
-                library_abort(HandlingError::EncodingAbort(FaultString::from_display(e)))
-            })
+    contract_call_encode(r).unwrap_or_else(|e| {
+        if r.is_ok() {
+            library_abort(HandlingError::EncodingSuccess(
+                FaultString::from_display(e),
+            ))
+        } else {
+            library_abort(HandlingError::EncodingAbort(
+                FaultString::from_display(e),
+            ))
+        }
+    })
 }

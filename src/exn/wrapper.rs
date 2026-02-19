@@ -24,7 +24,6 @@ pub enum CallingError {
     Syscall(SysErr),
 }
 
-
 /// Plumbing errors resulting from handling a contract call:
 #[derive(Debug, Clone, PartialEq, Error, ReadXDR, WriteXDR)]
 #[repr(i32)]

@@ -2,9 +2,9 @@
 
 #![allow(unused)]
 
-use sdk::sysresult::Error;
-use sdk::sys::SyscallNo;
 use sdk::call::*;
+use sdk::sys::SyscallNo;
+use sdk::sysresult::Error;
 use sdk::*;
 
 contract_test!(test_nnints {
@@ -81,8 +81,13 @@ fn get_unset_fails() {
 
     match res {
         Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(SyscallNo::kNonnegativeIntGet, SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist) =>
-                println!("OK: {}", exn),
+            if exn.is_syscall_exn(
+                SyscallNo::kNonnegativeIntGet,
+                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -102,8 +107,13 @@ fn delete_actually_deletes() {
 
     match res {
         Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(SyscallNo::kNonnegativeIntGet, SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist) =>
-                println!("OK: {}", exn),
+            if exn.is_syscall_exn(
+                SyscallNo::kNonnegativeIntGet,
+                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }

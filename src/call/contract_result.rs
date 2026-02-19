@@ -5,9 +5,9 @@
 //! - contract abort (with serialized return-value)
 //! - contract fault (with debugging message when `cfg(feature = "debugging")`)
 
-use core::fmt::{Debug, Display};
-use crate::xdr::*;
 use crate::exn::FaultString;
+use crate::xdr::*;
+use core::fmt::{Debug, Display};
 
 const ARGS_MAX: usize = crate::contract_op::CALLDATA_MAX;
 pub type ArgsBuf = heapless::Vec<u8, ARGS_MAX>;
@@ -51,7 +51,7 @@ impl ContractError {
 
     pub fn fault_from_display<V>(v: V) -> Self
     where
-        V: Display
+        V: Display,
     {
         ContractError::Fault(FaultString::from_display(v))
     }

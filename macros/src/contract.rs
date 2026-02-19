@@ -1,9 +1,9 @@
-use darling::FromMeta;
-use darling::ast::NestedMeta;
-use groundhog_codegen as codegen;
 use codegen::Config;
 use codegen::strip::*;
 use codegen::util::*;
+use darling::FromMeta;
+use darling::ast::NestedMeta;
+use groundhog_codegen as codegen;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
@@ -58,9 +58,7 @@ fn apply_with_config(
 
             if cfg!(feature = "mock") {
                 // Generate test registration
-                out.extend(codegen::test_reg::generate(
-                    item, config,
-                )?);
+                out.extend(codegen::test_reg::generate(item, config)?);
             }
 
             if config.client_ident().is_some() {

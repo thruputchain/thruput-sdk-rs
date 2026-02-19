@@ -175,7 +175,7 @@ pub fn generate_method(
     let function_or_method = if is_method {
         // Invoke the method on a state object
         quote! { state.#ident }
-    } else if let Some(contract) = contract  {
+    } else if let Some(contract) = contract {
         // Invoke the associated function on the contract type
         let self_ty = &contract.self_ty();
         quote! { #self_ty::#ident }
@@ -279,7 +279,8 @@ pub fn generate_method(
         HandleMethod::new(#iface, #iface_vers, #method_name)
     };
 
-    let error_ty = config.throws()
+    let error_ty = config
+        .throws()
         .map(|ty| quote! { #ty })
         .unwrap_or(quote! { ::core::convert::Infallible });
 

@@ -2,10 +2,10 @@
 
 #![allow(unused)]
 
-use sdk::internal::nnint::*;
-use sdk::*;
-use sdk::sys::SyscallNo;
 use sdk::call::*;
+use sdk::internal::nnint::*;
+use sdk::sys::SyscallNo;
+use sdk::*;
 
 #[rustfmt::skip]
 contract_test!(test_internal_nnints {
@@ -106,8 +106,13 @@ fn force_get_on_empty_fails() {
 
     match res {
         Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(SyscallNo::kNonnegativeIntGet, SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist) =>
-                println!("OK: {}", exn),
+            if exn.is_syscall_exn(
+                SyscallNo::kNonnegativeIntGet,
+                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -125,8 +130,13 @@ fn negative_sum_fails() {
 
     match res {
         Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(SyscallNo::kNonnegativeIntSetAdd, SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput) =>
-                println!("OK: {}", exn),
+            if exn.is_syscall_exn(
+                SyscallNo::kNonnegativeIntSetAdd,
+                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }

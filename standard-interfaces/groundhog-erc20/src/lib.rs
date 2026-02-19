@@ -19,11 +19,7 @@ pub trait ERC20 {
     fn initialize(&mut self, contract_owner: &ContractAddress);
 
     /// Transfer from caller to `receiver` address
-    fn transfer(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    );
+    fn transfer(&mut self, receiver: &ContractAddress, amount: Amount);
 
     /// Transfer from `owner` to `receiver` address, using allowance
     fn transfer_from(
@@ -54,11 +50,7 @@ pub trait ERC20 {
     fn get_balance(&self) -> Amount;
 
     /// Create tokens into `receiver` address
-    fn mint(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    );
+    fn mint(&mut self, receiver: &ContractAddress, amount: Amount);
 
     /// Destroy tokens from `owner` address
     fn burn(&mut self, owner: &ContractAddress, amount: Amount);

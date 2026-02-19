@@ -2,12 +2,12 @@ use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use super::store::*;
+use crate::abort;
 use crate::types::StorageKey;
 use crate::{delete_exclusive, delete_shared};
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use xdrs::WriteXDR;
-use crate::abort;
 
 #[derive(Debug)]
 pub struct Map<K, V> {
@@ -49,8 +49,7 @@ impl<K, V> Map<K, V> {
     {
         let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::load_keypath(&keypath)
-            .unwrap_or_else(|e| abort(&e))
+        LoadKeypath::load_keypath(&keypath).unwrap_or_else(|e| abort(&e))
     }
 
     pub fn try_get(&self, entry_key: &K) -> Option<V>
@@ -60,8 +59,7 @@ impl<K, V> Map<K, V> {
     {
         let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::try_load_keypath(&keypath)
-            .unwrap_or_else(|e| abort(&e))
+        LoadKeypath::try_load_keypath(&keypath).unwrap_or_else(|e| abort(&e))
     }
 
     pub fn set(&mut self, entry_key: &K, value: &V)
@@ -71,8 +69,7 @@ impl<K, V> Map<K, V> {
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        value.store(&key)
-            .unwrap_or_else(|e| abort(&e))
+        value.store(&key).unwrap_or_else(|e| abort(&e))
     }
 
     pub fn set_exclusive(&mut self, entry_key: &K, value: &V)
@@ -82,8 +79,7 @@ impl<K, V> Map<K, V> {
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        value.store_exclusive(&key)
-            .unwrap_or_else(|e| abort(&e))
+        value.store_exclusive(&key).unwrap_or_else(|e| abort(&e))
     }
 
     pub fn delete(&mut self, entry_key: &K)
@@ -92,8 +88,7 @@ impl<K, V> Map<K, V> {
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete_shared(&key)
-            .unwrap_or_else(|e| abort(&e))
+        delete_shared(&key).unwrap_or_else(|e| abort(&e))
     }
 
     pub fn delete_exclusive(&mut self, entry_key: &K)
@@ -102,8 +97,7 @@ impl<K, V> Map<K, V> {
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete_exclusive(&key)
-            .unwrap_or_else(|e| abort(&e))
+        delete_exclusive(&key).unwrap_or_else(|e| abort(&e))
     }
 
     pub fn entry<'m, 'k>(

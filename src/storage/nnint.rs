@@ -50,7 +50,10 @@ impl NNInt {
     /// TODO: semantics
     ///
     pub fn set_exclusive(&mut self, set_value: i128) {
-        non_negative_int_set_exclusive(&self.keypath.generate_key(), set_value);
+        non_negative_int_set_exclusive(
+            &self.keypath.generate_key(),
+            set_value,
+        );
     }
 
     /// Increment by an amount (without querying the current value).

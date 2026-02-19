@@ -1,7 +1,7 @@
-use core::fmt::{self, Debug, Display};
+use crate::xdr::*;
 use core::any::Any;
 use core::error::Error;
-use crate::xdr::*;
+use core::fmt::{self, Debug, Display};
 
 #[cfg(feature = "fault_strings")]
 pub use with_strings::*;
@@ -17,9 +17,7 @@ mod with_strings {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct FaultString(
-        Option<heapless::String<500>>
-    );
+    pub struct FaultString(Option<heapless::String<500>>);
 
     impl WriteXDR for FaultString {
         fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
@@ -34,7 +32,9 @@ mod with_strings {
             let str_opt: StrOpt = read_xdr(r)?;
 
             if let Some(s) = str_opt {
-                s.try_into().map(|s| Self(Some(s))).map_err(|_| ReadError::MaxLengthExceeded)
+                s.try_into()
+                    .map(|s| Self(Some(s)))
+                    .map_err(|_| ReadError::MaxLengthExceeded)
             } else {
                 Ok(Self(None))
             }
@@ -72,10 +72,10 @@ mod with_strings {
         pub fn from_any(a: &dyn Any) -> Self {
             if let Some(s) = a.downcast_ref::<&str>() {
                 Self::from_display(s)
-                    /*
-            } else if let Some(s) = a.downcast_ref::<&std::string::String>() {
-                Self::via_display(s.as_str())
-                    */
+                /*
+                } else if let Some(s) = a.downcast_ref::<&std::string::String>() {
+                    Self::via_display(s.as_str())
+                        */
             } else {
                 Self::from_display("<unknown>")
             }
@@ -149,7 +149,8 @@ fn with_strings_to_without() {
     let s: without_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
     assert_eq!(s.as_str(), "<fault>");
 
-    let bytes = txs::encode(&with_strings::FaultString::from_display("foo")).unwrap();
+    let bytes =
+        txs::encode(&with_strings::FaultString::from_display("foo")).unwrap();
     let s: without_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
     assert_eq!(s.as_str(), "<fault>");
 }
@@ -160,7 +161,9 @@ fn without_strings_to_with() {
     let s: with_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
     assert_eq!(s.as_str(), "<fault>");
 
-    let bytes = txs::encode(&without_strings::FaultString::from_display("foo")).unwrap();
+    let bytes =
+        txs::encode(&without_strings::FaultString::from_display("foo"))
+            .unwrap();
     let s: with_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
     assert_eq!(s.as_str(), "<fault>");
 }

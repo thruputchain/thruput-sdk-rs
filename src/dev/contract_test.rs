@@ -1,17 +1,22 @@
-use crate::*;
-use crate::call::{ContractResult, ContractError, ReturnBuf, AbortBuf, CallResult};
+use crate::call::{
+    AbortBuf, CallResult, ContractError, ContractResult, ReturnBuf,
+};
 use crate::exn::{Exn, FaultString};
 use crate::types::transaction::InvocationFrameOutput::*;
+use crate::*;
+use core::convert::Infallible;
+use groundhog_native_exec as native_exec;
 use groundhog_xdr::transaction::InvocationFrameStatusCode;
+use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
-use groundhog_native_exec as native_exec;
-use core::convert::Infallible;
-use native_exec::transaction_handler::TransactionHandler;
 
 /// Execute the provided thunk in a transaction in the test environment.
 ///
-pub fn contract_exec<F>(env: TestEnvironmentHandle, f: F) -> CallResult<(), Infallible>
+pub fn contract_exec<F>(
+    env: TestEnvironmentHandle,
+    f: F,
+) -> CallResult<(), Infallible>
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
@@ -31,7 +36,10 @@ where
 /// let call_result: CallResult<RET, EXN> = contract_test(env, || { /* whatever */ });
 /// ```
 ///
-pub fn contract_test<F, RET, EXN>(env: TestEnvironmentHandle, f: F) -> CallResult<RET, EXN>
+pub fn contract_test<F, RET, EXN>(
+    env: TestEnvironmentHandle,
+    f: F,
+) -> CallResult<RET, EXN>
 where
     F: Fn() + UnwindSafe + Clone + 'static,
     RET: ReadXDROwned,
@@ -54,11 +62,16 @@ where
 
 /// Make a transaction handler that will run the provided thunk.
 ///
-pub fn contract_test_handler<F>(env: TestEnvironmentHandle, f: F) -> TransactionHandler
+pub fn contract_test_handler<F>(
+    env: TestEnvironmentHandle,
+    f: F,
+) -> TransactionHandler
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
-    let test = move || with_abort_handler(&test_abort_handler::<Infallible>, f.clone());
+    let test = move || {
+        with_abort_handler(&test_abort_handler::<Infallible>, f.clone())
+    };
 
     env.prepare_test(test)
 }
@@ -66,24 +79,28 @@ where
 /// Invoke the handler's root frame and commit the transaction, decoding the
 /// `ContractResult` into a `CallResult`.
 ///
-pub fn contract_handler_exec(handler: &mut TransactionHandler) -> CallResult<(), Infallible> {
+pub fn contract_handler_exec(
+    handler: &mut TransactionHandler,
+) -> CallResult<(), Infallible> {
     crate::call::into_call_result(contract_handler_exec_raw(handler))
 }
 
 /// Invoke the handler's root frame and commit the transaction.
 ///
-pub fn contract_handler_exec_raw(handler: &mut TransactionHandler) -> ContractResult
-{
+pub fn contract_handler_exec_raw(
+    handler: &mut TransactionHandler,
+) -> ContractResult {
     let res = handler.root_invoke();
 
     let return_buf = match res.output {
-        kInvocationFrameStatusCodeReturn { return_buffer }=> {
+        kInvocationFrameStatusCodeReturn { return_buffer } => {
             // TODO: Unify these types and skip the copy
             ReturnBuf::from_slice(return_buffer.as_slice()).unwrap()
         }
         kInvocationFrameStatusCodeAbort { abort_buffer } => {
             // TODO: Unify these types and skip the copy
-            let abort_buf = AbortBuf::from_slice(abort_buffer.as_slice()).unwrap();
+            let abort_buf =
+                AbortBuf::from_slice(abort_buffer.as_slice()).unwrap();
             return Err(ContractError::Abort(abort_buf));
         }
         kInvocationFrameStatusCodeFault => {
@@ -113,8 +130,7 @@ macro_rules! contract_test {
 
                 // contract_return_empty(); // unnecessary?
             })
-            .unwrap_or_else(|e|
-                panic!("Contract test failed: {e}"));
+            .unwrap_or_else(|e| panic!("Contract test failed: {e}"));
         }
     };
 }

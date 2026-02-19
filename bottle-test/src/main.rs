@@ -41,8 +41,7 @@ fn bottle_test(package: &str) {
     let package = package.to_string();
 
     let mut handler = env.prepare_test(move || -> () {
-        let tester_addr =
-            deploy_contract(&TESTER_NONCE, &tester_hash);
+        let tester_addr = deploy_contract(&TESTER_NONCE, &tester_hash);
 
         let mut tester = BottleTestClient::new(&tester_addr);
 

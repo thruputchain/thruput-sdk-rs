@@ -177,7 +177,7 @@ fn generate_client_fn(
             Some(ty)
         } else {
             None
-       };
+        };
 
     let return_type = if let Some(ty) = explicit_type {
         quote! { #ty }

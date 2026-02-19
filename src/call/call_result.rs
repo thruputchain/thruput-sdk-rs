@@ -6,8 +6,8 @@
 //! if those types are known.
 
 use crate::call::internal::contract_call_decode;
-use crate::call::{ContractResult, ContractError};
-use crate::exn::{Exn, CrossExn, FaultString, CallingError, library_abort};
+use crate::call::{ContractError, ContractResult};
+use crate::exn::{CallingError, CrossExn, Exn, FaultString, library_abort};
 use crate::xdr::*;
 use core::convert::Infallible;
 use core::fmt::{self, Debug};
@@ -42,16 +42,16 @@ where
 
 impl<E> Debug for CallError<E>
 where
-    E: Exn
+    E: Exn,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Abort(exn) => {
                 write!(f, "The called contract aborted \n{:?}", exn)
-            },
+            }
             Self::Fault(fault) => {
                 write!(f, "The called contract faulted: {}", fault)
-            },
+            }
         }
     }
 }
@@ -78,9 +78,7 @@ where
                             // Decode failure: abort ourselves
                             library_abort(CallingError::DecodingAbort(FaultString::from_display(e))))
             }
-            ContractError::Fault(fault_val) => {
-                CallError::Fault(fault_val)
-            }
+            ContractError::Fault(fault_val) => CallError::Fault(fault_val),
         }
     }
 }
@@ -90,7 +88,9 @@ where
 ///
 /// Decoding failure results in abort.
 ///
-pub fn into_call_result<T, E>(contract_result: ContractResult) -> CallResult<T, E>
+pub fn into_call_result<T, E>(
+    contract_result: ContractResult,
+) -> CallResult<T, E>
 where
     T: ReadXDROwned,
     E: Exn,
@@ -104,8 +104,6 @@ where
                     // Decoding failure: abort ourselves
                     library_abort(CallingError::DecodingSuccess(FaultString::from_display(e))))
         }
-        Err(err) => {
-            Err(CallError::from_contract_error(err))
-        }
+        Err(err) => Err(CallError::from_contract_error(err)),
     }
 }

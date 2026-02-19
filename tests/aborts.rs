@@ -27,9 +27,9 @@ test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 error: test failed, to rerun pass `--test aborts`
 */
 
-use sdk::*;
+use sdk::call::ContractError;
 use sdk::call::{CallError, CallResult};
-use sdk::call::{ContractError};
+use sdk::*;
 
 #[test]
 fn test_panic() {

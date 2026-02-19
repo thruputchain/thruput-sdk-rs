@@ -1,8 +1,8 @@
 //! System functions: Contract deployment
 
-use crate::types::{ContractAddress, SHA256Hash};
-use crate::sys::{self, SyscallNo};
 use crate::exn::syscall_abort2;
+use crate::sys::{self, SyscallNo};
+use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;
 
 pub fn get_deploy_address(

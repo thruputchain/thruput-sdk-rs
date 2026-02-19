@@ -6,9 +6,9 @@
 use crate::WriteXDR;
 use crate::internal::MUBuf;
 use crate::sys::{self, SyscallNo};
+use crate::syscall_abort2;
 use crate::sysresult::SysResult as Result;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
-use crate::syscall_abort2;
 use core::mem::MaybeUninit;
 
 pub(crate) const CALLDATA_MAX: usize = 500;
@@ -66,8 +66,9 @@ pub fn get_caller() -> ContractAddress {
 pub fn get_source_transaction_hash() -> SHA256Hash {
     let mut out_hash: MaybeUninit<SHA256Hash> =
         MaybeUninit::<SHA256Hash>::uninit();
-    sys::uninit_GetSourceTransactionHash(&mut out_hash)
-        .unwrap_or_else(|e| syscall_abort2(SyscallNo::kGetSourceTransactionHash, e));
+    sys::uninit_GetSourceTransactionHash(&mut out_hash).unwrap_or_else(|e| {
+        syscall_abort2(SyscallNo::kGetSourceTransactionHash, e)
+    });
     unsafe { out_hash.assume_init() }
 }
 
@@ -111,6 +112,7 @@ pub fn get_calldata() -> Result<Calldata> {
 // This should probably become `get_calldata`, once the existing clients
 // of that function are adapted to non-result return.
 pub fn bare_get_calldata() -> Calldata {
-    get_calldata().unwrap_or_else(|syserr|
-        syscall_abort2(SyscallNo::kGetCalldata, syserr))
+    get_calldata().unwrap_or_else(|syserr| {
+        syscall_abort2(SyscallNo::kGetCalldata, syserr)
+    })
 }

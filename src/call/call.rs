@@ -1,14 +1,14 @@
 //! Making contract calls
 
-use crate::exn::{Exn, FaultString, LibraryExn, library_abort, CallingError};
-use crate::contract::ContractEntrypointID;
-use crate::types::{ContractAddress, RuntimeMemoryLength};
-use crate::xdr::*;
-use crate::sys::{self, SysErr};
-use crate::abort;
-use super::internal::contract_call_encode;
 use super::call_result::*;
 use super::contract_result::*;
+use super::internal::contract_call_encode;
+use crate::abort;
+use crate::contract::ContractEntrypointID;
+use crate::exn::{CallingError, Exn, FaultString, LibraryExn, library_abort};
+use crate::sys::{self, SysErr};
+use crate::types::{ContractAddress, RuntimeMemoryLength};
+use crate::xdr::*;
 
 pub fn call<ARGS, RET, EXN>(
     address: &ContractAddress,
@@ -21,12 +21,13 @@ where
     RET: ReadXDROwned,
     EXN: Exn + 'static,
 {
-    try_call(address, entrypoint, gas_limit, args)
-        .unwrap_or_else(|e: CallError<EXN>|
+    try_call(address, entrypoint, gas_limit, args).unwrap_or_else(
+        |e: CallError<EXN>|
             // We're not going to capture the structure of the called
             // contract's error here (for that, use `try_call`).  Instead,
             // serialize the error and abort.
-            abort(&LibraryExn::Called(FaultString::from_display(e))))
+            abort(&LibraryExn::Called(FaultString::from_display(e))),
+    )
 }
 
 pub fn try_call<ARGS, RET, EXN>(
@@ -43,15 +44,16 @@ where
     // Encode the args
     let args_buf = contract_call_encode(args)
         // Encoding failed: abort
-        .unwrap_or_else(|e| library_abort(CallingError::EncodingArgs(FaultString::from_display(e))));
+        .unwrap_or_else(|e| {
+            library_abort(CallingError::EncodingArgs(
+                FaultString::from_display(e),
+            ))
+        });
 
     // Invoke the method
-    let contract_result = contract_call(
-        address,
-        entrypoint,
-        gas_limit,
-        &args_buf)
-        .unwrap_or_else(|syserr|
+    let contract_result =
+        contract_call(address, entrypoint, gas_limit, &args_buf)
+            .unwrap_or_else(|syserr|
             // Invoke syscall failed: abort
             library_abort(CallingError::Syscall(syserr)));
 
@@ -67,7 +69,6 @@ fn contract_call(
     gas_limit: u64,
     args_buf: &ArgsBuf,
 ) -> Result<ContractResult, SysErr> {
-
     // Perform the cross-contract call
     let mut return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
@@ -85,7 +86,7 @@ fn contract_call(
         Err(syserr) if syserr.is_aborted() => false,
         Err(syserr) => {
             // Neither ok nor aborted
-            return Err(syserr)
+            return Err(syserr);
         }
     };
 

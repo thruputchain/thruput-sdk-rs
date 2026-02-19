@@ -16,23 +16,20 @@
 
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-use crate::sys::{self, SyscallNo};
 use crate::exn::syscall_abort2;
+use crate::sys::{self, SyscallNo};
 use crate::sysresult::SysResult as Result;
 use crate::*;
 
 /// Replace the "set" and "add" values.  (This discards any values previously present.)
-pub fn set_add(
-    key: &StorageKey,
-    set_value: Option<i128>,
-    add_value: i128,
-) {
+pub fn set_add(key: &StorageKey, set_value: Option<i128>, add_value: i128) {
     sys::raw_NonnegativeIntSetAdd(
         key,
         set_value.as_ref(),
         &add_value,
         StorageDeltaFlags::kStorageDeltaFlagNone as i32,
-    ).unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
+    )
+    .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
 }
 
 /// Replace the "set" and "add" values.  (This discards any values previously present.)
@@ -52,7 +49,8 @@ pub fn set_add_exclusive(
         set_value.as_ref(),
         &add_value,
         StorageDeltaFlags::kStorageDeltaFlagExclusiveLock as i32,
-    ).unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
+    )
+    .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
 }
 
 /// Get the pending "set" and "add" settings
@@ -65,7 +63,7 @@ pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
 /// we instead load and return the last-committed value.
 pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
     match _get_values(key, true) {
-        Ok((s_opt, a)) =>  {
+        Ok((s_opt, a)) => {
             // The "set" value is guaranteed to be present now because we
             // specified "force"
             let s = s_opt.unwrap();
@@ -80,7 +78,7 @@ pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
 /// never been written.
 pub fn try_get_values_force(key: &StorageKey) -> Option<(i128, i128)> {
     match _get_values(key, true) {
-        Ok((s_opt, a)) =>  {
+        Ok((s_opt, a)) => {
             // The "set" value is guaranteed to be present now because we
             // specified "force"
             let s = s_opt.unwrap();

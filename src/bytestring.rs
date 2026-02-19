@@ -88,15 +88,14 @@ pub mod asys {
     ///
     /// TODO: throw exception on wrong size
     ///
-    pub fn bytestring_get_sized<const N: usize>(
-        key: &StorageKey,
-    ) -> [u8; N] {
+    pub fn bytestring_get_sized<const N: usize>(key: &StorageKey) -> [u8; N] {
         // Get the bytestring into a buffer of size N
         let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
         let mut len = MaybeUninit::uninit();
-        sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len).unwrap_or_else(|errno| {
-            syscall_abort2(SyscallNo::kBytestringGet, errno);
-        });
+        sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len)
+            .unwrap_or_else(|errno| {
+                syscall_abort2(SyscallNo::kBytestringGet, errno);
+            });
 
         // SAFETY: The syscall returned with success, so the out-args are initialized
         let len = unsafe { len.assume_init() };
@@ -127,7 +126,8 @@ pub mod asys {
             key,
             slice,
             StorageDeltaFlags::kStorageDeltaFlagNone as i32,
-        ).unwrap_or_else(|errno| {
+        )
+        .unwrap_or_else(|errno| {
             syscall_abort2(SyscallNo::kBytestringSet, errno);
         });
     }

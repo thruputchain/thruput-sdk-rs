@@ -3,16 +3,16 @@
 //! These functions are NO LONGER used by the [contract](macro@crate::contract) macro,
 //! and remain until being phased out of use elsewhere.
 
-use groundhog_xdr::contract::ContractEntrypointID;
+use crate::SysErr;
 use crate::internal::{
     EncodeBuf, MUBuf, ReadXDROwned, WriteXDR, decode_xdr, encode_xdr,
 };
 #[allow(unused_imports)]
 pub use crate::invoke_error::*;
 use crate::sys;
-use crate::SysErr;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use core::error::Error;
+use groundhog_xdr::contract::ContractEntrypointID;
 
 type CallData = EncodeBuf;
 type ReturnData = EncodeBuf;
@@ -36,17 +36,16 @@ where
 
     // Invoke the method
     invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
-        .map_err(|syserr|
-            if syserr.is_aborted() {
-                InvokeError::AbortedWith(return_data.len() as u32)
-            } else {
-                InvokeError::Syscall(syserr)
-            }
-        )?;
+        .map_err(|syserr| {
+        if syserr.is_aborted() {
+            InvokeError::AbortedWith(return_data.len() as u32)
+        } else {
+            InvokeError::Syscall(syserr)
+        }
+    })?;
 
     // Decode return data
-    decode_xdr(return_data.as_ref())
-        .map_err(|_| InvokeError::DecodeReturnVal)
+    decode_xdr(return_data.as_ref()).map_err(|_| InvokeError::DecodeReturnVal)
 }
 
 // Invoke a client contract where we know the error type (which
@@ -71,15 +70,15 @@ where
 
     // Invoke the method
     invoke_raw(address, entrypoint, gas_limit, &call_data, &mut return_data)
-        .map_err(|syserr|
-            if syserr.is_aborted() {
-                decode_xdr(return_data.as_ref())
-                    .map(ClientError::Aborted)
-                    .unwrap_or_else(|_| ClientError::AbortDecodeFailed)
-            } else {
-                ClientError::Invoke(InvokeError::Syscall(syserr))
-            }
-        )?;
+        .map_err(|syserr| {
+        if syserr.is_aborted() {
+            decode_xdr(return_data.as_ref())
+                .map(ClientError::Aborted)
+                .unwrap_or_else(|_| ClientError::AbortDecodeFailed)
+        } else {
+            ClientError::Invoke(InvokeError::Syscall(syserr))
+        }
+    })?;
 
     // Decode return data
     decode_xdr(return_data.as_ref())
@@ -111,11 +110,12 @@ fn invoke_raw(
     );
 
     match &result {
-        Err(syserr) =>
+        Err(syserr) => {
             if !syserr.is_aborted() {
                 // No return-data to process below
                 return Err(*syserr);
-            },
+            }
+        }
         _ => {}
     }
 

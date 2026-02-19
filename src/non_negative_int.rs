@@ -17,8 +17,8 @@ pub fn non_negative_int_get(key: &StorageKey) -> i128 {
 /// Like `non_negative_int_get`, but returns `None` if the storage location
 /// does not contain a non-negative-integer item.
 pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
-    nnint::try_get_values_force(key).map(|(s, a)|
-        s.checked_add(a).unwrap_or_else(|| nnint_overflow()))
+    nnint::try_get_values_force(key)
+        .map(|(s, a)| s.checked_add(a).unwrap_or_else(|| nnint_overflow()))
 }
 
 /// Set the value.
@@ -32,10 +32,7 @@ pub fn non_negative_int_set(key: &StorageKey, set_value: i128) {
 ///
 /// TODO: semantics
 ///
-pub fn non_negative_int_set_exclusive(
-    key: &StorageKey,
-    set_value: i128,
-) {
+pub fn non_negative_int_set_exclusive(key: &StorageKey, set_value: i128) {
     let add_value = 0;
 
     nnint::set_add_exclusive(key, Some(set_value), add_value);
@@ -56,10 +53,7 @@ pub fn non_negative_int_inc(key: &StorageKey, amount: i128) {
 /// Increment the value.
 ///
 /// Aborts if the result would be negative.
-pub fn non_negative_int_strict_inc(
-    key: &StorageKey,
-    amount: i128,
-) {
+pub fn non_negative_int_strict_inc(key: &StorageKey, amount: i128) {
     let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
 
     let add_value = a.checked_add(amount).unwrap_or_else(|| nnint_overflow());

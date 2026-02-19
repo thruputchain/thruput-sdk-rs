@@ -26,8 +26,8 @@ fn handle_panic(info: &core::panic::PanicInfo) -> ! {
 }
 
 mod panic_repr {
-    use core::fmt::{self, Display, Write};
     use core::error::Error;
+    use core::fmt::{self, Display, Write};
     use heapless::String;
     use xdrs::*;
 

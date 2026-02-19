@@ -15,7 +15,6 @@ pub enum ERC20Error {
     #[error("None")]
     None = 0,
     */
-
     #[error("Contract already initialized")]
     AlreadyInitialized = 1,
 
@@ -47,5 +46,6 @@ pub fn ensure(pred: bool, err: ERC20Error) {
 }
 
 pub fn amount_to_diff(n: u128) -> i128 {
-    n.try_into().unwrap_or_else(|_| abort(&ERC20Error::TooLarge))
+    n.try_into()
+        .unwrap_or_else(|_| abort(&ERC20Error::TooLarge))
 }

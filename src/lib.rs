@@ -6,7 +6,6 @@
 #![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
-
 #![allow(deprecated)] // XXX
 
 #[cfg(all(feature = "std", target_family = "wasm"))]

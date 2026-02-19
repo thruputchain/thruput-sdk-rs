@@ -21,7 +21,7 @@ use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
     ContractAddress, EmittedEvent, Event, Topic, TopicSrc, WriteResult,
-    WriteXDR, hash_to_array, hex_encode, log_event, abort,
+    WriteXDR, abort, hash_to_array, hex_encode, log_event,
 };
 use xdrs::Writer;
 

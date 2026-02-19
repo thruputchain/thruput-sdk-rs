@@ -8,12 +8,12 @@ pub use contract_test::*;
 mod handler;
 pub use handler::*;
 
+pub use core::convert::Infallible;
 pub use groundhog_native_exec::{
     mock_contract::MockContract,
     test_environment::{TestEnvironment, TestEnvironmentHandle},
 };
 pub use hogexec_internal::ffi_enums::*;
-pub use core::convert::Infallible;
 
 pub use groundhog_storage_cost::*;
 
