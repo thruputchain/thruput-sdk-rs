@@ -30,7 +30,7 @@ pub use bindings::{
 #[rustfmt::skip]
 pub use bindings::{
     ForeignInvokeResult,
-    ForeignRootInvokeResult,
+    ForeignTracedInvokeResult,
     ForeignEntryPoint,
     ForeignHostFnResult,
     ForeignTryCommitResult,
