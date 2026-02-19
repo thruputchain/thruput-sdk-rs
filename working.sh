@@ -58,7 +58,7 @@ run_working() {
     cargo test --test int128
     cargo test --test internal_nnints
     cargo test --test macros
-    # cargo test --test nnints
+    cargo test --test nnints
     cargo test --test root_error_codes
     # cargo test -F storage --test storage
 
