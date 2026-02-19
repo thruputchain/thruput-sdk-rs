@@ -13,7 +13,7 @@ use native_exec::transaction_handler::TransactionHandler;
 ///
 pub fn contract_exec<F>(env: TestEnvironmentHandle, f: F) -> CallResult<(), Infallible>
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
     contract_test(env, f)
 }
@@ -33,7 +33,7 @@ where
 ///
 pub fn contract_test<F, RET, EXN>(env: TestEnvironmentHandle, f: F) -> CallResult<RET, EXN>
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
     RET: ReadXDROwned,
     EXN: Exn,
 {
@@ -45,7 +45,7 @@ where
 ///
 pub fn contract_test_raw<F>(env: TestEnvironmentHandle, f: F) -> ContractResult
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
     let mut handler = contract_test_handler(env, f);
 
@@ -56,10 +56,11 @@ where
 ///
 pub fn contract_test_handler<F>(env: TestEnvironmentHandle, f: F) -> TransactionHandler
 where
-    F: Fn() -> () + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + 'static,
 {
-    env.prepare_test(f)
-    // XXX env.prepare_test(|| sdk::with_abort_handler(&sdk::test_abort_handler::<core::convert::Infallible>, f))
+    let test = move || with_abort_handler(&test_abort_handler::<Infallible>, f.clone());
+
+    env.prepare_test(test)
 }
 
 /// Invoke the handler's root frame and commit the transaction, decoding the

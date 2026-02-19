@@ -37,7 +37,8 @@ test_examples() {
     eg_test erc20
     eg_test erc20_no_storage
     eg_test erc20_low_level
-    # eg_test exceptions --test native # segfault!
+    eg_test exceptions --test native native_exceptions
+    # eg_test exceptions --test native native_panic # segfault!
     eg_test exceptions --test wasm wasm_ok
     eg_test exceptions --test wasm wasm_deploy
     eg_test exceptions --test wasm wasm_exceptions
@@ -48,14 +49,14 @@ test_examples() {
 run_working() {
     cargo test --lib
 
-    # cargo test --tests
+        # cargo test --tests
     cargo test --test aborts
     cargo test --test bytestrings
     cargo test --test delete
     cargo test --test events
     cargo test --test hasher
     cargo test --test int128
-    # cargo test --test internal_nnints
+    cargo test --test internal_nnints
     cargo test --test macros
     # cargo test --test nnints
     cargo test --test root_error_codes

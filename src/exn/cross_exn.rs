@@ -5,6 +5,8 @@ use super::Exn;
 use crate::xdr::*;
 use crate::call::CallError;
 use crate::AbortInfo;
+use crate::sys::SyscallNo;
+use crate::SyscallErrorCode;
 use core::fmt::{self, Debug, Display};
 use core::convert::Infallible;
 use core::any::Any;
@@ -168,6 +170,15 @@ where
             Inner::Contract(exn) => Some(exn),
             _ => None,
         }
+    }
+
+    pub fn is_syscall_exn(&self, call_no: SyscallNo, err_code: SyscallErrorCode) -> bool {
+        self
+            .as_library_exn()
+            .map(|e| e.as_syscall_exn())
+            .flatten()
+            .map(|e| e.is(call_no, err_code))
+            .unwrap_or(false)
     }
 }
 

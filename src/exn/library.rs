@@ -91,8 +91,12 @@ impl SyscallExn {
         self.callno
     }
 
-    pub fn has_code(&self, code: SyscallErrorCode) -> bool {
-        self.errno.is_code(code)
+    pub fn has_code(&self, err_code: SyscallErrorCode) -> bool {
+        self.errno.is_code(err_code)
+    }
+
+    pub fn is(&self, call_no: SyscallNo, err_code: SyscallErrorCode) -> bool {
+        self.callno == call_no && self.errno == err_code.into()
     }
 }
 
