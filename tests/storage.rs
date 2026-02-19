@@ -21,28 +21,6 @@ struct Thing {
     bytes: Bytestring,
 }
 
-/*
-contract_test!(test_thing_map {
-    let data_keypath = Keypath::new();
-    {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath).unwrap();
-    }
-
-    let slot: u32 = 3;
-    {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let mut thing_entry = data.map3.entry(&slot).unwrap();
-        let maybe_thing = thing_entry.get_mut();
-
-        if let Some(thing) = maybe_thing.as_mut() {
-            thing.num += 1;
-        } else {
-            *maybe_thing = Some(Thing
-    }
-});
-*/
-
 contract_test!(test_map {
     let data_keypath = Keypath::new();
     {
@@ -53,17 +31,17 @@ contract_test!(test_map {
     let slot: u32 = 3;
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let mut cell: NNInt = data.map.get(&slot).unwrap();
+        let mut cell: NNInt = data.map.get(&slot);
 
         // Below results in `set_add(None, 7)` on this
         // previously-unset location
-        cell.checked_inc(7).unwrap();
+        cell.strict_inc(7);
     }
 
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let cell = data.map.get(&slot).unwrap();
-        let v = cell.get().unwrap();
+        let cell = data.map.get(&slot);
+        let v = cell.get();
         assert_eq!(v, 7);
     }
 });
@@ -96,7 +74,7 @@ contract_test!(test_map_entry {
     // Check that the entry starts empty (another way)
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot).unwrap();
+        let opt = data.map2.try_get(&slot);
 
         assert_eq!(opt, None);
     }
@@ -106,13 +84,13 @@ contract_test!(test_map_entry {
     // Set the entry via `Map::set`
     {
         let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        data.map2.set(&slot, &value).unwrap();
+        data.map2.set(&slot, &value);
     }
 
     // Check that the entry has the value
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot).unwrap();
+        let opt = data.map2.try_get(&slot);
         assert_eq!(opt, Some(value));
     }
 
@@ -129,7 +107,7 @@ contract_test!(test_map_entry {
     // Check that the entry has the value
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot).unwrap();
+        let opt = data.map2.try_get(&slot);
         assert_eq!(opt, Some(value));
     }
 
@@ -147,7 +125,7 @@ contract_test!(test_map_entry {
     // Check that the entry has the value
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot).unwrap();
+        let opt = data.map2.try_get(&slot);
         assert_eq!(opt, Some(value));
     }
 });
@@ -206,10 +184,10 @@ contract_test!(test_load_default {
     let data = handle.load().unwrap();
     for i in 0..3 {
         let mut nnint = data.nnints.get_default(i).unwrap();
-        assert_eq!(nnint.try_get().unwrap(), None);
+        assert_eq!(nnint.try_get(), None);
 
         let n = 72 + i;
-        nnint.checked_inc(n as i128).unwrap();
+        nnint.strict_inc(n as i128);
     }
     drop(data);
 
@@ -219,7 +197,7 @@ contract_test!(test_load_default {
             .unwrap_or_else(|e| {
                 panic!("try_get {i} failed: {e}");
             });
-        let n = nnint.get().unwrap() as u64;
+        let n = nnint.get() as u64;
         let n_expected = 72 + i;
         assert_eq!(n, n_expected);
     }
@@ -308,3 +286,25 @@ contract_test!(test_vector_data {
     }
     drop(vec);
 });
+
+/* TODO:
+contract_test!(test_thing_map {
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath).unwrap();
+    }
+
+    let slot: u32 = 3;
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut thing_entry = data.map3.entry(&slot).unwrap();
+        let maybe_thing = thing_entry.get_mut();
+
+        if let Some(thing) = maybe_thing.as_mut() {
+            thing.num += 1;
+        } else {
+            *maybe_thing = Some(Thing
+    }
+});
+*/

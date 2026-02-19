@@ -17,7 +17,7 @@ eg_test() {
 
 build_examples() {
     build "caller"
-    # build "counter"
+    # build "counter" # for Mark to update
     build "erc20"
     build "erc20_no_storage"
     build "erc20_low_level"
@@ -30,7 +30,7 @@ build_examples() {
 }
 
 test_examples() {
-    # some tests require wasms compiled above
+    # some of these tests require wasms compiled in build_examples()
 
     eg_test caller --test native
     eg_test caller --test wasm
@@ -46,10 +46,7 @@ test_examples() {
     eg_test hasher
 }
 
-run_working() {
-    cargo test --lib
-
-        # cargo test --tests
+tests_a_la_cart() {
     cargo test --test aborts
     cargo test --test bytestrings
     cargo test --test delete
@@ -60,7 +57,12 @@ run_working() {
     cargo test --test macros
     cargo test --test nnints
     cargo test --test root_error_codes
-    # cargo test -F storage --test storage
+    cargo test -F storage --test storage
+}
+
+run_working() {
+    cargo test --lib
+    cargo test --tests
 
     build_examples
     test_examples
