@@ -47,7 +47,3 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 
 [profile.release]
 trim-paths = "all" # unstable
-
-[patch.groundhog] # XXX
-abort = { git = "ssh://git@github.com/groundhogchain/abort_rs.git" } # XXX
-# xdrs = { git = "ssh://git@github.com/groundhogchain/xdrs.git" }
