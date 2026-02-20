@@ -817,6 +817,7 @@ dependencies = [
  "hogexec-internal",
  "sha2",
  "thiserror",
+ "xdr-common",
  "xdrs",
 ]
 

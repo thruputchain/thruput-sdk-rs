@@ -28,6 +28,7 @@ wasm_backtraces = ["groundhog-sys/wasm_backtraces"]
 
 [dependencies]
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"]}
+xdr-common = { workspace = true, features = ["std"]}
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true }
 sha2 = {version = "0.10"}
