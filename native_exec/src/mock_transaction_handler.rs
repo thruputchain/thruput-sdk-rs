@@ -189,8 +189,9 @@ impl MockInvocationFrame {
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
+                } else {
+                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeUnrecoverable);
                 }
-                self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeUnrecoverable);
             }
         };
         self
@@ -340,6 +341,25 @@ mod tests {
         assert_eq!(
             output.status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+        );
+    }
+
+    #[test]
+    fn test_mock_transaction_handler_with_error() {
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+
+        let (output, _) = handler
+            .open_root_frame()
+            .with_invoke_flags(0)
+            .build()
+            .execute(|_| {
+                panic!("test error");
+            })
+            .result();
+        assert_eq!(
+            output.status_code(),
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeFault as i32
         );
     }
 }
