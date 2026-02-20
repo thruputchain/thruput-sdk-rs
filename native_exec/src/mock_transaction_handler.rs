@@ -20,20 +20,23 @@ enum MockTransactionState {
 #[derive(Debug, PartialEq)]
 enum MockInvocationFrameState {
     Started,
-    Closed
+    Closed,
 }
 
 pub struct MockInvocationFrameConfig<'a> {
     invocation: groundhog_xdr::transaction::Invocation,
     invoke_flags: i32,
 
-    root_handler: &'a MockTransactionHandler,
+    root_handler: *mut c_void,
     // when we build the frame, the new frame will be emplaced into this value
     to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
-    pub fn new(root_handler: &'a MockTransactionHandler, to_emplace: &'a mut Option<Box<MockInvocationFrame>>) -> Self {
+    pub fn new(
+        root_handler: *mut c_void,
+        to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
+    ) -> Self {
         Self {
             root_handler,
             invocation: groundhog_xdr::transaction::Invocation {
@@ -47,7 +50,10 @@ impl<'a> MockInvocationFrameConfig<'a> {
         }
     }
 
-    pub fn at_contract_address(mut self, contract_address: groundhog_xdr::types::ContractAddress) -> Self {
+    pub fn at_contract_address(
+        mut self,
+        contract_address: groundhog_xdr::types::ContractAddress,
+    ) -> Self {
         self.invocation.invoked_address = contract_address;
         self
     }
@@ -62,8 +68,13 @@ impl<'a> MockInvocationFrameConfig<'a> {
         self
     }
     pub fn build(self) -> () {
-        let serialized_invocation: Vec<u8> = xdrs::txs::encode(&self.invocation).unwrap();
-        let frame = Box::new(MockInvocationFrame::new(self.root_handler, &serialized_invocation, self.invoke_flags));
+        let serialized_invocation: Vec<u8> =
+            xdrs::txs::encode(&self.invocation).unwrap();
+        let frame = Box::new(MockInvocationFrame::new(
+            self.root_handler,
+            &serialized_invocation,
+            self.invoke_flags,
+        ));
         *self.to_emplace = Some(frame);
     }
 }
@@ -75,30 +86,52 @@ pub struct MockInvocationFrame {
 }
 
 impl MockInvocationFrame {
-    pub fn new(root_handler: &MockTransactionHandler, serialized_invocation: &[u8], invoke_flags: i32) -> Self {
-
+    pub fn new(
+        root_handler: *mut c_void,
+        serialized_invocation: &[u8],
+        invoke_flags: i32,
+    ) -> Self {
         let ffi_invocation = groundhog_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
             len: serialized_invocation.len().try_into().unwrap(),
         };
 
         let handler_res: groundhog_sys::FFIErrorCode = unsafe {
-            groundhog_sys::open_mock_invocation_frame(root_handler.handler, ffi_invocation, invoke_flags).into()
+            groundhog_sys::open_mock_invocation_frame(
+                root_handler,
+                ffi_invocation,
+                invoke_flags,
+            )
+            .into()
         };
         if handler_res != FFIErrorCode::None {
             panic!("failed to open mock invocation frame: {:?}", handler_res);
         }
 
         Self {
-            root_handler: root_handler.handler,
+            root_handler,
             child_frame: None,
             state: MockInvocationFrameState::Started,
         }
     }
 
-    fn close_frame_internal(&mut self, error_code: hogexec_internal::ffi_enums::InvokeErrorCode) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
+    pub fn open_child_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+        let config = MockInvocationFrameConfig::new(
+            self.root_handler,
+            &mut self.child_frame,
+        );
+        config
+    }
+
+    fn close_frame_internal(
+        &mut self,
+        error_code: hogexec_internal::ffi_enums::InvokeErrorCode,
+    ) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
         let handler_res = unsafe {
-            groundhog_sys::finish_mock_invocation_frame(self.root_handler, error_code as i32)
+            groundhog_sys::finish_mock_invocation_frame(
+                self.root_handler,
+                error_code as i32,
+            )
         };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();
         if err != FFIErrorCode::None {
@@ -106,9 +139,15 @@ impl MockInvocationFrame {
         }
         self.state = MockInvocationFrameState::Closed;
 
-        let output: InvocationFrameOutput = xdrs::txs::decode(handler_res.serialized_output.as_slice().unwrap()).unwrap();
-        let trace: Option<InvocationFrameTrace> = if let Some(trace_data) = handler_res.serialized_trace.as_slice() {
-            let deserialized_trace: InvocationFrameTrace = xdrs::txs::decode(trace_data).unwrap();
+        let output: InvocationFrameOutput = xdrs::txs::decode(
+            handler_res.serialized_output.as_slice().unwrap(),
+        )
+        .unwrap();
+        let trace: Option<InvocationFrameTrace> = if let Some(trace_data) =
+            handler_res.serialized_trace.as_slice()
+        {
+            let deserialized_trace: InvocationFrameTrace =
+                xdrs::txs::decode(trace_data).unwrap();
             Some(deserialized_trace)
         } else {
             None
@@ -116,24 +155,32 @@ impl MockInvocationFrame {
         (output, trace)
     }
 
-
-    pub fn close_frame_commit(&mut self) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
-        self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeNone)
+    pub fn close_frame_commit(
+        &mut self,
+    ) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
+        self.close_frame_internal(
+            hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeNone,
+        )
     }
 
-    pub fn close_frame_fault(&mut self) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
-        self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeDeterministic)
+    pub fn close_frame_fault(
+        &mut self,
+    ) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
+        self.close_frame_internal(
+            hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeDeterministic,
+        )
     }
 }
 
 impl Drop for MockInvocationFrame {
     fn drop(&mut self) {
         if self.state == MockInvocationFrameState::Closed {
-            panic!("Should be impossible to drop an invocation frame while it is running");
+            panic!(
+                "Should be impossible to drop an invocation frame while it is running"
+            );
         }
     }
 }
-
 
 // Can run one, and only one, transaction,
 // and then get the results
@@ -147,8 +194,9 @@ pub struct MockTransactionHandler {
 impl MockTransactionHandler {
     pub fn new(env: Rc<TestEnvironment>) -> Self {
         // TODO(geoff): ways to mock this out
-        let auth_claim_data : AuthClaimData = AuthClaimData::default();
-        let serialized_auth_claim_data = xdrs::txs::encode(&auth_claim_data).unwrap();
+        let auth_claim_data: AuthClaimData = AuthClaimData::default();
+        let serialized_auth_claim_data =
+            xdrs::txs::encode(&auth_claim_data).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
             groundhog_sys::open_mocked_syscall_handler(
@@ -158,8 +206,9 @@ impl MockTransactionHandler {
                     data: serialized_auth_claim_data.as_ptr() as *mut u8,
                     len: serialized_auth_claim_data.len().try_into().unwrap(),
                 },
-                source_tx_hash.as_ptr())
-            };
+                source_tx_hash.as_ptr(),
+            )
+        };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to open mocked syscall handler: {:?}", err);
@@ -176,9 +225,8 @@ impl MockTransactionHandler {
     pub fn abort_transaction(&mut self) {
         assert_eq!(self.state, MockTransactionState::RootInvokeFinished);
         self.state = MockTransactionState::Aborted;
-        let err: FFIErrorCode = unsafe {
-            groundhog_sys::abort_transaction(self.handler)
-        }.into();
+        let err: FFIErrorCode =
+            unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
         if err != FFIErrorCode::None {
             panic!("failed to abort transaction: {:?}", err);
         }
@@ -200,15 +248,20 @@ impl MockTransactionHandler {
 impl Drop for MockTransactionHandler {
     fn drop(&mut self) {
         if self.state == MockTransactionState::Running {
-            panic!("Should be impossible to drop a transaction handler while it is running");
+            panic!(
+                "Should be impossible to drop a transaction handler while it is running"
+            );
         }
         if self.state == MockTransactionState::RootInvokeFinished {
+            eprintln!(
+                "Cleanup: Aborting mock transaction that finished root_invoke but was not committed"
+            );
             self.abort_transaction();
         }
 
-        let err: FFIErrorCode = unsafe {
-            groundhog_sys::close_syscall_handler(self.handler)
-        }.into();
+        let err: FFIErrorCode =
+            unsafe { groundhog_sys::close_syscall_handler(self.handler) }
+                .into();
         if err != FFIErrorCode::None {
             panic!("failed to close syscall handler: {:?}", err);
         }
