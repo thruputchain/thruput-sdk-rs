@@ -1,6 +1,7 @@
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
+use groundhog_sys::ForeignTryCommitResult;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::auth_claim::AuthClaimData;
 use groundhog_xdr::transaction::InvocationFrameOutput;
@@ -274,6 +275,24 @@ impl MockTransactionHandler {
         }
     }
 
+    pub fn try_commit_transaction(
+        &mut self,
+    ) -> groundhog_xdr::exec_result::ExecResult {
+        assert_eq!(self.state, MockTransactionState::RootInvokeFinished);
+        self.state = MockTransactionState::Committed;
+        let result: ForeignTryCommitResult =
+            unsafe { groundhog_sys::try_commit_transaction(self.handler) };
+        let err: FFIErrorCode = result.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("ffi error: failed to commit transaction: {:?}", err);
+        }
+        self.state = MockTransactionState::Committed;
+
+        let exec_result: groundhog_xdr::exec_result::ExecResult =
+            result.result_code.try_into().unwrap();
+        exec_result
+    }
+
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
         let config =
             MockInvocationFrameConfig::new(self.handler, &mut self.root_frame);
@@ -361,5 +380,46 @@ mod tests {
             output.status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeFault as i32
         );
+    }
+
+    #[test]
+    fn test_nested_mocks() {
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+
+        static mut FIRST: bool = false;
+        static mut SECOND: bool = false;
+
+        let (output, _) = handler
+            .open_root_frame()
+            .with_invoke_flags(0)
+            .build()
+            .execute(|frame| {
+                frame
+                    .open_child_frame()
+                    .with_invoke_flags(0)
+                    .build()
+                    .execute(|_| {
+                        unsafe {
+                            assert!(!FIRST);
+                            SECOND = true;
+                        }
+                        false
+                    })
+                    .result();
+
+                unsafe {
+                    assert!(SECOND);
+                    FIRST = true;
+                }
+                false
+            })
+            .result();
+        assert_eq!(
+            output.status_code(),
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+        );
+        assert!(unsafe { FIRST });
+        assert!(unsafe { SECOND });
     }
 }
