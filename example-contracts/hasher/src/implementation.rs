@@ -1,10 +1,10 @@
 use sdk::*;
 
 #[derive(Default)]
-struct Contract;
+pub struct HasherImpl;
 
 #[contract(client = HasherClient, storage = "false")]
-impl Contract {
+impl HasherImpl {
     pub fn run() {
         const EXPECTED: SHA256Hash =
             SHA256Hash::new(hash_to_array!("foo-bar-baz"));
@@ -19,5 +19,12 @@ impl Contract {
         if output != EXPECTED {
             panic!("Unexpected hash output");
         }
+    }
+}
+
+#[cfg(feature = "dev")]
+impl TestRegister for HasherImpl {
+    fn register(env: &sdk::TestEnvironmentHandle) -> sdk::Contract {
+        test_setup::register(env)
     }
 }

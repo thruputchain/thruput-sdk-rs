@@ -135,6 +135,41 @@ macro_rules! contract_test {
     };
 }
 
+/// Given a contact implementation and interface, create test
+/// functions that take a client object as an argument.
+///
+#[macro_export]
+macro_rules! client_test {
+    {   $impl_ty:ty =>
+        $(fn $test_name:ident($client:ident: &mut $client_ty:ty) $body:tt)* } =>
+    {
+        static CLIENT_TEST_NONCE: ::sdk::SHA256Hash = ::sdk::sha256_static!("CLIENT_TEST_NONCE");
+
+        $(
+
+        #[test]
+        fn $test_name() {
+            let mut env = ::sdk::TestEnvironment::no_cost();
+            let test_contract = <$impl_ty as sdk::TestRegister>::register(&mut env);
+            let contract_hash = env.setup_create_contract(&test_contract);
+
+            ::sdk::contract_exec(env, move || {
+                // Deploy the contract under test
+                let addr = ::sdk::deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
+
+                // Create a client to interact with the contract
+                let mut client = <$client_ty>::new(&addr);
+
+                (|$client: &mut $client_ty| $body)(&mut client);
+            })
+            .unwrap_or_else(|e|
+                panic!("Client test failed: {}", e));
+        }
+
+        )*
+    };
+}
+
 pub fn grant_storage_tokens(
     env: &TestEnvironmentHandle,
     handler: &native_exec::transaction_handler::TransactionHandler,

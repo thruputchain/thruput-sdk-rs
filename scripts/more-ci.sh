@@ -47,8 +47,8 @@ fmt-check() {
 }
 
 ci_check() {
-    # xxx_check
-    # lint_check
+    xxx_check
+    lint_check
     fmt-check
 }
 

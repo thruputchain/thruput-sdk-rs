@@ -2,35 +2,109 @@
 
 set -eu
 
-build() {
+# These only work if this script is run in the SDK's top-level (workspace) directory.
+SDK_DIR="$(realpath ".")"
+TARGET_DIR="$(realpath "target")"
+
+fail() {
+    printf "\n!! CI-FAIL\n"
+    exit 1
+}
+
+trap fail ERR;
+
+### BUILDING ###
+
+CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/release"
+OPTIMIZED="${TARGET_DIR}/optimized"
+
+build_contract() {
+    local package
     package="$1"; shift
 
-    ./scripts/build-contract.sh "$package"
+    (
+        cd "$package" &&
+
+        cargo --config "${SDK_DIR}/.cargo/contract.toml" \
+            build \
+            --release \
+            --target "wasm32-unknown-unknown" \
+            -Z build-std=core,alloc \
+            -Z build-std-features=std/optimize_for_size \
+            "$@"
+    ) || return 1
+}
+
+make_optimized() {
+    local contract optimized
+    contract="${CONTRACT}/${package}.wasm"
+    optimized="${OPTIMIZED}/${package}.wasm"
+
+    mkdir -p "$OPTIMIZED"
+
+    # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
+    # very slightly better)
+    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
+}
+
+eg_build() {
+    local package
+    package="$1"; shift
+
+    build_contract "${SDK_DIR}/example-contracts/${package}"
+}
+
+eg_build_all() {
+    eg_build "caller"
+    # build "counter" # for Mark to update
+    eg_build "erc20"
+    eg_build "erc20_no_storage"
+    eg_build "erc20_low_level"
+    eg_build "exceptions"
+    eg_build "genesis_deployer"
+    eg_build "hasher"
+    eg_build "rcq_test"
+    eg_build "simple_wallet_old"
+    eg_build "test_bytestring"
+}
+
+itc_build() {
+    package="$1"; shift
+
+    build_contract "${SDK_DIR}/integration_test_contracts/${package}"
+}
+
+itc_build_all() {
+    itc_build "authclaim_test"
+    itc_build "calldata_raw"
+}
+
+### TESTING ###
+
+test_sdk() {
+    cargo test --lib
+    cargo test --tests
+    cargo test -F storage --tests
 }
 
 eg_test() {
+    local package
     package="$1"; shift
 
     (cd example-contracts &&
-        cargo test -p "$package" "$@" -- --show-output)
+        cargo test -p "$package" "$@" -- --show-output) || return 1
 }
 
-build_examples() {
-    build "caller"
-    # build "counter" # for Mark to update
-    build "erc20"
-    build "erc20_no_storage"
-    build "erc20_low_level"
-    build "exceptions"
-    build "genesis_deployer"
-    build "hasher"
-    build "rcq_test"
-    build "simple_wallet_old"
-    build "test_bytestring"
+itc_test() {
+    local package
+    package="$1"; shift
+
+    (cd integration_test_contracts &&
+        cargo test -p "$package" "$@" -- --show-output) || return 1
 }
 
-test_examples() {
-    # some of these tests require wasms compiled in build_examples()
+eg_test_all() {
+    # Note: Some of these tests require their associated wasms to be compiled.
 
     eg_test caller --test native
     eg_test caller --test wasm
@@ -46,27 +120,96 @@ test_examples() {
     eg_test hasher
 }
 
-tests_a_la_cart() {
-    cargo test --test aborts
-    cargo test --test bytestrings
-    cargo test --test delete
-    cargo test --test events
-    cargo test --test hasher
-    cargo test --test int128
-    cargo test --test internal_nnints
-    cargo test --test macros
-    cargo test --test nnints
-    cargo test --test root_error_codes
-    cargo test -F storage --test storage
+itc_test_all() {
+    (cd integration_test_contracts &&
+        cargo test --workspace "$@" -- --show-output) || return 1
 }
 
-run_working() {
-    cargo test --lib
-    cargo test --tests
+### BOTTLE TEST ###
 
-    build_examples
-    test_examples
+BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
+BOTTLE_TEST="${TARGET_DIR}/bottle-test"
+
+bottle_test_contract() {
+    # NOTE: This requires that the contract's wasm has already been built
+
+    local contracts_dir package package_dir
+    contracts_dir="$1"; shift
+    package="$1"; shift
+    package_dir="${SDK_DIR}/${contracts_dir}/${package}"
+
+    build_contract "$package_dir" \
+        --features="bottle-test" \
+        -Z unstable-options \
+        --artifact-dir="$BOTTLE_TEST_RAW"
+
+    mkdir -p "$BOTTLE_TEST"
+    wasm-opt -O3 --enable-bulk-memory \
+        -o "$BOTTLE_TEST/${package}.wasm" \
+        "$BOTTLE_TEST_RAW/${package}.wasm"
+
+    cargo run -p bottle-test --profile dev "$package"
 }
 
-run_working
+has_bottle_test() {
+    local contract cargo_toml
+    contract="$1"; shift
+    cargo_toml="$contract/Cargo.toml"
+
+    grep -s "bottle-test" "$cargo_toml" >/dev/null
+}
+
+bottle_test_contracts() {
+    local contracts_dir
+    contracts_dir="$1"; shift
+
+    local package
+    for package in $(ls_contract_packages "$contracts_dir") ; do
+        if has_bottle_test "$contracts_dir/$package"; then
+            bottle_test_contract "$contracts_dir" "$package" "$@" ||
+                return 1
+        fi
+    done
+}
+
+ls_contract_packages() {
+    local contracts_dir
+    contracts_dir="$1"; shift
+
+    local contract
+    for contract in "$contracts_dir"/* ; do
+        [ -d "$contract" ] || continue;
+        [ ! -f "$contract"/disabled ] || continue;
+
+        c="$(basename "$contract")"
+
+        echo "$c"
+    done
+}
+
+eg_bottle_test_all() {
+    bottle_test_contracts "example-contracts"
+}
+
+itc_bottle_test_all() {
+    bottle_test_contracts "integration_test_contracts"
+}
+
+### MAIN ###
+
+main() {
+    test_sdk
+
+    eg_build_all
+    eg_test_all
+    eg_bottle_test_all
+
+    # itc_build_all
+    # itc_test_all
+    # itc_bottle_test_all
+}
+
+main
+
+echo
 echo "OK!"

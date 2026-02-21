@@ -5,6 +5,9 @@
 mod contract_test;
 pub use contract_test::*;
 
+mod test_setup;
+pub use test_setup::*;
+
 mod handler;
 pub use handler::*;
 

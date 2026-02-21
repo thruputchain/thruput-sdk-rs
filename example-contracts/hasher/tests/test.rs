@@ -1,23 +1,6 @@
-use hasher::{test_setup, HasherClient};
+sdk::client_test! { hasher::HasherImpl =>
 
-pub static TEST_NONCE: sdk::SHA256Hash = sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
-
-#[test]
-fn hasher_test() {
-    let mut env = sdk::TestEnvironment::no_cost();
-    let test_contract = test_setup::register(&mut env);
-    let contract_hash = env.setup_create_contract(&test_contract);
-
-    sdk::contract_exec(env, move || {
-        // Deploy the contract under test
-        let addr = sdk::deploy_contract(&TEST_NONCE, &contract_hash);
-
-        // Create a client to interact with the contract
-        let mut hasher = HasherClient::new(&addr);
-
-        hasher.run();
-
-    })
-    .unwrap_or_else(|e|
-        panic!("Hasher test failed: {}", e));
+    fn hasher_test(c: &mut hasher::HasherClient) {
+        c.run();
+    }
 }
