@@ -21,10 +21,3 @@ impl HasherImpl {
         }
     }
 }
-
-#[cfg(feature = "dev")]
-impl TestRegister for HasherImpl {
-    fn register(env: &sdk::TestEnvironmentHandle) -> sdk::Contract {
-        test_setup::register(env)
-    }
-}

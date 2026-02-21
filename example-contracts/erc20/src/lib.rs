@@ -11,6 +11,9 @@ pub use interface::ERC20Client;
 // An implementation of the contract interface
 mod implementation;
 
+// The actual implementation, exposed for use in tests
+pub use implementation::TokenContract;
+
 // Contract methods exposed with C ABI for running as guest
 pub use implementation::exports::*;
 
