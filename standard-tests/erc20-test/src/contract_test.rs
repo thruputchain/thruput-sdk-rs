@@ -1,24 +1,6 @@
 use crate::model::Model;
 use groundhog_erc20_if::*;
 use sdk::*;
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone)]
-pub enum ERC20TestError {
-    #[error("contract error: {0}")]
-    Contract(#[from] ERC20Error),
-
-    #[error("client error: {0}")]
-    Client(#[from] ClientError<ERC20Error>),
-
-    #[error("system error: {0}")]
-    Sys(#[from] SysErr),
-
-    #[error("erc20-test error: {0}")]
-    Custom(String),
-}
-
-pub type ERC20TestResult<T> = core::result::Result<T, ERC20TestError>;
 
 pub const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
@@ -26,15 +8,13 @@ const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
 
 pub fn erc20_test_setup(
     target_contract_hash: &SHA256Hash,
-) -> ERC20TestResult<ContractAddress> {
+) -> ContractAddress {
     // Deploy the target contract
-    let deployed_addr = deploy_contract(&NONCE, target_contract_hash);
-
-    Ok(deployed_addr)
+    deploy_contract(&NONCE, target_contract_hash)
 }
 
 /// Test the logic of an ERC20 contract
-pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
+pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     let owner = get_current_address();
     let other = &OTHER;
 
@@ -107,5 +87,5 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> ERC20TestResult<Model> {
     // Check client state against the model
     m.check(client);
 
-    Ok(m)
+    m
 }

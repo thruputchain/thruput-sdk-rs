@@ -1,17 +1,10 @@
 #!/bin/bash
 
-set -eu
+set -u
 
 # These only work if this script is run in the SDK's top-level (workspace) directory.
 SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"
-
-fail() {
-    printf "\n!! CI-FAIL\n"
-    exit 1
-}
-
-trap fail ERR;
 
 ### BUILDING ###
 
@@ -24,7 +17,6 @@ build_contract() {
 
     (
         cd "$package" &&
-
         cargo --config "${SDK_DIR}/.cargo/contract.toml" \
             build \
             --release \
@@ -32,7 +24,7 @@ build_contract() {
             -Z build-std=core,alloc \
             -Z build-std-features=std/optimize_for_size \
             "$@"
-    ) || return 1
+    )
 }
 
 make_optimized() {
@@ -40,7 +32,7 @@ make_optimized() {
     contract="${CONTRACT}/${package}.wasm"
     optimized="${OPTIMIZED}/${package}.wasm"
 
-    mkdir -p "$OPTIMIZED"
+    mkdir -p "$OPTIMIZED" &&
 
     # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
     # very slightly better)
@@ -55,17 +47,18 @@ eg_build() {
 }
 
 eg_build_all() {
-    eg_build "caller"
-    # build "counter" # for Mark to update
-    eg_build "erc20"
-    eg_build "erc20_no_storage"
-    eg_build "erc20_low_level"
-    eg_build "exceptions"
-    eg_build "genesis_deployer"
-    eg_build "hasher"
-    eg_build "rcq_test"
-    eg_build "simple_wallet_old"
-    eg_build "test_bytestring"
+    eg_build "caller" &&
+    # build "counter" && # for Mark to update
+    eg_build "erc20" &&
+    eg_build "erc20_no_storage" &&
+    eg_build "erc20_low_level" &&
+    eg_build "exceptions" &&
+    eg_build "genesis_deployer" &&
+    eg_build "hasher" &&
+    eg_build "rcq_test" &&
+    eg_build "simple_wallet_old" &&
+    eg_build "test_bytestring" &&
+    true
 }
 
 itc_build() {
@@ -75,54 +68,63 @@ itc_build() {
 }
 
 itc_build_all() {
-    itc_build "authclaim_test"
-    itc_build "calldata_raw"
+    itc_build "authclaim_test" &&
+    itc_build "calldata_raw" &&
+    true
 }
 
 ### TESTING ###
 
 test_sdk() {
-    cargo test --lib
-    cargo test --tests
-    cargo test -F storage --tests
+    cargo test --lib &&
+    cargo test --tests &&
+    cargo test -F storage --tests &&
+    true
 }
 
 eg_test() {
     local package
     package="$1"; shift
 
-    (cd example-contracts &&
-        cargo test -p "$package" "$@" -- --show-output) || return 1
+    (
+        cd example-contracts &&
+        cargo test -p "$package" "$@" -- --show-output
+    )
 }
 
 itc_test() {
     local package
     package="$1"; shift
 
-    (cd integration_test_contracts &&
-        cargo test -p "$package" "$@" -- --show-output) || return 1
+    (
+        cd integration_test_contracts &&
+        cargo test -p "$package" "$@" -- --show-output
+    )
 }
 
 eg_test_all() {
     # Note: Some of these tests require their associated wasms to be compiled.
 
-    eg_test caller --test native
-    eg_test caller --test wasm
-    eg_test erc20
-    eg_test erc20_no_storage
-    eg_test erc20_low_level
-    eg_test exceptions --test native native_exceptions
-    # eg_test exceptions --test native native_panic # segfault!
-    eg_test exceptions --test wasm wasm_ok
-    eg_test exceptions --test wasm wasm_deploy
-    eg_test exceptions --test wasm wasm_exceptions
-    # eg_test exceptions --test wasm wasm_panic # panic confusion
-    eg_test hasher
+    eg_test caller --test native &&
+    eg_test caller --test wasm &&
+    eg_test erc20 &&
+    eg_test erc20_no_storage &&
+    eg_test erc20_low_level &&
+    eg_test exceptions --test native native_exceptions &&
+    # eg_test exceptions --test native native_panic && # segfault!
+    eg_test exceptions --test wasm wasm_ok &&
+    eg_test exceptions --test wasm wasm_deploy &&
+    eg_test exceptions --test wasm wasm_exceptions &&
+    # eg_test exceptions --test wasm wasm_panic && # panic confusion
+    eg_test hasher &&
+    true
 }
 
 itc_test_all() {
-    (cd integration_test_contracts &&
-        cargo test --workspace "$@" -- --show-output) || return 1
+    (
+        cd integration_test_contracts &&
+        cargo test --workspace "$@" -- --show-output
+    )
 }
 
 ### BOTTLE TEST ###
@@ -141,12 +143,12 @@ bottle_test_contract() {
     build_contract "$package_dir" \
         --features="bottle-test" \
         -Z unstable-options \
-        --artifact-dir="$BOTTLE_TEST_RAW"
+        --artifact-dir="$BOTTLE_TEST_RAW" &&
 
-    mkdir -p "$BOTTLE_TEST"
+    mkdir -p "$BOTTLE_TEST" &&
     wasm-opt -O3 --enable-bulk-memory \
         -o "$BOTTLE_TEST/${package}.wasm" \
-        "$BOTTLE_TEST_RAW/${package}.wasm"
+        "$BOTTLE_TEST_RAW/${package}.wasm" &&
 
     cargo run -p bottle-test --profile dev "$package"
 }
@@ -197,19 +199,28 @@ itc_bottle_test_all() {
 
 ### MAIN ###
 
-main() {
-    test_sdk
-
-    eg_build_all
-    eg_test_all
-    eg_bottle_test_all
-
-    # itc_build_all
-    # itc_test_all
-    # itc_bottle_test_all
+fail() {
+  printf "\n!! CI-FAIL"
+  if [ $# -gt 0 ]; then
+    echo ": $@"
+  else
+    echo "!"
+  fi
+  printf "\n"
+  exit 1
 }
 
-main
+trap fail ERR;
+
+test_sdk
+
+eg_build_all
+eg_test_all
+eg_bottle_test_all
+
+# itc_build_all
+# itc_test_all
+# itc_bottle_test_all
 
 echo
 echo "OK!"

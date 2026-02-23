@@ -14,7 +14,7 @@ fn caller_test_native() {
     let caller_contract = caller::Caller::register(&mut env);
     let caller_hash = env.setup_create_contract(&caller_contract);
 
-    sdk::contract_exec(env, move || -> () {
+    sdk::contract_exec(env, move || {
         caller_test_inner(&erc20_hash, &caller_hash);
     }).unwrap_or_else(|e| panic!("Caller test failed: {}", e));
 }
