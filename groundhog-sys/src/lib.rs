@@ -24,6 +24,7 @@ pub use bindings::{
     TEST_FFI_VERSION_MAJOR,
     TEST_FFI_VERSION_MINOR,
     TEST_FFI_VERSION_PATCH,
+
 };
 
 // Types
@@ -67,6 +68,8 @@ pub use bindings::{
     open_mocked_syscall_handler,
     open_mock_invocation_frame,
     finish_mock_invocation_frame,
+    push_context,
+    pop_context,
     close_syscall_handler,
     get_event_log,
     get_event_log_len,
@@ -81,3 +84,4 @@ pub use bindings::{
 
 mod impls;
 pub use impls::FFIErrorCode;
+pub use impls::FFILogLevel;

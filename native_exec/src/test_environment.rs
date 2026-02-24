@@ -152,8 +152,8 @@ impl TestEnvironmentInner {
         }
     }
 
-    pub fn enable_syscall_logging() {
-        unsafe { groundhog_sys::enable_syscall_logging() };
+    pub fn enable_syscall_logging(level: groundhog_sys::FFILogLevel) {
+        unsafe { groundhog_sys::enable_syscall_logging(level as i32) };
     }
 
     /// Creates a new contract within groundhog.
@@ -370,7 +370,7 @@ impl TestEnvironment {
 
     // This has effect only after creation of a test environment
     pub fn enable_syscall_logging() {
-        TestEnvironmentInner::enable_syscall_logging();
+        TestEnvironmentInner::enable_syscall_logging(groundhog_sys::FFILogLevel::Trace);
     }
 
     pub fn advance_block(self: &TestEnvironmentHandle) {

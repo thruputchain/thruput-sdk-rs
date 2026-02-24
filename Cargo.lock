@@ -853,9 +853,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.3.0"
+version = "0.3.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "e505e57e98b57a428d6f9b6394e3a02cb789d12299799e1936de6f248c0ac87d"
+checksum = "a279a59bc6b4ad9117c5f9c5e109b99d1d0535ef366d311658603407dc7b0d1e"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -865,9 +865,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.3.0"
+version = "0.3.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "40d6498cf20918169890c8dd847bccfa979adcdbb18a6c8ae86f8e275b202874"
+checksum = "e8c6c571bef4eb59847529a1ef5ed9ba02ae0b5570591626564681a1c2517779"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -879,9 +879,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.3.0"
+version = "0.3.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "f8554d034798e4c1d4d2326e50476c6d0c0a6f94b26d7427295b380bbb2f537f"
+checksum = "2592733ed2486a24d17cd5d9de4f5c575104f37350459f01a28699d113df1718"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -968,9 +968,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.3.0"
+version = "0.3.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "0b13894dbe5fb557101ad3c87fbcaf344075b4eaaca40990064d0f897f214788"
+checksum = "e1d1fab01058a934512e3b21082a97607af440f89f1365419642291a57c536b0"
 dependencies = [
  "xdrs",
 ]

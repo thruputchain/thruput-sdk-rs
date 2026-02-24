@@ -1,6 +1,7 @@
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
+use std::cell::RefCell;
 use groundhog_sys::ForeignTryCommitResult;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::auth_claim::AuthClaimData;
@@ -28,6 +29,7 @@ enum MockInvocationFrameState {
 }
 
 pub struct MockInvocationFrameConfig<'a> {
+    context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     invocation: groundhog_xdr::transaction::Invocation,
     invoke_flags: i32,
 
@@ -37,11 +39,13 @@ pub struct MockInvocationFrameConfig<'a> {
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
-    pub fn new(
+    fn new(
         root_handler: *mut c_void,
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
+        context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     ) -> Self {
         Self {
+            context_pushcount,
             root_handler,
             invocation: groundhog_xdr::transaction::Invocation {
                 invoked_address: [0; 32].into(),
@@ -78,6 +82,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
             self.root_handler,
             &serialized_invocation,
             self.invoke_flags,
+            self.context_pushcount.clone(),
         ));
         *self.to_emplace = Some(frame);
         self.to_emplace.as_mut().unwrap()
@@ -88,13 +93,15 @@ pub struct MockInvocationFrame {
     root_handler: *mut c_void,
     child_frame: Option<Box<MockInvocationFrame>>,
     state: MockInvocationFrameState,
+    context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
 }
 
 impl MockInvocationFrame {
-    pub fn new(
+    fn new(
         root_handler: *mut c_void,
         serialized_invocation: &[u8],
         invoke_flags: i32,
+        context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     ) -> Self {
         let ffi_invocation = groundhog_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
@@ -121,6 +128,7 @@ impl MockInvocationFrame {
             root_handler,
             child_frame: None,
             state: MockInvocationFrameState::Started,
+            context_pushcount,
         }
     }
 
@@ -128,6 +136,7 @@ impl MockInvocationFrame {
         let config = MockInvocationFrameConfig::new(
             self.root_handler,
             &mut self.child_frame,
+            self.context_pushcount.clone(),
         );
         config
     }
@@ -164,6 +173,15 @@ impl MockInvocationFrame {
         self.state = MockInvocationFrameState::Closed(output, trace);
     }
 
+    fn push_context(&mut self) {
+        std::println!("top level push context");
+        self.context_pushcount.borrow_mut().push_context(self.root_handler);
+    }
+
+    fn pop_context(&mut self) {
+        self.context_pushcount.borrow_mut().pop_context();
+    }
+
     // return true if the frame could be continued
     pub fn execute(
         &mut self,
@@ -176,10 +194,14 @@ impl MockInvocationFrame {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
 
+        self.push_context();
+
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 lambda(self)
             }));
+
+        self.pop_context();
 
         match result {
             Ok(result) => {
@@ -225,6 +247,61 @@ impl Drop for MockInvocationFrame {
     }
 }
 
+struct ThreadlocalContextPushcount {
+    count: i32,
+}
+
+impl ThreadlocalContextPushcount {
+    pub fn new() -> Self {
+        Self { count: 0 }
+    }
+
+    pub fn push_context(&mut self, handler: *mut c_void) {
+        std::println!("pushing context, count: {}", self.count);
+        if self.count == 0 {
+            let push_res = unsafe {
+                groundhog_sys::push_context(handler)
+            };
+            let err: FFIErrorCode = push_res.into();
+            if err != FFIErrorCode::None {
+                panic!("failed to push context: {:?}", err);
+            }
+        }
+        self.count += 1;
+    }
+
+    pub fn pop_context(&mut self) {
+        if self.count == 0 {
+            panic!("cannot pop context if count is 0");
+        }
+        self.count -= 1;
+        if self.count == 0 {
+            let pop_res = unsafe {
+                groundhog_sys::pop_context()
+            };
+            let err: FFIErrorCode = pop_res.into();
+            if err != FFIErrorCode::None {
+                panic!("failed to pop context: {:?}", err);
+            }
+        }
+    }
+}
+
+impl Drop for ThreadlocalContextPushcount {
+    fn drop(&mut self) {
+        if self.count != 0 {
+            eprintln!("Dropping transaction while threadlocal context active: count={}", self.count);
+            let pop_res = unsafe {
+                groundhog_sys::pop_context()
+            };
+            let err: FFIErrorCode = pop_res.into();
+            if err != FFIErrorCode::None {
+                panic!("failed to pop context: {:?}", err);
+            }
+        }
+    }
+}
+
 // Can run one, and only one, transaction,
 // and then get the results
 pub struct MockTransactionHandler {
@@ -232,6 +309,7 @@ pub struct MockTransactionHandler {
     _env: Rc<TestEnvironment>,
     state: MockTransactionState,
     root_frame: Option<Box<MockInvocationFrame>>,
+    context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
 }
 
 impl MockTransactionHandler {
@@ -262,6 +340,7 @@ impl MockTransactionHandler {
             _env: env,
             state: MockTransactionState::NotStarted,
             root_frame: None,
+            context_pushcount: Rc::new(RefCell::new(ThreadlocalContextPushcount::new())),
         }
     }
 
@@ -295,7 +374,7 @@ impl MockTransactionHandler {
 
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
         let config =
-            MockInvocationFrameConfig::new(self.handler, &mut self.root_frame);
+            MockInvocationFrameConfig::new(self.handler, &mut self.root_frame, self.context_pushcount.clone());
         config
     }
 }
@@ -421,5 +500,31 @@ mod tests {
         );
         assert!(unsafe { FIRST });
         assert!(unsafe { SECOND });
+    }
+
+    #[test]
+    fn test_syscalls_with_context() {
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        TestEnvironment::enable_syscall_logging();
+
+        let (output, _) = handler
+            .open_root_frame()
+            .with_invoke_flags(0)
+            .at_contract_address(groundhog_xdr::types::ContractAddress::from([1; 32]))
+            .build()
+            .execute(|_| {
+                std::println!("getting current address");
+                let res = 
+                    groundhog_xdr::syscalls::GetCurrentAddress();
+                std::println!("res: {:?}", res);
+                assert_eq!(res.unwrap(), groundhog_xdr::types::ContractAddress::from([1; 32]));
+                false
+            })
+            .result();
+        assert_eq!(
+            output.status_code(),
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+        );
     }
 }
