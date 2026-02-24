@@ -16,8 +16,8 @@ BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 
 cargo_wasm() {
-    local cmd="$1"
-    shift
+    local cmd
+    cmd="$1"; shift
 
         # Get rid of the panic-logging feature?
 
@@ -74,9 +74,8 @@ make_optimized_wasm() {
     local contract="${CONTRACT}/${package}.wasm"
     local optimized="${OPTIMIZED}/${package}.wasm"
 
-    # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
-    # very slightly better)
-    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
+    # further compress the wasm
+    wasm-opt -O4 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 build_contract() {
@@ -113,6 +112,9 @@ build_bottle_test() {
         features="$features,sdk/call_tracking"
     fi
 
+    # NOTE: --artifact-dir, below, *copies* the artifact
+    # the the requested path, leaving the orginal in place
+    # (where it can be confused with the normal build).
     cargo_wasm build \
         --package "$package" \
         --features "$features" \
@@ -164,8 +166,8 @@ bottle_test_contracts() {
 }
 
 build_contracts() {
-    local contracts_dir="$1"
-    shift
+    local contracts_dir
+    contracts_dir="$1"; shift
 
     local contract
     for contract in $(ls_contracts "$contracts_dir") ; do
@@ -176,8 +178,7 @@ build_contracts() {
 
 tree_contract() {
     local package
-    package="$(basename "$1")"
-    shift
+    package="$(basename "$1")"; shift
 
     cargo_wasm tree \
         --edges normal,build,no-proc-macro \
@@ -188,8 +189,7 @@ tree_contract() {
 
 expand_contract() {
     local package
-    package="$(basename "$1")"
-    shift
+    package="$(basename "$1")"; shift
 
     cargo_wasm expand \
         --package "$package" \
@@ -199,8 +199,7 @@ expand_contract() {
 
 expand_test_contract() {
     local package
-    package="$(basename "$1")"
-    shift
+    package="$(basename "$1")"; shift
 
     cargo_native expand \
         --package "$package" \

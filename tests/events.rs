@@ -79,7 +79,7 @@ impl Event for OwnedEvent {
 single_event_test! {
     fn test_owned_event() {
         let event = OwnedEvent::default();
-        log_event(&event).unwrap();
+        log_event(&event);
     }
     fn event_check(event) {
         assert_eq!(event.num_topics, 2);
@@ -127,7 +127,7 @@ single_event_test! {
         let memo = "dinner".as_bytes();
         let event = BorrowedEvent { payer: &payer, payee: &payee, currency, amount, memo };
 
-        log_event(&event).unwrap();
+        log_event(&event);
     }
     fn event_check(event) {
         assert_eq!(event.num_topics, 3);

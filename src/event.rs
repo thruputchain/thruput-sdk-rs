@@ -1,8 +1,8 @@
 use crate::WriteXDR;
 use crate::hash::*;
 use crate::internal::encode_xdr;
-use crate::sys;
-use crate::sysresult::Result;
+use crate::sys::{self, SyscallNo};
+use crate::exn::*;
 
 /// Maximum number of topics per event
 pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;
@@ -49,7 +49,7 @@ pub trait Event: WriteXDR {
 }
 
 /// Emit an event
-pub fn log_event(event: &impl Event) -> Result<()> {
+pub fn log_event(event: &impl Event) {
     let n = event.num_topics();
 
     let topic = |i| {
@@ -65,16 +65,17 @@ pub fn log_event(event: &impl Event) -> Result<()> {
     let topic1: Option<Topic> = topic(1);
     let topic2: Option<Topic> = topic(2);
 
-    let data = encode_xdr(event)?;
+    let data = encode_xdr(event).unwrap(); // XXX
 
     sys::uninit_LogEvent(
         topic0.as_ref(),
         topic1.as_ref(),
         topic2.as_ref(),
         data.as_ref(),
-    )?;
-
-    Ok(())
+    )
+    .unwrap_or_else(|errno| {
+        syscall_abort2(SyscallNo::kLogEvent, errno);
+    });
 }
 
 // This should go in a test-utils area

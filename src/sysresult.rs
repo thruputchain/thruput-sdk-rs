@@ -1,3 +1,7 @@
+// For whose only error is a SysErr (syscalls or syscall-wrappers)
+pub type SysResult<T> = core::result::Result<T, crate::SysErr>;
+
+/*
 use crate::InvokeError;
 use crate::SysErr;
 use crate::abort;
@@ -7,9 +11,6 @@ use thiserror::Error;
 
 #[cfg(feature = "mock")]
 use alloc::string::{String, ToString};
-
-// For whose only error is a SysErr (syscalls or syscall-wrappers)
-pub type SysResult<T> = core::result::Result<T, SysErr>;
 
 // For other, more general SDK functions
 pub type Result<T> = core::result::Result<T, Error>;
@@ -55,14 +56,6 @@ impl Error {
     pub fn serialization<M: fmt::Display>(msg: M) -> Self {
         Error::SerializationErr(ErrorMsg::new(msg))
     }
-}
-
-pub fn nnint_overflow() -> ! {
-    abort(&Error::NonNegativeIntOverflow);
-}
-
-pub fn nnint_underflow() -> Error {
-    Error::NonNegativeIntUnderflow
 }
 
 impl From<WriteError> for Error {
@@ -124,3 +117,4 @@ impl fmt::Display for ErrorMsg {
         Ok(())
     }
 }
+*/

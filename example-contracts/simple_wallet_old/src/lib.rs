@@ -69,8 +69,7 @@ impl Wallet {
             &self.pk,
             signature,
             &auth_message,
-        )
-        .unwrap();
+        );
     }
 
     pub fn send_payment(

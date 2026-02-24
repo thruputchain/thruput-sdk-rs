@@ -43,7 +43,7 @@ pub mod auth_claim;
 pub mod block;
 pub mod bytestring;
 pub mod contract_op;
-pub mod contract_result;
+// pub mod contract_result;
 pub mod crypto;
 pub mod delete;
 pub mod deploy;

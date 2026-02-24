@@ -1,22 +1,11 @@
 //! Hash trait
 
-use crate::crypto::sha_256;
-use crate::sysresult::{Error, Result};
+use crate::crypto::sha256;
 
 pub type Hash256 = crate::crypto::SHA256Hash;
 
 pub trait Hash {
-    fn try_hash(&self) -> Result<Hash256> {
-        Ok(self.hash())
-    }
-
-    /// Should panic where `try_hash` gives an error.
-    /// If hashing may fail for some reason other than the hash syscall failing (which case is best
-    /// to handle with a panic), implement `try_hash` instead.
-    fn hash(&self) -> Hash256 {
-        self.try_hash()
-            .unwrap_or_else(|e| panic!("Hash failed: {}", e))
-    }
+    fn hash(&self) -> Hash256;
 }
 
 // For now, we stack-allocate a buffer to hold the entire encoding before hashing.
@@ -26,11 +15,9 @@ impl<T> Hash for T
 where
     T: xdrs::WriteXDR,
 {
-    fn try_hash(&self) -> Result<Hash256> {
-        let buf =
-            crate::internal::encode_xdr(self).map_err(Error::serialization)?;
+    fn hash(&self) -> Hash256 {
+        let buf = crate::internal::encode_xdr(self).unwrap(); // XXX
 
-        let hash = sha_256(buf.as_ref())?;
-        Ok(hash)
+        sha256(buf.as_ref())
     }
 }

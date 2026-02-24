@@ -31,6 +31,12 @@ pub enum LibraryExn {
 
     #[error("bytestring_get_sized: expected {expected}, found {found}")]
     BytestringWrongSize { expected: u32, found: u32 },
+
+    #[error("non-negative int underflow")]
+    NonNegativeIntUnderflow,
+
+    #[error("non-negative int overflow")]
+    NonNegativeIntOverflow,
 }
 
 impl LibraryExn {
@@ -57,8 +63,20 @@ pub fn syscall_abort2(callno: SyscallNo, errno: SysErr) -> ! {
     abort(&syscall_exn(callno, errno))
 }
 
+pub use syscall_abort2 as syscall_abort;
+
 fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
     LibraryExn::Syscall(SyscallExn::new(callno, errno))
+}
+
+#[track_caller]
+pub fn nnint_overflow() -> ! {
+    abort(&LibraryExn::NonNegativeIntOverflow)
+}
+
+#[track_caller]
+pub fn nnint_underflow() -> ! {
+    abort(&LibraryExn::NonNegativeIntUnderflow)
 }
 
 #[track_caller]

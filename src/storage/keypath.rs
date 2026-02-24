@@ -1,4 +1,4 @@
-use crate::crypto::sha_256;
+use crate::crypto::sha256;
 use crate::types::StorageKey;
 use alloc::{vec, vec::Vec};
 use core::fmt::Debug;
@@ -53,7 +53,7 @@ impl Keypath {
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        sha_256(self.flattened().as_slice()).unwrap().into()
+        sha256(self.flattened().as_slice()).into()
     }
 
     fn push_bytes(&mut self, slice: &[u8]) {

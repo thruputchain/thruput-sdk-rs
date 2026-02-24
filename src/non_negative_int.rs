@@ -4,7 +4,7 @@
 //! can be re-set or incremented.
 
 use crate::internal::nnint;
-use crate::sysresult::{nnint_overflow, nnint_underflow};
+use crate::exn::{nnint_overflow, nnint_underflow};
 use crate::types::StorageKey;
 
 /// Get the "current" ("set" + "add") value.

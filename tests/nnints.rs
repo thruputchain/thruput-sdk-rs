@@ -4,7 +4,6 @@
 
 use sdk::call::*;
 use sdk::sys::SyscallNo;
-use sdk::sysresult::Error;
 use sdk::*;
 
 contract_test!(test_nnints {

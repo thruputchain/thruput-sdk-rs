@@ -28,7 +28,7 @@ build_contract() {
     local package
     package="$1"; shift
 
-    echo "-- BUILD $contracts_dir/$package"
+    echo && echo "-- BUILD $contracts_dir/$package"
 
     build_wasm "$contracts_dir" "$package" &&
     make_optimized "$package"
@@ -42,13 +42,8 @@ build_wasm() {
 
     (
         cd "$contracts_dir/$package" &&
-        cargo --config "${SDK_DIR}/.cargo/contract.toml" \
-            build \
-            --release \
-            --target "wasm32-unknown-unknown" \
-            -Z build-std=core,alloc \
-            -Z build-std-features=std/optimize_for_size \
-            "$@"
+        cargo --config "../.cargo/contract.toml" \
+            build --release "$@"
     )
 }
 
@@ -62,9 +57,11 @@ make_optimized() {
 
     mkdir -p "$OPTIMIZED" &&
 
+    debugging="-g" # XXX
+
     # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
     # very slightly better)
-    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
+    wasm-opt -O3 "$debugging" --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 expand_contract() {
@@ -84,7 +81,7 @@ eg_build() {
     local package
     package="$1"; shift
 
-    build_contract "${SDK_DIR}/example-contracts/" "${package}"
+    build_contract "${SDK_DIR}/example-contracts" "${package}"
 }
 
 eg_build_all() {
@@ -105,7 +102,7 @@ eg_build_all() {
 itc_build() {
     package="$1"; shift
 
-    build_contract "${SDK_DIR}/integration_test_contracts/" "${package}"
+    build_contract "${SDK_DIR}/integration_test_contracts" "${package}"
 }
 
 itc_build_all() {
@@ -128,7 +125,7 @@ test_contract() {
     local package
     package="$1"; shift
 
-    echo "-- TEST $contracts_dir/$package"
+    echo && echo "-- TEST $contracts_dir/$package"
     (
         cd example-contracts &&
         cargo test -p "$package" "$@" -- --show-output
@@ -191,12 +188,11 @@ BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 bottle_test_contract() {
     # NOTE: This requires that the contract's wasm has already been built
 
-    local contracts_dir package package_dir
+    local contracts_dir package
     contracts_dir="$1"; shift
     package="$1"; shift
-    package_dir="${SDK_DIR}/${contracts_dir}/${package}"
 
-    echo "-- BOTTLE-TEST $contracts_dir/$package"
+    echo && echo "-- BOTTLE-TEST $contracts_dir/$package"
 
     build_wasm "$contracts_dir" "$package" \
         --features="bottle-test" \
