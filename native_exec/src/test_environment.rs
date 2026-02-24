@@ -370,7 +370,9 @@ impl TestEnvironment {
 
     // This has effect only after creation of a test environment
     pub fn enable_syscall_logging() {
-        TestEnvironmentInner::enable_syscall_logging(groundhog_sys::FFILogLevel::Trace);
+        TestEnvironmentInner::enable_syscall_logging(
+            groundhog_sys::FFILogLevel::Trace,
+        );
     }
 
     pub fn advance_block(self: &TestEnvironmentHandle) {

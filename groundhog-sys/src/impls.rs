@@ -42,7 +42,6 @@ impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
     }
 }
 
-
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
 pub enum FFILogLevel {

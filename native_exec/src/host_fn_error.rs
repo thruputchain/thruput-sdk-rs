@@ -1,7 +1,7 @@
+use groundhog_xdr::SyscallNo;
+use groundhog_xdr::syscalls::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
-use groundhog_xdr::syscalls::SysErr;
-use groundhog_xdr::SyscallNo;
 
 #[allow(clippy::too_many_arguments)]
 pub fn perform_mocked_syscall(

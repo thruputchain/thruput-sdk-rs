@@ -1,12 +1,12 @@
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use std::cell::RefCell;
 use groundhog_sys::ForeignTryCommitResult;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::auth_claim::AuthClaimData;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::SHA256Hash;
+use std::cell::RefCell;
 use std::panic::UnwindSafe;
 use std::panic::panic_any;
 use std::rc::Rc;
@@ -175,7 +175,9 @@ impl MockInvocationFrame {
 
     fn push_context(&mut self) {
         std::println!("top level push context");
-        self.context_pushcount.borrow_mut().push_context(self.root_handler);
+        self.context_pushcount
+            .borrow_mut()
+            .push_context(self.root_handler);
     }
 
     fn pop_context(&mut self) {
@@ -259,9 +261,7 @@ impl ThreadlocalContextPushcount {
     pub fn push_context(&mut self, handler: *mut c_void) {
         std::println!("pushing context, count: {}", self.count);
         if self.count == 0 {
-            let push_res = unsafe {
-                groundhog_sys::push_context(handler)
-            };
+            let push_res = unsafe { groundhog_sys::push_context(handler) };
             let err: FFIErrorCode = push_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to push context: {:?}", err);
@@ -276,9 +276,7 @@ impl ThreadlocalContextPushcount {
         }
         self.count -= 1;
         if self.count == 0 {
-            let pop_res = unsafe {
-                groundhog_sys::pop_context()
-            };
+            let pop_res = unsafe { groundhog_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to pop context: {:?}", err);
@@ -290,10 +288,11 @@ impl ThreadlocalContextPushcount {
 impl Drop for ThreadlocalContextPushcount {
     fn drop(&mut self) {
         if self.count != 0 {
-            eprintln!("Dropping transaction while threadlocal context active: count={}", self.count);
-            let pop_res = unsafe {
-                groundhog_sys::pop_context()
-            };
+            eprintln!(
+                "Dropping transaction while threadlocal context active: count={}",
+                self.count
+            );
+            let pop_res = unsafe { groundhog_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to pop context: {:?}", err);
@@ -340,7 +339,9 @@ impl MockTransactionHandler {
             _env: env,
             state: MockTransactionState::NotStarted,
             root_frame: None,
-            context_pushcount: Rc::new(RefCell::new(ThreadlocalContextPushcount::new())),
+            context_pushcount: Rc::new(RefCell::new(
+                ThreadlocalContextPushcount::new(),
+            )),
         }
     }
 
@@ -373,8 +374,11 @@ impl MockTransactionHandler {
     }
 
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
-        let config =
-            MockInvocationFrameConfig::new(self.handler, &mut self.root_frame, self.context_pushcount.clone());
+        let config = MockInvocationFrameConfig::new(
+            self.handler,
+            &mut self.root_frame,
+            self.context_pushcount.clone(),
+        );
         config
     }
 }
@@ -511,14 +515,18 @@ mod tests {
         let (output, _) = handler
             .open_root_frame()
             .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from([1; 32]))
+            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+                [1; 32],
+            ))
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = 
-                    groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = groundhog_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
-                assert_eq!(res.unwrap(), groundhog_xdr::types::ContractAddress::from([1; 32]));
+                assert_eq!(
+                    res.unwrap(),
+                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                );
                 false
             })
             .result();
