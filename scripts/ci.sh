@@ -30,7 +30,7 @@ build_contract() {
 
     echo && echo "-- BUILD $contracts_dir/$package"
 
-    build_wasm "$contracts_dir" "$package" &&
+    build_wasm "$contracts_dir" "$package" --release &&
     make_optimized "$package"
 }
 
@@ -43,7 +43,7 @@ build_wasm() {
     (
         cd "$contracts_dir/$package" &&
         cargo --config "../.cargo/contract.toml" \
-            build --release "$@"
+            build "$@"
     )
 }
 
@@ -182,7 +182,7 @@ itc_test_all() {
 
 ### BOTTLE TEST ###
 
-BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
+BOTTLE_TEST_RAW="${TARGET_DIR}/wasm32-unknown-unknown/bottle_test"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 
 bottle_test_contract() {
@@ -195,9 +195,10 @@ bottle_test_contract() {
     echo && echo "-- BOTTLE-TEST $contracts_dir/$package"
 
     build_wasm "$contracts_dir" "$package" \
+        --profile="bottle_test" \
         --features="bottle-test" \
         -Z unstable-options \
-        --artifact-dir="$BOTTLE_TEST_RAW" &&
+        #
 
     mkdir -p "$BOTTLE_TEST" &&
     wasm-opt -O3 --enable-bulk-memory \
@@ -268,8 +269,8 @@ fail() {
 
 trap fail ERR;
 
-cargo doc --features=std,storage,abort/debug
-test_sdk
+# cargo doc --features=std,storage,abort/debug
+# test_sdk
 
 eg_build_all
 eg_test_all

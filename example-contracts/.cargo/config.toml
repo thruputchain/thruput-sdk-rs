@@ -19,6 +19,9 @@ panic = "abort"
 lto = true
 codegen-units = 1
 
+[profile.bottle_test]
+inherits = "release"
+
 # [unstable]
 # build-std = ["core", "alloc"]
 # build-std-features = ["std/optimize_for_size"]
