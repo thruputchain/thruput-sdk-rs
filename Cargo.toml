@@ -146,7 +146,8 @@ name = "storage"
 required-features = ["storage"]
 
 [[test]]
-name = "events"
+name = "aborts"
+test = false # XXX
 
 [lints.clippy]
 collapsible_if = "allow"

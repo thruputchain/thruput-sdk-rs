@@ -63,12 +63,15 @@ where
 
 #[inline(never)]
 #[allow(clippy::result_large_err)]
-fn contract_call(
+pub fn contract_call<A>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
-    args_buf: &ArgsBuf,
-) -> Result<ContractResult, SysErr> {
+    args: &A,
+)-> Result<ContractResult, SysErr>
+where
+    A: AsRef<[u8]> + ?Sized
+{
     // Perform the cross-contract call
     let mut return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
@@ -76,7 +79,7 @@ fn contract_call(
         address,
         entrypoint,
         gas_limit,
-        args_buf.as_ref(),
+        args.as_ref(),
         0, // TODO(geoff): invoke flags go here
         &mut return_len,
     );

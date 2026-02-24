@@ -10,8 +10,6 @@
 
 use crate::interface::*;
 use sdk::*;
-// Override with the non-result versions:
-use sdk::asys::{bytestring_exists, bytestring_get_sized, bytestring_set};
 
 // Compute keys for storing things
 

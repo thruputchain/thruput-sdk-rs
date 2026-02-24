@@ -87,7 +87,7 @@ where
 
 // At least this part won't be monomorphized multiple times
 #[inline(never)]
-fn invoke_raw(
+pub fn invoke_raw(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,

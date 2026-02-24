@@ -37,3 +37,7 @@ impl StorageError {
 pub fn oob_err<T>(len: u64, access: u64) -> Result<T> {
     Err(StorageError::IndexOutOfBounds { len, access })
 }
+
+pub fn oob_abort(len: u64, access: u64) -> ! {
+    crate::abort(&StorageError::IndexOutOfBounds { len, access })
+}

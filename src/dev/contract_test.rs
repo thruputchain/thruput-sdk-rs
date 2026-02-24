@@ -127,8 +127,6 @@ macro_rules! contract_test {
 
             $crate::contract_exec(env, || {
                 $test_body
-
-                // contract_return_empty(); // unnecessary?
             })
             .unwrap_or_else(|e| panic!("Contract test failed: {e}"));
         }

@@ -255,8 +255,7 @@ pub fn generate_method(
     // Save the contract state after calling the method, if it takes a mutable ref to the state
     let save_state = if is_method && config.storage() && is_mut {
         quote! {
-            state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
-                panic!("Failed saving contract storage"));
+            state.store_keypath(&Keypath::root());
         }
     } else {
         quote! {}
@@ -313,7 +312,7 @@ pub fn generate_method(
                         // function?
 
                         // Fetch the calldata from the VM
-                        let calldata = ::sdk::contract_op::bare_get_calldata();
+                        let calldata = ::sdk::contract_op::get_calldata();
 
                         // Decode the args
                         let (#arg_names) = sdk::call::internal::contract_call_decode(calldata.as_ref())

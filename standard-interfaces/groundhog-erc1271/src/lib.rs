@@ -1,10 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub type ERC1271Error = ::sdk::contract_result::Error;
-
 use sdk::contract;
 
-#[contract(client = ERC1271Client, err_type = ERC1271Error)]
+#[contract(client = ERC1271Client)]
 pub trait ERC1271 {
     /// Verifies if the given signature is valid for the given message hash.
     ///
@@ -17,5 +15,5 @@ pub trait ERC1271 {
         &self,
         message: &[u8],
         signature: &[u8],
-    ) -> Result<bool, ERC1271Error>;
+    ) -> bool;
 }

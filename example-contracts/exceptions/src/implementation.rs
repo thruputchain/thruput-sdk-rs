@@ -26,7 +26,8 @@ impl Interface for Contract {
     }
 
     fn syscall_err() {
-        asys::bytestring_get_len(&StorageKey::from([7; 32]));
+        // This should throw an exception
+        bytestring_get_len(&StorageKey::from([7; 32]));
     }
 
     fn throw_thing() {

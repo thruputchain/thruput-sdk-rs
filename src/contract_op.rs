@@ -80,16 +80,20 @@ pub fn get_current_address() -> ContractAddress {
     unsafe { out_addr.assume_init() }
 }
 
-#[inline]
-pub fn get_calldata_len() -> Result<RuntimeMemoryLength> {
+pub fn try_get_calldata_len() -> Result<RuntimeMemoryLength> {
     let mut out: RuntimeMemoryLength = 0;
     sys::raw_GetCalldataLen(&mut out)?;
     Ok(out)
 }
 
+pub fn get_calldata_len() -> RuntimeMemoryLength {
+    try_get_calldata_len()
+        .unwrap_or_else(|e| syscall_abort2(SyscallNo::kGetCalldataLen, e))
+}
+
 pub type Calldata = MUBuf<CALLDATA_MAX>;
 
-pub fn get_calldata() -> Result<Calldata> {
+pub fn try_get_calldata() -> Result<Calldata> {
     // Get a buffer to put the calldata in
     let mut calldata: Calldata = MUBuf::new();
 
@@ -111,8 +115,8 @@ pub fn get_calldata() -> Result<Calldata> {
 
 // This should probably become `get_calldata`, once the existing clients
 // of that function are adapted to non-result return.
-pub fn bare_get_calldata() -> Calldata {
-    get_calldata().unwrap_or_else(|syserr| {
+pub fn get_calldata() -> Calldata {
+    try_get_calldata().unwrap_or_else(|syserr| {
         syscall_abort2(SyscallNo::kGetCalldata, syserr)
     })
 }

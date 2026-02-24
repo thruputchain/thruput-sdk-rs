@@ -7,8 +7,6 @@
 
 use crate::interface::*;
 use sdk::*;
-// Override with the non-result version:
-use sdk::asys::bytestring_get_sized;
 
 // Compute keys for storing things
 
@@ -73,12 +71,12 @@ impl ERC20 for Token {
         let key = get_owner_key();
 
         // Make sure we haven't already been initialized
-        if asys::bytestring_exists(&key) {
+        if bytestring_exists(&key) {
             abort(&ERC20Error::AlreadyInitialized);
         }
 
         // Store our configuration
-        asys::bytestring_set(&key, contract_owner.as_ref());
+        bytestring_set(&key, contract_owner.as_ref());
     }
 
     fn transfer(

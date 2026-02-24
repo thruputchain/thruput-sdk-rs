@@ -30,7 +30,7 @@ impl Bytestring {
     }
 
     pub fn len(&self) -> usize {
-        bytestring_get_len(&self.key).unwrap_or(0) as usize
+        bytestring_get_len(&self.key) as usize
     }
 
     pub fn is_empty(&self) -> bool {
@@ -38,20 +38,20 @@ impl Bytestring {
     }
 
     pub fn set(&mut self, buf: &[u8]) {
-        bytestring_set(&self.key, buf).unwrap();
+        bytestring_set(&self.key, buf);
     }
 
     pub fn set_exclusive(&mut self, buf: &[u8]) {
-        bytestring_set_exclusive(&self.key, buf).unwrap()
+        bytestring_set_exclusive(&self.key, buf);
     }
 
-    pub fn get_sized<const N: usize>(&self) -> Option<[u8; N]> {
-        bytestring_get_sized(&self.key).unwrap()
+    pub fn get_sized<const N: usize>(&self) -> [u8; N] {
+        bytestring_get_sized(&self.key)
     }
 
     #[cfg(feature = "alloc")]
     pub fn get(&self) -> Box<[u8]> {
-        bytestring_get(&self.key).unwrap_or_else(|err| {
+        try_bytestring_get(&self.key).unwrap_or_else(|err| {
             if err.is_storage_key_not_exist() {
                 vec![].into_boxed_slice()
             } else {

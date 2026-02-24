@@ -1,4 +1,4 @@
-use super::error::{Result, oob_err};
+use super::error::{Result, oob_err, oob_abort};
 use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{LoadKeypath, load_keypath};
@@ -132,20 +132,19 @@ impl<T> Vector<T> {
         }
     }
 
-    pub fn set(&self, index: u64, val: &T) -> Result<()>
+    pub fn set(&self, index: u64, val: &T)
     where
         T: Store,
     {
         if index < self.len {
             let keypath = &self.make_index_keypath(index);
-            val.store_keypath(keypath)?;
-            Ok(())
+            val.store_keypath(keypath);
         } else {
-            oob_err(self.len, index)
+            oob_abort(self.len, index);
         }
     }
 
-    pub fn push(&mut self, val: T) -> Result<()>
+    pub fn push(&mut self, val: T)
     where
         T: Store,
     {
@@ -153,22 +152,20 @@ impl<T> Vector<T> {
         self.len += 1;
 
         // Store the element value
-        self.set(new_index, &val)?;
+        self.set(new_index, &val);
 
         // Store ourselves
-        self.store_keypath(&self.keypath)?;
-        Ok(())
+        self.store_keypath(&self.keypath);
     }
 
-    pub fn extend_len(&mut self, len: u64) -> Result<()>
+    pub fn extend_len(&mut self, len: u64)
     where
         T: DefaultFromKeypath,
     {
         if len > self.len {
             self.len = len;
-            Ok(())
         } else {
-            oob_err(self.len, len) // can only increase length
+            oob_abort(self.len, len); // can only increase length
         }
     }
 
@@ -239,8 +236,10 @@ mod vref {
 
     impl<T: Store> Drop for ElemRefMut<'_, T> {
         fn drop(&mut self) {
+            // XXX: abort in drop handler?
+
             // Flush any changes
-            self.vec.set(self.idx, &self.val).unwrap();
+            self.vec.set(self.idx, &self.val);
         }
     }
 }

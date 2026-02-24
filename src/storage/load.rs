@@ -30,11 +30,10 @@ pub fn load_readable<T>(keypath: &Keypath) -> Result<T>
 where
     T: ReadXDRPath,
 {
-    use crate::bytestring::bytestring_get;
     use xdrs::cxs::buf_reader::BufReader;
 
     let key = &keypath.generate_key();
-    let buf = bytestring_get(key)?;
+    let buf = crate::try_bytestring_get(key)?;
 
     let xdr_reader = BufReader::new(buf.as_ref());
     let path = keypath.clone();
