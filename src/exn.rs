@@ -1,4 +1,5 @@
-use crate::sys::{SysErr, SyscallNo};
+use crate::sys::SysErr;
+use groundhog_xdr::SyscallNo;
 use crate::{ReadXDR, WriteXDR};
 use core::fmt::{self, Display};
 

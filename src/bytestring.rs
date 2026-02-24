@@ -62,7 +62,7 @@ pub mod asys {
 
         sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
             let info = SyscallExn::new(
-                crate::sys::SyscallNo::kBytestringGetLen,
+                groundhog_xdr::SyscallNo::kBytestringGetLen,
                 errno,
             );
             crate::abort(&info);
