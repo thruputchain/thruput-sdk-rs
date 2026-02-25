@@ -248,7 +248,7 @@ pub fn generate_method(
     };
 
     // Decode the args, run the body, encode the result
-    let wrapped_call = quote! {
+    let wrapped_call = quote! {{
         //
         // If debug mode: log the method-call
         #log_guest_call
@@ -282,7 +282,7 @@ pub fn generate_method(
 
         // Return the result to the VM
         ::sdk::contract_return(return_buf.as_ref());
-    };
+    }};
 
     // Catch exceptions
     let wrapped_call = {
@@ -295,7 +295,7 @@ pub fn generate_method(
             ::sdk::with_abort_handler(
                 // An abort handler that knows our specific error type
                 &::sdk::call::internal::method_abort_handler::<#error_ty>,
-                || { #wrapped_call }
+                || #wrapped_call,
             )
         }
     };

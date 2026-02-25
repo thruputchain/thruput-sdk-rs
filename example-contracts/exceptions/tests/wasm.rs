@@ -14,10 +14,8 @@ fn wasm_ok() {
     let env = TestEnvironment::default();
     let _ = env.setup_create_contract(&contract);
 
-    contract_exec(env, move || {
-        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
-            // Do nothing
-        })
+    contract_exec(env, || {
+        // Do nothing
     })
     .unwrap_or_else(|e|
         panic!("Ok test failed: {e}"));
@@ -43,9 +41,7 @@ fn wasm_exceptions() {
     let contract_hash = env.setup_create_contract(&contract);
 
     contract_exec(env, move || {
-        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
-            exceptions_test(&contract_hash)
-        })
+        exceptions_test(&contract_hash)
     })
     .unwrap_or_else(|e|
         panic!("Exceptions test failed: {e}"));
@@ -58,9 +54,7 @@ fn wasm_panic() {
     let contract_hash = env.setup_create_contract(&contract);
 
     contract_exec(env, move || {
-        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
-            panic_test(&contract_hash)
-        })
+        panic_test(&contract_hash)
     })
     .unwrap_or_else(|e|
         panic!("Panic test failed: {e}"));

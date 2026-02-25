@@ -12,9 +12,7 @@ fn native_exceptions() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
-        with_abort_handler(&test_abort_handler::<Infallible>, || {
-            common::exceptions_test(&contract_hash)
-        })
+        common::exceptions_test(&contract_hash)
     })
     .unwrap_or_else(|e|
         panic!("Test failed: {}", e));
@@ -29,9 +27,7 @@ fn native_panic() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
-        sdk::with_abort_handler(&sdk::test_abort_handler::<Infallible>, || {
-            common::panic_test(&contract_hash)
-        })
+        common::panic_test(&contract_hash)
     })
     .unwrap_or_else(|e|
         panic!("Test failed: {}", e));

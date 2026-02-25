@@ -70,7 +70,7 @@ where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
     let test = move || {
-        with_abort_handler(&test_abort_handler::<Infallible>, f.clone())
+        with_abort_handler!(test_abort_handler::<Infallible>, f())
     };
 
     env.prepare_test(test)
