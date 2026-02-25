@@ -119,12 +119,12 @@ mod without_strings {
         #[allow(unused)]
         pub fn via_display<V>(_v: &V) -> Self
         where
-            V: Display + ?Sized,
+            V: ?Sized,
         {
             Self
         }
 
-        pub fn from_display(_s: impl Display) -> Self {
+        pub fn from_display<S>(_s: S) -> Self {
             Self
         }
 

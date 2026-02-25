@@ -47,3 +47,6 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 
 [profile.release]
 trim-paths = "all" # unstable
+
+[patch.groundhog] # XXX
+abort = { path = "../../abort" }

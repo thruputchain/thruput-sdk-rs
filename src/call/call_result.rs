@@ -11,6 +11,7 @@ use crate::exn::{CallingError, CrossExn, Exn, FaultString, library_abort};
 use crate::xdr::*;
 use core::convert::Infallible;
 use core::fmt::{self, Debug};
+#[cfg(feature = "debugging")]
 use thiserror::Error;
 
 /// The result of a contract call, where `E` is the error-type specific to the
@@ -21,23 +22,33 @@ pub type CallResult<T = (), E = Infallible> = Result<T, CallError<E>>;
 /// An error resulting from a contract call, where `E` is the error-type
 /// specific to the contract or method.
 ///
-#[derive(PartialEq, Error)]
+#[derive(PartialEq)]
+#[cfg_attr(feature = "debugging", derive(Error))]
 pub enum CallError<E>
 where
     E: Exn,
 {
     /// The called contract requested abort.
     ///
-    #[error("The called contract aborted")]
-    Abort(#[from] CrossExn<E>),
+    #[cfg_attr(feature = "debugging", error("The called contract aborted"))]
+    Abort(CrossExn<E>),
 
     /// The called contract terminated without providing a return value.
     ///
     /// When `cfg(feature = "debugging")`, this contains a string describing
     /// the fault (e.g., what was passed to `panic`).
     ///
-    #[error("The called contract faulted: {0}")]
+    #[cfg_attr(feature = "debugging", error("The called contract faulted: {0}"))]
     Fault(FaultString),
+}
+
+impl<E> From<CrossExn<E>> for CallError<E>
+where
+    E: Exn,
+{
+    fn from(e: CrossExn<E>) -> Self {
+        Self::Abort(e)
+    }
 }
 
 impl<E> Debug for CallError<E>
