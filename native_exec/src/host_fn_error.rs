@@ -1,3 +1,5 @@
+use groundhog_xdr::SyscallNo;
+use groundhog_xdr::syscalls::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
 
@@ -44,4 +46,27 @@ pub fn perform_mocked_syscall(
             panic_any(crate::invoke_error::unrecoverable_error());
         }
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C-unwind" fn syscall_wrapper_impl(
+    syscall_no: SyscallNo,
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+    arg4: u64,
+    arg5: u64,
+    arg6: u64,
+    arg7: u64,
+) -> SysErr {
+    SysErr(perform_mocked_syscall(
+        syscall_no as i32,
+        arg1,
+        arg2,
+        arg3,
+        arg4,
+        arg5,
+        arg6,
+        arg7,
+    ))
 }

@@ -110,9 +110,6 @@ pub use groundhog_macros::storage;
 // Test environment
 
 #[cfg(feature = "mock")]
-pub mod syscall_bindings;
-
-#[cfg(feature = "mock")]
 pub mod contract_test;
 
 #[cfg(feature = "mock")]

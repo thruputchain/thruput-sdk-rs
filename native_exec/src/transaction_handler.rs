@@ -80,7 +80,7 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        let foreign_result: groundhog_sys::ForeignRootInvokeResult = unsafe {
+        let foreign_result: groundhog_sys::ForeignTracedInvokeResult = unsafe {
             groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
 

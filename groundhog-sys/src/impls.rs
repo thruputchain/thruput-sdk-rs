@@ -42,6 +42,37 @@ impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
     }
 }
 
+#[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u32)]
+pub enum FFILogLevel {
+    #[error("Trace logging")]
+    Trace = crate::bindings::TestFFILogLevel_kTestFFILogLevelTrace,
+    #[error("Debug logging")]
+    Debug = crate::bindings::TestFFILogLevel_kTestFFILogLevelDebug,
+    #[error("Info logging")]
+    Info = crate::bindings::TestFFILogLevel_kTestFFILogLevelInfo,
+    #[error("Warn logging")]
+    Warn = crate::bindings::TestFFILogLevel_kTestFFILogLevelWarn,
+    #[error("Error logging")]
+    Error = crate::bindings::TestFFILogLevel_kTestFFILogLevelError,
+    #[error("Critical logging")]
+    Critical = crate::bindings::TestFFILogLevel_kTestFFILogLevelCritical,
+}
+
+impl From<crate::bindings::TestFFILogLevel> for FFILogLevel {
+    fn from(level: crate::bindings::TestFFILogLevel) -> Self {
+        match level {
+            x if x == crate::bindings::TestFFILogLevel_kTestFFILogLevelTrace => FFILogLevel::Trace,
+            x if x == crate::bindings::TestFFILogLevel_kTestFFILogLevelDebug => FFILogLevel::Debug,
+            x if x == crate::bindings::TestFFILogLevel_kTestFFILogLevelInfo => FFILogLevel::Info,
+            x if x == crate::bindings::TestFFILogLevel_kTestFFILogLevelWarn => FFILogLevel::Warn,
+            x if x == crate::bindings::TestFFILogLevel_kTestFFILogLevelError => FFILogLevel::Error,
+            x if x == crate::bindings::TestFFILogLevel_kTestFFILogLevelCritical => FFILogLevel::Critical,
+            _ => panic!("unknown FFI log level: {}", level),
+        }
+    }
+}
+
 impl Drop for crate::FFIDataBuffer {
     fn drop(&mut self) {
         match unsafe {

@@ -1,6 +1,7 @@
-use crate::sys::{SysErr, SyscallNo};
+use crate::sys::SysErr;
 use crate::{ReadXDR, WriteXDR};
 use core::fmt::{self, Display};
+use groundhog_xdr::SyscallNo;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyscallExn {

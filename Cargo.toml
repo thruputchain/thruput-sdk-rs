@@ -94,12 +94,12 @@ groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0
 groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.2.0" }
 
 #external dependencies
-groundhog-trace = { registry = "groundhog", version = "0.3.0" }
-groundhog-xdr = { registry = "groundhog", version = "0.3.0", features = ["xdrs", "syscalls"] }
-hogexec-internal = { registry = "groundhog", version = "0.3.0" }
+groundhog-trace = { registry = "groundhog", version = "0.3.2" }
+groundhog-xdr = { registry = "groundhog", version = "0.3.2", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "0.3.2" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128"] }
-xdr_common = { registry = "groundhog", version = "0.4.0" }
+xdr-common = { registry = "groundhog", version = "0.4.0" }
 abort = { registry = "groundhog", version = "0.1.0" }
 
 sha2 = { version = "0.10.8", default-features = false }
@@ -135,7 +135,10 @@ panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
 call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
-spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util"]
+spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util", "groundhog-xdr/syscalls_mock"]
+
+[package.metadata.docs.rs]
+features = ["std", "storage", "abort/debug", "groundhog-xdr/syscalls_mock"]
 
 [profile.contract]
 inherits = "release"
@@ -166,3 +169,8 @@ collapsible_if = "allow"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 abort = { workspace = true, features = ["single-threaded"] }
+groundhog-xdr = { workspace = true, features = ["syscalls"] }
+
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
