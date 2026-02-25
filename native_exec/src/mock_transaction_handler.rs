@@ -578,30 +578,39 @@ mod tests {
                 );
                 true
             });
-        let (output1, _) = frame1.execute(|_| {
-            std::println!("getting current address");
-            let res = groundhog_xdr::syscalls::GetCurrentAddress();
-            std::println!("res: {:?}", res);
-            assert_eq!(
-                res.unwrap(),
-                groundhog_xdr::types::ContractAddress::from([1; 32])
-            );
-            false
-        }).result();
+        let (output1, _) = frame1
+            .execute(|_| {
+                std::println!("getting current address");
+                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                std::println!("res: {:?}", res);
+                assert_eq!(
+                    res.unwrap(),
+                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                );
+                false
+            })
+            .result();
 
-        let (output2, _) = frame2.execute(|_| {
-            std::println!("getting current address");
-            let res = groundhog_xdr::syscalls::GetCurrentAddress();
-            std::println!("res: {:?}", res);
-            assert_eq!(
-                res.unwrap(),
-                groundhog_xdr::types::ContractAddress::from([2; 32])
-            );
-            false
-        }).result();
+        let (output2, _) = frame2
+            .execute(|_| {
+                std::println!("getting current address");
+                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                std::println!("res: {:?}", res);
+                assert_eq!(
+                    res.unwrap(),
+                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                );
+                false
+            })
+            .result();
 
-        assert_eq!(output1.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
-        assert_eq!(output2.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
-       
+        assert_eq!(
+            output1.status_code(),
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+        );
+        assert_eq!(
+            output2.status_code(),
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+        );
     }
 }
