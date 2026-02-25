@@ -144,7 +144,7 @@ contract_test!(test_storable {
 
     let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
     for i in 0..3 {
-        let n = data.nums.get(i).unwrap();
+        let n = data.nums.get(i);
         assert_eq!(n, i);
     }
 });
@@ -159,18 +159,18 @@ contract_test!(test_storable_lazy {
         data.nums.push(n);
     }
     for i in 0..3 {
-        let n = data.nums.get(i).unwrap();
+        let n = data.nums.get(i);
         assert_eq!(n, i);
     }
     drop(data); // flush changes
 
     let data = handle.load().unwrap();
     for i in 0..3 {
-        let n = data.nums.get(i).unwrap();
+        let n = data.nums.get(i);
         assert_eq!(n, i);
     }
 
-    assert!(data.nums.get(100).is_err());
+    assert!(data.nums.try_get(100).is_none());
 });
 
 contract_test!(test_load_default {
@@ -183,7 +183,7 @@ contract_test!(test_load_default {
 
     let data = handle.load().unwrap();
     for i in 0..3 {
-        let mut nnint = data.nnints.get_default(i).unwrap();
+        let mut nnint = data.nnints.get_default(i);
         assert_eq!(nnint.try_get(), None);
 
         let n = 72 + i;
@@ -193,10 +193,7 @@ contract_test!(test_load_default {
 
     let data = handle.load().unwrap();
     for i in 0..3 {
-        let nnint = data.nnints.get_default(i)
-            .unwrap_or_else(|e| {
-                panic!("try_get {i} failed: {e}");
-            });
+        let nnint = data.nnints.get_default(i);
         let n = nnint.get() as u64;
         let n_expected = 72 + i;
         assert_eq!(n, n_expected);
@@ -236,7 +233,7 @@ contract_test!(test_vector {
 
     assert_eq!(3, vec.len());
     for i in 0..3 {
-        assert_eq!(i as u32, vec.get(i).unwrap());
+        assert_eq!(i as u32, vec.get(i));
     }
 });
 
@@ -257,7 +254,7 @@ contract_test!(test_handled_vector {
     let vec = handle.load().unwrap();
     assert_eq!(3, vec.len());
     for i in 0..3 {
-        assert_eq!(i as u32, vec.get(i).unwrap());
+        assert_eq!(i as u32, vec.get(i));
     }
     drop(vec);
 });
@@ -275,7 +272,7 @@ contract_test!(test_vector_data {
     for i in 0..3 {
         // let mut dh = vec.get_handle(i).unwrap();
         // let mut d = dh.load_mut().unwrap();
-        let mut d = vec.load_mut(i).unwrap();
+        let mut d = vec.load_mut(i);
         d.num = i as _;
     }
     drop(vec);
@@ -283,7 +280,7 @@ contract_test!(test_vector_data {
     let vec = handle.load().unwrap();
     assert_eq!(3, vec.len());
     for i in 0..3 {
-        let d = vec.get_default(i).unwrap();
+        let d = vec.get_default(i);
         assert_eq!(i, d.num as _);
     }
     drop(vec);

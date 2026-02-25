@@ -269,8 +269,8 @@ fail() {
 
 trap fail ERR;
 
-# cargo doc --features=std,storage,abort/debug
-# test_sdk
+cargo doc --features=std,storage,abort/debug
+test_sdk
 
 eg_build_all
 eg_test_all

@@ -1,8 +1,9 @@
-use super::error::{Result, oob_err, oob_abort};
+use super::error::*;
 use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
+use crate::exn::*;
 use core::fmt::Debug;
 
 #[derive(Debug)]
@@ -76,59 +77,78 @@ impl<T> Vector<T> {
         self.len() == 0
     }
 
-    pub fn get(&self, index: u64) -> Result<T>
+    pub fn get(&self, index: u64) -> T
     where
         T: LoadKeypath,
     {
         if index >= self.len {
-            return oob_err(self.len, index);
+            oob_abort(self.len, index);
         }
 
         let keypath = self.make_index_keypath(index);
 
         load_keypath(&keypath)
+            .unwrap_or_else(|e| { library_abort(e) })
     }
 
-    pub fn get_default(&self, index: u64) -> Result<T>
+    pub fn get_default(&self, index: u64) -> T
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
         if index >= self.len {
-            return oob_err(self.len, index);
+            oob_abort(self.len, index);
         }
 
         let keypath = self.make_index_keypath(index);
 
-        Ok(T::try_load_keypath(&keypath)?
-            .unwrap_or_else(|| T::default_from_keypath(&keypath)))
+        T::try_load_keypath(&keypath)
+            .unwrap_or_else(|e| { library_abort(e) })
+            .unwrap_or_else(|| T::default_from_keypath(&keypath))
     }
 
-    pub fn load<'a>(&'a self, index: u64) -> Result<ElemRef<'a, T>>
+    pub fn try_get(&self, index: u64) -> Option<T>
+    where
+        T: LoadKeypath,
+    {
+        if index >= self.len {
+            return None;
+        }
+
+        let keypath = self.make_index_keypath(index);
+
+        let val = load_keypath(&keypath)
+            .unwrap_or_else(|e| { library_abort(e) });
+
+        Some(val)
+    }
+
+    pub fn load<'a>(&'a self, index: u64) -> ElemRef<'a, T>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        let val = self.get_default(index)?;
-        Ok(ElemRef::new(self, val))
+        let val = self.get_default(index);
+
+        ElemRef::new(self, val)
     }
 
-    pub fn load_mut<'a>(&'a mut self, index: u64) -> Result<ElemRefMut<'a, T>>
+    pub fn load_mut<'a>(&'a mut self, index: u64) -> ElemRefMut<'a, T>
     where
         T: LoadKeypath + DefaultFromKeypath + Store,
     {
-        let val = self.get_default(index)?;
-        Ok(ElemRefMut::new(self, index, val))
+        let val = self.get_default(index);
+
+        ElemRefMut::new(self, index, val)
     }
 
-    pub fn get_handle(&self, index: u64) -> Result<Handle<T>>
+    pub fn get_handle(&self, index: u64) -> Handle<T>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
         if index < self.len {
             let keypath = self.make_index_keypath(index);
-            let handle = Handle::from(keypath);
-            Ok(handle)
+            Handle::from(keypath)
         } else {
-            oob_err(self.len, index)
+            oob_abort(self.len, index);
         }
     }
 
@@ -165,7 +185,8 @@ impl<T> Vector<T> {
         if len > self.len {
             self.len = len;
         } else {
-            oob_abort(self.len, len); // can only increase length
+            // We can only increase the length
+            oob_abort(self.len, len);
         }
     }
 
