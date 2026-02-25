@@ -1,15 +1,14 @@
 #![allow(unused)]
 
-use sdk::*;
 use exceptions::*;
-use sdk::sys::{SyscallNo, SyscallErrorCode};
 use sdk::call::CallError;
+use sdk::sys::{SyscallErrorCode, SyscallNo};
+use sdk::*;
 
-pub static TEST_NONCE: sdk::SHA256Hash = sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
+pub static TEST_NONCE: sdk::SHA256Hash =
+    sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
 
-pub fn exceptions_test(
-    contract_hash: &SHA256Hash,
-) {
+pub fn exceptions_test(contract_hash: &SHA256Hash) {
     // Deploy the contract under test
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
 
@@ -20,7 +19,8 @@ pub fn exceptions_test(
 
     assert_eq!(client.try_hello(), Ok(()));
 
-    let n = client.add(6); assert_eq!(n, 7);
+    let n = client.add(6);
+    assert_eq!(n, 7);
 
     assert_eq!(client.try_add(6), Ok(7));
 
@@ -42,8 +42,9 @@ pub fn exceptions_test(
 
     // Throw something undeclared with `throws`
     match client.try_throw_thing() {
-        Err(CallError::Abort(ref cross_exn)) if cross_exn.is_unknown() =>
-            println!("OK: {:?}", cross_exn),
+        Err(CallError::Abort(ref cross_exn)) if cross_exn.is_unknown() => {
+            println!("OK: {:?}", cross_exn)
+        }
         r => panic!("Unexpected result: {:?}", r),
     }
 
@@ -64,12 +65,10 @@ pub fn exceptions_test(
             } else {
                 panic!("Unexpected abort: {:?}", cross_exn);
             }
-        },
+        }
         r => panic!("Unexpected result: {:?}", r),
     }
 }
-
-
 
 #[allow(unused)]
 pub fn panic_test(contract_hash: &SHA256Hash) {

@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use groundhog_erc20_if::{ERC20Client, Amount};
+use groundhog_erc20_if::{Amount, ERC20Client};
 use sdk::*;
 
 pub use exports::*;

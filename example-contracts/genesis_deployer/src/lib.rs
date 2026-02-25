@@ -30,6 +30,7 @@ impl GenesisDeployer {
             calldata.as_slice(),
             flags,
             &mut return_len,
-        ).unwrap();
+        )
+        .unwrap();
     }
 }

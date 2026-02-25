@@ -79,11 +79,7 @@ impl ERC20 for Token {
         bytestring_set(&key, contract_owner.as_ref());
     }
 
-    fn transfer(
-        &mut self,
-        to: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn transfer(&mut self, to: &ContractAddress, amount: Amount) {
         let from = get_caller();
         let diff = amount_to_diff(amount);
 
@@ -129,19 +125,14 @@ impl ERC20 for Token {
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Amount {
-        non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0)
-            as Amount
+        non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0) as Amount
     }
 
     fn get_balance(&self) -> Amount {
         self.get_balance_of(&get_caller())
     }
 
-    fn mint(
-        &mut self,
-        recipient: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn mint(&mut self, recipient: &ContractAddress, amount: Amount) {
         ensure_caller_is_owner();
 
         let diff = amount_to_diff(amount);

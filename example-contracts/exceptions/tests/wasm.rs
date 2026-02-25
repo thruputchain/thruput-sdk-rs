@@ -17,8 +17,7 @@ fn wasm_ok() {
     contract_exec(env, || {
         // Do nothing
     })
-    .unwrap_or_else(|e|
-        panic!("Ok test failed: {e}"));
+    .unwrap_or_else(|e| panic!("Ok test failed: {e}"));
 }
 
 #[test]
@@ -30,8 +29,7 @@ fn wasm_deploy() {
     contract_exec(env, move || {
         let _addr = sdk::deploy_contract(&TEST_NONCE, &contract_hash);
     })
-    .unwrap_or_else(|e|
-        panic!("Deploy test failed: {e}"));
+    .unwrap_or_else(|e| panic!("Deploy test failed: {e}"));
 }
 
 #[test]
@@ -40,11 +38,8 @@ fn wasm_exceptions() {
     let env = sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
-    contract_exec(env, move || {
-        exceptions_test(&contract_hash)
-    })
-    .unwrap_or_else(|e|
-        panic!("Exceptions test failed: {e}"));
+    contract_exec(env, move || exceptions_test(&contract_hash))
+        .unwrap_or_else(|e| panic!("Exceptions test failed: {e}"));
 }
 
 #[test]
@@ -53,9 +48,6 @@ fn wasm_panic() {
     let env = sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
-    contract_exec(env, move || {
-        panic_test(&contract_hash)
-    })
-    .unwrap_or_else(|e|
-        panic!("Panic test failed: {e}"));
+    contract_exec(env, move || panic_test(&contract_hash))
+        .unwrap_or_else(|e| panic!("Panic test failed: {e}"));
 }

@@ -16,5 +16,6 @@ fn caller_test_native() {
 
     sdk::contract_exec(env, move || {
         caller_test_inner(&erc20_hash, &caller_hash);
-    }).unwrap_or_else(|e| panic!("Caller test failed: {}", e));
+    })
+    .unwrap_or_else(|e| panic!("Caller test failed: {}", e));
 }

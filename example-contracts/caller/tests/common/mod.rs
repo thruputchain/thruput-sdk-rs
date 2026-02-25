@@ -1,14 +1,11 @@
-use groundhog_erc20_if::ERC20Client;
 use caller::CallerClient;
+use groundhog_erc20_if::ERC20Client;
 use sdk::*;
 
 static ERC20_NONCE: SHA256Hash = sdk::sha256_static!("ERC20_TEST_NONCE");
 static CALLER_NONCE: SHA256Hash = sdk::sha256_static!("CALLER_TEST_NONCE");
 
-pub fn caller_test_inner(
-    erc20_hash: &SHA256Hash,
-    contract_hash: &SHA256Hash,
-) {
+pub fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) {
     let erc20_addr = deploy_contract(&ERC20_NONCE, erc20_hash);
     let erc20_owner = get_current_address();
 

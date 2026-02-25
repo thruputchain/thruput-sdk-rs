@@ -37,11 +37,7 @@ impl TokenContract {
     }
 
     // Adjust balance at given owner address, from zero if empty
-    fn _adjust_balance(
-        &mut self,
-        owner: &ContractAddress,
-        diff: Difference,
-    ) {
+    fn _adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
         let mut balance = self.balances.get(owner);
 
         // For never-stored-to addresses, this acts as
@@ -96,11 +92,7 @@ impl ERC20 for TokenContract {
         self._init(contract_owner);
     }
 
-    fn transfer(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
         let owner = get_caller();
 
         let diff = amount_to_diff(amount);
@@ -153,11 +145,7 @@ impl ERC20 for TokenContract {
         self._balance_amount_of(&owner)
     }
 
-    fn mint(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
         let caller = get_caller();
         ensure(
             &caller == self._contract_owner(),
@@ -186,7 +174,6 @@ impl ERC20 for TokenContract {
     }
 
     fn total_supply(&self) -> Amount {
-
         self._total_supply()
     }
 }

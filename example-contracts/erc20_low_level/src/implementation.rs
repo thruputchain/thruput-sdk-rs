@@ -106,10 +106,7 @@ pub fn transfer_from(
 }
 
 #[contract(interface = "ERC20", version = "0.2.0")]
-pub fn adjust_allowance(
-    spender: &ContractAddress,
-    diff: Difference,
-) {
+pub fn adjust_allowance(spender: &ContractAddress, diff: Difference) {
     let caller = get_caller();
 
     add_to_allowance(&caller, spender, diff)
@@ -120,14 +117,13 @@ pub fn allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
 ) -> Amount {
-    non_negative_int_try_get(&get_allowance_key(owner, spender))
-        .unwrap_or(0) as Amount
+    non_negative_int_try_get(&get_allowance_key(owner, spender)).unwrap_or(0)
+        as Amount
 }
 
 #[contract(interface = "ERC20", version = "0.2.0")]
 pub fn get_balance_of(addr: &ContractAddress) -> Amount {
-    non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0)
-        as Amount
+    non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0) as Amount
 }
 
 #[contract(interface = "ERC20", version = "0.2.0")]
@@ -159,8 +155,7 @@ pub fn burn(loser: &ContractAddress, amount: Amount) {
 
 #[contract(interface = "ERC20", version = "0.2.0")]
 pub fn total_supply() -> Amount {
-    non_negative_int_try_get(&get_total_supply_key()).unwrap_or(0)
-        as Amount
+    non_negative_int_try_get(&get_total_supply_key()).unwrap_or(0) as Amount
 }
 
 // TODO: Something better
