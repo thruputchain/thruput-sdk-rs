@@ -57,11 +57,12 @@ make_optimized() {
 
     mkdir -p "$OPTIMIZED" &&
 
-    debugging="-g" # XXX
+    # debugging="-g" # don't strip symbols?
+    debugging=""
 
     # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
     # very slightly better)
-    wasm-opt -O3 "$debugging" --enable-bulk-memory -o "${optimized}" "${contract}"
+    wasm-opt -O3 $debugging --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 expand_contract() {

@@ -6,7 +6,6 @@
 #![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
-#![allow(deprecated)] // XXX
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
 

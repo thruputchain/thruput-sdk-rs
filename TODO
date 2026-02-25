@@ -1,5 +1,4 @@
-SDK
-- to fix for PR#101:
+- tests to fix:
     - sdk
         - tests/storage
             - test_bytestring: disabled
@@ -9,12 +8,16 @@ SDK
         - read_only_test: disabled-bottle
     - example-contracts
         - exceptions: test
-
-- create contract test harness
+- finish converting syscalls to abort-on-err
+- storage = "false" => no self
+- module contracts
+- pretty up rendering of exceptions, context backtraces
+- context backtrace across contract calls
+- contract test harness
     - count cycles and memory use
 - contract macro:
     - add attributes:
-      - #[no_save] methods for methods taking `&mut self`
+      - #[no_save] methods for methods taking `&mut self`?
     - generate client code from XDR spec alone?
 - minimum supported rust version?
 
