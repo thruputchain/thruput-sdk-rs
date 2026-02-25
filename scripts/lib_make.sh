@@ -40,7 +40,7 @@ make() {
             make_contracts "integration_test_contracts" "$@"
             ;;
         doc)
-            cargo doc --features=std,storage,abort/debug "$@"
+            cargo doc --features=std,storage,abort/debug,groundhog-xdr/syscalls_mock "$@"
             ;;
         test)
             cargo_native test --package=sdk --features=mock,storage "$@"
