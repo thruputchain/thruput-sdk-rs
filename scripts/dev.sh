@@ -266,8 +266,11 @@ test_all() {
     itc_bottle_test_all &&
 
     echo &&
-    echo "All tests succeeded." ||
-    echo "Some tests failed."
+    echo "All tests succeeded." || {
+        echo
+        echo ">> Some tests failed."
+        return 1
+    }
 }
 
 expand_contract() {
@@ -331,12 +334,15 @@ fmt_check() {
 
 ci_check() {
     # xxx_check &&
-    lint_check &&
     fmt_check &&
+    lint_check &&
     test_all &&
 
     echo &&
-    echo "CI clean!"
+    echo "CI clean!" || {
+        printf "\n>> CI failed!\n"
+        return 1
+    }
 }
 
 action="$1"; shift
@@ -350,6 +356,12 @@ case "$action" in
         ;;
     ci)
         ci_check
+        ;;
+    ls-enabled)
+        ls_contract_packages "$1"
+        ;;
+    build-itc)
+        itc_build_all
         ;;
     * )
         echo "Sorry, didn't understand action '$action'."
