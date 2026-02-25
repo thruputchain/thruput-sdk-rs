@@ -4,7 +4,7 @@ This SDK facilitates writing Groundhog contracts in Rust.
 
 The SDK provides convenient wrappers around Groundhog syscalls:
 - [`deploy`]: Deploying other contracts
-- [`mod@invoke`]: Calling other contracts
+- [`mod@call`]: Calling other contracts
 - [`contract_op`]: Contract entrance/exit routines
 - [`crypto`]: Hash and sign
 - [`Hasher`]: Incremental hashing
@@ -14,7 +14,6 @@ The SDK provides convenient wrappers around Groundhog syscalls:
     - [`mod@non_negative_int`]
     - [`mod@retrocausal_queue`]
 - Low-level bindings:
-    - [`SysErr`]: Error type for syscalls
     - [`mod@sys`]: Low-level wrappers
 
 Other things:
@@ -22,7 +21,6 @@ Other things:
     - [`ContractAddress`](ContractAddress)
     - [`StorageKey`](StorageKey)
     - [`PublicKey`](PublicKey)
-- [`mod@sysresult`]
 
 # Allocation
 

@@ -1,5 +1,8 @@
+[build]
+rustflags = [ "--deny", "warnings" ]
+
 [target.'all(cfg(target_os = "macos"), not(target_family = "wasm"))']
-rustflags = [ "-C", "link-arg=-lSystem" ]
+rustflags = [ "-C", "link-arg=-lSystem", ]
 
 [registries]
 groundhog = { index = "sparse+https://groundhog.dev/crates/api/v1/crates/" }

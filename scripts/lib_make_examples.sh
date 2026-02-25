@@ -5,7 +5,7 @@
 set -u
 
 # cargo profile for production contracts
-PRODUCTION_PROFILE="contract"
+PRODUCTION_PROFILE="release"
 
 STACK_SIZE="30000"
 
@@ -16,27 +16,27 @@ BOTTLE_TEST_RAW="${TARGET_DIR}/bottle-test-raw"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 
 cargo_wasm() {
-    local cmd="$1"
-    shift
+    local cmd
+    cmd="$1"; shift
 
-    # On panic!(), abort immediately without calling a panic handler.
-    # (This removes panic messages from the binary entirely.)
-    local panic="immediate-abort"
+        # Get rid of the panic-logging feature?
 
-    if bool_true "${PANIC_LOGGING:-}"; then
-        # Call the panic handler, allowing us to capture and log the panic message.
-        # (This inflates contract codesize.)
-        panic="abort"
-    fi
+        # On panic!(), abort immediately without calling a panic handler.
+        # (This removes panic messages from the binary entirely.)
+        local panic="immediate-abort"
 
-    flags="${RUSTFLAGS:-} -Zunstable-options -Cpanic=$panic -Clink-args=-zstack-size=$STACK_SIZE"
-    # echo "RUSTFLAGS=\"$flags\""
+        if bool_true "${PANIC_LOGGING:-}"; then
+            # Call the panic handler, allowing us to capture and log the panic message.
+            # (This inflates contract codesize.)
+            panic="abort"
+        fi
 
-    RUSTFLAGS="$flags" \
+        flags="-Cpanic=$panic -Zunstable-options"
+
+        # does this override the --config?
+        RUSTFLAGS="$flags" \
     cargo "$cmd" \
-        --target wasm32-unknown-unknown \
-        -Zbuild-std=alloc,core \
-        -Zbuild-std-features="std/optimize_for_size" \
+        --config contract.toml \
         "$@"
 }
 
@@ -45,7 +45,7 @@ build_wasm() {
     package="$(basename "$1")"
     shift
 
-    features="guest"
+    features=""
 
     if bool_true "${PANIC_LOGGING:-}"; then
         # For wasm contracts, use the log() syscall to report panic messages
@@ -74,9 +74,8 @@ make_optimized_wasm() {
     local contract="${CONTRACT}/${package}.wasm"
     local optimized="${OPTIMIZED}/${package}.wasm"
 
-    # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
-    # very slightly better)
-    wasm-opt -O3 --enable-bulk-memory -o "${optimized}" "${contract}"
+    # further compress the wasm
+    wasm-opt -O4 --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
 build_contract() {
@@ -113,6 +112,9 @@ build_bottle_test() {
         features="$features,sdk/call_tracking"
     fi
 
+    # NOTE: --artifact-dir, below, *copies* the artifact
+    # the the requested path, leaving the orginal in place
+    # (where it can be confused with the normal build).
     cargo_wasm build \
         --package "$package" \
         --features "$features" \
@@ -164,8 +166,8 @@ bottle_test_contracts() {
 }
 
 build_contracts() {
-    local contracts_dir="$1"
-    shift
+    local contracts_dir
+    contracts_dir="$1"; shift
 
     local contract
     for contract in $(ls_contracts "$contracts_dir") ; do
@@ -176,31 +178,28 @@ build_contracts() {
 
 tree_contract() {
     local package
-    package="$(basename "$1")"
-    shift
+    package="$(basename "$1")"; shift
 
     cargo_wasm tree \
         --edges normal,build,no-proc-macro \
-        --features "guest" \
         --package "$package" \
+        --features "sdk/std" \
         "$@"
 }
 
 expand_contract() {
     local package
-    package="$(basename "$1")"
-    shift
+    package="$(basename "$1")"; shift
 
     cargo_wasm expand \
-        --features "guest" \
         --package "$package" \
+        --features "sdk/std" \
         "$@"
 }
 
 expand_test_contract() {
     local package
-    package="$(basename "$1")"
-    shift
+    package="$(basename "$1")"; shift
 
     cargo_native expand \
         --package "$package" \
@@ -223,7 +222,7 @@ native_test_contract() {
     package="$(basename "$1")"
     shift
 
-    local features="mock"
+    local features="dev"
 
     if bool_true "${SDK_CALL_LOGGING:-}"; then
         features="$features,sdk/logging"
@@ -238,7 +237,6 @@ native_test_contract() {
         --package "$package" \
         --features $features \
         "$@" \
-        -- --show-output \
         ||
     {
         echo
@@ -257,7 +255,7 @@ metric_contract() {
 
     cargo_native run \
         --package "$package" \
-        --features "mock,client" \
+        --features "dev" \
         --profile "test" \
         "$@" \
         --example "$metric" \
@@ -395,7 +393,6 @@ make_contracts() {
             # also do: cargo install cargo-llvm-lines
             cargo_wasm llvm-lines \
                 -p "$contract" \
-                --features "guest" \
                 "$@"
             ;;
         fns)

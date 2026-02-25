@@ -7,7 +7,7 @@
 //! methods will return `InvokeResult<T>`, which simply
 //! provides a byte-buffer in the case of contract-abort.
 
-use crate::SysErr;
+use crate::sys::SysErr;
 use crate::internal::{ReadXDR, ReadXDROwned, WriteXDR};
 use core::error::Error;
 use thiserror::Error;

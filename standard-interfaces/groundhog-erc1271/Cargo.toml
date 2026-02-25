@@ -9,7 +9,7 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 
 
 [features]
-mock = ["std", "sdk/mock"]
+dev = ["std", "sdk/dev"]
 std = ["sdk/std"]
 spec = ["sdk/spec", "std"]
 

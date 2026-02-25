@@ -1,6 +1,5 @@
 use super::keypath::Keypath;
 use crate::non_negative_int::*;
-use crate::sysresult::Result;
 use core::fmt::Debug;
 
 /// Non-negative integer
@@ -31,47 +30,39 @@ impl NNInt {
         }
     }
 
-    /// Get the current value.  Panics if location not yet set.
-    pub fn get(&self) -> Result<i128> {
+    /// Get the current value.  Aborts if location not yet set.
+    pub fn get(&self) -> i128 {
         non_negative_int_get(&self.keypath.generate_key())
     }
 
     /// Get the current value, or none if not yet set
-    pub fn try_get(&self) -> Result<Option<i128>> {
-        match self.get() {
-            Ok(value) => Ok(Some(value)),
-            Err(e) => {
-                if e.is_storage_key_not_exist() {
-                    Ok(None)
-                } else {
-                    Err(e)
-                }
-            }
-        }
+    pub fn try_get(&self) -> Option<i128> {
+        non_negative_int_try_get(&self.keypath.generate_key())
     }
 
     /// Set the value
-    pub fn set(&mut self, set_value: i128) -> Result<()> {
-        non_negative_int_set(&self.keypath.generate_key(), set_value)
+    pub fn set(&mut self, set_value: i128) -> () {
+        non_negative_int_set(&self.keypath.generate_key(), set_value);
     }
 
     /// Set the value
     ///
     /// TODO: semantics
     ///
-    pub fn set_exclusive(&mut self, set_value: i128) -> Result<()> {
-        non_negative_int_set_exclusive(&self.keypath.generate_key(), set_value)
+    pub fn set_exclusive(&mut self, set_value: i128) {
+        non_negative_int_set_exclusive(
+            &self.keypath.generate_key(),
+            set_value,
+        );
     }
 
     /// Increment by an amount (without querying the current value).
-    pub fn inc(&mut self, increment: i128) -> Result<()> {
-        non_negative_int_inc(&self.keypath.generate_key(), increment)?;
-        Ok(())
+    pub fn inc(&mut self, increment: i128) {
+        non_negative_int_inc(&self.keypath.generate_key(), increment);
     }
 
-    /// Increment_by an amount, failing in case of a negative result.
-    pub fn checked_inc(&mut self, increment: i128) -> Result<()> {
-        non_negative_int_checked_inc(&self.keypath.generate_key(), increment)?;
-        Ok(())
+    /// Increment_by an amount, aborting in case of a negative result.
+    pub fn strict_inc(&mut self, increment: i128) {
+        non_negative_int_strict_inc(&self.keypath.generate_key(), increment);
     }
 }

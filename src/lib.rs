@@ -6,6 +6,9 @@
 #![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
+#![allow(deprecated)] // XXX
+#![allow(clippy::result_large_err)]
+#![allow(clippy::large_enum_variant)]
 
 #[cfg(all(feature = "std", target_family = "wasm"))]
 compile_error!("Feature 'std' cannot be enabled when targetting wasm");
@@ -22,20 +25,24 @@ extern crate alloc;
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 
-pub mod internal; // Public because used in contract macros
+#[doc(hidden)]
+pub mod internal;
 
 mod cell;
 mod debug;
 mod local;
+mod panic;
+mod xdr;
 
-// TODO: Make these modules non-public in order to allow
+pub mod call;
+
+// TODO: Make these modules pub(crate) in order to allow
 // reorganization without breaking changes.
 
 pub mod auth_claim;
 pub mod block;
 pub mod bytestring;
 pub mod contract_op;
-pub mod contract_result;
 pub mod crypto;
 pub mod delete;
 pub mod deploy;
@@ -44,9 +51,6 @@ pub mod exn;
 pub mod hash;
 pub mod hasher;
 pub mod hex;
-pub mod invoke;
-pub mod invoke_config;
-pub mod invoke_error;
 pub mod log;
 pub mod non_negative_int;
 pub mod precompiles;
@@ -54,8 +58,10 @@ pub mod retrocausal_queue;
 pub mod rt;
 pub mod serialize;
 pub mod stats;
-pub mod sysresult;
 pub mod types;
+pub mod invoke;
+pub mod invoke_config;
+pub mod invoke_error;
 
 pub use auth_claim::*;
 pub use bytestring::*;
@@ -68,16 +74,21 @@ pub use exn::*;
 pub use hash::*;
 pub use hasher::*;
 pub use hex::*;
-pub use invoke::*;
 pub use log::*;
 pub use non_negative_int::*;
+pub use panic::*;
 pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+pub use invoke::*;
+pub use invoke_config::*;
+
+pub use xdr::*;
 
 pub use abort::{
-    AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler,
+    AbortInfo, AbortPayload, Never,
+    abort, abort_with_info, with_abort_handler,
 };
 
 #[cfg(feature = "call_tracking")]
@@ -107,17 +118,10 @@ pub use groundhog_macros::Storage;
 #[doc = include_str!("../doc/macro-storage.md")]
 pub use groundhog_macros::storage;
 
-// Test environment
+// Development environment
 
-#[cfg(feature = "mock")]
-pub mod contract_test;
+#[cfg(feature = "dev")]
+mod dev;
 
-#[cfg(feature = "mock")]
-pub use groundhog_native_exec::{
-    mock_contract::MockContract,
-    test_environment::{TestEnvironment, TestEnvironmentHandle},
-};
-
-#[cfg(feature = "std")]
-pub use groundhog_xdr::exec_result::ExecResult;
-pub use hogexec_internal::ffi_enums::*;
+#[cfg(feature = "dev")]
+pub use dev::*;

@@ -5,8 +5,7 @@
 // 1: is there a better interface in which to wrap these calls?
 // 2: Do we want some runtime-checked "single-use" checks for these authclaims?
 
-use crate::sys;
-use crate::sysresult::SysResult as Result;
+use crate::sys::{self, SysResult};
 use core::mem::MaybeUninit;
 use groundhog_xdr::address_auth::GasPermissionConfig;
 use groundhog_xdr::address_auth::NonceConfig;
@@ -15,19 +14,19 @@ use groundhog_xdr::auth_claim::AuthClaim;
 pub use groundhog_xdr::auth_claim::BitMap;
 pub use groundhog_xdr::auth_claim::Weight;
 
-pub fn get_auth_claim(index: u32) -> Result<AuthClaim> {
+pub fn get_auth_claim(index: u32) -> SysResult<AuthClaim> {
     let mut auth_claim = MaybeUninit::uninit();
     sys::uninit_GetAuthClaim(index, &mut auth_claim)?;
     Ok(unsafe { auth_claim.assume_init() })
 }
 
-pub fn get_auth_claim_count() -> Result<u32> {
+pub fn get_auth_claim_count() -> SysResult<u32> {
     let mut count: MaybeUninit<u32> = MaybeUninit::uninit();
     sys::uninit_GetAuthClaimCount(&mut count)?;
     Ok(unsafe { count.assume_init() })
 }
 
-pub fn set_nonce_config(nonce_config: NonceConfig) -> Result<()> {
+pub fn set_nonce_config(nonce_config: NonceConfig) -> SysResult<()> {
     sys::uninit_WriteAddressNonceConfig(&nonce_config)?;
     Ok(())
 }
@@ -36,7 +35,7 @@ pub fn set_nonce_config(nonce_config: NonceConfig) -> Result<()> {
 // TODO(dobog): same question as above
 pub fn set_gas_permission_config(
     gas_permission_config: GasPermissionConfig,
-) -> Result<()> {
+) -> SysResult<()> {
     sys::uninit_WriteAddressGasPermissionConfigs(
         Some(&gas_permission_config),
         None,

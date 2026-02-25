@@ -1,0 +1,27 @@
+[build]
+target-dir = "../target" # use SDK target-dir
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "-C", "panic=immediate-abort",
+    "-C", "link-args=-zstack-size=30000",
+    "-Z", "unstable-options",
+    "--deny", "warnings",
+    ]
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+
+[profile.bottle_test]
+inherits = "release"
+
+# [unstable]
+# build-std = ["core", "alloc"]
+# build-std-features = ["std/optimize_for_size"]

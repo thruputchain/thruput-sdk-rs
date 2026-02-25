@@ -1,10 +1,11 @@
 //! System functions: logging
 
 use crate::sys;
-use crate::sysresult::SysResult as Result;
 
-pub fn log(buffer: &[u8]) -> Result<()> {
+pub fn log(buffer: &[u8]) {
     sys::raw_ConsoleLog(buffer)
+        .unwrap_or_else(|errno|
+            crate::syscall_abort2(crate::sys::SyscallNo::kConsoleLog, errno));
 }
 
 #[cfg(feature = "mock")]

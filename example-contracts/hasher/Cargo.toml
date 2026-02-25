@@ -1,0 +1,31 @@
+[package]
+name = "hasher"
+description = "A contract exercising hashing"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+dev = ["sdk/dev"]
+bottle-test = ["dep:bottle-test-if", "sdk/storage"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+xdrs = { workspace = true }
+
+# Optional
+bottle-test-if = { workspace = true, optional = true }
+
+[dev-dependencies]
+hasher = { path = ".", features = ["dev"] }

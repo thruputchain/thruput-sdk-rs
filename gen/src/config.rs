@@ -16,7 +16,7 @@ pub struct Config {
     pub doc: Option<String>,
 
     client: Option<syn::Ident>,
-    err_type: Option<syn::Ident>,
+    throws: Option<syn::Ident>,
 }
 
 impl Config {
@@ -48,8 +48,8 @@ impl Config {
         }
     }
 
-    pub fn err_type(&self) -> Option<&syn::Ident> {
-        self.err_type.as_ref()
+    pub fn throws(&self) -> Option<&syn::Ident> {
+        self.throws.as_ref()
     }
 }
 

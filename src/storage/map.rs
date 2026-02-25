@@ -2,6 +2,7 @@ use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use super::store::*;
+use crate::abort;
 use crate::types::StorageKey;
 use crate::{delete_exclusive, delete_shared};
 use core::fmt::Debug;
@@ -41,66 +42,62 @@ impl<K, V> Map<K, V> {
         &self.keypath
     }
 
-    pub fn get(&self, entry_key: &K) -> Result<V>
+    pub fn get(&self, entry_key: &K) -> V
     where
         K: WriteXDR,
         V: LoadKeypath,
     {
         let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::load_keypath(&keypath)
+        LoadKeypath::load_keypath(&keypath).unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn try_get(&self, entry_key: &K) -> Result<Option<V>>
+    pub fn try_get(&self, entry_key: &K) -> Option<V>
     where
         K: WriteXDR,
         V: LoadKeypath,
     {
         let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::try_load_keypath(&keypath)
+        LoadKeypath::try_load_keypath(&keypath).unwrap_or_else(|e| abort(&e))
     }
 
-    pub fn set(&mut self, entry_key: &K, value: &V) -> Result<()>
+    pub fn set(&mut self, entry_key: &K, value: &V)
     where
         K: WriteXDR,
         V: Store,
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        value.store(&key)
+        value.store(&key);
     }
 
-    pub fn set_exclusive(&mut self, entry_key: &K, value: &V) -> Result<()>
+    pub fn set_exclusive(&mut self, entry_key: &K, value: &V)
     where
         K: WriteXDR,
         V: Store,
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        value.store_exclusive(&key)
+        value.store_exclusive(&key);
     }
 
-    pub fn delete(&mut self, entry_key: &K) -> Result<()>
+    pub fn delete(&mut self, entry_key: &K)
     where
         K: WriteXDR,
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete_shared(&key)?;
-
-        Ok(())
+        delete_shared(&key);
     }
 
-    pub fn delete_exclusive(&mut self, entry_key: &K) -> Result<()>
+    pub fn delete_exclusive(&mut self, entry_key: &K)
     where
         K: WriteXDR,
     {
         let key = self.make_entry_storage_key(entry_key);
 
-        delete_exclusive(&key)?;
-
-        Ok(())
+        delete_exclusive(&key);
     }
 
     pub fn entry<'m, 'k>(
@@ -194,21 +191,21 @@ where
     }
 
     /// Set the entry to a new value.
-    pub fn set(&mut self, value: &V) -> Result<()>
+    pub fn set(&mut self, value: &V)
     where
         V: Clone,
     {
         let new_value = value.clone();
 
-        self._set(Some(new_value))
+        self._set(Some(new_value));
     }
 
     /// Delete the entry.
-    pub fn delete(&mut self) -> Result<()> {
-        self._set(None)
+    pub fn delete(&mut self) {
+        self._set(None);
     }
 
-    fn _set(&mut self, value: Option<V>) -> Result<()> {
+    fn _set(&mut self, value: Option<V>) {
         // Cache the new value
         self.value = value;
         self.dirty = true;
@@ -221,25 +218,21 @@ where
     /// if it could have changed since being loaded.  (It is usually
     /// not necessary to call this because it is called automatically
     /// when the `Entry` is dropped.)
-    pub fn flush(&mut self) -> Result<()> {
+    pub fn flush(&mut self) {
         if !self.dirty {
-            return Ok(());
+            return;
         }
 
         let key = self.make_storage_key();
 
         // Store the current value
-        let res = if let Some(value) = &self.value {
-            value.store(&key)
+        if let Some(value) = &self.value {
+            value.store(&key);
         } else {
-            delete_shared(&key).map_err(|e| e.into())
+            delete_shared(&key);
         };
 
-        if res.is_ok() {
-            self.dirty = false;
-        }
-
-        res
+        self.dirty = false;
     }
 
     // We could cache this (as well as the keypath), but we don't expect
@@ -261,8 +254,7 @@ where
     V: Store,
 {
     fn drop(&mut self) {
-        self.flush().unwrap_or_else(|e| {
-            panic!("Failed flushing a Map::Entry to the store: {}", e)
-        })
+        // XXX: abort in drop handler??
+        self.flush();
     }
 }

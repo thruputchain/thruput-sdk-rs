@@ -1,19 +1,13 @@
 pub use erc20_test::*;
 
 use sdk::TestEnvironmentHandle;
-use sdk::contract_test::deploy_address;
-use sdk::transaction::InvocationFrameStatusCode;
 use sdk::types::Contract;
 
 pub fn test_erc20_contract(
-    env: &TestEnvironmentHandle,
+    env: TestEnvironmentHandle,
     test_contract: &Contract,
 ) {
     let test_contract_hash = env.setup_create_contract(test_contract);
-    let test_contract_addr =
-        deploy_address(&OWNER, &NONCE, &test_contract_hash);
-
-    env.setup_grant_storage_tokens(&test_contract_addr, 1_000_000_000);
 
     // It's currently difficult to extract state from mock contracts,
     // so we'll allocate shared storage for the model we want to extract
@@ -24,26 +18,17 @@ pub fn test_erc20_contract(
     let mut handler = {
         let model_handle = model.clone();
 
-        env.prepare_test(move || -> () {
-            let deployed_addr = erc20_test_setup(&test_contract_hash).unwrap();
+        sdk::contract_test_handler(env, move || {
+            let deployed_addr = erc20_test_setup(&test_contract_hash);
 
-            let model = erc20_test(&deployed_addr)
-                .unwrap_or_else(|e| panic!("test failed: {e}"));
+            let model = erc20_test(&deployed_addr);
 
             *model_handle.lock().unwrap() = Some(model);
         })
     };
 
-    let res = handler.root_invoke();
-    assert_eq!(
-        res.output.status_code(),
-        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
-    );
-
-    assert_eq!(
-        handler.try_commit_transaction(),
-        sdk::ExecResult::ExecResultOK
-    );
+    sdk::contract_handler_exec(&mut handler)
+        .unwrap_or_else(|e| panic!("ERC20 test failed: {e}"));
 
     let event_log = handler.get_event_logs();
 

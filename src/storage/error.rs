@@ -1,5 +1,7 @@
-use crate::SysErr;
-use crate::{ReadXDR, WriteXDR};
+use crate::abort;
+use crate::xdr::*;
+use crate::exn::*;
+use crate::sys::{SysErr, SyscallNo, SyscallErrorCode::*};
 use thiserror::Error;
 
 pub type Result<T, E = StorageError> = core::result::Result<T, E>;
@@ -11,11 +13,8 @@ use xdrs::{XDR, xdr_repr::XDR};
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[repr(i32)]
 pub enum StorageError {
-    #[error("Storage error due to {syscall_error}")]
-    Syscall {
-        #[from]
-        syscall_error: SysErr,
-    },
+    #[error(transparent)]
+    Sys(SyscallExn),
 
     #[error("Storage error due to serialization")]
     Serialization,
@@ -26,14 +25,26 @@ pub enum StorageError {
 
 impl StorageError {
     pub fn is_storage_key_not_exist(&self) -> bool {
-        if let StorageError::Syscall { syscall_error: err } = self {
-            err.is_storage_key_not_exist()
+        if let StorageError::Sys(exn) = self {
+            exn.has_code(kSyscallErrorCodeStorageKeyNotExist)
         } else {
             false
         }
     }
 }
 
-pub fn oob_err<T>(len: u64, access: u64) -> Result<T> {
-    Err(StorageError::IndexOutOfBounds { len, access })
+pub fn oob_abort(len: u64, access: u64) -> ! {
+    abort(&StorageError::IndexOutOfBounds { len, access })
+}
+
+pub fn storage_load_abort(_r: ReadError) -> ! {
+    library_abort(StorageError::Serialization)
+}
+
+pub fn storage_load_error(_r: ReadError) -> StorageError {
+    StorageError::Serialization
+}
+
+pub fn storage_syserr(e: SysErr) -> StorageError {
+    StorageError::Sys(SyscallExn::new(SyscallNo::kBytestringGet, e))
 }

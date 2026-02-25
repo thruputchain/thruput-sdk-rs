@@ -28,8 +28,21 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
 
     let mock_registrations = registrations.clone();
 
+    let impl_test_register = if let Some(impl_ty) = &contract.self_ty() {
+        quote! {
+            impl ::sdk::TestRegister for #impl_ty {
+                fn register(env: &::sdk::TestEnvironmentHandle) -> ::sdk::Contract {
+                    #test_setup_mod_ident::register(env)
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     Ok(quote! {
 
+        // TODO: deprecate use of this "test_setup" module in favor of using the impl below
         pub mod #test_setup_mod_ident {
             use super::#exports_mod_ident::*;
             use std::rc::Rc;
@@ -46,6 +59,7 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
             }
         }
 
+        #impl_test_register
     })
 }
 
