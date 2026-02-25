@@ -61,7 +61,7 @@ doctest = false
 # Indigenous dependencies
 groundhog-macros = { workspace = true }
 groundhog-contract-util = { workspace = true, optional = true }
-groundhog-xdr = { workspace = true , features = ["syscalls"]}
+groundhog-xdr = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true }
 abort = { workspace = true }
@@ -135,7 +135,7 @@ panic_logging = ["dep:heapless"] # send panic messages to the log() syscall
 call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
-spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util"]
+spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util", "groundhog-xdr/syscalls_mock"]
 
 [package.metadata.docs.rs]
 features = ["std", "storage", "abort/debug", "groundhog-xdr/syscalls_mock"]
@@ -169,3 +169,8 @@ collapsible_if = "allow"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 abort = { workspace = true, features = ["single-threaded"] }
+groundhog-xdr = { workspace = true, features = ["syscalls"] }
+
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
