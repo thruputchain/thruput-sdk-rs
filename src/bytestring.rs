@@ -9,8 +9,8 @@
 #[allow(unused_imports)] // import is for docs
 use crate::abort;
 use crate::exn::*;
-use crate::sys::{self, SyscallNo};
 use crate::sys::SysResult as Result;
+use crate::sys::{self, SyscallNo};
 use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
 
@@ -117,7 +117,10 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
 ///
 /// TODO(geoff): What about mixed exclusive/non-exclusive concurrent set?
 ///
-pub fn try_bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
+pub fn try_bytestring_set_exclusive(
+    key: &StorageKey,
+    slice: &[u8],
+) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
@@ -126,8 +129,7 @@ pub fn try_bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()
 }
 
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) {
-    try_bytestring_set_exclusive(key, slice)
-    .unwrap_or_else(|errno| {
+    try_bytestring_set_exclusive(key, slice).unwrap_or_else(|errno| {
         syscall_abort2(SyscallNo::kBytestringSet, errno);
     });
 }
@@ -172,10 +174,11 @@ pub fn bytestring_get_sized<const N: usize>(key: &StorageKey) -> [u8; N] {
     // Get the bytestring into a buffer of size N
     let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
     let mut len = MaybeUninit::uninit();
-    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len)
-        .unwrap_or_else(|errno| {
+    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len).unwrap_or_else(
+        |errno| {
             syscall_abort2(SyscallNo::kBytestringGet, errno);
-        });
+        },
+    );
 
     // SAFETY: The syscall returned with success, so the out-args are initialized
     let len = unsafe { len.assume_init() };
@@ -224,15 +227,16 @@ mod bytestring_get_alloc {
     }
 
     pub fn bytestring_get(key: &StorageKey) -> Box<[u8]> {
-        try_bytestring_get(key)
-        .unwrap_or_else(|errno| {
+        try_bytestring_get(key).unwrap_or_else(|errno| {
             syscall_abort2(SyscallNo::kBytestringGet, errno);
         })
     }
 
     /// Like `bytestring_get`, but returns `None` (instead of an error) when no value is stored at
     /// the location.
-    pub fn try_bytestring_try_get(key: &StorageKey) -> Result<Option<Box<[u8]>>> {
+    pub fn try_bytestring_try_get(
+        key: &StorageKey,
+    ) -> Result<Option<Box<[u8]>>> {
         let len = match try_bytestring_get_len(key) {
             Ok(len) => len,
             Err(e) => {
@@ -256,8 +260,7 @@ mod bytestring_get_alloc {
     }
 
     pub fn bytestring_try_get(key: &StorageKey) -> Option<Box<[u8]>> {
-        try_bytestring_try_get(key)
-        .unwrap_or_else(|errno| {
+        try_bytestring_try_get(key).unwrap_or_else(|errno| {
             syscall_abort2(SyscallNo::kBytestringGet, errno);
         })
     }

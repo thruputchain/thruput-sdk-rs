@@ -3,8 +3,8 @@
 //! A non-negative integer has a value determined at the start of the transaction, and
 //! can be re-set or incremented.
 
-use crate::internal::nnint;
 use crate::exn::{nnint_overflow, nnint_underflow};
+use crate::internal::nnint;
 use crate::types::StorageKey;
 
 /// Get the "current" ("set" + "add") value.

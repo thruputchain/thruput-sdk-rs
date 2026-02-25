@@ -1,4 +1,4 @@
-use crate::{TestEnvironmentHandle, Contract, MockContract};
+use crate::{Contract, MockContract, TestEnvironmentHandle};
 
 pub trait TestRegister {
     /// Register this contract in the test environment

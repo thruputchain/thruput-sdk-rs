@@ -3,9 +3,9 @@
 use crate::sys;
 
 pub fn log(buffer: &[u8]) {
-    sys::raw_ConsoleLog(buffer)
-        .unwrap_or_else(|errno|
-            crate::syscall_abort2(crate::sys::SyscallNo::kConsoleLog, errno));
+    sys::raw_ConsoleLog(buffer).unwrap_or_else(|errno| {
+        crate::syscall_abort2(crate::sys::SyscallNo::kConsoleLog, errno)
+    });
 }
 
 #[cfg(feature = "mock")]

@@ -1,8 +1,8 @@
 use crate::WriteXDR;
+use crate::exn::*;
 use crate::hash::*;
 use crate::internal::encode_xdr;
 use crate::sys::{self, SyscallNo};
-use crate::exn::*;
 
 /// Maximum number of topics per event
 pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;

@@ -167,7 +167,7 @@ pub fn generate_method(
 
     // If the method is marked "init", storage must be uninitialized before calling
     let is_init = is_method && method.config().init.is_present();
-        // TODO: complain about #[init] in inappropriate positions
+    // TODO: complain about #[init] in inappropriate positions
 
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();

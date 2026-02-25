@@ -17,7 +17,7 @@
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 use crate::exn::syscall_abort2;
-use crate::sys::{self, SyscallNo, SysResult};
+use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
 /// Replace the "set" and "add" values.  (This discards any values previously present.)

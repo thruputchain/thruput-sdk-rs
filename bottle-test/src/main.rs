@@ -33,7 +33,8 @@ fn bottle_test(package: &str) {
 
     // Create the target contract
     let target_hash = env.setup_create_contract(&target_contract);
-    let _target_addr = deploy_address(&tester_addr, &TARGET_NONCE, &target_hash);
+    let _target_addr =
+        deploy_address(&tester_addr, &TARGET_NONCE, &target_hash);
     // env.setup_grant_storage_tokens(&target_addr, 1_000_000_000);
 
     // Something we can move into the test closure
@@ -64,7 +65,10 @@ fn bottle_test(package: &str) {
 
     let res = handler.root_invoke();
     if res.output.status_code() != kInvocationFrameStatusCodeReturn as i32 {
-        panic!("Bottle-test invocation failed with code {}", res.output.status_code());
+        panic!(
+            "Bottle-test invocation failed with code {}",
+            res.output.status_code()
+        );
     }
 
     let eres = handler.try_commit_transaction();

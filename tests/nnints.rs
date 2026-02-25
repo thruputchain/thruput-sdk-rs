@@ -3,7 +3,7 @@
 #![allow(unused)]
 
 use sdk::call::*;
-use sdk::sys::{SyscallNo, SyscallErrorCode};
+use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 
 contract_test!(test_nnints {

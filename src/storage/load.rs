@@ -33,8 +33,7 @@ where
     use xdrs::cxs::buf_reader::BufReader;
 
     let key = &keypath.generate_key();
-    let buf = crate::try_bytestring_get(key)
-        .map_err(storage_syserr)?;
+    let buf = crate::try_bytestring_get(key).map_err(storage_syserr)?;
 
     let xdr_reader = BufReader::new(buf.as_ref());
     let path = keypath.clone();

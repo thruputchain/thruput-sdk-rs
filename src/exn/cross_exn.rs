@@ -4,17 +4,17 @@ use super::Exn;
 use super::{LibraryExn, SyscallExn};
 use crate::AbortInfo;
 use crate::call::CallError;
-use crate::sys::{SyscallNo, SyscallErrorCode};
+use crate::sys::{SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
 use core::any::Any;
 use core::convert::Infallible;
 #[cfg(feature = "debugging")]
 use core::error::Error;
 #[cfg(feature = "debugging")]
+use core::fmt::Display;
+#[cfg(feature = "debugging")]
 use core::fmt::Write;
 use core::fmt::{self, Debug};
-#[cfg(feature = "debugging")]
-use core::fmt::Display;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
 
@@ -184,8 +184,7 @@ where
     }
 
     pub fn as_syscall_exn(&self) -> Option<&SyscallExn> {
-        self.as_library_exn()
-            .and_then(|e| e.as_syscall_exn())
+        self.as_library_exn().and_then(|e| e.as_syscall_exn())
     }
 
     pub fn as_contract_exn(&self) -> Option<&E> {

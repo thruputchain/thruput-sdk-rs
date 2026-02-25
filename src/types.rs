@@ -19,13 +19,12 @@ pub use groundhog_xdr::transaction;
 pub use groundhog_xdr::types::*;
 
 pub mod sys {
-    pub use groundhog_xdr::syscalls::*;
-    pub use groundhog_xdr::syscalls::SysErr;
     pub use groundhog_xdr::SyscallNo;
     pub use groundhog_xdr::syscall_error::SyscallErrorCode;
+    pub use groundhog_xdr::syscalls::SysErr;
+    pub use groundhog_xdr::syscalls::*;
 
-    pub type SysResult<T = ()> =
-        core::result::Result<T, SysErr>;
+    pub type SysResult<T = ()> = core::result::Result<T, SysErr>;
 }
 
 // Shorthand for use in contracts

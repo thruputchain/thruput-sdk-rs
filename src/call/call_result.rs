@@ -38,7 +38,10 @@ where
     /// When `cfg(feature = "debugging")`, this contains a string describing
     /// the fault (e.g., what was passed to `panic`).
     ///
-    #[cfg_attr(feature = "debugging", error("The called contract faulted: {0}"))]
+    #[cfg_attr(
+        feature = "debugging",
+        error("The called contract faulted: {0}")
+    )]
     Fault(FaultString),
 }
 

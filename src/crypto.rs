@@ -2,17 +2,16 @@
 
 pub use crate::types::SHA256Hash;
 
-use crate::sys::{self, SyscallNo};
 use crate::exn::*;
+use crate::sys::{self, SyscallNo};
 use crate::types::{CryptographicScheme, Ed25519PublicKey, Ed25519Signature};
 
 pub fn sha256(input: &[u8]) -> SHA256Hash {
     let mut out_hash = core::mem::MaybeUninit::<SHA256Hash>::uninit();
 
-    sys::uninit_SHA256(input, &mut out_hash)
-        .unwrap_or_else(|errno| {
-            syscall_abort2(SyscallNo::kSHA256, errno);
-        });
+    sys::uninit_SHA256(input, &mut out_hash).unwrap_or_else(|errno| {
+        syscall_abort2(SyscallNo::kSHA256, errno);
+    });
 
     unsafe { out_hash.assume_init() }
 }
@@ -27,5 +26,6 @@ pub fn verify_signature_ed25519(
         signature.as_slice(),
         pk.as_slice(),
         message,
-    ).is_ok()
+    )
+    .is_ok()
 }

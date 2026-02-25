@@ -11,11 +11,10 @@ pub fn try_delete_shared(key: &StorageKey) -> Result<(), SysErr> {
 }
 
 pub fn delete_shared(key: &StorageKey) {
-    try_delete_shared(key)
-        .unwrap_or_else(|errno|
-            crate::exn::syscall_abort(crate::sys::SyscallNo::kDeleteObject, errno));
+    try_delete_shared(key).unwrap_or_else(|errno| {
+        crate::exn::syscall_abort(crate::sys::SyscallNo::kDeleteObject, errno)
+    });
 }
-
 
 pub fn try_delete_exclusive(key: &StorageKey) -> Result<(), SysErr> {
     let flags = StorageDeltaFlags::kStorageDeltaFlagExclusiveLock;
@@ -24,11 +23,10 @@ pub fn try_delete_exclusive(key: &StorageKey) -> Result<(), SysErr> {
 }
 
 pub fn delete_exclusive(key: &StorageKey) {
-    try_delete_exclusive(key)
-        .unwrap_or_else(|errno|
-            crate::exn::syscall_abort(crate::sys::SyscallNo::kDeleteObject, errno));
+    try_delete_exclusive(key).unwrap_or_else(|errno| {
+        crate::exn::syscall_abort(crate::sys::SyscallNo::kDeleteObject, errno)
+    });
 }
-
 
 /// Delete anything stored at the given key.
 ///

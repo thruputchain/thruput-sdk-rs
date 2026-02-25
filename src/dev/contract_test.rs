@@ -69,9 +69,8 @@ pub fn contract_test_handler<F>(
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
-    let test = move || {
-        with_abort_handler!(test_abort_handler::<Infallible>, f())
-    };
+    let test =
+        move || with_abort_handler!(test_abort_handler::<Infallible>, f());
 
     env.prepare_test(test)
 }
@@ -125,10 +124,8 @@ macro_rules! contract_test {
         fn $name() {
             let mut env = $crate::TestEnvironment::no_cost();
 
-            $crate::contract_exec(env, || {
-                $test_body
-            })
-            .unwrap_or_else(|e| panic!("Contract test failed: {e}"));
+            $crate::contract_exec(env, || $test_body)
+                .unwrap_or_else(|e| panic!("Contract test failed: {e}"));
         }
     };
 }

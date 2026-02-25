@@ -3,8 +3,8 @@
 #![allow(unused)]
 
 use sdk::call::*;
-use sdk::sys::{SyscallNo, SyscallErrorCode};
 use sdk::internal::nnint::*;
+use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 
 #[rustfmt::skip]

@@ -68,9 +68,9 @@ pub fn contract_call<A>(
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &A,
-)-> Result<ContractResult, SysErr>
+) -> Result<ContractResult, SysErr>
 where
-    A: AsRef<[u8]> + ?Sized
+    A: AsRef<[u8]> + ?Sized,
 {
     // Perform the cross-contract call
     let mut return_len = 0;

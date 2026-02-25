@@ -50,6 +50,7 @@ pub mod exn;
 pub mod hash;
 pub mod hasher;
 pub mod hex;
+pub mod invoke_config;
 pub mod log;
 pub mod non_negative_int;
 pub mod precompiles;
@@ -58,7 +59,6 @@ pub mod rt;
 pub mod serialize;
 pub mod stats;
 pub mod types;
-pub mod invoke_config;
 
 pub use auth_claim::*;
 pub use bytestring::*;
@@ -71,6 +71,7 @@ pub use exn::*;
 pub use hash::*;
 pub use hasher::*;
 pub use hex::*;
+pub use invoke_config::*;
 pub use log::*;
 pub use non_negative_int::*;
 pub use panic::*;
@@ -78,13 +79,11 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
-pub use invoke_config::*;
 
 pub use xdr::*;
 
 pub use abort::{
-    AbortInfo, AbortPayload, Never,
-    abort, abort_with_info, with_abort_handler,
+    AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler,
 };
 
 #[cfg(feature = "call_tracking")]

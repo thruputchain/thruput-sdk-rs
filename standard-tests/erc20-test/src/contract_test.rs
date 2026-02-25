@@ -6,9 +6,7 @@ pub const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
 const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
 
-pub fn erc20_test_setup(
-    target_contract_hash: &SHA256Hash,
-) -> ContractAddress {
+pub fn erc20_test_setup(target_contract_hash: &SHA256Hash) -> ContractAddress {
     // Deploy the target contract
     deploy_contract(&NONCE, target_contract_hash)
 }

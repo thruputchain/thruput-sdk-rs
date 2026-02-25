@@ -3,11 +3,11 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-use crate::xdr::*;
 use crate::internal::MUBuf;
-use crate::sys::{self, SyscallNo, SysResult};
+use crate::sys::{self, SysResult, SyscallNo};
 use crate::syscall_abort;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
+use crate::xdr::*;
 use core::mem::MaybeUninit;
 
 pub(crate) const CALLDATA_MAX: usize = 500;
