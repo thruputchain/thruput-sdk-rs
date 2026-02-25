@@ -58,9 +58,7 @@ pub mod rt;
 pub mod serialize;
 pub mod stats;
 pub mod types;
-pub mod invoke;
 pub mod invoke_config;
-pub mod invoke_error;
 
 pub use auth_claim::*;
 pub use bytestring::*;
@@ -80,7 +78,6 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
-pub use invoke::*;
 pub use invoke_config::*;
 
 pub use xdr::*;
