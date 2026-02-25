@@ -1,7 +1,7 @@
 //! System functions: retro-causal queues
 
 use crate::sys;
-use crate::sysresult::SysResult as Result;
+use crate::sys::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 
 use core::mem::MaybeUninit;

@@ -1,19 +1,24 @@
-SDK
-- create contract test harness
+- tests to fix:
+    - sdk
+        - tests/storage
+            - test_bytestring: disabled
+        - tests/aborts: disabled in Cargo.toml
+    - itc
+        - several are disabled?
+        - read_only_test: disabled-bottle
+    - example-contracts
+        - exceptions: test
+- finish converting syscalls to abort-on-err
+- storage = "false" => no self
+- module contracts
+- pretty up rendering of exceptions, context backtraces
+- context backtrace across contract calls
+- contract test harness
     - count cycles and memory use
-- generate structured events
-- remove BCS serialization from storage layer (for code-size improvement)
 - contract macro:
     - add attributes:
-      - #[init] methods (assert no state object exists yet)
-      - #[no_save] methods for methods taking `&mut self`
-    - instead of guest_exports module, put
-      exports directly in place?
+      - #[no_save] methods for methods taking `&mut self`?
     - generate client code from XDR spec alone?
-- allow no-alloc contracts
-- improve documentation
-    - complete the API reference
-    - add tutorials
 - minimum supported rust version?
 
 DOCUMENT

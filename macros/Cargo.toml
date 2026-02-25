@@ -28,10 +28,10 @@ groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 xdrs = { workspace = true }
 
 [features]
-default = ["alloc"]
-alloc = ["groundhog-codegen/alloc"]
 logging = ["groundhog-codegen/logging"]
 call_tracking = ["groundhog-codegen/call_tracking"]
 spec = ["groundhog-codegen/spec", "groundhog-xdr/spec"]
 storage = []
+
+# Generate test-registration in contract-macro
 mock = ["groundhog-xdr/syscalls_mock"]

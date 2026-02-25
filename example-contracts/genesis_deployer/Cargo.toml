@@ -1,0 +1,26 @@
+[package]
+name = "genesis_deployer"
+description = "Genesis deployer"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+test = false
+
+[features]
+dev = ["sdk/dev"]
+
+[dependencies]
+sdk = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+genesis_deployer = { path = ".", features = ["dev"] }

@@ -1,3 +1,9 @@
+//! Internal utilities.
+//!
+//! Some are public because used in proc-macros.
+//!
+//! *These interfaces are not intended for use by SDK clients, and may change at any time.*
+
 #[allow(unused)]
 mod mu_buf;
 mod serialize;
@@ -5,7 +11,6 @@ mod static_buf;
 mod track;
 
 pub mod nnint;
-
 #[allow(unused_imports)]
 pub use mu_buf::*;
 pub use serialize::*;

@@ -1,15 +1,15 @@
 #[cfg(feature = "call_tracking")]
 #[macro_export]
 macro_rules! with_call_tracking {
-    { $call_info:expr, $body:block } => {
-        ::sdk::with_debug_context(&$call_info, || $body)
+    { $call_info:expr, $body:expr } => {
+        ::sdk::with_debug_context(&$call_info, || { $body })
     };
 }
 
 #[cfg(not(feature = "call_tracking"))]
 #[macro_export]
 macro_rules! with_call_tracking {
-    { $call_info:expr, $body:block } => {
+    { $call_info:expr, $body:expr } => {
         $body
     };
 }

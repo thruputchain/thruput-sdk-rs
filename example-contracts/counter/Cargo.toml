@@ -1,0 +1,22 @@
+[package]
+name = "counter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sdk = { workspace = true, features = ["storage"] }
+thiserror = { workspace = true }
+xdrs = { workspace = true, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[features]
+client = []
+guest = []
+mock = ["guest", "sdk/mock"]
+
+[dev-dependencies]
+counter = { path = ".", features = ["mock", "client"] }

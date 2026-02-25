@@ -2,9 +2,10 @@ name: SDK CI
 
 on:
   push:
-    branches: [ "main" ]  
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    types: [ready_for_review]
   workflow_dispatch:
 
 jobs:

@@ -1,7 +1,7 @@
 use bottle_test_if::*;
-use sdk::contract_test::deploy_address;
-use sdk::contract_test::load_wasm_contract;
-use sdk::transaction::InvocationFrameStatusCode;
+use sdk::deploy_address;
+use sdk::load_wasm_contract;
+use sdk::transaction::InvocationFrameStatusCode::*;
 use sdk::*;
 
 pub fn main() {
@@ -24,37 +24,32 @@ fn bottle_test(package: &str) {
     let tester_contract =
         load_wasm_contract(format!("target/bottle-test/{package}.wasm"));
 
-    let env = TestEnvironment::new(None);
+    let env = TestEnvironment::no_cost();
 
     // Create and deploy the tester contract
     let tester_hash = env.setup_create_contract(&tester_contract);
     let tester_addr = deploy_address(&OWNER, &TESTER_NONCE, &tester_hash);
-    env.setup_grant_storage_tokens(&tester_addr, 1_000_000_000);
+    // env.setup_grant_storage_tokens(&tester_addr, 1_000_000_000);
 
     // Create the target contract
     let target_hash = env.setup_create_contract(&target_contract);
-    let target_addr =
+    let _target_addr =
         deploy_address(&tester_addr, &TARGET_NONCE, &target_hash);
-    env.setup_grant_storage_tokens(&target_addr, 1_000_000_000);
+    // env.setup_grant_storage_tokens(&target_addr, 1_000_000_000);
 
     // Something we can move into the test closure
     let package = package.to_string();
 
-    let mut handler = env.prepare_test(move || -> () {
-        let tester_addr =
-            deploy_contract(&TESTER_NONCE, &tester_hash).unwrap();
+    let mut handler = contract_test_handler(env, move || -> () {
+        let tester_addr = deploy_contract(&TESTER_NONCE, &tester_hash);
 
         let mut tester = BottleTestClient::new(&tester_addr);
 
-        tester
-            .setup(&target_hash)
-            .unwrap_or_else(|e| panic!("BottleTest::setup() failed: {}", e));
+        tester.setup(&target_hash);
 
         let gas_start = stats::gas_remaining();
 
-        tester
-            .run()
-            .unwrap_or_else(|e| panic!("BottleTest::run() failed: {}", e));
+        tester.run();
 
         let gas_end = stats::gas_remaining();
 
@@ -69,15 +64,17 @@ fn bottle_test(package: &str) {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(
-        res.output.status_code(),
-        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
-    );
+    if res.output.status_code() != kInvocationFrameStatusCodeReturn as i32 {
+        panic!(
+            "Bottle-test invocation failed with code {}",
+            res.output.status_code()
+        );
+    }
 
-    assert_eq!(
-        handler.try_commit_transaction(),
-        sdk::ExecResult::ExecResultOK
-    );
+    let eres = handler.try_commit_transaction();
+    if eres != sdk::ExecResult::ExecResultOK {
+        panic!("Bottle-test transaction failed: {eres:?}");
+    }
 
     let event_log = handler.get_event_logs();
 

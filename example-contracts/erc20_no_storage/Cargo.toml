@@ -1,0 +1,34 @@
+[package]
+name = "erc20_no_storage"
+description = "Example ERC20 contract for the Groundhog blockchain"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[features]
+dev = ["sdk/dev", "groundhog-erc20-if/dev"]
+bottle-test = ["dep:erc20-bottle-test"]
+
+[dependencies]
+sdk = { workspace = true }
+xdrs = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+groundhog-erc20-if = { workspace = true }
+
+# Optional testing dependencies
+erc20-bottle-test = { workspace = true, optional = true }
+
+[dev-dependencies]
+erc20_no_storage = { path = ".", features = ["dev"] }
+erc20-native-test.workspace = true

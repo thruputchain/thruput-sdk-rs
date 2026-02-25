@@ -8,6 +8,7 @@
 mod macros;
 
 pub mod error;
+pub use error::*;
 
 pub mod keypath;
 pub use keypath::*;

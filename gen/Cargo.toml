@@ -22,11 +22,8 @@ sha2 = { workspace = true }
 groundhog-contract-util = { workspace = true, features = ["syn"] }
 
 [features]
-# Allow features that require liballoc
-alloc = []
-
 # Include routines for generating interface specs
-spec = ["alloc", "groundhog-xdr/spec", "xdrs/repr"]
+spec = ["groundhog-xdr/spec", "xdrs/repr"]
 
 # Print traces of method calls to stdout when testing
 logging = []

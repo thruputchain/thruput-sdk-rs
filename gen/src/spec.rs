@@ -46,17 +46,10 @@ fn method_repr(
         .into_iter()
         .flatten();
     let ret = ret_repr(&method.sig().output);
-    let err = if let Some(err) = contract.err_type() {
+    let err = if let Some(err) = contract.throws() {
         quote! {
             Some(<#err as HasTypeSpec>::type_spec())
         }
-    } else {
-        quote! { None::<TypeSpec> }
-    };
-
-    // only check via GetErrorType trait if the contract has an err_type
-    let err_match = if contract.err_type().is_some() {
-        err_ty(&method.sig().output)
     } else {
         quote! { None::<TypeSpec> }
     };
@@ -66,22 +59,9 @@ fn method_repr(
             name: #name.to_owned(),
             args: vec![ #(#args),* ],
             ret: #ret,
-            err: if #err_match == #err {
-                    #err
-                  } else {
-                    panic!("Mismatch between contract err_type {:?} and method's returned Result type {:?}", #err_match, #err)
-                  }
+            err: #err,
         }
     })
-}
-
-fn err_ty(ret_ty: &syn::ReturnType) -> TokenStream {
-    match ret_ty {
-        syn::ReturnType::Default => quote! { None },
-        syn::ReturnType::Type(_, ty) => {
-            quote! { <#ty as GetErrorType>::get_error_type() }
-        }
-    }
 }
 
 fn ret_repr(ret_ty: &syn::ReturnType) -> TokenStream {

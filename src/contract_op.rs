@@ -3,15 +3,14 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-use crate::WriteXDR;
 use crate::internal::MUBuf;
-use crate::internal::encode_xdr;
-use crate::sys;
-use crate::sysresult::SysResult as Result;
+use crate::sys::{self, SysResult, SyscallNo};
+use crate::syscall_abort;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
+use crate::xdr::*;
 use core::mem::MaybeUninit;
 
-const CALLDATA_MAX: usize = 500;
+pub(crate) const CALLDATA_MAX: usize = 500;
 
 pub fn contract_return(buf: &[u8]) -> ! {
     let revert = false;
@@ -33,59 +32,67 @@ pub fn contract_revert() -> ! {
     sys::raw_Exit(/* crate::syscall::SyscallErrorCode::kDeterministicWasm as i32 */);
 }
 
+pub fn contract_return_empty() -> ! {
+    contract_return(&[])
+}
+
+#[inline]
 pub fn contract_abort_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized,
 {
-    let return_buf = encode_xdr(ret).unwrap_or_else(|e| {
-        panic!("contract abort: failed encoding return value: {}", e)
-    });
-
-    contract_abort(return_buf.as_ref());
+    crate::call::abort_encoded(ret)
 }
 
+#[inline]
 pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized,
 {
-    let return_buf = encode_xdr(ret).unwrap_or_else(|e| {
-        panic!("contract return: failed encoding return value: {}", e)
-    });
-
-    contract_return(return_buf.as_ref());
+    crate::call::return_encoded(ret)
 }
 
-pub fn get_caller() -> Result<ContractAddress> {
+pub fn get_caller() -> ContractAddress {
     let mut out_addr: MaybeUninit<ContractAddress> =
         MaybeUninit::<ContractAddress>::uninit();
-    sys::uninit_GetMsgSender(&mut out_addr)?;
-    Ok(unsafe { out_addr.assume_init() })
+
+    sys::uninit_GetMsgSender(&mut out_addr)
+        .unwrap_or_else(|e| syscall_abort(SyscallNo::kGetMsgSender, e));
+
+    unsafe { out_addr.assume_init() }
 }
 
-pub fn get_source_transaction_hash() -> Result<SHA256Hash> {
+pub fn get_source_transaction_hash() -> SHA256Hash {
     let mut out_hash: MaybeUninit<SHA256Hash> =
         MaybeUninit::<SHA256Hash>::uninit();
-    sys::uninit_GetSourceTransactionHash(&mut out_hash)?;
-    Ok(unsafe { out_hash.assume_init() })
+    sys::uninit_GetSourceTransactionHash(&mut out_hash).unwrap_or_else(|e| {
+        syscall_abort(SyscallNo::kGetSourceTransactionHash, e)
+    });
+    unsafe { out_hash.assume_init() }
 }
 
-pub fn get_current_address() -> Result<ContractAddress> {
+pub fn get_current_address() -> ContractAddress {
     let mut out_addr: MaybeUninit<ContractAddress> =
         MaybeUninit::<ContractAddress>::uninit();
-    sys::uninit_GetCurrentAddress(&mut out_addr)?;
-    Ok(unsafe { out_addr.assume_init() })
+    sys::uninit_GetCurrentAddress(&mut out_addr)
+        .unwrap_or_else(|e| syscall_abort(SyscallNo::kGetCurrentAddress, e));
+    unsafe { out_addr.assume_init() }
 }
 
-#[inline]
-pub fn get_calldata_len() -> Result<RuntimeMemoryLength> {
+pub fn try_get_calldata_len() -> SysResult<RuntimeMemoryLength> {
     let mut out: RuntimeMemoryLength = 0;
     sys::raw_GetCalldataLen(&mut out)?;
     Ok(out)
 }
 
+pub fn get_calldata_len() -> RuntimeMemoryLength {
+    try_get_calldata_len()
+        .unwrap_or_else(|e| syscall_abort(SyscallNo::kGetCalldataLen, e))
+}
+
 pub type Calldata = MUBuf<CALLDATA_MAX>;
 
-pub fn get_calldata() -> Result<Calldata> {
+pub fn try_get_calldata() -> SysResult<Calldata> {
     // Get a buffer to put the calldata in
     let mut calldata: Calldata = MUBuf::new();
 
@@ -103,4 +110,12 @@ pub fn get_calldata() -> Result<Calldata> {
     // or perhaps do get_calldata_len() if the buffer has been completely filled?)
 
     Ok(calldata)
+}
+
+// This should probably become `get_calldata`, once the existing clients
+// of that function are adapted to non-result return.
+pub fn get_calldata() -> Calldata {
+    try_get_calldata().unwrap_or_else(|syserr| {
+        syscall_abort(SyscallNo::kGetCalldata, syserr)
+    })
 }

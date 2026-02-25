@@ -21,9 +21,8 @@ pub fn generate(
 
     let exports_mod_ident = config.exports_mod_ident();
 
-    let self_ty = contract.self_ty();
     let mut uses = vec![quote! {
-        use super::#self_ty;
+        use super::*;
     }];
     if let Some(trait_path) = contract.trait_path() {
         uses.push(quote! { use super::#trait_path; });
@@ -134,61 +133,30 @@ pub fn generate_method(
             .clone()
             .unwrap_or_else(crate::contract::interface_vers_default)
     };
-
     let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
-
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);
     let internal_name = format_ident!("{}_internal", ident);
     let export_num_name =
         format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
-    let mut uses = vec![quote! {
-        use ::sdk::contract::ContractEntrypointID;
-        use ::sdk::contract_op::{get_calldata, contract_return_encoded, contract_abort_encoded};
-        use ::sdk::internal::decode_xdr;
-        use ::sdk::with_call_tracking;
-        use ::sdk::internal::HandleMethod;
-    }];
-
-    let log_guest_call = if cfg!(feature = "logging") {
-        uses.push(quote! { use ::sdk::debug_log; });
-
-        let print_string = format!("[sdk] Guest: Calling method {}", ident);
-
-        quote! { debug_log!("{} ", #print_string); }
-    } else {
-        quote! {}
-    };
-
-    let mut export = quote! {
-        #[doc=#export_name]
-        #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
-        pub extern "C" fn #extern_name() -> () {
-            #internal_name()
-        }
-    };
-
-    // The function is a method that takes a self-parameter
+    // Is the function a method that takes a self-parameter?
     let is_method = contract.is_some() && method.sig().receiver().is_some();
 
-    // The function is associated with a type
-    let is_associated = contract.is_some();
-
     // How to call the function
-    let function_or_method = if is_method {
+    let invoke = if is_method {
         // Invoke the method on a state object
         quote! { state.#ident }
-    } else if is_associated {
+    } else if let Some(contract) = contract {
         // Invoke the associated function on the contract type
-        let self_ty = &contract.unwrap().self_ty();
+        let self_ty = &contract.self_ty();
         quote! { #self_ty::#ident }
     } else {
         // Invoke the free function
         quote! { #ident }
     };
 
-    // The method takes a mutable self-parameter
+    // Does the method take a mutable self-parameter?
     let is_mut = is_method
         && method
             .sig()
@@ -197,20 +165,23 @@ pub fn generate_method(
             .map(|r| r.mutability.is_some())
             .unwrap_or(false);
 
-    // The method is marked "init": storage must be uninitialized before calling
+    // If the method is marked "init", storage must be uninitialized before calling
     let is_init = is_method && method.config().init.is_present();
     // TODO: complain about #[init] in inappropriate positions
 
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();
-        quote! {
+        quote! {{
+            use ::sdk::storage::{Keypath, LoadKeypath};
+
             // Assert that the storage does not yet exist
             if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                .unwrap_or_else(|_| panic!("Failed loading contract storage")).is_some()
+                .unwrap_or_else(|_|
+                    panic!("Failed loading contract storage")).is_some() // XX abort
             {
-                panic!("#[contract(init)] method called when contract storage already exists");
+                panic!("\"init\" method called when contract storage already exists"); // XX abort
             }
-        }
+        }}
     } else {
         quote! {}
     };
@@ -225,21 +196,21 @@ pub fn generate_method(
         };
 
         if config.storage() {
-            uses.push(quote! {
-                use ::sdk::storage::{Keypath, LoadKeypath, DefaultFromKeypath, Store};
-            });
-
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
+                    use ::sdk::storage::{Keypath, DefaultFromKeypath};
+                    let keypath = Keypath::root();
                     let #mutability state =
-                        <#self_ty as DefaultFromKeypath>::default_from_keypath(&Keypath::root());
+                        <#self_ty as DefaultFromKeypath>::default_from_keypath(&keypath);
                 }
             } else {
                 // Load the previously-stored value
                 quote! {
+                    use ::sdk::storage::{Keypath, LoadKeypath};
+                    let keypath = Keypath::root();
                     let #mutability state =
-                        <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
+                        <#self_ty as LoadKeypath>::try_load_keypath(&keypath)
                             .unwrap_or_else(|_| panic!("Failed loading contract storage"))
                             .unwrap_or_else(|| panic!("Contract storage not present"));
                 }
@@ -256,25 +227,12 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Save the contract state after calling the method, if it takes a mutable ref to the state
-    // TODO: use an attribute to request no saving
+    // If the method takes a mutable ref to the contract state, save the state
+    // afterwards:
     let save_state = if is_method && config.storage() && is_mut {
         quote! {
-            state.store_keypath(&Keypath::root()).unwrap_or_else(|_|
-                panic!("Failed saving contract storage"));
-        }
-    } else {
-        quote! {}
-    };
-
-    let has_err_type = contract.and_then(|c| c.err_type()).is_some()
-        // generate_method() might be called directly, so check config too
-        || config.err_type().is_some();
-
-    let unwrap_abort = if has_err_type {
-        quote! {
-            let result = result.unwrap_or_else(|e|
-                contract_abort_encoded(&e));
+            use ::sdk::storage::Store;
+            state.store_keypath(&keypath);
         }
     } else {
         quote! {}
@@ -282,77 +240,105 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method.sig());
 
+    let log_guest_call = if cfg!(feature = "logging") {
+        let print_string = format!("[sdk] Guest: Calling method {}", ident);
+        quote! { ::sdk::debug_log!("{} ", #print_string); }
+    } else {
+        quote! {}
+    };
+
+    // Decode the args, run the body, encode the result
+    let wrapped_call = quote! {{
+        //
+        // If debug mode: log the method-call
+        #log_guest_call
+
+        // Abort if this is an "init" method and the contract state already
+        // exists
+        #assert_uninitialized
+
+        // Load contract state
+        #load_state
+
+        // Fetch the calldata from the VM
+        let calldata = ::sdk::contract_op::get_calldata();
+
+        // Decode the args
+        let (#arg_names) =
+            sdk::call::internal::contract_call_decode(calldata.as_ref())
+                .unwrap_or_else(|e|
+                    ::sdk::exn::decoding_args_abort(e));
+
+        // TODO: can we get the fetch-and-decode into one internal function?
+
+        // Call the method implementation (passing the contract state)
+        let result = #invoke(#arg_names);
+
+        // Encode the result
+        let return_buf = ::sdk::call::internal::encode_success(&result);
+
+        // Save any mutations
+        #save_state
+
+        // Return the result to the VM
+        ::sdk::contract_return(return_buf.as_ref());
+    }};
+
+    // Catch exceptions
+    let wrapped_call = {
+        let error_ty = config
+            .throws()
+            .map(|ty| quote! { #ty })
+            .unwrap_or(quote! { ::core::convert::Infallible });
+
+        quote! {
+            ::sdk::with_abort_handler(
+                // An abort handler that knows our specific error type
+                &::sdk::call::internal::method_abort_handler::<#error_ty>,
+                || #wrapped_call,
+            )
+        }
+    };
+
+    // Include method info in debugging context (when enabled)
+    let wrapped_call = {
+        let method_name = ident.to_string();
+        let iface = match iface_name {
+            Some(iface) => quote! { Some(#iface) },
+            None => quote! { None },
+        };
+        let call_info = quote! {
+            ::sdk::internal::HandleMethod::new(#iface, #iface_vers, #method_name)
+        };
+
+        quote! {
+            ::sdk::with_call_tracking!(#call_info, #wrapped_call)
+        }
+    };
+
+    // Export the entrypoint ID as a constant for use in tests
+    let entrypoint_lit = entrypoint_literal(entrypoint);
+
     let inline = if !cfg!(feature = "no_inline_methods") {
         quote! { #[inline(always)] }
     } else {
         quote! {}
     };
 
-    let method_name = ident.to_string();
-    let iface = match iface_name {
-        Some(iface) => quote! { Some(#iface) },
-        None => quote! { None },
-    };
-    let call_info = quote! {
-        HandleMethod::new(#iface, #iface_vers, #method_name)
-    };
+    Ok(quote! {
 
-    export.extend(quote! {
+        #[doc=#export_name]
+        #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
+        pub extern "C" fn #extern_name() -> () {
+            #internal_name()
+        }
+
         #inline
         pub fn #internal_name() -> () {
-            #(#uses)*
-
-            with_call_tracking!(#call_info, {
-
-            // If debug mode: log the method-call
-            #log_guest_call
-
-            // Error if this is an "init" method and the contract state already exists
-            #assert_uninitialized
-
-            #load_state
-
-            let result = {
-                // Fetch the calldata from the VM
-                let calldata = get_calldata().unwrap_or_else(|e|
-                    panic!("get_calldata() failed: {}", e));
-
-                // Decode the args
-                let (#arg_names) = decode_xdr(calldata.as_ref()).unwrap_or_else(|e|
-                    panic!("failed decoding contract-call arguments: {}", e));
-
-                // Call the free function or contract-type method
-                let result = #function_or_method(#arg_names);
-
-                result
-            };
-
-            // Unwrap a Result<T, E> (if requested by #[contract(error = E)],
-            // and call contract_abort in the error case.
-            //
-            // TODO: remove the `#[contract(error = ...)]` mechanism, which
-            // is obsoleted by (and incompatible with) the `#[contract(abort =
-            // ...)]` mechanism
-            //
-            #unwrap_abort
-
-            // Save any mutations
-            #save_state
-
-            // Return the contract-call result to the VM, ending execution of this contract
-            contract_return_encoded(&result);
-
-            // Not reached
-
-            })
+            #wrapped_call
         }
-    });
 
-    // Export the entrypoint ID as a constant for use in tests
-    let entrypoint_lit = entrypoint_literal(entrypoint);
-    export.extend(quote! {
         pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
-    });
 
-    Ok(export)
+    })
 }

@@ -79,11 +79,11 @@ impl<T> Handle<T> {
         }))
     }
 
-    pub(crate) fn set(&mut self, val: &T) -> Result<()>
+    pub(crate) fn set(&mut self, val: &T)
     where
         T: Store,
     {
-        val.store(&self.key)
+        val.store(&self.key);
     }
 
     pub fn load(&self) -> Result<HandleRef<'_, T>>
@@ -166,7 +166,7 @@ mod refs {
     impl<T: Store> Drop for HandleRefMut<'_, T> {
         fn drop(&mut self) {
             // Store the current value back to the key-value store
-            self.handle.set(&self.val).unwrap();
+            self.handle.set(&self.val);
         }
     }
 }

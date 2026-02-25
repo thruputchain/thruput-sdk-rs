@@ -16,5 +16,5 @@ crate-type = ["rlib"]
 doctest = false
 
 [features]
-mock = ["std", "sdk/mock"]
+dev = ["std", "sdk/dev"]
 std = ["sdk/std"]

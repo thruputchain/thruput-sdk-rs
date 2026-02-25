@@ -1,0 +1,27 @@
+[package]
+name = "swap"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false # suppress output from our zero unit-tests
+
+[dependencies]
+primitive-types = { version = "0.13.1", default-features = false, features = ["serde_no_std"] }
+sdk = { workspace = true, features = ["storage"] }
+thiserror = { workspace = true }
+groundhog-erc20-if = { workspace = true }
+erc20 = { path = "../erc20" }
+
+[features]
+guest = ["erc20/guest"]
+mock = ["guest", "sdk/mock", "erc20/mock"]
+
+[dev-dependencies]
+swap = { path = ".", features = ["mock"] }
+
+[[test]]
+name = "pair"
+test = false

@@ -7,5 +7,5 @@ contract_test!(test_delete_unstored {
     let key = &key;
 
     // Deleting a previously-unstored location is okay
-    assert!(matches!(delete_shared(key), Ok(())));
+    assert!(matches!(try_delete_shared(key), Ok(())));
 });

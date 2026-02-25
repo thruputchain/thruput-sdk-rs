@@ -1,8 +1,9 @@
-use super::error::{Result, oob_err};
+use super::error::*;
 use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
+use crate::exn::*;
 use core::fmt::Debug;
 
 #[derive(Debug)]
@@ -76,76 +77,92 @@ impl<T> Vector<T> {
         self.len() == 0
     }
 
-    pub fn get(&self, index: u64) -> Result<T>
+    pub fn get(&self, index: u64) -> T
     where
         T: LoadKeypath,
     {
         if index >= self.len {
-            return oob_err(self.len, index);
+            oob_abort(self.len, index);
         }
 
         let keypath = self.make_index_keypath(index);
 
-        load_keypath(&keypath)
+        load_keypath(&keypath).unwrap_or_else(|e| library_abort(e))
     }
 
-    pub fn get_default(&self, index: u64) -> Result<T>
+    pub fn get_default(&self, index: u64) -> T
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
         if index >= self.len {
-            return oob_err(self.len, index);
+            oob_abort(self.len, index);
         }
 
         let keypath = self.make_index_keypath(index);
 
-        Ok(T::try_load_keypath(&keypath)?
-            .unwrap_or_else(|| T::default_from_keypath(&keypath)))
+        T::try_load_keypath(&keypath)
+            .unwrap_or_else(|e| library_abort(e))
+            .unwrap_or_else(|| T::default_from_keypath(&keypath))
     }
 
-    pub fn load<'a>(&'a self, index: u64) -> Result<ElemRef<'a, T>>
+    pub fn try_get(&self, index: u64) -> Option<T>
+    where
+        T: LoadKeypath,
+    {
+        if index >= self.len {
+            return None;
+        }
+
+        let keypath = self.make_index_keypath(index);
+
+        let val = load_keypath(&keypath).unwrap_or_else(|e| library_abort(e));
+
+        Some(val)
+    }
+
+    pub fn load<'a>(&'a self, index: u64) -> ElemRef<'a, T>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
-        let val = self.get_default(index)?;
-        Ok(ElemRef::new(self, val))
+        let val = self.get_default(index);
+
+        ElemRef::new(self, val)
     }
 
-    pub fn load_mut<'a>(&'a mut self, index: u64) -> Result<ElemRefMut<'a, T>>
+    pub fn load_mut<'a>(&'a mut self, index: u64) -> ElemRefMut<'a, T>
     where
         T: LoadKeypath + DefaultFromKeypath + Store,
     {
-        let val = self.get_default(index)?;
-        Ok(ElemRefMut::new(self, index, val))
+        let val = self.get_default(index);
+
+        ElemRefMut::new(self, index, val)
     }
 
-    pub fn get_handle(&self, index: u64) -> Result<Handle<T>>
+    pub fn get_handle(&self, index: u64) -> Handle<T>
     where
         T: LoadKeypath + DefaultFromKeypath,
     {
         if index < self.len {
             let keypath = self.make_index_keypath(index);
-            let handle = Handle::from(keypath);
-            Ok(handle)
+            Handle::from(keypath)
         } else {
-            oob_err(self.len, index)
+            oob_abort(self.len, index);
         }
     }
 
-    pub fn set(&self, index: u64, val: &T) -> Result<()>
+    pub fn set(&self, index: u64, val: &T)
     where
         T: Store,
     {
         if index < self.len {
             let keypath = &self.make_index_keypath(index);
-            val.store_keypath(keypath)?;
-            Ok(())
+            val.store_keypath(keypath);
         } else {
-            oob_err(self.len, index)
+            oob_abort(self.len, index);
         }
     }
 
-    pub fn push(&mut self, val: T) -> Result<()>
+    pub fn push(&mut self, val: T)
     where
         T: Store,
     {
@@ -153,22 +170,21 @@ impl<T> Vector<T> {
         self.len += 1;
 
         // Store the element value
-        self.set(new_index, &val)?;
+        self.set(new_index, &val);
 
         // Store ourselves
-        self.store_keypath(&self.keypath)?;
-        Ok(())
+        self.store_keypath(&self.keypath);
     }
 
-    pub fn extend_len(&mut self, len: u64) -> Result<()>
+    pub fn extend_len(&mut self, len: u64)
     where
         T: DefaultFromKeypath,
     {
         if len > self.len {
             self.len = len;
-            Ok(())
         } else {
-            oob_err(self.len, len) // can only increase length
+            // We can only increase the length
+            oob_abort(self.len, len);
         }
     }
 
@@ -239,8 +255,10 @@ mod vref {
 
     impl<T: Store> Drop for ElemRefMut<'_, T> {
         fn drop(&mut self) {
+            // XXX: abort in drop handler?
+
             // Flush any changes
-            self.vec.set(self.idx, &self.val).unwrap();
+            self.vec.set(self.idx, &self.val);
         }
     }
 }
