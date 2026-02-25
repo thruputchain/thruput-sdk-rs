@@ -223,9 +223,9 @@ impl MockInvocationFrame {
     }
 
     pub fn result(
-        &self,
+        &mut self,
     ) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
-        match &self.state {
+        let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace) => {
                 (output.clone(), trace.clone())
             }
@@ -235,7 +235,9 @@ impl MockInvocationFrame {
                 );
                 panic_any(crate::invoke_error::unrecoverable_error());
             }
-        }
+        };
+        self.child_frame = None;
+        res
     }
 }
 
@@ -510,7 +512,6 @@ mod tests {
     fn test_syscalls_with_context() {
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        TestEnvironment::enable_syscall_logging();
 
         let (output, _) = handler
             .open_root_frame()
@@ -534,5 +535,73 @@ mod tests {
             output.status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
         );
+    }
+
+    #[test]
+    fn test_concurrent_transactions() {
+        let env = TestEnvironment::new(None);
+        let mut handler1 = MockTransactionHandler::new(env.clone());
+        let mut handler2 = MockTransactionHandler::new(env);
+
+        let frame1 = handler1
+            .open_root_frame()
+            .with_invoke_flags(0)
+            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+                [1; 32],
+            ))
+            .build()
+            .execute(|_| {
+                std::println!("getting current address");
+                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                std::println!("res: {:?}", res);
+                assert_eq!(
+                    res.unwrap(),
+                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                );
+                true
+            });
+
+        let frame2 = handler2
+            .open_root_frame()
+            .with_invoke_flags(0)
+            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+                [2; 32],
+            ))
+            .build()
+            .execute(|_| {
+                std::println!("getting current address");
+                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                std::println!("res: {:?}", res);
+                assert_eq!(
+                    res.unwrap(),
+                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                );
+                true
+            });
+        let (output1, _) = frame1.execute(|_| {
+            std::println!("getting current address");
+            let res = groundhog_xdr::syscalls::GetCurrentAddress();
+            std::println!("res: {:?}", res);
+            assert_eq!(
+                res.unwrap(),
+                groundhog_xdr::types::ContractAddress::from([1; 32])
+            );
+            false
+        }).result();
+
+        let (output2, _) = frame2.execute(|_| {
+            std::println!("getting current address");
+            let res = groundhog_xdr::syscalls::GetCurrentAddress();
+            std::println!("res: {:?}", res);
+            assert_eq!(
+                res.unwrap(),
+                groundhog_xdr::types::ContractAddress::from([2; 32])
+            );
+            false
+        }).result();
+
+        assert_eq!(output1.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
+        assert_eq!(output2.status_code(), InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32);
+       
     }
 }

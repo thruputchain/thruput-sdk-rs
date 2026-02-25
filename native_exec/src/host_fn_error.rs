@@ -14,7 +14,6 @@ pub fn perform_mocked_syscall(
     arg6: u64,
     arg7: u64,
 ) -> i32 {
-    println!("performing mocked syscall: {}", syscall);
     let result: groundhog_sys::ForeignHostFnResult = unsafe {
         groundhog_sys::mock_syscall_entrypoint(
             syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
