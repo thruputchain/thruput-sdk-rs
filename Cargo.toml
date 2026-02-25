@@ -34,7 +34,6 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "SDK for contract development on the Groundhog blockchain"
-
 exclude = [
     "rust-toolchain.toml",
     "rustfmt.toml",
@@ -106,7 +105,7 @@ hogexec-internal = { registry = "groundhog", version = "0.3.0" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128", "heapless"] }
 xdr_common = { registry = "groundhog", version = "0.4.0" }
-abort = { registry = "groundhog", version = "0.3.0" }
+abort = { registry = "groundhog", version = "0.3.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
 heapless = { version = "0.9.2" }
@@ -117,14 +116,28 @@ bitset-core = { version = "0.1.1", default-features = false }
 # Enable allocation features
 alloc = ["groundhog-xdr/alloc", "xdrs/alloc"]
 
-# Add the "storage" convenience module
+# Include the structured-storage module
 storage = ["alloc", "dep:delegate", "groundhog-macros/storage"]
 
 # Enable development features
-dev = ["mock", "debugging", "call_tracking", "dep:groundhog-storage-cost", "abort/debug"]
+dev = [
+    "debugging",
+    "call_tracking",
+    "dep:groundhog-storage-cost",
+    "abort/std",
+    "abort/debug",
+    "mock",
+]
 
 # Enable the mock executor for testing
-mock = ["std", "dep:groundhog-native-exec", "groundhog-macros/mock", "groundhog-xdr/syscalls_mock"]
+mock = [
+    "std",
+    "dep:groundhog-native-exec",
+    "groundhog-macros/mock",
+    "groundhog-xdr/syscalls_mock",
+]
+
+# Include interfaces requiring std
 std = ["alloc", "groundhog-xdr/std", "abort/std"]
 
 # Diagnostic features
@@ -135,7 +148,13 @@ panic_logging = [] # send panic messages to the log() syscall
 call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
-spec = ["std", "groundhog-macros/spec", "groundhog-xdr/spec", "xdrs/repr", "dep:groundhog-contract-util"]
+spec = [
+    "std",
+    "groundhog-macros/spec",
+    "groundhog-xdr/spec",
+    "dep:groundhog-contract-util",
+    "xdrs/repr",
+]
 
 [[test]]
 name = "int128"
@@ -154,6 +173,3 @@ collapsible_if = "allow"
 
 [target.wasm32-unknown-unknown.dependencies]
 abort = { workspace = true, features = ["single-threaded"] }
-
-[patch.groundhog] # XXX
-abort = { path = "../abort" }
