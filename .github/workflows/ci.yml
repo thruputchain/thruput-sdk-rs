@@ -42,6 +42,7 @@ jobs:
           ${{ secrets.SDK_TO_SELF }}
           ${{ secrets.SDK_TO_ABORT_RS }}
           ${{ secrets.SDK_TO_HOGX_KEY }}
+          ${{ secrets.SDK_TO_SCP_KEY }}
 
     - uses: actions/checkout@v4
     - name: Run hog schedule
