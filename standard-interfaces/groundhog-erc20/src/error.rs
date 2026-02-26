@@ -28,23 +28,6 @@ pub enum ERC20Error {
     Internal = 100,
 }
 
-// Contract routines for generating errors
-
-pub fn internal_err<M: AsRef<str>>(_msg: M) -> ! {
-    abort(&ERC20Error::Internal)
-}
-
-pub fn caller_error(err: ERC20Error) {
-    abort(&err)
-}
-
-/// TODO temporary ... assert!-like macros to come
-pub fn ensure(pred: bool, err: ERC20Error) {
-    if !pred {
-        abort(&err)
-    }
-}
-
 pub fn amount_to_diff(n: u128) -> i128 {
     n.try_into()
         .unwrap_or_else(|_| abort(&ERC20Error::TooLarge))

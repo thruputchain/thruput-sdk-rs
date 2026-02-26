@@ -32,6 +32,7 @@ mod debug;
 mod local;
 mod panic;
 mod xdr;
+mod util;
 
 pub mod call;
 
@@ -79,6 +80,7 @@ pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use types::*;
+pub use util::*;
 
 pub use xdr::*;
 

@@ -410,6 +410,9 @@ case "$action" in
     test-examples)
         eg_test_all
         ;;
+    test-itc)
+        itc_test_all
+        ;;
     test-spec)
         test_spec
         ;;
