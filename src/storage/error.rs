@@ -14,7 +14,7 @@ use xdrs::{XDR, xdr_repr::XDR};
 #[repr(i32)]
 pub enum StorageError {
     #[error(transparent)]
-    Sys(SyscallExn),
+    Sys { exn: SyscallExn },
 
     #[error("Storage error due to serialization")]
     Serialization,
@@ -25,7 +25,7 @@ pub enum StorageError {
 
 impl StorageError {
     pub fn is_storage_key_not_exist(&self) -> bool {
-        if let StorageError::Sys(exn) = self {
+        if let StorageError::Sys { exn } = self {
             exn.has_code(kSyscallErrorCodeStorageKeyNotExist)
         } else {
             false
@@ -46,5 +46,7 @@ pub fn storage_load_error(_r: ReadError) -> StorageError {
 }
 
 pub fn storage_syserr(e: SysErr) -> StorageError {
-    StorageError::Sys(SyscallExn::new(SyscallNo::kBytestringGet, e))
+    StorageError::Sys {
+        exn: SyscallExn::new(SyscallNo::kBytestringGet, e),
+    }
 }

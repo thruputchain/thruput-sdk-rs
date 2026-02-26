@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -u
 
 # These only work if this script is run in the SDK's top-level (workspace) directory.
@@ -26,7 +28,7 @@ build_contract() {
     local package
     package="$1"; shift
 
-    echo && echo "-- BUILD $contracts_dir/$package"
+    info "BUILD $contracts_dir/$package"
 
     build_wasm "$contracts_dir" "$package" --release &&
     make_optimized "$package"
@@ -124,7 +126,7 @@ test_contract() {
     local package
     package="$1"; shift
 
-    echo && echo "-- TEST $contracts_dir/$package"
+    info "TEST $contracts_dir/$package"
     (
         cd example-contracts &&
         cargo test -p "$package" "$@" -- --show-output
@@ -191,7 +193,7 @@ bottle_test_contract() {
     contracts_dir="$1"; shift
     package="$1"; shift
 
-    echo && echo "-- BOTTLE-TEST $contracts_dir/$package"
+    info "BOTTLE-TEST $contracts_dir/$package"
 
     build_wasm "$contracts_dir" "$package" \
         --profile="bottle_test" \
@@ -257,9 +259,20 @@ build_docs() {
     cargo doc --features=dev,storage,abort/debug "$@"
 }
 
+test_spec() {
+    cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
+    (
+        cd integration_test_contracts &&
+        cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null &&
+        cargo run -p tuple_return -F spec --bin generate_spec_tuple_return -- /dev/null &&
+        true
+    )
+}
+
 test_all() {
     build_docs &&
     test_sdk &&
+    test_spec &&
 
     eg_build_all &&
     eg_test_all &&
@@ -269,12 +282,26 @@ test_all() {
     itc_test_all &&
     itc_bottle_test_all &&
 
-    echo &&
-    echo "All tests succeeded." || {
-        echo
-        echo ">> Some tests failed."
-        return 1
-    }
+    info "All tests succeeded." ||
+    fail "Some tests failed"
+}
+
+### Other dev utils
+
+tree_contract() {
+    local contract_dir
+    contract_dir="$1"; shift
+
+    (
+        cd "$contract_dir" &&
+        cargo --config ../.cargo/contract.toml \
+            tree \
+            --target "wasm32-unknown-unknown" \
+            --edges no-proc-macro,no-build,no-dev \
+            -Z build-std=core,alloc \
+            -Z build-std-features=std/optimize_for_size \
+            "$@"
+    )
 }
 
 expand_contract() {
@@ -289,6 +316,8 @@ expand_contract() {
         #
     )
 }
+
+### Quality checks
 
 todo() {
     rg -i --ignore-file .local_src_ignore TODO
@@ -307,8 +336,7 @@ xxx_check() {
 
     if [ $rg -ne 1 ]; then
         # Matches found, or error
-        printf "\n>> XXX annotations found!\n"
-        return 1
+        fail "XXX annotations found!"
     else
         return 0
     fi
@@ -319,10 +347,8 @@ lint() {
 }
 
 lint_check() {
-    lint "$@" >& /dev/null || {
-        printf "\n>> Trapped lint!\n"
-        return 1;
-    }
+    lint "$@" >& /dev/null ||
+        fail "Trapped lint!"
 }
 
 fmt() {
@@ -330,10 +356,8 @@ fmt() {
 }
 
 fmt_check() {
-    fmt --check --quiet "$@" || {
-        printf "\n>> Formatting required!\n"
-        return 1;
-    }
+    fmt --check --quiet "$@" ||
+        fail "Formatting required!"
 }
 
 ci_check() {
@@ -342,11 +366,21 @@ ci_check() {
     lint_check &&
     test_all &&
 
-    echo &&
-    echo "CI clean!" || {
-        printf "\n>> CI failed!\n"
-        return 1
-    }
+    info "CI clean!" ||
+    fail "CI failed!"
+}
+
+info() {
+    printf "\n-- %s\n" "$1" >&2
+}
+
+warn() {
+    printf "\n>> %s\n" "$1" >&2
+}
+
+fail() {
+    printf "\n!! %s\n" "$1" >&2
+    return 1
 }
 
 action="$1"; shift
@@ -370,8 +404,21 @@ case "$action" in
     build-itc)
         itc_build_all
         ;;
+    test)
+        test_all
+        ;;
     test-examples)
         eg_test_all
+        ;;
+    test-spec)
+        test_spec
+        ;;
+    run-bottle-tests)
+        eg_bottle_test_all &&
+            itc_bottle_test_all
+        ;;
+    tree)
+        tree_contract "$1"
         ;;
     build-docs)
         build_docs
@@ -383,7 +430,6 @@ case "$action" in
         rg -i --ignore-file .local_src_ignore "$@"
         ;;
     *)
-        echo "Sorry, didn't understand action '$action'."
-        return 1
+        fail "Sorry, didn't understand action '$action'."
         ;;
 esac

@@ -184,3 +184,6 @@ groundhog-xdr = { workspace = true, features = ["syscalls"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
+
+[patch.groundhog]
+abort = { path = "../abort" }
