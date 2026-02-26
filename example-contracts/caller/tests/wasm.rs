@@ -2,7 +2,9 @@
 mod common;
 use common::*;
 
-// test working directory is example contract directory
+// These paths only work for the example-contracts directory
+// that is hosted in the SDK package.
+//
 const ERC20_PATH: &str = "../../target/optimized/erc20.wasm";
 const CALLER_PATH: &str = "../../target/optimized/caller.wasm";
 

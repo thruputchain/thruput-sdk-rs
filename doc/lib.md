@@ -13,8 +13,9 @@ The SDK provides convenient wrappers around Groundhog syscalls:
     - [`mod@bytestring`]
     - [`mod@non_negative_int`]
     - [`mod@retrocausal_queue`]
-- Low-level bindings:
+- Low-level syscall bindings:
     - [`mod@sys`]: Low-level wrappers
+- Emitting events: [`mod@event`]
 
 Other things:
 - [`mod@types`]: Types related to system facilities, like:
@@ -60,7 +61,64 @@ The [`contract`](macro@crate::contract) macro exports a contract's methods for
 responding to cross-contract calls, and also creates "client" objects for
 performing those calls.
 
+# Testing
+
+The SDK provides some utilities for executing contract code in the included
+test environment.
+
+This creates a cargo test named `test_bytestring`, containing the given code:
+```
+contract_test!(test_bytestring {
+    let key = StorageKey::default();
+
+    bytestring_set(&key, #b"");
+});
+```
+
+The `client_test!` macro takes a contract implementation and defines cargo
+tests that take a client object as an argument (see example contract `hasher`):
+
+```no_run
+sdk::client_test! {
+    hasher::HasherImpl =>
+
+    fn hasher_test(c: &mut hasher::HasherClient) {
+        c.run();
+    }
+}
+```
+
+A more flexible approach allows direct manipulation of the environment:
+```
+// Create a test environment where no storage-cost limits are imposed.
+let env = TestEnvironment::no_cost();
+
+// Execute some code in the environment.
+contract_exec(env, || {
+    let key = StorageKey::default();
+
+    bytestring_set(&key, #b"");
+})
+.unwrap_or_else(|e| panic!("Test failed: {e}"));
+
+```
+
+A full list of test-running functions and macros that may be useful in various
+circumstances:
+
+- [`contract_exec()`]
+- [`contract_test()`]
+- [`contract_test_raw()`]
+- [`contract_test_handler()`]
+- [`contract_handler_exec()`]
+- [`contract_handler_exec_raw()`]
+- [`contract_test!`]
+- [`client_test!`]
+- [`load_wasm_contract()`]
+- [`test_wasm()`]
+
 # Example contract
+
 ```
 #[storage]
 pub struct MyContract {
@@ -69,19 +127,19 @@ pub struct MyContract {
 
 pub struct MyError;
 
-pub type Result<T, E = MyError> = Result<T, E>;
-
-#[contract(exports = "guest_exports", err_type = MyError, client = MyClient)]
+#[contract(throws = MyError, client = MyClient)]
 impl MyContract {
     #[init]
-    pub fn initialize(&mut self, contract_owner: &ContractAddress) -> Result<()> {
+    pub fn initialize(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner = contract_owner.clone();
-        Ok(())
     }
 
-    pub fn get_owner(&self) -> Result<ContractAddress> {
+    pub fn get_owner(&self) -> ContractAddress {
         self.contract_owner.clone()
+    }
+
+    pub fn oops(&self) {
+        abort(&MyError);
     }
 }
 ```
-

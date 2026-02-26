@@ -19,15 +19,3 @@ pub use groundhog_native_exec::{
 pub use hogexec_internal::ffi_enums::*;
 
 pub use groundhog_storage_cost::*;
-
-// Internal
-
-/*
-mod handle_call;
-
-pub mod internal {
-    use super::*;
-
-    pub use handle_call::*;
-}
-*/

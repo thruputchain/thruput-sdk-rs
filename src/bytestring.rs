@@ -1,10 +1,14 @@
 //! Routines for manipulating the storage type `Bytestring`.
 //!
-//! These routines are thin wrappers around VM syscalls,
-//! and return the type [`SysResult<T>`](crate::sys::SysResult).  This is
-//! is a [`Result<T, E>`](core::result::Result) where `E` is
-//! a [`SysErr`](crate::sys::SysErr) containing
-//! an error code in the case of a syscall failure.
+//! These routines are thin wrappers around VM syscalls.
+//!
+//! The `try_*` functions return type [`SysResult<T>`](crate::sys::SysResult).
+//! This is is a [`Result<T, E>`](core::result::Result) where `E` is a
+//! [`SysErr`](crate::sys::SysErr) containing an error code in the case of a
+//! syscall failure.
+//!
+//! Functions without `try_` instead abort the contract if something unexpected
+//! occurs.
 
 #[allow(unused_imports)] // import is for docs
 use crate::abort;

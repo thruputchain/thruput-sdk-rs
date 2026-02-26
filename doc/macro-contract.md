@@ -15,14 +15,13 @@ the contract.
 
 If applied to an implementation, trait methods (or public inherent methods or public free
 functions) will be exported to receive foreign calls; these symbols will be placed in a module
-named "guest_exports", unless a macro argument like `exports = "export_mod"` is provided to
+named "exports", unless a macro argument like `exports = "export_mod"` is provided to
 rename it.
 
 #### Errors
 
-If contract methods return `Result<T, MyContractError>` and the contract wishes to abort the
-current transaction whenever `Err(_)` is returned, the error type may be specified with
-macro arguments `err_type = MyContractError`.
+A contract may call [`abort()`] with a custom error type if the contract macro
+includes an attribute argument `throws = ErrorType` is included.
 
 #### Storage
 
@@ -34,4 +33,3 @@ A method may be decorated with `#[init]` to assert that, when called, no contrac
 been stored; the `self` parameter will refer to a default value for the state object.  If the
 first method parameter is `&mut self`, the value of the state object will be stored back to the
 key-value store after the method completes successfully.
-

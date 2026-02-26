@@ -20,11 +20,11 @@ doctest = false
 test = false
 
 [dependencies]
-erc20 = { path = "../erc20" }
 sdk = { workspace = true, features = ["storage"] }
+erc20 = { path = "../erc20" }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
-thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 caller = { path = ".", features = ["dev"] }

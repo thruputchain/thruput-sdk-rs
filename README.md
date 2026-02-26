@@ -59,36 +59,28 @@ To generate and open the SDK documentation:
 
 ## Development
 
+### Cargo layout for contracts
+
+The `example-contracts` sub-package can be cloned outside of the SDK to provide
+a testbed for your contracts.  See, e.g., `example-contracts/caller` for the
+necessary cargo configuration, testing setup, etc.
+
 ### Testing
 
-The CI script above includes various tests that may be run on their own:
+The script `scripts/dev.sh` offers various commands useful in development,
+e.g.:
 
 ```shell
-# Test the SDK
-./scripts/make.sh test
+alias dev='./scripts/dev.sh'
 
-# Test the example contracts
-./scripts/make.sh examples test
+dev build-examples
 
-# Test the erc20 example contract
-./scripts/make.sh examples test erc20
+# Expand macros to view internals of contract wrappers, etc.
+dev expand example-contracts/erc20
 ```
 
 ### Diagnostics
 
-TODO: Change these logging things into runtime configs (available
-    only with feature "dev").
-
-In contracts compiled to wasm for testing (e.g. in "bottle tests"), panic
-messages will be lost unless configured with `PANIC_LOGGING=yes`, which sends
-panic messages to the `log` syscall. If the test environment is then configured
-with `SDK_TEST_ENABLE_SYSCALL_LOGGING=yes`, these messages will be printed to
-the terminal.
-
-See `scripts/lib_make.sh` for other useful targets.
-
-### Expand macros to view contract exports
-
-```shell
-./scripts/make.sh examples expand erc20
-```
+When running tests:
+- Set `SDK_TEST_ENABLE_SYSCALL_LOGGING=1` to see a log of syscalls made
+- Set `TEST_FFI_TRACE` to see interactions with the test executor

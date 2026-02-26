@@ -253,8 +253,12 @@ itc_bottle_test_all() {
     bottle_test_contracts "integration_test_contracts"
 }
 
+build_docs() {
+    cargo doc --features=dev,storage,abort/debug "$@"
+}
+
 test_all() {
-    cargo doc --features=std,storage,abort/debug &&
+    build_docs &&
     test_sdk &&
 
     eg_build_all &&
@@ -360,10 +364,25 @@ case "$action" in
     ls-enabled)
         ls_contract_packages "$1"
         ;;
+    build-examples)
+        eg_build_all
+        ;;
     build-itc)
         itc_build_all
         ;;
-    * )
+    test-examples)
+        eg_test_all
+        ;;
+    build-docs)
+        build_docs
+        ;;
+    open-docs)
+        build_docs --open
+        ;;
+    rg)
+        rg -i --ignore-file .local_src_ignore "$@"
+        ;;
+    *)
         echo "Sorry, didn't understand action '$action'."
         return 1
         ;;
