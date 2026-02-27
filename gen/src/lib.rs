@@ -21,3 +21,6 @@ pub mod exports;
 pub mod spec;
 pub mod strip;
 pub mod test_reg;
+
+mod throws;
+pub use throws::*;

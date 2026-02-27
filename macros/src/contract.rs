@@ -29,23 +29,28 @@ fn apply_with_config(
     config: &Config,
 ) -> Result<TokenStream2> {
     match item {
-        syn::Item::Trait(item) => {
+        syn::Item::Trait(original_item) => {
+            let mut item = original_item.strip_our_attributes();
+
             // Inject the major version as an associated const
-            let mut stripped = item.strip_our_attributes();
             let iface_vers =
                 groundhog_codegen::contract::interface_vers_default();
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(
                     &iface_vers,
                 );
-            stripped.items.push(parse_quote! {
+            item.items.push(parse_quote! {
                 const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
             });
 
-            let mut out = stripped.into_token_stream();
+            // Inject a Throws supertrait
+            item.supertraits.push(codegen::throws(config));
 
-            // Generate client interface
-            out.extend(codegen::client::generate(item, config)?);
+            // First output the augmented trait
+            let mut out = item.into_token_stream();
+
+            // Next, generate the client interface
+            out.extend(codegen::client::generate(original_item, config)?);
 
             Ok(out)
         }
@@ -59,6 +64,16 @@ fn apply_with_config(
             if cfg!(feature = "mock") {
                 // Generate test registration
                 out.extend(codegen::test_reg::generate(item, config)?);
+            }
+
+            // Check that the config is legal
+            if item.trait_.is_some() {
+                // As we're implementing a trait specified elsewhere, we
+                // should *not* specify an exception type here:
+                if config.throws().is_some() {
+                    return Err(error(item, "Please specify the 'throws' type \
+                        on the trait, not the impl"));
+                }
             }
 
             if config.client_ident().is_some() {
@@ -86,7 +101,7 @@ fn apply_with_config(
         }
         _ => Err(error(
             item,
-            format!("Can't apply attribute to item {:?}", item),
+            format!("Can't apply contract macro to this kind of item: {:?}", item),
         )),
     }
 }

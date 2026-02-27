@@ -1,9 +1,9 @@
 //! Generate client-stub code from an `impl ContractSrc` and a `Config`
 
-use super::config::Config;
-use super::contract::{ConfiguredContract, ContractSrc, Method};
-use super::entrypoint::*;
-use super::util::*;
+use crate::config::Config;
+use crate::contract::{ConfiguredContract, ContractSrc, Method};
+use crate::entrypoint::*;
+use crate::util::*;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 use syn::parse::Result;

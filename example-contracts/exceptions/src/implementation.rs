@@ -9,7 +9,11 @@ struct Contract;
 #[error("Thing")]
 struct Thing;
 
-#[contract(throws = MyErr)]
+impl Throws for Contract {
+    type Error = MyErr;
+}
+
+#[contract]
 impl Interface for Contract {
     fn hello() {}
 

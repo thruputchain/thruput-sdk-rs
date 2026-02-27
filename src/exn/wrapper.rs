@@ -1,8 +1,13 @@
+use crate::exn::Exn;
 use crate::exn::fault::*;
 use crate::sys::SysErr;
 use crate::xdr::*;
 use core::fmt::Debug;
 use thiserror::Error;
+
+pub trait Throws {
+    type Error: Exn;
+}
 
 // TODO: Maybe make the fault-strings into Error sources,
 // and figure out how to Display them at the right times.

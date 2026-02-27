@@ -83,9 +83,15 @@ impl TokenContract {
     }
 }
 
-// This implements the ERC20 interface.  The `contract` macro provides
-// an exported entrypoint for each method.
-#[contract(throws = ERC20Error)]
+impl Throws for TokenContract {
+    type Error = ERC20Error;
+}
+
+// This implements the ERC20 interface.
+//
+// The `contract` macro provides an exported entrypoint for each method.
+//
+#[contract]
 impl ERC20 for TokenContract {
     #[init]
     fn initialize(&mut self, contract_owner: &ContractAddress) {
