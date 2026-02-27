@@ -7,6 +7,8 @@ pub struct MyErr;
 
 #[contract(client = ContractClient, throws = MyErr)]
 pub trait Interface {
+    type Throws = MyErr;
+
     fn hello();
 
     fn add(n: u32) -> u32;
