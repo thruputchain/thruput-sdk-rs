@@ -31,8 +31,8 @@ mod cell;
 mod debug;
 mod local;
 mod panic;
-mod xdr;
 mod util;
+mod xdr;
 
 pub mod call;
 
