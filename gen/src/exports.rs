@@ -165,10 +165,11 @@ pub fn generate_method(
             .map(|r| r.mutability.is_some())
             .unwrap_or(false);
 
-    // If the method is marked "init", storage must be uninitialized before calling
+    // Is the method marked #[init]?
     let is_init = is_method && method.config().init.is_present();
     // TODO: complain about #[init] in inappropriate positions
 
+    // If #[init], storage must be uninitialized before calling
     let assert_uninitialized = if is_method && config.storage() && is_init {
         let self_ty = &contract.unwrap().self_ty();
         quote! {{
@@ -265,7 +266,7 @@ pub fn generate_method(
 
         // Decode the args
         let (#arg_names) =
-            sdk::call::internal::contract_call_decode(calldata.as_ref())
+            ::sdk::call::internal::contract_call_decode(calldata.as_ref())
                 .unwrap_or_else(|e|
                     ::sdk::exn::decoding_args_abort(e));
 
@@ -308,7 +309,7 @@ pub fn generate_method(
             None => quote! { None },
         };
         let call_info = quote! {
-            ::sdk::internal::HandleMethod::new(#iface, #iface_vers, #method_name)
+            ::sdk::internal::HandlingMethod::new(#iface, #iface_vers, #method_name)
         };
 
         quote! {
@@ -319,6 +320,7 @@ pub fn generate_method(
     // Export the entrypoint ID as a constant for use in tests
     let entrypoint_lit = entrypoint_literal(entrypoint);
 
+    // Inline the internal implementation, unless requested otherwise
     let inline = if !cfg!(feature = "no_inline_methods") {
         quote! { #[inline(always)] }
     } else {
@@ -329,16 +331,17 @@ pub fn generate_method(
 
         #[doc=#export_name]
         #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
-        pub extern "C" fn #extern_name() -> () {
+        pub extern "C" fn #extern_name() {
             #internal_name()
         }
 
         #inline
-        pub fn #internal_name() -> () {
+        pub fn #internal_name() {
             #wrapped_call
         }
 
-        pub const #export_num_name: ::sdk::contract::ContractEntrypointID = #entrypoint_lit;
+        pub const #export_num_name: ::sdk::contract::ContractEntrypointID =
+            #entrypoint_lit;
 
     })
 }

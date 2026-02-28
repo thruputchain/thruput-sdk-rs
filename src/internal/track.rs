@@ -48,13 +48,13 @@ impl Display for CallMethod<'_> {
     }
 }
 
-pub struct HandleMethod<'a> {
+pub struct HandlingMethod<'a> {
     iface: Option<&'a str>,
     iface_vers: &'a str,
     name: &'a str,
 }
 
-impl<'a> HandleMethod<'a> {
+impl<'a> HandlingMethod<'a> {
     pub fn new(
         iface: Option<&'a str>,
         iface_vers: &'a str,
@@ -68,11 +68,11 @@ impl<'a> HandleMethod<'a> {
     }
 }
 
-impl Display for HandleMethod<'_> {
+impl Display for HandlingMethod<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Handle {}[v{}]::{}(...)",
+            "Handling {}[v{}]::{}(...)",
             self.iface.unwrap_or(""),
             self.iface_vers,
             self.name
