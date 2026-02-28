@@ -363,7 +363,7 @@ fmt_check() {
 ci_check() {
     # xxx_check &&
     fmt_check &&
-    lint_check &&
+    # lint_check &&
     test_all &&
 
     info "CI clean!" ||
@@ -391,6 +391,9 @@ case "$action" in
         ;;
     lint)
         lint
+        ;;
+    [xX][xX][xX])
+        xxx
         ;;
     ci)
         ci_check

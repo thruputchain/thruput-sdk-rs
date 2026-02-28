@@ -54,7 +54,7 @@ metadata.docs.rs.features = [
 
 [lib]
 crate-type = ["rlib"]
-doctest = false
+doctest = true
 
 [dependencies]
 # Indigenous dependencies
@@ -173,7 +173,7 @@ required-features = ["storage"]
 
 [[test]]
 name = "aborts"
-test = false # XXX
+test = false # XXX: fix aborts test
 
 [lints.clippy]
 collapsible_if = "allow"
