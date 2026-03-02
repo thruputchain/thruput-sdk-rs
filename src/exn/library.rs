@@ -1,6 +1,6 @@
 use super::fault::*;
 use super::{CallingError, HandlingError};
-use crate::abort;
+use crate::{abort, Panic};
 #[cfg(feature = "storage")]
 use crate::storage::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
@@ -82,6 +82,12 @@ impl LibraryExn {
 #[track_caller]
 pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
     let exn: LibraryExn = e.into();
+
+    abort(&exn);
+}
+
+pub fn library_panic(p: Panic) -> ! {
+    let exn = LibraryExn::Panic(p);
 
     abort(&exn);
 }

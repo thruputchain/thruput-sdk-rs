@@ -31,6 +31,7 @@ mod panic_repr {
     use core::fmt::{self, Display, Write};
     use heapless::String;
     use xdrs::*;
+    use core::panic::Location;
 
     /// A representation of a panic condition, for sending to `abort`
     ///
@@ -44,11 +45,30 @@ mod panic_repr {
 
     impl Panic {
         pub fn from_info(info: &core::panic::PanicInfo) -> Self {
+            Self::from_hook_info(info.message().as_str().unwrap_or("<has args>"), info.location())
+                /*
             let mut write_failed = false;
             let mut msg = String::new();
             if write!(&mut msg, "{}", info.message()).is_err() {
                 write_failed = true;
             } else if let Some(loc) = info.location()
+                && write!(&mut msg, " at {}", loc).is_err()
+            {
+                write_failed = true;
+            }
+
+            Self { msg, write_failed }
+                */
+        }
+
+        pub fn from_hook_info(message: &str, location: Option<&Location>) -> Self {
+            let mut write_failed = false;
+
+            let mut msg = String::new();
+
+            if write!(&mut msg, "{}", message).is_err() {
+                write_failed = true;
+            } else if let Some(loc) = location
                 && write!(&mut msg, " at {}", loc).is_err()
             {
                 write_failed = true;

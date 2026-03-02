@@ -89,6 +89,9 @@ pub fn contract_handler_exec(
 pub fn contract_handler_exec_raw(
     handler: &mut TransactionHandler,
 ) -> ContractResult {
+    // Initialize dev stuff (set panic handler)
+    // crate::dev_init(); // XXX
+
     let res = handler.root_invoke();
 
     let return_buf = match res.output {
@@ -138,12 +141,12 @@ macro_rules! client_test {
     {   $impl_ty:ty =>
         $(fn $test_name:ident($client:ident: &mut $client_ty:ty) $body:tt)* } =>
     {
-        static CLIENT_TEST_NONCE: ::sdk::SHA256Hash = ::sdk::sha256_static!("CLIENT_TEST_NONCE");
-
         $(
 
         #[test]
         fn $test_name() {
+            static CLIENT_TEST_NONCE: ::sdk::SHA256Hash = ::sdk::sha256_static!("CLIENT_TEST_NONCE");
+
             let mut env = ::sdk::TestEnvironment::no_cost();
             let test_contract = <$impl_ty as sdk::TestRegister>::register(&mut env);
             let contract_hash = env.setup_create_contract(&test_contract);

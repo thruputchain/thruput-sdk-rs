@@ -413,6 +413,12 @@ case "$action" in
     ls-enabled)
         ls_contract_packages "$1"
         ;;
+    build)
+        dir=$(dirname "$1")
+        pkg=$(basename "$1")
+
+        build_contract "$dir" "$pkg"
+        ;;
     build-examples)
         eg_build_all
         ;;
@@ -420,7 +426,14 @@ case "$action" in
         itc_build_all
         ;;
     test)
-        test_all
+        if [ $# -gt 0 ]; then
+            dir=$(dirname "$1")
+            pkg=$(basename "$1")
+
+            test_contract "$dir" "$pkg"
+        else
+            test_all
+        fi
         ;;
     test-examples)
         eg_test_all
