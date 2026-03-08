@@ -38,7 +38,7 @@ exclude = [
     "rust-toolchain.toml",
     "rustfmt.toml",
     "bench/",
-    "integration_test_contracts/",
+    "integration_test/",
     "examples/",
     ".github/",
     ".cargo/",

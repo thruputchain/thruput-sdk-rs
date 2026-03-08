@@ -12,38 +12,40 @@ CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/release"
 OPTIMIZED="${TARGET_DIR}/optimized"
 
 build_contracts() {
-    local contracts_dir
-    contracts_dir="$1"; shift
+    local workspace_dir
+    workspace_dir="$1"; shift
+    local packages_dir
+    packages_dir="${1:-$workspace_dir}"; shift 2>/dev/null || true
 
     local package
-    for package in $(ls_contract_packages "$contracts_dir") ; do
-        build_contract "$contracts_dir" "$package" ||
+    for package in $(ls_contract_packages "$packages_dir") ; do
+        build_contract "$workspace_dir" "$package" ||
             return 1
     done
 }
 
 build_contract() {
-    local contracts_dir
-    contracts_dir="$1"; shift
+    local workspace_dir
+    workspace_dir="$1"; shift
     local package
     package="$1"; shift
 
-    info "BUILD $contracts_dir/$package"
+    info "BUILD $package"
 
-    build_wasm "$contracts_dir" "$package" --release &&
+    build_wasm "$workspace_dir" "$package" --release &&
     make_optimized "$package"
 }
 
 build_wasm() {
-    local contracts_dir
-    contracts_dir="$1"; shift
+    local workspace_dir
+    workspace_dir="$1"; shift
     local package
     package="$1"; shift
 
     (
-        cd "$contracts_dir/$package" &&
-        cargo --config "../.cargo/contract.toml" \
-            build "$@"
+        cd "$workspace_dir" &&
+        cargo --config ".cargo/contract.toml" \
+            build -p "$package" "$@"
     )
 }
 
@@ -103,12 +105,12 @@ eg_build_all() {
 itc_build() {
     package="$1"; shift
 
-    build_contract "${SDK_DIR}/integration_test_contracts" "${package}"
+    build_contract "${SDK_DIR}/integration_test" "${package}"
 }
 
 itc_build_all() {
     itc_build fibonacci &&
-    build_contracts "${SDK_DIR}/integration_test_contracts"
+    build_contracts "${SDK_DIR}/integration_test" "${SDK_DIR}/integration_test/contracts"
 }
 
 ### TESTING ###
@@ -121,14 +123,14 @@ test_sdk() {
 }
 
 test_contract() {
-    local contracts_dir
-    contracts_dir="$1"; shift
+    local workspace_dir
+    workspace_dir="$1"; shift
     local package
     package="$1"; shift
 
-    info "TEST $contracts_dir/$package"
+    info "TEST $package"
     (
-        cd example-contracts &&
+        cd "$workspace_dir" &&
         cargo test -p "$package" "$@" -- --show-output
     )
 }
@@ -137,18 +139,14 @@ eg_test() {
     local package
     package="$1"; shift
 
-    contracts_dir="example-contracts"
-
-    test_contract "$contracts_dir" "$package" "$@"
+    test_contract "example-contracts" "$package" "$@"
 }
 
 itc_test() {
     local package
     package="$1"; shift
 
-    contracts_dir="integration_test_contracts"
-
-    test_contract "$contracts_dir" "$package"
+    test_contract "integration_test" "$package"
 }
 
 eg_test_all() {
@@ -171,7 +169,7 @@ eg_test_all() {
 
 itc_test_all() {
     (
-        cd integration_test_contracts &&
+        cd integration_test &&
         cargo test \
             --workspace  \
             --exclude txs_roundtrip \
@@ -189,13 +187,13 @@ BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 bottle_test_contract() {
     # NOTE: This requires that the contract's wasm has already been built
 
-    local contracts_dir package
-    contracts_dir="$1"; shift
+    local workspace_dir package
+    workspace_dir="$1"; shift
     package="$1"; shift
 
-    info "BOTTLE-TEST $contracts_dir/$package"
+    info "BOTTLE-TEST $package"
 
-    build_wasm "$contracts_dir" "$package" \
+    build_wasm "$workspace_dir" "$package" \
         --profile="bottle_test" \
         --features="bottle-test" \
         -Z unstable-options \
@@ -218,15 +216,17 @@ has_bottle_test() {
 }
 
 bottle_test_contracts() {
-    local contracts_dir
-    contracts_dir="$1"; shift
+    local workspace_dir
+    workspace_dir="$1"; shift
+    local packages_dir
+    packages_dir="${1:-$workspace_dir}"; shift 2>/dev/null || true
 
     local package
-    for package in $(ls_contract_packages "$contracts_dir") ; do
-        if has_bottle_test "$contracts_dir/$package"; then
-            [ ! -f "$contracts_dir/$package/disabled-bottle" ] || continue
+    for package in $(ls_contract_packages "$packages_dir") ; do
+        if has_bottle_test "$packages_dir/$package"; then
+            [ ! -f "$packages_dir/$package/disabled-bottle" ] || continue
 
-            bottle_test_contract "$contracts_dir" "$package" "$@" ||
+            bottle_test_contract "$workspace_dir" "$package" "$@" ||
                 return 1
         fi
     done
@@ -252,7 +252,7 @@ eg_bottle_test_all() {
 }
 
 itc_bottle_test_all() {
-    bottle_test_contracts "integration_test_contracts"
+    bottle_test_contracts "integration_test" "integration_test/contracts"
 }
 
 build_docs() {
@@ -262,7 +262,7 @@ build_docs() {
 test_spec() {
     cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
     (
-        cd integration_test_contracts &&
+        cd integration_test &&
         cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null &&
         cargo run -p tuple_return -F spec --bin generate_spec_tuple_return -- /dev/null &&
         true
@@ -288,13 +288,23 @@ test_all() {
 
 ### Other dev utils
 
+find_contract_config() {
+    local dir="$1"
+    while [ ! -f "$dir/.cargo/contract.toml" ] && [ "$dir" != "/" ]; do
+        dir="$(dirname "$dir")"
+    done
+    echo "$dir/.cargo/contract.toml"
+}
+
 tree_contract() {
     local contract_dir
     contract_dir="$1"; shift
+    local config
+    config="$(find_contract_config "$contract_dir")"
 
     (
         cd "$contract_dir" &&
-        cargo --config ../.cargo/contract.toml \
+        cargo --config "$config" \
             tree \
             --target "wasm32-unknown-unknown" \
             --edges no-proc-macro,no-build,no-dev \
@@ -306,10 +316,12 @@ tree_contract() {
 
 expand_contract() {
     contract="$1"; shift
+    local config
+    config="$(find_contract_config "$contract")"
 
     (
         cd "$contract" &&
-        cargo --config ../.cargo/contract.toml \
+        cargo --config "$config" \
             expand \
             --features "sdk/std" \
             --color=always \
