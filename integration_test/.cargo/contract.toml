@@ -1,0 +1,29 @@
+# This is for building production contracts:
+#
+#    cargo --config ${SDK}/.cargo/contract.toml --release build
+#
+
+[build]
+target = ["wasm32-unknown-unknown"]
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "-C", "panic=immediate-abort",
+    "-C", "link-args=-zstack-size=30000",
+    "-Z", "unstable-options",
+    "--deny", "warnings",
+    ]
+
+[profile.release]
+opt-level = 3 # anecdotally, "s" and "z" are worse for size
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+
+[unstable]
+build-std = ["core", "alloc"]
+build-std-features = ["std/optimize_for_size"]

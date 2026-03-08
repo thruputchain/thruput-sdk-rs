@@ -20,7 +20,7 @@ crate-type = ["rlib"]
 # wasm backtraces enabled.  Those will be largely meaningless unless you also
 # build contracts with minimal debug info (line numbers and function names).
 # 
-# This feature also turns on the logging feature in the contracts that are built in integration_test_contracts
+# This feature also turns on the logging feature in the contracts that are built in integration_test/contracts
 # within hogexec.  The only contract for which that is relevant for the SDK is the initial_token_claim contract,
 # in that this feature will change the gas consumption (and hash) of that contract.
 #

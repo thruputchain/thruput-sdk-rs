@@ -3,7 +3,7 @@ edition = "2024"
 ignore = [
     "/external/",
     "/hogd/",
-    "/integration_test_contracts/",
+    "/integration_test/",
 ]
 max_width = 79
 hard_tabs = false

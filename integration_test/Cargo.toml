@@ -1,0 +1,65 @@
+cargo-features = ["trim-paths"] #unstable
+
+[workspace]
+resolver = "3"
+members = [
+    "contracts/authclaim_test",
+    "contracts/calldata_raw",
+    "contracts/calldata_wrapper",
+    "contracts/cxs_roundtrip",
+    "contracts/delegate_call_test",
+    "contracts/ed25519_verify_wrapper",
+    "contracts/fibonacci",
+    "contracts/fibonacci_call",
+    "contracts/fibonacci_raw",
+    "contracts/hash_bug",
+    "contracts/htlc",
+    "contracts/initial_token_claim",
+    "contracts/itc_erc20",
+    # "contracts/manual_revert_caller",
+    # "contracts/manual_revert_test",
+    "contracts/no_syscall_test",
+    "contracts/nocontract_wallet",
+    "contracts/payment_channel",
+    "contracts/read_only_test",
+    "contracts/return_fault_test",
+    "contracts/sha256_raw",
+    "contracts/sha256_wrapper",
+    "contracts/simple_wallet",
+    "contracts/simple_wallet_authclaim",
+    "contracts/syscall_misc_tests",
+    "contracts/tuple_return",
+    "contracts/txs_roundtrip",
+]
+
+[workspace.package]
+version = "0.2.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+publish = ["groundhog"]
+repository = "https://github.com/groundhogchain/example-contracts.git"
+homepage = "https://github.com/groundhogchain/example-contracts.git"
+keywords = ["groundhog"]
+categories = ["blockchain"]
+edition = "2024"
+
+[workspace.dependencies]
+sdk = { path = ".." , registry = "groundhog", version = "=0.2.0" }
+groundhog-xdr = { registry = "groundhog", version = "0.3.0", features = ["xdrs", "syscalls"] }
+xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128", "heapless"] }
+sha2 = { version = "0.10.8", default-features = false }
+thiserror = { version = "2.0.12", default-features = false }
+hex-literal = "1.0.0"
+
+# Standard interface crates
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20" }
+groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271" }
+
+# Standard test crates
+bottle-test-if = { path = "../standard-tests/bottle-test-if" }
+erc20-test = { path = "../standard-tests/erc20-test" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test" }
+
+[profile.release]
+trim-paths = "all" # unstable
