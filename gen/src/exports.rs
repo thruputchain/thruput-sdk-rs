@@ -136,25 +136,13 @@ pub fn generate_method(
     let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);
-    let internal_name = format_ident!("{}_internal", ident);
+    let internal_name = contract.map(|c| c.make_internal_name(ident)).unwrap_or_else(||
+        format_ident!("{}_internal", ident));
     let export_num_name =
         format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
     // Is the function a method that takes a self-parameter?
     let is_method = contract.is_some() && method.sig().receiver().is_some();
-
-    // How to call the function
-    let invoke = if is_method {
-        // Invoke the method on a state object
-        quote! { state.#ident }
-    } else if let Some(contract) = contract {
-        // Invoke the associated function on the contract type
-        let self_ty = &contract.self_ty();
-        quote! { #self_ty::#ident }
-    } else {
-        // Invoke the free function
-        quote! { #ident }
-    };
 
     // Does the method take a mutable self-parameter?
     let is_mut = is_method
@@ -164,6 +152,30 @@ pub fn generate_method(
             .as_ref()
             .map(|r| r.mutability.is_some())
             .unwrap_or(false);
+
+    let arg_names = method_arg_name_list(method.sig());
+
+    // How to call the function
+    let invoke = if is_method {
+        // Invoke the method on a state object
+        if let Some(trait_path) = contract.map(|c| c.trait_path()).flatten() {
+            if is_mut {
+                quote! { #trait_path::#ident(&mut state, #arg_names) }
+            } else {
+                quote! { #trait_path::#ident(&state, #arg_names) }
+            }
+        } else {
+            quote! { state.#ident(#arg_names) }
+        }
+    } else if let Some(contract) = contract {
+        // Invoke the associated function on the contract type
+        // XXX: as above
+        let self_ty = &contract.self_ty();
+        quote! { #self_ty::#ident(#arg_names) }
+    } else {
+        // Invoke the free function
+        quote! { #ident(#arg_names) }
+    };
 
     // Is the method marked #[init]?
     let is_init = is_method && method.config().init.is_present();
@@ -239,8 +251,6 @@ pub fn generate_method(
         quote! {}
     };
 
-    let arg_names = method_arg_name_list(method.sig());
-
     let log_guest_call = if cfg!(feature = "logging") {
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
         quote! { ::sdk::debug_log!("{} ", #print_string); }
@@ -272,8 +282,9 @@ pub fn generate_method(
 
         // TODO: can we get the fetch-and-decode into one internal function?
 
-        // Call the method implementation (passing the contract state)
-        let result = #invoke(#arg_names);
+        // Call the method implementation (passing the contract state, if any,
+        // and the args)
+        let result = #invoke;
 
         // Encode the result
         let return_buf = ::sdk::call::internal::encode_success(&result);
@@ -336,6 +347,7 @@ pub fn generate_method(
         }
 
         #inline
+        #[allow(non_snake_case)]
         pub fn #internal_name() {
             #wrapped_call
         }
