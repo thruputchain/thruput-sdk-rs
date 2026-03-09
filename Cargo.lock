@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "abort"
-version = "0.4.0"
+version = "0.4.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "30e847decbf8fa5366b1660faaae16ae20d5416f8da8d94c786551a8115409a9"
+checksum = "f15bf24603aaf7f18ece510903d2baffc94316e833d82fe6387c2c4cf231cd35"
 dependencies = [
  "heapless",
 ]
