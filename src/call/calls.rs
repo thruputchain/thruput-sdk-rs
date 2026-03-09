@@ -52,10 +52,14 @@ where
 
     // Invoke the method
     let contract_result =
-        contract_call(address, entrypoint, gas_limit, &args_buf)
-            .unwrap_or_else(|syserr|
-                // Invoke syscall failed: abort
-                library_abort(CallingError::Syscall(syserr)));
+        match contract_call(address, entrypoint, gas_limit, &args_buf) {
+            Ok(result) => result,
+            Err(syserr) => {
+                return Err(CallError::Fault(FaultString::from_display(
+                    syserr,
+                )));
+            }
+        };
 
     // Decode result
     into_call_result(contract_result)
