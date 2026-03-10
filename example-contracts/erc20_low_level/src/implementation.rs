@@ -66,7 +66,7 @@ fn add_to_allowance(
 
 // Exposed contract functions
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 #[init]
 pub fn initialize(owner: &ContractAddress) {
     let key = get_owner_key();
@@ -78,7 +78,7 @@ pub fn initialize(owner: &ContractAddress) {
     bytestring_set(&key, owner.as_ref());
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn transfer(to: &ContractAddress, amount: Amount) {
     let from = get_caller();
     let diff = amount_to_diff(amount);
@@ -89,7 +89,7 @@ pub fn transfer(to: &ContractAddress, amount: Amount) {
     log_transfer_event(&from, to, amount);
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn transfer_from(
     owner: &ContractAddress,
     recipient: &ContractAddress,
@@ -105,14 +105,14 @@ pub fn transfer_from(
     log_transfer_event(owner, recipient, amount);
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn adjust_allowance(spender: &ContractAddress, diff: Difference) {
     let caller = get_caller();
 
     add_to_allowance(&caller, spender, diff)
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
@@ -121,17 +121,17 @@ pub fn allowance(
         as Amount
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn get_balance_of(addr: &ContractAddress) -> Amount {
     non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0) as Amount
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn get_balance() -> Amount {
     get_balance_of(&get_caller())
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn mint(recipient: &ContractAddress, amount: Amount) {
     ensure_caller_is_owner();
 
@@ -142,7 +142,7 @@ pub fn mint(recipient: &ContractAddress, amount: Amount) {
     log_transfer_event(&CONTRACT_ADDR_ZERO, recipient, amount);
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn burn(loser: &ContractAddress, amount: Amount) {
     ensure_caller_is_owner();
 
@@ -153,7 +153,7 @@ pub fn burn(loser: &ContractAddress, amount: Amount) {
     log_transfer_event(loser, &CONTRACT_ADDR_ZERO, amount);
 }
 
-#[contract(interface = "ERC20", version = "0.2.0")]
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn total_supply() -> Amount {
     non_negative_int_try_get(&get_total_supply_key()).unwrap_or(0) as Amount
 }
