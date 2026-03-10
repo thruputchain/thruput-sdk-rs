@@ -2,6 +2,7 @@
 //! contract and can interrogate it.
 
 #![cfg_attr(not(any(feature = "dev")), no_std)]
+#![allow(clippy::result_large_err)]
 
 use sdk::*;
 
