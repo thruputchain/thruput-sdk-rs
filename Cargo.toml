@@ -150,7 +150,7 @@ debugging = ["abort/debug", "fault_strings"]
 fault_strings = []
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
-call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
+call_tracking = ["debugging","abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
 spec = [
