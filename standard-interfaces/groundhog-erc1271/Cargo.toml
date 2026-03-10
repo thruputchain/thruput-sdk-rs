@@ -15,7 +15,7 @@ std = ["sdk/std"]
 spec = ["sdk/spec", "std"]
 
 [dependencies]
-sdk = { workspace = true, version = "=0.3.1" }
+sdk = { workspace = true, registry = "groundhog", version = "=0.3.1" }
 xdrs = { workspace = true, features = ["derive", "alloc"] }
 thiserror = { workspace = true }
 
