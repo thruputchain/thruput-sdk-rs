@@ -15,7 +15,7 @@ spec = ["sdk/spec"]
 storage = ["sdk/storage"]
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, version = "=0.3.1" }
 xdrs = { workspace = true, features = ["derive", "int128"] }
 thiserror = { workspace = true }
 groundhog-xdr = { workspace = true }
