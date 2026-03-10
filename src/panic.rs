@@ -15,7 +15,8 @@
 fn handle_panic(info: &core::panic::PanicInfo) -> ! {
     use abort::*;
 
-    panic_logging();
+    #[cfg(feature = "panic_logging")]
+    panic_logging(info);
 
     if abort_handler_is_present() {
         abort(&Panic::from_info(info));
@@ -75,29 +76,24 @@ mod panic_repr {
 pub use panic_repr::*;
 
 #[cfg(target_arch = "wasm32")]
-fn panic_logging() {
-    #[cfg(feature = "panic_logging")]
-    {
-        use crate::log;
-        use core::fmt::Write;
-        use heapless::String;
+#[inline(always)]
+fn panic_logging(info: &core::panic::PanicInfo) {
+    use crate::log;
+    use core::fmt::Write;
+    use heapless::String;
 
-        let mut msg: String<150> = String::new();
+    let mut msg: String<150> = String::new();
 
-        write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(
-            |_| {
-                // Failure only happens in case the static `msg` buffer is too
-                // small, which may be discovered after a partial write.  We
-                // could just log whatever has been written, but that's not
-                // usually useful, so instead:
+    write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(|_| {
+        // Failure only happens in case the static `msg` buffer is too
+        // small, which may be discovered after a partial write.  We
+        // could just log whatever has been written, but that's not
+        // usually useful, so instead:
 
-                let _ =
-                    log(b"Contract panic: <couldn't format panic message>");
+        let _ = log(b"Contract panic: <couldn't format panic message>");
 
-                crate::trap();
-            },
-        );
+        crate::trap();
+    });
 
-        let _ = log(msg.as_str().as_bytes());
-    }
+    let _ = log(msg.as_str().as_bytes());
 }
