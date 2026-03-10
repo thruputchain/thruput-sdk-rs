@@ -103,12 +103,12 @@ impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
     }
 }
 
-impl<'a> Into<stdevt::TransferEvent> for &TransferEvent<'a> {
-    fn into(self) -> stdevt::TransferEvent {
+impl<'a> From<&TransferEvent<'a>> for stdevt::TransferEvent {
+    fn from(val: &TransferEvent<'a>) -> Self {
         stdevt::TransferEvent {
-            from_address: *self.from,
-            to_address: *self.to,
-            amount: TryInto::<i128>::try_into(self.amount).unwrap().into(),
+            from_address: *val.from,
+            to_address: *val.to,
+            amount: TryInto::<i128>::try_into(val.amount).unwrap().into(),
         }
     }
 }
@@ -226,12 +226,12 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
     }
 }
 
-impl<'a> Into<stdevt::ApprovalEvent> for &ApprovalEvent<'a> {
-    fn into(self) -> stdevt::ApprovalEvent {
+impl<'a> From<&ApprovalEvent<'a>> for stdevt::ApprovalEvent {
+    fn from(val: &ApprovalEvent<'a>) -> Self {
         stdevt::ApprovalEvent {
-            owner_address: *self.owner,
-            spender_address: *self.spender,
-            amount: self.difference.into(),
+            owner_address: *val.owner,
+            spender_address: *val.spender,
+            amount: val.difference.into(),
         }
     }
 }
@@ -289,9 +289,9 @@ pub enum StdERC20Event {
     Approval(stdevt::ApprovalEvent),
 }
 
-impl<'a> Into<StdERC20Event> for &ERC20Event<'a> {
-    fn into(self) -> StdERC20Event {
-        match self {
+impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
+    fn from(val: &ERC20Event<'a>) -> StdERC20Event {
+        match val {
             ERC20Event::Transfer(e) => StdERC20Event::Transfer(e.into()),
             ERC20Event::Approval(e) => StdERC20Event::Approval(e.into()),
         }
