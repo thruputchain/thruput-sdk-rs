@@ -60,8 +60,8 @@ jobs:
         with:
           packages: ${{ matrix.crate }}
           vendor-workspace-deps: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
-          cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
-          cargo-hack-wasm32-feature-options: --feature-powerset --skip std
+          cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip dev --skip spec
           cargo-hack-wasm32-packages: ${{ matrix.crate }}
 
       - name: Tag commit with version

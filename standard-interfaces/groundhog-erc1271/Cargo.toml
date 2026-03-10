@@ -10,9 +10,8 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 
 
 [features]
-dev = ["std", "sdk/dev"]
-std = ["sdk/std"]
-spec = ["sdk/spec", "std"]
+dev = ["sdk/dev"]
+spec = ["sdk/spec"]
 
 [dependencies]
 sdk = { path = "../..", registry = "groundhog", version = "=0.3.1" }
