@@ -24,4 +24,3 @@ swap = { path = ".", features = ["dev"] }
 
 [[test]]
 name = "pair"
-test = false

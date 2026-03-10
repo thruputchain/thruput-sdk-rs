@@ -323,7 +323,7 @@ expand_contract() {
         cd "$contract" &&
         cargo --config "$config" \
             expand \
-            --features "sdk/std" \
+            --target "wasm32-unknown-unknown" \
             --color=always \
         #
     )

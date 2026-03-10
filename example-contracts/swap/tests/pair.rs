@@ -1,24 +1,13 @@
+use sdk::*;
 use core::result::Result;
-use erc20::interface::ERC20;
-use erc20::interface::client::ERC20Client;
-use sdk::contract_result::Error as TokenError;
-use sdk::prelude::*;
-use swap::Error as SwapError;
+use groundhog_erc20_if::{ERC20, ERC20Error, Amount, Difference};
+use erc20::ERC20Client;
 use swap::{ISwapV2Pair, ISwapV2PairClient};
 use swap::{erc20_test_setup, swap_test_setup};
 
-#[derive(Debug, Error)]
-enum TestError {
-    #[error("Swap error: {}", 0)]
-    SwapErr(#[from] SwapError),
-
-    #[error("Token error: {}", 0)]
-    TokenErr(#[from] TokenError),
-}
-
 #[test]
 fn swap_test() {
-    let mut env = sdk::TestEnvironment::default();
+    let mut env = sdk::TestEnvironment::no_cost();
 
     // Register erc20 and instantiate for two tokens
     let erc20_contract = erc20::test_setup::register(&mut env);
@@ -36,24 +25,16 @@ fn swap_test() {
     };
     let swap_hash = env.setup_create_contract(&swap_contract);
 
-    let mut handler = env.prepare_test(move || -> i32 {
-        match swap_test_inner(&swap_hash, &token0_hash, &token1_hash) {
-            Ok(_) => 0,
-            Err(error) => panic!("test failed: {:?}", error),
-        }
-    });
-
-    let res = handler.root_invoke();
-    assert_eq!(res.status, sdk::InvokeErrorCode::kInvokeNone);
+    sdk::contract_exec(env, || swap_test_inner(&swap_hash, &token0_hash, &token1_hash));
 }
 
 fn swap_test_inner(
     swap_hash: &SHA256Hash,
     token0_hash: &SHA256Hash,
     token1_hash: &SHA256Hash,
-) -> Result<(), TestError> {
-    let test_addr = get_current_address().unwrap();
-    println!("Test address: {:x}", Hex(&test_addr));
+) {
+    let test_addr = get_current_address();
+    println!("Test address: {:x}", test_addr);
 
     // Deploy the swap-pair contract
     let nonce: SHA256Hash = [7; 32].into();
@@ -71,124 +52,104 @@ fn swap_test_inner(
 
     // Initialize the token contracts, putting them under our control
     let token_owner = &test_addr;
-    ERC20::initialize(Some(&mut token0), &token_owner).unwrap();
-    ERC20::initialize(Some(&mut token1), &token_owner).unwrap();
+    token0.initialize(&token_owner);
+    token1.initialize(&token_owner);
 
     // Initialize the swap-pair contract with the two tokens
     // (This also initializes the embedded ERC20 implementation.)
     let factory_addr = &test_addr;
-    ISwapV2Pair::initialize_pair(
-        Some(&mut pair),
+    ISwapV2Pair::initialize(
+        &mut pair,
         &factory_addr,
         &token0_addr,
         &token1_addr,
-    )?;
+    );
 
     // Check how the initial state behaves
 
-    let (r0, r1, _ts) = pair.get_reserves()?;
+    let (r0, r1, _ts) = pair.get_reserves();
     assert_eq!(r0, 0);
     assert_eq!(r1, 0);
 
-    let liquidity = pair.get_liquidity()?;
+    let liquidity = pair.get_liquidity();
     assert_eq!(0, liquidity);
 
-    pair.sync()?;
+    pair.sync();
 
     let somebody = ContractAddress::from([42; 32]);
-    pair.skim(&somebody)?;
+    pair.skim(&somebody);
 
     let lp_addr = ContractAddress::from([43; 32]);
-    assert_eq!(
-        pair.mint_lp(&lp_addr),
-        Err(SwapError::InsufficientLiquidityMinted)
-    );
-    assert_eq!(pair.burn_lp(&lp_addr), Err(SwapError::NoLiquidityToBurn));
+    assert!(pair.try_mint_lp(&lp_addr).is_err());
+        // SwapError::InsufficientLiquidityMinted
+
+    assert!(pair.try_burn_lp(&lp_addr).is_err());
+        // SwapError::NoLiquidityToBurn
 
     // Create some tokens for swapping, giving them to alice
     let alice = &test_addr; // this test contract
-    token0.mint(alice, 1_000_000_000)?;
-    token1.mint(alice, 2_000_000_000)?;
+    token0.mint(alice, 1_000_000_000);
+    token1.mint(alice, 2_000_000_000);
 
-    println!("token0 total_supply = {}", token0.total_supply()?);
-    println!("token1 total_supply = {}", token1.total_supply()?);
+    println!("token0 total_supply = {}", token0.total_supply());
+    println!("token1 total_supply = {}", token1.total_supply());
 
     // As alice, provide liquidity:
     {
         // Transfer some tokens into the pair
-        token0.transfer(&pair_addr, 1_000_000)?;
-        token1.transfer(&pair_addr, 2_000_000)?;
+        token0.transfer(&pair_addr, 1_000_000);
+        token1.transfer(&pair_addr, 2_000_000);
 
         // Mint LP tokens to alice in exchange for the tokens
-        let amount_minted = pair.mint_lp(alice)?;
+        let amount_minted = pair.mint_lp(alice);
 
         println!("Minted LP tokens for alice: {}", amount_minted);
 
-        println!("LP token total_supply: {}", pair.get_liquidity()?);
+        println!("LP token total_supply: {}", pair.get_liquidity());
 
         // We can interrogate the embedded ERC20 implementation either
         // by a direct contract call, or via the swap contract
-        assert_eq!(lp_token.total_supply()?, pair.get_liquidity()?);
+        assert_eq!(lp_token.total_supply(), pair.get_liquidity());
     }
 
     // As alice, retrieve pair tokens:
     {
         // TODO: check that these numbers (from a trial run) are actually right
 
-        let lp_amount = lp_token.get_balance()?;
+        let lp_amount = lp_token.get_balance();
         println!("Alice has {} LP tokens", lp_amount);
 
-        assert_eq!(lp_token.get_balance()?, 1413213);
+        assert_eq!(lp_token.get_balance(), 1413213);
 
         // Return LP tokens to pair contract
-        lp_token.transfer(&pair_addr, lp_amount)?;
+        lp_token.transfer(&pair_addr, lp_amount);
 
         // Alice should have zero LP tokens now
-        assert_eq!(lp_token.get_balance()?, 0);
+        assert_eq!(lp_token.get_balance(), 0);
 
         // Burn the LP tokens in exchange for pair tokens
-        pair.burn_lp(alice)?;
+        pair.burn_lp(alice);
 
         // All liquidity has been drained, except a retained fee
-        assert_eq!(pair.get_liquidity()?, 1000);
+        assert_eq!(pair.get_liquidity(), 1000);
 
         println!(
             "Alice has ({}, {}) of (token0, token1)",
-            token0.get_balance()?,
-            token1.get_balance()?
+            token0.get_balance(),
+            token1.get_balance(),
         );
 
         // Alice should now have what she started with, minus
         // transaction fees
-        assert_eq!(token0.get_balance()?, 999999292);
-        assert_eq!(token1.get_balance()?, 1999998585);
+        assert_eq!(token0.get_balance(), 999999292);
+        assert_eq!(token1.get_balance(), 1999998585);
     }
 
     // TODO: check swap()
     // TODO: check other contract error paths
-
-    Ok(())
 }
 
 // below helpers should be somehow replaced by sdk features
-
-fn deploy(nonce: &SHA256Hash, contract_hash: &SHA256Hash) -> ContractAddress {
-    let addr = deploy_contract(nonce, contract_hash).unwrap_or_else(|e| {
-        if let Ok(errcode) = TryInto::<SyscallErrorCode>::try_into(e) {
-            panic!(
-                "deploy failed ({:?}) for {:x}",
-                errcode,
-                Hex(contract_hash)
-            );
-        } else {
-            panic!("deploy failed: {:?}", e);
-        }
-    });
-
-    println!("DEPLOYED {:x} at 0x{:x}", Hex(contract_hash), Hex(&addr));
-
-    addr
-}
 
 mod hex {
     use core::fmt;
