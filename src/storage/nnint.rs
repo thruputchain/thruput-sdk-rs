@@ -41,7 +41,7 @@ impl NNInt {
     }
 
     /// Set the value
-    pub fn set(&mut self, set_value: i128) -> () {
+    pub fn set(&mut self, set_value: i128) {
         non_negative_int_set(&self.keypath.generate_key(), set_value);
     }
 

@@ -8,7 +8,7 @@ pub struct BT {
     target_addr: Option<ContractAddress>,
 }
 
-#[contract(exports = "bottle_exports")]
+#[contract(exports = "bottle_exports", version = "0.1.0")]
 impl BottleTest for BT {
     #[init]
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {

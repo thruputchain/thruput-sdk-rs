@@ -1,6 +1,6 @@
 [package]
 name = "erc20-bottle-test"
-version = "0.2.0"
+version.workspace = true
 edition.workspace = true
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"

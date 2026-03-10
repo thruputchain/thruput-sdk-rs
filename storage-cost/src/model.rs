@@ -19,7 +19,6 @@ impl StorageCostModel {
                 contract_deployment_cost_per_byte: 0i128.into(),
                 auth_per_key_cost: 0i128.into(),
                 rcq_cost_per_entry: 0i128.into(),
-                rcq_cost_per_block: 0i128.into(),
                 replay_cache_cost_per_entry: 0i128.into(),
                 balance_cost: 0i128.into(),
             },
