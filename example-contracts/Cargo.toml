@@ -36,8 +36,8 @@ thiserror = { version = "2.0.12", default-features = false }
 hex-literal = "1.0.0"
 
 # Standard interface crates
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
+groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
 
 # Standard test crates
 bottle-test-if = { path = "../standard-tests/bottle-test-if" }

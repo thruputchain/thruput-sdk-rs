@@ -1,0 +1,88 @@
+name: Publish standard interface crates
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only (no tag/publish)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    runs-on: hog1
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - groundhog-erc20-if
+          - groundhog-erc1271-if
+
+    steps:
+      - name: Clean up .gitconfig
+        run: |
+          echo "Cleaning up .gitconfig"
+          rm -f /home/hogci/.gitconfig
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: |
+            ${{ secrets.ACTIONS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_SELF }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure git to use SSH
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      - name: Checkout actions repository
+        uses: actions/checkout@v4
+        with:
+          repository: groundhogchain/actions
+          path: actions
+          ref: main
+
+      - name: Publish dry run
+        uses: ./actions/cargo-publish-dry-run
+        with:
+          packages: ${{ matrix.crate }}
+          cargo-hack-feature-options: --feature-powerset --ignore-unknown-features
+
+      - name: Tag commit with version
+        if: ${{ inputs.dry_run == false }}
+        id: publish-tag
+        uses: ./actions/cargo-version-tag
+        with:
+          packages: ${{ matrix.crate }}
+          tag-prefix: '${{ matrix.crate }}-v'
+          fail-if-exists: 'false'
+
+      - name: Push tag
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          TAG="${{ steps.publish-tag.outputs.tag }}"
+          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}.git
+          git push origin "$TAG" 2>&1 || echo "Tag $TAG already exists on remote, skipping"
+          git remote set-url origin git@github.com:${{ github.repository }}.git
+
+      - name: Publish
+        if: ${{ inputs.dry_run == false }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: ${{ matrix.crate }}
+          git-tag: ${{ steps.publish-tag.outputs.tag }}
+          tag-prefix: '${{ matrix.crate }}-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
