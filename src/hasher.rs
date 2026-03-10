@@ -100,28 +100,23 @@ contract_local! {
     static AVAILABLE: ContractCell<u32> = const { ContractCell::new(0xffff_ffff) };
 }
 
+// TODO: rewrite slot_alloc and slot_free to use .update() once
+// local_key_cell_update is stabilized (rust#143989). Using get/set for now
+// because .update() on LocalKey<Cell<T>> requires nightly, which breaks
+// doc builds on stable (e.g. kellnr).
 #[cfg(any(doc, feature = "std", target_family = "wasm"))]
 fn slot_alloc() -> Option<HasherIndex> {
-    let mut slot = None;
+    let mut avail = AVAILABLE.get();
 
-    AVAILABLE.update(|mut avail| {
-        for i in 0..N_HASHERS {
-            if avail.bit_test(i) {
-                // This slot is available
-                slot = Some(i as _);
-
-                // Mark it not available
-                avail.bit_reset(i);
-
-                break;
-            }
+    for i in 0..N_HASHERS {
+        if avail.bit_test(i) {
+            avail.bit_reset(i);
+            AVAILABLE.set(avail);
+            return Some(i as _);
         }
+    }
 
-        // Return updated state
-        avail
-    });
-
-    slot
+    None
 }
 
 // Suppress compile errors when building for native without std
@@ -132,21 +127,15 @@ fn slot_alloc() -> Option<HasherIndex> {
 
 #[cfg(any(doc, feature = "std", target_family = "wasm"))]
 fn slot_free(i: HasherIndex) -> bool {
-    let mut success = false;
+    let mut avail = AVAILABLE.get();
 
-    AVAILABLE.update(|mut avail| {
-        if !avail.bit_test(i as _) {
-            // Mark it available
-            avail.bit_set(i as _);
-
-            success = true;
-        }
-
-        // Return the modified bitmap
-        avail
-    });
-
-    success
+    if !avail.bit_test(i as _) {
+        avail.bit_set(i as _);
+        AVAILABLE.set(avail);
+        true
+    } else {
+        false
+    }
 }
 
 #[cfg(not(any(doc, feature = "std", target_family = "wasm")))]

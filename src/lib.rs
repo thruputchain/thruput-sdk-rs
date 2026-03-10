@@ -1,7 +1,3 @@
-#![cfg_attr(
-    not(any(doc, target_family = "wasm")),
-    feature(local_key_cell_update)
-)]
 // #![doc(html_logo_url = "groundhog.png")]
 #![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
