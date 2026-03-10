@@ -1,34 +1,51 @@
-use xdrs::*;
-use core::ops::Deref;
-
 mod u112;
+use sdk::{ReadXDR, WriteXDR};
+use primitive_types as prim;
+use core::ops::*;
 
 pub use u112::U112;
 
-#[derive(ReadXDR, WriteXDR)]
-#[repr(transparent)]
-#[xdrs(as_type = "[u64; 4]")]
-pub struct U256(
-    pub primitive_types::U256
-);
+// Wrap for serialization :-(
 
-impl Default for U256 {
-    fn default() -> Self {
-        U256(primitive_types::U256::default())
+#[derive(Clone, Default, Debug, ReadXDR, WriteXDR)]
+#[xdrs(via = "[u64; 4]")]
+#[repr(transparent)]
+pub struct U256(prim::U256);
+
+impl U256 {
+    pub const fn zero() -> Self {
+        Self(prim::U256::zero())
     }
 }
 
-impl Deref for U256 {
-    type Target = primitive_types::U256;
+/*
+impl core::ops::Deref for U256 {
+    type Target = prim::U256;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &prim::U256 {
         &self.0
     }
 }
+*/
 
-impl From<primitive_types::U256> for U256 {
-    fn from(n: primitive_types::U256) -> Self {
-        Self(n)
+impl From<[u64; 4]> for U256 {
+    fn from(array: [u64; 4]) -> Self {
+        Self(prim::U256(array))
+    }
+}
+
+impl Into<[u64; 4]> for U256 {
+    fn into(self) -> [u64; 4] {
+        let p: prim::U256 = self.0;
+        p.0
+    }
+}
+
+// Forward many operations to inner type ...
+
+impl From<u32> for U256 {
+    fn from(n: u32) -> Self {
+        Self(n.into())
     }
 }
 
@@ -38,28 +55,18 @@ impl From<u128> for U256 {
     }
 }
 
-impl Into<[u64; 4]> for &U256 {
-    fn into(self) -> [u64; 4] {
-        self.0.0
-    }
-}
-
-impl From<[u64; 4]> for U256 {
-    fn from(array: [u64; 4]) -> Self {
-        Self(primitive_types::U256(array))
-    }
-}
-
-impl Into<[u64; 4]> for U256 {
-    fn into(self) -> [u64; 4] {
-        self.0.0
+impl<T> AddAssign<T> for U256
+where
+    prim::U256: AddAssign<T>
+{
+    fn add_assign(&mut self, rhs: T) {
+        self.0 += rhs
     }
 }
 
 impl From<U112> for U256 {
     fn from(n: U112) -> Self {
         let n: u128 = n.into();
-        let n: primitive_types::U256 = n.into();
         n.into()
     }
 }

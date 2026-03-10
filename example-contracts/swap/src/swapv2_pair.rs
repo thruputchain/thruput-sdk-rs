@@ -41,7 +41,7 @@ impl SwapV2Pair {
         // Optional TODO: support fee_to setting
 
         if !self.k_last.is_zero() {
-            self.k_last = 0.into();
+            self.k_last = U256::zero();
         }
 
         false
@@ -432,11 +432,11 @@ impl ISwapV2Pair for SwapV2Pair {
 
 // Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112
 pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
-    const LN_Q: U256 = [112u64, 0, 0, 0].into();
+    const LN_Q: U256 = [112u64, 0, 0, 0].into(); // XXX this can't be right
 
     let a: U256 = a.into();
     let b: U256 = b.into();
-    let p: U256 = (p as u128).into();
+    let p: U256 = p.into();
     (a << LN_Q) / (b << LN_Q) * p
 }
 
