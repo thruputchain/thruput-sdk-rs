@@ -58,6 +58,7 @@ jobs:
         uses: ./actions/cargo-publish-dry-run
         with:
           packages: ${{ matrix.crate }}
+          vendor-workspace-deps: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros sdk
           cargo-hack-feature-options: --feature-powerset --ignore-unknown-features
 
       - name: Tag commit with version
