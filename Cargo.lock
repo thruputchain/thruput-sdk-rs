@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
@@ -90,10 +90,10 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "sdk",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
@@ -299,12 +299,12 @@ dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
  "sdk",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
 name = "erc20-native-test"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -491,7 +491,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -500,18 +500,18 @@ dependencies = [
  "quote",
  "sha2",
  "syn",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "groundhog-xdr",
  "semver",
  "sha2",
  "syn",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
@@ -520,7 +520,7 @@ version = "0.1.0"
 dependencies = [
  "sdk",
  "thiserror",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
@@ -531,12 +531,12 @@ dependencies = [
  "groundhog-xdr",
  "sdk",
  "thiserror",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
 name = "groundhog-macros"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -548,12 +548,12 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "syn",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "groundhog-storage-cost",
  "groundhog-sys",
@@ -562,8 +562,8 @@ dependencies = [
  "hogexec-internal",
  "sha2",
  "thiserror",
- "xdr-common",
- "xdrs",
+ "xdr-common 0.5.0",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
@@ -577,15 +577,15 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "groundhog-xdr",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
 name = "groundhog-sys"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -604,8 +604,8 @@ checksum = "a279a59bc6b4ad9117c5f9c5e109b99d1d0535ef366d311658603407dc7b0d1e"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
- "xdr-common",
- "xdrs",
+ "xdr-common 0.4.0",
+ "xdrs 0.4.0",
 ]
 
 [[package]]
@@ -618,8 +618,8 @@ dependencies = [
  "groundhog-xdr-macros",
  "serde",
  "thiserror",
- "xdr-common",
- "xdrs",
+ "xdr-common 0.4.0",
+ "xdrs 0.4.0",
 ]
 
 [[package]]
@@ -699,7 +699,7 @@ version = "0.3.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "e1d1fab01058a934512e3b21082a97607af440f89f1365419642291a57c536b0"
 dependencies = [
- "xdrs",
+ "xdrs 0.4.0",
 ]
 
 [[package]]
@@ -1377,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "abort",
  "bitset-core",
@@ -1394,7 +1394,7 @@ dependencies = [
  "sdk",
  "sha2",
  "thiserror",
- "xdrs",
+ "xdrs 0.5.0",
 ]
 
 [[package]]
@@ -2151,10 +2151,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "xdr-common"
+version = "0.5.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "5f37325215270fa9b7a3aa00b09d6aa5c9d23e520a89e0f5ebddb07eecb032af"
+dependencies = [
+ "escape-bytes",
+ "hex",
+]
+
+[[package]]
 name = "xdr-derive"
 version = "0.4.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "868f2b21a1ed814300131ce81906d0b2463294ab0f87dc7c1133207de1ed06e6"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "xdr-derive"
+version = "0.5.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "2b094c7ca2f5cf454287d2270cf61eb81570f83c4c5a1e11100c61979bee589e"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2168,7 +2190,16 @@ version = "0.4.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "db68a82d361ca9ad49b6ad4b473f92786b3e8431e1719f19b45c351709bbf5ed"
 dependencies = [
- "xdr-common",
+ "xdr-common 0.4.0",
+]
+
+[[package]]
+name = "xdr-repr"
+version = "0.5.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "b6bac715ccc7daced76441e4801e79960360cdaf1e1956b37447c455b33e95c8"
+dependencies = [
+ "xdr-common 0.5.0",
 ]
 
 [[package]]
@@ -2177,11 +2208,23 @@ version = "0.4.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "e15cec8a548a8842bec9f95894bcc2d08b7cfbf47cdef10fcf3bc936c515175e"
 dependencies = [
+ "thiserror",
+ "xdr-common 0.4.0",
+ "xdr-derive 0.4.0",
+ "xdr-repr 0.4.0",
+]
+
+[[package]]
+name = "xdrs"
+version = "0.5.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "d84dbebd0fbc1229f3daef973bdc0bafca67fe8f7ed9597b6ec53cbc0028748f"
+dependencies = [
  "heapless",
  "thiserror",
- "xdr-common",
- "xdr-derive",
- "xdr-repr",
+ "xdr-common 0.5.0",
+ "xdr-derive 0.5.0",
+ "xdr-repr 0.5.0",
 ]
 
 [[package]]
