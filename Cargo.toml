@@ -78,7 +78,6 @@ delegate = { workspace = true, optional = true }
 
 [dev-dependencies]
 sdk = { workspace = true, features = ["dev"] }
-bottle-test-if = { workspace = true }
 hex-literal = { workspace = true }
 
 [workspace.dependencies]

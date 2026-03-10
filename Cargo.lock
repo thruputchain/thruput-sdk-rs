@@ -1381,7 +1381,6 @@ version = "0.3.0"
 dependencies = [
  "abort",
  "bitset-core",
- "bottle-test-if",
  "delegate",
  "groundhog-contract-util",
  "groundhog-macros",
