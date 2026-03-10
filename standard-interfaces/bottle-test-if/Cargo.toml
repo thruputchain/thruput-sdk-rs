@@ -2,13 +2,14 @@
 name = "bottle-test-if"
 version = "0.1.0"
 edition.workspace = true
+publish = ["groundhog"]
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
 description = "Bottle-test interface"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { path = "../..", registry = "groundhog", version = "=0.3.1" }
 xdrs = { workspace = true, features = ["derive", "int128"] }
 
 [lib]
@@ -16,5 +17,4 @@ crate-type = ["rlib"]
 doctest = false
 
 [features]
-dev = ["std", "sdk/dev"]
-std = ["sdk/std"]
+dev = ["sdk/dev"]

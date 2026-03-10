@@ -1,4 +1,5 @@
 #![cfg_attr(not(any(feature = "dev", feature = "spec")), no_std)]
+#![allow(clippy::result_large_err)]
 
 mod error;
 pub use error::*;

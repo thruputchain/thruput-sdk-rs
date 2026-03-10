@@ -1,10 +1,8 @@
 //! An interface for a test-contract that gets loaded "in a bottle" alongside an example
 //! contract and can interrogate it.
 
-#![no_std]
-
-#[cfg(feature = "std")]
-extern crate std;
+#![cfg_attr(not(any(feature = "dev")), no_std)]
+#![allow(clippy::result_large_err)]
 
 use sdk::*;
 
