@@ -8,7 +8,7 @@ description = "Bottle-test interface"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
-sdk = { workspace = true, registry = "groundhog", version = "=0.3.1" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.3.1" }
 xdrs = { workspace = true, features = ["derive", "int128"] }
 
 [lib]
