@@ -75,7 +75,7 @@ mod panic_repr {
 }
 pub use panic_repr::*;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "panic_logging"))]
 #[inline(always)]
 fn panic_logging(info: &core::panic::PanicInfo) {
     use crate::log;
