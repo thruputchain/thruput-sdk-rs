@@ -13,7 +13,6 @@ use core::convert::Infallible;
 use core::fmt::{self, Debug};
 #[cfg(feature = "debugging")]
 use thiserror::Error;
-
 /// The result of a contract call, where `E` is the error-type specific to the
 /// contract or method.
 ///

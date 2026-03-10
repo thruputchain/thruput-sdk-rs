@@ -13,7 +13,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.2.0"
+version = "0.3.1"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -78,39 +78,38 @@ delegate = { workspace = true, optional = true }
 
 [dev-dependencies]
 sdk = { workspace = true, features = ["dev"] }
-bottle-test-if = { workspace = true }
 hex-literal = { workspace = true }
 
 [workspace.dependencies]
+sdk = { path = "." }
 # Dependencies from this repository
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
-sdk = { path = "." , registry = "groundhog", version = "=0.2.0" }
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.2.0" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.2.0" }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.2.0" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.2.0" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.2.0" }
-groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.2.0" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.3.1" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.3.1" }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.3.1" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.3.1" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.3.1" }
+groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.3.1" }
 
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
+bottle-test-if = { path = "standard-interfaces/bottle-test-if" , registry = "groundhog", version = "=0.1.0" }
 
 # Standard test crates
-bottle-test-if = { path = "standard-tests/bottle-test-if" }
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 # External dependencies
-groundhog-trace = { registry = "groundhog", version = "0.3.2" }
-groundhog-xdr = { registry = "groundhog", version = "0.3.2", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "0.3.2" }
+groundhog-trace = { registry = "groundhog", version = "0.3.3" }
+groundhog-xdr = { registry = "groundhog", version = "0.3.3", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "0.3.3" }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128", "heapless"] }
-xdr-common = { registry = "groundhog", version = "0.4.0" }
+xdrs = { registry = "groundhog", version = "0.5.0", features = ["int128", "heapless"] }
+xdr-common = { registry = "groundhog", version = "0.5.0" }
 abort = { registry = "groundhog", version = "0.4.2", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
@@ -148,10 +147,10 @@ std = ["alloc", "groundhog-xdr/std", "abort/std"]
 
 # Diagnostic features
 debugging = ["abort/debug", "fault_strings"]
-fault_strings = []
+fault_strings = ["debugging"]
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
-call_tracking = ["abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
+call_tracking = ["debugging", "abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
 spec = [

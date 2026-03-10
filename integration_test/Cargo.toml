@@ -44,9 +44,9 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = ".." , registry = "groundhog", version = "=0.2.0" }
-groundhog-xdr = { registry = "groundhog", version = "0.3.0", features = ["xdrs", "syscalls"] }
-xdrs = { registry = "groundhog", version = "0.4.0", features = ["int128", "heapless"] }
+sdk = { path = ".." , registry = "groundhog", version = "=0.3.0" }
+groundhog-xdr = { registry = "groundhog", version = "0.3.3", features = ["xdrs", "syscalls"] }
+xdrs = { registry = "groundhog", version = "0.5.0", features = ["int128", "heapless"] }
 sha2 = { version = "0.10.8", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 hex-literal = "1.0.0"
@@ -54,9 +54,9 @@ hex-literal = "1.0.0"
 # Standard interface crates
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
+bottle-test-if = { path = "../standard-interfaces/bottle-test-if", registry = "groundhog", version = "=0.1.0" }
 
 # Standard test crates
-bottle-test-if = { path = "../standard-tests/bottle-test-if" }
 erc20-test = { path = "../standard-tests/erc20-test" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "../standard-tests/erc20-native-test" }
