@@ -1,6 +1,6 @@
 [package]
 name = "bottle-test-if"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
