@@ -23,6 +23,7 @@ jobs:
         crate:
           - groundhog-erc20-if
           - groundhog-erc1271-if
+          - bottle-test-if
 
     steps:
       - name: Clean up .gitconfig
