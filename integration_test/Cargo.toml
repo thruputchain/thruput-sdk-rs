@@ -44,7 +44,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = ".." , registry = "groundhog", version = "=0.3.0" }
+sdk = { path = ".." , registry = "groundhog", version = "=0.3.1" }
 groundhog-xdr = { registry = "groundhog", version = "0.3.3", features = ["xdrs", "syscalls"] }
 xdrs = { registry = "groundhog", version = "0.5.0", features = ["int128", "heapless"] }
 sha2 = { version = "0.10.8", default-features = false }
