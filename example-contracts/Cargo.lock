@@ -322,7 +322,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -333,7 +333,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -343,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -570,7 +570,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -584,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-storage-cost",
  "groundhog-sys",
@@ -646,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "abort",
  "bitset-core",
@@ -1694,7 +1694,7 @@ dependencies = [
 
 [[package]]
 name = "swap_request"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "sdk",
  "swap_request",

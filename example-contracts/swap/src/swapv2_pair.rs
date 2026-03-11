@@ -155,7 +155,7 @@ impl AsMut<TokenContract> for SwapV2Pair {
 }
 
 // TODO: use delegate?
-#[contract(throws = ERC20Error, version = "0.2.0", exports = "erc20_exports", test_setup = "erc20_test_setup")]
+#[contract(throws = ERC20Error, version = "0.1.0", exports = "erc20_exports", test_setup = "erc20_test_setup")]
 impl ERC20 for SwapV2Pair {
     fn initialize(
         &mut self,
@@ -229,6 +229,7 @@ impl ERC20 for SwapV2Pair {
 
 #[contract(throws = ISwapV2PairError, exports = "swap_exports", test_setup = "swap_test_setup")]
 impl ISwapV2Pair for SwapV2Pair {
+    #[init]
     fn initialize(
         &mut self,
         factory: &Address,

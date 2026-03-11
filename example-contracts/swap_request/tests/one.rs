@@ -1,7 +1,7 @@
 use sdk::*;
 use swap_request::*;
 
-client_test! { SwapContract =>
+client_test! { SwapContract, SwapTest =>
     fn mytest(c: &mut SwapClient) {
         c.submit_request(SwapRequest::new());
         c.submit_request(SwapRequest::new());

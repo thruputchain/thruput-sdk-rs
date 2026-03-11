@@ -1,6 +1,6 @@
 mod common;
 use common::*;
-use sdk::TestRegister;
+use groundhog_erc20_if::ERC20Test;
 
 // Load two contracts into the same test environment, and
 // have one call the other.

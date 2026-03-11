@@ -17,6 +17,7 @@ pub struct Config {
 
     client: Option<syn::Ident>,
     throws: Option<syn::Ident>,
+    test: Option<syn::Ident>,
 }
 
 impl Config {
@@ -50,6 +51,10 @@ impl Config {
 
     pub fn throws(&self) -> Option<&syn::Ident> {
         self.throws.as_ref()
+    }
+
+    pub fn test(&self) -> Option<&syn::Ident> {
+        self.test.as_ref()
     }
 }
 

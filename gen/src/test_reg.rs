@@ -29,12 +29,19 @@ pub fn generate(item: &syn::ItemImpl, config: &Config) -> Result<TokenStream> {
     let mock_registrations = registrations.clone();
 
     let impl_test_register = if let Some(impl_ty) = &contract.self_ty() {
-        quote! {
-            impl ::sdk::TestRegister for #impl_ty {
-                fn register(env: &::sdk::TestEnvironmentHandle) -> ::sdk::Contract {
-                    #test_setup_mod_ident::register(env)
+        if let Some(test) = config.test() {
+            quote! {
+                trait #test {
+                    fn register(env: &::sdk::TestEnvironmentHandle) -> ::sdk::Contract;
+                }
+                impl #test for #impl_ty {
+                    fn register(env: &::sdk::TestEnvironmentHandle) -> ::sdk::Contract {
+                        #test_setup_mod_ident::register(env)
+                    }
                 }
             }
+        } else {
+            quote! {}
         }
     } else {
         quote! {}

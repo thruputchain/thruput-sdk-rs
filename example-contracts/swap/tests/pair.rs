@@ -1,8 +1,6 @@
 use sdk::*;
-use core::result::Result;
-use groundhog_erc20_if::{ERC20, ERC20Error, Amount, Difference};
-use erc20::ERC20Client;
-use swap::{ISwapV2Pair, ISwapV2PairClient};
+use groundhog_erc20_if::ERC20Client;
+use swap::ISwapV2PairClient;
 use swap::{erc20_test_setup, swap_test_setup};
 
 #[test]
@@ -25,7 +23,9 @@ fn swap_test() {
     };
     let swap_hash = env.setup_create_contract(&swap_contract);
 
-    sdk::contract_exec(env, || swap_test_inner(&swap_hash, &token0_hash, &token1_hash));
+    sdk::contract_exec(env, move || {
+        swap_test_inner(&swap_hash, &token0_hash, &token1_hash);
+    }).unwrap();
 }
 
 fn swap_test_inner(
@@ -34,19 +34,19 @@ fn swap_test_inner(
     token1_hash: &SHA256Hash,
 ) {
     let test_addr = get_current_address();
-    println!("Test address: {:x}", test_addr);
+    println!("Test address: {:?}", test_addr);
 
     // Deploy the swap-pair contract
     let nonce: SHA256Hash = [7; 32].into();
-    let pair_addr = deploy(&nonce, swap_hash);
+    let pair_addr = deploy_contract(&nonce, swap_hash);
     let mut pair = ISwapV2PairClient::new(&pair_addr);
     let mut lp_token = ERC20Client::new(&pair_addr);
 
     // Deploy two token contracts
     let nonce0: SHA256Hash = [90; 32].into();
     let nonce1: SHA256Hash = [91; 32].into();
-    let token0_addr = deploy(&nonce0, token0_hash);
-    let token1_addr = deploy(&nonce1, token1_hash);
+    let token0_addr = deploy_contract(&nonce0, token0_hash);
+    let token1_addr = deploy_contract(&nonce1, token1_hash);
     let mut token0 = ERC20Client::new(&token0_addr);
     let mut token1 = ERC20Client::new(&token1_addr);
 
@@ -58,8 +58,7 @@ fn swap_test_inner(
     // Initialize the swap-pair contract with the two tokens
     // (This also initializes the embedded ERC20 implementation.)
     let factory_addr = &test_addr;
-    ISwapV2Pair::initialize(
-        &mut pair,
+    pair.initialize(
         &factory_addr,
         &token0_addr,
         &token1_addr,
@@ -148,35 +147,3 @@ fn swap_test_inner(
     // TODO: check swap()
     // TODO: check other contract error paths
 }
-
-// below helpers should be somehow replaced by sdk features
-
-mod hex {
-    use core::fmt;
-
-    pub struct Hex<'a, T>(pub &'a T);
-
-    impl<'a, T> fmt::LowerHex for Hex<'a, T>
-    where
-        T: AsRef<[u8]>,
-    {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let slice: &[u8] = self.0.as_ref();
-            if slice.len() > 16 {
-                for b in &slice[0..4] {
-                    write!(f, "{:02x}", b)?;
-                }
-                write!(f, "...")?;
-                for b in &slice[slice.len() - 4..] {
-                    write!(f, "{:02x}", b)?;
-                }
-            } else {
-                for b in slice {
-                    write!(f, "{:02x}", b)?;
-                }
-            }
-            Ok(())
-        }
-    }
-}
-use hex::*;

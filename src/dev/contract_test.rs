@@ -133,12 +133,12 @@ macro_rules! contract_test {
     };
 }
 
-/// Given a contact implementation and interface, create test
+/// Given a contract implementation and interface, create test
 /// functions that take a client object as an argument.
 ///
 #[macro_export]
 macro_rules! client_test {
-    {   $impl_ty:ty =>
+    {   $impl_ty:ty, $test_trait:ident =>
         $(fn $test_name:ident($client:ident: &mut $client_ty:ty) $body:tt)* } =>
     {
         $(
@@ -148,7 +148,7 @@ macro_rules! client_test {
             static CLIENT_TEST_NONCE: ::sdk::SHA256Hash = ::sdk::sha256_static!("CLIENT_TEST_NONCE");
 
             let mut env = ::sdk::TestEnvironment::no_cost();
-            let test_contract = <$impl_ty as sdk::TestRegister>::register(&mut env);
+            let test_contract = <$impl_ty as $test_trait>::register(&mut env);
             let contract_hash = env.setup_create_contract(&test_contract);
 
             ::sdk::contract_exec(env, move || {
