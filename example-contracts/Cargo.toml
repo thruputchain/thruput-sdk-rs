@@ -4,7 +4,7 @@ cargo-features = ["trim-paths"] #unstable
 resolver = "3"
 members = [
     "caller",
-    # "counter",
+    "counter",
     "erc20",
     "erc20_no_storage",
     "erc20_low_level",
