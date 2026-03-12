@@ -17,6 +17,7 @@ members = [
     "test_bytestring",
     "rcq_test",
     "swap_request",
+    "stateless",
 ]
 
 [workspace.package]
