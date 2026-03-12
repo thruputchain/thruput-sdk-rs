@@ -1,9 +1,8 @@
 use sdk::*;
 
-#[derive(Default)]
 pub struct Stateless;
 
-#[contract(client = StatelessClient, storage = "false")]
+#[contract(client = StatelessClient)]
 impl Stateless {
     pub fn run() {}
 
