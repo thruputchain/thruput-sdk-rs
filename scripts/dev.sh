@@ -67,19 +67,6 @@ make_optimized() {
     wasm-opt -O3 $debugging --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
-expand_contract() {
-    local package
-    package="$1"; shift
-
-    (
-        cd "$package" &&
-        cargo --config "${SDK_DIR}/.cargo/contract.toml" \
-            expand \
-            --features "sdk/std" \
-            "$@"
-    )
-}
-
 eg_build() {
     local package
     package="$1"; shift
@@ -320,6 +307,7 @@ expand_contract() {
     config="$(find_contract_config "$contract")"
 
     (
+        set -x
         cd "$contract" &&
         cargo --config "$config" \
             expand \
@@ -374,7 +362,7 @@ fmt_check() {
 
 ci_check() {
     test_all &&
-    lint_check &&
+    (set -x; lint || fail "Trapped lint!") &&
     fmt_check &&
     # xxx_check &&
 
