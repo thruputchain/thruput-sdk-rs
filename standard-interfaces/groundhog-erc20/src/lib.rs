@@ -15,7 +15,7 @@ pub type Difference = i128;
 pub const CONTRACT_ADDR_ZERO: &ContractAddress =
     &ContractAddress::new([0; 32]);
 
-#[contract(client = ERC20Client, throws = ERC20Error, test = ERC20Test)]
+#[contract(client = ERC20Client, throws = ERC20Error)]
 pub trait ERC20 {
     fn initialize(&mut self, contract_owner: &ContractAddress);
 
