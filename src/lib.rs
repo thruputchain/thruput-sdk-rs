@@ -81,7 +81,8 @@ pub use util::*;
 pub use xdr::*;
 
 pub use abort::{
-    AbortInfo, AbortPayload, Never, abort, abort_with_info, with_abort_handler, catch
+    AbortInfo, AbortPayload, Never, abort, abort_with_info, catch,
+    with_abort_handler,
 };
 
 #[cfg(feature = "call_tracking")]

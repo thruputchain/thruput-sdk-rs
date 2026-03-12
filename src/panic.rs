@@ -29,9 +29,9 @@ fn handle_panic(info: &core::panic::PanicInfo) -> ! {
 mod panic_repr {
     use core::error::Error;
     use core::fmt::{self, Display, Write};
+    use core::panic::Location;
     use heapless::String;
     use xdrs::*;
-    use core::panic::Location;
 
     /// A representation of a panic condition, for sending to `abort`
     ///
@@ -45,8 +45,11 @@ mod panic_repr {
 
     impl Panic {
         pub fn from_info(info: &core::panic::PanicInfo) -> Self {
-            Self::from_hook_info(info.message().as_str().unwrap_or("<has args>"), info.location())
-                /*
+            Self::from_hook_info(
+                info.message().as_str().unwrap_or("<has args>"),
+                info.location(),
+            )
+            /*
             let mut write_failed = false;
             let mut msg = String::new();
             if write!(&mut msg, "{}", info.message()).is_err() {
@@ -61,7 +64,10 @@ mod panic_repr {
                 */
         }
 
-        pub fn from_hook_info(message: &str, location: Option<&Location>) -> Self {
+        pub fn from_hook_info(
+            message: &str,
+            location: Option<&Location>,
+        ) -> Self {
             let mut write_failed = false;
 
             let mut msg = String::new();

@@ -1,10 +1,10 @@
 use super::fault::*;
 use super::{CallingError, HandlingError};
-use crate::{abort, Panic};
 #[cfg(feature = "storage")]
 use crate::storage::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
+use crate::{Panic, abort};
 use core::error::Error;
 use core::fmt::{self, Display};
 use thiserror::Error;

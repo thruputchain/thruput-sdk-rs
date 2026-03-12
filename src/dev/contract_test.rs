@@ -133,39 +133,33 @@ macro_rules! contract_test {
     };
 }
 
-/// Given a contract implementation and interface, create test
-/// functions that take a client object as an argument.
-///
-#[macro_export]
-macro_rules! client_test {
-    {   $impl_ty:ty, $test_trait:ident =>
-        $(fn $test_name:ident($client:ident: &mut $client_ty:ty) $body:tt)* } =>
-    {
-        $(
+pub trait TestRegisterFn: Fn(&TestEnvironmentHandle) -> Contract {}
 
-        #[test]
-        fn $test_name() {
-            static CLIENT_TEST_NONCE: ::sdk::SHA256Hash = ::sdk::sha256_static!("CLIENT_TEST_NONCE");
+impl<T> TestRegisterFn for T where T: Fn(&TestEnvironmentHandle) -> Contract {}
 
-            let mut env = ::sdk::TestEnvironment::no_cost();
-            let test_contract = <$impl_ty as $test_trait>::register(&mut env);
-            let contract_hash = env.setup_create_contract(&test_contract);
+pub fn client_test<R, F, C>(register: R, run_test: F)
+where
+    R: TestRegisterFn,
+    F: Fn(&mut C) + std::panic::UnwindSafe + Clone + 'static,
+    C: crate::call::ContractClient,
+{
+    static CLIENT_TEST_NONCE: SHA256Hash =
+        SHA256Hash::new(hash_to_array!("CLIENT_TEST_NONCE"));
 
-            ::sdk::contract_exec(env, move || {
-                // Deploy the contract under test
-                let addr = ::sdk::deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
+    let mut env = TestEnvironment::no_cost();
+    let test_contract = register(&mut env);
+    let contract_hash = env.setup_create_contract(&test_contract);
 
-                // Create a client to interact with the contract
-                let mut client = <$client_ty>::new(&addr);
+    contract_exec(env, move || {
+        // Deploy the contract under test
+        let addr = deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
 
-                (|$client: &mut $client_ty| $body)(&mut client);
-            })
-            .unwrap_or_else(|e|
-                panic!("Client test failed: {}", e));
-        }
+        // Create a client to interact with the contract
+        let mut client = C::new(&addr);
 
-        )*
-    };
+        run_test(&mut client);
+    })
+    .unwrap_or_else(|e| panic!("Client test failed: {}", e));
 }
 
 pub fn grant_storage_tokens(

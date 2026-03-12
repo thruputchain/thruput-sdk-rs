@@ -373,10 +373,10 @@ fmt_check() {
 }
 
 ci_check() {
-    # xxx_check &&
-    fmt_check &&
-    # lint_check &&
     test_all &&
+    lint_check &&
+    fmt_check &&
+    # xxx_check &&
 
     info "CI clean!" ||
     fail "CI failed!"

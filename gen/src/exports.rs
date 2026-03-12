@@ -136,8 +136,9 @@ pub fn generate_method(
     let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
     let export_name = entrypoint_export_name(entrypoint);
     let extern_name = format_ident!("{}_extern", ident);
-    let internal_name = contract.map(|c| c.make_internal_name(ident)).unwrap_or_else(||
-        format_ident!("{}_internal", ident));
+    let internal_name = contract
+        .map(|c| c.make_internal_name(ident))
+        .unwrap_or_else(|| format_ident!("{}_internal", ident));
     let export_num_name =
         format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
 
@@ -158,7 +159,7 @@ pub fn generate_method(
     // How to call the function
     let invoke = if is_method {
         // Invoke the method on a state object
-        if let Some(trait_path) = contract.map(|c| c.trait_path()).flatten() {
+        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
             if is_mut {
                 quote! { #trait_path::#ident(&mut state, #arg_names) }
             } else {

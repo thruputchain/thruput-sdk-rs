@@ -1,17 +1,19 @@
-use sdk::*;
 use swap_request::*;
 
-client_test! { SwapContract, SwapTest =>
-    fn mytest(c: &mut SwapClient) {
-        c.submit_request(SwapRequest::new());
-        c.submit_request(SwapRequest::new());
-        c.submit_request(SwapRequest::new());
-        c.submit_request(SwapRequest::new());
+#[test]
+fn test() {
+    sdk::client_test(test_setup::register, mytest);
+}
 
-        let last_submitted = SwapRequest::last_id();
+fn mytest(c: &mut SwapClient) {
+    c.submit_request(SwapRequest::new());
+    c.submit_request(SwapRequest::new());
+    c.submit_request(SwapRequest::new());
+    c.submit_request(SwapRequest::new());
 
-        let last_processed = c.process_requests();
+    let last_submitted = SwapRequest::last_id();
 
-        assert_eq!(last_processed, last_submitted);
-    }
+    let last_processed = c.process_requests();
+
+    assert_eq!(last_processed, last_submitted);
 }

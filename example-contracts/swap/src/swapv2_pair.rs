@@ -433,6 +433,7 @@ impl ISwapV2Pair for SwapV2Pair {
 
 // Compute exactly: (a * Q) / (b * Q) * p, where Q = 2^112
 pub fn uq112x112_div_mul(a: U112, b: U112, p: u32) -> U256 {
+    // TODO: accomplish this statically
     let ln_q: U256 = (2u128 ^ 112).into();
 
     let a: U256 = a.into();

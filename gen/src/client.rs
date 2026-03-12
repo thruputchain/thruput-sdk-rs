@@ -69,6 +69,12 @@ pub fn generate(
 
                 pub const INTERFACE_VERSION: &str = #iface_vers;
             }
+
+            impl ::sdk::call::ContractClient for #client_ident {
+                fn new(address: &::sdk::ContractAddress) -> Self {
+                    #client_ident::new(address)
+                }
+            }
         };
     };
 
