@@ -284,13 +284,13 @@ find_contract_config() {
 }
 
 tree_contract() {
-    local contract_dir
-    contract_dir="$1"; shift
+    local contract
+    contract=$(realpath "$1"); shift
     local config
-    config="$(find_contract_config "$contract_dir")"
+    config="$(find_contract_config "$contract")"
 
     (
-        cd "$contract_dir" &&
+        cd "$contract" &&
         cargo --config "$config" \
             tree \
             --target "wasm32-unknown-unknown" \
@@ -302,12 +302,12 @@ tree_contract() {
 }
 
 expand_contract() {
-    contract="$1"; shift
+    local contract
+    contract=$(realpath "$1"); shift
     local config
     config="$(find_contract_config "$contract")"
 
     (
-        set -x
         cd "$contract" &&
         cargo --config "$config" \
             expand \
