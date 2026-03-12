@@ -17,11 +17,13 @@
 
 mod call_result;
 mod calls;
+mod client;
 mod contract_result;
 mod handle;
 
 pub use call_result::*;
 pub use calls::*;
+pub use client::*;
 pub use contract_result::*;
 pub use handle::*;
 

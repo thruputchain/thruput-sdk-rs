@@ -90,6 +90,20 @@ pub trait ContractSrc {
         mm.sort_by(cmp_method_by_name);
         mm
     }
+
+    fn make_internal_name(&self, bare_ident: &syn::Ident) -> syn::Ident {
+        format_ident!("{}_internal", bare_ident)
+
+        /* If we someday need an internal name unique across interfaces:
+         *
+        format_ident!(
+            "{}{}_{}_internal",
+            self.interface_name().map(|s| s + "_").unwrap_or(String::new()),
+            self.defaulted_interface_vers().replace(".", "_"),
+            bare_ident,
+        )
+        */
+    }
 }
 
 pub fn interface_vers_default() -> String {

@@ -22,7 +22,7 @@ impl TokenContract {
     // zero if never set. They do _not_ check authorization.
 
     fn _init(&mut self, contract_owner: &ContractAddress) {
-        self.contract_owner = contract_owner.clone();
+        self.contract_owner = *contract_owner;
     }
 
     fn _contract_owner(&self) -> &ContractAddress {
@@ -115,7 +115,7 @@ impl ERC20 for TokenContract {
         self._adjust_balance(owner, -diff);
         self._adjust_balance(receiver, diff);
 
-        log_transfer_event(&owner, receiver, amount);
+        log_transfer_event(owner, receiver, amount);
     }
 
     fn adjust_allowance(

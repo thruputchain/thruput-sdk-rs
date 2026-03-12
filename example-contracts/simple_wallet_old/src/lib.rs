@@ -26,8 +26,8 @@ impl Wallet {
         pk: &Ed25519PublicKey,
         token_addr: &ContractAddress,
     ) {
-        self.pk = pk.clone();
-        self.token_addr = token_addr.clone();
+        self.pk = *pk;
+        self.token_addr = *token_addr;
     }
 
     pub fn get_balance(&self) -> Amount {

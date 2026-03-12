@@ -1,5 +1,5 @@
 use core::cmp::Ord;
-use serde::{Deserialize, Serialize};
+use xdrs::*;
 
 pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 
@@ -12,8 +12,8 @@ pub const U112_MAX: u128 = 2u128.pow(112) - 1;
     Ord,
     Copy,
     Clone,
-    Serialize,
-    Deserialize,
+    ReadXDR,
+    WriteXDR,
 )]
 #[repr(transparent)]
 pub struct U112(u128);

@@ -1,7 +1,4 @@
-sdk::client_test! {
-    hasher::HasherImpl =>
-
-    fn hasher_test(c: &mut hasher::HasherClient) {
-        c.run();
-    }
+#[test]
+fn hasher_test() {
+    sdk::client_test(hasher::register, |c: &mut hasher::HasherClient| c.run());
 }

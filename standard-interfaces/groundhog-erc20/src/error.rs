@@ -11,10 +11,6 @@ use xdrs::XDR;
 #[non_exhaustive]
 #[repr(i32)]
 pub enum ERC20Error {
-    /* Not used?
-    #[error("None")]
-    None = 0,
-    */
     #[error("Contract already initialized")]
     AlreadyInitialized = 1,
 

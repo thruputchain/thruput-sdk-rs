@@ -13,8 +13,11 @@ members = [
     "hasher",
     "rcq_test",
     "simple_wallet_old",
-    # "swap",
+    "swap",
     "test_bytestring",
+    "rcq_test",
+    "swap_request",
+    "stateless",
 ]
 
 [workspace.package]

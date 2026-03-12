@@ -69,6 +69,12 @@ pub fn generate(
 
                 pub const INTERFACE_VERSION: &str = #iface_vers;
             }
+
+            impl ::sdk::call::ContractClient for #client_ident {
+                fn new(address: &::sdk::ContractAddress) -> Self {
+                    #client_ident::new(address)
+                }
+            }
         };
     };
 
@@ -215,6 +221,7 @@ fn generate_client_fn(
 
         // This method-wrapper returns a CallResult so that exceptions may be
         // inspected.
+        #[allow(clippy::result_large_err)]
         #track_caller
         pub fn #try_ident(&mut self, #(#sent_params),* ) -> ::sdk::call::CallResult<#return_type, #error_type>
         {

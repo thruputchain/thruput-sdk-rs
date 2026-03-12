@@ -63,6 +63,8 @@ performing those calls.
 
 # Testing
 
+**TODO:** Unify the below approaches into a single test-builder.
+
 The SDK provides some utilities for executing contract code in the included
 test environment.
 
@@ -75,17 +77,14 @@ contract_test!(test_bytestring {
 });
 ```
 
-The `client_test!` macro takes a contract implementation and defines cargo
-tests that take a client object as an argument (see example contract `hasher`):
+To run test code against a client stub that calls your contract:
 
-```no_run
-sdk::client_test! {
-    hasher::HasherImpl =>
-
-    fn hasher_test(c: &mut hasher::HasherClient) {
-        c.run();
-    }
-}
+```
+sdk::client_test(
+    implementation::register,
+    |c: &mut implementation::MyContractClient| {
+        // Call methods on `c`
+    });
 ```
 
 A more flexible approach allows direct manipulation of the environment:
@@ -113,7 +112,7 @@ circumstances:
 - [`contract_handler_exec()`]
 - [`contract_handler_exec_raw()`]
 - [`contract_test!`]
-- [`client_test!`]
+- [`client_test`]
 - [`load_wasm_contract()`]
 - [`test_wasm()`]
 

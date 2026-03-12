@@ -1,6 +1,5 @@
 mod common;
 use common::*;
-use sdk::TestRegister;
 
 // Load two contracts into the same test environment, and
 // have one call the other.
@@ -8,10 +7,10 @@ use sdk::TestRegister;
 fn caller_test_native() {
     let mut env = sdk::TestEnvironment::no_cost();
 
-    let erc20_contract = erc20::TokenContract::register(&mut env);
+    let erc20_contract = erc20::test_setup::register(&mut env);
     let erc20_hash = env.setup_create_contract(&erc20_contract);
 
-    let caller_contract = caller::Caller::register(&mut env);
+    let caller_contract = caller::test_setup::register(&mut env);
     let caller_hash = env.setup_create_contract(&caller_contract);
 
     sdk::contract_exec(env, move || {

@@ -17,7 +17,7 @@ pub struct Caller {
 impl Caller {
     #[init]
     pub fn initialize(&mut self, token_contract: &ContractAddress) {
-        self.token_contract = token_contract.clone();
+        self.token_contract = *token_contract
     }
 
     pub fn check_balance(&self, account: &ContractAddress) -> Amount {

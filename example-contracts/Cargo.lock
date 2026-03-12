@@ -203,6 +203,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "crunchy"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -316,7 +322,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -327,7 +333,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -337,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -564,7 +570,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -578,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -599,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -616,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-storage-cost",
  "groundhog-sys",
@@ -640,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -648,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1480,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "abort",
  "bitset-core",
@@ -1656,6 +1662,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
+name = "stateless"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "stateless",
+]
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1666,6 +1686,28 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "swap"
+version = "0.1.0"
+dependencies = [
+ "erc20",
+ "groundhog-erc20-if",
+ "sdk",
+ "swap",
+ "thiserror",
+ "uint",
+ "xdrs",
+]
+
+[[package]]
+name = "swap_request"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "swap_request",
+ "xdrs",
+]
 
 [[package]]
 name = "syn"
@@ -1903,6 +1945,18 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "uint"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "909988d098b2f738727b161a106cfc7cab00c539c2687a8836f8e565976fb53e"
+dependencies = [
+ "byteorder",
+ "crunchy",
+ "hex",
+ "static_assertions",
+]
 
 [[package]]
 name = "unicode-ident"

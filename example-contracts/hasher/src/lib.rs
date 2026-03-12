@@ -5,8 +5,10 @@ mod implementation;
 pub use implementation::HasherClient;
 pub use implementation::exports::*;
 
-#[cfg(feature = "dev")]
 pub use implementation::HasherImpl;
+
+#[cfg(feature = "dev")]
+pub use implementation::test_setup::*;
 
 #[cfg(feature = "bottle-test")]
 mod bottle_test;

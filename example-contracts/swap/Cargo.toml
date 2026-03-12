@@ -9,19 +9,18 @@ doctest = false
 test = false # suppress output from our zero unit-tests
 
 [dependencies]
-primitive-types = { version = "0.13.1", default-features = false, features = ["serde_no_std"] }
+xdrs = { workspace = true }
 sdk = { workspace = true, features = ["storage"] }
 thiserror = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 erc20 = { path = "../erc20" }
+uint = { version = "0.10.0", default-features = false }
 
 [features]
-guest = ["erc20/guest"]
-mock = ["guest", "sdk/mock", "erc20/mock"]
+dev = ["sdk/dev", "erc20/dev"]
 
 [dev-dependencies]
-swap = { path = ".", features = ["mock"] }
+swap = { path = ".", features = ["dev"] }
 
 [[test]]
 name = "pair"
-test = false

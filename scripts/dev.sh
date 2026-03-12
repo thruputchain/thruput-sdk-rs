@@ -67,19 +67,6 @@ make_optimized() {
     wasm-opt -O3 $debugging --enable-bulk-memory -o "${optimized}" "${contract}"
 }
 
-expand_contract() {
-    local package
-    package="$1"; shift
-
-    (
-        cd "$package" &&
-        cargo --config "${SDK_DIR}/.cargo/contract.toml" \
-            expand \
-            --features "sdk/std" \
-            "$@"
-    )
-}
-
 eg_build() {
     local package
     package="$1"; shift
@@ -297,13 +284,13 @@ find_contract_config() {
 }
 
 tree_contract() {
-    local contract_dir
-    contract_dir="$1"; shift
+    local contract
+    contract=$(realpath "$1"); shift
     local config
-    config="$(find_contract_config "$contract_dir")"
+    config="$(find_contract_config "$contract")"
 
     (
-        cd "$contract_dir" &&
+        cd "$contract" &&
         cargo --config "$config" \
             tree \
             --target "wasm32-unknown-unknown" \
@@ -315,7 +302,8 @@ tree_contract() {
 }
 
 expand_contract() {
-    contract="$1"; shift
+    local contract
+    contract=$(realpath "$1"); shift
     local config
     config="$(find_contract_config "$contract")"
 
@@ -323,7 +311,7 @@ expand_contract() {
         cd "$contract" &&
         cargo --config "$config" \
             expand \
-            --features "sdk/std" \
+            --target "wasm32-unknown-unknown" \
             --color=always \
         #
     )
@@ -355,7 +343,9 @@ xxx_check() {
 }
 
 lint() {
-    cargo clippy -F dev "$@"
+    cargo clippy -F dev --lib "$@"
+
+    (cd example-contracts && cargo clippy --workspace -F dev "$@")
 }
 
 lint_check() {
@@ -373,10 +363,10 @@ fmt_check() {
 }
 
 ci_check() {
-    # xxx_check &&
-    fmt_check &&
-    # lint_check &&
     test_all &&
+    (set -x; lint || fail "Trapped lint!") &&
+    fmt_check &&
+    # xxx_check &&
 
     info "CI clean!" ||
     fail "CI failed!"
@@ -413,6 +403,12 @@ case "$action" in
     ls-enabled)
         ls_contract_packages "$1"
         ;;
+    build)
+        dir=$(dirname "$1")
+        pkg=$(basename "$1")
+
+        build_contract "$dir" "$pkg"
+        ;;
     build-examples)
         eg_build_all
         ;;
@@ -420,7 +416,14 @@ case "$action" in
         itc_build_all
         ;;
     test)
-        test_all
+        if [ $# -gt 0 ]; then
+            dir=$(dirname "$1")
+            pkg=$(basename "$1")
+
+            test_contract "$dir" "$pkg"
+        else
+            test_all
+        fi
         ;;
     test-examples)
         eg_test_all
