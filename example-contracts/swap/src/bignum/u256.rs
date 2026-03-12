@@ -1,3 +1,5 @@
+#![allow(clippy::manual_div_ceil)]
+
 use uint::construct_uint;
 use sdk::{ReadXDR, WriteXDR};
 

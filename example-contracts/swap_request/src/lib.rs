@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
+#![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
 use sdk::*;
@@ -40,9 +41,9 @@ impl From<EncodedSwapRequest> for SwapRequest {
     }
 }
 
-impl Into<EncodedSwapRequest> for SwapRequest {
-    fn into(self) -> EncodedSwapRequest {
-        self.id.to_be_bytes()
+impl From<SwapRequest> for EncodedSwapRequest {
+    fn from(s: SwapRequest) -> Self {
+        s.id.to_be_bytes()
     }
 }
 

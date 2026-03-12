@@ -236,9 +236,9 @@ impl ISwapV2Pair for SwapV2Pair {
         token0: &Address,
         token1: &Address,
     ) {
-        self.factory = factory.clone();
-        self.token0 = token0.clone();
-        self.token1 = token1.clone();
+        self.factory = *factory;
+        self.token0 = *token0;
+        self.token1 = *token1;
 
         let lp_contract_owner = factory; // or this_contract() ?
         self.lp.initialize(lp_contract_owner);
@@ -330,8 +330,8 @@ impl ISwapV2Pair for SwapV2Pair {
             InsufficientLiquidityBurned,
         );
         wrap_erc20(|| self.lp.burn(this_contract(), liquidity));
-        self._transfer(0, &to, amount0);
-        self._transfer(1, &to, amount1);
+        self._transfer(0, to, amount0);
+        self._transfer(1, to, amount1);
         let (balance0, balance1) = self._get_token_balances();
 
         self._update(balance0, balance1);
@@ -419,8 +419,8 @@ impl ISwapV2Pair for SwapV2Pair {
         let surplus0 = balance0.strict_sub(self.reserve0.into());
         let surplus1 = balance1.strict_sub(self.reserve1.into());
 
-        self._transfer(0, &to, surplus0);
-        self._transfer(1, &to, surplus1);
+        self._transfer(0, to, surplus0);
+        self._transfer(1, to, surplus1);
     }
 
     // Record current reserve balances
