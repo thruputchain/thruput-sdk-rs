@@ -13,7 +13,7 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
 
     // Create a client to interact with the contract
-    let mut client = ContractClient::new(&addr);
+    let mut client = Client::new(&addr);
 
     client.hello();
 
@@ -75,7 +75,7 @@ pub fn panic_test(contract_hash: &SHA256Hash) {
     //
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
     //
-    let mut client = ContractClient::new(&addr);
+    let mut client = Client::new(&addr);
 
     match client.try_panics() {
         Err(CallError::Fault(f)) => {

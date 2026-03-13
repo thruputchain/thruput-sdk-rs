@@ -5,7 +5,7 @@ use thiserror::Error;
 #[error("MyErr")]
 pub struct MyErr;
 
-#[contract(client = ContractClient, throws = MyErr)]
+#[contract(client = Client, throws = MyErr)]
 pub trait Interface {
     fn hello();
 
