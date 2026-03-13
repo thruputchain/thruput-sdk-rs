@@ -31,6 +31,7 @@ mod util;
 mod xdr;
 
 pub mod call;
+pub use call::{CallError, CallResult};
 
 // TODO: Make these modules pub(crate) in order to allow
 // reorganization without breaking changes.
