@@ -1,5 +1,4 @@
 use counter::CounterClient;
-use sdk::call::CallError;
 use sdk::*;
 
 static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
