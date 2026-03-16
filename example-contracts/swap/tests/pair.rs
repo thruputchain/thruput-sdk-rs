@@ -1,5 +1,5 @@
-use sdk::*;
 use groundhog_erc20_if::ERC20Client;
+use sdk::*;
 use swap::ISwapV2PairClient;
 use swap::{erc20_test_setup, swap_test_setup};
 
@@ -25,7 +25,8 @@ fn swap_test() {
 
     sdk::contract_exec(env, move || {
         swap_test_inner(&swap_hash, &token0_hash, &token1_hash);
-    }).unwrap();
+    })
+    .unwrap();
 }
 
 fn swap_test_inner(
@@ -58,11 +59,7 @@ fn swap_test_inner(
     // Initialize the swap-pair contract with the two tokens
     // (This also initializes the embedded ERC20 implementation.)
     let factory_addr = &test_addr;
-    pair.initialize(
-        &factory_addr,
-        &token0_addr,
-        &token1_addr,
-    );
+    pair.initialize(&factory_addr, &token0_addr, &token1_addr);
 
     // Check how the initial state behaves
 
@@ -80,10 +77,10 @@ fn swap_test_inner(
 
     let lp_addr = ContractAddress::from([43; 32]);
     assert!(pair.try_mint_lp(&lp_addr).is_err());
-        // SwapError::InsufficientLiquidityMinted
+    // SwapError::InsufficientLiquidityMinted
 
     assert!(pair.try_burn_lp(&lp_addr).is_err());
-        // SwapError::NoLiquidityToBurn
+    // SwapError::NoLiquidityToBurn
 
     // Create some tokens for swapping, giving them to alice
     let alice = &test_addr; // this test contract

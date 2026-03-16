@@ -5,7 +5,8 @@
 //! [whitepaper](https://docs.uniswap.org/whitepaper.pdf)
 //! [v2-core](https://github.com/Uniswap/v2-core)
 
-#![allow(ambiguous_glob_reexports)] // XXX: include trait name in generated internal method names to avoid collisions?
+#![allow(ambiguous_glob_reexports)]
+// XXX: include trait name in generated internal method names to avoid collisions?
 #![cfg_attr(not(feature = "dev"), no_std)]
 
 extern crate alloc;
