@@ -112,16 +112,16 @@ where
 
         match result {
             Ok(_) => groundhog_sys::ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeNone as i32,
+                panic: InvokeErrorCode::kInvokeNone.0,
             },
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     return groundhog_sys::ForeignInvokeResult {
-                        panic: my_error.error_type as i32,
+                        panic: my_error.error_type.0,
                     };
                 }
                 groundhog_sys::ForeignInvokeResult {
-                    panic: InvokeErrorCode::kInvokeUnrecoverable as i32,
+                    panic: InvokeErrorCode::kInvokeUnrecoverable.0,
                 }
             }
         }

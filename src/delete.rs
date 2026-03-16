@@ -7,7 +7,7 @@ use groundhog_xdr::storage_item::*;
 pub fn try_delete_shared(key: &StorageKey) -> Result<(), SysErr> {
     let flags = StorageDeltaFlags::kStorageDeltaFlagNone;
 
-    sys::raw_DeleteObject(key, flags as i32)
+    sys::raw_DeleteObject(key, flags.0)
 }
 
 pub fn delete_shared(key: &StorageKey) {
@@ -19,7 +19,7 @@ pub fn delete_shared(key: &StorageKey) {
 pub fn try_delete_exclusive(key: &StorageKey) -> Result<(), SysErr> {
     let flags = StorageDeltaFlags::kStorageDeltaFlagExclusiveLock;
 
-    sys::raw_DeleteObject(key, flags as i32)
+    sys::raw_DeleteObject(key, flags.0)
 }
 
 pub fn delete_exclusive(key: &StorageKey) {

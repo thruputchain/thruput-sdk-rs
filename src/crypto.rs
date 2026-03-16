@@ -22,7 +22,7 @@ pub fn verify_signature_ed25519(
     message: &[u8],
 ) -> bool {
     sys::uninit_VerifySignature(
-        CryptographicScheme::Ed25519 as i32,
+        CryptographicScheme::Ed25519.0,
         signature.as_slice(),
         pk.as_slice(),
         message,

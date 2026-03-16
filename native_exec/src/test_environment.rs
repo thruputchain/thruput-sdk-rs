@@ -49,7 +49,7 @@ unsafe extern "C" fn trampoline(
     match unsafe { (*c).get_func(method) } {
         Some(x) => x(),
         None => groundhog_sys::ForeignInvokeResult {
-            panic: InvokeErrorCode::kInvokeDeterministic as i32,
+            panic: InvokeErrorCode::kInvokeDeterministic.0,
         },
     }
 }

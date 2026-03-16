@@ -92,9 +92,8 @@ mod without_strings {
 
     impl WriteXDR for FaultString {
         fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-            let str_opt: StrOpt = None;
-
-            str_opt.write_xdr(w)
+            // Wire-compatible with Option<&str>::None — just the 0 discriminant
+            w.write_i32(0)
         }
     }
 
