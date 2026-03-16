@@ -30,7 +30,11 @@ mod panic;
 mod util;
 mod xdr;
 
+#[doc(hidden)]
 pub mod call;
+pub use call::{CallError, CallResult};
+
+pub use call::ContractClient;
 
 // TODO: Make these modules pub(crate) in order to allow
 // reorganization without breaking changes.

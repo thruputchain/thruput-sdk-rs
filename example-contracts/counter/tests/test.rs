@@ -1,69 +1,69 @@
-use sdk::contract_test::*;
+use counter::CounterClient;
 use sdk::*;
+
+static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
 
 #[test]
 fn test_counter_basic() {
-    let mut env = TestEnvironment::new(None);
+    let mut env = sdk::TestEnvironment::no_cost();
 
-    // Register the contract with the test environment
     let test_contract = counter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
-        // Deploy the contract
-        let nonce = SHA256Hash::from([1; 32]);
-        let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
+        let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        // Create a client to interact with the contract
-        let mut client = counter::CounterClient::new(&deployed_addr);
+        let mut client = CounterClient::new(&addr);
 
         // Initialize with value 10
-        client.initialize(10).unwrap();
+        client.initialize(10);
 
         // Check initial value
-        let value = client.get().unwrap();
-        assert_eq!(value, 10, "Initial value should be 10");
+        assert_eq!(client.get(), 10);
 
         // Increment by 5
-        client.increment(5).unwrap();
-        let value = client.get().unwrap();
-        assert_eq!(value, 15, "After increment should be 15");
+        client.increment(5);
+        assert_eq!(client.get(), 15);
 
         // Decrement by 3
-        client.decrement(3).unwrap();
-        let value = client.get().unwrap();
-        assert_eq!(value, 12, "After decrement should be 12");
+        client.decrement(3);
+        assert_eq!(client.get(), 12);
     })
-    .unwrap();
+    .unwrap_or_else(|e| panic!("Test failed: {e}"));
 }
 
 #[test]
 fn test_counter_underflow() {
-    let mut env = TestEnvironment::new(None);
+    let mut env = sdk::TestEnvironment::no_cost();
 
     let test_contract = counter::test_setup::register(&mut env);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
-        let nonce = SHA256Hash::from([2; 32]);
-        let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
+        let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        let mut client = counter::CounterClient::new(&deployed_addr);
+        let mut client = CounterClient::new(&addr);
 
         // Initialize with 5
-        client.initialize(5).unwrap();
+        client.initialize(5);
 
-        // Try to decrement by 10 (should fail - would go negative)
-        let result = client.decrement(10);
-
-        // Should get an abort error
-        match result {
-            Err(InvokeError::AbortedWith(_)) => {
-                // Expected - counter refused to go negative
+        // Try to decrement by 10 (should abort - would go negative)
+        match client.try_decrement(10) {
+            Err(CallError::Abort(ref cross_exn)) => {
+                // NNInt underflow is a library exception
+                if let Some(lib_exn) = cross_exn.as_library_exn() {
+                    assert!(
+                        matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
+                        "Expected NonNegativeIntUnderflow, got: {:?}",
+                        lib_exn
+                    );
+                } else {
+                    panic!("Expected library exception, got: {:?}", cross_exn);
+                }
             }
-            Ok(_) => panic!("Decrement should have failed"),
             Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(()) => panic!("Decrement should have failed"),
         }
     })
-    .unwrap();
+    .unwrap_or_else(|e| panic!("Test failed: {e}"));
 }
