@@ -1,7 +1,8 @@
 use crate::abort;
 use crate::exn::*;
-use crate::sys::{SysErr, SyscallErrorCode::*, SyscallNo};
+use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
+#[cfg(feature = "debugging")]
 use thiserror::Error;
 
 pub type Result<T, E = StorageError> = core::result::Result<T, E>;
@@ -9,24 +10,31 @@ pub type Result<T, E = StorageError> = core::result::Result<T, E>;
 #[cfg(feature = "spec")]
 use xdrs::{XDR, xdr_repr::XDR};
 
-#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[cfg_attr(feature = "debugging", derive(Error))]
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[repr(i32)]
 pub enum StorageError {
-    #[error(transparent)]
+    #[cfg_attr(feature = "debugging", error(transparent))]
     Sys { exn: SyscallExn },
 
-    #[error("Storage error due to serialization")]
+    #[cfg_attr(
+        feature = "debugging",
+        error("Storage error due to serialization")
+    )]
     Serialization,
 
-    #[error("Vector index out of bounds: len={len}, access={access}")]
+    #[cfg_attr(
+        feature = "debugging",
+        error("Vector index out of bounds: len={len}, access={access}")
+    )]
     IndexOutOfBounds { len: u64, access: u64 },
 }
 
 impl StorageError {
     pub fn is_storage_key_not_exist(&self) -> bool {
         if let StorageError::Sys { exn } = self {
-            exn.has_code(kSyscallErrorCodeStorageKeyNotExist)
+            exn.has_code(SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)
         } else {
             false
         }

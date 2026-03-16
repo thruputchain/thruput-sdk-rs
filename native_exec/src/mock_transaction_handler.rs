@@ -148,7 +148,7 @@ impl MockInvocationFrame {
         let handler_res = unsafe {
             groundhog_sys::finish_mock_invocation_frame(
                 self.root_handler,
-                error_code as i32,
+                error_code.0,
             )
         };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();
@@ -444,7 +444,7 @@ mod tests {
         assert!(unsafe { SECOND });
         assert_eq!(
             output.status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
     }
 
@@ -463,7 +463,7 @@ mod tests {
             .result();
         assert_eq!(
             output.status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeFault as i32
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeFault.0
         );
     }
 
@@ -502,7 +502,7 @@ mod tests {
             .result();
         assert_eq!(
             output.status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
         assert!(unsafe { FIRST });
         assert!(unsafe { SECOND });
@@ -533,7 +533,7 @@ mod tests {
             .result();
         assert_eq!(
             output.status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
     }
 
@@ -606,11 +606,11 @@ mod tests {
 
         assert_eq!(
             output1.status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
         assert_eq!(
             output2.status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
     }
 }

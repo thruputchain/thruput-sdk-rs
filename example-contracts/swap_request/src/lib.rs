@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use sdk::*;
-use sys::SyscallErrorCode::*;
+use sys::SyscallErrorCode;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");
 
@@ -79,10 +79,13 @@ impl SwapContract {
         // Consume a queue entry
         retrocausal_queue_consume_sized(&REQUEST_QUEUE)
             .map(|r| r.into())
-            .inspect_err(|e|
-                if !e.is_code(kSyscallErrorCodeNoRetrocausalQueueEntry) {
+            .inspect_err(|e| {
+                if !e.is_code(
+                    SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
+                ) {
                     panic!("rcq consume failed: {}", e);
-                })
+                }
+            })
             .ok()
     }
 }

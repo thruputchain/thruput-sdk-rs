@@ -90,7 +90,7 @@ pub fn try_bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageDeltaFlags::kStorageDeltaFlagNone as i32,
+        StorageDeltaFlags::kStorageDeltaFlagNone.0,
     )
 }
 
@@ -105,7 +105,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageDeltaFlags::kStorageDeltaFlagNone as i32,
+        StorageDeltaFlags::kStorageDeltaFlagNone.0,
     )
     .unwrap_or_else(|errno| {
         syscall_abort2(SyscallNo::kBytestringSet, errno);
@@ -128,7 +128,7 @@ pub fn try_bytestring_set_exclusive(
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock as i32,
+        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock.0,
     )
 }
 

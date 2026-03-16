@@ -5,7 +5,7 @@ pub const fn get_precompile_addr(
     addr: GenesisContractAddresses,
 ) -> ContractAddress {
     let mut bytes: [u8; 32] = [0; 32];
-    let addr_bytes = (addr as i32).to_be_bytes();
+    let addr_bytes = (addr.0).to_be_bytes();
     bytes[28] = addr_bytes[0];
     bytes[29] = addr_bytes[1];
     bytes[30] = addr_bytes[2];

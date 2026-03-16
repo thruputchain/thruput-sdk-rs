@@ -21,25 +21,25 @@ pub fn perform_mocked_syscall(
     };
 
     match result.panic {
-        x if x == HostFnErrorCode::kHostNoneOrRecoverable as i32 => {
+        x if x == HostFnErrorCode::kHostNoneOrRecoverable.0 => {
             result.result_code
         }
-        x if x == HostFnErrorCode::kHostOutOfGas as i32 => {
+        x if x == HostFnErrorCode::kHostOutOfGas.0 => {
             panic_any(crate::invoke_error::out_of_gas_error());
         }
-        x if x == HostFnErrorCode::kHostUnrecoverable as i32 => {
+        x if x == HostFnErrorCode::kHostUnrecoverable.0 => {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
-        x if x == HostFnErrorCode::kHostReturn as i32 => {
+        x if x == HostFnErrorCode::kHostReturn.0 => {
             panic_any(crate::invoke_error::return_error());
         }
-        x if x == HostFnErrorCode::kHostExit as i32 => {
+        x if x == HostFnErrorCode::kHostExit.0 => {
             panic_any(crate::invoke_error::exit_error());
         }
-        x if x == HostFnErrorCode::kHostValidationFailure as i32 => {
+        x if x == HostFnErrorCode::kHostValidationFailure.0 => {
             panic_any(crate::invoke_error::validation_error());
         }
-        x if x == HostFnErrorCode::kHostAbortTransaction as i32 => {
+        x if x == HostFnErrorCode::kHostAbortTransaction.0 => {
             panic_any(crate::invoke_error::abort_transaction_error());
         }
         _ => {
@@ -60,7 +60,7 @@ pub extern "C-unwind" fn syscall_wrapper_impl(
     arg7: u64,
 ) -> SysErr {
     SysErr(perform_mocked_syscall(
-        syscall_no as i32,
+        syscall_no.0 as i32,
         arg1,
         arg2,
         arg3,

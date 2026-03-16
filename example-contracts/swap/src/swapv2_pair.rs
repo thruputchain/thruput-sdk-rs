@@ -4,9 +4,9 @@ use crate::bignum::{U112, U256};
 use crate::interfaces::iswapv2_pair::*;
 use core::cmp::min;
 use core::ops::Mul;
-use erc20::TokenContract; // The ERC20 implementation
-use groundhog_erc20_if::{ERC20, ERC20Error, Amount, Difference};
 use erc20::ERC20Client;
+use erc20::TokenContract; // The ERC20 implementation
+use groundhog_erc20_if::{Amount, Difference, ERC20, ERC20Error};
 use sdk::*;
 
 // We need to derive `Storage` because TokenContract is `Storage`
@@ -49,22 +49,17 @@ impl SwapV2Pair {
 
     fn _get_token_balances(&self) -> (Amount, Amount) {
         wrap_erc20(|| {
-            let balance0 = ERC20Client::new(&self.token0)
-                .get_balance_of(this_contract());
+            let balance0 =
+                ERC20Client::new(&self.token0).get_balance_of(this_contract());
 
-            let balance1 = ERC20Client::new(&self.token1)
-                .get_balance_of(this_contract());
+            let balance1 =
+                ERC20Client::new(&self.token1).get_balance_of(this_contract());
 
             (balance0, balance1)
         })
     }
 
-    fn _transfer(
-        &mut self,
-        which: u8,
-        to: &Address,
-        amount: Amount,
-    ) {
+    fn _transfer(&mut self, which: u8, to: &Address, amount: Amount) {
         let token = if which == 0 {
             &mut self.token0
         } else {
@@ -78,10 +73,7 @@ impl SwapV2Pair {
 
     fn _update(&mut self, balance0: Amount, balance1: Amount) {
         // If this fails, `skim()` may be used to extract the overflow
-        self.require(
-            balance0 <= U112::MAX && balance1 <= U112::MAX,
-            Overflow,
-        );
+        self.require(balance0 <= U112::MAX && balance1 <= U112::MAX, Overflow);
 
         // We intentionally truncate here, desiring the timestamp mod 2^32
         let block_timestamp = get_block_timestamp() as u32;
@@ -134,7 +126,6 @@ where
     catch(move |e: &ERC20Error| abort(&wrap(e.clone())), f)
 }
 
-
 fn wrap_erc20<T, F>(f: F) -> T
 where
     F: FnOnce() -> T,
@@ -157,19 +148,12 @@ impl AsMut<TokenContract> for SwapV2Pair {
 // TODO: use delegate?
 #[contract(throws = ERC20Error, version = "0.1.0", exports = "erc20_exports", test_setup = "erc20_test_setup")]
 impl ERC20 for SwapV2Pair {
-    fn initialize(
-        &mut self,
-        _contract_owner: &ContractAddress,
-    ) {
+    fn initialize(&mut self, _contract_owner: &ContractAddress) {
         // Embedded contract does not need initialization
         abort(&ERC20Error::AlreadyInitialized);
     }
 
-    fn transfer(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
         self.lp.transfer(receiver, amount);
     }
 
@@ -206,19 +190,11 @@ impl ERC20 for SwapV2Pair {
         self.lp.get_balance()
     }
 
-    fn mint(
-        &mut self,
-        receiver: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
         self.lp.mint(receiver, amount);
     }
 
-    fn burn(
-        &mut self,
-        owner: &ContractAddress,
-        amount: Amount,
-    ) {
+    fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
         self.lp.mint(owner, amount);
     }
 
@@ -274,7 +250,9 @@ impl ISwapV2Pair for SwapV2Pair {
         // Added liquidity (TODO: check integer size needs)
         let liquidity = if total_liquidity == 0 {
             // Permanently lock the first MINIMUM_LIQUIDITY tokens
-            wrap_erc20(|| self.lp.mint(&Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY));
+            wrap_erc20(|| {
+                self.lp.mint(&Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY)
+            });
 
             amount0
                 .strict_mul(amount1)
@@ -325,10 +303,7 @@ impl ISwapV2Pair for SwapV2Pair {
 
         let amount0 = liquidity.strict_mul(balance0) / total_liquidity;
         let amount1 = liquidity.strict_mul(balance1) / total_liquidity;
-        self.require(
-            amount0 > 0 && amount1 > 0,
-            InsufficientLiquidityBurned,
-        );
+        self.require(amount0 > 0 && amount1 > 0, InsufficientLiquidityBurned);
         wrap_erc20(|| self.lp.burn(this_contract(), liquidity));
         self._transfer(0, to, amount0);
         self._transfer(1, to, amount1);

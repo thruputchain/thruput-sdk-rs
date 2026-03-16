@@ -7,6 +7,7 @@ use crate::xdr::*;
 use crate::{Panic, abort};
 use core::error::Error;
 use core::fmt::{self, Display};
+#[cfg(feature = "debugging")]
 use thiserror::Error;
 #[cfg(feature = "spec")]
 use xdrs::XDR;
@@ -130,7 +131,8 @@ pub fn encoding_abort_abort<E: Error>(e: E) -> ! {
     library_abort(HandlingError::EncodingAbort(FaultString::from_display(e)))
 }
 
-#[derive(Debug, Clone, Copy, Error, ReadXDR, WriteXDR, PartialEq)]
+#[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
+#[cfg_attr(feature = "debugging", derive(Error))]
 #[cfg_attr(feature = "spec", derive(XDR))]
 pub struct SyscallExn {
     callno: SyscallNo,

@@ -1,6 +1,6 @@
 use core::fmt;
-use thiserror::Error;
 use sdk::*;
+use thiserror::Error;
 
 pub use crate::bignum::{U112, U256};
 
@@ -61,12 +61,7 @@ pub trait ISwapV2Pair {
     fn mint_lp(&mut self, to: &Address) -> u128;
     fn burn_lp(&mut self, to: &Address) -> (Amount, Amount);
 
-    fn swap(
-        &mut self,
-        amount0_out: Amount,
-        amount1_out: Amount,
-        to: &Address,
-    );
+    fn swap(&mut self, amount0_out: Amount, amount1_out: Amount, to: &Address);
     fn skim(&mut self, to: &Address);
     fn sync(&mut self);
 }

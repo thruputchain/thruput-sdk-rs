@@ -26,7 +26,7 @@ pub fn set_add(key: &StorageKey, set_value: Option<i128>, add_value: i128) {
         key,
         set_value.as_ref(),
         &add_value,
-        StorageDeltaFlags::kStorageDeltaFlagNone as i32,
+        StorageDeltaFlags::kStorageDeltaFlagNone.0,
     )
     .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
 }
@@ -47,7 +47,7 @@ pub fn set_add_exclusive(
         key,
         set_value.as_ref(),
         &add_value,
-        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock as i32,
+        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock.0,
     )
     .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
 }
