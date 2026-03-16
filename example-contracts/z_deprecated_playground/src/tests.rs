@@ -19,7 +19,7 @@ fn check_playground() {
     let res = handler.root_invoke();
     assert_eq!(
         res.output.status_code(),
-        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn as i32
+        InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
     );
 }
 

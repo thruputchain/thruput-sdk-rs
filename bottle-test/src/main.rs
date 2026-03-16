@@ -1,7 +1,7 @@
 use bottle_test_if::*;
 use sdk::deploy_address;
 use sdk::load_wasm_contract;
-use sdk::transaction::InvocationFrameStatusCode::*;
+use sdk::transaction::InvocationFrameStatusCode;
 use sdk::*;
 
 pub fn main() {
@@ -64,7 +64,9 @@ fn bottle_test(package: &str) {
     });
 
     let res = handler.root_invoke();
-    if res.output.status_code() != kInvocationFrameStatusCodeReturn as i32 {
+    if res.output.status_code()
+        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+    {
         panic!(
             "Bottle-test invocation failed with code {}",
             res.output.status_code()
