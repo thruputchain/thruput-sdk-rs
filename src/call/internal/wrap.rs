@@ -5,11 +5,9 @@ use crate::{AbortInfo, Never};
 ///
 pub fn method_abort_handler<'a, E>(info: AbortInfo<'a>) -> Never
 where
-    E: Exn + Clone + 'static,
+    E: Exn + 'static,
 {
-    // Downcast to a concrete exception
-    let a = CrossExn::<E>::from_abort_info(info);
-
-    // Encode that and call VM abort
-    crate::contract_abort_encoded(&a);
+    // Downcast the payload by reference and serialize directly,
+    // without cloning.
+    CrossExn::<E>::serialize_abort(info.payload());
 }

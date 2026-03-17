@@ -2,6 +2,7 @@
 
 use super::Exn;
 use super::{LibraryExn, SyscallExn};
+#[cfg(feature = "debugging")]
 use crate::AbortInfo;
 use crate::call::CallError;
 use crate::sys::{SyscallErrorCode, SyscallNo};
@@ -123,26 +124,20 @@ impl<E> CrossExn<E>
 where
     E: Exn,
 {
+    #[cfg(feature = "debugging")]
     pub fn from_abort_info<'a>(info: AbortInfo<'a>) -> Self
     where
         E: Clone + 'static,
     {
         let exn = Inner::from_any(info.payload());
+        let backtrace = info.backtrace().map(|bt| format(&bt));
+        let location = Some(format(info.location()));
 
-        #[cfg(feature = "debugging")]
-        {
-            let backtrace = info.backtrace().map(|bt| format(&bt));
-            let location = Some(format(info.location()));
-
-            Self {
-                exn,
-                backtrace,
-                location,
-            }
+        Self {
+            exn,
+            backtrace,
+            location,
         }
-
-        #[cfg(not(feature = "debugging"))]
-        Self { exn }
     }
 
     // An error resulting from a contract-call
@@ -204,6 +199,50 @@ where
             .map(|e| e.is(call_no, err_code))
             .unwrap_or(false)
     }
+
+    /// Serialize an abort payload directly into the `Inner` wire format,
+    /// by borrowing the payload rather than cloning it.
+    ///
+    /// This performs the same three-way downcast dispatch as
+    /// `Inner::from_any`, but serializes each variant by reference
+    /// instead of cloning into an owned `Inner`. The two must be kept
+    /// in sync.
+    ///
+    pub fn serialize_abort(payload: &dyn Any) -> !
+    where
+        E: 'static,
+    {
+        use crate::call::internal::contract_call_encode;
+        use crate::exn::encoding_abort_abort;
+
+        fn encode_variant<T: WriteXDR>(
+            discriminant: i32,
+            payload: &T,
+        ) -> WriteResult<crate::call::internal::EncodeBuf> {
+            contract_call_encode(&(discriminant, payload))
+        }
+
+        let buf = if let Some(e) = payload.downcast_ref::<E>() {
+            //
+            // We got an abort value of the expected type.
+            //
+            encode_variant(INNER_CONTRACT, e)
+        } else if let Some(e) = payload.downcast_ref::<LibraryExn>() {
+            //
+            // The SDK library aborted.
+            //
+            encode_variant(INNER_LIBRARY, e)
+        } else {
+            //
+            // Something else!
+            //
+            contract_call_encode(&INNER_UNKNOWN)
+        };
+
+        let buf = buf.unwrap_or_else(|e| encoding_abort_abort(e));
+
+        crate::contract_abort(buf.as_ref());
+    }
 }
 
 #[cfg(feature = "debugging")]
@@ -227,24 +266,32 @@ where
     E: Exn,
 {
     #[cfg_attr(feature = "debugging", error(transparent))]
-    Contract(E),
+    Contract(E) = INNER_CONTRACT,
 
     #[cfg_attr(feature = "debugging", error(transparent))]
-    Library(LibraryExn),
+    Library(LibraryExn) = INNER_LIBRARY,
 
     #[cfg_attr(feature = "debugging", error("Unknown error"))]
-    Unknown,
+    Unknown = INNER_UNKNOWN,
 }
 
-impl<E> Inner<E>
-where
-    E: Exn,
-{
+// Discriminant constants for Inner's repr(i32) variants.
+// Used both by the enum itself and by serialize_abort.
+const INNER_CONTRACT: i32 = 0;
+const INNER_LIBRARY: i32 = 1;
+const INNER_UNKNOWN: i32 = 2;
+
+#[cfg(feature = "debugging")]
+impl<E: Exn> Inner<E> {
     /// Make a `CrossExn` from a dynamically-typed value.
     ///
     /// We can handle:
     /// - An expected exception-type `E` specified by the caller.
     /// - A "library" exception from this SDK.
+    ///
+    /// NOTE: The downcast dispatch here must be kept in sync with
+    /// `CrossExn::serialize_abort`, which performs the same three-way
+    /// dispatch but serializes by reference instead of cloning.
     ///
     pub fn from_any(payload: &dyn Any) -> Self
     where
@@ -266,5 +313,106 @@ where
             //
             Self::Unknown
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::call::internal::contract_call_encode;
+    use crate::exn::library::SyscallExn;
+    use crate::sys::{SysErr, SyscallNo};
+
+    /// Verify that the manual encoding used by serialize_abort produces
+    /// the same wire format as the derive(WriteXDR) on Inner/CrossExn.
+    // A contract-level exception type for testing the Contract variant
+    #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error)]
+    #[repr(i32)]
+    enum TestExn {
+        #[error("boom")]
+        Boom = 1,
+    }
+
+    #[test]
+    fn serialize_abort_matches_derive_for_contract_exn() {
+        let exn = TestExn::Boom;
+
+        let derived = {
+            let inner = Inner::<TestExn>::Contract(exn.clone());
+            cxs::encode(&inner).unwrap()
+        };
+
+        let manual = contract_call_encode(&(INNER_CONTRACT, &exn)).unwrap();
+
+        assert_eq!(derived, &manual[..]);
+    }
+
+    #[test]
+    fn serialize_abort_matches_derive_for_library_exn() {
+        let exn = LibraryExn::NonNegativeIntOverflow;
+
+        // Derive path: construct an Inner and encode it
+        let derived = {
+            let inner = Inner::<Infallible>::Library(exn.clone());
+            cxs::encode(&inner).unwrap()
+        };
+
+        // Manual path: encode (discriminant, payload) tuple
+        let manual = contract_call_encode(&(INNER_LIBRARY, &exn)).unwrap();
+
+        assert_eq!(derived, &manual[..]);
+    }
+
+    #[test]
+    fn serialize_abort_matches_derive_for_syscall_exn() {
+        let exn = LibraryExn::Syscall(SyscallExn::new(
+            SyscallNo::kBytestringGet,
+            SysErr(42),
+        ));
+
+        let derived = {
+            let inner = Inner::<Infallible>::Library(exn.clone());
+            cxs::encode(&inner).unwrap()
+        };
+
+        let manual = contract_call_encode(&(INNER_LIBRARY, &exn)).unwrap();
+
+        assert_eq!(derived, &manual[..]);
+    }
+
+    #[test]
+    fn serialize_abort_matches_derive_for_unknown() {
+        let derived = {
+            let inner = Inner::<Infallible>::Unknown;
+            cxs::encode(&inner).unwrap()
+        };
+
+        let manual = contract_call_encode(&INNER_UNKNOWN).unwrap();
+
+        assert_eq!(derived, &manual[..]);
+    }
+
+    #[test]
+    fn inner_roundtrip_library() {
+        // Encode a LibraryExn via the manual path
+        let exn = LibraryExn::NonNegativeIntUnderflow;
+        let bytes = contract_call_encode(&(INNER_LIBRARY, &exn)).unwrap();
+
+        // Decode as Inner (what serialize_abort writes)
+        let decoded: Inner<Infallible> = cxs::decode(&bytes[..]).unwrap();
+
+        assert_eq!(
+            decoded,
+            Inner::Library(LibraryExn::NonNegativeIntUnderflow)
+        );
+    }
+
+    #[test]
+    fn inner_roundtrip_unknown() {
+        let bytes = contract_call_encode(&INNER_UNKNOWN).unwrap();
+
+        let decoded: Inner<Infallible> = cxs::decode(&bytes[..]).unwrap();
+
+        assert_eq!(decoded, Inner::Unknown);
     }
 }
