@@ -215,6 +215,16 @@ where
         use crate::call::internal::contract_call_encode;
         use crate::exn::encoding_abort_abort;
 
+        // When debugging is enabled, CrossExn has location and backtrace
+        // fields after the Inner payload. We write None for both since
+        // we don't have caller location info on the borrow path.
+        #[cfg(feature = "debugging")]
+        let debug_suffix: (
+            Option<&LocationString>,
+            Option<&BacktraceString>,
+        ) = (None, None);
+
+        #[cfg(not(feature = "debugging"))]
         fn encode_variant<T: WriteXDR>(
             discriminant: i32,
             payload: &T,
@@ -226,17 +236,46 @@ where
             //
             // We got an abort value of the expected type.
             //
-            encode_variant(INNER_CONTRACT, e)
+            #[cfg(not(feature = "debugging"))]
+            {
+                encode_variant(INNER_CONTRACT, e)
+            }
+            #[cfg(feature = "debugging")]
+            contract_call_encode(&(
+                INNER_CONTRACT,
+                e,
+                debug_suffix.0,
+                debug_suffix.1,
+            ))
         } else if let Some(e) = payload.downcast_ref::<LibraryExn>() {
             //
             // The SDK library aborted.
             //
-            encode_variant(INNER_LIBRARY, e)
+            #[cfg(not(feature = "debugging"))]
+            {
+                encode_variant(INNER_LIBRARY, e)
+            }
+            #[cfg(feature = "debugging")]
+            contract_call_encode(&(
+                INNER_LIBRARY,
+                e,
+                debug_suffix.0,
+                debug_suffix.1,
+            ))
         } else {
             //
             // Something else!
             //
-            contract_call_encode(&INNER_UNKNOWN)
+            #[cfg(not(feature = "debugging"))]
+            {
+                contract_call_encode(&INNER_UNKNOWN)
+            }
+            #[cfg(feature = "debugging")]
+            contract_call_encode(&(
+                INNER_UNKNOWN,
+                debug_suffix.0,
+                debug_suffix.1,
+            ))
         };
 
         let buf = buf.unwrap_or_else(|e| encoding_abort_abort(e));
