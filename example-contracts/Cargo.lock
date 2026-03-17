@@ -2455,9 +2455,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-common"
-version = "0.5.0"
+version = "0.5.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "5f37325215270fa9b7a3aa00b09d6aa5c9d23e520a89e0f5ebddb07eecb032af"
+checksum = "c5a085eb62ec9f97882dc0a94523ec76f1189f7d5e5675ac0fc9c02227b9d1f2"
 dependencies = [
  "escape-bytes",
  "hex",
@@ -2465,9 +2465,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-derive"
-version = "0.5.0"
+version = "0.5.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "2b094c7ca2f5cf454287d2270cf61eb81570f83c4c5a1e11100c61979bee589e"
+checksum = "95f012e9062f75a31d91a4b50f30d6e3162593ce43e1788a20037fc12c347a78"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2477,18 +2477,18 @@ dependencies = [
 
 [[package]]
 name = "xdr-repr"
-version = "0.5.0"
+version = "0.5.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "b6bac715ccc7daced76441e4801e79960360cdaf1e1956b37447c455b33e95c8"
+checksum = "466411c0bd70e288e76cc129bb80d77ee9cad1c428b1b613df11a74e3aa4898c"
 dependencies = [
  "xdr-common",
 ]
 
 [[package]]
 name = "xdrs"
-version = "0.5.0"
+version = "0.5.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d84dbebd0fbc1229f3daef973bdc0bafca67fe8f7ed9597b6ec53cbc0028748f"
+checksum = "f2f2fffabd63f267815264ede497fe023fecb68d5fde3915e8eb664a2b14804d"
 dependencies = [
  "heapless",
  "thiserror",
