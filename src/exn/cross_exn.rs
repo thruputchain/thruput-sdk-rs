@@ -208,6 +208,15 @@ where
     /// instead of cloning into an owned `Inner`. The two must be kept
     /// in sync.
     ///
+    /// Serialize an abort payload and call contract_abort.
+    ///
+    /// In production (non-debugging) builds, this downcasts the payload
+    /// by reference and serializes directly — no clone needed.
+    ///
+    /// In debugging builds, we use the full `from_abort_info` path which
+    /// clones the payload but captures location and backtrace info.
+    ///
+    #[cfg(not(feature = "debugging"))]
     pub fn serialize_abort(payload: &dyn Any) -> !
     where
         E: 'static,
@@ -215,16 +224,6 @@ where
         use crate::call::internal::contract_call_encode;
         use crate::exn::encoding_abort_abort;
 
-        // When debugging is enabled, CrossExn has location and backtrace
-        // fields after the Inner payload. We write None for both since
-        // we don't have caller location info on the borrow path.
-        #[cfg(feature = "debugging")]
-        let debug_suffix: (
-            Option<&LocationString>,
-            Option<&BacktraceString>,
-        ) = (None, None);
-
-        #[cfg(not(feature = "debugging"))]
         fn encode_variant<T: WriteXDR>(
             discriminant: i32,
             payload: &T,
@@ -236,46 +235,17 @@ where
             //
             // We got an abort value of the expected type.
             //
-            #[cfg(not(feature = "debugging"))]
-            {
-                encode_variant(INNER_CONTRACT, e)
-            }
-            #[cfg(feature = "debugging")]
-            contract_call_encode(&(
-                INNER_CONTRACT,
-                e,
-                debug_suffix.0,
-                debug_suffix.1,
-            ))
+            encode_variant(INNER_CONTRACT, e)
         } else if let Some(e) = payload.downcast_ref::<LibraryExn>() {
             //
             // The SDK library aborted.
             //
-            #[cfg(not(feature = "debugging"))]
-            {
-                encode_variant(INNER_LIBRARY, e)
-            }
-            #[cfg(feature = "debugging")]
-            contract_call_encode(&(
-                INNER_LIBRARY,
-                e,
-                debug_suffix.0,
-                debug_suffix.1,
-            ))
+            encode_variant(INNER_LIBRARY, e)
         } else {
             //
             // Something else!
             //
-            #[cfg(not(feature = "debugging"))]
-            {
-                contract_call_encode(&INNER_UNKNOWN)
-            }
-            #[cfg(feature = "debugging")]
-            contract_call_encode(&(
-                INNER_UNKNOWN,
-                debug_suffix.0,
-                debug_suffix.1,
-            ))
+            contract_call_encode(&INNER_UNKNOWN)
         };
 
         let buf = buf.unwrap_or_else(|e| encoding_abort_abort(e));
