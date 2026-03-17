@@ -9,7 +9,8 @@ pub use with_strings::*;
 #[cfg(not(feature = "fault_strings"))]
 pub use without_strings::*;
 
-// This is the type we'll actually serialize, in either implementation
+// This is the type serialized by the `with_strings` implementation
+#[cfg(any(test, feature = "fault_strings"))]
 type StrOpt<'a> = Option<&'a str>;
 
 #[cfg(any(test, feature = "fault_strings"))]
@@ -84,6 +85,7 @@ mod with_strings {
 }
 
 #[cfg(any(test, not(feature = "fault_strings")))]
+#[allow(dead_code)]
 mod without_strings {
     use super::*;
 
@@ -91,16 +93,15 @@ mod without_strings {
     pub struct FaultString;
 
     impl WriteXDR for FaultString {
-        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-            // Wire-compatible with Option<&str>::None — just the 0 discriminant
-            w.write_i32(0)
+        #[inline(always)]
+        fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
+            Ok(())
         }
     }
 
     impl<'r> ReadXDR<'r> for FaultString {
-        fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
-            let _str_opt: StrOpt = read_xdr(r)?;
-
+        #[inline(always)]
+        fn read_xdr<R: Reader<'r>>(_r: &mut R) -> ReadResult<Self> {
             Ok(Self)
         }
     }
@@ -143,26 +144,21 @@ impl Display for FaultString {
 }
 
 #[test]
-fn with_strings_to_without() {
+fn with_strings_roundtrip() {
     let bytes = txs::encode(&with_strings::FaultString::empty()).unwrap();
-    let s: without_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
+    let s: with_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
     assert_eq!(s.as_str(), "<fault>");
 
     let bytes =
         txs::encode(&with_strings::FaultString::from_display("foo")).unwrap();
-    let s: without_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
-    assert_eq!(s.as_str(), "<fault>");
+    let s: with_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
+    assert_eq!(s.as_str(), "foo");
 }
 
 #[test]
-fn without_strings_to_with() {
-    let bytes = txs::encode(&without_strings::FaultString::empty()).unwrap();
-    let s: with_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
-    assert_eq!(s.as_str(), "<fault>");
-
-    let bytes =
-        txs::encode(&without_strings::FaultString::from_display("foo"))
-            .unwrap();
-    let s: with_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
+fn without_strings_roundtrip() {
+    let bytes = txs::encode(&without_strings::FaultString).unwrap();
+    assert!(bytes.is_empty());
+    let s: without_strings::FaultString = txs::decode(bytes.as_ref()).unwrap();
     assert_eq!(s.as_str(), "<fault>");
 }
