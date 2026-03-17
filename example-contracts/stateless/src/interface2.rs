@@ -1,5 +1,5 @@
-use sdk::*;
 use crate::Stateless;
+use sdk::*;
 
 #[contract(interface = "Interface2", client = Client)]
 trait Interface {

@@ -11,5 +11,3 @@ impl Stateless {
     #[allow(dead_code)]
     fn private() {}
 }
-
-
