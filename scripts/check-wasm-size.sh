@@ -24,6 +24,21 @@ fi
 WASM_DIR="$1"
 fail=0
 
+# Contracts that intentionally use panic!() or exercise abort/exception paths.
+# These are expected to contain embedded path strings.
+ALLOW_LIST="exceptions"
+
+is_allowed() {
+    local name="$1"
+    local base="${name%.wasm}"
+    for allowed in $ALLOW_LIST; do
+        if [ "$base" = "$allowed" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 for wasm in "$WASM_DIR"/*.wasm; do
     [ -f "$wasm" ] || continue
     name=$(basename "$wasm")
@@ -31,9 +46,13 @@ for wasm in "$WASM_DIR"/*.wasm; do
     rs_paths=$(strings "$wasm" | grep -E '\.rs$' || true)
 
     if [ -n "$rs_paths" ]; then
-        echo "FAIL: $name contains embedded file-path strings:"
-        echo "$rs_paths" | sed 's/^/  /'
-        fail=1
+        if is_allowed "$name"; then
+            echo "SKIP: $name (allowlisted)"
+        else
+            echo "FAIL: $name contains embedded file-path strings:"
+            echo "$rs_paths" | sed 's/^/  /'
+            fail=1
+        fi
     else
         echo "OK:   $name"
     fi
