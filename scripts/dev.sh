@@ -367,9 +367,15 @@ ci_check() {
     (set -x; lint || fail "Trapped lint!") &&
     fmt_check &&
     # xxx_check &&
+    check_wasm_strings &&
 
     info "CI clean!" ||
     fail "CI failed!"
+}
+
+check_wasm_strings() {
+    info "Checking WASM binaries for embedded path strings"
+    bash "${SDK_DIR}/scripts/check-wasm-size.sh" "$CONTRACT"
 }
 
 info() {
