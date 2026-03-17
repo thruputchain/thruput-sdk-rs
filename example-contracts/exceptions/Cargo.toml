@@ -20,7 +20,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["debugging"] }
 xdrs = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
