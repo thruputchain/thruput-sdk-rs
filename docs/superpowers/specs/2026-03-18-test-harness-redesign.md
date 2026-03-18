@@ -20,11 +20,19 @@ Pain points:
 
 ### Approach
 
-Build a fluent, plain-Rust API on top of `MockTransactionHandler` as the primary test pattern. The new API lives in `native_exec` (where the FFI interaction happens) and is re-exported by the SDK crate. No new wrapper types around `TestEnvironment` — the ergonomic methods are added directly to it.
+Build a fluent, plain-Rust API on top of `MockTransactionHandler` as the primary test pattern. The new API lives in `native_exec` (where the FFI interaction happens) and is re-exported by the SDK crate. No new wrapper types around `TestEnvironment` — the ergonomic methods are added directly to `TestEnvironmentHandle` (the `Rc<TestEnvironment>` alias that all existing methods use).
+
+### Prerequisites: MockTransactionHandler State Machine Fixes
+
+The current `MockTransactionHandler` never transitions its `state` field out of `NotStarted` — `open_root_frame()` does not set `Running`, and nothing sets `RootInvokeFinished`. This means `try_commit_transaction()` and `abort_transaction()` (which both assert `state == RootInvokeFinished`) are currently unreachable on `MockTransactionHandler`. The new wrapper needs these to work, so as part of implementation:
+
+1. `open_root_frame()` (or the frame's first `execute`) must transition state to `Running`
+2. When the root frame closes (via `close_frame_internal`), state must transition to `RootInvokeFinished`
+3. `get_event_logs()` must be added to `MockTransactionHandler` (the FFI calls `get_event_log`/`get_event_log_len` take the same `syscall_handler` pointer that `MockTransactionHandler` already holds). Event access requires committed/aborted state, so the wrapper must call `try_commit_transaction` before reading events.
 
 ### Entry Point: `TestEnvironment`
 
-New ergonomic methods added directly to `TestEnvironment` / `TestEnvironmentHandle`:
+New ergonomic methods added to `TestEnvironmentHandle` (the `Rc<TestEnvironment>` type that `TestEnvironment::no_cost()` etc. return):
 
 ```rust
 let env = TestEnvironment::no_cost();
@@ -36,7 +44,10 @@ let contract = env.add_mock_contract(|c| {
 let hash = env.register_contract(&contract);
 let addr = env.deploy(&hash, &nonce);
 
-// Convenience: register + deploy in one step using TestRegister trait
+// Convenience: register + deploy in one step using TestRegister trait.
+// Uses a deterministic nonce derived from the contract hash (sufficient for
+// single-deploy tests; pass an explicit nonce if deploying the same contract
+// to multiple addresses).
 let addr = env.deploy_mock::<MyContractImpl>();
 
 // Environment management
@@ -63,7 +74,7 @@ let result = env.transact(|tx| {
 result.assert_success();
 ```
 
-`transact()` creates a `MockTransactionHandler`, gives the closure a `Transaction` handle, and auto-commits when the closure returns.
+`transact()` creates a `MockTransactionHandler`, gives the closure a `Transaction` handle, and always calls `try_commit_transaction` when the closure returns (regardless of whether the root frame succeeded or failed — hogd handles the abort internally when the root frame reverted). The returned `TransactResult` contains both the frame outcome and the commit outcome.
 
 **Manual commit — when you need control over the commit step:**
 
@@ -92,6 +103,8 @@ tx.call(&addr)                          // sets contract address
   .run(|| { /* single-shot */ })        // execute, close frame, return FrameResult
 ```
 
+`run()` wraps the underlying `MockInvocationFrame::execute()` — it passes the user's closure (wrapped to return `false`, closing the frame) and then calls `.result()`. The user's closure takes no arguments because in the single-shot case there's no need for the frame reference (no child frames, no continuation).
+
 **Child frame (via parent frame, advanced):**
 
 ```rust
@@ -103,21 +116,29 @@ frame.child_call(&other_addr)
 
 **Continuable frames (advanced, for interleaving/nesting):**
 
+`run_continuable()` returns a `ContinuableFrame` — an intermediate builder that holds the underlying `MockInvocationFrame` and supports chaining additional `run_continuable()` calls or extracting the final result with `finish()`.
+
 ```rust
+pub enum FrameAction {
+    Continue,   // keep frame open (was: return true)
+    Close,      // close frame (was: return false)
+}
+
+// ContinuableFrame wraps &mut MockInvocationFrame, returned by run_continuable()
 tx.call(&addr)
-  .run_continuable(|frame| {
+  .run_continuable(|frame: &mut ContinuableFrame| {
       let child_result = frame.child_call(&other_addr)
           .run(|| { /* child contract code */ });
 
       FrameAction::Continue  // keep this frame open
   })
-  .run_continuable(|frame| {
+  .run_continuable(|frame: &mut ContinuableFrame| {
       FrameAction::Close
   })
   .finish()                             // extracts FrameResult
 ```
 
-`FrameAction::Continue` / `FrameAction::Close` replaces the bool return.
+`run_continuable` maps to the underlying `execute()`, translating `FrameAction::Continue` → `true`, `FrameAction::Close` → `false`. The closure receives `&mut ContinuableFrame` (a thin wrapper around `&mut MockInvocationFrame` wrapped with `AssertUnwindSafe`) which exposes `child_call()` for nested frames. `finish()` calls the underlying `result()` and returns a `FrameResult`. If `finish()` is not called, `ContinuableFrame`'s `Drop` impl closes the frame to prevent the panic in `MockInvocationFrame::drop`.
 
 ### Result Types
 
@@ -140,8 +161,9 @@ impl FrameResult {
     // Decode abort buffer as a typed error
     fn assert_abort_with<E: Exn>(&self, check: impl FnOnce(&E));
 
-    // Access return data
+    // Access return/abort data
     fn return_buffer(&self) -> &[u8];   // panics if not success
+    fn abort_buffer(&self) -> &[u8];    // panics if not abort
 
     // Raw access
     fn output(&self) -> &InvocationFrameOutput;
