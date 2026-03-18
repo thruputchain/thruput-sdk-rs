@@ -114,7 +114,10 @@ fn set_negative_sum_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntSetAdd,
                 SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -141,7 +144,10 @@ fn set_negative_then_positive_then_negative_sum_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntSetAdd,
                 SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -159,7 +165,10 @@ fn get_unset_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntGet,
                 SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -181,7 +190,10 @@ fn get_wrong_type_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntGet,
                 SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -203,7 +215,10 @@ fn try_get_wrong_type_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntGet,
                 SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -226,7 +241,10 @@ fn delete_actually_deletes() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntGet,
                 SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }

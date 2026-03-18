@@ -135,7 +135,10 @@ fn force_get_on_wrong_type_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntGet,
                 SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
@@ -154,7 +157,10 @@ fn set_add_negative_sum_fails() {
             if exn.is_syscall_exn(
                 SyscallNo::kNonnegativeIntSetAdd,
                 SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) => println!("OK: {}", exn),
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
         _ => panic!("Unexpected result: {:?}", res),
     }
 }
