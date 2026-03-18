@@ -74,7 +74,7 @@ contract_test!(test_internal_nnints {
 });
 
 #[test]
-// Get (not forcing) on a never-before-set location succeeds.  XXX(NNInt): Is this okay?
+// Get (not forcing) on a never-before-set location succeeds.
 fn get_on_empty_succeeds() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         get_values(&StorageKey::default());
@@ -86,7 +86,7 @@ fn get_on_empty_succeeds() {
 }
 
 #[test]
-// Get (not forcing) on a wrong-type location succeeds.  XXX(NNInt): Is this okay?
+// Get (not forcing) on a wrong-type location succeeds.
 fn get_on_wrong_type_succeeds() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
@@ -141,7 +141,7 @@ fn force_get_on_wrong_type_fails() {
 }
 
 #[test]
-// We can't give "set" and "add" values whose sum would be negative. XXX(NNInt): Why?
+// We can't give "set" and "add" values whose sum is negative.
 fn set_add_negative_sum_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let set = 1;
@@ -162,7 +162,7 @@ fn set_add_negative_sum_fails() {
 #[test]
 #[should_panic = "Transaction failed"]
 // We can call `set_add(None, -3)`, but the transaction reverts.
-fn negative_increment_fails() {
+fn negative_increment_reverts() {
     contract_exec(TestEnvironment::no_cost(), || {
         set_add(&StorageKey::default(), None, -3);
     });
@@ -172,7 +172,7 @@ fn negative_increment_fails() {
 #[should_panic = "Transaction failed"]
 // We can make serial `set_add` calls such that the total would be negative,
 // but the transaction reverts.
-fn negative_set_add_serially_fails() {
+fn negative_set_add_serially_reverts() {
     contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
 

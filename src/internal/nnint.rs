@@ -12,12 +12,14 @@
 //! cell when it contains a nnint, notionally with types `Option<i128>` and
 //! `i128`, respectively.
 //!
-//! Calling `set_add(s, a)` replaces these pending values; this always succeeds.
+//! Calling `set_add(s_opt, a)` replaces these pending values; this always
+//! succeeds unless `s_opt.and_then(|s| s + a < 0)`.
 //!
-//! Calling `get_values` (without forcing) returns the values. This aborts if
-//! the location does not contain a non-negative-int.
+//! Calling `get_values` (without forcing) returns the pending values without
+//! consulting the database.  It provides a "set" value only if a set operation
+//! has been used in this transaction.
 //!
-//! The function `get_values_force` retrieves the pending "set" value if
+//! The function `get_values_force` returns the pending "set" value if
 //! available, or else loads the snapshot value from the database. This aborts
 //! if the location does not contain a non-negative-int.
 
@@ -31,7 +33,7 @@ use crate::*;
 ///
 /// This discards any values previously present.
 ///
-/// If `set_value` is `Some(s)` and `s + add_value` is negative, this aborts. XXX(NNInt): Is this necessary?
+/// This aborts if `s_opt.and_then(|s| s + a < 0)`.
 ///
 pub fn set_add(key: &StorageKey, set_value: Option<i128>, add_value: i128) {
     sys::raw_NonnegativeIntSetAdd(
@@ -69,7 +71,7 @@ pub fn set_add_exclusive(
 ///
 /// If the storage location has not yet been loaded, this succeeds no matter
 /// what is at the location (including nothing or a value of another storage
-/// type). XXX(NNInt): Is this okay?
+/// type).
 ///
 pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
     _get_values(key, false)
@@ -80,6 +82,8 @@ pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
 ///
 /// This behaves like `get_values`, except if the pending "set" value is
 /// `None`, we instead load and return the last-committed value.
+///
+/// This aborts if the location does not contain a nnint.
 ///
 pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
     match _get_values(key, true) {
@@ -97,8 +101,8 @@ pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
 /// Optionally get the pending "set" and "add" values, loading if necessary.
 ///
 /// This behaves like `get_values_force`, except it returns `None` if the
-/// storage location has never been written.  If a value of another storage
-/// type is there, it aborts.
+/// storage location has never been written.  (If a value of another storage
+/// type is there, it aborts.)
 ///
 pub fn try_get_values_force(key: &StorageKey) -> Option<(i128, i128)> {
     match _get_values(key, true) {
@@ -117,8 +121,7 @@ pub fn try_get_values_force(key: &StorageKey) -> Option<(i128, i128)> {
 // Returns an error if `force_load_set` is true and the location does not
 // contain a non-negative integer.
 //
-// If the snapshot has not yet been loaded and forcing is not requested,
-// then GET always succeeds, no matter what is at the location. XXX(NNInt): Reasonable.
+// Otherwise, this always succeeds no matter what is at the location.
 //
 fn _get_values(
     key: &StorageKey,

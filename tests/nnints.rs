@@ -17,13 +17,13 @@ contract_test!(test_nnints {
     let mut n = 0;
 
     // Incrementing a previously-unset location succeeds, as the underlying
-    // operation is `set_add`
+    // operation is `set_add(None, add)`.
     let inc = 3;
     non_negative_int_inc(key, inc); n += inc;
     assert_eq!(non_negative_int_get(key), n);
 
-    // Incrementing (again, via `set_add`) succeeds even if we put a value of
-    // another storage type there:
+    // Incrementing (again, via `set_add`) succeeds even if a value of another
+    // storage type is there:
     bytestring_set(key, b""); n = 0;
     non_negative_int_inc(key, inc); n += inc;
     assert_eq!(non_negative_int_get(key), n);
@@ -56,8 +56,17 @@ contract_test!(test_nnints {
     non_negative_int_set(key, n);
     assert_eq!(non_negative_int_get(key), n);
 
-    // Revert restores the value at the start of the transaction
-    non_negative_int_restore(key); n = 0;
+    // We can increment even if it remains negative
+    let inc = 1;
+    non_negative_int_inc(key, inc); n += inc;
+
+    // Reset restores the value at the start of the transaction, if any.
+    non_negative_int_reset(key); n = 0;
+    assert_eq!(non_negative_int_get(key), n);
+
+    // Reset even destroys values of other types
+    bytestring_set(key, b"");
+    non_negative_int_reset(key); n = 0;
     assert_eq!(non_negative_int_get(key), n);
 
     // We can delete the location and then set again
@@ -66,10 +75,31 @@ contract_test!(test_nnints {
     non_negative_int_set(key, n);
 });
 
+// After calling `set` with a negative number, increments are allowed even if
+// they result in a negative sum again.  And the transaction succeeds.
+//
 #[test]
-// We can't use "set" and then later make an increment that results
-// in a negative value; this leads (in the second call below) to
-// `set_add(Some(2), -5`, which causes a syscall error.
+fn set_negative_then_increment_succeeds() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
+        let key = &key;
+
+        non_negative_int_set(key, -3);
+        non_negative_int_inc(key, 1);
+    });
+
+    if !res.is_ok() {
+        panic!("Unexpected failure: {:?}", res);
+    }
+}
+
+// We can't set a positive value and then make an increment that results
+// in a negative value.  This aborts.
+//
+// [This leads (in the second call below) to `set_add(Some(2), -5)`, which
+// causes a syscall error.]
+//
+#[test]
 fn set_negative_sum_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
@@ -89,41 +119,36 @@ fn set_negative_sum_fails() {
     }
 }
 
+// If the last set was positive, we can't do an increment that results in a
+// negative.  This aborts.
+//
+// [Same mechanics as above.]
+//
 #[test]
-// Restore on a previously-unset location succeeds XXX(NNInt): Is this okay, and what is committed?
-fn restore_unset_succeeds() {
+fn set_negative_then_positive_then_negative_sum_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;
 
-        non_negative_int_restore(key);
-        assert_eq!(non_negative_int_get(key), 0);
+        non_negative_int_set(key, -3);
+        non_negative_int_inc(key, 1); // still negative: OK
+        non_negative_int_set(key, 5);
+        non_negative_int_inc(key, -7); // Nope: last set was positive
     });
 
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
+    match res {
+        Err(CallError::Abort(ref exn))
+            if exn.is_syscall_exn(
+                SyscallNo::kNonnegativeIntSetAdd,
+                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+            ) => println!("OK: {}", exn),
+        _ => panic!("Unexpected result: {:?}", res),
     }
 }
 
+// Getting a previously-unset location aborts with not-exist.
+//
 #[test]
-// Restore on a wrong-type location succeeds XXX(NNInt): Is this okay, and what is committed?
-fn restore_wrong_type_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
-        let key = &key;
-
-        bytestring_set(key, b"");
-        non_negative_int_restore(key);
-        assert_eq!(non_negative_int_get(key), 0);
-    });
-
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
-}
-
-#[test]
-// Getting a previously-unset location gives not-exist
 fn get_unset_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let _ = non_negative_int_get(&StorageKey::default());
@@ -139,8 +164,9 @@ fn get_unset_fails() {
     }
 }
 
+// Getting a wrong-type location aborts with invalid-input.
+//
 #[test]
-// Getting a wrong-type location gives invalid-input
 fn get_wrong_type_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
@@ -160,8 +186,9 @@ fn get_wrong_type_fails() {
     }
 }
 
+// Try-get on a wrong-type location aborts with invalid-input.
+//
 #[test]
-// Try-get on a wrong-type location gives invalid-input
 fn try_get_wrong_type_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
@@ -181,6 +208,8 @@ fn try_get_wrong_type_fails() {
     }
 }
 
+// Trying to get an nnint from a deleted key aborts with not-exist.
+//
 #[test]
 fn delete_actually_deletes() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
@@ -199,5 +228,44 @@ fn delete_actually_deletes() {
                 SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
             ) => println!("OK: {}", exn),
         _ => panic!("Unexpected result: {:?}", res),
+    }
+}
+
+// Reset (`set_add(None, 0)`) on a previously-unset location succeeds.
+//
+// XXX: Does this commit an nnint with value zero?
+//
+#[test]
+fn reset_unset_succeeds() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
+        let key = &key;
+
+        non_negative_int_reset(key);
+        assert_eq!(non_negative_int_get(key), 0);
+    });
+
+    if !res.is_ok() {
+        panic!("Unexpected failure: {:?}", res);
+    }
+}
+
+// Restore (`set_add(None, 0)`) on wrong-type location succeeds.
+//
+// XXX: Does this commit an nnint with value zero?
+//
+#[test]
+fn reset_wrong_type_succeeds() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
+        let key = &key;
+
+        bytestring_set(key, b"");
+        non_negative_int_reset(key);
+        assert_eq!(non_negative_int_get(key), 0);
+    });
+
+    if !res.is_ok() {
+        panic!("Unexpected failure: {:?}", res);
     }
 }
