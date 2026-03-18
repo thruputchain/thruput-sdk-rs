@@ -13,11 +13,16 @@ pub fn contract_entrypoint_id(
 ) -> ContractEntrypointID {
     let method_signature =
         contract_util::NormalizedMethodSignature::new_from_signature(method);
-    contract_util::contract_entrypoint_id(
+
+    let id = contract_util::contract_entrypoint_id(
         interface_name,
         version_str,
         &method_signature,
-    )
+    );
+
+    println!("{} {:?}", hex_encode(&id), method_signature);
+
+    id
 }
 
 pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
@@ -31,4 +36,21 @@ pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {
     quote!(
         ::sdk::contract::ContractEntrypointID::from_u64(#lit)
     )
+}
+
+use core::fmt;
+
+pub struct Hex<'a>(&'a [u8]);
+
+impl<'a> fmt::Display for Hex<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        for b in self.0 {
+            write!(f, "{:02x}", b)?;
+        }
+        Ok(())
+    }
+}
+
+pub fn hex_encode<'a, B: AsRef<[u8]>>(b: &'a B) -> Hex<'a> {
+    Hex(b.as_ref())
 }

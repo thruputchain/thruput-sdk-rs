@@ -19,8 +19,10 @@ build_contracts() {
 
     local package
     for package in $(ls_contract_packages "$packages_dir") ; do
-        build_contract "$workspace_dir" "$package" ||
+        build_contract "$workspace_dir" "$package" || {
+            fail "Failed building contract $package"
             return 1
+        }
     done
 }
 
@@ -75,18 +77,7 @@ eg_build() {
 }
 
 eg_build_all() {
-    eg_build "caller" &&
-    # build "counter" && # for Mark to update
-    eg_build "erc20" &&
-    eg_build "erc20_no_storage" &&
-    eg_build "erc20_low_level" &&
-    eg_build "exceptions" &&
-    eg_build "genesis_deployer" &&
-    eg_build "hasher" &&
-    eg_build "rcq_test" &&
-    eg_build "simple_wallet_old" &&
-    eg_build "test_bytestring" &&
-    true
+    build_contracts "${SDK_DIR}/example-contracts"
 }
 
 itc_build() {

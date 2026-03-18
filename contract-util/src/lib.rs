@@ -13,6 +13,7 @@ pub mod semver;
 // as a checksum, if there is a clear way to derive a standardized argument
 // type string at proc-macro runtime.
 //
+#[derive(Debug)]
 pub struct NormalizedMethodSignature {
     method_name: String,
 }
