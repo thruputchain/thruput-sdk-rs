@@ -125,10 +125,10 @@ impl TransactResult {
         for event in events {
             let topics_len = 32 * event.num_topics as usize;
             let payload = &event.serialized_event[topics_len..];
-            if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
-                if predicate(&decoded) {
-                    return;
-                }
+            if xdrs::txs::decode::<E>(payload)
+                .is_ok_and(|decoded| predicate(&decoded))
+            {
+                return;
             }
         }
         panic!(
