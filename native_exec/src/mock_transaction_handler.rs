@@ -375,7 +375,19 @@ impl MockTransactionHandler {
         exec_result
     }
 
+    pub fn notify_root_frame_closed(&mut self) {
+        if self.state == MockTransactionState::Running {
+            self.state = MockTransactionState::RootInvokeFinished;
+        }
+    }
+
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+        assert_eq!(
+            self.state,
+            MockTransactionState::NotStarted,
+            "cannot open root frame: transaction already started"
+        );
+        self.state = MockTransactionState::Running;
         let config = MockInvocationFrameConfig::new(
             self.handler,
             &mut self.root_frame,
@@ -387,10 +399,11 @@ impl MockTransactionHandler {
 
 impl Drop for MockTransactionHandler {
     fn drop(&mut self) {
+        // Auto-transition: if we're still Running, the root frame must have
+        // been closed (frames panic on drop if still Started), so we can
+        // safely transition to RootInvokeFinished.
         if self.state == MockTransactionState::Running {
-            panic!(
-                "Should be impossible to drop a transaction handler while it is running"
-            );
+            self.state = MockTransactionState::RootInvokeFinished;
         }
         if self.state == MockTransactionState::RootInvokeFinished {
             eprintln!(

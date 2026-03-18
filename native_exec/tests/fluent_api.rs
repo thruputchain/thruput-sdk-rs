@@ -116,3 +116,45 @@ fn test_transact_result_assert_success_panics_on_abort() {
     );
     result.assert_success();
 }
+
+use groundhog_native_exec::mock_transaction_handler::MockTransactionHandler;
+use groundhog_native_exec::test_environment::TestEnvironment;
+
+// The C++ FFI library (v0.9.3) asserts `root_invoke_succeeded_` inside
+// `try_commit_transaction`, but `finish_mock_invocation_frame` does not set
+// that flag — only the non-mock `root_invoke()` path does.  Until the FFI
+// library exposes a way to signal mock root-invoke completion, commit via
+// the mock handler will abort the process.
+#[test]
+#[ignore = "blocked on C++ FFI: try_commit_transaction asserts root_invoke_succeeded_ which mock path never sets"]
+fn test_mock_handler_commit() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| false)
+        .result();
+
+    handler.notify_root_frame_closed();
+    let exec_result = handler.try_commit_transaction();
+    assert_eq!(exec_result, ExecResult::ExecResultOK);
+}
+
+#[test]
+fn test_mock_handler_abort() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| false)
+        .result();
+
+    handler.notify_root_frame_closed();
+    handler.abort_transaction();
+}
