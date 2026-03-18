@@ -40,14 +40,14 @@ pub enum LibraryExn {
     )]
     BytestringWrongSize { expected: u32, found: u32 },
 
-    #[cfg_attr(feature = "debugging", error("non-negative int underflow"))]
+    #[cfg_attr(feature = "debugging", error("non-negative int went negative"))]
     NonNegativeIntUnderflow,
 
     #[cfg_attr(feature = "debugging", error("non-negative int overflow"))]
     NonNegativeIntOverflow,
 
     #[cfg(feature = "storage")]
-    #[cfg_attr(feature = "debugging", error("non-negative int overflow"))]
+    #[cfg_attr(feature = "debugging", error("Storage error"))]
     Storage(StorageError),
 }
 
