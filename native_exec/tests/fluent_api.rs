@@ -1,4 +1,6 @@
 use groundhog_native_exec::frame_result::FrameResult;
+use groundhog_native_exec::transact_result::TransactResult;
+use groundhog_xdr::exec_result::ExecResult;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 
 #[test]
@@ -56,4 +58,61 @@ fn test_frame_result_assert_abort_panics_on_success() {
     };
     let result = FrameResult::new(output, None);
     result.assert_abort();
+}
+
+#[test]
+fn test_transact_result_success() {
+    let return_data = vec![];
+    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+        return_buffer: return_data.try_into().unwrap(),
+    };
+    let frame = FrameResult::new(output, None);
+    let result = TransactResult::new(frame, ExecResult::ExecResultOK, None);
+    result.assert_success();
+}
+
+#[test]
+fn test_transact_result_abort() {
+    let abort_data = vec![];
+    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+        abort_buffer: abort_data.try_into().unwrap(),
+    };
+    let frame = FrameResult::new(output, None);
+    let result = TransactResult::new(
+        frame,
+        ExecResult::ExecResultTxRootFrameReverted,
+        None,
+    );
+    result.assert_abort();
+}
+
+#[test]
+fn test_transact_result_commit_failed() {
+    let return_data = vec![];
+    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+        return_buffer: return_data.try_into().unwrap(),
+    };
+    let frame = FrameResult::new(output, None);
+    let result = TransactResult::new(
+        frame,
+        ExecResult::ExecResultTxDeterministicError,
+        None,
+    );
+    result.assert_commit_failed();
+}
+
+#[test]
+#[should_panic(expected = "expected success")]
+fn test_transact_result_assert_success_panics_on_abort() {
+    let abort_data = vec![];
+    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+        abort_buffer: abort_data.try_into().unwrap(),
+    };
+    let frame = FrameResult::new(output, None);
+    let result = TransactResult::new(
+        frame,
+        ExecResult::ExecResultTxRootFrameReverted,
+        None,
+    );
+    result.assert_success();
 }
