@@ -39,8 +39,8 @@ fn entrypoint_vectors_valid_json() {
             id.len()
         );
         assert!(
-            id.chars().all(|c| c.is_ascii_hexdigit()),
-            "vector {i} expected_id should be hex"
+            id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()),
+            "vector {i} expected_id should be uppercase hex"
         );
     }
 
