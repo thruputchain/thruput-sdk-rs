@@ -1,6 +1,6 @@
 //! Construct and manipulate contract entrypoint IDs
 
-use groundhog_contract_util as contract_util;
+use groundhog_contract_util::EntrypointSignature;
 use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
@@ -11,16 +11,11 @@ pub fn contract_entrypoint_id(
     version_str: &str,
     method: &syn::Signature,
 ) -> ContractEntrypointID {
-    let method_signature =
-        contract_util::NormalizedMethodSignature::new_from_signature(method);
+    let entrypoint_sig = EntrypointSignature::new(interface_name, version_str, method);
+    let id = entrypoint_sig.id();
 
-    let id = contract_util::contract_entrypoint_id(
-        interface_name,
-        version_str,
-        &method_signature,
-    );
-
-    println!("{} {:?}", hex_encode(&id), method_signature);
+    // For tracing entrypoint collisions, etc.:
+    println!("{} {}", crate::hex_encode(&id), entrypoint_sig);
 
     id
 }
@@ -36,21 +31,4 @@ pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {
     quote!(
         ::sdk::contract::ContractEntrypointID::from_u64(#lit)
     )
-}
-
-use core::fmt;
-
-pub struct Hex<'a>(&'a [u8]);
-
-impl<'a> fmt::Display for Hex<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        for b in self.0 {
-            write!(f, "{:02x}", b)?;
-        }
-        Ok(())
-    }
-}
-
-pub fn hex_encode<'a, B: AsRef<[u8]>>(b: &'a B) -> Hex<'a> {
-    Hex(b.as_ref())
 }

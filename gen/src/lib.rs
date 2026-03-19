@@ -13,6 +13,9 @@ pub use config::Config;
 pub mod contract;
 pub use contract::{ConfiguredContract, ContractSrc, Method};
 
+mod hex;
+pub(crate) use hex::*;
+
 pub mod entrypoint;
 pub use entrypoint::*;
 

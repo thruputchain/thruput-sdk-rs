@@ -2,6 +2,7 @@
 
 use groundhog_xdr::contract::ContractEntrypointID;
 use sha2::Digest;
+use std::fmt::{self, Display};
 
 pub mod semver;
 
@@ -34,6 +35,51 @@ impl NormalizedMethodSignature {
 
     pub fn get_signature_string(&self) -> String {
         self.method_name.clone()
+    }
+}
+
+impl Display for NormalizedMethodSignature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.method_name.as_str())
+    }
+}
+
+#[derive(Debug)]
+pub struct EntrypointSignature {
+    pub interface_name: Option<String>,
+    pub version_str: String,
+    pub method_sig: NormalizedMethodSignature,
+}
+
+impl EntrypointSignature {
+    pub fn new(
+        interface_name: Option<&str>,
+        version_str: &str,
+        method: &syn::Signature,
+    ) -> Self {
+        Self {
+            interface_name: interface_name.map(|s| s.to_string()),
+            version_str: version_str.to_string(),
+            method_sig: NormalizedMethodSignature::new_from_signature(method),
+        }
+    }
+
+    pub fn id(&self) -> ContractEntrypointID {
+        contract_entrypoint_id(
+            self.interface_name.as_deref(),
+            self.version_str.as_str(),
+            &self.method_sig
+        )
+    }
+}
+
+impl Display for EntrypointSignature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}<{}>::{}",
+            self.interface_name.as_deref().unwrap_or(""),
+            self.version_str,
+            self.method_sig,
+        )
     }
 }
 

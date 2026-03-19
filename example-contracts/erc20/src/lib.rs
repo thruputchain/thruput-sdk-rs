@@ -15,6 +15,7 @@ mod implementation;
 pub use implementation::TokenContract;
 
 // Contract methods exposed with C ABI for running as guest
+#[cfg(feature = "entrypoints")]
 pub use implementation::exports::*;
 
 #[cfg(feature = "dev")]
