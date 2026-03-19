@@ -26,24 +26,15 @@ impl FrameResult {
     // -- Status checks (using pattern matching for safety) --
 
     pub fn is_success(&self) -> bool {
-        matches!(
-            &self.output,
-            InvocationFrameOutput::kInvocationFrameStatusCodeReturn { .. }
-        )
+        matches!(&self.output, InvocationFrameOutput::Return { .. })
     }
 
     pub fn is_abort(&self) -> bool {
-        matches!(
-            &self.output,
-            InvocationFrameOutput::kInvocationFrameStatusCodeAbort { .. }
-        )
+        matches!(&self.output, InvocationFrameOutput::Abort { .. })
     }
 
     pub fn is_fault(&self) -> bool {
-        matches!(
-            &self.output,
-            InvocationFrameOutput::kInvocationFrameStatusCodeFault
-        )
+        matches!(&self.output, InvocationFrameOutput::Fault)
     }
 
     // -- Assertions --
@@ -77,9 +68,9 @@ impl FrameResult {
     /// Returns the return buffer. Panics if the frame did not succeed.
     pub fn return_buffer(&self) -> &[u8] {
         match &self.output {
-            InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
-                return_buffer,
-            } => return_buffer.as_slice(),
+            InvocationFrameOutput::Return { return_buffer } => {
+                return_buffer.as_slice()
+            }
             _ => panic!(
                 "return_buffer() called on non-success frame (status {})",
                 self.output.status_code()
@@ -90,9 +81,9 @@ impl FrameResult {
     /// Returns the abort buffer. Panics if the frame did not abort.
     pub fn abort_buffer(&self) -> &[u8] {
         match &self.output {
-            InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
-                abort_buffer,
-            } => abort_buffer.as_slice(),
+            InvocationFrameOutput::Abort { abort_buffer } => {
+                abort_buffer.as_slice()
+            }
             _ => panic!(
                 "abort_buffer() called on non-abort frame (status {})",
                 self.output.status_code()

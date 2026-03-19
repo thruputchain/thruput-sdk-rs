@@ -20,43 +20,43 @@ impl Error for InvokeError {}
 
 pub fn deterministic_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeDeterministic,
+        error_type: InvokeErrorCode::Deterministic,
     }
 }
 
 pub fn out_of_gas_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeOutOfGas,
+        error_type: InvokeErrorCode::OutOfGas,
     }
 }
 
 pub fn unrecoverable_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeUnrecoverable,
+        error_type: InvokeErrorCode::Unrecoverable,
     }
 }
 
 pub fn exit_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeNone,
+        error_type: InvokeErrorCode::None,
     }
 }
 
 pub fn return_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeNone,
+        error_type: InvokeErrorCode::None,
     }
 }
 
 pub fn validation_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeValidationFailure,
+        error_type: InvokeErrorCode::ValidationFailure,
     }
 }
 
 pub fn abort_transaction_error() -> InvokeError {
     InvokeError {
-        error_type: InvokeErrorCode::kInvokeAbortTransaction,
+        error_type: InvokeErrorCode::Abandon,
     }
 }
 
@@ -112,7 +112,7 @@ where
 
         match result {
             Ok(_) => groundhog_sys::ForeignInvokeResult {
-                panic: InvokeErrorCode::kInvokeNone.0,
+                panic: InvokeErrorCode::None.0,
             },
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
@@ -121,7 +121,7 @@ where
                     };
                 }
                 groundhog_sys::ForeignInvokeResult {
-                    panic: InvokeErrorCode::kInvokeUnrecoverable.0,
+                    panic: InvokeErrorCode::Unrecoverable.0,
                 }
             }
         }

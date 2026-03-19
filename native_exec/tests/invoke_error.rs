@@ -26,7 +26,7 @@ fn test_error_wrap() {
 
     let boxed = invoke_wrapper(f);
 
-    assert_eq!((*boxed)().panic, InvokeErrorCode::kInvokeNone.0);
+    assert_eq!((*boxed)().panic, InvokeErrorCode::None.0);
 }
 
 fn test_panic() {
@@ -35,7 +35,7 @@ fn test_panic() {
 
     let boxed = invoke_wrapper(f);
 
-    assert_eq!((*boxed)().panic, InvokeErrorCode::kInvokeUnrecoverable.0);
+    assert_eq!((*boxed)().panic, InvokeErrorCode::Unrecoverable.0);
 }
 
 fn test_panic_ok() {
@@ -44,10 +44,7 @@ fn test_panic_ok() {
 
     let boxed = invoke_wrapper(f);
 
-    assert_eq!(
-        (*boxed)().panic,
-        InvokeErrorCode::kInvokeValidationFailure.0
-    );
+    assert_eq!((*boxed)().panic, InvokeErrorCode::ValidationFailure.0);
 }
 
 fn test_sdk_panic() {
@@ -58,7 +55,7 @@ fn test_sdk_panic() {
 
     let boxed = invoke_wrapper(f);
 
-    assert_eq!((*boxed)().panic, InvokeErrorCode::kInvokeDeterministic.0);
+    assert_eq!((*boxed)().panic, InvokeErrorCode::Deterministic.0);
 }
 
 fn test_option_panic() {
@@ -70,7 +67,7 @@ fn test_option_panic() {
 
     let boxed = invoke_wrapper(f);
 
-    assert_eq!((*boxed)().panic, InvokeErrorCode::kInvokeDeterministic.0);
+    assert_eq!((*boxed)().panic, InvokeErrorCode::Deterministic.0);
 }
 
 fn test_pass_invoke_error_through_panic_hook() {
@@ -79,8 +76,5 @@ fn test_pass_invoke_error_through_panic_hook() {
 
     let boxed = invoke_wrapper(f);
 
-    assert_eq!(
-        (*boxed)().panic,
-        InvokeErrorCode::kInvokeValidationFailure.0
-    );
+    assert_eq!((*boxed)().panic, InvokeErrorCode::ValidationFailure.0);
 }

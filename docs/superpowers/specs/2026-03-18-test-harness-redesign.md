@@ -14,7 +14,7 @@ Pain points:
 - **No failure assertions** — no ergonomic way to assert a call should revert/abort with a specific error.
 - **No event assertions** — must manually call `get_event_logs()` and index into raw arrays.
 - **Macro-heavy** — `contract_test!` and `client_test!` hide boilerplate but are opaque, hard to debug, and duplicated across two modules.
-- **Result inspection requires pattern matching** — every test must match on `kInvocationFrameStatusCodeReturn` / `kInvocationFrameStatusCodeAbort` / `kInvocationFrameStatusCodeFault`.
+- **Result inspection requires pattern matching** — every test must match on `Return` / `Abort` / `Fault`.
 
 ## Design
 

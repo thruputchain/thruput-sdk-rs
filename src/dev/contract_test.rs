@@ -95,17 +95,17 @@ pub fn contract_handler_exec_raw(
     let res = handler.root_invoke();
 
     let return_buf = match res.output {
-        kInvocationFrameStatusCodeReturn { return_buffer } => {
+        Return { return_buffer } => {
             // TODO: Unify these types and skip the copy
             ReturnBuf::from_slice(return_buffer.as_slice()).unwrap()
         }
-        kInvocationFrameStatusCodeAbort { abort_buffer } => {
+        Abort { abort_buffer } => {
             // TODO: Unify these types and skip the copy
             let abort_buf =
                 AbortBuf::from_slice(abort_buffer.as_slice()).unwrap();
             return Err(ContractError::Abort(abort_buf));
         }
-        kInvocationFrameStatusCodeFault => {
+        Fault => {
             return Err(ContractError::Fault(FaultString::empty()));
         }
     };
@@ -215,9 +215,7 @@ where
 
     let res = handler.root_invoke();
 
-    if res.output.status_code()
-        != InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
-    {
+    if res.output.status_code() != InvocationFrameStatusCode::Return.0 {
         panic!("Root invocation panicked with code {:?}", res.output);
     }
 

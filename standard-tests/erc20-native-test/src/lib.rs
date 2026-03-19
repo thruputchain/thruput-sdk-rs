@@ -29,9 +29,12 @@ pub fn test_erc20_contract(
 
     let res = handler.root_invoke();
     if res.output.status_code()
-        != sdk::types::transaction::InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+        != sdk::types::transaction::InvocationFrameStatusCode::Return.0
     {
-        panic!("ERC20 test invocation failed with code {}", res.output.status_code());
+        panic!(
+            "ERC20 test invocation failed with code {}",
+            res.output.status_code()
+        );
     }
 
     match handler.try_commit_transaction() {

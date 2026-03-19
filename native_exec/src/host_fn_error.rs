@@ -21,25 +21,23 @@ pub fn perform_mocked_syscall(
     };
 
     match result.panic {
-        x if x == HostFnErrorCode::kHostNoneOrRecoverable.0 => {
-            result.result_code
-        }
-        x if x == HostFnErrorCode::kHostOutOfGas.0 => {
+        x if x == HostFnErrorCode::NoneOrRecoverable.0 => result.result_code,
+        x if x == HostFnErrorCode::OutOfGas.0 => {
             panic_any(crate::invoke_error::out_of_gas_error());
         }
-        x if x == HostFnErrorCode::kHostUnrecoverable.0 => {
+        x if x == HostFnErrorCode::Unrecoverable.0 => {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
-        x if x == HostFnErrorCode::kHostReturn.0 => {
+        x if x == HostFnErrorCode::Return.0 => {
             panic_any(crate::invoke_error::return_error());
         }
-        x if x == HostFnErrorCode::kHostExit.0 => {
+        x if x == HostFnErrorCode::Exit.0 => {
             panic_any(crate::invoke_error::exit_error());
         }
-        x if x == HostFnErrorCode::kHostValidationFailure.0 => {
+        x if x == HostFnErrorCode::ValidationFailure.0 => {
             panic_any(crate::invoke_error::validation_error());
         }
-        x if x == HostFnErrorCode::kHostAbortTransaction.0 => {
+        x if x == HostFnErrorCode::Abandon.0 => {
             panic_any(crate::invoke_error::abort_transaction_error());
         }
         _ => {
