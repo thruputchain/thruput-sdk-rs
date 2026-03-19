@@ -371,7 +371,7 @@ impl MockTransactionHandler {
         self.state = MockTransactionState::Committed;
 
         let exec_result: groundhog_xdr::exec_result::ExecResult =
-            result.result_code.try_into().unwrap();
+            result.result_code.into();
         exec_result
     }
 

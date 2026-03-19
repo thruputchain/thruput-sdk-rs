@@ -331,7 +331,7 @@ impl TestEnvironmentInner {
         if err != FFIErrorCode::None {
             panic!("failed to run auth checks: {:?}", err);
         }
-        res.auth_error_code.try_into().unwrap()
+        res.auth_error_code.into()
     }
 }
 
@@ -539,6 +539,6 @@ impl TestEnvironment {
         if err != FFIErrorCode::None {
             panic!("failed to run auth checks: {:?}", err);
         }
-        res.auth_error_code.try_into().unwrap()
+        res.auth_error_code.into()
     }
 }
