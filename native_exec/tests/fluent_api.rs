@@ -163,7 +163,6 @@ fn test_mock_handler_event_logs_empty() {
     handler.try_commit_transaction();
 }
 
-use groundhog_native_exec::testing::TestEnvExt;
 use groundhog_native_exec::transaction::Transaction;
 
 #[test]
@@ -631,6 +630,109 @@ fn test_assert_event_data_out_of_range() {
 
     result.assert_success();
     result.assert_event_data::<u32>(5, |_| {});
+}
+
+// ── Named addresses ──────────────────────────────────────────────────────
+
+use groundhog_native_exec::test_helpers::Named;
+
+#[test]
+fn test_named_contract_address() {
+    let alice = groundhog_xdr::types::ContractAddress::named("alice");
+    let bob = groundhog_xdr::types::ContractAddress::named("bob");
+
+    assert_eq!(alice, groundhog_xdr::types::ContractAddress::named("alice"));
+    assert_ne!(alice, bob);
+}
+
+#[test]
+fn test_named_address_in_transact() {
+    let env = TestEnvironment::new(None);
+    let alice = groundhog_xdr::types::ContractAddress::named("alice");
+
+    let result = env.transact(|tx| {
+        tx.call(&alice).run(|| {
+            let addr = groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+            assert_eq!(
+                addr,
+                groundhog_xdr::types::ContractAddress::named("alice")
+            );
+        })
+    });
+    result.assert_success();
+}
+
+// ── Return value assertions ──────────────────────────────────────────────
+
+#[test]
+fn test_assert_return_with() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            let v: u32 = 42;
+            let data = xdrs::txs::encode(&v).unwrap();
+            groundhog_xdr::syscalls::raw_Return(&data, false);
+        })
+    });
+
+    result.assert_success();
+    result.assert_return_with::<u32>(|v| {
+        assert_eq!(*v, 42);
+    });
+    result.frame().assert_return_with::<u32>(|v| {
+        assert_eq!(*v, 42);
+    });
+}
+
+// ── Convenience event assertions ─────────────────────────────────────────
+
+#[test]
+fn test_assert_event_count() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"a")
+                .unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"b")
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(2);
+    result.frame().assert_event_count(2);
+}
+
+#[test]
+fn test_assert_no_events() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| tx.call(&[1u8; 32].into()).run(|| {}));
+
+    result.assert_success();
+    result.assert_no_events();
+    result.frame().assert_no_events();
+}
+
+#[test]
+fn test_filter_events() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            for v in [10u32, 20, 30] {
+                let data = xdrs::txs::encode(&v).unwrap();
+                groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                    .unwrap();
+            }
+        })
+    });
+
+    result.assert_success();
+    let values: Vec<u32> = result.filter_events();
+    assert_eq!(values, vec![10, 20, 30]);
 }
 
 // ── Continuable frame tests ──────────────────────────────────────────────

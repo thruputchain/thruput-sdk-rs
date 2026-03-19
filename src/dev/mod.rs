@@ -17,7 +17,7 @@ pub use groundhog_native_exec::{
     frame_result::FrameResult,
     mock_contract::MockContract,
     test_environment::{TestEnvironment, TestEnvironmentHandle},
-    testing::TestEnvExt,
+    test_helpers::Named,
     transact_result::TransactResult,
     transaction::Transaction,
 };

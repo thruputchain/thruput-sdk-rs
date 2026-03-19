@@ -33,6 +33,13 @@ impl TransactResult {
         self.frame.assert_fault();
     }
 
+    pub fn assert_return_with<R>(&self, check: impl FnOnce(&R))
+    where
+        R: xdrs::ReadXDROwned,
+    {
+        self.frame.assert_return_with(check);
+    }
+
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -62,6 +69,21 @@ impl TransactResult {
 
     pub fn events(&self) -> &[TxEmittedEvent] {
         self.frame.events()
+    }
+
+    pub fn assert_event_count(&self, expected: usize) {
+        self.frame.assert_event_count(expected);
+    }
+
+    pub fn assert_no_events(&self) {
+        self.frame.assert_no_events();
+    }
+
+    pub fn filter_events<E>(&self) -> Vec<E>
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        self.frame.filter_events()
     }
 
     pub fn assert_event(
