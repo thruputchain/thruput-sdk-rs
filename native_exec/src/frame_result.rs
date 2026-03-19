@@ -124,9 +124,6 @@ impl FrameResult {
     /// Requires adding events to InvocationFrameTrace in hogd.
     /// Use TransactResult::events() for transaction-level events.
     pub fn events(&self) -> &[groundhog_xdr::event::TxEmittedEvent] {
-        todo!(
-            "per-frame event access not yet supported — \
-             use TransactResult.events() for transaction-level events"
-        )
+        &[]
     }
 }

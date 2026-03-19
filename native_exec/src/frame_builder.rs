@@ -28,7 +28,10 @@ impl<'a> FrameBuilder<'a> {
     }
 
     /// Execute the frame with the given closure, then close it.
-    /// This is the common single-shot path.
+    /// This is the common single-shot path for leaf-only execution
+    /// (no child frames needed). If you need to open child frames
+    /// from within the closure, use `run_continuable` instead,
+    /// which provides a `FrameHandle` with `child_call()`.
     pub fn run(self, f: impl FnOnce() + UnwindSafe) -> FrameResult {
         let frame = self.config.build();
         frame.execute(|_| {

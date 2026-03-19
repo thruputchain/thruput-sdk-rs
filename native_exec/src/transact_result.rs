@@ -103,6 +103,13 @@ impl TransactResult {
         );
         let event = &events[index];
         let topics_len = 32 * event.num_topics as usize;
+        assert!(
+            topics_len <= event.serialized_event.len(),
+            "event {} topics_len {} exceeds serialized_event length {}",
+            index,
+            topics_len,
+            event.serialized_event.len()
+        );
         let payload = &event.serialized_event[topics_len..];
         let decoded: E = xdrs::txs::decode(payload)
             .unwrap_or_else(|e| panic!("failed to decode event data: {}", e));
@@ -114,17 +121,29 @@ impl TransactResult {
         E: xdrs::ReadXDROwned,
     {
         let events = self.events();
+        let mut decoded_count = 0usize;
         for event in events {
             let topics_len = 32 * event.num_topics as usize;
+            if topics_len > event.serialized_event.len() {
+                continue;
+            }
             let payload = &event.serialized_event[topics_len..];
-            if xdrs::txs::decode::<E>(payload)
-                .is_ok_and(|decoded| predicate(&decoded))
-            {
-                return;
+            if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
+                decoded_count += 1;
+                if predicate(&decoded) {
+                    return;
+                }
             }
         }
+        if decoded_count == 0 {
+            panic!(
+                "no event matched the predicate: 0 of {} events could be decoded as the expected type",
+                events.len()
+            );
+        }
         panic!(
-            "no event matched the predicate (checked {} events)",
+            "no event matched the predicate (decoded {}/{} events, none passed predicate)",
+            decoded_count,
             events.len()
         );
     }

@@ -456,14 +456,19 @@ impl Drop for MockTransactionHandler {
             eprintln!(
                 "Cleanup: Aborting mock transaction that finished root_invoke but was not committed"
             );
-            self.abort_transaction();
+            // Attempt abort but don't panic — we may already be unwinding
+            let _ =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    self.abort_transaction();
+                }));
         }
 
         let err: FFIErrorCode =
             unsafe { groundhog_sys::close_syscall_handler(self.handler) }
                 .into();
         if err != FFIErrorCode::None {
-            panic!("failed to close syscall handler: {:?}", err);
+            // Log instead of panic to avoid aborting the process during test failure unwinding
+            eprintln!("failed to close syscall handler: {:?}", err);
         }
     }
 }
