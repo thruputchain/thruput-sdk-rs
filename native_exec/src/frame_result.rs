@@ -180,9 +180,12 @@ impl FrameResult {
         let mut decoded_count = 0usize;
         for event in events {
             let topics_len = 32 * event.num_topics as usize;
-            if topics_len > event.serialized_event.len() {
-                continue;
-            }
+            assert!(
+                topics_len <= event.serialized_event.len(),
+                "assert_emitted: event has topics_len {} but serialized_event is only {} bytes",
+                topics_len,
+                event.serialized_event.len()
+            );
             let payload = &event.serialized_event[topics_len..];
             if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
                 decoded_count += 1;

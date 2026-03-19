@@ -85,8 +85,10 @@ fn bottle_test(package: &str) {
 
         for (i, event) in res.events.iter().enumerate() {
             let event: EmittedEvent = event.into();
-            let event: ERC20Event = event.try_into().unwrap();
-            eprintln!("\tevent {:?}: {}", i, event);
+            match ERC20Event::try_from(event) {
+                Ok(event) => eprintln!("\tevent {:?}: {}", i, event),
+                Err(_) => eprintln!("\tevent {:?}: <non-ERC20 event>", i),
+            }
         }
     }
 }
