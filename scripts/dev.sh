@@ -102,7 +102,7 @@ itc_build_all() {
 
 ### TESTING ###
 
-test_sdk() {
+test_lib() {
     cargo test --lib &&
     cargo test --tests &&
     cargo test -F storage --tests &&
@@ -258,7 +258,7 @@ test_spec() {
 
 test_all() {
     build_docs &&
-    test_sdk &&
+    test_lib &&
     test_spec &&
 
     eg_build_all &&
@@ -420,6 +420,9 @@ case "$action" in
         ;;
     build-itc)
         itc_build_all
+        ;;
+    test-lib)
+        test_lib
         ;;
     test)
         if [ $# -gt 0 ]; then

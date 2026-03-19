@@ -13,11 +13,11 @@ contract_test!(test_internal_nnints {
     let key = &key;
 
     // Assuming no previous activity at this storage location, these are the values
-    // stored there:
+    // associated with it:
     let mut set = 0;
     let mut add = 0;
 
-        // Get (without forcing) on a location not yet set in this transaction returns "add" == zero
+        // Get (without forcing) on a previously-unset location returns "add" == zero
         assert_eq!(get_values(key), (None, add));
 
     // `set_add` (specifying only "add") to a previously-unset location succeeds
@@ -70,37 +70,40 @@ contract_test!(test_internal_nnints {
         // They've both been updated
         assert_eq!(get_values_force(key), (set, add));
 
-    // TODO: Unexpected transaction result: ExecResultTxNonDeterministicError
-    /*
-    // We can explicitly give a "set" value that is negative
-    set = -4;
-    add = 0;
-    set_add(key, Some(set), add);
-
-        assert_eq!(get_values_force(key), (set, add));
-    */
-
-    // TODO: Unexpected transaction result: ExecResultTxNonDeterministicError
-    /*
-    // We can set "set" and "add" to values whose sum would overflow an `i128`
-    set = i128::MAX;
-    add = 47;
-    set_add(key, Some(set), add);
-
-        assert_eq!(get_values_force(key), (set, add));
-    */
-
-    // TODO: test overflows
     // TODO: test with `delete`
-    // TODO: test with changes of value-type (using `bytestring_set`, etc.)
 });
 
 #[test]
-fn force_get_on_empty_fails() {
-    let mut env = TestEnvironment::no_cost();
+// Get (not forcing) on a never-before-set location succeeds.
+fn get_on_empty_succeeds() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        get_values(&StorageKey::default());
+    });
 
-    let res = contract_exec(env, || {
-        // Get (forcing) on a never-before-set location fails
+    if !res.is_ok() {
+        panic!("Unexpected failure: {:?}", res);
+    }
+}
+
+#[test]
+// Get (not forcing) on a wrong-type location succeeds.
+fn get_on_wrong_type_succeeds() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
+
+        bytestring_set(&key, b"");
+        get_values(&key);
+    });
+
+    if !res.is_ok() {
+        panic!("Unexpected failure: {:?}", res);
+    }
+}
+
+#[test]
+// Get (forcing) on a never-before-set location fails with not-exist
+fn force_get_on_empty_fails() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
         get_values_force(&StorageKey::default());
     });
 
@@ -118,11 +121,32 @@ fn force_get_on_empty_fails() {
 }
 
 #[test]
-fn negative_sum_fails() {
-    let mut env = TestEnvironment::no_cost();
+// Get (forcing) on a wrong-type location fails with invalid-input
+fn force_get_on_wrong_type_fails() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
 
-    let res = contract_exec(env, || {
-        // We can't give "set" and "add" values whose sum would be negative
+        bytestring_set(&key, b"");
+        get_values_force(&key);
+    });
+
+    match res {
+        Err(CallError::Abort(ref exn))
+            if exn.is_syscall_exn(
+                SyscallNo::kNonnegativeIntGet,
+                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+            ) =>
+        {
+            println!("OK: {}", exn)
+        }
+        _ => panic!("Unexpected result: {:?}", res),
+    }
+}
+
+#[test]
+// We can't give "set" and "add" values whose sum is negative.
+fn set_add_negative_sum_fails() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
         let set = 1;
         let add = -40;
         set_add(&StorageKey::default(), Some(set), add)
@@ -139,4 +163,57 @@ fn negative_sum_fails() {
         }
         _ => panic!("Unexpected result: {:?}", res),
     }
+}
+
+// XXX: In the `should_panic` tests below, the expected panic sometimes has the
+// expected string payload, and sometimes some other (unknown) type of payload.
+// For now we just accept any panic, but there's something broken here.
+
+#[test]
+#[should_panic] //  = "Transaction failed"
+// We can call `set_add(None, -3)`, but the transaction reverts.
+fn negative_increment_reverts() {
+    contract_exec(TestEnvironment::no_cost(), || {
+        set_add(&StorageKey::default(), None, -3);
+    });
+}
+
+#[test]
+#[should_panic] // = "Transaction failed"
+// We can make serial `set_add` calls such that the total would be negative,
+// but the transaction reverts.
+fn negative_set_add_serially_reverts() {
+    contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
+
+        set_add(&key, Some(1), 0);
+        set_add(&key, None, -40);
+    });
+}
+
+#[test]
+// We can explicitly set a negative value, and the transaction succeeds.
+fn negative_set_succeeds() {
+    let res = contract_exec(TestEnvironment::no_cost(), || {
+        let set = -1;
+        let add = 0;
+        set_add(&StorageKey::default(), Some(set), add)
+    });
+
+    if !res.is_ok() {
+        panic!("Unexpected failure: {:?}", res);
+    }
+}
+
+#[test]
+#[should_panic] // = "Transaction failed"
+// We can't complete a transaction with "set" and "add" values whose sum would
+// overflow an `i128`.
+fn set_overflowing_sum_reverts() {
+    contract_exec(TestEnvironment::no_cost(), || {
+        let key = StorageKey::default();
+        let set = i128::MAX;
+        let add = 47;
+        set_add(&key, Some(set), add);
+    });
 }
