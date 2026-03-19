@@ -3,6 +3,13 @@ use xdrs::txs;
 use xdrs::WriteXDR;
 use xdrs::{BytesM, VecM, StringM};
 
+use groundhog_xdr::types::{
+    ContractAddress, SHA256Hash, Ed25519PublicKey, StorageKeyType, PublicKey,
+};
+use groundhog_xdr::address_auth::PublicKeyConfig;
+use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::transaction::{Transaction, Invocation, Uniquifier};
+
 /// Encode a value to XDR and return lowercase hex string.
 fn xdr_hex<T: WriteXDR>(value: &T) -> String {
     let bytes = txs::encode(value).expect("XDR encoding failed");
@@ -179,10 +186,206 @@ fn collection_vectors() -> Vec<Value> {
     ]
 }
 
+/// Hex-encode a byte slice.
+fn hex_bytes(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+fn protocol_fixed_vectors() -> Vec<Value> {
+    let zeros_32 = [0u8; 32];
+    let ones_32 = [0xffu8; 32];
+    let sample_32: [u8; 32] = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a, 0x69, 0x78,
+        0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0xf0,
+    ];
+
+    vec![
+        // ContractAddress
+        json!({
+            "name": "contract_address_zeros",
+            "type": "ContractAddress",
+            "value": hex_bytes(&zeros_32),
+            "expected_hex": xdr_hex(&ContractAddress::from(zeros_32)),
+        }),
+        json!({
+            "name": "contract_address_ones",
+            "type": "ContractAddress",
+            "value": hex_bytes(&ones_32),
+            "expected_hex": xdr_hex(&ContractAddress::from(ones_32)),
+        }),
+        json!({
+            "name": "contract_address_sample",
+            "type": "ContractAddress",
+            "value": hex_bytes(&sample_32),
+            "expected_hex": xdr_hex(&ContractAddress::from(sample_32)),
+        }),
+
+        // SHA256Hash
+        json!({
+            "name": "sha256_hash_zeros",
+            "type": "SHA256Hash",
+            "value": hex_bytes(&zeros_32),
+            "expected_hex": xdr_hex(&SHA256Hash::from(zeros_32)),
+        }),
+        json!({
+            "name": "sha256_hash_sample",
+            "type": "SHA256Hash",
+            "value": hex_bytes(&sample_32),
+            "expected_hex": xdr_hex(&SHA256Hash::from(sample_32)),
+        }),
+
+        // Ed25519PublicKey
+        json!({
+            "name": "ed25519_pubkey_zeros",
+            "type": "Ed25519PublicKey",
+            "value": hex_bytes(&zeros_32),
+            "expected_hex": xdr_hex(&Ed25519PublicKey::from(zeros_32)),
+        }),
+        json!({
+            "name": "ed25519_pubkey_sample",
+            "type": "Ed25519PublicKey",
+            "value": hex_bytes(&sample_32),
+            "expected_hex": xdr_hex(&Ed25519PublicKey::from(sample_32)),
+        }),
+
+        // ContractEntrypointID
+        json!({
+            "name": "entrypoint_id_zeros",
+            "type": "ContractEntrypointID",
+            "value": hex_bytes(&[0u8; 8]),
+            "expected_hex": xdr_hex(&ContractEntrypointID::from([0u8; 8])),
+        }),
+        json!({
+            "name": "entrypoint_id_sample",
+            "type": "ContractEntrypointID",
+            "value": hex_bytes(&[0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]),
+            "expected_hex": xdr_hex(&ContractEntrypointID::from([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef])),
+        }),
+    ]
+}
+
+fn protocol_enum_vectors() -> Vec<Value> {
+    vec![
+        json!({
+            "name": "storage_key_type_contract_data",
+            "type": "StorageKeyType",
+            "value": { "variant": "kStorageKeyTypeContractData" },
+            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeContractData),
+        }),
+        json!({
+            "name": "storage_key_type_free_native_token",
+            "type": "StorageKeyType",
+            "value": { "variant": "kStorageKeyTypeFreeNativeTokenBalance" },
+            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeFreeNativeTokenBalance),
+        }),
+        json!({
+            "name": "storage_key_type_address_auth_data",
+            "type": "StorageKeyType",
+            "value": { "variant": "kStorageKeyTypeAddressAuthData" },
+            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeAddressAuthData),
+        }),
+        json!({
+            "name": "storage_key_type_address_metadata",
+            "type": "StorageKeyType",
+            "value": { "variant": "kStorageKeyTypeAddressMetadata" },
+            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeAddressMetadata),
+        }),
+        json!({
+            "name": "storage_key_type_replay_cache",
+            "type": "StorageKeyType",
+            "value": { "variant": "kStorageKeyTypeReplayCache" },
+            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeReplayCache),
+        }),
+    ]
+}
+
+fn protocol_struct_vectors() -> Vec<Value> {
+    let sample_key = Ed25519PublicKey::from([
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a, 0x69, 0x78,
+        0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0xf0,
+    ]);
+    let sample_address = ContractAddress::from([
+        0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11,
+        0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+    ]);
+    let sample_entrypoint = ContractEntrypointID::from([
+        0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe,
+    ]);
+
+    // PublicKeyConfig
+    let pubkey_config = PublicKeyConfig {
+        key: PublicKey::Ed25519 { ed25519: sample_key },
+        max_weight: 10,
+    };
+
+    // Transaction with minimal fields
+    let tx = Transaction {
+        invocation: Invocation {
+            invoked_address: sample_address,
+            entrypoint: sample_entrypoint,
+            gas_limit: 1_000_000,
+            calldata: Default::default(),
+        },
+        uniquifier: Uniquifier {
+            block_expiry_height: 100,
+            nonce: 42,
+        },
+        contracts_to_deploy: Default::default(),
+        auth_claims: Default::default(),
+        gas_claims: Default::default(),
+    };
+
+    vec![
+        json!({
+            "name": "public_key_config",
+            "type": "PublicKeyConfig",
+            "value": {
+                "key": {
+                    "variant": "Ed25519",
+                    "value": {
+                        "ed25519": hex_bytes(&*sample_key),
+                    },
+                },
+                "max_weight": "10",
+            },
+            "expected_hex": xdr_hex(&pubkey_config),
+        }),
+        json!({
+            "name": "transaction_minimal",
+            "type": "Transaction",
+            "value": {
+                "invocation": {
+                    "invoked_address": hex_bytes(&*sample_address),
+                    "entrypoint": hex_bytes(&*sample_entrypoint),
+                    "gas_limit": "1000000",
+                    "calldata": "",
+                },
+                "uniquifier": {
+                    "block_expiry_height": "100",
+                    "nonce": "42",
+                },
+                "contracts_to_deploy": [],
+                "auth_claims": [],
+                "gas_claims": [],
+            },
+            "expected_hex": xdr_hex(&tx),
+        }),
+    ]
+}
+
 pub fn print() {
     let mut vectors = Vec::new();
     vectors.extend(primitive_vectors());
     vectors.extend(collection_vectors());
+    vectors.extend(protocol_fixed_vectors());
+    vectors.extend(protocol_enum_vectors());
+    vectors.extend(protocol_struct_vectors());
 
     let output = json!({
         "version": 1,
