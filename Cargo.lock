@@ -597,6 +597,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-test-vectors"
+version = "0.3.1"
+dependencies = [
+ "groundhog-contract-util",
+ "groundhog-xdr",
+ "serde",
+ "serde_json",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-trace"
 version = "0.5.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"

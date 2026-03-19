@@ -197,7 +197,7 @@ impl TransactionHandler {
         }
 
         let exec_result: groundhog_xdr::exec_result::ExecResult =
-            res.result_code.try_into().unwrap();
+            res.result_code.into();
         exec_result
     }
 
