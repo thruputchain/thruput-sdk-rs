@@ -13,7 +13,7 @@
 //! `i128`, respectively.
 //!
 //! Calling `set_add(s_opt, a)` replaces these pending values; this always
-//! succeeds unless `s_opt.and_then(|s| s + a < 0)`.
+//! succeeds unless `s_opt.is_some_and(|s| s + a < 0)`.
 //!
 //! Calling `get_values` (without forcing) returns the pending values without
 //! consulting the database.  It provides a "set" value only if a set operation
@@ -33,7 +33,7 @@ use crate::*;
 ///
 /// This discards any values previously present.
 ///
-/// This aborts if `s_opt.and_then(|s| s + a < 0)`.
+/// This aborts if `set_value.is_some_and(|s| s + a < 0)`.
 ///
 pub fn set_add(key: &StorageKey, set_value: Option<i128>, add_value: i128) {
     sys::raw_NonnegativeIntSetAdd(

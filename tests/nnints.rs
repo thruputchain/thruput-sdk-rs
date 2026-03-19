@@ -60,15 +60,6 @@ contract_test!(test_nnints {
     let inc = 1;
     non_negative_int_inc(key, inc); n += inc;
 
-    // Reset restores the value at the start of the transaction, if any.
-    non_negative_int_reset(key); n = 0;
-    assert_eq!(non_negative_int_get(key), n);
-
-    // Reset even destroys values of other types
-    bytestring_set(key, b"");
-    non_negative_int_reset(key); n = 0;
-    assert_eq!(non_negative_int_get(key), n);
-
     // We can delete the location and then set again
     delete_shared(key);
     n = 0;
@@ -246,44 +237,5 @@ fn delete_actually_deletes() {
             println!("OK: {}", exn)
         }
         _ => panic!("Unexpected result: {:?}", res),
-    }
-}
-
-// Reset (`set_add(None, 0)`) on a previously-unset location succeeds.
-//
-// XXX: Does this commit an nnint with value zero?
-//
-#[test]
-fn reset_unset_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
-        let key = &key;
-
-        non_negative_int_reset(key);
-        assert_eq!(non_negative_int_get(key), 0);
-    });
-
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
-}
-
-// Restore (`set_add(None, 0)`) on wrong-type location succeeds.
-//
-// XXX: Does this commit an nnint with value zero?
-//
-#[test]
-fn reset_wrong_type_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
-        let key = &key;
-
-        bytestring_set(key, b"");
-        non_negative_int_reset(key);
-        assert_eq!(non_negative_int_get(key), 0);
-    });
-
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
     }
 }

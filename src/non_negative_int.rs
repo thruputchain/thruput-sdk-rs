@@ -1,7 +1,7 @@
 //! System functions: non-negative integers
 //!
 //! At the start of a transaction, a storage location holds a non-negative-int
-//! value if a previous transaction perfomed a "set" operation there, and the
+//! value if a previous transaction performed a "set" operation there, and the
 //! most recent such operation placed a value of the non-negative-int storage
 //! type. Otherwise, it does not contain a non-negative-int value.
 //!
@@ -40,6 +40,8 @@ pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
 
 /// Set the value.
 ///
+/// (This clears the effects of any previous "increment" operations.)
+///
 /// This call always succeeds, but it puts constraints on the transaction,
 /// described below.
 ///
@@ -48,10 +50,10 @@ pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
 /// to an abort.
 ///
 /// If a non-negative value is set, and subsequent increments added to that
-/// value would be negative at the end of the transaction, it will revert.  A set of
-/// invocations that conclude their transactions with the same absolute value,
-/// and whose summed increments keep the value non-negative, may be included in
-/// the same block.
+/// value would be negative at the end of the transaction, it will revert.
+///
+/// A set of concurrent transactions with the same explicitly-set value may
+/// included in the same block.
 ///
 pub fn non_negative_int_set(key: &StorageKey, set_value: i128) {
     let add_value = 0;
@@ -61,10 +63,10 @@ pub fn non_negative_int_set(key: &StorageKey, set_value: i128) {
 
 /// Set the value exclusively.
 ///
-/// This behaves like `non_negative_int_set`, with the additional constraint
+/// This behaves like [`non_negative_int_set`], with the additional constraint
 /// that, if a concurrent exclusive-set operation is performed by another
-/// contract invocation, only one such invocation can succeed without
-/// reverting.
+/// contract invocation, only one such invocation can be included in the same
+/// block.
 ///
 pub fn non_negative_int_set_exclusive(key: &StorageKey, set_value: i128) {
     let add_value = 0;
@@ -74,14 +76,20 @@ pub fn non_negative_int_set_exclusive(key: &StorageKey, set_value: i128) {
 
 /// Increment the value.
 ///
-/// Aborts if the resulting value overflows.
+/// Aborts if the increments accumulated from previous calls would overflow.
 ///
 /// If a "set" operation has been used previously in this transaction and the
-/// resulting value after incrementing by `amount` is negative, this aborts.
+/// value resulting from adding the accumulated increments `amount` is
+/// negative, this aborts.
 ///
 /// Otherwise, if the resulting value (the value at the end of the last
-/// transaction plus `amount`) is negative, this function will not immediately
-/// abort.  But note the transaction constraints at `non_negative_int_set`.
+/// transaction plus the accumulated increments) is negative, this function
+/// will not immediately abort.  But note the transaction constraints at
+/// `non_negative_int_set`.
+///
+/// A set of concurrent transactions may be included in the same block if their
+/// explicitly-set value is the same (see `non_negative_int_set`) and the sum
+/// of that value and of all their increments is non-negative.
 ///
 pub fn non_negative_int_inc(key: &StorageKey, amount: i128) {
     // Combine the existing "add" value with this additional increment
@@ -94,7 +102,9 @@ pub fn non_negative_int_inc(key: &StorageKey, amount: i128) {
 
 /// Increment the value.
 ///
-/// Aborts if the resulting value overflows, or if it would be negative.
+/// This behaves similarly to `non_negative_int_inc`, except that it aborts if
+/// the sum of the explicitly-set value and the accumulated increments
+/// would overflow, or if it is negative.
 ///
 pub fn non_negative_int_strict_inc(key: &StorageKey, amount: i128) {
     let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
@@ -108,14 +118,4 @@ pub fn non_negative_int_strict_inc(key: &StorageKey, amount: i128) {
     }
 
     nnint::set_add(key, Some(s), add_value);
-}
-
-/// Reset the value to the state it had at the start of the transaction, if
-/// any.
-///
-/// If the address does not contain a non-negative int, this does not fail and
-/// otherwise has the same effect as `non_negative_int_inc(key, 0)`.
-///
-pub fn non_negative_int_reset(key: &StorageKey) {
-    nnint::set_add(key, None, 0);
 }
