@@ -152,3 +152,23 @@ fn test_mock_handler_abort() {
     handler.notify_root_frame_closed();
     handler.abort_transaction();
 }
+
+#[test]
+fn test_mock_handler_event_logs_empty() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| false)
+        .result();
+
+    handler.notify_root_frame_closed();
+    handler.try_commit_transaction();
+
+    // No events emitted, should return None or empty
+    let events = handler.get_event_logs();
+    assert!(events.is_none() || events.unwrap().events.is_empty());
+}

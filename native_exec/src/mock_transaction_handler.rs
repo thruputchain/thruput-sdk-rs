@@ -381,6 +381,49 @@ impl MockTransactionHandler {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn get_event_logs(&self) -> Option<groundhog_xdr::event::TxEventLog> {
+        assert!(
+            self.state == MockTransactionState::Committed
+                || self.state == MockTransactionState::Aborted,
+            "cannot get event logs before transaction is committed or aborted"
+        );
+
+        let buffer_len_res =
+            unsafe { groundhog_sys::get_event_log_len(self.handler) };
+        let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
+        if err == FFIErrorCode::EventLogNotFound {
+            return None;
+        }
+        if err != FFIErrorCode::None {
+            panic!("failed to get event log length: {:?}", err);
+        }
+        let buffer_len: u32 = buffer_len_res.len;
+        if buffer_len == 0 {
+            return None;
+        }
+
+        let mut buffer = vec![0u8; buffer_len as usize];
+        let event_log_res = unsafe {
+            groundhog_sys::get_event_log(
+                self.handler,
+                buffer.as_mut_ptr(),
+                buffer_len,
+            )
+        };
+        let err: FFIErrorCode = event_log_res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to get event log: {:?}", err);
+        }
+
+        let decoded: groundhog_xdr::event::TxEventLog =
+            xdrs::txs::decode(&buffer).unwrap_or_else(|e| {
+                panic!("failed to decode event log ({} bytes): {}", buffer.len(), e)
+            });
+
+        Some(decoded)
+    }
+
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
         assert_eq!(
             self.state,
