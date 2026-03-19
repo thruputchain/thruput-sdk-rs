@@ -379,7 +379,7 @@ fn protocol_struct_vectors() -> Vec<Value> {
     ]
 }
 
-pub fn print() {
+pub fn generate() -> Value {
     let mut vectors = Vec::new();
     vectors.extend(primitive_vectors());
     vectors.extend(collection_vectors());
@@ -387,11 +387,13 @@ pub fn print() {
     vectors.extend(protocol_enum_vectors());
     vectors.extend(protocol_struct_vectors());
 
-    let output = json!({
+    json!({
         "version": 1,
         "category": "xdr_serialization",
         "vectors": vectors,
-    });
+    })
+}
 
-    println!("{}", serde_json::to_string_pretty(&output).unwrap());
+pub fn print() {
+    println!("{}", serde_json::to_string_pretty(&generate()).unwrap());
 }

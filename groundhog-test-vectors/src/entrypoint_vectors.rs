@@ -43,7 +43,7 @@ fn cases() -> Vec<EntrypointCase> {
     ]
 }
 
-pub fn print() {
+pub fn generate() -> Value {
     let vectors: Vec<Value> = cases()
         .into_iter()
         .map(|case| {
@@ -62,11 +62,13 @@ pub fn print() {
         })
         .collect();
 
-    let output = json!({
+    json!({
         "version": 1,
         "category": "entrypoint_id",
         "vectors": vectors,
-    });
+    })
+}
 
-    println!("{}", serde_json::to_string_pretty(&output).unwrap());
+pub fn print() {
+    println!("{}", serde_json::to_string_pretty(&generate()).unwrap());
 }
