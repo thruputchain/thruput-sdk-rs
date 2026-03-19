@@ -173,7 +173,49 @@ fn test_mock_handler_event_logs_empty() {
     assert!(events.is_none() || events.unwrap().events.is_empty());
 }
 
+use groundhog_native_exec::testing::TestEnvExt;
 use groundhog_native_exec::transaction::Transaction;
+
+#[test]
+fn test_transact_success() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            let res = groundhog_xdr::syscalls::GetCurrentAddress();
+            assert_eq!(
+                res.unwrap(),
+                groundhog_xdr::types::ContractAddress::from([1; 32])
+            );
+        })
+    });
+
+    result.assert_success();
+}
+
+#[test]
+fn test_transact_fault() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            panic!("intentional fault");
+        })
+    });
+
+    result.assert_fault();
+}
+
+#[test]
+fn test_transact_manual_commit() {
+    let env = TestEnvironment::new(None);
+
+    env.transact_manual(|tx| {
+        let frame_result = tx.call(&[1u8; 32].into()).run(|| {});
+        frame_result.assert_success();
+        tx.commit();
+    });
+}
 
 #[test]
 fn test_transaction_call_run_success() {
