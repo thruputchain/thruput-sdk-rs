@@ -1,14 +1,14 @@
-use serde_json::{json, Value};
-use xdrs::txs;
+use serde_json::{Value, json};
 use xdrs::WriteXDR;
-use xdrs::{BytesM, VecM, StringM};
+use xdrs::txs;
+use xdrs::{BytesM, StringM, VecM};
 
-use groundhog_xdr::types::{
-    ContractAddress, SHA256Hash, Ed25519PublicKey, StorageKeyType, PublicKey,
-};
 use groundhog_xdr::address_auth::PublicKeyConfig;
 use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::transaction::{Transaction, Invocation, Uniquifier};
+use groundhog_xdr::transaction::{Invocation, Transaction, Uniquifier};
+use groundhog_xdr::types::{
+    ContractAddress, Ed25519PublicKey, PublicKey, SHA256Hash, StorageKeyType,
+};
 
 /// Encode a value to XDR and return lowercase hex string.
 fn xdr_hex<T: WriteXDR>(value: &T) -> String {
@@ -23,36 +23,30 @@ fn primitive_vectors() -> Vec<Value> {
         json!({ "name": "u32_one", "type": "u32", "value": "1", "expected_hex": xdr_hex(&1u32) }),
         json!({ "name": "u32_max", "type": "u32", "value": u32::MAX.to_string(), "expected_hex": xdr_hex(&u32::MAX) }),
         json!({ "name": "u32_mid", "type": "u32", "value": "12345", "expected_hex": xdr_hex(&12345u32) }),
-
         // i32
         json!({ "name": "i32_zero", "type": "i32", "value": "0", "expected_hex": xdr_hex(&0i32) }),
         json!({ "name": "i32_positive", "type": "i32", "value": "42", "expected_hex": xdr_hex(&42i32) }),
         json!({ "name": "i32_negative", "type": "i32", "value": "-1", "expected_hex": xdr_hex(&(-1i32)) }),
         json!({ "name": "i32_min", "type": "i32", "value": i32::MIN.to_string(), "expected_hex": xdr_hex(&i32::MIN) }),
         json!({ "name": "i32_max", "type": "i32", "value": i32::MAX.to_string(), "expected_hex": xdr_hex(&i32::MAX) }),
-
         // u64
         json!({ "name": "u64_zero", "type": "u64", "value": "0", "expected_hex": xdr_hex(&0u64) }),
         json!({ "name": "u64_max", "type": "u64", "value": u64::MAX.to_string(), "expected_hex": xdr_hex(&u64::MAX) }),
         json!({ "name": "u64_mid", "type": "u64", "value": "1000000000000", "expected_hex": xdr_hex(&1_000_000_000_000u64) }),
-
         // i64
         json!({ "name": "i64_zero", "type": "i64", "value": "0", "expected_hex": xdr_hex(&0i64) }),
         json!({ "name": "i64_negative", "type": "i64", "value": "-1", "expected_hex": xdr_hex(&(-1i64)) }),
         json!({ "name": "i64_min", "type": "i64", "value": i64::MIN.to_string(), "expected_hex": xdr_hex(&i64::MIN) }),
         json!({ "name": "i64_max", "type": "i64", "value": i64::MAX.to_string(), "expected_hex": xdr_hex(&i64::MAX) }),
-
         // u128
         json!({ "name": "u128_zero", "type": "u128", "value": "0", "expected_hex": xdr_hex(&0u128) }),
         json!({ "name": "u128_max", "type": "u128", "value": u128::MAX.to_string(), "expected_hex": xdr_hex(&u128::MAX) }),
         json!({ "name": "u128_large", "type": "u128", "value": "340282366920938463463374607431768211454", "expected_hex": xdr_hex(&(u128::MAX - 1)) }),
-
         // i128
         json!({ "name": "i128_zero", "type": "i128", "value": "0", "expected_hex": xdr_hex(&0i128) }),
         json!({ "name": "i128_negative", "type": "i128", "value": "-1", "expected_hex": xdr_hex(&(-1i128)) }),
         json!({ "name": "i128_min", "type": "i128", "value": i128::MIN.to_string(), "expected_hex": xdr_hex(&i128::MIN) }),
         json!({ "name": "i128_max", "type": "i128", "value": i128::MAX.to_string(), "expected_hex": xdr_hex(&i128::MAX) }),
-
         // bool
         json!({ "name": "bool_true", "type": "bool", "value": true, "expected_hex": xdr_hex(&true) }),
         json!({ "name": "bool_false", "type": "bool", "value": false, "expected_hex": xdr_hex(&false) }),
@@ -103,7 +97,6 @@ fn collection_vectors() -> Vec<Value> {
             "value": "abcdef0123",
             "expected_hex": xdr_hex(&BytesM::<1024>::try_from(vec![0xab, 0xcd, 0xef, 0x01, 0x23]).unwrap()),
         }),
-
         // StringM — empty
         json!({
             "name": "string_empty",
@@ -125,7 +118,6 @@ fn collection_vectors() -> Vec<Value> {
             "value": "abcd",
             "expected_hex": xdr_hex(&StringM::<256>::try_from("abcd".to_string()).unwrap()),
         }),
-
         // VecM<u32> — empty
         json!({
             "name": "vec_u32_empty",
@@ -154,7 +146,6 @@ fn collection_vectors() -> Vec<Value> {
             "value": ["100", "200"],
             "expected_hex": xdr_hex(&VecM::<u64>::try_from(vec![100u64, 200]).unwrap()),
         }),
-
         // Option<u32> — None
         json!({
             "name": "option_u32_none",
@@ -195,10 +186,9 @@ fn protocol_fixed_vectors() -> Vec<Value> {
     let zeros_32 = [0u8; 32];
     let ones_32 = [0xffu8; 32];
     let sample_32: [u8; 32] = [
-        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
-        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
-        0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a, 0x69, 0x78,
-        0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0xf0,
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba,
+        0x98, 0x76, 0x54, 0x32, 0x10, 0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a,
+        0x69, 0x78, 0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0xf0,
     ];
 
     vec![
@@ -221,7 +211,6 @@ fn protocol_fixed_vectors() -> Vec<Value> {
             "value": hex_bytes(&sample_32),
             "expected_hex": xdr_hex(&ContractAddress::from(sample_32)),
         }),
-
         // SHA256Hash
         json!({
             "name": "sha256_hash_zeros",
@@ -235,7 +224,6 @@ fn protocol_fixed_vectors() -> Vec<Value> {
             "value": hex_bytes(&sample_32),
             "expected_hex": xdr_hex(&SHA256Hash::from(sample_32)),
         }),
-
         // Ed25519PublicKey
         json!({
             "name": "ed25519_pubkey_zeros",
@@ -249,7 +237,6 @@ fn protocol_fixed_vectors() -> Vec<Value> {
             "value": hex_bytes(&sample_32),
             "expected_hex": xdr_hex(&Ed25519PublicKey::from(sample_32)),
         }),
-
         // ContractEntrypointID
         json!({
             "name": "entrypoint_id_zeros",
@@ -303,16 +290,14 @@ fn protocol_enum_vectors() -> Vec<Value> {
 
 fn protocol_struct_vectors() -> Vec<Value> {
     let sample_key = Ed25519PublicKey::from([
-        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
-        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
-        0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a, 0x69, 0x78,
-        0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0xf0,
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba,
+        0x98, 0x76, 0x54, 0x32, 0x10, 0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a,
+        0x69, 0x78, 0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0xf0,
     ]);
     let sample_address = ContractAddress::from([
-        0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11,
-        0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+        0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44,
+        0x55, 0x66, 0x77, 0x88, 0x99, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+        0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
     ]);
     let sample_entrypoint = ContractEntrypointID::from([
         0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe,
@@ -320,7 +305,9 @@ fn protocol_struct_vectors() -> Vec<Value> {
 
     // PublicKeyConfig
     let pubkey_config = PublicKeyConfig {
-        key: PublicKey::Ed25519 { ed25519: sample_key },
+        key: PublicKey::Ed25519 {
+            ed25519: sample_key,
+        },
         max_weight: 10,
     };
 
