@@ -1,5 +1,5 @@
 use groundhog_contract_util::{
-    NormalizedMethodSignature, contract_entrypoint_id, entrypoint_export_name,
+    NormalizedMethodSignature, contract_entrypoint_id,
     semver::major_version_from_string,
 };
 use serde_json::{Value, json};
@@ -110,7 +110,7 @@ pub fn generate() -> Value {
             let sig = NormalizedMethodSignature::new(case.method);
             let id =
                 contract_entrypoint_id(case.interface, case.version_str, &sig);
-            let hex = entrypoint_export_name(id).to_lowercase();
+            let hex: String = (*id).iter().map(|b| format!("{:02x}", b)).collect();
             let derived = major_version_from_string(case.version_str);
 
             json!({

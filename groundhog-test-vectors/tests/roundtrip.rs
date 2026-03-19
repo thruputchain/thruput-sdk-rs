@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::collections::HashSet;
 
 #[test]
 fn entrypoint_vectors_valid_json() {
@@ -42,6 +43,18 @@ fn entrypoint_vectors_valid_json() {
             "vector {i} expected_id should be hex"
         );
     }
+
+    // Check vector keys are unique (interface + version_str + method)
+    let keys: HashSet<String> = vectors
+        .iter()
+        .map(|v| {
+            format!(
+                "{}:{}:{}",
+                v["interface"], v["version_str"], v["method"]
+            )
+        })
+        .collect();
+    assert_eq!(keys.len(), vectors.len(), "entrypoint vector keys must be unique");
 }
 
 #[test]
@@ -74,6 +87,13 @@ fn xdr_vectors_valid_json() {
             "vector {i} expected_hex should have even length"
         );
     }
+
+    // Check vector names are unique
+    let names: HashSet<&str> = vectors
+        .iter()
+        .filter_map(|v| v["name"].as_str())
+        .collect();
+    assert_eq!(names.len(), vectors.len(), "xdr vector names must be unique");
 }
 
 #[test]
