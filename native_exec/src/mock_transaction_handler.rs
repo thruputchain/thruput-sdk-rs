@@ -14,7 +14,7 @@ use std::rc::Rc;
 use groundhog_sys::FFIErrorCode;
 
 #[derive(Debug, PartialEq)]
-enum MockTransactionState {
+pub(crate) enum MockTransactionState {
     NotStarted,
     Running,
     RootInvokeFinished,
@@ -251,7 +251,7 @@ impl Drop for MockInvocationFrame {
     }
 }
 
-struct ThreadlocalContextPushcount {
+pub(crate) struct ThreadlocalContextPushcount {
     count: i32,
 }
 
@@ -306,11 +306,11 @@ impl Drop for ThreadlocalContextPushcount {
 // Can run one, and only one, transaction,
 // and then get the results
 pub struct MockTransactionHandler {
-    handler: *mut c_void,
-    _env: Rc<TestEnvironment>,
-    state: MockTransactionState,
-    root_frame: Option<Box<MockInvocationFrame>>,
-    context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+    pub(crate) handler: *mut c_void,
+    pub(crate) _env: Rc<TestEnvironment>,
+    pub(crate) state: MockTransactionState,
+    pub(crate) root_frame: Option<Box<MockInvocationFrame>>,
+    pub(crate) context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
 }
 
 impl MockTransactionHandler {
