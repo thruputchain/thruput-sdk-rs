@@ -14,14 +14,22 @@ macro_rules! single_event_test {
             let env = $crate::TestEnvironment::no_cost();
             let mut handler = contract_test_handler(env, || { $body });
 
-            contract_handler_exec(&mut handler)
-                .unwrap_or_else(|e| panic!("Invocation failed: {e}"));
+            let res = handler.root_invoke();
+            if res.output.status_code()
+                != sdk::types::transaction::InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+            {
+                panic!("Invocation failed with code {}", res.output.status_code());
+            }
 
-            let event_log = handler.get_event_logs().unwrap();
-            let events = &event_log.events;
+            match handler.try_commit_transaction() {
+                ExecResult::ExecResultOK => {}
+                r => panic!("Transaction failed: {:?}", r),
+            }
+
+            let events = &res.events;
 
             assert_eq!(events.len(), 1);
-            let event = &event_log.events[0];
+            let event = &events[0];
 
             let event_check = |$event: &TxEmittedEvent| $body_event_check;
             event_check(event);

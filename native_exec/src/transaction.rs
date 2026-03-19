@@ -33,11 +33,4 @@ impl Transaction {
         self.handler.notify_root_frame_closed();
         self.handler.abort_transaction();
     }
-
-    /// Get event logs after commit/abort.
-    pub(crate) fn get_event_logs(
-        &self,
-    ) -> Option<groundhog_xdr::event::TxEventLog> {
-        self.handler.get_event_logs()
-    }
 }

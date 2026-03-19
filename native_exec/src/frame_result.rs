@@ -1,19 +1,26 @@
 use groundhog_trace::InvocationFrameTrace;
+use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 
 /// Result of executing a single invocation frame.
-/// Wraps InvocationFrameOutput + optional trace.
+/// Wraps InvocationFrameOutput + optional trace + per-frame events.
 pub struct FrameResult {
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
+    events: Vec<TxEmittedEvent>,
 }
 
 impl FrameResult {
     pub fn new(
         output: InvocationFrameOutput,
         trace: Option<InvocationFrameTrace>,
+        events: Vec<TxEmittedEvent>,
     ) -> Self {
-        Self { output, trace }
+        Self {
+            output,
+            trace,
+            events,
+        }
     }
 
     // -- Status checks (using pattern matching for safety) --
@@ -118,12 +125,85 @@ impl FrameResult {
         self.trace.as_ref()
     }
 
-    // -- Per-frame events (TODO) --
+    // -- Per-frame events --
 
-    /// Per-frame event access not yet supported.
-    /// Requires adding events to InvocationFrameTrace in hogd.
-    /// Use TransactResult::events() for transaction-level events.
-    pub fn events(&self) -> &[groundhog_xdr::event::TxEmittedEvent] {
-        &[]
+    pub fn events(&self) -> &[TxEmittedEvent] {
+        &self.events
+    }
+
+    pub fn assert_event(
+        &self,
+        index: usize,
+        check: impl FnOnce(&TxEmittedEvent),
+    ) {
+        let events = self.events();
+        assert!(
+            index < events.len(),
+            "event index {} out of range (have {} events)",
+            index,
+            events.len()
+        );
+        check(&events[index]);
+    }
+
+    pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        let events = self.events();
+        assert!(
+            index < events.len(),
+            "event index {} out of range (have {} events)",
+            index,
+            events.len()
+        );
+        let event = &events[index];
+        let topics_len = 32 * event.num_topics as usize;
+        assert!(
+            topics_len <= event.serialized_event.len(),
+            "event {} topics_len {} exceeds serialized_event length {}",
+            index,
+            topics_len,
+            event.serialized_event.len()
+        );
+        let payload = &event.serialized_event[topics_len..];
+        let decoded: E = xdrs::txs::decode(payload)
+            .unwrap_or_else(|e| panic!("failed to decode event data: {}", e));
+        check(&decoded);
+    }
+
+    pub fn assert_emitted<E>(&self, predicate: impl Fn(&E) -> bool)
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        let events = self.events();
+        let mut decoded_count = 0usize;
+        for event in events {
+            let topics_len = 32 * event.num_topics as usize;
+            assert!(
+                topics_len <= event.serialized_event.len(),
+                "assert_emitted: event has topics_len {} but serialized_event is only {} bytes",
+                topics_len,
+                event.serialized_event.len()
+            );
+            let payload = &event.serialized_event[topics_len..];
+            if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
+                decoded_count += 1;
+                if predicate(&decoded) {
+                    return;
+                }
+            }
+        }
+        if decoded_count == 0 {
+            panic!(
+                "no event matched the predicate: 0 of {} events could be decoded as the expected type",
+                events.len()
+            );
+        }
+        panic!(
+            "no event matched the predicate (decoded {}/{} events, none passed predicate)",
+            decoded_count,
+            events.len()
+        );
     }
 }

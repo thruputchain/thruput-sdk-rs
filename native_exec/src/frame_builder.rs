@@ -38,8 +38,7 @@ impl<'a> FrameBuilder<'a> {
             f();
             false // always close
         });
-        let (output, trace) = frame.result();
-        FrameResult::new(output, trace)
+        frame.result()
     }
 
     /// Execute the frame with a closure that receives a FrameHandle
@@ -107,7 +106,6 @@ impl<'a> ContinuableFrame<'a> {
     /// Extract the frame result. Call this after the frame has been closed
     /// (i.e., after a run_continuable that returned FrameAction::Close).
     pub fn finish(&mut self) -> FrameResult {
-        let (output, trace) = self.frame.result();
-        FrameResult::new(output, trace)
+        self.frame.result()
     }
 }

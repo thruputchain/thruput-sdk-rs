@@ -27,21 +27,28 @@ pub fn test_erc20_contract(
         })
     };
 
-    sdk::contract_handler_exec(&mut handler)
-        .unwrap_or_else(|e| panic!("ERC20 test failed: {e}"));
+    let res = handler.root_invoke();
+    if res.output.status_code()
+        != sdk::types::transaction::InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+    {
+        panic!("ERC20 test invocation failed with code {}", res.output.status_code());
+    }
 
-    let event_log = handler.get_event_logs();
+    match handler.try_commit_transaction() {
+        sdk::ExecResult::ExecResultOK => {}
+        r => panic!("ERC20 test transaction failed: {:?}", r),
+    }
 
     // Print out the transaction's event log
     {
         use groundhog_erc20_if::*;
         use sdk::EmittedEvent;
 
-        if let Some(ref log) = event_log {
-            for (i, event) in log.events.iter().enumerate() {
-                let event: EmittedEvent = event.into();
-                let event: ERC20Event = event.try_into().unwrap();
-                eprintln!("\tevent {:?}: {}", i, event);
+        for (i, event) in res.events.iter().enumerate() {
+            let event: EmittedEvent = event.into();
+            match ERC20Event::try_from(event) {
+                Ok(event) => eprintln!("\tevent {:?}: {}", i, event),
+                Err(_) => eprintln!("\tevent {:?}: <non-ERC20 event>", i),
             }
         }
     }
@@ -49,12 +56,6 @@ pub fn test_erc20_contract(
     // Check that the event log matches the model
     {
         let m = model.lock().unwrap().clone().unwrap();
-
-        if let Some(ref log) = event_log {
-            m.check_events(&log.events);
-        } else {
-            let no_events = [];
-            m.check_events(&no_events);
-        }
+        m.check_events(&res.events);
     }
 }

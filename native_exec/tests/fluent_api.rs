@@ -9,7 +9,7 @@ fn test_frame_result_success() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
         return_buffer: return_data.clone().try_into().unwrap(),
     };
-    let result = FrameResult::new(output, None);
+    let result = FrameResult::new(output, None, Vec::new());
 
     assert!(result.is_success());
     assert!(!result.is_abort());
@@ -24,7 +24,7 @@ fn test_frame_result_abort() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
         abort_buffer: abort_data.clone().try_into().unwrap(),
     };
-    let result = FrameResult::new(output, None);
+    let result = FrameResult::new(output, None, Vec::new());
 
     assert!(result.is_abort());
     assert!(!result.is_success());
@@ -35,7 +35,7 @@ fn test_frame_result_abort() {
 #[test]
 fn test_frame_result_fault() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeFault;
-    let result = FrameResult::new(output, None);
+    let result = FrameResult::new(output, None, Vec::new());
 
     assert!(result.is_fault());
     result.assert_fault();
@@ -45,7 +45,7 @@ fn test_frame_result_fault() {
 #[should_panic(expected = "expected success")]
 fn test_frame_result_assert_success_panics_on_fault() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeFault;
-    let result = FrameResult::new(output, None);
+    let result = FrameResult::new(output, None, Vec::new());
     result.assert_success();
 }
 
@@ -56,7 +56,7 @@ fn test_frame_result_assert_abort_panics_on_success() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
         return_buffer: return_data.try_into().unwrap(),
     };
-    let result = FrameResult::new(output, None);
+    let result = FrameResult::new(output, None, Vec::new());
     result.assert_abort();
 }
 
@@ -66,8 +66,8 @@ fn test_transact_result_success() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
         return_buffer: return_data.try_into().unwrap(),
     };
-    let frame = FrameResult::new(output, None);
-    let result = TransactResult::new(frame, ExecResult::ExecResultOK, None);
+    let frame = FrameResult::new(output, None, Vec::new());
+    let result = TransactResult::new(frame, ExecResult::ExecResultOK);
     result.assert_success();
 }
 
@@ -77,12 +77,9 @@ fn test_transact_result_abort() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
         abort_buffer: abort_data.try_into().unwrap(),
     };
-    let frame = FrameResult::new(output, None);
-    let result = TransactResult::new(
-        frame,
-        ExecResult::ExecResultTxRootFrameReverted,
-        None,
-    );
+    let frame = FrameResult::new(output, None, Vec::new());
+    let result =
+        TransactResult::new(frame, ExecResult::ExecResultTxRootFrameReverted);
     result.assert_abort();
 }
 
@@ -92,12 +89,9 @@ fn test_transact_result_commit_failed() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
         return_buffer: return_data.try_into().unwrap(),
     };
-    let frame = FrameResult::new(output, None);
-    let result = TransactResult::new(
-        frame,
-        ExecResult::ExecResultTxDeterministicError,
-        None,
-    );
+    let frame = FrameResult::new(output, None, Vec::new());
+    let result =
+        TransactResult::new(frame, ExecResult::ExecResultTxDeterministicError);
     result.assert_commit_failed();
 }
 
@@ -108,12 +102,9 @@ fn test_transact_result_assert_success_panics_on_abort() {
     let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
         abort_buffer: abort_data.try_into().unwrap(),
     };
-    let frame = FrameResult::new(output, None);
-    let result = TransactResult::new(
-        frame,
-        ExecResult::ExecResultTxRootFrameReverted,
-        None,
-    );
+    let frame = FrameResult::new(output, None, Vec::new());
+    let result =
+        TransactResult::new(frame, ExecResult::ExecResultTxRootFrameReverted);
     result.assert_success();
 }
 
@@ -158,19 +149,18 @@ fn test_mock_handler_event_logs_empty() {
     let env = TestEnvironment::new(None);
     let mut handler = MockTransactionHandler::new(env);
 
-    handler
+    let result = handler
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
         .execute(|_| false)
         .result();
 
+    // No events emitted, should be empty
+    assert!(result.events().is_empty());
+
     handler.notify_root_frame_closed();
     handler.try_commit_transaction();
-
-    // No events emitted, should return None or empty
-    let events = handler.get_event_logs();
-    assert!(events.is_none() || events.unwrap().events.is_empty());
 }
 
 use groundhog_native_exec::testing::TestEnvExt;
@@ -362,6 +352,285 @@ fn test_transact_abort_buffer_access() {
     // The abort buffer should contain the data we passed
     let buf = result.frame().abort_buffer();
     assert_eq!(buf, &[42, 43, 44]);
+}
+
+// ── Continuable frame tests ──────────────────────────────────────────────
+
+// ── Per-frame event tests ─────────────────────────────────────────────
+
+#[test]
+fn test_frame_events_single() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"hello")
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    assert_eq!(result.events().len(), 1);
+    result.assert_event(0, |e| {
+        assert_eq!(e.num_topics, 0);
+        assert_eq!(&e.serialized_event[..], b"hello");
+    });
+}
+
+#[test]
+fn test_frame_events_multiple() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"first")
+                .unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"second")
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    assert_eq!(result.events().len(), 2);
+    result.assert_event(0, |e| {
+        assert_eq!(&e.serialized_event[..], b"first");
+    });
+    result.assert_event(1, |e| {
+        assert_eq!(&e.serialized_event[..], b"second");
+    });
+}
+
+#[test]
+fn test_frame_events_with_topics() {
+    let env = TestEnvironment::new(None);
+
+    let topic = groundhog_xdr::event::Topic::new([0xAA; 32]);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new([0xAA; 32])),
+                None,
+                None,
+                b"data",
+            )
+            .unwrap();
+        })
+    });
+
+    result.assert_success();
+    assert_eq!(result.events().len(), 1);
+    result.assert_event(0, |e| {
+        assert_eq!(e.num_topics, 1);
+        // First 32 bytes are the topic, rest is the data
+        assert_eq!(&e.serialized_event[..32], topic.as_ref());
+        assert_eq!(&e.serialized_event[32..], b"data");
+    });
+}
+
+#[test]
+fn test_frame_events_contract_address() {
+    let env = TestEnvironment::new(None);
+    let addr = groundhog_xdr::types::ContractAddress::from([0x42; 32]);
+
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"evt")
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    result.assert_event(0, |e| {
+        assert_eq!(e.contract_address, addr);
+    });
+}
+
+#[test]
+fn test_frame_events_empty_on_fault() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(
+                None,
+                None,
+                None,
+                b"before_fault",
+            )
+            .unwrap();
+            panic!("fault after emitting event");
+        })
+    });
+
+    result.assert_fault();
+    // Events from a faulted frame are not returned
+    assert!(result.events().is_empty());
+}
+
+#[test]
+fn test_frame_events_empty_on_revert() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(
+                None,
+                None,
+                None,
+                b"before_revert",
+            )
+            .unwrap();
+            groundhog_xdr::syscalls::raw_Return(&[1], true);
+        })
+    });
+
+    result.assert_abort();
+    // Events from a reverted frame are not returned
+    assert!(result.events().is_empty());
+}
+
+#[test]
+fn test_frame_events_via_transact_manual() {
+    let env = TestEnvironment::new(None);
+
+    let frame_result = env.transact_manual(|tx| {
+        let frame = tx.call(&[1u8; 32].into()).run(|| {
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"manual")
+                .unwrap();
+        });
+        tx.commit();
+        frame
+    });
+
+    frame_result.assert_success();
+    assert_eq!(frame_result.events().len(), 1);
+    frame_result.assert_event(0, |e| {
+        assert_eq!(&e.serialized_event[..], b"manual");
+    });
+}
+
+// ── Typed event assertion tests ───────────────────────────────────────
+
+#[test]
+fn test_assert_event_data_u32() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            let v: u32 = 12345;
+            let data = xdrs::txs::encode(&v).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    assert_eq!(result.events().len(), 1);
+
+    // Decode the event payload as u32 and check
+    result.assert_event_data::<u32>(0, |v| {
+        assert_eq!(*v, 12345);
+    });
+
+    // Also works on the frame directly
+    result.frame().assert_event_data::<u32>(0, |v| {
+        assert_eq!(*v, 12345);
+    });
+}
+
+#[test]
+fn test_assert_event_data_with_topic() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            let v: u32 = 99;
+            let data = xdrs::txs::encode(&v).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new([0xBB; 32])),
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
+        })
+    });
+
+    result.assert_success();
+    // assert_event_data strips topics and decodes payload
+    result.assert_event_data::<u32>(0, |v| {
+        assert_eq!(*v, 99);
+    });
+}
+
+#[test]
+fn test_assert_emitted_finds_matching_event() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            for v in [10u32, 20, 30] {
+                let data = xdrs::txs::encode(&v).unwrap();
+                groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                    .unwrap();
+            }
+        })
+    });
+
+    result.assert_success();
+    assert_eq!(result.events().len(), 3);
+
+    // Find the event with value 20
+    result.assert_emitted::<u32>(|v| *v == 20);
+
+    // Also works on the frame directly
+    result.frame().assert_emitted::<u32>(|v| *v == 30);
+}
+
+#[test]
+#[should_panic(expected = "no event matched the predicate")]
+fn test_assert_emitted_panics_when_no_match() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            let data = xdrs::txs::encode(&42u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    result.assert_emitted::<u32>(|v| *v == 999);
+}
+
+#[test]
+#[should_panic(expected = "no event matched the predicate: 0 of 0")]
+fn test_assert_emitted_panics_on_empty_events() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| tx.call(&[1u8; 32].into()).run(|| {}));
+
+    result.assert_success();
+    result.assert_emitted::<u32>(|_| true);
+}
+
+#[test]
+#[should_panic(expected = "event index 5 out of range")]
+fn test_assert_event_data_out_of_range() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            let data = xdrs::txs::encode(&1u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_data::<u32>(5, |_| {});
 }
 
 // ── Continuable frame tests ──────────────────────────────────────────────

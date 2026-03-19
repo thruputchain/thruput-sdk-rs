@@ -33,9 +33,8 @@ impl TestEnvExt for TestEnvironmentHandle {
         let frame_result = f(&mut tx);
 
         let exec_result = tx.commit();
-        let event_log = tx.get_event_logs();
 
-        TransactResult::new(frame_result, exec_result, event_log)
+        TransactResult::new(frame_result, exec_result)
     }
 
     fn transact_manual<R>(&self, f: impl FnOnce(&mut Transaction) -> R) -> R {

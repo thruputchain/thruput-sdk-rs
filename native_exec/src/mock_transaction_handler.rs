@@ -1,9 +1,11 @@
+use crate::frame_result::FrameResult;
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_sys::ForeignTryCommitResult;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::auth_claim::AuthClaimData;
+use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::SHA256Hash;
 use std::cell::RefCell;
@@ -25,7 +27,11 @@ pub(crate) enum MockTransactionState {
 #[derive(Debug, PartialEq)]
 enum MockInvocationFrameState {
     Started,
-    Closed(InvocationFrameOutput, Option<InvocationFrameTrace>),
+    Closed(
+        InvocationFrameOutput,
+        Option<InvocationFrameTrace>,
+        Vec<TxEmittedEvent>,
+    ),
 }
 
 pub struct MockInvocationFrameConfig<'a> {
@@ -170,7 +176,22 @@ impl MockInvocationFrame {
         } else {
             None
         };
-        self.state = MockInvocationFrameState::Closed(output, trace);
+        let events: Vec<TxEmittedEvent> = if let Some(events_data) =
+            handler_res.serialized_events.as_slice()
+        {
+            let decoded: xdr_common::VecM<TxEmittedEvent> =
+                xdrs::txs::decode(events_data).unwrap_or_else(|e| {
+                    panic!(
+                        "failed to decode frame events ({} bytes): {}",
+                        events_data.len(),
+                        e
+                    )
+                });
+            decoded.into()
+        } else {
+            Vec::new()
+        };
+        self.state = MockInvocationFrameState::Closed(output, trace, events);
     }
 
     fn push_context(&mut self) {
@@ -222,12 +243,10 @@ impl MockInvocationFrame {
         self
     }
 
-    pub fn result(
-        &mut self,
-    ) -> (InvocationFrameOutput, Option<InvocationFrameTrace>) {
+    pub fn result(&mut self) -> FrameResult {
         let res = match &self.state {
-            MockInvocationFrameState::Closed(output, trace) => {
-                (output.clone(), trace.clone())
+            MockInvocationFrameState::Closed(output, trace, events) => {
+                FrameResult::new(output.clone(), trace.clone(), events.clone())
             }
             _ => {
                 eprintln!(
@@ -381,53 +400,6 @@ impl MockTransactionHandler {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_event_logs(&self) -> Option<groundhog_xdr::event::TxEventLog> {
-        assert!(
-            self.state == MockTransactionState::Committed
-                || self.state == MockTransactionState::Aborted,
-            "cannot get event logs before transaction is committed or aborted"
-        );
-
-        let buffer_len_res =
-            unsafe { groundhog_sys::get_event_log_len(self.handler) };
-        let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
-        if err == FFIErrorCode::EventLogNotFound {
-            return None;
-        }
-        if err != FFIErrorCode::None {
-            panic!("failed to get event log length: {:?}", err);
-        }
-        let buffer_len: u32 = buffer_len_res.len;
-        if buffer_len == 0 {
-            return None;
-        }
-
-        let mut buffer = vec![0u8; buffer_len as usize];
-        let event_log_res = unsafe {
-            groundhog_sys::get_event_log(
-                self.handler,
-                buffer.as_mut_ptr(),
-                buffer_len,
-            )
-        };
-        let err: FFIErrorCode = event_log_res.into();
-        if err != FFIErrorCode::None {
-            panic!("failed to get event log: {:?}", err);
-        }
-
-        let decoded: groundhog_xdr::event::TxEventLog =
-            xdrs::txs::decode(&buffer).unwrap_or_else(|e| {
-                panic!(
-                    "failed to decode event log ({} bytes): {}",
-                    buffer.len(),
-                    e
-                )
-            });
-
-        Some(decoded)
-    }
-
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
         assert_eq!(
             self.state,
@@ -487,7 +459,7 @@ mod tests {
         static mut FIRST: bool = false;
         static mut SECOND: bool = false;
 
-        let (output, _) = handler
+        let result = handler
             .open_root_frame()
             .with_invoke_flags(0)
             .build()
@@ -508,7 +480,7 @@ mod tests {
         assert!(unsafe { FIRST });
         assert!(unsafe { SECOND });
         assert_eq!(
-            output.status_code(),
+            result.output().status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
     }
@@ -518,7 +490,7 @@ mod tests {
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
 
-        let (output, _) = handler
+        let result = handler
             .open_root_frame()
             .with_invoke_flags(0)
             .build()
@@ -527,7 +499,7 @@ mod tests {
             })
             .result();
         assert_eq!(
-            output.status_code(),
+            result.output().status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeFault.0
         );
     }
@@ -540,7 +512,7 @@ mod tests {
         static mut FIRST: bool = false;
         static mut SECOND: bool = false;
 
-        let (output, _) = handler
+        let result = handler
             .open_root_frame()
             .with_invoke_flags(0)
             .build()
@@ -566,7 +538,7 @@ mod tests {
             })
             .result();
         assert_eq!(
-            output.status_code(),
+            result.output().status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
         assert!(unsafe { FIRST });
@@ -578,7 +550,7 @@ mod tests {
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
 
-        let (output, _) = handler
+        let result = handler
             .open_root_frame()
             .with_invoke_flags(0)
             .at_contract_address(groundhog_xdr::types::ContractAddress::from(
@@ -597,7 +569,7 @@ mod tests {
             })
             .result();
         assert_eq!(
-            output.status_code(),
+            result.output().status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
     }
@@ -643,7 +615,7 @@ mod tests {
                 );
                 true
             });
-        let (output1, _) = frame1
+        let result1 = frame1
             .execute(|_| {
                 std::println!("getting current address");
                 let res = groundhog_xdr::syscalls::GetCurrentAddress();
@@ -656,7 +628,7 @@ mod tests {
             })
             .result();
 
-        let (output2, _) = frame2
+        let result2 = frame2
             .execute(|_| {
                 std::println!("getting current address");
                 let res = groundhog_xdr::syscalls::GetCurrentAddress();
@@ -670,11 +642,11 @@ mod tests {
             .result();
 
         assert_eq!(
-            output1.status_code(),
+            result1.output().status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
         assert_eq!(
-            output2.status_code(),
+            result2.output().status_code(),
             InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
         );
     }
