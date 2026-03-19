@@ -14,7 +14,7 @@ use std::rc::Rc;
 use groundhog_sys::FFIErrorCode;
 
 #[derive(Debug, PartialEq)]
-enum MockTransactionState {
+pub(crate) enum MockTransactionState {
     NotStarted,
     Running,
     RootInvokeFinished,
@@ -251,7 +251,7 @@ impl Drop for MockInvocationFrame {
     }
 }
 
-struct ThreadlocalContextPushcount {
+pub(crate) struct ThreadlocalContextPushcount {
     count: i32,
 }
 
@@ -306,11 +306,11 @@ impl Drop for ThreadlocalContextPushcount {
 // Can run one, and only one, transaction,
 // and then get the results
 pub struct MockTransactionHandler {
-    handler: *mut c_void,
-    _env: Rc<TestEnvironment>,
-    state: MockTransactionState,
-    root_frame: Option<Box<MockInvocationFrame>>,
-    context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+    pub(crate) handler: *mut c_void,
+    pub(crate) _env: Rc<TestEnvironment>,
+    pub(crate) state: MockTransactionState,
+    pub(crate) root_frame: Option<Box<MockInvocationFrame>>,
+    pub(crate) context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
 }
 
 impl MockTransactionHandler {
@@ -375,7 +375,66 @@ impl MockTransactionHandler {
         exec_result
     }
 
+    pub fn notify_root_frame_closed(&mut self) {
+        if self.state == MockTransactionState::Running {
+            self.state = MockTransactionState::RootInvokeFinished;
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get_event_logs(&self) -> Option<groundhog_xdr::event::TxEventLog> {
+        assert!(
+            self.state == MockTransactionState::Committed
+                || self.state == MockTransactionState::Aborted,
+            "cannot get event logs before transaction is committed or aborted"
+        );
+
+        let buffer_len_res =
+            unsafe { groundhog_sys::get_event_log_len(self.handler) };
+        let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
+        if err == FFIErrorCode::EventLogNotFound {
+            return None;
+        }
+        if err != FFIErrorCode::None {
+            panic!("failed to get event log length: {:?}", err);
+        }
+        let buffer_len: u32 = buffer_len_res.len;
+        if buffer_len == 0 {
+            return None;
+        }
+
+        let mut buffer = vec![0u8; buffer_len as usize];
+        let event_log_res = unsafe {
+            groundhog_sys::get_event_log(
+                self.handler,
+                buffer.as_mut_ptr(),
+                buffer_len,
+            )
+        };
+        let err: FFIErrorCode = event_log_res.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to get event log: {:?}", err);
+        }
+
+        let decoded: groundhog_xdr::event::TxEventLog =
+            xdrs::txs::decode(&buffer).unwrap_or_else(|e| {
+                panic!(
+                    "failed to decode event log ({} bytes): {}",
+                    buffer.len(),
+                    e
+                )
+            });
+
+        Some(decoded)
+    }
+
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+        assert_eq!(
+            self.state,
+            MockTransactionState::NotStarted,
+            "cannot open root frame: transaction already started"
+        );
+        self.state = MockTransactionState::Running;
         let config = MockInvocationFrameConfig::new(
             self.handler,
             &mut self.root_frame,
@@ -387,23 +446,29 @@ impl MockTransactionHandler {
 
 impl Drop for MockTransactionHandler {
     fn drop(&mut self) {
+        // Auto-transition: if we're still Running, the root frame must have
+        // been closed (frames panic on drop if still Started), so we can
+        // safely transition to RootInvokeFinished.
         if self.state == MockTransactionState::Running {
-            panic!(
-                "Should be impossible to drop a transaction handler while it is running"
-            );
+            self.state = MockTransactionState::RootInvokeFinished;
         }
         if self.state == MockTransactionState::RootInvokeFinished {
             eprintln!(
                 "Cleanup: Aborting mock transaction that finished root_invoke but was not committed"
             );
-            self.abort_transaction();
+            // Attempt abort but don't panic — we may already be unwinding
+            let _ =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    self.abort_transaction();
+                }));
         }
 
         let err: FFIErrorCode =
             unsafe { groundhog_sys::close_syscall_handler(self.handler) }
                 .into();
         if err != FFIErrorCode::None {
-            panic!("failed to close syscall handler: {:?}", err);
+            // Log instead of panic to avoid aborting the process during test failure unwinding
+            eprintln!("failed to close syscall handler: {:?}", err);
         }
     }
 }

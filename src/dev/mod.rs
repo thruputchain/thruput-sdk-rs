@@ -12,8 +12,14 @@ pub use handler::*;
 
 pub use core::convert::Infallible;
 pub use groundhog_native_exec::{
+    frame_action::FrameAction,
+    frame_builder::{ContinuableFrame, FrameBuilder, FrameHandle},
+    frame_result::FrameResult,
     mock_contract::MockContract,
     test_environment::{TestEnvironment, TestEnvironmentHandle},
+    testing::TestEnvExt,
+    transact_result::TransactResult,
+    transaction::Transaction,
 };
 pub use hogexec_internal::ffi_enums::*;
 
