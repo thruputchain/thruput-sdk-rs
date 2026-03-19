@@ -33,6 +33,12 @@ impl TransactResult {
         self.frame.assert_fault();
     }
 
+    /// Assert the root frame returned successfully and decode its return buffer.
+    ///
+    /// This checks only the frame outcome (contract execution), not the
+    /// database commit. Use `assert_success()` when you need to verify both
+    /// frame return *and* commit. This separation lets you inspect the return
+    /// value even when the commit is expected to fail or hasn't happened yet.
     pub fn assert_return_with<R>(&self, check: impl FnOnce(&R))
     where
         R: xdrs::ReadXDROwned,

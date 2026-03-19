@@ -163,7 +163,8 @@ impl FrameResult {
         );
     }
 
-    /// Collect all events whose payload decodes as `E`.
+    /// Collect all events whose payload successfully decodes as `E`.
+    /// Events whose payload cannot be decoded as `E` are silently skipped.
     pub fn filter_events<E>(&self) -> Vec<E>
     where
         E: xdrs::ReadXDROwned,
