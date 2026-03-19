@@ -6,7 +6,7 @@ use groundhog_xdr::transaction::InvocationFrameOutput;
 #[test]
 fn test_frame_result_success() {
     let return_data = vec![1u8, 2, 3];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.clone().try_into().unwrap(),
     };
     let result = FrameResult::new(output, None, Vec::new());
@@ -21,7 +21,7 @@ fn test_frame_result_success() {
 #[test]
 fn test_frame_result_abort() {
     let abort_data = vec![4u8, 5, 6];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+    let output = InvocationFrameOutput::Abort {
         abort_buffer: abort_data.clone().try_into().unwrap(),
     };
     let result = FrameResult::new(output, None, Vec::new());
@@ -34,7 +34,7 @@ fn test_frame_result_abort() {
 
 #[test]
 fn test_frame_result_fault() {
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeFault;
+    let output = InvocationFrameOutput::Fault;
     let result = FrameResult::new(output, None, Vec::new());
 
     assert!(result.is_fault());
@@ -44,7 +44,7 @@ fn test_frame_result_fault() {
 #[test]
 #[should_panic(expected = "expected success")]
 fn test_frame_result_assert_success_panics_on_fault() {
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeFault;
+    let output = InvocationFrameOutput::Fault;
     let result = FrameResult::new(output, None, Vec::new());
     result.assert_success();
 }
@@ -53,7 +53,7 @@ fn test_frame_result_assert_success_panics_on_fault() {
 #[should_panic(expected = "expected abort")]
 fn test_frame_result_assert_abort_panics_on_success() {
     let return_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.try_into().unwrap(),
     };
     let result = FrameResult::new(output, None, Vec::new());
@@ -63,7 +63,7 @@ fn test_frame_result_assert_abort_panics_on_success() {
 #[test]
 fn test_transact_result_success() {
     let return_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None, Vec::new());
@@ -74,7 +74,7 @@ fn test_transact_result_success() {
 #[test]
 fn test_transact_result_abort() {
     let abort_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+    let output = InvocationFrameOutput::Abort {
         abort_buffer: abort_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None, Vec::new());
@@ -86,7 +86,7 @@ fn test_transact_result_abort() {
 #[test]
 fn test_transact_result_commit_failed() {
     let return_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None, Vec::new());
@@ -99,7 +99,7 @@ fn test_transact_result_commit_failed() {
 #[should_panic(expected = "expected success")]
 fn test_transact_result_assert_success_panics_on_abort() {
     let abort_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+    let output = InvocationFrameOutput::Abort {
         abort_buffer: abort_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None, Vec::new());

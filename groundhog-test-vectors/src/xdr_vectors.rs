@@ -258,32 +258,32 @@ fn protocol_enum_vectors() -> Vec<Value> {
         json!({
             "name": "storage_key_type_contract_data",
             "type": "StorageKeyType",
-            "value": { "variant": "kStorageKeyTypeContractData" },
-            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeContractData),
+            "value": { "variant": "ContractData" },
+            "expected_hex": xdr_hex(&StorageKeyType::ContractData),
         }),
         json!({
             "name": "storage_key_type_free_native_token",
             "type": "StorageKeyType",
-            "value": { "variant": "kStorageKeyTypeFreeNativeTokenBalance" },
-            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeFreeNativeTokenBalance),
+            "value": { "variant": "FreeNativeTokenBalance" },
+            "expected_hex": xdr_hex(&StorageKeyType::FreeNativeTokenBalance),
         }),
         json!({
             "name": "storage_key_type_address_auth_data",
             "type": "StorageKeyType",
-            "value": { "variant": "kStorageKeyTypeAddressAuthData" },
-            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeAddressAuthData),
+            "value": { "variant": "AuthData" },
+            "expected_hex": xdr_hex(&StorageKeyType::AuthData),
         }),
         json!({
             "name": "storage_key_type_address_metadata",
             "type": "StorageKeyType",
-            "value": { "variant": "kStorageKeyTypeAddressMetadata" },
-            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeAddressMetadata),
+            "value": { "variant": "Metadata" },
+            "expected_hex": xdr_hex(&StorageKeyType::Metadata),
         }),
         json!({
             "name": "storage_key_type_replay_cache",
             "type": "StorageKeyType",
-            "value": { "variant": "kStorageKeyTypeReplayCache" },
-            "expected_hex": xdr_hex(&StorageKeyType::kStorageKeyTypeReplayCache),
+            "value": { "variant": "ReplayCache" },
+            "expected_hex": xdr_hex(&StorageKeyType::ReplayCache),
         }),
     ]
 }

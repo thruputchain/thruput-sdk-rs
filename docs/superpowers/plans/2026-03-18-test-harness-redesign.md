@@ -113,7 +113,7 @@ use groundhog_xdr::transaction::InvocationFrameOutput;
 fn test_frame_result_success() {
     // Construct a "success" InvocationFrameOutput
     let return_data = vec![1u8, 2, 3];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.clone().try_into().unwrap(),
     };
     let result = FrameResult::new(output, None);
@@ -128,7 +128,7 @@ fn test_frame_result_success() {
 #[test]
 fn test_frame_result_abort() {
     let abort_data = vec![4u8, 5, 6];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+    let output = InvocationFrameOutput::Abort {
         abort_buffer: abort_data.clone().try_into().unwrap(),
     };
     let result = FrameResult::new(output, None);
@@ -141,7 +141,7 @@ fn test_frame_result_abort() {
 
 #[test]
 fn test_frame_result_fault() {
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeFault;
+    let output = InvocationFrameOutput::Fault;
     let result = FrameResult::new(output, None);
 
     assert!(result.is_fault());
@@ -151,7 +151,7 @@ fn test_frame_result_fault() {
 #[test]
 #[should_panic(expected = "expected success")]
 fn test_frame_result_assert_success_panics_on_fault() {
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeFault;
+    let output = InvocationFrameOutput::Fault;
     let result = FrameResult::new(output, None);
     result.assert_success();
 }
@@ -160,7 +160,7 @@ fn test_frame_result_assert_success_panics_on_fault() {
 #[should_panic(expected = "expected abort")]
 fn test_frame_result_assert_abort_panics_on_success() {
     let return_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.try_into().unwrap(),
     };
     let result = FrameResult::new(output, None);
@@ -202,21 +202,21 @@ impl FrameResult {
     pub fn is_success(&self) -> bool {
         matches!(
             &self.output,
-            InvocationFrameOutput::kInvocationFrameStatusCodeReturn { .. }
+            InvocationFrameOutput::Return { .. }
         )
     }
 
     pub fn is_abort(&self) -> bool {
         matches!(
             &self.output,
-            InvocationFrameOutput::kInvocationFrameStatusCodeAbort { .. }
+            InvocationFrameOutput::Abort { .. }
         )
     }
 
     pub fn is_fault(&self) -> bool {
         matches!(
             &self.output,
-            InvocationFrameOutput::kInvocationFrameStatusCodeFault
+            InvocationFrameOutput::Fault
         )
     }
 
@@ -251,7 +251,7 @@ impl FrameResult {
     /// Returns the return buffer. Panics if the frame did not succeed.
     pub fn return_buffer(&self) -> &[u8] {
         match &self.output {
-            InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+            InvocationFrameOutput::Return {
                 return_buffer,
             } => return_buffer.as_slice(),
             _ => panic!(
@@ -264,7 +264,7 @@ impl FrameResult {
     /// Returns the abort buffer. Panics if the frame did not abort.
     pub fn abort_buffer(&self) -> &[u8] {
         match &self.output {
-            InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+            InvocationFrameOutput::Abort {
                 abort_buffer,
             } => abort_buffer.as_slice(),
             _ => panic!(
@@ -354,7 +354,7 @@ use groundhog_xdr::exec_result::ExecResult;
 #[test]
 fn test_transact_result_success() {
     let return_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None);
@@ -366,7 +366,7 @@ fn test_transact_result_success() {
 #[test]
 fn test_transact_result_abort() {
     let abort_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+    let output = InvocationFrameOutput::Abort {
         abort_buffer: abort_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None);
@@ -383,7 +383,7 @@ fn test_transact_result_abort() {
 #[test]
 fn test_transact_result_commit_failed() {
     let return_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeReturn {
+    let output = InvocationFrameOutput::Return {
         return_buffer: return_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None);
@@ -400,7 +400,7 @@ fn test_transact_result_commit_failed() {
 #[should_panic(expected = "expected success")]
 fn test_transact_result_assert_success_panics_on_abort() {
     let abort_data = vec![];
-    let output = InvocationFrameOutput::kInvocationFrameStatusCodeAbort {
+    let output = InvocationFrameOutput::Abort {
         abort_buffer: abort_data.try_into().unwrap(),
     };
     let frame = FrameResult::new(output, None);
@@ -1401,7 +1401,7 @@ git commit -m "test(native_exec): add end-to-end validation tests for fluent API
 - `native_exec/src/mock_contract.rs` — understand `MockContract` / `MockContractInner` if you need to extend contract registration
 
 ### XDR type locations (these are in external crates, not in this repo):
-- `InvocationFrameOutput` — `groundhog_xdr::transaction::InvocationFrameOutput` (enum with three variants: `kInvocationFrameStatusCodeReturn { return_buffer }`, `kInvocationFrameStatusCodeAbort { abort_buffer }`, `kInvocationFrameStatusCodeFault`)
+- `InvocationFrameOutput` — `groundhog_xdr::transaction::InvocationFrameOutput` (enum with three variants: `Return { return_buffer }`, `Abort { abort_buffer }`, `Fault`)
 - `InvocationFrameStatusCode` — `groundhog_xdr::transaction::InvocationFrameStatusCode` (enum with i32 discriminants)
 - `ExecResult` — `groundhog_xdr::exec_result::ExecResult` (enum: `ExecResultOK`, `ExecResultTxRootFrameReverted`, `ExecResultTxDeterministicError`, etc.)
 - `TxEventLog` / `TxEmittedEvent` — `groundhog_xdr::event`

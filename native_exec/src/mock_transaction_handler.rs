@@ -229,14 +229,16 @@ impl MockInvocationFrame {
         match result {
             Ok(result) => {
                 if !result {
-                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeNone);
+                    self.close_frame_internal(
+                        hogexec_internal::ffi_enums::InvokeErrorCode::None,
+                    );
                 }
             }
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
                 } else {
-                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::kInvokeUnrecoverable);
+                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable);
                 }
             }
         };
@@ -481,7 +483,7 @@ mod tests {
         assert!(unsafe { SECOND });
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+            InvocationFrameStatusCode::Return.0
         );
     }
 
@@ -500,7 +502,7 @@ mod tests {
             .result();
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeFault.0
+            InvocationFrameStatusCode::Fault.0
         );
     }
 
@@ -539,7 +541,7 @@ mod tests {
             .result();
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+            InvocationFrameStatusCode::Return.0
         );
         assert!(unsafe { FIRST });
         assert!(unsafe { SECOND });
@@ -570,7 +572,7 @@ mod tests {
             .result();
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+            InvocationFrameStatusCode::Return.0
         );
     }
 
@@ -643,11 +645,11 @@ mod tests {
 
         assert_eq!(
             result1.output().status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+            InvocationFrameStatusCode::Return.0
         );
         assert_eq!(
             result2.output().status_code(),
-            InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+            InvocationFrameStatusCode::Return.0
         );
     }
 }

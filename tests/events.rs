@@ -16,7 +16,7 @@ macro_rules! single_event_test {
 
             let res = handler.root_invoke();
             if res.output.status_code()
-                != sdk::types::transaction::InvocationFrameStatusCode::kInvocationFrameStatusCodeReturn.0
+                != sdk::types::transaction::InvocationFrameStatusCode::Return.0
             {
                 panic!("Invocation failed with code {}", res.output.status_code());
             }

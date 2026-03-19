@@ -1,6 +1,6 @@
 // XXX
 // When run in parallel with the other test, this sometimes fails with:
-//   E[syscall_handler.cc:217] handle_root_host_fn_status: received kHostUnrecoverable
+//   E[syscall_handler.cc:217] handle_root_host_fn_status: received Unrecoverable
 /*
 test test_abort_bare ... ok
 test test_panic ... FAILED
@@ -17,7 +17,7 @@ thread 'test_panic' (411211) panicked at native_exec/src/host_fn_error.rs:29:13:
 Box<dyn Any>
 
 thread 'test_panic' (411211) panicked at /home/dbg/gh/sdk/src/dev/contract_test.rs:84:9:
-Root invocation panicked with code kInvokeUnrecoverable
+Root invocation panicked with code Unrecoverable
 
 
 failures:
