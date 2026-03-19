@@ -15,7 +15,11 @@ impl TransactResult {
         exec_result: ExecResult,
         event_log: Option<TxEventLog>,
     ) -> Self {
-        Self { frame, exec_result, event_log }
+        Self {
+            frame,
+            exec_result,
+            event_log,
+        }
     }
 
     /// Asserts the root frame returned successfully AND the transaction committed OK.
@@ -86,11 +90,8 @@ impl TransactResult {
         check(&events[index]);
     }
 
-    pub fn assert_event_data<E>(
-        &self,
-        index: usize,
-        check: impl FnOnce(&E),
-    ) where
+    pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
+    where
         E: xdrs::ReadXDROwned,
     {
         let events = self.events();
@@ -108,10 +109,8 @@ impl TransactResult {
         check(&decoded);
     }
 
-    pub fn assert_emitted<E>(
-        &self,
-        predicate: impl Fn(&E) -> bool,
-    ) where
+    pub fn assert_emitted<E>(&self, predicate: impl Fn(&E) -> bool)
+    where
         E: xdrs::ReadXDROwned,
     {
         let events = self.events();

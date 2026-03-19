@@ -265,15 +265,13 @@ fn test_transaction_call_run_success() {
     let env = TestEnvironment::new(None);
     let mut tx = Transaction::new(env);
 
-    let frame_result = tx
-        .call(&[1u8; 32].into())
-        .run(|| {
-            let res = groundhog_xdr::syscalls::GetCurrentAddress();
-            assert_eq!(
-                res.unwrap(),
-                groundhog_xdr::types::ContractAddress::from([1; 32])
-            );
-        });
+    let frame_result = tx.call(&[1u8; 32].into()).run(|| {
+        let res = groundhog_xdr::syscalls::GetCurrentAddress();
+        assert_eq!(
+            res.unwrap(),
+            groundhog_xdr::types::ContractAddress::from([1; 32])
+        );
+    });
 
     frame_result.assert_success();
 }
@@ -283,11 +281,9 @@ fn test_transaction_call_run_fault() {
     let env = TestEnvironment::new(None);
     let mut tx = Transaction::new(env);
 
-    let frame_result = tx
-        .call(&[1u8; 32].into())
-        .run(|| {
-            panic!("intentional test fault");
-        });
+    let frame_result = tx.call(&[1u8; 32].into()).run(|| {
+        panic!("intentional test fault");
+    });
 
     frame_result.assert_fault();
 }
@@ -330,9 +326,7 @@ fn test_multi_transaction_scenario() {
 fn test_frame_result_raw_access() {
     let env = TestEnvironment::new(None);
 
-    let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {})
-    });
+    let result = env.transact(|tx| tx.call(&[1u8; 32].into()).run(|| {}));
 
     // Can access raw output
     let _output = result.frame().output();
@@ -403,15 +397,14 @@ fn test_run_continuable_with_child_frame() {
         .call(&[1u8; 32].into())
         .run_continuable(|frame| {
             // Open a child frame from within the continuable frame
-            let child_result = frame
-                .child_call(&[2u8; 32].into())
-                .run(|| {
-                    let addr = groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
-                    assert_eq!(
-                        addr,
-                        groundhog_xdr::types::ContractAddress::from([2; 32])
-                    );
-                });
+            let child_result = frame.child_call(&[2u8; 32].into()).run(|| {
+                let addr =
+                    groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+                assert_eq!(
+                    addr,
+                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                );
+            });
             child_result.assert_success();
             FrameAction::Close
         })

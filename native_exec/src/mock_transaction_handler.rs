@@ -418,7 +418,11 @@ impl MockTransactionHandler {
 
         let decoded: groundhog_xdr::event::TxEventLog =
             xdrs::txs::decode(&buffer).unwrap_or_else(|e| {
-                panic!("failed to decode event log ({} bytes): {}", buffer.len(), e)
+                panic!(
+                    "failed to decode event log ({} bytes): {}",
+                    buffer.len(),
+                    e
+                )
             });
 
         Some(decoded)

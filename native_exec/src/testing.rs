@@ -20,10 +20,7 @@ pub trait TestEnvExt {
     /// The closure receives a Transaction and is responsible for
     /// calling tx.commit() or tx.abort(). The closure's return value
     /// is forwarded as the return value of transact_manual.
-    fn transact_manual<R>(
-        &self,
-        f: impl FnOnce(&mut Transaction) -> R,
-    ) -> R;
+    fn transact_manual<R>(&self, f: impl FnOnce(&mut Transaction) -> R) -> R;
 }
 
 impl TestEnvExt for TestEnvironmentHandle {
@@ -41,10 +38,7 @@ impl TestEnvExt for TestEnvironmentHandle {
         TransactResult::new(frame_result, exec_result, event_log)
     }
 
-    fn transact_manual<R>(
-        &self,
-        f: impl FnOnce(&mut Transaction) -> R,
-    ) -> R {
+    fn transact_manual<R>(&self, f: impl FnOnce(&mut Transaction) -> R) -> R {
         let mut tx = Transaction::new(self.clone());
         f(&mut tx)
         // Caller is responsible for commit/abort.
