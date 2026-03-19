@@ -7,7 +7,7 @@ pub use host_fn_error::perform_mocked_syscall;
 pub mod mock_contract;
 pub mod mock_transaction_handler;
 pub mod test_environment;
-pub mod testing;
+pub mod test_helpers;
 pub mod transact_result;
 pub mod transaction;
 pub mod transaction_handler;

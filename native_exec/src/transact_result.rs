@@ -33,6 +33,19 @@ impl TransactResult {
         self.frame.assert_fault();
     }
 
+    /// Assert the root frame returned successfully and decode its return buffer.
+    ///
+    /// This checks only the frame outcome (contract execution), not the
+    /// database commit. Use `assert_success()` when you need to verify both
+    /// frame return *and* commit. This separation lets you inspect the return
+    /// value even when the commit is expected to fail or hasn't happened yet.
+    pub fn assert_return_with<R>(&self, check: impl FnOnce(&R))
+    where
+        R: xdrs::ReadXDROwned,
+    {
+        self.frame.assert_return_with(check);
+    }
+
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -62,6 +75,21 @@ impl TransactResult {
 
     pub fn events(&self) -> &[TxEmittedEvent] {
         self.frame.events()
+    }
+
+    pub fn assert_event_count(&self, expected: usize) {
+        self.frame.assert_event_count(expected);
+    }
+
+    pub fn assert_no_events(&self) {
+        self.frame.assert_no_events();
+    }
+
+    pub fn filter_events<E>(&self) -> Vec<E>
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        self.frame.filter_events()
     }
 
     pub fn assert_event(

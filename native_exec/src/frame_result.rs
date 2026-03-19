@@ -100,6 +100,21 @@ impl FrameResult {
         }
     }
 
+    // -- Typed return assertion --
+
+    /// Assert the frame succeeded and decode the return buffer as a typed value.
+    pub fn assert_return_with<R>(&self, check: impl FnOnce(&R))
+    where
+        R: xdrs::ReadXDROwned,
+    {
+        self.assert_success();
+        let buf = self.return_buffer();
+        let decoded: R = xdrs::txs::decode(buf).unwrap_or_else(|e| {
+            panic!("failed to decode return buffer: {}", e)
+        });
+        check(&decoded);
+    }
+
     // -- Typed abort assertion --
 
     /// Assert the frame aborted and decode the abort buffer as a typed error.
@@ -129,6 +144,42 @@ impl FrameResult {
 
     pub fn events(&self) -> &[TxEmittedEvent] {
         &self.events
+    }
+
+    pub fn assert_event_count(&self, expected: usize) {
+        let actual = self.events.len();
+        assert_eq!(
+            actual, expected,
+            "expected {} events, got {}",
+            expected, actual
+        );
+    }
+
+    pub fn assert_no_events(&self) {
+        assert!(
+            self.events.is_empty(),
+            "expected no events, got {}",
+            self.events.len()
+        );
+    }
+
+    /// Collect all events whose payload successfully decodes as `E`.
+    /// Events whose payload cannot be decoded as `E` are silently skipped.
+    pub fn filter_events<E>(&self) -> Vec<E>
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        self.events
+            .iter()
+            .filter_map(|event| {
+                let topics_len = 32 * event.num_topics as usize;
+                if topics_len > event.serialized_event.len() {
+                    return None;
+                }
+                let payload = &event.serialized_event[topics_len..];
+                xdrs::txs::decode::<E>(payload).ok()
+            })
+            .collect()
     }
 
     pub fn assert_event(
