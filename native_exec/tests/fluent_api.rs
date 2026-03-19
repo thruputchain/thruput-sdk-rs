@@ -248,3 +248,81 @@ fn test_transaction_call_run_fault() {
 
     frame_result.assert_fault();
 }
+
+// ── End-to-end validation tests ────────────────────────────────────────────
+
+#[test]
+fn test_multi_transaction_scenario() {
+    let env = TestEnvironment::new(None);
+
+    // Transaction 1: succeeds
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // Contract code that succeeds
+        })
+    });
+    result.assert_success();
+
+    // Advance block
+    env.advance_block();
+
+    // Transaction 2: succeeds
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // More contract code
+        })
+    });
+    result.assert_success();
+
+    // Transaction 3: faults
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            panic!("simulated failure");
+        })
+    });
+    result.assert_fault();
+}
+
+#[test]
+fn test_frame_result_raw_access() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {})
+    });
+
+    // Can access raw output
+    let _output = result.frame().output();
+    let _exec = result.exec_result();
+}
+
+#[test]
+fn test_transact_events_empty() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // No events emitted
+        })
+    });
+
+    result.assert_success();
+    assert!(result.events().is_empty());
+}
+
+#[test]
+fn test_transact_abort_buffer_access() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // Trigger an abort via the Return syscall with revert_frame=true
+            groundhog_xdr::syscalls::raw_Return(&[42u8, 43, 44], true);
+        })
+    });
+
+    result.assert_abort();
+    // The abort buffer should contain the data we passed
+    let buf = result.frame().abort_buffer();
+    assert_eq!(buf, &[42, 43, 44]);
+}
