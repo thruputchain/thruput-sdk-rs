@@ -37,7 +37,6 @@ impl TransactResult {
         self.frame.assert_fault();
     }
 
-    #[allow(dead_code)]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -55,19 +54,16 @@ impl TransactResult {
         );
     }
 
-    #[allow(dead_code)]
     pub fn exec_result(&self) -> &ExecResult {
         &self.exec_result
     }
 
-    #[allow(dead_code)]
     pub fn frame(&self) -> &FrameResult {
         &self.frame
     }
 
     // -- Events --
 
-    #[allow(dead_code)]
     pub fn events(&self) -> &[TxEmittedEvent] {
         match &self.event_log {
             Some(log) => &log.events,
@@ -75,7 +71,6 @@ impl TransactResult {
         }
     }
 
-    #[allow(dead_code)]
     pub fn assert_event(
         &self,
         index: usize,
@@ -91,7 +86,6 @@ impl TransactResult {
         check(&events[index]);
     }
 
-    #[allow(dead_code)]
     pub fn assert_event_data<E>(
         &self,
         index: usize,
@@ -114,7 +108,6 @@ impl TransactResult {
         check(&decoded);
     }
 
-    #[allow(dead_code)]
     pub fn assert_emitted<E>(
         &self,
         predicate: impl Fn(&E) -> bool,

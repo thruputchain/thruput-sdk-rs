@@ -15,14 +15,12 @@ impl<'a> FrameBuilder<'a> {
         Self { config }
     }
 
-    #[allow(dead_code)]
     pub fn with_calldata(self, calldata: xdr_common::BytesM) -> Self {
         Self {
             config: self.config.with_calldata(calldata),
         }
     }
 
-    #[allow(dead_code)]
     pub fn with_flags(self, flags: i32) -> Self {
         Self {
             config: self.config.with_invoke_flags(flags),
@@ -41,26 +39,60 @@ impl<'a> FrameBuilder<'a> {
         FrameResult::new(output, trace)
     }
 
-    /// Execute the frame with a closure that receives a ContinuableFrame
-    /// and returns a FrameAction. Advanced -- for frame interleaving.
-    #[allow(dead_code)]
+    /// Execute the frame with a closure that receives a FrameHandle
+    /// and returns a FrameAction. If FrameAction::Continue, returns
+    /// a ContinuableFrame for further chaining.
     pub fn run_continuable(
         self,
-        _f: impl FnOnce(&mut ContinuableFrame) -> FrameAction + UnwindSafe,
+        f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,
     ) -> ContinuableFrame<'a> {
-        todo!("run_continuable: deferred -- requires careful lifetime management around execute()'s closure model")
+        let frame = self.config.build();
+        frame.execute(|inner_frame| {
+            let mut handle = FrameHandle { frame: inner_frame };
+            let action = f(&mut handle);
+            action.as_bool()
+        });
+        ContinuableFrame { frame }
     }
 }
 
-/// Wraps a MockInvocationFrame that is still open.
-/// Supports chaining additional run_continuable() calls and child_call().
-#[allow(dead_code)]
-pub struct ContinuableFrame<'a> {
+/// Handle to the current frame, available inside run_continuable closures.
+/// Provides child_call() for opening nested frames.
+pub struct FrameHandle<'a> {
     frame: &'a mut MockInvocationFrame,
 }
 
-#[allow(dead_code)]
+impl<'a> FrameHandle<'a> {
+    pub fn child_call(
+        &mut self,
+        addr: &groundhog_xdr::types::ContractAddress,
+    ) -> FrameBuilder<'_> {
+        let config = self.frame.open_child_frame().at_contract_address(*addr);
+        FrameBuilder::new(config)
+    }
+}
+
+/// A frame that is still open after run_continuable returned FrameAction::Continue.
+/// Supports chaining additional run_continuable() calls or finishing.
+pub struct ContinuableFrame<'a> {
+    frame: &'a mut Box<MockInvocationFrame>,
+}
+
 impl<'a> ContinuableFrame<'a> {
+    /// Execute another step on this frame.
+    pub fn run_continuable(
+        &mut self,
+        f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,
+    ) -> &mut Self {
+        self.frame.execute(|inner_frame| {
+            let mut handle = FrameHandle { frame: inner_frame };
+            let action = f(&mut handle);
+            action.as_bool()
+        });
+        self
+    }
+
+    /// Open a child frame from within this continuable frame.
     pub fn child_call(
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,
@@ -69,14 +101,9 @@ impl<'a> ContinuableFrame<'a> {
         FrameBuilder::new(config)
     }
 
-    pub fn run_continuable(
-        self,
-        _f: impl FnOnce(&mut ContinuableFrame) -> FrameAction + UnwindSafe,
-    ) -> ContinuableFrame<'a> {
-        todo!("continuable chaining: deferred")
-    }
-
-    pub fn finish(self) -> FrameResult {
+    /// Extract the frame result. Call this after the frame has been closed
+    /// (i.e., after a run_continuable that returned FrameAction::Close).
+    pub fn finish(&mut self) -> FrameResult {
         let (output, trace) = self.frame.result();
         FrameResult::new(output, trace)
     }

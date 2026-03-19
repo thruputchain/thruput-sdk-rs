@@ -326,3 +326,53 @@ fn test_transact_abort_buffer_access() {
     let buf = result.frame().abort_buffer();
     assert_eq!(buf, &[42, 43, 44]);
 }
+
+// ── Continuable frame tests ──────────────────────────────────────────────
+
+use groundhog_native_exec::frame_action::FrameAction;
+
+#[test]
+fn test_run_continuable_basic() {
+    let env = TestEnvironment::new(None);
+    let mut tx = Transaction::new(env);
+
+    let result = tx
+        .call(&[1u8; 32].into())
+        .run_continuable(|_frame| {
+            // First execution step
+            FrameAction::Continue
+        })
+        .run_continuable(|_frame| {
+            // Second execution step — close frame
+            FrameAction::Close
+        })
+        .finish();
+
+    result.assert_success();
+}
+
+#[test]
+fn test_run_continuable_with_child_frame() {
+    let env = TestEnvironment::new(None);
+    let mut tx = Transaction::new(env);
+
+    let result = tx
+        .call(&[1u8; 32].into())
+        .run_continuable(|frame| {
+            // Open a child frame from within the continuable frame
+            let child_result = frame
+                .child_call(&[2u8; 32].into())
+                .run(|| {
+                    let addr = groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+                    assert_eq!(
+                        addr,
+                        groundhog_xdr::types::ContractAddress::from([2; 32])
+                    );
+                });
+            child_result.assert_success();
+            FrameAction::Close
+        })
+        .finish();
+
+    result.assert_success();
+}

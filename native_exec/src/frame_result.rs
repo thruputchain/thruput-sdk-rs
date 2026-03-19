@@ -96,7 +96,6 @@ impl FrameResult {
     // -- Typed abort assertion --
 
     /// Assert the frame aborted and decode the abort buffer as a typed error.
-    #[allow(dead_code)]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -110,12 +109,10 @@ impl FrameResult {
 
     // -- Raw access --
 
-    #[allow(dead_code)]
     pub fn output(&self) -> &InvocationFrameOutput {
         &self.output
     }
 
-    #[allow(dead_code)]
     pub fn trace(&self) -> Option<&InvocationFrameTrace> {
         self.trace.as_ref()
     }
@@ -124,7 +121,7 @@ impl FrameResult {
 
     /// Per-frame event access not yet supported.
     /// Requires adding events to InvocationFrameTrace in hogd.
-    #[allow(dead_code)]
+    /// Use TransactResult::events() for transaction-level events.
     pub fn events(&self) -> &[groundhog_xdr::event::TxEmittedEvent] {
         todo!(
             "per-frame event access not yet supported — \

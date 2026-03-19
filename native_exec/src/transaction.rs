@@ -23,21 +23,18 @@ impl Transaction {
     }
 
     /// Commit the transaction. Returns the ExecResult.
-    #[allow(dead_code)]
     pub fn commit(&mut self) -> ExecResult {
         self.handler.notify_root_frame_closed();
         self.handler.try_commit_transaction()
     }
 
     /// Abort the transaction.
-    #[allow(dead_code)]
     pub fn abort(&mut self) {
         self.handler.notify_root_frame_closed();
         self.handler.abort_transaction();
     }
 
     /// Get event logs after commit/abort.
-    #[allow(dead_code)]
     pub(crate) fn get_event_logs(
         &self,
     ) -> Option<groundhog_xdr::event::TxEventLog> {

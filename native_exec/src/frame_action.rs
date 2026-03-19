@@ -9,7 +9,6 @@ pub enum FrameAction {
 
 impl FrameAction {
     /// Convert to the bool expected by MockInvocationFrame::execute()
-    #[allow(dead_code)]
     pub(crate) fn as_bool(self) -> bool {
         match self {
             FrameAction::Continue => true,
