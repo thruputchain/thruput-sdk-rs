@@ -22,9 +22,6 @@ pub enum FFIErrorCode {
     #[error("Unrecoverable error")]
     UnrecoverableError =
         crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
-    #[error("Event log not found")]
-    EventLogNotFound =
-        crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound,
 }
 
 impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
@@ -36,7 +33,6 @@ impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeEventLogNotFound => FFIErrorCode::EventLogNotFound,
             _ => panic!("unknown FFI error code: {}", error),
         }
     }

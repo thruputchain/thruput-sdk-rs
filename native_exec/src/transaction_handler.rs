@@ -1,7 +1,7 @@
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::event::TxEventLog;
+use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::transaction::SignedTransaction;
 use std::rc::Rc;
@@ -29,6 +29,7 @@ pub struct RootInvokeResult {
     pub output: InvocationFrameOutput,
     pub gas_consumed: u64,
     pub trace: Option<InvocationFrameTrace>,
+    pub events: Vec<TxEmittedEvent>,
 }
 
 impl TransactionHandler {
@@ -103,62 +104,28 @@ impl TransactionHandler {
                 .unwrap_or_else(|e| panic!("failed to decode output: {}", e))
         });
 
+        let events: Vec<TxEmittedEvent> = if let Some(events_data) =
+            foreign_result.serialized_events.as_slice()
+        {
+            let decoded: xdr_common::VecM<TxEmittedEvent> =
+                txs::decode(events_data).unwrap_or_else(|e| {
+                    panic!(
+                        "failed to decode events ({} bytes): {}",
+                        events_data.len(),
+                        e
+                    )
+                });
+            decoded.into()
+        } else {
+            Vec::new()
+        };
+
         RootInvokeResult {
             output: output.unwrap(),
             gas_consumed: foreign_result.gas_consumed,
             trace,
+            events,
         }
-    }
-
-    pub fn get_event_logs(&self) -> Option<TxEventLog> {
-        if !self.invoked {
-            panic!(
-                "cannot get event logs for a transaction that has not been invoked"
-            );
-        }
-        if !self.committed && !self.aborted {
-            panic!(
-                "cannot get event logs for a transaction that has not been committed or aborted"
-            );
-        }
-
-        let buffer_len_res =
-            unsafe { groundhog_sys::get_event_log_len(self.handler) };
-        let err: FFIErrorCode = buffer_len_res.ffi_error_code.into();
-        if err == FFIErrorCode::EventLogNotFound {
-            return None;
-        }
-        if err != FFIErrorCode::None {
-            panic!("failed to get event log length: {:?}", err);
-        }
-        let buffer_len: u32 = buffer_len_res.len;
-        if buffer_len == 0 {
-            return None;
-        }
-
-        let mut buffer = vec![0u8; buffer_len as usize];
-
-        let event_log_res = unsafe {
-            groundhog_sys::get_event_log(
-                self.handler,
-                buffer.as_mut_ptr(),
-                buffer_len,
-            )
-        };
-        let err: FFIErrorCode = event_log_res.into();
-        if err != FFIErrorCode::None {
-            panic!("failed to get event log: {:?}", err);
-        }
-
-        let decoded: TxEventLog = txs::decode(&buffer).unwrap_or_else(|e| {
-            panic!(
-                "failed to decode event log ({} bytes): {}",
-                buffer.len(),
-                e
-            )
-        });
-
-        Some(decoded)
     }
 
     pub fn get_signed_transaction(&self) -> &SignedTransaction {

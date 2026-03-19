@@ -78,19 +78,15 @@ fn bottle_test(package: &str) {
         panic!("Bottle-test transaction failed: {eres:?}");
     }
 
-    let event_log = handler.get_event_logs();
-
     // Print out the transaction's event log
     {
         use groundhog_erc20_if::*;
         use sdk::EmittedEvent;
 
-        if let Some(ref log) = event_log {
-            for (i, event) in log.events.iter().enumerate() {
-                let event: EmittedEvent = event.into();
-                let event: ERC20Event = event.try_into().unwrap();
-                eprintln!("\tevent {:?}: {}", i, event);
-            }
+        for (i, event) in res.events.iter().enumerate() {
+            let event: EmittedEvent = event.into();
+            let event: ERC20Event = event.try_into().unwrap();
+            eprintln!("\tevent {:?}: {}", i, event);
         }
     }
 }

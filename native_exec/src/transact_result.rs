@@ -1,25 +1,17 @@
 use crate::frame_result::FrameResult;
-use groundhog_xdr::event::{TxEmittedEvent, TxEventLog};
+use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::exec_result::ExecResult;
 
-/// Result of a full transaction: root frame result + commit outcome + events.
+/// Result of a full transaction: root frame result + commit outcome.
+/// Events are accessed via the root frame's per-frame events.
 pub struct TransactResult {
     frame: FrameResult,
     exec_result: ExecResult,
-    event_log: Option<TxEventLog>,
 }
 
 impl TransactResult {
-    pub fn new(
-        frame: FrameResult,
-        exec_result: ExecResult,
-        event_log: Option<TxEventLog>,
-    ) -> Self {
-        Self {
-            frame,
-            exec_result,
-            event_log,
-        }
+    pub fn new(frame: FrameResult, exec_result: ExecResult) -> Self {
+        Self { frame, exec_result }
     }
 
     /// Asserts the root frame returned successfully AND the transaction committed OK.
@@ -66,13 +58,10 @@ impl TransactResult {
         &self.frame
     }
 
-    // -- Events --
+    // -- Events (delegated to root frame) --
 
     pub fn events(&self) -> &[TxEmittedEvent] {
-        match &self.event_log {
-            Some(log) => &log.events,
-            None => &[],
-        }
+        self.frame.events()
     }
 
     pub fn assert_event(
@@ -80,71 +69,20 @@ impl TransactResult {
         index: usize,
         check: impl FnOnce(&TxEmittedEvent),
     ) {
-        let events = self.events();
-        assert!(
-            index < events.len(),
-            "event index {} out of range (have {} events)",
-            index,
-            events.len()
-        );
-        check(&events[index]);
+        self.frame.assert_event(index, check);
     }
 
     pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
     {
-        let events = self.events();
-        assert!(
-            index < events.len(),
-            "event index {} out of range (have {} events)",
-            index,
-            events.len()
-        );
-        let event = &events[index];
-        let topics_len = 32 * event.num_topics as usize;
-        assert!(
-            topics_len <= event.serialized_event.len(),
-            "event {} topics_len {} exceeds serialized_event length {}",
-            index,
-            topics_len,
-            event.serialized_event.len()
-        );
-        let payload = &event.serialized_event[topics_len..];
-        let decoded: E = xdrs::txs::decode(payload)
-            .unwrap_or_else(|e| panic!("failed to decode event data: {}", e));
-        check(&decoded);
+        self.frame.assert_event_data(index, check);
     }
 
     pub fn assert_emitted<E>(&self, predicate: impl Fn(&E) -> bool)
     where
         E: xdrs::ReadXDROwned,
     {
-        let events = self.events();
-        let mut decoded_count = 0usize;
-        for event in events {
-            let topics_len = 32 * event.num_topics as usize;
-            if topics_len > event.serialized_event.len() {
-                continue;
-            }
-            let payload = &event.serialized_event[topics_len..];
-            if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
-                decoded_count += 1;
-                if predicate(&decoded) {
-                    return;
-                }
-            }
-        }
-        if decoded_count == 0 {
-            panic!(
-                "no event matched the predicate: 0 of {} events could be decoded as the expected type",
-                events.len()
-            );
-        }
-        panic!(
-            "no event matched the predicate (decoded {}/{} events, none passed predicate)",
-            decoded_count,
-            events.len()
-        );
+        self.frame.assert_emitted(predicate);
     }
 }
