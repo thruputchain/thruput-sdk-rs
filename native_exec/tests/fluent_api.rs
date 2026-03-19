@@ -210,11 +210,54 @@ fn test_transact_fault() {
 fn test_transact_manual_commit() {
     let env = TestEnvironment::new(None);
 
-    env.transact_manual(|tx| {
+    let exec_result = env.transact_manual(|tx| {
         let frame_result = tx.call(&[1u8; 32].into()).run(|| {});
         frame_result.assert_success();
-        tx.commit();
+        tx.commit()
     });
+    assert_eq!(exec_result, ExecResult::ExecResultOK);
+}
+
+#[test]
+fn test_transact_manual_abort() {
+    let env = TestEnvironment::new(None);
+
+    env.transact_manual(|tx| {
+        let frame_result = tx.call(&[1u8; 32].into()).run(|| {
+            panic!("this should fault");
+        });
+        frame_result.assert_fault();
+        tx.abort();
+    });
+}
+
+#[test]
+fn test_transact_manual_inspect_before_commit() {
+    let env = TestEnvironment::new(None);
+
+    let (frame_result, exec_result) = env.transact_manual(|tx| {
+        let frame_result = tx.call(&[1u8; 32].into()).run(|| {
+            // Run some contract code
+            let addr = groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+            assert_eq!(
+                addr,
+                groundhog_xdr::types::ContractAddress::from([1; 32])
+            );
+        });
+
+        // Inspect the frame result before deciding what to do
+        let is_ok = frame_result.is_success();
+        let exec_result = if is_ok {
+            tx.commit()
+        } else {
+            tx.abort();
+            ExecResult::ExecResultTxRootFrameReverted
+        };
+        (frame_result, exec_result)
+    });
+
+    frame_result.assert_success();
+    assert_eq!(exec_result, ExecResult::ExecResultOK);
 }
 
 #[test]
