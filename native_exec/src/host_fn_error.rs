@@ -20,6 +20,8 @@ pub fn perform_mocked_syscall(
         )
     };
 
+    eprintln!("perform_mocked_syscall result: {:?}", result);
+
     match result.panic {
         x if x == HostFnErrorCode::NoneOrRecoverable.0 => result.result_code,
         x if x == HostFnErrorCode::OutOfGas.0 => {

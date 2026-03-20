@@ -14,7 +14,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
