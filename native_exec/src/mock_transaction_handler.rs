@@ -24,6 +24,7 @@ pub(crate) enum MockTransactionState {
     Committed,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq)]
 enum MockInvocationFrameState {
     Started,
@@ -34,7 +35,6 @@ enum MockInvocationFrameState {
     ),
 }
 
-#[allow(clippy::large_enum_variant)]
 pub struct MockInvocationFrameConfig<'a> {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     invocation: groundhog_xdr::transaction::Invocation,
