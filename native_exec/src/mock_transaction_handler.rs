@@ -1,3 +1,4 @@
+use crate::frame_builder::FrameBuilder;
 use crate::frame_result::FrameResult;
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
@@ -415,6 +416,16 @@ impl MockTransactionHandler {
         let exec_result: groundhog_xdr::exec_result::ExecResult =
             result.result_code.into();
         exec_result
+    }
+
+    /// Convenience: open a root frame targeting the given contract address.
+    /// Returns a FrameBuilder for configuring and executing the frame.
+    pub fn call(
+        &mut self,
+        addr: &groundhog_xdr::types::ContractAddress,
+    ) -> FrameBuilder<'_> {
+        let config = self.open_root_frame().at_contract_address(*addr);
+        FrameBuilder::new(config)
     }
 
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
