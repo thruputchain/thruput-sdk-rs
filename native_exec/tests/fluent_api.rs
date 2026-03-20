@@ -108,6 +108,7 @@ fn test_transact_result_assert_success_panics_on_abort() {
     result.assert_success();
 }
 
+use groundhog_native_exec::frame_builder::FrameAction;
 use groundhog_native_exec::mock_transaction_handler::MockTransactionHandler;
 use groundhog_native_exec::test_environment::TestEnvironment;
 
@@ -120,7 +121,7 @@ fn test_mock_handler_commit() {
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
-        .execute(|_| false)
+        .execute(|_| FrameAction::Close)
         .result();
 
     let exec_result = handler.try_commit_transaction();
@@ -136,7 +137,7 @@ fn test_mock_handler_abort() {
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
-        .execute(|_| false)
+        .execute(|_| FrameAction::Close)
         .result();
 
     handler.abort_transaction();
@@ -151,7 +152,7 @@ fn test_mock_handler_event_logs_empty() {
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
-        .execute(|_| false)
+        .execute(|_| FrameAction::Close)
         .result();
 
     // No events emitted, should be empty
@@ -789,8 +790,6 @@ fn test_filter_events() {
 
 // ── Continuable frame tests ──────────────────────────────────────────────
 
-use groundhog_native_exec::frame_action::FrameAction;
-
 #[test]
 fn test_run_continuable_basic() {
     let env = TestEnvironment::new(None);
@@ -853,7 +852,7 @@ fn test_mock_handler_syscall_sha256() {
             let mut hash = groundhog_xdr::types::SHA256Hash::default();
             groundhog_xdr::syscalls::raw_SHA256(input.as_slice(), &mut hash)
                 .unwrap();
-            false
+            FrameAction::Close
         })
         .result();
 

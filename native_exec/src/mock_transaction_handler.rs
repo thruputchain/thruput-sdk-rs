@@ -60,7 +60,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
             invocation: groundhog_xdr::transaction::Invocation {
                 invoked_address: [0; 32].into(),
                 entrypoint: [0; 8].into(),
-                gas_limit: 0,
+                gas_limit: u64::MAX,
                 calldata: xdr_common::BytesM::default(),
             },
             invoke_flags: 0,
@@ -86,6 +86,12 @@ impl<'a> MockInvocationFrameConfig<'a> {
         self.invoke_flags = invoke_flags;
         self
     }
+    
+    pub fn with_gas_limit(mut self, gas_limit: u64) -> Self {
+        self.invocation.gas_limit = gas_limit;
+        self
+    }
+
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
@@ -218,11 +224,12 @@ impl MockInvocationFrame {
         self.context_pushcount.borrow_mut().pop_context();
     }
 
-    // return true if the frame could be continued
     pub fn execute(
         &mut self,
-        lambda: impl FnOnce(&mut Self) -> bool + UnwindSafe,
+        lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction + UnwindSafe,
     ) -> &mut Self {
+        use crate::frame_builder::FrameAction;
+
         if self.state != MockInvocationFrameState::Started {
             eprintln!(
                 "Should be impossible to execute a frame while it is not started"
@@ -240,13 +247,12 @@ impl MockInvocationFrame {
         self.pop_context();
 
         match result {
-            Ok(result) => {
-                if !result {
-                    self.close_frame_internal(
-                        hogexec_internal::ffi_enums::InvokeErrorCode::None,
-                    );
-                }
+            Ok(FrameAction::Close) => {
+                self.close_frame_internal(
+                    hogexec_internal::ffi_enums::InvokeErrorCode::None,
+                );
             }
+            Ok(FrameAction::Continue) => {}
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
@@ -480,6 +486,8 @@ impl Drop for MockTransactionHandler {
 mod tests {
     use groundhog_xdr::transaction::InvocationFrameStatusCode;
 
+    use crate::frame_builder::FrameAction;
+
     use super::*;
 
     #[test]
@@ -498,13 +506,13 @@ mod tests {
                 unsafe {
                     FIRST = true;
                 }
-                true
+                FrameAction::Continue
             })
             .execute(|_| {
                 unsafe {
                     SECOND = true;
                 }
-                false
+                FrameAction::Close
             })
             .result();
 
@@ -557,7 +565,7 @@ mod tests {
                             assert!(!FIRST);
                             SECOND = true;
                         }
-                        false
+                        FrameAction::Close
                     })
                     .result();
 
@@ -565,7 +573,7 @@ mod tests {
                     assert!(SECOND);
                     FIRST = true;
                 }
-                false
+                FrameAction::Close
             })
             .result();
         assert_eq!(
@@ -596,7 +604,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([1; 32])
                 );
-                false
+                FrameAction::Close
             })
             .result();
         assert_eq!(
@@ -626,7 +634,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([1; 32])
                 );
-                true
+                FrameAction::Continue
             });
 
         let frame2 = handler2
@@ -644,7 +652,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([2; 32])
                 );
-                true
+                FrameAction::Continue
             });
         let result1 = frame1
             .execute(|_| {
@@ -655,7 +663,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([1; 32])
                 );
-                false
+                FrameAction::Close
             })
             .result();
 
@@ -668,7 +676,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([2; 32])
                 );
-                false
+                FrameAction::Close
             })
             .result();
 

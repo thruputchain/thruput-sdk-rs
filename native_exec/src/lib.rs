@@ -1,4 +1,3 @@
-pub mod frame_action;
 pub mod frame_builder;
 pub mod frame_result;
 pub mod host_fn_error;
