@@ -38,10 +38,9 @@ pub fn trap() -> ! {
 /// Toss a deterministic error for the mock execution environment to catch
 pub fn trap() -> ! {
     use groundhog_native_exec::invoke_error::deterministic_error;
-    use std::boxed::Box;
     use std::panic::panic_any;
 
-    panic_any(Box::new(deterministic_error()))
+    panic_any(deterministic_error())
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "mock")))]

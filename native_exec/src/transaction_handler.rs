@@ -81,11 +81,11 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        crate::invoke_error::set_override_panic_hook();
+        crate::invoke_error::activate_panic_hook();
         let foreign_result: groundhog_sys::ForeignTracedInvokeResult = unsafe {
             groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
-        crate::invoke_error::clear_override_panic_hook();
+        crate::invoke_error::deactivate_panic_hook();
 
         if foreign_result.ffi_error_code != FFIErrorCode::None as u32 {
             panic!(
