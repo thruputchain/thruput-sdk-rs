@@ -4,7 +4,6 @@ use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
-use std::panic::panic_any;
 use std::sync::Once;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,10 +59,6 @@ pub fn abort_transaction_error() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::Abandon,
     }
-}
-
-pub fn trap() -> ! {
-    panic_any(Box::new(deterministic_error()))
 }
 
 thread_local! {
@@ -128,7 +123,10 @@ pub fn activate_panic_hook() {
 pub fn deactivate_panic_hook() {
     PANIC_HOOK_DEPTH.with(|c| {
         let depth = c.get();
-        assert!(depth > 0, "deactivate_panic_hook called without matching activate");
+        assert!(
+            depth > 0,
+            "deactivate_panic_hook called without matching activate"
+        );
         c.set(depth.saturating_sub(1));
     });
 }
@@ -156,9 +154,9 @@ mod tests {
 
         let err =
             panic::catch_unwind(|| panic!("contract panic")).unwrap_err();
-        let invoke_err = err
-            .downcast_ref::<InvokeError>()
-            .expect("with activation, panic should be converted to InvokeError");
+        let invoke_err = err.downcast_ref::<InvokeError>().expect(
+            "with activation, panic should be converted to InvokeError",
+        );
         assert_eq!(invoke_err.error_type, InvokeErrorCode::Deterministic);
 
         deactivate_panic_hook();
@@ -193,7 +191,8 @@ mod tests {
 
         // Panic here should still be converted (this is the bug scenario:
         // before the fix, the inner deactivate would have turned off the hook)
-        let err = panic::catch_unwind(|| panic!("mid-nest panic")).unwrap_err();
+        let err =
+            panic::catch_unwind(|| panic!("mid-nest panic")).unwrap_err();
         let invoke_err = err
             .downcast_ref::<InvokeError>()
             .expect("hook should still be active after inner deactivate");
@@ -206,7 +205,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "deactivate_panic_hook called without matching activate")]
+    #[should_panic(
+        expected = "deactivate_panic_hook called without matching activate"
+    )]
     fn deactivate_without_activate_panics() {
         assert_eq!(panic_hook_depth(), 0);
         deactivate_panic_hook();

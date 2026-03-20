@@ -629,18 +629,12 @@ mod tests {
                     .build()
                     // First execute: Continue, depth goes to 2 then back to 1
                     .execute(|_| {
-                        assert_eq!(
-                            crate::invoke_error::panic_hook_depth(),
-                            2
-                        );
+                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         FrameAction::Continue
                     })
                     // Second execute: still depth 2 inside, then Close
                     .execute(|_| {
-                        assert_eq!(
-                            crate::invoke_error::panic_hook_depth(),
-                            2
-                        );
+                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         FrameAction::Close
                     })
                     .result();
@@ -714,10 +708,7 @@ mod tests {
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(
-                            crate::invoke_error::panic_hook_depth(),
-                            2
-                        );
+                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         FrameAction::Close
                     })
                     .result();
@@ -748,10 +739,7 @@ mod tests {
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(
-                            crate::invoke_error::panic_hook_depth(),
-                            2
-                        );
+                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         panic!("child panic in handler1");
                     })
                     .result();
@@ -773,17 +761,11 @@ mod tests {
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(
-                            crate::invoke_error::panic_hook_depth(),
-                            2
-                        );
+                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         FrameAction::Continue
                     })
                     .execute(|_| {
-                        assert_eq!(
-                            crate::invoke_error::panic_hook_depth(),
-                            2
-                        );
+                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         FrameAction::Close
                     })
                     .result();
