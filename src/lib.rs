@@ -35,14 +35,21 @@ mod re_throw;
 mod throw;
 mod util;
 mod xdr;
+mod named;
+mod prim;
+
+#[doc(hidden)]
+pub mod sys_result;
+
+#[doc(hidden)]
+pub mod sys_exn;
 
 #[doc(hidden)]
 pub mod call;
 pub use call::ContractClient;
 
-// TODO: Make these modules pub(crate) in order to allow
+// TODO: Make these modules pub(crate) at most, in order to allow
 // reorganization without breaking changes.
-
 pub mod auth_claim;
 pub mod block;
 pub mod bytestring;
@@ -57,14 +64,13 @@ pub mod hasher;
 pub mod hex;
 pub mod invoke_config;
 pub mod log;
-pub mod non_negative_int;
 pub mod precompiles;
-pub mod retrocausal_queue;
 pub mod rt;
 pub mod serialize;
 pub mod stats;
 pub mod types;
 
+pub use prim::*;
 pub use auth_claim::*;
 pub use bytestring::*;
 pub use cell::*;
@@ -78,10 +84,8 @@ pub use hasher::*;
 pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
-pub use non_negative_int::*;
 pub use panic::*;
 pub use re_throw::*;
-pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
 pub use throw::*;

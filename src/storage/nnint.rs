@@ -45,10 +45,7 @@ impl NNInt {
         non_negative_int_set(&self.keypath.generate_key(), set_value);
     }
 
-    /// Set the value
-    ///
-    /// TODO: semantics
-    ///
+    /// Set the value exclusively
     pub fn set_exclusive(&mut self, set_value: i128) {
         non_negative_int_set_exclusive(
             &self.keypath.generate_key(),

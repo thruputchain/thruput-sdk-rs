@@ -11,8 +11,73 @@ use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 
 contract_test!(test_nnints {
-    let key = StorageKey::default();
-    let key = &key;
+    static KEY: StorageKey = static_key!("my nnint");
+
+    let mut nnint = NNInt::new(KEY);
+
+    // Assuming no previous activity at this storage location, try_get gives
+    // None:
+    assert_eq!(nnint.try_get(), None);
+
+    let mut n = 0;
+
+    // Incrementing a previously-unset location succeeds, as the underlying
+    // operation is `set_add(None, add)`.
+    let inc = 3;
+    nnint.inc(inc); n += inc;
+    assert_eq!(nnint.get(), n);
+
+    // Incrementing (again, via `set_add`) succeeds even if a value of another
+    // storage type is there:
+    bytestring_set(&KEY, b""); n = 0;
+    nnint.inc(inc); n += inc;
+    assert_eq!(nnint.get(), n);
+
+    // Incrementing again succeeds
+    let inc = 7;
+    nnint.inc(inc); n += inc;
+
+    // Getting yields the cumulative sum of increments, plus any set value from this transaction or
+    // the value at the start of the transaction.
+    assert_eq!(nnint.get(), n);
+
+    // Setting succeeds
+    n = 27;
+    nnint.set(n);
+
+    // Getting yields the just-set value
+    assert_eq!(nnint.get(), n);
+
+    // Incrementing from here succeeds
+    let inc = 100;
+    nnint.inc(inc); n += inc;
+
+    // Getting yields the cumulative sum of increments, plus any set value from this transaction or
+    // the value at the start of the transaction.
+    assert_eq!(nnint.get(), n);
+
+    // We can explicitly set a negative value
+    n = -5;
+    nnint.set(n);
+    assert_eq!(nnint.get(), n);
+
+    // We can increment even if it remains negative
+    let inc = 1;
+    nnint.inc(inc); n += inc;
+
+    let _ = n;
+
+    // We can delete the location and then set again
+    delete_shared(&KEY);
+    n = 0;
+    nnint.set(n);
+});
+
+contract_test!(test_nnints_exn {
+    use sdk::sys_exn::nnint::*;
+
+    static KEY: StorageKey = static_key!("my nnint");
+    let key = &KEY;
 
     // Assuming no previous activity at this storage location, try_get gives
     // None:
@@ -64,6 +129,8 @@ contract_test!(test_nnints {
     let inc = 1;
     non_negative_int_inc(key, inc); n += inc;
 
+    let _ = n;
+
     // We can delete the location and then set again
     delete_shared(key);
     n = 0;
@@ -75,6 +142,8 @@ contract_test!(test_nnints {
 //
 #[test]
 fn set_negative_then_increment_succeeds() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;
@@ -96,6 +165,8 @@ fn set_negative_then_increment_succeeds() {
 //
 #[test]
 fn set_negative_sum_fails() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;
@@ -118,6 +189,8 @@ fn set_negative_sum_fails() {
 //
 #[test]
 fn set_negative_then_positive_then_negative_sum_fails() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;
@@ -139,6 +212,8 @@ fn set_negative_then_positive_then_negative_sum_fails() {
 //
 #[test]
 fn get_unset_fails() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let _ = non_negative_int_get(&StorageKey::default());
     });
@@ -154,6 +229,8 @@ fn get_unset_fails() {
 //
 #[test]
 fn get_wrong_type_fails() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;
@@ -173,6 +250,8 @@ fn get_wrong_type_fails() {
 //
 #[test]
 fn try_get_wrong_type_fails() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;
@@ -192,6 +271,8 @@ fn try_get_wrong_type_fails() {
 //
 #[test]
 fn delete_actually_deletes() {
+    use sdk::sys_exn::nnint::*;
+
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
         let key = &key;

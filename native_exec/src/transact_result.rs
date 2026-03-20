@@ -16,6 +16,7 @@ impl TransactResult {
     }
 
     /// Asserts the root frame returned successfully AND the transaction committed OK.
+    #[track_caller]
     pub fn assert_success(&self) {
         self.frame.assert_success();
         assert_eq!(
@@ -26,10 +27,12 @@ impl TransactResult {
         );
     }
 
+    #[track_caller]
     pub fn assert_abort(&self) {
         self.frame.assert_abort();
     }
 
+    #[track_caller]
     pub fn assert_fault(&self) {
         self.frame.assert_fault();
     }
@@ -40,6 +43,7 @@ impl TransactResult {
     /// database commit. Use `assert_success()` when you need to verify both
     /// frame return *and* commit. This separation lets you inspect the return
     /// value even when the commit is expected to fail or hasn't happened yet.
+    #[track_caller]
     pub fn assert_return_with<R>(&self, check: impl FnOnce(&R))
     where
         R: xdrs::ReadXDROwned,
@@ -47,6 +51,7 @@ impl TransactResult {
         self.frame.assert_return_with(check);
     }
 
+    #[track_caller]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -55,12 +60,23 @@ impl TransactResult {
     }
 
     /// Asserts the root frame succeeded but the DB commit step failed.
+    #[track_caller]
     pub fn assert_commit_failed(&self) {
         self.frame.assert_success();
         assert_ne!(
             self.exec_result,
             ExecResult::ExecResultOK,
             "expected commit failure, but commit succeeded"
+        );
+    }
+
+    #[track_caller]
+    pub fn assert_commit_failed_nondeterministically(&self) {
+        self.frame.assert_success();
+        assert_eq!(
+            self.exec_result,
+            ExecResult::ExecResultTxNonDeterministicError,
+            "expected non-deterministic commit failure"
         );
     }
 
@@ -78,10 +94,12 @@ impl TransactResult {
         self.frame.events()
     }
 
+    #[track_caller]
     pub fn assert_event_count(&self, expected: usize) {
         self.frame.assert_event_count(expected);
     }
 
+    #[track_caller]
     pub fn assert_no_events(&self) {
         self.frame.assert_no_events();
     }
@@ -100,6 +118,7 @@ impl TransactResult {
         self.frame.filter_events(address)
     }
 
+    #[track_caller]
     pub fn assert_event(
         &self,
         index: usize,
@@ -108,6 +127,7 @@ impl TransactResult {
         self.frame.assert_event(index, check);
     }
 
+    #[track_caller]
     pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -115,6 +135,7 @@ impl TransactResult {
         self.frame.assert_event_data(index, check);
     }
 
+    #[track_caller]
     pub fn assert_emitted<E>(
         &self,
         address: &ContractAddress,

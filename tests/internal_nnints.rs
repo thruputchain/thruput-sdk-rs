@@ -7,7 +7,7 @@ use test_helpers::*;
 
 use sdk::call::RawCallError;
 use sdk::exn::{Exn, LibraryExn};
-use sdk::internal::nnint::*;
+use sdk::sys_exn::nnint_internal::*;
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 

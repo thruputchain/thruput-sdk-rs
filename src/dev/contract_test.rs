@@ -10,6 +10,23 @@ use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
 
+/// Run the provided code in a transaction in the test environment, at the
+/// given contract address.
+///
+pub fn contract_run<F>(
+    env: &TestEnvironmentHandle,
+    addr: &ContractAddress,
+    f: F,
+) -> TransactResult
+where
+    F: Fn() + UnwindSafe + Clone + 'static,
+{
+    env.transact(|tx| {
+        tx.call(addr)
+          .run(f)
+    })
+}
+
 /// Execute the provided thunk in a transaction in the test environment.
 ///
 pub fn contract_exec<F>(

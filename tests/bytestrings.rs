@@ -1,6 +1,7 @@
 //! Test the semantics of the database (i.e., key-value store)
 
 use sdk::*;
+use sdk::sys_exn::nnint::*;
 
 contract_test!(test_bytestring {
     let key = StorageKey::default();

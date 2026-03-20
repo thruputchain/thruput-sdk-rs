@@ -1,0 +1,44 @@
+use crate::syscall_throw;
+use crate::sys::SyscallNo;
+use crate::sys_result::rcq as rcq_result;
+use crate::types::StorageKey;
+
+pub fn retrocausal_queue_insert(
+    key: &StorageKey,
+    queue_entry: &[u8],
+) {
+    rcq_result::retrocausal_queue_insert(key, queue_entry)
+        .unwrap_or_else(|errno|
+            syscall_throw(SyscallNo::kRetrocausalQueueInsert, errno))
+}
+
+pub fn retrocausal_queue_consume_sized<const N: usize>(
+    key: &StorageKey,
+) -> [u8; N] {
+    rcq_result::retrocausal_queue_consume_sized(key)
+        .unwrap_or_else(|errno|
+            syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno))
+}
+
+pub fn retrocausal_queue_peek_sized<const N: usize>(
+    key: &StorageKey,
+) -> [u8; N] {
+    rcq_result::retrocausal_queue_consume_sized(key)
+        .unwrap_or_else(|errno|
+            syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno))
+}
+
+/// Get the next queue entry's data.
+///
+/// A vector of maximum length `N` is returned.
+/// If `peek` is true, the entry will not be consumed.
+///
+#[cfg(feature = "alloc")]
+pub fn retrocausal_queue_get_max<const N: usize>(
+    key: &StorageKey,
+    peek: bool,
+) -> crate::Vec<u8> {
+    rcq_result::retrocausal_queue_get_max::<N>(key, peek)
+        .unwrap_or_else(|errno|
+            syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno))
+}
