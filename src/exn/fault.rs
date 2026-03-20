@@ -3,17 +3,17 @@ use core::any::Any;
 use core::error::Error;
 use core::fmt::{self, Debug, Display};
 
-#[cfg(feature = "fault_strings")]
+#[cfg(feature = "debugging")]
 pub use with_strings::*;
 
-#[cfg(not(feature = "fault_strings"))]
+#[cfg(not(feature = "debugging"))]
 pub use without_strings::*;
 
 // This is the type serialized by the `with_strings` implementation
-#[cfg(any(test, feature = "fault_strings"))]
+#[cfg(any(test, feature = "debugging"))]
 type StrOpt<'a> = Option<&'a str>;
 
-#[cfg(any(test, feature = "fault_strings"))]
+#[cfg(any(test, feature = "debugging"))]
 mod with_strings {
     use super::*;
 
@@ -84,7 +84,7 @@ mod with_strings {
     }
 }
 
-#[cfg(any(test, not(feature = "fault_strings")))]
+#[cfg(any(test, not(feature = "debugging")))]
 #[allow(dead_code)]
 mod without_strings {
     use super::*;
