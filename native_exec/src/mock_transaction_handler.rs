@@ -458,20 +458,8 @@ impl Drop for MockTransactionHandler {
             eprintln!(
                 "Cleanup: Aborting mock transaction that was not committed"
             );
-            let _ =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    // Direct FFI call — skip the assert in abort_transaction()
-                    // since we're cleaning up and the root frame may not have
-                    // closed (e.g. during panic unwinding).
-                    self.state = MockTransactionState::Aborted;
-                    let err: FFIErrorCode = unsafe {
-                        groundhog_sys::abort_transaction(self.handler)
-                    }
-                    .into();
-                    if err != FFIErrorCode::None {
-                        panic!("failed to abort transaction: {:?}", err);
-                    }
-                }));
+
+            self.abort_transaction();
         }
 
         let err: FFIErrorCode =
@@ -523,6 +511,12 @@ mod tests {
             result.output().status_code(),
             InvocationFrameStatusCode::Return.0
         );
+    }
+
+    #[test]
+    fn test_noop_mock_transaction_handler() {
+        let env = TestEnvironment::new(None);
+        let _handler = MockTransactionHandler::new(env);
     }
 
     #[test]
