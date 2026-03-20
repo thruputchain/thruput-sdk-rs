@@ -19,7 +19,7 @@ pub use groundhog_native_exec::{
     test_environment::{TestEnvironment, TestEnvironmentHandle},
     test_helpers::Named,
     transact_result::TransactResult,
-    transaction::Transaction,
+    mock_transaction_handler::MockTransactionHandler,
 };
 pub use hogexec_internal::ffi_enums::*;
 
