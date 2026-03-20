@@ -228,7 +228,6 @@ impl MockInvocationFrame {
         lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
         + UnwindSafe,
     ) -> &mut Self {
-        eprintln!("top level execute");
         use crate::frame_builder::FrameAction;
 
         if self.state != MockInvocationFrameState::Started {
@@ -247,8 +246,6 @@ impl MockInvocationFrame {
             }));
 
         crate::invoke_error::deactivate_panic_hook();
-        eprintln!("top level execute result: {:?}", result);
-
         self.pop_context();
 
         match result {
@@ -260,7 +257,6 @@ impl MockInvocationFrame {
             Ok(FrameAction::Continue) => {}
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
-                    eprintln!("got invoke error: {:?}", my_error);
                     self.close_frame_internal(my_error.error_type);
                 } else {
                     eprintln!("unrecoverable error: {:?}", err);
@@ -308,7 +304,6 @@ impl ThreadlocalContextPushcount {
     }
 
     pub fn push_context(&mut self, handler: *mut c_void) {
-        std::println!("pushing context, count: {}", self.count);
         if self.count == 0 {
             let push_res = unsafe { groundhog_sys::push_context(handler) };
             let err: FFIErrorCode = push_res.into();

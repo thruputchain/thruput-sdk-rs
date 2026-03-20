@@ -82,7 +82,6 @@ fn install_panic_hook() {
                 return;
             }
 
-            eprintln!("inside panic hook: {:?}", panic_info);
             if let Some(payload) =
                 panic_info.payload().downcast_ref::<InvokeError>()
             {
