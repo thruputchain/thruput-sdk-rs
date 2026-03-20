@@ -160,6 +160,62 @@ fn test_mock_handler_event_logs_empty() {
     handler.try_commit_transaction();
 }
 
+// ── Panic handling in low-level API ───────────────────────────────────
+
+#[test]
+fn test_mock_handler_panic_produces_fault() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    let result = handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            panic!("simulated error");
+        })
+        .result();
+
+    result.assert_fault();
+}
+
+#[test]
+fn test_mock_handler_panic_then_commit() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    let result = handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            panic!("simulated error");
+        })
+        .result();
+
+    result.assert_fault();
+
+    // A bare panic (no abort handler) is an unrecoverable error, not a revert.
+    let exec_result = handler.try_commit_transaction();
+    assert_eq!(exec_result, ExecResult::ExecResultUnrecoverable);
+}
+
+#[test]
+fn test_mock_handler_panic_then_abort() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            panic!("simulated error");
+        })
+        .result();
+
+    handler.abort_transaction();
+}
 
 #[test]
 fn test_transact_success() {
