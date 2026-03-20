@@ -1,9 +1,14 @@
-use crate::frame_action::FrameAction;
 use crate::frame_result::FrameResult;
 use crate::mock_transaction_handler::{
     MockInvocationFrame, MockInvocationFrameConfig,
 };
 use std::panic::UnwindSafe;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrameAction {
+    Continue,
+    Close,
+}
 
 /// Builder for configuring and executing a single invocation frame.
 pub struct FrameBuilder<'a> {
@@ -36,7 +41,7 @@ impl<'a> FrameBuilder<'a> {
         let frame = self.config.build();
         frame.execute(|_| {
             f();
-            false // always close
+            FrameAction::Close
         });
         frame.result()
     }
@@ -51,8 +56,7 @@ impl<'a> FrameBuilder<'a> {
         let frame = self.config.build();
         frame.execute(|inner_frame| {
             let mut handle = FrameHandle { frame: inner_frame };
-            let action = f(&mut handle);
-            action.as_bool()
+            f(&mut handle)
         });
         ContinuableFrame { frame }
     }
@@ -88,8 +92,7 @@ impl<'a> ContinuableFrame<'a> {
     ) -> &mut Self {
         self.frame.execute(|inner_frame| {
             let mut handle = FrameHandle { frame: inner_frame };
-            let action = f(&mut handle);
-            action.as_bool()
+            f(&mut handle)
         });
         self
     }

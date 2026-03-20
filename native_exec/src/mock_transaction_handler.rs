@@ -1,3 +1,4 @@
+use crate::frame_builder::FrameBuilder;
 use crate::frame_result::FrameResult;
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
@@ -8,6 +9,7 @@ use groundhog_xdr::auth_claim::AuthClaimData;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::SHA256Hash;
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::panic::UnwindSafe;
 use std::panic::panic_any;
@@ -19,7 +21,6 @@ use groundhog_sys::FFIErrorCode;
 pub(crate) enum MockTransactionState {
     NotStarted,
     Running,
-    RootInvokeFinished,
     Aborted,
     Committed,
 }
@@ -43,6 +44,7 @@ pub struct MockInvocationFrameConfig<'a> {
     root_handler: *mut c_void,
     // when we build the frame, the new frame will be emplaced into this value
     to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
+    root_frame_closed: Option<Rc<Cell<bool>>>,
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
@@ -50,6 +52,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
         root_handler: *mut c_void,
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+        root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
         Self {
             context_pushcount,
@@ -57,11 +60,12 @@ impl<'a> MockInvocationFrameConfig<'a> {
             invocation: groundhog_xdr::transaction::Invocation {
                 invoked_address: [0; 32].into(),
                 entrypoint: [0; 8].into(),
-                gas_limit: 0,
+                gas_limit: u64::MAX,
                 calldata: xdr_common::BytesM::default(),
             },
             invoke_flags: 0,
             to_emplace,
+            root_frame_closed,
         }
     }
 
@@ -82,6 +86,12 @@ impl<'a> MockInvocationFrameConfig<'a> {
         self.invoke_flags = invoke_flags;
         self
     }
+
+    pub fn with_gas_limit(mut self, gas_limit: u64) -> Self {
+        self.invocation.gas_limit = gas_limit;
+        self
+    }
+
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
@@ -90,6 +100,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
             &serialized_invocation,
             self.invoke_flags,
             self.context_pushcount.clone(),
+            self.root_frame_closed,
         ));
         *self.to_emplace = Some(frame);
         self.to_emplace.as_mut().unwrap()
@@ -101,6 +112,7 @@ pub struct MockInvocationFrame {
     child_frame: Option<Box<MockInvocationFrame>>,
     state: MockInvocationFrameState,
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+    root_frame_closed: Option<Rc<Cell<bool>>>,
 }
 
 impl MockInvocationFrame {
@@ -109,6 +121,7 @@ impl MockInvocationFrame {
         serialized_invocation: &[u8],
         invoke_flags: i32,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+        root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
         let ffi_invocation = groundhog_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
@@ -136,6 +149,7 @@ impl MockInvocationFrame {
             child_frame: None,
             state: MockInvocationFrameState::Started,
             context_pushcount,
+            root_frame_closed,
         }
     }
 
@@ -144,6 +158,7 @@ impl MockInvocationFrame {
             self.root_handler,
             &mut self.child_frame,
             self.context_pushcount.clone(),
+            None,
         );
         config
     }
@@ -193,6 +208,9 @@ impl MockInvocationFrame {
             Vec::new()
         };
         self.state = MockInvocationFrameState::Closed(output, trace, events);
+        if let Some(flag) = &self.root_frame_closed {
+            flag.set(true);
+        }
     }
 
     fn push_context(&mut self) {
@@ -206,11 +224,13 @@ impl MockInvocationFrame {
         self.context_pushcount.borrow_mut().pop_context();
     }
 
-    // return true if the frame could be continued
     pub fn execute(
         &mut self,
-        lambda: impl FnOnce(&mut Self) -> bool + UnwindSafe,
+        lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
+        + UnwindSafe,
     ) -> &mut Self {
+        use crate::frame_builder::FrameAction;
+
         if self.state != MockInvocationFrameState::Started {
             eprintln!(
                 "Should be impossible to execute a frame while it is not started"
@@ -228,13 +248,12 @@ impl MockInvocationFrame {
         self.pop_context();
 
         match result {
-            Ok(result) => {
-                if !result {
-                    self.close_frame_internal(
-                        hogexec_internal::ffi_enums::InvokeErrorCode::None,
-                    );
-                }
+            Ok(FrameAction::Close) => {
+                self.close_frame_internal(
+                    hogexec_internal::ffi_enums::InvokeErrorCode::None,
+                );
             }
+            Ok(FrameAction::Continue) => {}
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
@@ -333,6 +352,7 @@ pub struct MockTransactionHandler {
     pub(crate) state: MockTransactionState,
     pub(crate) root_frame: Option<Box<MockInvocationFrame>>,
     pub(crate) context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+    root_frame_closed: Rc<Cell<bool>>,
 }
 
 impl MockTransactionHandler {
@@ -366,11 +386,16 @@ impl MockTransactionHandler {
             context_pushcount: Rc::new(RefCell::new(
                 ThreadlocalContextPushcount::new(),
             )),
+            root_frame_closed: Rc::new(Cell::new(false)),
         }
     }
 
     pub fn abort_transaction(&mut self) {
-        assert_eq!(self.state, MockTransactionState::RootInvokeFinished);
+        assert_eq!(self.state, MockTransactionState::Running);
+        assert!(
+            self.root_frame_closed.get(),
+            "cannot abort: root frame is still open"
+        );
         self.state = MockTransactionState::Aborted;
         let err: FFIErrorCode =
             unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
@@ -382,7 +407,11 @@ impl MockTransactionHandler {
     pub fn try_commit_transaction(
         &mut self,
     ) -> groundhog_xdr::exec_result::ExecResult {
-        assert_eq!(self.state, MockTransactionState::RootInvokeFinished);
+        assert_eq!(self.state, MockTransactionState::Running);
+        assert!(
+            self.root_frame_closed.get(),
+            "cannot commit: root frame is still open"
+        );
         self.state = MockTransactionState::Committed;
         let result: ForeignTryCommitResult =
             unsafe { groundhog_sys::try_commit_transaction(self.handler) };
@@ -390,17 +419,20 @@ impl MockTransactionHandler {
         if err != FFIErrorCode::None {
             panic!("ffi error: failed to commit transaction: {:?}", err);
         }
-        self.state = MockTransactionState::Committed;
 
         let exec_result: groundhog_xdr::exec_result::ExecResult =
             result.result_code.into();
         exec_result
     }
 
-    pub fn notify_root_frame_closed(&mut self) {
-        if self.state == MockTransactionState::Running {
-            self.state = MockTransactionState::RootInvokeFinished;
-        }
+    /// Convenience: open a root frame targeting the given contract address.
+    /// Returns a FrameBuilder for configuring and executing the frame.
+    pub fn call(
+        &mut self,
+        addr: &groundhog_xdr::types::ContractAddress,
+    ) -> FrameBuilder<'_> {
+        let config = self.open_root_frame().at_contract_address(*addr);
+        FrameBuilder::new(config)
     }
 
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
@@ -414,6 +446,7 @@ impl MockTransactionHandler {
             self.handler,
             &mut self.root_frame,
             self.context_pushcount.clone(),
+            Some(self.root_frame_closed.clone()),
         );
         config
     }
@@ -421,28 +454,18 @@ impl MockTransactionHandler {
 
 impl Drop for MockTransactionHandler {
     fn drop(&mut self) {
-        // Auto-transition: if we're still Running, the root frame must have
-        // been closed (frames panic on drop if still Started), so we can
-        // safely transition to RootInvokeFinished.
         if self.state == MockTransactionState::Running {
-            self.state = MockTransactionState::RootInvokeFinished;
-        }
-        if self.state == MockTransactionState::RootInvokeFinished {
             eprintln!(
-                "Cleanup: Aborting mock transaction that finished root_invoke but was not committed"
+                "Cleanup: Aborting mock transaction that was not committed"
             );
-            // Attempt abort but don't panic — we may already be unwinding
-            let _ =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    self.abort_transaction();
-                }));
+
+            self.abort_transaction();
         }
 
         let err: FFIErrorCode =
             unsafe { groundhog_sys::close_syscall_handler(self.handler) }
                 .into();
         if err != FFIErrorCode::None {
-            // Log instead of panic to avoid aborting the process during test failure unwinding
             eprintln!("failed to close syscall handler: {:?}", err);
         }
     }
@@ -451,6 +474,8 @@ impl Drop for MockTransactionHandler {
 #[cfg(test)]
 mod tests {
     use groundhog_xdr::transaction::InvocationFrameStatusCode;
+
+    use crate::frame_builder::FrameAction;
 
     use super::*;
 
@@ -470,13 +495,13 @@ mod tests {
                 unsafe {
                     FIRST = true;
                 }
-                true
+                FrameAction::Continue
             })
             .execute(|_| {
                 unsafe {
                     SECOND = true;
                 }
-                false
+                FrameAction::Close
             })
             .result();
 
@@ -486,6 +511,12 @@ mod tests {
             result.output().status_code(),
             InvocationFrameStatusCode::Return.0
         );
+    }
+
+    #[test]
+    fn test_noop_mock_transaction_handler() {
+        let env = TestEnvironment::new(None);
+        let _handler = MockTransactionHandler::new(env);
     }
 
     #[test]
@@ -529,7 +560,7 @@ mod tests {
                             assert!(!FIRST);
                             SECOND = true;
                         }
-                        false
+                        FrameAction::Close
                     })
                     .result();
 
@@ -537,7 +568,7 @@ mod tests {
                     assert!(SECOND);
                     FIRST = true;
                 }
-                false
+                FrameAction::Close
             })
             .result();
         assert_eq!(
@@ -568,7 +599,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([1; 32])
                 );
-                false
+                FrameAction::Close
             })
             .result();
         assert_eq!(
@@ -598,7 +629,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([1; 32])
                 );
-                true
+                FrameAction::Continue
             });
 
         let frame2 = handler2
@@ -616,7 +647,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([2; 32])
                 );
-                true
+                FrameAction::Continue
             });
         let result1 = frame1
             .execute(|_| {
@@ -627,7 +658,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([1; 32])
                 );
-                false
+                FrameAction::Close
             })
             .result();
 
@@ -640,7 +671,7 @@ mod tests {
                     res.unwrap(),
                     groundhog_xdr::types::ContractAddress::from([2; 32])
                 );
-                false
+                FrameAction::Close
             })
             .result();
 

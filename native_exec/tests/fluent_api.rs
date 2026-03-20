@@ -108,6 +108,7 @@ fn test_transact_result_assert_success_panics_on_abort() {
     result.assert_success();
 }
 
+use groundhog_native_exec::frame_builder::FrameAction;
 use groundhog_native_exec::mock_transaction_handler::MockTransactionHandler;
 use groundhog_native_exec::test_environment::TestEnvironment;
 
@@ -120,10 +121,9 @@ fn test_mock_handler_commit() {
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
-        .execute(|_| false)
+        .execute(|_| FrameAction::Close)
         .result();
 
-    handler.notify_root_frame_closed();
     let exec_result = handler.try_commit_transaction();
     assert_eq!(exec_result, ExecResult::ExecResultOK);
 }
@@ -137,10 +137,9 @@ fn test_mock_handler_abort() {
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
-        .execute(|_| false)
+        .execute(|_| FrameAction::Close)
         .result();
 
-    handler.notify_root_frame_closed();
     handler.abort_transaction();
 }
 
@@ -153,17 +152,71 @@ fn test_mock_handler_event_logs_empty() {
         .open_root_frame()
         .with_invoke_flags(0)
         .build()
-        .execute(|_| false)
+        .execute(|_| FrameAction::Close)
         .result();
 
     // No events emitted, should be empty
     assert!(result.events().is_empty());
 
-    handler.notify_root_frame_closed();
     handler.try_commit_transaction();
 }
 
-use groundhog_native_exec::transaction::Transaction;
+// ── Panic handling in low-level API ───────────────────────────────────
+
+#[test]
+fn test_mock_handler_panic_produces_fault() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    let result = handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            panic!("simulated error");
+        })
+        .result();
+
+    result.assert_fault();
+}
+
+#[test]
+fn test_mock_handler_panic_then_commit() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    let result = handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            panic!("simulated error");
+        })
+        .result();
+
+    result.assert_fault();
+
+    // A bare panic (no abort handler) is an unrecoverable error, not a revert.
+    let exec_result = handler.try_commit_transaction();
+    assert_eq!(exec_result, ExecResult::ExecResultUnrecoverable);
+}
+
+#[test]
+fn test_mock_handler_panic_then_abort() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            panic!("simulated error");
+        })
+        .result();
+
+    handler.abort_transaction();
+}
 
 #[test]
 fn test_transact_success() {
@@ -202,7 +255,7 @@ fn test_transact_manual_commit() {
     let exec_result = env.transact_manual(|tx| {
         let frame_result = tx.call(&[1u8; 32].into()).run(|| {});
         frame_result.assert_success();
-        tx.commit()
+        tx.try_commit_transaction()
     });
     assert_eq!(exec_result, ExecResult::ExecResultOK);
 }
@@ -216,7 +269,7 @@ fn test_transact_manual_abort() {
             panic!("this should fault");
         });
         frame_result.assert_fault();
-        tx.abort();
+        tx.abort_transaction();
     });
 }
 
@@ -237,9 +290,9 @@ fn test_transact_manual_inspect_before_commit() {
         // Inspect the frame result before deciding what to do
         let is_ok = frame_result.is_success();
         let exec_result = if is_ok {
-            tx.commit()
+            tx.try_commit_transaction()
         } else {
-            tx.abort();
+            tx.abort_transaction();
             ExecResult::ExecResultTxRootFrameReverted
         };
         (frame_result, exec_result)
@@ -252,7 +305,7 @@ fn test_transact_manual_inspect_before_commit() {
 #[test]
 fn test_transaction_call_run_success() {
     let env = TestEnvironment::new(None);
-    let mut tx = Transaction::new(env);
+    let mut tx = MockTransactionHandler::new(env);
 
     let frame_result = tx.call(&[1u8; 32].into()).run(|| {
         let res = groundhog_xdr::syscalls::GetCurrentAddress();
@@ -268,7 +321,7 @@ fn test_transaction_call_run_success() {
 #[test]
 fn test_transaction_call_run_fault() {
     let env = TestEnvironment::new(None);
-    let mut tx = Transaction::new(env);
+    let mut tx = MockTransactionHandler::new(env);
 
     let frame_result = tx.call(&[1u8; 32].into()).run(|| {
         panic!("intentional test fault");
@@ -498,7 +551,7 @@ fn test_frame_events_via_transact_manual() {
             groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"manual")
                 .unwrap();
         });
-        tx.commit();
+        tx.try_commit_transaction();
         frame
     });
 
@@ -737,12 +790,10 @@ fn test_filter_events() {
 
 // ── Continuable frame tests ──────────────────────────────────────────────
 
-use groundhog_native_exec::frame_action::FrameAction;
-
 #[test]
 fn test_run_continuable_basic() {
     let env = TestEnvironment::new(None);
-    let mut tx = Transaction::new(env);
+    let mut tx = MockTransactionHandler::new(env);
 
     let result = tx
         .call(&[1u8; 32].into())
@@ -762,7 +813,7 @@ fn test_run_continuable_basic() {
 #[test]
 fn test_run_continuable_with_child_frame() {
     let env = TestEnvironment::new(None);
-    let mut tx = Transaction::new(env);
+    let mut tx = MockTransactionHandler::new(env);
 
     let result = tx
         .call(&[1u8; 32].into())
@@ -780,6 +831,30 @@ fn test_run_continuable_with_child_frame() {
             FrameAction::Close
         })
         .finish();
+
+    result.assert_success();
+}
+
+// ── Gas limit regression test ─────────────────────────────────────────
+
+#[test]
+fn test_mock_handler_syscall_sha256() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    let result = handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            // SHA256 consumes gas — this would fail with gas_limit: 0
+            let input = b"hello world";
+            let mut hash = groundhog_xdr::types::SHA256Hash::default();
+            groundhog_xdr::syscalls::raw_SHA256(input.as_slice(), &mut hash)
+                .unwrap();
+            FrameAction::Close
+        })
+        .result();
 
     result.assert_success();
 }

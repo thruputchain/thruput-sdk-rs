@@ -1,5 +1,6 @@
 use crate::frame_result::FrameResult;
 use crate::mock_contract::{MockContract, MockContractInner};
+use crate::mock_transaction_handler::MockTransactionHandler;
 use crate::transact_result::TransactResult;
 use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
@@ -446,29 +447,29 @@ impl TestEnvironment {
 
     /// Execute a transaction with auto-commit.
     ///
-    /// Creates a MockTransactionHandler, gives the closure a Transaction handle,
+    /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
     /// (hogd handles abort internally when the root frame reverted).
     pub fn transact(
         self: &TestEnvironmentHandle,
-        f: impl FnOnce(&mut crate::transaction::Transaction) -> FrameResult,
+        f: impl FnOnce(&mut MockTransactionHandler) -> FrameResult,
     ) -> TransactResult {
-        let mut tx = crate::transaction::Transaction::new(self.clone());
+        let mut tx = MockTransactionHandler::new(self.clone());
         let frame_result = f(&mut tx);
-        let exec_result = tx.commit();
+        let exec_result = tx.try_commit_transaction();
         TransactResult::new(frame_result, exec_result)
     }
 
     /// Execute a transaction with manual commit/abort control.
     ///
-    /// The closure receives a Transaction and is responsible for
-    /// calling tx.commit() or tx.abort(). The closure's return value
-    /// is forwarded as the return value of transact_manual.
+    /// The closure receives a MockTransactionHandler and is responsible for
+    /// calling tx.try_commit_transaction() or tx.abort_transaction().
+    /// The closure's return value is forwarded as the return value of transact_manual.
     pub fn transact_manual<R>(
         self: &TestEnvironmentHandle,
-        f: impl FnOnce(&mut crate::transaction::Transaction) -> R,
+        f: impl FnOnce(&mut MockTransactionHandler) -> R,
     ) -> R {
-        let mut tx = crate::transaction::Transaction::new(self.clone());
+        let mut tx = MockTransactionHandler::new(self.clone());
         f(&mut tx)
     }
 
