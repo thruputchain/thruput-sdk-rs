@@ -86,7 +86,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
         self.invoke_flags = invoke_flags;
         self
     }
-    
+
     pub fn with_gas_limit(mut self, gas_limit: u64) -> Self {
         self.invocation.gas_limit = gas_limit;
         self
@@ -226,7 +226,8 @@ impl MockInvocationFrame {
 
     pub fn execute(
         &mut self,
-        lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction + UnwindSafe,
+        lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
+        + UnwindSafe,
     ) -> &mut Self {
         use crate::frame_builder::FrameAction;
 
