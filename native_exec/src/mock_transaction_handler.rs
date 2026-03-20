@@ -20,7 +20,6 @@ use groundhog_sys::FFIErrorCode;
 pub(crate) enum MockTransactionState {
     NotStarted,
     Running,
-    RootInvokeFinished,
     Aborted,
     Committed,
 }
@@ -384,7 +383,11 @@ impl MockTransactionHandler {
     }
 
     pub fn abort_transaction(&mut self) {
-        assert_eq!(self.state, MockTransactionState::RootInvokeFinished);
+        assert_eq!(self.state, MockTransactionState::Running);
+        assert!(
+            self.root_frame_closed.get(),
+            "cannot abort: root frame is still open"
+        );
         self.state = MockTransactionState::Aborted;
         let err: FFIErrorCode =
             unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
@@ -396,7 +399,11 @@ impl MockTransactionHandler {
     pub fn try_commit_transaction(
         &mut self,
     ) -> groundhog_xdr::exec_result::ExecResult {
-        assert_eq!(self.state, MockTransactionState::RootInvokeFinished);
+        assert_eq!(self.state, MockTransactionState::Running);
+        assert!(
+            self.root_frame_closed.get(),
+            "cannot commit: root frame is still open"
+        );
         self.state = MockTransactionState::Committed;
         let result: ForeignTryCommitResult =
             unsafe { groundhog_sys::try_commit_transaction(self.handler) };
@@ -404,17 +411,10 @@ impl MockTransactionHandler {
         if err != FFIErrorCode::None {
             panic!("ffi error: failed to commit transaction: {:?}", err);
         }
-        self.state = MockTransactionState::Committed;
 
         let exec_result: groundhog_xdr::exec_result::ExecResult =
             result.result_code.into();
         exec_result
-    }
-
-    pub fn notify_root_frame_closed(&mut self) {
-        if self.state == MockTransactionState::Running {
-            self.state = MockTransactionState::RootInvokeFinished;
-        }
     }
 
     pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
@@ -436,20 +436,23 @@ impl MockTransactionHandler {
 
 impl Drop for MockTransactionHandler {
     fn drop(&mut self) {
-        // Auto-transition: if we're still Running, the root frame must have
-        // been closed (frames panic on drop if still Started), so we can
-        // safely transition to RootInvokeFinished.
         if self.state == MockTransactionState::Running {
-            self.state = MockTransactionState::RootInvokeFinished;
-        }
-        if self.state == MockTransactionState::RootInvokeFinished {
             eprintln!(
-                "Cleanup: Aborting mock transaction that finished root_invoke but was not committed"
+                "Cleanup: Aborting mock transaction that was not committed"
             );
-            // Attempt abort but don't panic — we may already be unwinding
             let _ =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    self.abort_transaction();
+                    // Direct FFI call — skip the assert in abort_transaction()
+                    // since we're cleaning up and the root frame may not have
+                    // closed (e.g. during panic unwinding).
+                    self.state = MockTransactionState::Aborted;
+                    let err: FFIErrorCode = unsafe {
+                        groundhog_sys::abort_transaction(self.handler)
+                    }
+                    .into();
+                    if err != FFIErrorCode::None {
+                        panic!("failed to abort transaction: {:?}", err);
+                    }
                 }));
         }
 
@@ -457,7 +460,6 @@ impl Drop for MockTransactionHandler {
             unsafe { groundhog_sys::close_syscall_handler(self.handler) }
                 .into();
         if err != FFIErrorCode::None {
-            // Log instead of panic to avoid aborting the process during test failure unwinding
             eprintln!("failed to close syscall handler: {:?}", err);
         }
     }
