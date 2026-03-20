@@ -835,3 +835,27 @@ fn test_run_continuable_with_child_frame() {
 
     result.assert_success();
 }
+
+// ── Gas limit regression test ─────────────────────────────────────────
+
+#[test]
+fn test_mock_handler_syscall_sha256() {
+    let env = TestEnvironment::new(None);
+    let mut handler = MockTransactionHandler::new(env);
+
+    let result = handler
+        .open_root_frame()
+        .with_invoke_flags(0)
+        .build()
+        .execute(|_| {
+            // SHA256 consumes gas — this would fail with gas_limit: 0
+            let input = b"hello world";
+            let mut hash = groundhog_xdr::types::SHA256Hash::default();
+            groundhog_xdr::syscalls::raw_SHA256(input.as_slice(), &mut hash)
+                .unwrap();
+            false
+        })
+        .result();
+
+    result.assert_success();
+}
