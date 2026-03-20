@@ -8,6 +8,7 @@ use groundhog_xdr::auth_claim::AuthClaimData;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::SHA256Hash;
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::panic::UnwindSafe;
 use std::panic::panic_any;
@@ -43,6 +44,7 @@ pub struct MockInvocationFrameConfig<'a> {
     root_handler: *mut c_void,
     // when we build the frame, the new frame will be emplaced into this value
     to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
+    root_frame_closed: Option<Rc<Cell<bool>>>,
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
@@ -50,6 +52,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
         root_handler: *mut c_void,
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+        root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
         Self {
             context_pushcount,
@@ -62,6 +65,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
             },
             invoke_flags: 0,
             to_emplace,
+            root_frame_closed,
         }
     }
 
@@ -90,6 +94,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
             &serialized_invocation,
             self.invoke_flags,
             self.context_pushcount.clone(),
+            self.root_frame_closed,
         ));
         *self.to_emplace = Some(frame);
         self.to_emplace.as_mut().unwrap()
@@ -101,6 +106,7 @@ pub struct MockInvocationFrame {
     child_frame: Option<Box<MockInvocationFrame>>,
     state: MockInvocationFrameState,
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+    root_frame_closed: Option<Rc<Cell<bool>>>,
 }
 
 impl MockInvocationFrame {
@@ -109,6 +115,7 @@ impl MockInvocationFrame {
         serialized_invocation: &[u8],
         invoke_flags: i32,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+        root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
         let ffi_invocation = groundhog_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
@@ -136,6 +143,7 @@ impl MockInvocationFrame {
             child_frame: None,
             state: MockInvocationFrameState::Started,
             context_pushcount,
+            root_frame_closed,
         }
     }
 
@@ -144,6 +152,7 @@ impl MockInvocationFrame {
             self.root_handler,
             &mut self.child_frame,
             self.context_pushcount.clone(),
+            None,
         );
         config
     }
@@ -193,6 +202,9 @@ impl MockInvocationFrame {
             Vec::new()
         };
         self.state = MockInvocationFrameState::Closed(output, trace, events);
+        if let Some(flag) = &self.root_frame_closed {
+            flag.set(true);
+        }
     }
 
     fn push_context(&mut self) {
@@ -333,6 +345,7 @@ pub struct MockTransactionHandler {
     pub(crate) state: MockTransactionState,
     pub(crate) root_frame: Option<Box<MockInvocationFrame>>,
     pub(crate) context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
+    root_frame_closed: Rc<Cell<bool>>,
 }
 
 impl MockTransactionHandler {
@@ -366,6 +379,7 @@ impl MockTransactionHandler {
             context_pushcount: Rc::new(RefCell::new(
                 ThreadlocalContextPushcount::new(),
             )),
+            root_frame_closed: Rc::new(Cell::new(false)),
         }
     }
 
@@ -414,6 +428,7 @@ impl MockTransactionHandler {
             self.handler,
             &mut self.root_frame,
             self.context_pushcount.clone(),
+            Some(self.root_frame_closed.clone()),
         );
         config
     }
