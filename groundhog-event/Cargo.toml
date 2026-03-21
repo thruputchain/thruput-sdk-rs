@@ -1,0 +1,18 @@
+[package]
+name = "groundhog-event"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Event trait and topic types for Groundhog smart contracts"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+xdrs = { workspace = true }

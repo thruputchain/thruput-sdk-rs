@@ -5,8 +5,6 @@ version = 4
 [[package]]
 name = "abort"
 version = "0.4.3"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "762417cbc7862b87f3d028ba4d650eb993b86e5c33a11ccd9bbb5d060b78f6c2"
 dependencies = [
  "heapless",
 ]
@@ -557,6 +555,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-event"
+version = "0.4.2"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-macros"
 version = "0.4.2"
 dependencies = [
@@ -577,6 +582,7 @@ dependencies = [
 name = "groundhog-native-exec"
 version = "0.4.2"
 dependencies = [
+ "groundhog-event",
  "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-trace",
@@ -1450,6 +1456,7 @@ dependencies = [
  "bitset-core",
  "delegate",
  "groundhog-contract-util",
+ "groundhog-event",
  "groundhog-macros",
  "groundhog-native-exec",
  "groundhog-storage-cost",
