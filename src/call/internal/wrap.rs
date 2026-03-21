@@ -11,6 +11,7 @@ pub fn method_abort_handler<'a, E>(info: AbortInfo<'a>) -> Never
 where
     E: Exn + 'static,
 {
+    println!("method abort handler no debugging: payload {:?}", info);
     CrossExn::<E>::serialize_abort(info.payload());
 }
 
@@ -20,5 +21,6 @@ where
     E: Exn + Clone + 'static,
 {
     let a = CrossExn::<E>::from_abort_info(info);
+    std::println!("exn: {:?}", a);
     crate::contract_abort_encoded(&a);
 }

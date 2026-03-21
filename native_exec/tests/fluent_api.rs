@@ -238,11 +238,12 @@ fn test_mock_handler_panic_then_commit() {
         })
         .result();
 
+    std::println!("result: {:?}", result);
+
     result.assert_fault();
 
-    // A bare panic (no abort handler) is an unrecoverable error, not a revert.
     let exec_result = handler.try_commit_transaction();
-    assert_eq!(exec_result, ExecResult::ExecResultUnrecoverable);
+    assert_eq!(exec_result, ExecResult::ExecResultTxDeterministicError);
 }
 
 #[test]

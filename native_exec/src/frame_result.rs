@@ -34,6 +34,7 @@ fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
 
 /// Result of executing a single invocation frame.
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
+#[derive(Debug,Clone)]
 pub struct FrameResult {
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
