@@ -108,6 +108,9 @@ pub fn contract_handler_exec_raw(
         Fault => {
             return Err(ContractError::Fault(FaultString::empty()));
         }
+        other => {
+            panic!("unsupported InvocationFrameOutput variant: {:?}", other);
+        }
     };
 
     match handler.try_commit_transaction() {
@@ -215,7 +218,7 @@ where
 
     let res = handler.root_invoke();
 
-    if res.output.status_code() != InvocationFrameStatusCode::Return.0 {
+    if res.output.status_code() != InvocationFrameStatusCode::Return {
         panic!("Root invocation panicked with code {:?}", res.output);
     }
 
