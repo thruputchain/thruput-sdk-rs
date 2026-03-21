@@ -87,7 +87,7 @@ impl TransactResult {
 
     pub fn filter_events<E>(&self) -> Vec<E>
     where
-        E: xdrs::ReadXDROwned,
+        E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
         self.frame.filter_events()
     }
@@ -109,7 +109,7 @@ impl TransactResult {
 
     pub fn assert_emitted<E>(&self, predicate: impl Fn(&E) -> bool)
     where
-        E: xdrs::ReadXDROwned,
+        E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
         self.frame.assert_emitted(predicate);
     }
