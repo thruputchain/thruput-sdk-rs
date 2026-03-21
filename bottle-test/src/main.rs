@@ -64,7 +64,7 @@ fn bottle_test(package: &str) {
     });
 
     let res = handler.root_invoke();
-    if res.output.status_code() != InvocationFrameStatusCode::Return.0 {
+    if res.output.status_code() != InvocationFrameStatusCode::Return {
         panic!(
             "Bottle-test invocation failed with code {}",
             res.output.status_code()

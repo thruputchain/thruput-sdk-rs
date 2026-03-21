@@ -10,7 +10,7 @@ fn test_root_frame_revert() {
     });
 
     let res = handler.root_invoke();
-    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::Abort.0);
+    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::Abort);
 
     let commit_res = handler.try_commit_transaction();
     assert_eq!(commit_res, sdk::ExecResult::ExecResultTxRootFrameReverted);
