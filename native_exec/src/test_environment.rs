@@ -222,6 +222,7 @@ impl TestEnvironmentInner {
             Contract::kWasmi { wasmi_contract } => {
                 wasmi_contract.wasm.len() as u32
             }
+            other => panic!("unsupported contract variant: {:?}", other),
         };
 
         let res = unsafe {

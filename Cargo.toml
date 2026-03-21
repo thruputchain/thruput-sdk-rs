@@ -109,9 +109,9 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 # External dependencies
-groundhog-trace = { registry = "groundhog", version = "0.6.0" }
-groundhog-xdr = { registry = "groundhog", version = "0.6.0", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "0.6.0" }
+groundhog-trace = { registry = "groundhog", version = "0.6.1" }
+groundhog-xdr = { registry = "groundhog", version = "0.6.1", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "0.6.1" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.5.2", features = ["int128", "heapless"] }
 xdr-common = { registry = "groundhog", version = "0.5.2" }
