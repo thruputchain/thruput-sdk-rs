@@ -1,52 +1,15 @@
-use crate::WriteXDR;
 use crate::exn::*;
-use crate::hash::*;
 use crate::internal::encode_xdr;
 use crate::sys::{self, SyscallNo};
+
+// Re-export core event types from groundhog-event
+pub use groundhog_event::{Event, Topic, TopicSrc};
 
 /// Maximum number of topics per event
 pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;
 
 /// Maximum size of serialized event data (including the topics)
 pub const EVENT_MAX_DATA: u32 = groundhog_xdr::event::kMaxEventLength;
-
-/// A topic is a fixed-length, opaque array
-pub type Topic = [u8; 32];
-
-/// An `impl Event` publishes each topic as a `TopicSrc` value
-pub enum TopicSrc<'a> {
-    /// The topic is this owned value
-    Owned(Topic),
-    /// The topic is available via a reference into the event
-    /// (or a `'static` reference).
-    Shared(&'a Topic),
-    /// The topic is derived by hashing something in the event
-    /// (or something behind a `'static` reference).
-    Hashed(&'a dyn Hash),
-}
-
-// A `TopicSrc` can be converted to an owned `Topic`
-impl<'a> From<TopicSrc<'a>> for Topic {
-    fn from(src: TopicSrc<'a>) -> Topic {
-        match src {
-            TopicSrc::Hashed(hashable) => hashable.hash().into_inner(),
-            TopicSrc::Owned(topic) => topic,
-            TopicSrc::Shared(topic) => *topic,
-        }
-    }
-}
-
-pub trait Event: WriteXDR {
-    /// Number of topics
-    fn num_topics(&self) -> u32;
-
-    /// Retrieve the topic at a given index
-    fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
-        let _ = index;
-
-        None
-    }
-}
 
 /// Emit an event
 pub fn log_event(event: &impl Event) {
@@ -80,7 +43,7 @@ pub fn log_event(event: &impl Event) {
 
 // This should go in a test-utils area
 mod emitted_event {
-    use crate::event::Topic;
+    use groundhog_event::Topic;
     use crate::types::event::TxEmittedEvent;
     use core::cmp::min;
 
