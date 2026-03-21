@@ -2,8 +2,12 @@ use groundhog_native_exec::frame_result::FrameResult;
 use groundhog_native_exec::transact_result::TransactResult;
 use groundhog_xdr::exec_result::ExecResult;
 use groundhog_xdr::transaction::InvocationFrameOutput;
+use groundhog_xdr::types::ContractAddress;
 
 use groundhog_event::{Event, TopicSrc};
+
+/// The default contract address used by most tests.
+const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 
 /// Wrapper for u32 in event tests. Declares 0 topics,
 /// so topic filtering matches raw events with 0 topics.
@@ -24,7 +28,9 @@ const EVENT_B_SIG: [u8; 32] = [0xBB; 32];
 struct EventA(u32);
 
 impl Event for EventA {
-    fn num_topics(&self) -> u32 { 1 }
+    fn num_topics(&self) -> u32 {
+        1
+    }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
         match index {
             0 => Some(TopicSrc::Owned(EVENT_A_SIG)),
@@ -38,7 +44,9 @@ impl Event for EventA {
 struct EventB(u32);
 
 impl Event for EventB {
-    fn num_topics(&self) -> u32 { 1 }
+    fn num_topics(&self) -> u32 {
+        1
+    }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
         match index {
             0 => Some(TopicSrc::Owned(EVENT_B_SIG)),
@@ -679,14 +687,16 @@ fn test_assert_emitted_finds_matching_event() {
     assert_eq!(result.events().len(), 3);
 
     // Find the event with value 20
-    result.assert_emitted::<TestValue>(|v| v.0 == 20);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
 
     // Also works on the frame directly
-    result.frame().assert_emitted::<TestValue>(|v| v.0 == 30);
+    result
+        .frame()
+        .assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 30);
 }
 
 #[test]
-#[should_panic(expected = "no event matched the predicate")]
+#[should_panic(expected = "expected exactly 1 matching event, got 0")]
 fn test_assert_emitted_panics_when_no_match() {
     let env = TestEnvironment::new(None);
 
@@ -699,18 +709,18 @@ fn test_assert_emitted_panics_when_no_match() {
     });
 
     result.assert_success();
-    result.assert_emitted::<TestValue>(|v| v.0 == 999);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 999);
 }
 
 #[test]
-#[should_panic(expected = "no event matched the predicate: 0 of 0")]
+#[should_panic(expected = "expected exactly 1 matching event, got 0")]
 fn test_assert_emitted_panics_on_empty_events() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| tx.call(&[1u8; 32].into()).run(|| {}));
 
     result.assert_success();
-    result.assert_emitted::<TestValue>(|_| true);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |_| true);
 }
 
 #[test]
@@ -829,7 +839,7 @@ fn test_filter_events() {
     });
 
     result.assert_success();
-    let values: Vec<TestValue> = result.filter_events();
+    let values: Vec<TestValue> = result.filter_events(&TEST_ADDR);
     assert_eq!(values, vec![TestValue(10), TestValue(20), TestValue(30)]);
 }
 
@@ -916,22 +926,31 @@ fn test_filter_events_by_topic() {
             let data = xdrs::txs::encode(&10u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
-                None, None, &data,
-            ).unwrap();
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
 
             // Emit EventB(20) with topic 0 = EVENT_B_SIG
             let data = xdrs::txs::encode(&20u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
-                None, None, &data,
-            ).unwrap();
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
 
             // Emit EventA(30) with topic 0 = EVENT_A_SIG
             let data = xdrs::txs::encode(&30u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
-                None, None, &data,
-            ).unwrap();
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
         })
     });
 
@@ -939,11 +958,11 @@ fn test_filter_events_by_topic() {
     assert_eq!(result.events().len(), 3);
 
     // filter_events<EventA> should only return the two EventA instances
-    let a_events: Vec<EventA> = result.filter_events();
+    let a_events: Vec<EventA> = result.filter_events(&TEST_ADDR);
     assert_eq!(a_events, vec![EventA(10), EventA(30)]);
 
     // filter_events<EventB> should only return the one EventB instance
-    let b_events: Vec<EventB> = result.filter_events();
+    let b_events: Vec<EventB> = result.filter_events(&TEST_ADDR);
     assert_eq!(b_events, vec![EventB(20)]);
 }
 
@@ -963,10 +982,72 @@ fn test_filter_events_topic_mismatch_skips() {
     result.assert_success();
 
     // EventA expects topic 0, but the raw event has no topics → no match
-    let events: Vec<EventA> = result.filter_events();
+    let events: Vec<EventA> = result.filter_events(&TEST_ADDR);
     assert!(events.is_empty());
 
     // TestValue expects 0 topics, raw event has 0 topics → match
-    let events: Vec<TestValue> = result.filter_events();
+    let events: Vec<TestValue> = result.filter_events(&TEST_ADDR);
     assert_eq!(events, vec![TestValue(42)]);
+}
+
+#[test]
+fn test_assert_emitted_distinguishes_by_topic() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // Emit EventA(10)
+            let data = xdrs::txs::encode(&10u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
+
+            // Emit EventB(20) — same payload shape, different topic
+            let data = xdrs::txs::encode(&20u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
+        })
+    });
+
+    result.assert_success();
+
+    // assert_emitted for EventA should find EventA(10) but not EventB(20)
+    result.assert_emitted::<EventA>(&TEST_ADDR, |v| v.0 == 10);
+
+    // assert_emitted for EventB should find EventB(20) but not EventA(10)
+    result.assert_emitted::<EventB>(&TEST_ADDR, |v| v.0 == 20);
+}
+
+#[test]
+#[should_panic(expected = "expected exactly 1 matching event, got 0")]
+fn test_assert_emitted_rejects_wrong_topic() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // Only emit EventA
+            let data = xdrs::txs::encode(&10u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+                None,
+                None,
+                &data,
+            )
+            .unwrap();
+        })
+    });
+
+    result.assert_success();
+
+    // EventB should NOT match — topic 0 differs despite compatible payload
+    result.assert_emitted::<EventB>(&TEST_ADDR, |_| true);
 }

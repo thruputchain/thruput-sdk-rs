@@ -120,7 +120,11 @@ impl<'a> Event for BorrowedEvent<'a> {
         match index {
             0 => return Some(TopicSrc::Shared(self.payer)),
             1 => return Some(TopicSrc::Shared(self.payee)),
-            2 => return Some(TopicSrc::Owned(self.currency.hash().into_inner())),
+            2 => {
+                return Some(TopicSrc::Owned(
+                    self.currency.hash().into_inner(),
+                ));
+            }
             _ => return None,
         }
     }

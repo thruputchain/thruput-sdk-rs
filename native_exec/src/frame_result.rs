@@ -2,6 +2,7 @@ use groundhog_event::Event;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
+use groundhog_xdr::types::ContractAddress;
 
 /// Check whether a decoded event's topic 0 matches the raw emitted event's
 /// topic 0. Returns true if the topics are consistent:
@@ -34,7 +35,7 @@ fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
 
 /// Result of executing a single invocation frame.
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct FrameResult {
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
@@ -185,15 +186,26 @@ impl FrameResult {
         );
     }
 
-    /// Collect all events whose payload decodes as `E` and whose topic 0
-    /// matches the `Event` trait's declared topic 0. Events that don't
-    /// match are silently skipped.
-    pub fn filter_events<E>(&self) -> Vec<E>
+    /// All raw events emitted at the given address.
+    pub fn events_from(
+        &self,
+        address: &ContractAddress,
+    ) -> Vec<&TxEmittedEvent> {
+        self.events
+            .iter()
+            .filter(|e| &e.contract_address == address)
+            .collect()
+    }
+
+    /// Collect events from `address` whose payload decodes as `E` and whose
+    /// topic 0 matches the `Event` trait's declared topic 0.
+    pub fn filter_events<E>(&self, address: &ContractAddress) -> Vec<E>
     where
         E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
         self.events
             .iter()
+            .filter(|e| &e.contract_address == address)
             .filter_map(|event| {
                 let topics_len = 32 * event.num_topics as usize;
                 if topics_len > event.serialized_event.len() {
@@ -250,13 +262,21 @@ impl FrameResult {
         check(&decoded);
     }
 
-    pub fn assert_emitted<E>(&self, predicate: impl Fn(&E) -> bool)
-    where
+    /// Assert that exactly one event from `address` matches `predicate`
+    /// when decoded as `E` (with topic 0 check). Panics if zero or more
+    /// than one event matches.
+    pub fn assert_emitted<E>(
+        &self,
+        address: &ContractAddress,
+        predicate: impl Fn(&E) -> bool,
+    ) where
         E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
-        let events = self.events();
-        let mut decoded_count = 0usize;
-        for event in events {
+        let mut match_count = 0usize;
+        for event in &self.events {
+            if &event.contract_address != address {
+                continue;
+            }
             let topics_len = 32 * event.num_topics as usize;
             assert!(
                 topics_len <= event.serialized_event.len(),
@@ -266,24 +286,15 @@ impl FrameResult {
             );
             let payload = &event.serialized_event[topics_len..];
             if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
-                if topic0_matches(&decoded, event) {
-                    decoded_count += 1;
-                    if predicate(&decoded) {
-                        return;
-                    }
+                if topic0_matches(&decoded, event) && predicate(&decoded) {
+                    match_count += 1;
                 }
             }
         }
-        if decoded_count == 0 {
-            panic!(
-                "no event matched the predicate: 0 of {} events could be decoded as the expected type",
-                events.len()
-            );
-        }
-        panic!(
-            "no event matched the predicate (decoded {}/{} events, none passed predicate)",
-            decoded_count,
-            events.len()
+        assert!(
+            match_count == 1,
+            "expected exactly 1 matching event, got {}",
+            match_count
         );
     }
 }

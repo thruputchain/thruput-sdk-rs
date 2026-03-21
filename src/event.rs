@@ -43,9 +43,9 @@ pub fn log_event(event: &impl Event) {
 
 // This should go in a test-utils area
 mod emitted_event {
-    use groundhog_event::Topic;
     use crate::types::event::TxEmittedEvent;
     use core::cmp::min;
+    use groundhog_event::Topic;
 
     // Size of each topic in serialized event data
     pub const TOPIC_SIZE: usize = 32;
