@@ -80,7 +80,7 @@ impl FrameResult {
     pub fn assert_abort(&self) {
         assert!(
             self.is_abort(),
-            "expected Abort, got status code {}",
+            "expected abort, got status code {}",
             self.output.status_code()
         );
     }
