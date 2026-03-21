@@ -3,6 +3,50 @@ use groundhog_native_exec::transact_result::TransactResult;
 use groundhog_xdr::exec_result::ExecResult;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 
+use groundhog_event::{Event, TopicSrc};
+
+/// Wrapper for u32 in event tests. Declares 0 topics,
+/// so topic filtering matches raw events with 0 topics.
+#[derive(Debug, Default, PartialEq, xdrs::WriteXDR, xdrs::ReadXDR)]
+struct TestValue(u32);
+
+impl Event for TestValue {
+    fn num_topics(&self) -> u32 {
+        0
+    }
+}
+
+const EVENT_A_SIG: [u8; 32] = [0xAA; 32];
+const EVENT_B_SIG: [u8; 32] = [0xBB; 32];
+
+/// Event type with topic 0 = EVENT_A_SIG
+#[derive(Debug, Default, PartialEq, xdrs::WriteXDR, xdrs::ReadXDR)]
+struct EventA(u32);
+
+impl Event for EventA {
+    fn num_topics(&self) -> u32 { 1 }
+    fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
+        match index {
+            0 => Some(TopicSrc::Owned(EVENT_A_SIG)),
+            _ => None,
+        }
+    }
+}
+
+/// Different event type with topic 0 = EVENT_B_SIG but same payload shape
+#[derive(Debug, Default, PartialEq, xdrs::WriteXDR, xdrs::ReadXDR)]
+struct EventB(u32);
+
+impl Event for EventB {
+    fn num_topics(&self) -> u32 { 1 }
+    fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
+        match index {
+            0 => Some(TopicSrc::Owned(EVENT_B_SIG)),
+            _ => None,
+        }
+    }
+}
+
 #[test]
 fn test_frame_result_success() {
     let return_data = vec![1u8, 2, 3];
@@ -634,10 +678,10 @@ fn test_assert_emitted_finds_matching_event() {
     assert_eq!(result.events().len(), 3);
 
     // Find the event with value 20
-    result.assert_emitted::<u32>(|v| *v == 20);
+    result.assert_emitted::<TestValue>(|v| v.0 == 20);
 
     // Also works on the frame directly
-    result.frame().assert_emitted::<u32>(|v| *v == 30);
+    result.frame().assert_emitted::<TestValue>(|v| v.0 == 30);
 }
 
 #[test]
@@ -654,7 +698,7 @@ fn test_assert_emitted_panics_when_no_match() {
     });
 
     result.assert_success();
-    result.assert_emitted::<u32>(|v| *v == 999);
+    result.assert_emitted::<TestValue>(|v| v.0 == 999);
 }
 
 #[test]
@@ -665,7 +709,7 @@ fn test_assert_emitted_panics_on_empty_events() {
     let result = env.transact(|tx| tx.call(&[1u8; 32].into()).run(|| {}));
 
     result.assert_success();
-    result.assert_emitted::<u32>(|_| true);
+    result.assert_emitted::<TestValue>(|_| true);
 }
 
 #[test]
@@ -784,8 +828,8 @@ fn test_filter_events() {
     });
 
     result.assert_success();
-    let values: Vec<u32> = result.filter_events();
-    assert_eq!(values, vec![10, 20, 30]);
+    let values: Vec<TestValue> = result.filter_events();
+    assert_eq!(values, vec![TestValue(10), TestValue(20), TestValue(30)]);
 }
 
 // ── Continuable frame tests ──────────────────────────────────────────────
@@ -857,4 +901,71 @@ fn test_mock_handler_syscall_sha256() {
         .result();
 
     result.assert_success();
+}
+
+// ── Topic-aware filtering tests ───────────────────────────────────────
+
+#[test]
+fn test_filter_events_by_topic() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // Emit EventA(10) with topic 0 = EVENT_A_SIG
+            let data = xdrs::txs::encode(&10u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+                None, None, &data,
+            ).unwrap();
+
+            // Emit EventB(20) with topic 0 = EVENT_B_SIG
+            let data = xdrs::txs::encode(&20u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
+                None, None, &data,
+            ).unwrap();
+
+            // Emit EventA(30) with topic 0 = EVENT_A_SIG
+            let data = xdrs::txs::encode(&30u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(
+                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+                None, None, &data,
+            ).unwrap();
+        })
+    });
+
+    result.assert_success();
+    assert_eq!(result.events().len(), 3);
+
+    // filter_events<EventA> should only return the two EventA instances
+    let a_events: Vec<EventA> = result.filter_events();
+    assert_eq!(a_events, vec![EventA(10), EventA(30)]);
+
+    // filter_events<EventB> should only return the one EventB instance
+    let b_events: Vec<EventB> = result.filter_events();
+    assert_eq!(b_events, vec![EventB(20)]);
+}
+
+#[test]
+fn test_filter_events_topic_mismatch_skips() {
+    let env = TestEnvironment::new(None);
+
+    let result = env.transact(|tx| {
+        tx.call(&[1u8; 32].into()).run(|| {
+            // Emit an event with no topics
+            let data = xdrs::txs::encode(&42u32).unwrap();
+            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                .unwrap();
+        })
+    });
+
+    result.assert_success();
+
+    // EventA expects topic 0, but the raw event has no topics → no match
+    let events: Vec<EventA> = result.filter_events();
+    assert!(events.is_empty());
+
+    // TestValue expects 0 topics, raw event has 0 topics → match
+    let events: Vec<TestValue> = result.filter_events();
+    assert_eq!(events, vec![TestValue(42)]);
 }
