@@ -8,12 +8,12 @@ use groundhog_xdr::types::ContractAddress;
 /// topic 0. Returns true if the topics are consistent:
 /// - Both have 0 topics -> match
 /// - Decoded declares topics and topic 0 matches raw -> match
-/// - Mismatch in topic count direction or topic 0 value -> no match
+/// - Mismatch in topic count or topic 0 value -> no match
 fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
+    if decoded.num_topics() != raw.num_topics {
+        return false;
+    }
     if decoded.num_topics() > 0 {
-        if raw.num_topics == 0 {
-            return false;
-        }
         if let Some(expected) = decoded.topic(0) {
             let expected_bytes: [u8; 32] = expected.into();
             if raw.serialized_event.len() < 32 {
@@ -22,14 +22,13 @@ fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
             if &raw.serialized_event[..32] != &expected_bytes {
                 return false;
             }
-        }
-        // If num_topics > 0 but topic(0) returns None, this is a
-        // degenerate Event impl. We allow it through — the type declared
-        // it has topics but didn't provide one.
-        true
+            return true;
+        } 
+        panic!("invalid event implementation: claimed to have topics but did not provide topic 0");
     } else {
         // Event type has no topics — only match raw events with no topics
-        raw.num_topics == 0
+        assert!(raw.num_topics == 0);
+        true
     }
 }
 
