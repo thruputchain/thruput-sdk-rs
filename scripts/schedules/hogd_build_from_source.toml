@@ -18,16 +18,7 @@ source ./scripts/ci/prepare_env.sh
 echo "branch: $GIT_BRANCH"
 
 echo 'run ci'
-CARGO_NET_GIT_FETCH_WITH_CLI=true HOGD_BUILD_FFI=1 ./scripts/ci.sh
-
-# Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
-# time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
-# stats to track; for now, however, we are just tracking contract sizes,
-# which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
-
-if [ "$GIT_BRANCH" = "main" ]; then
-  HOGD_FFI_BUILD=1 ./scripts/metrics.sh
-fi
+CARGO_NET_GIT_FETCH_WITH_CLI=true HOGD_BUILD_FFI=1 cargo build -p groundhog-sys
 
 """
 

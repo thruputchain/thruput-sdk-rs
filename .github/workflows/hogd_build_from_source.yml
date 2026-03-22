@@ -1,4 +1,4 @@
-name: SDK CI
+name: Build FFI from Source check
 
 on:
   push:
