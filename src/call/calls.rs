@@ -60,7 +60,6 @@ where
                 )));
             }
         };
-    std::println!("finished contract_result");
 
     // Decode result
     into_call_result(contract_result)
@@ -77,9 +76,7 @@ pub fn contract_call<A>(
 where
     A: AsRef<[u8]> + ?Sized,
 {
-    use std::println;
     // Perform the cross-contract call
-    println!("performing cross-contract call!");
     let mut return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
     let result = sys::raw_Invoke(
@@ -90,8 +87,6 @@ where
         0, // TODO(geoff): invoke flags go here
         &mut return_len,
     );
-
-    println!("Got result: {:?}", result);
 
     let is_ok = match result {
         Ok(()) => true,
