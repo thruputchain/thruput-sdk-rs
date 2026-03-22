@@ -9,11 +9,11 @@ description = "Bottle-test interface"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.4.2" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.5.0" }
 xdrs = { workspace = true, features = ["derive", "int128"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.4.2", features = ["std"] }
+sdk = { path = "../..", registry = "groundhog", version = "=0.5.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

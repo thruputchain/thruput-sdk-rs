@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "abort"
-version = "0.4.3"
+version = "0.4.4"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "762417cbc7862b87f3d028ba4d650eb993b86e5c33a11ccd9bbb5d060b78f6c2"
+checksum = "e298e3a674dc5cf834548304dbbda7a868ad933f1485607d0d137d48f580bffb"
 dependencies = [
  "heapless",
 ]
@@ -428,7 +428,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-native-test"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -438,7 +438,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -655,7 +655,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -669,7 +669,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -698,8 +698,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-event"
+version = "0.5.0"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-macros"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -716,8 +723,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
+ "groundhog-event",
  "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-trace",
@@ -740,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -748,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -761,9 +769,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.6.0"
+version = "0.6.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "a66762cc718efbbe9d6c8eed927c9daf06bb28c1b97058806f68b0cfdffb4705"
+checksum = "d568fa0a1c50a727d7b47106ec19c71c02ba2ea9f4229f29450e7b2ab5b100be"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -773,9 +781,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.6.0"
+version = "0.6.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "99d81b4faa51bc41d4c9b83f6e44ab5b8627c322aa9560fd1cc5f40a6b932663"
+checksum = "3cd6e2460199b0ae60571470bd1a7bb6d6b9c2e5d1f4f3be1616fd04e562402c"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -787,9 +795,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.6.0"
+version = "0.6.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "42d35e2bafbe3f93bd9b12d0bc58435694214d438cd5ca47a6b211b011f33660"
+checksum = "f61cfe4db2cd9c37cb376186992e6adc5db81cb9aa5016a4b47d6f96296ba9d2"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -881,9 +889,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.6.0"
+version = "0.6.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "eff8cb7320fa5e82c9530d693946acf077334c238db37612aaa4922b0f85635a"
+checksum = "edcb318e3fdf5914dbd1dd9d6f5cc590b91a0119821c0e9763243d3155885b6a"
 dependencies = [
  "xdrs",
 ]
@@ -1190,9 +1198,9 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "1.0.17"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
+checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "js-sys"
@@ -1685,9 +1693,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.9"
+version = "0.103.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7df23109aa6c1567d1c575b9952556388da57401e4ace1d15f79eedad0d8f53"
+checksum = "df33b2b81ac578cabaf06b89b0631153a3f416b0a886e8a7a1707fb51abbd1ef"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -1717,12 +1725,13 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.3.2"
+version = "0.5.0"
 dependencies = [
  "abort",
  "bitset-core",
  "delegate",
  "groundhog-contract-util",
+ "groundhog-event",
  "groundhog-macros",
  "groundhog-native-exec",
  "groundhog-storage-cost",
@@ -2016,9 +2025,9 @@ dependencies = [
 
 [[package]]
 name = "tar"
-version = "0.4.44"
+version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d863878d212c87a19c1a610eb53bb01fe12951c0501cf5a0d65f724914a667a"
+checksum = "22692a6476a21fa75fdfc11d452fda482af402c008cdbaf3476414e122040973"
 dependencies = [
  "filetime",
  "libc",
@@ -2689,18 +2698,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.42"
+version = "0.8.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2578b716f8a7a858b7f02d5bd870c14bf4ddbbcf3a4c05414ba6503640505e3"
+checksum = "efbb2a062be311f2ba113ce66f697a4dc589f85e78a4aea276200804cea0ed87"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.42"
+version = "0.8.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e6cc098ea4d3bd6246687de65af3f920c430e236bee1e3bf2e441463f08a02f"
+checksum = "0e8bc7269b54418e7aeeef514aa68f8690b8c0489a06b0136e5f57c4c5ccab89"
 dependencies = [
  "proc-macro2",
  "quote",
