@@ -23,8 +23,10 @@ fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
                 return false;
             }
             return true;
-        } 
-        panic!("invalid event implementation: claimed to have topics but did not provide topic 0");
+        }
+        panic!(
+            "invalid event implementation: claimed to have topics but did not provide topic 0"
+        );
     } else {
         // Event type has no topics — only match raw events with no topics
         assert!(raw.num_topics == 0);
