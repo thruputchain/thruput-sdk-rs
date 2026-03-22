@@ -179,11 +179,11 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
-        if self.trait_.is_some() {
-            let trait_ident =
-                path_last_segment_ident(&self.trait_.as_ref().unwrap().1);
-            return Some(format_ident!("{}Client", trait_ident));
-        }
+        // Always return None: when this impl is for a trait, the trait's
+        // client_ident() is the authoritative source (and may carry a custom
+        // name like `AdderProxy`).  Synthesising a default here would shadow
+        // the trait's custom name via ConfiguredContract::client_ident()'s
+        // fallback chain.
         None
     }
 

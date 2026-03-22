@@ -75,7 +75,7 @@ fn apply_with_config(
                 out.extend(codegen::client::generate(item, config)?);
             } else if item.trait_.is_none() {
                 out.extend(quote::quote! {
-                    compile_error!("client = ClientName attribute is recommended on an impl without a trait (otherwise, no client interface is generated)");
+                    compile_error!("client = ClientName is required on an impl without a trait (no client interface would otherwise be generated)");
                 });
                 return Ok(out);
             }
