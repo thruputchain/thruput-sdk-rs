@@ -39,8 +39,8 @@ Run `cargo update --workspace` in each workspace root:
 
 ```bash
 cargo update --workspace                                      # root
-cd example-contracts && cargo update --workspace               # example-contracts
-cd integration_test && cargo update --workspace                # integration_test
+(cd example-contracts && cargo update --workspace)            # example-contracts
+(cd integration_test && cargo update --workspace)             # integration_test
 ```
 
 ## Verification
