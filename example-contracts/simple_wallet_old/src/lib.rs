@@ -15,7 +15,7 @@ type AuthMessage = [u8; 80];
 
 // TODO: Replay prevention?
 
-#[contract]
+#[contract(client = WalletClient)]
 impl Wallet {
     fn token(&self) -> ERC20Client {
         ERC20Client::new(&self.token_addr)

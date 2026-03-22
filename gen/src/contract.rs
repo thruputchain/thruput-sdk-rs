@@ -179,6 +179,11 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
+        if self.trait_.is_some() {
+            let trait_ident =
+                path_last_segment_ident(&self.trait_.as_ref().unwrap().1);
+            return Some(format_ident!("{}Client", trait_ident));
+        }
         None
     }
 

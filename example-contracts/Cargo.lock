@@ -169,6 +169,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "codegen_impl_client"
+version = "0.3.0"
+dependencies = [
+ "codegen_impl_client",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
+name = "codegen_impl_noclient"
+version = "0.3.0"
+dependencies = [
+ "codegen_impl_noclient",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
+name = "codegen_trait_client"
+version = "0.3.0"
+dependencies = [
+ "codegen_trait_client",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
+name = "codegen_trait_noclient"
+version = "0.3.0"
+dependencies = [
+ "codegen_trait_noclient",
+ "sdk",
+ "xdrs",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

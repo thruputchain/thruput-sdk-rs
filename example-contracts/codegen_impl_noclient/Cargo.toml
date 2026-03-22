@@ -1,0 +1,27 @@
+[package]
+name = "codegen_impl_noclient"
+description = "Codegen test: inherent impl, no client= attribute (no client generated)"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+xdrs = { workspace = true }
+
+[dev-dependencies]
+codegen_impl_noclient = { path = ".", features = ["dev"] }

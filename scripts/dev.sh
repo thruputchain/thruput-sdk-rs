@@ -86,6 +86,10 @@ eg_build_all() {
     eg_build "rcq_test" &&
     eg_build "simple_wallet_old" &&
     eg_build "test_bytestring" &&
+    eg_build "codegen_trait_noclient" &&
+    eg_build "codegen_trait_client" &&
+    eg_build "codegen_impl_noclient" &&
+    eg_build "codegen_impl_client" &&
     true
 }
 
