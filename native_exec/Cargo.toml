@@ -27,6 +27,7 @@ crate-type = ["rlib"]
 wasm_backtraces = ["groundhog-sys/wasm_backtraces"]
 
 [dependencies]
+groundhog-event = { workspace = true }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs", "syscalls_mock"]}
 xdr-common = { workspace = true, features = ["std"]}
 hogexec-internal = { workspace = true }

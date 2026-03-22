@@ -1,6 +1,7 @@
 use crate::frame_result::FrameResult;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::exec_result::ExecResult;
+use groundhog_xdr::types::ContractAddress;
 
 /// Result of a full transaction: root frame result + commit outcome.
 /// Events are accessed via the root frame's per-frame events.
@@ -85,11 +86,18 @@ impl TransactResult {
         self.frame.assert_no_events();
     }
 
-    pub fn filter_events<E>(&self) -> Vec<E>
+    pub fn events_from(
+        &self,
+        address: &ContractAddress,
+    ) -> Vec<&TxEmittedEvent> {
+        self.frame.events_from(address)
+    }
+
+    pub fn filter_events<E>(&self, address: &ContractAddress) -> Vec<E>
     where
-        E: xdrs::ReadXDROwned,
+        E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
-        self.frame.filter_events()
+        self.frame.filter_events(address)
     }
 
     pub fn assert_event(
@@ -107,10 +115,13 @@ impl TransactResult {
         self.frame.assert_event_data(index, check);
     }
 
-    pub fn assert_emitted<E>(&self, predicate: impl Fn(&E) -> bool)
-    where
-        E: xdrs::ReadXDROwned,
+    pub fn assert_emitted<E>(
+        &self,
+        address: &ContractAddress,
+        predicate: impl Fn(&E) -> bool,
+    ) where
+        E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
-        self.frame.assert_emitted(predicate);
+        self.frame.assert_emitted(address, predicate);
     }
 }

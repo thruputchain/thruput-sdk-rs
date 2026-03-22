@@ -1,0 +1,66 @@
+name: Build FFI from Source check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: self-hosted
+    env:
+      CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+      CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+      # hog ci overwrites the .cargo directory
+      CARGO_REGISTRIES_GROUNDHOG_INDEX: sparse+https://groundhog.dev/crates/api/v1/crates/
+      CARGO_REGISTRIES_GROUNDHOG_SOURCE: sparse+https://groundhog.dev/crates/api/v1/crates/
+
+    steps:
+    - name: Clean up .gitconfig
+      run: |
+        echo "Cleaning up .gitconfig"
+        rm -f /home/hogci/.gitconfig
+    - uses: webfactory/ssh-agent@v0.9.1
+      with:
+        ssh-private-key: |
+          ${{ secrets.HOGD_ACCESS_KEY }}
+          ${{ secrets.SDK_TO_PROTOCOL_RS }}
+          ${{ secrets.SDK_TO_BCS_KEY }}
+          ${{ secrets.SDK_TO_ITC }}
+          ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+          ${{ secrets.SDK_TO_BCS_CPP_KEY }}
+          ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+          ${{ secrets.SDK_TO_XDRS_KEY }}
+          ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+          ${{ secrets.SDK_TO_CHUCKD_KEY }}
+          ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+          ${{ secrets.SDK_TO_METRICS_HISTORY }}
+          ${{ secrets.SDK_TO_GROUNDHOG_GO}}
+          ${{ secrets.SDK_TO_LIBGO }}
+          ${{ secrets.SDK_TO_SELF }}
+          ${{ secrets.SDK_TO_ABORT_RS }}
+          ${{ secrets.SDK_TO_HOGX_KEY }}
+          ${{ secrets.SDK_TO_SCP_KEY }}
+
+    - uses: actions/checkout@v4
+    - name: Run hog schedule
+      run: |
+        BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+        echo "Branch name: $BRANCH_NAME"
+        hog_sched \
+        --i="${{ github.event.repository.name }}-${{ github.run_id }}" \
+        --key=github_repo --value=${{ github.repository }} \
+        --key=git_commit --value=${{ github.sha }} \
+        --key=git_branch --value=$BRANCH_NAME \
+        --key=cargo_registry_global_credential_providers --value=${{ env.CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS }} \
+        --key=cargo_registry_token --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_TOKEN }} \
+        --key=cargo_registry_index --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_INDEX }} \
+        --key=cargo_registry_source --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_SOURCE }} \
+        --timeout-sec=1800 \
+        ./scripts/schedules/hogd_build_from_source.toml
+  
+

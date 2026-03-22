@@ -511,7 +511,7 @@ mod tests {
         assert!(unsafe { SECOND });
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
     }
 
@@ -536,7 +536,7 @@ mod tests {
             .result();
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::Fault.0
+            InvocationFrameStatusCode::Fault
         );
     }
 
@@ -575,7 +575,7 @@ mod tests {
             .result();
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
         assert!(unsafe { FIRST });
         assert!(unsafe { SECOND });
@@ -606,7 +606,7 @@ mod tests {
             .result();
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
     }
 
@@ -682,7 +682,7 @@ mod tests {
 
         assert_eq!(
             result.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
         assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
     }
@@ -778,11 +778,11 @@ mod tests {
 
         assert_eq!(
             result1.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
         assert_eq!(
             result2.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
     }
 
@@ -855,11 +855,11 @@ mod tests {
 
         assert_eq!(
             result1.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
         assert_eq!(
             result2.output().status_code(),
-            InvocationFrameStatusCode::Return.0
+            InvocationFrameStatusCode::Return
         );
     }
 }

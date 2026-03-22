@@ -48,7 +48,7 @@ fn test_panic_ok() {
 }
 
 fn test_sdk_panic() {
-    set_override_panic_hook();
+    activate_panic_hook();
     let f: fn() -> () = || {
         panic!("something");
     };
@@ -59,7 +59,7 @@ fn test_sdk_panic() {
 }
 
 fn test_option_panic() {
-    set_override_panic_hook();
+    activate_panic_hook();
     let f: fn() -> () = || {
         let x: Option<i32> = None;
         x.unwrap();
@@ -71,7 +71,7 @@ fn test_option_panic() {
 }
 
 fn test_pass_invoke_error_through_panic_hook() {
-    set_override_panic_hook();
+    activate_panic_hook();
     let f: fn() -> () = || panic_any(validation_error());
 
     let boxed = invoke_wrapper(f);

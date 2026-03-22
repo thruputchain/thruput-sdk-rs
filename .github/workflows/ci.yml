@@ -60,20 +60,8 @@ jobs:
         --key=cargo_registry_token --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_TOKEN }} \
         --key=cargo_registry_index --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_INDEX }} \
         --key=cargo_registry_source --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_SOURCE }} \
+        --key=hogd_ffi_password --value=${{ secrets.HOGD_FFI_PASSWORD }} \
         --timeout-sec=1800 \
         ./scripts/schedules/ci.toml
   
-#    - uses: actions/checkout@v4
-#      with:
-#        submodules: recursive
-#    - uses: ./.github/actions/setup
-#    - name: check
-#      run: CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/ci.sh
-#    - name: log metrics
-#      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-#      # Hogd runs metrics in a separate workflow because the hogd metrics are nontrivially
-#      # time-consuming to run.  We can swap the SDK metrics to that style if we add long-to-compute
-#      # stats to track; for now, however, we are just tracking contract sizes,
-#      # which are already built in the ci workflow, so the CI overhead of logging the metrics is minimal.
-#      run: ./scripts/metrics.sh
 

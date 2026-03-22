@@ -119,6 +119,8 @@ circumstances:
 # Example contract
 
 ```
+use sdk::*;
+
 #[storage]
 pub struct MyContract {
     contract_owner: ContractAddress,

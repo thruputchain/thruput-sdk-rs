@@ -16,7 +16,7 @@ macro_rules! single_event_test {
 
             let res = handler.root_invoke();
             if res.output.status_code()
-                != sdk::types::transaction::InvocationFrameStatusCode::Return.0
+                != sdk::types::transaction::InvocationFrameStatusCode::Return
             {
                 panic!("Invocation failed with code {}", res.output.status_code());
             }
@@ -78,7 +78,7 @@ impl Event for OwnedEvent {
 
                 Some(TopicSrc::Owned(payer_payee))
             }
-            1 => Some(TopicSrc::Hashed(&self.currency)),
+            1 => Some(TopicSrc::Owned(self.currency.hash().into_inner())),
             _ => None,
         }
     }
@@ -120,7 +120,11 @@ impl<'a> Event for BorrowedEvent<'a> {
         match index {
             0 => return Some(TopicSrc::Shared(self.payer)),
             1 => return Some(TopicSrc::Shared(self.payee)),
-            2 => return Some(TopicSrc::Hashed(&self.currency)),
+            2 => {
+                return Some(TopicSrc::Owned(
+                    self.currency.hash().into_inner(),
+                ));
+            }
             _ => return None,
         }
     }
