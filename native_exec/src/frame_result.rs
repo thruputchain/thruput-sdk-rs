@@ -19,7 +19,7 @@ fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
             if raw.serialized_event.len() < 32 {
                 return false;
             }
-            if &raw.serialized_event[..32] != &expected_bytes {
+            if raw.serialized_event[..32] != expected_bytes {
                 return false;
             }
             return true;
@@ -286,10 +286,9 @@ impl FrameResult {
                 event.serialized_event.len()
             );
             let payload = &event.serialized_event[topics_len..];
-            if let Ok(decoded) = xdrs::txs::decode::<E>(payload) {
-                if topic0_matches(&decoded, event) && predicate(&decoded) {
-                    match_count += 1;
-                }
+            if let Ok(decoded) = xdrs::txs::decode::<E>(payload)
+                && topic0_matches(&decoded, event) && predicate(&decoded) {
+                match_count += 1;
             }
         }
         assert!(
