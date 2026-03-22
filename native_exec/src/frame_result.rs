@@ -287,7 +287,9 @@ impl FrameResult {
             );
             let payload = &event.serialized_event[topics_len..];
             if let Ok(decoded) = xdrs::txs::decode::<E>(payload)
-                && topic0_matches(&decoded, event) && predicate(&decoded) {
+                && topic0_matches(&decoded, event)
+                && predicate(&decoded)
+            {
                 match_count += 1;
             }
         }
