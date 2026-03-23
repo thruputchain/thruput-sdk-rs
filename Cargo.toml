@@ -11,6 +11,7 @@ members = [
     "standard-tests/*",
     "bottle-test",
     "groundhog-test-vectors",
+    "wallet",
     ]
 
 [workspace.package]
@@ -101,6 +102,7 @@ groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundho
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
+groundhog-nocontract-if = { path = "standard-interfaces/groundhog-nocontract" , registry = "groundhog", version = "=0.1.0" }
 bottle-test-if = { path = "standard-interfaces/bottle-test-if" , registry = "groundhog", version = "=0.1.0" }
 
 # Standard test crates

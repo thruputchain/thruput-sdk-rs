@@ -287,6 +287,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-compact"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33ce99a9e19c84beb4cc35ece85374335ccc398240712114c85038319ed709bd"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -594,6 +600,13 @@ dependencies = [
  "thiserror",
  "xdr-common",
  "xdrs",
+]
+
+[[package]]
+name = "groundhog-nocontract-if"
+version = "0.1.0"
+dependencies = [
+ "sdk",
 ]
 
 [[package]]
@@ -1914,6 +1927,19 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "wallet"
+version = "0.5.4"
+dependencies = [
+ "ed25519-compact",
+ "groundhog-contract-util",
+ "groundhog-nocontract-if",
+ "groundhog-xdr",
+ "sdk",
+ "sha2",
+ "xdrs",
+]
 
 [[package]]
 name = "want"
