@@ -1,0 +1,51 @@
+name: Native Exec Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
+jobs:
+  test-linux:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: namespace-profile-hogd-linux-arm64
+    env:
+      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: rust
+
+      - name: Build and test groundhog-native-exec
+        run: cargo test -p groundhog-native-exec -- --show-output
+
+  test-macos:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: namespace-profile-hogd-arm64-macos
+    env:
+      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: rust
+
+      - name: Build and test groundhog-native-exec
+        run: cargo test -p groundhog-native-exec -- --show-output
