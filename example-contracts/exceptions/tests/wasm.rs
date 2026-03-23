@@ -43,7 +43,6 @@ fn wasm_exceptions() {
 }
 
 #[test]
-#[ignore] // XXX
 fn wasm_panic() {
     let contract = sdk::load_wasm_contract(WASM_PATH);
     let env = sdk::TestEnvironment::no_cost();

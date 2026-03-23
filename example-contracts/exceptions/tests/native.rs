@@ -4,7 +4,6 @@ use exceptions::test_setup;
 use sdk::*;
 
 #[test]
-#[ignore]
 fn native_exceptions() {
     let mut env = sdk::TestEnvironment::default();
 
@@ -17,7 +16,6 @@ fn native_exceptions() {
 }
 
 #[test]
-#[ignore] // XXX: segfault!
 fn native_panic() {
     let mut env = sdk::TestEnvironment::default();
 
