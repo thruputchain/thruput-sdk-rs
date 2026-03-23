@@ -8,7 +8,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.11.4";
+const TEST_FFI_VERSION: &str = "0.11.5";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If HOGD_SRC is set and directory exists, use it as-is
@@ -198,7 +198,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if this platform has prebuilt library support
     let prebuilt_supported = matches!(
         (target_arch().as_str(), target_os().as_str()),
-        ("x86_64", "linux") | ("aarch64", "macos")
+        ("x86_64", "linux") | ("aarch64", "linux") | ("aarch64", "macos")
     );
 
     // Check user overrides
@@ -230,7 +230,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Platform doesn't support prebuilt and user didn't specify an alternative
         return Err(format!(
             "No prebuilt library available for {}-{}.\n\
-             Supported platforms: x86_64-linux, aarch64-macos\n\
+             Supported platforms: x86_64-linux, aarch64-linux, aarch64-macos\n\
              Please set one of the following environment variables:\n\
              - HOGD_FFI_BUILD=1        : Build from source using CMake\n\
              - HOGD_FFI_LIB_DIR=<path> : Use prebuilt library from specified directory",
@@ -427,11 +427,12 @@ fn download_and_extract(
     // Determine the platform-specific archive name
     let archive_name = match (target_arch, target_os) {
         ("x86_64", "linux") => "libtest_ffi-linux-x86_64.tar.gz",
+        ("aarch64", "linux") => "libtest_ffi-linux-arm64.tar.gz",
         ("aarch64", "macos") => "libtest_ffi-macos-arm64.tar.gz",
         _ => {
             return Err(format!(
                 "No prebuilt library available for {}-{}.\n\
-                 Supported platforms: x86_64-linux, aarch64-macos\n\
+                 Supported platforms: x86_64-linux, aarch64-linux, aarch64-macos\n\
                  Please use HOGD_FFI_BUILD=1 to build from source instead.",
                 target_arch, target_os
             )
