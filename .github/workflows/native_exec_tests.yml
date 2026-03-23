@@ -14,7 +14,7 @@ env:
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
 jobs:
-  test-linux:
+  test-linux-arm64:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-arm64
     env:
@@ -32,7 +32,7 @@ jobs:
       - name: Build and test groundhog-native-exec
         run: cargo test -p groundhog-native-exec -- --show-output
 
-  test-macos:
+  test-macos-arm64:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-arm64-macos
     env:
