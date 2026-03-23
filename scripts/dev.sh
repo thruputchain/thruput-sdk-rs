@@ -19,8 +19,10 @@ build_contracts() {
 
     local package
     for package in $(ls_contract_packages "$packages_dir") ; do
-        build_contract "$workspace_dir" "$package" ||
+        build_contract "$workspace_dir" "$package" || {
+            fail "Failed building contract $package"
             return 1
+        }
     done
 }
 
@@ -75,22 +77,7 @@ eg_build() {
 }
 
 eg_build_all() {
-    eg_build "caller" &&
-    # build "counter" && # for Mark to update
-    eg_build "erc20" &&
-    eg_build "erc20_no_storage" &&
-    eg_build "erc20_low_level" &&
-    eg_build "exceptions" &&
-    eg_build "genesis_deployer" &&
-    eg_build "hasher" &&
-    eg_build "rcq_test" &&
-    eg_build "simple_wallet_old" &&
-    eg_build "test_bytestring" &&
-    eg_build "codegen_trait_noclient" &&
-    eg_build "codegen_trait_client" &&
-    eg_build "codegen_impl_noclient" &&
-    eg_build "codegen_impl_client" &&
-    true
+    build_contracts "${SDK_DIR}/example-contracts"
 }
 
 itc_build() {
@@ -106,7 +93,7 @@ itc_build_all() {
 
 ### TESTING ###
 
-test_lib() {
+test_sdk() {
     cargo test --lib &&
     cargo test --tests &&
     cargo test -F storage --tests &&
@@ -133,29 +120,22 @@ eg_test() {
     test_contract "example-contracts" "$package" "$@"
 }
 
+eg_test_all() {
+    # Note: Some of these tests require their associated wasms to be compiled
+    # first.
+
+    packages_dir="example-contracts"
+
+    for package in $(ls_contract_packages "$packages_dir") ; do
+        eg_test "$package"
+    done
+}
+
 itc_test() {
     local package
     package="$1"; shift
 
     test_contract "integration_test" "$package"
-}
-
-eg_test_all() {
-    # Note: Some of these tests require their associated wasms to be compiled.
-
-    eg_test caller --test native &&
-    eg_test caller --test wasm &&
-    eg_test erc20 &&
-    eg_test erc20_no_storage &&
-    eg_test erc20_low_level &&
-    # eg_test exceptions --test native native_exceptions &&
-    # eg_test exceptions --test native native_panic && # segfault!
-    eg_test exceptions --test wasm wasm_ok &&
-    eg_test exceptions --test wasm wasm_deploy &&
-    eg_test exceptions --test wasm wasm_exceptions &&
-    # eg_test exceptions --test wasm wasm_panic && # panic confusion
-    eg_test hasher &&
-    true
 }
 
 itc_test_all() {
@@ -262,7 +242,7 @@ test_spec() {
 
 test_all() {
     build_docs &&
-    test_lib &&
+    test_sdk &&
     test_spec &&
 
     eg_build_all &&
@@ -424,9 +404,6 @@ case "$action" in
         ;;
     build-itc)
         itc_build_all
-        ;;
-    test-lib)
-        test_lib
         ;;
     test)
         if [ $# -gt 0 ]; then

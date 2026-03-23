@@ -597,6 +597,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-nocontract-if"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "groundhog-serde_arrays"
 version = "0.2.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"

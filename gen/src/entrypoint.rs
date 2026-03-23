@@ -1,6 +1,6 @@
 //! Construct and manipulate contract entrypoint IDs
 
-use groundhog_contract_util as contract_util;
+use groundhog_contract_util::EntrypointSignature;
 use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
@@ -11,13 +11,7 @@ pub fn contract_entrypoint_id(
     version_str: &str,
     method: &syn::Signature,
 ) -> ContractEntrypointID {
-    let method_signature =
-        contract_util::NormalizedMethodSignature::new_from_signature(method);
-    contract_util::contract_entrypoint_id(
-        interface_name,
-        version_str,
-        &method_signature,
-    )
+    EntrypointSignature::new(interface_name, version_str, method).id()
 }
 
 pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {

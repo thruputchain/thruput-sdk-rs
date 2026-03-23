@@ -133,8 +133,14 @@ pub fn generate_method(
             .clone()
             .unwrap_or_else(crate::contract::interface_vers_default)
     };
-    let entrypoint = contract_entrypoint_id(iface_name, &iface_vers, sig);
+
+    let entrypoint_sig =
+        contract_util::EntrypointSignature::new(iface_name, &iface_vers, sig);
+    let entrypoint = entrypoint_sig.id();
+
     let export_name = entrypoint_export_name(entrypoint);
+    let export_docstr = format!(" {} = {}", export_name, entrypoint_sig);
+
     let extern_name = format_ident!("{}_extern", ident);
     let internal_name = contract
         .map(|c| c.make_internal_name(ident))
@@ -341,7 +347,7 @@ pub fn generate_method(
 
     Ok(quote! {
 
-        #[doc=#export_name]
+        #[doc=#export_docstr]
         #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
         pub extern "C" fn #extern_name() {
             #internal_name()
