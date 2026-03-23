@@ -179,6 +179,11 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
+        // Always return None: when this impl is for a trait, the trait's
+        // client_ident() is the authoritative source (and may carry a custom
+        // name like `AdderProxy`).  Synthesising a default here would shadow
+        // the trait's custom name via ConfiguredContract::client_ident()'s
+        // fallback chain.
         None
     }
 
