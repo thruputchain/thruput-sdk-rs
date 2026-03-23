@@ -7,9 +7,6 @@ pub use contract_test::*;
 
 mod test_setup;
 
-mod handler;
-pub use handler::*;
-
 pub use core::convert::Infallible;
 pub use groundhog_native_exec::{
     frame_builder::{

@@ -69,10 +69,7 @@ pub fn contract_test_handler<F>(
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
-    let test =
-        move || with_abort_handler!(test_abort_handler::<Infallible>, f());
-
-    env.prepare_test(test)
+    env.prepare_test(f)
 }
 
 /// Invoke the handler's root frame and commit the transaction, decoding the

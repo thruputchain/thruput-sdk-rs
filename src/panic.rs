@@ -18,12 +18,7 @@ fn handle_panic(info: &core::panic::PanicInfo) -> ! {
     #[cfg(feature = "panic_logging")]
     panic_logging(info);
 
-    if abort_handler_is_present() {
-        abort(&Panic::from_info(info));
-    } else {
-        let _ = crate::log(b"Panicked but there is no abort handler!");
-        crate::trap();
-    }
+    abort(&Panic::from_info(info));
 }
 
 #[cfg(any(test, feature = "debugging"))]

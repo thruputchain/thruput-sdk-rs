@@ -23,6 +23,7 @@ pub mod allocator;
 #[doc(hidden)]
 pub mod internal;
 
+mod abort;
 mod cell;
 mod debug;
 mod local;
@@ -32,9 +33,8 @@ mod xdr;
 
 #[doc(hidden)]
 pub mod call;
-pub use call::{CallError, CallResult};
-
 pub use call::ContractClient;
+pub use call::{CallError, CallResult};
 
 // TODO: Make these modules pub(crate) in order to allow
 // reorganization without breaking changes.
@@ -61,6 +61,7 @@ pub mod serialize;
 pub mod stats;
 pub mod types;
 
+pub use abort::*;
 pub use auth_claim::*;
 pub use bytestring::*;
 pub use cell::*;
@@ -81,13 +82,7 @@ pub use rt::*;
 pub use serialize::*;
 pub use types::*;
 pub use util::*;
-
 pub use xdr::*;
-
-pub use abort::{
-    AbortInfo, AbortPayload, Never, abort, abort_with_info, catch,
-    with_abort_handler,
-};
 
 #[cfg(feature = "call_tracking")]
 pub use abort::with_debug_context;
