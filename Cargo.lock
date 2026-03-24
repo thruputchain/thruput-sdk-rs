@@ -518,6 +518,7 @@ dependencies = [
  "darling",
  "groundhog-contract-util",
  "groundhog-xdr",
+ "heck",
  "proc-macro2",
  "quote",
  "sha2",
@@ -594,13 +595,6 @@ dependencies = [
  "thiserror",
  "xdr-common",
  "xdrs",
-]
-
-[[package]]
-name = "groundhog-nocontract-if"
-version = "0.1.0"
-dependencies = [
- "sdk",
 ]
 
 [[package]]

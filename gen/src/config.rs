@@ -2,6 +2,7 @@
 
 use darling::FromMeta;
 use darling::util::Flag;
+use heck::ToSnakeCase;
 use proc_macro2::Span;
 
 #[derive(Clone, Debug, FromMeta)]
@@ -34,6 +35,20 @@ impl Config {
 
     pub fn exports_mod_ident(&self) -> syn::Ident {
         ident_or(&self.exports, "exports")
+    }
+
+    /// Returns the exports module identifier.
+    /// When `trait_name` is provided and no explicit `exports` was set,
+    /// derives the name from the trait (e.g., `Adder` → `adder_exports`).
+    pub fn exports_mod_ident_for_trait(&self, trait_name: Option<&str>) -> syn::Ident {
+        match (&self.exports, trait_name) {
+            (Some(name), _) => syn::Ident::new(name, Span::call_site()),
+            (None, Some(name)) => {
+                let snake = name.to_snake_case();
+                syn::Ident::new(&format!("{snake}_exports"), Span::call_site())
+            }
+            (None, None) => syn::Ident::new("exports", Span::call_site()),
+        }
     }
 
     pub fn test_setup_mod_ident(&self) -> syn::Ident {
