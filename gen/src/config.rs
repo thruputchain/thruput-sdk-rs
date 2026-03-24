@@ -11,7 +11,6 @@ pub struct Config {
     pub storage: Option<String>,
     pub interface: Option<String>,
     pub version: Option<String>,
-    pub index: Option<u16>,
     pub init: Flag,
     pub doc: Option<String>,
 
@@ -26,10 +25,6 @@ impl Config {
 
     pub fn interface_name(&self) -> Option<String> {
         self.interface.clone()
-    }
-
-    pub fn interface_index(&self) -> Option<u16> {
-        self.index
     }
 
     pub fn exports_mod_ident(&self) -> syn::Ident {
