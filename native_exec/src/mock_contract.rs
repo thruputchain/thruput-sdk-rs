@@ -58,17 +58,6 @@ impl MockContract {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
 
-    pub fn register_func<F>(&mut self, id: ContractEntrypointID, func: F)
-    where
-        F: Fn() + UnwindSafe + Clone + 'static,
-    {
-        unsafe {
-            (*self.contract)
-                .funcs
-                .insert(id, invoke_wrapper(func.clone()))
-        };
-    }
-
     pub fn register<F: FnOnce(&mut Self)>(&mut self, f: F) -> &mut Self {
         f(self);
         self

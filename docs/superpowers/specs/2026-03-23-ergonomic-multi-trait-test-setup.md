@@ -5,10 +5,10 @@
 When a contract implements multiple traits, users must add redundant `exports` and `test_setup` annotations to every `#[contract]` attribute to avoid module name collisions:
 
 ```rust
-#[contract(throws = AdderError, storage = "false", exports = "adder_exports", test_setup = "adder_test_setup")]
+#[contract(throws = AdderError, storage = false, exports = "adder_exports", test_setup = "adder_test_setup")]
 impl Adder for MathContract { ... }
 
-#[contract(throws = MultiplierError, storage = "false", exports = "multiplier_exports", test_setup = "multiplier_test_setup")]
+#[contract(throws = MultiplierError, storage = false, exports = "multiplier_exports", test_setup = "multiplier_test_setup")]
 impl Multiplier for MathContract { ... }
 ```
 
@@ -115,11 +115,11 @@ For trait impls, if `test_setup = "..."` is provided, emit a compile error direc
 
 ```rust
 // Before:
-#[contract(throws = AdderError, storage = "false", exports = "adder_exports", test_setup = "adder_test_setup")]
+#[contract(throws = AdderError, storage = false, exports = "adder_exports", test_setup = "adder_test_setup")]
 impl Adder for MathContract { ... }
 
 // After:
-#[contract(throws = AdderError, storage = "false")]
+#[contract(throws = AdderError, storage = false)]
 impl Adder for MathContract { ... }
 ```
 

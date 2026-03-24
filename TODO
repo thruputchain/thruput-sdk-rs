@@ -9,7 +9,7 @@
     - example-contracts
         - exceptions: test
 - finish converting syscalls to abort-on-err
-- storage = "false" => no self
+- storage = false => no self
 - module contracts
 - pretty up rendering of exceptions, context backtraces
 - context backtrace across contract calls

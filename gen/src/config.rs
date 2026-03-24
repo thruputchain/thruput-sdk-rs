@@ -8,7 +8,7 @@ use proc_macro2::Span;
 pub struct Config {
     pub exports: Option<String>,
     pub test_setup: Option<String>,
-    pub storage: Option<String>,
+    pub storage: Option<bool>,
     pub interface: Option<String>,
     pub version: Option<String>,
     pub init: Flag,
@@ -48,11 +48,7 @@ impl Config {
     }
 
     pub fn storage(&self) -> bool {
-        if let Some(setting) = &self.storage {
-            setting.as_str() == "true"
-        } else {
-            true // default if no storage attr present
-        }
+        self.storage.unwrap_or(true)
     }
 
     pub fn throws(&self) -> Option<&syn::Ident> {
@@ -138,11 +134,11 @@ mod tests {
 
     #[test]
     fn storage_explicit_true() {
-        assert!(parse_config(r#"storage = "true""#).storage());
+        assert!(parse_config(r#"storage = true"#).storage());
     }
 
     #[test]
     fn storage_explicit_false() {
-        assert!(!parse_config(r#"storage = "false""#).storage());
+        assert!(!parse_config(r#"storage = false"#).storage());
     }
 }

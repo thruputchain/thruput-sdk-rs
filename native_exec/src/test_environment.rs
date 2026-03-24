@@ -421,7 +421,7 @@ impl TestEnvironment {
     {
         let mut test_contract = self.add_contract();
         let entrypoint = ContractEntrypointID::from([0; 8]);
-        test_contract.register_func(entrypoint, test);
+        test_contract.register_method(entrypoint, test);
         self.inner
             .borrow_mut()
             .setup_create_contract(&test_contract.as_contract());

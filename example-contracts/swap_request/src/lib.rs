@@ -50,7 +50,7 @@ impl From<SwapRequest> for EncodedSwapRequest {
 #[derive(Default)]
 pub struct SwapContract;
 
-#[contract(client = SwapClient, storage = "false")]
+#[contract(client = SwapClient, storage = false)]
 impl SwapContract {
     pub fn submit_request(&self, r: SwapRequest) {
         let r: EncodedSwapRequest = r.into();

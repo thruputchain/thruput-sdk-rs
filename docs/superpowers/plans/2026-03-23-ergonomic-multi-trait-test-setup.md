@@ -742,20 +742,20 @@ Bare impl contracts (fibonacci, error-handling-callee, error-handling-caller, cr
 
 Line 10, change:
 ```rust
-#[contract(throws = AdderError, storage = "false", exports = "adder_exports", test_setup = "adder_test_setup")]
+#[contract(throws = AdderError, storage = false, exports = "adder_exports", test_setup = "adder_test_setup")]
 ```
 to:
 ```rust
-#[contract(throws = AdderError, storage = "false")]
+#[contract(throws = AdderError, storage = false)]
 ```
 
 Line 20, change:
 ```rust
-#[contract(throws = MultiplierError, storage = "false", exports = "multiplier_exports", test_setup = "multiplier_test_setup")]
+#[contract(throws = MultiplierError, storage = false, exports = "multiplier_exports", test_setup = "multiplier_test_setup")]
 ```
 to:
 ```rust
-#[contract(throws = MultiplierError, storage = "false")]
+#[contract(throws = MultiplierError, storage = false)]
 ```
 
 **`multi-impl/tests/test.rs`** — Replace the `setup()` function:

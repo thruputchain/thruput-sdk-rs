@@ -11,7 +11,7 @@ pub enum AbortType {
     Other,
 }
 
-#[contract(client = ContractClient, storage = "false", /* abort = AbortType */)]
+#[contract(client = ContractClient, storage = false, /* abort = AbortType */)]
 impl Contract {
     pub fn uncaught_abort(&self) {
         with_debug_context!("This may lead to sadness", {
