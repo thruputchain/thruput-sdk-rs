@@ -1,7 +1,7 @@
 use sdk::*;
 
 #[derive(Default)]
-struct Contract;
+pub struct Contract;
 
 /// If we abort, it's with this type
 #[derive(ReadXDR, WriteXDR)]

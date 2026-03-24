@@ -2,7 +2,7 @@ use swap_request::*;
 
 #[test]
 fn test() {
-    sdk::client_test(test_setup::register, mytest);
+    sdk::client_test(|env| env.register_mock::<SwapContract, SwapContract>(), mytest);
 }
 
 fn mytest(c: &mut SwapClient) {

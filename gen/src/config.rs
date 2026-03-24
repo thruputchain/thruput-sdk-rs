@@ -51,10 +51,6 @@ impl Config {
         }
     }
 
-    pub fn test_setup_mod_ident(&self) -> syn::Ident {
-        ident_or(&self.test_setup, "test_setup")
-    }
-
     pub fn storage(&self) -> bool {
         if let Some(setting) = &self.storage {
             setting.as_str() == "true"

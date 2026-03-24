@@ -5,5 +5,5 @@ mod implementation;
 pub use implementation::CounterClient;
 pub use implementation::exports::*;
 
-#[cfg(feature = "dev")]
-pub use implementation::test_setup;
+// Counter type is re-exported so tests can use register_mock::<Counter, Counter>()
+pub use implementation::Counter;

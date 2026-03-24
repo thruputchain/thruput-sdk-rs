@@ -5,9 +5,9 @@ static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
 
 #[test]
 fn test_counter_basic() {
-    let mut env = sdk::TestEnvironment::no_cost();
+    let env = sdk::TestEnvironment::no_cost();
 
-    let test_contract = counter::test_setup::register(&mut env);
+    let test_contract = env.register_mock::<counter::Counter, counter::Counter>();
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
@@ -34,9 +34,9 @@ fn test_counter_basic() {
 
 #[test]
 fn test_counter_underflow() {
-    let mut env = sdk::TestEnvironment::no_cost();
+    let env = sdk::TestEnvironment::no_cost();
 
-    let test_contract = counter::test_setup::register(&mut env);
+    let test_contract = env.register_mock::<counter::Counter, counter::Counter>();
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {

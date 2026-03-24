@@ -2,7 +2,7 @@ use stateless::*;
 
 #[test]
 fn test_run() {
-    sdk::client_test(test_setup::register, |c: &mut StatelessClient| {
+    sdk::client_test(|env| env.register_mock::<Stateless, Stateless>(), |c: &mut StatelessClient| {
         c.run();
     });
 }

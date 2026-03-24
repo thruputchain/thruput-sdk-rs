@@ -1,4 +1,4 @@
-use crate::implementation::{Error, MyClient, test_setup};
+use crate::implementation::{Error, MyClient, MyContract};
 use sdk::transaction::InvocationFrameStatusCode;
 use sdk::*;
 use thiserror::Error;
@@ -7,7 +7,7 @@ use thiserror::Error;
 fn check_playground() {
     let mut env = sdk::TestEnvironment::new(None);
 
-    let test_contract = test_setup::register(&mut env);
+    let test_contract = env.register_mock::<MyContract, MyContract>();
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> () {

@@ -10,7 +10,7 @@ fn caller_test_native() {
     let erc20_contract = env.register_mock::<erc20::TokenContract, dyn erc20::ERC20>();
     let erc20_hash = env.setup_create_contract(&erc20_contract);
 
-    let caller_contract = caller::test_setup::register(&env);
+    let caller_contract = env.register_mock::<caller::Caller, caller::Caller>();
     let caller_hash = env.setup_create_contract(&caller_contract);
 
     sdk::contract_exec(env, move || {
