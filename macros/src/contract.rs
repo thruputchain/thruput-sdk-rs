@@ -39,13 +39,8 @@ fn apply_with_config(
                 if let syn::TraitItem::Fn(method) = item {
                     if method.sig.receiver().is_none() {
                         // Add Self: Sized bound to the method's where clause
-                        let clause = method
-                            .sig
-                            .generics
-                            .make_where_clause();
-                        clause
-                            .predicates
-                            .push(parse_quote!(Self: Sized));
+                        let clause = method.sig.generics.make_where_clause();
+                        clause.predicates.push(parse_quote!(Self: Sized));
                     }
                 }
             }
@@ -104,8 +99,7 @@ fn apply_with_config(
             // For bare impls, generate a separate impl block with __mock
             if cfg!(feature = "mock") && item.trait_.is_none() {
                 out.extend(codegen::test_reg::generate_bare_method(
-                    item,
-                    config,
+                    item, config,
                 )?);
             }
 
