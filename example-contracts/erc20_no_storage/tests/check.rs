@@ -1,7 +1,7 @@
 #[test]
 fn run_test() {
     let env = sdk::TestEnvironment::no_cost();
-    let test_contract = env.register_mock::<erc20_no_storage::Token, erc20_no_storage::ERC20TestSetup>();
+    let test_contract = env.register_mock::<erc20_no_storage::Token, dyn erc20_no_storage::ERC20>();
 
     erc20_native_test::test_erc20_contract(env, &test_contract);
 }

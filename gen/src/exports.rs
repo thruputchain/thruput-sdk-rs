@@ -49,9 +49,11 @@ pub fn generate(
 
     // For trait impls, emit a compile-time assertion that the major version used
     // for entrypoint IDs matches the major version baked into the trait definition.
-    let version_assertion = if let (Some(trait_path), Some(self_ty)) =
+    let version_assertion = if let (Some(trait_path), Some(_self_ty)) =
         (contract.trait_path(), contract.self_ty())
     {
+        let trait_ident = &trait_path.segments.last().unwrap().ident;
+        let meta_ident = format_ident!("__{trait_ident}Meta");
         let iface_major =
             contract_util::semver::major_version_from_string(&iface_vers);
         let error_msg = format!(
@@ -64,7 +66,7 @@ pub fn generate(
             const _: () = assert!(
                 ::sdk::internal::const_str_eq(
                     #iface_major,
-                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION
+                    #meta_ident::IFACE_MAJOR_VERSION
                 ),
                 #error_msg
             );

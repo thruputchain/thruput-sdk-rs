@@ -28,7 +28,8 @@ pub use swapv2_pair::erc20_exports::*;
 #[cfg(feature = "dev")]
 pub use swapv2_pair::SwapV2Pair;
 
+// Re-export the ERC20 trait for `dyn ERC20` in tests
 #[cfg(feature = "dev")]
-pub use swapv2_pair::{ERC20TestSetup, ISwapV2PairTestSetup};
+pub use groundhog_erc20_if::ERC20;
 
 mod bignum;

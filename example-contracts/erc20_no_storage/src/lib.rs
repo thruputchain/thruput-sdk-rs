@@ -13,9 +13,8 @@ mod implementation;
 // The actual implementation, exposed for use in tests
 pub use implementation::Token;
 
-// TestSetup marker for register_mock
-#[cfg(feature = "dev")]
-pub use implementation::ERC20TestSetup;
+// Re-export the ERC20 trait so tests can write `dyn erc20_no_storage::ERC20`
+pub use interface::ERC20;
 
 #[cfg(feature = "bottle-test")]
 pub use erc20_bottle_test::*;

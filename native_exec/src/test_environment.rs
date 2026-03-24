@@ -403,7 +403,7 @@ impl TestEnvironment {
         MockContract::new(inner, self.clone())
     }
 
-    pub fn register_mock<C: crate::mock_contract::TestSetup<T>, T>(
+    pub fn register_mock<C: crate::mock_contract::TestSetup<T>, T: ?Sized>(
         self: &TestEnvironmentHandle,
     ) -> Contract {
         let mut c = self.add_contract();

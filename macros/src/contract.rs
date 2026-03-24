@@ -6,9 +6,8 @@ use darling::ast::NestedMeta;
 use groundhog_codegen as codegen;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::ToTokens;
+use quote::{ToTokens, format_ident};
 use syn::parse::Result;
-use syn::parse_quote;
 
 pub fn apply(
     attr_args: TokenStream,
@@ -30,18 +29,27 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            // Inject the major version as an associated const
-            let mut stripped = item.strip_our_attributes();
+            let stripped = item.strip_our_attributes();
             let iface_vers = codegen::contract::interface_vers_default();
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(
                     &iface_vers,
                 );
-            stripped.items.push(parse_quote! {
-                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
-            });
+
+            let trait_ident = &item.ident;
+            let meta_ident = format_ident!("__{trait_ident}Meta");
 
             let mut out = stripped.into_token_stream();
+
+            // Generate a companion struct that carries the version const,
+            // keeping the trait itself dyn-compatible.
+            out.extend(quote::quote! {
+                #[doc(hidden)]
+                pub struct #meta_ident;
+                impl #meta_ident {
+                    pub const IFACE_MAJOR_VERSION: &'static str = #iface_major;
+                }
+            });
 
             // Generate client interface
             out.extend(codegen::client::generate(item, config)?);
