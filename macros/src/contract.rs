@@ -52,12 +52,28 @@ fn apply_with_config(
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
-            // Generate exports
-            out.extend(codegen::exports::generate(item, config)?);
+            // Extract trait name for auto-deriving module names
+            let trait_name = item
+                .trait_
+                .as_ref()
+                .map(|(_, path, _)| {
+                    path.segments.last().unwrap().ident.to_string()
+                });
+
+            // Generate exports (with auto-derived module name for trait impls)
+            out.extend(codegen::exports::generate(
+                item,
+                config,
+                trait_name.as_deref(),
+            )?);
 
             if cfg!(feature = "mock") {
                 // Generate test registration
-                out.extend(codegen::test_reg::generate(item, config)?);
+                out.extend(codegen::test_reg::generate(
+                    item,
+                    config,
+                    trait_name.as_deref(),
+                )?);
             }
 
             if config.client_ident().is_some() {
