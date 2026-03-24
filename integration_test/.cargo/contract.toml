@@ -5,6 +5,9 @@
 
 [build]
 target = ["wasm32-unknown-unknown"]
+rustflags = [
+    "--deny", "warnings",
+    ]
 
 [target.wasm32-unknown-unknown]
 rustflags = [

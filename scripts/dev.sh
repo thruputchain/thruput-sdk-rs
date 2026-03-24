@@ -127,7 +127,10 @@ eg_test_all() {
     packages_dir="example-contracts"
 
     for package in $(ls_contract_packages "$packages_dir") ; do
-        eg_test "$package"
+        eg_test "$package" || {
+            fail "Failed testing contract $package"
+            return 1
+        }
     done
 }
 
