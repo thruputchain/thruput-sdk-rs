@@ -2,7 +2,6 @@
 
 use darling::FromMeta;
 use darling::util::Flag;
-use heck::ToSnakeCase;
 use proc_macro2::Span;
 
 #[derive(Clone, Debug, FromMeta)]
@@ -39,13 +38,12 @@ impl Config {
 
     /// Returns the exports module identifier.
     /// When `trait_name` is provided and no explicit `exports` was set,
-    /// derives the name from the trait (e.g., `Adder` → `adder_exports`).
+    /// derives the name from the trait (e.g., `Adder` → `Adder_exports`).
     pub fn exports_mod_ident_for_trait(&self, trait_name: Option<&str>) -> syn::Ident {
         match (&self.exports, trait_name) {
             (Some(name), _) => syn::Ident::new(name, Span::call_site()),
             (None, Some(name)) => {
-                let snake = name.to_snake_case();
-                syn::Ident::new(&format!("{snake}_exports"), Span::call_site())
+                syn::Ident::new(&format!("{name}_exports"), Span::call_site())
             }
             (None, None) => syn::Ident::new("exports", Span::call_site()),
         }
@@ -91,31 +89,21 @@ mod tests {
     // -- exports_mod_ident_for_trait --
 
     #[test]
-    fn exports_name_from_simple_trait() {
+    fn exports_name_from_trait() {
         let config = empty_config();
         assert_eq!(
             config.exports_mod_ident_for_trait(Some("Adder")).to_string(),
-            "adder_exports"
+            "Adder_exports"
         );
-    }
-
-    #[test]
-    fn exports_name_from_acronym_trait() {
-        let config = empty_config();
         assert_eq!(
             config.exports_mod_ident_for_trait(Some("ERC20")).to_string(),
-            "erc20_exports"
+            "ERC20_exports"
         );
-    }
-
-    #[test]
-    fn exports_name_from_complex_trait() {
-        let config = empty_config();
         assert_eq!(
             config
                 .exports_mod_ident_for_trait(Some("ISwapV2Pair"))
                 .to_string(),
-            "i_swap_v2_pair_exports"
+            "ISwapV2Pair_exports"
         );
     }
 

@@ -76,6 +76,7 @@ pub fn generate(
     };
 
     Ok(quote! {
+        #[allow(non_snake_case)]
         pub mod #exports_mod_ident {
             #(#uses)*
 
