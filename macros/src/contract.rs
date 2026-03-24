@@ -32,19 +32,6 @@ fn apply_with_config(
         syn::Item::Trait(item) => {
             let mut stripped = item.strip_our_attributes();
 
-            // Add `where Self: Sized` to methods without a self receiver.
-            // This keeps the trait dyn-compatible without affecting normal
-            // usage on concrete types.
-            for item in &mut stripped.items {
-                if let syn::TraitItem::Fn(method) = item {
-                    if method.sig.receiver().is_none() {
-                        // Add Self: Sized bound to the method's where clause
-                        let clause = method.sig.generics.make_where_clause();
-                        clause.predicates.push(parse_quote!(Self: Sized));
-                    }
-                }
-            }
-
             let iface_vers = codegen::contract::interface_vers_default();
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(
