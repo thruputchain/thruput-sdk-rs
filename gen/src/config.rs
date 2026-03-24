@@ -39,7 +39,10 @@ impl Config {
     /// Returns the exports module identifier.
     /// When `trait_name` is provided and no explicit `exports` was set,
     /// derives the name from the trait (e.g., `Adder` → `Adder_exports`).
-    pub fn exports_mod_ident_for_trait(&self, trait_name: Option<&str>) -> syn::Ident {
+    pub fn exports_mod_ident_for_trait(
+        &self,
+        trait_name: Option<&str>,
+    ) -> syn::Ident {
         match (&self.exports, trait_name) {
             (Some(name), _) => syn::Ident::new(name, Span::call_site()),
             (None, Some(name)) => {
@@ -92,11 +95,15 @@ mod tests {
     fn exports_name_from_trait() {
         let config = empty_config();
         assert_eq!(
-            config.exports_mod_ident_for_trait(Some("Adder")).to_string(),
+            config
+                .exports_mod_ident_for_trait(Some("Adder"))
+                .to_string(),
             "Adder_exports"
         );
         assert_eq!(
-            config.exports_mod_ident_for_trait(Some("ERC20")).to_string(),
+            config
+                .exports_mod_ident_for_trait(Some("ERC20"))
+                .to_string(),
             "ERC20_exports"
         );
         assert_eq!(

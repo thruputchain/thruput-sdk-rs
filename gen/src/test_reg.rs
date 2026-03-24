@@ -127,4 +127,3 @@ fn generate_method_qualified(
         contract.register_method(#entrypoint, #exports_mod::#internal_name);
     })
 }
-

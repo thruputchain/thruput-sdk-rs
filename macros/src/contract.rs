@@ -61,12 +61,9 @@ fn apply_with_config(
             let mut out = item.strip_our_attributes().into_token_stream();
 
             // Extract trait name for auto-deriving module names
-            let trait_name = item
-                .trait_
-                .as_ref()
-                .map(|(_, path, _)| {
-                    path.segments.last().unwrap().ident.to_string()
-                });
+            let trait_name = item.trait_.as_ref().map(|(_, path, _)| {
+                path.segments.last().unwrap().ident.to_string()
+            });
 
             // Generate exports (with auto-derived module name for trait impls)
             out.extend(codegen::exports::generate(
