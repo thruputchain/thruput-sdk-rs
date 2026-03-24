@@ -71,3 +71,88 @@ fn ident_or(maybe_name: &Option<String>, default: &str) -> syn::Ident {
         None => syn::Ident::new(default, span),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use darling::ast::NestedMeta;
+
+    /// Parse a `Config` from a `#[contract(...)]`-style attribute string.
+    fn parse_config(attrs: &str) -> Config {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list).unwrap()
+    }
+
+    fn empty_config() -> Config {
+        parse_config("")
+    }
+
+    // -- exports_mod_ident_for_trait --
+
+    #[test]
+    fn exports_name_from_simple_trait() {
+        let config = empty_config();
+        assert_eq!(
+            config.exports_mod_ident_for_trait(Some("Adder")).to_string(),
+            "adder_exports"
+        );
+    }
+
+    #[test]
+    fn exports_name_from_acronym_trait() {
+        let config = empty_config();
+        assert_eq!(
+            config.exports_mod_ident_for_trait(Some("ERC20")).to_string(),
+            "erc20_exports"
+        );
+    }
+
+    #[test]
+    fn exports_name_from_complex_trait() {
+        let config = empty_config();
+        assert_eq!(
+            config
+                .exports_mod_ident_for_trait(Some("ISwapV2Pair"))
+                .to_string(),
+            "i_swap_v2_pair_exports"
+        );
+    }
+
+    #[test]
+    fn exports_name_defaults_without_trait() {
+        let config = empty_config();
+        assert_eq!(
+            config.exports_mod_ident_for_trait(None).to_string(),
+            "exports"
+        );
+    }
+
+    #[test]
+    fn explicit_exports_overrides_trait_name() {
+        let config = parse_config(r#"exports = "custom""#);
+        assert_eq!(
+            config
+                .exports_mod_ident_for_trait(Some("Adder"))
+                .to_string(),
+            "custom"
+        );
+    }
+
+    // -- storage --
+
+    #[test]
+    fn storage_defaults_to_true() {
+        assert!(empty_config().storage());
+    }
+
+    #[test]
+    fn storage_explicit_true() {
+        assert!(parse_config(r#"storage = "true""#).storage());
+    }
+
+    #[test]
+    fn storage_explicit_false() {
+        assert!(!parse_config(r#"storage = "false""#).storage());
+    }
+}
