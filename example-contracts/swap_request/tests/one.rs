@@ -6,6 +6,7 @@ fn test() {
 }
 
 fn mytest(c: &mut SwapClient) {
+    c.initialize();
     c.submit_request(SwapRequest::new());
     c.submit_request(SwapRequest::new());
     c.submit_request(SwapRequest::new());
