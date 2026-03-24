@@ -48,7 +48,7 @@ fn apply_with_config(
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
                     #[doc(hidden)]
-                    fn __mock(contract: &mut ::sdk::MockContract) where Self: Sized {
+                    fn __mock(contract: &mut ::sdk::MockContract) {
                         panic!("__mock not available \u{2014} use #[contract] on the impl");
                     }
                 });
