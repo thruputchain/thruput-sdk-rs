@@ -54,6 +54,16 @@ pub fn generate(
     {
         let trait_ident = &trait_path.segments.last().unwrap().ident;
         let meta_ident = format_ident!("__{trait_ident}Meta");
+
+        // Build a fully-qualified path to the meta struct by replacing the
+        // last segment of the trait path (e.g., `super::Adder` → `super::__AdderMeta`,
+        // or just `Adder` → `__AdderMeta`).
+        let meta_path = {
+            let mut path = trait_path.clone();
+            path.segments.last_mut().unwrap().ident = meta_ident;
+            path
+        };
+
         let iface_major =
             contract_util::semver::major_version_from_string(&iface_vers);
         let error_msg = format!(
@@ -66,7 +76,7 @@ pub fn generate(
             const _: () = assert!(
                 ::sdk::internal::const_str_eq(
                     #iface_major,
-                    #meta_ident::IFACE_MAJOR_VERSION
+                    #meta_path::IFACE_MAJOR_VERSION
                 ),
                 #error_msg
             );
