@@ -6,8 +6,9 @@ use darling::ast::NestedMeta;
 use groundhog_codegen as codegen;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{ToTokens, format_ident};
+use quote::ToTokens;
 use syn::parse::Result;
+use syn::parse_quote;
 
 pub fn apply(
     attr_args: TokenStream,
@@ -29,27 +30,49 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            let stripped = item.strip_our_attributes();
+            let mut stripped = item.strip_our_attributes();
+
+            // Add `where Self: Sized` to methods without a self receiver.
+            // This keeps the trait dyn-compatible without affecting normal
+            // usage on concrete types.
+            for item in &mut stripped.items {
+                if let syn::TraitItem::Fn(method) = item {
+                    if method.sig.receiver().is_none() {
+                        // Add Self: Sized bound to the method's where clause
+                        let clause = method
+                            .sig
+                            .generics
+                            .make_where_clause();
+                        clause
+                            .predicates
+                            .push(parse_quote!(Self: Sized));
+                    }
+                }
+            }
+
             let iface_vers = codegen::contract::interface_vers_default();
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(
                     &iface_vers,
                 );
 
-            let trait_ident = &item.ident;
-            let meta_ident = format_ident!("__{trait_ident}Meta");
+            // Add the version const and default __register_mock method
+            // directly on the trait.
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
+            });
+
+            if cfg!(feature = "mock") {
+                stripped.items.push(parse_quote! {
+                    #[doc(hidden)]
+                    fn __register_mock(contract: &mut ::sdk::MockContract) where Self: Sized {
+                        panic!("__register_mock not available \u{2014} use #[contract] on the impl");
+                    }
+                });
+            }
 
             let mut out = stripped.into_token_stream();
-
-            // Generate a companion struct that carries the version const,
-            // keeping the trait itself dyn-compatible.
-            out.extend(quote::quote! {
-                #[doc(hidden)]
-                pub struct #meta_ident;
-                impl #meta_ident {
-                    pub const IFACE_MAJOR_VERSION: &'static str = #iface_major;
-                }
-            });
 
             // Generate client interface
             out.extend(codegen::client::generate(item, config)?);
@@ -57,13 +80,34 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
-            // Start with the item itself, stripped of proprietary attributes
-            let mut out = item.strip_our_attributes().into_token_stream();
+            let mut stripped = item.strip_our_attributes();
 
             // Extract trait name for auto-deriving module names
             let trait_name = item.trait_.as_ref().map(|(_, path, _)| {
                 path.segments.last().unwrap().ident.to_string()
             });
+
+            // For trait impls, inject __register_mock into the impl block
+            // BEFORE tokenizing.
+            if cfg!(feature = "mock") && item.trait_.is_some() {
+                if let Some(method) = codegen::test_reg::generate_trait_method(
+                    item,
+                    config,
+                    trait_name.as_deref(),
+                )? {
+                    stripped.items.push(method);
+                }
+            }
+
+            let mut out = stripped.into_token_stream();
+
+            // For bare impls, generate a separate impl block with __register_mock
+            if cfg!(feature = "mock") && item.trait_.is_none() {
+                out.extend(codegen::test_reg::generate_bare_method(
+                    item,
+                    config,
+                )?);
+            }
 
             // Generate exports (with auto-derived module name for trait impls)
             out.extend(codegen::exports::generate(
@@ -71,15 +115,6 @@ fn apply_with_config(
                 config,
                 trait_name.as_deref(),
             )?);
-
-            if cfg!(feature = "mock") {
-                // Generate test registration
-                out.extend(codegen::test_reg::generate(
-                    item,
-                    config,
-                    trait_name.as_deref(),
-                )?);
-            }
 
             if config.client_ident().is_some() {
                 // It would be incorrect to generate a client interface here if the item is implementing a trait,

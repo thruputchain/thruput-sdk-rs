@@ -6,7 +6,7 @@ use sdk::*;
 fn test_abort_exn() {
     let env = TestEnvironment::default();
 
-    let test_contract = env.register_mock::<aborter::Contract, aborter::Contract>();
+    let test_contract = env.register_mock(aborter::Contract::__register_mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
@@ -30,7 +30,7 @@ fn test_abort_exn() {
 fn test_uncaught_abort() {
     let env = TestEnvironment::default();
 
-    let test_contract = env.register_mock::<aborter::Contract, aborter::Contract>();
+    let test_contract = env.register_mock(aborter::Contract::__register_mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {

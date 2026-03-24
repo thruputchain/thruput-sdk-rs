@@ -13,7 +13,7 @@ pub use groundhog_native_exec::{
         ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,
     },
     frame_result::FrameResult,
-    mock_contract::{MockContract, TestSetup},
+    mock_contract::MockContract,
     mock_transaction_handler::MockTransactionHandler,
     test_environment::{TestEnvironment, TestEnvironmentHandle},
     test_helpers::Named,
