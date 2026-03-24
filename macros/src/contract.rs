@@ -56,6 +56,27 @@ fn apply_with_config(
 
             let mut out = stripped.into_token_stream();
 
+            // Generate a marker type + `impl ContractExn` so the impl's export
+            // codegen can resolve the error type without `throws` on the impl.
+            let trait_ident = &item.ident;
+            let marker_ident =
+                quote::format_ident!("__GroundhogExnOf_{}", trait_ident);
+            let throws_ty = config
+                .throws()
+                .map(|ty| quote::quote! { #ty })
+                .unwrap_or_else(
+                    || quote::quote! { ::core::convert::Infallible },
+                );
+            out.extend(quote::quote! {
+                #[doc(hidden)]
+                #[allow(non_camel_case_types)]
+                pub enum #marker_ident {}
+                #[doc(hidden)]
+                impl ::sdk::ContractExn for #marker_ident {
+                    type Exn = #throws_ty;
+                }
+            });
+
             // Generate client interface
             out.extend(codegen::client::generate(item, config)?);
 
@@ -97,6 +118,13 @@ fn apply_with_config(
                 config,
                 trait_name.as_deref(),
             )?);
+
+            if config.throws().is_some() && item.trait_.is_some() {
+                out.extend(quote::quote! {
+                    compile_error!("`throws` on a trait impl is not allowed. Add `throws` to the trait definition instead, since the trait defines the interface.");
+                });
+                return Ok(out);
+            }
 
             if config.client_ident().is_some() {
                 // It would be incorrect to generate a client interface here if the item is implementing a trait,

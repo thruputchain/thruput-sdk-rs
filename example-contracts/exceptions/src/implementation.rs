@@ -9,7 +9,7 @@ pub struct Contract;
 #[error("Thing")]
 struct Thing;
 
-#[contract(throws = MyErr)]
+#[contract]
 impl Interface for Contract {
     fn hello() {}
 
