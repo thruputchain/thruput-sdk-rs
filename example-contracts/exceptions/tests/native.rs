@@ -1,14 +1,14 @@
 mod common;
 
-use exceptions::test_setup;
+use exceptions::{Contract, InterfaceTestSetup};
 use sdk::*;
 
 #[test]
 fn native_exceptions() {
-    let mut env = sdk::TestEnvironment::default();
+    let env = sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
-    let test_contract = test_setup::register(&mut env);
+    let test_contract = env.register_mock::<Contract, InterfaceTestSetup>();
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || common::exceptions_test(&contract_hash))
@@ -17,10 +17,10 @@ fn native_exceptions() {
 
 #[test]
 fn native_panic() {
-    let mut env = sdk::TestEnvironment::default();
+    let env = sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
-    let test_contract = test_setup::register(&mut env);
+    let test_contract = env.register_mock::<Contract, InterfaceTestSetup>();
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || common::panic_test(&contract_hash))

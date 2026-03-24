@@ -14,11 +14,9 @@ mod implementation;
 // The actual implementation, exposed for use in tests
 pub use implementation::TokenContract;
 
-// Contract methods exposed with C ABI for running as guest
-pub use implementation::exports::*;
-
+// TestSetup marker for register_mock
 #[cfg(feature = "dev")]
-pub use implementation::test_setup;
+pub use implementation::ERC20TestSetup;
 
 #[cfg(feature = "bottle-test")]
 pub use erc20_bottle_test::*;

@@ -10,11 +10,12 @@ pub use interface::ERC20Client;
 // An implementation of the contract interface
 mod implementation;
 
-// Entrypoints
-pub use implementation::exports::*;
+// The actual implementation, exposed for use in tests
+pub use implementation::Token;
 
+// TestSetup marker for register_mock
 #[cfg(feature = "dev")]
-pub use implementation::test_setup;
+pub use implementation::ERC20TestSetup;
 
 #[cfg(feature = "bottle-test")]
 pub use erc20_bottle_test::*;

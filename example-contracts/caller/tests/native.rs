@@ -5,12 +5,12 @@ use common::*;
 // have one call the other.
 #[test]
 fn caller_test_native() {
-    let mut env = sdk::TestEnvironment::no_cost();
+    let env = sdk::TestEnvironment::no_cost();
 
-    let erc20_contract = erc20::test_setup::register(&mut env);
+    let erc20_contract = env.register_mock::<erc20::TokenContract, erc20::ERC20TestSetup>();
     let erc20_hash = env.setup_create_contract(&erc20_contract);
 
-    let caller_contract = caller::test_setup::register(&mut env);
+    let caller_contract = caller::test_setup::register(&env);
     let caller_hash = env.setup_create_contract(&caller_contract);
 
     sdk::contract_exec(env, move || {

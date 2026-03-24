@@ -2,7 +2,7 @@
 
 mod implementation;
 
-pub(crate) use implementation::Stateless;
+pub use implementation::Stateless;
 pub use implementation::StatelessClient;
 pub use implementation::exports::*;
 

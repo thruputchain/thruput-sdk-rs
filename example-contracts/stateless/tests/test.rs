@@ -9,18 +9,19 @@ fn test_run() {
 
 use stateless::interface1;
 use stateless::interface2;
+use stateless::Stateless;
 
 #[test]
 fn test_ifaces() {
     sdk::client_test(
-        interface1::test_setup::register,
+        |env| env.register_mock::<Stateless, interface1::InterfaceTestSetup>(),
         |c: &mut interface1::Client| {
             assert_eq!(c.perform_task(), 1);
         },
     );
 
     sdk::client_test(
-        interface2::test_setup::register,
+        |env| env.register_mock::<Stateless, interface2::InterfaceTestSetup>(),
         |c: &mut interface2::Client| {
             assert_eq!(c.perform_task(), 2);
         },

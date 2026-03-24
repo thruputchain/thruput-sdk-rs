@@ -7,7 +7,3 @@ pub use interface::*;
 pub use interface::AdderClient;
 
 mod implementation;
-pub use implementation::exports::*;
-
-#[cfg(feature = "dev")]
-pub use implementation::test_setup;
