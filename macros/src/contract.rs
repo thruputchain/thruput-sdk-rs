@@ -71,14 +71,15 @@ fn apply_with_config(
 
             // For trait impls, inject __mock into the impl block
             // BEFORE tokenizing.
-            if cfg!(feature = "mock") && item.trait_.is_some() {
-                if let Some(method) = codegen::test_reg::generate_trait_method(
+            if cfg!(feature = "mock")
+                && item.trait_.is_some()
+                && let Some(method) = codegen::test_reg::generate_trait_method(
                     item,
                     config,
                     trait_name.as_deref(),
-                )? {
-                    stripped.items.push(method);
-                }
+                )?
+            {
+                stripped.items.push(method);
             }
 
             let mut out = stripped.into_token_stream();
