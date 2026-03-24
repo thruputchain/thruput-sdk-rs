@@ -8,7 +8,7 @@ fn native_exceptions() {
     let env = sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
-    let test_contract = env.register_mock(<Contract as Interface>::__register_mock);
+    let test_contract = env.register_mock(<Contract as Interface>::__mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || common::exceptions_test(&contract_hash))
@@ -20,7 +20,7 @@ fn native_panic() {
     let env = sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
-    let test_contract = env.register_mock(<Contract as Interface>::__register_mock);
+    let test_contract = env.register_mock(<Contract as Interface>::__mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || common::panic_test(&contract_hash))

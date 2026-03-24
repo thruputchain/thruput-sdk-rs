@@ -7,7 +7,7 @@ use thiserror::Error;
 fn check_playground() {
     let mut env = sdk::TestEnvironment::new(None);
 
-    let test_contract = env.register_mock(MyContract::__register_mock);
+    let test_contract = env.register_mock(MyContract::__mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     let mut handler = env.prepare_test(move || -> () {

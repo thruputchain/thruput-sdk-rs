@@ -17,8 +17,8 @@ pub fn generate_trait_method(
         return Err(syn::Error::new_spanned(
             item,
             "test_setup = \"...\" is no longer supported. \
-             The #[contract] macro now generates `__register_mock` \
-             automatically. Use `<Type as Trait>::__register_mock` in tests instead.",
+             The #[contract] macro now generates `__mock` \
+             automatically. Use `<Type as Trait>::__mock` in tests instead.",
         ));
     }
 
@@ -26,13 +26,13 @@ pub fn generate_trait_method(
 
     Ok(Some(syn::parse_quote! {
         #[doc(hidden)]
-        fn __register_mock(contract: &mut ::sdk::MockContract) where Self: Sized {
+        fn __mock(contract: &mut ::sdk::MockContract) where Self: Sized {
             #registrations
         }
     }))
 }
 
-/// For bare impls: returns a standalone impl block with __register_mock.
+/// For bare impls: returns a standalone impl block with __mock.
 pub fn generate_bare_method(
     item: &syn::ItemImpl,
     config: &Config,
@@ -42,8 +42,8 @@ pub fn generate_bare_method(
         return Err(syn::Error::new_spanned(
             item,
             "test_setup = \"...\" is no longer supported. \
-             The #[contract] macro now generates `__register_mock` \
-             automatically. Use `Type::__register_mock` in tests instead.",
+             The #[contract] macro now generates `__mock` \
+             automatically. Use `Type::__mock` in tests instead.",
         ));
     }
 
@@ -54,7 +54,7 @@ pub fn generate_bare_method(
     Ok(quote! {
         impl #self_ty {
             #[doc(hidden)]
-            pub fn __register_mock(contract: &mut ::sdk::MockContract) {
+            pub fn __mock(contract: &mut ::sdk::MockContract) {
                 #registrations
             }
         }

@@ -56,7 +56,7 @@ fn apply_with_config(
                     &iface_vers,
                 );
 
-            // Add the version const and default __register_mock method
+            // Add the version const and default __mock method
             // directly on the trait.
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -66,8 +66,8 @@ fn apply_with_config(
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
                     #[doc(hidden)]
-                    fn __register_mock(contract: &mut ::sdk::MockContract) where Self: Sized {
-                        panic!("__register_mock not available \u{2014} use #[contract] on the impl");
+                    fn __mock(contract: &mut ::sdk::MockContract) where Self: Sized {
+                        panic!("__mock not available \u{2014} use #[contract] on the impl");
                     }
                 });
             }
@@ -87,7 +87,7 @@ fn apply_with_config(
                 path.segments.last().unwrap().ident.to_string()
             });
 
-            // For trait impls, inject __register_mock into the impl block
+            // For trait impls, inject __mock into the impl block
             // BEFORE tokenizing.
             if cfg!(feature = "mock") && item.trait_.is_some() {
                 if let Some(method) = codegen::test_reg::generate_trait_method(
@@ -101,7 +101,7 @@ fn apply_with_config(
 
             let mut out = stripped.into_token_stream();
 
-            // For bare impls, generate a separate impl block with __register_mock
+            // For bare impls, generate a separate impl block with __mock
             if cfg!(feature = "mock") && item.trait_.is_none() {
                 out.extend(codegen::test_reg::generate_bare_method(
                     item,

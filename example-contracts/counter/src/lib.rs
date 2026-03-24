@@ -5,5 +5,5 @@ mod implementation;
 pub use implementation::CounterClient;
 pub use implementation::exports::*;
 
-// Counter type is re-exported so tests can use Counter::__register_mock
+// Counter type is re-exported so tests can use Counter::__mock
 pub use implementation::Counter;
