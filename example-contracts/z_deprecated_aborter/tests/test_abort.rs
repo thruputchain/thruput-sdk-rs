@@ -22,7 +22,7 @@ fn test_abort_raw() {
 fn test_abort_exn() {
     let mut env = TestEnvironment::default(None);
 
-    let test_contract = aborter::test_setup::register(&mut env);
+    let test_contract = env.register_mock(aborter::Contract::__mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {
@@ -46,7 +46,7 @@ fn test_abort_exn() {
 fn test_uncaught_abort() {
     let mut env = TestEnvironment::default(None);
 
-    let test_contract = aborter::test_setup::register(&mut env);
+    let test_contract = env.register_mock(aborter::Contract::__mock);
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || {

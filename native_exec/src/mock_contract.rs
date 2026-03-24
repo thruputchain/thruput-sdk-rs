@@ -68,6 +68,11 @@ impl MockContract {
                 .insert(id, invoke_wrapper(func.clone()))
         };
     }
+
+    pub fn register<F: FnOnce(&mut Self)>(&mut self, f: F) -> &mut Self {
+        f(self);
+        self
+    }
 }
 
 impl MockContractInner {

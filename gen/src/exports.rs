@@ -16,10 +16,11 @@ use syn::parse::Result;
 pub fn generate(
     contract: &impl ContractSrc,
     config: &Config,
+    trait_name: Option<&str>,
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), contract);
 
-    let exports_mod_ident = config.exports_mod_ident();
+    let exports_mod_ident = config.exports_mod_ident_for_trait(trait_name);
 
     let mut uses = vec![quote! {
         use super::*;
@@ -72,7 +73,10 @@ pub fn generate(
         quote! {}
     };
 
+    // The version assertion goes outside the module so the associated const
+    // resolves through the trait.
     Ok(quote! {
+        #[allow(non_snake_case)]
         pub mod #exports_mod_ident {
             #(#uses)*
 

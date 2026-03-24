@@ -3,7 +3,7 @@ use sdk::*;
 use thiserror::Error;
 
 #[derive(Default)]
-struct Contract;
+pub struct Contract;
 
 #[derive(Debug, Error)]
 #[error("Thing")]

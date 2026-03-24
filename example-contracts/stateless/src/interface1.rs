@@ -2,7 +2,7 @@ use crate::Stateless;
 use sdk::*;
 
 #[contract(interface = "Interface1", client = Client)]
-trait Interface {
+pub trait Interface {
     fn perform_task() -> u32;
 }
 

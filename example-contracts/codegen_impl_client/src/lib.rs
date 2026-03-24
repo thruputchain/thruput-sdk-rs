@@ -4,5 +4,4 @@ mod implementation;
 pub use implementation::CalcProxy;
 pub use implementation::exports::*;
 
-#[cfg(feature = "dev")]
-pub use implementation::test_setup;
+pub use implementation::Calc;

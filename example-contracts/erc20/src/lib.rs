@@ -14,11 +14,8 @@ mod implementation;
 // The actual implementation, exposed for use in tests
 pub use implementation::TokenContract;
 
-// Contract methods exposed with C ABI for running as guest
-pub use implementation::exports::*;
-
-#[cfg(feature = "dev")]
-pub use implementation::test_setup;
+// Re-export the ERC20 trait so tests can write `dyn erc20::ERC20`
+pub use interface::ERC20;
 
 #[cfg(feature = "bottle-test")]
 pub use erc20_bottle_test::*;

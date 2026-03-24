@@ -10,11 +10,11 @@ pub use interface::ERC20Client;
 // An implementation of the contract interface
 mod implementation;
 
-// Entrypoints
-pub use implementation::exports::*;
+// The actual implementation, exposed for use in tests
+pub use implementation::Token;
 
-#[cfg(feature = "dev")]
-pub use implementation::test_setup;
+// Re-export the ERC20 trait so tests can write `dyn erc20_no_storage::ERC20`
+pub use interface::ERC20;
 
 #[cfg(feature = "bottle-test")]
 pub use erc20_bottle_test::*;
