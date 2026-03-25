@@ -47,7 +47,7 @@ build_wasm() {
     (
         cd "$workspace_dir" &&
         cargo --config ".cargo/contract.toml" \
-            build -p "$package" "$@"
+            build --no-default-features -p "$package" "$@"
     )
 }
 
