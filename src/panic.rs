@@ -13,12 +13,13 @@
 #[cfg(target_arch = "wasm32")]
 #[panic_handler]
 fn handle_panic(info: &core::panic::PanicInfo) -> ! {
-    use abort::*;
-
     #[cfg(feature = "panic_logging")]
     panic_logging(info);
 
-    abort(&Panic::from_info(info));
+    #[cfg(not(feature = "panic_logging"))]
+    let _ = info;
+
+    crate::trap();
 }
 
 #[cfg(any(test, feature = "debugging"))]

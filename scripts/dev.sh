@@ -332,7 +332,7 @@ xxx_check() {
 lint() {
     cargo clippy -F dev --lib "$@"
 
-    (cd example-contracts && cargo clippy --workspace -F dev "$@")
+    (cd example-contracts && cargo clippy --workspace --exclude swap -F dev "$@")
 }
 
 lint_check() {

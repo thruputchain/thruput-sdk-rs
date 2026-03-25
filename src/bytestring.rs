@@ -187,7 +187,7 @@ pub fn bytestring_get_sized<const N: usize>(key: &StorageKey) -> [u8; N] {
     // SAFETY: The syscall returned with success, so the out-args are initialized
     let len = unsafe { len.assume_init() };
     if len != N as u32 {
-        abort(&LibraryExn::BytestringWrongSize {
+        library_abort(LibraryExn::BytestringWrongSize {
             expected: N as u32,
             found: len,
         });

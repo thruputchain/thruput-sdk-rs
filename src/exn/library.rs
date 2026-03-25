@@ -4,7 +4,6 @@ use super::{CallingError, HandlingError};
 use crate::storage::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
-use crate::{Panic, abort};
 use core::error::Error;
 use core::fmt::{self, Display};
 #[cfg(feature = "debugging")]
@@ -30,9 +29,6 @@ pub enum LibraryExn {
 
     #[cfg_attr(feature = "debugging", error("Called contract reverted"))]
     Called(#[cfg_attr(feature = "debugging", source)] FaultString),
-
-    #[cfg_attr(feature = "debugging", error("Panic"))]
-    Panic(#[cfg_attr(feature = "debugging", source)] crate::Panic),
 
     #[cfg_attr(
         feature = "debugging",
@@ -83,21 +79,14 @@ impl LibraryExn {
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
     let exn: LibraryExn = e.into();
-
-    abort(&exn);
-}
-
-pub fn library_panic(p: Panic) -> ! {
-    let exn = LibraryExn::Panic(p);
-
-    abort(&exn);
+    crate::exn::cross_exn::serialize_library_error(&exn)
 }
 
 /// Abort the contract because a syscall produced an error.
 ///
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn syscall_abort2(callno: SyscallNo, errno: SysErr) -> ! {
-    abort(&syscall_exn(callno, errno))
+    library_abort(syscall_exn(callno, errno))
 }
 
 pub use syscall_abort2 as syscall_abort;
@@ -108,12 +97,12 @@ pub fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn nnint_overflow() -> ! {
-    abort(&LibraryExn::NonNegativeIntOverflow)
+    library_abort(LibraryExn::NonNegativeIntOverflow)
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn nnint_underflow() -> ! {
-    abort(&LibraryExn::NonNegativeIntUnderflow)
+    library_abort(LibraryExn::NonNegativeIntUnderflow)
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]

@@ -5,11 +5,11 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct Contract;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, WriteXDR)]
 #[error("Thing")]
 struct Thing;
 
-#[contract(throws = MyErr)]
+#[contract]
 impl Interface for Contract {
     fn hello() {}
 

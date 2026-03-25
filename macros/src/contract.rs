@@ -82,6 +82,16 @@ fn apply_with_config(
                 stripped.items.push(method);
             }
 
+            // Reject `throws` on trait impls early, before generating
+            // any code, so the user sees a single clear error.
+            if config.throws().is_some() && item.trait_.is_some() {
+                let out = stripped.into_token_stream();
+                return Ok(quote::quote! {
+                    #out
+                    compile_error!("`throws` on a trait impl is not allowed. Add `throws` to the trait definition instead, since the trait defines the interface.");
+                });
+            }
+
             let mut out = stripped.into_token_stream();
 
             // For bare impls, generate a separate impl block with __mock

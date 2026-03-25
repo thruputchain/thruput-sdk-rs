@@ -307,22 +307,6 @@ pub fn generate_method(
         ::sdk::contract_return(return_buf.as_ref());
     }};
 
-    // Catch exceptions
-    let wrapped_call = {
-        let error_ty = config
-            .throws()
-            .map(|ty| quote! { #ty })
-            .unwrap_or(quote! { ::core::convert::Infallible });
-
-        quote! {
-            ::sdk::with_abort_handler(
-                // An abort handler that knows our specific error type
-                &::sdk::call::internal::method_abort_handler::<#error_ty>,
-                || #wrapped_call,
-            )
-        }
-    };
-
     // Include method info in debugging context (when enabled)
     let wrapped_call = {
         let method_name = ident.to_string();

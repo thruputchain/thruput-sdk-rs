@@ -2,12 +2,9 @@
 
 use super::Exn;
 use super::{LibraryExn, SyscallExn};
-#[cfg(feature = "debugging")]
-use crate::AbortInfo;
 use crate::call::CallError;
 use crate::sys::{SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
-use core::any::Any;
 use core::convert::Infallible;
 #[cfg(feature = "debugging")]
 use core::error::Error;
@@ -124,22 +121,6 @@ impl<E> CrossExn<E>
 where
     E: Exn,
 {
-    #[cfg(feature = "debugging")]
-    pub fn from_abort_info<'a>(info: AbortInfo<'a>) -> Self
-    where
-        E: Clone + 'static,
-    {
-        let exn = Inner::from_any(info.payload());
-        let backtrace = info.backtrace().map(|bt| format(&bt));
-        let location = Some(format(info.location()));
-
-        Self {
-            exn,
-            backtrace,
-            location,
-        }
-    }
-
     // An error resulting from a contract-call
     pub fn from_call_err<CE: Exn>(err: CallError<CE>) -> Self {
         let exn = Inner::Library(LibraryExn::Called(err.into_fault_string()));
@@ -199,59 +180,6 @@ where
             .map(|e| e.is(call_no, err_code))
             .unwrap_or(false)
     }
-
-    /// Serialize an abort payload directly into the `Inner` wire format,
-    /// by borrowing the payload rather than cloning it.
-    ///
-    /// This performs the same three-way downcast dispatch as
-    /// `Inner::from_any`, but serializes each variant by reference
-    /// instead of cloning into an owned `Inner`. The two must be kept
-    /// in sync.
-    ///
-    /// Serialize an abort payload and call contract_abort.
-    ///
-    /// In production (non-debugging) builds, this downcasts the payload
-    /// by reference and serializes directly — no clone needed.
-    ///
-    /// In debugging builds, we use the full `from_abort_info` path which
-    /// clones the payload but captures location and backtrace info.
-    ///
-    #[cfg(not(feature = "debugging"))]
-    pub fn serialize_abort(payload: &dyn Any) -> !
-    where
-        E: 'static,
-    {
-        use crate::call::internal::contract_call_encode;
-        use crate::exn::encoding_abort_abort;
-
-        fn encode_variant<T: WriteXDR>(
-            discriminant: i32,
-            payload: &T,
-        ) -> WriteResult<crate::call::internal::EncodeBuf> {
-            contract_call_encode(&(discriminant, payload))
-        }
-
-        let buf = if let Some(e) = payload.downcast_ref::<E>() {
-            //
-            // We got an abort value of the expected type.
-            //
-            encode_variant(INNER_CONTRACT, e)
-        } else if let Some(e) = payload.downcast_ref::<LibraryExn>() {
-            //
-            // The SDK library aborted.
-            //
-            encode_variant(INNER_LIBRARY, e)
-        } else {
-            //
-            // Something else!
-            //
-            contract_call_encode(&INNER_UNKNOWN)
-        };
-
-        let buf = buf.unwrap_or_else(|e| encoding_abort_abort(e));
-
-        crate::contract_abort(buf.as_ref());
-    }
 }
 
 #[cfg(feature = "debugging")]
@@ -285,44 +213,67 @@ where
 }
 
 // Discriminant constants for Inner's repr(i32) variants.
-// Used both by the enum itself and by serialize_abort.
 const INNER_CONTRACT: i32 = 0;
 const INNER_LIBRARY: i32 = 1;
 const INNER_UNKNOWN: i32 = 2;
 
+// --- Direct serialization functions ---
+//
+// These serialize errors directly into the CrossExn wire format and call
+// contract_abort.
+
+#[cfg(not(feature = "debugging"))]
+pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
+    use crate::call::internal::contract_call_encode;
+
+    let buf = contract_call_encode(&(INNER_CONTRACT, err))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
+
+#[cfg(not(feature = "debugging"))]
+pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
+    use crate::call::internal::contract_call_encode;
+
+    let buf = contract_call_encode(&(INNER_LIBRARY, err))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
+
 #[cfg(feature = "debugging")]
-impl<E: Exn> Inner<E> {
-    /// Make a `CrossExn` from a dynamically-typed value.
-    ///
-    /// We can handle:
-    /// - An expected exception-type `E` specified by the caller.
-    /// - A "library" exception from this SDK.
-    ///
-    /// NOTE: The downcast dispatch here must be kept in sync with
-    /// `CrossExn::serialize_abort`, which performs the same three-way
-    /// dispatch but serializes by reference instead of cloning.
-    ///
-    pub fn from_any(payload: &dyn Any) -> Self
-    where
-        E: Clone + 'static,
-    {
-        if let Some(e) = payload.downcast_ref::<E>() {
-            //
-            // We got an abort value of the expected type.
-            //
-            Self::Contract(e.clone())
-        } else if let Some(e) = payload.downcast_ref::<LibraryExn>() {
-            //
-            // The SDK library aborted.
-            //
-            Self::Library(e.clone())
-        } else {
-            //
-            // Something else!
-            //
-            Self::Unknown
-        }
-    }
+#[track_caller]
+pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
+    use crate::call::internal::contract_call_encode;
+    use core::panic::Location;
+
+    let location: Option<LocationString> = Some(format(Location::caller()));
+    let backtrace: Option<BacktraceString> =
+        Some(format(&::abort::Backtrace::capture()));
+
+    let buf =
+        contract_call_encode(&(INNER_CONTRACT, err, &location, &backtrace))
+            .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
+
+#[cfg(feature = "debugging")]
+#[track_caller]
+pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
+    use crate::call::internal::contract_call_encode;
+    use core::panic::Location;
+
+    let location: Option<LocationString> = Some(format(Location::caller()));
+    let backtrace: Option<BacktraceString> =
+        Some(format(&::abort::Backtrace::capture()));
+
+    let buf =
+        contract_call_encode(&(INNER_LIBRARY, err, &location, &backtrace))
+            .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
 }
 
 #[cfg(test)]

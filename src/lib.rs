@@ -84,9 +84,6 @@ pub use types::*;
 pub use util::*;
 pub use xdr::*;
 
-#[cfg(feature = "call_tracking")]
-pub use abort::with_debug_context;
-
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use groundhog_macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings

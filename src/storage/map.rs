@@ -2,7 +2,7 @@ use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
 use super::store::*;
-use crate::abort;
+use crate::exn::library_abort;
 use crate::types::StorageKey;
 use crate::{delete_exclusive, delete_shared};
 use core::fmt::Debug;
@@ -49,7 +49,8 @@ impl<K, V> Map<K, V> {
     {
         let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::load_keypath(&keypath).unwrap_or_else(|e| abort(&e))
+        LoadKeypath::load_keypath(&keypath)
+            .unwrap_or_else(|e| library_abort(e))
     }
 
     pub fn try_get(&self, entry_key: &K) -> Option<V>
@@ -59,7 +60,8 @@ impl<K, V> Map<K, V> {
     {
         let keypath = self.make_entry_keypath(entry_key);
 
-        LoadKeypath::try_load_keypath(&keypath).unwrap_or_else(|e| abort(&e))
+        LoadKeypath::try_load_keypath(&keypath)
+            .unwrap_or_else(|e| library_abort(e))
     }
 
     pub fn set(&mut self, entry_key: &K, value: &V)
