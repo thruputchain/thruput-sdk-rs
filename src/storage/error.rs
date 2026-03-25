@@ -1,4 +1,3 @@
-use crate::abort;
 use crate::exn::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
@@ -42,7 +41,7 @@ impl StorageError {
 }
 
 pub fn oob_abort(len: u64, access: u64) -> ! {
-    abort(&StorageError::IndexOutOfBounds { len, access })
+    library_abort(StorageError::IndexOutOfBounds { len, access })
 }
 
 pub fn storage_load_abort(_r: ReadError) -> ! {

@@ -1,4 +1,4 @@
-pub mod cross_exn;
+pub(crate) mod cross_exn;
 mod fault;
 mod library;
 mod wrapper;
