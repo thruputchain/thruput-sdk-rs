@@ -200,7 +200,7 @@ fn generate_client_fn(
 
     Ok(quote_spanned! {method.sig().span()=>
 
-        // This method-wrapper aborts if the called contract aborts.
+        // This method-wrapper throws an exception if the called contract aborts.
         #track_caller
         pub fn #ident(&mut self, #(#sent_params),* ) #sig_output
         {
@@ -214,7 +214,7 @@ fn generate_client_fn(
                     .unwrap_or_else(|e: ::sdk::call::CallError<#error_type>| {
                         let exn = ::sdk::CrossExn::<#error_type>::from_call_err(e);
 
-                        ::sdk::abort(&exn)
+                        ::sdk::throw(exn)
                     })
             })
         }

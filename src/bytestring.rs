@@ -11,7 +11,6 @@
 //! occurs.
 
 #[allow(unused_imports)] // import is for docs
-use crate::abort;
 use crate::exn::*;
 use crate::sys::SysResult as Result;
 use crate::sys::{self, SyscallNo};

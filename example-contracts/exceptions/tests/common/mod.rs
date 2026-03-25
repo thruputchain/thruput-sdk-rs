@@ -24,10 +24,10 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
 
     assert_eq!(client.try_add(6), Ok(7));
 
-    match client.try_aborts_with_my_err() {
+    match client.try_throws_my_exn() {
         Err(CallError::Abort(ref cross_exn)) => {
-            if let Some(my_err) = cross_exn.as_contract_exn() {
-                let _: &MyErr = my_err;
+            if let Some(my_exn) = cross_exn.as_contract_exn() {
+                let _: &MyExn = my_exn;
 
                 println!("OK: {:?}", cross_exn);
             } else {
