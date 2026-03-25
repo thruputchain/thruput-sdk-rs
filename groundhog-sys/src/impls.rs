@@ -22,6 +22,8 @@ pub enum FFIErrorCode {
     #[error("Unrecoverable error")]
     UnrecoverableError =
         crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
+    #[error("Contract verification failed")]
+    ContractVerificationFailed = crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed,
 }
 
 impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
@@ -33,6 +35,7 @@ impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed => FFIErrorCode::ContractVerificationFailed,
             _ => panic!("unknown FFI error code: {}", error),
         }
     }

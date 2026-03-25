@@ -184,7 +184,19 @@ impl TestEnvironmentInner {
                 contract_bytes.len().try_into().unwrap(),
             )
         };
-        assert_eq!(res, 0);
+        if res != 0 {
+            let err: groundhog_sys::FFIErrorCode = res.into();
+            if err == groundhog_sys::FFIErrorCode::ContractVerificationFailed {
+                panic!(
+                    "setup_create_contract failed: {err}\n\
+                     \n\
+                     The contract's WASM binary failed validation. Common causes:\n\
+                     - Linear memory bounds too large\n\
+                     - Unsupported WASM extension (e.g. threads, SIMD, reference types)\n"
+                );
+            }
+            panic!("setup_create_contract failed: {err}");
+        }
         let mut hasher = Sha256::new();
         hasher.update(&contract_bytes);
         let res: [u8; 32] = hasher.finalize().into();
