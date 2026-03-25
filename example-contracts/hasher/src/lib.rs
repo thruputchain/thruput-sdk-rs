@@ -7,6 +7,5 @@ pub use implementation::exports::*;
 
 pub use implementation::HasherImpl;
 
-
 #[cfg(feature = "bottle-test")]
 mod bottle_test;
