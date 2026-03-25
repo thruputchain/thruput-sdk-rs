@@ -131,9 +131,14 @@ fn shared_lib_prefix() -> &'static str {
 }
 
 fn download_cache_dir() -> PathBuf {
-    PathBuf::from(env::var("OUT_DIR").unwrap())
-        .join("hogd_download_cache")
-        .join(format!("test-ffi-v{}", TEST_FFI_VERSION))
+    let dir: PathBuf = env::var_os("HOGD_DOWNLOAD_CACHE_DIR")
+        .map(|d| d.into())
+        .unwrap_or_else(|| {
+            PathBuf::from(env::var("OUT_DIR").unwrap())
+                .join("hogd_download_cache")
+        });
+
+    dir.join(format!("test-ffi-v{}", TEST_FFI_VERSION))
 }
 
 fn shared_lib_suffix() -> &'static str {
@@ -446,8 +451,6 @@ fn download_and_extract(
     );
 
     let download_cache_dir = download_cache_dir();
-    println!("cargo:rerun-if-changed={}", download_cache_dir.display());
-
     fs::create_dir_all(&download_cache_dir)?;
     let archive_path = download_cache_dir.join(archive_name);
 

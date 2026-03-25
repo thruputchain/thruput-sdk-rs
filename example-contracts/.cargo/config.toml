@@ -1,5 +1,8 @@
 [build]
 target-dir = "../target" # use SDK target-dir
+rustflags = [
+    "--deny", "warnings",
+    ]
 
 [target.wasm32-unknown-unknown]
 rustflags = [

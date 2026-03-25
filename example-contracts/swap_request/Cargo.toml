@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["storage"] }
 xdrs = { workspace = true }
 
 [dev-dependencies]

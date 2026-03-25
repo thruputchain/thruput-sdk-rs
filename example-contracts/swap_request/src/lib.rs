@@ -47,11 +47,17 @@ impl From<SwapRequest> for EncodedSwapRequest {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, ReadXDR)]
+#[storage]
 pub struct SwapContract;
 
-#[contract(client = SwapClient, storage = false)]
+#[contract(client = SwapClient)]
 impl SwapContract {
+    #[init]
+    pub fn initialize(&mut self) {
+        /* not yet needed */
+    }
+
     pub fn submit_request(&self, r: SwapRequest) {
         let r: EncodedSwapRequest = r.into();
 

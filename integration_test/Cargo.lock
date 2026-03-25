@@ -660,7 +660,6 @@ dependencies = [
  "darling",
  "groundhog-contract-util",
  "groundhog-xdr",
- "heck",
  "proc-macro2",
  "quote",
  "sha2",

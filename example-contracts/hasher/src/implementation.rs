@@ -3,7 +3,7 @@ use sdk::*;
 #[derive(Default)]
 pub struct HasherImpl;
 
-#[contract(client = HasherClient, storage = false)]
+#[contract(client = HasherClient)]
 impl HasherImpl {
     pub fn run() {
         const EXPECTED: SHA256Hash =
