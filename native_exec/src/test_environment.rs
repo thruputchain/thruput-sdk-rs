@@ -185,10 +185,7 @@ impl TestEnvironmentInner {
             )
         };
         if res != 0 {
-            let err = groundhog_sys::FFIErrorCode::from_raw(res)
-                .unwrap_or_else(|| {
-                    panic!("setup_create_contract failed with unknown error code: {res}")
-                });
+            let err: groundhog_sys::FFIErrorCode = res.into();
             if err == groundhog_sys::FFIErrorCode::ContractVerificationFailed {
                 panic!(
                     "setup_create_contract failed: {err}\n\
