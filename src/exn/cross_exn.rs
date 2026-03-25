@@ -3,7 +3,7 @@
 use super::Exn;
 use super::{LibraryExn, SyscallExn};
 #[cfg(feature = "debugging")]
-use crate::AbortInfo;
+use ::abort::AbortInfo;
 use crate::call::CallError;
 use crate::sys::{SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
@@ -289,6 +289,62 @@ where
 const INNER_CONTRACT: i32 = 0;
 const INNER_LIBRARY: i32 = 1;
 const INNER_UNKNOWN: i32 = 2;
+
+// --- Direct serialization functions ---
+//
+// These serialize errors directly into the CrossExn wire format and call
+// contract_abort, without needing the full CrossExn<E> generic or dyn Any
+// downcasting.
+
+#[cfg(not(feature = "debugging"))]
+pub fn serialize_contract_error(err: &impl WriteXDR) -> ! {
+    use crate::call::internal::contract_call_encode;
+
+    let buf = contract_call_encode(&(INNER_CONTRACT, err))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
+
+#[cfg(not(feature = "debugging"))]
+pub fn serialize_library_error(err: &LibraryExn) -> ! {
+    use crate::call::internal::contract_call_encode;
+
+    let buf = contract_call_encode(&(INNER_LIBRARY, err))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
+
+#[cfg(feature = "debugging")]
+#[track_caller]
+pub fn serialize_contract_error(err: &impl WriteXDR) -> ! {
+    use crate::call::internal::contract_call_encode;
+    use core::panic::Location;
+
+    let location: Option<LocationString> = Some(format(Location::caller()));
+    let backtrace: Option<BacktraceString> = Some(format(&::abort::Backtrace::capture()));
+
+    let buf = contract_call_encode(&(INNER_CONTRACT, err, &location, &backtrace))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
+
+#[cfg(feature = "debugging")]
+#[track_caller]
+pub fn serialize_library_error(err: &LibraryExn) -> ! {
+    use crate::call::internal::contract_call_encode;
+    use core::panic::Location;
+
+    let location: Option<LocationString> = Some(format(Location::caller()));
+    let backtrace: Option<BacktraceString> = Some(format(&::abort::Backtrace::capture()));
+
+    let buf = contract_call_encode(&(INNER_LIBRARY, err, &location, &backtrace))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+
+    crate::contract_abort(buf.as_ref());
+}
 
 #[cfg(feature = "debugging")]
 impl<E: Exn> Inner<E> {
