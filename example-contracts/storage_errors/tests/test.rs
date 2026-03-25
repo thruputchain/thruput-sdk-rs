@@ -164,7 +164,14 @@ fn map_get_missing_key_is_library_storage_error() {
                 panic!("Expected LibraryExn, got: {:?}", exn)
             });
             match lib {
-                LibraryExn::Storage(..) => {}
+                LibraryExn::Storage(e) => {
+                    assert!(
+                        matches!(e, sdk::storage::StorageError::Sys { exn }
+                            if exn.has_code(sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)),
+                        "Expected StorageError::Sys(StorageKeyNotExist), got: {:?}",
+                        e
+                    );
+                }
                 other => panic!(
                     "Expected LibraryExn::Storage, got: {:?}",
                     other

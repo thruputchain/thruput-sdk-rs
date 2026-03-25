@@ -40,9 +40,17 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
         r => panic!("Unexpected result: {:?}", r),
     }
 
-    // Throw something undeclared with `throws`
+    // Throw something undeclared with `throws`.
+    // With direct serialization, `abort(&Thing)` serializes as Contract data.
+    // Since Thing and MyErr are both unit-like XDR types, the caller's decoder
+    // successfully interprets it as MyErr (a contract abort).
     match client.try_throw_thing() {
-        Err(CallError::Abort(ref cross_exn)) if cross_exn.is_unknown() => {
+        Err(CallError::Abort(ref cross_exn)) => {
+            assert!(
+                cross_exn.as_contract_exn().is_some(),
+                "Expected contract exn decodable as MyErr, got: {:?}",
+                cross_exn
+            );
             println!("OK: {:?}", cross_exn)
         }
         r => panic!("Unexpected result: {:?}", r),
