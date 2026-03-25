@@ -5,7 +5,7 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct Contract;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, WriteXDR)]
 #[error("Thing")]
 struct Thing;
 
