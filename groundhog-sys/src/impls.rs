@@ -26,29 +26,26 @@ pub enum FFIErrorCode {
     ContractVerificationFailed = crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed,
 }
 
-impl TryFrom<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
-    type Error = crate::bindings::TestFFIErrorCode;
-
-    fn try_from(
-        error: crate::bindings::TestFFIErrorCode,
-    ) -> Result<Self, Self::Error> {
+impl FFIErrorCode {
+    /// Convert from a raw FFI error code, returning `None` for unrecognized values.
+    pub fn from_raw(error: crate::bindings::TestFFIErrorCode) -> Option<Self> {
         match error {
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeNone => Ok(FFIErrorCode::None),
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer => Ok(FFIErrorCode::InvalidPointer),
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract => Ok(FFIErrorCode::DeployNonexistentContract),
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => Ok(FFIErrorCode::CreateNonexistentMockContract),
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => Ok(FFIErrorCode::DeserializeError),
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => Ok(FFIErrorCode::UnrecoverableError),
-            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed => Ok(FFIErrorCode::ContractVerificationFailed),
-            unknown => Err(unknown),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeNone => Some(FFIErrorCode::None),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer => Some(FFIErrorCode::InvalidPointer),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract => Some(FFIErrorCode::DeployNonexistentContract),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => Some(FFIErrorCode::CreateNonexistentMockContract),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => Some(FFIErrorCode::DeserializeError),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => Some(FFIErrorCode::UnrecoverableError),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed => Some(FFIErrorCode::ContractVerificationFailed),
+            _ => None,
         }
     }
 }
 
 impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
     fn from(error: crate::bindings::TestFFIErrorCode) -> Self {
-        Self::try_from(error)
-            .unwrap_or_else(|code| panic!("unknown FFI error code: {code}"))
+        Self::from_raw(error)
+            .unwrap_or_else(|| panic!("unknown FFI error code: {error}"))
     }
 }
 
