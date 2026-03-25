@@ -3,7 +3,6 @@
 use super::call_result::*;
 use super::contract_result::*;
 use super::internal::contract_call_encode;
-use crate::abort;
 use crate::contract::ContractEntrypointID;
 use crate::exn::{CallingError, Exn, FaultString, LibraryExn, library_abort};
 use crate::sys::{self, SysErr};
@@ -26,7 +25,7 @@ where
             // We're not going to capture the structure of the called
             // contract's error here (for that, use `try_call`).  Instead,
             // serialize the error and abort.
-            abort(&LibraryExn::Called(FaultString::from_display(e))),
+            library_abort(LibraryExn::Called(FaultString::from_display(e))),
     )
 }
 

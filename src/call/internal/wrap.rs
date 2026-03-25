@@ -1,5 +1,5 @@
+use ::abort::{AbortInfo, Never};
 use crate::exn::{CrossExn, Exn};
-use crate::{AbortInfo, Never};
 
 /// Handle an abort thrown during a method call
 ///
