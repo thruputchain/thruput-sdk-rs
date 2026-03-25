@@ -12,9 +12,8 @@ mod exn_impl {
     pub trait Exn:
         Debug + PartialEq + Error + WriteXDR + ReadXDROwned
     {
+        const SELECTOR: u64;
     }
-
-    impl<T> Exn for T where T: Debug + PartialEq + Error + WriteXDR + ReadXDROwned {}
 }
 
 #[cfg(not(feature = "debugging"))]
@@ -22,9 +21,15 @@ mod exn_impl {
     use crate::xdr::*;
     use core::fmt::Debug;
 
-    pub trait Exn: Debug + PartialEq + WriteXDR + ReadXDROwned {}
+    pub trait Exn: Debug + PartialEq + WriteXDR + ReadXDROwned {
+        const SELECTOR: u64;
+    }
+}
 
-    impl<T> Exn for T where T: Debug + PartialEq + WriteXDR + ReadXDROwned {}
+/// Exn impl for Infallible — this type can never be instantiated,
+/// so its selector is 0 (a reserved/unused value).
+impl Exn for core::convert::Infallible {
+    const SELECTOR: u64 = 0;
 }
 
 pub use cross_exn::*;

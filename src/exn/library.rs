@@ -47,6 +47,12 @@ pub enum LibraryExn {
     Storage(StorageError),
 }
 
+impl super::Exn for LibraryExn {
+    /// Selector derived from SHA-256 of the canonical signature:
+    /// `"LibraryExn::Syscall(SyscallExn)::Handling(HandlingError)::Calling(CallingError)::Called(FaultString)::BytestringWrongSize(u32,u32)::NonNegativeIntUnderflow::NonNegativeIntOverflow"`
+    const SELECTOR: u64 = 0xd9b2b0edacc5235d;
+}
+
 impl From<HandlingError> for LibraryExn {
     fn from(e: HandlingError) -> Self {
         Self::Handling(e)
@@ -149,5 +155,20 @@ impl SyscallExn {
 impl Display for SyscallExn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Syscall {:?} failed with {}", self.callno, self.errno)
+    }
+}
+
+#[cfg(test)]
+mod selector_tests {
+    use super::*;
+    use crate::exn::exn_impl::Exn;
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn library_exn_selector_matches_sha256() {
+        let sig = "LibraryExn::Syscall(SyscallExn)::Handling(HandlingError)::Calling(CallingError)::Called(FaultString)::BytestringWrongSize(u32,u32)::NonNegativeIntUnderflow::NonNegativeIntOverflow";
+        let digest = Sha256::digest(sig.as_bytes());
+        let expected = u64::from_be_bytes(digest[..8].try_into().unwrap());
+        assert_eq!(LibraryExn::SELECTOR, expected);
     }
 }

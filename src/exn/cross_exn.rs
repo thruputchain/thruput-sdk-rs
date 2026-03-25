@@ -293,6 +293,10 @@ mod tests {
         Boom = 1,
     }
 
+    impl Exn for TestExn {
+        const SELECTOR: u64 = 0xFFFF_FFFF_FFFF_FFFF; // placeholder for tests
+    }
+
     #[test]
     fn serialize_abort_matches_derive_for_contract_exn() {
         let exn = TestExn::Boom;
