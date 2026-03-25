@@ -87,11 +87,9 @@ impl TransactionHandler {
         };
         crate::invoke_error::deactivate_panic_hook();
 
-        if foreign_result.ffi_error_code != FFIErrorCode::None as u32 {
-            panic!(
-                "FFI error: failed to invoke transaction: {:?}",
-                foreign_result.ffi_error_code
-            );
+        let err: FFIErrorCode = foreign_result.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("FFI error: failed to invoke transaction: {err}");
         }
 
         let trace = foreign_result.serialized_trace.as_slice().map(|s| {
@@ -156,11 +154,9 @@ impl TransactionHandler {
         self.committed = true;
         let res =
             unsafe { groundhog_sys::try_commit_transaction(self.handler) };
-        if res.ffi_error_code != FFIErrorCode::None as u32 {
-            panic!(
-                "failed to try to commit transaction: {:?}",
-                res.ffi_error_code
-            );
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to try to commit transaction: {err}");
         }
 
         let exec_result: groundhog_xdr::exec_result::ExecResult =

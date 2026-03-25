@@ -8,7 +8,8 @@ fn swap_test() {
     let env = sdk::TestEnvironment::no_cost();
 
     // Register erc20 and instantiate for two tokens
-    let erc20_contract = env.register_mock(<erc20::TokenContract as erc20::ERC20>::__mock);
+    let erc20_contract =
+        env.register_mock(<erc20::TokenContract as erc20::ERC20>::__mock);
     let token0_hash = env.setup_create_contract(&erc20_contract);
     let token1_hash = env.setup_create_contract(&erc20_contract);
 
@@ -18,7 +19,7 @@ fn swap_test() {
 
         // Register methods for both interfaces provided by the swap contract
         c.register(<SwapV2Pair as ERC20>::__mock)
-         .register(<SwapV2Pair as ISwapV2Pair>::__mock);
+            .register(<SwapV2Pair as ISwapV2Pair>::__mock);
         c.as_contract()
     };
     let swap_hash = env.setup_create_contract(&swap_contract);

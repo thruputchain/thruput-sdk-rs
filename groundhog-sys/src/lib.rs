@@ -48,6 +48,7 @@ pub use bindings::{
     VerifyAuthResultFromDBResult,
     FFIDataBuffer,
     GetCostModelResult,
+    VerifyContractResult,
 };
 
 // Functions
@@ -77,6 +78,7 @@ pub use bindings::{
     enable_syscall_logging,
     verify_signed_transaction_auth,
     verify_signed_transaction_auth_from_db,
+    do_verify_contract,
 };
 
 mod impls;

@@ -1,27 +1,27 @@
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(u32)]
 pub enum FFIErrorCode {
     #[error("No error")]
-    None = crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeNone,
+    None,
     #[error("Invalid pointer")]
-    InvalidPointer =
-        crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeInvalidPointer,
+    InvalidPointer,
     #[error(
         "Cannot deploy a contract that has not yet been created (either by a transaction in an earlier block, or by the setup_create_contract function)"
     )]
-    DeployNonexistentContract = crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeployNonexistentContract,
+    DeployNonexistentContract,
     #[error(
         "Cannot create a mock contract for a mock contract ID that has not yet been registered (with add_contract)"
     )]
-    CreateNonexistentMockContract = crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract,
+    CreateNonexistentMockContract,
     #[error(
         "Supplied data structs failed to deserialize into expected format"
     )]
-    DeserializeError =
-        crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError,
+    DeserializeError,
     #[error("Unrecoverable error")]
-    UnrecoverableError =
-        crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError,
+    UnrecoverableError,
+    #[error("Contract verification failed")]
+    ContractVerificationFailed,
+    #[error("Unknown FFI error code: {0}")]
+    Unknown(u32),
 }
 
 impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
@@ -33,7 +33,8 @@ impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeCreateNonexistentMockContract => FFIErrorCode::CreateNonexistentMockContract,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
-            _ => panic!("unknown FFI error code: {}", error),
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed => FFIErrorCode::ContractVerificationFailed,
+            other => FFIErrorCode::Unknown(other),
         }
     }
 }
