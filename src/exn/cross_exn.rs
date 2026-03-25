@@ -180,7 +180,6 @@ where
             .map(|e| e.is(call_no, err_code))
             .unwrap_or(false)
     }
-
 }
 
 #[cfg(feature = "debugging")]
@@ -250,10 +249,12 @@ pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
     use core::panic::Location;
 
     let location: Option<LocationString> = Some(format(Location::caller()));
-    let backtrace: Option<BacktraceString> = Some(format(&::abort::Backtrace::capture()));
+    let backtrace: Option<BacktraceString> =
+        Some(format(&::abort::Backtrace::capture()));
 
-    let buf = contract_call_encode(&(INNER_CONTRACT, err, &location, &backtrace))
-        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+    let buf =
+        contract_call_encode(&(INNER_CONTRACT, err, &location, &backtrace))
+            .unwrap_or_else(|e| super::encoding_abort_abort(e));
 
     crate::contract_abort(buf.as_ref());
 }
@@ -265,10 +266,12 @@ pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
     use core::panic::Location;
 
     let location: Option<LocationString> = Some(format(Location::caller()));
-    let backtrace: Option<BacktraceString> = Some(format(&::abort::Backtrace::capture()));
+    let backtrace: Option<BacktraceString> =
+        Some(format(&::abort::Backtrace::capture()));
 
-    let buf = contract_call_encode(&(INNER_LIBRARY, err, &location, &backtrace))
-        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+    let buf =
+        contract_call_encode(&(INNER_LIBRARY, err, &location, &backtrace))
+            .unwrap_or_else(|e| super::encoding_abort_abort(e));
 
     crate::contract_abort(buf.as_ref());
 }
