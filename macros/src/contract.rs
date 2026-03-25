@@ -98,6 +98,13 @@ fn apply_with_config(
                 trait_name.as_deref(),
             )?);
 
+            if config.throws().is_some() && item.trait_.is_some() {
+                out.extend(quote::quote! {
+                    compile_error!("`throws` on a trait impl is not allowed. Add `throws` to the trait definition instead, since the trait defines the interface.");
+                });
+                return Ok(out);
+            }
+
             if config.client_ident().is_some() {
                 // It would be incorrect to generate a client interface here if the item is implementing a trait,
                 // as the trait is already implementing a client interface.
