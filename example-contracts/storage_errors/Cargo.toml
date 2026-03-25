@@ -1,5 +1,5 @@
 [package]
-name = "storage-errors"
+name = "storage_errors"
 description = "Test contract for storage layer error propagation"
 version.workspace = true
 authors.workspace = true
@@ -24,4 +24,4 @@ sdk = { workspace = true, features = ["storage"] }
 xdrs = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-storage-errors = { path = ".", features = ["dev"] }
+storage_errors = { path = ".", features = ["dev"] }

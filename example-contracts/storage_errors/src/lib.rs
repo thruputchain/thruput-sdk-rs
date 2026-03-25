@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "dev"), no_std)]
+
 use sdk::storage::{Map, Vector};
 use sdk::*;
 
