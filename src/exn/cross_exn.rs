@@ -224,7 +224,7 @@ const INNER_UNKNOWN: i32 = 2;
 // contract_abort.
 
 #[cfg(not(feature = "debugging"))]
-pub fn serialize_contract_error(err: &impl WriteXDR) -> ! {
+pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
     use crate::call::internal::contract_call_encode;
 
     let buf = contract_call_encode(&(INNER_CONTRACT, err))
@@ -234,7 +234,7 @@ pub fn serialize_contract_error(err: &impl WriteXDR) -> ! {
 }
 
 #[cfg(not(feature = "debugging"))]
-pub fn serialize_library_error(err: &LibraryExn) -> ! {
+pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
     use crate::call::internal::contract_call_encode;
 
     let buf = contract_call_encode(&(INNER_LIBRARY, err))
@@ -245,7 +245,7 @@ pub fn serialize_library_error(err: &LibraryExn) -> ! {
 
 #[cfg(feature = "debugging")]
 #[track_caller]
-pub fn serialize_contract_error(err: &impl WriteXDR) -> ! {
+pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
     use crate::call::internal::contract_call_encode;
     use core::panic::Location;
 
@@ -260,7 +260,7 @@ pub fn serialize_contract_error(err: &impl WriteXDR) -> ! {
 
 #[cfg(feature = "debugging")]
 #[track_caller]
-pub fn serialize_library_error(err: &LibraryExn) -> ! {
+pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
     use crate::call::internal::contract_call_encode;
     use core::panic::Location;
 
