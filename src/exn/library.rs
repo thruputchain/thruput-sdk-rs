@@ -4,7 +4,6 @@ use super::{CallingError, HandlingError};
 use crate::storage::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
-use crate::Panic;
 use core::error::Error;
 use core::fmt::{self, Display};
 #[cfg(feature = "debugging")]
@@ -30,9 +29,6 @@ pub enum LibraryExn {
 
     #[cfg_attr(feature = "debugging", error("Called contract reverted"))]
     Called(#[cfg_attr(feature = "debugging", source)] FaultString),
-
-    #[cfg_attr(feature = "debugging", error("Panic"))]
-    Panic(#[cfg_attr(feature = "debugging", source)] crate::Panic),
 
     #[cfg_attr(
         feature = "debugging",
@@ -84,10 +80,6 @@ impl LibraryExn {
 pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
     let exn: LibraryExn = e.into();
     crate::exn::cross_exn::serialize_library_error(&exn)
-}
-
-pub fn library_panic(p: Panic) -> ! {
-    library_abort(LibraryExn::Panic(p));
 }
 
 /// Abort the contract because a syscall produced an error.
