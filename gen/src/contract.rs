@@ -83,6 +83,10 @@ pub trait ContractSrc {
         None
     }
 
+    fn throws_list(&self) -> Vec<&syn::Ident> {
+        vec![]
+    }
+
     fn methods(&self) -> impl Iterator<Item = impl Method>;
 
     fn methods_sorted(&self) -> impl IntoIterator<Item = impl Method> {
@@ -259,6 +263,15 @@ where
 
     fn throws(&self) -> Option<&syn::Ident> {
         self.config.throws().or_else(|| self.contract.throws())
+    }
+
+    fn throws_list(&self) -> Vec<&syn::Ident> {
+        let config_throws = self.config.throws_list();
+        if !config_throws.is_empty() {
+            config_throws
+        } else {
+            self.contract.throws_list()
+        }
     }
 
     fn self_ty(&self) -> Option<&syn::Type> {
