@@ -31,4 +31,14 @@ impl MultiThrows for Contract {
     fn throw_undeclared() {
         abort(&SecretError);
     }
+
+    fn forward_alpha(target: ContractAddress) {
+        // Non-try call: if the target aborts, re_abort forwards the error
+        MultiClient::new(&target).throw_alpha_not_found();
+    }
+
+    fn forward_undeclared(target: ContractAddress) {
+        // Non-try call: SecretError isn't in throws, forwarded as raw bytes
+        MultiClient::new(&target).throw_undeclared();
+    }
 }

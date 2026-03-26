@@ -21,4 +21,12 @@ pub trait MultiThrows {
     fn throw_alpha_overflow();
     fn throw_beta_denied();
     fn throw_undeclared();
+
+    /// Calls `throw_alpha_not_found()` on another instance via the
+    /// non-try method. The re_abort path should forward the error.
+    fn forward_alpha(target: ContractAddress);
+
+    /// Calls `throw_undeclared()` on another instance via the non-try
+    /// method. The forwarded SecretError should arrive as Unknown.
+    fn forward_undeclared(target: ContractAddress);
 }

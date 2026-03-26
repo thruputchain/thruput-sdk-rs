@@ -6,6 +6,9 @@ use sdk::*;
 pub static TEST_NONCE: sdk::SHA256Hash =
     sdk::sha256_static!("MULTI_THROWS_TEST_NONCE");
 
+pub static TEST_NONCE_2: sdk::SHA256Hash =
+    sdk::sha256_static!("MULTI_THROWS_TEST_NONCE_2");
+
 pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
     let mut client = MultiClient::new(&addr);
@@ -48,5 +51,29 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
             println!("OK: try_as decoded SecretError successfully");
         }
         other => panic!("expected Unknown, got {:?}", other),
+    }
+
+    // Test 6: Error forwarding through a call chain.
+    // Deploy a second instance; call forward_alpha on the first, which
+    // calls throw_alpha_not_found on the second via the non-try method.
+    // re_abort should forward the error so we see AlphaError here.
+    let addr2 = deploy_contract(&TEST_NONCE_2, contract_hash);
+    match client.try_forward_alpha(addr2.clone()) {
+        Err(MultiClientError::AlphaError(AlphaError::NotFound)) => {
+            println!("OK: forwarded AlphaError::NotFound through call chain");
+        }
+        other => panic!("expected forwarded AlphaError::NotFound, got {:?}", other),
+    }
+
+    // Test 7: Forwarding an undeclared error through a call chain.
+    // The inner contract throws SecretError, the middle contract re-aborts,
+    // and we see it as Unknown with the original selector.
+    match client.try_forward_undeclared(addr2) {
+        Err(MultiClientError::Unknown(ref raw)) => {
+            let secret = raw.try_as::<SecretError>();
+            assert_eq!(secret, Some(SecretError));
+            println!("OK: forwarded SecretError through call chain as Unknown");
+        }
+        other => panic!("expected forwarded Unknown(SecretError), got {:?}", other),
     }
 }
