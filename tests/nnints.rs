@@ -24,13 +24,18 @@ fn assert_syscall_abort(
     errno: SyscallErrorCode,
 ) {
     match res {
-        Err(RawCallError::Abort { selector, payload }) if *selector == LibraryExn::SELECTOR => {
+        Err(RawCallError::Abort { selector, payload })
+            if *selector == LibraryExn::SELECTOR =>
+        {
             let lib = decode_library_exn(payload.as_slice());
             match &lib {
                 LibraryExn::Syscall(se) if se.is(callno, errno) => {
                     println!("OK: {:?}", lib)
                 }
-                _ => panic!("Expected Syscall({:?}, {:?}), got: {:?}", callno, errno, lib),
+                _ => panic!(
+                    "Expected Syscall({:?}, {:?}), got: {:?}",
+                    callno, errno, lib
+                ),
             }
         }
         _ => panic!("Unexpected result: {:?}", res),

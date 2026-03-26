@@ -13,7 +13,9 @@ where
 /// decoded value.  Used for decoding error payloads which may carry
 /// additional debugging information (location, backtrace) appended by
 /// `serialize_error` when the `debugging` feature is active.
-pub fn contract_call_decode_prefix<'b, T>(bytes: &'b [u8]) -> Result<T, ReadError>
+pub fn contract_call_decode_prefix<'b, T>(
+    bytes: &'b [u8],
+) -> Result<T, ReadError>
 where
     T: ReadXDR<'b>,
 {

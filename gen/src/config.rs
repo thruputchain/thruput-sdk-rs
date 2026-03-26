@@ -36,15 +36,17 @@ impl FromMeta for ThrowsList {
                     if let Some(ident) = path.get_ident() {
                         idents.push(ident.clone());
                     } else {
-                        return Err(
-                            darling::Error::custom(
-                                "throws expects simple identifiers, not paths",
-                            )
-                            .with_span(path),
-                        );
+                        return Err(darling::Error::custom(
+                            "throws expects simple identifiers, not paths",
+                        )
+                        .with_span(path));
                     }
                 }
-                _ => return Err(darling::Error::custom("throws expects identifiers")),
+                _ => {
+                    return Err(darling::Error::custom(
+                        "throws expects identifiers",
+                    ));
+                }
             }
         }
         if idents.is_empty() {

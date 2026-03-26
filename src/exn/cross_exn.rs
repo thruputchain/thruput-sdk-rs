@@ -49,9 +49,8 @@ pub(crate) fn serialize_error<E: WriteXDR + crate::exn::Exn>(err: &E) -> ! {
     let backtrace: Option<BacktraceString> =
         Some(format(&::abort::Backtrace::capture()));
 
-    let buf =
-        contract_call_encode(&(selector, err, &location, &backtrace))
-            .unwrap_or_else(|e| super::encoding_abort_abort(e));
+    let buf = contract_call_encode(&(selector, err, &location, &backtrace))
+        .unwrap_or_else(|e| super::encoding_abort_abort(e));
 
     crate::contract_abort(buf.as_ref());
 }
@@ -80,8 +79,7 @@ mod tests {
     #[test]
     fn serialize_error_writes_selector_then_payload() {
         let exn = TestExn::Boom;
-        let buf =
-            contract_call_encode(&(TestExn::SELECTOR, &exn)).unwrap();
+        let buf = contract_call_encode(&(TestExn::SELECTOR, &exn)).unwrap();
 
         // Decode as (u64, TestExn) — the format serialize_error produces
         let (selector, decoded): (u64, TestExn) =
@@ -94,8 +92,7 @@ mod tests {
     #[test]
     fn serialize_error_writes_library_selector_then_payload() {
         let exn = LibraryExn::NonNegativeIntOverflow;
-        let buf =
-            contract_call_encode(&(LibraryExn::SELECTOR, &exn)).unwrap();
+        let buf = contract_call_encode(&(LibraryExn::SELECTOR, &exn)).unwrap();
 
         // Decode as (u64, LibraryExn)
         let (selector, decoded): (u64, LibraryExn) =
@@ -110,14 +107,12 @@ mod tests {
     #[test]
     fn selector_can_be_decoded_without_knowing_payload_type() {
         let exn = TestExn::Boom;
-        let buf =
-            contract_call_encode(&(TestExn::SELECTOR, &exn)).unwrap();
+        let buf = contract_call_encode(&(TestExn::SELECTOR, &exn)).unwrap();
 
         // A receiver that doesn't know the error type can still read the
         // selector to figure out what type to decode next.
         let mut reader = cxs::buf_reader::BufReader::new(&buf[..]);
-        let selector: u64 =
-            ReadXDR::read_xdr(&mut reader).unwrap();
+        let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
 
         assert_eq!(selector, TestExn::SELECTOR);
     }

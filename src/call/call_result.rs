@@ -1,7 +1,7 @@
 //! The raw, untyped error from a contract call.
 
-use crate::call::internal::contract_call_decode;
 use crate::call::ContractError;
+use crate::call::internal::contract_call_decode;
 use crate::exn::{CallingError, FaultString, library_abort};
 use crate::xdr::*;
 
@@ -31,27 +31,35 @@ where
     T: ReadXDROwned,
 {
     match contract_result {
-        Ok(return_val) => {
-            contract_call_decode(return_val.as_slice())
-                .map(Ok)
-                .unwrap_or_else(|e|
-                    library_abort(CallingError::DecodingSuccess(FaultString::from_display(e))))
-        }
+        Ok(return_val) => contract_call_decode(return_val.as_slice())
+            .map(Ok)
+            .unwrap_or_else(|e| {
+                library_abort(CallingError::DecodingSuccess(
+                    FaultString::from_display(e),
+                ))
+            }),
         Err(ContractError::Abort(abort_buf)) => {
             let bytes = abort_buf.as_slice();
             if bytes.is_empty() {
                 library_abort(CallingError::DecodingAbort(
-                    FaultString::from_display("abort buffer too short for selector")))
+                    FaultString::from_display(
+                        "abort buffer too short for selector",
+                    ),
+                ))
             }
 
             // The abort buffer is CXS-encoded: (u64_selector, payload...).
             // Decode the selector using a CXS reader so we consume the
             // correct number of bytes (CXS uses variable-length integer encoding).
             let mut reader = cxs::buf_reader::BufReader::new(bytes);
-            let selector: u64 = ReadXDR::read_xdr(&mut reader)
-                .unwrap_or_else(|_|
+            let selector: u64 =
+                ReadXDR::read_xdr(&mut reader).unwrap_or_else(|_| {
                     library_abort(CallingError::DecodingAbort(
-                        FaultString::from_display("failed to decode selector from abort buffer"))));
+                        FaultString::from_display(
+                            "failed to decode selector from abort buffer",
+                        ),
+                    ))
+                });
             let payload_bytes = &bytes[reader.position()..];
 
             let mut payload = heapless::Vec::new();
@@ -59,6 +67,8 @@ where
 
             Err(RawCallError::Abort { selector, payload })
         }
-        Err(ContractError::Fault(fault_val)) => Err(RawCallError::Fault(fault_val)),
+        Err(ContractError::Fault(fault_val)) => {
+            Err(RawCallError::Fault(fault_val))
+        }
     }
 }

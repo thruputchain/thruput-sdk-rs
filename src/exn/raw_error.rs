@@ -16,12 +16,19 @@ impl RawError {
     pub fn new(selector: u64, payload: &[u8]) -> Self {
         let mut buf = heapless::Vec::new();
         buf.extend_from_slice(payload).ok();
-        Self { selector, payload: buf }
+        Self {
+            selector,
+            payload: buf,
+        }
     }
 
-    pub fn selector(&self) -> u64 { self.selector }
+    pub fn selector(&self) -> u64 {
+        self.selector
+    }
 
-    pub fn payload(&self) -> &[u8] { &self.payload }
+    pub fn payload(&self) -> &[u8] {
+        &self.payload
+    }
 
     pub fn try_as<T: Exn>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
@@ -34,7 +41,12 @@ impl RawError {
 
 impl Debug for RawError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "RawError {{ selector: 0x{:016X}, payload: {} bytes }}", self.selector, self.payload.len())
+        write!(
+            f,
+            "RawError {{ selector: 0x{:016X}, payload: {} bytes }}",
+            self.selector,
+            self.payload.len()
+        )
     }
 }
 

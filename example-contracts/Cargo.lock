@@ -1230,6 +1230,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi-throws"
+version = "0.3.0"
+dependencies = [
+ "multi-throws",
+ "sdk",
+ "thiserror",
+ "xdrs",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"

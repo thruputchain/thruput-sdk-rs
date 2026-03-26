@@ -1,6 +1,14 @@
 use sdk::exn::Exn;
 
-#[derive(Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, sdk::Exn, thiserror::Error)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    sdk::ReadXDR,
+    sdk::WriteXDR,
+    sdk::Exn,
+    thiserror::Error,
+)]
 #[repr(i32)]
 enum TestError {
     #[error("a")]
@@ -9,7 +17,15 @@ enum TestError {
     VariantB(u64) = 2,
 }
 
-#[derive(Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, sdk::Exn, thiserror::Error)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    sdk::ReadXDR,
+    sdk::WriteXDR,
+    sdk::Exn,
+    thiserror::Error,
+)]
 #[repr(i32)]
 enum UnitOnlyError {
     #[error("first")]
@@ -18,7 +34,15 @@ enum UnitOnlyError {
     Second = 2,
 }
 
-#[derive(Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, sdk::Exn, thiserror::Error)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    sdk::ReadXDR,
+    sdk::WriteXDR,
+    sdk::Exn,
+    thiserror::Error,
+)]
 #[error("named fields")]
 struct NamedFieldsError {
     code: u32,

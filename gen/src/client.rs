@@ -196,12 +196,13 @@ fn generate_client_fn(
         quote! { () }
     };
 
-    let client_ident = contract.client_ident().unwrap_or_else(|| {
-        format_ident!("UnknownClient")
-    });
+    let client_ident = contract
+        .client_ident()
+        .unwrap_or_else(|| format_ident!("UnknownClient"));
     let error_enum_ident = format_ident!("{}Error", client_ident);
     let throws_list = contract.throws_list();
-    let selector_dispatch = generate_selector_dispatch(&error_enum_ident, &throws_list);
+    let selector_dispatch =
+        generate_selector_dispatch(&error_enum_ident, &throws_list);
 
     Ok(quote_spanned! {method.sig().span()=>
 
