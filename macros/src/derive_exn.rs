@@ -6,7 +6,8 @@ pub fn derive(input: DeriveInput) -> TokenStream {
     let type_name = name.to_string();
     let version = std::env::var("CARGO_PKG_VERSION")
         .unwrap_or_else(|_| "0.0.0".to_string());
-    let selector = groundhog_contract_util::error_selector(&version, &type_name);
+    let selector =
+        groundhog_contract_util::error_selector(&version, &type_name);
 
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();

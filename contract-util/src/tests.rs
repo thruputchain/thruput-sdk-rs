@@ -41,8 +41,8 @@ mod tests {
     #[test]
     fn test_major_version_idempotent() {
         let cases = [
-            "1.2.3", "2.0.0", "10.5.99", "0.9.2", "0.1.0", "0.15.3",
-            "0.0.2", "0.0.1", "0.0.0",
+            "1.2.3", "2.0.0", "10.5.99", "0.9.2", "0.1.0", "0.15.3", "0.0.2",
+            "0.0.1", "0.0.0",
         ];
         for version_str in cases {
             let first = major_version_from_string(version_str);

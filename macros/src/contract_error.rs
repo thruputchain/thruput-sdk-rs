@@ -50,8 +50,6 @@ pub fn expand(item: Item) -> TokenStream {
 /// Remove all `#[error(...)]` attributes from an enum's variants.
 fn strip_error_attrs(item: &mut syn::ItemEnum) {
     for variant in &mut item.variants {
-        variant
-            .attrs
-            .retain(|attr| !attr.path().is_ident("error"));
+        variant.attrs.retain(|attr| !attr.path().is_ident("error"));
     }
 }

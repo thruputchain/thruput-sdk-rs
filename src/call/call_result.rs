@@ -40,13 +40,6 @@ where
             }),
         Err(ContractError::Abort(abort_buf)) => {
             let bytes = abort_buf.as_slice();
-            if bytes.is_empty() {
-                library_abort(CallingError::DecodingAbort(
-                    FaultString::from_display(
-                        "abort buffer is empty",
-                    ),
-                ))
-            }
 
             // The abort buffer is CXS-encoded: (u64_selector, payload...).
             // Decode the selector using a CXS reader so we consume the
