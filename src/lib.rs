@@ -90,8 +90,8 @@ pub use xdr::*;
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use groundhog_macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
-pub use groundhog_macros::exn;
 pub use groundhog_macros::contract_error;
+pub use groundhog_macros::exn;
 pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
 
 #[cfg(feature = "alloc")]

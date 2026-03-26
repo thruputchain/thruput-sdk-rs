@@ -13,8 +13,10 @@ pub fn parse_args(attr_args: TokenStream) -> Result<ExnArgs, TokenStream> {
     if attr_args.is_empty() {
         return Ok(ExnArgs::default());
     }
-    let meta_list = NestedMeta::parse_meta_list(attr_args.into())
-        .map_err(|e| TokenStream::from(darling::Error::from(e).write_errors()))?;
+    let meta_list =
+        NestedMeta::parse_meta_list(attr_args.into()).map_err(|e| {
+            TokenStream::from(darling::Error::from(e).write_errors())
+        })?;
     ExnArgs::from_list(&meta_list)
         .map_err(|e| TokenStream::from(e.write_errors()))
 }
@@ -47,11 +49,12 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
         .unwrap_or_else(|_| "_unknown_".to_string());
 
     let selector = groundhog_contract_util::error_selector(
-        &version, &crate_name, &type_name,
+        &version,
+        &crate_name,
+        &type_name,
     );
 
-    let (impl_generics, ty_generics, where_clause) =
-        generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let output = quote::quote! {
         #item

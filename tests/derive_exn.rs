@@ -1,12 +1,7 @@
 use sdk::exn::Exn;
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    sdk::ReadXDR,
-    sdk::WriteXDR,
-    thiserror::Error,
+    Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, thiserror::Error,
 )]
 #[sdk::exn]
 #[repr(i32)]
@@ -18,12 +13,7 @@ enum TestError {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    sdk::ReadXDR,
-    sdk::WriteXDR,
-    thiserror::Error,
+    Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, thiserror::Error,
 )]
 #[sdk::exn]
 #[repr(i32)]
@@ -35,12 +25,7 @@ enum UnitOnlyError {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    sdk::ReadXDR,
-    sdk::WriteXDR,
-    thiserror::Error,
+    Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, thiserror::Error,
 )]
 #[sdk::exn]
 #[error("named fields")]

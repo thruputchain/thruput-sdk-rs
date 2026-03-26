@@ -44,7 +44,9 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
         .unwrap_or_else(|_| "_unknown_".to_string());
 
     let selector = groundhog_contract_util::error_selector(
-        &version, &crate_name, &type_name,
+        &version,
+        &crate_name,
+        &type_name,
     );
 
     let mut item_stripped = item.clone();
@@ -70,8 +72,6 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
 /// Remove all `#[error(...)]` attributes from an enum's variants.
 fn strip_error_attrs(item: &mut syn::ItemEnum) {
     for variant in &mut item.variants {
-        variant
-            .attrs
-            .retain(|attr| !attr.path().is_ident("error"));
+        variant.attrs.retain(|attr| !attr.path().is_ident("error"));
     }
 }
