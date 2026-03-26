@@ -29,4 +29,11 @@ pub trait MultiThrows {
     /// Calls `throw_undeclared()` on another instance via the non-try
     /// method. The forwarded SecretError should arrive as Unknown.
     fn forward_undeclared(target: ContractAddress);
+
+    /// Panics intentionally.
+    fn panics();
+
+    /// Calls `panics()` on another instance via the non-try method.
+    /// The fault should propagate as a fault.
+    fn forward_fault(target: ContractAddress);
 }

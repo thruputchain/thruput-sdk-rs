@@ -41,4 +41,13 @@ impl MultiThrows for Contract {
         // Non-try call: SecretError isn't in throws, forwarded as raw bytes
         MultiClient::new(&target).throw_undeclared();
     }
+
+    fn panics() {
+        panic!("intentional panic");
+    }
+
+    fn forward_fault(target: ContractAddress) {
+        // Non-try call: the inner panic should propagate as a fault
+        MultiClient::new(&target).panics();
+    }
 }

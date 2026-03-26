@@ -68,12 +68,22 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     // Test 7: Forwarding an undeclared error through a call chain.
     // The inner contract throws SecretError, the middle contract re-aborts,
     // and we see it as Unknown with the original selector.
-    match client.try_forward_undeclared(addr2) {
+    match client.try_forward_undeclared(addr2.clone()) {
         Err(MultiClientError::Unknown(ref raw)) => {
             let secret = raw.try_as::<SecretError>();
             assert_eq!(secret, Some(SecretError));
             println!("OK: forwarded SecretError through call chain as Unknown");
         }
         other => panic!("expected forwarded Unknown(SecretError), got {:?}", other),
+    }
+
+    // Test 8: Forwarding a fault through a call chain.
+    // The inner contract panics, the middle contract's non-try method
+    // propagates it as a panic (fault), and we see Fault here.
+    match client.try_forward_fault(addr2) {
+        Err(MultiClientError::Fault(ref f)) => {
+            println!("OK: forwarded fault through call chain: {}", f);
+        }
+        other => panic!("expected forwarded Fault, got {:?}", other),
     }
 }
