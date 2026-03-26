@@ -43,7 +43,7 @@ where
             if bytes.is_empty() {
                 library_abort(CallingError::DecodingAbort(
                     FaultString::from_display(
-                        "abort buffer too short for selector",
+                        "abort buffer is empty",
                     ),
                 ))
             }
