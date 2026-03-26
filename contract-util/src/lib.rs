@@ -119,5 +119,23 @@ pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
     format!("{:016X}", u64::from_be_bytes(*id))
 }
 
+/// Derive a standard error selector for a contract error type.
+///
+/// Error selector = sha256(MAJOR_VERSION || TYPE_NAME)[0..8]
+///
+/// Correctness across breaking changes is delegated to SemVer — if the
+/// error type changes in a wire-incompatible way, the crate's major
+/// version must bump, which changes the selector.
+pub fn error_selector(version_str: &str, type_name: &str) -> u64 {
+    let major_version = semver::major_version_from_string(version_str);
+
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(major_version.as_bytes());
+    hasher.update(type_name.as_bytes());
+    let result = hasher.finalize();
+
+    u64::from_be_bytes(result[..8].try_into().unwrap())
+}
+
 #[cfg(test)]
 mod tests;

@@ -82,6 +82,7 @@ delegate = { workspace = true, optional = true }
 [dev-dependencies]
 sdk = { workspace = true, features = ["dev"] }
 hex-literal = { workspace = true }
+groundhog-contract-util = { workspace = true }
 
 [workspace.dependencies]
 sdk = { path = "." }

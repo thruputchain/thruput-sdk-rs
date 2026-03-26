@@ -156,18 +156,13 @@ impl Display for SyscallExn {
 mod selector_tests {
     use super::*;
     use crate::exn::Exn;
-    use sha2::{Digest, Sha256};
-
-    #[cfg(not(feature = "storage"))]
-    const EXPECTED_SIG: &str = "LibraryExn::Syscall(SyscallExn)::Handling(HandlingError)::Calling(CallingError)::Called(FaultString)::BytestringWrongSize(u32,u32)::NonNegativeIntUnderflow::NonNegativeIntOverflow";
-
-    #[cfg(feature = "storage")]
-    const EXPECTED_SIG: &str = "LibraryExn::Syscall(SyscallExn)::Handling(HandlingError)::Calling(CallingError)::Called(FaultString)::BytestringWrongSize(u32,u32)::NonNegativeIntUnderflow::NonNegativeIntOverflow::Storage(StorageError)";
 
     #[test]
     fn library_exn_selector_matches_sha256() {
-        let digest = Sha256::digest(EXPECTED_SIG.as_bytes());
-        let expected = u64::from_be_bytes(digest[..8].try_into().unwrap());
+        let expected = groundhog_contract_util::error_selector(
+            env!("CARGO_PKG_VERSION"),
+            "LibraryExn",
+        );
         assert_eq!(LibraryExn::SELECTOR, expected);
     }
 

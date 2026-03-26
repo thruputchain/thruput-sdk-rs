@@ -58,31 +58,12 @@ fn derive_exn_produces_stable_selector() {
 }
 
 #[test]
-fn derive_exn_selector_matches_manual_sha256() {
-    use sha2::{Digest, Sha256};
-    // Canonical signature: "TestError::VariantA::VariantB(u64)"
-    let sig = "TestError::VariantA::VariantB(u64)";
-    let hash = Sha256::digest(sig.as_bytes());
-    let expected = u64::from_be_bytes(hash[..8].try_into().unwrap());
+fn derive_exn_selector_matches_contract_util() {
+    let expected = groundhog_contract_util::error_selector(
+        env!("CARGO_PKG_VERSION"),
+        "TestError",
+    );
     assert_eq!(TestError::SELECTOR, expected);
-}
-
-#[test]
-fn derive_exn_unit_only_enum() {
-    use sha2::{Digest, Sha256};
-    let sig = "UnitOnlyError::First::Second";
-    let hash = Sha256::digest(sig.as_bytes());
-    let expected = u64::from_be_bytes(hash[..8].try_into().unwrap());
-    assert_eq!(UnitOnlyError::SELECTOR, expected);
-}
-
-#[test]
-fn derive_exn_named_fields_struct() {
-    use sha2::{Digest, Sha256};
-    let sig = "NamedFieldsError(u32,u64)";
-    let hash = Sha256::digest(sig.as_bytes());
-    let expected = u64::from_be_bytes(hash[..8].try_into().unwrap());
-    assert_eq!(NamedFieldsError::SELECTOR, expected);
 }
 
 #[test]
