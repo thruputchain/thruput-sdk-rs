@@ -564,12 +564,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-exn"
+version = "0.6.1"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-macros"
 version = "0.6.1"
 dependencies = [
  "darling",
  "groundhog-codegen",
  "groundhog-contract-util",
+ "groundhog-exn",
  "groundhog-xdr",
  "proc-macro2",
  "quote",
@@ -1459,6 +1467,7 @@ dependencies = [
  "delegate",
  "groundhog-contract-util",
  "groundhog-event",
+ "groundhog-exn",
  "groundhog-macros",
  "groundhog-native-exec",
  "groundhog-storage-cost",

@@ -6,6 +6,7 @@ members = [
     "native_exec",
     "groundhog-sys",
     "groundhog-event",
+    "groundhog-exn",
     "storage-cost",
     "standard-interfaces/*",
     "standard-tests/*",
@@ -64,6 +65,7 @@ groundhog-macros = { workspace = true }
 groundhog-contract-util = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
+groundhog-exn = { workspace = true }
 groundhog-storage-cost = { workspace = true, optional = true }
 
 # External dependencies
@@ -96,6 +98,7 @@ groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.6.1
 groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.6.1" }
 groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.6.1" }
 groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.6.1" }
+groundhog-exn = { path = "groundhog-exn", registry = "groundhog", version = "=0.6.1" }
 groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.6.1" }
 
 # Standard interface crates

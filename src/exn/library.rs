@@ -155,7 +155,7 @@ impl Display for SyscallExn {
 #[cfg(test)]
 mod selector_tests {
     use super::*;
-    use crate::exn::exn_impl::Exn;
+    use crate::exn::Exn;
     use sha2::{Digest, Sha256};
 
     #[cfg(not(feature = "storage"))]

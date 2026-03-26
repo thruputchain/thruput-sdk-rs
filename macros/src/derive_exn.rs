@@ -10,27 +10,12 @@ pub fn derive(input: DeriveInput) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
 
-    // When the derive is used inside the `sdk` crate itself, we need
-    // `crate::exn::Exn`; everywhere else we need `::sdk::exn::Exn`.
-    let exn_path = if is_sdk_crate() {
-        quote::quote! { crate::exn::Exn }
-    } else {
-        quote::quote! { ::sdk::exn::Exn }
-    };
-
     quote::quote! {
-        impl #impl_generics #exn_path for #name #ty_generics #where_clause {
+        impl #impl_generics ::groundhog_exn::Exn for #name #ty_generics #where_clause {
             const SELECTOR: u64 = #selector;
         }
     }
     .into()
-}
-
-fn is_sdk_crate() -> bool {
-    // CARGO_CRATE_NAME is set to the crate being compiled. When we're
-    // compiling the `sdk` library itself it is "sdk"; for integration
-    // tests of the sdk package it is the test binary name.
-    std::env::var("CARGO_CRATE_NAME").ok().as_deref() == Some("sdk")
 }
 
 fn canonical_signature(input: &DeriveInput) -> String {
