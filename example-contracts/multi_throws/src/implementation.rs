@@ -1,12 +1,11 @@
 use super::*;
 use sdk::*;
-use thiserror::Error;
 
 #[derive(Default)]
 pub struct Contract;
 
 /// An error type NOT declared in throws — will end up in Unknown
-#[derive(Debug, PartialEq, Error, ReadXDR, WriteXDR, Exn)]
+#[derive(Debug, PartialEq, thiserror::Error, ReadXDR, WriteXDR, Exn)]
 #[error("secret error")]
 pub struct SecretError;
 

@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
 mod contract;
+mod contract_error;
 mod derive_exn;
 mod static_hash;
 
@@ -74,4 +75,13 @@ pub fn storage(
 pub fn derive_exn(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     derive_exn::derive(input)
+}
+
+#[proc_macro_attribute]
+pub fn contract_error(
+    _attr_args: TokenStream,
+    item_tokens: TokenStream,
+) -> TokenStream {
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
+    contract_error::expand(item).into()
 }

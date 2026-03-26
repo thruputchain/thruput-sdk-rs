@@ -1,8 +1,6 @@
 use sdk::*;
-use thiserror::Error;
 
-#[derive(WriteXDR, ReadXDR, Copy, Clone, Debug, PartialEq, Error, Exn)]
-#[repr(i32)]
+#[contract_error]
 pub enum AlphaError {
     #[error("alpha: not found")]
     NotFound = 1,
@@ -10,8 +8,7 @@ pub enum AlphaError {
     Overflow = 2,
 }
 
-#[derive(WriteXDR, ReadXDR, Copy, Clone, Debug, PartialEq, Error, Exn)]
-#[repr(i32)]
+#[contract_error]
 pub enum BetaError {
     #[error("beta: denied")]
     Denied = 1,
