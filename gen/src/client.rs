@@ -267,7 +267,7 @@ fn generate_error_enum(
     let display_declared_arms: Vec<TokenStream> = throws_list
         .iter()
         .map(|ident| {
-            quote! { Self::#ident(e) => ::core::write!(f, "{:?}", e) }
+            quote! { Self::#ident(e) => ::core::write!(f, "{}", e) }
         })
         .collect();
 
@@ -285,7 +285,7 @@ fn generate_error_enum(
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 match self {
                     #(#display_declared_arms,)*
-                    Self::Library(e) => ::core::write!(f, "{:?}", e),
+                    Self::Library(e) => ::core::write!(f, "{}", e),
                     Self::Fault(e) => ::core::write!(f, "{}", e),
                     Self::Unknown(e) => ::core::write!(f, "{:?}", e),
                 }

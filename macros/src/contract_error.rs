@@ -52,12 +52,12 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
 
     quote! {
         #[cfg(feature = "dev")]
-        #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error)]
+        #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, thiserror::Error)]
         #[repr(i32)]
         #item
 
         #[cfg(not(feature = "dev"))]
-        #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+        #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR)]
         #[repr(i32)]
         #item_stripped
 

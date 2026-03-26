@@ -121,7 +121,7 @@ pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
 
 /// Derive a standard error selector for a contract error type.
 ///
-/// Error selector = sha256(MAJOR_VERSION || CRATE_NAME || TYPE_NAME)[0..8]
+/// Error selector = sha256(MAJOR_VERSION :: CRATE_NAME :: TYPE_NAME)[0..8]
 ///
 /// The crate name is included to reduce collisions between types with the
 /// same name defined in different crates. Correctness across breaking
@@ -141,7 +141,9 @@ pub fn error_selector(
 
     let mut hasher = sha2::Sha256::new();
     hasher.update(major_version.as_bytes());
+    hasher.update(b"::");
     hasher.update(crate_name.as_bytes());
+    hasher.update(b"::");
     hasher.update(type_name.as_bytes());
     let result = hasher.finalize();
 
