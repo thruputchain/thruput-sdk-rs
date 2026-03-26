@@ -11,7 +11,7 @@ compile_error!("Feature 'std' cannot be enabled when targetting wasm");
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
 compile_error!("Feature 'std' is required when compiling natively");
 
-// Allow `#[derive(Exn)]` to emit `::sdk::exn::Exn` and have it resolve
+// Allow `#[exn]` to emit `::sdk::exn::Exn` and have it resolve
 // inside this crate itself. (Same pattern as serde.)
 extern crate self as sdk;
 
@@ -90,7 +90,7 @@ pub use xdr::*;
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use groundhog_macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
-pub use groundhog_macros::Exn;
+pub use groundhog_macros::exn;
 pub use groundhog_macros::contract_error;
 pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
 

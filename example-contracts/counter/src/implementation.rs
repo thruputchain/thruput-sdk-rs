@@ -1,9 +1,7 @@
 use sdk::storage::NNInt;
 use sdk::*;
-use thiserror::Error;
 
-#[derive(Error, Debug, Clone, PartialEq, ReadXDR, WriteXDR, Exn)]
-#[repr(i32)]
+#[contract_error]
 pub enum Error {
     #[error("Not authorized")]
     NotAuthorized = 1,

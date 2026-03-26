@@ -6,9 +6,9 @@ use sdk::exn::Exn;
     PartialEq,
     sdk::ReadXDR,
     sdk::WriteXDR,
-    sdk::Exn,
     thiserror::Error,
 )]
+#[sdk::exn]
 #[repr(i32)]
 enum TestError {
     #[error("a")]
@@ -23,9 +23,9 @@ enum TestError {
     PartialEq,
     sdk::ReadXDR,
     sdk::WriteXDR,
-    sdk::Exn,
     thiserror::Error,
 )]
+#[sdk::exn]
 #[repr(i32)]
 enum UnitOnlyError {
     #[error("first")]
@@ -40,9 +40,9 @@ enum UnitOnlyError {
     PartialEq,
     sdk::ReadXDR,
     sdk::WriteXDR,
-    sdk::Exn,
     thiserror::Error,
 )]
+#[sdk::exn]
 #[error("named fields")]
 struct NamedFieldsError {
     code: u32,
@@ -61,6 +61,7 @@ fn derive_exn_produces_stable_selector() {
 fn derive_exn_selector_matches_contract_util() {
     let expected = groundhog_contract_util::error_selector(
         env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_NAME"),
         "TestError",
     );
     assert_eq!(TestError::SELECTOR, expected);

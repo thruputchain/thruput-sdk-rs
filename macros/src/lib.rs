@@ -71,17 +71,28 @@ pub fn storage(
     .into()
 }
 
-#[proc_macro_derive(Exn)]
-pub fn derive_exn(input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    derive_exn::derive(input)
+/// `#[exn]` or `#[exn(version = "1")]` — emits `impl Exn` with a
+/// computed selector. Use this when you handle your own derives.
+/// For the full convenience macro, use `#[contract_error]` instead.
+#[proc_macro_attribute]
+pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
+    match derive_exn::parse_args(attr_args) {
+        Ok(args) => derive_exn::expand(args, item),
+        Err(err) => err,
+    }
 }
 
+/// `#[contract_error]` or `#[contract_error(version = "1")]` — full
+/// convenience macro: derives + `#[repr(i32)]` + `impl Exn`.
 #[proc_macro_attribute]
 pub fn contract_error(
-    _attr_args: TokenStream,
+    attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
     let item = syn::parse_macro_input!(item_tokens as syn::Item);
-    contract_error::expand(item).into()
+    match derive_exn::parse_args(attr_args) {
+        Ok(args) => contract_error::expand(args, item).into(),
+        Err(err) => err,
+    }
 }

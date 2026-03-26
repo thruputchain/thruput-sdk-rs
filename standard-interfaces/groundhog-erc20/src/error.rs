@@ -1,15 +1,13 @@
-use sdk::{Exn, ReadXDR, WriteXDR, abort};
-use thiserror::Error;
+use sdk::abort;
 
 pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
 
 #[cfg(feature = "spec")]
 use xdrs::XDR;
 
-#[derive(Error, Debug, PartialEq, Clone, ReadXDR, WriteXDR, Exn)]
 #[cfg_attr(feature = "spec", derive(XDR))]
+#[sdk::contract_error]
 #[non_exhaustive]
-#[repr(i32)]
 pub enum ERC20Error {
     #[error("Contract already initialized")]
     AlreadyInitialized = 1,
