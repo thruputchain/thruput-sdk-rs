@@ -23,11 +23,11 @@ pub mod allocator;
 #[doc(hidden)]
 pub mod internal;
 
-mod throw;
 mod cell;
 mod debug;
 mod local;
 mod panic;
+mod throw;
 mod util;
 mod xdr;
 
@@ -61,7 +61,6 @@ pub mod serialize;
 pub mod stats;
 pub mod types;
 
-pub use throw::*;
 pub use auth_claim::*;
 pub use bytestring::*;
 pub use cell::*;
@@ -80,6 +79,7 @@ pub use panic::*;
 pub use retrocausal_queue::*;
 pub use rt::*;
 pub use serialize::*;
+pub use throw::*;
 pub use types::*;
 pub use util::*;
 pub use xdr::*;

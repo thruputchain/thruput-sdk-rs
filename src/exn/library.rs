@@ -78,7 +78,8 @@ impl LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
-    let exn: crate::CrossExn<core::convert::Infallible> = crate::library_exn(e);
+    let exn: crate::CrossExn<core::convert::Infallible> =
+        crate::library_exn(e);
 
     crate::contract_abort_encoded(&exn)
 }

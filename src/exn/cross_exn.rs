@@ -187,7 +187,11 @@ where
         let location = Some(format(Location::caller()));
         let backtrace = Some(format(&::abort::Backtrace::capture()));
 
-        Self { exn, location, backtrace }
+        Self {
+            exn,
+            location,
+            backtrace,
+        }
     }
 
     #[cfg(not(feature = "debugging"))]

@@ -41,7 +41,7 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     }
 
     // Throw something undeclared with `throws`.
-    // With direct serialization, `abort(&Thing)` serializes as Contract data.
+    // With direct serialization, `throw(Thing)` serializes as Contract data.
     // Since Thing and MyErr are both unit-like XDR types, the caller's decoder
     // successfully interprets it as MyErr (a contract abort).
     match client.try_throw_thing() {
