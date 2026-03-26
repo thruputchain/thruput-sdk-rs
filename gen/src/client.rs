@@ -257,6 +257,21 @@ fn generate_error_enum(
     client_ident: &syn::Ident,
     throws_list: &[&syn::Ident],
 ) -> TokenStream {
+    const RESERVED: &[&str] = &["Library", "Fault", "Unknown"];
+    for ident in throws_list {
+        if RESERVED.contains(&ident.to_string().as_str()) {
+            return syn::Error::new(
+                ident.span(),
+                format!(
+                    "`{}` is a reserved error variant name \
+                     (used by the generated client enum)",
+                    ident
+                ),
+            )
+            .to_compile_error();
+        }
+    }
+
     let error_enum_ident = format_ident!("{}Error", client_ident);
 
     let declared_variants: Vec<TokenStream> = throws_list
