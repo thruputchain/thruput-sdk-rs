@@ -1,68 +1,13 @@
 //! Making contract calls
 
-use super::call_result::{into_raw_call_result, RawCallError, *};
+use super::call_result::{into_raw_call_result, RawCallError};
 use super::contract_result::*;
 use super::internal::contract_call_encode;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{CallingError, Exn, FaultString, LibraryExn, library_abort};
+use crate::exn::{CallingError, FaultString, library_abort};
 use crate::sys::{self, SysErr};
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
-
-pub fn call<ARGS, RET, EXN>(
-    address: &ContractAddress,
-    entrypoint: ContractEntrypointID,
-    gas_limit: u64,
-    args: &ARGS,
-) -> RET
-where
-    ARGS: WriteXDR,
-    RET: ReadXDROwned,
-    EXN: Exn + 'static,
-{
-    try_call(address, entrypoint, gas_limit, args).unwrap_or_else(
-        |e: CallError<EXN>|
-            // We're not going to capture the structure of the called
-            // contract's error here (for that, use `try_call`).  Instead,
-            // serialize the error and abort.
-            library_abort(LibraryExn::Called(FaultString::from_display(e))),
-    )
-}
-
-pub fn try_call<ARGS, RET, EXN>(
-    address: &ContractAddress,
-    entrypoint: ContractEntrypointID,
-    gas_limit: u64,
-    args: &ARGS,
-) -> CallResult<RET, EXN>
-where
-    ARGS: WriteXDR,
-    RET: ReadXDROwned,
-    EXN: Exn,
-{
-    // Encode the args
-    let args_buf = contract_call_encode(args)
-        // Encoding failed: abort
-        .unwrap_or_else(|e| {
-            library_abort(CallingError::EncodingArgs(
-                FaultString::from_display(e),
-            ))
-        });
-
-    // Invoke the method
-    let contract_result =
-        match contract_call(address, entrypoint, gas_limit, &args_buf) {
-            Ok(result) => result,
-            Err(syserr) => {
-                return Err(CallError::Fault(FaultString::from_display(
-                    syserr,
-                )));
-            }
-        };
-
-    // Decode result
-    into_call_result(contract_result)
-}
 
 pub fn try_call_raw<ARGS, RET>(
     address: &ContractAddress,

@@ -34,7 +34,6 @@ mod xdr;
 #[doc(hidden)]
 pub mod call;
 pub use call::ContractClient;
-pub use call::{CallError, CallResult};
 
 // TODO: Make these modules pub(crate) in order to allow
 // reorganization without breaking changes.

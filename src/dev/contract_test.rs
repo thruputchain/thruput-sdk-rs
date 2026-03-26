@@ -1,10 +1,9 @@
 use crate::call::{
-    AbortBuf, CallResult, ContractError, ContractResult, ReturnBuf,
+    AbortBuf, ContractError, ContractResult, RawCallError, ReturnBuf,
 };
-use crate::exn::{Exn, FaultString};
+use crate::exn::FaultString;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
-use core::convert::Infallible;
 use groundhog_native_exec as native_exec;
 use groundhog_xdr::transaction::InvocationFrameStatusCode;
 use native_exec::transaction_handler::TransactionHandler;
@@ -16,7 +15,7 @@ use std::vec::Vec;
 pub fn contract_exec<F>(
     env: TestEnvironmentHandle,
     f: F,
-) -> CallResult<(), Infallible>
+) -> Result<(), RawCallError>
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
@@ -24,28 +23,25 @@ where
 }
 
 /// Execute the provided code in a transaction in the test environment,
-/// controlling the return type and exception type.
+/// controlling the return type.
 ///
 /// # Example:
 /// ```
 /// let RET = ();
-/// let EXN = Infallible;
 ///
-/// // Annotate the result type so that `contract_test` knows how to decode the return
-/// // and exception types:
-/// let call_result: CallResult<RET, EXN> = contract_test(env, || { /* whatever */ });
+/// // Annotate the result type so that `contract_test` knows how to decode the return type:
+/// let call_result: Result<RET, RawCallError> = contract_test(env, || { /* whatever */ });
 /// ```
 ///
-pub fn contract_test<F, RET, EXN>(
+pub fn contract_test<F, RET>(
     env: TestEnvironmentHandle,
     f: F,
-) -> CallResult<RET, EXN>
+) -> Result<RET, RawCallError>
 where
     F: Fn() + UnwindSafe + Clone + 'static,
     RET: ReadXDROwned,
-    EXN: Exn,
 {
-    crate::call::into_call_result(contract_test_raw(env, f))
+    crate::call::into_raw_call_result(contract_test_raw(env, f))
 }
 
 /// Execute the provided thunk in a transaction in the test environment,
@@ -73,12 +69,12 @@ where
 }
 
 /// Invoke the handler's root frame and commit the transaction, decoding the
-/// `ContractResult` into a `CallResult`.
+/// `ContractResult` into a `Result<(), RawCallError>`.
 ///
 pub fn contract_handler_exec(
     handler: &mut TransactionHandler,
-) -> CallResult<(), Infallible> {
-    crate::call::into_call_result(contract_handler_exec_raw(handler))
+) -> Result<(), RawCallError> {
+    crate::call::into_raw_call_result(contract_handler_exec_raw(handler))
 }
 
 /// Invoke the handler's root frame and commit the transaction.
@@ -128,7 +124,7 @@ macro_rules! contract_test {
             let mut env = $crate::TestEnvironment::no_cost();
 
             $crate::contract_exec(env, || $test_body)
-                .unwrap_or_else(|e| panic!("Contract test failed: {e}"));
+                .unwrap_or_else(|e| panic!("Contract test failed: {:?}", e));
         }
     };
 }
@@ -159,7 +155,7 @@ where
 
         run_test(&mut client);
     })
-    .unwrap_or_else(|e| panic!("Client test failed: {}", e));
+    .unwrap_or_else(|e| panic!("Client test failed: {:?}", e));
 }
 
 pub fn grant_storage_tokens(

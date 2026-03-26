@@ -35,7 +35,6 @@ impl Exn for core::convert::Infallible {
 mod raw_error;
 pub use raw_error::*;
 
-pub use cross_exn::*;
 pub use exn_impl::*;
 pub use fault::*;
 pub use library::*;
