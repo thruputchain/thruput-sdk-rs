@@ -1,5 +1,5 @@
 [package]
-name = "multi-throws"
+name = "multi_throws"
 description = "A contract exercising multiple throws types"
 version.workspace = true
 authors.workspace = true
@@ -25,4 +25,4 @@ xdrs = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-multi-throws = { path = ".", features = ["dev"] }
+multi_throws = { path = ".", features = ["dev"] }

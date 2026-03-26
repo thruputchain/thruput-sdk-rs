@@ -280,6 +280,7 @@ fn generate_error_enum(
             Unknown(::sdk::exn::RawError),
         }
 
+        #[allow(unexpected_cfgs)]
         #[cfg(feature = "dev")]
         impl ::core::fmt::Display for #error_enum_ident {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {

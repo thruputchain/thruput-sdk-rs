@@ -1230,10 +1230,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "multi-throws"
+name = "multi_throws"
 version = "0.3.0"
 dependencies = [
- "multi-throws",
+ "multi_throws",
  "sdk",
  "thiserror",
  "xdrs",

@@ -19,6 +19,21 @@ pub enum RawCallError {
     Fault(FaultString),
 }
 
+#[cfg(feature = "debugging")]
+impl core::fmt::Display for RawCallError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RawCallError::Abort { selector, payload } => write!(
+                f,
+                "abort (selector=0x{:016x}, payload={})",
+                selector,
+                crate::hex::hex_encode(payload)
+            ),
+            RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
+        }
+    }
+}
+
 /// Decode a `ContractResult` into a `Result<T, RawCallError>`, preserving the
 /// raw selector and payload from an abort without attempting typed decoding.
 ///
