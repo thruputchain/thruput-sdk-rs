@@ -218,8 +218,11 @@ fn generate_client_fn(
             with_call_tracking!(#call_info, {
                 match ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args) {
                     Ok(val) => val,
-                    Err(raw_err) => {
-                        panic!("contract call failed: {:?}", raw_err)
+                    Err(::sdk::call::RawCallError::Abort { selector, ref payload }) => {
+                        ::sdk::call::re_abort(selector, payload.as_slice())
+                    }
+                    Err(::sdk::call::RawCallError::Fault(f)) => {
+                        panic!("{}", f)
                     }
                 }
             })

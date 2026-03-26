@@ -36,6 +36,20 @@ where
     into_raw_call_result(contract_result)
 }
 
+/// Re-abort with a selector and payload that were previously split by
+/// `into_raw_call_result`. Reconstructs the wire format and calls
+/// `contract_abort`, forwarding the error to our caller unchanged.
+pub fn re_abort(selector: u64, payload: &[u8]) -> ! {
+    let mut buf = super::contract_result::AbortBuf::new();
+    // CXS-encode the selector back into the buffer
+    let written = cxs::encode_into(&selector, buf.spare_capacity_mut())
+        .unwrap_or_else(|_| panic!("re_abort: couldn't encode selector"));
+    unsafe { buf.set_len(written) };
+    // Append the payload as-is
+    buf.extend_from_slice(payload).ok();
+    crate::contract_abort(buf.as_ref());
+}
+
 #[inline(never)]
 #[allow(clippy::result_large_err)]
 pub fn contract_call<A>(
