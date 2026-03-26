@@ -2,45 +2,13 @@
 
 #![allow(unused)]
 
+mod test_helpers;
+use test_helpers::*;
+
 use sdk::call::RawCallError;
 use sdk::exn::{Exn, LibraryExn};
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
-
-/// Helper: decode a LibraryExn from an abort payload (which may have trailing
-/// debug info when the `debugging` feature is active).
-fn decode_library_exn(payload: &[u8]) -> LibraryExn {
-    use sdk::ReadXDR;
-    let mut reader = xdrs::cxs::buf_reader::BufReader::new(payload);
-    ReadXDR::read_xdr(&mut reader)
-        .expect("Failed to decode LibraryExn from abort payload")
-}
-
-/// Helper: assert that a RawCallError is an Abort whose payload decodes to a
-/// LibraryExn::Syscall matching the given syscall number and error code.
-fn assert_syscall_abort(
-    res: &Result<(), RawCallError>,
-    callno: SyscallNo,
-    errno: SyscallErrorCode,
-) {
-    match res {
-        Err(RawCallError::Abort { selector, payload })
-            if *selector == LibraryExn::SELECTOR =>
-        {
-            let lib = decode_library_exn(payload.as_slice());
-            match &lib {
-                LibraryExn::Syscall(se) if se.is(callno, errno) => {
-                    println!("OK: {:?}", lib)
-                }
-                _ => panic!(
-                    "Expected Syscall({:?}, {:?}), got: {:?}",
-                    callno, errno, lib
-                ),
-            }
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
-}
 
 contract_test!(test_nnints {
     let key = StorageKey::default();
