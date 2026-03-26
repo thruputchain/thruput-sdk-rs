@@ -29,22 +29,19 @@ error: test failed, to rerun pass `--test aborts`
 */
 
 use sdk::call::ContractError;
-use sdk::call::{CallError, CallResult};
+use sdk::call::RawCallError;
 use sdk::*;
 
 #[test]
 fn test_panic() {
     let env = TestEnvironment::no_cost();
 
-    type RET = ();
-    type EXN = core::convert::Infallible;
-
-    let result: CallResult<RET, EXN> = contract_test(env, || {
+    let result: Result<(), RawCallError> = contract_test(env, || {
         panic!("Just panic");
     });
 
     match &result {
-        Err(CallError::Fault(_)) => {
+        Err(RawCallError::Fault(_)) => {
             println!("OK: faulted as expected")
         }
         r => {

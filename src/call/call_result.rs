@@ -39,13 +39,20 @@ where
         }
         Err(ContractError::Abort(abort_buf)) => {
             let bytes = abort_buf.as_slice();
-            if bytes.len() < 8 {
+            if bytes.is_empty() {
                 library_abort(CallingError::DecodingAbort(
                     FaultString::from_display("abort buffer too short for selector")))
             }
 
-            let selector = u64::from_be_bytes(bytes[..8].try_into().unwrap());
-            let payload_bytes = &bytes[8..];
+            // The abort buffer is CXS-encoded: (u64_selector, payload...).
+            // Decode the selector using a CXS reader so we consume the
+            // correct number of bytes (CXS uses variable-length integer encoding).
+            let mut reader = cxs::buf_reader::BufReader::new(bytes);
+            let selector: u64 = ReadXDR::read_xdr(&mut reader)
+                .unwrap_or_else(|_|
+                    library_abort(CallingError::DecodingAbort(
+                        FaultString::from_display("failed to decode selector from abort buffer"))));
+            let payload_bytes = &bytes[reader.position()..];
 
             let mut payload = heapless::Vec::new();
             payload.extend_from_slice(payload_bytes).ok();

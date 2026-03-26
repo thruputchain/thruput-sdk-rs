@@ -2,10 +2,41 @@
 
 #![allow(unused)]
 
-use sdk::call::*;
+use sdk::call::RawCallError;
+use sdk::exn::{Exn, LibraryExn};
 use sdk::internal::nnint::*;
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
+
+/// Helper: decode a LibraryExn from an abort payload (which may have trailing
+/// debug info when the `debugging` feature is active).
+fn decode_library_exn(payload: &[u8]) -> LibraryExn {
+    use sdk::ReadXDR;
+    let mut reader = xdrs::cxs::buf_reader::BufReader::new(payload);
+    ReadXDR::read_xdr(&mut reader)
+        .expect("Failed to decode LibraryExn from abort payload")
+}
+
+/// Helper: assert that a RawCallError is an Abort whose payload decodes to a
+/// LibraryExn::Syscall matching the given syscall number and error code.
+fn assert_syscall_abort(
+    res: &Result<(), RawCallError>,
+    callno: SyscallNo,
+    errno: SyscallErrorCode,
+) {
+    match res {
+        Err(RawCallError::Abort { selector, payload }) if *selector == LibraryExn::SELECTOR => {
+            let lib = decode_library_exn(payload.as_slice());
+            match &lib {
+                LibraryExn::Syscall(se) if se.is(callno, errno) => {
+                    println!("OK: {:?}", lib)
+                }
+                _ => panic!("Expected Syscall({:?}, {:?}), got: {:?}", callno, errno, lib),
+            }
+        }
+        _ => panic!("Unexpected result: {:?}", res),
+    }
+}
 
 #[rustfmt::skip]
 contract_test!(test_internal_nnints {
@@ -74,7 +105,7 @@ contract_test!(test_internal_nnints {
 });
 
 #[test]
-// Get (not forcing) on a never-before-set location succeeds.
+// Get (without forcing) on a never-before-set location returns "add" == zero
 fn get_on_empty_succeeds() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         get_values(&StorageKey::default());
@@ -107,17 +138,11 @@ fn force_get_on_empty_fails() {
         get_values_force(&StorageKey::default());
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_abort(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+    );
 }
 
 #[test]
@@ -130,17 +155,11 @@ fn force_get_on_wrong_type_fails() {
         get_values_force(&key);
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_abort(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 #[test]
@@ -152,17 +171,11 @@ fn set_add_negative_sum_fails() {
         set_add(&StorageKey::default(), Some(set), add)
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntSetAdd,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_abort(
+        &res,
+        SyscallNo::kNonnegativeIntSetAdd,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 // XXX: In the `should_panic` tests below, the expected panic sometimes has the

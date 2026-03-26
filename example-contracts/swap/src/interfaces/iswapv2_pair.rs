@@ -4,7 +4,7 @@ use thiserror::Error;
 
 pub use crate::bignum::{U112, U256};
 
-#[derive(Error, Debug, PartialEq, Clone, ReadXDR, WriteXDR)]
+#[derive(Error, Debug, PartialEq, Clone, ReadXDR, WriteXDR, Exn)]
 #[non_exhaustive]
 #[repr(i32)]
 pub enum ISwapV2PairError {

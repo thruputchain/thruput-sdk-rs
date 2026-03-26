@@ -9,6 +9,18 @@ where
     cxs::decode(bytes)
 }
 
+/// Like `contract_call_decode`, but tolerates trailing bytes after the
+/// decoded value.  Used for decoding error payloads which may carry
+/// additional debugging information (location, backtrace) appended by
+/// `serialize_error` when the `debugging` feature is active.
+pub fn contract_call_decode_prefix<'b, T>(bytes: &'b [u8]) -> Result<T, ReadError>
+where
+    T: ReadXDR<'b>,
+{
+    let mut reader = cxs::buf_reader::BufReader::new(bytes);
+    ReadXDR::read_xdr(&mut reader)
+}
+
 pub type EncodeBuf = heapless::Vec<u8, 500>;
 
 /// CXS-encode a value into a stack-allocated buffer

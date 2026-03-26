@@ -1,7 +1,7 @@
 use sdk::*;
 use thiserror::Error;
 
-#[derive(WriteXDR, ReadXDR, Copy, Clone, Debug, PartialEq, Error)]
+#[derive(WriteXDR, ReadXDR, Copy, Clone, Debug, PartialEq, Error, Exn)]
 #[error("MyErr")]
 pub struct MyErr;
 

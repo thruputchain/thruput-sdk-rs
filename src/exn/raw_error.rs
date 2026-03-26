@@ -1,4 +1,4 @@
-use crate::call::internal::contract_call_decode;
+use crate::call::internal::contract_call_decode_prefix;
 use crate::exn::Exn;
 use core::fmt::{self, Debug};
 
@@ -25,7 +25,7 @@ impl RawError {
 
     pub fn try_as<T: Exn>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
-            contract_call_decode(&self.payload).ok()
+            contract_call_decode_prefix(&self.payload).ok()
         } else {
             None
         }

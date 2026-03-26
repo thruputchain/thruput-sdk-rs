@@ -280,7 +280,7 @@ fn generate_selector_dispatch(
         .map(|ident| {
             quote! {
                 <#ident as ::sdk::exn::Exn>::SELECTOR => {
-                    let err = ::sdk::call::internal::contract_call_decode(payload)
+                    let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
                         .unwrap_or_else(|e|
                             ::sdk::exn::library_abort(
                                 ::sdk::exn::CallingError::DecodingAbort(
@@ -295,7 +295,7 @@ fn generate_selector_dispatch(
         match selector {
             #(#declared_arms)*
             <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                let err = ::sdk::call::internal::contract_call_decode(payload)
+                let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
                     .unwrap_or_else(|e|
                         ::sdk::exn::library_abort(
                             ::sdk::exn::CallingError::DecodingAbort(

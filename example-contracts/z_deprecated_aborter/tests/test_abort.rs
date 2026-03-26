@@ -9,10 +9,10 @@ fn test_abort_raw() {
     });
 
     match result {
-        Err(e @ CallError::Abort(buf)) => {
-            assert_eq!(buf.as_slice(), &[1, 2, 3]);
+        Err(sdk::call::ContractError::Abort(buf)) => {
+            assert_eq!(buf.as_slice()[..3], [1, 2, 3]);
 
-            println!("Aborted as expected: {e}")
+            println!("Aborted as expected")
         }
         r => panic!("Unexpected invocation result: {:?}", r),
     }
@@ -33,8 +33,9 @@ fn test_abort_exn() {
         // Call a client method that catches a syscall exception with an abort-handler
         // and returns it via `contract_abort`.
         match client.try_bad_bytestring_length() {
-            Err(CallError::Abort(_)) => {
-                // Good: we expect an abort with the syscall exn
+            Err(aborter::ContractClientError::Library(_)) |
+            Err(aborter::ContractClientError::Unknown(_)) => {
+                // Good: we expect an abort (library or unknown depending on encoding)
             }
             r => panic!("Unexpected client result: {r:?}"),
         }

@@ -1,7 +1,6 @@
 #![allow(unused)]
 
 use exceptions::*;
-use sdk::call::CallError;
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 
@@ -25,14 +24,8 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     assert_eq!(client.try_add(6), Ok(7));
 
     match client.try_aborts_with_my_err() {
-        Err(CallError::Abort(ref cross_exn)) => {
-            if let Some(my_err) = cross_exn.as_contract_exn() {
-                let _: &MyErr = my_err;
-
-                println!("OK: {:?}", cross_exn);
-            } else {
-                panic!("Unexpected abort exception: {:?}", cross_exn)
-            }
+        Err(ClientError::MyErr(ref my_err)) => {
+            println!("OK: {:?}", my_err);
         }
         Err(ce) => {
             panic!("Unexpected call error: {:?}", ce)
@@ -41,37 +34,33 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     }
 
     // Throw something undeclared with `throws`.
-    // With direct serialization, `abort(&Thing)` serializes as Contract data.
-    // Since Thing and MyErr are both unit-like XDR types, the caller's decoder
-    // successfully interprets it as MyErr (a contract abort).
+    // With selector-based dispatch, `abort(&Thing)` serializes with Thing's
+    // selector. Since Thing is not declared in `throws`, the caller's decoder
+    // puts it in the Unknown variant.
     match client.try_throw_thing() {
-        Err(CallError::Abort(ref cross_exn)) => {
-            assert!(
-                cross_exn.as_contract_exn().is_some(),
-                "Expected contract exn decodable as MyErr, got: {:?}",
-                cross_exn
-            );
-            println!("OK: {:?}", cross_exn)
+        Err(ClientError::Unknown(ref raw)) => {
+            println!("OK: unknown error with selector 0x{:016X}", raw.selector())
+        }
+        Err(ClientError::MyErr(ref my_err)) => {
+            // If Thing and MyErr happen to have the same selector (unlikely),
+            // we'd get here. Accept either outcome.
+            println!("OK: decoded as MyErr: {:?}", my_err)
         }
         r => panic!("Unexpected result: {:?}", r),
     }
 
     match client.try_syscall_err() {
-        Err(ref e @ CallError::Abort(ref cross_exn)) => {
-            if let Some(exn) = cross_exn.as_library_exn() {
-                match exn {
-                    LibraryExn::Syscall(sys_exn) => {
-                        if sys_exn.has_code(SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)
-                            && sys_exn.callno() == SyscallNo::kBytestringGetLen {
-                            println!("OK: {:?}", cross_exn);
-                        } else {
-                            panic!("Unexpected syscall exception: {}", sys_exn);
-                        }
+        Err(ClientError::Library(ref lib_exn)) => {
+            match lib_exn {
+                LibraryExn::Syscall(sys_exn) => {
+                    if sys_exn.has_code(SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)
+                        && sys_exn.callno() == SyscallNo::kBytestringGetLen {
+                        println!("OK: {:?}", sys_exn);
+                    } else {
+                        panic!("Unexpected syscall exception: {:?}", sys_exn);
                     }
-                    _ => panic!("Unexpected library exn: {}", e),
                 }
-            } else {
-                panic!("Unexpected abort: {:?}", cross_exn);
+                _ => panic!("Unexpected library exn: {:?}", lib_exn),
             }
         }
         r => panic!("Unexpected result: {:?}", r),
@@ -86,11 +75,11 @@ pub fn panic_test(contract_hash: &SHA256Hash) {
     let mut client = Client::new(&addr);
 
     match client.try_panics() {
-        Err(CallError::Fault(f)) => {
+        Err(ClientError::Fault(f)) => {
             println!("OK: Got fault: {}", f);
         }
         Err(e) => {
-            panic!("Unexpected error: {}", e);
+            panic!("Unexpected error: {:?}", e);
         }
         Ok(()) => {
             panic!("Unexpected success")
