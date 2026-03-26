@@ -261,6 +261,13 @@ fn generate_error_enum(
         .map(|ident| quote! { #ident(#ident) })
         .collect();
 
+    let display_declared_arms: Vec<TokenStream> = throws_list
+        .iter()
+        .map(|ident| {
+            quote! { Self::#ident(e) => ::core::write!(f, "{}", e) }
+        })
+        .collect();
+
     quote! {
         #[derive(Debug, PartialEq)]
         pub enum #error_enum_ident {
@@ -268,6 +275,17 @@ fn generate_error_enum(
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
             Unknown(::sdk::exn::RawError),
+        }
+
+        impl ::core::fmt::Display for #error_enum_ident {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                match self {
+                    #(#display_declared_arms,)*
+                    Self::Library(e) => ::core::write!(f, "{:?}", e),
+                    Self::Fault(e) => ::core::write!(f, "{}", e),
+                    Self::Unknown(e) => ::core::write!(f, "{:?}", e),
+                }
+            }
         }
     }
 }
