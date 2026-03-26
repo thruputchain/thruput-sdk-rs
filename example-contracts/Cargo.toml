@@ -23,6 +23,7 @@ members = [
     "codegen_impl_noclient",
     "codegen_impl_client",
     "storage_errors",
+    "multi_throws",
 ]
 
 [workspace.package]
