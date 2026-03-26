@@ -264,7 +264,7 @@ fn generate_error_enum(
     let display_declared_arms: Vec<TokenStream> = throws_list
         .iter()
         .map(|ident| {
-            quote! { Self::#ident(e) => ::core::write!(f, "{}", e) }
+            quote! { Self::#ident(e) => ::core::write!(f, "{:?}", e) }
         })
         .collect();
 
@@ -277,6 +277,7 @@ fn generate_error_enum(
             Unknown(::sdk::exn::RawError),
         }
 
+        #[cfg(feature = "dev")]
         impl ::core::fmt::Display for #error_enum_ident {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 match self {

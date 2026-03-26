@@ -4,10 +4,14 @@ use syn::Item;
 
 /// Expand `#[contract_error]` into the full derive set + `#[repr(i32)]`.
 ///
-/// Always derives: `Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error, Exn`
-/// Always adds: `#[repr(i32)]`
+/// With `feature = "dev"` (in the consuming crate):
+///   - Derives `thiserror::Error` for Display/Error impls
+///   - Keeps `#[error("...")]` attributes on variants
 ///
-/// Users write `#[error("...")]` on variants as normal.
+/// Without `dev`:
+///   - Does NOT derive `thiserror::Error`
+///   - Strips `#[error("...")]` attributes so they don't cause errors
+///   - Error strings are completely absent from the wasm binary
 pub fn expand(item: Item) -> TokenStream {
     let item = match item {
         Item::Enum(e) => e,
@@ -27,9 +31,27 @@ pub fn expand(item: Item) -> TokenStream {
         }
     };
 
+    let mut item_stripped = item.clone();
+    strip_error_attrs(&mut item_stripped);
+
     quote! {
+        #[cfg(feature = "dev")]
         #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error, Exn)]
         #[repr(i32)]
         #item
+
+        #[cfg(not(feature = "dev"))]
+        #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, Exn)]
+        #[repr(i32)]
+        #item_stripped
+    }
+}
+
+/// Remove all `#[error(...)]` attributes from an enum's variants.
+fn strip_error_attrs(item: &mut syn::ItemEnum) {
+    for variant in &mut item.variants {
+        variant
+            .attrs
+            .retain(|attr| !attr.path().is_ident("error"));
     }
 }
