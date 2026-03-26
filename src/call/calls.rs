@@ -1,6 +1,6 @@
 //! Making contract calls
 
-use super::call_result::*;
+use super::call_result::{into_raw_call_result, RawCallError, *};
 use super::contract_result::*;
 use super::internal::contract_call_encode;
 use crate::contract::ContractEntrypointID;
@@ -62,6 +62,34 @@ where
 
     // Decode result
     into_call_result(contract_result)
+}
+
+pub fn try_call_raw<ARGS, RET>(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &ARGS,
+) -> Result<RET, RawCallError>
+where
+    ARGS: WriteXDR,
+    RET: ReadXDROwned,
+{
+    let args_buf = contract_call_encode(args)
+        .unwrap_or_else(|e| {
+            library_abort(CallingError::EncodingArgs(
+                FaultString::from_display(e),
+            ))
+        });
+
+    let contract_result =
+        match contract_call(address, entrypoint, gas_limit, &args_buf) {
+            Ok(result) => result,
+            Err(syserr) => {
+                return Err(RawCallError::Fault(FaultString::from_display(syserr)));
+            }
+        };
+
+    into_raw_call_result(contract_result)
 }
 
 #[inline(never)]
