@@ -10,8 +10,11 @@ pub fn derive(input: DeriveInput) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
 
+    // Always emit ::sdk::exn::Exn — resolves in external crates because
+    // they depend on `sdk`, and inside the sdk crate itself because of
+    // `extern crate self as sdk;` in sdk's lib.rs. (Same pattern as serde.)
     quote::quote! {
-        impl #impl_generics ::groundhog_exn::Exn for #name #ty_generics #where_clause {
+        impl #impl_generics ::sdk::exn::Exn for #name #ty_generics #where_clause {
             const SELECTOR: u64 = #selector;
         }
     }

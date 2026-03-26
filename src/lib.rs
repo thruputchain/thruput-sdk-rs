@@ -11,6 +11,10 @@ compile_error!("Feature 'std' cannot be enabled when targetting wasm");
 #[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
 compile_error!("Feature 'std' is required when compiling natively");
 
+// Allow `#[derive(Exn)]` to emit `::sdk::exn::Exn` and have it resolve
+// inside this crate itself. (Same pattern as serde.)
+extern crate self as sdk;
+
 #[cfg(feature = "std")]
 extern crate std;
 
