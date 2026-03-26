@@ -32,6 +32,9 @@ impl Exn for core::convert::Infallible {
     const SELECTOR: u64 = 0;
 }
 
+mod raw_error;
+pub use raw_error::*;
+
 pub use cross_exn::*;
 pub use exn_impl::*;
 pub use fault::*;
