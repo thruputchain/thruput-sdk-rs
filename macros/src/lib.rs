@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
 mod contract;
+mod derive_exn;
 mod static_hash;
 
 #[cfg(feature = "storage")]
@@ -67,4 +68,10 @@ pub fn storage(
         #item
     }
     .into()
+}
+
+#[proc_macro_derive(Exn)]
+pub fn derive_exn(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    derive_exn::derive(input)
 }
