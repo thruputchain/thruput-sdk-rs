@@ -78,8 +78,10 @@ impl LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
-    let exn: LibraryExn = e.into();
-    crate::exn::cross_exn::serialize_library_error(&exn)
+    let exn: crate::CrossExn<core::convert::Infallible> =
+        crate::library_exn(e);
+
+    crate::contract_abort_encoded(&exn)
 }
 
 /// Abort the contract because a syscall produced an error.

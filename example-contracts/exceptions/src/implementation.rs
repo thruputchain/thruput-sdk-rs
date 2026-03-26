@@ -1,11 +1,11 @@
-use super::{Interface, MyErr};
+use super::{Interface, MyExn};
 use sdk::*;
 use thiserror::Error;
 
 #[derive(Default)]
 pub struct Contract;
 
-#[derive(Debug, Error, WriteXDR)]
+#[derive(Debug, PartialEq, Error, WriteXDR, ReadXDR)]
 #[error("Thing")]
 struct Thing;
 
@@ -17,8 +17,8 @@ impl Interface for Contract {
         n + 1
     }
 
-    fn aborts_with_my_err() -> u32 {
-        abort(&MyErr);
+    fn throws_my_exn() -> u32 {
+        throw(MyExn);
     }
 
     fn panics() {
@@ -31,6 +31,6 @@ impl Interface for Contract {
     }
 
     fn throw_thing() {
-        abort(&Thing);
+        throw(Thing);
     }
 }

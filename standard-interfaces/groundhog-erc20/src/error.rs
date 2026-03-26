@@ -1,4 +1,4 @@
-use sdk::{ReadXDR, WriteXDR, abort};
+use sdk::{ReadXDR, WriteXDR, throw};
 use thiserror::Error;
 
 pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
@@ -25,6 +25,5 @@ pub enum ERC20Error {
 }
 
 pub fn amount_to_diff(n: u128) -> i128 {
-    n.try_into()
-        .unwrap_or_else(|_| abort(&ERC20Error::TooLarge))
+    n.try_into().unwrap_or_else(|_| throw(ERC20Error::TooLarge))
 }

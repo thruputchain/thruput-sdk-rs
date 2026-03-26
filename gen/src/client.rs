@@ -214,7 +214,7 @@ fn generate_client_fn(
                     .unwrap_or_else(|e: ::sdk::call::CallError<#error_type>| {
                         let exn = ::sdk::CrossExn::<#error_type>::from_call_err(e);
 
-                        ::sdk::abort(&exn)
+                        ::sdk::contract_abort_encoded(&exn)
                     })
             })
         }

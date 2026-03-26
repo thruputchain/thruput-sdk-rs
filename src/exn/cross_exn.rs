@@ -180,6 +180,24 @@ where
             .map(|e| e.is(call_no, err_code))
             .unwrap_or(false)
     }
+
+    #[cfg(feature = "debugging")]
+    #[track_caller]
+    fn from_inner(exn: Inner<E>) -> Self {
+        let location = Some(format(Location::caller()));
+        let backtrace = Some(format(&::abort::Backtrace::capture()));
+
+        Self {
+            exn,
+            location,
+            backtrace,
+        }
+    }
+
+    #[cfg(not(feature = "debugging"))]
+    fn from_inner(exn: Inner<E>) -> Self {
+        Self { exn }
+    }
 }
 
 #[cfg(feature = "debugging")]
@@ -203,176 +221,24 @@ where
     E: Exn,
 {
     #[cfg_attr(feature = "debugging", error(transparent))]
-    Contract(E) = INNER_CONTRACT,
+    Contract(E) = 0,
 
     #[cfg_attr(feature = "debugging", error(transparent))]
-    Library(LibraryExn) = INNER_LIBRARY,
+    Library(LibraryExn) = 1,
 
     #[cfg_attr(feature = "debugging", error("Unknown error"))]
-    Unknown = INNER_UNKNOWN,
-}
-
-// Discriminant constants for Inner's repr(i32) variants.
-const INNER_CONTRACT: i32 = 0;
-const INNER_LIBRARY: i32 = 1;
-const INNER_UNKNOWN: i32 = 2;
-
-// --- Direct serialization functions ---
-//
-// These serialize errors directly into the CrossExn wire format and call
-// contract_abort.
-
-#[cfg(not(feature = "debugging"))]
-pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
-    use crate::call::internal::contract_call_encode;
-
-    let buf = contract_call_encode(&(INNER_CONTRACT, err))
-        .unwrap_or_else(|e| super::encoding_abort_abort(e));
-
-    crate::contract_abort(buf.as_ref());
-}
-
-#[cfg(not(feature = "debugging"))]
-pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
-    use crate::call::internal::contract_call_encode;
-
-    let buf = contract_call_encode(&(INNER_LIBRARY, err))
-        .unwrap_or_else(|e| super::encoding_abort_abort(e));
-
-    crate::contract_abort(buf.as_ref());
+    Unknown = 2,
 }
 
 #[cfg(feature = "debugging")]
-#[track_caller]
-pub(crate) fn serialize_contract_error(err: &impl WriteXDR) -> ! {
-    use crate::call::internal::contract_call_encode;
-    use core::panic::Location;
+use core::panic::Location;
 
-    let location: Option<LocationString> = Some(format(Location::caller()));
-    let backtrace: Option<BacktraceString> =
-        Some(format(&::abort::Backtrace::capture()));
-
-    let buf =
-        contract_call_encode(&(INNER_CONTRACT, err, &location, &backtrace))
-            .unwrap_or_else(|e| super::encoding_abort_abort(e));
-
-    crate::contract_abort(buf.as_ref());
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn contract_exn<E: Exn>(exn: E) -> CrossExn<E> {
+    CrossExn::from_inner(Inner::Contract(exn))
 }
 
-#[cfg(feature = "debugging")]
-#[track_caller]
-pub(crate) fn serialize_library_error(err: &LibraryExn) -> ! {
-    use crate::call::internal::contract_call_encode;
-    use core::panic::Location;
-
-    let location: Option<LocationString> = Some(format(Location::caller()));
-    let backtrace: Option<BacktraceString> =
-        Some(format(&::abort::Backtrace::capture()));
-
-    let buf =
-        contract_call_encode(&(INNER_LIBRARY, err, &location, &backtrace))
-            .unwrap_or_else(|e| super::encoding_abort_abort(e));
-
-    crate::contract_abort(buf.as_ref());
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::call::internal::contract_call_encode;
-    use crate::exn::library::SyscallExn;
-    use crate::sys::{SysErr, SyscallNo};
-
-    /// Verify that the manual encoding used by serialize_abort produces
-    /// the same wire format as the derive(WriteXDR) on Inner/CrossExn.
-    // A contract-level exception type for testing the Contract variant
-    #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error)]
-    #[repr(i32)]
-    enum TestExn {
-        #[error("boom")]
-        Boom = 1,
-    }
-
-    #[test]
-    fn serialize_abort_matches_derive_for_contract_exn() {
-        let exn = TestExn::Boom;
-
-        let derived = {
-            let inner = Inner::<TestExn>::Contract(exn.clone());
-            cxs::encode(&inner).unwrap()
-        };
-
-        let manual = contract_call_encode(&(INNER_CONTRACT, &exn)).unwrap();
-
-        assert_eq!(derived, &manual[..]);
-    }
-
-    #[test]
-    fn serialize_abort_matches_derive_for_library_exn() {
-        let exn = LibraryExn::NonNegativeIntOverflow;
-
-        // Derive path: construct an Inner and encode it
-        let derived = {
-            let inner = Inner::<Infallible>::Library(exn.clone());
-            cxs::encode(&inner).unwrap()
-        };
-
-        // Manual path: encode (discriminant, payload) tuple
-        let manual = contract_call_encode(&(INNER_LIBRARY, &exn)).unwrap();
-
-        assert_eq!(derived, &manual[..]);
-    }
-
-    #[test]
-    fn serialize_abort_matches_derive_for_syscall_exn() {
-        let exn = LibraryExn::Syscall(SyscallExn::new(
-            SyscallNo::kBytestringGet,
-            SysErr(42),
-        ));
-
-        let derived = {
-            let inner = Inner::<Infallible>::Library(exn.clone());
-            cxs::encode(&inner).unwrap()
-        };
-
-        let manual = contract_call_encode(&(INNER_LIBRARY, &exn)).unwrap();
-
-        assert_eq!(derived, &manual[..]);
-    }
-
-    #[test]
-    fn serialize_abort_matches_derive_for_unknown() {
-        let derived = {
-            let inner = Inner::<Infallible>::Unknown;
-            cxs::encode(&inner).unwrap()
-        };
-
-        let manual = contract_call_encode(&INNER_UNKNOWN).unwrap();
-
-        assert_eq!(derived, &manual[..]);
-    }
-
-    #[test]
-    fn inner_roundtrip_library() {
-        // Encode a LibraryExn via the manual path
-        let exn = LibraryExn::NonNegativeIntUnderflow;
-        let bytes = contract_call_encode(&(INNER_LIBRARY, &exn)).unwrap();
-
-        // Decode as Inner (what serialize_abort writes)
-        let decoded: Inner<Infallible> = cxs::decode(&bytes[..]).unwrap();
-
-        assert_eq!(
-            decoded,
-            Inner::Library(LibraryExn::NonNegativeIntUnderflow)
-        );
-    }
-
-    #[test]
-    fn inner_roundtrip_unknown() {
-        let bytes = contract_call_encode(&INNER_UNKNOWN).unwrap();
-
-        let decoded: Inner<Infallible> = cxs::decode(&bytes[..]).unwrap();
-
-        assert_eq!(decoded, Inner::Unknown);
-    }
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn library_exn<E: Into<LibraryExn>>(e: E) -> CrossExn<Infallible> {
+    CrossExn::from_inner(Inner::Library(e.into()))
 }
