@@ -12,6 +12,7 @@ pub trait OrReThrow<T> {
 }
 
 impl<T, E: ReThrow> OrReThrow<T> for Result<T, E> {
+    #[cfg_attr(feature = "dev", track_caller)]
     fn or_re_throw(self) -> T {
         match self {
             Ok(v) => v,
