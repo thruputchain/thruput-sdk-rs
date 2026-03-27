@@ -12,7 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-dev = ["sdk/dev"]
+dev = ["sdk/dev", "dep:thiserror"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -21,8 +21,8 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true, optional = true }
 
 [dev-dependencies]
 counter = { path = ".", features = ["dev"] }

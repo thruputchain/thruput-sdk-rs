@@ -11,13 +11,13 @@ test = false # suppress output from our zero unit-tests
 [dependencies]
 xdrs = { workspace = true }
 sdk = { workspace = true, features = ["storage"] }
-thiserror = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 erc20 = { path = "../erc20" }
 uint = { version = "0.10.0", default-features = false }
+thiserror = { workspace = true, optional = true }
 
 [features]
-dev = ["sdk/dev", "erc20/dev"]
+dev = ["sdk/dev", "erc20/dev", "dep:thiserror"]
 
 [dev-dependencies]
 swap = { path = ".", features = ["dev"] }
