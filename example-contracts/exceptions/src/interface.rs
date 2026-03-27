@@ -1,8 +1,6 @@
 use sdk::*;
 
 #[contract_error]
-#[cfg_attr(feature = "dev", derive(thiserror::Error))]
-#[cfg_attr(feature = "dev", error("My exception"))]
 pub struct MyExn;
 
 #[contract(client = Client, throws = MyExn)]

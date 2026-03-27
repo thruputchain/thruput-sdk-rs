@@ -2,9 +2,7 @@ use sdk::storage::NNInt;
 use sdk::*;
 
 #[contract_error]
-#[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum Error {
-    #[cfg_attr(feature = "dev", error("Not authorized"))]
     NotAuthorized = 1,
 }
 
