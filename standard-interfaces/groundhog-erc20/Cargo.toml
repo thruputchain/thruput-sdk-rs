@@ -9,7 +9,7 @@ description = "ERC20 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
-dev = ["sdk/dev"]
+dev = ["sdk/dev", "dep:thiserror"]
 spec = ["sdk/spec"]
 # Needs storage feature for error conversion from StorageError
 storage = ["sdk/storage"]
@@ -17,7 +17,7 @@ storage = ["sdk/storage"]
 [dependencies]
 sdk = { path = "../..", registry = "groundhog", version = "=0.7.1" }
 xdrs = { workspace = true, features = ["derive", "int128"] }
-thiserror = { workspace = true }
+thiserror = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 
 [dev-dependencies]
