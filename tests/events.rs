@@ -302,10 +302,7 @@ fn test_field_order_does_not_affect_serialization() {
     if res.output.status_code()
         != sdk::types::transaction::InvocationFrameStatusCode::Return
     {
-        panic!(
-            "Invocation failed with code {}",
-            res.output.status_code()
-        );
+        panic!("Invocation failed with code {}", res.output.status_code());
     }
 
     match handler.try_commit_transaction() {
@@ -322,6 +319,110 @@ fn test_field_order_does_not_affect_serialization() {
 
     // Topic 0 differs (it's the struct name hash), so compare
     // topics 1..N and payload — those must be identical.
+    fn after_sig(e: &TxEmittedEvent) -> &[u8] {
+        &e.serialized_event[32..]
+    }
+
+    assert_eq!(
+        after_sig(&events[0]),
+        after_sig(&events[1]),
+        "interleaved field order changed serialization"
+    );
+    assert_eq!(
+        after_sig(&events[0]),
+        after_sig(&events[2]),
+        "reversed field order changed serialization"
+    );
+}
+
+//-------------------------------------------------------------------------
+// Tests using the fluent MockTransactionHandler API
+
+const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
+
+#[test]
+fn test_derived_event_fluent_api() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            let payer = ContractAddress::default();
+            let payee = ContractAddress::default();
+            log_event(&DerivedEvent {
+                payer: &payer,
+                payee: &payee,
+                amount: 42,
+                memo: b"hello",
+            });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(1);
+
+    // Check topics via raw event inspection
+    result.assert_event(0, |e| {
+        assert_eq!(e.num_topics, 3);
+
+        let emitted = EmittedEvent::from(e);
+        assert_eq!(emitted.topic(0).unwrap(), DerivedEvent::SIGNATURE);
+        assert_eq!(emitted.topic(1).unwrap(), &*ContractAddress::default());
+        assert_eq!(emitted.topic(2).unwrap(), &*ContractAddress::default());
+    });
+
+    // Check payload via borrowed decoding
+    #[derive(Debug, PartialEq, ReadXDR)]
+    struct Payload<'a> {
+        amount: u128,
+        memo: &'a [u8],
+    }
+
+    let payload = event_payload(&result.events()[0]);
+    let decoded: Payload = decode_xdr(payload).unwrap();
+    assert_eq!(decoded.amount, 42);
+    assert_eq!(decoded.memo, b"hello");
+}
+
+#[test]
+fn test_field_order_fluent_api() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            let from = ContractAddress::default();
+            let to = ContractAddress::default();
+
+            log_event(&FieldOrderA {
+                from: &from,
+                to: &to,
+                amount: 42,
+                memo: b"hello",
+            });
+            log_event(&FieldOrderB {
+                from: &from,
+                amount: 42,
+                to: &to,
+                memo: b"hello",
+            });
+            log_event(&FieldOrderC {
+                amount: 42,
+                memo: b"hello",
+                from: &from,
+                to: &to,
+            });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(3);
+
+    let events = result.events();
+
+    // All three have the same number of topics
+    assert_eq!(events[0].num_topics, events[1].num_topics);
+    assert_eq!(events[0].num_topics, events[2].num_topics);
+
+    // Topics 1..N and payload are identical (topic 0 differs by struct name)
     fn after_sig(e: &TxEmittedEvent) -> &[u8] {
         &e.serialized_event[32..]
     }
