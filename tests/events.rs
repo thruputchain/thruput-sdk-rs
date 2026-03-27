@@ -384,17 +384,29 @@ fn test_derived_event_fluent_api() {
         assert_eq!(emitted.topic(2).unwrap(), &*ContractAddress::default());
     });
 
-    // Check payload via borrowed decoding
-    #[derive(Debug, PartialEq, ReadXDR)]
-    struct Payload<'a> {
-        amount: u128,
-        memo: &'a [u8],
-    }
+    // Check payload via the generated Payload type
+    result.assert_event_payload::<DerivedEvent>(0, |p| {
+        assert_eq!(p.amount, 42);
+        assert_eq!(p.memo, b"hello");
+    });
+}
 
-    let payload = event_payload(&result.events()[0]);
-    let decoded: Payload = decode_xdr(payload).unwrap();
-    assert_eq!(decoded.amount, 42);
-    assert_eq!(decoded.memo, b"hello");
+#[test]
+fn test_simple_event_payload_decoding() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&SimpleEvent { value: 99 });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(1);
+
+    result.assert_event_payload::<SimpleEvent>(0, |p| {
+        assert_eq!(p.value, 99);
+    });
 }
 
 #[test]
