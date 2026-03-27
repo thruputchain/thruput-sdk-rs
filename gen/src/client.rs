@@ -56,6 +56,7 @@ pub fn generate(
             use ::sdk::contract::ContractEntrypointID;
             use ::sdk::with_call_tracking;
             use ::sdk::internal::CallMethod;
+            use ::sdk::re_throw::OrReThrow;
 
             impl #client_ident {
                 pub fn new(address: &ContractAddress) -> Self {
@@ -216,15 +217,8 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                match ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args) {
-                    Ok(val) => val,
-                    Err(::sdk::call::RawCallError::Exception(ref exn)) => {
-                        exn.re_throw()
-                    }
-                    Err(::sdk::call::RawCallError::Fault(f)) => {
-                        panic!("{}", f)
-                    }
-                }
+                ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args)
+                    .or_re_throw()
             })
         }
 
@@ -287,6 +281,13 @@ fn generate_error_enum(
         })
         .collect();
 
+    let rethrow_declared_arms: Vec<TokenStream> = throws_list
+        .iter()
+        .map(|ident| {
+            quote! { Self::#ident(e) => ::sdk::throw(e) }
+        })
+        .collect();
+
     quote! {
         #[derive(Debug, PartialEq)]
         pub enum #error_enum_ident {
@@ -305,6 +306,17 @@ fn generate_error_enum(
                     Self::Library(e) => ::core::write!(f, "{}", e),
                     Self::Fault(e) => ::core::write!(f, "{}", e),
                     Self::Unknown(e) => ::core::write!(f, "{:?}", e),
+                }
+            }
+        }
+
+        impl ::sdk::re_throw::ReThrow for #error_enum_ident {
+            fn re_throw(self) -> ! {
+                match self {
+                    #(#rethrow_declared_arms,)*
+                    Self::Library(e) => ::sdk::throw(e),
+                    Self::Unknown(raw) => ::sdk::re_throw::ReThrow::re_throw(raw),
+                    Self::Fault(f) => panic!("{f}"),
                 }
             }
         }
