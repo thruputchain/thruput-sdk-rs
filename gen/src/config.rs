@@ -4,6 +4,60 @@ use darling::FromMeta;
 use darling::util::Flag;
 use proc_macro2::Span;
 
+#[derive(Clone, Debug)]
+pub struct ThrowsList(Vec<syn::Ident>);
+
+impl FromMeta for ThrowsList {
+    fn from_value(value: &syn::Lit) -> darling::Result<Self> {
+        Err(darling::Error::unexpected_lit_type(value))
+    }
+
+    fn from_word() -> darling::Result<Self> {
+        Err(darling::Error::unsupported_format("word"))
+    }
+
+    fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
+        match expr {
+            syn::Expr::Path(ep) if ep.path.get_ident().is_some() => {
+                let ident = ep.path.get_ident().unwrap().clone();
+                Ok(ThrowsList(vec![ident]))
+            }
+            _ => Err(darling::Error::custom(
+                "throws expects an identifier or list of identifiers",
+            )),
+        }
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let mut idents = Vec::new();
+        for item in items {
+            match item {
+                darling::ast::NestedMeta::Meta(syn::Meta::Path(path)) => {
+                    if let Some(ident) = path.get_ident() {
+                        idents.push(ident.clone());
+                    } else {
+                        return Err(darling::Error::custom(
+                            "throws expects simple identifiers, not paths",
+                        )
+                        .with_span(path));
+                    }
+                }
+                _ => {
+                    return Err(darling::Error::custom(
+                        "throws expects identifiers",
+                    ));
+                }
+            }
+        }
+        if idents.is_empty() {
+            return Err(darling::Error::custom(
+                "throws() requires at least one type",
+            ));
+        }
+        Ok(ThrowsList(idents))
+    }
+}
+
 #[derive(Clone, Debug, FromMeta)]
 pub struct Config {
     pub exports: Option<String>,
@@ -15,7 +69,7 @@ pub struct Config {
     pub doc: Option<String>,
 
     client: Option<syn::Ident>,
-    throws: Option<syn::Ident>,
+    throws: Option<ThrowsList>,
 }
 
 impl Config {
@@ -51,8 +105,17 @@ impl Config {
         self.storage.unwrap_or(true)
     }
 
+    /// Returns the list of thrown error types (empty if none declared).
+    pub fn throws_list(&self) -> Vec<&syn::Ident> {
+        match &self.throws {
+            Some(ThrowsList(idents)) => idents.iter().collect(),
+            None => vec![],
+        }
+    }
+
+    /// Returns the first thrown error type (backwards compat).
     pub fn throws(&self) -> Option<&syn::Ident> {
-        self.throws.as_ref()
+        self.throws.as_ref().and_then(|t| t.0.first())
     }
 }
 
@@ -140,5 +203,39 @@ mod tests {
     #[test]
     fn storage_explicit_false() {
         assert!(!parse_config(r#"storage = false"#).storage());
+    }
+
+    // -- throws --
+
+    #[test]
+    fn throws_single_ident() {
+        let config = parse_config(r#"throws = MyError"#);
+        let throws = config.throws_list();
+        assert_eq!(throws.len(), 1);
+        assert_eq!(throws[0].to_string(), "MyError");
+    }
+
+    #[test]
+    fn throws_list_syntax() {
+        let config = parse_config(r#"throws(SwapError, ERC20Error)"#);
+        let throws = config.throws_list();
+        assert_eq!(throws.len(), 2);
+        assert_eq!(throws[0].to_string(), "SwapError");
+        assert_eq!(throws[1].to_string(), "ERC20Error");
+    }
+
+    #[test]
+    fn throws_list_single() {
+        let config = parse_config(r#"throws(SwapError)"#);
+        let throws = config.throws_list();
+        assert_eq!(throws.len(), 1);
+        assert_eq!(throws[0].to_string(), "SwapError");
+    }
+
+    #[test]
+    fn throws_none() {
+        let config = parse_config(r#""#);
+        let throws = config.throws_list();
+        assert!(throws.is_empty());
     }
 }

@@ -12,7 +12,7 @@ fn native_exceptions() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || common::exceptions_test(&contract_hash))
-        .unwrap_or_else(|e| panic!("Test failed: {}", e));
+        .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
 }
 
 #[test]
@@ -24,5 +24,5 @@ fn native_panic() {
     let contract_hash = env.setup_create_contract(&test_contract);
 
     contract_exec(env, move || common::panic_test(&contract_hash))
-        .unwrap_or_else(|e| panic!("Test failed: {}", e));
+        .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
 }

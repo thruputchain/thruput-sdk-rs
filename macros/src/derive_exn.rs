@@ -1,0 +1,68 @@
+use darling::FromMeta;
+use darling::ast::NestedMeta;
+use proc_macro::TokenStream;
+use syn::Item;
+
+#[derive(Debug, Default, FromMeta)]
+pub struct ExnArgs {
+    pub version: Option<String>,
+}
+
+/// Parse `#[exn(...)]` or `#[contract_error(...)]` attribute args.
+pub fn parse_args(attr_args: TokenStream) -> Result<ExnArgs, TokenStream> {
+    if attr_args.is_empty() {
+        return Ok(ExnArgs::default());
+    }
+    let meta_list =
+        NestedMeta::parse_meta_list(attr_args.into()).map_err(|e| {
+            TokenStream::from(darling::Error::from(e).write_errors())
+        })?;
+    ExnArgs::from_list(&meta_list)
+        .map_err(|e| TokenStream::from(e.write_errors()))
+}
+
+/// `#[exn]` or `#[exn(version = "1")]` attribute macro.
+///
+/// Emits `impl Exn for Type { const SELECTOR: u64 = ...; }`.
+/// Version defaults to CARGO_PKG_VERSION if not specified.
+pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
+    let (ident, generics) = match &item {
+        Item::Enum(e) => (&e.ident, &e.generics),
+        Item::Struct(s) => (&s.ident, &s.generics),
+        _ => {
+            return syn::Error::new_spanned(
+                item,
+                "#[exn] is only supported on enums and structs",
+            )
+            .into_compile_error()
+            .into();
+        }
+    };
+
+    let type_name = ident.to_string();
+
+    let version = args.version.unwrap_or_else(|| {
+        std::env::var("CARGO_PKG_VERSION")
+            .unwrap_or_else(|_| "0.0.0".to_string())
+    });
+    let crate_name = std::env::var("CARGO_PKG_NAME")
+        .unwrap_or_else(|_| "_unknown_".to_string());
+
+    let selector = groundhog_contract_util::error_selector(
+        &version,
+        &crate_name,
+        &type_name,
+    );
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let output = quote::quote! {
+        #item
+
+        impl #impl_generics ::sdk::exn::Exn for #ident #ty_generics #where_clause {
+            const SELECTOR: u64 = #selector;
+        }
+    };
+
+    output.into()
+}

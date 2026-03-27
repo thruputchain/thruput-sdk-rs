@@ -1,67 +1,44 @@
 //! Making contract calls
 
-use super::call_result::*;
+use super::call_result::{RawCallError, into_raw_call_result};
 use super::contract_result::*;
 use super::internal::contract_call_encode;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{CallingError, Exn, FaultString, LibraryExn, library_abort};
+use crate::exn::{CallingError, FaultString, library_throw};
 use crate::sys::{self, SysErr};
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 
-pub fn call<ARGS, RET, EXN>(
+pub fn try_call_raw<ARGS, RET>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &ARGS,
-) -> RET
+) -> Result<RET, RawCallError>
 where
     ARGS: WriteXDR,
     RET: ReadXDROwned,
-    EXN: Exn + 'static,
 {
-    try_call(address, entrypoint, gas_limit, args).unwrap_or_else(
-        |e: CallError<EXN>|
-            // We're not going to capture the structure of the called
-            // contract's error here (for that, use `try_call`).  Instead,
-            // serialize the error and abort.
-            library_abort(LibraryExn::Called(FaultString::from_display(e))),
-    )
-}
+    let args_buf = contract_call_encode(args).unwrap_or_else(|e| {
+        library_throw(CallingError::EncodingArgs(FaultString::from_display(e)))
+    });
 
-pub fn try_call<ARGS, RET, EXN>(
-    address: &ContractAddress,
-    entrypoint: ContractEntrypointID,
-    gas_limit: u64,
-    args: &ARGS,
-) -> CallResult<RET, EXN>
-where
-    ARGS: WriteXDR,
-    RET: ReadXDROwned,
-    EXN: Exn,
-{
-    // Encode the args
-    let args_buf = contract_call_encode(args)
-        // Encoding failed: abort
-        .unwrap_or_else(|e| {
-            library_abort(CallingError::EncodingArgs(
-                FaultString::from_display(e),
-            ))
-        });
-
-    // Invoke the method
     let contract_result =
         match contract_call(address, entrypoint, gas_limit, &args_buf) {
             Ok(result) => result,
             Err(syserr) => {
-                return Err(CallError::Fault(FaultString::from_display(
+                return Err(RawCallError::Fault(FaultString::from_display(
                     syserr,
                 )));
             }
         };
 
-    // Decode result
-    into_call_result(contract_result)
+    into_raw_call_result(contract_result)
+}
+
+/// Re-throw a raw exception to our caller unchanged.
+pub fn re_throw(exn: &crate::exn::RawException) -> ! {
+    exn.re_throw()
 }
 
 #[inline(never)]
@@ -96,7 +73,7 @@ where
         }
     };
 
-    // Ok or abort: get the return data from the VM ...
+    // Ok or exception: get the return data from the VM ...
 
     let mut return_buf = ReturnBuf::new();
     fill_return_buf(return_len, &mut return_buf);

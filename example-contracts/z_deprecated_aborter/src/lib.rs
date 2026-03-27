@@ -10,3 +10,4 @@ pub use implementation::*;
 
 pub use implementation::Contract;
 pub use implementation::ContractClient;
+pub use implementation::ContractClientError;

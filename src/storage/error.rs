@@ -40,12 +40,12 @@ impl StorageError {
     }
 }
 
-pub fn oob_abort(len: u64, access: u64) -> ! {
-    library_abort(StorageError::IndexOutOfBounds { len, access })
+pub fn oob_throw(len: u64, access: u64) -> ! {
+    library_throw(StorageError::IndexOutOfBounds { len, access })
 }
 
-pub fn storage_load_abort(_r: ReadError) -> ! {
-    library_abort(StorageError::Serialization)
+pub fn storage_load_throw(_r: ReadError) -> ! {
+    library_throw(StorageError::Serialization)
 }
 
 pub fn storage_load_error(_r: ReadError) -> StorageError {

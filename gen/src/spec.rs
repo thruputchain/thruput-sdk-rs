@@ -46,12 +46,14 @@ fn method_repr(
         .into_iter()
         .flatten();
     let ret = ret_repr(&method.sig().output);
-    let err = if let Some(err) = contract.throws() {
-        quote! {
-            Some(<#err as HasTypeSpec>::type_spec())
-        }
+    let errs = contract.throws_list();
+    let err = if errs.is_empty() {
+        quote! { vec![] }
     } else {
-        quote! { None::<TypeSpec> }
+        let err_specs = errs.iter().map(|e| {
+            quote! { <#e as HasTypeSpec>::type_spec() }
+        });
+        quote! { vec![ #(#err_specs),* ] }
     };
 
     Ok(quote! {

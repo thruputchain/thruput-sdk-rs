@@ -34,8 +34,9 @@ impl Contract {
             result.push_str("\n    {");
             result.push_str(&format!("\n      \"name\": \"{}\"", method.name));
             result.push_str(&format!(",\n      \"return\": {}", ret));
-            if let Some(err) = method.err.as_ref() {
-                result.push_str(&format!(",\n      \"err\": \"{}\"", err));
+            if !method.err.is_empty() {
+                let errs: Vec<String> = method.err.iter().map(|e| format!("\"{}\"", e)).collect();
+                result.push_str(&format!(",\n      \"err\": [{}]", errs.join(", ")));
             }
             result.push_str(&format!(",\n      \"entrypoint\": \"{}\"", display_entrypoint(self.entrypoint_id(&self.methods[i]))));
             result.push_str(&format!(",\n      \"args\": [\n{}\n      ]", args));
@@ -58,7 +59,7 @@ pub struct Method {
     // Returns ret if the frame succeeds,
     // err if the frame reverts
     pub ret: Option<xdr::Declaration>,
-    pub err: Option<xdr::TypeSpec>,
+    pub err: Vec<xdr::TypeSpec>,
 }
 
 #[derive(Debug)]

@@ -82,12 +82,12 @@ impl<T> Vector<T> {
         T: LoadKeypath,
     {
         if index >= self.len {
-            oob_abort(self.len, index);
+            oob_throw(self.len, index);
         }
 
         let keypath = self.make_index_keypath(index);
 
-        load_keypath(&keypath).unwrap_or_else(|e| library_abort(e))
+        load_keypath(&keypath).unwrap_or_else(|e| library_throw(e))
     }
 
     pub fn get_default(&self, index: u64) -> T
@@ -95,13 +95,13 @@ impl<T> Vector<T> {
         T: LoadKeypath + DefaultFromKeypath,
     {
         if index >= self.len {
-            oob_abort(self.len, index);
+            oob_throw(self.len, index);
         }
 
         let keypath = self.make_index_keypath(index);
 
         T::try_load_keypath(&keypath)
-            .unwrap_or_else(|e| library_abort(e))
+            .unwrap_or_else(|e| library_throw(e))
             .unwrap_or_else(|| T::default_from_keypath(&keypath))
     }
 
@@ -115,7 +115,7 @@ impl<T> Vector<T> {
 
         let keypath = self.make_index_keypath(index);
 
-        let val = load_keypath(&keypath).unwrap_or_else(|e| library_abort(e));
+        let val = load_keypath(&keypath).unwrap_or_else(|e| library_throw(e));
 
         Some(val)
     }
@@ -146,7 +146,7 @@ impl<T> Vector<T> {
             let keypath = self.make_index_keypath(index);
             Handle::from(keypath)
         } else {
-            oob_abort(self.len, index);
+            oob_throw(self.len, index);
         }
     }
 
@@ -158,7 +158,7 @@ impl<T> Vector<T> {
             let keypath = &self.make_index_keypath(index);
             val.store_keypath(keypath);
         } else {
-            oob_abort(self.len, index);
+            oob_throw(self.len, index);
         }
     }
 
@@ -184,7 +184,7 @@ impl<T> Vector<T> {
             self.len = len;
         } else {
             // We can only increase the length
-            oob_abort(self.len, len);
+            oob_throw(self.len, len);
         }
     }
 

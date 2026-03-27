@@ -1,12 +1,10 @@
 use core::fmt;
 use sdk::*;
-use thiserror::Error;
 
 pub use crate::bignum::{U112, U256};
 
-#[derive(Error, Debug, PartialEq, Clone, ReadXDR, WriteXDR)]
+#[contract_error]
 #[non_exhaustive]
-#[repr(i32)]
 pub enum ISwapV2PairError {
     InitializeFailed,
     AlreadyInitialized,

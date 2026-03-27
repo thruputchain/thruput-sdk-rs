@@ -1,5 +1,5 @@
 use crate::call::{ContractResult, ReturnBuf};
-use crate::exn::{FaultString, HandlingError, library_abort};
+use crate::exn::{FaultString, HandlingError, library_throw};
 use crate::xdr::*;
 
 pub fn contract_call_decode<'b, T>(bytes: &'b [u8]) -> Result<T, ReadError>
@@ -7,6 +7,20 @@ where
     T: ReadXDR<'b>,
 {
     cxs::decode(bytes)
+}
+
+/// Like `contract_call_decode`, but tolerates trailing bytes after the
+/// decoded value.  Used for decoding exception payloads which may carry
+/// additional debugging information (location, backtrace) appended by
+/// `ContractExn` when the `debugging` feature is active.
+pub fn contract_call_decode_prefix<'b, T>(
+    bytes: &'b [u8],
+) -> Result<T, ReadError>
+where
+    T: ReadXDR<'b>,
+{
+    let mut reader = cxs::buf_reader::BufReader::new(bytes);
+    ReadXDR::read_xdr(&mut reader)
 }
 
 pub type EncodeBuf = heapless::Vec<u8, 500>;
@@ -34,7 +48,7 @@ where
     T: WriteXDR + ?Sized,
 {
     contract_call_encode(v).unwrap_or_else(|e| {
-        library_abort(HandlingError::EncodingSuccess(
+        library_throw(HandlingError::EncodingSuccess(
             FaultString::from_display(e),
         ))
     })
@@ -43,11 +57,11 @@ where
 pub fn contract_result_encode(r: &ContractResult) -> ReturnBuf {
     contract_call_encode(r).unwrap_or_else(|e| {
         if r.is_ok() {
-            library_abort(HandlingError::EncodingSuccess(
+            library_throw(HandlingError::EncodingSuccess(
                 FaultString::from_display(e),
             ))
         } else {
-            library_abort(HandlingError::EncodingAbort(
+            library_throw(HandlingError::EncodingException(
                 FaultString::from_display(e),
             ))
         }

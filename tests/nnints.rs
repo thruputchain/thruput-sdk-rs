@@ -2,7 +2,11 @@
 
 #![allow(unused)]
 
-use sdk::call::*;
+mod test_helpers;
+use test_helpers::*;
+
+use sdk::call::RawCallError;
+use sdk::exn::{Exn, LibraryExn};
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 
@@ -100,17 +104,11 @@ fn set_negative_sum_fails() {
         non_negative_int_inc(key, -5);
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntSetAdd,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntSetAdd,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 // If the last set was positive, we can't do an increment that results in a
@@ -130,17 +128,11 @@ fn set_negative_then_positive_then_negative_sum_fails() {
         non_negative_int_inc(key, -7); // Nope: last set was positive
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntSetAdd,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntSetAdd,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 // Getting a previously-unset location aborts with not-exist.
@@ -151,17 +143,11 @@ fn get_unset_fails() {
         let _ = non_negative_int_get(&StorageKey::default());
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+    );
 }
 
 // Getting a wrong-type location aborts with invalid-input.
@@ -176,17 +162,11 @@ fn get_wrong_type_fails() {
         let _ = non_negative_int_get(key);
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 // Try-get on a wrong-type location aborts with invalid-input.
@@ -201,17 +181,11 @@ fn try_get_wrong_type_fails() {
         let _ = non_negative_int_try_get(key);
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 // Trying to get an nnint from a deleted key aborts with not-exist.
@@ -227,15 +201,9 @@ fn delete_actually_deletes() {
         let _ = non_negative_int_get(key);
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+    );
 }

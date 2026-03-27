@@ -25,7 +25,7 @@
 
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-use crate::exn::syscall_abort2;
+use crate::exn::syscall_throw;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
@@ -42,7 +42,7 @@ pub fn set_add(key: &StorageKey, set_value: Option<i128>, add_value: i128) {
         &add_value,
         StorageDeltaFlags::kStorageDeltaFlagNone.0,
     )
-    .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
+    .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntSetAdd, e));
 }
 
 /// Replace the "set" and "add" values exclusively.
@@ -64,7 +64,7 @@ pub fn set_add_exclusive(
         &add_value,
         StorageDeltaFlags::kStorageDeltaFlagExclusiveLock.0,
     )
-    .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntSetAdd, e));
+    .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntSetAdd, e));
 }
 
 /// Get the pending "set" and "add" values.
@@ -75,7 +75,7 @@ pub fn set_add_exclusive(
 ///
 pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
     _get_values(key, false)
-        .unwrap_or_else(|e| syscall_abort2(SyscallNo::kNonnegativeIntGet, e))
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntGet, e))
 }
 
 /// Get the pending "set" and "add" values, loading if necessary.
@@ -94,7 +94,7 @@ pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
 
             (s, a)
         }
-        Err(e) => syscall_abort2(SyscallNo::kNonnegativeIntGet, e),
+        Err(e) => syscall_throw(SyscallNo::kNonnegativeIntGet, e),
     }
 }
 
@@ -114,7 +114,7 @@ pub fn try_get_values_force(key: &StorageKey) -> Option<(i128, i128)> {
             Some((s, a))
         }
         Err(e) if e.is_storage_key_not_exist() => None,
-        Err(e) => syscall_abort2(SyscallNo::kNonnegativeIntGet, e),
+        Err(e) => syscall_throw(SyscallNo::kNonnegativeIntGet, e),
     }
 }
 

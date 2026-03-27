@@ -1,11 +1,11 @@
 use super::{Interface, MyExn};
 use sdk::*;
-use thiserror::Error;
 
 #[derive(Default)]
 pub struct Contract;
 
 #[derive(Debug, PartialEq, Error, WriteXDR, ReadXDR)]
+#[exn]
 #[error("Thing")]
 struct Thing;
 

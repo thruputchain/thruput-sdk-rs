@@ -1,6 +1,6 @@
 //! System functions: Contract deployment
 
-use crate::exn::syscall_abort2;
+use crate::exn::syscall_throw;
 use crate::sys::{self, SyscallNo};
 use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;
@@ -13,7 +13,7 @@ pub fn get_deploy_address(
         MaybeUninit::<ContractAddress>::uninit();
 
     sys::uninit_GetDeployAddress(None, nonce, contract_hash, &mut out_addr)
-        .unwrap_or_else(|e| syscall_abort2(SyscallNo::kGetDeployAddress, e));
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetDeployAddress, e));
 
     unsafe { out_addr.assume_init() }
 }
@@ -32,7 +32,7 @@ pub fn get_deploy_address_for_other(
         contract_hash,
         &mut out_addr,
     )
-    .unwrap_or_else(|e| syscall_abort2(SyscallNo::kGetDeployAddress, e));
+    .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetDeployAddress, e));
 
     unsafe { out_addr.assume_init() }
 }
@@ -45,7 +45,7 @@ pub fn deploy_contract(
         MaybeUninit::<ContractAddress>::uninit();
 
     sys::uninit_DeployContract(nonce, contract_hash, &mut out_addr)
-        .unwrap_or_else(|e| syscall_abort2(SyscallNo::kDeployContract, e));
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kDeployContract, e));
 
     unsafe { out_addr.assume_init() }
 }

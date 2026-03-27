@@ -1,5 +1,5 @@
 use sdk::*;
-use storage_errors::StorageErrorClient;
+use storage_errors::{StorageErrorClient, StorageErrorClientError};
 
 /// The contract under test.
 const CONTRACT_ADDR: ContractAddress = ContractAddress::new([0x01; 32]);
@@ -72,13 +72,10 @@ fn vector_get_out_of_bounds_is_library_storage_error() {
             client.initialize();
 
             let err = client.try_vector_get(5).unwrap_err();
-            let exn = match err {
-                CallError::Abort(exn) => exn,
-                other => panic!("Expected Abort, got: {:?}", other),
+            let lib = match err {
+                StorageErrorClientError::Library(lib) => lib,
+                other => panic!("Expected Library, got: {:?}", other),
             };
-            let lib = exn.as_library_exn().unwrap_or_else(|| {
-                panic!("Expected LibraryExn, got: {:?}", exn)
-            });
             match lib {
                 LibraryExn::Storage(
                     sdk::storage::StorageError::IndexOutOfBounds {
@@ -105,13 +102,10 @@ fn vector_set_out_of_bounds_is_library_storage_error() {
             client.initialize();
 
             let err = client.try_vector_set(10, 999).unwrap_err();
-            let exn = match err {
-                CallError::Abort(exn) => exn,
-                other => panic!("Expected Abort, got: {:?}", other),
+            let lib = match err {
+                StorageErrorClientError::Library(lib) => lib,
+                other => panic!("Expected Library, got: {:?}", other),
             };
-            let lib = exn.as_library_exn().unwrap_or_else(|| {
-                panic!("Expected LibraryExn, got: {:?}", exn)
-            });
             match lib {
                 LibraryExn::Storage(
                     sdk::storage::StorageError::IndexOutOfBounds {
@@ -139,7 +133,7 @@ fn vector_get_on_uninitialized_contract_is_fault() {
             // when storage isn't present, producing a Fault.
             let err = client.try_vector_get(0).unwrap_err();
             match err {
-                CallError::Fault(_) => {}
+                StorageErrorClientError::Fault(_) => {}
                 other => panic!("Expected Fault, got: {:?}", other),
             }
         })
@@ -156,13 +150,10 @@ fn map_get_missing_key_is_library_storage_error() {
             client.initialize();
 
             let err = client.try_map_get(999).unwrap_err();
-            let exn = match err {
-                CallError::Abort(exn) => exn,
-                other => panic!("Expected Abort, got: {:?}", other),
+            let lib = match err {
+                StorageErrorClientError::Library(lib) => lib,
+                other => panic!("Expected Library, got: {:?}", other),
             };
-            let lib = exn.as_library_exn().unwrap_or_else(|| {
-                panic!("Expected LibraryExn, got: {:?}", exn)
-            });
             match lib {
                 LibraryExn::Storage(e) => {
                     assert!(

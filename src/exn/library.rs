@@ -15,6 +15,7 @@ use xdrs::XDR;
 ///
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
+#[groundhog_macros::exn(version = "1.0.0")]
 #[repr(i32)]
 #[non_exhaustive]
 pub enum LibraryExn {
@@ -77,21 +78,17 @@ impl LibraryExn {
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
-    let exn: crate::CrossExn<core::convert::Infallible> =
-        crate::library_exn(e);
-
+pub fn library_throw<E: Into<LibraryExn>>(e: E) -> ! {
+    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
     crate::contract_abort_encoded(&exn)
 }
 
-/// Abort the contract because a syscall produced an error.
+/// Throw an exception because a syscall produced an error.
 ///
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn syscall_abort2(callno: SyscallNo, errno: SysErr) -> ! {
-    library_abort(syscall_exn(callno, errno))
+pub fn syscall_throw(callno: SyscallNo, errno: SysErr) -> ! {
+    library_throw(syscall_exn(callno, errno))
 }
-
-pub use syscall_abort2 as syscall_abort;
 
 pub fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
     LibraryExn::Syscall(SyscallExn::new(callno, errno))
@@ -99,27 +96,29 @@ pub fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn nnint_overflow() -> ! {
-    library_abort(LibraryExn::NonNegativeIntOverflow)
+    library_throw(LibraryExn::NonNegativeIntOverflow)
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn nnint_underflow() -> ! {
-    library_abort(LibraryExn::NonNegativeIntUnderflow)
+    library_throw(LibraryExn::NonNegativeIntUnderflow)
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn decoding_args_abort<E: Error>(e: E) -> ! {
-    library_abort(HandlingError::DecodingArgs(FaultString::from_display(e)))
+pub fn decoding_args_throw<E: Error>(e: E) -> ! {
+    library_throw(HandlingError::DecodingArgs(FaultString::from_display(e)))
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn encoding_success_abort<E: Error>(e: E) -> ! {
-    library_abort(HandlingError::EncodingSuccess(FaultString::from_display(e)))
+pub fn encoding_success_throw<E: Error>(e: E) -> ! {
+    library_throw(HandlingError::EncodingSuccess(FaultString::from_display(e)))
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn encoding_abort_abort<E: Error>(e: E) -> ! {
-    library_abort(HandlingError::EncodingAbort(FaultString::from_display(e)))
+pub fn encoding_exception_throw<E: Error>(e: E) -> ! {
+    library_throw(HandlingError::EncodingException(FaultString::from_display(
+        e,
+    )))
 }
 
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
@@ -151,5 +150,26 @@ impl SyscallExn {
 impl Display for SyscallExn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Syscall {:?} failed with {}", self.callno, self.errno)
+    }
+}
+
+#[cfg(test)]
+mod selector_tests {
+    use super::*;
+    use crate::exn::Exn;
+
+    #[test]
+    fn library_exn_selector_matches_sha256() {
+        let expected = groundhog_contract_util::error_selector(
+            "1.0.0",
+            env!("CARGO_PKG_NAME"),
+            "LibraryExn",
+        );
+        assert_eq!(LibraryExn::SELECTOR, expected);
+    }
+
+    #[test]
+    fn library_exn_selector_nonzero() {
+        assert_ne!(LibraryExn::SELECTOR, 0);
     }
 }

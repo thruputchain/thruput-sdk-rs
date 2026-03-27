@@ -3,32 +3,27 @@ mod fault;
 mod library;
 mod wrapper;
 
-#[cfg(feature = "debugging")]
-mod exn_impl {
-    use crate::xdr::*;
-    use core::error::Error;
-    use core::fmt::Debug;
+use crate::xdr::*;
+use core::fmt::Debug;
 
-    pub trait Exn:
-        Debug + PartialEq + Error + WriteXDR + ReadXDROwned
-    {
-    }
-
-    impl<T> Exn for T where T: Debug + PartialEq + Error + WriteXDR + ReadXDROwned {}
+/// A trait for error types that can be serialized across contract calls.
+///
+/// Each implementing type gets a unique u64 selector derived from its
+/// canonical type signature (via `#[exn]`). The selector is used
+/// for dispatch when deserializing errors on the client side.
+pub trait Exn: Debug + PartialEq + WriteXDR + ReadXDROwned {
+    const SELECTOR: u64;
 }
 
-#[cfg(not(feature = "debugging"))]
-mod exn_impl {
-    use crate::xdr::*;
-    use core::fmt::Debug;
-
-    pub trait Exn: Debug + PartialEq + WriteXDR + ReadXDROwned {}
-
-    impl<T> Exn for T where T: Debug + PartialEq + WriteXDR + ReadXDROwned {}
+/// Exn impl for Infallible — this type can never be instantiated,
+/// so its selector is 0 (a reserved/unused value).
+impl Exn for core::convert::Infallible {
+    const SELECTOR: u64 = 0;
 }
 
-pub use cross_exn::*;
-pub use exn_impl::*;
+mod raw_error;
+pub use raw_error::*;
+
 pub use fault::*;
 pub use library::*;
 pub use wrapper::*;

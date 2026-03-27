@@ -49,7 +49,7 @@ pub fn try_bytestring_exists(key: &StorageKey) -> Result<bool> {
 ///
 pub fn bytestring_exists(key: &StorageKey) -> bool {
     try_bytestring_exists(key).unwrap_or_else(|errno| {
-        syscall_abort2(SyscallNo::kBytestringGetLen, errno);
+        syscall_throw(SyscallNo::kBytestringGetLen, errno);
     })
 }
 
@@ -72,7 +72,7 @@ pub fn bytestring_get_len(key: &StorageKey) -> u32 {
     let mut out: RuntimeMemoryLength = 0;
 
     sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
-        syscall_abort2(SyscallNo::kBytestringGetLen, errno);
+        syscall_throw(SyscallNo::kBytestringGetLen, errno);
     });
 
     out
@@ -107,7 +107,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
         StorageDeltaFlags::kStorageDeltaFlagNone.0,
     )
     .unwrap_or_else(|errno| {
-        syscall_abort2(SyscallNo::kBytestringSet, errno);
+        syscall_throw(SyscallNo::kBytestringSet, errno);
     });
 }
 
@@ -133,7 +133,7 @@ pub fn try_bytestring_set_exclusive(
 
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) {
     try_bytestring_set_exclusive(key, slice).unwrap_or_else(|errno| {
-        syscall_abort2(SyscallNo::kBytestringSet, errno);
+        syscall_throw(SyscallNo::kBytestringSet, errno);
     });
 }
 
@@ -179,14 +179,14 @@ pub fn bytestring_get_sized<const N: usize>(key: &StorageKey) -> [u8; N] {
     let mut len = MaybeUninit::uninit();
     sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len).unwrap_or_else(
         |errno| {
-            syscall_abort2(SyscallNo::kBytestringGet, errno);
+            syscall_throw(SyscallNo::kBytestringGet, errno);
         },
     );
 
     // SAFETY: The syscall returned with success, so the out-args are initialized
     let len = unsafe { len.assume_init() };
     if len != N as u32 {
-        library_abort(LibraryExn::BytestringWrongSize {
+        library_throw(LibraryExn::BytestringWrongSize {
             expected: N as u32,
             found: len,
         });
@@ -231,7 +231,7 @@ mod bytestring_get_alloc {
 
     pub fn bytestring_get(key: &StorageKey) -> Box<[u8]> {
         try_bytestring_get(key).unwrap_or_else(|errno| {
-            syscall_abort2(SyscallNo::kBytestringGet, errno);
+            syscall_throw(SyscallNo::kBytestringGet, errno);
         })
     }
 
@@ -264,7 +264,7 @@ mod bytestring_get_alloc {
 
     pub fn bytestring_try_get(key: &StorageKey) -> Option<Box<[u8]>> {
         try_bytestring_try_get(key).unwrap_or_else(|errno| {
-            syscall_abort2(SyscallNo::kBytestringGet, errno);
+            syscall_throw(SyscallNo::kBytestringGet, errno);
         })
     }
 }

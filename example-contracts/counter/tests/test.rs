@@ -1,4 +1,4 @@
-use counter::CounterClient;
+use counter::{CounterClient, CounterClientError};
 use sdk::*;
 
 static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
@@ -29,7 +29,7 @@ fn test_counter_basic() {
         client.decrement(3);
         assert_eq!(client.get(), 12);
     })
-    .unwrap_or_else(|e| panic!("Test failed: {e}"));
+    .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
 }
 
 #[test]
@@ -49,21 +49,16 @@ fn test_counter_underflow() {
 
         // Try to decrement by 10 (should abort - would go negative)
         match client.try_decrement(10) {
-            Err(CallError::Abort(ref cross_exn)) => {
-                // NNInt underflow is a library exception
-                if let Some(lib_exn) = cross_exn.as_library_exn() {
-                    assert!(
-                        matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
-                        "Expected NonNegativeIntUnderflow, got: {:?}",
-                        lib_exn
-                    );
-                } else {
-                    panic!("Expected library exception, got: {:?}", cross_exn);
-                }
+            Err(CounterClientError::Library(ref lib_exn)) => {
+                assert!(
+                    matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
+                    "Expected NonNegativeIntUnderflow, got: {:?}",
+                    lib_exn
+                );
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(()) => panic!("Decrement should have failed"),
         }
     })
-    .unwrap_or_else(|e| panic!("Test failed: {e}"));
+    .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
 }

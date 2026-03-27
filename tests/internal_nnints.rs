@@ -2,7 +2,11 @@
 
 #![allow(unused)]
 
-use sdk::call::*;
+mod test_helpers;
+use test_helpers::*;
+
+use sdk::call::RawCallError;
+use sdk::exn::{Exn, LibraryExn};
 use sdk::internal::nnint::*;
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
@@ -74,7 +78,7 @@ contract_test!(test_internal_nnints {
 });
 
 #[test]
-// Get (not forcing) on a never-before-set location succeeds.
+// Get (without forcing) on a never-before-set location returns "add" == zero
 fn get_on_empty_succeeds() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         get_values(&StorageKey::default());
@@ -107,17 +111,11 @@ fn force_get_on_empty_fails() {
         get_values_force(&StorageKey::default());
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+    );
 }
 
 #[test]
@@ -130,17 +128,11 @@ fn force_get_on_wrong_type_fails() {
         get_values_force(&key);
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntGet,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntGet,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 #[test]
@@ -152,17 +144,11 @@ fn set_add_negative_sum_fails() {
         set_add(&StorageKey::default(), Some(set), add)
     });
 
-    match res {
-        Err(CallError::Abort(ref exn))
-            if exn.is_syscall_exn(
-                SyscallNo::kNonnegativeIntSetAdd,
-                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-            ) =>
-        {
-            println!("OK: {}", exn)
-        }
-        _ => panic!("Unexpected result: {:?}", res),
-    }
+    assert_syscall_exception(
+        &res,
+        SyscallNo::kNonnegativeIntSetAdd,
+        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+    );
 }
 
 // XXX: In the `should_panic` tests below, the expected panic sometimes has the

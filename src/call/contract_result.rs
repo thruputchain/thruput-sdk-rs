@@ -2,7 +2,7 @@
 //!
 //! `ContractResult` can represent:
 //! - contract success (with serialized return-value)
-//! - contract abort (with serialized return-value)
+//! - contract exception (with serialized return-value)
 //! - contract fault (with debugging message when `cfg(feature = "debugging")`)
 
 use crate::exn::FaultString;

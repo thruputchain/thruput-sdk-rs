@@ -10,7 +10,7 @@ pub fn sha256(input: &[u8]) -> SHA256Hash {
     let mut out_hash = core::mem::MaybeUninit::<SHA256Hash>::uninit();
 
     sys::uninit_SHA256(input, &mut out_hash).unwrap_or_else(|errno| {
-        syscall_abort2(SyscallNo::kSHA256, errno);
+        syscall_throw(SyscallNo::kSHA256, errno);
     });
 
     unsafe { out_hash.assume_init() }

@@ -289,7 +289,7 @@ pub fn generate_method(
         let (#arg_names) =
             ::sdk::call::internal::contract_call_decode(calldata.as_ref())
                 .unwrap_or_else(|e|
-                    ::sdk::exn::decoding_args_abort(e));
+                    ::sdk::exn::decoding_args_throw(e));
 
         // TODO: can we get the fetch-and-decode into one internal function?
 

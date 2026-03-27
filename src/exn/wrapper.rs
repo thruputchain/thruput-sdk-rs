@@ -19,8 +19,11 @@ pub enum CallingError {
     )]
     DecodingSuccess(FaultString),
 
-    #[cfg_attr(feature = "debugging", error("Decoding an abort result: {0}"))]
-    DecodingAbort(FaultString),
+    #[cfg_attr(
+        feature = "debugging",
+        error("Decoding an exception result: {0}")
+    )]
+    DecodingException(FaultString),
 
     #[cfg_attr(feature = "debugging", error("Encoding arguments: {0}"))]
     EncodingArgs(FaultString),
@@ -43,6 +46,6 @@ pub enum HandlingError {
     )]
     EncodingSuccess(FaultString),
 
-    #[cfg_attr(feature = "debugging", error("Encoding abort result: {0}"))]
-    EncodingAbort(FaultString),
+    #[cfg_attr(feature = "debugging", error("Encoding exception result: {0}"))]
+    EncodingException(FaultString),
 }
