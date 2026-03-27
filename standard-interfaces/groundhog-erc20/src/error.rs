@@ -1,5 +1,4 @@
-use sdk::{ReadXDR, WriteXDR, throw};
-use thiserror::Error;
+use sdk::throw;
 
 pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
 
