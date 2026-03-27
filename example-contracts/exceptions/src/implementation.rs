@@ -9,6 +9,10 @@ pub struct Contract;
 #[error("Thing")]
 struct Thing;
 
+#[contract_error]
+#[error("not authorized")]
+pub struct Unauthorized;
+
 #[contract]
 impl Interface for Contract {
     fn hello() {}
