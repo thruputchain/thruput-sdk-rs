@@ -52,7 +52,6 @@ pub use call::ContractClient;
 // reorganization without breaking changes.
 pub mod auth_claim;
 pub mod block;
-pub mod bytestring;
 pub mod contract_op;
 pub mod crypto;
 pub mod delete;
@@ -71,7 +70,6 @@ pub mod stats;
 pub mod types;
 
 pub use auth_claim::*;
-pub use bytestring::*;
 pub use cell::*;
 pub use contract_op::*;
 pub use delete::*;

@@ -8,6 +8,7 @@ use test_helpers::*;
 use sdk::call::RawCallError;
 use sdk::exn::{Exn, LibraryExn};
 use sdk::sys::{SyscallErrorCode, SyscallNo};
+use sdk::sys_exn::bytestring::*;
 use sdk::*;
 
 contract_test!(test_nnints {

@@ -1,5 +1,6 @@
 use super::{Interface, MyExn};
 use sdk::*;
+use sdk::sys_exn::bytestring::*;
 
 #[derive(Default)]
 pub struct Contract;

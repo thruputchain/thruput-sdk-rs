@@ -2,4 +2,5 @@
 
 #![allow(dead_code)]
 
+pub mod bytestring;
 pub mod rcq;

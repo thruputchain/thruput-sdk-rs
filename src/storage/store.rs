@@ -1,5 +1,5 @@
 use super::keypath::*;
-use crate::bytestring::*;
+use crate::sys_exn::bytestring::*;
 use crate::types::StorageKey;
 use alloc::vec::Vec;
 use xdrs::WriteXDR;

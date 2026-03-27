@@ -10,7 +10,7 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 - [`Hasher`]: Incremental hashing
 - Key-value storage:
     - [`mod@delete`]
-    - [`mod@bytestring`]
+    - [`mod@sys_exn::bytestring`]
     - [`NNInt`]
     - [`RCQ`]
 - Low-level syscall bindings:
