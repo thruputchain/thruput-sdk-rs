@@ -1,7 +1,6 @@
 use sdk::*;
 
-#[derive(WriteXDR, ReadXDR, Copy, Clone, Debug, PartialEq, Error)]
-#[exn]
+#[contract_error]
 #[error("My exception")]
 pub struct MyExn;
 

@@ -4,8 +4,7 @@ use sdk::*;
 #[derive(Default)]
 pub struct Contract;
 
-#[derive(Debug, PartialEq, Error, WriteXDR, ReadXDR)]
-#[exn]
+#[contract_error]
 #[error("Thing")]
 struct Thing;
 
