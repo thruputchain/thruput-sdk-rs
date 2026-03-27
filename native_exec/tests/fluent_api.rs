@@ -15,8 +15,12 @@ const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 struct TestValue(u32);
 
 impl Event for TestValue {
+    type Payload<'a> = TestValue;
     fn num_topics(&self) -> u32 {
         0
+    }
+    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<TestValue, xdrs::ReadError> {
+        xdrs::txs::decode(bytes)
     }
 }
 
@@ -28,6 +32,7 @@ const EVENT_B_SIG: [u8; 32] = [0xBB; 32];
 struct EventA(u32);
 
 impl Event for EventA {
+    type Payload<'a> = EventA;
     fn num_topics(&self) -> u32 {
         1
     }
@@ -37,6 +42,9 @@ impl Event for EventA {
             _ => None,
         }
     }
+    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventA, xdrs::ReadError> {
+        xdrs::txs::decode(bytes)
+    }
 }
 
 /// Different event type with topic 0 = EVENT_B_SIG but same payload shape
@@ -44,6 +52,7 @@ impl Event for EventA {
 struct EventB(u32);
 
 impl Event for EventB {
+    type Payload<'a> = EventB;
     fn num_topics(&self) -> u32 {
         1
     }
@@ -52,6 +61,9 @@ impl Event for EventB {
             0 => Some(TopicSrc::Owned(EVENT_B_SIG)),
             _ => None,
         }
+    }
+    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventB, xdrs::ReadError> {
+        xdrs::txs::decode(bytes)
     }
 }
 
