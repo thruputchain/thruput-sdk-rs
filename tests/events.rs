@@ -150,6 +150,89 @@ single_event_test! {
     }
 }
 
+//-------------------------------------------------------------------------
+// An event using #[derive(Event)]
+
+#[derive(Event)]
+struct DerivedEvent<'a> {
+    #[topic]
+    payer: &'a ContractAddress,
+    #[topic]
+    payee: &'a ContractAddress,
+    amount: u128,
+    memo: &'a [u8],
+}
+
+single_event_test! {
+    fn test_derived_event() {
+        let payer = ContractAddress::default();
+        let payee = ContractAddress::default();
+        let event = DerivedEvent {
+            payer: &payer,
+            payee: &payee,
+            amount: 42,
+            memo: b"hello",
+        };
+
+        log_event(&event);
+    }
+    fn event_check(event) {
+        // 3 topics: signature + payer + payee
+        assert_eq!(event.num_topics, 3);
+
+        // Topic 0 is the SIGNATURE
+        let emitted = EmittedEvent::from(event);
+        assert_eq!(emitted.topic(0).unwrap(), DerivedEvent::SIGNATURE);
+
+        // Topics 1 and 2 are the payer/payee addresses
+        assert_eq!(
+            emitted.topic(1).unwrap(),
+            &*ContractAddress::default()
+        );
+        assert_eq!(
+            emitted.topic(2).unwrap(),
+            &*ContractAddress::default()
+        );
+
+        // Payload is only amount + memo (not the topic fields)
+        let payload = event_payload(event);
+
+        // Decode just the amount and memo
+        #[derive(Debug, PartialEq, ReadXDR)]
+        struct Payload<'a> {
+            amount: u128,
+            memo: &'a [u8],
+        }
+
+        let decoded: Payload = decode_xdr(payload).unwrap();
+        assert_eq!(decoded.amount, 42);
+        assert_eq!(decoded.memo, b"hello");
+    }
+}
+
+#[derive(Event)]
+struct SimpleEvent {
+    value: u128,
+}
+
+single_event_test! {
+    fn test_derived_event_no_topics() {
+        let event = SimpleEvent { value: 99 };
+        log_event(&event);
+    }
+    fn event_check(event) {
+        // 1 topic: just the signature
+        assert_eq!(event.num_topics, 1);
+
+        let emitted = EmittedEvent::from(event);
+        assert_eq!(emitted.topic(0).unwrap(), SimpleEvent::SIGNATURE);
+
+        let payload = event_payload(event);
+        let decoded: u128 = decode_xdr(payload).unwrap();
+        assert_eq!(decoded, 99);
+    }
+}
+
 // utilities
 
 fn event_payload(event: &TxEmittedEvent) -> &[u8] {

@@ -63,7 +63,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         let field_ident = field.ident.as_ref().unwrap();
         quote! {
             #index => ::core::option::Option::Some(
-                ::sdk::IntoTopic::into_topic(&self.#field_ident)
+                self.#field_ident.into_topic()
             ),
         }
     });
