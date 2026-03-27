@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{DeriveInput, Fields, Result};
+use quote::{format_ident, quote};
+use syn::{DeriveInput, Fields, GenericParam, Result};
 
 /// Returns (topic_fields, payload_fields).
 fn partition_fields(
@@ -76,12 +76,66 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         }
     });
 
+    // --- Payload struct ---
+    let payload_ident = format_ident!("{}Payload", ident);
+
+    let payload_fields: Vec<_> = payload
+        .iter()
+        .map(|field| {
+            let vis = &field.vis;
+            let ident = &field.ident;
+            let ty = &field.ty;
+            let attrs: Vec<_> = field
+                .attrs
+                .iter()
+                .filter(|a| !a.path().is_ident("topic"))
+                .collect();
+            quote! { #(#attrs)* #vis #ident: #ty }
+        })
+        .collect();
+
+    // Copy lifetime params from the event struct for the payload struct
+    let lifetime_params: Vec<_> = input
+        .generics
+        .params
+        .iter()
+        .filter(|p| matches!(p, GenericParam::Lifetime(_)))
+        .collect();
+
+    let payload_generics = if lifetime_params.is_empty() {
+        quote! {}
+    } else {
+        quote! { < #(#lifetime_params),* > }
+    };
+
+    // For the GAT assignment: map all lifetime params to '__payload
+    let payload_lifetime_args: Vec<_> = input
+        .generics
+        .params
+        .iter()
+        .filter(|p| matches!(p, GenericParam::Lifetime(_)))
+        .map(|_| quote! { '__payload })
+        .collect();
+
+    let payload_ty_in_gat = if payload_lifetime_args.is_empty() {
+        quote! { #payload_ident }
+    } else {
+        quote! { #payload_ident < #(#payload_lifetime_args),* > }
+    };
+
     Ok(quote! {
         impl #impl_generics #ident #ty_generics #where_clause {
             pub const SIGNATURE: &'static ::sdk::Topic = &[#(#sig_array),*];
         }
 
+        #[derive(::xdrs::ReadXDR)]
+        pub struct #payload_ident #payload_generics {
+            #(#payload_fields),*
+        }
+
         impl #impl_generics ::sdk::Event for #ident #ty_generics #where_clause {
+            type Payload<'__payload> = #payload_ty_in_gat;
+
             fn num_topics(&self) -> u32 {
                 #num_topics
             }
@@ -97,6 +151,12 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
                     #(#topic_arms)*
                     _ => ::core::option::Option::None,
                 }
+            }
+
+            fn decode_payload<'__payload>(
+                bytes: &'__payload [u8],
+            ) -> ::core::result::Result<#payload_ty_in_gat, ::xdrs::ReadError> {
+                ::xdrs::txs::decode(bytes)
             }
         }
 
