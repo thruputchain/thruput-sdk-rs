@@ -80,6 +80,13 @@ impl PartialEq for RawException {
     }
 }
 
+impl crate::re_throw::ReThrow for RawException {
+    fn re_throw(self) -> ! {
+        // Delegate to the existing inherent re_throw(&self) method
+        RawException::re_throw(&self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
