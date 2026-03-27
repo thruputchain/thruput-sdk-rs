@@ -102,6 +102,7 @@ pub use groundhog_macros::contract;
 pub use groundhog_macros::contract_error;
 pub use groundhog_macros::exn;
 pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
+pub use groundhog_macros::Event;
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
