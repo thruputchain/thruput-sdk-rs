@@ -58,5 +58,7 @@ pub trait Event: xdrs::WriteXDR {
     }
 
     /// Decode the payload portion of a serialized event.
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<Self::Payload<'a>, xdrs::ReadError>;
+    fn decode_payload<'a>(
+        bytes: &'a [u8],
+    ) -> Result<Self::Payload<'a>, xdrs::ReadError>;
 }

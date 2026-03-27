@@ -20,8 +20,8 @@ use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
-    ContractAddress, EmittedEvent, Event, ReadXDR, Topic, TopicSrc, WriteResult,
-    WriteXDR, hash_to_array, hex_encode, log_event,
+    ContractAddress, EmittedEvent, Event, ReadXDR, Topic, TopicSrc,
+    WriteResult, WriteXDR, hash_to_array, hex_encode, log_event,
 };
 use xdrs::Writer;
 

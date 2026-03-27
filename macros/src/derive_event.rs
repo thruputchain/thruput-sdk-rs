@@ -129,6 +129,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         }
 
         #[derive(::xdrs::ReadXDR)]
+        #[allow(dead_code)]
         pub struct #payload_ident #payload_generics {
             #(#payload_fields),*
         }

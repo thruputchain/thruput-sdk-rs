@@ -137,7 +137,9 @@ impl<'a> Event for BorrowedEvent<'a> {
         }
     }
 
-    fn decode_payload<'p>(bytes: &'p [u8]) -> Result<BorrowedEvent<'p>, ReadError> {
+    fn decode_payload<'p>(
+        bytes: &'p [u8],
+    ) -> Result<BorrowedEvent<'p>, ReadError> {
         decode_xdr(bytes)
     }
 }

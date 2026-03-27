@@ -19,7 +19,9 @@ impl Event for TestValue {
     fn num_topics(&self) -> u32 {
         0
     }
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<TestValue, xdrs::ReadError> {
+    fn decode_payload<'a>(
+        bytes: &'a [u8],
+    ) -> Result<TestValue, xdrs::ReadError> {
         xdrs::txs::decode(bytes)
     }
 }
