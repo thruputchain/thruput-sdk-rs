@@ -21,7 +21,6 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

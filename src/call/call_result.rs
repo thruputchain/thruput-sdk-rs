@@ -32,6 +32,17 @@ impl core::fmt::Display for RawCallError {
     }
 }
 
+impl crate::re_throw::ReThrow for RawCallError {
+    fn re_throw(self) -> ! {
+        match self {
+            RawCallError::Exception(exn) => {
+                crate::re_throw::ReThrow::re_throw(exn)
+            }
+            RawCallError::Fault(f) => panic!("{f}"),
+        }
+    }
+}
+
 /// Decode a `ContractResult` into a `Result<T, RawCallError>`, preserving the
 /// raw selector and payload from an exception without attempting typed decoding.
 ///
@@ -65,5 +76,17 @@ where
         Err(ContractError::Fault(fault_val)) => {
             Err(RawCallError::Fault(fault_val))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::re_throw::OrReThrow;
+
+    #[test]
+    fn or_re_throw_ok_returns_value() {
+        let result: Result<i32, RawCallError> = Ok(42);
+        assert_eq!(result.or_re_throw(), 42);
     }
 }

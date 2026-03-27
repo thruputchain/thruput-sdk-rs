@@ -14,17 +14,18 @@ use xdrs::XDR;
 #[sdk::contract_error]
 #[non_exhaustive]
 #[cfg_attr(feature = "spec", derive(XDR))]
+#[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum ERC20Error {
-    #[error("Contract already initialized")]
+    #[cfg_attr(feature = "dev", error("Contract already initialized"))]
     AlreadyInitialized = 1,
 
-    #[error("Caller must be contract owner")]
+    #[cfg_attr(feature = "dev", error("Caller must be contract owner"))]
     MustBeContractOwner = 2,
 
-    #[error("Provided amount too large")]
+    #[cfg_attr(feature = "dev", error("Provided amount too large"))]
     TooLarge = 3,
 
-    #[error("Internal error")]
+    #[cfg_attr(feature = "dev", error("Internal error"))]
     Internal = 100,
 }
 

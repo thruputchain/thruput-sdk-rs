@@ -3,7 +3,6 @@ use sdk::*;
 
 #[contract_error]
 pub enum Error {
-    #[error("Not authorized")]
     NotAuthorized = 1,
 }
 

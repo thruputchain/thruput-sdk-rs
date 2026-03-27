@@ -5,9 +5,7 @@ use sdk::*;
 pub struct Contract;
 
 /// An error type NOT declared in throws — will end up in Unknown
-#[derive(Debug, PartialEq, thiserror::Error, ReadXDR, WriteXDR)]
-#[exn]
-#[error("secret error")]
+#[contract_error]
 pub struct SecretError;
 
 #[contract]

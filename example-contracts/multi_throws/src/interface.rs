@@ -2,15 +2,12 @@ use sdk::*;
 
 #[contract_error]
 pub enum AlphaError {
-    #[error("alpha: not found")]
     NotFound = 1,
-    #[error("alpha: overflow")]
     Overflow = 2,
 }
 
 #[contract_error]
 pub enum BetaError {
-    #[error("beta: denied")]
     Denied = 1,
 }
 

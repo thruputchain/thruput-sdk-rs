@@ -4,10 +4,11 @@ use sdk::*;
 #[derive(Default)]
 pub struct Contract;
 
-#[derive(Debug, PartialEq, Error, WriteXDR, ReadXDR)]
-#[exn]
-#[error("Thing")]
+#[contract_error]
 struct Thing;
+
+#[contract_error]
+pub struct Unauthorized;
 
 #[contract]
 impl Interface for Contract {
