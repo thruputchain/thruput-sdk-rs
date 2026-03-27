@@ -20,7 +20,7 @@ pub fn retrocausal_queue_consume_sized<const N: usize>(
 pub fn retrocausal_queue_peek_sized<const N: usize>(
     key: &StorageKey,
 ) -> [u8; N] {
-    rcq_result::retrocausal_queue_consume_sized(key).unwrap_or_else(|errno| {
+    rcq_result::retrocausal_queue_peek_sized(key).unwrap_or_else(|errno| {
         syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno)
     })
 }

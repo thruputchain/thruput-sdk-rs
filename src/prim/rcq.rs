@@ -19,7 +19,7 @@ pub trait IsRCQ {
     fn consume_max<const N: usize>(&mut self) -> crate::Vec<u8>;
 
     #[cfg(feature = "alloc")]
-    fn peek_max<const N: usize>(&mut self) -> crate::Vec<u8>;
+    fn peek_max<const N: usize>(&self) -> crate::Vec<u8>;
 }
 
 mod rcq_storage_key {
@@ -73,7 +73,7 @@ mod rcq_storage_key {
         }
 
         #[cfg(feature = "alloc")]
-        fn peek_max<const N: usize>(&mut self) -> crate::Vec<u8> {
+        fn peek_max<const N: usize>(&self) -> crate::Vec<u8> {
             let peek = true;
             retrocausal_queue_get_max::<N>(self.as_ref(), peek)
         }
