@@ -90,6 +90,9 @@ pub use xdr::*;
 #[cfg(feature = "debugging")]
 pub use ::abort::with_debug_context;
 
+#[cfg(feature = "debugging")]
+pub use ::thiserror::Error;
+
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use groundhog_macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
