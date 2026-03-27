@@ -4,7 +4,8 @@
 /// store
 pub trait IsRCQ {
     fn insert<E>(&mut self, entry: &E)
-        where E: AsRef<[u8]>;
+    where
+        E: AsRef<[u8]>;
 
     fn consume<const N: usize, T>(&mut self) -> T
     where
@@ -22,9 +23,9 @@ pub trait IsRCQ {
 }
 
 mod rcq_storage_key {
+    use crate::IsRCQ;
     use crate::StorageKey;
     use crate::sys_exn::rcq::*;
-    use crate::IsRCQ;
 
     /// An implementation of `IsRCQ` that simply wraps a `StorageKey`.
     #[derive(Debug)]
@@ -44,14 +45,15 @@ mod rcq_storage_key {
 
     impl IsRCQ for RCQ {
         fn insert<E>(&mut self, entry: &E)
-            where E: AsRef<[u8]>
+        where
+            E: AsRef<[u8]>,
         {
             retrocausal_queue_insert(self.as_ref(), entry.as_ref())
         }
 
         fn consume<const N: usize, T>(&mut self) -> T
         where
-            T: From<[u8; N]>
+            T: From<[u8; N]>,
         {
             retrocausal_queue_consume_sized(self.as_ref()).into()
         }

@@ -6,6 +6,7 @@
 #![allow(clippy::useless_conversion)]
 
 use crate::interface::*;
+use sdk::sys_exn::nnint::*;
 use sdk::*;
 
 // Compute keys for storing things

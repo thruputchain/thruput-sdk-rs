@@ -1,6 +1,5 @@
 //! Non-negative integers
 
-
 /// Interface for objects representing non-negative integers in the key-value
 /// store
 pub trait IsNNInt {
@@ -25,8 +24,8 @@ pub trait IsNNInt {
 
 mod nnint_storage_key {
     use crate::IsNNInt;
-    use crate::sys_exn::nnint::*;
     use crate::StorageKey;
+    use crate::sys_exn::nnint::*;
 
     #[derive(Debug)]
     pub struct NNInt(StorageKey);
@@ -57,10 +56,7 @@ mod nnint_storage_key {
         }
 
         fn set_exclusive(&mut self, set_value: i128) {
-            non_negative_int_set_exclusive(
-                self.as_ref(),
-                set_value,
-            );
+            non_negative_int_set_exclusive(self.as_ref(), set_value);
         }
 
         fn inc(&mut self, increment: i128) {

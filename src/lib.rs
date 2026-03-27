@@ -30,13 +30,13 @@ pub mod internal;
 mod cell;
 mod debug;
 mod local;
+mod named;
 mod panic;
+mod prim;
 mod re_throw;
 mod throw;
 mod util;
 mod xdr;
-mod named;
-mod prim;
 
 #[doc(hidden)]
 pub mod sys_result;
@@ -70,7 +70,6 @@ pub mod serialize;
 pub mod stats;
 pub mod types;
 
-pub use prim::*;
 pub use auth_claim::*;
 pub use bytestring::*;
 pub use cell::*;
@@ -85,6 +84,7 @@ pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
 pub use panic::*;
+pub use prim::*;
 pub use re_throw::*;
 pub use rt::*;
 pub use serialize::*;

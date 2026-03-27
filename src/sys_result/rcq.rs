@@ -61,24 +61,20 @@ fn retrocausal_queue_get_sized<const N: usize>(
 pub fn retrocausal_queue_get_max<const N: usize>(
     key: &StorageKey,
     peek: bool,
-) -> Result<crate::Vec<u8>>
-{
+) -> Result<crate::Vec<u8>> {
     let mut v = crate::Vec::with_capacity(N);
 
     let data = v.spare_capacity_mut();
     let mut written_len: MaybeUninit<RuntimeMemoryLength> =
         MaybeUninit::uninit();
 
-    sys::uninit_RetrocausalQueueConsume(
-        key,
-        peek,
-        data,
-        &mut written_len,
-    )?;
+    sys::uninit_RetrocausalQueueConsume(key, peek, data, &mut written_len)?;
 
     // Safety: Successful syscall return means the indicated bytes have been
     // filled.
-    unsafe { v.set_len(written_len.assume_init() as usize); }
+    unsafe {
+        v.set_len(written_len.assume_init() as usize);
+    }
 
     Ok(v)
 }

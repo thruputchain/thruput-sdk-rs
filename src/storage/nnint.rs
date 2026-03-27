@@ -1,11 +1,8 @@
 use super::keypath::Keypath;
-use crate::non_negative_int::*;
+use crate::sys_exn::nnint::*;
 use core::fmt::Debug;
 
 /// Non-negative integer
-///
-/// Operations on this type are implemented by
-/// [these functions](crate::non_negative_int).
 ///
 #[derive(Debug)]
 pub struct NNInt {

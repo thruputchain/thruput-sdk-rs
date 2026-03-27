@@ -101,16 +101,9 @@ impl SwapV2Pair {
         log(b"SYNC(reserve0, reserve1)"); // XXX: emit event
     }
 
-    // We are passing self in the remaining methods below because, with some
-    // SDK changes, we might want to use the contract's Throws trait to abort:
-
-    fn abort(&self, e: &ISwapV2PairError) -> ! {
-        sdk::abort(e)
-    }
-
     fn require(&self, check: bool, e: ISwapV2PairError) {
         if !check {
-            self.abort(&e)
+            throw(e)
         }
     }
 }

@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 use sdk::*;
+use sdk::sys_result::rcq::*;
 use sys::SyscallErrorCode;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");

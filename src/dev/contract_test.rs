@@ -21,10 +21,7 @@ pub fn contract_run<F>(
 where
     F: Fn() + UnwindSafe + Clone + 'static,
 {
-    env.transact(|tx| {
-        tx.call(addr)
-          .run(f)
-    })
+    env.transact(|tx| tx.call(addr).run(f))
 }
 
 /// Execute the provided thunk in a transaction in the test environment.
