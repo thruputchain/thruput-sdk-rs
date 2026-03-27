@@ -37,7 +37,7 @@ pub fn log_event(event: &impl Event) {
         data.as_ref(),
     )
     .unwrap_or_else(|errno| {
-        syscall_abort2(SyscallNo::kLogEvent, errno);
+        syscall_throw(SyscallNo::kLogEvent, errno);
     });
 }
 

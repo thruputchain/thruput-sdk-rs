@@ -1,6 +1,6 @@
 //! Handling contract calls
 
-use crate::exn::{FaultString, HandlingError, library_abort};
+use crate::exn::{FaultString, HandlingError, library_throw};
 use crate::xdr::*;
 
 pub fn return_encoded<RET>(ret: &RET) -> !
@@ -9,7 +9,7 @@ where
 {
     let return_buf = crate::call::internal::contract_call_encode(ret)
         .unwrap_or_else(|e| {
-            library_abort(HandlingError::EncodingSuccess(
+            library_throw(HandlingError::EncodingSuccess(
                 FaultString::via_display(&e),
             ))
         });
@@ -23,7 +23,7 @@ where
 {
     let return_buf = crate::call::internal::contract_call_encode(ret)
         .unwrap_or_else(|e| {
-            library_abort(HandlingError::EncodingAbort(
+            library_throw(HandlingError::EncodingException(
                 FaultString::via_display(&e),
             ))
         });

@@ -111,7 +111,7 @@ fn force_get_on_empty_fails() {
         get_values_force(&StorageKey::default());
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntGet,
         SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
@@ -128,7 +128,7 @@ fn force_get_on_wrong_type_fails() {
         get_values_force(&key);
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntGet,
         SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
@@ -144,7 +144,7 @@ fn set_add_negative_sum_fails() {
         set_add(&StorageKey::default(), Some(set), add)
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntSetAdd,
         SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,

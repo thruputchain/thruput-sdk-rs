@@ -24,7 +24,7 @@ rename it.
 #### Errors
 
 If the `contract` macro includes the argument `throws = ErrorType`, the
-contract implementation may call [`abort()`] with a reference to that type.
+contract implementation may pass values of that type to [`throw`].
 
 The `throws` argument may be used with a trait or an inherent implementation,
 but not with a trait implementation: the annotation is part of the contract

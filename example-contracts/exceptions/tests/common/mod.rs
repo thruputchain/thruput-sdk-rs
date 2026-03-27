@@ -23,9 +23,9 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
 
     assert_eq!(client.try_add(6), Ok(7));
 
-    match client.try_aborts_with_my_err() {
-        Err(ClientError::MyErr(ref my_err)) => {
-            println!("OK: {:?}", my_err);
+    match client.try_throws_my_exn() {
+        Err(ClientError::MyExn(ref my_exn)) => {
+            println!("OK: {:?}", my_exn);
         }
         Err(ce) => {
             panic!("Unexpected call error: {:?}", ce)
@@ -34,17 +34,17 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     }
 
     // Throw something undeclared with `throws`.
-    // With selector-based dispatch, `abort(&Thing)` serializes with Thing's
+    // With selector-based dispatch, `throw(Thing)` serializes with Thing's
     // selector. Since Thing is not declared in `throws`, the caller's decoder
     // puts it in the Unknown variant.
     match client.try_throw_thing() {
         Err(ClientError::Unknown(ref raw)) => {
             println!("OK: unknown error with selector 0x{:016X}", raw.selector())
         }
-        Err(ClientError::MyErr(ref my_err)) => {
-            // If Thing and MyErr happen to have the same selector (unlikely),
+        Err(ClientError::MyExn(ref my_err)) => {
+            // If Thing and MyExn happen to have the same selector (unlikely),
             // we'd get here. Accept either outcome.
-            println!("OK: decoded as MyErr: {:?}", my_err)
+            println!("OK: decoded as MyExn: {:?}", my_err)
         }
         r => panic!("Unexpected result: {:?}", r),
     }

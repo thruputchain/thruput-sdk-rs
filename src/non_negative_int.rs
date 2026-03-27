@@ -20,7 +20,7 @@ use crate::types::StorageKey;
 
 /// Get the current value.
 ///
-/// Aborts if the location does not contain a non-negative-int value.
+/// Throws an exception if the location does not contain a non-negative-int value.
 ///
 pub fn non_negative_int_get(key: &StorageKey) -> i128 {
     let (s, a) = nnint::get_values_force(key);
@@ -31,7 +31,7 @@ pub fn non_negative_int_get(key: &StorageKey) -> i128 {
 /// Get the current value, or `None` if empty.
 ///
 /// This behaves like `non_negative_int_get`, but returns `None` if the storage
-/// location is empty.  It aborts if a value of the wrong type is there.
+/// location is empty.  It throws an exception if a value of the wrong type is there.
 ///
 pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
     nnint::try_get_values_force(key)
@@ -47,7 +47,7 @@ pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
 ///
 /// A negative value is allowed, as this explicitly changes the absolute value.
 /// If subsequent increments result in a negative sum again, that will not lead
-/// to an abort.
+/// to an exception.
 ///
 /// If a non-negative value is set, and subsequent increments added to that
 /// value would be negative at the end of the transaction, it will revert.
@@ -76,15 +76,15 @@ pub fn non_negative_int_set_exclusive(key: &StorageKey, set_value: i128) {
 
 /// Increment the value.
 ///
-/// Aborts if the increments accumulated from previous calls would overflow.
+/// Throws an exception if the increments accumulated from previous calls would overflow.
 ///
 /// If a "set" operation has been used previously in this transaction and the
 /// value resulting from adding the accumulated increments `amount` is
-/// negative, this aborts.
+/// negative, this throws an exception.
 ///
 /// Otherwise, if the resulting value (the value at the end of the last
 /// transaction plus the accumulated increments) is negative, this function
-/// will not immediately abort.  But note the transaction constraints at
+/// will not immediately throw.  But note the transaction constraints at
 /// `non_negative_int_set`.
 ///
 /// A set of concurrent transactions may be included in the same block if their
@@ -102,7 +102,7 @@ pub fn non_negative_int_inc(key: &StorageKey, amount: i128) {
 
 /// Increment the value.
 ///
-/// This behaves similarly to `non_negative_int_inc`, except that it aborts if
+/// This behaves similarly to `non_negative_int_inc`, except that it throws if
 /// the sum of the explicitly-set value and the accumulated increments
 /// would overflow, or if it is negative.
 ///

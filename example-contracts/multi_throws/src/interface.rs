@@ -23,7 +23,7 @@ pub trait MultiThrows {
     fn throw_undeclared();
 
     /// Calls `throw_alpha_not_found()` on another instance via the
-    /// non-try method. The re_abort path should forward the error.
+    /// non-try method. The re_throw path should forward the error.
     fn forward_alpha(target: ContractAddress);
 
     /// Calls `throw_undeclared()` on another instance via the non-try

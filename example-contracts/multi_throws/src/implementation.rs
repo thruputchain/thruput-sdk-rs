@@ -17,23 +17,23 @@ impl MultiThrows for Contract {
     }
 
     fn throw_alpha_not_found() {
-        abort(&AlphaError::NotFound);
+        throw(AlphaError::NotFound);
     }
 
     fn throw_alpha_overflow() {
-        abort(&AlphaError::Overflow);
+        throw(AlphaError::Overflow);
     }
 
     fn throw_beta_denied() {
-        abort(&BetaError::Denied);
+        throw(BetaError::Denied);
     }
 
     fn throw_undeclared() {
-        abort(&SecretError);
+        throw(SecretError);
     }
 
     fn forward_alpha(target: ContractAddress) {
-        // Non-try call: if the target aborts, re_abort forwards the error
+        // Non-try call: if the target throws, re_throw forwards the error
         MultiClient::new(&target).throw_alpha_not_found();
     }
 

@@ -4,7 +4,7 @@ use super::call_result::{RawCallError, into_raw_call_result};
 use super::contract_result::*;
 use super::internal::contract_call_encode;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{CallingError, FaultString, library_abort};
+use crate::exn::{CallingError, FaultString, library_throw};
 use crate::sys::{self, SysErr};
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
@@ -20,7 +20,7 @@ where
     RET: ReadXDROwned,
 {
     let args_buf = contract_call_encode(args).unwrap_or_else(|e| {
-        library_abort(CallingError::EncodingArgs(FaultString::from_display(e)))
+        library_throw(CallingError::EncodingArgs(FaultString::from_display(e)))
     });
 
     let contract_result =
@@ -36,14 +36,14 @@ where
     into_raw_call_result(contract_result)
 }
 
-/// Re-abort with a selector and payload that were previously split by
+/// Re-throw a selector and payload that were previously split by
 /// `into_raw_call_result`. Reconstructs the wire format and calls
 /// `contract_abort`, forwarding the error to our caller unchanged.
-pub fn re_abort(selector: u64, payload: &[u8]) -> ! {
+pub fn re_throw(selector: u64, payload: &[u8]) -> ! {
     let mut buf = super::contract_result::AbortBuf::new();
     // CXS-encode the selector back into the buffer
     let written = cxs::encode_into(&selector, buf.spare_capacity_mut())
-        .unwrap_or_else(|_| panic!("re_abort: couldn't encode selector"));
+        .unwrap_or_else(|_| panic!("re_throw: couldn't encode selector"));
     unsafe { buf.set_len(written) };
     // Append the payload as-is
     buf.extend_from_slice(payload).ok();
@@ -82,7 +82,7 @@ where
         }
     };
 
-    // Ok or abort: get the return data from the VM ...
+    // Ok or exception: get the return data from the VM ...
 
     let mut return_buf = ReturnBuf::new();
     fill_return_buf(return_len, &mut return_buf);

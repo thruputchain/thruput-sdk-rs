@@ -1,17 +1,17 @@
 use sdk::*;
 
-#[derive(Copy, Clone, Debug, PartialEq, thiserror::Error, ReadXDR, WriteXDR)]
+#[derive(WriteXDR, ReadXDR, Copy, Clone, Debug, PartialEq, Error)]
 #[exn]
-#[error("MyErr")]
-pub struct MyErr;
+#[error("My exception")]
+pub struct MyExn;
 
-#[contract(client = Client, throws = MyErr)]
+#[contract(client = Client, throws = MyExn)]
 pub trait Interface {
     fn hello();
 
     fn add(n: u32) -> u32;
 
-    fn aborts_with_my_err() -> u32;
+    fn throws_my_exn() -> u32;
 
     fn panics();
 

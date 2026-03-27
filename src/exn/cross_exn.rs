@@ -33,7 +33,7 @@ pub(crate) fn serialize_error<E: WriteXDR + crate::exn::Exn>(err: &E) -> ! {
 
     let selector = E::SELECTOR;
     let buf = contract_call_encode(&(selector, err))
-        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+        .unwrap_or_else(|e| super::encoding_exception_throw(e));
 
     crate::contract_abort(buf.as_ref());
 }
@@ -50,7 +50,7 @@ pub(crate) fn serialize_error<E: WriteXDR + crate::exn::Exn>(err: &E) -> ! {
         Some(format(&::abort::Backtrace::capture()));
 
     let buf = contract_call_encode(&(selector, err, &location, &backtrace))
-        .unwrap_or_else(|e| super::encoding_abort_abort(e));
+        .unwrap_or_else(|e| super::encoding_exception_throw(e));
 
     crate::contract_abort(buf.as_ref());
 }

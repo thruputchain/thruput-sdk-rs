@@ -206,7 +206,7 @@ fn generate_client_fn(
 
     Ok(quote_spanned! {method.sig().span()=>
 
-        // This method-wrapper aborts if the called contract aborts.
+        // This method-wrapper re-throws if the called contract throws.
         #track_caller
         pub fn #ident(&mut self, #(#sent_params),* ) #sig_output
         {
@@ -218,8 +218,8 @@ fn generate_client_fn(
             with_call_tracking!(#call_info, {
                 match ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args) {
                     Ok(val) => val,
-                    Err(::sdk::call::RawCallError::Abort { selector, ref payload }) => {
-                        ::sdk::call::re_abort(selector, payload.as_slice())
+                    Err(::sdk::call::RawCallError::Exception { selector, ref payload }) => {
+                        ::sdk::call::re_throw(selector, payload.as_slice())
                     }
                     Err(::sdk::call::RawCallError::Fault(f)) => {
                         panic!("{}", f)
@@ -243,7 +243,7 @@ fn generate_client_fn(
                 match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args) {
                     Ok(val) => Ok(val),
                     Err(::sdk::call::RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(::sdk::call::RawCallError::Abort { selector, ref payload }) => {
+                    Err(::sdk::call::RawCallError::Exception { selector, ref payload }) => {
                         let payload = payload.as_slice();
                         #selector_dispatch
                     }
@@ -321,8 +321,8 @@ fn generate_selector_dispatch(
                 <#ident as ::sdk::exn::Exn>::SELECTOR => {
                     let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
                         .unwrap_or_else(|e|
-                            ::sdk::exn::library_abort(
-                                ::sdk::exn::CallingError::DecodingAbort(
+                            ::sdk::exn::library_throw(
+                                ::sdk::exn::CallingError::DecodingException(
                                     ::sdk::exn::FaultString::from_display(e))));
                     Err(#error_enum_ident::#ident(err))
                 }
@@ -336,8 +336,8 @@ fn generate_selector_dispatch(
             <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
                 let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
                     .unwrap_or_else(|e|
-                        ::sdk::exn::library_abort(
-                            ::sdk::exn::CallingError::DecodingAbort(
+                        ::sdk::exn::library_throw(
+                            ::sdk::exn::CallingError::DecodingException(
                                 ::sdk::exn::FaultString::from_display(e))));
                 Err(#error_enum_ident::Library(err))
             }

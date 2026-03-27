@@ -56,7 +56,7 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     // Test 6: Error forwarding through a call chain.
     // Deploy a second instance; call forward_alpha on the first, which
     // calls throw_alpha_not_found on the second via the non-try method.
-    // re_abort should forward the error so we see AlphaError here.
+    // re_throw should forward the error so we see AlphaError here.
     let addr2 = deploy_contract(&TEST_NONCE_2, contract_hash);
     match client.try_forward_alpha(addr2.clone()) {
         Err(MultiClientError::AlphaError(AlphaError::NotFound)) => {
@@ -66,7 +66,7 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     }
 
     // Test 7: Forwarding an undeclared error through a call chain.
-    // The inner contract throws SecretError, the middle contract re-aborts,
+    // The inner contract throws SecretError, the middle contract re-throws,
     // and we see it as Unknown with the original selector.
     match client.try_forward_undeclared(addr2.clone()) {
         Err(MultiClientError::Unknown(ref raw)) => {

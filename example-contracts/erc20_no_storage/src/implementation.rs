@@ -72,7 +72,7 @@ impl ERC20 for Token {
 
         // Make sure we haven't already been initialized
         if bytestring_exists(&key) {
-            abort(&ERC20Error::AlreadyInitialized);
+            throw(ERC20Error::AlreadyInitialized);
         }
 
         // Store our configuration

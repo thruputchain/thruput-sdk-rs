@@ -1,8 +1,8 @@
 pub fn ensure<E>(pred: bool, err: E)
 where
-    E: crate::exn::Exn,
+    E: crate::Exn,
 {
     if !pred {
-        crate::abort(&err)
+        crate::throw(err)
     }
 }

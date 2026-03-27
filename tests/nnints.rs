@@ -104,7 +104,7 @@ fn set_negative_sum_fails() {
         non_negative_int_inc(key, -5);
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntSetAdd,
         SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
@@ -128,7 +128,7 @@ fn set_negative_then_positive_then_negative_sum_fails() {
         non_negative_int_inc(key, -7); // Nope: last set was positive
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntSetAdd,
         SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
@@ -143,7 +143,7 @@ fn get_unset_fails() {
         let _ = non_negative_int_get(&StorageKey::default());
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntGet,
         SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
@@ -162,7 +162,7 @@ fn get_wrong_type_fails() {
         let _ = non_negative_int_get(key);
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntGet,
         SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
@@ -181,7 +181,7 @@ fn try_get_wrong_type_fails() {
         let _ = non_negative_int_try_get(key);
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntGet,
         SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
@@ -201,7 +201,7 @@ fn delete_actually_deletes() {
         let _ = non_negative_int_get(key);
     });
 
-    assert_syscall_abort(
+    assert_syscall_exception(
         &res,
         SyscallNo::kNonnegativeIntGet,
         SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,

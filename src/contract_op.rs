@@ -5,7 +5,7 @@
 
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
-use crate::syscall_abort;
+use crate::syscall_throw;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::xdr::*;
 use core::mem::MaybeUninit;
@@ -57,7 +57,7 @@ pub fn get_caller() -> ContractAddress {
         MaybeUninit::<ContractAddress>::uninit();
 
     sys::uninit_GetMsgSender(&mut out_addr)
-        .unwrap_or_else(|e| syscall_abort(SyscallNo::kGetMsgSender, e));
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetMsgSender, e));
 
     unsafe { out_addr.assume_init() }
 }
@@ -66,7 +66,7 @@ pub fn get_source_transaction_hash() -> SHA256Hash {
     let mut out_hash: MaybeUninit<SHA256Hash> =
         MaybeUninit::<SHA256Hash>::uninit();
     sys::uninit_GetSourceTransactionHash(&mut out_hash).unwrap_or_else(|e| {
-        syscall_abort(SyscallNo::kGetSourceTransactionHash, e)
+        syscall_throw(SyscallNo::kGetSourceTransactionHash, e)
     });
     unsafe { out_hash.assume_init() }
 }
@@ -75,7 +75,7 @@ pub fn get_current_address() -> ContractAddress {
     let mut out_addr: MaybeUninit<ContractAddress> =
         MaybeUninit::<ContractAddress>::uninit();
     sys::uninit_GetCurrentAddress(&mut out_addr)
-        .unwrap_or_else(|e| syscall_abort(SyscallNo::kGetCurrentAddress, e));
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetCurrentAddress, e));
     unsafe { out_addr.assume_init() }
 }
 
@@ -87,7 +87,7 @@ pub fn try_get_calldata_len() -> SysResult<RuntimeMemoryLength> {
 
 pub fn get_calldata_len() -> RuntimeMemoryLength {
     try_get_calldata_len()
-        .unwrap_or_else(|e| syscall_abort(SyscallNo::kGetCalldataLen, e))
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetCalldataLen, e))
 }
 
 pub type Calldata = MUBuf<CALLDATA_MAX>;
@@ -116,6 +116,6 @@ pub fn try_get_calldata() -> SysResult<Calldata> {
 // of that function are adapted to non-result return.
 pub fn get_calldata() -> Calldata {
     try_get_calldata().unwrap_or_else(|syserr| {
-        syscall_abort(SyscallNo::kGetCalldata, syserr)
+        syscall_throw(SyscallNo::kGetCalldata, syserr)
     })
 }

@@ -51,7 +51,7 @@ fn test_panic() {
 }
 
 #[test]
-fn test_abort_raw() {
+fn test_exception_raw() {
     let env = TestEnvironment::no_cost();
 
     let result = contract_test_raw(env, || {

@@ -126,6 +126,9 @@ pub struct MyContract {
     contract_owner: ContractAddress,
 }
 
+#[derive(Debug, PartialEq, Error, ReadXDR, WriteXDR)]
+#[exn]
+#[error("something went wrong")]
 pub struct MyError;
 
 #[contract(throws = MyError, client = MyClient)]
@@ -140,7 +143,7 @@ impl MyContract {
     }
 
     pub fn oops(&self) {
-        abort(&MyError);
+        throw(MyError);
     }
 }
 ```

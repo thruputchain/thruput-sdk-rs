@@ -78,19 +78,17 @@ impl LibraryExn {
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn library_abort<E: Into<LibraryExn>>(e: E) -> ! {
+pub fn library_throw<E: Into<LibraryExn>>(e: E) -> ! {
     let exn: LibraryExn = e.into();
     crate::exn::cross_exn::serialize_error(&exn)
 }
 
-/// Abort the contract because a syscall produced an error.
+/// Throw an exception because a syscall produced an error.
 ///
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn syscall_abort2(callno: SyscallNo, errno: SysErr) -> ! {
-    library_abort(syscall_exn(callno, errno))
+pub fn syscall_throw(callno: SyscallNo, errno: SysErr) -> ! {
+    library_throw(syscall_exn(callno, errno))
 }
-
-pub use syscall_abort2 as syscall_abort;
 
 pub fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
     LibraryExn::Syscall(SyscallExn::new(callno, errno))
@@ -98,27 +96,27 @@ pub fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn nnint_overflow() -> ! {
-    library_abort(LibraryExn::NonNegativeIntOverflow)
+    library_throw(LibraryExn::NonNegativeIntOverflow)
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn nnint_underflow() -> ! {
-    library_abort(LibraryExn::NonNegativeIntUnderflow)
+    library_throw(LibraryExn::NonNegativeIntUnderflow)
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn decoding_args_abort<E: Error>(e: E) -> ! {
-    library_abort(HandlingError::DecodingArgs(FaultString::from_display(e)))
+pub fn decoding_args_throw<E: Error>(e: E) -> ! {
+    library_throw(HandlingError::DecodingArgs(FaultString::from_display(e)))
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn encoding_success_abort<E: Error>(e: E) -> ! {
-    library_abort(HandlingError::EncodingSuccess(FaultString::from_display(e)))
+pub fn encoding_success_throw<E: Error>(e: E) -> ! {
+    library_throw(HandlingError::EncodingSuccess(FaultString::from_display(e)))
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn encoding_abort_abort<E: Error>(e: E) -> ! {
-    library_abort(HandlingError::EncodingAbort(FaultString::from_display(e)))
+pub fn encoding_exception_throw<E: Error>(e: E) -> ! {
+    library_throw(HandlingError::EncodingException(FaultString::from_display(e)))
 }
 
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]

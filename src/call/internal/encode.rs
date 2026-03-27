@@ -1,5 +1,5 @@
 use crate::call::{ContractResult, ReturnBuf};
-use crate::exn::{FaultString, HandlingError, library_abort};
+use crate::exn::{FaultString, HandlingError, library_throw};
 use crate::xdr::*;
 
 pub fn contract_call_decode<'b, T>(bytes: &'b [u8]) -> Result<T, ReadError>
@@ -48,7 +48,7 @@ where
     T: WriteXDR + ?Sized,
 {
     contract_call_encode(v).unwrap_or_else(|e| {
-        library_abort(HandlingError::EncodingSuccess(
+        library_throw(HandlingError::EncodingSuccess(
             FaultString::from_display(e),
         ))
     })
@@ -57,11 +57,11 @@ where
 pub fn contract_result_encode(r: &ContractResult) -> ReturnBuf {
     contract_call_encode(r).unwrap_or_else(|e| {
         if r.is_ok() {
-            library_abort(HandlingError::EncodingSuccess(
+            library_throw(HandlingError::EncodingSuccess(
                 FaultString::from_display(e),
             ))
         } else {
-            library_abort(HandlingError::EncodingAbort(
+            library_throw(HandlingError::EncodingException(
                 FaultString::from_display(e),
             ))
         }
