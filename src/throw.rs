@@ -3,5 +3,6 @@ pub fn throw<E>(exn: E) -> !
 where
     E: crate::Exn,
 {
-    crate::exn::cross_exn::serialize_error(&exn)
+    let exn = crate::exn::cross_exn::ContractExn::new(exn);
+    crate::contract_abort_encoded(&exn)
 }

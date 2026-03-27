@@ -22,37 +22,39 @@ where
     s
 }
 
-// --- Direct serialization function ---
-//
-// Serializes errors into the wire format [u64 selector][payload][debug info]
-// and calls contract_abort.
-
-#[cfg(not(feature = "debugging"))]
-pub(crate) fn serialize_error<E: WriteXDR + crate::exn::Exn>(err: &E) -> ! {
-    use crate::call::internal::contract_call_encode;
-
-    let selector = E::SELECTOR;
-    let buf = contract_call_encode(&(selector, err))
-        .unwrap_or_else(|e| super::encoding_exception_throw(e));
-
-    crate::contract_abort(buf.as_ref());
+/// A typed exception ready for serialization across the contract boundary.
+///
+/// Wire format: [u64 selector][E payload][debug location?][debug backtrace?]
+#[derive(WriteXDR)]
+pub(crate) struct ContractExn<E: WriteXDR> {
+    selector: u64,
+    exn: E,
+    #[cfg(feature = "debugging")]
+    location: Option<LocationString>,
+    #[cfg(feature = "debugging")]
+    backtrace: Option<BacktraceString>,
 }
 
-#[cfg(feature = "debugging")]
-#[track_caller]
-pub(crate) fn serialize_error<E: WriteXDR + crate::exn::Exn>(err: &E) -> ! {
-    use crate::call::internal::contract_call_encode;
-    use core::panic::Location;
+impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
+    #[cfg(feature = "debugging")]
+    #[track_caller]
+    pub(crate) fn new(exn: E) -> Self {
+        use core::panic::Location;
+        Self {
+            selector: E::SELECTOR,
+            exn,
+            location: Some(format(Location::caller())),
+            backtrace: Some(format(&::abort::Backtrace::capture())),
+        }
+    }
 
-    let selector = E::SELECTOR;
-    let location: Option<LocationString> = Some(format(Location::caller()));
-    let backtrace: Option<BacktraceString> =
-        Some(format(&::abort::Backtrace::capture()));
-
-    let buf = contract_call_encode(&(selector, err, &location, &backtrace))
-        .unwrap_or_else(|e| super::encoding_exception_throw(e));
-
-    crate::contract_abort(buf.as_ref());
+    #[cfg(not(feature = "debugging"))]
+    pub(crate) fn new(exn: E) -> Self {
+        Self {
+            selector: E::SELECTOR,
+            exn,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -73,30 +75,33 @@ mod tests {
         const SELECTOR: u64 = 0xFFFF_FFFF_FFFF_FFFF; // placeholder for tests
     }
 
-    /// Verify that serialize_error's wire format is [u64 selector][payload].
-    /// We encode the tuple (selector, err) and then decode the parts
-    /// individually to confirm the layout.
+    /// Verify that ContractExn's wire format starts with [u64 selector][payload].
+    /// We encode the ContractExn and then decode the selector and payload
+    /// individually to confirm the layout. Uses prefix decoding because the
+    /// `debugging` feature appends location/backtrace after the payload.
     #[test]
-    fn serialize_error_writes_selector_then_payload() {
-        let exn = TestExn::Boom;
-        let buf = contract_call_encode(&(TestExn::SELECTOR, &exn)).unwrap();
+    fn contract_exn_writes_selector_then_payload() {
+        let exn = ContractExn::new(TestExn::Boom);
+        let buf = contract_call_encode(&exn).unwrap();
 
-        // Decode as (u64, TestExn) — the format serialize_error produces
-        let (selector, decoded): (u64, TestExn) =
-            cxs::decode(&buf[..]).unwrap();
+        // Decode selector then payload using a reader (tolerates trailing debug info)
+        let mut reader = cxs::buf_reader::BufReader::new(&buf[..]);
+        let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
+        let decoded: TestExn = ReadXDR::read_xdr(&mut reader).unwrap();
 
         assert_eq!(selector, 0xFFFF_FFFF_FFFF_FFFF);
         assert_eq!(decoded, TestExn::Boom);
     }
 
     #[test]
-    fn serialize_error_writes_library_selector_then_payload() {
-        let exn = LibraryExn::NonNegativeIntOverflow;
-        let buf = contract_call_encode(&(LibraryExn::SELECTOR, &exn)).unwrap();
+    fn contract_exn_writes_library_selector_then_payload() {
+        let exn = ContractExn::new(LibraryExn::NonNegativeIntOverflow);
+        let buf = contract_call_encode(&exn).unwrap();
 
-        // Decode as (u64, LibraryExn)
-        let (selector, decoded): (u64, LibraryExn) =
-            cxs::decode(&buf[..]).unwrap();
+        // Decode selector then payload using a reader (tolerates trailing debug info)
+        let mut reader = cxs::buf_reader::BufReader::new(&buf[..]);
+        let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
+        let decoded: LibraryExn = ReadXDR::read_xdr(&mut reader).unwrap();
 
         assert_eq!(selector, LibraryExn::SELECTOR);
         assert_eq!(decoded, LibraryExn::NonNegativeIntOverflow);
@@ -106,8 +111,8 @@ mod tests {
     /// the payload -- important for dispatching on the receiver side.
     #[test]
     fn selector_can_be_decoded_without_knowing_payload_type() {
-        let exn = TestExn::Boom;
-        let buf = contract_call_encode(&(TestExn::SELECTOR, &exn)).unwrap();
+        let exn = ContractExn::new(TestExn::Boom);
+        let buf = contract_call_encode(&exn).unwrap();
 
         // A receiver that doesn't know the error type can still read the
         // selector to figure out what type to decode next.

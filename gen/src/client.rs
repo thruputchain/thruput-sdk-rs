@@ -218,8 +218,8 @@ fn generate_client_fn(
             with_call_tracking!(#call_info, {
                 match ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args) {
                     Ok(val) => val,
-                    Err(::sdk::call::RawCallError::Exception { selector, ref payload }) => {
-                        ::sdk::call::re_throw(selector, payload.as_slice())
+                    Err(::sdk::call::RawCallError::Exception(ref exn)) => {
+                        exn.re_throw()
                     }
                     Err(::sdk::call::RawCallError::Fault(f)) => {
                         panic!("{}", f)
@@ -243,8 +243,9 @@ fn generate_client_fn(
                 match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args) {
                     Ok(val) => Ok(val),
                     Err(::sdk::call::RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(::sdk::call::RawCallError::Exception { selector, ref payload }) => {
-                        let payload = payload.as_slice();
+                    Err(::sdk::call::RawCallError::Exception(ref exn)) => {
+                        let selector = exn.selector();
+                        let payload = exn.payload();
                         #selector_dispatch
                     }
                 }
@@ -292,7 +293,7 @@ fn generate_error_enum(
             #(#declared_variants,)*
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
-            Unknown(::sdk::exn::RawError),
+            Unknown(::sdk::exn::RawException),
         }
 
         #[allow(unexpected_cfgs)]
@@ -343,7 +344,7 @@ fn generate_selector_dispatch(
             }
             _ => {
                 Err(#error_enum_ident::Unknown(
-                    ::sdk::exn::RawError::new(selector, payload)))
+                    ::sdk::exn::RawException::new(selector, payload)))
             }
         }
     }

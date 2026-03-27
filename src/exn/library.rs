@@ -79,8 +79,8 @@ impl LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn library_throw<E: Into<LibraryExn>>(e: E) -> ! {
-    let exn: LibraryExn = e.into();
-    crate::exn::cross_exn::serialize_error(&exn)
+    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
+    crate::contract_abort_encoded(&exn)
 }
 
 /// Throw an exception because a syscall produced an error.

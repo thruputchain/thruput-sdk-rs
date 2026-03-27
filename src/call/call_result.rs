@@ -2,19 +2,14 @@
 
 use crate::call::ContractError;
 use crate::call::internal::contract_call_decode;
-use crate::exn::{CallingError, FaultString, library_throw};
+use crate::exn::{CallingError, FaultString, RawException, library_throw};
 use crate::xdr::*;
 
 /// The raw, untyped error from a contract call.
 #[derive(Debug, PartialEq)]
 pub enum RawCallError {
     /// The called contract threw an exception with a selector-tagged error.
-    Exception {
-        /// The u64 selector identifying the error type.
-        selector: u64,
-        /// The raw bytes after the selector.
-        payload: heapless::Vec<u8, 500>,
-    },
+    Exception(RawException),
     /// The called contract terminated without providing a return value.
     Fault(FaultString),
 }
@@ -23,12 +18,15 @@ pub enum RawCallError {
 impl core::fmt::Display for RawCallError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            RawCallError::Exception { selector, payload } => write!(
-                f,
-                "exception (selector=0x{:016x}, payload={})",
-                selector,
-                crate::hex::hex_encode(payload)
-            ),
+            RawCallError::Exception(exn) => {
+                let payload = exn.payload();
+                write!(
+                    f,
+                    "exception (selector=0x{:016x}, payload={})",
+                    exn.selector(),
+                    crate::hex::hex_encode(&payload)
+                )
+            }
             RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
         }
     }
@@ -54,26 +52,15 @@ where
                 ))
             }),
         Err(ContractError::Abort(abort_buf)) => {
-            let bytes = abort_buf.as_slice();
-
-            // The exception buffer is CXS-encoded: (u64_selector, payload...).
-            // Decode the selector using a CXS reader so we consume the
-            // correct number of bytes (CXS uses variable-length integer encoding).
-            let mut reader = cxs::buf_reader::BufReader::new(bytes);
-            let selector: u64 =
-                ReadXDR::read_xdr(&mut reader).unwrap_or_else(|_| {
+            let exn = RawException::from_abort_buf(abort_buf.as_slice())
+                .unwrap_or_else(|_| {
                     library_throw(CallingError::DecodingException(
                         FaultString::from_display(
                             "failed to decode selector from exception buffer",
                         ),
                     ))
                 });
-            let payload_bytes = &bytes[reader.position()..];
-
-            let mut payload = heapless::Vec::new();
-            payload.extend_from_slice(payload_bytes).ok();
-
-            Err(RawCallError::Exception { selector, payload })
+            Err(RawCallError::Exception(exn))
         }
         Err(ContractError::Fault(fault_val)) => {
             Err(RawCallError::Fault(fault_val))
