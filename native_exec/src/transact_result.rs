@@ -135,6 +135,16 @@ impl TransactResult {
         self.frame.assert_event_data(index, check);
     }
 
+    pub fn assert_event_payload<E>(
+        &self,
+        index: usize,
+        check: impl FnOnce(&E::Payload<'_>),
+    ) where
+        E: groundhog_event::Event,
+    {
+        self.frame.assert_event_payload::<E>(index, check);
+    }
+
     #[track_caller]
     pub fn assert_emitted<E>(
         &self,
