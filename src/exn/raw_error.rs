@@ -24,9 +24,7 @@ impl RawException {
 
     /// Decode a RawException from an abort buffer.
     /// The buffer is CXS-encoded: [u64 selector][payload bytes...].
-    pub fn from_abort_buf(
-        bytes: &[u8],
-    ) -> Result<Self, ReadError> {
+    pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, ReadError> {
         let mut reader = cxs::buf_reader::BufReader::new(bytes);
         let selector: u64 = ReadXDR::read_xdr(&mut reader)?;
         let payload_bytes = &bytes[reader.position()..];
@@ -51,15 +49,17 @@ impl RawException {
 
     /// Re-throw this exception to our caller, reconstructing the wire format.
     pub fn re_throw(&self) -> ! {
-        let mut buf = crate::call::AbortBuf::new();
-        let written =
-            cxs::encode_into(&self.selector, buf.spare_capacity_mut())
-                .unwrap_or_else(|_| {
-                    panic!("re_throw: couldn't encode selector")
-                });
-        unsafe { buf.set_len(written) };
-        buf.extend_from_slice(&self.payload).ok();
-        crate::contract_abort(buf.as_ref());
+        crate::contract_abort_encoded(self)
+    }
+}
+
+/// Serializes as [CXS(selector)][raw payload bytes] — the same wire format
+/// produced by `ContractExn<E>`. The payload is already CXS-encoded, so it's
+/// written directly without a length prefix.
+impl WriteXDR for RawException {
+    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
+        self.selector.write_xdr(w)?;
+        w.write_opaque_fixed(&self.payload)
     }
 }
 
@@ -112,8 +112,7 @@ mod tests {
 
     #[test]
     fn try_as_corrupt_payload_returns_none() {
-        let raw =
-            RawException::new(FakeError::SELECTOR, &[0xFF, 0xFF, 0xFF]);
+        let raw = RawException::new(FakeError::SELECTOR, &[0xFF, 0xFF, 0xFF]);
         assert_eq!(raw.try_as::<FakeError>(), None);
     }
 
@@ -122,11 +121,9 @@ mod tests {
         let encoded = contract_call_encode(&FakeError::Fake).unwrap();
         // Build a wire-format buffer: [selector][payload]
         let mut wire = heapless::Vec::<u8, 500>::new();
-        let written = cxs::encode_into(
-            &FakeError::SELECTOR,
-            wire.spare_capacity_mut(),
-        )
-        .unwrap();
+        let written =
+            cxs::encode_into(&FakeError::SELECTOR, wire.spare_capacity_mut())
+                .unwrap();
         unsafe { wire.set_len(written) };
         wire.extend_from_slice(&encoded).ok();
 
