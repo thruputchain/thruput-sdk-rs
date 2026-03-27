@@ -56,7 +56,7 @@ pub fn generate(
             use ::sdk::contract::ContractEntrypointID;
             use ::sdk::with_call_tracking;
             use ::sdk::internal::CallMethod;
-            use ::sdk::re_throw::OrReThrow;
+            use ::sdk::OrReThrow;
 
             impl #client_ident {
                 pub fn new(address: &ContractAddress) -> Self {
@@ -310,12 +310,12 @@ fn generate_error_enum(
             }
         }
 
-        impl ::sdk::re_throw::ReThrow for #error_enum_ident {
+        impl ::sdk::ReThrow for #error_enum_ident {
             fn re_throw(self) -> ! {
                 match self {
                     #(#rethrow_declared_arms,)*
                     Self::Library(e) => ::sdk::throw(e),
-                    Self::Unknown(raw) => ::sdk::re_throw::ReThrow::re_throw(raw),
+                    Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),
                 }
             }
