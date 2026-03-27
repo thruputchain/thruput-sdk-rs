@@ -44,6 +44,10 @@ impl IntoTopic for [u8; 32] {
 /// event name). The XDR-serialized payload is everything *after*
 /// the topics in the on-chain representation.
 pub trait Event: xdrs::WriteXDR {
+    /// The decoded payload type. Uses a GAT so it can borrow from
+    /// the input bytes (e.g. `&'a [u8]` fields stay borrowed).
+    type Payload<'a>;
+
     /// Number of topics this event carries (0..=3).
     fn num_topics(&self) -> u32;
 
@@ -52,4 +56,7 @@ pub trait Event: xdrs::WriteXDR {
         let _ = index;
         None
     }
+
+    /// Decode the payload portion of a serialized event.
+    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<Self::Payload<'a>, xdrs::ReadError>;
 }
