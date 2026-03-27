@@ -217,6 +217,9 @@ ls_contract_packages() {
 
         c="$(basename "$contract")"
 
+        # Skip cargo target directories
+        [ "$c" != "target" ] || continue;
+
         echo "$c"
     done
 }
