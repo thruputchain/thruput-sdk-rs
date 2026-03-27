@@ -144,14 +144,3 @@ fn _get_values(
 
     Ok((set_result_opt, add_result))
 }
-
-// Returns an error if the location does not contain a non-negative integer.
-//
-pub fn _get_values_force(key: &StorageKey) -> SysResult<(i128, i128)> {
-    let (s_opt, a) = _get_values(key, true)?;
-
-    // The "set" value is guaranteed to be present now because we specified "force"
-    let s = s_opt.unwrap();
-
-    Ok((s, a))
-}

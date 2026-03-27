@@ -15,7 +15,7 @@
 //!
 
 use crate::exn::{nnint_overflow, nnint_underflow};
-use crate::internal::nnint;
+use crate::sys_exn::nnint_internal as nnint;
 use crate::types::StorageKey;
 
 /// Get the current value.

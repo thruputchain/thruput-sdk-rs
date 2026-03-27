@@ -72,6 +72,7 @@ impl FrameResult {
 
     // -- Assertions --
 
+    #[track_caller]
     pub fn assert_success(&self) {
         assert!(
             self.is_success(),
@@ -80,6 +81,7 @@ impl FrameResult {
         );
     }
 
+    #[track_caller]
     pub fn assert_abort(&self) {
         assert!(
             self.is_abort(),
@@ -88,6 +90,7 @@ impl FrameResult {
         );
     }
 
+    #[track_caller]
     pub fn assert_fault(&self) {
         assert!(
             self.is_fault(),
@@ -127,6 +130,7 @@ impl FrameResult {
     // -- Typed return assertion --
 
     /// Assert the frame succeeded and decode the return buffer as a typed value.
+    #[track_caller]
     pub fn assert_return_with<R>(&self, check: impl FnOnce(&R))
     where
         R: xdrs::ReadXDROwned,
@@ -142,6 +146,7 @@ impl FrameResult {
     // -- Typed abort assertion --
 
     /// Assert the frame aborted and decode the abort buffer as a typed error.
+    #[track_caller]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -170,6 +175,7 @@ impl FrameResult {
         &self.events
     }
 
+    #[track_caller]
     pub fn assert_event_count(&self, expected: usize) {
         let actual = self.events.len();
         assert_eq!(
@@ -179,6 +185,7 @@ impl FrameResult {
         );
     }
 
+    #[track_caller]
     pub fn assert_no_events(&self) {
         assert!(
             self.events.is_empty(),
@@ -222,6 +229,7 @@ impl FrameResult {
             .collect()
     }
 
+    #[track_caller]
     pub fn assert_event(
         &self,
         index: usize,
@@ -237,6 +245,7 @@ impl FrameResult {
         check(&events[index]);
     }
 
+    #[track_caller]
     pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
     where
         E: xdrs::ReadXDROwned,
@@ -266,6 +275,7 @@ impl FrameResult {
     /// Assert that exactly one event from `address` matches `predicate`
     /// when decoded as `E` (with topic 0 check). Panics if zero or more
     /// than one event matches.
+    #[track_caller]
     pub fn assert_emitted<E>(
         &self,
         address: &ContractAddress,

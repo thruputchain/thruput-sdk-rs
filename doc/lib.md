@@ -10,9 +10,9 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 - [`Hasher`]: Incremental hashing
 - Key-value storage:
     - [`mod@delete`]
-    - [`mod@bytestring`]
-    - [`mod@non_negative_int`]
-    - [`mod@retrocausal_queue`]
+    - [`mod@sys_exn::bytestring`]
+    - [`NNInt`]
+    - [`RCQ`]
 - Low-level syscall bindings:
     - [`mod@sys`]: Low-level wrappers
 - Emitting events: [`mod@event`]

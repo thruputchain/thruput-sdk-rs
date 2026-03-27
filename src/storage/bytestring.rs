@@ -1,7 +1,6 @@
 use super::keypath::{KeyCache, Keypath};
-use crate::bytestring::*;
+use crate::sys_exn::bytestring::*;
 use alloc::boxed::Box;
-use alloc::vec;
 use core::fmt::Debug;
 
 #[derive(Debug)]
@@ -49,14 +48,11 @@ impl Bytestring {
         bytestring_get_sized(&self.key)
     }
 
-    #[cfg(feature = "alloc")]
     pub fn get(&self) -> Box<[u8]> {
-        try_bytestring_get(&self.key).unwrap_or_else(|err| {
-            if err.is_storage_key_not_exist() {
-                vec![].into_boxed_slice()
-            } else {
-                panic!();
-            }
-        })
+        bytestring_get(&self.key)
+    }
+
+    pub fn try_get(&self) -> Option<Box<[u8]>> {
+        bytestring_try_get(&self.key)
     }
 }

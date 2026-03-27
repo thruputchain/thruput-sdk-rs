@@ -1,11 +1,8 @@
 use super::keypath::Keypath;
-use crate::non_negative_int::*;
+use crate::sys_exn::nnint::*;
 use core::fmt::Debug;
 
 /// Non-negative integer
-///
-/// Operations on this type are implemented by
-/// [these functions](crate::non_negative_int).
 ///
 #[derive(Debug)]
 pub struct NNInt {
@@ -45,10 +42,7 @@ impl NNInt {
         non_negative_int_set(&self.keypath.generate_key(), set_value);
     }
 
-    /// Set the value
-    ///
-    /// TODO: semantics
-    ///
+    /// Set the value exclusively
     pub fn set_exclusive(&mut self, set_value: i128) {
         non_negative_int_set_exclusive(
             &self.keypath.generate_key(),
