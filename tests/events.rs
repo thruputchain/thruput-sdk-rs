@@ -65,6 +65,8 @@ struct OwnedEvent {
 }
 
 impl Event for OwnedEvent {
+    type Payload<'a> = OwnedEvent;
+
     fn num_topics(&self) -> u32 {
         2
     }
@@ -81,6 +83,10 @@ impl Event for OwnedEvent {
             1 => Some(TopicSrc::Owned(self.currency.hash().into_inner())),
             _ => None,
         }
+    }
+
+    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<OwnedEvent, ReadError> {
+        decode_xdr(bytes)
     }
 }
 
@@ -112,6 +118,8 @@ struct BorrowedEvent<'a> {
 }
 
 impl<'a> Event for BorrowedEvent<'a> {
+    type Payload<'p> = BorrowedEvent<'p>;
+
     fn num_topics(&self) -> u32 {
         3
     }
@@ -127,6 +135,10 @@ impl<'a> Event for BorrowedEvent<'a> {
             }
             _ => return None,
         }
+    }
+
+    fn decode_payload<'p>(bytes: &'p [u8]) -> Result<BorrowedEvent<'p>, ReadError> {
+        decode_xdr(bytes)
     }
 }
 
