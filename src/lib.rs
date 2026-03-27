@@ -27,11 +27,6 @@ pub mod allocator;
 #[doc(hidden)]
 pub mod internal;
 
-#[doc(hidden)]
-pub mod __private {
-    pub use ::thiserror;
-}
-
 mod cell;
 mod debug;
 mod local;

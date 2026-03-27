@@ -14,6 +14,7 @@ use xdrs::XDR;
 #[sdk::contract_error]
 #[non_exhaustive]
 #[cfg_attr(feature = "spec", derive(XDR))]
+#[derive(thiserror::Error)]
 pub enum ERC20Error {
     #[error("Contract already initialized")]
     AlreadyInitialized = 1,

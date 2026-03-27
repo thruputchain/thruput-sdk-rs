@@ -6,7 +6,8 @@ pub struct Contract;
 
 /// An error type NOT declared in throws — will end up in Unknown
 #[contract_error]
-#[error("secret error")]
+#[cfg_attr(feature = "dev", derive(thiserror::Error))]
+#[cfg_attr(feature = "dev", error("secret error"))]
 pub struct SecretError;
 
 #[contract]

@@ -5,11 +5,13 @@ use sdk::*;
 pub struct Contract;
 
 #[contract_error]
-#[error("Thing")]
+#[cfg_attr(feature = "dev", derive(thiserror::Error))]
+#[cfg_attr(feature = "dev", error("Thing"))]
 struct Thing;
 
 #[contract_error]
-#[error("not authorized")]
+#[cfg_attr(feature = "dev", derive(thiserror::Error))]
+#[cfg_attr(feature = "dev", error("not authorized"))]
 pub struct Unauthorized;
 
 #[contract]

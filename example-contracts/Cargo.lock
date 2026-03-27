@@ -119,7 +119,6 @@ dependencies = [
  "erc20",
  "groundhog-erc20-if",
  "sdk",
- "thiserror",
  "xdrs",
 ]
 
@@ -372,7 +371,6 @@ dependencies = [
  "groundhog-erc20-if",
  "sdk",
  "sha2",
- "thiserror",
  "xdrs",
 ]
 
@@ -415,7 +413,6 @@ dependencies = [
  "erc20_low_level",
  "groundhog-erc20-if",
  "sdk",
- "thiserror",
 ]
 
 [[package]]
@@ -427,7 +424,6 @@ dependencies = [
  "erc20_no_storage",
  "groundhog-erc20-if",
  "sdk",
- "thiserror",
  "xdrs",
 ]
 
@@ -1785,7 +1781,6 @@ dependencies = [
  "groundhog-erc20-if",
  "sdk",
  "swap",
- "thiserror",
  "uint",
  "xdrs",
 ]

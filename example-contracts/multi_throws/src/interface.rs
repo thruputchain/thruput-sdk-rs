@@ -1,16 +1,18 @@
 use sdk::*;
 
 #[contract_error]
+#[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum AlphaError {
-    #[error("alpha: not found")]
+    #[cfg_attr(feature = "dev", error("alpha: not found"))]
     NotFound = 1,
-    #[error("alpha: overflow")]
+    #[cfg_attr(feature = "dev", error("alpha: overflow"))]
     Overflow = 2,
 }
 
 #[contract_error]
+#[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum BetaError {
-    #[error("beta: denied")]
+    #[cfg_attr(feature = "dev", error("beta: denied"))]
     Denied = 1,
 }
 
