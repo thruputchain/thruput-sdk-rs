@@ -30,7 +30,6 @@ pub mod internal;
 mod cell;
 mod debug;
 mod local;
-mod named;
 mod panic;
 mod prim;
 mod re_throw;
