@@ -22,6 +22,21 @@ impl<'a> From<TopicSrc<'a>> for Topic {
     }
 }
 
+/// Trait for types that can be converted into an event topic.
+///
+/// Types that are already 32 bytes (like `ContractAddress`) implement
+/// this as a zero-copy borrow. Other types should XDR-encode and hash
+/// to produce a 32-byte topic.
+pub trait IntoTopic {
+    fn into_topic(&self) -> TopicSrc<'_>;
+}
+
+impl IntoTopic for [u8; 32] {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        TopicSrc::Shared(self)
+    }
+}
+
 /// Trait implemented by event types that can be emitted by contracts.
 ///
 /// Provides the number of topics and their values. Topic 0 is
