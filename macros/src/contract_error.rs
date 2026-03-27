@@ -55,6 +55,7 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
     quote! {
         #[cfg(feature = "dev")]
         #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::__private::thiserror::Error)]
+        #[cfg_attr(feature = "dev", thiserror(crate = ::sdk::__private::thiserror))]
         #[repr(i32)]
         #item
 
