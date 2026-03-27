@@ -116,7 +116,9 @@ pub fn encoding_success_throw<E: Error>(e: E) -> ! {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn encoding_exception_throw<E: Error>(e: E) -> ! {
-    library_throw(HandlingError::EncodingException(FaultString::from_display(e)))
+    library_throw(HandlingError::EncodingException(FaultString::from_display(
+        e,
+    )))
 }
 
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]

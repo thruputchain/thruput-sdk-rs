@@ -19,7 +19,10 @@ pub enum CallingError {
     )]
     DecodingSuccess(FaultString),
 
-    #[cfg_attr(feature = "debugging", error("Decoding an exception result: {0}"))]
+    #[cfg_attr(
+        feature = "debugging",
+        error("Decoding an exception result: {0}")
+    )]
     DecodingException(FaultString),
 
     #[cfg_attr(feature = "debugging", error("Encoding arguments: {0}"))]
