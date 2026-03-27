@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 
 mod contract;
 mod contract_error;
+mod derive_event;
 mod derive_exn;
 mod static_hash;
 
@@ -95,4 +96,13 @@ pub fn contract_error(
         Ok(args) => contract_error::expand(args, item).into(),
         Err(err) => err,
     }
+}
+
+#[proc_macro_derive(Event, attributes(topic))]
+pub fn derive_event(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    derive_event::expand(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
