@@ -283,7 +283,7 @@ fn generate_error_enum(
     let display_declared_arms: Vec<TokenStream> = throws_list
         .iter()
         .map(|ident| {
-            quote! { Self::#ident(e) => ::core::write!(f, "{}", e) }
+            quote! { Self::#ident(e) => ::core::write!(f, "{:?}", e) }
         })
         .collect();
 
