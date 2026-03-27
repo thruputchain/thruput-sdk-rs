@@ -233,6 +233,111 @@ single_event_test! {
     }
 }
 
+//-------------------------------------------------------------------------
+// Field ordering: rearranging topic/payload fields should not change
+// the serialized event, as long as topics stay in the same relative
+// order and payload fields stay in the same relative order.
+
+// Topics first, then payload
+#[derive(Event)]
+struct FieldOrderA<'a> {
+    #[topic]
+    from: &'a ContractAddress,
+    #[topic]
+    to: &'a ContractAddress,
+    amount: u128,
+    memo: &'a [u8],
+}
+
+// Interleaved: topic, payload, topic, payload
+#[derive(Event)]
+struct FieldOrderB<'a> {
+    #[topic]
+    from: &'a ContractAddress,
+    amount: u128,
+    #[topic]
+    to: &'a ContractAddress,
+    memo: &'a [u8],
+}
+
+// Payload first, then topics
+#[derive(Event)]
+struct FieldOrderC<'a> {
+    amount: u128,
+    memo: &'a [u8],
+    #[topic]
+    from: &'a ContractAddress,
+    #[topic]
+    to: &'a ContractAddress,
+}
+
+#[test]
+fn test_field_order_does_not_affect_serialization() {
+    let env = TestEnvironment::no_cost();
+    let mut handler = contract_test_handler(env, || {
+        let from = ContractAddress::default();
+        let to = ContractAddress::default();
+
+        log_event(&FieldOrderA {
+            from: &from,
+            to: &to,
+            amount: 42,
+            memo: b"hello",
+        });
+        log_event(&FieldOrderB {
+            from: &from,
+            amount: 42,
+            to: &to,
+            memo: b"hello",
+        });
+        log_event(&FieldOrderC {
+            amount: 42,
+            memo: b"hello",
+            from: &from,
+            to: &to,
+        });
+    });
+
+    let res = handler.root_invoke();
+    if res.output.status_code()
+        != sdk::types::transaction::InvocationFrameStatusCode::Return
+    {
+        panic!(
+            "Invocation failed with code {}",
+            res.output.status_code()
+        );
+    }
+
+    match handler.try_commit_transaction() {
+        ExecResult::ExecResultOK => {}
+        r => panic!("Transaction failed: {:?}", r),
+    }
+
+    let events = &res.events;
+    assert_eq!(events.len(), 3);
+
+    // All three events should have the same number of topics
+    assert_eq!(events[0].num_topics, events[1].num_topics);
+    assert_eq!(events[0].num_topics, events[2].num_topics);
+
+    // Topic 0 differs (it's the struct name hash), so compare
+    // topics 1..N and payload — those must be identical.
+    fn after_sig(e: &TxEmittedEvent) -> &[u8] {
+        &e.serialized_event[32..]
+    }
+
+    assert_eq!(
+        after_sig(&events[0]),
+        after_sig(&events[1]),
+        "interleaved field order changed serialization"
+    );
+    assert_eq!(
+        after_sig(&events[0]),
+        after_sig(&events[2]),
+        "reversed field order changed serialization"
+    );
+}
+
 // utilities
 
 fn event_payload(event: &TxEmittedEvent) -> &[u8] {
