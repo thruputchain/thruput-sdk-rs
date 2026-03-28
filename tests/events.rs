@@ -406,6 +406,58 @@ fn test_simple_event_payload_decoding() {
 //-------------------------------------------------------------------------
 // Multi-lifetime event: both lifetimes unify to the decode buffer lifetime
 
+//-------------------------------------------------------------------------
+// Non-32-byte topic types (hashed via IntoTopic impls)
+
+#[derive(Event)]
+struct HashedTopicEvent<'a> {
+    #[topic]
+    category: &'a str,
+    #[topic]
+    amount: u128,
+    memo: &'a [u8],
+}
+
+#[test]
+fn test_hashed_topic_event() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&HashedTopicEvent {
+                category: "transfer",
+                amount: 1000,
+                memo: b"test",
+            });
+        })
+    });
+
+    result.assert_success();
+
+    // Compute expected topic hashes outside the VM using sha2 directly.
+    // hash_to_topic does: XDR-encode → SHA-256
+    use sha2::{Digest, Sha256};
+    let expected_category: [u8; 32] = {
+        let xdr = sdk::internal::encode_xdr(&"transfer").unwrap();
+        Sha256::digest(xdr.as_ref()).into()
+    };
+    let expected_amount: [u8; 32] = {
+        let xdr = sdk::internal::encode_xdr(&1000u128).unwrap();
+        Sha256::digest(xdr.as_ref()).into()
+    };
+
+    result.assert_event::<HashedTopicEvent>(0, |e| {
+        assert_eq!(e.num_topics(), 3);
+        assert_eq!(e.topic(0).unwrap(), HashedTopicEvent::SIGNATURE);
+        assert_eq!(e.topic(1).unwrap(), expected_category.as_ref());
+        assert_eq!(e.topic(2).unwrap(), expected_amount.as_ref());
+        assert_eq!(e.payload().memo, b"test");
+    });
+}
+
+//-------------------------------------------------------------------------
+// Multi-lifetime event: both lifetimes unify to the decode buffer lifetime
+
 #[derive(Event)]
 struct MultiLifetimeEvent<'a, 'b> {
     #[topic]
