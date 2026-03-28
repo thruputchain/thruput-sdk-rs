@@ -137,7 +137,7 @@ impl FrameResult {
     {
         self.assert_success();
         let buf = self.return_buffer();
-        let decoded: R = xdrs::txs::decode(buf).unwrap_or_else(|e| {
+        let decoded: R = xdrs::cxs::decode(buf).unwrap_or_else(|e| {
             panic!("failed to decode return buffer: {}", e)
         });
         check(&decoded);
@@ -153,7 +153,7 @@ impl FrameResult {
     {
         self.assert_abort();
         let buf = self.abort_buffer();
-        let decoded: E = xdrs::txs::decode(buf).unwrap_or_else(|e| {
+        let decoded: E = xdrs::cxs::decode(buf).unwrap_or_else(|e| {
             panic!("failed to decode abort buffer: {}", e)
         });
         check(&decoded);
