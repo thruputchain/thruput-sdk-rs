@@ -3,7 +3,7 @@ use crate::internal::encode_xdr;
 use crate::sys::{self, SyscallNo};
 
 // Re-export core event types from groundhog-event
-pub use groundhog_event::{Event, IntoTopic, Topic, TopicSrc};
+pub use groundhog_event::{EmittedEvent, Event, IntoTopic, Topic, TopicSrc};
 
 /// Maximum number of topics per event
 pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;
@@ -46,7 +46,3 @@ pub fn log_event(event: &impl Event) {
         syscall_throw(SyscallNo::kLogEvent, errno);
     });
 }
-
-// Re-export EmittedEvent from native_exec (available with "mock" feature)
-#[cfg(feature = "mock")]
-pub use groundhog_native_exec::emitted_event::*;

@@ -15,4 +15,5 @@ description = "Event trait and topic types for Groundhog smart contracts"
 crate-type = ["rlib"]
 
 [dependencies]
+groundhog-xdr = { workspace = true }
 xdrs = { workspace = true }
