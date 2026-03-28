@@ -161,7 +161,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             fn decode_payload<'__payload>(
                 bytes: &'__payload [u8],
             ) -> ::core::result::Result<#payload_ty_in_gat, ::xdrs::ReadError> {
-                ::xdrs::txs::decode(bytes)
+                ::xdrs::cxs::decode(bytes)
             }
         }
 
