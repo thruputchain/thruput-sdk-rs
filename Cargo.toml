@@ -50,7 +50,6 @@ exclude = [
 metadata.docs.rs.features = [
     "std",
     "storage",
-    "abort/debug",
     "groundhog-xdr/syscalls_mock",
 ]
 
@@ -69,7 +68,6 @@ groundhog-storage-cost = { workspace = true, optional = true }
 # External dependencies
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
-abort = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
 bitset-core = { workspace = true }
@@ -116,7 +114,6 @@ hogexec-internal = { registry = "groundhog", version = "0.6.1" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.5.2", features = ["int128", "heapless"] }
 xdr-common = { registry = "groundhog", version = "0.5.2" }
-abort = { registry = "groundhog", version = "0.5.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }
 heapless = { version = "0.9.2" }
@@ -135,8 +132,6 @@ dev = [
     "debugging",
     "call_tracking",
     "dep:groundhog-storage-cost",
-    "abort/std",
-    "abort/debug",
     "mock",
 ]
 
@@ -149,13 +144,13 @@ mock = [
 ]
 
 # Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std", "abort/std"]
+std = ["alloc", "groundhog-xdr/std"]
 
 # Diagnostic features
-debugging = ["abort/debug"]
+debugging = []
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
-call_tracking = ["debugging", "abort/debug", "groundhog-macros/call_tracking"] # contract-call backtrace
+call_tracking = ["debugging", "groundhog-macros/call_tracking"] # contract-call backtrace
 
 # Generate specs
 spec = [
@@ -183,7 +178,6 @@ test = false # XXX: fix aborts test
 collapsible_if = "allow"
 
 [target.wasm32-unknown-unknown.dependencies]
-abort = { workspace = true, features = ["single-threaded"] }
 groundhog-xdr = { workspace = true, features = ["syscalls"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]

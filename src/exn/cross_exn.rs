@@ -44,7 +44,9 @@ impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
             selector: E::SELECTOR,
             exn,
             location: Some(format(Location::caller())),
-            backtrace: Some(format(&::abort::Backtrace::capture())),
+            backtrace: Some(format(
+                &crate::debug_context::Backtrace::capture(),
+            )),
         }
     }
 

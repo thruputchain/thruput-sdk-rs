@@ -29,6 +29,8 @@ pub mod internal;
 
 mod cell;
 mod debug;
+#[cfg(feature = "debugging")]
+mod debug_context;
 mod local;
 mod panic;
 mod prim;
@@ -91,7 +93,7 @@ pub use util::*;
 pub use xdr::*;
 
 #[cfg(feature = "debugging")]
-pub use ::abort::with_debug_context;
+pub use debug_context::with_debug_context;
 
 #[cfg(feature = "debugging")]
 pub use ::thiserror::Error;

@@ -3,15 +3,6 @@
 version = 4
 
 [[package]]
-name = "abort"
-version = "0.5.0"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d660d95d3a3b972fa69bbc94e7f05d98c9ae476df1a38bf75da646a7250f3a13"
-dependencies = [
- "heapless",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1455,7 +1446,6 @@ dependencies = [
 name = "sdk"
 version = "0.8.2"
 dependencies = [
- "abort",
  "bitset-core",
  "delegate",
  "groundhog-contract-util",
