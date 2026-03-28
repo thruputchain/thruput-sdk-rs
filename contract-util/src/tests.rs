@@ -96,4 +96,45 @@ mod tests {
         let s2 = crate::error_selector("1.0.0", "crate_b", "MyError");
         assert_ne!(s1, s2);
     }
+
+    #[test]
+    fn test_event_signature_deterministic() {
+        let s1 = crate::event_signature("1.2.3", "mycrate", "MyEvent");
+        let s2 = crate::event_signature("1.2.3", "mycrate", "MyEvent");
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_event_signature_is_32_bytes() {
+        let sig = crate::event_signature("1.0.0", "mycrate", "MyEvent");
+        assert_eq!(sig.len(), 32);
+    }
+
+    #[test]
+    fn test_event_signature_same_major_same_signature() {
+        let s1 = crate::event_signature("1.2.3", "mycrate", "MyEvent");
+        let s2 = crate::event_signature("1.9.0", "mycrate", "MyEvent");
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_event_signature_differs_by_version() {
+        let s1 = crate::event_signature("1.0.0", "mycrate", "MyEvent");
+        let s2 = crate::event_signature("2.0.0", "mycrate", "MyEvent");
+        assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_event_signature_differs_by_crate() {
+        let s1 = crate::event_signature("1.0.0", "crate_a", "MyEvent");
+        let s2 = crate::event_signature("1.0.0", "crate_b", "MyEvent");
+        assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_event_signature_differs_by_name() {
+        let s1 = crate::event_signature("1.0.0", "mycrate", "AlphaEvent");
+        let s2 = crate::event_signature("1.0.0", "mycrate", "BetaEvent");
+        assert_ne!(s1, s2);
+    }
 }

@@ -150,5 +150,27 @@ pub fn error_selector(
     u64::from_be_bytes(result[..8].try_into().unwrap())
 }
 
+/// Derive a standard event signature for a contract event type.
+///
+/// Event signature = sha256(MAJOR_VERSION :: CRATE_NAME :: TYPE_NAME)
+///
+/// Uses the same hashing scheme as `error_selector` but returns the
+/// full 32-byte hash instead of truncating to u64.
+pub fn event_signature(
+    version_str: &str,
+    crate_name: &str,
+    type_name: &str,
+) -> [u8; 32] {
+    let major_version = semver::major_version_from_string(version_str);
+
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(major_version.as_bytes());
+    hasher.update(b"::");
+    hasher.update(crate_name.as_bytes());
+    hasher.update(b"::");
+    hasher.update(type_name.as_bytes());
+    hasher.finalize().into()
+}
+
 #[cfg(test)]
 mod tests;

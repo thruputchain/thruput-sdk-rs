@@ -20,8 +20,8 @@ use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
-    ContractAddress, EmittedEvent, Event, Topic, TopicSrc, WriteResult,
-    WriteXDR, hash_to_array, hex_encode, log_event,
+    ContractAddress, EmittedEvent, Event, ReadXDR, Topic, TopicSrc,
+    WriteResult, WriteXDR, hash_to_array, hex_encode, log_event,
 };
 use xdrs::Writer;
 
@@ -64,7 +64,14 @@ impl<'a> WriteXDR for TransferEvent<'a> {
 
 pub const TRANSFER_EVENT_SIG: &Topic = &hash_to_array!("TransferEvent");
 
+#[derive(ReadXDR)]
+pub struct TransferEventPayload {
+    pub amount: u128,
+}
+
 impl<'a> Event for TransferEvent<'a> {
+    type Payload<'p> = TransferEventPayload;
+
     fn num_topics(&self) -> u32 {
         3
     }
@@ -76,6 +83,12 @@ impl<'a> Event for TransferEvent<'a> {
             2 => Some(TopicSrc::Shared(self.to)),
             _ => None,
         }
+    }
+
+    fn decode_payload<'p>(
+        bytes: &'p [u8],
+    ) -> Result<TransferEventPayload, xdrs::ReadError> {
+        sdk::internal::decode_xdr(bytes)
     }
 }
 
@@ -187,7 +200,14 @@ impl<'a> ApprovalEvent<'a> {
 
 pub const APPROVAL_EVENT_SIG: &Topic = &hash_to_array!("ApprovalEvent");
 
+#[derive(ReadXDR)]
+pub struct ApprovalEventPayload {
+    pub difference: i128,
+}
+
 impl<'a> Event for ApprovalEvent<'a> {
+    type Payload<'p> = ApprovalEventPayload;
+
     fn num_topics(&self) -> u32 {
         3
     }
@@ -199,6 +219,12 @@ impl<'a> Event for ApprovalEvent<'a> {
             2 => Some(TopicSrc::Shared(self.spender)),
             _ => None,
         }
+    }
+
+    fn decode_payload<'p>(
+        bytes: &'p [u8],
+    ) -> Result<ApprovalEventPayload, xdrs::ReadError> {
+        sdk::internal::decode_xdr(bytes)
     }
 }
 
