@@ -132,7 +132,9 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         #[derive(::xdrs::ReadXDR)]
         #[allow(dead_code)]
         #vis struct #payload_ident #payload_generics {
-            #(#payload_fields),*
+            #(#payload_fields,)*
+            #[allow(dead_code)]
+            _phantom: ::core::marker::PhantomData<( #(&#lifetime_params ()),* )>,
         }
 
         impl #impl_generics ::sdk::Event for #ident #ty_generics #where_clause {
