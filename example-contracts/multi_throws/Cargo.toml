@@ -21,7 +21,6 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-xdrs = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 multi_throws = { path = ".", features = ["dev"] }

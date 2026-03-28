@@ -2,8 +2,8 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
-use sdk::*;
 use sdk::sys_result::rcq::*;
+use sdk::*;
 use sys::SyscallErrorCode;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");
@@ -11,6 +11,7 @@ static REQUEST_QUEUE: StorageKey = static_key!("queue key");
 pub type RequestID = u32;
 
 #[derive(ReadXDR, WriteXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
 pub struct SwapRequest {
     pub id: RequestID,
     /* info about tokens to swap, amount, etc. */

@@ -23,7 +23,6 @@ test = false
 sdk = { workspace = true, features = ["storage"] }
 erc20 = { package = "erc20_low_level", path = "../erc20_low_level/" }
 groundhog-erc20-if = { workspace = true }
-xdrs = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 simple_wallet_old = { path = ".", features = ["dev"] }

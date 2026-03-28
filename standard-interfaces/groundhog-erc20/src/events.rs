@@ -19,11 +19,11 @@
 use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
+use sdk::Writer;
 use sdk::{
     ContractAddress, EmittedEvent, Event, ReadXDR, Topic, TopicSrc,
     WriteResult, WriteXDR, hash_to_array, hex_encode, log_event,
 };
-use xdrs::Writer;
 
 pub fn log_transfer_event(
     from: &ContractAddress,
@@ -65,6 +65,7 @@ impl<'a> WriteXDR for TransferEvent<'a> {
 pub const TRANSFER_EVENT_SIG: &Topic = &hash_to_array!("TransferEvent");
 
 #[derive(ReadXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
 pub struct TransferEventPayload {
     pub amount: u128,
 }
@@ -87,7 +88,7 @@ impl<'a> Event for TransferEvent<'a> {
 
     fn decode_payload<'p>(
         bytes: &'p [u8],
-    ) -> Result<TransferEventPayload, xdrs::ReadError> {
+    ) -> Result<TransferEventPayload, sdk::ReadError> {
         sdk::internal::decode_xdr(bytes)
     }
 }
@@ -201,6 +202,7 @@ impl<'a> ApprovalEvent<'a> {
 pub const APPROVAL_EVENT_SIG: &Topic = &hash_to_array!("ApprovalEvent");
 
 #[derive(ReadXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
 pub struct ApprovalEventPayload {
     pub difference: i128,
 }
@@ -223,7 +225,7 @@ impl<'a> Event for ApprovalEvent<'a> {
 
     fn decode_payload<'p>(
         bytes: &'p [u8],
-    ) -> Result<ApprovalEventPayload, xdrs::ReadError> {
+    ) -> Result<ApprovalEventPayload, sdk::ReadError> {
         sdk::internal::decode_xdr(bytes)
     }
 }

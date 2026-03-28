@@ -44,7 +44,6 @@ version = "0.1.0"
 dependencies = [
  "authclaim_test",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -105,7 +104,6 @@ name = "bottle-test-if"
 version = "0.1.0"
 dependencies = [
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -141,7 +139,6 @@ dependencies = [
  "bottle-test-if",
  "calldata_wrapper",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -282,7 +279,6 @@ version = "0.1.0"
 dependencies = [
  "cxs_roundtrip",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -480,7 +476,6 @@ dependencies = [
  "bottle-test-if",
  "fibonacci",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -490,7 +485,6 @@ dependencies = [
  "fibonacci",
  "fibonacci_call",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -684,7 +678,6 @@ version = "0.1.0"
 dependencies = [
  "sdk",
  "thiserror",
- "xdrs",
 ]
 
 [[package]]
@@ -694,7 +687,6 @@ dependencies = [
  "groundhog-xdr",
  "sdk",
  "thiserror",
- "xdrs",
 ]
 
 [[package]]
@@ -904,7 +896,6 @@ dependencies = [
  "groundhog-erc20-if",
  "htlc",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -1158,7 +1149,6 @@ dependencies = [
  "groundhog-erc20-if",
  "initial_token_claim",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -1185,7 +1175,6 @@ dependencies = [
  "groundhog-erc20-if",
  "itc_erc20",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -1334,7 +1323,6 @@ name = "nocontract_wallet"
 version = "0.1.0"
 dependencies = [
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -1404,7 +1392,6 @@ dependencies = [
  "groundhog-erc20-if",
  "payment_channel",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -1537,7 +1524,6 @@ dependencies = [
  "groundhog-xdr",
  "read_only_test",
  "sdk",
- "xdrs",
 ]
 
 [[package]]
@@ -1868,7 +1854,6 @@ dependencies = [
  "sdk",
  "sha2",
  "sha256_wrapper",
- "xdrs",
 ]
 
 [[package]]
@@ -1899,7 +1884,6 @@ dependencies = [
  "groundhog-erc1271-if",
  "sdk",
  "simple_wallet",
- "xdrs",
 ]
 
 [[package]]
@@ -1908,7 +1892,6 @@ version = "0.1.0"
 dependencies = [
  "sdk",
  "simple_wallet_authclaim",
- "xdrs",
 ]
 
 [[package]]
@@ -2000,7 +1983,6 @@ dependencies = [
  "sdk",
  "sha2",
  "syscall_misc_tests",
- "xdrs",
 ]
 
 [[package]]
@@ -2201,7 +2183,6 @@ version = "0.1.0"
 dependencies = [
  "sdk",
  "tuple_return",
- "xdrs",
 ]
 
 [[package]]
@@ -2210,7 +2191,6 @@ version = "0.1.0"
 dependencies = [
  "sdk",
  "txs_roundtrip",
- "xdrs",
 ]
 
 [[package]]
@@ -2632,9 +2612,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-common"
-version = "0.5.2"
+version = "0.5.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "0a354f3b3c6c8726538c7635a4e6e50242019cc1690bf7736f7d4d2cd324596b"
+checksum = "a66af7d314d7880009fd5117f11d7608f88a5411dfb3602ea1159325f4bfe75a"
 dependencies = [
  "escape-bytes",
  "hex",
@@ -2642,9 +2622,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-derive"
-version = "0.5.2"
+version = "0.5.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "373c6163cb79a1f3545aca983c92a57220dd0b57915c9126e65f27904f85a382"
+checksum = "94defb5dfe3cada1533d7c6d4a21f0f9c88c390a568c0042838f40ce0b04e0fc"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2654,18 +2634,18 @@ dependencies = [
 
 [[package]]
 name = "xdr-repr"
-version = "0.5.2"
+version = "0.5.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d52dc87667b8967f75bdde96c3a79dfe2f1bdc9a047ee558e3f5a7af68fb536e"
+checksum = "d0bf0f712c9c713d0ee91fbb7e9d1bc98dff37ec25b279dbe3c8e5f4e260cab1"
 dependencies = [
  "xdr-common",
 ]
 
 [[package]]
 name = "xdrs"
-version = "0.5.2"
+version = "0.5.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "11999257c86fdd970b8114199e6fe5fa357fbd23ab773d3f7e3e32aa9d457bc4"
+checksum = "d0202de759a0e8446b6b74f5fbb50ea2e96f29790772a42956aaa8077e4a4cb5"
 dependencies = [
  "heapless",
  "thiserror",

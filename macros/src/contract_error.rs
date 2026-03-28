@@ -26,6 +26,7 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
 
     quote! {
         #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR)]
+        #[xdrs(crate = "::sdk::__xdrs")]
         #[repr(i32)]
         #item
 
@@ -41,6 +42,7 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
 
     quote! {
         #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR)]
+        #[xdrs(crate = "::sdk::__xdrs")]
         #item
 
         impl ::sdk::exn::Exn for #ident {

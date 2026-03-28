@@ -12,7 +12,6 @@ sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true }
 erc20-test = { workspace = true }
 bottle-test-if = { workspace = true }
-xdrs = { workspace = true }
 
 [lib]
 crate-type = ["rlib"]

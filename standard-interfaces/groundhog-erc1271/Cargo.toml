@@ -15,7 +15,6 @@ spec = ["sdk/spec"]
 
 [dependencies]
 sdk = { path = "../..", registry = "groundhog", version = "=0.8.2" }
-xdrs = { workspace = true, features = ["derive", "alloc"] }
 thiserror = { workspace = true }
 
 [[bin]]
