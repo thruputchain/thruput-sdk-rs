@@ -1,7 +1,7 @@
 #![no_std]
 
-use sdk::*;
 use sdk::sys_exn::bytestring::*;
+use sdk::*;
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "0"))]
 pub extern "C" fn write_bytestring() -> i32 {
