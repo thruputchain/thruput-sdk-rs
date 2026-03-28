@@ -220,7 +220,7 @@ impl FrameResult {
                     return None;
                 }
                 let payload = &event.serialized_event[topics_len..];
-                let decoded = xdrs::txs::decode::<E>(payload).ok()?;
+                let decoded = xdrs::cxs::decode::<E>(payload).ok()?;
                 if !topic0_matches(&decoded, event) {
                     return None;
                 }
@@ -292,7 +292,7 @@ impl FrameResult {
                 event.serialized_event.len()
             );
             let payload = &event.serialized_event[topics_len..];
-            if let Ok(decoded) = xdrs::txs::decode::<E>(payload)
+            if let Ok(decoded) = xdrs::cxs::decode::<E>(payload)
                 && topic0_matches(&decoded, event)
                 && predicate(&decoded)
             {
