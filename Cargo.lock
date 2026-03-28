@@ -560,6 +560,7 @@ dependencies = [
 name = "groundhog-event"
 version = "0.7.1"
 dependencies = [
+ "groundhog-xdr",
  "xdrs",
 ]
 
