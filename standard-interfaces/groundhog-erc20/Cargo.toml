@@ -15,7 +15,7 @@ spec = ["sdk/spec"]
 storage = ["sdk/storage"]
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.8.0" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.8.1" }
 xdrs = { workspace = true, features = ["derive", "int128"] }
 thiserror = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
@@ -24,7 +24,7 @@ groundhog-xdr = { workspace = true }
 groundhog-erc20-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.8.0", features = ["std"] }
+sdk = { path = "../..", registry = "groundhog", version = "=0.8.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
