@@ -15,6 +15,12 @@ compile_error!("Feature 'std' is required when compiling natively");
 // inside this crate itself. (Same pattern as serde.)
 extern crate self as sdk;
 
+// Re-export the xdrs crate so that derive macros (ReadXDR, WriteXDR) can
+// reference internal xdrs module paths via `::sdk::__xdrs::…` — this lets
+// contracts depend only on `sdk`, not on `xdrs` directly.
+#[doc(hidden)]
+pub extern crate xdrs as __xdrs;
+
 #[cfg(feature = "std")]
 extern crate std;
 

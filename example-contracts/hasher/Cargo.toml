@@ -22,7 +22,6 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-xdrs = { workspace = true }
 
 # Optional
 bottle-test-if = { workspace = true, optional = true }

@@ -23,7 +23,6 @@ test = false
 sdk = { workspace = true, features = ["storage"] }
 erc20 = { path = "../erc20" }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
-xdrs = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 caller = { path = ".", features = ["dev"] }

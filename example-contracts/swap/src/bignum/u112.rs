@@ -1,5 +1,5 @@
 use core::cmp::Ord;
-use xdrs::*;
+use sdk::{ReadXDR, WriteXDR};
 
 pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 

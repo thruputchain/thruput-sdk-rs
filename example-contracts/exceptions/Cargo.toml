@@ -21,7 +21,6 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["debugging"] }
-xdrs = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 exceptions = { path = ".", features = ["dev"] }

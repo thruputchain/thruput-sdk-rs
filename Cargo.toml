@@ -15,7 +15,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.8.2"
+version = "0.8.3"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -90,14 +90,14 @@ sdk = { path = "." }
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.8.2" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.8.2" }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.8.2" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.8.2" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.8.2" }
-groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.8.2" }
-groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.8.2" }
-groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.8.2" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.8.3" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.8.3" }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.8.3" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.8.3" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.8.3" }
+groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.8.3" }
+groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.8.3" }
+groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.8.3" }
 
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
@@ -114,8 +114,8 @@ groundhog-trace = { registry = "groundhog", version = "0.6.1" }
 groundhog-xdr = { registry = "groundhog", version = "0.6.1", features = ["xdrs"] }
 hogexec-internal = { registry = "groundhog", version = "0.6.1" }
 thiserror = { version = "2.0.12", default-features = false }
-xdrs = { registry = "groundhog", version = "0.5.2", features = ["int128", "heapless"] }
-xdr-common = { registry = "groundhog", version = "0.5.2" }
+xdrs = { registry = "groundhog", version = "0.5.3", features = ["int128", "heapless"] }
+xdr-common = { registry = "groundhog", version = "0.5.3" }
 abort = { registry = "groundhog", version = "0.5.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 delegate = { version = "0.13.4" }

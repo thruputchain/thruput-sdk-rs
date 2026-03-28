@@ -73,7 +73,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     let payload_writes = payload.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         quote! {
-            ::xdrs::WriteXDR::write_xdr(&self.#field_ident, w)?;
+            ::sdk::WriteXDR::write_xdr(&self.#field_ident, w)?;
         }
     });
 
@@ -129,7 +129,8 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             pub const SIGNATURE: &'static ::sdk::Topic = &[#(#sig_array),*];
         }
 
-        #[derive(::xdrs::ReadXDR)]
+        #[derive(::sdk::ReadXDR)]
+        #[xdrs(crate = "::sdk::__xdrs")]
         #[allow(dead_code)]
         #vis struct #payload_ident #payload_generics {
             #(#payload_fields,)*
@@ -160,16 +161,16 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 
             fn decode_payload<'__payload>(
                 bytes: &'__payload [u8],
-            ) -> ::core::result::Result<#payload_ty_in_gat, ::xdrs::ReadError> {
-                ::xdrs::cxs::decode(bytes)
+            ) -> ::core::result::Result<#payload_ty_in_gat, ::sdk::ReadError> {
+                ::sdk::__xdrs::cxs::decode(bytes)
             }
         }
 
-        impl #impl_generics ::xdrs::WriteXDR for #ident #ty_generics #where_clause {
-            fn write_xdr<__F, __W: ::xdrs::Writer<__F>>(
+        impl #impl_generics ::sdk::WriteXDR for #ident #ty_generics #where_clause {
+            fn write_xdr<__F, __W: ::sdk::Writer<__F>>(
                 &self,
                 w: &mut __W,
-            ) -> ::xdrs::WriteResult<()> {
+            ) -> ::sdk::WriteResult<()> {
                 #(#payload_writes)*
                 ::core::result::Result::Ok(())
             }
