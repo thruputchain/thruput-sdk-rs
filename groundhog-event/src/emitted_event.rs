@@ -25,7 +25,7 @@ impl<'a> EmittedEvent<'a> {
     pub fn topic(&self, index: u32) -> Option<&'a Topic> {
         let event = self.0;
 
-        if index > event.num_topics {
+        if index >= event.num_topics {
             return None;
         }
 

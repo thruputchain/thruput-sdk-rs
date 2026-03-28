@@ -38,6 +38,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     let (topics, payload) = partition_fields(&data.fields)?;
 
     let ident = &input.ident;
+    let vis = &input.vis;
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
 
@@ -130,7 +131,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 
         #[derive(::xdrs::ReadXDR)]
         #[allow(dead_code)]
-        pub struct #payload_ident #payload_generics {
+        #vis struct #payload_ident #payload_generics {
             #(#payload_fields),*
         }
 
@@ -145,6 +146,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
                 &'__event self,
                 index: u32,
             ) -> ::core::option::Option<::sdk::TopicSrc<'__event>> {
+                use ::sdk::IntoTopic as _;
                 match index {
                     0 => ::core::option::Option::Some(
                         ::sdk::TopicSrc::Shared(Self::SIGNATURE)
