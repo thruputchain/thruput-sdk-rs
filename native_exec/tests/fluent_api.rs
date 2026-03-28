@@ -22,7 +22,7 @@ impl Event for TestValue {
     fn decode_payload<'a>(
         bytes: &'a [u8],
     ) -> Result<TestValue, xdrs::ReadError> {
-        xdrs::txs::decode(bytes)
+        xdrs::cxs::decode(bytes)
     }
 }
 
@@ -45,7 +45,7 @@ impl Event for EventA {
         }
     }
     fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventA, xdrs::ReadError> {
-        xdrs::txs::decode(bytes)
+        xdrs::cxs::decode(bytes)
     }
 }
 
@@ -65,7 +65,7 @@ impl Event for EventB {
         }
     }
     fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventB, xdrs::ReadError> {
-        xdrs::txs::decode(bytes)
+        xdrs::cxs::decode(bytes)
     }
 }
 
@@ -637,7 +637,7 @@ fn test_assert_event_data_u32() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             let v: u32 = 12345;
-            let data = xdrs::txs::encode(&v).unwrap();
+            let data = xdrs::cxs::encode(&v).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
@@ -664,7 +664,7 @@ fn test_assert_event_data_with_topic() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             let v: u32 = 99;
-            let data = xdrs::txs::encode(&v).unwrap();
+            let data = xdrs::cxs::encode(&v).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new([0xBB; 32])),
                 None,
@@ -689,7 +689,7 @@ fn test_assert_emitted_finds_matching_event() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             for v in [10u32, 20, 30] {
-                let data = xdrs::txs::encode(&v).unwrap();
+                let data = xdrs::cxs::encode(&v).unwrap();
                 groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                     .unwrap();
             }
@@ -715,7 +715,7 @@ fn test_assert_emitted_panics_when_no_match() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            let data = xdrs::txs::encode(&42u32).unwrap();
+            let data = xdrs::cxs::encode(&42u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
@@ -743,7 +743,7 @@ fn test_assert_event_out_of_range() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            let data = xdrs::txs::encode(&1u32).unwrap();
+            let data = xdrs::cxs::encode(&1u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
@@ -792,7 +792,7 @@ fn test_assert_return_with() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             let v: u32 = 42;
-            let data = xdrs::txs::encode(&v).unwrap();
+            let data = xdrs::cxs::encode(&v).unwrap();
             groundhog_xdr::syscalls::raw_Return(&data, false);
         })
     });
@@ -844,7 +844,7 @@ fn test_filter_events() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             for v in [10u32, 20, 30] {
-                let data = xdrs::txs::encode(&v).unwrap();
+                let data = xdrs::cxs::encode(&v).unwrap();
                 groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                     .unwrap();
             }
@@ -936,7 +936,7 @@ fn test_filter_events_by_topic() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             // Emit EventA(10) with topic 0 = EVENT_A_SIG
-            let data = xdrs::txs::encode(&10u32).unwrap();
+            let data = xdrs::cxs::encode(&10u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
@@ -946,7 +946,7 @@ fn test_filter_events_by_topic() {
             .unwrap();
 
             // Emit EventB(20) with topic 0 = EVENT_B_SIG
-            let data = xdrs::txs::encode(&20u32).unwrap();
+            let data = xdrs::cxs::encode(&20u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
                 None,
@@ -956,7 +956,7 @@ fn test_filter_events_by_topic() {
             .unwrap();
 
             // Emit EventA(30) with topic 0 = EVENT_A_SIG
-            let data = xdrs::txs::encode(&30u32).unwrap();
+            let data = xdrs::cxs::encode(&30u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
@@ -986,7 +986,7 @@ fn test_filter_events_topic_mismatch_skips() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             // Emit an event with no topics
-            let data = xdrs::txs::encode(&42u32).unwrap();
+            let data = xdrs::cxs::encode(&42u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
@@ -1010,7 +1010,7 @@ fn test_assert_emitted_distinguishes_by_topic() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             // Emit EventA(10)
-            let data = xdrs::txs::encode(&10u32).unwrap();
+            let data = xdrs::cxs::encode(&10u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
@@ -1020,7 +1020,7 @@ fn test_assert_emitted_distinguishes_by_topic() {
             .unwrap();
 
             // Emit EventB(20) — same payload shape, different topic
-            let data = xdrs::txs::encode(&20u32).unwrap();
+            let data = xdrs::cxs::encode(&20u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
                 None,
@@ -1048,7 +1048,7 @@ fn test_assert_emitted_rejects_wrong_topic() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             // Only emit EventA
-            let data = xdrs::txs::encode(&10u32).unwrap();
+            let data = xdrs::cxs::encode(&10u32).unwrap();
             groundhog_xdr::syscalls::raw_LogEvent(
                 Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
