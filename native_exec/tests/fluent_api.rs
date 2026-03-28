@@ -491,8 +491,8 @@ fn test_frame_events_single() {
     result.assert_success();
     assert_eq!(result.events().len(), 1);
     result.assert_event(0, |e| {
-        assert_eq!(e.num_topics, 0);
-        assert_eq!(&e.serialized_event[..], b"hello");
+        assert_eq!(e.num_topics(), 0);
+        assert_eq!(e.payload(), b"hello");
     });
 }
 
@@ -512,10 +512,10 @@ fn test_frame_events_multiple() {
     result.assert_success();
     assert_eq!(result.events().len(), 2);
     result.assert_event(0, |e| {
-        assert_eq!(&e.serialized_event[..], b"first");
+        assert_eq!(e.payload(), b"first");
     });
     result.assert_event(1, |e| {
-        assert_eq!(&e.serialized_event[..], b"second");
+        assert_eq!(e.payload(), b"second");
     });
 }
 
@@ -540,10 +540,9 @@ fn test_frame_events_with_topics() {
     result.assert_success();
     assert_eq!(result.events().len(), 1);
     result.assert_event(0, |e| {
-        assert_eq!(e.num_topics, 1);
-        // First 32 bytes are the topic, rest is the data
-        assert_eq!(&e.serialized_event[..32], topic.as_ref());
-        assert_eq!(&e.serialized_event[32..], b"data");
+        assert_eq!(e.num_topics(), 1);
+        assert_eq!(e.topic(0).unwrap().as_ref(), topic.as_ref());
+        assert_eq!(e.payload(), b"data");
     });
 }
 
@@ -561,7 +560,7 @@ fn test_frame_events_contract_address() {
 
     result.assert_success();
     result.assert_event(0, |e| {
-        assert_eq!(e.contract_address, addr);
+        assert_eq!(e.raw().contract_address, addr);
     });
 }
 
@@ -625,7 +624,7 @@ fn test_frame_events_via_transact_manual() {
     frame_result.assert_success();
     assert_eq!(frame_result.events().len(), 1);
     frame_result.assert_event(0, |e| {
-        assert_eq!(&e.serialized_event[..], b"manual");
+        assert_eq!(e.payload(), b"manual");
     });
 }
 

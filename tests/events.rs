@@ -374,14 +374,12 @@ fn test_derived_event_fluent_api() {
     result.assert_success();
     result.assert_event_count(1);
 
-    // Check topics via raw event inspection
+    // Check topics via event inspection
     result.assert_event(0, |e| {
-        assert_eq!(e.num_topics, 3);
-
-        let emitted = EmittedEvent::from(e);
-        assert_eq!(emitted.topic(0).unwrap(), DerivedEvent::SIGNATURE);
-        assert_eq!(emitted.topic(1).unwrap(), &*ContractAddress::default());
-        assert_eq!(emitted.topic(2).unwrap(), &*ContractAddress::default());
+        assert_eq!(e.num_topics(), 3);
+        assert_eq!(e.topic(0).unwrap(), DerivedEvent::SIGNATURE);
+        assert_eq!(e.topic(1).unwrap(), &*ContractAddress::default());
+        assert_eq!(e.topic(2).unwrap(), &*ContractAddress::default());
     });
 
     // Check payload via the generated Payload type
@@ -406,6 +404,49 @@ fn test_simple_event_payload_decoding() {
 
     result.assert_event_payload::<SimpleEvent>(0, |p| {
         assert_eq!(p.value, 99);
+    });
+}
+
+//-------------------------------------------------------------------------
+// Multi-lifetime event: both lifetimes unify to the decode buffer lifetime
+
+#[derive(Event)]
+struct MultiLifetimeEvent<'a, 'b> {
+    #[topic]
+    from: &'a ContractAddress,
+    note_a: &'a [u8],
+    note_b: &'b [u8],
+    amount: u128,
+}
+
+#[test]
+fn test_multi_lifetime_event() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            let addr = ContractAddress::default();
+            log_event(&MultiLifetimeEvent {
+                from: &addr,
+                note_a: b"aaa",
+                note_b: b"bbb",
+                amount: 77,
+            });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(1);
+
+    result.assert_event(0, |e| {
+        assert_eq!(e.num_topics(), 2); // signature + from
+        assert_eq!(e.topic(0).unwrap(), MultiLifetimeEvent::SIGNATURE);
+    });
+
+    result.assert_event_payload::<MultiLifetimeEvent>(0, |p| {
+        assert_eq!(p.note_a, b"aaa");
+        assert_eq!(p.note_b, b"bbb");
+        assert_eq!(p.amount, 77);
     });
 }
 

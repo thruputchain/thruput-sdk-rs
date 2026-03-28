@@ -1,3 +1,4 @@
+use crate::emitted_event::EmittedEvent;
 use crate::frame_result::FrameResult;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::exec_result::ExecResult;
@@ -122,7 +123,7 @@ impl TransactResult {
     pub fn assert_event(
         &self,
         index: usize,
-        check: impl FnOnce(&TxEmittedEvent),
+        check: impl FnOnce(&EmittedEvent<'_>),
     ) {
         self.frame.assert_event(index, check);
     }

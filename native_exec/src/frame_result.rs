@@ -1,3 +1,4 @@
+use crate::emitted_event::EmittedEvent;
 use groundhog_event::Event;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
@@ -233,7 +234,7 @@ impl FrameResult {
     pub fn assert_event(
         &self,
         index: usize,
-        check: impl FnOnce(&TxEmittedEvent),
+        check: impl FnOnce(&EmittedEvent<'_>),
     ) {
         let events = self.events();
         assert!(
@@ -242,7 +243,8 @@ impl FrameResult {
             index,
             events.len()
         );
-        check(&events[index]);
+        let emitted = EmittedEvent::from(&events[index]);
+        check(&emitted);
     }
 
     #[track_caller]
