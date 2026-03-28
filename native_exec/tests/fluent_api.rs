@@ -490,7 +490,7 @@ fn test_frame_events_single() {
 
     result.assert_success();
     assert_eq!(result.events().len(), 1);
-    result.assert_event(0, |e| {
+    result.assert_raw_event(0, |e| {
         assert_eq!(e.num_topics(), 0);
         assert_eq!(e.payload(), b"hello");
     });
@@ -511,10 +511,10 @@ fn test_frame_events_multiple() {
 
     result.assert_success();
     assert_eq!(result.events().len(), 2);
-    result.assert_event(0, |e| {
+    result.assert_raw_event(0, |e| {
         assert_eq!(e.payload(), b"first");
     });
-    result.assert_event(1, |e| {
+    result.assert_raw_event(1, |e| {
         assert_eq!(e.payload(), b"second");
     });
 }
@@ -539,7 +539,7 @@ fn test_frame_events_with_topics() {
 
     result.assert_success();
     assert_eq!(result.events().len(), 1);
-    result.assert_event(0, |e| {
+    result.assert_raw_event(0, |e| {
         assert_eq!(e.num_topics(), 1);
         assert_eq!(e.topic(0).unwrap().as_ref(), topic.as_ref());
         assert_eq!(e.payload(), b"data");
@@ -559,7 +559,7 @@ fn test_frame_events_contract_address() {
     });
 
     result.assert_success();
-    result.assert_event(0, |e| {
+    result.assert_raw_event(0, |e| {
         assert_eq!(e.raw().contract_address, addr);
     });
 }
@@ -623,7 +623,7 @@ fn test_frame_events_via_transact_manual() {
 
     frame_result.assert_success();
     assert_eq!(frame_result.events().len(), 1);
-    frame_result.assert_event(0, |e| {
+    frame_result.assert_raw_event(0, |e| {
         assert_eq!(e.payload(), b"manual");
     });
 }
@@ -646,14 +646,14 @@ fn test_assert_event_data_u32() {
     result.assert_success();
     assert_eq!(result.events().len(), 1);
 
-    // Decode the event payload as u32 and check
-    result.assert_event_data::<u32>(0, |v| {
-        assert_eq!(*v, 12345);
+    // Decode the event payload as TestValue and check
+    result.assert_event::<TestValue>(0, |e| {
+        assert_eq!(e.payload().0, 12345);
     });
 
     // Also works on the frame directly
-    result.frame().assert_event_data::<u32>(0, |v| {
-        assert_eq!(*v, 12345);
+    result.frame().assert_event::<TestValue>(0, |e| {
+        assert_eq!(e.payload().0, 12345);
     });
 }
 
@@ -676,9 +676,9 @@ fn test_assert_event_data_with_topic() {
     });
 
     result.assert_success();
-    // assert_event_data strips topics and decodes payload
-    result.assert_event_data::<u32>(0, |v| {
-        assert_eq!(*v, 99);
+    // assert_event strips topics and decodes payload
+    result.assert_event::<EventB>(0, |e| {
+        assert_eq!(e.payload().0, 99);
     });
 }
 
@@ -738,7 +738,7 @@ fn test_assert_emitted_panics_on_empty_events() {
 
 #[test]
 #[should_panic(expected = "event index 5 out of range")]
-fn test_assert_event_data_out_of_range() {
+fn test_assert_event_out_of_range() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| {
@@ -750,7 +750,7 @@ fn test_assert_event_data_out_of_range() {
     });
 
     result.assert_success();
-    result.assert_event_data::<u32>(5, |_| {});
+    result.assert_event::<TestValue>(5, |_| {});
 }
 
 // ── Named addresses ──────────────────────────────────────────────────────

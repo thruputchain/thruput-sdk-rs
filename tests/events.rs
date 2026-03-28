@@ -374,18 +374,13 @@ fn test_derived_event_fluent_api() {
     result.assert_success();
     result.assert_event_count(1);
 
-    // Check topics via event inspection
-    result.assert_event(0, |e| {
+    result.assert_event::<DerivedEvent>(0, |e| {
         assert_eq!(e.num_topics(), 3);
         assert_eq!(e.topic(0).unwrap(), DerivedEvent::SIGNATURE);
         assert_eq!(e.topic(1).unwrap(), &*ContractAddress::default());
         assert_eq!(e.topic(2).unwrap(), &*ContractAddress::default());
-    });
-
-    // Check payload via the generated Payload type
-    result.assert_event_payload::<DerivedEvent>(0, |p| {
-        assert_eq!(p.amount, 42);
-        assert_eq!(p.memo, b"hello");
+        assert_eq!(e.payload().amount, 42);
+        assert_eq!(e.payload().memo, b"hello");
     });
 }
 
@@ -402,8 +397,9 @@ fn test_simple_event_payload_decoding() {
     result.assert_success();
     result.assert_event_count(1);
 
-    result.assert_event_payload::<SimpleEvent>(0, |p| {
-        assert_eq!(p.value, 99);
+    result.assert_event::<SimpleEvent>(0, |e| {
+        assert_eq!(e.topic(0).unwrap(), SimpleEvent::SIGNATURE);
+        assert_eq!(e.payload().value, 99);
     });
 }
 
@@ -438,15 +434,12 @@ fn test_multi_lifetime_event() {
     result.assert_success();
     result.assert_event_count(1);
 
-    result.assert_event(0, |e| {
+    result.assert_event::<MultiLifetimeEvent>(0, |e| {
         assert_eq!(e.num_topics(), 2); // signature + from
         assert_eq!(e.topic(0).unwrap(), MultiLifetimeEvent::SIGNATURE);
-    });
-
-    result.assert_event_payload::<MultiLifetimeEvent>(0, |p| {
-        assert_eq!(p.note_a, b"aaa");
-        assert_eq!(p.note_b, b"bbb");
-        assert_eq!(p.amount, 77);
+        assert_eq!(e.payload().note_a, b"aaa");
+        assert_eq!(e.payload().note_b, b"bbb");
+        assert_eq!(e.payload().amount, 77);
     });
 }
 

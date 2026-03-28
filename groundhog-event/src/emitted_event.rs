@@ -1,6 +1,6 @@
 use core::cmp::min;
 
-use crate::Topic;
+use crate::{Event, Topic};
 use groundhog_xdr::event::TxEmittedEvent;
 
 /// Size of each topic in serialized event data
@@ -56,5 +56,44 @@ impl<'a> EmittedEvent<'a> {
 impl<'a> From<&'a TxEmittedEvent> for EmittedEvent<'a> {
     fn from(event: &'a TxEmittedEvent) -> Self {
         Self(event)
+    }
+}
+
+/// A typed view over an emitted event, combining topic access with
+/// a pre-decoded payload.
+pub struct TypedEvent<'a, E: Event> {
+    emitted: EmittedEvent<'a>,
+    payload: E::Payload<'a>,
+}
+
+impl<'a, E: Event> TypedEvent<'a, E> {
+    /// Decode a raw event into a typed view. Panics on decode failure.
+    pub fn new(raw: &'a TxEmittedEvent) -> Self {
+        let emitted = EmittedEvent::from(raw);
+        let payload_bytes = emitted.payload();
+        let payload = E::decode_payload(payload_bytes).unwrap_or_else(|e| {
+            panic!("failed to decode event payload: {}", e)
+        });
+        Self { emitted, payload }
+    }
+
+    /// The decoded payload.
+    pub fn payload(&self) -> &E::Payload<'a> {
+        &self.payload
+    }
+
+    /// Get topic at the given index.
+    pub fn topic(&self, index: u32) -> Option<&'a Topic> {
+        self.emitted.topic(index)
+    }
+
+    /// Number of topics.
+    pub fn num_topics(&self) -> u32 {
+        self.emitted.num_topics()
+    }
+
+    /// Access the underlying untyped emitted event.
+    pub fn raw(&self) -> &EmittedEvent<'a> {
+        &self.emitted
     }
 }

@@ -1,7 +1,7 @@
 #![no_std]
 
 mod emitted_event;
-pub use emitted_event::*;
+pub use emitted_event::{EmittedEvent, TOPIC_SIZE, TypedEvent};
 
 /// A topic is a fixed-length, opaque 32-byte array.
 pub type Topic = [u8; 32];

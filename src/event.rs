@@ -3,7 +3,9 @@ use crate::internal::encode_xdr;
 use crate::sys::{self, SyscallNo};
 
 // Re-export core event types from groundhog-event
-pub use groundhog_event::{EmittedEvent, Event, IntoTopic, Topic, TopicSrc};
+pub use groundhog_event::{
+    EmittedEvent, Event, IntoTopic, Topic, TopicSrc, TypedEvent,
+};
 
 /// Maximum number of topics per event
 pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;

@@ -1,5 +1,5 @@
-use crate::emitted_event::EmittedEvent;
 use crate::frame_result::FrameResult;
+use groundhog_event::{EmittedEvent, Event, TypedEvent};
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::exec_result::ExecResult;
 use groundhog_xdr::types::ContractAddress;
@@ -120,30 +120,23 @@ impl TransactResult {
     }
 
     #[track_caller]
-    pub fn assert_event(
+    pub fn assert_raw_event(
         &self,
         index: usize,
         check: impl FnOnce(&EmittedEvent<'_>),
     ) {
-        self.frame.assert_event(index, check);
+        self.frame.assert_raw_event(index, check);
     }
 
     #[track_caller]
-    pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
-    where
-        E: xdrs::ReadXDROwned,
-    {
-        self.frame.assert_event_data(index, check);
-    }
-
-    pub fn assert_event_payload<E>(
+    pub fn assert_event<E>(
         &self,
         index: usize,
-        check: impl FnOnce(&E::Payload<'_>),
+        check: impl FnOnce(&TypedEvent<'_, E>),
     ) where
-        E: groundhog_event::Event,
+        E: Event,
     {
-        self.frame.assert_event_payload::<E>(index, check);
+        self.frame.assert_event::<E>(index, check);
     }
 
     #[track_caller]

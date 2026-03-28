@@ -1,5 +1,4 @@
-use crate::emitted_event::EmittedEvent;
-use groundhog_event::Event;
+use groundhog_event::{EmittedEvent, Event, TypedEvent};
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
@@ -230,8 +229,9 @@ impl FrameResult {
             .collect()
     }
 
+    /// Inspect a raw emitted event by index.
     #[track_caller]
-    pub fn assert_event(
+    pub fn assert_raw_event(
         &self,
         index: usize,
         check: impl FnOnce(&EmittedEvent<'_>),
@@ -247,41 +247,15 @@ impl FrameResult {
         check(&emitted);
     }
 
+    /// Decode an event as a typed event and pass it to the check closure.
+    /// Provides access to both topics and the decoded payload.
     #[track_caller]
-    pub fn assert_event_data<E>(&self, index: usize, check: impl FnOnce(&E))
-    where
-        E: xdrs::ReadXDROwned,
-    {
-        let events = self.events();
-        assert!(
-            index < events.len(),
-            "event index {} out of range (have {} events)",
-            index,
-            events.len()
-        );
-        let event = &events[index];
-        let topics_len = 32 * event.num_topics as usize;
-        assert!(
-            topics_len <= event.serialized_event.len(),
-            "event {} topics_len {} exceeds serialized_event length {}",
-            index,
-            topics_len,
-            event.serialized_event.len()
-        );
-        let payload = &event.serialized_event[topics_len..];
-        let decoded: E = xdrs::txs::decode(payload)
-            .unwrap_or_else(|e| panic!("failed to decode event data: {}", e));
-        check(&decoded);
-    }
-
-    /// Assert on the decoded payload of an event, using the Event trait's
-    /// associated Payload type. Strips topics automatically.
-    pub fn assert_event_payload<E>(
+    pub fn assert_event<E>(
         &self,
         index: usize,
-        check: impl FnOnce(&E::Payload<'_>),
+        check: impl FnOnce(&TypedEvent<'_, E>),
     ) where
-        E: groundhog_event::Event,
+        E: Event,
     {
         let events = self.events();
         assert!(
@@ -290,20 +264,8 @@ impl FrameResult {
             index,
             events.len()
         );
-        let event = &events[index];
-        let topics_len = 32 * event.num_topics as usize;
-        assert!(
-            topics_len <= event.serialized_event.len(),
-            "event {} topics_len {} exceeds serialized_event length {}",
-            index,
-            topics_len,
-            event.serialized_event.len()
-        );
-        let payload_bytes = &event.serialized_event[topics_len..];
-        let decoded = E::decode_payload(payload_bytes).unwrap_or_else(|e| {
-            panic!("failed to decode event payload: {}", e)
-        });
-        check(&decoded);
+        let typed = TypedEvent::<E>::new(&events[index]);
+        check(&typed);
     }
 
     /// Assert that exactly one event from `address` matches `predicate`
