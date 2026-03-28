@@ -11,6 +11,7 @@ pub use groundhog_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
 /// this as a zero-copy borrow. Other types are XDR-encoded and SHA-256
 /// hashed to produce a 32-byte topic.
 pub trait IntoTopic {
+    #[allow(clippy::wrong_self_convention)]
     fn into_topic(&self) -> TopicSrc<'_>;
 }
 
