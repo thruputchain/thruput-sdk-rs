@@ -233,7 +233,7 @@ itc_bottle_test_all() {
 }
 
 build_docs() {
-    cargo doc --features=dev,storage,abort/debug "$@"
+    cargo doc --features=dev,storage "$@"
 }
 
 test_spec() {
