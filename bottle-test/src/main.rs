@@ -43,7 +43,7 @@ fn bottle_test(package: &str) {
     let mut handler = contract_test_handler(env, move || -> () {
         let tester_addr = deploy_contract(&TESTER_NONCE, &tester_hash);
 
-        let mut tester = BottleTestClient::new(&tester_addr);
+        let tester = BottleTestClient::new(&tester_addr);
 
         tester.setup(&target_hash);
 

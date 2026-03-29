@@ -13,7 +13,7 @@ fn test_counter_basic() {
     contract_exec(env, move || {
         let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        let mut client = CounterClient::new(&addr);
+        let client = CounterClient::new(&addr);
 
         // Initialize with value 10
         client.initialize(10);
@@ -42,7 +42,7 @@ fn test_counter_underflow() {
     contract_exec(env, move || {
         let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        let mut client = CounterClient::new(&addr);
+        let client = CounterClient::new(&addr);
 
         // Initialize with 5
         client.initialize(5);
