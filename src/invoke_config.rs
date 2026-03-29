@@ -1,5 +1,6 @@
 use crate::transaction::InvokeFlagSet;
 
+#[derive(Clone, Copy)]
 pub struct InvokeConfig {
     pub gas_limit: u64,
     pub flags: InvokeFlagSet,
