@@ -1,6 +1,6 @@
 [package]
 name = "codegen_impl_noclient"
-description = "Codegen test: inherent impl, no client= attribute (no client generated)"
+description = "Codegen test: inherent impl, auto-derived client name"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -21,7 +21,6 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-xdrs = { workspace = true }
 
 [dev-dependencies]
 codegen_impl_noclient = { path = ".", features = ["dev"] }

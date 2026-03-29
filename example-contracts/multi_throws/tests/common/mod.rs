@@ -11,7 +11,7 @@ pub static TEST_NONCE_2: sdk::SHA256Hash =
 
 pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let mut client = MultiClient::new(&addr);
+    let client = MultiClient::new(&addr);
 
     // Test 1: Success path
     assert_eq!(client.try_succeed(), Ok(42));
@@ -44,7 +44,10 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     // Test 5: Undeclared error goes to Unknown, try_as can decode it
     match client.try_throw_undeclared() {
         Err(MultiClientError::Unknown(ref raw)) => {
-            println!("OK: unknown error with selector 0x{:016X}", raw.selector());
+            println!(
+                "OK: unknown error with selector 0x{:016X}",
+                raw.selector()
+            );
             // The caller knows about SecretError and can try to decode it
             let secret = raw.try_as::<SecretError>();
             assert_eq!(secret, Some(SecretError));
@@ -62,7 +65,9 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
         Err(MultiClientError::AlphaError(AlphaError::NotFound)) => {
             println!("OK: forwarded AlphaError::NotFound through call chain");
         }
-        other => panic!("expected forwarded AlphaError::NotFound, got {:?}", other),
+        other => {
+            panic!("expected forwarded AlphaError::NotFound, got {:?}", other)
+        }
     }
 
     // Test 7: Forwarding an undeclared error through a call chain.
@@ -72,9 +77,13 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
         Err(MultiClientError::Unknown(ref raw)) => {
             let secret = raw.try_as::<SecretError>();
             assert_eq!(secret, Some(SecretError));
-            println!("OK: forwarded SecretError through call chain as Unknown");
+            println!(
+                "OK: forwarded SecretError through call chain as Unknown"
+            );
         }
-        other => panic!("expected forwarded Unknown(SecretError), got {:?}", other),
+        other => {
+            panic!("expected forwarded Unknown(SecretError), got {:?}", other)
+        }
     }
 
     // Test 8: Forwarding a fault through a call chain.

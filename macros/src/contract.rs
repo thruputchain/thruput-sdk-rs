@@ -108,24 +108,16 @@ fn apply_with_config(
                 trait_name.as_deref(),
             )?);
 
-            if config.client_ident().is_some() {
-                // It would be incorrect to generate a client interface here if the item is implementing a trait,
-                // as the trait is already implementing a client interface.
-                // It'd be too easy to double-generate the client struct.
-                if item.trait_.is_some() {
-                    out.extend(quote::quote! {
-                        compile_error!("Adding an explicit client attribute to an impl of a trait is not allowed.  This would double-generate the client interface.  Add the client attribute to the trait instead.");
-                    });
-                    return Ok(out);
-                }
-
-                // Generate client interface
-                out.extend(codegen::client::generate(item, config)?);
-            } else if item.trait_.is_none() {
+            if config.client_ident().is_some() && item.trait_.is_some() {
                 out.extend(quote::quote! {
-                    compile_error!("client = ClientName is required on an impl without a trait (no client interface would otherwise be generated)");
+                    compile_error!("Adding an explicit client attribute to an impl of a trait is not allowed.  This would double-generate the client interface.  Add the client attribute to the trait instead.");
                 });
                 return Ok(out);
+            }
+
+            if item.trait_.is_none() {
+                // Bare impl: generate client (name from config or auto-derived)
+                out.extend(codegen::client::generate(item, config)?);
             }
 
             Ok(out)

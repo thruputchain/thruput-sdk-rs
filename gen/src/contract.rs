@@ -183,12 +183,21 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn client_ident(&self) -> Option<syn::Ident> {
-        // Always return None: when this impl is for a trait, the trait's
-        // client_ident() is the authoritative source (and may carry a custom
-        // name like `AdderProxy`).  Synthesising a default here would shadow
-        // the trait's custom name via ConfiguredContract::client_ident()'s
-        // fallback chain.
-        None
+        if self.trait_.is_some() {
+            // When implementing a trait, return None so the trait's
+            // client_ident() is authoritative (may carry a custom name
+            // like `AdderProxy`).
+            return None;
+        }
+        // Bare impl: derive from Self type, e.g. Foo -> FooClient
+        if let syn::Type::Path(tp) = &*self.self_ty {
+            tp.path
+                .segments
+                .last()
+                .map(|seg| format_ident!("{}Client", seg.ident))
+        } else {
+            None
+        }
     }
 
     fn self_ty(&self) -> Option<&syn::Type> {

@@ -12,7 +12,7 @@ fn test_abort_exn() {
     contract_exec(env, move || {
         let nonce = SHA256Hash::from([7; 32]);
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
-        let mut client = aborter::ContractClient::new(&deployed_addr);
+        let client = aborter::ContractClient::new(&deployed_addr);
 
         // Call a client method that catches a syscall exception with an abort-handler
         // and returns it via `contract_abort`.
@@ -36,7 +36,7 @@ fn test_uncaught_abort() {
     contract_exec(env, move || {
         let nonce = SHA256Hash::from([7; 32]);
         let deployed_addr = deploy_contract(&nonce, &contract_hash).unwrap();
-        let mut client = aborter::ContractClient::new(&deployed_addr);
+        let client = aborter::ContractClient::new(&deployed_addr);
 
         // We are not yet trapping aborts in the method wrappers, so here's
         // what happens now:

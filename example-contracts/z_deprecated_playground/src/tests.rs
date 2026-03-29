@@ -45,7 +45,7 @@ fn check_inner(
     let deployed_addr = deploy_contract(&nonce, contract_hash)?;
     let owner = get_current_address().unwrap();
 
-    let mut client = MyClient::new(&deployed_addr);
+    let client = MyClient::new(&deployed_addr);
     client.initialize(&owner)?;
 
     client.add_frot(10)?;

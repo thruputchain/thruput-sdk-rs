@@ -3,7 +3,7 @@ use sdk::throw;
 pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
 
 #[cfg(feature = "spec")]
-use xdrs::XDR;
+use sdk::XDR;
 
 /*
 #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, thiserror::Error)]

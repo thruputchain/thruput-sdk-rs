@@ -18,8 +18,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 
     let mut m = Model::default();
 
-    let mut client = ERC20Client::new(&deployed_addr);
-    let client = &mut client;
+    let client = ERC20Client::new(&deployed_addr);
 
     client.initialize(&owner);
     m.initialize(&owner);
@@ -83,7 +82,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     m.adjust_allowance(other, -amt);
 
     // Check client state against the model
-    m.check(client);
+    m.check(&client);
 
     m
 }

@@ -23,7 +23,6 @@ test = false
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
-xdrs = { workspace = true, features = ["derive"] }
 
 # Optional testing dependencies
 erc20-bottle-test = { workspace = true, optional = true }

@@ -5,8 +5,6 @@ edition = "2021"
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-# get non-standard i128 impls
-xdrs = { workspace = true, features = ["int128"]}
 thiserror = { workspace = true }
 
 # Optional

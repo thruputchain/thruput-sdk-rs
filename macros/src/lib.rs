@@ -67,6 +67,7 @@ pub fn storage(
 
     quote::quote! {
         #[derive(WriteXDR, Storage)]
+        #[xdrs(crate = "::sdk::__xdrs")]
         #item
     }
     .into()

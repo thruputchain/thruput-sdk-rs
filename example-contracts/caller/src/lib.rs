@@ -21,7 +21,7 @@ impl Caller {
     }
 
     pub fn check_balance(&self, account: &ContractAddress) -> Amount {
-        let mut token = ERC20Client::new(&self.token_contract);
+        let token = ERC20Client::new(&self.token_contract);
 
         token.get_balance_of(account)
     }

@@ -12,7 +12,7 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
 
     // Create a client to interact with the contract
-    let mut client = Client::new(&addr);
+    let client = Client::new(&addr);
 
     client.hello();
 
@@ -39,7 +39,10 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     // puts it in the Unknown variant.
     match client.try_throw_thing() {
         Err(ClientError::Unknown(ref raw)) => {
-            println!("OK: unknown error with selector 0x{:016X}", raw.selector())
+            println!(
+                "OK: unknown error with selector 0x{:016X}",
+                raw.selector()
+            )
         }
         Err(ClientError::MyExn(ref my_err)) => {
             // If Thing and MyExn happen to have the same selector (unlikely),
@@ -50,19 +53,19 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     }
 
     match client.try_syscall_err() {
-        Err(ClientError::Library(ref lib_exn)) => {
-            match lib_exn {
-                LibraryExn::Syscall(sys_exn) => {
-                    if sys_exn.has_code(SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)
-                        && sys_exn.callno() == SyscallNo::kBytestringGetLen {
-                        println!("OK: {:?}", sys_exn);
-                    } else {
-                        panic!("Unexpected syscall exception: {:?}", sys_exn);
-                    }
+        Err(ClientError::Library(ref lib_exn)) => match lib_exn {
+            LibraryExn::Syscall(sys_exn) => {
+                if sys_exn.has_code(
+                    SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+                ) && sys_exn.callno() == SyscallNo::kBytestringGetLen
+                {
+                    println!("OK: {:?}", sys_exn);
+                } else {
+                    panic!("Unexpected syscall exception: {:?}", sys_exn);
                 }
-                _ => panic!("Unexpected library exn: {:?}", lib_exn),
             }
-        }
+            _ => panic!("Unexpected library exn: {:?}", lib_exn),
+        },
         r => panic!("Unexpected result: {:?}", r),
     }
 }
@@ -72,7 +75,7 @@ pub fn panic_test(contract_hash: &SHA256Hash) {
     //
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
     //
-    let mut client = Client::new(&addr);
+    let client = Client::new(&addr);
 
     match client.try_panics() {
         Err(ClientError::Fault(f)) => {

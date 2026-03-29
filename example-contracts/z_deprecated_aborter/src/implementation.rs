@@ -5,6 +5,7 @@ pub struct Contract;
 
 /// If we abort, it's with this type
 #[derive(ReadXDR, WriteXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
 #[repr(i32)]
 pub enum AbortType {
     Sys(SyscallExn2),

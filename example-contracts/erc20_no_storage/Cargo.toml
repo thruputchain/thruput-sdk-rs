@@ -22,7 +22,6 @@ bottle-test = ["dep:erc20-bottle-test"]
 
 [dependencies]
 sdk = { workspace = true }
-xdrs = { workspace = true, features = ["derive"] }
 groundhog-erc20-if = { workspace = true }
 
 # Optional testing dependencies

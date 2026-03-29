@@ -3,8 +3,8 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use sdk::*;
 use sdk::sys_result::rcq::*;
+use sdk::*;
 
 const KEY1: StorageKey = static_key!("queue key");
 const KEY2: StorageKey = static_key!("queue key2");
