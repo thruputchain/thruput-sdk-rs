@@ -1,14 +1,18 @@
-use counter::{CounterClient, CounterClientError};
+use counter::{Counter, CounterClient, CounterClientError};
 use sdk::*;
 
 static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
 
+fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+    let env = sdk::TestEnvironment::no_cost();
+    let test_contract = env.register_mock(Counter::__mock);
+    let contract_hash = env.setup_create_contract(&test_contract);
+    (env, contract_hash)
+}
+
 #[test]
 fn test_counter_basic() {
-    let env = sdk::TestEnvironment::no_cost();
-
-    let test_contract = env.register_mock(counter::Counter::__mock);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let (env, contract_hash) = setup();
 
     contract_exec(env, move || {
         let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
@@ -34,10 +38,7 @@ fn test_counter_basic() {
 
 #[test]
 fn test_counter_underflow() {
-    let env = sdk::TestEnvironment::no_cost();
-
-    let test_contract = env.register_mock(counter::Counter::__mock);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let (env, contract_hash) = setup();
 
     contract_exec(env, move || {
         let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
@@ -59,6 +60,31 @@ fn test_counter_underflow() {
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(()) => panic!("Decrement should have failed"),
         }
+    })
+    .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
+}
+
+#[test]
+fn test_gas_limit_does_not_propagate() {
+    let (env, contract_hash) = setup();
+
+    contract_exec(env, move || {
+        let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
+
+        let client = CounterClient::new(&addr);
+        client.initialize(10);
+
+        // Call with tiny gas limit — should fail with OOG
+        let result = client.with_gas_limit(1).try_get();
+        assert!(
+            matches!(result, Err(CounterClientError::Fault(_))),
+            "Expected OOG fault with gas_limit=1, got: {:?}",
+            result
+        );
+
+        // Subsequent call without explicit gas limit should use default (unlimited).
+        // This verifies with_gas_limit does NOT mutate the original client.
+        assert_eq!(client.get(), 10);
     })
     .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
 }
