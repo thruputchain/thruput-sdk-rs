@@ -19,11 +19,7 @@
 use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
-use sdk::Writer;
-use sdk::{
-    ContractAddress, EmittedEvent, Event, ReadXDR, Topic, TopicSrc,
-    WriteResult, WriteXDR, hash_to_array, hex_encode, log_event,
-};
+use sdk::{ContractAddress, EmittedEvent, Event, hex_encode, log_event};
 
 pub fn log_transfer_event(
     from: &ContractAddress,
@@ -38,9 +34,11 @@ pub fn log_transfer_event(
 /// An event emitted when ERC20 tokens are transferred between addresses.
 /// If `from` is address zero, this is a "mint" event.
 /// If `to` is address zero, is is a "burn" event.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Event, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransferEvent<'a> {
+    #[topic]
     pub from: &'a ContractAddress,
+    #[topic]
     pub to: &'a ContractAddress,
     pub amount: u128,
 }
@@ -55,44 +53,6 @@ impl<'a> TransferEvent<'a> {
     }
 }
 
-impl<'a> WriteXDR for TransferEvent<'a> {
-    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-        // Don't serialize the addresses, which are topics
-        self.amount.write_xdr(w)
-    }
-}
-
-pub const TRANSFER_EVENT_SIG: &Topic = &hash_to_array!("TransferEvent");
-
-#[derive(ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
-pub struct TransferEventPayload {
-    pub amount: u128,
-}
-
-impl<'a> Event for TransferEvent<'a> {
-    type Payload<'p> = TransferEventPayload;
-
-    fn num_topics(&self) -> u32 {
-        3
-    }
-
-    fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
-        match index {
-            0 => Some(TopicSrc::Shared(TRANSFER_EVENT_SIG)),
-            1 => Some(TopicSrc::Shared(self.from)),
-            2 => Some(TopicSrc::Shared(self.to)),
-            _ => None,
-        }
-    }
-
-    fn decode_payload<'p>(
-        bytes: &'p [u8],
-    ) -> Result<TransferEventPayload, sdk::ReadError> {
-        sdk::internal::decode_xdr(bytes)
-    }
-}
-
 impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
     type Error = &'static str;
 
@@ -101,7 +61,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
     ) -> core::result::Result<Self, Self::Error> {
         let sig = event.topic(0).ok_or("No event signature")?;
 
-        if sig != TRANSFER_EVENT_SIG {
+        if sig != TransferEvent::SIGNATURE {
             return Err("Unexpected event signature");
         }
 
@@ -171,18 +131,13 @@ pub fn log_approval_event(
 /// by `owner` for `spender`.  *Note*: Contrary to traditional
 /// ERC20 semantics, `amount` is the (signed) _difference_ in
 /// tokens approved to spend.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct ApprovalEvent<'a> {
+    #[topic]
     pub owner: &'a ContractAddress,
+    #[topic]
     pub spender: &'a ContractAddress,
     pub difference: i128,
-}
-
-impl<'a> WriteXDR for ApprovalEvent<'a> {
-    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-        // Don't serialize the addresses, which are topics
-        self.difference.write_xdr(w)
-    }
 }
 
 impl<'a> ApprovalEvent<'a> {
@@ -199,37 +154,6 @@ impl<'a> ApprovalEvent<'a> {
     }
 }
 
-pub const APPROVAL_EVENT_SIG: &Topic = &hash_to_array!("ApprovalEvent");
-
-#[derive(ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
-pub struct ApprovalEventPayload {
-    pub difference: i128,
-}
-
-impl<'a> Event for ApprovalEvent<'a> {
-    type Payload<'p> = ApprovalEventPayload;
-
-    fn num_topics(&self) -> u32 {
-        3
-    }
-
-    fn topic(&self, index: u32) -> Option<TopicSrc<'a>> {
-        match index {
-            0 => Some(TopicSrc::Shared(APPROVAL_EVENT_SIG)),
-            1 => Some(TopicSrc::Shared(self.owner)),
-            2 => Some(TopicSrc::Shared(self.spender)),
-            _ => None,
-        }
-    }
-
-    fn decode_payload<'p>(
-        bytes: &'p [u8],
-    ) -> Result<ApprovalEventPayload, sdk::ReadError> {
-        sdk::internal::decode_xdr(bytes)
-    }
-}
-
 impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
     type Error = &'static str;
 
@@ -238,7 +162,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
     ) -> core::result::Result<Self, Self::Error> {
         let sig = event.topic(0).ok_or("No event signature")?;
 
-        if sig != APPROVAL_EVENT_SIG {
+        if sig != ApprovalEvent::SIGNATURE {
             return Err("Unexpected event signature");
         }
 
@@ -293,8 +217,12 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
         let sig = event.topic(0).ok_or("No event signature")?;
 
         match sig {
-            TRANSFER_EVENT_SIG => Ok(ERC20Event::Transfer(event.try_into()?)),
-            APPROVAL_EVENT_SIG => Ok(ERC20Event::Approval(event.try_into()?)),
+            TransferEvent::SIGNATURE => {
+                Ok(ERC20Event::Transfer(event.try_into()?))
+            }
+            ApprovalEvent::SIGNATURE => {
+                Ok(ERC20Event::Approval(event.try_into()?))
+            }
             _ => Err("Unexpected event signature"),
         }
     }

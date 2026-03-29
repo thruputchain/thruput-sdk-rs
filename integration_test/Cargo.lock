@@ -424,7 +424,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-native-test"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -434,7 +434,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -649,7 +649,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -663,7 +663,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -716,7 +716,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -741,7 +741,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -749,7 +749,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1712,7 +1712,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "abort",
  "bitset-core",

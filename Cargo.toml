@@ -15,7 +15,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.8.4"
+version = "0.8.5"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -90,14 +90,14 @@ sdk = { path = "." }
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.8.4" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.8.4" }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.8.4" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.8.4" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.8.4" }
-groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.8.4" }
-groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.8.4" }
-groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.8.4" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.8.5" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.8.5" }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.8.5" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.8.5" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.8.5" }
+groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.8.5" }
+groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.8.5" }
+groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.8.5" }
 
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
