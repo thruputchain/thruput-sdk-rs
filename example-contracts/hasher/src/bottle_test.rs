@@ -22,7 +22,7 @@ impl BottleTest for BT {
         let target_addr = self.target_addr.as_ref().unwrap_or_else(||
             panic!("bottle-test: target_addr unset; please run setup() before run()"));
 
-        let mut client = HasherClient::new(target_addr);
+        let client = HasherClient::new(target_addr);
         client.run();
     }
 }

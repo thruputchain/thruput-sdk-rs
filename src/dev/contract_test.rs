@@ -150,7 +150,7 @@ impl<T> TestRegisterFn for T where T: Fn(&TestEnvironmentHandle) -> Contract {}
 pub fn client_test<R, F, C>(register: R, run_test: F)
 where
     R: TestRegisterFn,
-    F: Fn(&mut C) + std::panic::UnwindSafe + Clone + 'static,
+    F: Fn(&C) + std::panic::UnwindSafe + Clone + 'static,
     C: crate::call::ContractClient,
 {
     static CLIENT_TEST_NONCE: SHA256Hash =
@@ -165,9 +165,9 @@ where
         let addr = deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
 
         // Create a client to interact with the contract
-        let mut client = C::new(&addr);
+        let client = C::new(&addr);
 
-        run_test(&mut client);
+        run_test(&client);
     })
     .unwrap_or_else(|e| panic!("Client test failed: {:?}", e));
 }

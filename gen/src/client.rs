@@ -66,9 +66,14 @@ pub fn generate(
                     }
                 }
 
-                pub fn with_gas_limit(&mut self, gas_limit: u64) -> &mut Self {
-                    self.config.gas_limit = gas_limit;
-                    self
+                pub fn with_gas_limit(&self, gas_limit: u64) -> Self {
+                    Self {
+                        address: self.address.clone(),
+                        config: ::sdk::invoke_config::InvokeConfig {
+                            gas_limit,
+                            ..self.config
+                        },
+                    }
                 }
 
                 #(#method_stubs)*
@@ -209,7 +214,7 @@ fn generate_client_fn(
 
         // This method-wrapper re-throws if the called contract throws.
         #track_caller
-        pub fn #ident(&mut self, #(#sent_params),* ) #sig_output
+        pub fn #ident(&self, #(#sent_params),* ) #sig_output
         {
             let entrypoint = #entrypoint_lit;
             let args = #args_tuple;
@@ -226,7 +231,7 @@ fn generate_client_fn(
         // so that exceptions may be inspected.
         #[allow(clippy::result_large_err)]
         #track_caller
-        pub fn #try_ident(&mut self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
+        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
         {
             let entrypoint = #entrypoint_lit;
             let args = #args_tuple;

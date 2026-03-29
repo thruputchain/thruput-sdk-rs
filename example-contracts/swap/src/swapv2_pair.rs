@@ -66,7 +66,7 @@ impl SwapV2Pair {
             &mut self.token1
         };
 
-        let mut token = ERC20Client::new(token);
+        let token = ERC20Client::new(token);
 
         wrap_erc20_with(|_| TransferFailed, || token.transfer(to, amount));
     }

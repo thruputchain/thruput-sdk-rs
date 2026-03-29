@@ -11,7 +11,7 @@ pub static TEST_NONCE_2: sdk::SHA256Hash =
 
 pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let mut client = MultiClient::new(&addr);
+    let client = MultiClient::new(&addr);
 
     // Test 1: Success path
     assert_eq!(client.try_succeed(), Ok(42));

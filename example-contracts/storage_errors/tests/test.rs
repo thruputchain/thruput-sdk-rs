@@ -23,7 +23,7 @@ fn vector_get_in_bounds() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             client.initialize();
             assert_eq!(client.vector_get(0), 10);
             assert_eq!(client.vector_get(1), 20);
@@ -39,7 +39,7 @@ fn map_set_and_get() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             client.initialize();
             client.map_set(42, 100);
             assert_eq!(client.map_get(42), 100);
@@ -53,7 +53,7 @@ fn map_try_get_missing_returns_zero() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             client.initialize();
             assert_eq!(client.map_try_get(999), 0);
         })
@@ -68,7 +68,7 @@ fn vector_get_out_of_bounds_is_library_storage_error() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             client.initialize();
 
             let err = client.try_vector_get(5).unwrap_err();
@@ -98,7 +98,7 @@ fn vector_set_out_of_bounds_is_library_storage_error() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             client.initialize();
 
             let err = client.try_vector_set(10, 999).unwrap_err();
@@ -128,7 +128,7 @@ fn vector_get_on_uninitialized_contract_is_fault() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             // Contract not initialized — generated export panics
             // when storage isn't present, producing a Fault.
             let err = client.try_vector_get(0).unwrap_err();
@@ -146,7 +146,7 @@ fn map_get_missing_key_is_library_storage_error() {
     let env = setup();
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
-            let mut client = StorageErrorClient::new(&CONTRACT_ADDR);
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
             client.initialize();
 
             let err = client.try_map_get(999).unwrap_err();

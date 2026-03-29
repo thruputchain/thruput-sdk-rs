@@ -9,7 +9,7 @@ pub fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) {
     let erc20_addr = deploy_contract(&ERC20_NONCE, erc20_hash);
     let erc20_owner = get_current_address();
 
-    let mut erc20 = ERC20Client::new(&erc20_addr);
+    let erc20 = ERC20Client::new(&erc20_addr);
     erc20.initialize(&erc20_owner);
 
     assert_eq!(0, erc20.total_supply());
@@ -17,7 +17,7 @@ pub fn caller_test_inner(erc20_hash: &SHA256Hash, contract_hash: &SHA256Hash) {
 
     let deployed_addr = deploy_contract(&CALLER_NONCE, contract_hash);
 
-    let mut caller = CallerClient::new(&deployed_addr);
+    let caller = CallerClient::new(&deployed_addr);
     caller.initialize(&erc20_addr);
 
     let some_account = ContractAddress::zero();

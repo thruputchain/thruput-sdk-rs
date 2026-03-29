@@ -26,7 +26,7 @@ impl BottleTest for BT {
 
         let owner = get_current_address().unwrap();
 
-        let mut client = MyClient::new(target_addr);
+        let client = MyClient::new(target_addr);
         client.initialize(&owner).unwrap();
 
         client.add_frot(10).unwrap();
