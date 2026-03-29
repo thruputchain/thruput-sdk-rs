@@ -5,7 +5,7 @@ fn test() {
     sdk::client_test(|env| env.register_mock(SwapContract::__mock), mytest);
 }
 
-fn mytest(c: &mut SwapClient) {
+fn mytest(c: &SwapClient) {
     c.initialize();
     c.submit_request(SwapRequest::new());
     c.submit_request(SwapRequest::new());

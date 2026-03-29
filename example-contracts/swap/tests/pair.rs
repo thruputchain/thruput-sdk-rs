@@ -41,16 +41,16 @@ fn swap_test_inner(
     // Deploy the swap-pair contract
     let nonce: SHA256Hash = [7; 32].into();
     let pair_addr = deploy_contract(&nonce, swap_hash);
-    let mut pair = ISwapV2PairClient::new(&pair_addr);
-    let mut lp_token = ERC20Client::new(&pair_addr);
+    let pair = ISwapV2PairClient::new(&pair_addr);
+    let lp_token = ERC20Client::new(&pair_addr);
 
     // Deploy two token contracts
     let nonce0: SHA256Hash = [90; 32].into();
     let nonce1: SHA256Hash = [91; 32].into();
     let token0_addr = deploy_contract(&nonce0, token0_hash);
     let token1_addr = deploy_contract(&nonce1, token1_hash);
-    let mut token0 = ERC20Client::new(&token0_addr);
-    let mut token1 = ERC20Client::new(&token1_addr);
+    let token0 = ERC20Client::new(&token0_addr);
+    let token1 = ERC20Client::new(&token1_addr);
 
     // Initialize the token contracts, putting them under our control
     let token_owner = &test_addr;

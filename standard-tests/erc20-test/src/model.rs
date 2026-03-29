@@ -110,11 +110,11 @@ impl Model {
 
 // Check our state against that of a supplied ERC20 contract
 impl Model {
-    pub fn check_total_supply(&self, client: &mut ERC20Client) {
+    pub fn check_total_supply(&self, client: &ERC20Client) {
         assert_eq!(client.total_supply(), self.total_supply);
     }
 
-    pub fn check_balances(&self, client: &mut ERC20Client) {
+    pub fn check_balances(&self, client: &ERC20Client) {
         for (addr, model_bal) in &self.balances {
             let client_bal = client.get_balance_of(addr);
 
@@ -122,7 +122,7 @@ impl Model {
         }
     }
 
-    pub fn check_allowances(&self, client: &mut ERC20Client) {
+    pub fn check_allowances(&self, client: &ERC20Client) {
         for ((owner, spender), model_allowance) in &self.allowances {
             let allowance = client.allowance(owner, spender);
 
@@ -130,7 +130,7 @@ impl Model {
         }
     }
 
-    pub fn check(&self, client: &mut ERC20Client) {
+    pub fn check(&self, client: &ERC20Client) {
         self.check_total_supply(client);
         self.check_balances(client);
         self.check_allowances(client);
