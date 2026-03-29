@@ -18,8 +18,9 @@ pub fn generate(
     let client_ident = contract.client_ident().ok_or_else(|| {
         error(
             &contract.span(),
-            "contract client identifier must be given \
-                 by 'client = ClientName' attribute",
+            "contract client identifier could not be auto-derived \
+                 (self type is not a simple path); \
+                 provide 'client = ClientName' attribute",
         )
     })?;
 
@@ -99,8 +100,9 @@ fn generate_spec_fn(
     let client_ident = contract.client_ident().ok_or_else(|| {
         error(
             &contract.span(),
-            "contract client identifier must be given \
-                 by 'client = ClientName' attribute",
+            "contract client identifier could not be auto-derived \
+                 (self type is not a simple path); \
+                 provide 'client = ClientName' attribute",
         )
     })?;
 
