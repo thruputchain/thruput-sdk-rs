@@ -11,14 +11,6 @@ struct Data {
     nnints: Vector<NNInt>,
     bytes: Bytestring,
     map: Map<u32, NNInt>,
-    map2: Map<u32, i32>,
-    map3: Map<u32, Thing>,
-}
-
-#[derive(Debug, xdrs::WriteXDR, Storage)]
-struct Thing {
-    num: i32,
-    bytes: Bytestring,
 }
 
 contract_test!(test_map {
@@ -44,86 +36,57 @@ contract_test!(test_map {
 });
 
 contract_test!(test_map_entry {
-    let data_keypath = Keypath::new();
+    // Use Map<u32, Value<i32>> with the new API
+    let keypath = Keypath::new();
+    let mut map: Map<u32, Value<i32>> = Map::new(&keypath);
+
     let slot: u32 = 3;
-
-    // Check that the data is absent
-    {
-        let data: Option<Data> = LoadKeypath::try_load_keypath(&data_keypath).unwrap();
-        assert!(data.is_none())
-    }
-
-    // Store the default value
-    {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath);
-    }
 
     // Check that the entry starts empty
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let entry = data.map2.entry(&slot).unwrap_or_else(|e|
-            panic!("entry(): {}", e));
-
-        assert_eq!(*entry.get(), None);
-    }
-
-    // Check that the entry starts empty (another way)
-    {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot);
-
-        assert_eq!(opt, None);
+        let v = map.at(&slot).try_get();
+        assert_eq!(v, None);
     }
 
     let mut value: i32 = -14;
 
-    // Set the entry via `Map::set`
+    // Set the entry via at_mut().set()
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        data.map2.set(&slot, &value);
+        map.at_mut(&slot).set(&value);
     }
 
     // Check that the entry has the value
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot);
-        assert_eq!(opt, Some(value));
+        let v = map.at(&slot).try_get();
+        assert_eq!(v, Some(value));
     }
 
     value += 1;
 
-    // Set the entry via `Entry::set`
+    // Set via at_mut().set() again
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let mut entry = data.map2.entry(&slot).unwrap();
-
-        entry.set(&value);
+        map.at_mut(&slot).set(&value);
     }
 
-    // Check that the entry has the value
+    // Check
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot);
-        assert_eq!(opt, Some(value));
+        let v = map.at(&slot).try_get();
+        assert_eq!(v, Some(value));
     }
 
     value += 1;
 
-    // Set the entry via `Entry::get_mut`
+    // Set via load_mut
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let mut entry = data.map2.entry(&slot).unwrap_or_else(|e|
-            panic!("entry(): {}", e));
-
-        *entry.get_mut() = Some(value);
+        let mut slot_mut = map.at_mut(&slot);
+        let mut data = slot_mut.load_mut();
+        *data = value;
     }
 
-    // Check that the entry has the value
+    // Check
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let opt = data.map2.try_get(&slot);
-        assert_eq!(opt, Some(value));
+        let v = map.at(&slot).try_get();
+        assert_eq!(v, Some(value));
     }
 });
 
@@ -402,25 +365,3 @@ contract_test!(test_exclusive_propagation {
         assert_eq!(v, 10);
     }
 });
-
-/* TODO:
-contract_test!(test_thing_map {
-    let data_keypath = Keypath::new();
-    {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath).unwrap();
-    }
-
-    let slot: u32 = 3;
-    {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let mut thing_entry = data.map3.entry(&slot).unwrap();
-        let maybe_thing = thing_entry.get_mut();
-
-        if let Some(thing) = maybe_thing.as_mut() {
-            thing.num += 1;
-        } else {
-            *maybe_thing = Some(Thing
-    }
-});
-*/
