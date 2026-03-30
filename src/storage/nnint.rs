@@ -42,9 +42,9 @@ impl NNInt {
 
     fn flags(&self) -> StorageDeltaFlags {
         if self.keypath.is_exclusive() {
-            StorageDeltaFlags::kStorageDeltaFlagExclusiveLock
+            StorageDeltaFlags::ExclusiveLock
         } else {
-            StorageDeltaFlags::kStorageDeltaFlagNone
+            StorageDeltaFlags::None
         }
     }
 

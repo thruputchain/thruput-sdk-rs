@@ -19,9 +19,9 @@ use crate::sys_exn::nnint_internal as nnint;
 use crate::types::StorageKey;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-const NONE: StorageDeltaFlags = StorageDeltaFlags::kStorageDeltaFlagNone;
+const NONE: StorageDeltaFlags = StorageDeltaFlags::None;
 const EXCLUSIVE: StorageDeltaFlags =
-    StorageDeltaFlags::kStorageDeltaFlagExclusiveLock;
+    StorageDeltaFlags::ExclusiveLock;
 
 /// Get the current value.
 ///

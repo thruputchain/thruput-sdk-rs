@@ -53,7 +53,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageDeltaFlags::kStorageDeltaFlagNone.0,
+        StorageDeltaFlags::None.0,
     )
 }
 
@@ -68,7 +68,7 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock.0,
+        StorageDeltaFlags::ExclusiveLock.0,
     )
 }
 

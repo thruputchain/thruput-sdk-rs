@@ -12,7 +12,7 @@ use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::sys_exn::bytestring::*;
 use sdk::sys_exn::nnint_internal::*;
 
-const NONE: StorageDeltaFlags = StorageDeltaFlags::kStorageDeltaFlagNone;
+const NONE: StorageDeltaFlags = StorageDeltaFlags::None;
 use sdk::*;
 
 #[rustfmt::skip]

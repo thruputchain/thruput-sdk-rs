@@ -3,13 +3,13 @@ use crate::types::StorageKey;
 use groundhog_xdr::storage_item::*;
 
 pub fn delete_shared(key: &StorageKey) -> Result<(), SysErr> {
-    let flags = StorageDeltaFlags::kStorageDeltaFlagNone;
+    let flags = StorageDeltaFlags::None;
 
     sys::raw_DeleteObject(key, flags.0)
 }
 
 pub fn delete_exclusive(key: &StorageKey) -> Result<(), SysErr> {
-    let flags = StorageDeltaFlags::kStorageDeltaFlagExclusiveLock;
+    let flags = StorageDeltaFlags::ExclusiveLock;
 
     sys::raw_DeleteObject(key, flags.0)
 }

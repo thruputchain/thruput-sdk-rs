@@ -44,7 +44,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
     sys::raw_BytestringSet(
         key,
         slice,
-        StorageDeltaFlags::kStorageDeltaFlagNone.0,
+        StorageDeltaFlags::None.0,
     )
     .unwrap_or_else(|errno| {
         syscall_throw(SyscallNo::kBytestringSet, errno);
