@@ -4,3 +4,4 @@
 
 pub mod bytestring;
 pub mod rcq;
+pub mod delete;

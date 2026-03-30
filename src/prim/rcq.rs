@@ -20,20 +20,33 @@ pub trait IsRCQ {
 
     #[cfg(feature = "alloc")]
     fn peek_max<const N: usize>(&self) -> crate::Vec<u8>;
+
+    /// Delete the RCQ value
+    fn delete(self);
+
+    /// Delete the RCQ value exclusively
+    fn delete_exclusive(self);
 }
 
 mod rcq_storage_key {
     use crate::IsRCQ;
     use crate::StorageKey;
     use crate::sys_exn::rcq::*;
+    use crate::sys_exn::delete::*;
 
     /// An implementation of `IsRCQ` that simply wraps a `StorageKey`.
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct RCQ(StorageKey);
 
     impl AsRef<StorageKey> for RCQ {
         fn as_ref(&self) -> &StorageKey {
             &self.0
+        }
+    }
+
+    impl From<RCQ> for StorageKey {
+        fn from(rcq: RCQ) -> StorageKey {
+            rcq.0
         }
     }
 
@@ -76,6 +89,14 @@ mod rcq_storage_key {
         fn peek_max<const N: usize>(&self) -> crate::Vec<u8> {
             let peek = true;
             retrocausal_queue_get_max::<N>(self.as_ref(), peek)
+        }
+
+        fn delete(self) {
+            delete_shared(self.as_ref());
+        }
+
+        fn delete_exclusive(self) {
+            delete_exclusive(self.as_ref());
         }
     }
 }

@@ -4,7 +4,7 @@ use super::load::LoadKeypath;
 use super::store::*;
 use crate::exn::library_throw;
 use crate::types::StorageKey;
-use crate::{delete_exclusive, delete_shared};
+use crate::sys_exn::delete::{delete_shared, delete_exclusive};
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use xdrs::WriteXDR;
@@ -231,7 +231,7 @@ where
         if let Some(value) = &self.value {
             value.store(&key);
         } else {
-            delete_shared(&key);
+            crate::sys_exn::delete::delete_shared(&key);
         };
 
         self.dirty = false;

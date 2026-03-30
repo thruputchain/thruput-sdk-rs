@@ -2,6 +2,7 @@
 
 use sdk::sys_exn::nnint::*;
 use sdk::sys_result::bytestring::*;
+use sdk::sys_result::delete::*;
 use sdk::*;
 
 contract_test!(test_bytestring {
@@ -14,7 +15,7 @@ contract_test!(test_bytestring {
     assert!(matches!(bytestring_try_get(key), Ok(None)));
 
     // Deleting any location is okay
-    assert!(matches!(try_delete_shared(key), Ok(())));
+    assert!(matches!(delete_shared(key), Ok(())));
 
     // Getting a deleted location gives not-exist (or None)
     assert!(matches!(bytestring_get(key), Err(e) if e.is_storage_key_not_exist()));
@@ -30,6 +31,6 @@ contract_test!(test_bytestring {
     assert!(matches!(bytestring_set(key, b"hello"), Ok(())));
 
     // Setting the bytestring at a deleted location is also okay
-    assert!(matches!(try_delete_shared(key), Ok(())));
+    assert!(matches!(delete_shared(key), Ok(())));
     assert!(matches!(bytestring_set(key, b"hello"), Ok(())));
 });

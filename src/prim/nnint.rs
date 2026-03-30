@@ -20,14 +20,21 @@ pub trait IsNNInt {
 
     /// Increment_by an amount, aborting in case of a negative result.
     fn strict_inc(&mut self, increment: i128);
+
+    /// Delete the non-negative-integer value
+    fn delete(self);
+
+    /// Delete the RCQ value exclusively
+    fn delete_exclusive(self);
 }
 
 mod nnint_storage_key {
     use crate::IsNNInt;
     use crate::StorageKey;
     use crate::sys_exn::nnint::*;
+    use crate::sys_exn::delete::*;
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct NNInt(StorageKey);
 
     impl NNInt {
@@ -65,6 +72,14 @@ mod nnint_storage_key {
 
         fn strict_inc(&mut self, increment: i128) {
             non_negative_int_strict_inc(self.as_ref(), increment);
+        }
+
+        fn delete(self) {
+            delete_shared(self.as_ref());
+        }
+
+        fn delete_exclusive(self) {
+            delete_exclusive(self.as_ref());
         }
     }
 }

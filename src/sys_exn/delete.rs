@@ -1,29 +1,16 @@
 //! System function: Delete
 
-use crate::sys::{self, SysErr};
 use crate::types::StorageKey;
-use groundhog_xdr::storage_item::*;
-
-pub fn try_delete_shared(key: &StorageKey) -> Result<(), SysErr> {
-    let flags = StorageDeltaFlags::kStorageDeltaFlagNone;
-
-    sys::raw_DeleteObject(key, flags.0)
-}
+use crate::sys_result::delete as result;
 
 pub fn delete_shared(key: &StorageKey) {
-    try_delete_shared(key).unwrap_or_else(|errno| {
+    result::delete_shared(key).unwrap_or_else(|errno| {
         crate::exn::syscall_throw(crate::sys::SyscallNo::kDeleteObject, errno)
     });
 }
 
-pub fn try_delete_exclusive(key: &StorageKey) -> Result<(), SysErr> {
-    let flags = StorageDeltaFlags::kStorageDeltaFlagExclusiveLock;
-
-    sys::raw_DeleteObject(key, flags.0)
-}
-
 pub fn delete_exclusive(key: &StorageKey) {
-    try_delete_exclusive(key).unwrap_or_else(|errno| {
+    result::delete_exclusive(key).unwrap_or_else(|errno| {
         crate::exn::syscall_throw(crate::sys::SyscallNo::kDeleteObject, errno)
     });
 }
@@ -32,7 +19,8 @@ pub fn delete_exclusive(key: &StorageKey) {
 ///
 /// Succeeds no matter what type of item is stored there, or if none is. After
 /// calling this function for a particular key, the storage location behaves as
-/// if it had never been set.  An item of any type may then be stored there.
+/// if it had never been set.
+///
 pub fn delete(key: &StorageKey, exclusive: bool) {
     if exclusive {
         delete_exclusive(key)

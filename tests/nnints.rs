@@ -69,13 +69,16 @@ contract_test!(test_nnints {
     let _ = n;
 
     // We can delete the location and then set again
-    delete_shared(&KEY);
-    n = 0;
+    nnint.delete();
+
+    let mut nnint = NNInt::new(KEY); n = 0;
     nnint.set(n);
+    assert_eq!(nnint.get(), n);
 });
 
 contract_test!(test_nnints_exn {
     use sdk::sys_exn::nnint::*;
+    use sdk::sys_exn::delete::*;
 
     static KEY: StorageKey = static_key!("my nnint");
     let key = &KEY;
@@ -273,6 +276,7 @@ fn try_get_wrong_type_fails() {
 #[test]
 fn delete_actually_deletes() {
     use sdk::sys_exn::nnint::*;
+    use sdk::sys_exn::delete::*;
 
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
