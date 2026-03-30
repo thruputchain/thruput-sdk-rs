@@ -25,6 +25,9 @@ pub use store::*;
 pub mod node;
 pub use node::*;
 
+pub mod slot;
+pub use slot::*;
+
 pub mod bytestring;
 pub use bytestring::*;
 
