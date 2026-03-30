@@ -3,15 +3,6 @@
 version = 4
 
 [[package]]
-name = "abort"
-version = "0.5.0"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d660d95d3a3b972fa69bbc94e7f05d98c9ae476df1a38bf75da646a7250f3a13"
-dependencies = [
- "heapless",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -424,7 +415,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-native-test"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -434,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -649,7 +640,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -663,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -691,7 +682,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -699,7 +690,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -716,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -741,7 +732,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -749,7 +740,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1712,9 +1703,8 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
- "abort",
  "bitset-core",
  "delegate",
  "groundhog-contract-util",

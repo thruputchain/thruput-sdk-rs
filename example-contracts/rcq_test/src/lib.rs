@@ -3,8 +3,13 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use sdk::sys_result::rcq::*;
 use sdk::*;
+use sdk::sys_result::rcq::{
+    retrocausal_queue_insert,
+    retrocausal_queue_peek_sized,
+    retrocausal_queue_consume_sized,
+};
+
 
 const KEY1: StorageKey = static_key!("queue key");
 const KEY2: StorageKey = static_key!("queue key2");

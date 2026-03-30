@@ -39,17 +39,23 @@ mod debug;
 mod debug_context;
 mod local;
 mod panic;
-mod prim;
 mod re_throw;
 mod throw;
 mod util;
 mod xdr;
 
+// Primitive storage types: interfaces returning Result
 #[doc(hidden)]
 pub mod sys_result;
 
-#[doc(hidden)]
+// Primitive storage types: interfaces throwing exceptions
 pub mod sys_exn;
+
+// Currently-blessed primitive interfaces:
+pub use sys_exn::bytestring::*;
+pub use sys_exn::delete::*;
+pub use sys_exn::nnint::*;
+pub use sys_exn::rcq::*;
 
 #[doc(hidden)]
 pub mod call;
@@ -87,7 +93,6 @@ pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
 pub use panic::*;
-pub use prim::*;
 pub use re_throw::*;
 pub use rt::*;
 pub use serialize::*;

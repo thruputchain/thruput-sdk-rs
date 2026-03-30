@@ -2,8 +2,11 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
-use sdk::sys_result::rcq::*;
 use sdk::*;
+use sdk::sys_result::rcq::{
+    retrocausal_queue_insert,
+    retrocausal_queue_consume_sized,
+};
 use sys::SyscallErrorCode;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");

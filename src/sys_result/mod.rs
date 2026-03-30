@@ -3,5 +3,5 @@
 #![allow(dead_code)]
 
 pub mod bytestring;
-pub mod rcq;
 pub mod delete;
+pub mod rcq;

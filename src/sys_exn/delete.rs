@@ -1,7 +1,7 @@
 //! System function: Delete
 
-use crate::types::StorageKey;
 use crate::sys_result::delete as result;
+use crate::types::StorageKey;
 
 pub fn delete_shared(key: &StorageKey) {
     result::delete_shared(key).unwrap_or_else(|errno| {

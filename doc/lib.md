@@ -9,10 +9,10 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 - [`crypto`]: Hash and sign
 - [`Hasher`]: Incremental hashing
 - Key-value storage:
-    - [`mod@delete`]
-    - [`mod@sys_exn::bytestring`]
-    - [`NNInt`]
-    - [`RCQ`]
+    - [`sys_exn::delete`]
+    - [`sys_exn::bytestring`]
+    - [`sys_exn::nnint`]
+    - [`sys_exn::rcq`]
 - Low-level syscall bindings:
     - [`mod@sys`]: Low-level wrappers
 - Emitting events: [`mod@event`]

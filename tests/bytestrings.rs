@@ -3,7 +3,7 @@
 use sdk::sys_exn::nnint::*;
 use sdk::sys_result::bytestring::*;
 use sdk::sys_result::delete::*;
-use sdk::*;
+use sdk::{StorageKey, contract_test};
 
 contract_test!(test_bytestring {
     let key = StorageKey::default();

@@ -1,5 +1,4 @@
 use super::{Interface, MyExn};
-use sdk::sys_exn::bytestring::*;
 use sdk::*;
 
 #[derive(Default)]

@@ -1,7 +1,7 @@
 //! Test the semantics of `delete`
 
+use sdk::sys_result::delete::delete_shared;
 use sdk::*;
-use crate::sys_result::delete::*;
 
 contract_test!(test_delete_unstored {
     let key = StorageKey::default();

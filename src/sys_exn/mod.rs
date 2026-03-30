@@ -1,9 +1,9 @@
-//! Primitive interfaces for system functions that abort on error.
+//! Primitive storage types
 
 pub mod bytestring;
+pub mod delete;
 pub mod nnint;
 pub mod rcq;
-pub mod delete;
 
 #[doc(hidden)]
 pub mod nnint_internal;
