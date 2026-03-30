@@ -5,11 +5,14 @@
 mod test_helpers;
 use test_helpers::*;
 
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 use sdk::call::RawCallError;
 use sdk::exn::{Exn, LibraryExn};
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::sys_exn::bytestring::*;
 use sdk::sys_exn::nnint_internal::*;
+
+const NONE: StorageDeltaFlags = StorageDeltaFlags::kStorageDeltaFlagNone;
 use sdk::*;
 
 #[rustfmt::skip]
@@ -27,7 +30,7 @@ contract_test!(test_internal_nnints {
 
     // `set_add` (specifying only "add") to a previously-unset location succeeds
     add = 100;
-    set_add(key, None, add);
+    set_add(key, None, add, NONE);
 
         // We get just the "add" value back when not forcing
         assert_eq!(get_values(key), (None, add));
@@ -38,7 +41,7 @@ contract_test!(test_internal_nnints {
 
     // `set_add` (specifying only "add") again succeeds
     add = 3;
-    set_add(key, None, add);
+    set_add(key, None, add, NONE);
 
         // The "add" value is now what we provided in the last call, NOT a running sum
         assert_eq!(get_values_force(key), (set, add));
@@ -50,7 +53,7 @@ contract_test!(test_internal_nnints {
     // We now provide a non-zero "set" value, and clear "add"
     set = 7;
     add = 0;
-    set_add(key, Some(set), add);
+    set_add(key, Some(set), add, NONE);
 
         // Even if we don't force, we'll see the transaction's latest "set" value
         assert_eq!(get_values(key), (Some(set), add));
@@ -60,7 +63,7 @@ contract_test!(test_internal_nnints {
 
     // Here we just specify "add" again ...
     add = 17;
-    set_add(key, None, add);
+    set_add(key, None, add, NONE);
 
         // The unspecified "set" value has been restored to its value at the start of the
         // transaction
@@ -70,7 +73,7 @@ contract_test!(test_internal_nnints {
     // We can also provide "set" and "add" at the same time, for whatever that's worth
     set = 8;
     add = 2;
-    set_add(key, Some(set), add);
+    set_add(key, Some(set), add, NONE);
 
         // They've both been updated
         assert_eq!(get_values_force(key), (set, add));
@@ -142,7 +145,7 @@ fn set_add_negative_sum_fails() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let set = 1;
         let add = -40;
-        set_add(&StorageKey::default(), Some(set), add)
+        set_add(&StorageKey::default(), Some(set), add, NONE)
     });
 
     assert_syscall_exception(
@@ -161,7 +164,7 @@ fn set_add_negative_sum_fails() {
 // We can call `set_add(None, -3)`, but the transaction reverts.
 fn negative_increment_reverts() {
     contract_exec(TestEnvironment::no_cost(), || {
-        set_add(&StorageKey::default(), None, -3);
+        set_add(&StorageKey::default(), None, -3, NONE);
     });
 }
 
@@ -173,8 +176,8 @@ fn negative_set_add_serially_reverts() {
     contract_exec(TestEnvironment::no_cost(), || {
         let key = StorageKey::default();
 
-        set_add(&key, Some(1), 0);
-        set_add(&key, None, -40);
+        set_add(&key, Some(1), 0, NONE);
+        set_add(&key, None, -40, NONE);
     });
 }
 
@@ -184,7 +187,7 @@ fn negative_set_succeeds() {
     let res = contract_exec(TestEnvironment::no_cost(), || {
         let set = -1;
         let add = 0;
-        set_add(&StorageKey::default(), Some(set), add)
+        set_add(&StorageKey::default(), Some(set), add, NONE)
     });
 
     if !res.is_ok() {
@@ -201,6 +204,6 @@ fn set_overflowing_sum_reverts() {
         let key = StorageKey::default();
         let set = i128::MAX;
         let add = 47;
-        set_add(&key, Some(set), add);
+        set_add(&key, Some(set), add, NONE);
     });
 }
