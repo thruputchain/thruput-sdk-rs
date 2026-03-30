@@ -201,6 +201,16 @@ impl<T> Vector<T> {
     */
 }
 
+impl<T> super::node::StorageNode for Vector<T> {
+    fn from_keypath(keypath: super::keypath::Keypath) -> Self {
+        Self::from(keypath)
+    }
+
+    fn keypath(&self) -> &super::keypath::Keypath {
+        &self.keypath
+    }
+}
+
 pub use vref::*;
 mod vref {
     use super::*;
