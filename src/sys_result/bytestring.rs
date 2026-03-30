@@ -50,11 +50,7 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// this will not cause any such invocations to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(
-        key,
-        slice,
-        StorageDeltaFlags::None.0,
-    )
+    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::None.0)
 }
 
 /// Sets the value at the given key to the given bytestring.
@@ -65,11 +61,7 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 /// such invocation can succeed without reverting.
 ///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(
-        key,
-        slice,
-        StorageDeltaFlags::ExclusiveLock.0,
-    )
+    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::ExclusiveLock.0)
 }
 
 /// Returns the bytestring contents in a statically-sized array.

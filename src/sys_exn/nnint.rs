@@ -20,8 +20,7 @@ use crate::types::StorageKey;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 const NONE: StorageDeltaFlags = StorageDeltaFlags::None;
-const EXCLUSIVE: StorageDeltaFlags =
-    StorageDeltaFlags::ExclusiveLock;
+const EXCLUSIVE: StorageDeltaFlags = StorageDeltaFlags::ExclusiveLock;
 
 /// Get the current value.
 ///
