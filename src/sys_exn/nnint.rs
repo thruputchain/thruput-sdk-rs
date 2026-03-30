@@ -17,6 +17,10 @@
 use crate::exn::{nnint_overflow, nnint_underflow};
 use crate::sys_exn::nnint_internal as nnint;
 use crate::types::StorageKey;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
+
+const NONE: StorageDeltaFlags = StorageDeltaFlags::None;
+const EXCLUSIVE: StorageDeltaFlags = StorageDeltaFlags::ExclusiveLock;
 
 /// Get the current value.
 ///
@@ -56,9 +60,7 @@ pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
 /// included in the same block.
 ///
 pub fn non_negative_int_set(key: &StorageKey, set_value: i128) {
-    let add_value = 0;
-
-    nnint::set_add(key, Some(set_value), add_value);
+    nnint::set_add(key, Some(set_value), 0, NONE);
 }
 
 /// Set the value exclusively.
@@ -69,9 +71,7 @@ pub fn non_negative_int_set(key: &StorageKey, set_value: i128) {
 /// block.
 ///
 pub fn non_negative_int_set_exclusive(key: &StorageKey, set_value: i128) {
-    let add_value = 0;
-
-    nnint::set_add_exclusive(key, Some(set_value), add_value);
+    nnint::set_add(key, Some(set_value), 0, EXCLUSIVE);
 }
 
 /// Increment the value.
@@ -97,7 +97,7 @@ pub fn non_negative_int_inc(key: &StorageKey, amount: i128) {
     let add_value = a.checked_add(amount).unwrap_or_else(|| nnint_overflow());
 
     // Update the increment, keeping the "set" value (if any) as-is.
-    nnint::set_add(key, s, add_value);
+    nnint::set_add(key, s, add_value, NONE);
 }
 
 /// Increment the value.
@@ -117,5 +117,5 @@ pub fn non_negative_int_strict_inc(key: &StorageKey, amount: i128) {
         nnint_underflow();
     }
 
-    nnint::set_add(key, Some(s), add_value);
+    nnint::set_add(key, Some(s), add_value, NONE);
 }

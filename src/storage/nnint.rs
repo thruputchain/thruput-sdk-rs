@@ -1,6 +1,9 @@
 use super::keypath::Keypath;
+use crate::exn::{nnint_overflow, nnint_underflow};
 use crate::sys_exn::nnint::*;
+use crate::sys_exn::nnint_internal as nnint;
 use core::fmt::Debug;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Non-negative integer
 ///
@@ -37,26 +40,64 @@ impl NNInt {
         non_negative_int_try_get(&self.keypath.generate_key())
     }
 
-    /// Set the value
-    pub fn set(&mut self, set_value: i128) {
-        non_negative_int_set(&self.keypath.generate_key(), set_value);
+    fn flags(&self) -> StorageDeltaFlags {
+        if self.keypath.is_exclusive() {
+            StorageDeltaFlags::ExclusiveLock
+        } else {
+            StorageDeltaFlags::None
+        }
     }
 
-    /// Set the value exclusively
-    pub fn set_exclusive(&mut self, set_value: i128) {
-        non_negative_int_set_exclusive(
+    /// Set the value
+    pub fn set(&mut self, set_value: i128) {
+        nnint::set_add(
             &self.keypath.generate_key(),
-            set_value,
+            Some(set_value),
+            0,
+            self.flags(),
         );
     }
 
     /// Increment by an amount (without querying the current value).
     pub fn inc(&mut self, increment: i128) {
-        non_negative_int_inc(&self.keypath.generate_key(), increment);
+        let key = &self.keypath.generate_key();
+        let (s, a) = nnint::get_values(key);
+        let add_value =
+            a.checked_add(increment).unwrap_or_else(|| nnint_overflow());
+        nnint::set_add(key, s, add_value, self.flags());
     }
 
-    /// Increment_by an amount, aborting in case of a negative result.
+    /// Increment by an amount, aborting in case of a negative result.
     pub fn strict_inc(&mut self, increment: i128) {
-        non_negative_int_strict_inc(&self.keypath.generate_key(), increment);
+        let key = &self.keypath.generate_key();
+        let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
+        let add_value =
+            a.checked_add(increment).unwrap_or_else(|| nnint_overflow());
+        let total =
+            s.checked_add(add_value).unwrap_or_else(|| nnint_overflow());
+        if total < 0 {
+            nnint_underflow();
+        }
+        nnint::set_add(key, Some(s), add_value, self.flags());
+    }
+
+    /// Delete the value at this storage location.
+    pub fn delete(&mut self) {
+        let key = &self.keypath.generate_key();
+        if self.keypath.is_exclusive() {
+            crate::delete_exclusive(key);
+        } else {
+            crate::delete_shared(key);
+        }
+    }
+}
+
+impl super::node::StorageNode for NNInt {
+    fn from_keypath(keypath: super::keypath::Keypath) -> Self {
+        Self::from(keypath)
+    }
+
+    fn keypath(&self) -> &super::keypath::Keypath {
+        &self.keypath
     }
 }

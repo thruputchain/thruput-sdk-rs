@@ -201,6 +201,12 @@ impl<T> Vector<T> {
     */
 }
 
+// Note: Vector intentionally does NOT implement StorageNode.
+// Vector carries in-memory state (len) that requires a storage read to
+// reconstruct. Constructing a Vector from a bare keypath (as StorageNode
+// requires) would produce a zero-length vector, silently losing data.
+// Use Vector only as a top-level storage field, not as a Map value type.
+
 pub use vref::*;
 mod vref {
     use super::*;

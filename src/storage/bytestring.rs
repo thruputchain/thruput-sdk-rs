@@ -37,11 +37,19 @@ impl Bytestring {
     }
 
     pub fn set(&mut self, buf: &[u8]) {
-        bytestring_set(&self.key, buf);
+        if self.key.keypath().is_exclusive() {
+            bytestring_set_exclusive(&self.key, buf);
+        } else {
+            bytestring_set(&self.key, buf);
+        }
     }
 
-    pub fn set_exclusive(&mut self, buf: &[u8]) {
-        bytestring_set_exclusive(&self.key, buf);
+    pub fn delete(&mut self) {
+        if self.key.keypath().is_exclusive() {
+            crate::delete_exclusive(self.key.get());
+        } else {
+            crate::delete_shared(self.key.get());
+        }
     }
 
     pub fn get_sized<const N: usize>(&self) -> [u8; N] {
@@ -54,5 +62,15 @@ impl Bytestring {
 
     pub fn try_get(&self) -> Option<Box<[u8]>> {
         bytestring_try_get(&self.key)
+    }
+}
+
+impl super::node::StorageNode for Bytestring {
+    fn from_keypath(keypath: super::keypath::Keypath) -> Self {
+        Self::from(keypath)
+    }
+
+    fn keypath(&self) -> &super::keypath::Keypath {
+        self.key.keypath()
     }
 }

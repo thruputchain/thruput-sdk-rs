@@ -31,19 +31,15 @@ impl TokenContract {
 
     // Balance stored at given owner address, or zero if empty
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Amount {
-        let balance_cell = self.balances.get(owner);
-
-        balance_cell.try_get().unwrap_or(0) as Amount
+        self.balances.at(owner).try_get().unwrap_or(0) as Amount
     }
 
     // Adjust balance at given owner address, from zero if empty
     fn _adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
-        let mut balance = self.balances.get(owner);
-
         // For never-stored-to addresses, this acts as
         // if the value was zero.  If the resulting balance
         // would be negative, this aborts.
-        balance.strict_inc(diff)
+        self.balances.at_mut(owner).strict_inc(diff);
     }
 
     fn _allowance(
@@ -51,10 +47,7 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
-        let owner_allowances = self.allowances.get(owner);
-        let spender_allowance = owner_allowances.get(spender);
-
-        spender_allowance.try_get().unwrap_or(0) as Amount
+        self.allowances.at(owner).at(spender).try_get().unwrap_or(0) as Amount
     }
 
     // Adjust allowance for owner and spender, from zero if empty.
@@ -65,11 +58,11 @@ impl TokenContract {
         spender: &ContractAddress,
         diff: Difference,
     ) {
-        let owner_allowances = self.allowances.get(owner);
-        let mut spender_allowance = owner_allowances.get(spender);
-
         // This fails if the result would be negative
-        spender_allowance.strict_inc(diff);
+        self.allowances
+            .at_mut(owner)
+            .at_mut(spender)
+            .strict_inc(diff);
 
         log_approval_event(owner, spender, diff);
     }

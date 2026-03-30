@@ -1,12 +1,12 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::storage::{Map, Vector};
+use sdk::storage::{Map, Value, Vector};
 use sdk::*;
 
 #[sdk::storage]
 pub struct StorageErrorContract {
     numbers: Vector<u64>,
-    names: Map<u64, u64>,
+    names: Map<u64, Value<u64>>,
 }
 
 /// A contract that deliberately exercises storage error paths.
@@ -40,17 +40,17 @@ impl StorageErrorContract {
 
     /// Set a map entry.
     pub fn map_set(&mut self, key: u64, value: u64) {
-        self.names.set(&key, &value);
+        self.names.at_mut(&key).set(&value);
     }
 
     /// Get a map entry. Will abort if the key doesn't exist
     /// (load_keypath fails).
     pub fn map_get(&self, key: u64) -> u64 {
-        self.names.get(&key)
+        self.names.at(&key).get()
     }
 
     /// Try to get a map entry. Returns 0 if not found.
     pub fn map_try_get(&self, key: u64) -> u64 {
-        self.names.try_get(&key).unwrap_or(0)
+        self.names.at(&key).try_get().unwrap_or(0)
     }
 }

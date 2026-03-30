@@ -35,34 +35,17 @@ use crate::*;
 ///
 /// This aborts if `set_value.is_some_and(|s| s + a < 0)`.
 ///
-pub fn set_add(key: &StorageKey, set_value: Option<i128>, add_value: i128) {
-    sys::raw_NonnegativeIntSetAdd(
-        key,
-        set_value.as_ref(),
-        &add_value,
-        StorageDeltaFlags::kStorageDeltaFlagNone.0,
-    )
-    .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntSetAdd, e));
-}
-
-/// Replace the "set" and "add" values exclusively.
-///
-/// This discards any values previously present.
-///
-/// If concurrent contract invocations (in the same transaction) set the value
-/// exclusively, only one such invocation can succeed without ultimately
-/// reverting.
-///
-pub fn set_add_exclusive(
+pub fn set_add(
     key: &StorageKey,
     set_value: Option<i128>,
     add_value: i128,
+    flags: StorageDeltaFlags,
 ) {
     sys::raw_NonnegativeIntSetAdd(
         key,
         set_value.as_ref(),
         &add_value,
-        StorageDeltaFlags::kStorageDeltaFlagExclusiveLock.0,
+        flags.0,
     )
     .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntSetAdd, e));
 }

@@ -22,6 +22,12 @@ pub use load::*;
 pub mod store;
 pub use store::*;
 
+pub mod node;
+pub use node::*;
+
+pub mod slot;
+pub use slot::*;
+
 pub mod bytestring;
 pub use bytestring::*;
 
@@ -30,6 +36,9 @@ pub use nnint::*;
 
 pub mod handle;
 pub use handle::*;
+
+pub mod value;
+pub use value::*;
 
 pub mod map;
 pub use map::*;

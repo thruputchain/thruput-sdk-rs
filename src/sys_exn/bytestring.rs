@@ -41,14 +41,10 @@ pub fn bytestring_exists(key: &StorageKey) -> bool {
 /// this will not cause any such invocations to abort.
 ///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
-    sys::raw_BytestringSet(
-        key,
-        slice,
-        StorageDeltaFlags::kStorageDeltaFlagNone.0,
-    )
-    .unwrap_or_else(|errno| {
-        syscall_throw(SyscallNo::kBytestringSet, errno);
-    });
+    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::None.0)
+        .unwrap_or_else(|errno| {
+            syscall_throw(SyscallNo::kBytestringSet, errno);
+        });
 }
 
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) {
