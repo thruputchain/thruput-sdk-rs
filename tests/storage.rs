@@ -326,6 +326,64 @@ contract_test!(test_map_at_nested {
     }
 });
 
+contract_test!(test_value_basic {
+    let keypath = Keypath::new();
+    let mut val: Value<i32> = Value::new(&keypath);
+
+    // Initially empty
+    assert_eq!(val.try_get(), None);
+
+    // Set a value
+    val.set(&42);
+    assert_eq!(val.get(), 42);
+
+    // Overwrite
+    val.set(&99);
+    assert_eq!(val.get(), 99);
+
+    // Delete
+    val.delete();
+    assert_eq!(val.try_get(), None);
+});
+
+contract_test!(test_value_load_mut {
+    let keypath = Keypath::new();
+    let mut val: Value<i32> = Value::new(&keypath);
+
+    // Set initial value
+    val.set(&10);
+
+    // Modify via load_mut — changes flush on drop
+    {
+        let mut data = val.load_mut();
+        *data = 42;
+    }
+
+    assert_eq!(val.get(), 42);
+});
+
+contract_test!(test_map_at_value {
+    let keypath = Keypath::new();
+    let mut map: Map<u32, Value<i32>> = Map::new(&keypath);
+
+    // Write via at_mut
+    map.at_mut(&1u32).set(&100);
+
+    // Read via at
+    let v = map.at(&1u32).try_get();
+    assert_eq!(v, Some(100));
+
+    // Modify via load_mut through at_mut
+    {
+        let mut slot = map.at_mut(&1u32);
+        let mut data = slot.load_mut();
+        *data = 200;
+    }
+
+    let v = map.at(&1u32).get();
+    assert_eq!(v, 200);
+});
+
 /* TODO:
 contract_test!(test_thing_map {
     let data_keypath = Keypath::new();

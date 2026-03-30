@@ -37,6 +37,9 @@ pub use nnint::*;
 pub mod handle;
 pub use handle::*;
 
+pub mod value;
+pub use value::*;
+
 pub mod map;
 pub use map::*;
 
