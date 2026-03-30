@@ -11,8 +11,8 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use std::collections::HashMap;
-use syn::parse::Result;
 use syn::LitByteStr;
+use syn::parse::Result;
 
 /// Generate exports
 pub fn generate(

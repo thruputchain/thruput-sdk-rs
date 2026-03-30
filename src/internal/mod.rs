@@ -38,7 +38,11 @@ pub const fn const_str_eq(a: &str, b: &str) -> bool {
 ///
 /// For `&str` inputs with known lengths, use [`const_str_concat`].
 #[inline]
-pub const fn const_str_concat_bytes<const N: usize, const M: usize, const LEN: usize>(
+pub const fn const_str_concat_bytes<
+    const N: usize,
+    const M: usize,
+    const LEN: usize,
+>(
     a: &[u8; N],
     b: &[u8; M],
 ) -> [u8; LEN] {
@@ -62,7 +66,11 @@ pub const fn const_str_concat_bytes<const N: usize, const M: usize, const LEN: u
 /// To obtain a `&str`, use `core::str::from_utf8(&bytes)` in a `const` context
 /// (valid UTF-8 is preserved when both inputs are `&str`).
 #[inline]
-pub const fn const_str_concat<const N: usize, const M: usize, const LEN: usize>(
+pub const fn const_str_concat<
+    const N: usize,
+    const M: usize,
+    const LEN: usize,
+>(
     a: &str,
     b: &str,
 ) -> [u8; LEN] {
@@ -101,7 +109,9 @@ pub const fn const_iface_version_mismatch_diagnostic_bytes<
     trait_full: &str,
     suffix: &[u8; S],
 ) -> [u8; OUT] {
-    assert!(prefix.len() == P && trait_major.len() == M && trait_full.len() == F);
+    assert!(
+        prefix.len() == P && trait_major.len() == M && trait_full.len() == F
+    );
     assert!(OUT == P + 11 + M + F + S);
     let pb = prefix.as_bytes();
     let ab = trait_major.as_bytes();
@@ -167,16 +177,13 @@ mod iface_version_mismatch_diagnostic_tests {
         const MAJ: &str = "0";
         const FULL: &str = "0.0";
         const SUFFIX: &[u8; 2] = b" x";
-        const OUT: [u8; 20] = const_iface_version_mismatch_diagnostic_bytes::<3, 1, 3, 2, 20>(
-            PREFIX,
-            MAJ,
-            FULL,
-            SUFFIX,
-        );
+        const OUT: [u8; 20] =
+            const_iface_version_mismatch_diagnostic_bytes::<3, 1, 3, 2, 20>(
+                PREFIX, MAJ, FULL, SUFFIX,
+            );
         assert_eq!(
             core::str::from_utf8(&OUT).unwrap(),
             "a: '0', from '0.0' x"
         );
     }
 }
-
