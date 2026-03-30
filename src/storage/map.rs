@@ -1,6 +1,8 @@
 use super::error::Result;
 use super::keypath::Keypath;
 use super::load::LoadKeypath;
+use super::node::StorageNode;
+use super::slot::{SlotMut, SlotRef};
 use super::store::*;
 use crate::exn::library_throw;
 use crate::sys_exn::delete::{delete_exclusive, delete_shared};
@@ -114,6 +116,37 @@ impl<K, V> Map<K, V> {
         let value = LoadKeypath::try_load_keypath(&keypath)?;
 
         Ok(Entry::new(self, entry_key, value, keypath))
+    }
+
+    pub fn at(&self, entry_key: &K) -> SlotRef<'_, Self, V>
+    where
+        K: WriteXDR,
+        V: StorageNode,
+    {
+        let keypath = self.make_entry_keypath(entry_key);
+        let slot = V::from_keypath(keypath);
+        SlotRef::new(self, slot)
+    }
+
+    pub fn at_mut(&mut self, entry_key: &K) -> SlotMut<'_, Self, V>
+    where
+        K: WriteXDR,
+        V: StorageNode,
+    {
+        let keypath = self.make_entry_keypath(entry_key);
+        let slot = V::from_keypath(keypath);
+        SlotMut::new(self, slot)
+    }
+
+    pub fn at_mut_exclusive(&mut self, entry_key: &K) -> SlotMut<'_, Self, V>
+    where
+        K: WriteXDR,
+        V: StorageNode,
+    {
+        let mut keypath = self.make_entry_keypath(entry_key);
+        keypath.set_exclusive();
+        let slot = V::from_keypath(keypath);
+        SlotMut::new(self, slot)
     }
 
     fn make_entry_keypath(&self, entry_key: &K) -> Keypath

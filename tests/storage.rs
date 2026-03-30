@@ -286,6 +286,46 @@ contract_test!(test_vector_data {
     drop(vec);
 });
 
+contract_test!(test_map_at {
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath);
+    }
+
+    let slot: u32 = 3;
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        data.map.at_mut(&slot).strict_inc(7);
+    }
+
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let v = data.map.at(&slot).get();
+        assert_eq!(v, 7);
+    }
+});
+
+contract_test!(test_map_at_nested {
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath);
+    }
+
+    let slot: u32 = 5;
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        data.map.at_mut(&slot).strict_inc(42);
+    }
+
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let val = data.map.at(&slot).try_get().unwrap_or(0);
+        assert_eq!(val, 42);
+    }
+});
+
 /* TODO:
 contract_test!(test_thing_map {
     let data_keypath = Keypath::new();
