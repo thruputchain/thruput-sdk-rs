@@ -11,6 +11,7 @@ members = [
     "standard-tests/*",
     "bottle-test",
     "groundhog-test-vectors",
+    "tests/version-mismatch-helper",
     ]
 
 [workspace.package]
@@ -81,6 +82,8 @@ delegate = { workspace = true, optional = true }
 sdk = { workspace = true, features = ["dev"] }
 hex-literal = { workspace = true }
 groundhog-contract-util = { workspace = true }
+trybuild = "1"
+version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [workspace.dependencies]
 sdk = { path = "." }

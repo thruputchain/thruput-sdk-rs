@@ -6,11 +6,13 @@ use super::entrypoint::*;
 use super::util::*;
 use groundhog_contract_util as contract_util;
 use groundhog_xdr::contract::ContractEntrypointID;
+use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use std::collections::HashMap;
 use syn::parse::Result;
+use syn::LitByteStr;
 
 /// Generate exports
 pub fn generate(
@@ -54,20 +56,43 @@ pub fn generate(
     {
         let iface_major =
             contract_util::semver::major_version_from_string(&iface_vers);
-        let error_msg = format!(
+        // Build the diagnostic in const-eval: PREFIX + TRAIT_MAJOR + SUFFIX, then `panic!` with
+        // `str::from_utf8` (assert's message must be a format literal, not a `&str` value).
+        let prefix = format!(
             "Major version mismatch: the major version specified in #[contract(version = ...)] \
              is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's \
-             major version (if not specified: requested version defaults to the current crate's \
-             version). Check the trait definition and Cargo.toml to see the trait's major version."
+             major version ('"
         );
+        let suffix = "') (if not specified: requested version defaults to the current crate's \
+             version). Check the trait definition and Cargo.toml to see the trait's major version.";
+        let suffix_lit = LitByteStr::new(suffix.as_bytes(), Span::call_site());
+        let suffix_len = suffix.len();
         quote! {
-            const _: () = assert!(
-                ::sdk::internal::const_str_eq(
-                    #iface_major,
-                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION
-                ),
-                #error_msg
-            );
+            const _: () = {
+                const TRAIT_MAJOR: &str =
+                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION;
+                const PREFIX: &str = #prefix;
+
+                const SUFFIX: &[u8; #suffix_len] = &#suffix_lit;
+
+                const STEP1: [u8; {PREFIX.len() + TRAIT_MAJOR.len()}] = ::sdk::internal::const_str_concat::<
+                    { PREFIX.len() },
+                    { TRAIT_MAJOR.len() },
+                    { PREFIX.len() + TRAIT_MAJOR.len() },
+                >(PREFIX, TRAIT_MAJOR);
+
+                const FULL: [u8; {STEP1.len() + SUFFIX.len()}] = ::sdk::internal::const_str_concat_bytes::<
+                    { STEP1.len() },
+                    { SUFFIX.len() },
+                    { STEP1.len() + SUFFIX.len() },
+                >(&STEP1, SUFFIX);
+
+                const _: () = assert!(::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR), "{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
+
+               // if !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
+               //     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
+              //  }
+            };
         }
     } else {
         quote! {}
