@@ -7,6 +7,7 @@ use xdrs::{WriteXDR, cxs::encode};
 #[derive(Debug, Clone)]
 pub struct Keypath {
     path: Vec<KeypathComponent>,
+    exclusive: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -17,7 +18,10 @@ pub enum KeypathComponent {
 
 impl Keypath {
     pub fn new() -> Self {
-        Self { path: vec![] }
+        Self {
+            path: vec![],
+            exclusive: false,
+        }
     }
 
     pub fn from_key(key: &StorageKey) -> Self {
@@ -33,6 +37,7 @@ impl Keypath {
     pub fn clone_flattened(&self) -> Self {
         Keypath {
             path: vec![KeypathComponent::Bytes(self.flattened())],
+            exclusive: self.exclusive,
         }
     }
 
@@ -89,6 +94,14 @@ impl Keypath {
             );
         }
     }
+
+    pub fn is_exclusive(&self) -> bool {
+        self.exclusive
+    }
+
+    pub fn set_exclusive(&mut self) {
+        self.exclusive = true;
+    }
 }
 
 impl Default for Keypath {
@@ -124,6 +137,27 @@ mod test_keypath {
         let kp2 = kp.clone_flattened();
 
         assert_eq!(kp.flattened(), kp2.flattened())
+    }
+
+    #[test]
+    fn exclusive_flag_propagates_through_clone() {
+        use super::*;
+
+        let mut kp = Keypath::new();
+        kp.push_item("some bytes");
+        kp.set_exclusive();
+
+        let kp2 = kp.clone();
+        assert!(kp2.is_exclusive());
+
+        let kp3 = kp.clone_flattened();
+        assert!(kp3.is_exclusive());
+    }
+
+    #[test]
+    fn exclusive_flag_defaults_to_false() {
+        let kp = super::Keypath::new();
+        assert!(!kp.is_exclusive());
     }
 }
 
