@@ -39,15 +39,14 @@ impl NNInt {
 
     /// Set the value
     pub fn set(&mut self, set_value: i128) {
-        non_negative_int_set(&self.keypath.generate_key(), set_value);
-    }
-
-    /// Set the value exclusively
-    pub fn set_exclusive(&mut self, set_value: i128) {
-        non_negative_int_set_exclusive(
-            &self.keypath.generate_key(),
-            set_value,
-        );
+        if self.keypath.is_exclusive() {
+            non_negative_int_set_exclusive(
+                &self.keypath.generate_key(),
+                set_value,
+            );
+        } else {
+            non_negative_int_set(&self.keypath.generate_key(), set_value);
+        }
     }
 
     /// Increment by an amount (without querying the current value).
@@ -55,9 +54,19 @@ impl NNInt {
         non_negative_int_inc(&self.keypath.generate_key(), increment);
     }
 
-    /// Increment_by an amount, aborting in case of a negative result.
+    /// Increment by an amount, aborting in case of a negative result.
     pub fn strict_inc(&mut self, increment: i128) {
         non_negative_int_strict_inc(&self.keypath.generate_key(), increment);
+    }
+
+    /// Delete the value at this storage location.
+    pub fn delete(&mut self) {
+        let key = &self.keypath.generate_key();
+        if self.keypath.is_exclusive() {
+            crate::delete_exclusive(key);
+        } else {
+            crate::delete_shared(key);
+        }
     }
 }
 

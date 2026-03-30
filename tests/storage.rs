@@ -384,6 +384,28 @@ contract_test!(test_map_at_value {
     assert_eq!(v, 200);
 });
 
+contract_test!(test_exclusive_propagation {
+    let data_keypath = Keypath::new();
+    {
+        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        data.store_keypath(&data_keypath);
+    }
+
+    let slot: u32 = 7;
+
+    // Use at_mut_exclusive — exclusive flag reaches NNInt
+    {
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        data.map.at_mut_exclusive(&slot).strict_inc(10);
+    }
+
+    {
+        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let v = data.map.at(&slot).get();
+        assert_eq!(v, 10);
+    }
+});
+
 /* TODO:
 contract_test!(test_thing_map {
     let data_keypath = Keypath::new();
