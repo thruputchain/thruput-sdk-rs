@@ -56,14 +56,13 @@ pub fn generate(
     {
         let iface_major =
             contract_util::semver::major_version_from_string(&iface_vers);
-        // Build the diagnostic in const-eval: PREFIX + TRAIT_MAJOR + SUFFIX, then `panic!` with
-        // `str::from_utf8` (assert's message must be a format literal, not a `&str` value).
+        // Build the diagnostic in const-eval via sdk::internal::const_iface_version_mismatch_diagnostic_bytes,
+        // then panic! with str::from_utf8.
         let prefix = format!(
             "Major version mismatch: the major version specified in #[contract(version = ...)] \
-             is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's \
-             major version ('"
+             is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's "
         );
-        let suffix = "') (if not specified: requested version defaults to the current crate's \
+        let suffix = " (if not specified: requested version defaults to the current crate's \
              version). Check the trait definition and Cargo.toml to see the trait's major version.";
         let suffix_lit = LitByteStr::new(suffix.as_bytes(), Span::call_site());
         let suffix_len = suffix.len();
@@ -71,27 +70,28 @@ pub fn generate(
             const _: () = {
                 const TRAIT_MAJOR: &str =
                     <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION;
+                const TRAIT_FULL_VERSION: &str =
+                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
                 const PREFIX: &str = #prefix;
 
                 const SUFFIX: &[u8; #suffix_len] = &#suffix_lit;
 
-                const STEP1: [u8; {PREFIX.len() + TRAIT_MAJOR.len()}] = ::sdk::internal::const_str_concat::<
+                const FULL: [u8; {
+                    PREFIX.len() + 11 + TRAIT_MAJOR.len() + TRAIT_FULL_VERSION.len() + SUFFIX.len()
+                }] = ::sdk::internal::const_iface_version_mismatch_diagnostic_bytes::<
                     { PREFIX.len() },
                     { TRAIT_MAJOR.len() },
-                    { PREFIX.len() + TRAIT_MAJOR.len() },
-                >(PREFIX, TRAIT_MAJOR);
-
-                const FULL: [u8; {STEP1.len() + SUFFIX.len()}] = ::sdk::internal::const_str_concat_bytes::<
-                    { STEP1.len() },
+                    { TRAIT_FULL_VERSION.len() },
                     { SUFFIX.len() },
-                    { STEP1.len() + SUFFIX.len() },
-                >(&STEP1, SUFFIX);
+                    {
+                        PREFIX.len() + 11 + TRAIT_MAJOR.len() + TRAIT_FULL_VERSION.len()
+                            + SUFFIX.len()
+                    },
+                >(PREFIX, TRAIT_MAJOR, TRAIT_FULL_VERSION, SUFFIX);
 
-                const _: () = assert!(::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR), "{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
-
-               // if !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
-               //     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
-              //  }
+                if !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
+                    panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
+                }
             };
         }
     } else {

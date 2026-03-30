@@ -38,11 +38,15 @@ fn apply_with_config(
                     &iface_vers,
                 );
 
-            // Add the version const and default __mock method
-            // directly on the trait.
+            // Add the version consts on the trait (one `parse_quote!` per item — syn parses a
+            // single `TraitItem`; two `const`s in one block panics with "unexpected token").
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
 
             if cfg!(feature = "mock") {
