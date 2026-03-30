@@ -50,11 +50,19 @@ impl NNInt {
     }
 
     /// Increment by an amount (without querying the current value).
+    ///
+    /// Note: increments are commutative and always use shared (non-exclusive)
+    /// locking, regardless of the keypath's exclusive flag. The exclusive flag
+    /// only affects `set` and `delete` operations.
     pub fn inc(&mut self, increment: i128) {
         non_negative_int_inc(&self.keypath.generate_key(), increment);
     }
 
     /// Increment by an amount, aborting in case of a negative result.
+    ///
+    /// Note: increments are commutative and always use shared (non-exclusive)
+    /// locking, regardless of the keypath's exclusive flag. The exclusive flag
+    /// only affects `set` and `delete` operations.
     pub fn strict_inc(&mut self, increment: i128) {
         non_negative_int_strict_inc(&self.keypath.generate_key(), increment);
     }

@@ -1,7 +1,6 @@
 // src/storage/value.rs
 use super::keypath::*;
 use super::node::StorageNode;
-use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
