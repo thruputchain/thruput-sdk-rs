@@ -30,18 +30,15 @@ contract_test!(test_map {
 
     let slot: u32 = 3;
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let mut cell: NNInt = data.map.get(&slot);
+        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
 
-        // Below results in `set_add(None, 7)` on this
-        // previously-unset location
-        cell.strict_inc(7);
+        // Use new at_mut() API
+        data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
         let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-        let cell = data.map.get(&slot);
-        let v = cell.get();
+        let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
 });
