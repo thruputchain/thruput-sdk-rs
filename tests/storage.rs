@@ -216,4 +216,3 @@ contract_test!(test_exclusive_propagation {
         assert_eq!(v, 10);
     }
 });
-

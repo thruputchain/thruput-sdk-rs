@@ -97,6 +97,7 @@ test_sdk() {
     cargo test --lib &&
     cargo test --tests &&
     cargo test -F storage --tests &&
+    cargo test -p vector-tests --tests &&
     true
 }
 

@@ -12,7 +12,8 @@ members = [
     "bottle-test",
     "groundhog-test-vectors",
     "tests/version-mismatch-helper",
-    ]
+    "tests/vector-tests",
+]
 
 [workspace.package]
 edition = "2024"
@@ -171,6 +172,10 @@ required-features = ["std"]
 
 [[test]]
 name = "storage"
+required-features = ["storage"]
+
+[[test]]
+name = "compile_fail_storage"
 required-features = ["storage"]
 
 [[test]]
