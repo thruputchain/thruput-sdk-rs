@@ -25,9 +25,8 @@ impl<T> From<Keypath> for Value<T> {
 }
 
 impl_load_via_keypath! { Value<T> }
-impl_default_via_keypath! { Value<T> }
+impl_from_keypath! { Value<T> }
 impl_read_via_keypath! { Value<T> }
-
 
 impl<T> StorageNode for Value<T> {
     fn from_keypath(keypath: Keypath) -> Self {
@@ -93,14 +92,14 @@ impl<T> Value<T> {
 
 impl<T> Value<T>
 where
-    T: super::load::LoadKeypath + DefaultFromKeypath + super::store::Store,
+    T: super::load::LoadKeypath + Default + super::store::Store,
 {
     /// Load the value for in-place modification.
     /// Returns a `ValueMut` that derefs to `&mut T` and flushes on drop.
     pub fn load_mut(&mut self) -> ValueMut<'_, T> {
         let data = T::try_load_keypath(self.key.keypath())
             .unwrap_or_else(|e| crate::exn::library_throw(e))
-            .unwrap_or_else(|| T::default_from_keypath(self.key.keypath()));
+            .unwrap_or_default();
         ValueMut { value: self, data }
     }
 }

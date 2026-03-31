@@ -1,5 +1,5 @@
 use super::error::*;
-use super::keypath::{DefaultFromKeypath, Keypath};
+use super::keypath::{FromKeypath, Keypath};
 use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
 use crate::exn::*;
@@ -20,7 +20,7 @@ impl<T> From<Keypath> for Vector<T> {
     }
 }
 
-impl_default_via_keypath! { Vector<T> }
+impl_from_keypath! { Vector<T> }
 
 const _: () = {
     use xdrs::{WriteResult, WriteXDR, Writer, write_xdr};
@@ -91,7 +91,7 @@ impl<T> Vector<T> {
 
     pub fn get_default(&self, index: u64) -> T
     where
-        T: LoadKeypath + DefaultFromKeypath,
+        T: LoadKeypath + FromKeypath,
     {
         if index >= self.len {
             oob_throw(self.len, index);
@@ -101,7 +101,7 @@ impl<T> Vector<T> {
 
         T::try_load_keypath(&keypath)
             .unwrap_or_else(|e| library_throw(e))
-            .unwrap_or_else(|| T::default_from_keypath(&keypath))
+            .unwrap_or_else(|| T::from_keypath(&keypath))
     }
 
     pub fn try_get(&self, index: u64) -> Option<T>
@@ -121,7 +121,7 @@ impl<T> Vector<T> {
 
     pub fn load<'a>(&'a self, index: u64) -> ElemRef<'a, T>
     where
-        T: LoadKeypath + DefaultFromKeypath,
+        T: LoadKeypath + FromKeypath,
     {
         let val = self.get_default(index);
 
@@ -130,7 +130,7 @@ impl<T> Vector<T> {
 
     pub fn load_mut<'a>(&'a mut self, index: u64) -> ElemRefMut<'a, T>
     where
-        T: LoadKeypath + DefaultFromKeypath + Store,
+        T: LoadKeypath + FromKeypath + Store,
     {
         let val = self.get_default(index);
 
@@ -165,7 +165,7 @@ impl<T> Vector<T> {
 
     pub fn extend_len(&mut self, len: u64)
     where
-        T: DefaultFromKeypath,
+        T: FromKeypath,
     {
         if len > self.len {
             self.len = len;

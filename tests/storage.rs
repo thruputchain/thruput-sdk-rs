@@ -16,7 +16,7 @@ struct Data {
 contract_test!(test_map {
     let data_keypath = Keypath::new();
     {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         data.store_keypath(&data_keypath);
     }
 
@@ -92,7 +92,7 @@ contract_test!(test_map_entry {
 
 contract_test!(test_storable {
     let data_keypath = Keypath::new();
-    let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+    let data: Data = FromKeypath::from_keypath(&data_keypath);
     data.store_keypath(&data_keypath);
 
     let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
@@ -126,7 +126,7 @@ contract_test!(test_vector {
 contract_test!(test_map_at {
     let data_keypath = Keypath::new();
     {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         data.store_keypath(&data_keypath);
     }
 
@@ -146,7 +146,7 @@ contract_test!(test_map_at {
 contract_test!(test_map_at_nested {
     let data_keypath = Keypath::new();
     {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         data.store_keypath(&data_keypath);
     }
 
@@ -224,7 +224,7 @@ contract_test!(test_map_at_value {
 contract_test!(test_exclusive_propagation {
     let data_keypath = Keypath::new();
     {
-        let data: Data = DefaultFromKeypath::default_from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         data.store_keypath(&data_keypath);
     }
 

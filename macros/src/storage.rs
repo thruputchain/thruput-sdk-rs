@@ -71,7 +71,7 @@ fn generate_from_struct(
 
     let mut output = TokenStream::new();
     output.extend(impl_read_xdr_path(ident, generics, fields)?);
-    output.extend(impl_default_from_keypath(ident, generics, fields)?);
+    output.extend(impl_from_keypath(ident, generics, fields)?);
 
     Ok(output)
 }
@@ -133,7 +133,7 @@ fn impl_read_xdr_path(
     })
 }
 
-fn impl_default_from_keypath(
+fn impl_from_keypath(
     ident: &syn::Ident,
     generics: &syn::Generics,
     fields: &syn::Fields,
@@ -154,8 +154,8 @@ fn impl_default_from_keypath(
         let field_name = &field.ident;
         field_names.extend(quote! { #field_name, });
 
-        field_initializers.extend(quote!{
-            let #field_name = DefaultFromKeypath::default_from_keypath(&keypath);
+        field_initializers.extend(quote! {
+            let #field_name = FromKeypath::from_keypath(&keypath);
         });
 
         if (i + 1) < n_fields {
@@ -169,8 +169,8 @@ fn impl_default_from_keypath(
         const _: () = {
             use sdk::storage::*;
 
-            impl<#generic_params> DefaultFromKeypath for #ty {
-                fn default_from_keypath(keypath: &Keypath) -> Self {
+            impl<#generic_params> FromKeypath for #ty {
+                fn from_keypath(keypath: &Keypath) -> Self {
                     let mut keypath = keypath.clone();
 
                     keypath.seq_begin();

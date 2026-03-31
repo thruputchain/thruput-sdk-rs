@@ -1,10 +1,10 @@
-macro_rules! impl_default_via_keypath {
+macro_rules! impl_from_keypath {
     { $id:ident$(<$($param:ident),+>)? } => {
         const _: () = {
             use crate::storage::*;
 
-            impl$(<$($param),+>)? DefaultFromKeypath for $id$(<$($param),+>)? {
-                fn default_from_keypath(keypath: &Keypath) -> Self {
+            impl$(<$($param),+>)? FromKeypath for $id$(<$($param),+>)? {
+                fn from_keypath(keypath: &Keypath) -> Self {
                     keypath.clone().into()
                 }
             }

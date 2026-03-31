@@ -248,10 +248,10 @@ pub fn generate_method(
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
-                    use ::sdk::storage::{Keypath, DefaultFromKeypath};
+                    use ::sdk::storage::{Keypath, FromKeypath};
                     let keypath = Keypath::root();
                     let #mutability state =
-                        <#self_ty as DefaultFromKeypath>::default_from_keypath(&keypath);
+                        <#self_ty as FromKeypath>::from_keypath(&keypath);
                 }
             } else {
                 // Load the previously-stored value
