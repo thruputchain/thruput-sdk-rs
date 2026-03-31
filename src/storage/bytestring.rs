@@ -16,9 +16,6 @@ impl From<Keypath> for Bytestring {
     }
 }
 
-impl_load_via_keypath! { Bytestring }
-impl_read_via_keypath! { Bytestring }
-
 impl Bytestring {
     pub fn new(keypath: &Keypath) -> Self {
         Self {

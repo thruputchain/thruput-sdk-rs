@@ -3,10 +3,8 @@ Derive traits necessary for manipulating data in the key-value store.
 The [`storage`](macro@crate::storage) attribute-macro decorates the item
 with `#[derive(Storage)]`.
 
-Deriving `Storage` provides implementations of
-[`From<Keypath>`](crate::storage::Keypath),
-[ReadXDRPath](crate::storage::ReadXDRPath) and
-[LoadKeypath](crate::storage::LoadKeypath).
+Deriving `Storage` provides an implementation of
+[`From<Keypath>`](crate::storage::Keypath).
 
 All fields in a `#[storage]` struct must be storage types
 (`Value<T>`, `NNInt`, `Bytestring`, `Map`, `Vector`, `Node<T>`).

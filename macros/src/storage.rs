@@ -38,27 +38,7 @@ fn generate_from_data(
         _ => err(input, "Can only derive Storage for structs")?,
     });
 
-    output.extend(impl_load_via_read(input));
-
     Ok(output)
-}
-
-fn impl_load_via_read(input: &syn::DeriveInput) -> Result<TokenStream> {
-    let ident = &input.ident;
-    let generics = &input.generics;
-
-    Ok(quote! {
-        const _: () = {
-            use sdk::storage::*;
-            use sdk::storage::error::Result;
-
-            impl #generics LoadKeypath for #ident #generics {
-                fn load_keypath(keypath: &Keypath) -> Result<Self> {
-                    load_readable(keypath)
-                }
-            }
-        };
-    })
 }
 
 fn generate_from_struct(
@@ -69,84 +49,7 @@ fn generate_from_struct(
     let generics = &input.generics;
     let fields = &item.fields;
 
-    let mut output = TokenStream::new();
-    output.extend(impl_read_xdr_path(ident, generics, fields)?);
-    output.extend(impl_from_keypath(ident, generics, fields)?);
-
-    Ok(output)
-}
-
-fn impl_read_xdr_path(
-    ident: &syn::Ident,
-    generics: &syn::Generics,
-    fields: &syn::Fields,
-) -> Result<TokenStream> {
-    let ty = generic_type_name(ident, generics);
-    let generic_params = &generics.params;
-
-    let named_fields = match fields {
-        syn::Fields::Named(fields_named) => &fields_named.named,
-        syn::Fields::Unit => {
-            return Ok(quote! {
-                const _: () = {
-                    use sdk::serialize::ReadResult;
-                    use sdk::storage::*;
-
-                    impl<#generic_params> ReadXDRPath for #ty {
-                        fn read_xdr_path<'r, R>(_r: &mut R) -> ReadResult<Self>
-                        where
-                            R: ReaderPath<'r, Keypath>
-                        {
-                            Ok(Self)
-                        }
-                    }
-                };
-            });
-        }
-        _ => return err(fields, "Can only handle named or unit structs"),
-    };
-
-    let mut field_names = TokenStream::new();
-    let mut field_initializers = TokenStream::new();
-    let n_fields = named_fields.len();
-    for (i, field) in named_fields.iter().enumerate() {
-        let field_name = &field.ident;
-        field_names.extend(quote! { #field_name, });
-
-        field_initializers.extend(quote! {
-            let #field_name = ReadXDRPath::read_xdr_path(r)?;
-        });
-
-        if i + 1 < n_fields {
-            field_initializers.extend(quote! {
-                r.seq_next();
-            });
-        }
-    }
-
-    Ok(quote! {
-        const _: () = {
-            use sdk::serialize::ReadResult;
-            use sdk::storage::*;
-
-            impl<#generic_params> ReadXDRPath for #ty {
-                fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-                where
-                    R: ReaderPath<'r, Keypath>
-                {
-                    r.seq_begin();
-
-                    #field_initializers
-
-                    r.seq_end();
-
-                    Ok(Self {
-                        #field_names
-                    })
-                }
-            }
-        };
-    })
+    impl_from_keypath(ident, generics, fields)
 }
 
 fn impl_from_keypath(

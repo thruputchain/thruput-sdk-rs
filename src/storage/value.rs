@@ -23,9 +23,6 @@ impl<T> From<Keypath> for Value<T> {
     }
 }
 
-impl_load_via_keypath! { Value<T> }
-impl_read_via_keypath! { Value<T> }
-
 impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 
