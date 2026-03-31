@@ -248,18 +248,16 @@ pub fn generate_method(
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
-                    use ::sdk::storage::{Keypath, FromKeypath};
+                    use ::sdk::storage::{Keypath, Node};
                     let keypath = Keypath::root();
-                    let #mutability state =
-                        <#self_ty as FromKeypath>::from_keypath(keypath);
+                    let #mutability state: Node<#self_ty> = keypath.into();
                 }
             } else {
                 // Load the previously-stored value
                 quote! {
-                    use ::sdk::storage::{Keypath, FromKeypath};
+                    use ::sdk::storage::{Keypath, Node};
                     let keypath = Keypath::root();
-                    let #mutability state =
-                        <#self_ty as FromKeypath>::from_keypath(keypath);
+                    let #mutability state: Node<#self_ty> = keypath.into();
                 }
             }
         } else {
