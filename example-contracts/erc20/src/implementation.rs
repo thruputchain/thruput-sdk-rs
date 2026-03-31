@@ -1,7 +1,7 @@
 //! An implementation of ERC20
 
 use crate::interface::*;
-use sdk::storage::{Map, NNInt};
+use sdk::storage::{Map, NNInt, Value};
 use sdk::*;
 
 type Balance = NNInt;
@@ -10,7 +10,7 @@ type Allowance = NNInt;
 #[derive(Debug)]
 #[sdk::storage]
 pub struct TokenContract {
-    contract_owner: ContractAddress,
+    contract_owner: Value<ContractAddress>,
     balances: Map<ContractAddress, Balance>,
     allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
     total_supply: NNInt,
@@ -22,11 +22,11 @@ impl TokenContract {
     // zero if never set. They do _not_ check authorization.
 
     fn _init(&mut self, contract_owner: &ContractAddress) {
-        self.contract_owner = *contract_owner;
+        self.contract_owner.set(contract_owner);
     }
 
-    fn _contract_owner(&self) -> &ContractAddress {
-        &self.contract_owner
+    fn _contract_owner(&self) -> ContractAddress {
+        self.contract_owner.get()
     }
 
     // Balance stored at given owner address, or zero if empty
@@ -141,7 +141,7 @@ impl ERC20 for TokenContract {
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
         let caller = get_caller();
         ensure(
-            &caller == self._contract_owner(),
+            caller == self._contract_owner(),
             ERC20Error::MustBeContractOwner,
         );
 
@@ -155,7 +155,7 @@ impl ERC20 for TokenContract {
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
         let caller = get_caller();
         ensure(
-            &caller == self._contract_owner(),
+            caller == self._contract_owner(),
             ERC20Error::MustBeContractOwner,
         );
 

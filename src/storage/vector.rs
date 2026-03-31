@@ -14,8 +14,7 @@ impl<S> Debug for Vector<S> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Vector")
             .field("len", &self.len)
-            .field("values", &self.values)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

@@ -120,10 +120,11 @@ circumstances:
 
 ```
 use sdk::*;
+use sdk::storage::Value;
 
 #[storage]
 pub struct MyContract {
-    contract_owner: ContractAddress,
+    contract_owner: Value<ContractAddress>,
 }
 
 #[derive(Debug, PartialEq, Error, ReadXDR, WriteXDR)]
@@ -135,11 +136,11 @@ pub struct MyError;
 impl MyContract {
     #[init]
     pub fn initialize(&mut self, contract_owner: &ContractAddress) {
-        self.contract_owner = contract_owner.clone();
+        self.contract_owner.set(contract_owner);
     }
 
     pub fn get_owner(&self) -> ContractAddress {
-        self.contract_owner.clone()
+        self.contract_owner.get()
     }
 
     pub fn oops(&self) {

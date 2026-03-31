@@ -1,11 +1,12 @@
 use crate::implementation::MyClient;
 use bottle_test_if::*;
+use sdk::storage::Value;
 use sdk::*;
 
 #[derive(Debug)]
 #[storage]
 pub struct BT {
-    target_addr: Option<ContractAddress>,
+    target_addr: Value<Option<ContractAddress>>,
 }
 
 #[contract]
@@ -17,16 +18,16 @@ impl BottleTest for BT {
         let target_addr =
             deploy_contract(&nonce, target_contract_hash).unwrap();
 
-        self.target_addr = Some(target_addr);
+        self.target_addr.set(&Some(target_addr));
     }
 
     fn run(&mut self) {
-        let target_addr = self.target_addr.as_ref().unwrap_or_else(||
+        let target_addr = self.target_addr.get().unwrap_or_else(||
             panic!("playground bottle-test: target_addr unset; please run setup() before run()"));
 
         let owner = get_current_address().unwrap();
 
-        let client = MyClient::new(target_addr);
+        let client = MyClient::new(&target_addr);
         client.initialize(&owner).unwrap();
 
         client.add_frot(10).unwrap();

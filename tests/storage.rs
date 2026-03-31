@@ -4,10 +4,11 @@ use sdk::Storage;
 use sdk::contract_test;
 use sdk::storage::*;
 
-#[derive(Debug, xdrs::WriteXDR, Storage)]
+#[derive(Debug, Storage)]
+#[allow(dead_code)]
 struct Data {
-    num: i32,
-    nums: Vector<u64>,
+    num: Value<i32>,
+    nums: Vector<Value<u64>>,
     nnints: Vector<NNInt>,
     bytes: Bytestring,
     map: Map<u32, NNInt>,
@@ -15,21 +16,14 @@ struct Data {
 
 contract_test!(test_map {
     let data_keypath = Keypath::new();
-    {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath);
-    }
-
     let slot: u32 = 3;
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-
-        // Use new at_mut() API
+        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
         data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
@@ -92,52 +86,42 @@ contract_test!(test_map_entry {
 
 contract_test!(test_storable {
     let data_keypath = Keypath::new();
-    let data: Data = FromKeypath::from_keypath(&data_keypath);
-    data.store_keypath(&data_keypath);
-
-    let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-    for i in 0..3 {
-        let n = i;
-        data.nums.push(n);
+    let mut data: Data = FromKeypath::from_keypath(&data_keypath);
+    for i in 0..3u64 {
+        data.nums.push().set(&i);
     }
-    data.store_keypath(&data_keypath);
 
-    let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
-    for i in 0..3 {
-        let n = data.nums.get(i);
+    let data: Data = FromKeypath::from_keypath(&data_keypath);
+    for i in 0..3u64 {
+        let n = data.nums.at(i).get();
         assert_eq!(n, i);
     }
 });
 
 contract_test!(test_vector {
-    let mut vec: Vector<u32> = Vector::new_from(Keypath::root(), 0);
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::root());
 
     assert_eq!(0, vec.len());
-    for i in 0..3 {
-        vec.push(i);
+    for i in 0..3u32 {
+        vec.push().set(&i);
     }
 
     assert_eq!(3, vec.len());
-    for i in 0..3 {
-        assert_eq!(i as u32, vec.get(i));
+    for i in 0..3u64 {
+        assert_eq!(i as u32, vec.at(i).get());
     }
 });
 
 contract_test!(test_map_at {
     let data_keypath = Keypath::new();
-    {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath);
-    }
-
     let slot: u32 = 3;
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
         data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
@@ -145,19 +129,14 @@ contract_test!(test_map_at {
 
 contract_test!(test_map_at_nested {
     let data_keypath = Keypath::new();
-    {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath);
-    }
-
     let slot: u32 = 5;
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
         data.map.at_mut(&slot).strict_inc(42);
     }
 
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         let val = data.map.at(&slot).try_get().unwrap_or(0);
         assert_eq!(val, 42);
     }
@@ -223,21 +202,16 @@ contract_test!(test_map_at_value {
 
 contract_test!(test_exclusive_propagation {
     let data_keypath = Keypath::new();
-    {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
-        data.store_keypath(&data_keypath);
-    }
-
     let slot: u32 = 7;
 
-    // Use at_mut_exclusive — exclusive flag reaches NNInt
+    // Use at_mut_exclusive -- exclusive flag reaches NNInt
     {
-        let mut data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
         data.map.at_mut_exclusive(&slot).strict_inc(10);
     }
 
     {
-        let data: Data = LoadKeypath::load_keypath(&data_keypath).unwrap();
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         let v = data.map.at(&slot).get();
         assert_eq!(v, 10);
     }
