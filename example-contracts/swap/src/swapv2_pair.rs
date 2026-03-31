@@ -90,14 +90,18 @@ impl SwapV2Pair {
         let time_elapsed = block_timestamp.wrapping_sub(bts);
 
         if time_elapsed > 0 && r0 != 0 && r1 != 0 {
-            let p0 = self.price0_cumulative_last.try_get().unwrap_or(U256::zero());
-            let p1 = self.price1_cumulative_last.try_get().unwrap_or(U256::zero());
-            self.price0_cumulative_last.set(
-                &(p0 + uq112x112_div_mul(r1, r0, time_elapsed)),
-            );
-            self.price1_cumulative_last.set(
-                &(p1 + uq112x112_div_mul(r0, r1, time_elapsed)),
-            );
+            let p0 = self
+                .price0_cumulative_last
+                .try_get()
+                .unwrap_or(U256::zero());
+            let p1 = self
+                .price1_cumulative_last
+                .try_get()
+                .unwrap_or(U256::zero());
+            self.price0_cumulative_last
+                .set(&(p0 + uq112x112_div_mul(r1, r0, time_elapsed)));
+            self.price1_cumulative_last
+                .set(&(p1 + uq112x112_div_mul(r0, r1, time_elapsed)));
         }
 
         // These will not fail, due to the checks at the top
@@ -269,12 +273,8 @@ impl ISwapV2Pair for SwapV2Pair {
                 .strict_sub(Self::MINIMUM_LIQUIDITY)
         } else {
             min(
-                amount0
-                    .strict_mul(total_liquidity)
-                    .strict_div(r0.into()),
-                amount1
-                    .strict_mul(total_liquidity)
-                    .strict_div(r1.into()),
+                amount0.strict_mul(total_liquidity).strict_div(r0.into()),
+                amount1.strict_mul(total_liquidity).strict_div(r1.into()),
             )
         };
 
@@ -290,9 +290,7 @@ impl ISwapV2Pair for SwapV2Pair {
             // TODO: check mul?
             let r0 = self.reserve0.get();
             let r1 = self.reserve1.get();
-            self.k_last.set(
-                &U256::from(r0).mul(U256::from(r1)),
-            );
+            self.k_last.set(&U256::from(r0).mul(U256::from(r1)));
         }
 
         log(b"MINT"); // XXX: instead, emit event Mint(msg.sender, amount0, amount1)
@@ -325,9 +323,7 @@ impl ISwapV2Pair for SwapV2Pair {
         if fee_on {
             let r0 = self.reserve0.get();
             let r1 = self.reserve1.get();
-            self.k_last.set(
-                &U256::from(r0).mul(U256::from(r1)),
-            );
+            self.k_last.set(&U256::from(r0).mul(U256::from(r1)));
         }
         log(b"BURN"); // XXX: instead, emit event Burn(msg.sender, amount0, amount1, to);
 
@@ -350,17 +346,13 @@ impl ISwapV2Pair for SwapV2Pair {
         let r1 = self.reserve1.get();
 
         self.require(
-            amount0_out < r0.into()
-                && amount1_out < r1.into(),
+            amount0_out < r0.into() && amount1_out < r1.into(),
             InsufficientLiquidity,
         );
 
         let t0 = self.token0.get();
         let t1 = self.token1.get();
-        self.require(
-            to != &t0 && to != &t1,
-            InvalidDestination,
-        );
+        self.require(to != &t0 && to != &t1, InvalidDestination);
 
         if amount0_out > 0 {
             self._transfer(0, to, amount0_out);

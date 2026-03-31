@@ -134,7 +134,13 @@ fn vector_get_on_uninitialized_contract_is_fault() {
             let err = client.try_vector_get(0).unwrap_err();
             match err {
                 StorageErrorClientError::Library(LibraryExn::Storage(e)) => {
-                    assert!(matches!(e, sdk::storage::StorageError::IndexOutOfBounds { len: 0, access: 0 }));
+                    assert!(matches!(
+                        e,
+                        sdk::storage::StorageError::IndexOutOfBounds {
+                            len: 0,
+                            access: 0
+                        }
+                    ));
                 }
                 other => panic!("Expected Library OOB, got: {:?}", other),
             }

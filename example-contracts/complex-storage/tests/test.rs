@@ -1,8 +1,8 @@
 use std::cell::Cell;
 use std::panic::AssertUnwindSafe;
 
-use sdk::*;
 use complex_storage::*;
+use sdk::*;
 
 static NONCE: SHA256Hash = sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
 
@@ -78,7 +78,6 @@ fn test_persistence_across_blocks() {
     });
     result.assert_success();
 }
-
 
 #[test]
 fn test_load_mut() {

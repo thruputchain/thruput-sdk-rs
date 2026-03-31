@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-pub use sdk::*;
 pub use sdk::storage::*;
+pub use sdk::*;
 
 #[derive(Storage)]
 pub struct InnerStorage {
@@ -15,14 +15,12 @@ pub struct ComplexStorage {
     foo: Value<u64>,
 }
 
-
 #[contract]
 impl ComplexStorage {
-
     pub fn push_inner(&mut self) {
         self.inners.push();
 
-        let addr : ContractAddress = [0; 32].into();
+        let addr: ContractAddress = [0; 32].into();
 
         let mut inner = self.inners.at_mut(self.inners.len() - 1);
         inner.value.set(&10);
@@ -35,11 +33,11 @@ impl ComplexStorage {
         inner.balances.at(&addr).get()
     }
 
-    pub fn set_unconditional(&mut self, val : u64) {
+    pub fn set_unconditional(&mut self, val: u64) {
         self.foo.set(&val);
     }
 
-    pub fn set_value(&mut self, val : u64) {
+    pub fn set_value(&mut self, val: u64) {
         *self.foo.load_mut() = val;
     }
 
