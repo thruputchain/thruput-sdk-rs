@@ -24,6 +24,9 @@ mod sealed;
 pub mod node;
 pub use node::*;
 
+pub mod deletable;
+pub use deletable::*;
+
 pub mod slot;
 pub use slot::*;
 
