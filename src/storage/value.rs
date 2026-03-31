@@ -2,6 +2,7 @@
 use super::keypath::*;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A typed storage slot for serialized values.
 ///
@@ -101,14 +102,15 @@ where
     }
 }
 
-impl<T> Value<T> {
-    /// Delete the value at this storage location.
-    pub fn delete(&mut self) {
-        if self.key.keypath().is_exclusive() {
-            crate::delete_exclusive(&self.key);
+impl<T> super::deletable::Deletable for Value<T> {
+    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+        let keypath_flags = if self.key.keypath().is_exclusive() {
+            StorageDeltaFlags::ExclusiveLock
         } else {
-            crate::delete_shared(&self.key);
-        }
+            StorageDeltaFlags::None
+        };
+        let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
+        crate::sys_exn::delete::delete_with_flags(&self.key, effective);
     }
 }
 
