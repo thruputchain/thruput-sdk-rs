@@ -1,7 +1,7 @@
 // src/storage/value.rs
 use super::keypath::*;
 use core::marker::PhantomData;
-use core::ops::{Deref, DerefMut};
+pub use core::ops::{Deref, DerefMut};
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A typed storage slot for serialized values.
@@ -42,13 +42,18 @@ where
 {
     /// Deserialize and return the stored value.
     /// Aborts if the key does not exist.
+    #[cfg_attr(feature = "debugging", track_caller)]
     pub fn get(&self) -> T {
-        self.load_value().unwrap_or_else(|e: super::StorageError| {
-            crate::exn::library_throw(e)
-        })
+        // Using match here instead of a closure allows call-tracking through
+        // to library_throw.
+        match self.load_value() {
+            Ok(v) => v,
+            Err(e) => crate::exn::library_throw(e),
+        }
     }
 
     /// Deserialize and return the stored value, or None if the key doesn't exist.
+    #[cfg_attr(feature = "debugging", track_caller)]
     pub fn try_get(&self) -> Option<T> {
         match self.load_value() {
             Ok(v) => Some(v),
@@ -57,7 +62,7 @@ where
         }
     }
 
-    fn load_value(&self) -> super::error::Result<T> {
+    fn load_value(&self) -> Result<T, super::error::StorageError> {
         use super::error::{StorageError, storage_syserr};
         use crate::sys_result::bytestring::bytestring_get;
 
@@ -99,10 +104,11 @@ where
     T: xdrs::WriteXDR + for<'a> xdrs::ReadXDR<'a>,
 {
     /// Load the value and return a mutable reference to it.
+    #[cfg_attr(feature = "debugging", track_caller)]
     pub fn load_mut(&mut self) -> ValueMut<'_, T> {
         let value = self.get();
         ValueMut {
-            value: self as &mut Value<T>,
+            value: self,
             data: value,
         }
     }

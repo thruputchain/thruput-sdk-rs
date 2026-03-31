@@ -64,6 +64,20 @@ pub fn sha256_static(item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+pub fn sha256_ident(item: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(item as syn::Ident);
+
+    static_hash::sha256_ident(input)
+}
+
+#[proc_macro]
+pub fn sha256_array_ident(item: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(item as syn::Ident);
+
+    static_hash::sha256_array_ident(input)
+}
+
+#[proc_macro]
 pub fn hash_to_array(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::Lit);
 

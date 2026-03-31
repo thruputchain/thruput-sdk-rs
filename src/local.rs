@@ -23,17 +23,17 @@ macro_rules! contract_local {
 }
 
 // For the test environment, `contract_local!{}` variables should be thread-local
-#[cfg(not(any(doc, target_family = "wasm")))]
+#[cfg(all(not(any(doc, target_family = "wasm")), feature = "std"))]
 #[macro_export]
 macro_rules! contract_local {
     { $( $(#[$attr:meta])* $vis:vis static $name:ident: $t:ty = $init:expr; )* } => {
 
-        // This config just silences the compile error when feature "std" is not
-        // enabled on a native build.
-        #[cfg(feature = "std")]
         std::thread_local! {
             $( $(#[$attr])* $vis static $name: $t = $init; )*
         }
 
     }
 }
+
+#[cfg(all(not(any(doc, target_family = "wasm")), not(feature = "std")))]
+compile_error!("When building natively, sdk feature \"std\" must be enabled.");

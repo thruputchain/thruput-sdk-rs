@@ -6,6 +6,14 @@ TARGET_DIR="$(realpath "target")"
 
 ### BUILDING ###
 
+cargo() {
+    if [ -v CARGO_UNLOCK ] && [ -n "$CARGO_UNLOCK" ]; then
+        command cargo "$@"
+    else
+        command cargo --locked "$@"
+    fi
+}
+
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/release"
 OPTIMIZED="${TARGET_DIR}/optimized"
 
@@ -283,7 +291,7 @@ test_contract() {
     info "TEST $package"
     (
         cd "$workspace_dir" &&
-        cargo test -p "$package" "$@" -- --show-output
+        cargo test -p "$package" "$@"
     )
 }
 
@@ -413,6 +421,8 @@ build_docs() {
 }
 
 test_spec() {
+    cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
+    cargo run -p groundhog-erc20-metadata-if -F spec --bin show_spec >/dev/null &&
     (
         cd integration_test &&
         cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null &&
@@ -488,10 +498,21 @@ expand_contract() {
         cd "$contract" &&
         cargo --config "$config" \
             expand \
+            --features "entrypoints" \
             --target "wasm32-unknown-unknown" \
             --color=always \
         #
     )
+}
+
+contract_entrypoints() {
+    local package
+    package=$(basename "$1"); shift
+
+    wasm="${CONTRACT}/${package}.wasm"
+
+    ls -l "$wasm" &&
+    wasm-objdump -j Export -x "$wasm"
 }
 
 ### Quality checks
@@ -541,12 +562,17 @@ fmt_check() {
 
 ci_check() {
     check_all &&
+    { skip WASM_STRINGS || check_wasm_strings; } &&
+    check_quality &&
+    info "CI clean!" ||
+    fail "CI failed!"
+}
+
+check_quality() {
     { skip LINT || lint_check; } &&
     { skip FMT || fmt_check; } &&
     # xxx_check &&
-    { skip WASM_STRINGS || check_wasm_strings; } &&
-    info "CI clean!" ||
-    fail "CI failed!"
+    true
 }
 
 check_wasm_strings() {
@@ -580,13 +606,24 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             expand_contract "$1"
             ;;
         lint)
-            lint
+            if [ $# -gt 0 ]; then
+                dir=$(dirname "$1")
+                pkg=$(basename "$1")
+                shift
+
+                lint_contract "$dir" "$pkg"
+            else
+                lint
+            fi
             ;;
         [xX][xX][xX])
             xxx
             ;;
         ci)
             ci_check
+            ;;
+        qual)
+            check_quality
             ;;
         ls-enabled)
             ls_contract_packages "$1"
@@ -607,11 +644,15 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             if [ $# -gt 0 ]; then
                 dir=$(dirname "$1")
                 pkg=$(basename "$1")
+                shift
 
-                test_contract "$dir" "$pkg"
+                test_contract "$dir" "$pkg" "$@"
             else
                 test_all
             fi
+            ;;
+        bottle-test)
+            bottle_test_contract "$@"
             ;;
         test-examples)
             eg_test_all
@@ -625,6 +666,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         run-bottle-tests)
             eg_bottle_test_all &&
                 itc_bottle_test_all
+            ;;
+        entrypoints)
+            contract_entrypoints "$@"
             ;;
         tree)
             tree_contract "$1"

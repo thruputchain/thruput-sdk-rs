@@ -15,6 +15,7 @@ pub const U112_MAX: u128 = 2u128.pow(112) - 1;
     ReadXDR,
     WriteXDR,
 )]
+#[xdrs(crate = "::sdk::__xdrs")]
 #[repr(transparent)]
 pub struct U112(u128);
 
@@ -23,6 +24,10 @@ impl U112 {
 
     pub fn new_strict(n: u128) -> Self {
         n.try_into().unwrap()
+    }
+
+    pub const fn zero() -> Self {
+        Self(0)
     }
 }
 

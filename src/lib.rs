@@ -93,6 +93,7 @@ pub mod stats;
 pub mod types;
 
 pub use auth_claim::*;
+pub use block::*;
 pub use cell::*;
 pub use collect_auth_handles::*;
 pub use contract_op::*;
@@ -130,7 +131,9 @@ pub use groundhog_macros::Event;
 pub use groundhog_macros::contract_exception;
 pub use groundhog_macros::contracttype;
 pub use groundhog_macros::exn;
-pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
+pub use groundhog_macros::{
+    hash_to_array, sha256_array_ident, sha256_ident, sha256_static, static_key,
+};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};

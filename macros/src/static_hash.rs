@@ -19,6 +19,24 @@ pub fn sha256_static(input: syn::LitStr) -> TokenStream {
     })
 }
 
+pub fn sha256_ident(input: syn::Ident) -> TokenStream {
+    let string = input.to_string();
+    let hash = Sha256::digest(string);
+
+    TokenStream::from(quote::quote! {
+        ::sdk::types::SHA256Hash::new([#(#hash),*])
+    })
+}
+
+pub fn sha256_array_ident(input: syn::Ident) -> TokenStream {
+    let string = input.to_string();
+    let hash = Sha256::digest(string);
+
+    TokenStream::from(quote::quote! {
+        [#(#hash),*]
+    })
+}
+
 pub fn sha256_array(input: syn::Lit) -> TokenStream {
     let value = match lit_bytes(&input) {
         Ok(v) => v,

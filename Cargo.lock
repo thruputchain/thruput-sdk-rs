@@ -388,6 +388,7 @@ name = "erc20-test"
 version = "0.14.0"
 dependencies = [
  "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
  "sdk",
  "thiserror",
 ]
@@ -602,6 +603,7 @@ version = "0.14.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
+ "xdr-common",
  "xdrs",
 ]
 
@@ -632,6 +634,19 @@ dependencies = [
  "groundhog-xdr",
  "sdk",
  "thiserror",
+]
+
+[[package]]
+name = "groundhog-erc20-metadata-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-metadata-if",
+ "groundhog-xdr",
+ "heapless",
+ "sdk",
+ "thiserror",
+ "xdr-common",
+ "xdrs",
 ]
 
 [[package]]

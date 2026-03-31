@@ -362,6 +362,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fslock"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04412b8935272e3a9bae6f48c7bfff74c2911f60525404edfdd28e49884c3bfb"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -452,7 +462,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -466,16 +476,17 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
+ "xdr-common",
  "xdrs",
 ]
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -486,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -494,7 +505,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -511,7 +522,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -536,16 +547,16 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.7.8"
+version = "0.7.11"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "1a55f32ba2cca989f6a4367951984d907356e809f8407dbdafd8b91d179da7df"
+checksum = "ee637ce2e3e2826b786fd73cc8001ab37f94e4dc0122b3d10fe11cc454e901b1"
 dependencies = [
  "xdrs",
 ]
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -553,11 +564,12 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "bindgen",
  "cmake",
  "flate2",
+ "fslock",
  "reqwest",
  "sha2",
  "tar",
@@ -1417,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.10.1"
+version = "0.11.3"
 dependencies = [
  "bitset-core",
  "groundhog-contract-spec",
@@ -2033,6 +2045,28 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "winapi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+dependencies = [
+ "winapi-i686-pc-windows-gnu",
+ "winapi-x86_64-pc-windows-gnu",
+]
+
+[[package]]
+name = "winapi-i686-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-x86_64-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows-link"

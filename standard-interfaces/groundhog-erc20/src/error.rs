@@ -1,13 +1,5 @@
 use sdk::throw;
 
-pub type Result<T, E = ERC20Error> = core::result::Result<T, E>;
-
-/*
-#[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, thiserror::Error)]
-#[sdk::exn]
-#[repr(i32)]
-#[non_exhaustive]
-*/
 #[sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
