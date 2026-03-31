@@ -56,6 +56,11 @@ impl<S: StorageType> Vector<S> {
         self.len.try_get().unwrap_or(0) as u64
     }
 
+    /// Returns true if the vector contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Borrow element at `index` (bounds-checked).
     pub fn at(&self, index: u64) -> SlotRef<'_, Self, S> {
         self.bounds_check(index);

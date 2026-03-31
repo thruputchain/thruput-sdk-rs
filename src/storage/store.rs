@@ -1,4 +1,3 @@
-use super::keypath::*;
 use crate::sys_exn::bytestring::*;
 use crate::types::StorageKey;
 use alloc::vec::Vec;
@@ -8,11 +7,6 @@ use xdrs::cxs::encode;
 pub trait Store {
     fn store(&self, key: &StorageKey);
     fn store_exclusive(&self, key: &StorageKey);
-
-    fn store_keypath(&self, keypath: &Keypath) {
-        let key = keypath.generate_key();
-        self.store(&key);
-    }
 }
 
 impl<T> Store for T

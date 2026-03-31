@@ -324,7 +324,7 @@ pub fn generate_method(
         ::sdk::call::internal::encode_success(&result)
 
         // Make sure any storage nodes are fully dropped (and written to environment).
-        // Not technically necssary, given that the storage is wrapped in a Node<T>.
+        // Not technically necessary, given that the storage is wrapped in a Node<T>.
         };
 
         // Return the result to the VM
