@@ -58,8 +58,8 @@ fn generic_type_name(
     ident: &syn::Ident,
     generics: &syn::Generics,
 ) -> TokenStream {
-    let generic_params = &generics.params;
-    quote!(#ident #generic_params)
+    let (_, ty_generics, _) = generics.split_for_impl();
+    quote!(#ident #ty_generics)
 }
 
 // Produce an error referencing a particular code span

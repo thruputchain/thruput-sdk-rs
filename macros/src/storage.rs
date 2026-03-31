@@ -45,14 +45,15 @@ fn generate_from_data(
 
 fn impl_load_via_read(input: &syn::DeriveInput) -> Result<TokenStream> {
     let ident = &input.ident;
-    let generics = &input.generics;
+    let (impl_generics, ty_generics, where_clause) =
+        input.generics.split_for_impl();
 
     Ok(quote! {
         const _: () = {
             use sdk::storage::*;
             use sdk::storage::error::Result;
 
-            impl #generics LoadKeypath for #ident #generics {
+            impl #impl_generics LoadKeypath for #ident #ty_generics #where_clause {
                 fn load_keypath(keypath: &Keypath) -> Result<Self> {
                     load_readable(keypath)
                 }
@@ -219,9 +220,9 @@ fn generic_type_name(
     ident: &syn::Ident,
     generics: &syn::Generics,
 ) -> TokenStream {
-    let generic_params = &generics.params;
+    let (_, ty_generics, _) = generics.split_for_impl();
 
-    quote!(#ident #generic_params)
+    quote!(#ident #ty_generics)
 }
 
 // Produce an error referencing a particular code span

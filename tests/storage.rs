@@ -1,8 +1,15 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-use sdk::Storage;
+use sdk::{Deletable, Storage};
 use sdk::contract_test;
 use sdk::storage::*;
+
+#[derive(Storage, Deletable)]
+#[allow(dead_code)]
+struct Pair<A: StorageType, B: StorageType> {
+    first: A,
+    second: B,
+}
 
 #[derive(Debug, Storage)]
 #[allow(dead_code)]
