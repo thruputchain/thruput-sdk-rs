@@ -17,7 +17,6 @@ impl From<Keypath> for Bytestring {
 }
 
 impl_load_via_keypath! { Bytestring }
-impl_from_keypath! { Bytestring }
 impl_read_via_keypath! { Bytestring }
 
 impl Bytestring {
@@ -61,12 +60,6 @@ impl Bytestring {
 
     pub fn try_get(&self) -> Option<Box<[u8]>> {
         bytestring_try_get(&self.key)
-    }
-}
-
-impl super::node::StorageNode for Bytestring {
-    fn keypath(&self) -> &super::keypath::Keypath {
-        self.key.keypath()
     }
 }
 

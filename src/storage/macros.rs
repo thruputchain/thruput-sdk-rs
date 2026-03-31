@@ -1,17 +1,3 @@
-macro_rules! impl_from_keypath {
-    { $id:ident$(<$($param:ident),+>)? } => {
-        const _: () = {
-            use crate::storage::*;
-
-            impl$(<$($param),+>)? FromKeypath for $id$(<$($param),+>)? {
-                fn from_keypath(keypath: Keypath) -> Self {
-                    keypath.into()
-                }
-            }
-        };
-    };
-}
-
 macro_rules! impl_load_via_keypath {
     { $id:ident$(<$($param:ident),+>)? } => {
         const _: () = {

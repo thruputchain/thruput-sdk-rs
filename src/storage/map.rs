@@ -22,7 +22,6 @@ impl<K, V> From<Keypath> for Map<K, V> {
 }
 
 impl_load_via_keypath! { Map<K, V> }
-impl_from_keypath! { Map<K, V> }
 impl_read_via_keypath! { Map<K, V> }
 
 impl<K, V> Map<K, V> {
@@ -75,12 +74,6 @@ impl<K, V> Map<K, V> {
         let mut keypath = self.keypath.clone();
         keypath.push_item(entry_key);
         keypath
-    }
-}
-
-impl<K, V> super::node::StorageNode for Map<K, V> {
-    fn keypath(&self) -> &super::keypath::Keypath {
-        &self.keypath
     }
 }
 

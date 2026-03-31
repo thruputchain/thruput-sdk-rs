@@ -1,6 +1,5 @@
 // src/storage/value.rs
 use super::keypath::*;
-use super::node::StorageNode;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
@@ -25,14 +24,7 @@ impl<T> From<Keypath> for Value<T> {
 }
 
 impl_load_via_keypath! { Value<T> }
-impl_from_keypath! { Value<T> }
 impl_read_via_keypath! { Value<T> }
-
-impl<T> StorageNode for Value<T> {
-    fn keypath(&self) -> &Keypath {
-        self.key.keypath()
-    }
-}
 
 impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}

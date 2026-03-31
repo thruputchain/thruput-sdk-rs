@@ -110,10 +110,6 @@ impl Default for Keypath {
     }
 }
 
-pub trait FromKeypath: Sized {
-    fn from_keypath(keypath: Keypath) -> Self;
-}
-
 #[cfg(test)]
 mod test_keypath {
 

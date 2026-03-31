@@ -19,7 +19,6 @@ impl From<Keypath> for NNInt {
 }
 
 impl_load_via_keypath! { NNInt }
-impl_from_keypath! { NNInt }
 impl_read_via_keypath! { NNInt }
 
 impl NNInt {
@@ -88,12 +87,6 @@ impl NNInt {
         } else {
             crate::delete_shared(key);
         }
-    }
-}
-
-impl super::node::StorageNode for NNInt {
-    fn keypath(&self) -> &super::keypath::Keypath {
-        &self.keypath
     }
 }
 

@@ -38,7 +38,6 @@ impl<S> From<Keypath> for Vector<S> {
     }
 }
 
-impl_from_keypath! { Vector<S> }
 impl_load_via_keypath! { Vector<S> }
 impl_read_via_keypath! { Vector<S> }
 
