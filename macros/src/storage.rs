@@ -84,16 +84,32 @@ fn impl_read_xdr_path(
     let ty = generic_type_name(ident, generics);
     let generic_params = &generics.params;
 
-    let fields = if let syn::Fields::Named(fields_named) = fields {
-        &fields_named.named
-    } else {
-        return err(fields, "Can only handle named struct fields");
+    let named_fields = match fields {
+        syn::Fields::Named(fields_named) => &fields_named.named,
+        syn::Fields::Unit => {
+            return Ok(quote! {
+                const _: () = {
+                    use sdk::serialize::ReadResult;
+                    use sdk::storage::*;
+
+                    impl<#generic_params> ReadXDRPath for #ty {
+                        fn read_xdr_path<'r, R>(_r: &mut R) -> ReadResult<Self>
+                        where
+                            R: ReaderPath<'r, Keypath>
+                        {
+                            Ok(Self)
+                        }
+                    }
+                };
+            });
+        }
+        _ => return err(fields, "Can only handle named or unit structs"),
     };
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
-    let n_fields = fields.len();
-    for (i, field) in fields.iter().enumerate() {
+    let n_fields = named_fields.len();
+    for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         field_names.extend(quote! { #field_name, });
 
@@ -141,16 +157,29 @@ fn impl_from_keypath(
     let ty = generic_type_name(ident, generics);
     let generic_params = &generics.params;
 
-    let fields = if let syn::Fields::Named(fields_named) = fields {
-        &fields_named.named
-    } else {
-        return err(fields, "Can only handle named struct fields");
+    let named_fields = match fields {
+        syn::Fields::Named(fields_named) => &fields_named.named,
+        syn::Fields::Unit => {
+            // Unit struct: From<Keypath> ignores the keypath
+            return Ok(quote! {
+                const _: () = {
+                    use sdk::storage::*;
+
+                    impl<#generic_params> From<Keypath> for #ty {
+                        fn from(_keypath: Keypath) -> Self {
+                            Self
+                        }
+                    }
+                };
+            });
+        }
+        _ => return err(fields, "Can only handle named or unit structs"),
     };
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
-    let n_fields = fields.len();
-    for (i, field) in fields.iter().enumerate() {
+    let n_fields = named_fields.len();
+    for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         field_names.extend(quote! { #field_name, });
 

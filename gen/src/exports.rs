@@ -191,28 +191,6 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method.sig());
 
-    // How to call the function
-    let invoke = if is_method {
-        // Invoke the method on a state object
-        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
-            if is_mut {
-                quote! { #trait_path::#ident(&mut state, #arg_names) }
-            } else {
-                quote! { #trait_path::#ident(&state, #arg_names) }
-            }
-        } else {
-            quote! { state.#ident(#arg_names) }
-        }
-    } else if let Some(contract) = contract {
-        // Invoke the associated function on the contract type
-        // XXX: as above
-        let self_ty = &contract.self_ty();
-        quote! { #self_ty::#ident(#arg_names) }
-    } else {
-        // Invoke the free function
-        quote! { #ident(#arg_names) }
-    };
-
     // Is the method marked #[init]?
     let is_init = is_method && method.config().init.is_present();
     // TODO: complain about #[init] in inappropriate positions
@@ -244,27 +222,38 @@ pub fn generate_method(
             quote! {}
         };
 
+        let deref = if is_mut {
+            quote! { state_node.deref_mut() }
+        } else {
+            quote! { state_node.deref() }
+        };
+
         if config.storage() {
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
                     use ::sdk::storage::{Keypath, Node};
+                    use core::ops::{Deref, DerefMut};
                     let keypath = Keypath::root();
-                    let #mutability state: Node<#self_ty> = keypath.into();
+                    let #mutability state_node: Node<#self_ty> = keypath.into();
+                    let #mutability state :&#mutability #self_ty = #deref;
                 }
             } else {
                 // Load the previously-stored value
                 quote! {
                     use ::sdk::storage::{Keypath, Node};
+                    use core::ops::{Deref, DerefMut};
                     let keypath = Keypath::root();
-                    let #mutability state: Node<#self_ty> = keypath.into();
+                    let #mutability state_node: Node<#self_ty> = keypath.into();
+                    let #mutability state :&#mutability #self_ty = #deref;
                 }
             }
         } else {
             // If not using storage, we just create a default object to call the method on
             // TODO: if !config.storage(), assert presence of Default impl
             quote! {
-                let #mutability state = <#self_ty as Default>::default();
+                let #mutability state_default = <#self_ty as Default>::default();
+                let #mutability state :&#mutability #self_ty = &#mutability state_default;
             }
         }
     } else {
@@ -272,8 +261,27 @@ pub fn generate_method(
         quote! {}
     };
 
-    // State handles persist themselves via immediate syscalls; no struct-level serialization needed.
-    let save_state = quote! {};
+    // How to call the function
+    let invoke = if is_method {
+        // Invoke the method on a state object
+        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
+            if is_mut {
+                quote! { #trait_path::#ident(state, #arg_names) }
+            } else {
+                quote! { #trait_path::#ident(state, #arg_names) }
+            }
+        } else {
+            quote! { state.#ident(#arg_names) }
+        }
+    } else if let Some(contract) = contract {
+        // Invoke the associated function on the contract type
+        // XXX: as above
+        let self_ty = &contract.self_ty();
+        quote! { #self_ty::#ident(#arg_names) }
+    } else {
+        // Invoke the free function
+        quote! { #ident(#arg_names) }
+    };
 
     let log_guest_call = if cfg!(feature = "logging") {
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
@@ -291,6 +299,8 @@ pub fn generate_method(
         // Abort if this is an "init" method and the contract state already
         // exists
         #assert_uninitialized
+
+        let return_buf ={
 
         // Load contract state
         #load_state
@@ -311,10 +321,11 @@ pub fn generate_method(
         let result = #invoke;
 
         // Encode the result
-        let return_buf = ::sdk::call::internal::encode_success(&result);
+        ::sdk::call::internal::encode_success(&result)
 
-        // Save any mutations
-        #save_state
+        // Make sure any storage nodes are fully dropped (and written to environment).
+        // Not technically necssary, given that the storage is wrapped in a Node<T>.
+        };
 
         // Return the result to the VM
         ::sdk::contract_return(return_buf.as_ref());
