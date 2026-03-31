@@ -159,6 +159,18 @@ impl FrameResult {
         check(&decoded);
     }
 
+    /// Assert the frame aborted and inspect a typed error if it decodes
+    #[track_caller]
+    pub fn assert_abort_with_opt<E>(&self, check: impl FnOnce(Option<&E>))
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        self.assert_abort();
+        let buf = self.abort_buffer();
+        let decoded: Option<E> = xdrs::cxs::decode(buf).ok();
+        check(decoded.as_ref());
+    }
+
     // -- Raw access --
 
     pub fn output(&self) -> &InvocationFrameOutput {

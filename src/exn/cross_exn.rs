@@ -12,16 +12,7 @@ pub(crate) struct ContractExn<E: WriteXDR> {
 }
 
 impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
-    #[cfg(feature = "debugging")]
-    #[track_caller]
-    pub(crate) fn new(exn: E) -> Self {
-        Self {
-            selector: E::SELECTOR,
-            exn,
-        }
-    }
-
-    #[cfg(not(feature = "debugging"))]
+    #[cfg_attr(feature = "debugging", track_caller)]
     pub(crate) fn new(exn: E) -> Self {
         Self {
             selector: E::SELECTOR,

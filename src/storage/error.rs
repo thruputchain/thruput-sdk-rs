@@ -44,7 +44,11 @@ pub fn oob_throw(len: u64, access: u64) -> ! {
     library_throw(StorageError::IndexOutOfBounds { len, access })
 }
 
-pub fn storage_load_throw(_r: ReadError) -> ! {
+pub fn throw_load_exn(_r: ReadError) -> ! {
+    library_throw(StorageError::Serialization)
+}
+
+pub fn throw_store_exn(_: WriteError) -> ! {
     library_throw(StorageError::Serialization)
 }
 
