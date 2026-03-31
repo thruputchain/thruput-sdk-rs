@@ -1,20 +1,20 @@
 //! Storage tests
 
 pub use sdk::contract_result::*;
-use sdk::storage::{Bytestring, Handle, NNInt};
+use sdk::storage::{Bytestring, NNInt, Value};
 use sdk::*;
 
 #[storage]
 pub struct MyContract {
-    contract_owner: ContractAddress,
-    silly: bool,
-    frottage: Handle<Frottage>,
-    hbool1: Handle<bool>,
+    contract_owner: Value<ContractAddress>,
+    silly: Value<bool>,
+    frottage: Frottage,
+    hbool1: Value<bool>,
 }
 
 #[storage]
 pub struct Frottage {
-    touched: bool,
+    touched: Value<bool>,
     count: NNInt,
     bytes: Bytestring,
 }
@@ -28,7 +28,7 @@ impl MyContract {
         &mut self,
         contract_owner: &ContractAddress,
     ) -> Result<()> {
-        self.contract_owner = contract_owner.clone();
+        self.contract_owner.set(contract_owner);
 
         Ok(())
     }
@@ -38,34 +38,27 @@ impl MyContract {
     }
 
     pub fn add_frot(&mut self, amount: Amount) -> Result<()> {
-        let mut frottage = self.frottage.load_mut()?;
+        assert!(self.frottage.touched.try_get().unwrap_or(false) == false, "Shouldn't be touched");
 
-        assert!(frottage.touched == false, "Shouldn't be touched");
+        self.frottage.touched.set(&true);
+        self.frottage.bytes.set(&[0, 1, 2, 3, 4]);
+        self.frottage.count.inc(amount as i128)?;
 
-        frottage.touched = true;
-        frottage.bytes.set(&[0, 1, 2, 3, 4]);
-        frottage.count.inc(amount as i128)?;
-
-        let mut hbool1 = self.hbool1.load_mut()?;
-        assert_eq!(*hbool1, false);
-        *hbool1 = true;
+        assert_eq!(self.hbool1.try_get().unwrap_or(false), false);
+        self.hbool1.set(&true);
 
         Ok(())
-        // Drop causes flush
     }
 
     pub fn get_frot(&self) -> Result<Amount> {
-        let hbool1 = self.hbool1.load()?;
-        assert_eq!(*hbool1, true);
+        assert_eq!(self.hbool1.get(), true);
 
-        let frottage = self.frottage.load()?;
+        assert!(self.frottage.touched.get() == true, "Should be touched");
 
-        assert!(frottage.touched == true, "Should be touched");
-
-        let bytes = frottage.bytes.get();
+        let bytes = self.frottage.bytes.get();
         assert!(&*bytes == &[0, 1, 2, 3, 4], "Bad bytes");
 
-        let count = frottage.count.get()?;
+        let count = self.frottage.count.get()?;
         Ok(count as Amount)
     }
 }

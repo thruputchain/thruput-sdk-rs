@@ -1,17 +1,3 @@
-macro_rules! impl_default_via_keypath {
-    { $id:ident$(<$($param:ident),+>)? } => {
-        const _: () = {
-            use crate::storage::*;
-
-            impl$(<$($param),+>)? DefaultFromKeypath for $id$(<$($param),+>)? {
-                fn default_from_keypath(keypath: &Keypath) -> Self {
-                    keypath.clone().into()
-                }
-            }
-        };
-    };
-}
-
 macro_rules! impl_load_via_keypath {
     { $id:ident$(<$($param:ident),+>)? } => {
         const _: () = {
@@ -56,22 +42,6 @@ macro_rules! impl_read_via_keypath {
                     R: ReaderPath<'r, Keypath>
                 {
                     Ok(r.path().into())
-                }
-            }
-        };
-    };
-}
-
-macro_rules! impl_write_xdr_empty {
-    { $id:ident$(<$($param:ident),+>)? } => {
-        const _: () = {
-            use xdrs::{WriteXDR, Writer, WriteResult};
-
-            impl$(<$($param),+>)? WriteXDR for $id$(<$($param),+>)? {
-                fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
-                    // Write nothing
-
-                    Ok(())
                 }
             }
         };

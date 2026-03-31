@@ -17,9 +17,7 @@ impl From<Keypath> for Bytestring {
 }
 
 impl_load_via_keypath! { Bytestring }
-impl_default_via_keypath! { Bytestring }
 impl_read_via_keypath! { Bytestring }
-impl_write_xdr_empty! { Bytestring }
 
 impl Bytestring {
     pub fn new(keypath: &Keypath) -> Self {
@@ -65,12 +63,5 @@ impl Bytestring {
     }
 }
 
-impl super::node::StorageNode for Bytestring {
-    fn from_keypath(keypath: super::keypath::Keypath) -> Self {
-        Self::from(keypath)
-    }
-
-    fn keypath(&self) -> &super::keypath::Keypath {
-        self.key.keypath()
-    }
-}
+impl super::sealed::Sealed for Bytestring {}
+impl super::node::StorageType for Bytestring {}

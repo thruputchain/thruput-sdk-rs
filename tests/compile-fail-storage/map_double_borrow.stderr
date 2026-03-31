@@ -1,0 +1,11 @@
+error[E0499]: cannot borrow `m` as mutable more than once at a time
+  --> tests/compile-fail-storage/map_double_borrow.rs:8:21
+   |
+ 5 |     let mut slot = m.at_mut(&10u64);
+   |                    - first mutable borrow occurs here
+...
+ 8 |     let mut slot2 = m.at_mut(&12u64);
+   |                     ^ second mutable borrow occurs here
+...
+11 |     slot.set(&15u64);
+   |     ---- first borrow later used here

@@ -1,14 +1,15 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
 use groundhog_erc20_if::{Amount, ERC20Client};
+use sdk::storage::Value;
 use sdk::*;
 
 pub use exports::*;
 
 #[storage]
 struct Wallet {
-    token_addr: ContractAddress,
-    pk: Ed25519PublicKey,
+    token_addr: Value<ContractAddress>,
+    pk: Value<Ed25519PublicKey>,
 }
 
 type AuthMessage = [u8; 80];
@@ -18,7 +19,7 @@ type AuthMessage = [u8; 80];
 #[contract(client = WalletClient)]
 impl Wallet {
     fn token(&self) -> ERC20Client {
-        ERC20Client::new(&self.token_addr)
+        ERC20Client::new(&self.token_addr.get())
     }
 
     pub fn initialize(
@@ -26,8 +27,8 @@ impl Wallet {
         pk: &Ed25519PublicKey,
         token_addr: &ContractAddress,
     ) {
-        self.pk = *pk;
-        self.token_addr = *token_addr;
+        self.pk.set(pk);
+        self.token_addr.set(token_addr);
     }
 
     pub fn get_balance(&self) -> Amount {
@@ -66,7 +67,7 @@ impl Wallet {
         let auth_message = self.compute_auth_message(to_addr, amount);
 
         sdk::crypto::verify_signature_ed25519(
-            &self.pk,
+            &self.pk.get(),
             signature,
             &auth_message,
         );

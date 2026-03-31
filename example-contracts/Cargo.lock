@@ -189,6 +189,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "complex-storage"
+version = "0.3.0"
+dependencies = [
+ "complex-storage",
+ "sdk",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -44,4 +44,43 @@ where
         .map_err(|_| StorageError::Serialization)
 }
 
-impl_load_via_read! { bool, i16, u16, i32, u32, i64, u64, }
+impl_load_via_read! { bool, i16, u16, i32, u32, i64, u64, i128, u128, }
+
+// LoadKeypath for commonly-used XDR types (Value<T> requires this)
+const _: () = {
+    use crate::storage::error::Result;
+    use crate::storage::*;
+    use crate::types::{
+        ContractAddress, Ed25519PublicKey, Ed25519Signature, SHA256Hash,
+    };
+
+    impl LoadKeypath for ContractAddress {
+        fn load_keypath(keypath: &Keypath) -> Result<Self> {
+            load_readable(keypath)
+        }
+    }
+
+    impl LoadKeypath for Ed25519PublicKey {
+        fn load_keypath(keypath: &Keypath) -> Result<Self> {
+            load_readable(keypath)
+        }
+    }
+
+    impl LoadKeypath for Ed25519Signature {
+        fn load_keypath(keypath: &Keypath) -> Result<Self> {
+            load_readable(keypath)
+        }
+    }
+
+    impl LoadKeypath for SHA256Hash {
+        fn load_keypath(keypath: &Keypath) -> Result<Self> {
+            load_readable(keypath)
+        }
+    }
+
+    impl<T: for<'a> xdrs::ReadXDR<'a>> LoadKeypath for Option<T> {
+        fn load_keypath(keypath: &Keypath) -> Result<Self> {
+            load_readable(keypath)
+        }
+    }
+};

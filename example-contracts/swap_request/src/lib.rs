@@ -2,11 +2,10 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
-use sdk::*;
 use sdk::sys_result::rcq::{
-    retrocausal_queue_insert,
-    retrocausal_queue_consume_sized,
+    retrocausal_queue_consume_sized, retrocausal_queue_insert,
 };
+use sdk::*;
 use sys::SyscallErrorCode;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");
@@ -52,17 +51,11 @@ impl From<SwapRequest> for EncodedSwapRequest {
     }
 }
 
-#[derive(Default, ReadXDR)]
-#[storage]
+#[derive(Storage)]
 pub struct SwapContract;
 
 #[contract(client = SwapClient)]
 impl SwapContract {
-    #[init]
-    pub fn initialize(&mut self) {
-        /* not yet needed */
-    }
-
     pub fn submit_request(&self, r: SwapRequest) {
         let r: EncodedSwapRequest = r.into();
 

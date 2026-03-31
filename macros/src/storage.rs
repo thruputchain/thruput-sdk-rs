@@ -71,7 +71,7 @@ fn generate_from_struct(
 
     let mut output = TokenStream::new();
     output.extend(impl_read_xdr_path(ident, generics, fields)?);
-    output.extend(impl_default_from_keypath(ident, generics, fields)?);
+    output.extend(impl_from_keypath(ident, generics, fields)?);
 
     Ok(output)
 }
@@ -84,16 +84,32 @@ fn impl_read_xdr_path(
     let ty = generic_type_name(ident, generics);
     let generic_params = &generics.params;
 
-    let fields = if let syn::Fields::Named(fields_named) = fields {
-        &fields_named.named
-    } else {
-        return err(fields, "Can only handle named struct fields");
+    let named_fields = match fields {
+        syn::Fields::Named(fields_named) => &fields_named.named,
+        syn::Fields::Unit => {
+            return Ok(quote! {
+                const _: () = {
+                    use sdk::serialize::ReadResult;
+                    use sdk::storage::*;
+
+                    impl<#generic_params> ReadXDRPath for #ty {
+                        fn read_xdr_path<'r, R>(_r: &mut R) -> ReadResult<Self>
+                        where
+                            R: ReaderPath<'r, Keypath>
+                        {
+                            Ok(Self)
+                        }
+                    }
+                };
+            });
+        }
+        _ => return err(fields, "Can only handle named or unit structs"),
     };
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
-    let n_fields = fields.len();
-    for (i, field) in fields.iter().enumerate() {
+    let n_fields = named_fields.len();
+    for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         field_names.extend(quote! { #field_name, });
 
@@ -133,7 +149,7 @@ fn impl_read_xdr_path(
     })
 }
 
-fn impl_default_from_keypath(
+fn impl_from_keypath(
     ident: &syn::Ident,
     generics: &syn::Generics,
     fields: &syn::Fields,
@@ -141,21 +157,34 @@ fn impl_default_from_keypath(
     let ty = generic_type_name(ident, generics);
     let generic_params = &generics.params;
 
-    let fields = if let syn::Fields::Named(fields_named) = fields {
-        &fields_named.named
-    } else {
-        return err(fields, "Can only handle named struct fields");
+    let named_fields = match fields {
+        syn::Fields::Named(fields_named) => &fields_named.named,
+        syn::Fields::Unit => {
+            // Unit struct: From<Keypath> ignores the keypath
+            return Ok(quote! {
+                const _: () = {
+                    use sdk::storage::*;
+
+                    impl<#generic_params> From<Keypath> for #ty {
+                        fn from(_keypath: Keypath) -> Self {
+                            Self
+                        }
+                    }
+                };
+            });
+        }
+        _ => return err(fields, "Can only handle named or unit structs"),
     };
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
-    let n_fields = fields.len();
-    for (i, field) in fields.iter().enumerate() {
+    let n_fields = named_fields.len();
+    for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         field_names.extend(quote! { #field_name, });
 
-        field_initializers.extend(quote!{
-            let #field_name = DefaultFromKeypath::default_from_keypath(&keypath);
+        field_initializers.extend(quote! {
+            let #field_name = keypath.clone().into();
         });
 
         if (i + 1) < n_fields {
@@ -169,9 +198,9 @@ fn impl_default_from_keypath(
         const _: () = {
             use sdk::storage::*;
 
-            impl<#generic_params> DefaultFromKeypath for #ty {
-                fn default_from_keypath(keypath: &Keypath) -> Self {
-                    let mut keypath = keypath.clone();
+            impl<#generic_params> From<Keypath> for #ty {
+                fn from(keypath: Keypath) -> Self {
+                    let mut keypath = keypath;
 
                     keypath.seq_begin();
                     #field_initializers

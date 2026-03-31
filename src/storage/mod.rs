@@ -19,8 +19,7 @@ pub use read_xdr_path::*;
 pub mod load;
 pub use load::*;
 
-pub mod store;
-pub use store::*;
+mod sealed;
 
 pub mod node;
 pub use node::*;
@@ -33,9 +32,6 @@ pub use bytestring::*;
 
 pub mod nnint;
 pub use nnint::*;
-
-pub mod handle;
-pub use handle::*;
 
 pub mod value;
 pub use value::*;

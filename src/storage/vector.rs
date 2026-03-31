@@ -1,270 +1,101 @@
-use super::error::*;
-use super::handle::Handle;
-use super::keypath::{DefaultFromKeypath, Keypath};
-use super::load::{LoadKeypath, load_keypath};
-use super::store::Store;
-use crate::exn::*;
+use super::keypath::Keypath;
+use super::map::Map;
+use super::nnint::NNInt;
+use super::node::StorageType;
+use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
 
-#[derive(Debug)]
-pub struct Vector<T> {
-    len: u64,
+pub struct Vector<S> {
     keypath: Keypath,
-    // This type should be covariant in T, but (for drop
-    // purposes) doesn't actually own values of that type
-    _marker: core::marker::PhantomData<fn() -> T>,
+    len: NNInt,
+    values: Map<u64, S>,
 }
 
-impl<T> From<Keypath> for Vector<T> {
+impl<S> Debug for Vector<S> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Vector")
+            .field("keypath", &self.keypath)
+            .field("len", &self.len)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
-        Self::new_from(keypath, 0)
+        let mut len_kp = keypath.clone();
+        len_kp.seq_begin();
+        len_kp.set_exclusive();
+
+        let mut values_kp = keypath.clone();
+        values_kp.seq_begin();
+        values_kp.seq_next();
+
+        Self {
+            keypath,
+            len: NNInt::from(len_kp),
+            values: Map::from(values_kp),
+        }
     }
 }
 
-impl_default_via_keypath! { Vector<T> }
+impl_load_via_keypath! { Vector<S> }
+impl_read_via_keypath! { Vector<S> }
 
-const _: () = {
-    use xdrs::{WriteResult, WriteXDR, Writer, write_xdr};
+impl<S> super::sealed::Sealed for Vector<S> {}
+impl<S> super::node::StorageType for Vector<S> {}
 
-    impl<T> WriteXDR for Vector<T> {
-        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-            write_xdr(&self.len, w)
-        }
-    }
-};
-
-const _: () = {
-    use super::read_xdr_path::*;
-    use xdrs::{ReadResult, read_xdr};
-
-    impl<T> ReadXDRPath for Vector<T> {
-        fn read_xdr_path<'r, R>(r: &mut R) -> ReadResult<Self>
-        where
-            R: ReaderPath<'r, Keypath>,
-        {
-            let keypath = r.path();
-            let len = read_xdr(r)?;
-
-            Ok(Self::new_from(keypath, len))
-        }
-    }
-};
-
-impl_load_via_read! { Vector<T> }
-
-impl<T> Vector<T> {
-    pub fn new(keypath: &Keypath, len: u64) -> Self {
-        Self::new_from(keypath.clone(), len)
-    }
-
-    pub fn new_from(keypath: Keypath, len: u64) -> Self {
-        Self {
-            len,
-            keypath,
-            _marker: core::marker::PhantomData,
-        }
-    }
-
+impl<S> Vector<S> {
     pub fn keypath(&self) -> &Keypath {
         &self.keypath
     }
+}
 
+impl<S: StorageType> Vector<S> {
+    /// Current length (number of elements). Returns 0 if never written.
     pub fn len(&self) -> u64 {
-        self.len
+        self.len.try_get().unwrap_or(0) as u64
     }
 
+    /// Returns true if the vector contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    pub fn get(&self, index: u64) -> T
-    where
-        T: LoadKeypath,
-    {
-        if index >= self.len {
-            oob_throw(self.len, index);
-        }
-
-        let keypath = self.make_index_keypath(index);
-
-        load_keypath(&keypath).unwrap_or_else(|e| library_throw(e))
+    /// Borrow element at `index` (bounds-checked).
+    pub fn at(&self, index: u64) -> SlotRef<'_, Self, S> {
+        self.bounds_check(index);
+        let keypath = self.make_elem_keypath(index);
+        let slot = S::from(keypath);
+        SlotRef::new(self, slot)
     }
 
-    pub fn get_default(&self, index: u64) -> T
-    where
-        T: LoadKeypath + DefaultFromKeypath,
-    {
-        if index >= self.len {
-            oob_throw(self.len, index);
-        }
-
-        let keypath = self.make_index_keypath(index);
-
-        T::try_load_keypath(&keypath)
-            .unwrap_or_else(|e| library_throw(e))
-            .unwrap_or_else(|| T::default_from_keypath(&keypath))
+    /// Mutably borrow element at `index` (bounds-checked).
+    pub fn at_mut(&mut self, index: u64) -> SlotMut<'_, Self, S> {
+        self.bounds_check(index);
+        let keypath = self.make_elem_keypath(index);
+        let slot = S::from(keypath);
+        SlotMut::new(self, slot)
     }
 
-    pub fn try_get(&self, index: u64) -> Option<T>
-    where
-        T: LoadKeypath,
-    {
-        if index >= self.len {
-            return None;
-        }
-
-        let keypath = self.make_index_keypath(index);
-
-        let val = load_keypath(&keypath).unwrap_or_else(|e| library_throw(e));
-
-        Some(val)
+    /// Allocate a new slot at the end and return a mutable reference to it.
+    pub fn push(&mut self) -> SlotMut<'_, Self, S> {
+        let idx = self.len();
+        self.len.set((idx + 1) as i128);
+        let keypath = self.make_elem_keypath(idx);
+        let slot = S::from(keypath);
+        SlotMut::new(self, slot)
     }
 
-    pub fn load<'a>(&'a self, index: u64) -> ElemRef<'a, T>
-    where
-        T: LoadKeypath + DefaultFromKeypath,
-    {
-        let val = self.get_default(index);
-
-        ElemRef::new(self, val)
-    }
-
-    pub fn load_mut<'a>(&'a mut self, index: u64) -> ElemRefMut<'a, T>
-    where
-        T: LoadKeypath + DefaultFromKeypath + Store,
-    {
-        let val = self.get_default(index);
-
-        ElemRefMut::new(self, index, val)
-    }
-
-    pub fn get_handle(&self, index: u64) -> Handle<T>
-    where
-        T: LoadKeypath + DefaultFromKeypath,
-    {
-        if index < self.len {
-            let keypath = self.make_index_keypath(index);
-            Handle::from(keypath)
-        } else {
-            oob_throw(self.len, index);
+    fn bounds_check(&self, index: u64) {
+        let len = self.len();
+        if index >= len {
+            super::error::oob_throw(len, index);
         }
     }
 
-    pub fn set(&self, index: u64, val: &T)
-    where
-        T: Store,
-    {
-        if index < self.len {
-            let keypath = &self.make_index_keypath(index);
-            val.store_keypath(keypath);
-        } else {
-            oob_throw(self.len, index);
-        }
-    }
-
-    pub fn push(&mut self, val: T)
-    where
-        T: Store,
-    {
-        let new_index = self.len;
-        self.len += 1;
-
-        // Store the element value
-        self.set(new_index, &val);
-
-        // Store ourselves
-        self.store_keypath(&self.keypath);
-    }
-
-    pub fn extend_len(&mut self, len: u64)
-    where
-        T: DefaultFromKeypath,
-    {
-        if len > self.len {
-            self.len = len;
-        } else {
-            // We can only increase the length
-            oob_throw(self.len, len);
-        }
-    }
-
-    fn make_index_keypath(&self, index: u64) -> Keypath {
-        let mut keypath = self.keypath.clone();
-        keypath.push_index(index);
-        keypath
-    }
-
-    /*
-    fn make_index_key(&self, index: u64) -> StorageKey {
-        self.make_index_keypath(index).generate_key()
-    }
-    */
-}
-
-// Note: Vector intentionally does NOT implement StorageNode.
-// Vector carries in-memory state (len) that requires a storage read to
-// reconstruct. Constructing a Vector from a bare keypath (as StorageNode
-// requires) would produce a zero-length vector, silently losing data.
-// Use Vector only as a top-level storage field, not as a Map value type.
-
-pub use vref::*;
-mod vref {
-    use super::*;
-    use core::marker::PhantomData;
-    use core::ops::{Deref, DerefMut};
-
-    pub struct ElemRef<'a, T> {
-        _vec: PhantomData<&'a Vector<T>>,
-        val: T,
-    }
-
-    impl<'a, T> ElemRef<'a, T> {
-        pub fn new(_vec: &'a Vector<T>, val: T) -> Self {
-            let _vec = PhantomData;
-            Self { _vec, val }
-        }
-    }
-
-    impl<T> Deref for ElemRef<'_, T> {
-        type Target = T;
-
-        fn deref(&self) -> &Self::Target {
-            &self.val
-        }
-    }
-
-    pub struct ElemRefMut<'a, T: Store> {
-        vec: &'a mut Vector<T>,
-        idx: u64,
-        val: T,
-    }
-
-    impl<'a, T: Store> ElemRefMut<'a, T> {
-        pub fn new(vec: &'a mut Vector<T>, idx: u64, val: T) -> Self {
-            Self { vec, idx, val }
-        }
-    }
-
-    impl<T: Store> Deref for ElemRefMut<'_, T> {
-        type Target = T;
-
-        fn deref(&self) -> &Self::Target {
-            &self.val
-        }
-    }
-
-    impl<T: Store> DerefMut for ElemRefMut<'_, T> {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.val
-        }
-    }
-
-    impl<T: Store> Drop for ElemRefMut<'_, T> {
-        fn drop(&mut self) {
-            // XXX: abort in drop handler?
-
-            // Flush any changes
-            self.vec.set(self.idx, &self.val);
-        }
+    fn make_elem_keypath(&self, index: u64) -> Keypath {
+        let mut kp = self.values.keypath().clone();
+        kp.push_item(&index);
+        kp
     }
 }

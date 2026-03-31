@@ -5,7 +5,7 @@ use sdk::*;
 
 #[sdk::storage]
 pub struct StorageErrorContract {
-    numbers: Vector<u64>,
+    numbers: Vector<Value<u64>>,
     names: Map<u64, Value<u64>>,
 }
 
@@ -16,21 +16,21 @@ impl StorageErrorContract {
     #[init]
     pub fn initialize(&mut self) {
         // Push a few items so the vector has known length
-        self.numbers.push(10);
-        self.numbers.push(20);
-        self.numbers.push(30);
+        self.numbers.push().set(&10);
+        self.numbers.push().set(&20);
+        self.numbers.push().set(&30);
     }
 
     /// Access a vector element by index. Will abort with
     /// LibraryExn::Storage(IndexOutOfBounds) if index >= len.
     pub fn vector_get(&self, index: u64) -> u64 {
-        self.numbers.get(index)
+        self.numbers.at(index).get()
     }
 
     /// Set a vector element by index. Will abort with
     /// LibraryExn::Storage(IndexOutOfBounds) if index >= len.
     pub fn vector_set(&mut self, index: u64, value: u64) {
-        self.numbers.set(index, &value);
+        self.numbers.at_mut(index).set(&value);
     }
 
     /// Get the vector length.

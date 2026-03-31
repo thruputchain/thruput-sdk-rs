@@ -56,8 +56,10 @@ make_optimized() {
     package="$1"; shift
 
     local contract optimized
-    contract="${CONTRACT}/${package}.wasm"
-    optimized="${OPTIMIZED}/${package}.wasm"
+    # Cargo converts hyphens to underscores in output filenames
+    local wasm_name="${package//-/_}"
+    contract="${CONTRACT}/${wasm_name}.wasm"
+    optimized="${OPTIMIZED}/${wasm_name}.wasm"
 
     mkdir -p "$OPTIMIZED" &&
 
@@ -97,6 +99,7 @@ test_sdk() {
     cargo test --lib &&
     cargo test --tests &&
     cargo test -F storage --tests &&
+    cargo test -p vector-tests --tests &&
     true
 }
 
@@ -173,10 +176,11 @@ bottle_test_contract() {
         -Z unstable-options \
         #
 
+    local wasm_name="${package//-/_}"
     mkdir -p "$BOTTLE_TEST" &&
     wasm-opt -O3 --enable-bulk-memory \
-        -o "$BOTTLE_TEST/${package}.wasm" \
-        "$BOTTLE_TEST_RAW/${package}.wasm" &&
+        -o "$BOTTLE_TEST/${wasm_name}.wasm" \
+        "$BOTTLE_TEST_RAW/${wasm_name}.wasm" &&
 
     cargo run -p bottle-test --profile dev "$package"
 }

@@ -191,28 +191,6 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method.sig());
 
-    // How to call the function
-    let invoke = if is_method {
-        // Invoke the method on a state object
-        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
-            if is_mut {
-                quote! { #trait_path::#ident(&mut state, #arg_names) }
-            } else {
-                quote! { #trait_path::#ident(&state, #arg_names) }
-            }
-        } else {
-            quote! { state.#ident(#arg_names) }
-        }
-    } else if let Some(contract) = contract {
-        // Invoke the associated function on the contract type
-        // XXX: as above
-        let self_ty = &contract.self_ty();
-        quote! { #self_ty::#ident(#arg_names) }
-    } else {
-        // Invoke the free function
-        quote! { #ident(#arg_names) }
-    };
-
     // Is the method marked #[init]?
     let is_init = is_method && method.config().init.is_present();
     // TODO: complain about #[init] in inappropriate positions
@@ -244,31 +222,38 @@ pub fn generate_method(
             quote! {}
         };
 
+        let deref = if is_mut {
+            quote! { state_node.deref_mut() }
+        } else {
+            quote! { state_node.deref() }
+        };
+
         if config.storage() {
             if is_init {
                 // Get a default value to initialize in this method
                 quote! {
-                    use ::sdk::storage::{Keypath, DefaultFromKeypath};
+                    use ::sdk::storage::{Keypath, Node};
+                    use core::ops::{Deref, DerefMut};
                     let keypath = Keypath::root();
-                    let #mutability state =
-                        <#self_ty as DefaultFromKeypath>::default_from_keypath(&keypath);
+                    let #mutability state_node: Node<#self_ty> = keypath.into();
+                    let #mutability state :&#mutability #self_ty = #deref;
                 }
             } else {
                 // Load the previously-stored value
                 quote! {
-                    use ::sdk::storage::{Keypath, LoadKeypath};
+                    use ::sdk::storage::{Keypath, Node};
+                    use core::ops::{Deref, DerefMut};
                     let keypath = Keypath::root();
-                    let #mutability state =
-                        <#self_ty as LoadKeypath>::try_load_keypath(&keypath)
-                            .unwrap_or_else(|_| panic!("Failed loading contract storage"))
-                            .unwrap_or_else(|| panic!("Contract storage not present"));
+                    let #mutability state_node: Node<#self_ty> = keypath.into();
+                    let #mutability state :&#mutability #self_ty = #deref;
                 }
             }
         } else {
             // If not using storage, we just create a default object to call the method on
             // TODO: if !config.storage(), assert presence of Default impl
             quote! {
-                let #mutability state = <#self_ty as Default>::default();
+                let #mutability state_default = <#self_ty as Default>::default();
+                let #mutability state :&#mutability #self_ty = &#mutability state_default;
             }
         }
     } else {
@@ -276,15 +261,26 @@ pub fn generate_method(
         quote! {}
     };
 
-    // If the method takes a mutable ref to the contract state, save the state
-    // afterwards:
-    let save_state = if is_method && config.storage() && is_mut {
-        quote! {
-            use ::sdk::storage::Store;
-            state.store_keypath(&keypath);
+    // How to call the function
+    let invoke = if is_method {
+        // Invoke the method on a state object
+        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
+            if is_mut {
+                quote! { #trait_path::#ident(state, #arg_names) }
+            } else {
+                quote! { #trait_path::#ident(state, #arg_names) }
+            }
+        } else {
+            quote! { state.#ident(#arg_names) }
         }
+    } else if let Some(contract) = contract {
+        // Invoke the associated function on the contract type
+        // XXX: as above
+        let self_ty = &contract.self_ty();
+        quote! { #self_ty::#ident(#arg_names) }
     } else {
-        quote! {}
+        // Invoke the free function
+        quote! { #ident(#arg_names) }
     };
 
     let log_guest_call = if cfg!(feature = "logging") {
@@ -303,6 +299,8 @@ pub fn generate_method(
         // Abort if this is an "init" method and the contract state already
         // exists
         #assert_uninitialized
+
+        let return_buf ={
 
         // Load contract state
         #load_state
@@ -323,10 +321,11 @@ pub fn generate_method(
         let result = #invoke;
 
         // Encode the result
-        let return_buf = ::sdk::call::internal::encode_success(&result);
+        ::sdk::call::internal::encode_success(&result)
 
-        // Save any mutations
-        #save_state
+        // Make sure any storage nodes are fully dropped (and written to environment).
+        // Not technically necessary, given that the storage is wrapped in a Node<T>.
+        };
 
         // Return the result to the VM
         ::sdk::contract_return(return_buf.as_ref());
