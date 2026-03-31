@@ -43,7 +43,6 @@ pub trait ISwapV2Pair {
     // event Transfer
 
     // Must be called exactly once before any other methods
-    #[init]
     fn initialize(
         &mut self,
         factory: &Address,

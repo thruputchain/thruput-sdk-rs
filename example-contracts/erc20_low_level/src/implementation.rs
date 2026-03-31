@@ -67,7 +67,6 @@ fn add_to_allowance(
 // Exposed contract functions
 
 #[contract(interface = "ERC20", version = "0.1.0")]
-#[init]
 pub fn initialize(owner: &ContractAddress) {
     let key = get_owner_key();
 

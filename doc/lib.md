@@ -134,7 +134,6 @@ pub struct MyError;
 
 #[contract(throws = MyError, client = MyClient)]
 impl MyContract {
-    #[init]
     pub fn initialize(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner.set(contract_owner);
     }
