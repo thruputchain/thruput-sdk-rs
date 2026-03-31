@@ -1,12 +1,14 @@
 //! A contract implementing ISwapV2Pair and ERC20.
 
+// TODO: 
+// - events
+
 use crate::bignum::{U112, U256};
 use crate::interfaces::iswapv2_pair::*;
 use core::cmp::min;
 use core::ops::Mul;
-use erc20::ERC20Client;
 use erc20::TokenContract; // The ERC20 implementation
-use groundhog_erc20_if::{Amount, Difference, ERC20, ERC20Error};
+use groundhog_erc20_if::{Amount, Difference, ERC20, ERC20Error, ERC20Client, ERC20ClientError};
 use sdk::storage::Value;
 use sdk::*;
 
@@ -29,7 +31,9 @@ pub struct SwapV2Pair {
     /// after the most recent liquidity event
     pub k_last: Value<U256>,
 
-    // An embedded ERC20 contract, implementing the LP token
+    // An embedded ERC20 contract, implementing the LP token.
+    // Exceptions generated from calls into this implementation
+    // will be passed through the ISWapV2Pair interface.
     lp: TokenContract,
 }
 
@@ -51,15 +55,14 @@ impl SwapV2Pair {
     fn _get_token_balances(&self) -> (Amount, Amount) {
         let t0 = self.token0.get();
         let t1 = self.token1.get();
-        wrap_erc20(|| {
-            let balance0 =
-                ERC20Client::new(&t0).get_balance_of(this_contract());
 
-            let balance1 =
-                ERC20Client::new(&t1).get_balance_of(this_contract());
+        // We pass through any ERC20 exceptions generated below
+        let balance0 =
+            ERC20Client::new(&t0).get_balance_of(this_contract());
+        let balance1 =
+            ERC20Client::new(&t1).get_balance_of(this_contract());
 
-            (balance0, balance1)
-        })
+        (balance0, balance1)
     }
 
     fn _transfer(&mut self, which: u8, to: &Address, amount: Amount) {
@@ -71,7 +74,8 @@ impl SwapV2Pair {
 
         let token = ERC20Client::new(&token_addr);
 
-        wrap_erc20_with(|_| TransferFailed, || token.transfer(to, amount));
+        // Catch any exceptions from the transfer
+        wrap_erc20_with(|_| TransferFailed, token.try_transfer(to, amount));
     }
 
     fn _update(&mut self, balance0: Amount, balance1: Amount) {
@@ -98,6 +102,7 @@ impl SwapV2Pair {
                 .price1_cumulative_last
                 .try_get()
                 .unwrap_or(U256::zero());
+
             self.price0_cumulative_last
                 .set(&(p0 + uq112x112_div_mul(r1, r0, time_elapsed)));
             self.price1_cumulative_last
@@ -121,22 +126,15 @@ impl SwapV2Pair {
     }
 }
 
-// Run the provided function.  If it aborts with an ERC20Error,
-// wrap it before aborting.
-//
-fn wrap_erc20_with<T, F, W>(wrap: W, f: F) -> T
+fn wrap_erc20_with<T, W>(wrap: W, r: Result<T, ERC20ClientError>) -> T
 where
     W: Fn(ERC20Error) -> ISwapV2PairError + 'static,
-    F: FnOnce() -> T,
 {
-    catch(move |e: &ERC20Error| abort(&wrap(e.clone())), f)
-}
-
-fn wrap_erc20<T, F>(f: F) -> T
-where
-    F: FnOnce() -> T,
-{
-    wrap_erc20_with(LPTokenFailure, f)
+    r.unwrap_or_else(|e|
+        match e {
+            ERC20ClientError::ERC20Error(e) => throw(wrap(e)),
+            _ => e.re_throw(),
+        })
 }
 
 impl AsRef<TokenContract> for SwapV2Pair {
@@ -156,7 +154,7 @@ impl AsMut<TokenContract> for SwapV2Pair {
 impl ERC20 for SwapV2Pair {
     fn initialize(&mut self, _contract_owner: &ContractAddress) {
         // Embedded contract does not need initialization
-        abort(&ERC20Error::AlreadyInitialized);
+        throw(ERC20Error::AlreadyInitialized);
     }
 
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
@@ -234,7 +232,7 @@ impl ISwapV2Pair for SwapV2Pair {
     }
 
     fn get_liquidity(&self) -> Amount {
-        wrap_erc20(|| self.lp.total_supply())
+        self.lp.total_supply()
     }
 
     // Mint LP in exchange for any pair-tokens transferred
@@ -257,14 +255,12 @@ impl ISwapV2Pair for SwapV2Pair {
 
         let fee_on = self._mint_fee();
 
-        let total_liquidity = wrap_erc20(|| self.lp.total_supply());
+        let total_liquidity = self.lp.total_supply();
 
         // Added liquidity (TODO: check integer size needs)
         let liquidity = if total_liquidity == 0 {
             // Permanently lock the first MINIMUM_LIQUIDITY tokens
-            wrap_erc20(|| {
-                self.lp.mint(&Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY)
-            });
+            self.lp.mint(&Self::BLACK_HOLE, Self::MINIMUM_LIQUIDITY);
 
             amount0
                 .strict_mul(amount1)
@@ -280,7 +276,7 @@ impl ISwapV2Pair for SwapV2Pair {
         self.require(liquidity > 0, InsufficientLiquidityMinted);
 
         // Mint the new liquidity to the address specified by the LP
-        wrap_erc20(|| self.lp.mint(to, liquidity));
+        self.lp.mint(to, liquidity);
 
         // Record the new reserve balances
         self._update(balance0, balance1);
@@ -302,10 +298,10 @@ impl ISwapV2Pair for SwapV2Pair {
     fn burn_lp(&mut self, to: &Address) -> (Amount, Amount) {
         let (balance0, balance1) = self._get_token_balances();
 
-        let liquidity = wrap_erc20(|| self.lp.get_balance_of(this_contract()));
+        let liquidity = self.lp.get_balance_of(this_contract());
 
         let fee_on = self._mint_fee();
-        let total_liquidity = wrap_erc20(|| self.lp.total_supply());
+        let total_liquidity = self.lp.total_supply();
 
         // NOTE: added this check
         self.require(total_liquidity > 0, NoLiquidityToBurn);
@@ -313,7 +309,7 @@ impl ISwapV2Pair for SwapV2Pair {
         let amount0 = liquidity.strict_mul(balance0) / total_liquidity;
         let amount1 = liquidity.strict_mul(balance1) / total_liquidity;
         self.require(amount0 > 0 && amount1 > 0, InsufficientLiquidityBurned);
-        wrap_erc20(|| self.lp.burn(this_contract(), liquidity));
+        self.lp.burn(this_contract(), liquidity);
         self._transfer(0, to, amount0);
         self._transfer(1, to, amount1);
         let (balance0, balance1) = self._get_token_balances();

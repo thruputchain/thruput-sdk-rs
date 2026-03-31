@@ -24,10 +24,21 @@ fn swap_test() {
     };
     let swap_hash = env.setup_create_contract(&swap_contract);
 
+    /*
     sdk::contract_exec(env, move || {
         swap_test_inner(&swap_hash, &token0_hash, &token1_hash);
     })
     .unwrap();
+    */
+
+    env.transact(|tx|
+        tx.call(&ContractAddress::default()).run(|| {
+            swap_test_inner(&swap_hash, &token0_hash, &token1_hash);
+        })
+    )
+    .assert_abort_with(|exn: &swap::ISwapV2PairError| {
+        println!("ERC20Error: {exn}");
+    });
 }
 
 fn swap_test_inner(

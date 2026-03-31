@@ -1,4 +1,5 @@
 use core::fmt;
+use groundhog_erc20_if::ERC20Error;
 use sdk::*;
 
 pub use crate::bignum::{U112, U256};
@@ -37,7 +38,7 @@ pub type Amount = u128;
 
 pub type Address = sdk::ContractAddress;
 
-#[contract(client = ISwapV2PairClient, throws = ISwapV2PairError)]
+#[contract(client = ISwapV2PairClient, throws(ISwapV2PairError, ERC20Error))]
 pub trait ISwapV2Pair {
     // event Approval
     // event Transfer
