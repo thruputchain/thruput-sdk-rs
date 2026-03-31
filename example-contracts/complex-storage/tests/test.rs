@@ -2,7 +2,6 @@ use std::cell::Cell;
 use std::panic::AssertUnwindSafe;
 
 use complex_storage::*;
-use sdk::*;
 
 static NONCE: SHA256Hash = sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
 
