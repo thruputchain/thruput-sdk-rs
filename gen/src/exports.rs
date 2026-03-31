@@ -265,17 +265,12 @@ pub fn generate_method(
     let invoke = if is_method {
         // Invoke the method on a state object
         if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
-            if is_mut {
-                quote! { #trait_path::#ident(state, #arg_names) }
-            } else {
-                quote! { #trait_path::#ident(state, #arg_names) }
-            }
+            quote! { #trait_path::#ident(state, #arg_names) }
         } else {
             quote! { state.#ident(#arg_names) }
         }
     } else if let Some(contract) = contract {
         // Invoke the associated function on the contract type
-        // XXX: as above
         let self_ty = &contract.self_ty();
         quote! { #self_ty::#ident(#arg_names) }
     } else {
