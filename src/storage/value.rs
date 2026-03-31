@@ -29,10 +29,6 @@ impl_from_keypath! { Value<T> }
 impl_read_via_keypath! { Value<T> }
 
 impl<T> StorageNode for Value<T> {
-    fn from_keypath(keypath: Keypath) -> Self {
-        Self::from(keypath)
-    }
-
     fn keypath(&self) -> &Keypath {
         self.key.keypath()
     }

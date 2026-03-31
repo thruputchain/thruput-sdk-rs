@@ -6,6 +6,7 @@ use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
 
 pub struct Vector<S> {
+    keypath: Keypath,
     len: NNInt,
     values: Map<u64, S>,
 }
@@ -13,6 +14,7 @@ pub struct Vector<S> {
 impl<S> Debug for Vector<S> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Vector")
+            .field("keypath", &self.keypath)
             .field("len", &self.len)
             .finish_non_exhaustive()
     }
@@ -21,14 +23,15 @@ impl<S> Debug for Vector<S> {
 impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
         let mut len_kp = keypath.clone();
-        len_kp.seq_begin(); // index 0
+        len_kp.seq_begin();
         len_kp.set_exclusive();
 
-        let mut values_kp = keypath;
+        let mut values_kp = keypath.clone();
         values_kp.seq_begin();
-        values_kp.seq_next(); // index 1
+        values_kp.seq_next();
 
         Self {
+            keypath,
             len: NNInt::from(len_kp),
             values: Map::from(values_kp),
         }
@@ -40,12 +43,8 @@ impl_load_via_keypath! { Vector<S> }
 impl_read_via_keypath! { Vector<S> }
 
 impl<S: StorageNode> StorageNode for Vector<S> {
-    fn from_keypath(keypath: Keypath) -> Self {
-        Self::from(keypath)
-    }
-
     fn keypath(&self) -> &Keypath {
-        self.values.keypath()
+        &self.keypath
     }
 }
 

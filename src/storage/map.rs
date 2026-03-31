@@ -79,10 +79,6 @@ impl<K, V> Map<K, V> {
 }
 
 impl<K, V> super::node::StorageNode for Map<K, V> {
-    fn from_keypath(keypath: super::keypath::Keypath) -> Self {
-        Self::from(keypath)
-    }
-
     fn keypath(&self) -> &super::keypath::Keypath {
         &self.keypath
     }

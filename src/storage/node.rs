@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{FromKeypath, Keypath};
 
 /// Unifying trait for all storage-backed types.
 ///
@@ -6,7 +6,6 @@ use super::keypath::Keypath;
 /// They may be leaf types (NNInt, Bytestring, `Value<T>`) whose methods
 /// make immediate syscalls, or collection types (Map, Vector) that
 /// produce child nodes via `at()` / `at_mut()`.
-pub trait StorageNode: Sized {
-    fn from_keypath(keypath: Keypath) -> Self;
+pub trait StorageNode: FromKeypath {
     fn keypath(&self) -> &Keypath;
 }

@@ -4,8 +4,8 @@ macro_rules! impl_from_keypath {
             use crate::storage::*;
 
             impl$(<$($param),+>)? FromKeypath for $id$(<$($param),+>)? {
-                fn from_keypath(keypath: &Keypath) -> Self {
-                    keypath.clone().into()
+                fn from_keypath(keypath: Keypath) -> Self {
+                    keypath.into()
                 }
             }
         };

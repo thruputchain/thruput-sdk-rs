@@ -251,7 +251,7 @@ pub fn generate_method(
                     use ::sdk::storage::{Keypath, FromKeypath};
                     let keypath = Keypath::root();
                     let #mutability state =
-                        <#self_ty as FromKeypath>::from_keypath(&keypath);
+                        <#self_ty as FromKeypath>::from_keypath(keypath);
                 }
             } else {
                 // Load the previously-stored value
@@ -259,7 +259,7 @@ pub fn generate_method(
                     use ::sdk::storage::{Keypath, FromKeypath};
                     let keypath = Keypath::root();
                     let #mutability state =
-                        <#self_ty as FromKeypath>::from_keypath(&keypath);
+                        <#self_ty as FromKeypath>::from_keypath(keypath);
                 }
             }
         } else {

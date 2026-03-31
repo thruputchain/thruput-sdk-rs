@@ -18,12 +18,12 @@ contract_test!(test_map {
     let data_keypath = Keypath::new();
     let slot: u32 = 3;
     {
-        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
+        let mut data: Data = FromKeypath::from_keypath(data_keypath.clone());
         data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(data_keypath.clone());
         let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
@@ -86,12 +86,12 @@ contract_test!(test_map_entry {
 
 contract_test!(test_storable {
     let data_keypath = Keypath::new();
-    let mut data: Data = FromKeypath::from_keypath(&data_keypath);
+    let mut data: Data = FromKeypath::from_keypath(data_keypath.clone());
     for i in 0..3u64 {
         data.nums.push().set(&i);
     }
 
-    let data: Data = FromKeypath::from_keypath(&data_keypath);
+    let data: Data = FromKeypath::from_keypath(data_keypath.clone());
     for i in 0..3u64 {
         let n = data.nums.at(i).get();
         assert_eq!(n, i);
@@ -99,7 +99,7 @@ contract_test!(test_storable {
 });
 
 contract_test!(test_vector {
-    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::root());
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(Keypath::root());
 
     assert_eq!(0, vec.len());
     for i in 0..3u32 {
@@ -116,12 +116,12 @@ contract_test!(test_map_at {
     let data_keypath = Keypath::new();
     let slot: u32 = 3;
     {
-        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
+        let mut data: Data = FromKeypath::from_keypath(data_keypath.clone());
         data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(data_keypath.clone());
         let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
@@ -131,12 +131,12 @@ contract_test!(test_map_at_nested {
     let data_keypath = Keypath::new();
     let slot: u32 = 5;
     {
-        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
+        let mut data: Data = FromKeypath::from_keypath(data_keypath.clone());
         data.map.at_mut(&slot).strict_inc(42);
     }
 
     {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(data_keypath.clone());
         let val = data.map.at(&slot).try_get().unwrap_or(0);
         assert_eq!(val, 42);
     }
@@ -206,12 +206,12 @@ contract_test!(test_exclusive_propagation {
 
     // Use at_mut_exclusive -- exclusive flag reaches NNInt
     {
-        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
+        let mut data: Data = FromKeypath::from_keypath(data_keypath.clone());
         data.map.at_mut_exclusive(&slot).strict_inc(10);
     }
 
     {
-        let data: Data = FromKeypath::from_keypath(&data_keypath);
+        let data: Data = FromKeypath::from_keypath(data_keypath.clone());
         let v = data.map.at(&slot).get();
         assert_eq!(v, 10);
     }

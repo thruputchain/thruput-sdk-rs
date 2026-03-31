@@ -155,7 +155,7 @@ fn impl_from_keypath(
         field_names.extend(quote! { #field_name, });
 
         field_initializers.extend(quote! {
-            let #field_name = FromKeypath::from_keypath(&keypath);
+            let #field_name = FromKeypath::from_keypath(keypath.clone());
         });
 
         if (i + 1) < n_fields {
@@ -170,8 +170,8 @@ fn impl_from_keypath(
             use sdk::storage::*;
 
             impl<#generic_params> FromKeypath for #ty {
-                fn from_keypath(keypath: &Keypath) -> Self {
-                    let mut keypath = keypath.clone();
+                fn from_keypath(keypath: Keypath) -> Self {
+                    let mut keypath = keypath;
 
                     keypath.seq_begin();
                     #field_initializers
