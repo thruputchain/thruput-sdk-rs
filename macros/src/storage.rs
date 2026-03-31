@@ -72,6 +72,7 @@ fn generate_from_struct(
     let mut output = TokenStream::new();
     output.extend(impl_read_xdr_path(ident, generics, fields)?);
     output.extend(impl_from_keypath(ident, generics, fields)?);
+    output.extend(impl_deletable(ident, generics, fields)?);
 
     Ok(output)
 }
@@ -209,6 +210,63 @@ fn impl_from_keypath(
                     Self {
                         #field_names
                     }
+                }
+            }
+        };
+    })
+}
+
+fn impl_deletable(
+    ident: &syn::Ident,
+    generics: &syn::Generics,
+    fields: &syn::Fields,
+) -> Result<TokenStream> {
+    let ty = generic_type_name(ident, generics);
+    let generic_params = &generics.params;
+
+    let named_fields = match fields {
+        syn::Fields::Named(fields_named) => &fields_named.named,
+        syn::Fields::Unit => {
+            return Ok(quote! {
+                const _: () = {
+                    use sdk::storage::Deletable;
+                    use sdk::StorageDeltaFlags;
+
+                    impl<#generic_params> Deletable for #ty {
+                        fn delete_internal(&mut self, _flags: StorageDeltaFlags) {}
+                    }
+                };
+            });
+        }
+        _ => return err(fields, "Can only handle named or unit structs"),
+    };
+
+    let mut where_clauses = TokenStream::new();
+    let mut delete_calls = TokenStream::new();
+
+    for field in named_fields.iter() {
+        let field_name = &field.ident;
+        let field_ty = &field.ty;
+
+        where_clauses.extend(quote! {
+            #field_ty: Deletable,
+        });
+        delete_calls.extend(quote! {
+            self.#field_name.delete_internal(flags);
+        });
+    }
+
+    Ok(quote! {
+        const _: () = {
+            use sdk::storage::Deletable;
+            use sdk::StorageDeltaFlags;
+
+            impl<#generic_params> Deletable for #ty
+            where
+                #where_clauses
+            {
+                fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+                    #delete_calls
                 }
             }
         };
