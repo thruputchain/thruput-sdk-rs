@@ -55,4 +55,12 @@ impl VectorTestContract {
     pub fn nested_len(&self, key: u32) -> u32 {
         self.nested.at(&key).len()
     }
+
+    pub fn pop_value(&mut self) {
+        self.values.pop();
+    }
+
+    pub fn pop_nnint(&mut self) {
+        self.nnints.pop();
+    }
 }

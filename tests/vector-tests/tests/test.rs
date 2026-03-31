@@ -74,3 +74,37 @@ fn test_vector_basic_usage() {
     });
     read_result.assert_success();
 }
+
+#[test]
+fn test_vector_pop() {
+    let (env, contract_hash) = setup();
+    let addr = Cell::new(ContractAddress::default());
+
+    let deploy_result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+            }))
+    });
+    deploy_result.assert_success();
+
+    env.advance_block();
+
+    // Push two values, pop one, verify
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                let contract_addr = addr.get();
+                let client = VectorTestClient::new(&contract_addr);
+
+                client.push_value(100);
+                client.push_value(200);
+                assert_eq!(client.values_len(), 2);
+
+                client.pop_value();
+                assert_eq!(client.values_len(), 1);
+                assert_eq!(client.get_value(0), 100);
+            }))
+    });
+    result.assert_success();
+}

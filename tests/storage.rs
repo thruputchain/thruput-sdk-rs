@@ -217,6 +217,59 @@ contract_test!(test_exclusive_propagation {
     }
 });
 
+contract_test!(test_vector_pop {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+    vec.push().set(&30);
+    assert_eq!(3, vec.len());
+
+    vec.pop();
+    assert_eq!(2, vec.len());
+
+    // Popped element's storage is deleted
+    assert_eq!(vec.at(0).get(), 10);
+    assert_eq!(vec.at(1).get(), 20);
+
+    vec.pop();
+    vec.pop();
+    assert_eq!(0, vec.len());
+});
+
+contract_test!(test_vector_delete {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&1);
+    vec.push().set(&2);
+    vec.push().set(&3);
+
+    vec.delete();
+    assert_eq!(0, vec.len());
+});
+
+contract_test!(test_nnint_delete {
+    let keypath = Keypath::new();
+    let mut n: NNInt = keypath.into();
+    n.set(42);
+    assert_eq!(n.get(), 42);
+    n.delete();
+    assert_eq!(n.try_get(), None);
+});
+
+contract_test!(test_vector_pop_nnint {
+    let keypath = Keypath::new();
+    let mut vec: Vector<NNInt> = keypath.into();
+
+    vec.push().set(10);
+    vec.push().set(20);
+    assert_eq!(2, vec.len());
+
+    vec.pop();
+    assert_eq!(1, vec.len());
+    assert_eq!(vec.at(0).get(), 10);
+});
+
 #[test]
 fn test_data_fully_consumed() {
     let env = sdk::TestEnvironment::no_cost();
