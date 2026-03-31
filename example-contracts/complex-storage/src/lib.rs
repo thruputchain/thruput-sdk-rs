@@ -30,7 +30,7 @@ impl ComplexStorage {
     }
 
     pub fn get_inner_balance(&self, addr: ContractAddress) -> u64 {
-        assert!(self.inners.len() > 0, "No inner storage");
+        assert!(!self.inners.is_empty(), "No inner storage");
         let inner = self.inners.at(self.inners.len() - 1);
         inner.balances.at(&addr).get()
     }
