@@ -75,7 +75,6 @@ impl SwapContract {
 
 impl SwapContract {
     fn dequeue_request(&mut self) -> Option<SwapRequest> {
-
         // Consume a queue entry
         let req: EncodedSwapRequest = self.requests.try_consume_sized()?;
 
