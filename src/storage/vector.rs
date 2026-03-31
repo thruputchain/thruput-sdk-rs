@@ -1,7 +1,7 @@
 use super::keypath::Keypath;
 use super::map::Map;
 use super::nnint::NNInt;
-use super::node::StorageNode;
+use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
 
@@ -42,16 +42,16 @@ impl_from_keypath! { Vector<S> }
 impl_load_via_keypath! { Vector<S> }
 impl_read_via_keypath! { Vector<S> }
 
-impl<S: StorageNode> StorageNode for Vector<S> {
-    fn keypath(&self) -> &Keypath {
+impl<S> super::sealed::Sealed for Vector<S> {}
+impl<S> super::node::StorageType for Vector<S> {}
+
+impl<S> Vector<S> {
+    pub fn keypath(&self) -> &Keypath {
         &self.keypath
     }
 }
 
-impl<S> super::sealed::Sealed for Vector<S> {}
-impl<S> super::node::StorageType for Vector<S> {}
-
-impl<S: StorageNode> Vector<S> {
+impl<S: StorageType> Vector<S> {
     /// Current length (number of elements). Returns 0 if never written.
     pub fn len(&self) -> u64 {
         self.len.try_get().unwrap_or(0) as u64
@@ -61,7 +61,7 @@ impl<S: StorageNode> Vector<S> {
     pub fn at(&self, index: u64) -> SlotRef<'_, Self, S> {
         self.bounds_check(index);
         let keypath = self.make_elem_keypath(index);
-        let slot = S::from_keypath(keypath);
+        let slot = S::from(keypath);
         SlotRef::new(self, slot)
     }
 
@@ -69,7 +69,7 @@ impl<S: StorageNode> Vector<S> {
     pub fn at_mut(&mut self, index: u64) -> SlotMut<'_, Self, S> {
         self.bounds_check(index);
         let keypath = self.make_elem_keypath(index);
-        let slot = S::from_keypath(keypath);
+        let slot = S::from(keypath);
         SlotMut::new(self, slot)
     }
 
@@ -78,7 +78,7 @@ impl<S: StorageNode> Vector<S> {
         let idx = self.len();
         self.len.set((idx + 1) as i128);
         let keypath = self.make_elem_keypath(idx);
-        let slot = S::from_keypath(keypath);
+        let slot = S::from(keypath);
         SlotMut::new(self, slot)
     }
 

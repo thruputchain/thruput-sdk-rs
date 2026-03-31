@@ -1,5 +1,5 @@
 use super::keypath::Keypath;
-use super::node::StorageNode;
+use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -40,31 +40,31 @@ impl<K, V> Map<K, V> {
     pub fn at(&self, entry_key: &K) -> SlotRef<'_, Self, V>
     where
         K: WriteXDR,
-        V: StorageNode,
+        V: StorageType,
     {
         let keypath = self.make_entry_keypath(entry_key);
-        let slot = V::from_keypath(keypath);
+        let slot = V::from(keypath);
         SlotRef::new(self, slot)
     }
 
     pub fn at_mut(&mut self, entry_key: &K) -> SlotMut<'_, Self, V>
     where
         K: WriteXDR,
-        V: StorageNode,
+        V: StorageType,
     {
         let keypath = self.make_entry_keypath(entry_key);
-        let slot = V::from_keypath(keypath);
+        let slot = V::from(keypath);
         SlotMut::new(self, slot)
     }
 
     pub fn at_mut_exclusive(&mut self, entry_key: &K) -> SlotMut<'_, Self, V>
     where
         K: WriteXDR,
-        V: StorageNode,
+        V: StorageType,
     {
         let mut keypath = self.make_entry_keypath(entry_key);
         keypath.set_exclusive();
-        let slot = V::from_keypath(keypath);
+        let slot = V::from(keypath);
         SlotMut::new(self, slot)
     }
 

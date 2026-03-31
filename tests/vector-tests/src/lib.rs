@@ -12,9 +12,6 @@ pub struct VectorTestContract {
 
 #[contract(client = VectorTestClient)]
 impl VectorTestContract {
-    #[init]
-    pub fn initialize(&mut self) {}
-
     pub fn push_value(&mut self, val: u64) {
         self.values.push().set(&val);
     }
