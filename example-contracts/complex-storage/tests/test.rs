@@ -77,5 +77,46 @@ fn test_persistence_across_blocks() {
             }))
     });
     result.assert_success();
+}
 
+
+#[test]
+fn test_load_mut() {
+    let (env, contract_hash) = setup();
+
+    let addr = Cell::new(ContractAddress::default());
+
+    let deploy_result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+            }))
+    });
+
+    deploy_result.assert_success();
+    env.advance_block();
+
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                let contract_addr = addr.get();
+                let client = ComplexStorageClient::new(&contract_addr);
+                client.set_unconditional(12);
+                client.set_value(10);
+            }))
+    });
+    result.assert_success();
+
+    env.advance_block();
+
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                let contract_addr = addr.get();
+                let client = ComplexStorageClient::new(&contract_addr);
+                let value = client.get_value();
+                assert_eq!(value, 10);
+            }))
+    });
+    result.assert_success();
 }

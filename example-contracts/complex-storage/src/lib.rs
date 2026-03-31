@@ -12,7 +12,7 @@ pub struct InnerStorage {
 #[derive(Debug, Storage)]
 pub struct ComplexStorage {
     inners: Vector<Node<InnerStorage>>,
-    _foo: Value<u64>,
+    foo: Value<u64>,
 }
 
 
@@ -33,5 +33,17 @@ impl ComplexStorage {
         assert!(!self.inners.is_empty(), "No inner storage");
         let inner = self.inners.at(self.inners.len() - 1);
         inner.balances.at(&addr).get()
+    }
+
+    pub fn set_unconditional(&mut self, val : u64) {
+        self.foo.set(&val);
+    }
+
+    pub fn set_value(&mut self, val : u64) {
+        *self.foo.load_mut() = val;
+    }
+
+    pub fn get_value(&self) -> u64 {
+        self.foo.get()
     }
 }
