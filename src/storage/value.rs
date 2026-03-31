@@ -59,8 +59,8 @@ where
     }
 
     fn load_value(&self) -> super::error::Result<T> {
-        use crate::sys_result::bytestring::bytestring_get;
         use super::error::{StorageError, storage_syserr};
+        use crate::sys_result::bytestring::bytestring_get;
         use xdrs::cxs::buf_reader::BufReader;
 
         let key = &self.key.keypath().generate_key();
