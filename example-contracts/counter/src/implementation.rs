@@ -14,7 +14,6 @@ pub struct Counter {
 
 #[contract(throws = Error, client = CounterClient)]
 impl Counter {
-    #[init]
     pub fn initialize(&mut self, initial_value: u64) {
         self.value.strict_inc(initial_value as i128);
     }

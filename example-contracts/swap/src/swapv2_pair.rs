@@ -211,7 +211,6 @@ impl ERC20 for SwapV2Pair {
 
 #[contract(exports = "swap_exports")]
 impl ISwapV2Pair for SwapV2Pair {
-    #[init]
     fn initialize(
         &mut self,
         factory: &Address,

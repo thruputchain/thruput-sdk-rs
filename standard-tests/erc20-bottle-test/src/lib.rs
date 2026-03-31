@@ -13,7 +13,6 @@ pub struct BT {
 
 #[contract(version = "0.1.0")]
 impl BottleTest for BT {
-    #[init]
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let target_addr = erc20_test_setup(target_contract_hash);
 

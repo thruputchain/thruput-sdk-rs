@@ -1,7 +1,6 @@
 //! Parse attributes for the contract macro
 
 use darling::FromMeta;
-use darling::util::Flag;
 use proc_macro2::Span;
 
 #[derive(Clone, Debug)]
@@ -65,7 +64,6 @@ pub struct Config {
     pub storage: Option<bool>,
     pub interface: Option<String>,
     pub version: Option<String>,
-    pub init: Flag,
     pub doc: Option<String>,
 
     client: Option<syn::Ident>,

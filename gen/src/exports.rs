@@ -191,28 +191,6 @@ pub fn generate_method(
 
     let arg_names = method_arg_name_list(method.sig());
 
-    // Is the method marked #[init]?
-    let is_init = is_method && method.config().init.is_present();
-    // TODO: complain about #[init] in inappropriate positions
-
-    // If #[init], storage must be uninitialized before calling
-    let assert_uninitialized = if is_method && config.storage() && is_init {
-        let self_ty = &contract.unwrap().self_ty();
-        quote! {{
-            use ::sdk::storage::{Keypath, LoadKeypath};
-
-            // Assert that the storage does not yet exist
-            if <#self_ty as LoadKeypath>::try_load_keypath(&Keypath::root())
-                .unwrap_or_else(|_|
-                    panic!("Failed loading contract storage")).is_some() // XX abort
-            {
-                panic!("\"init\" method called when contract storage already exists"); // XX abort
-            }
-        }}
-    } else {
-        quote! {}
-    };
-
     // Load the stored contract state (when appropriate)
     let load_state = if is_method {
         let self_ty = &contract.unwrap().self_ty();
@@ -229,24 +207,13 @@ pub fn generate_method(
         };
 
         if config.storage() {
-            if is_init {
-                // Get a default value to initialize in this method
-                quote! {
-                    use ::sdk::storage::{Keypath, Node};
-                    use core::ops::{Deref, DerefMut};
-                    let keypath = Keypath::root();
-                    let #mutability state_node: Node<#self_ty> = keypath.into();
-                    let #mutability state :&#mutability #self_ty = #deref;
-                }
-            } else {
-                // Load the previously-stored value
-                quote! {
-                    use ::sdk::storage::{Keypath, Node};
-                    use core::ops::{Deref, DerefMut};
-                    let keypath = Keypath::root();
-                    let #mutability state_node: Node<#self_ty> = keypath.into();
-                    let #mutability state :&#mutability #self_ty = #deref;
-                }
+            // Construct contract state from keypaths
+            quote! {
+                use ::sdk::storage::{Keypath, Node};
+                use core::ops::{Deref, DerefMut};
+                let keypath = Keypath::root();
+                let #mutability state_node: Node<#self_ty> = keypath.into();
+                let #mutability state :&#mutability #self_ty = #deref;
             }
         } else {
             // If not using storage, we just create a default object to call the method on
@@ -290,10 +257,6 @@ pub fn generate_method(
         //
         // If debug mode: log the method-call
         #log_guest_call
-
-        // Abort if this is an "init" method and the contract state already
-        // exists
-        #assert_uninitialized
 
         let return_buf ={
 

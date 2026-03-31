@@ -16,7 +16,6 @@ pub struct Caller {
 
 #[contract(client = CallerClient)]
 impl Caller {
-    #[init]
     pub fn initialize(&mut self, token_contract: &ContractAddress) {
         self.token_contract.set(token_contract);
     }

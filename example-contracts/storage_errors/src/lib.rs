@@ -13,7 +13,6 @@ pub struct StorageErrorContract {
 /// No `throws` — errors should still propagate as LibraryExn, not Unknown.
 #[contract(client = StorageErrorClient)]
 impl StorageErrorContract {
-    #[init]
     pub fn initialize(&mut self) {
         // Push a few items so the vector has known length
         self.numbers.push().set(&10);
