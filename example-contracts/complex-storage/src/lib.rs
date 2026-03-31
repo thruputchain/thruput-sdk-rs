@@ -22,14 +22,16 @@ impl ComplexStorage {
 
         let addr: ContractAddress = [0; 32].into();
 
-        let mut inner = self.inners.at_mut(self.inners.len() - 1);
+        let last = self.inners.len() - 1;
+        let mut inner = self.inners.at_mut(last);
         inner.value.set(&10);
         inner.balances.at_mut(&addr).set(&100);
     }
 
     pub fn get_inner_balance(&self, addr: ContractAddress) -> u64 {
         assert!(!self.inners.is_empty(), "No inner storage");
-        let inner = self.inners.at(self.inners.len() - 1);
+        let last = self.inners.len() - 1;
+        let inner = self.inners.at(last);
         inner.balances.at(&addr).get()
     }
 

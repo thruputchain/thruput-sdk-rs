@@ -92,9 +92,9 @@ contract_test!(test_storable {
     }
 
     let data: Data = data_keypath.into();
-    for i in 0..3u64 {
+    for i in 0..3u32 {
         let n = data.nums.at(i).get();
-        assert_eq!(n, i);
+        assert_eq!(n, i as u64);
     }
 });
 
@@ -107,8 +107,8 @@ contract_test!(test_vector {
     }
 
     assert_eq!(3, vec.len());
-    for i in 0..3u64 {
-        assert_eq!(i as u32, vec.at(i).get());
+    for i in 0..3u32 {
+        assert_eq!(i, vec.at(i).get());
     }
 });
 

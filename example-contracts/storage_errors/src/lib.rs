@@ -22,18 +22,18 @@ impl StorageErrorContract {
 
     /// Access a vector element by index. Will abort with
     /// LibraryExn::Storage(IndexOutOfBounds) if index >= len.
-    pub fn vector_get(&self, index: u64) -> u64 {
+    pub fn vector_get(&self, index: u32) -> u64 {
         self.numbers.at(index).get()
     }
 
     /// Set a vector element by index. Will abort with
     /// LibraryExn::Storage(IndexOutOfBounds) if index >= len.
-    pub fn vector_set(&mut self, index: u64, value: u64) {
+    pub fn vector_set(&mut self, index: u32, value: u64) {
         self.numbers.at_mut(index).set(&value);
     }
 
     /// Get the vector length.
-    pub fn vector_len(&self) -> u64 {
+    pub fn vector_len(&self) -> u32 {
         self.numbers.len()
     }
 
