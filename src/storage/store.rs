@@ -43,32 +43,3 @@ fn store_pre<T: WriteXDR>(value: &T, key: &StorageKey) -> Vec<u8> {
 
     encode(value).unwrap() // XX
 }
-
-pub fn store<T: Store>(key: &StorageKey, val: &T) {
-    val.store(key)
-}
-
-/// Create a default storage value via [`FromKeypath`],
-/// pass it to the given function for initialization, and
-/// store it at the given keypath.
-pub fn initialize<T, F>(keypath: &Keypath, mut init: F)
-where
-    T: Store + FromKeypath,
-    F: FnMut(&mut T),
-{
-    let mut val = FromKeypath::from_keypath(keypath);
-    init(&mut val);
-    val.store_keypath(keypath);
-}
-
-/// Create a default storage value via [`FromKeypath`],
-/// pass it to the given function for initialization, and
-/// store it at the root key.
-pub fn initialize_root<T, F>(init: F)
-where
-    T: Store + FromKeypath,
-    F: FnMut(&mut T),
-{
-    let keypath = Keypath::root();
-    initialize(&keypath, init)
-}
