@@ -45,8 +45,9 @@ where
     /// Deserialize and return the stored value.
     /// Aborts if the key does not exist.
     pub fn get(&self) -> T {
-        self.load_value()
-            .unwrap_or_else(|e| crate::exn::library_throw(e))
+        self.load_value().unwrap_or_else(|e: super::StorageError| {
+            crate::exn::library_throw(e)
+        })
     }
 
     /// Deserialize and return the stored value, or None if the key doesn't exist.
@@ -61,12 +62,10 @@ where
     fn load_value(&self) -> super::error::Result<T> {
         use super::error::{StorageError, storage_syserr};
         use crate::sys_result::bytestring::bytestring_get;
-        use xdrs::cxs::buf_reader::BufReader;
 
         let key = &self.key.keypath().generate_key();
         let buf = bytestring_get(key).map_err(storage_syserr)?;
-        let mut reader = BufReader::new(buf.as_ref());
-        xdrs::read_xdr(&mut reader).map_err(|_| StorageError::Serialization)
+        xdrs::cxs::decode(&buf).map_err(|_| StorageError::Serialization)
     }
 }
 

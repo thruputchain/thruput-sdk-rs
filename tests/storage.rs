@@ -216,3 +216,31 @@ contract_test!(test_exclusive_propagation {
         assert_eq!(v, 10);
     }
 });
+
+#[test]
+fn test_data_fully_consumed() {
+    let env = sdk::TestEnvironment::no_cost();
+
+    let result = sdk::contract_exec(env, || {
+        let keypath = Keypath::new();
+        {
+            let mut value: Value<(i32, i32)> = Value::new(&keypath.clone());
+            value.set(&(10, 20));
+        }
+
+        {
+            // check that the value is read correctly
+            let value: Value<(i32, i32)> = keypath.clone().into();
+            let (a, b) = value.get();
+            assert_eq!(a, 10);
+            assert_eq!(b, 20);
+        }
+
+        {
+            let value: Value<i32> = keypath.clone().into();
+            value.try_get();
+            assert!(false, "unreachable");
+        }
+    });
+    assert!(result.is_err());
+}
