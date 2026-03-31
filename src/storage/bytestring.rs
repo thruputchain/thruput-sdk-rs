@@ -19,7 +19,7 @@ impl From<Keypath> for Bytestring {
 impl_load_via_keypath! { Bytestring }
 impl_default_via_keypath! { Bytestring }
 impl_read_via_keypath! { Bytestring }
-impl_write_xdr_empty! { Bytestring }
+
 
 impl Bytestring {
     pub fn new(keypath: &Keypath) -> Self {

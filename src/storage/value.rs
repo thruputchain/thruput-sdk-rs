@@ -27,7 +27,7 @@ impl<T> From<Keypath> for Value<T> {
 impl_load_via_keypath! { Value<T> }
 impl_default_via_keypath! { Value<T> }
 impl_read_via_keypath! { Value<T> }
-impl_write_xdr_empty! { Value<T> }
+
 
 impl<T> StorageNode for Value<T> {
     fn from_keypath(keypath: Keypath) -> Self {

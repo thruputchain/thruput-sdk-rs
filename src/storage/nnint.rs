@@ -21,7 +21,7 @@ impl From<Keypath> for NNInt {
 impl_load_via_keypath! { NNInt }
 impl_default_via_keypath! { NNInt }
 impl_read_via_keypath! { NNInt }
-impl_write_xdr_empty! { NNInt }
+
 
 impl NNInt {
     pub fn new(keypath: &Keypath) -> Self {

@@ -61,19 +61,3 @@ macro_rules! impl_read_via_keypath {
         };
     };
 }
-
-macro_rules! impl_write_xdr_empty {
-    { $id:ident$(<$($param:ident),+>)? } => {
-        const _: () = {
-            use xdrs::{WriteXDR, Writer, WriteResult};
-
-            impl$(<$($param),+>)? WriteXDR for $id$(<$($param),+>)? {
-                fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
-                    // Write nothing
-
-                    Ok(())
-                }
-            }
-        };
-    };
-}
