@@ -4,6 +4,7 @@ use core::ops::{Deref, DerefMut};
 
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
+#[allow(private_bounds)]
 pub trait StorageType: Sealed + From<Keypath> {}
 
 /// A keypath-storing wrapper for compound storage field groups.
