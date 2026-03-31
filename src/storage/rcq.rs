@@ -62,4 +62,3 @@ impl RCQ {
         retrocausal_queue_get_max::<N>(&self.key, peek)
     }
 }
-
