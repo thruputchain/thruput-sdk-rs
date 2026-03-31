@@ -1762,6 +1762,7 @@ dependencies = [
  "sdk",
  "swap",
  "uint",
+ "xdrs",
 ]
 
 [[package]]

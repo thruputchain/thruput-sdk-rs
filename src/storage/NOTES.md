@@ -1,0 +1,2 @@
+- remove `Handle`?
+- Vec<u8> -> Box<[u8]>

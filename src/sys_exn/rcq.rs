@@ -1,4 +1,4 @@
-use crate::sys::SyscallNo;
+use crate::sys::{SyscallErrorCode, SyscallNo};
 use crate::sys_result::rcq as rcq_result;
 use crate::syscall_throw;
 use crate::types::StorageKey;
@@ -15,6 +15,22 @@ pub fn retrocausal_queue_consume_sized<const N: usize>(
     rcq_result::retrocausal_queue_consume_sized(key).unwrap_or_else(|errno| {
         syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno)
     })
+}
+
+pub fn retrocausal_queue_try_consume_sized<const N: usize>(
+    key: &StorageKey,
+) -> Option<[u8; N]> {
+    match rcq_result::retrocausal_queue_consume_sized(key) {
+        Ok(v) => Some(v),
+        Err(e)
+            if e.is_code(
+                SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
+            ) =>
+        {
+            None
+        }
+        Err(e) => syscall_throw(SyscallNo::kRetrocausalQueueConsume, e),
+    }
 }
 
 pub fn retrocausal_queue_peek_sized<const N: usize>(

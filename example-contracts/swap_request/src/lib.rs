@@ -2,11 +2,8 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
-use sdk::sys_result::rcq::{
-    retrocausal_queue_consume_sized, retrocausal_queue_insert,
-};
 use sdk::*;
-use sys::SyscallErrorCode;
+use sdk::storage::RCQ;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");
 
@@ -51,18 +48,20 @@ impl From<SwapRequest> for EncodedSwapRequest {
     }
 }
 
-#[derive(Storage)]
-pub struct SwapContract;
+#[storage]
+pub struct SwapContract {
+    requests: RCQ,
+}
 
 #[contract(client = SwapClient)]
 impl SwapContract {
-    pub fn submit_request(&self, r: SwapRequest) {
+    pub fn submit_request(&mut self, r: SwapRequest) {
         let r: EncodedSwapRequest = r.into();
 
-        retrocausal_queue_insert(&REQUEST_QUEUE, &r).unwrap();
+        self.requests.insert(&r);
     }
 
-    pub fn process_requests(&self) -> RequestID {
+    pub fn process_requests(&mut self) -> RequestID {
         let mut extent = 0;
 
         while let Some(r) = self.dequeue_request() {
@@ -72,24 +71,14 @@ impl SwapContract {
 
         extent
     }
-
-    pub fn die() {
-        panic!("Died");
-    }
 }
 
 impl SwapContract {
-    fn dequeue_request(&self) -> Option<SwapRequest> {
+    fn dequeue_request(&mut self) -> Option<SwapRequest> {
+
         // Consume a queue entry
-        retrocausal_queue_consume_sized(&REQUEST_QUEUE)
-            .map(|r| r.into())
-            .inspect_err(|e| {
-                if !e.is_code(
-                    SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
-                ) {
-                    panic!("rcq consume failed: {}", e);
-                }
-            })
-            .ok()
+        let req: EncodedSwapRequest = self.requests.try_consume_sized()?;
+
+        Some(req.into())
     }
 }

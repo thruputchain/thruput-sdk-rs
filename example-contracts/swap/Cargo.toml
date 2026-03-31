@@ -13,6 +13,7 @@ sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true }
 erc20 = { path = "../erc20" }
 uint = { version = "0.10.0", default-features = false }
+xdrs = { workspace = true }
 
 [features]
 dev = ["sdk/dev", "erc20/dev"]
