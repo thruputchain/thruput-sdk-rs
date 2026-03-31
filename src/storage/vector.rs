@@ -48,6 +48,9 @@ impl<S: StorageNode> StorageNode for Vector<S> {
     }
 }
 
+impl<S> super::sealed::Sealed for Vector<S> {}
+impl<S> super::node::StorageType for Vector<S> {}
+
 impl<S: StorageNode> Vector<S> {
     /// Current length (number of elements). Returns 0 if never written.
     pub fn len(&self) -> u64 {

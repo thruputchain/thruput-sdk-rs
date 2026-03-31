@@ -83,3 +83,6 @@ impl<K, V> super::node::StorageNode for Map<K, V> {
         &self.keypath
     }
 }
+
+impl<K, V> super::sealed::Sealed for Map<K, V> {}
+impl<K, V> super::node::StorageType for Map<K, V> {}

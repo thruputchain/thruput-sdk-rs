@@ -34,6 +34,9 @@ impl<T> StorageNode for Value<T> {
     }
 }
 
+impl<T> super::sealed::Sealed for Value<T> {}
+impl<T> super::node::StorageType for Value<T> {}
+
 impl<T> Value<T> {
     pub fn new(keypath: &Keypath) -> Self {
         Self {

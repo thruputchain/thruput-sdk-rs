@@ -69,3 +69,6 @@ impl super::node::StorageNode for Bytestring {
         self.key.keypath()
     }
 }
+
+impl super::sealed::Sealed for Bytestring {}
+impl super::node::StorageType for Bytestring {}

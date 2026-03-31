@@ -96,3 +96,6 @@ impl super::node::StorageNode for NNInt {
         &self.keypath
     }
 }
+
+impl super::sealed::Sealed for NNInt {}
+impl super::node::StorageType for NNInt {}
