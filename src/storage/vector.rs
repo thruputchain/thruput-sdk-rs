@@ -100,3 +100,32 @@ impl<S: StorageType> Vector<S> {
         kp
     }
 }
+
+use super::deletable::Deletable;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
+
+impl<S: StorageType + Deletable> Vector<S> {
+    /// Remove the last element, deleting its storage.
+    /// Aborts if the vector is empty.
+    pub fn pop(&mut self) {
+        let len = self.len();
+        if len == 0 {
+            super::error::oob_throw(0, 0);
+        }
+        let new_len = len - 1;
+        let mut elem = S::from(self.make_elem_keypath(new_len));
+        elem.delete_internal(StorageDeltaFlags::ExclusiveLock);
+        self.len.set(&new_len);
+    }
+}
+
+impl<S: StorageType + Deletable> Deletable for Vector<S> {
+    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+        let len = self.len();
+        for i in 0..len {
+            let mut elem = S::from(self.make_elem_keypath(i));
+            elem.delete_internal(flags);
+        }
+        self.len.delete_internal(flags);
+    }
+}
