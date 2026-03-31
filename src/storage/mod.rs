@@ -34,9 +34,6 @@ pub use bytestring::*;
 pub mod nnint;
 pub use nnint::*;
 
-pub mod handle;
-pub use handle::*;
-
 pub mod value;
 pub use value::*;
 

@@ -109,80 +109,6 @@ contract_test!(test_storable {
     }
 });
 
-contract_test!(test_storable_lazy {
-    let data_keypath = Keypath::new();
-    let mut handle: Handle<Data> = Handle::new(&data_keypath);
-
-    let mut data = handle.load_mut().unwrap();
-    for i in 0..3 {
-        let n = i;
-        data.nums.push(n);
-    }
-    for i in 0..3 {
-        let n = data.nums.get(i);
-        assert_eq!(n, i);
-    }
-    drop(data); // flush changes
-
-    let data = handle.load().unwrap();
-    for i in 0..3 {
-        let n = data.nums.get(i);
-        assert_eq!(n, i);
-    }
-
-    assert!(data.nums.try_get(100).is_none());
-});
-
-contract_test!(test_load_default {
-    let data_keypath = Keypath::new();
-    let mut handle: Handle<Data> = Handle::new(&data_keypath);
-
-    let mut data = handle.load_mut().unwrap();
-    data.nnints.extend_len(3);
-    drop(data); // flush changes
-
-    let data = handle.load().unwrap();
-    for i in 0..3 {
-        let mut nnint = data.nnints.get_default(i);
-        assert_eq!(nnint.try_get(), None);
-
-        let n = 72 + i;
-        nnint.strict_inc(n as i128);
-    }
-    drop(data);
-
-    let data = handle.load().unwrap();
-    for i in 0..3 {
-        let nnint = data.nnints.get_default(i);
-        let n = nnint.get() as u64;
-        let n_expected = 72 + i;
-        assert_eq!(n, n_expected);
-    }
-});
-
-/* XXX
-contract_test!(test_bytestring {
-    let mut handle: Handle<Data> = Handle::root();
-
-    let data = handle.load().unwrap();
-    let expected = b"";
-    assert_eq!(expected.len(), data.bytes.len());
-    assert_eq!(expected, data.bytes.get().as_ref());
-
-    let mut data = handle.load_mut().unwrap();
-    assert_eq!(0, data.bytes.len());
-    let contents = b"Bytestring contents";
-    data.bytes.set(contents);
-    assert_eq!(contents.len(), data.bytes.len());
-    assert_eq!(contents, data.bytes.get().as_ref());
-    drop(data);
-
-    let data = handle.load().unwrap();
-    assert_eq!(contents.len(), data.bytes.len());
-    assert_eq!(contents, data.bytes.get().as_ref());
-});
-*/
-
 contract_test!(test_vector {
     let mut vec: Vector<u32> = Vector::new_from(Keypath::root(), 0);
 
@@ -195,55 +121,6 @@ contract_test!(test_vector {
     for i in 0..3 {
         assert_eq!(i as u32, vec.get(i));
     }
-});
-
-contract_test!(test_handled_vector {
-    let mut handle: Handle<Vector<u32>> = Handle::root();
-
-    let vec = handle.load().unwrap();
-    assert_eq!(0, vec.len());
-    drop(vec);
-
-    let mut vec = handle.load_mut().unwrap();
-    assert_eq!(0, vec.len());
-    for i in 0..3 {
-        vec.push(i);
-    }
-    drop(vec);
-
-    let vec = handle.load().unwrap();
-    assert_eq!(3, vec.len());
-    for i in 0..3 {
-        assert_eq!(i as u32, vec.get(i));
-    }
-    drop(vec);
-});
-
-contract_test!(test_vector_data {
-    let mut handle: Handle<Vector<Data>> = Handle::root();
-
-    let vec = handle.load().unwrap();
-    assert_eq!(0, vec.len());
-    drop(vec);
-
-    let mut vec = handle.load_mut().unwrap();
-    assert_eq!(0, vec.len());
-    vec.extend_len(3);
-    for i in 0..3 {
-        // let mut dh = vec.get_handle(i).unwrap();
-        // let mut d = dh.load_mut().unwrap();
-        let mut d = vec.load_mut(i);
-        d.num = i as _;
-    }
-    drop(vec);
-
-    let vec = handle.load().unwrap();
-    assert_eq!(3, vec.len());
-    for i in 0..3 {
-        let d = vec.get_default(i);
-        assert_eq!(i, d.num as _);
-    }
-    drop(vec);
 });
 
 contract_test!(test_map_at {

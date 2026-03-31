@@ -1,5 +1,4 @@
 use super::error::*;
-use super::handle::Handle;
 use super::keypath::{DefaultFromKeypath, Keypath};
 use super::load::{LoadKeypath, load_keypath};
 use super::store::Store;
@@ -136,18 +135,6 @@ impl<T> Vector<T> {
         let val = self.get_default(index);
 
         ElemRefMut::new(self, index, val)
-    }
-
-    pub fn get_handle(&self, index: u64) -> Handle<T>
-    where
-        T: LoadKeypath + DefaultFromKeypath,
-    {
-        if index < self.len {
-            let keypath = self.make_index_keypath(index);
-            Handle::from(keypath)
-        } else {
-            oob_throw(self.len, index);
-        }
     }
 
     pub fn set(&self, index: u64, val: &T)
