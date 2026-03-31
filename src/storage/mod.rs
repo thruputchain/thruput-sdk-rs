@@ -22,6 +22,8 @@ pub use load::*;
 pub mod store;
 pub use store::*;
 
+mod sealed;
+
 pub mod node;
 pub use node::*;
 
