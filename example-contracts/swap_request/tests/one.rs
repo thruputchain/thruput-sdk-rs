@@ -1,5 +1,5 @@
-use swap_request::*;
 use sdk::*;
+use swap_request::*;
 
 static CONTRACT_ADDR: ContractAddress =
     ContractAddress::new(hash_to_array!("SWAP ADDR"));
@@ -28,9 +28,12 @@ fn test_multi() {
     let _contract_hash = env.setup_create_contract(&contract);
     env.setup_create_deployment(&CONTRACT_ADDR, &contract);
 
-    client_transact(&env, |c| c.submit_request(SwapRequest::new())).assert_success();
-    client_transact(&env, |c| c.submit_request(SwapRequest::new())).assert_success();
-    client_transact(&env, |c| c.submit_request(SwapRequest::new())).assert_success();
+    client_transact(&env, |c| c.submit_request(SwapRequest::new()))
+        .assert_success();
+    client_transact(&env, |c| c.submit_request(SwapRequest::new()))
+        .assert_success();
+    client_transact(&env, |c| c.submit_request(SwapRequest::new()))
+        .assert_success();
     env.advance_block();
 
     client_transact(&env, |c| {
@@ -38,16 +41,14 @@ fn test_multi() {
         let last_processed = c.process_requests();
 
         assert_eq!(last_processed, last_submitted);
-    }).assert_success();
+    })
+    .assert_success();
     env.advance_block();
 }
 
-fn client_transact<F>(
-    env: &TestEnvironmentHandle,
-    f: F,
-) -> TransactResult
+fn client_transact<F>(env: &TestEnvironmentHandle, f: F) -> TransactResult
 where
-    F: Fn(&SwapClient) + std::panic::RefUnwindSafe
+    F: Fn(&SwapClient) + std::panic::RefUnwindSafe,
 {
     env.transact(|tx| {
         tx.call(&CONTRACT_ADDR).run(|| {

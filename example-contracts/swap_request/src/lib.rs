@@ -2,8 +2,8 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
-use sdk::*;
 use sdk::storage::RCQ;
+use sdk::*;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");
 
