@@ -40,32 +40,64 @@ impl<T> Value<T> {
 
 impl<T> Value<T>
 where
-    T: super::load::LoadKeypath,
+    T: for<'a> xdrs::ReadXDR<'a>,
 {
     /// Deserialize and return the stored value.
     /// Aborts if the key does not exist.
     pub fn get(&self) -> T {
-        super::load::LoadKeypath::load_keypath(self.key.keypath())
+        self.load_value()
             .unwrap_or_else(|e| crate::exn::library_throw(e))
     }
 
     /// Deserialize and return the stored value, or None if the key doesn't exist.
     pub fn try_get(&self) -> Option<T> {
-        super::load::LoadKeypath::try_load_keypath(self.key.keypath())
-            .unwrap_or_else(|e| crate::exn::library_throw(e))
+        match self.load_value() {
+            Ok(v) => Some(v),
+            Err(e) if e.is_storage_key_not_exist() => None,
+            Err(e) => crate::exn::library_throw(e),
+        }
+    }
+
+    fn load_value(&self) -> super::error::Result<T> {
+        use crate::sys_result::bytestring::bytestring_get;
+        use super::error::{StorageError, storage_syserr};
+        use xdrs::cxs::buf_reader::BufReader;
+
+        let key = &self.key.keypath().generate_key();
+        let buf = bytestring_get(key).map_err(storage_syserr)?;
+        let mut reader = BufReader::new(buf.as_ref());
+        xdrs::read_xdr(&mut reader).map_err(|_| StorageError::Serialization)
     }
 }
 
 impl<T> Value<T>
 where
-    T: super::store::Store,
+    T: xdrs::WriteXDR,
 {
     /// Serialize and store the value immediately.
     pub fn set(&mut self, value: &T) {
+        use crate::sys_exn::bytestring::*;
+        use xdrs::cxs::encode;
+
+        let buf = encode(value).unwrap();
         if self.key.keypath().is_exclusive() {
-            value.store_exclusive(&self.key);
+            bytestring_set_exclusive(&self.key, buf.as_slice());
         } else {
-            value.store(&self.key);
+            bytestring_set(&self.key, buf.as_slice());
+        }
+    }
+}
+
+impl<T> Value<T>
+where
+    T: xdrs::WriteXDR + for<'a> xdrs::ReadXDR<'a>,
+{
+    /// Load the value and return a mutable reference to it.
+    pub fn load_mut(&mut self) -> ValueMut<'_, T> {
+        let value = self.get();
+        ValueMut {
+            value: self as &mut Value<T>,
+            data: value,
         }
     }
 }
@@ -81,27 +113,13 @@ impl<T> Value<T> {
     }
 }
 
-impl<T> Value<T>
-where
-    T: super::load::LoadKeypath + Default + super::store::Store,
-{
-    /// Load the value for in-place modification.
-    /// Returns a `ValueMut` that derefs to `&mut T` and flushes on drop.
-    pub fn load_mut(&mut self) -> ValueMut<'_, T> {
-        let data = T::try_load_keypath(self.key.keypath())
-            .unwrap_or_else(|e| crate::exn::library_throw(e))
-            .unwrap_or_default();
-        ValueMut { value: self, data }
-    }
-}
-
 /// Mutable view into a `Value<T>`. Flushes T back to storage on drop.
-pub struct ValueMut<'a, T: super::store::Store> {
+pub struct ValueMut<'a, T: __xdrs::WriteXDR> {
     value: &'a mut Value<T>,
     data: T,
 }
 
-impl<T: super::store::Store> Deref for ValueMut<'_, T> {
+impl<T: __xdrs::WriteXDR> Deref for ValueMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -109,13 +127,13 @@ impl<T: super::store::Store> Deref for ValueMut<'_, T> {
     }
 }
 
-impl<T: super::store::Store> DerefMut for ValueMut<'_, T> {
+impl<T: __xdrs::WriteXDR> DerefMut for ValueMut<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.data
     }
 }
 
-impl<T: super::store::Store> Drop for ValueMut<'_, T> {
+impl<T: __xdrs::WriteXDR> Drop for ValueMut<'_, T> {
     fn drop(&mut self) {
         self.value.set(&self.data);
     }

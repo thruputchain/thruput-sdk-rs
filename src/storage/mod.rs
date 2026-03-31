@@ -19,9 +19,6 @@ pub use read_xdr_path::*;
 pub mod load;
 pub use load::*;
 
-pub mod store;
-pub use store::*;
-
 mod sealed;
 
 pub mod node;

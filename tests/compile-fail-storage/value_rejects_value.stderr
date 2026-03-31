@@ -2,13 +2,12 @@ error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::stora
  --> tests/compile-fail-storage/value_rejects_value.rs:5:7
   |
 5 |     v.set(&Value::from(Keypath::new()));
-  |       ^^^
+  |       ^^^ method cannot be called on `sdk::storage::Value<sdk::storage::Value<i32>>` due to unsatisfied trait bounds
   |
  ::: src/storage/value.rs
   |
   | pub struct Value<T> {
-  | ------------------- doesn't satisfy `sdk::storage::Value<i32>: Store` or `sdk::storage::Value<i32>: WriteXDR`
+  | ------------------- doesn't satisfy `sdk::storage::Value<i32>: WriteXDR`
   |
   = note: the following trait bounds were not satisfied:
           `sdk::storage::Value<i32>: WriteXDR`
-          which is required by `sdk::storage::Value<i32>: Store`
