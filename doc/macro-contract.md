@@ -41,10 +41,6 @@ it to be serialized and stored in the key-value store.
 If the method receiver is `&mut self`, the value of the state object will be
 stored back to the key-value store after the method completes successfully.
 
-A method may be decorated with `#[init]` to assert that, when called, no
-contract state has yet been stored; a default value for the state object will
-be provided as the `self` parameter.
-
 #### Endpoint identifier customization
 
 Each exported contract entrypoint is named with an identifier derived from the
