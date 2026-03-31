@@ -12,7 +12,7 @@ pub struct InnerStorage {
 #[derive(Debug, Storage)]
 pub struct ComplexStorage {
     inners: Vector<Node<InnerStorage>>,
-    foo: Value<u64>,
+    value: Value<u64>,
 }
 
 #[contract]
@@ -34,14 +34,14 @@ impl ComplexStorage {
     }
 
     pub fn set_unconditional(&mut self, val: u64) {
-        self.foo.set(&val);
+        self.value.set(&val);
     }
 
     pub fn set_value(&mut self, val: u64) {
-        *self.foo.load_mut() = val;
+        *self.value.load_mut() = val;
     }
 
     pub fn get_value(&self) -> u64 {
-        self.foo.get()
+        self.value.get()
     }
 }
