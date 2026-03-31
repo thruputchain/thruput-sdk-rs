@@ -49,12 +49,12 @@ impl From<SwapRequest> for EncodedSwapRequest {
 }
 
 #[storage]
-pub struct SwapContract {
+pub struct Swap {
     requests: RCQ,
 }
 
-#[contract(client = SwapClient)]
-impl SwapContract {
+#[contract]
+impl Swap {
     pub fn submit_request(&mut self, r: SwapRequest) {
         let r: EncodedSwapRequest = r.into();
 
@@ -73,7 +73,7 @@ impl SwapContract {
     }
 }
 
-impl SwapContract {
+impl Swap {
     fn dequeue_request(&mut self) -> Option<SwapRequest> {
         // Consume a queue entry
         let req: EncodedSwapRequest = self.requests.try_consume_sized()?;

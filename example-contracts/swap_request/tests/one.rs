@@ -6,7 +6,7 @@ static CONTRACT_ADDR: ContractAddress =
 
 #[test]
 fn test_simple() {
-    sdk::client_test(|env| env.register_mock(SwapContract::__mock), _test_simple);
+    sdk::client_test(|env| env.register_mock(Swap::__mock), _test_simple);
 }
 
 fn _test_simple(c: &SwapClient) {
@@ -24,7 +24,7 @@ fn _test_simple(c: &SwapClient) {
 #[test]
 fn test_multi() {
     let env = TestEnvironment::no_cost();
-    let contract = env.register_mock(SwapContract::__mock);
+    let contract = env.register_mock(Swap::__mock);
     let _contract_hash = env.setup_create_contract(&contract);
     env.setup_create_deployment(&CONTRACT_ADDR, &contract);
 
