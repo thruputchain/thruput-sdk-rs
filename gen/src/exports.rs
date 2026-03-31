@@ -256,12 +256,10 @@ pub fn generate_method(
             } else {
                 // Load the previously-stored value
                 quote! {
-                    use ::sdk::storage::{Keypath, LoadKeypath};
+                    use ::sdk::storage::{Keypath, FromKeypath};
                     let keypath = Keypath::root();
                     let #mutability state =
-                        <#self_ty as LoadKeypath>::try_load_keypath(&keypath)
-                            .unwrap_or_else(|_| panic!("Failed loading contract storage"))
-                            .unwrap_or_else(|| panic!("Contract storage not present"));
+                        <#self_ty as FromKeypath>::from_keypath(&keypath);
                 }
             }
         } else {
@@ -276,16 +274,8 @@ pub fn generate_method(
         quote! {}
     };
 
-    // If the method takes a mutable ref to the contract state, save the state
-    // afterwards:
-    let save_state = if is_method && config.storage() && is_mut {
-        quote! {
-            use ::sdk::storage::Store;
-            state.store_keypath(&keypath);
-        }
-    } else {
-        quote! {}
-    };
+    // State handles persist themselves via immediate syscalls; no struct-level serialization needed.
+    let save_state = quote! {};
 
     let log_guest_call = if cfg!(feature = "logging") {
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
