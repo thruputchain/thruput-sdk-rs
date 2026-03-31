@@ -2,6 +2,7 @@ use super::keypath::{KeyCache, Keypath};
 use crate::sys_exn::bytestring::*;
 use alloc::boxed::Box;
 use core::fmt::Debug;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 #[derive(Debug)]
 pub struct Bytestring {
@@ -42,14 +43,6 @@ impl Bytestring {
         }
     }
 
-    pub fn delete(&mut self) {
-        if self.key.keypath().is_exclusive() {
-            crate::delete_exclusive(self.key.get());
-        } else {
-            crate::delete_shared(self.key.get());
-        }
-    }
-
     pub fn get_sized<const N: usize>(&self) -> [u8; N] {
         bytestring_get_sized(&self.key)
     }
@@ -65,3 +58,15 @@ impl Bytestring {
 
 impl super::sealed::Sealed for Bytestring {}
 impl super::node::StorageType for Bytestring {}
+
+impl super::deletable::Deletable for Bytestring {
+    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+        let keypath_flags = if self.key.keypath().is_exclusive() {
+            StorageDeltaFlags::ExclusiveLock
+        } else {
+            StorageDeltaFlags::None
+        };
+        let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
+        crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
+    }
+}
