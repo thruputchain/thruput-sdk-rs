@@ -216,3 +216,26 @@ contract_test!(test_exclusive_propagation {
         assert_eq!(v, 10);
     }
 });
+
+/// Compile-time verification: storage nodes cannot be used as Value<T> parameters.
+/// These types intentionally do NOT implement Store (no WriteXDR).
+/// Uncomment any line below to verify it produces a compile error.
+#[cfg(any())]
+mod _value_lockdown_verification {
+    use sdk::storage::*;
+    fn _value_nnint() {
+        Value::<NNInt>::new(&Keypath::new()).set(&NNInt::from(Keypath::new()));
+    }
+    fn _value_bytestring() {
+        Value::<Bytestring>::new(&Keypath::new())
+            .set(&Bytestring::from(Keypath::new()));
+    }
+    fn _value_map() {
+        Value::<Map<u32, NNInt>>::new(&Keypath::new())
+            .set(&Map::from(Keypath::new()));
+    }
+    fn _value_value() {
+        Value::<Value<i32>>::new(&Keypath::new())
+            .set(&Value::from(Keypath::new()));
+    }
+}
