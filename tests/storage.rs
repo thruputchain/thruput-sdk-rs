@@ -248,6 +248,49 @@ contract_test!(test_vector_delete {
     assert_eq!(0, vec.len());
 });
 
+contract_test!(test_vector_delete_verifies_storage_cleared {
+    let root = Keypath::root();
+    let mut vec: Vector<Value<u32>> = root.clone().into();
+
+    vec.push().set(&100);
+    vec.push().set(&200);
+    vec.push().set(&300);
+
+    // Verify values are there via manually-constructed keypaths.
+    // Vector layout:
+    //   len   = root + seq_begin (index 0)
+    //   values map = root + seq_begin + seq_next (index 1)
+    //   element i  = values_kp + push_item(&i)
+    let mut values_kp = root.clone();
+    values_kp.seq_begin();
+    values_kp.seq_next();
+
+    let elem = |kp: &Keypath, idx: u32| -> Value<u32> {
+        let mut ekp = kp.clone();
+        ekp.push_item(&idx);
+        Value::new(&ekp)
+    };
+
+    // Before delete: elements are readable
+    assert_eq!(elem(&values_kp, 0).try_get(), Some(100));
+    assert_eq!(elem(&values_kp, 1).try_get(), Some(200));
+    assert_eq!(elem(&values_kp, 2).try_get(), Some(300));
+
+    // Delete the whole vector
+    vec.delete();
+
+    // After delete: all element storage is gone
+    assert_eq!(elem(&values_kp, 0).try_get(), None);
+    assert_eq!(elem(&values_kp, 1).try_get(), None);
+    assert_eq!(elem(&values_kp, 2).try_get(), None);
+
+    // Length storage is also gone
+    let mut len_kp = root;
+    len_kp.seq_begin();
+    let len_val: Value<u32> = Value::new(&len_kp);
+    assert_eq!(len_val.try_get(), None);
+});
+
 contract_test!(test_nnint_delete {
     let keypath = Keypath::new();
     let mut n: NNInt = keypath.into();
