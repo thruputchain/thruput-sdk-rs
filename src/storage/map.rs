@@ -21,9 +21,6 @@ impl<K, V> From<Keypath> for Map<K, V> {
     }
 }
 
-impl_load_via_keypath! { Map<K, V> }
-impl_read_via_keypath! { Map<K, V> }
-
 impl<K, V> Map<K, V> {
     pub fn new(keypath: &Keypath) -> Self {
         Self {

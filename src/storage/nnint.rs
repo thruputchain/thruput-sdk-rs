@@ -18,9 +18,6 @@ impl From<Keypath> for NNInt {
     }
 }
 
-impl_load_via_keypath! { NNInt }
-impl_read_via_keypath! { NNInt }
-
 impl NNInt {
     pub fn new(keypath: &Keypath) -> Self {
         Self {
