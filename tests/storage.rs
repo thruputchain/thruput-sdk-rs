@@ -373,6 +373,40 @@ contract_test!(test_vector_iter_mut {
     assert_eq!(values, [11, 21, 31]);
 });
 
+contract_test!(test_vector_iter_rev {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+    vec.push().set(&30);
+
+    let values: sdk::Vec<u32> = vec.iter().rev().map(|v| v.get()).collect();
+    assert_eq!(values, [30, 20, 10]);
+});
+
+contract_test!(test_vector_into_iter {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+
+    // for elem in &vec
+    let mut sum = 0u32;
+    for elem in &vec {
+        sum += elem.get();
+    }
+    assert_eq!(sum, 30);
+
+    // for mut elem in &mut vec
+    for mut elem in &mut vec {
+        let v = elem.get();
+        elem.set(&(v + 1));
+    }
+
+    assert_eq!(vec.at(0).get(), 11);
+    assert_eq!(vec.at(1).get(), 21);
+});
+
 contract_test!(test_vector_iter_empty {
     let vec: Vector<Value<u32>> = Keypath::root().into();
     assert_eq!(vec.iter().count(), 0);
@@ -396,6 +430,16 @@ contract_test!(test_map_at_disjoint_mut {
     assert_eq!(map.at(&2u32).get(), 202);
     assert_eq!(map.at(&3u32).get(), 303);
 });
+
+#[test]
+fn test_map_at_disjoint_mut_duplicate_panics() {
+    let env = sdk::TestEnvironment::no_cost();
+    let result = sdk::contract_exec(env, || {
+        let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
+        map.at_disjoint_mut([&1u32, &1u32]);
+    });
+    assert!(result.is_err());
+}
 
 #[test]
 fn test_data_fully_consumed() {
