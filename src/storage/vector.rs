@@ -26,7 +26,6 @@ impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
         let mut len_kp = keypath.clone();
         len_kp.seq_begin();
-        len_kp.set_exclusive();
 
         let mut values_kp = keypath.clone();
         values_kp.seq_begin();
@@ -79,8 +78,8 @@ impl<S: StorageType> Vector<S> {
     /// Allocate a new slot at the end and return a mutable reference to it.
     pub fn push(&mut self) -> SlotMut<'_, Self, S> {
         let idx = self.len();
-        let new_len = idx.checked_add(1).expect("vector length overflow");
-        self.len.set(&new_len);
+        let new_len = idx.checked_add(1).unwrap();
+        self.len.set_exclusive(&new_len);
         let keypath = self.make_elem_keypath(idx);
         let slot = S::from(keypath);
         SlotMut::new(self, slot)
@@ -101,8 +100,7 @@ impl<S: StorageType> Vector<S> {
 }
 
 impl<S: StorageType + Deletable> Vector<S> {
-    /// Remove the last element, deleting its storage with an exclusive lock
-    /// (matching the exclusivity of the length update).
+    /// Remove the last element, deleting its storage.
     /// Aborts if the vector is empty.
     pub fn pop(&mut self) {
         let len = self.len();
@@ -112,16 +110,11 @@ impl<S: StorageType + Deletable> Vector<S> {
         let new_len = len - 1;
         let mut elem = S::from(self.make_elem_keypath(new_len));
         elem.delete_internal(StorageDeltaFlags::ExclusiveLock);
-        self.len.set(&new_len);
+        self.len.set_exclusive(&new_len);
     }
 }
 
 impl<S: StorageType + Deletable> Deletable for Vector<S> {
-    // Unlike pop(), which hard-codes ExclusiveLock on the element delete,
-    // delete_internal propagates the caller's flags to elements. The length
-    // key's own exclusive keypath flag is OR'd in by Value::delete_internal,
-    // so `vec.delete()` uses shared locking for elements but exclusive for
-    // the length. Use `vec.delete_exclusive()` for fully exclusive teardown.
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
         let len = self.len();
         for i in 0..len {

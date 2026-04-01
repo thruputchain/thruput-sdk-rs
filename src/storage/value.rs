@@ -83,6 +83,15 @@ where
             bytestring_set(&self.key, buf.as_slice());
         }
     }
+
+    /// Serialize and store the value with an exclusive lock.
+    pub fn set_exclusive(&mut self, value: &T) {
+        use crate::sys_exn::bytestring::*;
+        use xdrs::cxs::encode;
+
+        let buf = encode(value).unwrap();
+        bytestring_set_exclusive(&self.key, buf.as_slice());
+    }
 }
 
 impl<T> Value<T>
