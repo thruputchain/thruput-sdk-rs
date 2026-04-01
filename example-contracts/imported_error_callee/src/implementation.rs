@@ -1,4 +1,4 @@
-use crate::{ImportedError, ImportedErrorCallee};
+use crate::ImportedErrorCallee;
 use sdk::*;
 
 pub struct ImportedErrorCalleeContract;
@@ -6,6 +6,6 @@ pub struct ImportedErrorCalleeContract;
 #[contract]
 impl ImportedErrorCallee for ImportedErrorCalleeContract {
     fn throw_imported_error() {
-        throw(ImportedError::Denied);
+        throw(imported_error_type::ImportedError::Denied);
     }
 }

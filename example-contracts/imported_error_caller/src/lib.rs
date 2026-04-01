@@ -12,7 +12,7 @@ impl ImportedErrorCaller {
         {
             Err(
                 imported_error_callee::ImportedErrorCalleeClientError::ImportedError(
-                    imported_error_callee::ImportedError::Denied,
+                    _
                 ),
             ) => 1,
             _ => 0,

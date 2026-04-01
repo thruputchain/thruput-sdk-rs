@@ -1,6 +1,6 @@
 use sdk::*;
 
-#[contract(throws(crate::ImportedError))]
+#[contract(throws(imported_error_type::ImportedError))]
 pub trait ImportedErrorCallee {
     fn throw_imported_error();
 }
