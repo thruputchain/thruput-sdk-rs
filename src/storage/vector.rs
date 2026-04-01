@@ -85,7 +85,9 @@ impl<S: StorageType> Vector<S> {
         SlotMut::new(self, slot)
     }
 
-    /// Iterate over all elements (read-only access).
+    /// Iterate over all elements. Yields read-only `SlotRef` handles.
+    /// Holds a shared borrow on the vector, preventing structural
+    /// modifications (push/pop/at_mut) while the iterator is alive.
     pub fn iter(&self) -> VectorIter<'_, S> {
         VectorIter {
             vec: self,
@@ -94,7 +96,9 @@ impl<S: StorageType> Vector<S> {
         }
     }
 
-    /// Iterate over all elements (mutable access).
+    /// Iterate over all elements with mutable access. Yields owned
+    /// storage handles that may be used for mutations. Holds an
+    /// exclusive borrow on the vector.
     pub fn iter_mut(&mut self) -> VectorIterMut<'_, S> {
         let len = self.len();
         VectorIterMut {
@@ -144,23 +148,23 @@ impl<S: StorageType + Deletable> Deletable for Vector<S> {
     }
 }
 
-/// Iterator over vector elements (shared borrow).
+/// Iterator over vector elements (shared borrow, read-only).
 pub struct VectorIter<'a, S> {
     vec: &'a Vector<S>,
     index: u32,
     len: u32,
 }
 
-impl<S: StorageType> Iterator for VectorIter<'_, S> {
-    type Item = S;
+impl<'a, S: StorageType> Iterator for VectorIter<'a, S> {
+    type Item = SlotRef<'a, Vector<S>, S>;
 
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.len {
             return None;
         }
         let elem = S::from(self.vec.make_elem_keypath(self.index));
         self.index += 1;
-        Some(elem)
+        Some(SlotRef::new(self.vec, elem))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -178,16 +182,18 @@ pub struct VectorIterMut<'a, S> {
     len: u32,
 }
 
-impl<S: StorageType> Iterator for VectorIterMut<'_, S> {
-    type Item = S;
+impl<'a, S: StorageType> Iterator for VectorIterMut<'a, S> {
+    type Item = SlotMut<'a, Vector<S>, S>;
 
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.len {
             return None;
         }
         let elem = S::from(self.vec.make_elem_keypath(self.index));
         self.index += 1;
-        Some(elem)
+        // SAFETY: the iterator holds &'a mut Vector<S>, ensuring
+        // exclusive access to the vector for 'a.
+        Some(SlotMut::new_detached(elem))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

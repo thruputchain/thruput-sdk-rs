@@ -67,4 +67,16 @@ impl VectorTestContract {
     pub fn delete_values(&mut self) {
         self.values.delete();
     }
+
+    /// Sum all values using iter() (read-only).
+    pub fn sum_values(&self) -> u64 {
+        self.values.iter().map(|v| v.get()).sum()
+    }
+
+    /// Increment every nnint by `delta` using iter_mut().
+    pub fn inc_all_nnints(&mut self, delta: i128) {
+        for mut elem in self.nnints.iter_mut() {
+            elem.strict_inc(delta);
+        }
+    }
 }

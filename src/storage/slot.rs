@@ -39,6 +39,15 @@ impl<'a, Owner, S: StorageType> SlotMut<'a, Owner, S> {
             _borrow: PhantomData,
         }
     }
+
+    /// Construct without a real reference. The caller must ensure
+    /// the owner is already exclusively borrowed for `'a`.
+    pub(crate) fn new_detached(slot: S) -> Self {
+        Self {
+            slot,
+            _borrow: PhantomData,
+        }
+    }
 }
 
 impl<Owner, S: StorageType> Deref for SlotMut<'_, Owner, S> {

@@ -101,7 +101,8 @@ impl<K, V> Map<K, V> {
     /// # Safety
     ///
     /// The caller must ensure all keys are disjoint. Passing duplicate
-    /// leads to undefined behavior.
+    /// keys creates aliased handles to the same storage slot across the
+    /// syscall boundary, which may silently corrupt data.
     pub unsafe fn at_disjoint_unchecked_mut<const N: usize>(
         &mut self,
         keys: [&K; N],
