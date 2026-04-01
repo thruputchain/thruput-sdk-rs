@@ -280,6 +280,28 @@ impl Event for ManualTooManyTopicsEvent {
     }
 }
 
+fn assert_encoding_event_exception(result: Result<(), RawCallError>) {
+    match result {
+        Err(RawCallError::Exception(exn))
+            if exn.selector() == LibraryExn::SELECTOR =>
+        {
+            match exn.try_as::<LibraryExn>() {
+                Some(LibraryExn::Handling(HandlingError::EncodingEvent(
+                    _,
+                ))) => {}
+                other => panic!(
+                    "expected LibraryExn::Handling(EncodingEvent), got {:?}",
+                    other
+                ),
+            }
+        }
+        other => panic!(
+            "expected LibraryExn encoding exception for event handling, got {:?}",
+            other
+        ),
+    }
+}
+
 #[test]
 fn test_large_event_payload_within_runtime_limit_succeeds() {
     let env = TestEnvironment::no_cost();
@@ -302,29 +324,19 @@ fn test_large_event_payload_within_runtime_limit_succeeds() {
 fn test_manual_event_with_too_many_topics_is_rejected() {
     let env = TestEnvironment::no_cost();
 
-    let result = contract_exec(env, || {
+    assert_encoding_event_exception(contract_exec(env, || {
         log_event(&ManualTooManyTopicsEvent { value: 7 });
-    });
+    }));
+}
 
-    match result {
-        Err(RawCallError::Exception(exn))
-            if exn.selector() == LibraryExn::SELECTOR =>
-        {
-            match exn.try_as::<LibraryExn>() {
-                Some(LibraryExn::Handling(
-                    HandlingError::EncodingSuccess(_),
-                )) => {}
-                other => panic!(
-                    "expected LibraryExn::Handling(EncodingSuccess), got {:?}",
-                    other
-                ),
-            }
-        }
-        other => panic!(
-            "expected LibraryExn encoding exception for too many event topics, got {:?}",
-            other
-        ),
-    }
+#[test]
+fn test_event_payload_exceeding_runtime_limit_is_rejected() {
+    let env = TestEnvironment::no_cost();
+    let payload = [0u8; EVENT_MAX_DATA as usize + 1];
+
+    assert_encoding_event_exception(contract_exec(env, move || {
+        log_event(&LargePayloadEvent { data: &payload });
+    }));
 }
 
 //-------------------------------------------------------------------------
