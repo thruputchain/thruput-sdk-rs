@@ -94,7 +94,7 @@ impl FromMeta for ThrowsList {
 
     fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
         match expr {
-            syn::Expr::Path(ep) => {
+            syn::Expr::Path(ep) if ep.qself.is_none() => {
                 Self::new(vec![ThrownType::from_path(&ep.path)?])
             }
             _ => Err(darling::Error::custom(
