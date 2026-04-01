@@ -21,7 +21,8 @@ The easiest mental model is:
 
 #### Client objects
 
-Generated clients default to the contract or trait name plus `Client`:
+Generated clients default to the interface name plus `Client`:
+- `#[contract(interface = "IERC20")] trait Token` generates `IERC20Client`
 - `#[contract] trait Foo` generates `FooClient`
 - `#[contract] impl Foo { ... }` generates `FooClient`
 
@@ -76,6 +77,11 @@ Each exported contract entrypoint is named with an identifier derived from:
 - the method name
 
 `interface = "InterfaceName"` overrides the interface-name portion.
+
+For trait impls, repeat that `interface = "..."` on the impl when the trait
+uses a custom interface name. The impl's exported entrypoint names are fixed
+during macro expansion, so mismatches are rejected at compile time rather than
+inherited automatically.
 
 `version = "0.3.0"` overrides the version used for entrypoint identifiers. When
 implementing a separately versioned trait interface, repeat that version on the

@@ -1209,6 +1209,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "named_interface_callee"
+version = "0.3.0"
+dependencies = [
+ "named_interface_callee",
+ "sdk",
+]
+
+[[package]]
+name = "named_interface_caller"
+version = "0.3.0"
+dependencies = [
+ "named_interface_callee",
+ "named_interface_caller",
+ "sdk",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
