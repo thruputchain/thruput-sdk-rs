@@ -85,6 +85,29 @@ impl<S: StorageType> Vector<S> {
         SlotMut::new(self, slot)
     }
 
+    /// Iterate over all elements. Yields read-only `SlotRef` handles.
+    /// Holds a shared borrow on the vector, preventing structural
+    /// modifications (push/pop/at_mut) while the iterator is alive.
+    pub fn iter(&self) -> VectorIter<'_, S> {
+        VectorIter {
+            vec: self,
+            index: 0,
+            len: self.len(),
+        }
+    }
+
+    /// Iterate over all elements with mutable access. Yields owned
+    /// storage handles that may be used for mutations. Holds an
+    /// exclusive borrow on the vector.
+    pub fn iter_mut(&mut self) -> VectorIterMut<'_, S> {
+        let len = self.len();
+        VectorIterMut {
+            vec: self,
+            index: 0,
+            len,
+        }
+    }
+
     fn bounds_check(&self, index: u32) {
         let len = self.len();
         if index >= len {
@@ -122,5 +145,101 @@ impl<S: StorageType + Deletable> Deletable for Vector<S> {
             elem.delete_internal(flags);
         }
         self.len.delete_internal(flags);
+    }
+}
+
+/// Iterator over vector elements (shared borrow, read-only).
+pub struct VectorIter<'a, S> {
+    vec: &'a Vector<S>,
+    index: u32,
+    len: u32,
+}
+
+impl<'a, S: StorageType> Iterator for VectorIter<'a, S> {
+    type Item = SlotRef<'a, Vector<S>, S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.len {
+            return None;
+        }
+        let elem = S::from(self.vec.make_elem_keypath(self.index));
+        self.index += 1;
+        Some(SlotRef::new(self.vec, elem))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.len - self.index) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<S: StorageType> ExactSizeIterator for VectorIter<'_, S> {}
+
+impl<'a, S: StorageType> DoubleEndedIterator for VectorIter<'a, S> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index >= self.len {
+            return None;
+        }
+        self.len -= 1;
+        let elem = S::from(self.vec.make_elem_keypath(self.len));
+        Some(SlotRef::new(self.vec, elem))
+    }
+}
+
+/// Iterator over vector elements (exclusive borrow).
+pub struct VectorIterMut<'a, S> {
+    vec: &'a mut Vector<S>,
+    index: u32,
+    len: u32,
+}
+
+impl<'a, S: StorageType> Iterator for VectorIterMut<'a, S> {
+    type Item = SlotMut<'a, Vector<S>, S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.len {
+            return None;
+        }
+        let elem = S::from(self.vec.make_elem_keypath(self.index));
+        self.index += 1;
+        // SAFETY: the iterator holds &'a mut Vector<S>, ensuring
+        // exclusive access to the vector for 'a.
+        Some(SlotMut::new_detached(elem))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.len - self.index) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<S: StorageType> ExactSizeIterator for VectorIterMut<'_, S> {}
+
+impl<'a, S: StorageType> DoubleEndedIterator for VectorIterMut<'a, S> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index >= self.len {
+            return None;
+        }
+        self.len -= 1;
+        let elem = S::from(self.vec.make_elem_keypath(self.len));
+        Some(SlotMut::new_detached(elem))
+    }
+}
+
+impl<'a, S: StorageType> IntoIterator for &'a Vector<S> {
+    type Item = SlotRef<'a, Vector<S>, S>;
+    type IntoIter = VectorIter<'a, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, S: StorageType> IntoIterator for &'a mut Vector<S> {
+    type Item = SlotMut<'a, Vector<S>, S>;
+    type IntoIter = VectorIterMut<'a, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }

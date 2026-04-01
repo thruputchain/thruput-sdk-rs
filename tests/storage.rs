@@ -347,6 +347,100 @@ contract_test!(test_vector_pop_nnint {
     assert_eq!(vec.at(0).get(), 10);
 });
 
+contract_test!(test_vector_iter {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+    vec.push().set(&30);
+
+    let values: sdk::Vec<u32> = vec.iter().map(|v| v.get()).collect();
+    assert_eq!(values, [10, 20, 30]);
+});
+
+contract_test!(test_vector_iter_mut {
+    let mut vec: Vector<NNInt> = Keypath::root().into();
+
+    vec.push().set(10);
+    vec.push().set(20);
+    vec.push().set(30);
+
+    for mut elem in vec.iter_mut() {
+        elem.strict_inc(1);
+    }
+
+    let values: sdk::Vec<i128> = vec.iter().map(|v| v.get()).collect();
+    assert_eq!(values, [11, 21, 31]);
+});
+
+contract_test!(test_vector_iter_rev {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+    vec.push().set(&30);
+
+    let values: sdk::Vec<u32> = vec.iter().rev().map(|v| v.get()).collect();
+    assert_eq!(values, [30, 20, 10]);
+});
+
+contract_test!(test_vector_into_iter {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+
+    // for elem in &vec
+    let mut sum = 0u32;
+    for elem in &vec {
+        sum += elem.get();
+    }
+    assert_eq!(sum, 30);
+
+    // for mut elem in &mut vec
+    for mut elem in &mut vec {
+        let v = elem.get();
+        elem.set(&(v + 1));
+    }
+
+    assert_eq!(vec.at(0).get(), 11);
+    assert_eq!(vec.at(1).get(), 21);
+});
+
+contract_test!(test_vector_iter_empty {
+    let vec: Vector<Value<u32>> = Keypath::root().into();
+    assert_eq!(vec.iter().count(), 0);
+});
+
+contract_test!(test_map_at_disjoint_mut {
+    let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
+
+    map.at_mut(&1u32).set(100);
+    map.at_mut(&2u32).set(200);
+    map.at_mut(&3u32).set(300);
+
+    {
+        let mut slots = map.at_disjoint_mut([&1u32, &2u32, &3u32]);
+        slots[0].strict_inc(1);
+        slots[1].strict_inc(2);
+        slots[2].strict_inc(3);
+    }
+
+    assert_eq!(map.at(&1u32).get(), 101);
+    assert_eq!(map.at(&2u32).get(), 202);
+    assert_eq!(map.at(&3u32).get(), 303);
+});
+
+#[test]
+fn test_map_at_disjoint_mut_duplicate_panics() {
+    let env = sdk::TestEnvironment::no_cost();
+    let result = sdk::contract_exec(env, || {
+        let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
+        map.at_disjoint_mut([&1u32, &1u32]);
+    });
+    assert!(result.is_err());
+}
+
 #[test]
 fn test_data_fully_consumed() {
     let env = sdk::TestEnvironment::no_cost();

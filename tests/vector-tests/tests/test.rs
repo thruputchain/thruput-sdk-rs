@@ -110,6 +110,75 @@ fn test_vector_pop() {
 }
 
 #[test]
+fn test_iter_sum() {
+    let (env, contract_hash) = setup();
+    let addr = Cell::new(ContractAddress::default());
+
+    let deploy_result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+            }))
+    });
+    deploy_result.assert_success();
+    env.advance_block();
+
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                let contract_addr = addr.get();
+                let client = VectorTestClient::new(&contract_addr);
+
+                client.push_value(10);
+                client.push_value(20);
+                client.push_value(30);
+
+                assert_eq!(client.sum_values(), 60);
+            }))
+    });
+    result.assert_success();
+}
+
+#[test]
+fn test_iter_mut_inc_all() {
+    let (env, contract_hash) = setup();
+    let addr = Cell::new(ContractAddress::default());
+
+    let deploy_result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+            }))
+    });
+    deploy_result.assert_success();
+    env.advance_block();
+
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("caller"))
+            .run(AssertUnwindSafe(|| {
+                let contract_addr = addr.get();
+                let client = VectorTestClient::new(&contract_addr);
+
+                client.push_nnint();
+                client.push_nnint();
+                client.push_nnint();
+
+                client.inc_nnint(0, 10);
+                client.inc_nnint(1, 20);
+                client.inc_nnint(2, 30);
+
+                // Increment all by 5 via iter_mut
+                client.inc_all_nnints(5);
+
+                assert_eq!(client.get_nnint(0), 15);
+                assert_eq!(client.get_nnint(1), 25);
+                assert_eq!(client.get_nnint(2), 35);
+            }))
+    });
+    result.assert_success();
+}
+
+#[test]
 fn test_concurrent_shared_delete() {
     let (env, contract_hash) = setup();
     let addr = Cell::new(ContractAddress::default());
