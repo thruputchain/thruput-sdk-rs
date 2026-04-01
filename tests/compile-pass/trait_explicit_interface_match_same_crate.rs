@@ -14,4 +14,6 @@ impl MyTrait for MyContract {
     }
 }
 
-fn main() {}
+fn main() {
+    let _client = RenamedInterfaceClient::new(&ContractAddress::default());
+}

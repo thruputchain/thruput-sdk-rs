@@ -5,5 +5,5 @@ mod interface;
 
 pub use implementation::NamedInterfaceCalleeContract;
 pub use interface::NamedInterfaceCallee;
-pub use interface::NamedInterfaceCalleeClient;
-pub use interface::NamedInterfaceCalleeClientError;
+pub use interface::ExplicitNamedInterfaceClient;
+pub use interface::ExplicitNamedInterfaceClientError;

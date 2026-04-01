@@ -21,7 +21,8 @@ The easiest mental model is:
 
 #### Client objects
 
-Generated clients default to the contract or trait name plus `Client`:
+Generated clients default to the interface name plus `Client`:
+- `#[contract(interface = "IERC20")] trait Token` generates `IERC20Client`
 - `#[contract] trait Foo` generates `FooClient`
 - `#[contract] impl Foo { ... }` generates `FooClient`
 

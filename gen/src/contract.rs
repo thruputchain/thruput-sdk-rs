@@ -267,6 +267,11 @@ where
     fn client_ident(&self) -> Option<syn::Ident> {
         self.config
             .client_ident()
+            .or_else(|| {
+                self.config
+                    .interface_name()
+                    .map(|name| format_ident!("{}Client", name))
+            })
             .or_else(|| self.contract.client_ident())
     }
 
