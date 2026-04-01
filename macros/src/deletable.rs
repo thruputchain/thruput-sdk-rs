@@ -17,8 +17,9 @@ fn generate_from_struct(
     item: &syn::DataStruct,
 ) -> Result<TokenStream> {
     let ident = &input.ident;
-    let generics = &input.generics;
-    let generic_params = &generics.params;
+
+    // Clone generics so we can add field-type bounds to the where clause
+    let mut generics = input.generics.clone();
 
     let body = match &item.fields {
         syn::Fields::Named(fields_named) => {
@@ -30,6 +31,16 @@ fn generate_from_struct(
                     quote! { self.#name.delete_internal(flags); }
                 })
                 .collect();
+
+            // Add `FieldType: Deletable` bound for each field
+            for field in &fields_named.named {
+                let ty = &field.ty;
+                generics
+                    .make_where_clause()
+                    .predicates
+                    .push(syn::parse_quote!(#ty: Deletable));
+            }
+
             quote! { #(#calls)* }
         }
         syn::Fields::Unit => TokenStream::new(),
@@ -38,28 +49,22 @@ fn generate_from_struct(
         }
     };
 
-    let ty = generic_type_name(ident, generics);
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     Ok(quote! {
         const _: () = {
             use sdk::storage::Deletable;
             use sdk::StorageDeltaFlags;
 
-            impl<#generic_params> Deletable for #ty {
+            impl #impl_generics Deletable for #ident #ty_generics
+                #where_clause
+            {
                 fn delete_internal(&mut self, flags: StorageDeltaFlags) {
                     #body
                 }
             }
         };
     })
-}
-
-fn generic_type_name(
-    ident: &syn::Ident,
-    generics: &syn::Generics,
-) -> TokenStream {
-    let (_, ty_generics, _) = generics.split_for_impl();
-    quote!(#ident #ty_generics)
 }
 
 // Produce an error referencing a particular code span

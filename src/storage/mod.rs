@@ -4,20 +4,11 @@
 //! interfere with this module's use of the database, resulting in
 //! unexpected application errors.
 
-#[macro_use]
-mod macros;
-
 pub mod error;
 pub use error::*;
 
 pub mod keypath;
 pub use keypath::*;
-
-pub mod read_xdr_path;
-pub use read_xdr_path::*;
-
-pub mod load;
-pub use load::*;
 
 mod sealed;
 

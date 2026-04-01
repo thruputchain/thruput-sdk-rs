@@ -93,6 +93,44 @@ itc_build_all() {
     build_contracts "${SDK_DIR}/integration_test" "${SDK_DIR}/integration_test/contracts"
 }
 
+### LINT ###
+
+lint_contracts() {
+    local workspace_dir
+    workspace_dir="$1"; shift
+    local packages_dir
+    packages_dir="${1:-$workspace_dir}"; shift 2>/dev/null || true
+
+    local package
+    for package in $(ls_contract_packages "$packages_dir") ; do
+        lint_contract "$workspace_dir" "$package" || {
+            fail "Failed linting contract $package"
+            return 1
+        }
+    done
+}
+
+lint_contract() {
+    local workspace_dir
+    workspace_dir="$1"; shift
+    local package
+    package="$1"; shift
+
+    info "LINT $package"
+
+    (
+        cd "$workspace_dir" &&
+
+        cargo --config ".cargo/contract.toml" \
+            clippy -p "$package" \
+                --release \
+                --target wasm32-unknown-unknown \
+                -- -Dwarnings &&
+
+        cargo clippy -F dev -p "$package"
+    )
+}
+
 ### TESTING ###
 
 test_sdk() {
@@ -250,7 +288,7 @@ test_spec() {
     )
 }
 
-test_all() {
+check_all() {
     build_docs &&
     test_sdk &&
     test_spec &&
@@ -337,13 +375,13 @@ xxx_check() {
 }
 
 lint() {
-    cargo clippy -F dev --lib "$@" &&
-
-    (cd example-contracts && cargo clippy --workspace --exclude swap -F dev "$@")
+    cargo clippy -F dev --lib &&
+    lint_contracts "example-contracts" &&
+    lint_contracts "integration_test" "contracts"
 }
 
 lint_check() {
-    lint "$@" >& /dev/null ||
+    lint >& /dev/null ||
         fail "Trapped lint!"
 }
 
@@ -352,17 +390,16 @@ fmt() {
 }
 
 fmt_check() {
-    fmt --check --quiet "$@" ||
+    fmt --check --quiet ||
         fail "Formatting required!"
 }
 
 ci_check() {
-    test_all &&
-    (set -x; lint || fail "Trapped lint!") &&
+    check_all &&
+    lint_check &&
     fmt_check &&
     # xxx_check &&
     check_wasm_strings &&
-
     info "CI clean!" ||
     fail "CI failed!"
 }
@@ -429,7 +466,7 @@ case "$action" in
         eg_test_all
         ;;
     test-itc)
-        itc_test_all
+        itc_test_all "$@"
         ;;
     test-spec)
         test_spec

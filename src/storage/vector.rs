@@ -38,9 +38,6 @@ impl<S> From<Keypath> for Vector<S> {
     }
 }
 
-impl_load_via_keypath! { Vector<S> }
-impl_read_via_keypath! { Vector<S> }
-
 impl<S> super::sealed::Sealed for Vector<S> {}
 impl<S> super::node::StorageType for Vector<S> {}
 

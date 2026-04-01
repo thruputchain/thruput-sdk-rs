@@ -1,8 +1,8 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-use sdk::{Deletable, Storage};
 use sdk::contract_test;
 use sdk::storage::*;
+use sdk::{Deletable, Storage};
 
 #[derive(Storage, Deletable)]
 #[allow(dead_code)]
@@ -296,6 +296,33 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     len_kp.seq_begin();
     let len_val: Value<u32> = Value::new(&len_kp);
     assert_eq!(len_val.try_get(), None);
+});
+
+contract_test!(test_generic_storage_struct {
+    let keypath = Keypath::new();
+    let pair: Pair<Value<u32>, Value<u64>> = keypath.into();
+
+    let mut first = pair.first;
+    let mut second = pair.second;
+
+    first.set(&42);
+    second.set(&100);
+
+    assert_eq!(first.get(), 42);
+    assert_eq!(second.get(), 100);
+});
+
+contract_test!(test_generic_storage_struct_delete {
+    let keypath = Keypath::new();
+    let mut pair: Pair<Value<u32>, Value<u64>> = keypath.into();
+
+    pair.first.set(&42);
+    pair.second.set(&100);
+
+    pair.delete();
+
+    assert_eq!(pair.first.try_get(), None);
+    assert_eq!(pair.second.try_get(), None);
 });
 
 contract_test!(test_nnint_delete {

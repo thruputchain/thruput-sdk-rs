@@ -3,14 +3,9 @@ Storage macros and traits for the key-value store.
 # `#[storage]` / `#[derive(Storage)]`
 
 The [`storage`](macro@crate::storage) attribute macro is shorthand for
-`#[derive(Storage)]`. Deriving `Storage` generates implementations of:
-
-- [`From<Keypath>`](crate::storage::Keypath) -- construct the struct from
-  a keypath, assigning sub-keypaths to each field.
-- [`ReadXDRPath`](crate::storage::ReadXDRPath) -- deserialize the struct
-  from an XDR reader that walks keypaths.
-- [`LoadKeypath`](crate::storage::LoadKeypath) -- load the struct from
-  storage given a keypath.
+`#[derive(Storage)]`. Deriving `Storage` generates an implementation of
+[`From<Keypath>`](crate::storage::Keypath), which constructs the struct
+from a keypath, assigning sub-keypaths to each field.
 
 All fields must be storage types. Plain data must be wrapped in
 [`Value<T>`](crate::storage::Value) to make the persistence model
