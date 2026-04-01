@@ -1,56 +1,83 @@
 Expose methods for cross-contract calls.
 
-This macro may be applied to a trait, a trait implementation,
-an inherent implementation, or a free function.
+This macro may be applied to:
+- a trait
+- a trait implementation
+- an inherent implementation
+- a free function
 
-Usage **examples** are in the top-level [documentation](mod@crate).
+Usage examples are in the top-level [documentation](mod@crate).
 
-#### Client object
+#### Interface vs implementation
 
-If the attribute argument `client = Client` is given, a client-stub type will
-be created with the given name. This type implements a method for calling each
-method of the contract. The type also implements
-[`ContractClient`](crate::ContractClient), and an instance can be created by
-passing a contract address to `Client::new()`.
+The easiest mental model is:
+- Put `#[contract]` on a trait when you want to define a reusable interface.
+- Put `#[contract]` on a trait impl when you want to export an implementation of
+  that interface.
+- Put `#[contract]` on an inherent impl when you want a self-contained contract
+  with methods defined directly on the type.
+- Put `#[contract]` on a free function when you only want an exported entrypoint
+  and do not need a generated client.
+
+#### Client objects
+
+Generated clients default to the contract or trait name plus `Client`:
+- `#[contract] trait Foo` generates `FooClient`
+- `#[contract] impl Foo { ... }` generates `FooClient`
+
+Use `client = CustomClient` only when you want to override that default.
+
+For trait impls, the trait is authoritative for the client name. Adding an
+explicit `client = ...` attribute to the impl is rejected to avoid
+double-generation.
 
 #### Contract exports
 
-If the `contract` macro is applied to an implementation, its trait methods (or
-public inherent methods, or public free functions) will wrapped and exported to
-receive foreign calls.  The symbols will be placed in submodule named
-"exports", unless a macro argument like `exports = "export_mod"` is provided to
-rename it.
+When `#[contract]` is applied to an implementation, its exported methods are
+placed in a generated module:
+- bare impls and free functions default to `exports`
+- trait impls default to `<TraitName>_exports`
+
+`exports = "custom_name"` overrides that default.
 
 #### Errors
 
-If the `contract` macro includes the argument `throws = ErrorType`, the
-contract implementation may pass values of that type to [`throw`].
+If the macro includes `throws = ErrorType`, the implementation may pass values
+of that type to [`throw`].
 
-The `throws` argument may be used with a trait or an inherent implementation,
-but not with a trait implementation: the annotation is part of the contract
-interface, so it must instead be placed on the trait being implemented.
+`throws` belongs to the interface:
+- use it on a trait definition
+- or on an inherent impl
+- not on a trait impl
+
+Generated clients expose:
+- `client.method(...)` for the success-oriented path
+- `client.try_method(...) -> Result<_, ClientError>` for inspecting exceptions
 
 #### Storage
 
-A method taking a `self` parameter will be called with a reference to the
-contract state object that has previously been stored at a well-known key.  The
-definition of the state type should be decorated with the
-[storage](macro@crate::storage) macro in order to implement traits that allow
-it to be serialized and stored in the key-value store.
+If a method takes `self` or `&mut self`, the SDK reconstructs the contract state
+from storage before calling the method.
 
-If the method receiver is `&mut self`, the value of the state object will be
-stored back to the key-value store after the method completes successfully.
+If the receiver is `&mut self`, the updated state is written back only when the
+method completes successfully. Exceptions and faults revert the frame.
+
+The state type should derive [`Storage`](derive@crate::Storage) (or use
+[`storage`](macro@crate::storage)).
+
+Use `storage = false` for stateless contracts that should be called on a
+temporary default value instead of persistent state.
 
 #### Endpoint identifier customization
 
-Each exported contract entrypoint is named with an identifier derived from the
-name of the interface (usually the trait name), a version, and the name of the
-method.
+Each exported contract entrypoint is named with an identifier derived from:
+- the interface name
+- a version
+- the method name
 
-The `contract` macro (applied to a trait, trait implementation, inherent
-implementation, or free function) may include the argument `interface =
-"InterfaceName"` to specify the interface name to be used in constructing
-method endpoint identifiers.
+`interface = "InterfaceName"` overrides the interface-name portion.
 
-Further, the argument `version = "0.3.0"` gives an explicit version for
-endpoint identifiers; the default is the version of the current cargo package.
+`version = "0.3.0"` overrides the version used for entrypoint identifiers. When
+implementing a separately versioned trait interface, repeat that version on the
+impl if you need the impl's entrypoint IDs to match the trait's explicit
+version.

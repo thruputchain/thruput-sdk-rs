@@ -15,9 +15,9 @@ pub struct StorageErrorContract {
 impl StorageErrorContract {
     pub fn initialize(&mut self) {
         // Push a few items so the vector has known length
-        self.numbers.push().set(&10);
-        self.numbers.push().set(&20);
-        self.numbers.push().set(&30);
+        self.numbers.push_with(|slot| slot.set(&10));
+        self.numbers.push_with(|slot| slot.set(&20));
+        self.numbers.push_with(|slot| slot.set(&30));
     }
 
     /// Access a vector element by index. Will abort with

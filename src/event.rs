@@ -62,7 +62,14 @@ impl IntoTopic for [u8] {
     }
 }
 
-/// Emit an event
+/// Emit an event.
+///
+/// Groundhog currently supports up to three total topics per event. Derived
+/// events typically reserve topic 0 for the event signature, leaving up to two
+/// additional user-declared `#[topic]` fields.
+///
+/// Topic values that are not already 32 bytes wide are XDR-encoded and hashed
+/// before being emitted.
 pub fn log_event(event: &impl Event) {
     let n = event.num_topics();
 

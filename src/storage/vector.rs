@@ -49,7 +49,11 @@ impl<S> Vector<S> {
 }
 
 impl<S: StorageType> Vector<S> {
-    /// Current length (number of elements). Returns 0 if never written.
+    /// Current logical extent (number of in-bounds indices).
+    ///
+    /// Vector slots are sparse-capable: callers may delete element storage
+    /// without shrinking len, so an in-bounds index does not guarantee that
+    /// the slot currently has backing data.
     pub fn len(&self) -> u32 {
         self.len.try_get().unwrap_or(0)
     }
@@ -75,8 +79,13 @@ impl<S: StorageType> Vector<S> {
         SlotMut::new(self, slot)
     }
 
-    /// Allocate a new slot at the end and return a mutable reference to it.
-    pub fn push(&mut self) -> SlotMut<'_, Self, S> {
+    /// Allocate a new sparse-capable slot at the end and return a mutable
+    /// handle to it.
+    ///
+    /// This increments len before the returned slot is written, making the new
+    /// index immediately in-bounds for the rest of the invocation.
+    #[must_use = "push_empty_slot increments len immediately; dropping the slot leaves it uninitialized. Use push_with to initialize atomically, or bind with `let _ = ...` if an empty slot is intentional."]
+    pub fn push_empty_slot(&mut self) -> SlotMut<'_, Self, S> {
         let idx = self.len();
         let new_len = idx.checked_add(1).unwrap();
         self.len.set_exclusive(&new_len);
@@ -85,9 +94,24 @@ impl<S: StorageType> Vector<S> {
         SlotMut::new(self, slot)
     }
 
+    /// Construct a new slot at the end, initialize it through `f`, then make
+    /// the index visible by incrementing len.
+    ///
+    /// If `f` panics or traps, the entire invocation frame faults and reverts,
+    /// so neither the slot data nor the len increment are committed.
+    pub fn push_with<R>(&mut self, f: impl FnOnce(&mut S) -> R) -> R {
+        let idx = self.len();
+        let mut slot = S::from(self.make_elem_keypath(idx));
+        let out = f(&mut slot);
+        let new_len = idx.checked_add(1).unwrap();
+        self.len.set_exclusive(&new_len);
+        out
+    }
+
     /// Iterate over all elements. Yields read-only `SlotRef` handles.
     /// Holds a shared borrow on the vector, preventing structural
-    /// modifications (push/pop/at_mut) while the iterator is alive.
+    /// modifications (`push_with`/`push_empty_slot`/pop/at_mut) while the
+    /// iterator is alive.
     pub fn iter(&self) -> VectorIter<'_, S> {
         VectorIter {
             vec: self,

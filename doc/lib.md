@@ -3,25 +3,26 @@ This SDK facilitates writing Groundhog contracts in Rust.
 # System functions
 
 The SDK provides convenient wrappers around Groundhog syscalls:
-- [`deploy`]: Deploying other contracts
-- [`mod@call`]: Calling other contracts
-- [`contract_op`]: Contract entrance/exit routines
-- [`crypto`]: Hash and sign
-- [`Hasher`]: Incremental hashing
+- [`deploy`]: deploy other contracts
+- [`mod@call`]: call other contracts
+- [`contract_op`]: contract entrance and exit routines
+- [`crypto`]: hash and signature operations
+- [`Hasher`]: incremental hashing
 - Key-value storage:
-    - [`sys_exn::delete`]
-    - [`sys_exn::bytestring`]
-    - [`sys_exn::nnint`]
-    - [`sys_exn::rcq`]
+  - [`sys_exn::delete`]
+  - [`sys_exn::bytestring`]
+  - [`sys_exn::nnint`]
+  - [`sys_exn::rcq`]
 - Low-level syscall bindings:
-    - [`mod@sys`]: Low-level wrappers
-- Emitting events: [`mod@event`]
+  - [`mod@sys`]
+- Emitting events:
+  - [`mod@event`]
 
-Other things:
-- [`mod@types`]: Types related to system facilities, like:
-    - [`ContractAddress`](ContractAddress)
-    - [`StorageKey`](StorageKey)
-    - [`PublicKey`](PublicKey)
+Other useful modules and types:
+- [`mod@types`]
+  - [`ContractAddress`](ContractAddress)
+  - [`StorageKey`](StorageKey)
+  - [`PublicKey`](PublicKey)
 
 # Allocation
 
@@ -33,78 +34,120 @@ Static allocations are facilitated in contracts by [`ContractCell`] and
 ### Heap
 
 If feature `alloc` is enabled:
-*   The [`alloc`] crate is linked in, giving access to allocating
-    datatypes like [`String`] and [`Vec`].  Direct access to heap allocation is
-    available from module [`boxed`](alloc::boxed).
-*   A simple "bump-allocator" ([`allocator`]) is installed for heap allocation.  It never
-    actually frees allocations until the contract invocation terminates.
+- The [`alloc`] crate is linked in, giving access to allocating datatypes like
+  [`String`] and [`Vec`].
+- A simple bump allocator ([`allocator`]) is installed. Allocations are not
+  freed until the current contract invocation terminates.
 
-Datatypes defined by third-party libraries or by the user may be
-used in memory and in persistent storage, noting that:
-*   Heap allocation requires feature [`alloc`].
-*   Datatypes should be decorated with the [`storage`](macro@storage) attribute-macro.
+Datatypes defined by third-party libraries or by the user may be used in memory
+and in persistent storage, noting that:
+- Heap allocation requires feature [`alloc`].
+- Persistent storage fields must use SDK storage types or nested structs derived
+  with [`Storage`](derive@crate::Storage).
 
 # Storage
 
-The [`mod@storage`] module provides a high-level layer for manipulating persistent
-storage, and includes collection datatypes like [`Map`](storage::Map) that are
-implemented atop the VM's key-value storage.
+The [`mod@storage`] module provides a high-level layer for manipulating
+persistent storage, including collection types like
+[`Map`](storage::Map) and [`Vector`](storage::Vector).
 
-*TODO*: Rename this module
+Important storage-model rules:
+- Plain data in persistent state must be wrapped in [`Value<T>`](storage::Value).
+- [`Map<K, V>`](storage::Map) entries are individually addressed and may be
+  absent.
+- [`Vector<S>`](storage::Vector) is sparse-capable.
+  [`Vector::len()`](storage::Vector::len) reports
+  the in-bounds extent; individual slots may still be empty if their storage
+  has been deleted.
+- Use [`Vector::push_with()`](storage::Vector::push_with) for the common
+  append-and-initialize flow.
+- Use [`Vector::push_empty_slot()`](storage::Vector::push_empty_slot) only when
+  you intentionally want to expose the new slot before initializing it.
+- [`Value::load_mut()`](storage::Value::load_mut) returns an auto-flushing edit
+  guard: the updated value is written back when the guard is dropped.
+- Nested storage structs inside collections must be wrapped in
+  [`Node<T>`](storage::Node), for example `Vector<Node<MyFields>>`.
 
-# Macros
+# Contract macros
 
-The [`storage`](macro@crate::storage) macro derives traits necessary for
-storing data in the key-value store.
+The [`storage`](macro@crate::storage) macro is shorthand for
+`#[derive(Storage)]`.
 
-The [`contract`](macro@crate::contract) macro exports a contract's methods for
-responding to cross-contract calls, and also creates "client" objects for
-performing those calls.
+The [`contract`](macro@crate::contract) macro exports contract methods for
+cross-contract calls and also generates client types for calling those methods.
+
+Client naming defaults:
+- `#[contract] trait Foo` generates `FooClient`
+- `#[contract] impl Foo { ... }` generates `FooClient`
+- `client = CustomClient` is an override, not a requirement
+
+# Calling And Errors
+
+Generated clients expose two calling styles:
+- `client.method(...)`: success-oriented path. Typed exceptions are re-thrown to
+  the caller, and faults stay faults.
+- `client.try_method(...)`: inspection path. Returns
+  `Result<ReturnType, ClientError>`.
+
+At the frame level, contract execution ends in one of three states:
+- Success: return data is produced and the frame commits.
+- Exception: the frame reverts with a structured payload (`throw(...)`,
+  library exception, or forwarded exception).
+- Fault: the frame reverts without a structured exception payload
+  (for example `panic!`).
+
+Only success commits the current invocation frame's storage changes.
+
+# Events
+
+Derived events reserve topic 0 for the event signature. That signature is based
+on the package name, package version, and event type name, so changing any of
+those changes the emitted signature topic.
+
+Groundhog currently supports up to three total topics per event. With
+`#[derive(Event)]`, that means the signature plus up to two additional
+`#[topic]` fields.
+
+Types that are not already 32 bytes wide are XDR-encoded and hashed before
+being used as topics.
 
 # Testing
 
-**TODO:** Unify the below approaches into a single test-builder.
+The SDK exposes three main testing lanes:
+- [`client_test`]: simplest path for exercising a generated client against a
+  mock registration
+- [`TestEnvironment`](crate::TestEnvironment): direct control over environment,
+  blocks, deployment, and multi-contract scenarios
+- [`test_wasm()`]: run a built wasm contract in the test harness
 
-The SDK provides some utilities for executing contract code in the included
-test environment.
+Typical native client test:
 
-This creates a cargo test named `test_bytestring`, containing the given code:
-```
-contract_test!(test_bytestring {
-    let key = StorageKey::default();
+```rust,ignore
+use my_contract::{MyContract, MyContractClient};
 
-    bytestring_set(&key, #b"");
-});
-```
-
-To run test code against a client stub that calls your contract:
-
-```
 sdk::client_test(
-    implementation::register,
-    |c: &mut implementation::MyContractClient| {
-        // Call methods on `c`
-    });
+    |env| env.register_mock(MyContract::__mock),
+    |client: &MyContractClient| {
+        // Call methods on `client`
+    },
+);
 ```
 
-A more flexible approach allows direct manipulation of the environment:
-```
-// Create a test environment where no storage-cost limits are imposed.
+Direct environment control:
+
+```rust,ignore
+use sdk::{StorageKey, TestEnvironment, contract_exec};
+
 let env = TestEnvironment::no_cost();
 
-// Execute some code in the environment.
 contract_exec(env, || {
     let key = StorageKey::default();
-
-    bytestring_set(&key, #b"");
+    sdk::bytestring_set(&key, b"hello");
 })
-.unwrap_or_else(|e| panic!("Test failed: {e}"));
-
+.unwrap();
 ```
 
-A full list of test-running functions and macros that may be useful in various
-circumstances:
-
+Advanced helpers are available when you need lower-level control:
 - [`contract_exec()`]
 - [`contract_test()`]
 - [`contract_test_raw()`]
@@ -112,27 +155,27 @@ circumstances:
 - [`contract_handler_exec()`]
 - [`contract_handler_exec_raw()`]
 - [`contract_test!`]
-- [`client_test`]
 - [`load_wasm_contract()`]
 - [`test_wasm()`]
 
-# Example contract
+# Example Contract
 
-```
-use sdk::*;
+This example requires feature `storage` and uses the default generated client
+name `MyContractClient`.
+
+```rust,ignore
 use sdk::storage::Value;
+use sdk::*;
 
-#[storage]
+#[derive(Storage)]
 pub struct MyContract {
     contract_owner: Value<ContractAddress>,
 }
 
-#[derive(Debug, PartialEq, Error, ReadXDR, WriteXDR)]
-#[exn]
-#[error("something went wrong")]
+#[contract_error]
 pub struct MyError;
 
-#[contract(throws = MyError, client = MyClient)]
+#[contract(throws = MyError)]
 impl MyContract {
     pub fn initialize(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner.set(contract_owner);

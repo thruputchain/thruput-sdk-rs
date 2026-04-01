@@ -21,6 +21,12 @@ struct Data {
     map: Map<u32, NNInt>,
 }
 
+#[derive(Storage)]
+struct InnerValuePair {
+    first: Value<u32>,
+    second: Value<u64>,
+}
+
 contract_test!(test_map {
     let data_keypath = Keypath::new();
     let slot: u32 = 3;
@@ -95,7 +101,7 @@ contract_test!(test_storable {
     let data_keypath = Keypath::new();
     let mut data: Data = data_keypath.clone().into();
     for i in 0..3u64 {
-        data.nums.push().set(&i);
+        data.nums.push_with(|slot| slot.set(&i));
     }
 
     let data: Data = data_keypath.into();
@@ -110,13 +116,37 @@ contract_test!(test_vector {
 
     assert_eq!(0, vec.len());
     for i in 0..3u32 {
-        vec.push().set(&i);
+        vec.push_empty_slot().set(&i);
     }
 
     assert_eq!(3, vec.len());
     for i in 0..3u32 {
         assert_eq!(i, vec.at(i).get());
     }
+});
+
+contract_test!(test_vector_push_with {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push_with(|slot| slot.set(&10));
+    vec.push_with(|slot| slot.set(&20));
+
+    assert_eq!(vec.len(), 2);
+    assert_eq!(vec.at(0).get(), 10);
+    assert_eq!(vec.at(1).get(), 20);
+});
+
+contract_test!(test_vector_push_with_nested_node {
+    let mut vec: Vector<Node<InnerValuePair>> = Keypath::root().into();
+
+    vec.push_with(|elem| {
+        elem.first.set(&7);
+        elem.second.set(&11);
+    });
+
+    assert_eq!(vec.len(), 1);
+    assert_eq!(vec.at(0).first.get(), 7);
+    assert_eq!(vec.at(0).second.get(), 11);
 });
 
 contract_test!(test_map_at {
@@ -227,9 +257,9 @@ contract_test!(test_exclusive_propagation {
 contract_test!(test_vector_pop {
     let mut vec: Vector<Value<u32>> = Keypath::root().into();
 
-    vec.push().set(&10);
-    vec.push().set(&20);
-    vec.push().set(&30);
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
     assert_eq!(3, vec.len());
 
     vec.pop();
@@ -247,9 +277,9 @@ contract_test!(test_vector_pop {
 contract_test!(test_vector_delete {
     let mut vec: Vector<Value<u32>> = Keypath::root().into();
 
-    vec.push().set(&1);
-    vec.push().set(&2);
-    vec.push().set(&3);
+    vec.push_empty_slot().set(&1);
+    vec.push_empty_slot().set(&2);
+    vec.push_empty_slot().set(&3);
 
     vec.delete();
     assert_eq!(0, vec.len());
@@ -259,9 +289,9 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     let root = Keypath::root();
     let mut vec: Vector<Value<u32>> = root.clone().into();
 
-    vec.push().set(&100);
-    vec.push().set(&200);
-    vec.push().set(&300);
+    vec.push_empty_slot().set(&100);
+    vec.push_empty_slot().set(&200);
+    vec.push_empty_slot().set(&300);
 
     // Verify values are there via manually-constructed keypaths.
     // Vector layout:
@@ -338,8 +368,8 @@ contract_test!(test_vector_pop_nnint {
     let keypath = Keypath::new();
     let mut vec: Vector<NNInt> = keypath.into();
 
-    vec.push().set(10);
-    vec.push().set(20);
+    vec.push_empty_slot().set(10);
+    vec.push_empty_slot().set(20);
     assert_eq!(2, vec.len());
 
     vec.pop();
@@ -350,9 +380,9 @@ contract_test!(test_vector_pop_nnint {
 contract_test!(test_vector_iter {
     let mut vec: Vector<Value<u32>> = Keypath::root().into();
 
-    vec.push().set(&10);
-    vec.push().set(&20);
-    vec.push().set(&30);
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
 
     let values: sdk::Vec<u32> = vec.iter().map(|v| v.get()).collect();
     assert_eq!(values, [10, 20, 30]);
@@ -361,9 +391,9 @@ contract_test!(test_vector_iter {
 contract_test!(test_vector_iter_mut {
     let mut vec: Vector<NNInt> = Keypath::root().into();
 
-    vec.push().set(10);
-    vec.push().set(20);
-    vec.push().set(30);
+    vec.push_empty_slot().set(10);
+    vec.push_empty_slot().set(20);
+    vec.push_empty_slot().set(30);
 
     for mut elem in vec.iter_mut() {
         elem.strict_inc(1);
@@ -376,9 +406,9 @@ contract_test!(test_vector_iter_mut {
 contract_test!(test_vector_iter_rev {
     let mut vec: Vector<Value<u32>> = Keypath::root().into();
 
-    vec.push().set(&10);
-    vec.push().set(&20);
-    vec.push().set(&30);
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
 
     let values: sdk::Vec<u32> = vec.iter().rev().map(|v| v.get()).collect();
     assert_eq!(values, [30, 20, 10]);
@@ -387,8 +417,8 @@ contract_test!(test_vector_iter_rev {
 contract_test!(test_vector_into_iter {
     let mut vec: Vector<Value<u32>> = Keypath::root().into();
 
-    vec.push().set(&10);
-    vec.push().set(&20);
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
 
     // for elem in &vec
     let mut sum = 0u32;

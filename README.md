@@ -1,6 +1,43 @@
 This SDK facilitates writing contracts in Rust.
 
-## This repository
+## Contract Author Quickstart
+
+The fastest way to get a new contract crate working is to start from one of
+the small examples in this repository:
+
+- `example-contracts/stateless` for a contract with no persistent state
+- `example-contracts/complex-storage` for a contract using `sdk::storage`
+
+Contract crates using the native test harness typically need:
+
+```toml
+[features]
+dev = ["sdk/dev"]
+
+[dependencies]
+sdk = { path = "../sdk_rs" }
+# Add `features = ["storage"]` if the contract uses sdk::storage types.
+
+[dev-dependencies]
+my-contract = { path = ".", features = ["dev"] }
+```
+
+The shortest test path is:
+
+```rust,ignore
+sdk::client_test(
+    |env| env.register_mock(MyContract::__mock),
+    |client: &MyContractClient| {
+        // exercise the generated client here
+    },
+);
+```
+
+Generated clients default to `FooClient` for `#[contract] trait Foo` and for
+`#[contract] impl Foo { ... }`. Use `client = CustomClient` only when you want
+to override that default.
+
+## This Repository
 
 Note that this repository contains
 [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
@@ -32,7 +69,7 @@ Also, install the rust sources so the build process can
 recompile them in a more compact form to reduce code size:
 
 ```shell
-rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+rustup component add rust-src --toolchain nightly
 ```
 
 ### Ccache
@@ -62,8 +99,9 @@ To generate and open the SDK documentation:
 ### Cargo layout for contracts
 
 The `example-contracts` sub-package can be cloned outside of the SDK to provide
-a testbed for your contracts.  See, e.g., `example-contracts/caller` for the
-necessary cargo configuration, testing setup, etc.
+a testbed for your contracts. For a small starting point, prefer
+`example-contracts/stateless`; for storage-backed contracts, prefer
+`example-contracts/complex-storage`.
 
 ### Testing
 
