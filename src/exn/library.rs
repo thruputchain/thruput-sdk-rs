@@ -121,6 +121,11 @@ pub fn encoding_exception_throw<E: Error>(e: E) -> ! {
     )))
 }
 
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn encoding_event_throw<E: Display>(e: E) -> ! {
+    library_throw(HandlingError::EncodingEvent(FaultString::from_display(e)))
+}
+
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[cfg_attr(feature = "spec", derive(XDR))]

@@ -48,4 +48,7 @@ pub enum HandlingError {
 
     #[cfg_attr(feature = "debugging", error("Encoding exception result: {0}"))]
     EncodingException(FaultString),
+
+    #[cfg_attr(feature = "debugging", error("Encoding event: {0}"))]
+    EncodingEvent(FaultString),
 }

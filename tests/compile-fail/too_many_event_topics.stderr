@@ -1,0 +1,11 @@
+error: #[derive(Event)] supports at most 3 total topics (signature + 2 #[topic] fields), but this event declares 3 #[topic] fields
+  --> tests/compile-fail/too_many_event_topics.rs:4:1
+   |
+ 4 | / struct TooManyTopics<'a> {
+ 5 | |     #[topic]
+ 6 | |     a: &'a ContractAddress,
+ 7 | |     #[topic]
+...  |
+11 | |     value: u32,
+12 | | }
+   | |_^
