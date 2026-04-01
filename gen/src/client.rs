@@ -1,6 +1,6 @@
 //! Generate client-stub code from an `impl ContractSrc` and a `Config`
 
-use super::config::Config;
+use super::config::{Config, ThrownType};
 use super::contract::{ConfiguredContract, ContractSrc, Method};
 use super::entrypoint::*;
 use super::util::*;
@@ -257,41 +257,32 @@ fn generate_client_fn(
 
 fn generate_error_enum(
     client_ident: &syn::Ident,
-    throws_list: &[&syn::Ident],
+    throws_list: &[ThrownType],
 ) -> TokenStream {
-    const RESERVED: &[&str] = &["Library", "Fault", "Unknown"];
-    for ident in throws_list {
-        if RESERVED.contains(&ident.to_string().as_str()) {
-            return syn::Error::new(
-                ident.span(),
-                format!(
-                    "`{}` is a reserved error variant name \
-                     (used by the generated client enum)",
-                    ident
-                ),
-            )
-            .to_compile_error();
-        }
-    }
-
     let error_enum_ident = format_ident!("{}Error", client_ident);
 
     let declared_variants: Vec<TokenStream> = throws_list
         .iter()
-        .map(|ident| quote! { #ident(#ident) })
+        .map(|thrown| {
+            let variant = thrown.variant();
+            let ty = thrown.ty();
+            quote! { #variant(#ty) }
+        })
         .collect();
 
     let display_declared_arms: Vec<TokenStream> = throws_list
         .iter()
-        .map(|ident| {
-            quote! { Self::#ident(e) => ::core::write!(f, "{:?}", e) }
+        .map(|thrown| {
+            let variant = thrown.variant();
+            quote! { Self::#variant(e) => ::core::write!(f, "{:?}", e) }
         })
         .collect();
 
     let rethrow_declared_arms: Vec<TokenStream> = throws_list
         .iter()
-        .map(|ident| {
-            quote! { Self::#ident(e) => ::sdk::throw(e) }
+        .map(|thrown| {
+            let variant = thrown.variant();
+            quote! { Self::#variant(e) => ::sdk::throw(e) }
         })
         .collect();
 
@@ -332,19 +323,21 @@ fn generate_error_enum(
 
 fn generate_selector_dispatch(
     error_enum_ident: &syn::Ident,
-    throws_list: &[&syn::Ident],
+    throws_list: &[ThrownType],
 ) -> TokenStream {
     let declared_arms: Vec<TokenStream> = throws_list
         .iter()
-        .map(|ident| {
+        .map(|thrown| {
+            let variant = thrown.variant();
+            let ty = thrown.ty();
             quote! {
-                <#ident as ::sdk::exn::Exn>::SELECTOR => {
+                <#ty as ::sdk::exn::Exn>::SELECTOR => {
                     let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
                         .unwrap_or_else(|e|
                             ::sdk::exn::library_throw(
                                 ::sdk::exn::CallingError::DecodingException(
                                     ::sdk::exn::FaultString::from_display(e))));
-                    Err(#error_enum_ident::#ident(err))
+                    Err(#error_enum_ident::#variant(err))
                 }
             }
         })

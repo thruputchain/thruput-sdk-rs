@@ -2,9 +2,86 @@
 
 use darling::FromMeta;
 use proc_macro2::Span;
+use quote::ToTokens;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
-pub struct ThrowsList(Vec<syn::Ident>);
+pub struct ThrownType {
+    ty: syn::Path,
+    variant: syn::Ident,
+}
+
+impl ThrownType {
+    fn from_path(path: &syn::Path) -> darling::Result<Self> {
+        let variant = path
+            .segments
+            .last()
+            .map(|seg| seg.ident.clone())
+            .ok_or_else(|| {
+                darling::Error::custom("throws expects a type path")
+                    .with_span(path)
+            })?;
+
+        Ok(Self {
+            ty: path.clone(),
+            variant,
+        })
+    }
+
+    pub fn ty(&self) -> &syn::Path {
+        &self.ty
+    }
+
+    pub fn variant(&self) -> &syn::Ident {
+        &self.variant
+    }
+
+    fn ty_string(&self) -> String {
+        self.ty.to_token_stream().to_string()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ThrowsList(Vec<ThrownType>);
+
+impl ThrowsList {
+    fn new(thrown_types: Vec<ThrownType>) -> darling::Result<Self> {
+        const RESERVED: &[&str] = &["Library", "Fault", "Unknown"];
+
+        if thrown_types.is_empty() {
+            return Err(darling::Error::custom(
+                "throws() requires at least one type",
+            ));
+        }
+
+        let mut seen_variants = BTreeMap::new();
+        for thrown in &thrown_types {
+            let variant_name = thrown.variant.to_string();
+            if RESERVED.contains(&variant_name.as_str()) {
+                return Err(darling::Error::custom(format!(
+                    "`{}` is a reserved error variant name \
+                     (used by the generated client enum)",
+                    thrown.variant
+                ))
+                .with_span(thrown.variant()));
+            }
+
+            if let Some(prev_ty) =
+                seen_variants.insert(variant_name.clone(), thrown.ty_string())
+            {
+                return Err(darling::Error::custom(format!(
+                    "throws contains duplicate generated client error variant `{}`; `{}` and `{}` would both map to it",
+                    variant_name,
+                    prev_ty,
+                    thrown.ty_string()
+                ))
+                .with_span(thrown.ty()));
+            }
+        }
+
+        Ok(Self(thrown_types))
+    }
+}
 
 impl FromMeta for ThrowsList {
     fn from_value(value: &syn::Lit) -> darling::Result<Self> {
@@ -17,43 +94,30 @@ impl FromMeta for ThrowsList {
 
     fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
         match expr {
-            syn::Expr::Path(ep) if ep.path.get_ident().is_some() => {
-                let ident = ep.path.get_ident().unwrap().clone();
-                Ok(ThrowsList(vec![ident]))
+            syn::Expr::Path(ep) if ep.qself.is_none() => {
+                Self::new(vec![ThrownType::from_path(&ep.path)?])
             }
             _ => Err(darling::Error::custom(
-                "throws expects an identifier or list of identifiers",
+                "throws expects a type path or list of type paths",
             )),
         }
     }
 
     fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
-        let mut idents = Vec::new();
+        let mut thrown_types = Vec::new();
         for item in items {
             match item {
                 darling::ast::NestedMeta::Meta(syn::Meta::Path(path)) => {
-                    if let Some(ident) = path.get_ident() {
-                        idents.push(ident.clone());
-                    } else {
-                        return Err(darling::Error::custom(
-                            "throws expects simple identifiers, not paths",
-                        )
-                        .with_span(path));
-                    }
+                    thrown_types.push(ThrownType::from_path(path)?);
                 }
                 _ => {
                     return Err(darling::Error::custom(
-                        "throws expects identifiers",
+                        "throws expects type paths",
                     ));
                 }
             }
         }
-        if idents.is_empty() {
-            return Err(darling::Error::custom(
-                "throws() requires at least one type",
-            ));
-        }
-        Ok(ThrowsList(idents))
+        Self::new(thrown_types)
     }
 }
 
@@ -104,16 +168,16 @@ impl Config {
     }
 
     /// Returns the list of thrown error types (empty if none declared).
-    pub fn throws_list(&self) -> Vec<&syn::Ident> {
+    pub fn throws_list(&self) -> Vec<ThrownType> {
         match &self.throws {
-            Some(ThrowsList(idents)) => idents.iter().collect(),
+            Some(ThrowsList(thrown_types)) => thrown_types.clone(),
             None => vec![],
         }
     }
 
     /// Returns the first thrown error type (backwards compat).
-    pub fn throws(&self) -> Option<&syn::Ident> {
-        self.throws.as_ref().and_then(|t| t.0.first())
+    pub fn throws(&self) -> Option<ThrownType> {
+        self.throws.as_ref().and_then(|t| t.0.first()).cloned()
     }
 }
 
@@ -210,7 +274,8 @@ mod tests {
         let config = parse_config(r#"throws = MyError"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 1);
-        assert_eq!(throws[0].to_string(), "MyError");
+        assert_eq!(throws[0].variant().to_string(), "MyError");
+        assert_eq!(throws[0].ty().to_token_stream().to_string(), "MyError");
     }
 
     #[test]
@@ -218,8 +283,10 @@ mod tests {
         let config = parse_config(r#"throws(SwapError, ERC20Error)"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 2);
-        assert_eq!(throws[0].to_string(), "SwapError");
-        assert_eq!(throws[1].to_string(), "ERC20Error");
+        assert_eq!(throws[0].variant().to_string(), "SwapError");
+        assert_eq!(throws[0].ty().to_token_stream().to_string(), "SwapError");
+        assert_eq!(throws[1].variant().to_string(), "ERC20Error");
+        assert_eq!(throws[1].ty().to_token_stream().to_string(), "ERC20Error");
     }
 
     #[test]
@@ -227,7 +294,29 @@ mod tests {
         let config = parse_config(r#"throws(SwapError)"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 1);
-        assert_eq!(throws[0].to_string(), "SwapError");
+        assert_eq!(throws[0].variant().to_string(), "SwapError");
+    }
+
+    #[test]
+    fn throws_path_single() {
+        let config = parse_config(r#"throws = alpha::MyError"#);
+        let throws = config.throws_list();
+        assert_eq!(throws.len(), 1);
+        assert_eq!(throws[0].variant().to_string(), "MyError");
+        assert_eq!(
+            throws[0].ty().to_token_stream().to_string(),
+            "alpha :: MyError"
+        );
+    }
+
+    #[test]
+    fn throws_path_list_syntax() {
+        let config =
+            parse_config(r#"throws(alpha::SwapError, beta::ERC20Error)"#);
+        let throws = config.throws_list();
+        assert_eq!(throws.len(), 2);
+        assert_eq!(throws[0].variant().to_string(), "SwapError");
+        assert_eq!(throws[1].variant().to_string(), "ERC20Error");
     }
 
     #[test]

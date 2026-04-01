@@ -1,0 +1,5 @@
+error: `Library` is a reserved error variant name (used by the generated client enum)
+  --> tests/compile-fail/throws_reserved_variant_name.rs:10:27
+   |
+10 | #[contract(throws(errors::Library))]
+   |                           ^^^^^^^

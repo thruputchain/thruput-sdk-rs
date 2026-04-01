@@ -1,0 +1,5 @@
+error: throws expects a type path or list of type paths
+ --> tests/compile-fail/throws_qself_path_rejected.rs:7:12
+  |
+7 | #[contract(throws = <Thing as ErrorTrait>::Assoc)]
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

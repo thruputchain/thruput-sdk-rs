@@ -44,12 +44,26 @@ placed in a generated module:
 #### Errors
 
 If the macro includes `throws = ErrorType`, the implementation may pass values
-of that type to [`throw`].
+of that type to [`throw`]. `throws` accepts a single type path:
+
+```rust,ignore
+#[contract(throws = errors::MyError)]
+```
+
+or a list of type paths:
+
+```rust,ignore
+#[contract(throws(errors::AlphaError, errors::BetaError))]
+```
 
 `throws` belongs to the interface:
 - use it on a trait definition
 - or on an inherent impl
 - not on a trait impl
+
+Generated client error enums use the last path segment as the variant name. For
+example, `throws(errors::MyError)` generates `ClientError::MyError(...)`.
+Collisions like `foo::Error` and `bar::Error` are rejected at compile time.
 
 Generated clients expose:
 - `client.method(...)` for the success-oriented path
