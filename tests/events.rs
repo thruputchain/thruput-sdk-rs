@@ -1,4 +1,6 @@
+use sdk::call::RawCallError;
 use sdk::event::*;
+use sdk::exn::{Exn, HandlingError, LibraryExn};
 use sdk::internal::decode_xdr;
 use sdk::types::event::TxEmittedEvent;
 use sdk::*;
@@ -244,6 +246,84 @@ single_event_test! {
         let payload = event_payload(event);
         let decoded: u128 = decode_xdr(payload).unwrap();
         assert_eq!(decoded, 99);
+    }
+}
+
+#[derive(Event)]
+struct LargePayloadEvent<'a> {
+    data: &'a [u8],
+}
+
+#[derive(Debug, PartialEq, WriteXDR, ReadXDR)]
+struct ManualTooManyTopicsEvent {
+    value: u32,
+}
+
+impl Event for ManualTooManyTopicsEvent {
+    type Payload<'a> = ManualTooManyTopicsEvent;
+
+    fn num_topics(&self) -> u32 {
+        4
+    }
+
+    fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
+        match index {
+            0 | 1 | 2 | 3 => Some(TopicSrc::Owned([index as u8; 32])),
+            _ => None,
+        }
+    }
+
+    fn decode_payload<'a>(
+        bytes: &'a [u8],
+    ) -> Result<ManualTooManyTopicsEvent, ReadError> {
+        decode_xdr(bytes)
+    }
+}
+
+#[test]
+fn test_large_event_payload_within_runtime_limit_succeeds() {
+    let env = TestEnvironment::no_cost();
+    let payload = [0u8; 600];
+
+    let result = env.transact(move |tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&LargePayloadEvent { data: &payload });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(1);
+    result.assert_event::<LargePayloadEvent>(0, |e| {
+        assert_eq!(e.payload().data, payload.as_slice());
+    });
+}
+
+#[test]
+fn test_manual_event_with_too_many_topics_is_rejected() {
+    let env = TestEnvironment::no_cost();
+
+    let result = contract_exec(env, || {
+        log_event(&ManualTooManyTopicsEvent { value: 7 });
+    });
+
+    match result {
+        Err(RawCallError::Exception(exn))
+            if exn.selector() == LibraryExn::SELECTOR =>
+        {
+            match exn.try_as::<LibraryExn>() {
+                Some(LibraryExn::Handling(
+                    HandlingError::EncodingSuccess(_),
+                )) => {}
+                other => panic!(
+                    "expected LibraryExn::Handling(EncodingSuccess), got {:?}",
+                    other
+                ),
+            }
+        }
+        other => panic!(
+            "expected LibraryExn encoding exception for too many event topics, got {:?}",
+            other
+        ),
     }
 }
 

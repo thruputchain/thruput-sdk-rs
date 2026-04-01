@@ -16,7 +16,10 @@ pub use xdrs::{
 
 use crate::internal::mu_buf::*;
 
-const ENCODE_MAX: usize = 500;
+const ENCODE_MAX: usize = {
+    let event_max = groundhog_xdr::event::kMaxEventLength as usize;
+    if event_max > 500 { event_max } else { 500 }
+};
 
 pub type EncodeBuf = MUBuf<ENCODE_MAX>;
 

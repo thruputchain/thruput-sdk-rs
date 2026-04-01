@@ -37,6 +37,20 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 
     let (topics, payload) = partition_fields(&data.fields)?;
 
+    let max_topics = groundhog_xdr::event::kMaxTopics as usize;
+    let total_topics = topics.len() + 1; // signature topic
+    if total_topics > max_topics {
+        return Err(syn::Error::new_spanned(
+            input,
+            format!(
+                "#[derive(Event)] supports at most {} total topics (signature + {} #[topic] fields), but this event declares {} #[topic] fields",
+                max_topics,
+                max_topics.saturating_sub(1),
+                topics.len(),
+            ),
+        ));
+    }
+
     let ident = &input.ident;
     let vis = &input.vis;
     let (impl_generics, ty_generics, where_clause) =

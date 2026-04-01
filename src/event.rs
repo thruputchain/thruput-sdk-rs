@@ -29,7 +29,11 @@ pub const EVENT_MAX_DATA: u32 = groundhog_xdr::event::kMaxEventLength;
 
 /// Convert any `WriteXDR` value into a topic by XDR-encoding and hashing.
 pub fn hash_to_topic<T: crate::WriteXDR>(val: &T) -> Topic {
-    let buf = crate::internal::encode_xdr(val).unwrap();
+    let buf = crate::internal::encode_xdr(val).unwrap_or_else(|e| {
+        library_throw(HandlingError::EncodingSuccess(
+            FaultString::from_display(e),
+        ))
+    });
     crate::crypto::sha256(buf.as_ref()).into_inner()
 }
 
@@ -73,6 +77,14 @@ impl IntoTopic for [u8] {
 pub fn log_event(event: &impl Event) {
     let n = event.num_topics();
 
+    if n > EVENT_MAX_TOPICS {
+        library_throw(HandlingError::EncodingSuccess(
+            FaultString::from_display(format_args!(
+                "event declared {n} topics, but the maximum is {EVENT_MAX_TOPICS}"
+            )),
+        ));
+    }
+
     let topic = |i| {
         if i < n {
             let t = event.topic(i)?;
@@ -86,7 +98,11 @@ pub fn log_event(event: &impl Event) {
     let topic1: Option<Topic> = topic(1);
     let topic2: Option<Topic> = topic(2);
 
-    let data = encode_xdr(event).unwrap(); // XXX
+    let data = encode_xdr(event).unwrap_or_else(|e| {
+        library_throw(HandlingError::EncodingSuccess(
+            FaultString::from_display(e),
+        ))
+    });
 
     sys::uninit_LogEvent(
         topic0.as_ref(),
