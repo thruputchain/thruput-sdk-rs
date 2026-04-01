@@ -55,7 +55,8 @@ Important storage-model rules:
 - Plain data in persistent state must be wrapped in [`Value<T>`](storage::Value).
 - [`Map<K, V>`](storage::Map) entries are individually addressed and may be
   absent.
-- [`Vector<S>`](storage::Vector) is sparse-capable. [`Vector::len()`] reports
+- [`Vector<S>`](storage::Vector) is sparse-capable.
+  [`Vector::len()`](storage::Vector::len) reports
   the in-bounds extent; individual slots may still be empty if their storage
   has been deleted.
 - Use [`Vector::push_with()`](storage::Vector::push_with) for the common
