@@ -167,9 +167,89 @@ pub const fn const_iface_version_mismatch_diagnostic_bytes<
     out
 }
 
+/// Build the full interface-name-mismatch diagnostic bytes:
+/// `prefix` + `'impl' but the trait defines 'trait'` + `suffix`.
+///
+/// `OUT` must equal `P + 27 + I + T + S`.
+/// For use from generated `#[contract]` code only.
+#[doc(hidden)]
+#[inline]
+pub const fn const_iface_name_mismatch_diagnostic_bytes<
+    const P: usize,
+    const I: usize,
+    const T: usize,
+    const S: usize,
+    const OUT: usize,
+>(
+    prefix: &str,
+    impl_name: &str,
+    trait_name: &str,
+    suffix: &[u8; S],
+) -> [u8; OUT] {
+    assert!(
+        prefix.len() == P && impl_name.len() == I && trait_name.len() == T
+    );
+    assert!(OUT == P + 27 + I + T + S);
+    let pb = prefix.as_bytes();
+    let ib = impl_name.as_bytes();
+    let tb = trait_name.as_bytes();
+    let mut out = [0u8; OUT];
+    let mut i = 0usize;
+
+    let mut j = 0usize;
+    while j < P {
+        out[i] = pb[j];
+        i += 1;
+        j += 1;
+    }
+
+    out[i] = b'\'';
+    i += 1;
+    j = 0;
+    while j < I {
+        out[i] = ib[j];
+        i += 1;
+        j += 1;
+    }
+    out[i] = b'\'';
+    i += 1;
+
+    let mid = b" but the trait defines ";
+    j = 0;
+    while j < 23 {
+        out[i] = mid[j];
+        i += 1;
+        j += 1;
+    }
+
+    out[i] = b'\'';
+    i += 1;
+    j = 0;
+    while j < T {
+        out[i] = tb[j];
+        i += 1;
+        j += 1;
+    }
+    out[i] = b'\'';
+    i += 1;
+
+    j = 0;
+    while j < S {
+        out[i] = suffix[j];
+        i += 1;
+        j += 1;
+    }
+
+    assert!(i == OUT);
+    out
+}
+
 #[cfg(test)]
 mod iface_version_mismatch_diagnostic_tests {
-    use super::const_iface_version_mismatch_diagnostic_bytes;
+    use super::{
+        const_iface_name_mismatch_diagnostic_bytes,
+        const_iface_version_mismatch_diagnostic_bytes,
+    };
 
     #[test]
     fn const_iface_version_mismatch_diagnostic_bytes_matches_expected_text() {
@@ -184,6 +264,22 @@ mod iface_version_mismatch_diagnostic_tests {
         assert_eq!(
             core::str::from_utf8(&OUT).unwrap(),
             "a: '0', from '0.0' x"
+        );
+    }
+
+    #[test]
+    fn const_iface_name_mismatch_diagnostic_bytes_matches_expected_text() {
+        const PREFIX: &str = "a: ";
+        const IMPL: &str = "impl";
+        const TRAIT: &str = "iface";
+        const SUFFIX: &[u8; 2] = b" x";
+        const OUT: [u8; 41] =
+            const_iface_name_mismatch_diagnostic_bytes::<3, 4, 5, 2, 41>(
+                PREFIX, IMPL, TRAIT, SUFFIX,
+            );
+        assert_eq!(
+            core::str::from_utf8(&OUT).unwrap(),
+            "a: 'impl' but the trait defines 'iface' x"
         );
     }
 }
