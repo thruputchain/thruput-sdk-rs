@@ -32,7 +32,10 @@ fn apply_with_config(
         syn::Item::Trait(item) => {
             let mut stripped = item.strip_our_attributes();
 
-            let iface_vers = codegen::contract::interface_vers_default();
+            let iface_vers = config
+                .version
+                .clone()
+                .unwrap_or_else(codegen::contract::interface_vers_default);
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(
                     &iface_vers,

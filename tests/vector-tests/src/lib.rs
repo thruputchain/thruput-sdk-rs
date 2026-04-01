@@ -13,7 +13,7 @@ pub struct VectorTestContract {
 #[contract(client = VectorTestClient)]
 impl VectorTestContract {
     pub fn push_value(&mut self, val: u64) {
-        self.values.push().set(&val);
+        self.values.push_with(|slot| slot.set(&val));
     }
 
     pub fn get_value(&self, index: u32) -> u64 {
@@ -29,7 +29,7 @@ impl VectorTestContract {
     }
 
     pub fn push_nnint(&mut self) {
-        self.nnints.push();
+        self.nnints.push_empty_slot();
     }
 
     pub fn inc_nnint(&mut self, index: u32, delta: i128) {
@@ -45,7 +45,7 @@ impl VectorTestContract {
     }
 
     pub fn nested_push(&mut self, key: u32, val: u64) {
-        self.nested.at_mut(&key).push().set(&val);
+        self.nested.at_mut(&key).push_with(|slot| slot.set(&val));
     }
 
     pub fn nested_get(&self, key: u32, index: u32) -> u64 {

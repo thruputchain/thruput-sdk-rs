@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: Major version mismatch: the major version specified in #[contract(version = ...)] is '0.0.0' (from version '0.0.0'), but it does not match the trait's '1', from '1.2.3' (if not specified: requested version defaults to the current crate's version). Check the trait definition and Cargo.toml to see the trait's major version.
+  --> tests/compile-fail/trait_explicit_version_impl_default_mismatch.rs:10:1
+   |
+10 | #[contract]
+   | ^^^^^^^^^^^ evaluation of `_` failed here

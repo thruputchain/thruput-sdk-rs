@@ -18,14 +18,11 @@ pub struct ComplexStorage {
 #[contract]
 impl ComplexStorage {
     pub fn push_inner(&mut self) {
-        self.inners.push();
-
         let addr: ContractAddress = [0; 32].into();
-
-        let last = self.inners.len() - 1;
-        let mut inner = self.inners.at_mut(last);
-        inner.value.set(&10);
-        inner.balances.at_mut(&addr).set(&100);
+        self.inners.push_with(|inner| {
+            inner.value.set(&10);
+            inner.balances.at_mut(&addr).set(&100);
+        });
     }
 
     pub fn get_inner_balance(&self, addr: ContractAddress) -> u64 {

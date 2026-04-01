@@ -25,6 +25,8 @@ members = [
     "codegen_impl_client",
     "storage_errors",
     "multi_throws",
+    "versioned_callee",
+    "versioned_caller",
 ]
 
 [workspace.package]

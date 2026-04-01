@@ -2060,6 +2060,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "versioned_callee"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "versioned_callee",
+]
+
+[[package]]
+name = "versioned_caller"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "versioned_callee",
+ "versioned_caller",
+]
+
+[[package]]
 name = "want"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

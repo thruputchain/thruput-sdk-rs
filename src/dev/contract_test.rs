@@ -40,11 +40,15 @@ where
 /// controlling the return type.
 ///
 /// # Example:
-/// ```
-/// let RET = ();
+/// ```rust,ignore
+/// use sdk::{TestEnvironment, call::RawCallError};
 ///
-/// // Annotate the result type so that `contract_test` knows how to decode the return type:
-/// let call_result: Result<RET, RawCallError> = contract_test(env, || { /* whatever */ });
+/// let env = TestEnvironment::no_cost();
+///
+/// // Annotate the result type so that `contract_test` knows how to decode
+/// // the returned bytes.
+/// let call_result: Result<(), RawCallError> =
+///     sdk::contract_test(env, || { /* whatever */ });
 /// ```
 ///
 pub fn contract_test<F, RET>(
