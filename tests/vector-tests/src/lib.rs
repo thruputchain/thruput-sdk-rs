@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::storage::{Map, NNInt, Value, Vector};
+use sdk::storage::{Deletable, Map, NNInt, Value, Vector};
 use sdk::*;
 
 #[sdk::storage]
@@ -62,5 +62,9 @@ impl VectorTestContract {
 
     pub fn pop_nnint(&mut self) {
         self.nnints.pop();
+    }
+
+    pub fn delete_values(&mut self) {
+        self.values.delete();
     }
 }
