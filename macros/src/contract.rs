@@ -32,6 +32,9 @@ fn apply_with_config(
         syn::Item::Trait(item) => {
             let mut stripped = item.strip_our_attributes();
 
+            let iface_name = config
+                .interface_name()
+                .unwrap_or_else(|| item.ident.to_string());
             let iface_vers = config
                 .version
                 .clone()
@@ -43,6 +46,10 @@ fn apply_with_config(
 
             // Add the version consts on the trait (one `parse_quote!` per item — syn parses a
             // single `TraitItem`; two `const`s in one block panics with "unexpected token").
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_NAME: &'static str = #iface_name;
+            });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;

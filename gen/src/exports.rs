@@ -49,11 +49,12 @@ pub fn generate(
         )?);
     }
 
-    // For trait impls, emit a compile-time assertion that the major version used
-    // for entrypoint IDs matches the major version baked into the trait definition.
-    let version_assertion = if let (Some(trait_path), Some(self_ty)) =
+    // For trait impls, emit compile-time assertions that the impl-side
+    // entrypoint metadata matches the trait definition.
+    let trait_metadata_assertions = if let (Some(trait_path), Some(self_ty)) =
         (contract.trait_path(), contract.self_ty())
     {
+        let iface_name = contract.interface_name().unwrap();
         let iface_major =
             contract_util::semver::major_version_from_string(&iface_vers);
         // Build the diagnostic in const-eval via sdk::internal::const_iface_version_mismatch_diagnostic_bytes,
@@ -67,6 +68,17 @@ pub fn generate(
         let suffix_lit = LitByteStr::new(suffix.as_bytes(), Span::call_site());
         let suffix_len = suffix.len();
         quote! {
+            const _: () = {
+                const TRAIT_INTERFACE: &str =
+                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
+
+                if !::sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
+                    panic!(
+                        "Interface name mismatch: the interface name used for #[contract] on this impl does not match the trait's configured interface name. Repeat #[contract(interface = ...)] on the impl to match the trait definition."
+                    );
+                }
+            };
+
             const _: () = {
                 const TRAIT_MAJOR: &str =
                     <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION;
@@ -98,8 +110,8 @@ pub fn generate(
         quote! {}
     };
 
-    // The version assertion goes outside the module so the associated const
-    // resolves through the trait.
+    // The assertions go outside the module so the associated consts resolve
+    // through the trait.
     Ok(quote! {
         #[allow(non_snake_case)]
         pub mod #exports_mod_ident {
@@ -108,7 +120,7 @@ pub fn generate(
             #exports
         }
 
-        #version_assertion
+        #trait_metadata_assertions
     })
 }
 

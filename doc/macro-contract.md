@@ -77,6 +77,11 @@ Each exported contract entrypoint is named with an identifier derived from:
 
 `interface = "InterfaceName"` overrides the interface-name portion.
 
+For trait impls, repeat that `interface = "..."` on the impl when the trait
+uses a custom interface name. The impl's exported entrypoint names are fixed
+during macro expansion, so mismatches are rejected at compile time rather than
+inherited automatically.
+
 `version = "0.3.0"` overrides the version used for entrypoint identifiers. When
 implementing a separately versioned trait interface, repeat that version on the
 impl if you need the impl's entrypoint IDs to match the trait's explicit
