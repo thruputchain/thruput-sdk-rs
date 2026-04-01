@@ -29,6 +29,9 @@ members = [
     "named_interface_caller",
     "versioned_callee",
     "versioned_caller",
+    "imported_error_type",
+    "imported_error_callee",
+    "imported_error_caller",
 ]
 
 [workspace.package]

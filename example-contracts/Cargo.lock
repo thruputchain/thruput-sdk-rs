@@ -1055,6 +1055,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "imported_error_callee"
+version = "0.3.0"
+dependencies = [
+ "imported_error_callee",
+ "imported_error_type",
+ "sdk",
+]
+
+[[package]]
+name = "imported_error_caller"
+version = "0.3.0"
+dependencies = [
+ "imported_error_callee",
+ "imported_error_caller",
+ "sdk",
+]
+
+[[package]]
+name = "imported_error_type"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
