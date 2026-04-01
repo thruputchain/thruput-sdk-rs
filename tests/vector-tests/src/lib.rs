@@ -29,7 +29,7 @@ impl VectorTestContract {
     }
 
     pub fn push_nnint(&mut self) {
-        self.nnints.push_empty_slot();
+        let _ = self.nnints.push_empty_slot();
     }
 
     pub fn inc_nnint(&mut self, index: u32, delta: i128) {

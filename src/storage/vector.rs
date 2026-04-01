@@ -84,6 +84,7 @@ impl<S: StorageType> Vector<S> {
     ///
     /// This increments len before the returned slot is written, making the new
     /// index immediately in-bounds for the rest of the invocation.
+    #[must_use = "push_empty_slot increments len immediately; dropping the slot leaves it uninitialized. Use push_with to initialize atomically, or bind with `let _ = ...` if an empty slot is intentional."]
     pub fn push_empty_slot(&mut self) -> SlotMut<'_, Self, S> {
         let idx = self.len();
         let new_len = idx.checked_add(1).unwrap();
@@ -96,7 +97,8 @@ impl<S: StorageType> Vector<S> {
     /// Construct a new slot at the end, initialize it through `f`, then make
     /// the index visible by incrementing len.
     ///
-    /// If `f` traps or panics, len is left unchanged.
+    /// If `f` panics or traps, the entire invocation frame faults and reverts,
+    /// so neither the slot data nor the len increment are committed.
     pub fn push_with<R>(&mut self, f: impl FnOnce(&mut S) -> R) -> R {
         let idx = self.len();
         let mut slot = S::from(self.make_elem_keypath(idx));
