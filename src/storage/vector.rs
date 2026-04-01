@@ -1,9 +1,11 @@
+use super::deletable::Deletable;
 use super::keypath::Keypath;
 use super::map::Map;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use super::value::Value;
 use core::fmt::Debug;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 pub struct Vector<S> {
     keypath: Keypath,
@@ -98,11 +100,9 @@ impl<S: StorageType> Vector<S> {
     }
 }
 
-use super::deletable::Deletable;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
-
 impl<S: StorageType + Deletable> Vector<S> {
-    /// Remove the last element, deleting its storage.
+    /// Remove the last element, deleting its storage with an exclusive lock
+    /// (matching the exclusivity of the length update).
     /// Aborts if the vector is empty.
     pub fn pop(&mut self) {
         let len = self.len();
@@ -117,6 +117,11 @@ impl<S: StorageType + Deletable> Vector<S> {
 }
 
 impl<S: StorageType + Deletable> Deletable for Vector<S> {
+    // Unlike pop(), which hard-codes ExclusiveLock on the element delete,
+    // delete_internal propagates the caller's flags to elements. The length
+    // key's own exclusive keypath flag is OR'd in by Value::delete_internal,
+    // so `vec.delete()` uses shared locking for elements but exclusive for
+    // the length. Use `vec.delete_exclusive()` for fully exclusive teardown.
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
         let len = self.len();
         for i in 0..len {
