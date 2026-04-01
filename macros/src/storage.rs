@@ -57,18 +57,16 @@ fn impl_from_keypath(
     generics: &syn::Generics,
     fields: &syn::Fields,
 ) -> Result<TokenStream> {
-    let ty = generic_type_name(ident, generics);
-    let generic_params = &generics.params;
-
     let named_fields = match fields {
         syn::Fields::Named(fields_named) => &fields_named.named,
         syn::Fields::Unit => {
-            // Unit struct: From<Keypath> ignores the keypath
+            let (impl_generics, ty_generics, where_clause) =
+                generics.split_for_impl();
             return Ok(quote! {
                 const _: () = {
                     use sdk::storage::*;
 
-                    impl<#generic_params> From<Keypath> for #ty {
+                    impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
                         fn from(_keypath: Keypath) -> Self {
                             Self
                         }
@@ -79,11 +77,15 @@ fn impl_from_keypath(
         _ => return err(fields, "Can only handle named or unit structs"),
     };
 
+    // Clone generics so we can add field-type bounds
+    let mut generics = generics.clone();
+
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
     let n_fields = named_fields.len();
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
+        let field_type = &field.ty;
         field_names.extend(quote! { #field_name, });
 
         field_initializers.extend(quote! {
@@ -95,13 +97,23 @@ fn impl_from_keypath(
                 keypath.seq_next();
             });
         }
+
+        // Add `FieldType: From<Keypath>` bound
+        generics
+            .make_where_clause()
+            .predicates
+            .push(syn::parse_quote!(#field_type: From<Keypath>));
     }
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     Ok(quote! {
         const _: () = {
             use sdk::storage::*;
 
-            impl<#generic_params> From<Keypath> for #ty {
+            impl #impl_generics From<Keypath> for #ident #ty_generics
+                #where_clause
+            {
                 fn from(keypath: Keypath) -> Self {
                     let mut keypath = keypath;
 
@@ -116,15 +128,6 @@ fn impl_from_keypath(
             }
         };
     })
-}
-
-fn generic_type_name(
-    ident: &syn::Ident,
-    generics: &syn::Generics,
-) -> TokenStream {
-    let generic_params = &generics.params;
-
-    quote!(#ident #generic_params)
 }
 
 // Produce an error referencing a particular code span

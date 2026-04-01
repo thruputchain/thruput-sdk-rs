@@ -1,8 +1,15 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-use sdk::Storage;
 use sdk::contract_test;
 use sdk::storage::*;
+use sdk::{Deletable, Storage};
+
+#[derive(Storage, Deletable)]
+#[allow(dead_code)]
+struct Pair<A: StorageType, B: StorageType> {
+    first: A,
+    second: B,
+}
 
 #[derive(Debug, Storage)]
 #[allow(dead_code)]
@@ -92,9 +99,9 @@ contract_test!(test_storable {
     }
 
     let data: Data = data_keypath.into();
-    for i in 0..3u64 {
+    for i in 0..3u32 {
         let n = data.nums.at(i).get();
-        assert_eq!(n, i);
+        assert_eq!(n, i as u64);
     }
 });
 
@@ -107,8 +114,8 @@ contract_test!(test_vector {
     }
 
     assert_eq!(3, vec.len());
-    for i in 0..3u64 {
-        assert_eq!(i as u32, vec.at(i).get());
+    for i in 0..3u32 {
+        assert_eq!(i, vec.at(i).get());
     }
 });
 
@@ -215,6 +222,129 @@ contract_test!(test_exclusive_propagation {
         let v = data.map.at(&slot).get();
         assert_eq!(v, 10);
     }
+});
+
+contract_test!(test_vector_pop {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&10);
+    vec.push().set(&20);
+    vec.push().set(&30);
+    assert_eq!(3, vec.len());
+
+    vec.pop();
+    assert_eq!(2, vec.len());
+
+    // Popped element's storage is deleted
+    assert_eq!(vec.at(0).get(), 10);
+    assert_eq!(vec.at(1).get(), 20);
+
+    vec.pop();
+    vec.pop();
+    assert_eq!(0, vec.len());
+});
+
+contract_test!(test_vector_delete {
+    let mut vec: Vector<Value<u32>> = Keypath::root().into();
+
+    vec.push().set(&1);
+    vec.push().set(&2);
+    vec.push().set(&3);
+
+    vec.delete();
+    assert_eq!(0, vec.len());
+});
+
+contract_test!(test_vector_delete_verifies_storage_cleared {
+    let root = Keypath::root();
+    let mut vec: Vector<Value<u32>> = root.clone().into();
+
+    vec.push().set(&100);
+    vec.push().set(&200);
+    vec.push().set(&300);
+
+    // Verify values are there via manually-constructed keypaths.
+    // Vector layout:
+    //   len   = root + seq_begin (index 0)
+    //   values map = root + seq_begin + seq_next (index 1)
+    //   element i  = values_kp + push_item(&i)
+    let mut values_kp = root.clone();
+    values_kp.seq_begin();
+    values_kp.seq_next();
+
+    let elem = |kp: &Keypath, idx: u32| -> Value<u32> {
+        let mut ekp = kp.clone();
+        ekp.push_item(&idx);
+        Value::new(&ekp)
+    };
+
+    // Before delete: elements are readable
+    assert_eq!(elem(&values_kp, 0).try_get(), Some(100));
+    assert_eq!(elem(&values_kp, 1).try_get(), Some(200));
+    assert_eq!(elem(&values_kp, 2).try_get(), Some(300));
+
+    // Delete the whole vector
+    vec.delete();
+
+    // After delete: all element storage is gone
+    assert_eq!(elem(&values_kp, 0).try_get(), None);
+    assert_eq!(elem(&values_kp, 1).try_get(), None);
+    assert_eq!(elem(&values_kp, 2).try_get(), None);
+
+    // Length storage is also gone
+    let mut len_kp = root;
+    len_kp.seq_begin();
+    let len_val: Value<u32> = Value::new(&len_kp);
+    assert_eq!(len_val.try_get(), None);
+});
+
+contract_test!(test_generic_storage_struct {
+    let keypath = Keypath::new();
+    let pair: Pair<Value<u32>, Value<u64>> = keypath.into();
+
+    let mut first = pair.first;
+    let mut second = pair.second;
+
+    first.set(&42);
+    second.set(&100);
+
+    assert_eq!(first.get(), 42);
+    assert_eq!(second.get(), 100);
+});
+
+contract_test!(test_generic_storage_struct_delete {
+    let keypath = Keypath::new();
+    let mut pair: Pair<Value<u32>, Value<u64>> = keypath.into();
+
+    pair.first.set(&42);
+    pair.second.set(&100);
+
+    pair.delete();
+
+    assert_eq!(pair.first.try_get(), None);
+    assert_eq!(pair.second.try_get(), None);
+});
+
+contract_test!(test_nnint_delete {
+    let keypath = Keypath::new();
+    let mut n: NNInt = keypath.into();
+    n.set(42);
+    assert_eq!(n.get(), 42);
+    n.delete();
+    assert_eq!(n.try_get(), None);
+});
+
+contract_test!(test_vector_pop_nnint {
+    let keypath = Keypath::new();
+    let mut vec: Vector<NNInt> = keypath.into();
+
+    vec.push().set(10);
+    vec.push().set(20);
+    assert_eq!(2, vec.len());
+
+    vec.pop();
+    assert_eq!(1, vec.len());
+    assert_eq!(vec.at(0).get(), 10);
 });
 
 #[test]

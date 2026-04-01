@@ -13,3 +13,10 @@ pub fn delete_exclusive(key: &StorageKey) -> Result<(), SysErr> {
 
     sys::raw_DeleteObject(key, flags.0)
 }
+
+pub fn delete_with_flags(
+    key: &StorageKey,
+    flags: StorageDeltaFlags,
+) -> Result<(), SysErr> {
+    sys::raw_DeleteObject(key, flags.0)
+}

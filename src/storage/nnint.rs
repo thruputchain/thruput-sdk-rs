@@ -75,17 +75,17 @@ impl NNInt {
         }
         nnint::set_add(key, Some(s), add_value, self.flags());
     }
-
-    /// Delete the value at this storage location.
-    pub fn delete(&mut self) {
-        let key = &self.keypath.generate_key();
-        if self.keypath.is_exclusive() {
-            crate::delete_exclusive(key);
-        } else {
-            crate::delete_shared(key);
-        }
-    }
 }
 
 impl super::sealed::Sealed for NNInt {}
 impl super::node::StorageType for NNInt {}
+
+impl super::deletable::Deletable for NNInt {
+    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+        let effective = StorageDeltaFlags(flags.0 | self.flags().0);
+        crate::sys_exn::delete::delete_with_flags(
+            &self.keypath.generate_key(),
+            effective,
+        );
+    }
+}

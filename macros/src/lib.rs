@@ -7,6 +7,8 @@ mod derive_exn;
 mod static_hash;
 
 #[cfg(feature = "storage")]
+mod deletable;
+#[cfg(feature = "storage")]
 mod storage;
 
 #[proc_macro]
@@ -70,6 +72,16 @@ pub fn storage(
         #item
     }
     .into()
+}
+
+#[cfg(feature = "storage")]
+#[proc_macro_derive(Deletable)]
+pub fn derive_deletable(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    deletable::generate_impls(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 /// `#[exn]` or `#[exn(version = "1")]` — emits `impl Exn` with a

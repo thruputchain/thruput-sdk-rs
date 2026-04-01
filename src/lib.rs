@@ -128,6 +128,9 @@ pub mod spec;
 pub mod storage;
 
 #[cfg(feature = "storage")]
+pub use groundhog_macros::Deletable;
+
+#[cfg(feature = "storage")]
 pub use groundhog_macros::Storage;
 
 #[cfg(feature = "storage")]
