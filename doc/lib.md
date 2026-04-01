@@ -190,3 +190,7 @@ impl MyContract {
     }
 }
 ```
+
+`throws` also accepts module-qualified paths such as
+`#[contract(throws = errors::MyError)]` or
+`#[contract(throws(errors::AlphaError, errors::BetaError))]`.

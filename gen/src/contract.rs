@@ -3,7 +3,7 @@
 //! - trait impls
 //! - bare impls
 
-use crate::config::Config;
+use crate::config::{Config, ThrownType};
 use crate::util::cmp_sig_by_name;
 use darling::FromMeta;
 use darling::ast::NestedMeta;
@@ -79,11 +79,11 @@ pub trait ContractSrc {
 
     fn self_ty(&self) -> Option<&syn::Type>;
 
-    fn throws(&self) -> Option<&syn::Ident> {
+    fn throws(&self) -> Option<ThrownType> {
         None
     }
 
-    fn throws_list(&self) -> Vec<&syn::Ident> {
+    fn throws_list(&self) -> Vec<ThrownType> {
         vec![]
     }
 
@@ -275,11 +275,11 @@ where
             .or_else(|| self.contract.client_ident())
     }
 
-    fn throws(&self) -> Option<&syn::Ident> {
+    fn throws(&self) -> Option<ThrownType> {
         self.config.throws().or_else(|| self.contract.throws())
     }
 
-    fn throws_list(&self) -> Vec<&syn::Ident> {
+    fn throws_list(&self) -> Vec<ThrownType> {
         let config_throws = self.config.throws_list();
         if !config_throws.is_empty() {
             config_throws

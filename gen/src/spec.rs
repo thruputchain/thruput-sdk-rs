@@ -51,7 +51,8 @@ fn method_repr(
         quote! { vec![] }
     } else {
         let err_specs = errs.iter().map(|e| {
-            quote! { <#e as HasTypeSpec>::type_spec() }
+            let ty = e.ty();
+            quote! { <#ty as HasTypeSpec>::type_spec() }
         });
         quote! { vec![ #(#err_specs),* ] }
     };
