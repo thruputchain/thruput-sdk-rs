@@ -3,6 +3,7 @@ use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
 use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
 use xdrs::WriteXDR;
 
 #[derive(Debug)]
@@ -64,6 +65,58 @@ impl<K, V> Map<K, V> {
         SlotMut::new(self, slot)
     }
 
+    /// Mutably borrow N elements at once. Panics if any keys are equal.
+    ///
+    /// Returns a `DisjointMut` guard that borrows the map exclusively
+    /// and provides `DerefMut` access to the `[V; N]` array.
+    ///
+    /// Mirrors `HashMap::get_disjoint_mut`.
+    pub fn at_disjoint_mut<const N: usize>(
+        &mut self,
+        keys: [&K; N],
+    ) -> DisjointMut<'_, Self, V, N>
+    where
+        K: WriteXDR + PartialEq,
+        V: StorageType,
+    {
+        // O(n^2) deduplication check
+        for i in 0..N {
+            for j in (i + 1)..N {
+                assert!(
+                    keys[i] != keys[j],
+                    "at_disjoint_mut: duplicate keys at indices {i} and {j}"
+                );
+            }
+        }
+
+        let slots = keys.map(|k| V::from(self.make_entry_keypath(k)));
+        DisjointMut {
+            slots,
+            _borrow: PhantomData,
+        }
+    }
+
+    /// Mutably borrow N elements at once without checking for duplicates.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure all keys are disjoint. Passing duplicate
+    /// leads to undefined behavior.
+    pub unsafe fn at_disjoint_unchecked_mut<const N: usize>(
+        &mut self,
+        keys: [&K; N],
+    ) -> DisjointMut<'_, Self, V, N>
+    where
+        K: WriteXDR,
+        V: StorageType,
+    {
+        let slots = keys.map(|k| V::from(self.make_entry_keypath(k)));
+        DisjointMut {
+            slots,
+            _borrow: PhantomData,
+        }
+    }
+
     fn make_entry_keypath(&self, entry_key: &K) -> Keypath
     where
         K: WriteXDR,
@@ -71,6 +124,27 @@ impl<K, V> Map<K, V> {
         let mut keypath = self.keypath.clone();
         keypath.push_item(entry_key);
         keypath
+    }
+}
+
+/// Borrow guard holding N mutable storage slots from a Map.
+/// Borrows the map exclusively for its lifetime.
+pub struct DisjointMut<'a, Owner, S, const N: usize> {
+    slots: [S; N],
+    _borrow: PhantomData<&'a mut Owner>,
+}
+
+impl<Owner, S, const N: usize> Deref for DisjointMut<'_, Owner, S, N> {
+    type Target = [S; N];
+
+    fn deref(&self) -> &[S; N] {
+        &self.slots
+    }
+}
+
+impl<Owner, S, const N: usize> DerefMut for DisjointMut<'_, Owner, S, N> {
+    fn deref_mut(&mut self) -> &mut [S; N] {
+        &mut self.slots
     }
 }
 

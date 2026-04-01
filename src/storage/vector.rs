@@ -85,6 +85,25 @@ impl<S: StorageType> Vector<S> {
         SlotMut::new(self, slot)
     }
 
+    /// Iterate over all elements (read-only access).
+    pub fn iter(&self) -> VectorIter<'_, S> {
+        VectorIter {
+            vec: self,
+            index: 0,
+            len: self.len(),
+        }
+    }
+
+    /// Iterate over all elements (mutable access).
+    pub fn iter_mut(&mut self) -> VectorIterMut<'_, S> {
+        let len = self.len();
+        VectorIterMut {
+            vec: self,
+            index: 0,
+            len,
+        }
+    }
+
     fn bounds_check(&self, index: u32) {
         let len = self.len();
         if index >= len {
@@ -124,3 +143,57 @@ impl<S: StorageType + Deletable> Deletable for Vector<S> {
         self.len.delete_internal(flags);
     }
 }
+
+/// Iterator over vector elements (shared borrow).
+pub struct VectorIter<'a, S> {
+    vec: &'a Vector<S>,
+    index: u32,
+    len: u32,
+}
+
+impl<S: StorageType> Iterator for VectorIter<'_, S> {
+    type Item = S;
+
+    fn next(&mut self) -> Option<S> {
+        if self.index >= self.len {
+            return None;
+        }
+        let elem = S::from(self.vec.make_elem_keypath(self.index));
+        self.index += 1;
+        Some(elem)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.len - self.index) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<S: StorageType> ExactSizeIterator for VectorIter<'_, S> {}
+
+/// Iterator over vector elements (exclusive borrow).
+pub struct VectorIterMut<'a, S> {
+    vec: &'a mut Vector<S>,
+    index: u32,
+    len: u32,
+}
+
+impl<S: StorageType> Iterator for VectorIterMut<'_, S> {
+    type Item = S;
+
+    fn next(&mut self) -> Option<S> {
+        if self.index >= self.len {
+            return None;
+        }
+        let elem = S::from(self.vec.make_elem_keypath(self.index));
+        self.index += 1;
+        Some(elem)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.len - self.index) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<S: StorageType> ExactSizeIterator for VectorIterMut<'_, S> {}
