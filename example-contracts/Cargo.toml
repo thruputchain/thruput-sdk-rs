@@ -27,6 +27,8 @@ members = [
     "multi_throws",
     "named_interface_callee",
     "named_interface_caller",
+    "bare_impl_callee",
+    "bare_impl_caller",
     "versioned_callee",
     "versioned_caller",
     "imported_error_type",
@@ -55,6 +57,7 @@ hex-literal = "1.0.0"
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
 bottle-test-if = { path = "../standard-interfaces/bottle-test-if", registry = "groundhog", version = "=0.1.0" }
+groundhog-contract-util = { path = "../contract-util" , registry = "groundhog", version = "=0.8.6" }
 
 # Standard test crates
 erc20-test = { path = "../standard-tests/erc20-test" }

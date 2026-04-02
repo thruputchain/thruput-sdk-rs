@@ -1,0 +1,22 @@
+error[E0432]: unresolved import `sdk`
+ --> tests/compile-fail/legacy_exports_export_num_path.rs:6:1
+  |
+6 | #[contract]
+  | ^^^^^^^^^^^ could not find `storage` in `sdk`
+  |
+note: found an item that was configured out
+ --> src/lib.rs
+  |
+  | #[cfg(feature = "storage")]
+  |       ------------------- the item is gated behind the `storage` feature
+  | pub mod storage;
+  |         ^^^^^^^
+note: found an item that was configured out
+ --> src/lib.rs
+  |
+  | #[cfg(feature = "storage")]
+  |       ------------------- the item is gated behind the `storage` feature
+  | #[doc = include_str!("../doc/macro-storage.md")]
+  | pub use groundhog_macros::storage;
+  |                           ^^^^^^^
+  = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
