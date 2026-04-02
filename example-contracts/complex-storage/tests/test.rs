@@ -9,7 +9,7 @@ static NONCE: SHA256Hash = sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
     let env = TestEnvironment::no_cost();
     let contract = env.register_mock(ComplexStorage::__mock);
-    let contract_hash = env.setup_create_contract(&contract);
+    let contract_hash = contract.as_hash().clone();
     (env, contract_hash)
 }
 

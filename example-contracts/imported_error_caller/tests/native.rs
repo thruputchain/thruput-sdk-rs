@@ -10,11 +10,11 @@ fn cross_call_decodes_reexported_imported_error_without_direct_dependency() {
     let callee_contract = env.register_mock(
         <imported_error_callee::ImportedErrorCalleeContract as imported_error_callee::ImportedErrorCallee>::__mock,
     );
-    let callee_hash = env.setup_create_contract(&callee_contract);
+    let callee_hash = callee_contract.as_hash().clone();
 
     let caller_contract =
         env.register_mock(imported_error_caller::ImportedErrorCaller::__mock);
-    let caller_hash = env.setup_create_contract(&caller_contract);
+    let caller_hash = caller_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {
         let callee_addr = sdk::deploy_contract(&CALLEE_NONCE, &callee_hash);

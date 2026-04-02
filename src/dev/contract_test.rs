@@ -147,9 +147,10 @@ macro_rules! contract_test {
     };
 }
 
-pub trait TestRegisterFn: Fn(&TestEnvironmentHandle) -> Contract {}
+pub trait TestRegisterFn: Fn(&TestEnvironmentHandle) -> MockContract {}
 
-impl<T> TestRegisterFn for T where T: Fn(&TestEnvironmentHandle) -> Contract {}
+impl<T> TestRegisterFn for T where T: Fn(&TestEnvironmentHandle) -> MockContract
+{}
 
 pub fn client_test<R, F, C>(register: R, run_test: F)
 where
@@ -162,7 +163,7 @@ where
 
     let mut env = TestEnvironment::no_cost();
     let test_contract = register(&mut env);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let contract_hash = test_contract.as_hash().clone();
 
     contract_exec(env, move || {
         // Deploy the contract under test

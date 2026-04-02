@@ -32,9 +32,9 @@ fn test_ifaces() {
 }
 
 #[test]
-fn test_prepare_mock_single_trait() {
+fn test_register_mock_single_trait() {
     let env = sdk::TestEnvironment::no_cost();
-    let contract = env.prepare_mock(Stateless::__mock);
+    let contract = env.register_mock(Stateless::__mock);
     let addr: sdk::ContractAddress = [0x11; 32].into();
 
     contract.deploy_contract_to(&addr);
@@ -43,13 +43,13 @@ fn test_prepare_mock_single_trait() {
         let client = StatelessClient::new(&addr);
         client.run();
     })
-    .unwrap_or_else(|e| panic!("prepare_mock single-trait test failed: {:?}", e));
+    .unwrap_or_else(|e| panic!("register_mock single-trait test failed: {:?}", e));
 }
 
 #[test]
-fn test_prepare_mock_multi_trait() {
+fn test_register_mock_multi_trait() {
     let env = sdk::TestEnvironment::no_cost();
-    let contract = env.prepare_mock(|c| {
+    let contract = env.register_mock(|c| {
         <Stateless as interface1::Interface>::__mock(c);
         <Stateless as interface2::Interface>::__mock(c);
     });
@@ -64,5 +64,5 @@ fn test_prepare_mock_multi_trait() {
         assert_eq!(client1.perform_task(), 1);
         assert_eq!(client2.perform_task(), 2);
     })
-    .unwrap_or_else(|e| panic!("prepare_mock multi-trait test failed: {:?}", e));
+    .unwrap_or_else(|e| panic!("register_mock multi-trait test failed: {:?}", e));
 }

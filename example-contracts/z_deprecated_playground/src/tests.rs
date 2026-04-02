@@ -8,7 +8,7 @@ fn check_playground() {
     let mut env = sdk::TestEnvironment::new(None);
 
     let test_contract = env.register_mock(MyContract::__mock);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let contract_hash = test_contract.as_hash().clone();
 
     let mut handler = env.prepare_test(move || -> () {
         check_inner(&contract_hash).unwrap_or_else(|e| {
