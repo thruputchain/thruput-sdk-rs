@@ -1,13 +1,13 @@
 pub use erc20_test::*;
 
+use sdk::SHA256Hash;
 use sdk::TestEnvironmentHandle;
-use sdk::types::Contract;
 
 pub fn test_erc20_contract(
     env: TestEnvironmentHandle,
-    test_contract: &Contract,
+    test_contract_hash: &SHA256Hash,
 ) {
-    let test_contract_hash = env.setup_create_contract(test_contract);
+    let test_contract_hash = test_contract_hash.clone();
 
     // It's currently difficult to extract state from mock contracts,
     // so we'll allocate shared storage for the model we want to extract

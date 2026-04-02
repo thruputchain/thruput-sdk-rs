@@ -10,11 +10,11 @@ fn cross_call_uses_explicit_trait_interface_entrypoint() {
     let callee_contract = env.register_mock(
         <named_interface_callee::NamedInterfaceCalleeContract as named_interface_callee::NamedInterfaceCallee>::__mock,
     );
-    let callee_hash = env.setup_create_contract(&callee_contract);
+    let callee_hash = callee_contract.as_hash().clone();
 
     let caller_contract = env
         .register_mock(named_interface_caller::NamedInterfaceCaller::__mock);
-    let caller_hash = env.setup_create_contract(&caller_contract);
+    let caller_hash = caller_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {
         let callee_addr = sdk::deploy_contract(&CALLEE_NONCE, &callee_hash);

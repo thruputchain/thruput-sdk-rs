@@ -11,8 +11,7 @@ fn setup() -> TestEnvironmentHandle {
     let env = sdk::TestEnvironment::no_cost();
     let contract =
         env.register_mock(storage_errors::StorageErrorContract::__mock);
-    env.setup_create_contract(&contract);
-    env.setup_create_deployment(&CONTRACT_ADDR, &contract);
+    contract.deploy_contract_to(&CONTRACT_ADDR);
     env
 }
 

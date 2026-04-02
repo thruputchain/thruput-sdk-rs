@@ -23,7 +23,7 @@ fn test_abort_exn() {
     let mut env = TestEnvironment::default(None);
 
     let test_contract = env.register_mock(aborter::Contract::__mock);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let contract_hash = test_contract.as_hash().clone();
 
     contract_exec(env, move || {
         let nonce = SHA256Hash::from([7; 32]);
@@ -48,7 +48,7 @@ fn test_uncaught_abort() {
     let mut env = TestEnvironment::default(None);
 
     let test_contract = env.register_mock(aborter::Contract::__mock);
-    let contract_hash = env.setup_create_contract(&test_contract);
+    let contract_hash = test_contract.as_hash().clone();
 
     contract_exec(env, move || {
         let nonce = SHA256Hash::from([7; 32]);
