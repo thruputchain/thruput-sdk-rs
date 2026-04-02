@@ -3,7 +3,7 @@ use sdk::*;
 #[derive(Default)]
 pub struct LegacyPathContract;
 
-#[contract]
+#[contract(storage = false, exports = "legacy_exports")]
 impl LegacyPathContract {
     pub fn ping(&self) -> u32 {
         7
