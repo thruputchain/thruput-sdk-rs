@@ -5,5 +5,5 @@ fn run_test() {
         <erc20_no_storage::Token as erc20_no_storage::ERC20>::__mock,
     );
 
-    erc20_native_test::test_erc20_contract(env, &test_contract);
+    erc20_native_test::test_erc20_contract(env, test_contract.as_hash());
 }
