@@ -1,11 +1,11 @@
-use crate::contract::{ContractSrc, Method};
+use crate::contract::{ContractSrc, Method, effective_interface_name};
 use crate::util::*;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Result;
 
 pub fn contract_repr(contract: &impl ContractSrc) -> Result<TokenStream> {
-    let iface_name = contract.interface_name().unwrap_or_default();
+    let iface_name = effective_interface_name(contract);
     let iface_vers = contract.defaulted_interface_vers();
 
     let method_reprs: Vec<_> = contract

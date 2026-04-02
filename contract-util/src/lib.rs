@@ -79,7 +79,9 @@ impl Display for EntrypointSignature {
         write!(
             f,
             "{}<{}>::{}",
-            self.interface_name.as_deref().unwrap_or(""),
+            self.interface_name
+                .as_deref()
+                .unwrap_or("_unnamed_interface"),
             self.version_str,
             self.method_sig,
         )
