@@ -143,10 +143,6 @@ impl Config {
         self.interface.clone()
     }
 
-    pub fn exports_mod_ident(&self) -> syn::Ident {
-        ident_or(&self.exports, "exports")
-    }
-
     pub fn internal_exports_mod_ident(
         &self,
         effective_interface_name: &str,
@@ -176,14 +172,6 @@ impl Config {
     /// Returns the first thrown error type (backwards compat).
     pub fn throws(&self) -> Option<ThrownType> {
         self.throws.as_ref().and_then(|t| t.0.first()).cloned()
-    }
-}
-
-fn ident_or(maybe_name: &Option<String>, default: &str) -> syn::Ident {
-    let span = Span::call_site();
-    match maybe_name {
-        Some(name_string) => syn::Ident::new(name_string.as_ref(), span),
-        None => syn::Ident::new(default, span),
     }
 }
 

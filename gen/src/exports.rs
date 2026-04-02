@@ -412,17 +412,8 @@ pub fn generate_free_function_bundle(
         .interface_name()
         .unwrap_or_else(|| "_unnamed_interface".to_string());
     let ident = &item.sig.ident;
-    let exports_mod_ident = if let Some(name) = &config.exports {
-        syn::Ident::new(name, Span::call_site())
-    } else {
-        syn::Ident::new(
-            &format!(
-                "__groundhog_exports_{}_{}",
-                effective_interface_name, ident
-            ),
-            Span::call_site(),
-        )
-    };
+    let exports_mod_ident =
+        free_function_exports_mod_ident(&effective_interface_name, ident);
     let iface_name = config.interface_name();
     let iface_name = iface_name.as_deref();
     let contract: Option<&syn::ItemImpl> = None;
@@ -436,4 +427,44 @@ pub fn generate_free_function_bundle(
             #exports
         }
     })
+}
+
+fn free_function_exports_mod_ident(
+    effective_interface_name: &str,
+    ident: &syn::Ident,
+) -> syn::Ident {
+    syn::Ident::new(
+        &format!("__groundhog_exports_{}_{}", effective_interface_name, ident),
+        Span::call_site(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::free_function_exports_mod_ident;
+    use super::*;
+    use darling::FromMeta;
+    use darling::ast::NestedMeta;
+
+    fn parse_config(attrs: &str) -> Config {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn free_function_hidden_exports_ignore_explicit_override() {
+        let config =
+            parse_config(r#"exports = "custom", interface = "Iface""#);
+        let ident = syn::Ident::new("ping", Span::call_site());
+
+        assert_eq!(
+            free_function_exports_mod_ident(
+                &config.interface_name().unwrap(),
+                &ident,
+            )
+            .to_string(),
+            "__groundhog_exports_Iface_ping"
+        );
+    }
 }
