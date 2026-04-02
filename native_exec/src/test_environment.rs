@@ -419,9 +419,23 @@ impl TestEnvironment {
         self: &TestEnvironmentHandle,
         f: fn(&mut MockContract),
     ) -> Contract {
+        let c = self.prepare_mock(f);
+        c.as_contract()
+    }
+
+    /// Create a mock contract, register methods onto it, and make it
+    /// deployable in the test environment.
+    ///
+    /// The registrar may be a single generated `__mock` function or a
+    /// closure that combines multiple interface registrars onto one mock.
+    pub fn prepare_mock<F>(self: &TestEnvironmentHandle, f: F) -> MockContract
+    where
+        F: FnOnce(&mut MockContract),
+    {
         let mut c = self.add_contract();
         f(&mut c);
-        c.as_contract()
+        self.setup_create_contract(&c.as_contract());
+        c
     }
 
     pub fn prepare_test<F>(

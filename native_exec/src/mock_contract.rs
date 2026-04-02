@@ -3,6 +3,7 @@ use crate::test_environment::TestEnvironment;
 use crate::invoke_error::invoke_wrapper;
 use groundhog_xdr::contract::Contract;
 use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::types::ContractAddress;
 use groundhog_xdr::types::SHA256Hash;
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
@@ -49,6 +50,18 @@ impl MockContract {
 
     pub fn as_hash(&self) -> &SHA256Hash {
         unsafe { &(*self.contract).hash }
+    }
+
+    /// Deploy this prepared mock contract at a fixed address in test setup.
+    ///
+    /// This uses the test environment's setup path, so it should be called
+    /// before executing the transaction under test.
+    pub fn deploy_contract_to(
+        &self,
+        addr: &ContractAddress,
+    ) -> ContractAddress {
+        self._env.setup_create_deployment(addr, &self.as_contract());
+        addr.clone()
     }
 
     pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)
