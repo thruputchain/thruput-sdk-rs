@@ -170,11 +170,15 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn interface_name(&self) -> Option<String> {
-        let ident = self
-            .trait_
-            .as_ref()
-            .map(|(_, path, _)| path_last_segment_ident(path));
-        ident.map(|i| i.to_string())
+        if let Some((_, path, _)) = &self.trait_ {
+            return Some(path_last_segment_ident(path).to_string());
+        }
+
+        if let syn::Type::Path(tp) = &*self.self_ty {
+            return tp.path.segments.last().map(|seg| seg.ident.to_string());
+        }
+
+        None
     }
 
     fn interface_vers(&self) -> Option<String> {
@@ -300,6 +304,12 @@ where
 fn path_last_segment_ident(path: &syn::Path) -> &syn::Ident {
     let seg = path.segments.last().unwrap();
     &seg.ident
+}
+
+pub fn effective_interface_name(contract: &impl ContractSrc) -> String {
+    contract
+        .interface_name()
+        .unwrap_or_else(|| "_unnamed_interface".to_string())
 }
 
 fn is_visible(vis: &syn::Visibility) -> bool {
