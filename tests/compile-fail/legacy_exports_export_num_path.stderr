@@ -1,7 +1,0 @@
-error[E0433]: failed to resolve: use of unresolved module or unlinked crate `exports`
-  --> tests/compile-fail/legacy_exports_export_num_path.rs:14:13
-   |
-14 |     let _ = exports::PING_EXPORT_NUM;
-   |             ^^^^^^^ use of unresolved module or unlinked crate `exports`
-   |
-   = help: if you wanted to use a crate named `exports`, use `cargo add exports` to add it to your `Cargo.toml`
