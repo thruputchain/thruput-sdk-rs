@@ -78,20 +78,12 @@ fn apply_with_config(
         syn::Item::Impl(item) => {
             let mut stripped = item.strip_our_attributes();
 
-            // Extract trait name for auto-deriving module names
-            let trait_name = item.trait_.as_ref().map(|(_, path, _)| {
-                path.segments.last().unwrap().ident.to_string()
-            });
-
             // For trait impls, inject __mock into the impl block
             // BEFORE tokenizing.
             if cfg!(feature = "mock")
                 && item.trait_.is_some()
-                && let Some(method) = codegen::test_reg::generate_trait_method(
-                    item,
-                    config,
-                    trait_name.as_deref(),
-                )?
+                && let Some(method) =
+                    codegen::test_reg::generate_trait_method(item, config)?
             {
                 stripped.items.push(method);
             }
@@ -116,11 +108,7 @@ fn apply_with_config(
             }
 
             // Generate exports (with auto-derived module name for trait impls)
-            out.extend(codegen::exports::generate(
-                item,
-                config,
-                trait_name.as_deref(),
-            )?);
+            out.extend(codegen::exports::generate(item, config, None)?);
 
             if config.client_ident().is_some() && item.trait_.is_some() {
                 out.extend(quote::quote! {
@@ -140,14 +128,8 @@ fn apply_with_config(
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
-            let iface_name = config.interface_name();
-            let iface_name = iface_name.as_deref();
-
-            let contract: Option<&syn::ItemImpl> = None;
-
-            // Generate exports
-            out.extend(codegen::exports::generate_method(
-                iface_name, contract, item, config,
+            out.extend(codegen::exports::generate_free_function_bundle(
+                item, config,
             )?);
 
             Ok(out)
