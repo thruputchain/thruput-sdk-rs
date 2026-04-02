@@ -56,12 +56,8 @@ impl MockContract {
     ///
     /// This uses the test environment's setup path, so it should be called
     /// before executing the transaction under test.
-    pub fn deploy_contract_to(
-        &self,
-        addr: &ContractAddress,
-    ) -> ContractAddress {
+    pub fn deploy_contract_to(&self, addr: &ContractAddress) {
         self._env.setup_create_deployment(addr, &self.as_contract());
-        addr.clone()
     }
 
     pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)

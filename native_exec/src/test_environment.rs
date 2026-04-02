@@ -419,7 +419,8 @@ impl TestEnvironment {
         self: &TestEnvironmentHandle,
         f: fn(&mut MockContract),
     ) -> Contract {
-        let c = self.prepare_mock(f);
+        let mut c = self.add_contract();
+        f(&mut c);
         c.as_contract()
     }
 
