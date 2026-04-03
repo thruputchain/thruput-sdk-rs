@@ -10,7 +10,6 @@ use syn::parse::Result;
 pub fn generate_trait_method(
     item: &syn::ItemImpl,
     config: &Config,
-    trait_name: Option<&str>,
 ) -> Result<Option<syn::ImplItem>> {
     // Error if user specified test_setup on any impl
     if config.test_setup.is_some() {
@@ -22,7 +21,7 @@ pub fn generate_trait_method(
         ));
     }
 
-    let registrations = build_registrations(item, config, trait_name)?;
+    let registrations = build_registrations(item, config)?;
 
     Ok(Some(syn::parse_quote! {
         #[doc(hidden)]
@@ -47,7 +46,7 @@ pub fn generate_bare_method(
         ));
     }
 
-    let registrations = build_registrations(item, config, None)?;
+    let registrations = build_registrations(item, config)?;
 
     let self_ty = &item.self_ty;
 
@@ -65,12 +64,13 @@ pub fn generate_bare_method(
 fn build_registrations(
     item: &syn::ItemImpl,
     config: &Config,
-    trait_name: Option<&str>,
 ) -> Result<TokenStream> {
-    let exports_mod_ident = config.exports_mod_ident_for_trait(trait_name);
-    let mut registrations = TokenStream::new();
-
     let contract = ConfiguredContract::new(config.clone(), item);
+    let effective_interface_name =
+        crate::contract::effective_interface_name(&contract);
+    let exports_mod_ident =
+        config.internal_exports_mod_ident(&effective_interface_name);
+    let mut registrations = TokenStream::new();
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();

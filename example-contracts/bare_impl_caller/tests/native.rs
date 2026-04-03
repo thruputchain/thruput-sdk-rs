@@ -1,0 +1,40 @@
+static CALLEE_NONCE: sdk::SHA256Hash =
+    sdk::sha256_static!("BARE_IMPL_CALLEE_EXAMPLE_TEST_NONCE");
+static CALLER_NONCE: sdk::SHA256Hash =
+    sdk::sha256_static!("BARE_IMPL_CALLER_EXAMPLE_TEST_NONCE");
+
+#[test]
+fn cross_call_uses_self_type_as_default_interface_name() {
+    let env = sdk::TestEnvironment::no_cost();
+
+    let callee_contract =
+        env.register_mock(bare_impl_callee::BareImplCallee::__mock);
+    let callee_hash = callee_contract.as_hash().clone();
+
+    let caller_contract =
+        env.register_mock(bare_impl_caller::BareImplCaller::__mock);
+    let caller_hash = caller_contract.as_hash().clone();
+
+    sdk::contract_exec(env, move || {
+        let callee_addr = sdk::deploy_contract(&CALLEE_NONCE, &callee_hash);
+        let caller_addr = sdk::deploy_contract(&CALLER_NONCE, &caller_hash);
+
+        let client = bare_impl_caller::BareImplCallerClient::new(&caller_addr);
+        assert_eq!(client.call_add_one(&callee_addr, 41), 42);
+
+        let expected = groundhog_contract_util::contract_entrypoint_id(
+            Some("BareImplCallee"),
+            bare_impl_callee::BareImplCalleeClient::INTERFACE_VERSION,
+            &groundhog_contract_util::NormalizedMethodSignature::new(
+                "add_one",
+            ),
+        );
+        assert_eq!(
+            sdk::contract::ContractEntrypointID::from(
+                bare_impl_callee::BareImplCalleeEntrypoints::add_one,
+            ),
+            expected,
+        );
+    })
+    .unwrap();
+}

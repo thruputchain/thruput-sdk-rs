@@ -143,24 +143,18 @@ impl Config {
         self.interface.clone()
     }
 
-    pub fn exports_mod_ident(&self) -> syn::Ident {
-        ident_or(&self.exports, "exports")
-    }
-
-    /// Returns the exports module identifier.
-    /// When `trait_name` is provided and no explicit `exports` was set,
-    /// derives the name from the trait (e.g., `Adder` → `Adder_exports`).
-    pub fn exports_mod_ident_for_trait(
+    pub fn internal_exports_mod_ident(
         &self,
-        trait_name: Option<&str>,
+        effective_interface_name: &str,
     ) -> syn::Ident {
-        match (&self.exports, trait_name) {
-            (Some(name), _) => syn::Ident::new(name, Span::call_site()),
-            (None, Some(name)) => {
-                syn::Ident::new(&format!("{name}_exports"), Span::call_site())
-            }
-            (None, None) => syn::Ident::new("exports", Span::call_site()),
+        if let Some(name) = &self.exports {
+            return syn::Ident::new(name, Span::call_site());
         }
+
+        syn::Ident::new(
+            &format!("__groundhog_exports_{}", effective_interface_name),
+            Span::call_site(),
+        )
     }
 
     pub fn storage(&self) -> bool {
@@ -181,14 +175,6 @@ impl Config {
     }
 }
 
-fn ident_or(maybe_name: &Option<String>, default: &str) -> syn::Ident {
-    let span = Span::call_site();
-    match maybe_name {
-        Some(name_string) => syn::Ident::new(name_string.as_ref(), span),
-        None => syn::Ident::new(default, span),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,47 +191,30 @@ mod tests {
         parse_config("")
     }
 
-    // -- exports_mod_ident_for_trait --
+    // -- internal_exports_mod_ident --
 
     #[test]
-    fn exports_name_from_trait() {
+    fn hidden_exports_name_from_effective_interface() {
         let config = empty_config();
         assert_eq!(
-            config
-                .exports_mod_ident_for_trait(Some("Adder"))
-                .to_string(),
-            "Adder_exports"
+            config.internal_exports_mod_ident("Adder").to_string(),
+            "__groundhog_exports_Adder"
         );
         assert_eq!(
-            config
-                .exports_mod_ident_for_trait(Some("ERC20"))
-                .to_string(),
-            "ERC20_exports"
+            config.internal_exports_mod_ident("ERC20").to_string(),
+            "__groundhog_exports_ERC20"
         );
         assert_eq!(
-            config
-                .exports_mod_ident_for_trait(Some("ISwapV2Pair"))
-                .to_string(),
-            "ISwapV2Pair_exports"
+            config.internal_exports_mod_ident("ISwapV2Pair").to_string(),
+            "__groundhog_exports_ISwapV2Pair"
         );
     }
 
     #[test]
-    fn exports_name_defaults_without_trait() {
-        let config = empty_config();
-        assert_eq!(
-            config.exports_mod_ident_for_trait(None).to_string(),
-            "exports"
-        );
-    }
-
-    #[test]
-    fn explicit_exports_overrides_trait_name() {
+    fn explicit_exports_overrides_hidden_exports_name() {
         let config = parse_config(r#"exports = "custom""#);
         assert_eq!(
-            config
-                .exports_mod_ident_for_trait(Some("Adder"))
-                .to_string(),
+            config.internal_exports_mod_ident("Adder").to_string(),
             "custom"
         );
     }

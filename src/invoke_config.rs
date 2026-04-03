@@ -1,4 +1,4 @@
-use crate::transaction::InvokeFlagSet;
+use groundhog_xdr::invoke_flag::InvokeFlagSet;
 
 #[derive(Clone, Copy)]
 pub struct InvokeConfig {

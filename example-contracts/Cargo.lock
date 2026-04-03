@@ -30,6 +30,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "bare_impl_callee"
+version = "0.3.0"
+dependencies = [
+ "bare_impl_callee",
+ "sdk",
+]
+
+[[package]]
+name = "bare_impl_caller"
+version = "0.3.0"
+dependencies = [
+ "bare_impl_callee",
+ "bare_impl_caller",
+ "groundhog-contract-util",
+ "sdk",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -701,9 +719,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.6.6"
+version = "0.7.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d0ba203d6393de7d1929a4029554c5535608b85300d004ba291801bc93bebbbd"
+checksum = "03eaf27e58c0c9274018f09efb5bd52a0ff410baffeddb1524a1aeaf39dda30d"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -713,9 +731,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.6.6"
+version = "0.7.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "94fe42c70e0abd1cc1180be09599b538744d2df83d45253f9bcbada4a413dbaf"
+checksum = "82e6b0c8f3f17a3d1a993c46d3c8f1defc858314d18a8c17ee54efcf4e9b7eb0"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -727,9 +745,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.6.6"
+version = "0.7.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "5a3c435e6e5a58b0e1518590514019b11f4f332b1dd74f8f3ae9801c257bd517"
+checksum = "8cd52aed3fa02eef48de48b8f17f7895a5552eeb81a051ecde97a43437002558"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -816,9 +834,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.6.6"
+version = "0.7.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "5650073cb4705725db18168cc4802e92f179a05a468f1dcd8a5ef1c29fa2994b"
+checksum = "aefa228c0b85ddae0d0a3b5cc7bca7d0bc9bc6f26c63782ec5f1def9adb2ac3b"
 dependencies = [
  "xdrs",
 ]

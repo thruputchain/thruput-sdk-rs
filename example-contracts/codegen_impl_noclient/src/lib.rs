@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
 mod implementation;
-pub use implementation::exports::*;
+pub use implementation::CalcEntrypoints;
 
 pub use implementation::CalcClient;
 

@@ -4,8 +4,6 @@ use groundhog_erc20_if::{Amount, ERC20Client};
 use sdk::storage::Value;
 use sdk::*;
 
-pub use exports::*;
-
 #[storage]
 struct Wallet {
     token_addr: Value<ContractAddress>,

@@ -41,7 +41,7 @@ impl Display for CallMethod<'_> {
         write!(
             f,
             "Call   {}[v{}]::{}(...)",
-            self.iface.unwrap_or(""),
+            self.iface.unwrap_or("_unnamed_interface"),
             self.iface_vers,
             self.name
         )
@@ -73,7 +73,7 @@ impl Display for HandlingMethod<'_> {
         write!(
             f,
             "Handling {}[v{}]::{}(...)",
-            self.iface.unwrap_or(""),
+            self.iface.unwrap_or("_unnamed_interface"),
             self.iface_vers,
             self.name
         )

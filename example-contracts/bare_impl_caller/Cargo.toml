@@ -1,0 +1,28 @@
+[package]
+name = "bare_impl_caller"
+description = "A stateless contract that cross-calls a bare impl callee"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+dev = ["sdk/dev", "bare_impl_callee/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+bare_impl_callee = { path = "../bare_impl_callee" }
+
+[dev-dependencies]
+bare_impl_caller = { path = ".", features = ["dev"] }
+groundhog-contract-util = { workspace = true }

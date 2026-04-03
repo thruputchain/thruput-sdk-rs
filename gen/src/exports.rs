@@ -1,7 +1,9 @@
 //! Generate exports
 
 use super::Config;
-use super::contract::{ConfiguredContract, ContractSrc, Method};
+use super::contract::{
+    ConfiguredContract, ContractSrc, Method, effective_interface_name,
+};
 use super::entrypoint::*;
 use super::util::*;
 use groundhog_contract_util as contract_util;
@@ -18,18 +20,11 @@ use syn::parse::Result;
 pub fn generate(
     contract: &impl ContractSrc,
     config: &Config,
-    trait_name: Option<&str>,
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), contract);
-
-    let exports_mod_ident = config.exports_mod_ident_for_trait(trait_name);
-
-    let mut uses = vec![quote! {
-        use super::*;
-    }];
-    if let Some(trait_path) = contract.trait_path() {
-        uses.push(quote! { use super::#trait_path; });
-    }
+    let effective_interface_name = effective_interface_name(&contract);
+    let exports_mod_ident =
+        config.internal_exports_mod_ident(&effective_interface_name);
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
@@ -40,14 +35,24 @@ pub fn generate(
     check_entrypoint_collisions(iface_name, &iface_vers, &methods)?;
 
     let mut exports = TokenStream::new();
-    for method in methods {
+    for method in &methods {
         exports.extend(generate_method(
             iface_name,
             Some(&contract),
-            &method,
+            method,
             config,
         )?);
     }
+    let entrypoints_wrapper = if contract.trait_path().is_none() {
+        generate_entrypoints_wrapper(
+            &effective_interface_name,
+            iface_name,
+            &iface_vers,
+            &methods,
+        )
+    } else {
+        TokenStream::new()
+    };
 
     // For trait impls, emit compile-time assertions that the impl-side
     // entrypoint metadata matches the trait definition.
@@ -133,15 +138,77 @@ pub fn generate(
     // The assertions go outside the module so the associated consts resolve
     // through the trait.
     Ok(quote! {
+        #entrypoints_wrapper
+
         #[allow(non_snake_case)]
-        pub mod #exports_mod_ident {
-            #(#uses)*
+        mod #exports_mod_ident {
+            use super::*;
 
             #exports
         }
 
         #trait_metadata_assertions
     })
+}
+
+pub fn generate_entrypoints(
+    contract: &impl ContractSrc,
+    config: &Config,
+) -> Result<TokenStream> {
+    let contract = ConfiguredContract::new(config.clone(), contract);
+    let effective_interface_name = effective_interface_name(&contract);
+    let iface_name = contract.interface_name();
+    let iface_name = iface_name.as_deref();
+    let iface_vers = contract.defaulted_interface_vers();
+    let methods: Vec<_> = contract.methods_sorted().into_iter().collect();
+
+    Ok(generate_entrypoints_wrapper(
+        &effective_interface_name,
+        iface_name,
+        &iface_vers,
+        &methods,
+    ))
+}
+
+fn generate_entrypoints_wrapper(
+    effective_interface_name: &str,
+    iface_name: Option<&str>,
+    iface_vers: &str,
+    methods: &[impl Method],
+) -> TokenStream {
+    let entrypoints_ident =
+        format_ident!("{}Entrypoints", effective_interface_name);
+    let entrypoints = methods.iter().map(|method| {
+        let ident = &method.sig().ident;
+        let entrypoint =
+            contract_entrypoint_id(iface_name, iface_vers, method.sig());
+        let entrypoint_lit = entrypoint_literal(entrypoint);
+
+        quote! {
+            pub const #ident: Self = Self(#entrypoint_lit);
+        }
+    });
+
+    quote! {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[repr(transparent)]
+        pub struct #entrypoints_ident(::sdk::contract::ContractEntrypointID);
+
+        impl From<#entrypoints_ident> for ::sdk::contract::ContractEntrypointID {
+            fn from(value: #entrypoints_ident) -> Self {
+                value.0
+            }
+        }
+
+        #[allow(non_upper_case_globals)]
+        impl #entrypoints_ident {
+            pub fn into_u64(self) -> u64 {
+                self.0.into_u64()
+            }
+
+            #(#entrypoints)*
+        }
+    }
 }
 
 /// Check for entrypoint ID collisions among methods
@@ -206,9 +273,6 @@ pub fn generate_method(
     let internal_name = contract
         .map(|c| c.make_internal_name(ident))
         .unwrap_or_else(|| format_ident!("{}_internal", ident));
-    let export_num_name =
-        format_ident!("{}_EXPORT_NUM", ident.to_string().to_uppercase());
-
     // Is the function a method that takes a self-parameter?
     let is_method = contract.is_some() && method.sig().receiver().is_some();
 
@@ -337,9 +401,6 @@ pub fn generate_method(
         }
     };
 
-    // Export the entrypoint ID as a constant for use in tests
-    let entrypoint_lit = entrypoint_literal(entrypoint);
-
     // Inline the internal implementation, unless requested otherwise
     let inline = if !cfg!(feature = "no_inline_methods") {
         quote! { #[inline(always)] }
@@ -360,9 +421,92 @@ pub fn generate_method(
         pub fn #internal_name() {
             #wrapped_call
         }
-
-        pub const #export_num_name: ::sdk::contract::ContractEntrypointID =
-            #entrypoint_lit;
-
     })
+}
+
+pub fn generate_free_function_bundle(
+    item: &syn::ItemFn,
+    config: &Config,
+) -> Result<TokenStream> {
+    let effective_interface_name = config
+        .interface_name()
+        .unwrap_or_else(|| "_unnamed_interface".to_string());
+    let ident = &item.sig.ident;
+    // Free functions remain one-off exports: they do not generate a shared
+    // client or Entrypoints wrapper. Their hidden exports module therefore
+    // includes the function name by default so multiple one-offs can share an
+    // interface without colliding, but an explicit `exports = "..."`
+    // override still wins when the caller wants to name that module.
+    let exports_mod_ident = if config.exports.is_some() {
+        config.internal_exports_mod_ident(&effective_interface_name)
+    } else {
+        free_function_exports_mod_ident(&effective_interface_name, ident)
+    };
+    let iface_name = config.interface_name();
+    let iface_name = iface_name.as_deref();
+    let contract: Option<&syn::ItemImpl> = None;
+    let exports = generate_method(iface_name, contract, item, config)?;
+
+    Ok(quote! {
+        #[allow(non_snake_case)]
+        mod #exports_mod_ident {
+            use super::*;
+
+            #exports
+        }
+    })
+}
+
+fn free_function_exports_mod_ident(
+    effective_interface_name: &str,
+    ident: &syn::Ident,
+) -> syn::Ident {
+    syn::Ident::new(
+        &format!("__groundhog_exports_{}_{}", effective_interface_name, ident),
+        Span::call_site(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::free_function_exports_mod_ident;
+    use super::*;
+    use darling::FromMeta;
+    use darling::ast::NestedMeta;
+
+    fn parse_config(attrs: &str) -> Config {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn free_function_hidden_exports_include_interface_and_method_name() {
+        let config = parse_config(r#"interface = "Iface""#);
+        let ident = syn::Ident::new("ping", Span::call_site());
+
+        assert_eq!(
+            free_function_exports_mod_ident(
+                &config.interface_name().unwrap(),
+                &ident,
+            )
+            .to_string(),
+            "__groundhog_exports_Iface_ping"
+        );
+    }
+
+    #[test]
+    fn free_function_hidden_exports_honor_explicit_override() {
+        let config =
+            parse_config(r#"exports = "custom", interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        assert!(generated.contains("mod custom"));
+    }
 }

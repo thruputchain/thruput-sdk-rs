@@ -34,12 +34,18 @@ double-generation.
 
 #### Contract exports
 
-When `#[contract]` is applied to an implementation, its exported methods are
-placed in a generated module:
-- bare impls and free functions default to `exports`
-- trait impls default to `<TraitName>_exports`
+The generated exports module is an internal implementation detail. The
+`exports = "custom_name"` attribute only overrides that internal module name
+when you need a disambiguating name during macro expansion; it is not a public
+API surface. Free-function contracts still support `exports = ...`, but they do
+not generate a client or `<Interface>Entrypoints` wrapper.
 
-`exports = "custom_name"` overrides that default.
+Generated entrypoint metadata lives on `<Interface>Entrypoints`:
+- trait definitions generate the wrapper alongside the client
+- bare impls generate the wrapper together with the exports module
+
+For bare impls, the default interface name and domain separator are derived from
+the self type name.
 
 #### Errors
 
@@ -91,6 +97,9 @@ Each exported contract entrypoint is named with an identifier derived from:
 - the method name
 
 `interface = "InterfaceName"` overrides the interface-name portion.
+
+For bare impls, omitting `interface = "..."` uses the self type name for this
+metadata by default.
 
 For trait impls, repeat that `interface = "..."` on the impl when the trait
 uses a custom interface name. The impl's exported entrypoint names are fixed

@@ -4,7 +4,7 @@ mod implementation;
 
 pub use implementation::CounterClient;
 pub use implementation::CounterClientError;
-pub use implementation::exports::*;
+pub use implementation::CounterEntrypoints;
 
 // Counter type is re-exported so tests can use Counter::__mock
 pub use implementation::Counter;

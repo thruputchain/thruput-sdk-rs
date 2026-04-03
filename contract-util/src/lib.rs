@@ -79,7 +79,9 @@ impl Display for EntrypointSignature {
         write!(
             f,
             "{}<{}>::{}",
-            self.interface_name.as_deref().unwrap_or(""),
+            self.interface_name
+                .as_deref()
+                .unwrap_or("_unnamed_interface"),
             self.version_str,
             self.method_sig,
         )
@@ -89,13 +91,13 @@ impl Display for EntrypointSignature {
 /// Derive a standard entrypoint ID for a contract method.
 /// The interface name is a domain separator.
 ///
-/// In the SDK macros, (i.e. `#[contract]`), when a method is derived from a trait,
-/// the interface name is the trait name.  When a method is derived from a struct,
-/// the interface name is the struct name.
-///
-/// For contracts not using the derive macros of the SDK, we would suggest using
-/// some arbitrary domain separator here (such as the name of the contract).
-///
+/// In the SDK macros (`#[contract]`):
+/// - trait and trait-impl methods use the effective interface name
+///   (`interface = "..."` override or the trait name)
+/// - bare impl methods use the effective interface name
+///   (`interface = "..."` override or the self type name)
+/// - free functions default to `_unnamed_interface` unless an explicit
+///   `interface = "..."` override is present
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
     version_str: &str,

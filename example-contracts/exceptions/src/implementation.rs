@@ -1,4 +1,4 @@
-use super::{Interface, MyExn};
+use super::{BigExn, Interface, MyExn};
 use sdk::*;
 
 #[derive(Default)]
@@ -33,5 +33,11 @@ impl Interface for Contract {
 
     fn throw_thing() {
         throw(Thing);
+    }
+
+    fn throw_big_exn() {
+        throw(BigExn {
+            payload: [0xAB; 600],
+        });
     }
 }
