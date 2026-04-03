@@ -102,9 +102,9 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
     let client = MultiClient::new(&addr);
 
     match client.try_throw_undecodable() {
-        Err(MultiClientError::Unknown(ref raw)) => {
+        Err(MultiClientError::BadDecode(ref raw)) => {
             println!(
-                "OK: unknown error with selector 0x{:016X}",
+                "OK: bad decode error with selector 0x{:016X}",
                 raw.selector()
             );
             let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
@@ -113,5 +113,21 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
             println!("OK: try_as decoded UndecodableError successfully");
         }
         other => panic!("expected Unknown, got {:?}", other),
+    }
+}
+
+pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
+    let addr = deploy_contract(&TEST_NONCE, contract_hash);
+    let client = MultiClient::new(&addr);
+
+    match client.try_throw_malicious_library_error() {
+        Err(MultiClientError::BadDecode(ref raw)) => {
+            println!("OK: bad decode error with selector 0x{:016X}", raw.selector());
+            assert_eq!(raw.selector(), LibraryExn::SELECTOR);
+            let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
+            assert_eq!(decoded, 42);
+            println!("OK: try_as decoded UndecodableError successfully");
+        }
+        other => panic!("expected BadDecode, got {:?}", other),
     }
 }
