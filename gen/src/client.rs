@@ -16,13 +16,13 @@ pub const CLIENT_TRY_METHOD_PREFIX: &str = "try_";
 pub fn reserved_client_name_error(name: &str) -> Option<&'static str> {
     if name == CLIENT_CONSTRUCTOR_NAME {
         return Some(
-            "the name `new` is reserved by the generated client constructor; rename the contract item",
+            "the name `new` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions",
         );
     }
 
     if name == CLIENT_GAS_LIMIT_HELPER_NAME {
         return Some(
-            "the name `with_gas_limit` is reserved by the generated client gas-limit helper; rename the contract item",
+            "the name `with_gas_limit` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions",
         );
     }
 
