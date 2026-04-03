@@ -1,4 +1,4 @@
-error: `new` is reserved by the generated client constructor; rename the contract method
+error: the name `new` is reserved by the generated client constructor; rename the contract item
  --> tests/compile-fail/reserved_client_method_name_new.rs:5:5
   |
 5 |     fn new() -> u32;

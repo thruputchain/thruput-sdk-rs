@@ -1,4 +1,4 @@
-error: `with_gas_limit` is reserved by the generated client gas-limit helper; rename the contract method
+error: the name `with_gas_limit` is reserved by the generated client gas-limit helper; rename the contract item
  --> tests/compile-fail/reserved_client_method_name_with_gas_limit.rs:7:9
   |
 7 |     pub fn with_gas_limit() -> u32 {

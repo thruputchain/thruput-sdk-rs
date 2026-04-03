@@ -1,4 +1,4 @@
-error: method names beginning with `try_` are reserved by generated client inspection methods
+error: names beginning with `try_` are reserved by generated client inspection methods
  --> tests/compile-fail/reserved_client_method_name_free_fn_try_prefix.rs:4:1
   |
 4 | fn try_ping() {}

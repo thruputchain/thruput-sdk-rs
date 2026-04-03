@@ -4,6 +4,7 @@
 //! - bare impls
 
 use crate::config::{Config, ThrownType};
+use crate::client::reserved_client_name_error;
 use crate::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
@@ -125,24 +126,10 @@ where
         let sig = method.sig();
         let name = sig.ident.to_string();
 
-        if name == "new" {
+        if let Some(message) = reserved_client_name_error(&name) {
             return Err(error(
                 sig,
-                "`new` is reserved by the generated client constructor; rename the contract method",
-            ));
-        }
-
-        if name == "with_gas_limit" {
-            return Err(error(
-                sig,
-                "`with_gas_limit` is reserved by the generated client gas-limit helper; rename the contract method",
-            ));
-        }
-
-        if name.starts_with("try_") {
-            return Err(error(
-                sig,
-                "method names beginning with `try_` are reserved by generated client inspection methods",
+                message,
             ));
         }
     }
