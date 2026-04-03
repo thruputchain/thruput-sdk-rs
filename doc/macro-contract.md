@@ -32,6 +32,10 @@ For trait impls, the trait is authoritative for the client name. Adding an
 explicit `client = ...` attribute to the impl is rejected to avoid
 double-generation.
 
+Contract item names may not be `new`, `with_gas_limit`, or begin with `try_`.
+The macro reserves those names to avoid collisions with generated client
+helpers and to keep naming consistent across contract surfaces.
+
 #### Contract exports
 
 The generated exports module is an internal implementation detail. The
@@ -74,9 +78,6 @@ Collisions like `foo::Error` and `bar::Error` are rejected at compile time.
 Generated clients expose:
 - `client.method(...)` for the success-oriented path
 - `client.try_method(...) -> Result<_, ClientError>` for inspecting exceptions
-
-Contract item names may not be `new`, `with_gas_limit`, or start with `try_`,
-because those names collide with generated client helpers.
 
 #### Storage
 
