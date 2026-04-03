@@ -31,7 +31,8 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            let contract = codegen::ConfiguredContract::new(config.clone(), item);
+            let contract =
+                codegen::ConfiguredContract::new(config.clone(), item);
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
@@ -83,7 +84,8 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
-            let contract = codegen::ConfiguredContract::new(config.clone(), item);
+            let contract =
+                codegen::ConfiguredContract::new(config.clone(), item);
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;

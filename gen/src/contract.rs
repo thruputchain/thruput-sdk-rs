@@ -3,8 +3,8 @@
 //! - trait impls
 //! - bare impls
 
-use crate::config::{Config, ThrownType};
 use crate::client::reserved_client_name_error;
+use crate::config::{Config, ThrownType};
 use crate::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
@@ -128,10 +128,7 @@ where
         let name = name.strip_prefix("r#").unwrap_or(&name);
 
         if let Some(message) = reserved_client_name_error(&name) {
-            return Err(error(
-                sig,
-                message,
-            ));
+            return Err(error(sig, message));
         }
     }
 
