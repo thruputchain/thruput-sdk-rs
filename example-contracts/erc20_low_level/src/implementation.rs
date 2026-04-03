@@ -160,7 +160,6 @@ pub fn total_supply() -> Amount {
 // TODO: Something better
 #[cfg(feature = "dev")]
 pub mod test {
-    use super::*;
     use std::rc::Rc;
 
     pub fn register(
@@ -168,24 +167,47 @@ pub mod test {
     ) -> ::sdk::types::Contract {
         let mut contract = env.add_contract();
 
-        contract.register_method(INITIALIZE_EXPORT_NUM, initialize_internal);
-        contract.register_method(TRANSFER_EXPORT_NUM, transfer_internal);
-        contract
-            .register_method(TRANSFER_FROM_EXPORT_NUM, transfer_from_internal);
         contract.register_method(
-            ADJUST_ALLOWANCE_EXPORT_NUM,
-            adjust_allowance_internal,
+            super::ERC20Entrypoints::initialize.into(),
+            super::__groundhog_exports_ERC20_initialize::initialize_internal,
         );
         contract.register_method(
-            GET_BALANCE_OF_EXPORT_NUM,
-            get_balance_of_internal,
+            super::ERC20Entrypoints::transfer.into(),
+            super::__groundhog_exports_ERC20_transfer::transfer_internal,
         );
-        contract.register_method(ALLOWANCE_EXPORT_NUM, allowance_internal);
-        contract.register_method(GET_BALANCE_EXPORT_NUM, get_balance_internal);
-        contract.register_method(MINT_EXPORT_NUM, mint_internal);
-        contract.register_method(BURN_EXPORT_NUM, burn_internal);
+        contract.register_method(
+            super::ERC20Entrypoints::transfer_from.into(),
+            super::__groundhog_exports_ERC20_transfer_from::transfer_from_internal,
+        );
+        contract.register_method(
+            super::ERC20Entrypoints::adjust_allowance.into(),
+            super::__groundhog_exports_ERC20_adjust_allowance::adjust_allowance_internal,
+        );
+        contract.register_method(
+            super::ERC20Entrypoints::get_balance_of.into(),
+            super::__groundhog_exports_ERC20_get_balance_of::get_balance_of_internal,
+        );
+        contract.register_method(
+            super::ERC20Entrypoints::allowance.into(),
+            super::__groundhog_exports_ERC20_allowance::allowance_internal,
+        );
+        contract.register_method(
+            super::ERC20Entrypoints::get_balance.into(),
+            super::__groundhog_exports_ERC20_get_balance::get_balance_internal,
+        );
+        contract.register_method(
+            super::ERC20Entrypoints::mint.into(),
+            super::__groundhog_exports_ERC20_mint::mint_internal,
+        );
+        contract.register_method(
+            super::ERC20Entrypoints::burn.into(),
+            super::__groundhog_exports_ERC20_burn::burn_internal,
+        );
         contract
-            .register_method(TOTAL_SUPPLY_EXPORT_NUM, total_supply_internal);
+            .register_method(
+                super::ERC20Entrypoints::total_supply.into(),
+                super::__groundhog_exports_ERC20_total_supply::total_supply_internal,
+            );
 
         contract.as_contract()
     }
