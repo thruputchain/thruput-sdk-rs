@@ -17,7 +17,7 @@ impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
     pub(crate) fn new(exn: E) -> Self {
         Self {
             selector: E::SELECTOR,
-            exn
+            exn,
         }
     }
 

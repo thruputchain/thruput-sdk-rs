@@ -68,6 +68,15 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
         },
         r => panic!("Unexpected result: {:?}", r),
     }
+
+    match client.try_throw_big_exn() {
+        Err(ClientError::Library(LibraryExn::Handling(
+            HandlingError::EncodingException(_),
+        ))) => {
+            println!("OK: oversized exception failed with EncodingException");
+        }
+        r => panic!("Unexpected result: {:?}", r),
+    }
 }
 
 #[allow(unused)]

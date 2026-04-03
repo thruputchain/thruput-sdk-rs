@@ -3,7 +3,12 @@ use sdk::*;
 #[contract_error]
 pub struct MyExn;
 
-#[contract(client = Client, throws = MyExn)]
+#[contract_error]
+pub struct BigExn {
+    pub payload: [u8; 600],
+}
+
+#[contract(client = Client, throws(MyExn, BigExn))]
 pub trait Interface {
     fn hello();
 
@@ -16,4 +21,6 @@ pub trait Interface {
     fn syscall_err();
 
     fn throw_thing();
+
+    fn throw_big_exn();
 }

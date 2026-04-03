@@ -43,7 +43,9 @@ fn test_register_mock_single_trait() {
         let client = StatelessClient::new(&addr);
         client.run();
     })
-    .unwrap_or_else(|e| panic!("register_mock single-trait test failed: {:?}", e));
+    .unwrap_or_else(|e| {
+        panic!("register_mock single-trait test failed: {:?}", e)
+    });
 }
 
 #[test]
@@ -64,5 +66,7 @@ fn test_register_mock_multi_trait() {
         assert_eq!(client1.perform_task(), 1);
         assert_eq!(client2.perform_task(), 2);
     })
-    .unwrap_or_else(|e| panic!("register_mock multi-trait test failed: {:?}", e));
+    .unwrap_or_else(|e| {
+        panic!("register_mock multi-trait test failed: {:?}", e)
+    });
 }
