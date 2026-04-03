@@ -14,7 +14,7 @@ fn native_multi_throws() {
 }
 
 #[test]
-fn native_multi_throws_undecoable() {
+fn native_multi_throws_undecodable() {
     let env = sdk::TestEnvironment::default();
     let test_contract = env.register_mock(<Contract as MultiThrows>::__mock);
     let contract_hash = test_contract.as_hash().clone();
