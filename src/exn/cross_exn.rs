@@ -1,28 +1,6 @@
 //! Exceptions passed across contract calls.
 
 use crate::xdr::*;
-/*
-#[cfg(feature = "debugging")]
-use core::fmt::Write;
-
-#[cfg(feature = "debugging")]
-type LocationString = heapless::String<200>;
-
-#[cfg(feature = "debugging")]
-type BacktraceString = heapless::String<500>;
-
-#[cfg(feature = "debugging")]
-fn format<T, const N: usize>(v: &T) -> heapless::String<N>
-where
-    T: core::fmt::Display,
-{
-    let mut s = heapless::String::<N>::new();
-
-    write!(&mut s, "{}", v).unwrap(); // XXX
-
-    s
-}
-    */
 
 /// A typed exception ready for serialization across the contract boundary.
 ///
@@ -31,24 +9,15 @@ where
 pub(crate) struct ContractExn<E: WriteXDR> {
     selector: u64,
     exn: E,
-    //    #[cfg(feature = "debugging")]
-    //    location: Option<LocationString>,
-    //    #[cfg(feature = "debugging")]
-    //    backtrace: Option<BacktraceString>,
 }
 
 impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
     #[cfg(feature = "debugging")]
     #[track_caller]
     pub(crate) fn new(exn: E) -> Self {
-        //   use core::panic::Location;
         Self {
             selector: E::SELECTOR,
-            exn,
-            //          location: Some(format(Location::caller())),
-            //            backtrace: Some(format(
-            //                &crate::debug_context::Backtrace::capture(),
-            //            )),
+            exn
         }
     }
 
