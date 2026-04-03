@@ -36,4 +36,7 @@ pub trait MultiThrows {
 
     /// Throws an error that is not decodable by the client.
     fn throw_undecodable();
+
+    /// Throws malicious library error
+    fn throw_malicious_library_error();
 }

@@ -62,4 +62,11 @@ impl MultiThrows for Contract {
             extra_payload: 42,
         });
     }
+
+    fn throw_malicious_library_error() {
+        contract_abort_encoded(&UndecodableError {
+            selector: LibraryExn::SELECTOR,
+            extra_payload: 42,
+        });
+    }
 }

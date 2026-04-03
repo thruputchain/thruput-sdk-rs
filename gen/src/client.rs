@@ -314,7 +314,8 @@ fn generate_error_enum(
         .iter()
         .map(|thrown| {
             let variant = thrown.variant();
-            quote! { Self::#variant(e) => ::core::write!(f, "{:?}", e) }
+            let ident_str = variant.to_string();
+            quote! { Self::#variant(e) => ::core::write!(f, "{}({:?})", #ident_str, e) }
         })
         .collect();
 
@@ -333,6 +334,7 @@ fn generate_error_enum(
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
             Unknown(::sdk::exn::RawException),
+            BadDecode(::sdk::exn::RawException),
         }
 
         #[allow(unexpected_cfgs)]
@@ -341,9 +343,10 @@ fn generate_error_enum(
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 match self {
                     #(#display_declared_arms,)*
-                    Self::Library(e) => ::core::write!(f, "{}", e),
-                    Self::Fault(e) => ::core::write!(f, "{}", e),
-                    Self::Unknown(e) => ::core::write!(f, "{:?}", e),
+                    Self::Library(e) => ::core::write!(f, "Library({:?})", e),
+                    Self::BadDecode(raw) => ::core::write!(f, "BadDecode({:?})", raw),
+                    Self::Fault(e) => ::core::write!(f, "Fault({:?})", e),
+                    Self::Unknown(e) => ::core::write!(f, "Unknown({:?})", e),
                 }
             }
         }
@@ -353,6 +356,7 @@ fn generate_error_enum(
                 match self {
                     #(#rethrow_declared_arms,)*
                     Self::Library(e) => ::sdk::throw(e),
+                    Self::BadDecode(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),
                 }
@@ -374,7 +378,7 @@ fn generate_selector_dispatch(
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
                     let err = ::sdk::call::internal::contract_call_decode_prefix(payload);
                     if let Err(e) = err {
-                        return Err(#error_enum_ident::Unknown(
+                        return Err(#error_enum_ident::BadDecode(
                             ::sdk::exn::RawException::new(selector, payload)));
                     }
                     Err(#error_enum_ident::#variant(err.unwrap()))
@@ -387,12 +391,12 @@ fn generate_selector_dispatch(
         match selector {
             #(#declared_arms)*
             <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
-                    .unwrap_or_else(|e|
-                        ::sdk::exn::library_throw(
-                            ::sdk::exn::CallingError::DecodingException(
-                                ::sdk::exn::FaultString::from_display(e))));
-                Err(#error_enum_ident::Library(err))
+                let err = ::sdk::call::internal::contract_call_decode_prefix(payload);
+                if let Err(e) = err {
+                    return Err(#error_enum_ident::BadDecode(
+                        ::sdk::exn::RawException::new(selector, payload)));
+                }
+                Err(#error_enum_ident::Library(err.unwrap()))
             }
             _ => {
                 Err(#error_enum_ident::Unknown(
