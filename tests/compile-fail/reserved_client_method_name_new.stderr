@@ -1,0 +1,5 @@
+error: the name `new` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions
+ --> tests/compile-fail/reserved_client_method_name_new.rs:5:5
+  |
+5 |     fn new() -> u32;
+  |     ^^^^^^^^^^^^^^^

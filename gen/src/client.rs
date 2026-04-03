@@ -9,6 +9,44 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 
+pub const CLIENT_CONSTRUCTOR_NAME: &str = "new";
+pub const CLIENT_GAS_LIMIT_HELPER_NAME: &str = "with_gas_limit";
+pub const CLIENT_TRY_METHOD_PREFIX: &str = "try_";
+
+pub fn reserved_client_name_error(name: &str) -> Option<&'static str> {
+    if name == CLIENT_CONSTRUCTOR_NAME {
+        return Some(
+            "the name `new` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions",
+        );
+    }
+
+    if name == CLIENT_GAS_LIMIT_HELPER_NAME {
+        return Some(
+            "the name `with_gas_limit` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions",
+        );
+    }
+
+    if name.starts_with(CLIENT_TRY_METHOD_PREFIX) {
+        return Some(
+            "names beginning with `try_` are reserved by generated client inspection methods",
+        );
+    }
+
+    None
+}
+
+fn client_constructor_ident() -> syn::Ident {
+    format_ident!("{}", CLIENT_CONSTRUCTOR_NAME)
+}
+
+fn client_gas_limit_helper_ident() -> syn::Ident {
+    format_ident!("{}", CLIENT_GAS_LIMIT_HELPER_NAME)
+}
+
+fn try_client_method_ident(method_ident: &syn::Ident) -> syn::Ident {
+    format_ident!("{}{}", CLIENT_TRY_METHOD_PREFIX, method_ident)
+}
+
 pub fn generate(
     contract: &(impl ContractSrc + Spanned),
     config: &Config,
@@ -40,6 +78,8 @@ pub fn generate(
         .collect::<Result<Vec<TokenStream>>>()?;
 
     let iface_vers = contract.defaulted_interface_vers();
+    let constructor_ident = client_constructor_ident();
+    let gas_limit_helper_ident = client_gas_limit_helper_ident();
 
     let client = quote! {
 
@@ -60,14 +100,14 @@ pub fn generate(
             use ::sdk::OrReThrow;
 
             impl #client_ident {
-                pub fn new(address: &ContractAddress) -> Self {
+                pub fn #constructor_ident(address: &ContractAddress) -> Self {
                     Self {
                         address: address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig::new()
                     }
                 }
 
-                pub fn with_gas_limit(&self, gas_limit: u64) -> Self {
+                pub fn #gas_limit_helper_ident(&self, gas_limit: u64) -> Self {
                     Self {
                         address: self.address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig {
@@ -84,7 +124,7 @@ pub fn generate(
 
             impl ::sdk::call::ContractClient for #client_ident {
                 fn new(address: &::sdk::ContractAddress) -> Self {
-                    #client_ident::new(address)
+                    #client_ident::#constructor_ident(address)
                 }
             }
         };
@@ -189,7 +229,7 @@ fn generate_client_fn(
         quote! {}
     };
 
-    let try_ident = format_ident!("try_{}", ident);
+    let try_ident = try_client_method_ident(ident);
 
     let explicit_type =
         if let syn::ReturnType::Type(_, ty) = &method.sig().output {

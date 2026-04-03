@@ -1,0 +1,5 @@
+error: the name `with_gas_limit` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions
+ --> tests/compile-fail/reserved_client_method_name_raw_with_gas_limit.rs:7:9
+  |
+7 |     pub fn r#with_gas_limit() -> u32 {
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

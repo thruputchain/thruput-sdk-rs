@@ -1,4 +1,5 @@
 use codegen::Config;
+use codegen::ContractSrc;
 use codegen::strip::*;
 use codegen::util::*;
 use darling::FromMeta;
@@ -30,6 +31,12 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
+            let contract =
+                codegen::ConfiguredContract::new(config.clone(), item);
+            codegen::contract::validate_reserved_client_method_names(
+                contract.methods_sorted(),
+            )?;
+
             let mut stripped = item.strip_our_attributes();
 
             let iface_name = config
@@ -77,6 +84,12 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
+            let contract =
+                codegen::ConfiguredContract::new(config.clone(), item);
+            codegen::contract::validate_reserved_client_method_names(
+                contract.methods_sorted(),
+            )?;
+
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -126,6 +139,10 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Fn(item) => {
+            codegen::contract::validate_reserved_client_method_names(
+                core::iter::once(item.clone()),
+            )?;
+
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
