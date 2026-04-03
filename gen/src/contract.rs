@@ -4,7 +4,7 @@
 //! - bare impls
 
 use crate::config::{Config, ThrownType};
-use crate::util::cmp_sig_by_name;
+use crate::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use proc_macro2::Span;
@@ -113,6 +113,41 @@ pub trait ContractSrc {
 pub fn interface_vers_default() -> String {
     // Get the version from the crate being compiled via Cargo's env var
     std::env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".to_string())
+}
+
+pub fn validate_reserved_client_method_names<M>(
+    methods: impl IntoIterator<Item = M>,
+) -> Result<()>
+where
+    M: Method,
+{
+    for method in methods {
+        let sig = method.sig();
+        let name = sig.ident.to_string();
+
+        if name == "new" {
+            return Err(error(
+                sig,
+                "`new` is reserved by the generated client constructor; rename the contract method",
+            ));
+        }
+
+        if name == "with_gas_limit" {
+            return Err(error(
+                sig,
+                "`with_gas_limit` is reserved by the generated client gas-limit helper; rename the contract method",
+            ));
+        }
+
+        if name.starts_with("try_") {
+            return Err(error(
+                sig,
+                "method names beginning with `try_` are reserved by generated client inspection methods",
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 use core::cmp::Ordering;
