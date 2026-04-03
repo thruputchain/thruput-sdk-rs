@@ -1,0 +1,5 @@
+error[E0616]: field `0` of struct `BareContractEntrypoints` is private
+  --> tests/compile-fail/entrypoints_field_private.rs:16:50
+   |
+16 |     let _ = inner::BareContractEntrypoints::ping.0;
+   |                                                  ^ private field
