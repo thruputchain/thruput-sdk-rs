@@ -156,7 +156,8 @@ Resolution rules:
 
 ## Public Generated Metadata API
 
-For each effective interface, generate one public wrapper type:
+For each trait, trait-impl, or bare-impl effective interface, generate one
+public wrapper type:
 
 - name: `<EffectiveInterfaceName>Entrypoints`
 - representation: `#[repr(transparent)]`
@@ -186,6 +187,26 @@ Recommended helper impls:
 This wrapper type is the intended public surface for downstream tests and other
 metadata consumers.
 
+### Free functions
+
+Free `#[contract] fn` items are treated as one-off exported methods, not as a
+multi-method interface surface.
+
+They should:
+
+- continue to derive their entrypoint IDs from the effective interface name
+- continue to support explicit `interface = "..."` overrides
+- generate a hidden internal exports module for the wrapper functions
+
+They should not:
+
+- generate a public `<Interface>Entrypoints` wrapper type
+
+This keeps the public API model aligned with existing behavior: free functions
+do not currently generate a shared client or other interface-level metadata
+surface. If users want a grouped public interface with entrypoint metadata,
+they should use a bare impl or a trait/trait impl.
+
 ## Internal Generated Exports Module
 
 The generated exports module still exists, but only as an internal namespace for
@@ -199,19 +220,19 @@ namespace cannot be removed entirely in this change.
 
 The module name should no longer be a normal public-facing name like `exports`
 or `<TraitName>_exports` by default. Instead, generate a hidden internal name
-derived from the effective interface plus a disambiguator, for example:
+derived from the effective interface, for example:
 
-- `__groundhog_exports_IERC20_ab12cd34`
+- `__groundhog_exports_IERC20`
 
-The disambiguator is required so that multiple generated surfaces in the same
-Rust module do not collide even if they share an effective interface name.
+For free-function codegen only, append the function name so multiple one-off
+exports in the same module do not collide:
 
-The exact disambiguator algorithm is an implementation detail; a short
-deterministic hash is sufficient.
+- `__groundhog_exports_IERC20_transfer`
 
 If `exports = "..."` is explicitly provided, it may continue to override the
 internal module name for this change. The public metadata surface should still
-come from the generated wrapper type, not from that module.
+come from the generated wrapper type for trait/impl surfaces, not from that
+module.
 
 ## Relationship to `exports = "..."`
 

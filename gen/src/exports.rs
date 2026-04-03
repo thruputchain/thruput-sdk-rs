@@ -199,7 +199,7 @@ fn generate_entrypoints_wrapper(
     quote! {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
         #[repr(transparent)]
-        pub struct #entrypoints_ident(pub ::sdk::contract::ContractEntrypointID);
+        pub struct #entrypoints_ident(::sdk::contract::ContractEntrypointID);
 
         impl From<#entrypoints_ident> for ::sdk::contract::ContractEntrypointID {
             fn from(value: #entrypoints_ident) -> Self {
@@ -209,6 +209,10 @@ fn generate_entrypoints_wrapper(
 
         #[allow(non_upper_case_globals)]
         impl #entrypoints_ident {
+            pub fn into_u64(self) -> u64 {
+                self.0.into_u64()
+            }
+
             #(#entrypoints)*
         }
     }

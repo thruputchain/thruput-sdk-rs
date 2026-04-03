@@ -320,7 +320,7 @@ fn protocol_struct_vectors() -> Vec<Value> {
             calldata: Default::default(),
         },
         uniquifier: Uniquifier {
-            block_expiry_height: 100,
+            block_expiry_height: 100.into(),
             nonce: 42,
         },
         contracts_to_deploy: Default::default(),

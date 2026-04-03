@@ -455,7 +455,7 @@ impl TestEnvironment {
             signatures: vec![].try_into().unwrap(),
             tx: Transaction {
                 uniquifier: Uniquifier {
-                    block_expiry_height: 0,
+                    block_expiry_height: 0.into(),
                     nonce: 0,
                 },
                 auth_claims: vec![].try_into().unwrap(),
