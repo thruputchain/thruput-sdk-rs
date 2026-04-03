@@ -125,6 +125,7 @@ where
     for method in methods {
         let sig = method.sig();
         let name = sig.ident.to_string();
+        let name = name.strip_prefix("r#").unwrap_or(&name);
 
         if let Some(message) = reserved_client_name_error(&name) {
             return Err(error(

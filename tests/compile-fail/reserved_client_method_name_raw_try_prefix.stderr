@@ -1,0 +1,5 @@
+error: names beginning with `try_` are reserved by generated client inspection methods
+ --> tests/compile-fail/reserved_client_method_name_raw_try_prefix.rs:5:5
+  |
+5 |     fn r#try_transfer(to: ContractAddress, amount: u64);
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
