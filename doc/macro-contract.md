@@ -37,7 +37,8 @@ double-generation.
 The generated exports module is an internal implementation detail. The
 `exports = "custom_name"` attribute only overrides that internal module name
 when you need a disambiguating name during macro expansion; it is not a public
-API surface.
+API surface. Free-function contracts still support `exports = ...`, but they do
+not generate a client or `<Interface>Entrypoints` wrapper.
 
 Generated entrypoint metadata lives on `<Interface>Entrypoints`:
 - trait definitions generate the wrapper alongside the client

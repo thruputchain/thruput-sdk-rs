@@ -109,7 +109,7 @@ fn apply_with_config(
             }
 
             // Generate exports (with auto-derived module name for trait impls)
-            out.extend(codegen::exports::generate(item, config, None)?);
+            out.extend(codegen::exports::generate(item, config)?);
 
             if config.client_ident().is_some() && item.trait_.is_some() {
                 out.extend(quote::quote! {

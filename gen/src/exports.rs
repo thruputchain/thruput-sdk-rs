@@ -20,17 +20,11 @@ use syn::parse::Result;
 pub fn generate(
     contract: &impl ContractSrc,
     config: &Config,
-    _trait_name: Option<&str>,
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), contract);
     let effective_interface_name = effective_interface_name(&contract);
     let exports_mod_ident =
         config.internal_exports_mod_ident(&effective_interface_name);
-
-    let mut uses = vec![];
-    if let Some(trait_path) = contract.trait_path() {
-        uses.push(quote! { use super::#trait_path; });
-    }
 
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
@@ -149,7 +143,6 @@ pub fn generate(
         #[allow(non_snake_case)]
         mod #exports_mod_ident {
             use super::*;
-            #(#uses)*
 
             #exports
         }
@@ -439,8 +432,16 @@ pub fn generate_free_function_bundle(
         .interface_name()
         .unwrap_or_else(|| "_unnamed_interface".to_string());
     let ident = &item.sig.ident;
-    let exports_mod_ident =
-        free_function_exports_mod_ident(&effective_interface_name, ident);
+    // Free functions remain one-off exports: they do not generate a shared
+    // client or Entrypoints wrapper. Their hidden exports module therefore
+    // includes the function name by default so multiple one-offs can share an
+    // interface without colliding, but an explicit `exports = "..."`
+    // override still wins when the caller wants to name that module.
+    let exports_mod_ident = if config.exports.is_some() {
+        config.internal_exports_mod_ident(&effective_interface_name)
+    } else {
+        free_function_exports_mod_ident(&effective_interface_name, ident)
+    };
     let iface_name = config.interface_name();
     let iface_name = iface_name.as_deref();
     let contract: Option<&syn::ItemImpl> = None;
@@ -480,9 +481,8 @@ mod tests {
     }
 
     #[test]
-    fn free_function_hidden_exports_ignore_explicit_override() {
-        let config =
-            parse_config(r#"exports = "custom", interface = "Iface""#);
+    fn free_function_hidden_exports_include_interface_and_method_name() {
+        let config = parse_config(r#"interface = "Iface""#);
         let ident = syn::Ident::new("ping", Span::call_site());
 
         assert_eq!(
@@ -493,5 +493,19 @@ mod tests {
             .to_string(),
             "__groundhog_exports_Iface_ping"
         );
+    }
+
+    #[test]
+    fn free_function_hidden_exports_honor_explicit_override() {
+        let config =
+            parse_config(r#"exports = "custom", interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated =
+            generate_free_function_bundle(&item, &config).unwrap().to_string();
+
+        assert!(generated.contains("mod custom"));
     }
 }
