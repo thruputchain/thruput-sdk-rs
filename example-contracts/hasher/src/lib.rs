@@ -3,7 +3,7 @@
 mod implementation;
 
 pub use implementation::HasherClient;
-pub use implementation::HasherEntrypoints;
+pub use implementation::HasherImplEntrypoints;
 
 pub use implementation::HasherImpl;
 
