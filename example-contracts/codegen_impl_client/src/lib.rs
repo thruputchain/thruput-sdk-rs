@@ -2,6 +2,6 @@
 
 mod implementation;
 pub use implementation::CalcProxy;
-pub use implementation::exports::*;
+pub use implementation::CalcEntrypoints;
 
 pub use implementation::Calc;
