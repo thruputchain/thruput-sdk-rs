@@ -37,10 +37,20 @@ pub fn contract_return_empty() -> ! {
 }
 
 #[inline]
+#[cfg_attr(feature = "debugging", track_caller)]
 pub fn contract_abort_encoded<RET>(ret: &RET) -> !
 where
-    RET: WriteXDR + ?Sized,
+    RET: WriteXDR + ?Sized + core::fmt::Debug,
 {
+    #[cfg(all(feature = "debugging", feature = "std"))]
+    {
+        std::println!("Throwing exception {:?}", ret);
+        std::println!("Location: {}", core::panic::Location::caller());
+        std::println!(
+            "Backtrace: {}",
+            crate::debug_context::Backtrace::capture()
+        );
+    }
     crate::call::abort_encoded(ret)
 }
 

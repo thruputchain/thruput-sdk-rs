@@ -1,6 +1,7 @@
 //! Exceptions passed across contract calls.
 
 use crate::xdr::*;
+/*
 #[cfg(feature = "debugging")]
 use core::fmt::Write;
 
@@ -21,32 +22,33 @@ where
 
     s
 }
+    */
 
 /// A typed exception ready for serialization across the contract boundary.
 ///
 /// Wire format: [u64 selector][E payload][debug location?][debug backtrace?]
-#[derive(WriteXDR)]
+#[derive(WriteXDR, Debug)]
 pub(crate) struct ContractExn<E: WriteXDR> {
     selector: u64,
     exn: E,
-    #[cfg(feature = "debugging")]
-    location: Option<LocationString>,
-    #[cfg(feature = "debugging")]
-    backtrace: Option<BacktraceString>,
+    //    #[cfg(feature = "debugging")]
+    //    location: Option<LocationString>,
+    //    #[cfg(feature = "debugging")]
+    //    backtrace: Option<BacktraceString>,
 }
 
 impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
     #[cfg(feature = "debugging")]
     #[track_caller]
     pub(crate) fn new(exn: E) -> Self {
-        use core::panic::Location;
+        //   use core::panic::Location;
         Self {
             selector: E::SELECTOR,
             exn,
-            location: Some(format(Location::caller())),
-            backtrace: Some(format(
-                &crate::debug_context::Backtrace::capture(),
-            )),
+            //          location: Some(format(Location::caller())),
+            //            backtrace: Some(format(
+            //                &crate::debug_context::Backtrace::capture(),
+            //            )),
         }
     }
 

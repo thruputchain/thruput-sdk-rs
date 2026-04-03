@@ -503,8 +503,9 @@ mod tests {
             fn ping() {}
         };
 
-        let generated =
-            generate_free_function_bundle(&item, &config).unwrap().to_string();
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
 
         assert!(generated.contains("mod custom"));
     }
