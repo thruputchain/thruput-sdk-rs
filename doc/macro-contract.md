@@ -32,9 +32,11 @@ For trait impls, the trait is authoritative for the client name. Adding an
 explicit `client = ...` attribute to the impl is rejected to avoid
 double-generation.
 
-Contract item names may not be `new`, `with_gas_limit`, or begin with `try_`.
-The macro reserves those names to avoid collisions with generated client
-helpers and to keep naming consistent across contract surfaces.
+Exported contract entrypoint names reserve `new`, `with_gas_limit`, and the
+`try_` prefix. `#[contract]` rejects trait methods, trait-impl methods, public
+inherent-impl methods, and free `#[contract] fn` names that use them to avoid
+collisions with generated client helpers and keep naming consistent across
+contract surfaces.
 
 #### Contract exports
 
