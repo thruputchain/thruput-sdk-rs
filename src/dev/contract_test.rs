@@ -163,7 +163,7 @@ where
 
     let mut env = TestEnvironment::no_cost();
     let test_contract = register(&mut env);
-    let contract_hash = test_contract.as_hash().clone();
+    let contract_hash = *test_contract.as_hash();
 
     contract_exec(env, move || {
         // Deploy the contract under test
