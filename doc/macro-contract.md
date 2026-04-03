@@ -75,10 +75,8 @@ Generated clients expose:
 - `client.method(...)` for the success-oriented path
 - `client.try_method(...) -> Result<_, ClientError>` for inspecting exceptions
 
-The generated client helper names reserve:
-- `new`
-- `with_gas_limit`
-- the `try_` prefix
+Contract item names may not be `new`, `with_gas_limit`, or start with `try_`,
+because those names collide with generated client helpers.
 
 #### Storage
 
