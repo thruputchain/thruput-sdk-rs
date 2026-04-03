@@ -8,6 +8,13 @@ pub struct Contract;
 #[contract_error]
 pub struct SecretError;
 
+#[derive(WriteXDR, ReadXDR, Debug, PartialEq, Eq)]
+#[xdrs(crate = "sdk::__xdrs")]
+pub struct UndecodableError {
+    pub selector: u64,
+    pub extra_payload: u32,
+}
+
 #[contract]
 impl MultiThrows for Contract {
     fn succeed() -> u32 {
@@ -47,5 +54,12 @@ impl MultiThrows for Contract {
     fn forward_fault(target: ContractAddress) {
         // Non-try call: the inner panic should propagate as a fault
         MultiClient::new(&target).panics();
+    }
+
+    fn throw_undecodable() {
+        contract_abort_encoded(&UndecodableError {
+            selector: SecretError::SELECTOR,
+            extra_payload: 42,
+        });
     }
 }

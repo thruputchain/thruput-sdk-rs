@@ -333,10 +333,9 @@ fn generate_selector_dispatch(
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
                     let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
-                        .unwrap_or_else(|e|
-                            ::sdk::exn::library_throw(
-                                ::sdk::exn::CallingError::DecodingException(
-                                    ::sdk::exn::FaultString::from_display(e))));
+                        .unwrap();
+                       //.unwrap_or_else(|e| return Err(#error_enum_ident::Unknown(
+                       //     ::sdk::exn::RawException::new(selector, payload))));
                     Err(#error_enum_ident::#variant(err))
                 }
             }

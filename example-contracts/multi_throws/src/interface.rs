@@ -33,4 +33,7 @@ pub trait MultiThrows {
     /// Calls `panics()` on another instance via the non-try method.
     /// The fault should propagate as a fault.
     fn forward_fault(target: ContractAddress);
+
+    /// Throws an error that is not decodable by the client.
+    fn throw_undecodable();
 }
