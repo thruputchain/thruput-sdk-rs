@@ -96,3 +96,22 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
         other => panic!("expected forwarded Fault, got {:?}", other),
     }
 }
+
+pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
+    let addr = deploy_contract(&TEST_NONCE, contract_hash);
+    let client = MultiClient::new(&addr);
+
+    match client.try_throw_undecodable() {
+        Err(MultiClientError::Unknown(ref raw)) => {
+            println!(
+                "OK: unknown error with selector 0x{:016X}",
+                raw.selector()
+            );
+            let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
+            assert_eq!(decoded, 42);
+            assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
+            println!("OK: try_as decoded UndecodableError successfully");
+        }
+        other => panic!("expected Unknown, got {:?}", other),
+    }
+}

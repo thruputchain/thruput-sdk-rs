@@ -12,3 +12,15 @@ fn native_multi_throws() {
     contract_exec(env, move || common::multi_throws_test(&contract_hash))
         .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
 }
+
+#[test]
+fn native_multi_throws_undecodable() {
+    let env = sdk::TestEnvironment::default();
+    let test_contract = env.register_mock(<Contract as MultiThrows>::__mock);
+    let contract_hash = test_contract.as_hash().clone();
+
+    contract_exec(env, move || {
+        common::multi_throws_test_undecodable(&contract_hash)
+    })
+    .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
+}
