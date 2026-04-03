@@ -8,7 +8,7 @@ pub struct Contract;
 #[contract_error]
 pub struct SecretError;
 
-#[derive(WriteXDR, ReadXDR, Debug, PartialEq, Eq)]
+#[derive(WriteXDR, Debug, PartialEq, Eq)]
 #[xdrs(crate = "sdk::__xdrs")]
 pub struct UndecodableError {
     pub selector: u64,
@@ -58,7 +58,7 @@ impl MultiThrows for Contract {
 
     fn throw_undecodable() {
         contract_abort_encoded(&UndecodableError {
-            selector: SecretError::SELECTOR,
+            selector: AlphaError::SELECTOR,
             extra_payload: 42,
         });
     }

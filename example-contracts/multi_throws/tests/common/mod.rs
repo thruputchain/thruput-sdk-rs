@@ -109,7 +109,7 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
             );
             let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
-            assert_eq!(raw.selector(), multi_throws::SecretError::SELECTOR);
+            assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             println!("OK: try_as decoded UndecodableError successfully");
         }
         other => panic!("expected Unknown, got {:?}", other),

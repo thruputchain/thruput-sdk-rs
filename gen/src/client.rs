@@ -332,11 +332,12 @@ fn generate_selector_dispatch(
             let ty = thrown.ty();
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
-                    let err = ::sdk::call::internal::contract_call_decode_prefix(payload)
-                        .unwrap();
-                       //.unwrap_or_else(|e| return Err(#error_enum_ident::Unknown(
-                       //     ::sdk::exn::RawException::new(selector, payload))));
-                    Err(#error_enum_ident::#variant(err))
+                    let err = ::sdk::call::internal::contract_call_decode_prefix(payload);
+                    if let Err(e) = err {
+                        return Err(#error_enum_ident::Unknown(
+                            ::sdk::exn::RawException::new(selector, payload)));
+                    }
+                    Err(#error_enum_ident::#variant(err.unwrap()))
                 }
             }
         })
