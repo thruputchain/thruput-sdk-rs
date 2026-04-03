@@ -49,12 +49,16 @@ pub fn generate(
             config,
         )?);
     }
-    let entrypoints_wrapper = generate_entrypoints_wrapper(
-        &effective_interface_name,
-        iface_name,
-        &iface_vers,
-        &methods,
-    );
+    let entrypoints_wrapper = if contract.trait_path().is_none() {
+        generate_entrypoints_wrapper(
+            &effective_interface_name,
+            iface_name,
+            &iface_vers,
+            &methods,
+        )
+    } else {
+        TokenStream::new()
+    };
 
     // For trait impls, emit compile-time assertions that the impl-side
     // entrypoint metadata matches the trait definition.
@@ -152,6 +156,25 @@ pub fn generate(
 
         #trait_metadata_assertions
     })
+}
+
+pub fn generate_entrypoints(
+    contract: &impl ContractSrc,
+    config: &Config,
+) -> Result<TokenStream> {
+    let contract = ConfiguredContract::new(config.clone(), contract);
+    let effective_interface_name = effective_interface_name(&contract);
+    let iface_name = contract.interface_name();
+    let iface_name = iface_name.as_deref();
+    let iface_vers = contract.defaulted_interface_vers();
+    let methods: Vec<_> = contract.methods_sorted().into_iter().collect();
+
+    Ok(generate_entrypoints_wrapper(
+        &effective_interface_name,
+        iface_name,
+        &iface_vers,
+        &methods,
+    ))
 }
 
 fn generate_entrypoints_wrapper(

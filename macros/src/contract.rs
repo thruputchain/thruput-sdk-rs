@@ -72,6 +72,9 @@ fn apply_with_config(
 
             // Generate client interface
             out.extend(codegen::client::generate(item, config)?);
+            out.extend(codegen::exports::generate_entrypoints(
+                item, config,
+            )?);
 
             Ok(out)
         }
