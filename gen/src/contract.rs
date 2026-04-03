@@ -122,17 +122,26 @@ pub fn validate_reserved_client_method_names<M>(
 where
     M: Method,
 {
+    let mut combined: Option<syn::Error> = None;
+
     for method in methods {
         let sig = method.sig();
         let name = sig.ident.to_string();
         let name = name.strip_prefix("r#").unwrap_or(&name);
 
         if let Some(message) = reserved_client_name_error(&name) {
-            return Err(error(sig, message));
+            let err = error(sig, message);
+            match combined.as_mut() {
+                Some(existing) => existing.combine(err),
+                None => combined = Some(err),
+            }
         }
     }
 
-    Ok(())
+    match combined {
+        Some(err) => Err(err),
+        None => Ok(()),
+    }
 }
 
 use core::cmp::Ordering;
