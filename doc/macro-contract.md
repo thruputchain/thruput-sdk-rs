@@ -75,6 +75,11 @@ Generated clients expose:
 - `client.method(...)` for the success-oriented path
 - `client.try_method(...) -> Result<_, ClientError>` for inspecting exceptions
 
+The generated client helper names reserve:
+- `new`
+- `with_gas_limit`
+- the `try_` prefix
+
 #### Storage
 
 If a method takes `self` or `&mut self`, the SDK reconstructs the contract state
