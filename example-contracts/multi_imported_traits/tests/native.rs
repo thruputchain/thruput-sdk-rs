@@ -4,8 +4,7 @@ static NONCE: sdk::SHA256Hash =
 #[test]
 fn package_registration_exposes_all_imported_interfaces() {
     let env = sdk::TestEnvironment::no_cost();
-    let contract =
-        multi_imported_traits::__groundhog_register_mock_package(&env);
+    let contract = multi_imported_traits::register_mock_contract(&env);
     let contract_hash = contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {

@@ -3,7 +3,7 @@ use swap_request::*;
 #[test]
 fn test() {
     sdk::client_test(
-        |env| swap_request::__groundhog_register_mock_package(env),
+        |env| swap_request::register_mock_contract(env),
         mytest,
     );
 }

@@ -9,7 +9,7 @@ const CALLER_ADDR: ContractAddress = ContractAddress::new([0xFF; 32]);
 /// Register the mock contract and pre-deploy at CONTRACT_ADDR.
 fn setup() -> TestEnvironmentHandle {
     let env = sdk::TestEnvironment::no_cost();
-    let contract = storage_errors::__groundhog_register_mock_package(&env);
+    let contract = storage_errors::register_mock_contract(&env);
     contract.deploy_contract_to(&CONTRACT_ADDR);
     env
 }

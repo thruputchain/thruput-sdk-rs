@@ -159,7 +159,7 @@ macro_rules! declare_mock_package {
     () => {
         #[cfg(feature = "dev")]
         #[doc(hidden)]
-        pub fn __groundhog_register_mock_package(
+        pub fn register_mock_contract(
             env: &::sdk::TestEnvironmentHandle,
         ) -> ::sdk::MockContract {
             ::sdk::register_mock_package(env, env!("CARGO_PKG_NAME"))

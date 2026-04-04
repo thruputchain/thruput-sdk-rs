@@ -7,12 +7,12 @@ fn swap_test() {
     let env = sdk::TestEnvironment::no_cost();
 
     // Register erc20 and instantiate for two tokens
-    let erc20_contract = erc20::__groundhog_register_mock_package(&env);
+    let erc20_contract = erc20::register_mock_contract(&env);
     let token0_hash = erc20_contract.as_hash().clone();
     let token1_hash = erc20_contract.as_hash().clone();
 
     // Register and instantiate swap
-    let swap_contract = swap::__groundhog_register_mock_package(&env);
+    let swap_contract = swap::register_mock_contract(&env);
     let swap_hash = swap_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {
