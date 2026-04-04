@@ -131,6 +131,12 @@ fn apply_with_config(
                 return Ok(out);
             }
 
+            if cfg!(feature = "mock") {
+                out.extend(codegen::test_reg::generate_impl_registry_fragment(
+                    item, config,
+                )?);
+            }
+
             if item.trait_.is_none() {
                 // Bare impl: generate client (name from config or auto-derived)
                 out.extend(codegen::client::generate(item, config)?);

@@ -70,3 +70,25 @@ fn test_register_mock_multi_trait() {
         panic!("register_mock multi-trait test failed: {:?}", e)
     });
 }
+
+#[test]
+fn test_register_mock_package_all_exports() {
+    let env = sdk::TestEnvironment::no_cost();
+    let contract = sdk::register_mock_package(&env, env!("CARGO_PKG_NAME"));
+    let addr: sdk::ContractAddress = [0x33; 32].into();
+
+    contract.deploy_contract_to(&addr);
+
+    sdk::contract_exec(env, move || {
+        let stateless = StatelessClient::new(&addr);
+        let client1 = interface1::Client::new(&addr);
+        let client2 = interface2::Client::new(&addr);
+
+        stateless.run();
+        assert_eq!(client1.perform_task(), 1);
+        assert_eq!(client2.perform_task(), 2);
+    })
+    .unwrap_or_else(|e| {
+        panic!("register_mock package test failed: {:?}", e)
+    });
+}

@@ -60,6 +60,46 @@ pub fn generate_bare_method(
     })
 }
 
+/// Generate a crate-global registry fragment for an impl item.
+pub fn generate_impl_registry_fragment(
+    item: &syn::ItemImpl,
+    config: &Config,
+) -> Result<TokenStream> {
+    // Error if user specified test_setup on any impl
+    if config.test_setup.is_some() {
+        return Err(syn::Error::new_spanned(
+            item,
+            "test_setup = \"...\" is no longer supported. \
+             The #[contract] macro now generates `__mock` \
+             automatically. Use `<Type as Trait>::__mock` in tests instead.",
+        ));
+    }
+
+    let self_ty = &item.self_ty;
+    let register_path = if let Some((_, trait_path, _)) = &item.trait_ {
+        quote! { <#self_ty as #trait_path>::__mock }
+    } else {
+        quote! { #self_ty::__mock }
+    };
+
+    Ok(quote! {
+        const _: () = {
+            fn register(contract: &mut ::sdk::MockContract) {
+                #register_path(contract);
+            }
+
+            #[::sdk::__linkme::distributed_slice(::sdk::mock_registry::CONTRACT_MOCK_FRAGMENTS)]
+            #[linkme(crate = ::sdk::__linkme)]
+            static FRAGMENT: ::sdk::mock_registry::ContractMockFragment =
+                ::sdk::mock_registry::ContractMockFragment {
+                    package_name: env!("CARGO_PKG_NAME"),
+                    self_type_key: Some(stringify!(#self_ty)),
+                    register,
+                };
+        };
+    })
+}
+
 /// Build the registration calls shared by both trait and bare methods.
 fn build_registrations(
     item: &syn::ItemImpl,
