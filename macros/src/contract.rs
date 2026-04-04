@@ -132,9 +132,11 @@ fn apply_with_config(
             }
 
             if cfg!(feature = "mock") {
-                out.extend(codegen::test_reg::generate_impl_registry_fragment(
-                    item, config,
-                )?);
+                out.extend(
+                    codegen::test_reg::generate_impl_registry_fragment(
+                        item, config,
+                    )?,
+                );
             }
 
             if item.trait_.is_none() {
@@ -155,6 +157,14 @@ fn apply_with_config(
             out.extend(codegen::exports::generate_free_function_bundle(
                 item, config,
             )?);
+
+            if cfg!(feature = "mock") {
+                out.extend(
+                    codegen::test_reg::generate_free_function_registry_fragment(
+                        item, config,
+                    )?,
+                );
+            }
 
             Ok(out)
         }

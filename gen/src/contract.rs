@@ -189,6 +189,36 @@ impl ContractSrc for syn::ItemTrait {
     }
 }
 
+impl ContractSrc for syn::ItemFn {
+    fn span(&self) -> Span {
+        <Self as Spanned>::span(self)
+    }
+
+    fn trait_path(&self) -> Option<syn::Path> {
+        None
+    }
+
+    fn interface_name(&self) -> Option<String> {
+        None
+    }
+
+    fn interface_vers(&self) -> Option<String> {
+        None
+    }
+
+    fn client_ident(&self) -> Option<syn::Ident> {
+        None
+    }
+
+    fn self_ty(&self) -> Option<&syn::Type> {
+        None
+    }
+
+    fn methods(&self) -> impl Iterator<Item = impl Method> {
+        core::iter::once(self.clone())
+    }
+}
+
 impl ContractSrc for syn::ItemImpl {
     fn span(&self) -> Span {
         <Self as Spanned>::span(self)

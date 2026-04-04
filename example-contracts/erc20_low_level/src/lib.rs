@@ -13,8 +13,5 @@ mod implementation;
 // Entrypoints
 pub use implementation::*;
 
-#[cfg(feature = "dev")]
-pub use implementation::test;
-
 #[cfg(feature = "bottle-test")]
 pub use erc20_bottle_test::*;

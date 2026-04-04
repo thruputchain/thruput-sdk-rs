@@ -65,14 +65,19 @@ pub fn generate_impl_registry_fragment(
     item: &syn::ItemImpl,
     config: &Config,
 ) -> Result<TokenStream> {
+    let is_trait_impl = item.trait_.is_some();
     // Error if user specified test_setup on any impl
     if config.test_setup.is_some() {
-        return Err(syn::Error::new_spanned(
-            item,
+        let message = if is_trait_impl {
             "test_setup = \"...\" is no longer supported. \
              The #[contract] macro now generates `__mock` \
-             automatically. Use `<Type as Trait>::__mock` in tests instead.",
-        ));
+             automatically. Use `<Type as Trait>::__mock` in tests instead."
+        } else {
+            "test_setup = \"...\" is no longer supported. \
+             The #[contract] macro now generates `__mock` \
+             automatically. Use `Type::__mock` in tests instead."
+        };
+        return Err(syn::Error::new_spanned(item, message));
     }
 
     let self_ty = &item.self_ty;
@@ -94,6 +99,53 @@ pub fn generate_impl_registry_fragment(
                 ::sdk::mock_registry::ContractMockFragment {
                     package_name: env!("CARGO_PKG_NAME"),
                     self_type_key: Some(stringify!(#self_ty)),
+                    register,
+                };
+        };
+    })
+}
+
+/// Generate a crate-global registry fragment for a free function item.
+pub fn generate_free_function_registry_fragment(
+    item: &syn::ItemFn,
+    config: &Config,
+) -> Result<TokenStream> {
+    let contract = ConfiguredContract::new(config.clone(), item);
+    let effective_interface_name =
+        crate::contract::effective_interface_name(&contract);
+    let exports_mod_ident = if config.exports.is_some() {
+        config.internal_exports_mod_ident(&effective_interface_name)
+    } else {
+        free_function_exports_mod_ident(
+            &effective_interface_name,
+            &item.sig.ident,
+        )
+    };
+
+    let iface_name = contract.interface_name();
+    let iface_name = iface_name.as_deref();
+    let iface_vers = contract.defaulted_interface_vers();
+
+    let registration = generate_method_qualified(
+        &contract,
+        iface_name,
+        &iface_vers,
+        item,
+        &exports_mod_ident,
+    )?;
+
+    Ok(quote! {
+        const _: () = {
+            fn register(contract: &mut ::sdk::MockContract) {
+                #registration
+            }
+
+            #[::sdk::__linkme::distributed_slice(::sdk::mock_registry::CONTRACT_MOCK_FRAGMENTS)]
+            #[linkme(crate = ::sdk::__linkme)]
+            static FRAGMENT: ::sdk::mock_registry::ContractMockFragment =
+                ::sdk::mock_registry::ContractMockFragment {
+                    package_name: env!("CARGO_PKG_NAME"),
+                    self_type_key: None,
                     register,
                 };
         };
@@ -146,4 +198,14 @@ fn generate_method_qualified(
     Ok(quote! {
         contract.register_method(#entrypoint, #exports_mod::#internal_name);
     })
+}
+
+fn free_function_exports_mod_ident(
+    effective_interface_name: &str,
+    ident: &syn::Ident,
+) -> syn::Ident {
+    syn::Ident::new(
+        &format!("__groundhog_exports_{}_{}", effective_interface_name, ident),
+        proc_macro2::Span::call_site(),
+    )
 }
