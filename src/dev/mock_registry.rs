@@ -161,6 +161,14 @@ mod tests {
     }
 
     #[test]
+    fn collect_mock_fragments_errors_when_fragment_slice_is_empty() {
+        let fragments = [];
+
+        let err = collect_mock_fragments("beta", &fragments).unwrap_err();
+        assert!(matches!(err, MockRegistryError::NoFragments { .. }));
+    }
+
+    #[test]
     fn collect_mock_fragments_allows_free_function_fragments_with_single_impl_type() {
         let fragments = [
             ContractMockFragment {
