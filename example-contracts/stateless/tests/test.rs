@@ -74,7 +74,7 @@ fn test_register_mock_multi_trait() {
 #[test]
 fn test_register_mock_package_all_exports() {
     let env = sdk::TestEnvironment::no_cost();
-    let contract = sdk::register_mock_package(&env, env!("CARGO_PKG_NAME"));
+    let contract = stateless::__groundhog_register_mock_package(&env);
     let addr: sdk::ContractAddress = [0x33; 32].into();
 
     contract.deploy_contract_to(&addr);

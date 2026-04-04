@@ -153,3 +153,16 @@ mod dev;
 
 #[cfg(feature = "dev")]
 pub use dev::*;
+
+#[macro_export]
+macro_rules! declare_mock_package {
+    () => {
+        #[cfg(feature = "dev")]
+        #[doc(hidden)]
+        pub fn __groundhog_register_mock_package(
+            env: &::sdk::TestEnvironmentHandle,
+        ) -> ::sdk::MockContract {
+            ::sdk::register_mock_package(env, env!("CARGO_PKG_NAME"))
+        }
+    };
+}
