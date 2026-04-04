@@ -2,6 +2,8 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
+sdk::declare_mock_package!();
+
 pub use groundhog_erc20_if as erc20_if;
 
 use erc20_if::Amount;

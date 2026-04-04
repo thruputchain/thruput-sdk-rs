@@ -7,13 +7,12 @@ static CALLER_NONCE: sdk::SHA256Hash =
 fn cross_call_uses_explicit_trait_interface_entrypoint() {
     let env = sdk::TestEnvironment::no_cost();
 
-    let callee_contract = env.register_mock(
-        <named_interface_callee::NamedInterfaceCalleeContract as named_interface_callee::NamedInterfaceCallee>::__mock,
-    );
+    let callee_contract =
+        named_interface_callee::__groundhog_register_mock_package(&env);
     let callee_hash = callee_contract.as_hash().clone();
 
-    let caller_contract = env
-        .register_mock(named_interface_caller::NamedInterfaceCaller::__mock);
+    let caller_contract =
+        named_interface_caller::__groundhog_register_mock_package(&env);
     let caller_hash = caller_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {

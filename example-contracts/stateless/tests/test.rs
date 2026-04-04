@@ -3,28 +3,27 @@ use stateless::*;
 #[test]
 fn test_run() {
     sdk::client_test(
-        |env| env.register_mock(Stateless::__mock),
+        |env| stateless::__groundhog_register_mock_package(env),
         |c: &StatelessClient| {
             c.run();
         },
     );
 }
 
-use stateless::Stateless;
 use stateless::interface1;
 use stateless::interface2;
 
 #[test]
 fn test_ifaces() {
     sdk::client_test(
-        |env| env.register_mock(<Stateless as interface1::Interface>::__mock),
+        |env| stateless::__groundhog_register_mock_package(env),
         |c: &interface1::Client| {
             assert_eq!(c.perform_task(), 1);
         },
     );
 
     sdk::client_test(
-        |env| env.register_mock(<Stateless as interface2::Interface>::__mock),
+        |env| stateless::__groundhog_register_mock_package(env),
         |c: &interface2::Client| {
             assert_eq!(c.perform_task(), 2);
         },
@@ -32,9 +31,9 @@ fn test_ifaces() {
 }
 
 #[test]
-fn test_register_mock_single_trait() {
+fn test_register_mock_package_supports_direct_contract_client() {
     let env = sdk::TestEnvironment::no_cost();
-    let contract = env.register_mock(Stateless::__mock);
+    let contract = stateless::__groundhog_register_mock_package(&env);
     let addr: sdk::ContractAddress = [0x11; 32].into();
 
     contract.deploy_contract_to(&addr);
@@ -44,17 +43,14 @@ fn test_register_mock_single_trait() {
         client.run();
     })
     .unwrap_or_else(|e| {
-        panic!("register_mock single-trait test failed: {:?}", e)
+        panic!("register_mock package direct-client test failed: {:?}", e)
     });
 }
 
 #[test]
-fn test_register_mock_multi_trait() {
+fn test_register_mock_package_supports_all_exported_interfaces() {
     let env = sdk::TestEnvironment::no_cost();
-    let contract = env.register_mock(|c| {
-        <Stateless as interface1::Interface>::__mock(c);
-        <Stateless as interface2::Interface>::__mock(c);
-    });
+    let contract = stateless::__groundhog_register_mock_package(&env);
     let addr: sdk::ContractAddress = [0x22; 32].into();
 
     contract.deploy_contract_to(&addr);
@@ -67,7 +63,7 @@ fn test_register_mock_multi_trait() {
         assert_eq!(client2.perform_task(), 2);
     })
     .unwrap_or_else(|e| {
-        panic!("register_mock multi-trait test failed: {:?}", e)
+        panic!("register_mock package multi-interface test failed: {:?}", e)
     });
 }
 

@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
+sdk::declare_mock_package!();
+
 use sdk::storage::{Map, Value, Vector};
 use sdk::*;
 

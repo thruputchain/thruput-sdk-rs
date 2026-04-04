@@ -1264,6 +1264,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi_imported_traits"
+version = "0.3.0"
+dependencies = [
+ "multi_imported_traits",
+ "named_interface_callee",
+ "sdk",
+ "versioned_callee",
+]
+
+[[package]]
 name = "multi_throws"
 version = "0.3.0"
 dependencies = [

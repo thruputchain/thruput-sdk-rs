@@ -8,7 +8,7 @@ static NONCE: SHA256Hash = sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
 /// Helper: set up the fibonacci contract in a test environment.
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
     let env = TestEnvironment::no_cost();
-    let contract = env.register_mock(ComplexStorage::__mock);
+    let contract = complex_storage::__groundhog_register_mock_package(&env);
     let contract_hash = contract.as_hash().clone();
     (env, contract_hash)
 }

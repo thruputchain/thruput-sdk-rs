@@ -8,11 +8,11 @@ fn cross_call_uses_self_type_as_default_interface_name() {
     let env = sdk::TestEnvironment::no_cost();
 
     let callee_contract =
-        env.register_mock(bare_impl_callee::BareImplCallee::__mock);
+        bare_impl_callee::__groundhog_register_mock_package(&env);
     let callee_hash = callee_contract.as_hash().clone();
 
     let caller_contract =
-        env.register_mock(bare_impl_caller::BareImplCaller::__mock);
+        bare_impl_caller::__groundhog_register_mock_package(&env);
     let caller_hash = caller_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {
