@@ -5,8 +5,7 @@
 mod contract_test;
 pub use contract_test::*;
 
-mod mock_registry;
-pub use mock_registry::*;
+pub use crate::mock_registry::register_mock_package;
 
 mod test_setup;
 

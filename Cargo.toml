@@ -137,7 +137,6 @@ dev = [
     "call_tracking",
     "dep:groundhog-storage-cost",
     "mock",
-    "dep:linkme",
 ]
 
 # Enable the mock executor for testing
@@ -146,6 +145,7 @@ mock = [
     "dep:groundhog-native-exec",
     "groundhog-macros/mock",
     "groundhog-xdr/syscalls_mock",
+    "dep:linkme",
 ]
 
 # Include interfaces requiring std

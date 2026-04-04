@@ -1,6 +1,8 @@
 use crate::{MockContract, String, TestEnvironmentHandle, Vec};
+use core::fmt;
 use linkme::distributed_slice;
 
+#[doc(hidden)]
 #[derive(Debug, Clone, Copy)]
 pub struct ContractMockFragment {
     pub package_name: &'static str,
@@ -8,6 +10,7 @@ pub struct ContractMockFragment {
     pub register: fn(&mut MockContract),
 }
 
+#[doc(hidden)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MockRegistryError {
     NoFragments { package_name: String },
@@ -18,6 +21,25 @@ enum MockRegistryError {
     },
 }
 
+impl fmt::Display for MockRegistryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MockRegistryError::NoFragments { package_name } => {
+                write!(f, "no mock fragments registered for package `{package_name}`")
+            }
+            MockRegistryError::MultipleImplTypes {
+                package_name,
+                first,
+                second,
+            } => write!(
+                f,
+                "multiple impl-backed mock fragments registered for package `{package_name}`: `{first}` and `{second}`"
+            ),
+        }
+    }
+}
+
+#[doc(hidden)]
 #[distributed_slice]
 pub static CONTRACT_MOCK_FRAGMENTS: [ContractMockFragment];
 
@@ -58,7 +80,7 @@ fn collect_mock_fragments<'a>(
 
 pub fn register_mock_package(env: &TestEnvironmentHandle, package_name: &str) -> MockContract {
     let fragments = collect_mock_fragments(package_name, &CONTRACT_MOCK_FRAGMENTS)
-        .unwrap_or_else(|err| panic!("{err:?}"));
+        .unwrap_or_else(|err| panic!("{err}"));
 
     let mut contract = env.add_contract();
     for fragment in fragments {
@@ -114,5 +136,41 @@ mod tests {
             err,
             MockRegistryError::MultipleImplTypes { .. }
         ));
+    }
+
+    #[test]
+    fn collect_mock_fragments_errors_when_no_fragments_exist() {
+        let fragments = [ContractMockFragment {
+            package_name: "alpha",
+            self_type_key: Some("Alpha"),
+            register: noop,
+        }];
+
+        let err = collect_mock_fragments("beta", &fragments).unwrap_err();
+        assert!(matches!(err, MockRegistryError::NoFragments { .. }));
+    }
+
+    #[test]
+    fn collect_mock_fragments_allows_free_function_fragments_with_single_impl_type() {
+        let fragments = [
+            ContractMockFragment {
+                package_name: "demo",
+                self_type_key: None,
+                register: noop,
+            },
+            ContractMockFragment {
+                package_name: "demo",
+                self_type_key: Some("Alpha"),
+                register: noop,
+            },
+            ContractMockFragment {
+                package_name: "demo",
+                self_type_key: None,
+                register: noop,
+            },
+        ];
+
+        let collected = collect_mock_fragments("demo", &fragments).unwrap();
+        assert_eq!(collected.len(), 3);
     }
 }

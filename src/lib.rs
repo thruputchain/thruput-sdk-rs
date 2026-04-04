@@ -24,7 +24,7 @@ pub extern crate xdrs as __xdrs;
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "dev")]
+#[cfg(feature = "mock")]
 #[doc(hidden)]
 pub extern crate linkme as __linkme;
 
@@ -142,6 +142,11 @@ pub use groundhog_macros::Storage;
 pub use groundhog_macros::storage;
 
 // Development environment
+
+#[cfg(feature = "mock")]
+#[doc(hidden)]
+#[path = "dev/mock_registry.rs"]
+pub mod mock_registry;
 
 #[cfg(feature = "dev")]
 mod dev;
