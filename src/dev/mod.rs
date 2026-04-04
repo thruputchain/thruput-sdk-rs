@@ -5,6 +5,9 @@
 mod contract_test;
 pub use contract_test::*;
 
+mod mock_registry;
+pub use mock_registry::*;
+
 mod test_setup;
 
 pub use core::convert::Infallible;

@@ -24,6 +24,10 @@ pub extern crate xdrs as __xdrs;
 #[cfg(feature = "std")]
 extern crate std;
 
+#[cfg(feature = "dev")]
+#[doc(hidden)]
+pub extern crate linkme as __linkme;
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
