@@ -1,7 +1,7 @@
 #[test]
 fn hasher_test() {
     sdk::client_test(
-        |env| env.register_mock(hasher::HasherImpl::__mock),
+        |env| hasher::register_mock_contract(env),
         |c: &hasher::HasherClient| c.run(),
     );
 }

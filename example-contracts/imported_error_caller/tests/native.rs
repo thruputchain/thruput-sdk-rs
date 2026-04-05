@@ -7,13 +7,10 @@ static CALLER_NONCE: sdk::SHA256Hash =
 fn cross_call_decodes_reexported_imported_error_without_direct_dependency() {
     let env = sdk::TestEnvironment::no_cost();
 
-    let callee_contract = env.register_mock(
-        <imported_error_callee::ImportedErrorCalleeContract as imported_error_callee::ImportedErrorCallee>::__mock,
-    );
+    let callee_contract = imported_error_callee::register_mock_contract(&env);
     let callee_hash = callee_contract.as_hash().clone();
 
-    let caller_contract =
-        env.register_mock(imported_error_caller::ImportedErrorCaller::__mock);
+    let caller_contract = imported_error_caller::register_mock_contract(&env);
     let caller_hash = caller_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {

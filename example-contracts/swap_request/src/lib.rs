@@ -2,6 +2,8 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
+sdk::declare_mock_contract!();
+
 use sdk::sys_result::rcq::{
     retrocausal_queue_consume_sized, retrocausal_queue_insert,
 };

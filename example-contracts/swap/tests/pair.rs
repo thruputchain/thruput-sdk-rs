@@ -1,23 +1,18 @@
 use groundhog_erc20_if::ERC20Client;
 use sdk::*;
 use swap::ISwapV2PairClient;
-use swap::{ERC20, ISwapV2Pair, SwapV2Pair};
 
 #[test]
 fn swap_test() {
     let env = sdk::TestEnvironment::no_cost();
 
     // Register erc20 and instantiate for two tokens
-    let erc20_contract =
-        env.register_mock(<erc20::TokenContract as erc20::ERC20>::__mock);
+    let erc20_contract = erc20::register_mock_contract(&env);
     let token0_hash = erc20_contract.as_hash().clone();
     let token1_hash = erc20_contract.as_hash().clone();
 
     // Register and instantiate swap
-    let swap_contract = env.register_mock(|c| {
-        c.register(<SwapV2Pair as ERC20>::__mock)
-            .register(<SwapV2Pair as ISwapV2Pair>::__mock);
-    });
+    let swap_contract = swap::register_mock_contract(&env);
     let swap_hash = swap_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {

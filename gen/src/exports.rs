@@ -327,15 +327,24 @@ pub fn generate_method(
     // How to call the function
     let invoke = if is_method {
         // Invoke the method on a state object
-        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
-            quote! { #trait_path::#ident(state, #arg_names) }
+        if let Some(contract) = contract {
+            if let Some(trait_path) = contract.trait_path() {
+                let self_ty = contract.self_ty();
+                quote! { <#self_ty as #trait_path>::#ident(state, #arg_names) }
+            } else {
+                quote! { state.#ident(#arg_names) }
+            }
         } else {
-            quote! { state.#ident(#arg_names) }
+            unreachable!("is_method implies contract source")
         }
     } else if let Some(contract) = contract {
         // Invoke the associated function on the contract type
         let self_ty = &contract.self_ty();
-        quote! { #self_ty::#ident(#arg_names) }
+        if let Some(trait_path) = contract.trait_path() {
+            quote! { <#self_ty as #trait_path>::#ident(#arg_names) }
+        } else {
+            quote! { #self_ty::#ident(#arg_names) }
+        }
     } else {
         // Invoke the free function
         quote! { #ident(#arg_names) }
@@ -457,7 +466,7 @@ pub fn generate_free_function_bundle(
     })
 }
 
-fn free_function_exports_mod_ident(
+pub(crate) fn free_function_exports_mod_ident(
     effective_interface_name: &str,
     ident: &syn::Ident,
 ) -> syn::Ident {

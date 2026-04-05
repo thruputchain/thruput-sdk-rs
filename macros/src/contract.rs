@@ -131,6 +131,14 @@ fn apply_with_config(
                 return Ok(out);
             }
 
+            if cfg!(feature = "mock") {
+                out.extend(
+                    codegen::test_reg::generate_impl_registry_fragment(
+                        item, config,
+                    )?,
+                );
+            }
+
             if item.trait_.is_none() {
                 // Bare impl: generate client (name from config or auto-derived)
                 out.extend(codegen::client::generate(item, config)?);
@@ -149,6 +157,14 @@ fn apply_with_config(
             out.extend(codegen::exports::generate_free_function_bundle(
                 item, config,
             )?);
+
+            if cfg!(feature = "mock") {
+                out.extend(
+                    codegen::test_reg::generate_free_function_registry_fragment(
+                        item, config,
+                    )?,
+                );
+            }
 
             Ok(out)
         }

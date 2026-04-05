@@ -1,11 +1,11 @@
-use counter::{Counter, CounterClient, CounterClientError};
+use counter::{CounterClient, CounterClientError};
 use sdk::*;
 
 static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
 
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
     let env = sdk::TestEnvironment::no_cost();
-    let test_contract = env.register_mock(Counter::__mock);
+    let test_contract = counter::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
     (env, contract_hash)
 }

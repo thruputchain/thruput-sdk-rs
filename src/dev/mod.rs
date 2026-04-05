@@ -5,6 +5,8 @@
 mod contract_test;
 pub use contract_test::*;
 
+pub use crate::mock_registry::register_mock_package;
+
 mod test_setup;
 
 pub use core::convert::Infallible;

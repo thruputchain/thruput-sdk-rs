@@ -7,11 +7,10 @@ use common::*;
 fn caller_test_native() {
     let env = sdk::TestEnvironment::no_cost();
 
-    let erc20_contract =
-        env.register_mock(<erc20::TokenContract as erc20::ERC20>::__mock);
+    let erc20_contract = erc20::register_mock_contract(&env);
     let erc20_hash = erc20_contract.as_hash().clone();
 
-    let caller_contract = env.register_mock(caller::Caller::__mock);
+    let caller_contract = caller::register_mock_contract(&env);
     let caller_hash = caller_contract.as_hash().clone();
 
     sdk::contract_exec(env, move || {

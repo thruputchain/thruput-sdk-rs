@@ -2,6 +2,8 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
+sdk::declare_mock_contract!();
+
 use groundhog_erc20_if as interface;
 
 // A client stub that provides the interface via cross-contract calls

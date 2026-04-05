@@ -24,6 +24,10 @@ pub extern crate xdrs as __xdrs;
 #[cfg(feature = "std")]
 extern crate std;
 
+#[cfg(feature = "mock")]
+#[doc(hidden)]
+pub extern crate linkme as __linkme;
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -139,8 +143,26 @@ pub use groundhog_macros::storage;
 
 // Development environment
 
+#[cfg(feature = "mock")]
+#[doc(hidden)]
+#[path = "dev/mock_registry.rs"]
+pub mod mock_registry;
+
 #[cfg(feature = "dev")]
 mod dev;
 
 #[cfg(feature = "dev")]
 pub use dev::*;
+
+#[macro_export]
+macro_rules! declare_mock_contract {
+    () => {
+        #[cfg(feature = "dev")]
+        #[doc(hidden)]
+        pub fn register_mock_contract(
+            env: &::sdk::TestEnvironmentHandle,
+        ) -> ::sdk::MockContract {
+            ::sdk::register_mock_package(env, env!("CARGO_PKG_NAME"))
+        }
+    };
+}

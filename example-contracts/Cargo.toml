@@ -25,6 +25,7 @@ members = [
     "codegen_impl_client",
     "storage_errors",
     "multi_throws",
+    "multi_imported_traits",
     "named_interface_callee",
     "named_interface_caller",
     "bare_impl_callee",
