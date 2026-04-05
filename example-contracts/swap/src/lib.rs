@@ -9,7 +9,7 @@
 // XXX: include trait name in generated internal method names to avoid collisions?
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_package!();
+sdk::declare_mock_contract!();
 
 extern crate alloc;
 

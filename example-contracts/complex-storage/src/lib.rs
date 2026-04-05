@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_package!();
+sdk::declare_mock_contract!();
 
 pub use sdk::storage::*;
 pub use sdk::*;

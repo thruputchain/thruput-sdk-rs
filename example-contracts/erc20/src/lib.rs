@@ -2,7 +2,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_package!();
+sdk::declare_mock_contract!();
 
 // A trait describing the contract interface
 use groundhog_erc20_if as interface;

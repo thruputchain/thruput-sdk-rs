@@ -155,7 +155,7 @@ mod dev;
 pub use dev::*;
 
 #[macro_export]
-macro_rules! declare_mock_package {
+macro_rules! declare_mock_contract {
     () => {
         #[cfg(feature = "dev")]
         #[doc(hidden)]
