@@ -61,10 +61,13 @@ pub fn rewrite_wasm_with_interfaces(
                 if let Some((id, range)) = payload.as_section() {
                     push_section(&mut module, bytes, id, range);
                 }
+            wasmparser::Payload::DataCountSection { .. } => {
+                if filtered_data_segment_count > 0 {
+                    module.section(&DataCountSection {
+                        count: filtered_data_segment_count,
+                    });
+                }
             }
-        }
-    }
-
     if !interfaces.is_empty() {
         let mut final_text = String::from(FINAL_FORMAT_TAG);
         final_text.push('\n');
