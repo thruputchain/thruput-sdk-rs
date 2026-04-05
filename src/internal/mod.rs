@@ -91,6 +91,86 @@ pub const fn const_str_concat<
     out
 }
 
+/// Build a raw interface fragment record for the staging wasm custom section:
+/// `iface\tpackage\tself_type\tinterface\tversion\n`.
+///
+/// `OUT` must equal `10 + P + S + I + V`.
+#[doc(hidden)]
+#[inline]
+pub const fn const_spec_raw_interface_fragment_bytes<
+    const P: usize,
+    const S: usize,
+    const I: usize,
+    const V: usize,
+    const OUT: usize,
+>(
+    package_name: &str,
+    self_type_key: &str,
+    interface_name: &str,
+    interface_version: &str,
+) -> [u8; OUT] {
+    assert!(package_name.len() == P);
+    assert!(self_type_key.len() == S);
+    assert!(interface_name.len() == I);
+    assert!(interface_version.len() == V);
+    assert!(OUT == 10 + P + S + I + V);
+
+    let package = package_name.as_bytes();
+    let self_type = self_type_key.as_bytes();
+    let iface = interface_name.as_bytes();
+    let vers = interface_version.as_bytes();
+
+    let mut out = [0u8; OUT];
+    let mut i = 0usize;
+    let mut j = 0usize;
+
+    let prefix = b"iface\t";
+    while j < prefix.len() {
+        out[i] = prefix[j];
+        i += 1;
+        j += 1;
+    }
+
+    j = 0;
+    while j < P {
+        out[i] = package[j];
+        i += 1;
+        j += 1;
+    }
+    out[i] = b'\t';
+    i += 1;
+
+    j = 0;
+    while j < S {
+        out[i] = self_type[j];
+        i += 1;
+        j += 1;
+    }
+    out[i] = b'\t';
+    i += 1;
+
+    j = 0;
+    while j < I {
+        out[i] = iface[j];
+        i += 1;
+        j += 1;
+    }
+    out[i] = b'\t';
+    i += 1;
+
+    j = 0;
+    while j < V {
+        out[i] = vers[j];
+        i += 1;
+        j += 1;
+    }
+    out[i] = b'\n';
+    i += 1;
+
+    assert!(i == OUT);
+    out
+}
+
 /// Build the full version-mismatch diagnostic bytes: `prefix` + `'major', from 'full'` + `suffix`.
 ///
 /// `OUT` must equal `P + 11 + M + F + S` (the middle segment is always 11 + major + full bytes).

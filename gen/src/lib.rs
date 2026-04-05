@@ -19,5 +19,6 @@ pub use entrypoint::*;
 pub mod client;
 pub mod exports;
 pub mod spec;
+pub mod spec_reg;
 pub mod strip;
 pub mod test_reg;
