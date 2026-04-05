@@ -17,7 +17,3 @@ path = "src/lib.rs"
 thiserror = { workspace = true }
 wasm-encoder = "0.244.0"
 wasmparser = "0.244.0"
-
-[dev-dependencies]
-wasm-encoder = "0.244.0"
-wasmparser = "0.244.0"
