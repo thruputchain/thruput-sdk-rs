@@ -5,7 +5,10 @@ pub struct InterfaceId {
 }
 
 impl InterfaceId {
-    pub fn new(interface_name: impl Into<String>, interface_version: impl Into<String>) -> Self {
+    pub fn new(
+        interface_name: impl Into<String>,
+        interface_version: impl Into<String>,
+    ) -> Self {
         Self {
             interface_name: interface_name.into(),
             interface_version: interface_version.into(),

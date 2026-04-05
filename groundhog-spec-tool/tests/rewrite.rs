@@ -42,9 +42,10 @@ fn build_example_contract(package: &str) {
 fn read_sidecar_interfaces(package: &str) -> Value {
     build_example_contract(package);
 
+    let wasm_name = package.replace('-', "_");
     let json_path = workspace_root()
         .join("target/optimized")
-        .join(format!("{package}.spec.json"));
+        .join(format!("{wasm_name}.spec.json"));
     let json = fs::read_to_string(&json_path).unwrap();
     serde_json::from_str(&json).unwrap()
 }

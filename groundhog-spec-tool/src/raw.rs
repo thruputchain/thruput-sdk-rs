@@ -16,21 +16,27 @@ pub fn encode_raw_fragment(fragment: &RawInterfaceFragment) -> Vec<u8> {
     .into_bytes()
 }
 
-pub fn parse_raw_fragment_line(line: &str) -> Result<RawInterfaceFragment, SpecToolError> {
+pub fn parse_raw_fragment_line(
+    line: &str,
+) -> Result<RawInterfaceFragment, SpecToolError> {
     let parts = line.split('\t').collect::<Vec<_>>();
     match parts.as_slice() {
-        [RAW_RECORD_TAG, package_name, self_type_key, interface_name, interface_version] => {
-            Ok(RawInterfaceFragment {
-                package_name: (*package_name).to_owned(),
-                self_type_key: if self_type_key.is_empty() {
-                    None
-                } else {
-                    Some((*self_type_key).to_owned())
-                },
-                interface_name: (*interface_name).to_owned(),
-                interface_version: (*interface_version).to_owned(),
-            })
-        }
+        [
+            RAW_RECORD_TAG,
+            package_name,
+            self_type_key,
+            interface_name,
+            interface_version,
+        ] => Ok(RawInterfaceFragment {
+            package_name: (*package_name).to_owned(),
+            self_type_key: if self_type_key.is_empty() {
+                None
+            } else {
+                Some((*self_type_key).to_owned())
+            },
+            interface_name: (*interface_name).to_owned(),
+            interface_version: (*interface_version).to_owned(),
+        }),
         _ => Err(SpecToolError::InvalidRawFragment(line.to_owned())),
     }
 }

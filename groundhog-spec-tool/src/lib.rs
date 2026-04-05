@@ -4,8 +4,8 @@ pub mod rewrite;
 
 pub use model::{InterfaceId, RawInterfaceFragment};
 pub use raw::{
-    encode_raw_fragment, parse_raw_fragment_line, FINAL_FORMAT_TAG, FINAL_SECTION_NAME,
-    RAW_RECORD_TAG, RAW_SECTION_NAME,
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_RECORD_TAG, RAW_SECTION_NAME,
+    encode_raw_fragment, parse_raw_fragment_line,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,7 +23,9 @@ impl core::fmt::Display for SpecToolError {
             Self::MultipleImplTypes(left, right) => {
                 write!(f, "multiple impl-backed self types: {left}, {right}")
             }
-            Self::InvalidRawFragment(msg) | Self::Wasm(msg) => f.write_str(msg),
+            Self::InvalidRawFragment(msg) | Self::Wasm(msg) => {
+                f.write_str(msg)
+            }
         }
     }
 }
@@ -41,9 +43,12 @@ pub fn canonicalize_interfaces(
     let mut interfaces = Vec::with_capacity(raw.len());
 
     for fragment in raw {
-        if fragment.interface_name.is_empty() || fragment.interface_version.is_empty() {
+        if fragment.interface_name.is_empty()
+            || fragment.interface_version.is_empty()
+        {
             return Err(SpecToolError::InvalidRawFragment(
-                "interface fragments must include name and version".to_string(),
+                "interface fragments must include name and version"
+                    .to_string(),
             ));
         }
 

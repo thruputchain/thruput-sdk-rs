@@ -4,9 +4,11 @@ use wasm_encoder::{CustomSection, Module, RawSection};
 use wasmparser::Parser;
 
 use crate::{
-    canonicalize_interfaces,
-    raw::{parse_raw_fragment_line, FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME},
-    RawInterfaceFragment, SpecToolError,
+    RawInterfaceFragment, SpecToolError, canonicalize_interfaces,
+    raw::{
+        FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+        parse_raw_fragment_line,
+    },
 };
 
 pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
@@ -18,12 +20,15 @@ pub struct RewrittenWasm {
     pub interfaces: Vec<crate::InterfaceId>,
 }
 
-pub fn rewrite_wasm_with_interfaces(bytes: &[u8]) -> Result<RewrittenWasm, SpecToolError> {
+pub fn rewrite_wasm_with_interfaces(
+    bytes: &[u8],
+) -> Result<RewrittenWasm, SpecToolError> {
     let mut raw_fragments = Vec::<RawInterfaceFragment>::new();
     let mut module = Module::new();
 
     for payload in Parser::new(0).parse_all(bytes) {
-        let payload = payload.map_err(|err| SpecToolError::Wasm(err.to_string()))?;
+        let payload =
+            payload.map_err(|err| SpecToolError::Wasm(err.to_string()))?;
 
         if let wasmparser::Payload::CustomSection(section) = &payload {
             match section.name() {
@@ -65,7 +70,12 @@ pub fn rewrite_wasm_with_interfaces(bytes: &[u8]) -> Result<RewrittenWasm, SpecT
     })
 }
 
-fn push_section(module: &mut Module, bytes: &[u8], id: u8, range: Range<usize>) {
+fn push_section(
+    module: &mut Module,
+    bytes: &[u8],
+    id: u8,
+    range: Range<usize>,
+) {
     module.section(&RawSection {
         id,
         data: &bytes[range.start..range.end],

@@ -1,6 +1,8 @@
 use std::{env, fs, path::PathBuf};
 
-use groundhog_spec_tool::{render_spec_json, rewrite::rewrite_wasm_with_interfaces, SpecToolError};
+use groundhog_spec_tool::{
+    SpecToolError, render_spec_json, rewrite::rewrite_wasm_with_interfaces,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
