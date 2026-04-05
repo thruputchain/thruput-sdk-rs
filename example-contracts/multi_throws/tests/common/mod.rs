@@ -122,7 +122,10 @@ pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
 
     match client.try_throw_malicious_library_error() {
         Err(MultiClientError::BadDecode(ref raw)) => {
-            println!("OK: bad decode error with selector 0x{:016X}", raw.selector());
+            println!(
+                "OK: bad decode error with selector 0x{:016X}",
+                raw.selector()
+            );
             assert_eq!(raw.selector(), LibraryExn::SELECTOR);
             let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);

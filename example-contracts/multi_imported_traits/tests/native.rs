@@ -10,9 +10,8 @@ fn package_registration_exposes_all_imported_interfaces() {
     sdk::contract_exec(env, move || {
         let addr = sdk::deploy_contract(&NONCE, &contract_hash);
 
-        let named = named_interface_callee::ExplicitNamedInterfaceClient::new(
-            &addr,
-        );
+        let named =
+            named_interface_callee::ExplicitNamedInterfaceClient::new(&addr);
         let versioned = versioned_callee::VersionedCalleeClient::new(&addr);
 
         assert_eq!(named.add_one(41), 42);

@@ -2,7 +2,9 @@ pub struct MultiImportedTraitsContract;
 use sdk::*;
 
 #[contract(interface = "ExplicitNamedInterface")]
-impl named_interface_callee::NamedInterfaceCallee for MultiImportedTraitsContract {
+impl named_interface_callee::NamedInterfaceCallee
+    for MultiImportedTraitsContract
+{
     fn add_one(x: u32) -> u32 {
         x + 1
     }
@@ -14,4 +16,3 @@ impl versioned_callee::VersionedCallee for MultiImportedTraitsContract {
         x + 2
     }
 }
-

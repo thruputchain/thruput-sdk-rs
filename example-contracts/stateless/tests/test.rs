@@ -63,7 +63,10 @@ fn test_register_mock_contract_supports_all_exported_interfaces() {
         assert_eq!(client2.perform_task(), 2);
     })
     .unwrap_or_else(|e| {
-        panic!("register_mock_contract multi-interface test failed: {:?}", e)
+        panic!(
+            "register_mock_contract multi-interface test failed: {:?}",
+            e
+        )
     });
 }
 
@@ -84,7 +87,5 @@ fn test_register_mock_contract_all_exports() {
         assert_eq!(client1.perform_task(), 1);
         assert_eq!(client2.perform_task(), 2);
     })
-    .unwrap_or_else(|e| {
-        panic!("register_mock_contract test failed: {:?}", e)
-    });
+    .unwrap_or_else(|e| panic!("register_mock_contract test failed: {:?}", e));
 }

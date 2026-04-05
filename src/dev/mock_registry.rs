@@ -17,7 +17,9 @@ pub struct ContractMockFragment {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg(any(test, feature = "dev"))]
 enum MockRegistryError {
-    NoFragments { package_name: String },
+    NoFragments {
+        package_name: String,
+    },
     MultipleImplTypes {
         package_name: String,
         first: &'static str,
@@ -30,7 +32,10 @@ impl fmt::Display for MockRegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MockRegistryError::NoFragments { package_name } => {
-                write!(f, "no mock fragments registered for package `{package_name}`")
+                write!(
+                    f,
+                    "no mock fragments registered for package `{package_name}`"
+                )
             }
             MockRegistryError::MultipleImplTypes {
                 package_name,
@@ -89,8 +94,9 @@ pub fn register_mock_package(
     env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
     package_name: &str,
 ) -> MockContract {
-    let fragments = collect_mock_fragments(package_name, &CONTRACT_MOCK_FRAGMENTS)
-        .unwrap_or_else(|err| panic!("{err}"));
+    let fragments =
+        collect_mock_fragments(package_name, &CONTRACT_MOCK_FRAGMENTS)
+            .unwrap_or_else(|err| panic!("{err}"));
 
     let mut contract = env.add_contract();
     for fragment in fragments {
@@ -142,10 +148,7 @@ mod tests {
         ];
 
         let err = collect_mock_fragments("demo", &fragments).unwrap_err();
-        assert!(matches!(
-            err,
-            MockRegistryError::MultipleImplTypes { .. }
-        ));
+        assert!(matches!(err, MockRegistryError::MultipleImplTypes { .. }));
     }
 
     #[test]
@@ -169,7 +172,8 @@ mod tests {
     }
 
     #[test]
-    fn collect_mock_fragments_allows_free_function_fragments_with_single_impl_type() {
+    fn collect_mock_fragments_allows_free_function_fragments_with_single_impl_type()
+     {
         let fragments = [
             ContractMockFragment {
                 package_name: "demo",
