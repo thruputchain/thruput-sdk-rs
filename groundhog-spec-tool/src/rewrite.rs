@@ -14,8 +14,11 @@ use crate::{
     },
 };
 
-pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
-    Ok(rewrite_wasm_with_interfaces(bytes)?.wasm)
+pub fn rewrite_wasm(
+    bytes: &[u8],
+    package_name: &str,
+) -> Result<Vec<u8>, SpecToolError> {
+    Ok(rewrite_wasm_with_interfaces(bytes, package_name)?.wasm)
 }
 
 pub struct RewrittenWasm {
@@ -25,8 +28,9 @@ pub struct RewrittenWasm {
 
 pub fn rewrite_wasm_with_interfaces(
     bytes: &[u8],
+    package_name: &str,
 ) -> Result<RewrittenWasm, SpecToolError> {
-    let raw_fragments = collect_raw_fragments(bytes)?;
+    let raw_fragments = collect_raw_fragments(bytes, package_name)?;
 
     let interfaces = canonicalize_interfaces(&raw_fragments)?;
     let raw_fragment_blob = raw_fragments
@@ -90,6 +94,7 @@ pub fn rewrite_wasm_with_interfaces(
 
 fn collect_raw_fragments(
     bytes: &[u8],
+    package_name: &str,
 ) -> Result<Vec<RawInterfaceFragment>, SpecToolError> {
     let mut raw_fragments = Vec::<RawInterfaceFragment>::new();
 
@@ -105,7 +110,10 @@ fn collect_raw_fragments(
             let text = core::str::from_utf8(section.data())
                 .map_err(|err| SpecToolError::Wasm(err.to_string()))?;
             for line in text.lines().filter(|line| !line.is_empty()) {
-                raw_fragments.push(parse_raw_fragment_line(line)?);
+                let fragment = parse_raw_fragment_line(line)?;
+                if fragment.package_name == package_name {
+                    raw_fragments.push(fragment);
+                }
             }
         }
     }

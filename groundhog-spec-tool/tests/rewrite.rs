@@ -151,6 +151,8 @@ fn rewrite_cli_writes_a_json_sidecar() {
     let status = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
         .args([
             "rewrite",
+            "--package",
+            "demo",
             "--wasm",
             wasm_path.to_str().unwrap(),
             "--json-out",
@@ -184,7 +186,7 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
             .into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
     let sections = custom_sections(&rewritten);
 
     assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
@@ -221,7 +223,7 @@ fn rewrite_preserves_unrelated_custom_sections() {
         data: b"stale\n".as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
     let sections = custom_sections(&rewritten);
 
     assert!(sections.iter().any(|(name, body)| {
@@ -280,7 +282,7 @@ fn rewrite_drops_raw_only_data_segment_and_keeps_final_section() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
     let sections = custom_sections(&rewritten);
 
     assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
@@ -324,7 +326,7 @@ fn rewrite_preserves_unrelated_data_segments() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
 
     assert_eq!(data_segments(&rewritten), vec![kept_data]);
     assert_eq!(
@@ -385,7 +387,7 @@ fn rewrite_rebases_mixed_data_segment_after_stripping_raw_prefix() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
     let active_segments = active_data_segments(&rewritten);
 
     assert_eq!(
@@ -405,7 +407,7 @@ fn assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
 
     let wasm_path = workspace_root()
         .join("target/optimized")
-        .join(format!("{package}.wasm"));
+        .join(format!("{}.wasm", package.replace('-', "_")));
     let wasm = fs::read(&wasm_path).unwrap();
     let sections = custom_sections(&wasm);
 
@@ -480,4 +482,27 @@ fn built_contracts_produce_expected_final_interface_lists() {
         assert_eq!(parsed["format"], "gh_iface_v1");
         assert_eq!(parsed["interfaces"], expected_interfaces);
     }
+}
+
+#[test]
+fn rewrite_filters_fragments_to_requested_package() {
+    let mut module = Module::new();
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: b"iface\towner\tAlpha\tExplicitNamedInterface\t0.3.0\n\
+                iface\thelper\tHelper\tLeakedInterface\t9.9.9\n"
+            .as_slice()
+            .into(),
+    });
+
+    let rewritten = rewrite_wasm(&module.finish(), "owner").unwrap();
+    let sections = custom_sections(&rewritten);
+    let final_section = sections
+        .into_iter()
+        .find(|(name, _)| name == FINAL_SECTION_NAME)
+        .unwrap();
+    let body = String::from_utf8(final_section.1).unwrap();
+
+    assert!(body.contains("ExplicitNamedInterface\t0.3.0"));
+    assert!(!body.contains("LeakedInterface"));
 }
