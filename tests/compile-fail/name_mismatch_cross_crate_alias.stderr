@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: Interface name mismatch: impl-side name is 'RenamedTrait' but the trait defines 'VersionedTrait'. Repeat #[contract(interface = ...)] on the impl to match the trait definition.
+ --> tests/compile-fail/name_mismatch_cross_crate_alias.rs:6:1
+  |
+6 | #[contract(version = "1.0.0")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here
