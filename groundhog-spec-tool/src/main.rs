@@ -40,10 +40,10 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--package" => {
-                package_name = Some(
-                    args.next()
-                        .ok_or(CliError::Usage("missing value for --package"))?,
-                );
+                package_name =
+                    Some(args.next().ok_or(CliError::Usage(
+                        "missing value for --package",
+                    ))?);
             }
             "--wasm" => {
                 let value = args
