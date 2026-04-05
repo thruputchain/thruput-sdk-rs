@@ -31,12 +31,6 @@ pub extern crate linkme as __linkme;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(target_family = "wasm")]
-const _: () = {
-    #[unsafe(export_name = "_")]
-    static __GROUNDHOG_SPEC_ANCHOR: () = ();
-};
-
 #[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
 pub mod allocator;
 

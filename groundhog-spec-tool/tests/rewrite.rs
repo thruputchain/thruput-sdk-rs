@@ -1,12 +1,20 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+    fs,
+    path::PathBuf,
+    process::Command,
+    sync::{Mutex, OnceLock},
+};
 
 use groundhog_spec_tool::{
-    FINAL_SECTION_NAME, RAW_SECTION_NAME, rewrite::rewrite_wasm,
+    FINAL_SECTION_NAME, RAW_SECTION_NAME, RawInterfaceFragment,
+    encode_raw_fragment, rewrite::rewrite_wasm,
 };
 use serde_json::Value;
 use tempfile::tempdir;
-use wasm_encoder::{CustomSection, Module};
-use wasmparser::{Parser, Payload};
+use wasm_encoder::{
+    ConstExpr, CustomSection, DataSection, MemorySection, MemoryType, Module,
+};
+use wasmparser::{DataKind, Operator, Parser, Payload};
 
 fn custom_sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let mut sections = Vec::new();
@@ -19,6 +27,75 @@ fn custom_sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     sections
 }
 
+fn data_segments(bytes: &[u8]) -> Vec<Vec<u8>> {
+    let mut segments = Vec::new();
+    for payload in Parser::new(0).parse_all(bytes) {
+        if let Payload::DataSection(reader) = payload.unwrap() {
+            for segment in reader {
+                let segment = segment.unwrap();
+                if matches!(segment.kind, DataKind::Active { .. }) {
+                    segments.push(segment.data.to_vec());
+                }
+            }
+        }
+    }
+    segments
+}
+
+fn active_data_segments(bytes: &[u8]) -> Vec<(u32, i32, Vec<u8>)> {
+    let mut segments = Vec::new();
+    for payload in Parser::new(0).parse_all(bytes) {
+        if let Payload::DataSection(reader) = payload.unwrap() {
+            for segment in reader {
+                let segment = segment.unwrap();
+                if let DataKind::Active {
+                    memory_index,
+                    offset_expr,
+                } = segment.kind
+                {
+                    let mut ops = offset_expr.get_operators_reader();
+                    let offset = match ops.read().unwrap() {
+                        Operator::I32Const { value } => value,
+                        other => panic!(
+                            "unexpected offset expr operator: {other:?}"
+                        ),
+                    };
+                    match ops.read().unwrap() {
+                        Operator::End => {}
+                        other => panic!(
+                            "unexpected trailing offset expr operator: {other:?}"
+                        ),
+                    }
+                    segments.push((
+                        memory_index,
+                        offset,
+                        segment.data.to_vec(),
+                    ));
+                }
+            }
+        }
+    }
+    segments
+}
+
+fn export_names(bytes: &[u8]) -> Vec<String> {
+    let mut exports = Vec::new();
+    for payload in Parser::new(0).parse_all(bytes) {
+        if let Payload::ExportSection(reader) = payload.unwrap() {
+            for export in reader {
+                exports.push(export.unwrap().name.to_owned());
+            }
+        }
+    }
+    exports
+}
+
+fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -26,7 +103,13 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
+fn example_build_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
 fn build_example_contract(package: &str) {
+    let _guard = example_build_lock().lock().unwrap();
     let status = Command::new("bash")
         .current_dir(workspace_root())
         .args([
@@ -154,6 +237,203 @@ fn rewrite_preserves_unrelated_custom_sections() {
         .collect();
     assert_eq!(final_sections.len(), 1);
     assert_ne!(final_sections[0].1.as_slice(), b"stale\n");
+}
+
+#[test]
+fn rewrite_drops_raw_only_data_segment_and_keeps_final_section() {
+    let raw_fragments = [
+        RawInterfaceFragment::impl_backed(
+            "demo",
+            "Alpha",
+            "ExplicitNamedInterface",
+            "0.3.0",
+        ),
+        RawInterfaceFragment::impl_backed(
+            "demo",
+            "Alpha",
+            "VersionedCallee",
+            "1.2.3",
+        ),
+    ];
+    let raw_blob = raw_fragments
+        .iter()
+        .flat_map(encode_raw_fragment)
+        .collect::<Vec<_>>();
+
+    let mut memory = MemorySection::new();
+    memory.memory(MemoryType {
+        minimum: 1,
+        maximum: None,
+        memory64: false,
+        shared: false,
+        page_size_log2: None,
+    });
+
+    let mut data = DataSection::new();
+    data.active(0, &ConstExpr::i32_const(0), raw_blob.iter().copied());
+
+    let mut module = Module::new();
+    module.section(&memory);
+    module.section(&data);
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw_blob.as_slice().into(),
+    });
+
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let sections = custom_sections(&rewritten);
+
+    assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
+    assert_eq!(
+        sections
+            .iter()
+            .filter(|(name, _)| name == FINAL_SECTION_NAME)
+            .count(),
+        1
+    );
+    assert!(data_segments(&rewritten).is_empty());
+}
+
+#[test]
+fn rewrite_preserves_unrelated_data_segments() {
+    let raw_blob = encode_raw_fragment(&RawInterfaceFragment::impl_backed(
+        "demo",
+        "Alpha",
+        "ExplicitNamedInterface",
+        "0.3.0",
+    ));
+    let kept_data = b"retain-me".to_vec();
+
+    let mut memory = MemorySection::new();
+    memory.memory(MemoryType {
+        minimum: 1,
+        maximum: None,
+        memory64: false,
+        shared: false,
+        page_size_log2: None,
+    });
+
+    let mut data = DataSection::new();
+    data.active(0, &ConstExpr::i32_const(0), kept_data.iter().copied());
+
+    let mut module = Module::new();
+    module.section(&memory);
+    module.section(&data);
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw_blob.as_slice().into(),
+    });
+
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+
+    assert_eq!(data_segments(&rewritten), vec![kept_data]);
+    assert_eq!(
+        custom_sections(&rewritten)
+            .into_iter()
+            .filter(|(name, _)| name == FINAL_SECTION_NAME)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn rewrite_rebases_mixed_data_segment_after_stripping_raw_prefix() {
+    let raw_fragments = [
+        RawInterfaceFragment::impl_backed(
+            "demo",
+            "Alpha",
+            "ExplicitNamedInterface",
+            "0.3.0",
+        ),
+        RawInterfaceFragment::impl_backed(
+            "demo",
+            "Alpha",
+            "VersionedCallee",
+            "1.2.3",
+        ),
+    ];
+    let raw_blob = raw_fragments
+        .iter()
+        .flat_map(encode_raw_fragment)
+        .collect::<Vec<_>>();
+    let retained_suffix = [0_u8, 0, 0, 0, b'K', b'E', b'P', b'T'];
+    let original_offset = 7;
+    let mut mixed_data = raw_blob.clone();
+    mixed_data.extend_from_slice(&retained_suffix);
+
+    let mut memory = MemorySection::new();
+    memory.memory(MemoryType {
+        minimum: 1,
+        maximum: None,
+        memory64: false,
+        shared: false,
+        page_size_log2: None,
+    });
+
+    let mut data = DataSection::new();
+    data.active(
+        0,
+        &ConstExpr::i32_const(original_offset),
+        mixed_data.iter().copied(),
+    );
+
+    let mut module = Module::new();
+    module.section(&memory);
+    module.section(&data);
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw_blob.as_slice().into(),
+    });
+
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    let active_segments = active_data_segments(&rewritten);
+
+    assert_eq!(
+        active_segments,
+        vec![(
+            0,
+            original_offset + raw_blob.len() as i32,
+            retained_suffix.to_vec(),
+        )]
+    );
+}
+
+fn assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
+    package: &str,
+) {
+    build_example_contract(package);
+
+    let wasm_path = workspace_root()
+        .join("target/optimized")
+        .join(format!("{package}.wasm"));
+    let wasm = fs::read(&wasm_path).unwrap();
+    let sections = custom_sections(&wasm);
+
+    assert_eq!(
+        sections
+            .iter()
+            .filter(|(name, _)| name == FINAL_SECTION_NAME)
+            .count(),
+        1
+    );
+    assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
+    assert!(
+        data_segments(&wasm)
+            .iter()
+            .all(|segment| !contains_bytes(segment, b"iface\t"))
+    );
+    assert!(!contains_bytes(&wasm, b"iface\t"));
+    assert!(!export_names(&wasm).iter().any(|name| name == "_"));
+}
+
+#[test]
+fn built_contract_wasm_strips_raw_staging_bytes_and_anchor_export() {
+    assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
+        "free_fn_unnamed",
+    );
+    assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
+        "multi_imported_traits",
+    );
 }
 
 #[test]
