@@ -6,6 +6,7 @@ members = [
     "native_exec",
     "groundhog-sys",
     "groundhog-event",
+    "groundhog-spec-tool",
     "storage-cost",
     "standard-interfaces/*",
     "standard-tests/*",
