@@ -49,25 +49,3 @@ impl RawInterfaceFragment {
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpecToolError {
-    NoInterfaceFragments,
-    MultipleImplTypes(String, String),
-    InvalidRawFragment(String),
-    Wasm(String),
-}
-
-impl core::fmt::Display for SpecToolError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::NoInterfaceFragments => write!(f, "no interface fragments"),
-            Self::MultipleImplTypes(left, right) => {
-                write!(f, "multiple impl-backed self types: {left}, {right}")
-            }
-            Self::InvalidRawFragment(msg) | Self::Wasm(msg) => f.write_str(msg),
-        }
-    }
-}
-
-impl std::error::Error for SpecToolError {}

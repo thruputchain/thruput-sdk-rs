@@ -1,5 +1,5 @@
 use groundhog_spec_tool::{
-    canonicalize_interfaces, InterfaceId, RawInterfaceFragment,
+    canonicalize_interfaces, InterfaceId, RawInterfaceFragment, SpecToolError,
 };
 
 #[test]
@@ -42,12 +42,16 @@ fn rejects_multiple_impl_backed_self_types() {
     ];
 
     let err = canonicalize_interfaces(&raw).unwrap_err();
-    assert!(err.to_string().contains("multiple impl-backed self types"));
+    assert!(matches!(
+        err,
+        SpecToolError::MultipleImplTypes(left, right)
+            if left == "Alpha" && right == "Beta"
+    ));
 }
 
 #[test]
 fn rejects_empty_interface_sets() {
     let raw = vec![];
     let err = canonicalize_interfaces(&raw).unwrap_err();
-    assert!(err.to_string().contains("no interface fragments"));
+    assert!(matches!(err, SpecToolError::NoInterfaceFragments));
 }
