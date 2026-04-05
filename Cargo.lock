@@ -586,6 +586,8 @@ dependencies = [
 name = "groundhog-spec-tool"
 version = "0.8.6"
 dependencies = [
+ "serde_json",
+ "tempfile",
  "thiserror",
  "wasm-encoder",
  "wasmparser",
