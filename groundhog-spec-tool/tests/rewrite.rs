@@ -568,3 +568,18 @@ fn rewrite_omits_final_section_when_requested_package_has_no_fragments() {
 
     assert!(custom_sections(&rewritten).is_empty());
 }
+
+#[test]
+fn built_noop_contract_does_not_emit_spec_sidecar() {
+    build_example_contract("genesis_deployer");
+
+    let wasm_path = workspace_root()
+        .join("target/optimized/genesis_deployer.wasm");
+    let json_path = workspace_root()
+        .join("target/optimized/genesis_deployer.spec.json");
+    let wasm = fs::read(&wasm_path).unwrap();
+
+    assert!(wasm_path.is_file());
+    assert!(!json_path.exists());
+    assert!(custom_sections(&wasm).is_empty());
+}

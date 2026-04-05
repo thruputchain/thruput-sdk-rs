@@ -70,7 +70,11 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     let rewritten = rewrite_wasm_with_interfaces(&bytes, &package_name)?;
     fs::write(&wasm_path, rewritten.wasm)?;
     if rewritten.interfaces.is_empty() {
-        let _ = fs::remove_file(&json_out);
+        match fs::remove_file(&json_out) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err.into()),
+        }
     } else {
         fs::write(&json_out, render_spec_json(&rewritten.interfaces))?;
     }
