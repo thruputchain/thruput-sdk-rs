@@ -486,13 +486,43 @@ fn built_contracts_produce_expected_final_interface_lists() {
 
 #[test]
 fn rewrite_filters_fragments_to_requested_package() {
+    let owner_fragment = RawInterfaceFragment::impl_backed(
+        "owner",
+        "Alpha",
+        "ExplicitNamedInterface",
+        "0.3.0",
+    );
+    let helper_fragment = RawInterfaceFragment::impl_backed(
+        "helper",
+        "Helper",
+        "LeakedInterface",
+        "9.9.9",
+    );
+    let mut data = DataSection::new();
+    let mixed_raw_blob = [helper_fragment.clone(), owner_fragment.clone()]
+        .into_iter()
+        .flat_map(|fragment| encode_raw_fragment(&fragment))
+        .collect::<Vec<_>>();
+    data.active(
+        0,
+        &ConstExpr::i32_const(0),
+        mixed_raw_blob.iter().copied(),
+    );
+
     let mut module = Module::new();
+    let mut memory = MemorySection::new();
+    memory.memory(MemoryType {
+        minimum: 1,
+        maximum: None,
+        memory64: false,
+        shared: false,
+        page_size_log2: None,
+    });
+    module.section(&memory);
+    module.section(&data);
     module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
-        data: b"iface\towner\tAlpha\tExplicitNamedInterface\t0.3.0\n\
-                iface\thelper\tHelper\tLeakedInterface\t9.9.9\n"
-            .as_slice()
-            .into(),
+        data: mixed_raw_blob.as_slice().into(),
     });
 
     let rewritten = rewrite_wasm(&module.finish(), "owner").unwrap();
@@ -505,4 +535,36 @@ fn rewrite_filters_fragments_to_requested_package() {
 
     assert!(body.contains("ExplicitNamedInterface\t0.3.0"));
     assert!(!body.contains("LeakedInterface"));
+    assert!(data_segments(&rewritten).is_empty());
+    assert!(!contains_bytes(&rewritten, b"iface\t"));
+}
+
+#[test]
+fn rewrite_omits_final_section_when_requested_package_has_no_fragments() {
+    let helper_fragment = RawInterfaceFragment::impl_backed(
+        "helper",
+        "Helper",
+        "LeakedInterface",
+        "9.9.9",
+    );
+    let raw_blob = encode_raw_fragment(&helper_fragment);
+
+    let mut module = Module::new();
+    let mut memory = MemorySection::new();
+    memory.memory(MemoryType {
+        minimum: 1,
+        maximum: None,
+        memory64: false,
+        shared: false,
+        page_size_log2: None,
+    });
+    module.section(&memory);
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw_blob.as_slice().into(),
+    });
+
+    let rewritten = rewrite_wasm(&module.finish(), "owner").unwrap();
+
+    assert!(custom_sections(&rewritten).is_empty());
 }

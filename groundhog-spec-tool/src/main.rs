@@ -69,6 +69,10 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     let bytes = fs::read(&wasm_path)?;
     let rewritten = rewrite_wasm_with_interfaces(&bytes, &package_name)?;
     fs::write(&wasm_path, rewritten.wasm)?;
-    fs::write(&json_out, render_spec_json(&rewritten.interfaces))?;
+    if rewritten.interfaces.is_empty() {
+        let _ = fs::remove_file(&json_out);
+    } else {
+        fs::write(&json_out, render_spec_json(&rewritten.interfaces))?;
+    }
     Ok(())
 }
