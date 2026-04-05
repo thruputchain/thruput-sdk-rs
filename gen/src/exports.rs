@@ -466,7 +466,7 @@ pub fn generate_free_function_bundle(
     })
 }
 
-fn free_function_exports_mod_ident(
+pub(crate) fn free_function_exports_mod_ident(
     effective_interface_name: &str,
     ident: &syn::Ident,
 ) -> syn::Ident {

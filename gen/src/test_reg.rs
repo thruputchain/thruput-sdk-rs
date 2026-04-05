@@ -63,23 +63,8 @@ pub fn generate_bare_method(
 /// Generate a crate-global registry fragment for an impl item.
 pub fn generate_impl_registry_fragment(
     item: &syn::ItemImpl,
-    config: &Config,
+    _config: &Config,
 ) -> Result<TokenStream> {
-    let is_trait_impl = item.trait_.is_some();
-    // Error if user specified test_setup on any impl
-    if config.test_setup.is_some() {
-        let message = if is_trait_impl {
-            "test_setup = \"...\" is no longer supported. \
-             The #[contract] macro now generates `__mock` \
-             automatically. Use `<Type as Trait>::__mock` in tests instead."
-        } else {
-            "test_setup = \"...\" is no longer supported. \
-             The #[contract] macro now generates `__mock` \
-             automatically. Use `Type::__mock` in tests instead."
-        };
-        return Err(syn::Error::new_spanned(item, message));
-    }
-
     let self_ty = &item.self_ty;
     let register_path = if let Some((_, trait_path, _)) = &item.trait_ {
         quote! { <#self_ty as #trait_path>::__mock }
@@ -116,7 +101,7 @@ pub fn generate_free_function_registry_fragment(
     let exports_mod_ident = if config.exports.is_some() {
         config.internal_exports_mod_ident(&effective_interface_name)
     } else {
-        free_function_exports_mod_ident(
+        crate::exports::free_function_exports_mod_ident(
             &effective_interface_name,
             &item.sig.ident,
         )
@@ -198,14 +183,4 @@ fn generate_method_qualified(
     Ok(quote! {
         contract.register_method(#entrypoint, #exports_mod::#internal_name);
     })
-}
-
-fn free_function_exports_mod_ident(
-    effective_interface_name: &str,
-    ident: &syn::Ident,
-) -> syn::Ident {
-    syn::Ident::new(
-        &format!("__groundhog_exports_{}_{}", effective_interface_name, ident),
-        proc_macro2::Span::call_site(),
-    )
 }
