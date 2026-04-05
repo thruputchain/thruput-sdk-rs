@@ -7,9 +7,8 @@ pub const FINAL_FORMAT_TAG: &str = "gh_iface_v1";
 
 pub fn encode_raw_fragment(fragment: &RawInterfaceFragment) -> Vec<u8> {
     format!(
-        "{RAW_RECORD_TAG}\t{}\t{}\t{}\t{}\n",
+        "{RAW_RECORD_TAG}\t{}\t{}\t{}\n",
         fragment.package_name,
-        fragment.self_type_key.as_deref().unwrap_or(""),
         fragment.interface_name,
         fragment.interface_version,
     )
@@ -24,16 +23,10 @@ pub fn parse_raw_fragment_line(
         [
             RAW_RECORD_TAG,
             package_name,
-            self_type_key,
             interface_name,
             interface_version,
         ] => Ok(RawInterfaceFragment {
             package_name: (*package_name).to_owned(),
-            self_type_key: if self_type_key.is_empty() {
-                None
-            } else {
-                Some((*self_type_key).to_owned())
-            },
             interface_name: (*interface_name).to_owned(),
             interface_version: (*interface_version).to_owned(),
         }),

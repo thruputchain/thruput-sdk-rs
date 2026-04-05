@@ -106,7 +106,7 @@ fn rewrite_cli_writes_a_json_sidecar() {
     let mut module = Module::new();
     module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
-        data: b"iface\tdemo\tAlpha\tExplicitNamedInterface\t0.3.0\n"
+        data: b"iface\tdemo\tExplicitNamedInterface\t0.3.0\n"
             .as_slice()
             .into(),
     });
@@ -144,8 +144,8 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
     let mut module = Module::new();
     module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
-        data: b"iface\tdemo\tAlpha\tExplicitNamedInterface\t0.3.0\n\
-                iface\tdemo\tAlpha\tVersionedCallee\t1.2.3\n"
+        data: b"iface\tdemo\tExplicitNamedInterface\t0.3.0\n\
+                iface\tdemo\tVersionedCallee\t1.2.3\n"
             .as_slice()
             .into(),
     });
@@ -174,7 +174,7 @@ fn rewrite_preserves_unrelated_custom_sections() {
     });
     module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
-        data: b"iface\tdemo\tAlpha\tExplicitNamedInterface\t0.3.0\n"
+        data: b"iface\tdemo\tExplicitNamedInterface\t0.3.0\n"
             .as_slice()
             .into(),
     });
@@ -210,16 +210,10 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
     let raw_fragments = [
         RawInterfaceFragment::impl_backed(
             "demo",
-            "Alpha",
             "ExplicitNamedInterface",
             "0.3.0",
         ),
-        RawInterfaceFragment::impl_backed(
-            "demo",
-            "Alpha",
-            "VersionedCallee",
-            "1.2.3",
-        ),
+        RawInterfaceFragment::impl_backed("demo", "VersionedCallee", "1.2.3"),
     ];
     let raw_blob = raw_fragments
         .iter()
@@ -257,7 +251,6 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
 fn rewrite_preserves_unrelated_data_segments() {
     let raw_blob = encode_raw_fragment(&RawInterfaceFragment::impl_backed(
         "demo",
-        "Alpha",
         "ExplicitNamedInterface",
         "0.3.0",
     ));
@@ -300,16 +293,10 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
     let raw_fragments = [
         RawInterfaceFragment::impl_backed(
             "demo",
-            "Alpha",
             "ExplicitNamedInterface",
             "0.3.0",
         ),
-        RawInterfaceFragment::impl_backed(
-            "demo",
-            "Alpha",
-            "VersionedCallee",
-            "1.2.3",
-        ),
+        RawInterfaceFragment::impl_backed("demo", "VersionedCallee", "1.2.3"),
     ];
     let raw_blob = raw_fragments
         .iter()
@@ -459,13 +446,11 @@ fn built_contracts_produce_expected_final_interface_lists() {
 fn rewrite_filters_fragments_to_requested_package() {
     let owner_fragment = RawInterfaceFragment::impl_backed(
         "owner",
-        "Alpha",
         "ExplicitNamedInterface",
         "0.3.0",
     );
     let helper_fragment = RawInterfaceFragment::impl_backed(
         "helper",
-        "Helper",
         "LeakedInterface",
         "9.9.9",
     );
@@ -496,7 +481,6 @@ fn rewrite_filters_fragments_to_requested_package() {
 fn rewrite_omits_final_section_when_requested_package_has_no_fragments() {
     let helper_fragment = RawInterfaceFragment::impl_backed(
         "helper",
-        "Helper",
         "LeakedInterface",
         "9.9.9",
     );

@@ -11,7 +11,6 @@ pub use raw::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecToolError {
     NoInterfaceFragments,
-    MultipleImplTypes(String, String),
     InvalidRawFragment(String),
     Wasm(String),
 }
@@ -20,9 +19,6 @@ impl core::fmt::Display for SpecToolError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::NoInterfaceFragments => write!(f, "no interface fragments"),
-            Self::MultipleImplTypes(left, right) => {
-                write!(f, "multiple impl-backed self types: {left}, {right}")
-            }
             Self::InvalidRawFragment(msg) | Self::Wasm(msg) => {
                 f.write_str(msg)
             }
@@ -39,7 +35,6 @@ pub fn canonicalize_interfaces(
         return Err(SpecToolError::NoInterfaceFragments);
     }
 
-    let mut impl_self_type: Option<&str> = None;
     let mut interfaces = Vec::with_capacity(raw.len());
 
     for fragment in raw {
@@ -50,19 +45,6 @@ pub fn canonicalize_interfaces(
                 "interface fragments must include name and version"
                     .to_string(),
             ));
-        }
-
-        if let Some(self_type_key) = fragment.self_type_key.as_deref() {
-            match impl_self_type {
-                Some(existing) if existing != self_type_key => {
-                    return Err(SpecToolError::MultipleImplTypes(
-                        existing.to_string(),
-                        self_type_key.to_string(),
-                    ));
-                }
-                None => impl_self_type = Some(self_type_key),
-                Some(_) => {}
-            }
         }
 
         interfaces.push(InterfaceId::new(

@@ -28,7 +28,6 @@ pub fn generate_impl_raw_spec_fragment(
 
     Ok(generate_raw_fragment_tokens(
         quote! { env!("CARGO_PKG_NAME") },
-        quote! { stringify!(#self_ty) },
         iface_name,
         iface_vers,
     ))
@@ -44,7 +43,6 @@ pub fn generate_free_function_raw_spec_fragment(
 
     Ok(generate_raw_fragment_tokens(
         quote! { env!("CARGO_PKG_NAME") },
-        quote! { "" },
         quote! { #iface_name },
         quote! { #iface_vers },
     ))
@@ -52,7 +50,6 @@ pub fn generate_free_function_raw_spec_fragment(
 
 fn generate_raw_fragment_tokens(
     package_name: TokenStream,
-    self_type_key: TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
 ) -> TokenStream {
@@ -60,36 +57,30 @@ fn generate_raw_fragment_tokens(
         #[cfg(target_family = "wasm")]
         const _: () = {
             const PACKAGE_NAME: &str = #package_name;
-            const SELF_TYPE_KEY: &str = #self_type_key;
             const INTERFACE_NAME: &str = #interface_name;
             const INTERFACE_VERSION: &str = #interface_version;
             const RAW_FRAGMENT: [u8; {
-                10 + PACKAGE_NAME.len()
-                    + SELF_TYPE_KEY.len()
+                9 + PACKAGE_NAME.len()
                     + INTERFACE_NAME.len()
                     + INTERFACE_VERSION.len()
             }] = ::sdk::internal::const_spec_raw_interface_fragment_bytes::<
                 { PACKAGE_NAME.len() },
-                { SELF_TYPE_KEY.len() },
                 { INTERFACE_NAME.len() },
                 { INTERFACE_VERSION.len() },
                 {
-                    10 + PACKAGE_NAME.len()
-                        + SELF_TYPE_KEY.len()
+                    9 + PACKAGE_NAME.len()
                         + INTERFACE_NAME.len()
                         + INTERFACE_VERSION.len()
                 },
             >(
                 PACKAGE_NAME,
-                SELF_TYPE_KEY,
                 INTERFACE_NAME,
                 INTERFACE_VERSION,
             );
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_INTERFACE_SPEC: [u8; {
-                10 + PACKAGE_NAME.len()
-                    + SELF_TYPE_KEY.len()
+                9 + PACKAGE_NAME.len()
                     + INTERFACE_NAME.len()
                     + INTERFACE_VERSION.len()
             }] = RAW_FRAGMENT;

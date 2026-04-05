@@ -14,21 +14,6 @@ fn merges_duplicate_free_function_interfaces() {
 }
 
 #[test]
-fn rejects_multiple_impl_backed_self_types() {
-    let raw = vec![
-        RawInterfaceFragment::impl_backed("demo", "Alpha", "Alpha", "0.3.0"),
-        RawInterfaceFragment::impl_backed("demo", "Beta", "Beta", "0.3.0"),
-    ];
-
-    let err = canonicalize_interfaces(&raw).unwrap_err();
-    assert!(matches!(
-        err,
-        SpecToolError::MultipleImplTypes(left, right)
-            if left == "Alpha" && right == "Beta"
-    ));
-}
-
-#[test]
 fn rejects_empty_interface_sets() {
     let raw = vec![];
     let err = canonicalize_interfaces(&raw).unwrap_err();
