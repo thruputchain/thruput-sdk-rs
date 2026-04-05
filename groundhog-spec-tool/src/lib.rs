@@ -1,6 +1,12 @@
 pub mod model;
+pub mod raw;
+pub mod rewrite;
 
 pub use model::{InterfaceId, RawInterfaceFragment};
+pub use raw::{
+    encode_raw_fragment, parse_raw_fragment_line, FINAL_FORMAT_TAG, FINAL_SECTION_NAME,
+    RAW_RECORD_TAG, RAW_SECTION_NAME,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecToolError {
