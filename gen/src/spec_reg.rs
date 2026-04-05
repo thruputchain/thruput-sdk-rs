@@ -86,9 +86,8 @@ fn generate_raw_fragment_tokens(
                 INTERFACE_VERSION,
             );
 
-            #[used]
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-            static RAW_INTERFACE_SPEC: [u8; {
+            pub static RAW_INTERFACE_SPEC: [u8; {
                 10 + PACKAGE_NAME.len()
                     + SELF_TYPE_KEY.len()
                     + INTERFACE_NAME.len()

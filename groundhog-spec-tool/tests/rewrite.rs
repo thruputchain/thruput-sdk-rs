@@ -14,7 +14,7 @@ use tempfile::tempdir;
 use wasm_encoder::{
     ConstExpr, CustomSection, DataSection, MemorySection, MemoryType, Module,
 };
-use wasmparser::{DataKind, Operator, Parser, Payload};
+use wasmparser::{DataKind, Parser, Payload};
 
 fn custom_sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let mut sections = Vec::new();
@@ -35,42 +35,6 @@ fn data_segments(bytes: &[u8]) -> Vec<Vec<u8>> {
                 let segment = segment.unwrap();
                 if matches!(segment.kind, DataKind::Active { .. }) {
                     segments.push(segment.data.to_vec());
-                }
-            }
-        }
-    }
-    segments
-}
-
-fn active_data_segments(bytes: &[u8]) -> Vec<(u32, i32, Vec<u8>)> {
-    let mut segments = Vec::new();
-    for payload in Parser::new(0).parse_all(bytes) {
-        if let Payload::DataSection(reader) = payload.unwrap() {
-            for segment in reader {
-                let segment = segment.unwrap();
-                if let DataKind::Active {
-                    memory_index,
-                    offset_expr,
-                } = segment.kind
-                {
-                    let mut ops = offset_expr.get_operators_reader();
-                    let offset = match ops.read().unwrap() {
-                        Operator::I32Const { value } => value,
-                        other => panic!(
-                            "unexpected offset expr operator: {other:?}"
-                        ),
-                    };
-                    match ops.read().unwrap() {
-                        Operator::End => {}
-                        other => panic!(
-                            "unexpected trailing offset expr operator: {other:?}"
-                        ),
-                    }
-                    segments.push((
-                        memory_index,
-                        offset,
-                        segment.data.to_vec(),
-                    ));
                 }
             }
         }
@@ -242,7 +206,7 @@ fn rewrite_preserves_unrelated_custom_sections() {
 }
 
 #[test]
-fn rewrite_drops_raw_only_data_segment_and_keeps_final_section() {
+fn rewrite_rejects_raw_only_data_segment_leaks() {
     let raw_fragments = [
         RawInterfaceFragment::impl_backed(
             "demo",
@@ -282,18 +246,11 @@ fn rewrite_drops_raw_only_data_segment_and_keeps_final_section() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
-    let sections = custom_sections(&rewritten);
-
-    assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
+    let err = rewrite_wasm(&module.finish(), "demo").unwrap_err();
     assert_eq!(
-        sections
-            .iter()
-            .filter(|(name, _)| name == FINAL_SECTION_NAME)
-            .count(),
-        1
+        err.to_string(),
+        "raw interface spec bytes leaked into linear memory"
     );
-    assert!(data_segments(&rewritten).is_empty());
 }
 
 #[test]
@@ -339,7 +296,7 @@ fn rewrite_preserves_unrelated_data_segments() {
 }
 
 #[test]
-fn rewrite_rebases_mixed_data_segment_after_stripping_raw_prefix() {
+fn rewrite_rejects_mixed_data_segment_leaks() {
     let raw_fragments = [
         RawInterfaceFragment::impl_backed(
             "demo",
@@ -387,16 +344,10 @@ fn rewrite_rebases_mixed_data_segment_after_stripping_raw_prefix() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
-    let active_segments = active_data_segments(&rewritten);
-
+    let err = rewrite_wasm(&module.finish(), "demo").unwrap_err();
     assert_eq!(
-        active_segments,
-        vec![(
-            0,
-            original_offset + raw_blob.len() as i32,
-            retained_suffix.to_vec(),
-        )]
+        err.to_string(),
+        "raw interface spec bytes leaked into linear memory"
     );
 }
 
@@ -435,6 +386,26 @@ fn built_contract_wasm_strips_raw_staging_bytes_and_anchor_export() {
     );
     assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
         "multi_imported_traits",
+    );
+}
+
+#[test]
+fn raw_release_contract_keeps_spec_bytes_out_of_linear_memory() {
+    build_example_contract("free_fn_unnamed");
+
+    let wasm_path = workspace_root()
+        .join("target/wasm32-unknown-unknown/release/free_fn_unnamed.wasm");
+    let wasm = fs::read(&wasm_path).unwrap();
+
+    assert!(
+        custom_sections(&wasm)
+            .iter()
+            .any(|(name, _)| name == RAW_SECTION_NAME)
+    );
+    assert!(
+        data_segments(&wasm)
+            .iter()
+            .all(|segment| !contains_bytes(segment, b"iface\t"))
     );
 }
 
@@ -498,24 +469,12 @@ fn rewrite_filters_fragments_to_requested_package() {
         "LeakedInterface",
         "9.9.9",
     );
-    let mut data = DataSection::new();
     let mixed_raw_blob = [helper_fragment.clone(), owner_fragment.clone()]
         .into_iter()
         .flat_map(|fragment| encode_raw_fragment(&fragment))
         .collect::<Vec<_>>();
-    data.active(0, &ConstExpr::i32_const(0), mixed_raw_blob.iter().copied());
 
     let mut module = Module::new();
-    let mut memory = MemorySection::new();
-    memory.memory(MemoryType {
-        minimum: 1,
-        maximum: None,
-        memory64: false,
-        shared: false,
-        page_size_log2: None,
-    });
-    module.section(&memory);
-    module.section(&data);
     module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
         data: mixed_raw_blob.as_slice().into(),
@@ -531,8 +490,6 @@ fn rewrite_filters_fragments_to_requested_package() {
 
     assert!(body.contains("ExplicitNamedInterface\t0.3.0"));
     assert!(!body.contains("LeakedInterface"));
-    assert!(data_segments(&rewritten).is_empty());
-    assert!(!contains_bytes(&rewritten, b"iface\t"));
 }
 
 #[test]
