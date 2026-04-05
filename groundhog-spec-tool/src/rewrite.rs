@@ -10,6 +10,15 @@ use crate::{
 };
 
 pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
+    Ok(rewrite_wasm_with_interfaces(bytes)?.wasm)
+}
+
+pub struct RewrittenWasm {
+    pub wasm: Vec<u8>,
+    pub interfaces: Vec<crate::InterfaceId>,
+}
+
+pub fn rewrite_wasm_with_interfaces(bytes: &[u8]) -> Result<RewrittenWasm, SpecToolError> {
     let mut raw_fragments = Vec::<RawInterfaceFragment>::new();
     let mut module = Module::new();
 
@@ -39,7 +48,7 @@ pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
     let interfaces = canonicalize_interfaces(&raw_fragments)?;
     let mut final_text = String::from(FINAL_FORMAT_TAG);
     final_text.push('\n');
-    for interface in interfaces {
+    for interface in &interfaces {
         final_text.push_str(&interface.interface_name);
         final_text.push('\t');
         final_text.push_str(&interface.interface_version);
@@ -50,7 +59,10 @@ pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
         name: FINAL_SECTION_NAME.into(),
         data: final_text.into_bytes().into(),
     });
-    Ok(module.finish())
+    Ok(RewrittenWasm {
+        wasm: module.finish(),
+        interfaces,
+    })
 }
 
 fn push_section(module: &mut Module, bytes: &[u8], id: u8, range: Range<usize>) {

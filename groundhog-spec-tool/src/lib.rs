@@ -70,3 +70,42 @@ pub fn canonicalize_interfaces(
     interfaces.dedup();
     Ok(interfaces)
 }
+
+pub fn render_spec_json(interfaces: &[InterfaceId]) -> String {
+    let mut json = String::from("{\"format\":\"");
+    json.push_str(FINAL_FORMAT_TAG);
+    json.push_str("\",\"interfaces\":[");
+
+    for (index, interface) in interfaces.iter().enumerate() {
+        if index > 0 {
+            json.push(',');
+        }
+        json.push_str("{\"interface_name\":\"");
+        push_json_string(&mut json, &interface.interface_name);
+        json.push_str("\",\"interface_version\":\"");
+        push_json_string(&mut json, &interface.interface_version);
+        json.push_str("\"}");
+    }
+
+    json.push_str("]}");
+    json
+}
+
+fn push_json_string(out: &mut String, value: &str) {
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\u{08}' => out.push_str("\\b"),
+            '\u{0C}' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            ch if ch.is_control() => {
+                use core::fmt::Write as _;
+                write!(out, "\\u{:04x}", ch as u32).unwrap();
+            }
+            ch => out.push(ch),
+        }
+    }
+}

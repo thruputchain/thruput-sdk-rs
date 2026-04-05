@@ -1,4 +1,8 @@
+use std::{fs, process::Command};
+
 use groundhog_spec_tool::{rewrite::rewrite_wasm, FINAL_SECTION_NAME, RAW_SECTION_NAME};
+use serde_json::Value;
+use tempfile::tempdir;
 use wasm_encoder::{CustomSection, Module};
 use wasmparser::{Parser, Payload};
 
@@ -10,6 +14,46 @@ fn custom_sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
         }
     }
     sections
+}
+
+#[test]
+fn rewrite_cli_writes_a_json_sidecar() {
+    let tempdir = tempdir().unwrap();
+    let wasm_path = tempdir.path().join("rewrite-cli.wasm");
+    let json_path = tempdir.path().join("rewrite-cli.spec.json");
+
+    let mut module = Module::new();
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: b"iface\tdemo\tAlpha\tExplicitNamedInterface\t0.3.0\n"
+            .as_slice()
+            .into(),
+    });
+    fs::write(&wasm_path, module.finish()).unwrap();
+
+    let status = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
+        .args([
+            "rewrite",
+            "--wasm",
+            wasm_path.to_str().unwrap(),
+            "--json-out",
+            json_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+
+    let json = fs::read_to_string(&json_path).unwrap();
+    let parsed: Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed["format"], "gh_iface_v1");
+    assert_eq!(
+        parsed["interfaces"],
+        serde_json::json!([{
+            "interface_name": "ExplicitNamedInterface",
+            "interface_version": "0.3.0"
+        }])
+    );
 }
 
 #[test]
