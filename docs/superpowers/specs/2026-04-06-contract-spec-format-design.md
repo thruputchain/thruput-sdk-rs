@@ -73,6 +73,7 @@ The resulting spec must be:
   format.
 - No final customization surface for user-defined type symbols yet.
 - No attempt to remove the post-link spec pass.
+- No attempt to const-build the full transitive spec graph in one place.
 
 ## Core Model
 
@@ -207,6 +208,51 @@ Notes:
 - Type definitions are name-based and may arrive unordered in the raw fragment
   stream.
 
+## Type Reflection Strategy
+
+Named type emission should use Rust type resolution, but only for local
+per-type descriptions.
+
+The intended model is:
+
+- a type exposes a const-resolved self-description of its own definition
+- fields and cases refer to child types through typed `ContractType` refs
+- the compiler resolves those child types normally
+- that one local definition is serialized into a raw `TypeDef` fragment for the
+  staging custom section
+
+This means named type generation should eventually look more like:
+
+```rust
+trait ContractTypeSpec {
+    const SYMBOL: &'static str;
+    const TYPE_REF: ContractType;
+    const TYPE_DEF_FRAGMENT: &'static [u8];
+}
+```
+
+or an equivalent shape built from:
+
+- a typed const self-description
+- a local const serializer that turns that one definition into bytes
+
+What this strategy does not try to do:
+
+- recursively concatenate the full reachable type graph in const-eval
+- dedup transitive type definitions in const-eval
+- prove whole-contract closure during macro expansion
+
+Those are postprocessor responsibilities.
+
+This split gives the desired ergonomic property:
+
+- the macro can emit `<T as ContractTypeSpec>::...`
+- Rust resolves `T`, including imported types and concrete generic
+  instantiations
+- the linker section still receives raw bytes
+- the postprocessor remains the only place that performs graph assembly,
+  deduplication, and missing-type validation
+
 ## Fragment Model
 
 Use the existing two-phase spec pipeline:
@@ -324,6 +370,12 @@ fragments.
 This slice does not add derive macros yet, but the raw fragment model and
 postprocessor must already support type-def fragments so that the first manual
 end-to-end implementations can be wired in without redesigning the format.
+
+Those manual implementations should follow the type-reflection strategy above:
+
+- define the type's own symbol and local definition
+- serialize only that local definition into the emitted raw fragment
+- reference child types symbolically through `ContractType`
 
 ## Postprocessing
 
