@@ -18,6 +18,10 @@ use syn::parse::Result;
 
 /// True when the crate currently being compiled is the primary Cargo
 /// package (i.e. the one directly selected by the user, not a dependency).
+///
+/// NOTE: Cargo does not track this env var for fingerprinting with stable
+/// Rust, so cached compilations may use a stale result.  The build script
+/// works around this by cleaning each package before building.
 pub fn is_primary_package() -> bool {
     std::env::var("CARGO_PRIMARY_PACKAGE").is_ok()
 }
