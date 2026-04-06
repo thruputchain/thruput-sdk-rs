@@ -58,7 +58,7 @@ Responsibilities:
 Responsibilities:
 
 - `model.rs`: raw fragment structs/enums plus canonical assembly helpers
-- `raw.rs`: textual raw fragment encoding/decoding helpers and final-section constants
+- `raw.rs`: XDR fragment-stream encoding/decoding helpers and final-section constants
 - `lib.rs`: full `ContractSpec` canonicalization, closure checking, and JSON/debug rendering
 - `rewrite.rs`: rewrite wasm custom sections using XDR final payloads
 - `main.rs`: preserve the current CLI but write the richer JSON/debug sidecar
@@ -295,6 +295,13 @@ pub trait ContractTypeSpec {
     const TYPE_REF: view::ContractTypeView<'static>;
     const TYPE_DEF: view::ContractTypeDefView<'static>;
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
+pub enum SpecFragment {
+    Interface(SpecInterfaceFragment),
+    Method(SpecMethodFragment),
+    TypeDef(ContractTypeDef),
+}
 ```
 
 Update `src/lib.rs`:
@@ -394,11 +401,11 @@ Add to `groundhog-spec-tool/tests/canonicalize.rs`:
 ```rust
 use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpecMethod,
-    ContractType, ContractTypeDef,
+    ContractType, ContractTypeDef, SpecFragment, SpecInterfaceFragment,
+    SpecMethodFragment,
 };
 use groundhog_spec_tool::{
-    RawInterfaceFragment, RawMethodFragment, RawSpecFragment,
-    RawTypeDefFragment, SpecToolError, canonicalize_spec,
+    SpecToolError, canonicalize_spec,
 };
 
 #[test]
@@ -406,13 +413,13 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
     let spec = canonicalize_spec(
         "demo",
         &[
-            RawSpecFragment::Interface(RawInterfaceFragment {
+            SpecFragment::Interface(SpecInterfaceFragment {
                 package_name: "demo".into(),
                 interface_name: "Named".into(),
                 interface_version: "0.1.0".into(),
                 throws: vec![ContractType::Named("DemoError".into())],
             }),
-            RawSpecFragment::Method(RawMethodFragment {
+            SpecFragment::Method(SpecMethodFragment {
                 package_name: "demo".into(),
                 interface_name: "Named".into(),
                 interface_version: "0.1.0".into(),
@@ -425,15 +432,13 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                     return_type: ContractType::Void,
                 },
             }),
-            RawSpecFragment::TypeDef(RawTypeDefFragment {
-                type_def: ContractTypeDef::Enum(ContractEnumDef {
-                    name: "DemoError".into(),
-                    variants: vec![ContractEnumVariant {
-                        name: "Nope".into(),
-                        value: 7,
-                    }],
-                }),
-            }),
+            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+                name: "DemoError".into(),
+                variants: vec![ContractEnumVariant {
+                    name: "Nope".into(),
+                    value: 7,
+                }],
+            })),
         ],
     )
     .unwrap();
@@ -447,7 +452,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
 fn canonicalize_spec_rejects_missing_named_type_defs() {
     let err = canonicalize_spec(
         "demo",
-        &[RawSpecFragment::Interface(RawInterfaceFragment {
+        &[SpecFragment::Interface(SpecInterfaceFragment {
             package_name: "demo".into(),
             interface_name: "Named".into(),
             interface_version: "0.1.0".into(),
@@ -460,40 +465,14 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
 }
 ```
 
-- [ ] **Step 2: Expand the raw model from interface-only to full fragment enums**
+- [ ] **Step 2: Expand the raw model from interface-only to full XDR fragment enums**
 
 Update `groundhog-spec-tool/src/model.rs`:
 
 ```rust
-use groundhog_contract_spec::{ContractSpecMethod, ContractType, ContractTypeDef};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RawSpecFragment {
-    Interface(RawInterfaceFragment),
-    Method(RawMethodFragment),
-    TypeDef(RawTypeDefFragment),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RawInterfaceFragment {
-    pub package_name: String,
-    pub interface_name: String,
-    pub interface_version: String,
-    pub throws: Vec<ContractType>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RawMethodFragment {
-    pub package_name: String,
-    pub interface_name: String,
-    pub interface_version: String,
-    pub method: ContractSpecMethod,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RawTypeDefFragment {
-    pub type_def: ContractTypeDef,
-}
+pub use groundhog_contract_spec::{
+    SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+};
 ```
 
 Also replace `SpecToolError::NoInterfaceFragments` with richer variants:
@@ -509,37 +488,32 @@ pub enum SpecToolError {
 }
 ```
 
-- [ ] **Step 3: Teach the raw parser about all fragment kinds**
+- [ ] **Step 3: Teach the raw parser to read a stream of XDR `SpecFragment` values**
 
-Update `groundhog-spec-tool/src/raw.rs` so it accepts distinct textual tags:
+Update `groundhog-spec-tool/src/raw.rs` so it decodes concatenated XDR
+fragments:
 
 ```rust
-pub const RAW_INTERFACE_RECORD_TAG: &str = "iface";
-pub const RAW_METHOD_RECORD_TAG: &str = "method";
-pub const RAW_TYPEDEF_RECORD_TAG: &str = "typedef";
+use groundhog_contract_spec::SpecFragment;
+use xdrs::ReadXDR;
 
-pub fn parse_raw_fragment_line(line: &str) -> Result<RawSpecFragment, SpecToolError> {
-    let (tag, rest) = line
-        .split_once('\t')
-        .ok_or_else(|| SpecToolError::InvalidRawFragment(line.to_owned()))?;
-
-    match tag {
-        RAW_INTERFACE_RECORD_TAG => parse_interface_line(rest),
-        RAW_METHOD_RECORD_TAG => parse_method_line(rest),
-        RAW_TYPEDEF_RECORD_TAG => parse_typedef_line(rest),
-        _ => Err(SpecToolError::InvalidRawFragment(line.to_owned())),
+pub fn parse_raw_fragments(
+    mut bytes: &[u8],
+) -> Result<Vec<SpecFragment>, SpecToolError> {
+    let mut fragments = Vec::new();
+    while !bytes.is_empty() {
+        let before = bytes.len();
+        let fragment = SpecFragment::read_xdr(&mut bytes)
+            .map_err(|err| SpecToolError::InvalidRawFragment(err.to_string()))?;
+        if bytes.len() == before {
+            return Err(SpecToolError::InvalidRawFragment(
+                "spec fragment parser made no progress".to_string(),
+            ));
+        }
+        fragments.push(fragment);
     }
+    Ok(fragments)
 }
-```
-
-For method and type-def records, use a const-friendly textual payload grammar
-after the textual prefix:
-
-```text
-method\t<package>\t<interface>\t<version>\tname=<name>;ret=<type>;args=<comma-separated <arg-name>:<type> entries>\n
-typedef\tstruct\t<name>\t<comma-separated <field-name>:<type> entries>\n
-typedef\tenum\t<name>\t<comma-separated <variant-name>=<i32> entries>\n
-typedef\tunion\t<name>\t<comma-separated <case-name>=<i32>[:<type>] entries>\n
 ```
 
 - [ ] **Step 4: Replace `canonicalize_interfaces` with `canonicalize_spec`**
@@ -551,20 +525,20 @@ use groundhog_contract_spec::{ContractSpec, ContractSpecInterface, ContractType,
 
 pub fn canonicalize_spec(
     package_name: &str,
-    raw: &[RawSpecFragment],
+    raw: &[SpecFragment],
 ) -> Result<ContractSpec, SpecToolError> {
     let mut interfaces = std::collections::BTreeMap::new();
     let mut type_defs = std::collections::BTreeMap::new();
 
     for fragment in raw {
         match fragment {
-            RawSpecFragment::Interface(iface) if iface.package_name == package_name => {
+            SpecFragment::Interface(iface) if iface.package_name == package_name => {
                 // upsert interface shell, check throws agreement
             }
-            RawSpecFragment::Method(method) if method.package_name == package_name => {
+            SpecFragment::Method(method) if method.package_name == package_name => {
                 // push methods into interface bucket
             }
-            RawSpecFragment::TypeDef(ty) => {
+            SpecFragment::TypeDef(ty) => {
                 // dedup by symbol or reject conflicting shapes
             }
             _ => {}
@@ -782,25 +756,33 @@ Expected before implementation: FAIL because only interface records exist today.
 Extend `src/internal/mod.rs` with helpers alongside `const_spec_raw_interface_fragment_bytes`:
 
 ```rust
-pub const fn const_spec_raw_method_fragment_prefix_bytes<
-    const P: usize,
-    const I: usize,
-    const V: usize,
+pub const fn const_xdr_spec_interface_fragment_bytes<
     const OUT: usize,
 >(
-    package_name: &str,
-    interface_name: &str,
-    interface_version: &str,
+    fragment: &::groundhog_contract_spec::SpecInterfaceFragmentView<'_>,
 ) -> [u8; OUT] {
-    // builds: b"method\t" + package + b"\t" + interface + b"\t" + version + b"\t"
+    // serialize one SpecFragment::Interface as XDR
 }
 
-pub const fn const_spec_raw_typedef_fragment_prefix_bytes<const OUT: usize>() -> [u8; OUT] {
-    *b"typedef\t"
+pub const fn const_xdr_spec_method_fragment_bytes<
+    const OUT: usize,
+>(
+    fragment: &::groundhog_contract_spec::SpecMethodFragmentView<'_>,
+) -> [u8; OUT] {
+    // serialize one SpecFragment::Method as XDR
+}
+
+pub const fn const_xdr_spec_typedef_fragment_bytes<
+    const OUT: usize,
+>(
+    fragment: &::groundhog_contract_spec::ContractTypeDefView<'_>,
+) -> [u8; OUT] {
+    // serialize one SpecFragment::TypeDef as XDR
 }
 ```
 
-Use the const prefix helpers plus compile-time hex payload bytes so the generated `static` remains raw bytes in the custom section.
+These helpers are the const-XDR staging encoders. They produce the exact raw
+bytes written into `groundhogspecrawv0`.
 
 - [ ] **Step 3: Emit richer interface fragments**
 
@@ -853,29 +835,29 @@ pub fn generate_impl_raw_spec_fragments(
 }
 ```
 
-For each method fragment, build a const-friendly borrowed method view and emit
-it as a textual raw payload:
+For each method fragment, build a borrowed `SpecMethodFragmentView` and emit
+its XDR bytes with a const encoder:
 
 ```rust
-const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] = &[
-    ::sdk::__contract_spec::ContractFieldView {
-        name: #arg_name,
-        ty: <#arg_ty as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_REF,
-    },
-];
+const FRAGMENT: ::sdk::__contract_spec::SpecMethodFragmentView<'static> =
+    ::sdk::__contract_spec::SpecMethodFragmentView {
+        package_name: env!("CARGO_PKG_NAME"),
+        interface_name: INTERFACE_NAME,
+        interface_version: INTERFACE_VERSION,
+        method: ::sdk::__contract_spec::ContractSpecMethodView {
+            name: #method_name,
+            args: METHOD_ARGS,
+            return_type: METHOD_RETURN,
+        },
+    };
 
-const METHOD_RETURN: ::sdk::__contract_spec::ContractTypeView<'static> =
-    <#ret_ty as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_REF;
+const RAW_FRAGMENT: [u8; RAW_LEN] =
+    ::sdk::internal::const_xdr_spec_method_fragment_bytes::<RAW_LEN>(&FRAGMENT);
 ```
 
-Use the const prefix helpers plus const textual encoding for:
-
-- method name
-- arg list
-- return type
-
-The postprocessor decodes that textual payload into owning
-`ContractSpecMethod` values before canonicalization.
+Mirror that shape for interface fragments with
+`const_xdr_spec_interface_fragment_bytes`, and for manual named types with
+`const_xdr_spec_typedef_fragment_bytes(&<T as ContractTypeSpec>::TYPE_DEF)`.
 
 - [ ] **Step 4: Wire the macro entrypoints to the new helpers**
 
@@ -1039,18 +1021,14 @@ Add/extend `groundhog-spec-tool/tests/canonicalize.rs`:
 ```rust
 #[test]
 fn canonicalize_spec_rejects_conflicting_type_defs() {
-    let left = RawSpecFragment::TypeDef(RawTypeDefFragment {
-        type_def: ContractTypeDef::Struct(ContractStructDef {
-            name: "Payload".into(),
-            fields: vec![],
-        }),
-    });
-    let right = RawSpecFragment::TypeDef(RawTypeDefFragment {
-        type_def: ContractTypeDef::Enum(ContractEnumDef {
-            name: "Payload".into(),
-            variants: vec![],
-        }),
-    });
+    let left = SpecFragment::TypeDef(ContractTypeDef::Struct(ContractStructDef {
+        name: "Payload".into(),
+        fields: vec![],
+    }));
+    let right = SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+        name: "Payload".into(),
+        variants: vec![],
+    }));
 
     let err = canonicalize_spec("demo", &[left, right]).unwrap_err();
     assert!(matches!(err, SpecToolError::ConflictingTypeDef(name) if name == "Payload"));

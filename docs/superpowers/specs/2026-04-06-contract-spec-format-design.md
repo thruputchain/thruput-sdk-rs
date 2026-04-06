@@ -226,15 +226,15 @@ This means named type generation should eventually look more like:
 ```rust
 trait ContractTypeSpec {
     const SYMBOL: &'static str;
-    const TYPE_REF: ContractType;
-    const TYPE_DEF_FRAGMENT: &'static [u8];
+    const TYPE_REF: ContractTypeView<'static>;
+    const TYPE_DEF: ContractTypeDefView<'static>;
 }
 ```
 
 or an equivalent shape built from:
 
 - a typed const self-description
-- a local const serializer that turns that one definition into bytes
+- a local serializer that turns that one definition into a `SpecFragment`
 
 What this strategy does not try to do:
 
@@ -263,36 +263,37 @@ Use the existing two-phase spec pipeline:
 For this slice, raw fragments should be rich enough to build the full spec but
 still local enough that each macro expansion site can emit them independently.
 
-Raw fragment kinds:
+The new spec crate should define a top-level fragment type for the staging
+section:
 
 ```rust
-enum RawSpecFragment {
-    Interface(RawInterfaceFragment),
-    Method(RawMethodFragment),
-    TypeDef(RawTypeDefFragment),
+enum SpecFragment {
+    Interface(SpecInterfaceFragment),
+    Method(SpecMethodFragment),
+    TypeDef(ContractTypeDef),
 }
 
-struct RawInterfaceFragment {
+struct SpecInterfaceFragment {
     package_name: String,
     interface_name: String,
     interface_version: String,
     throws: Vec<ContractType>,
 }
 
-struct RawMethodFragment {
+struct SpecMethodFragment {
     package_name: String,
     interface_name: String,
     interface_version: String,
     method: ContractSpecMethod,
 }
-
-struct RawTypeDefFragment {
-    type_def: ContractTypeDef,
-}
 ```
 
-The serialized raw-section format does not need to be stable yet. It only needs
-to be parseable by the postprocessor and easy to inspect during development.
+The staging custom section should be encoded as a concatenated stream of XDR
+`SpecFragment` values. The postprocessor reads the section by repeatedly
+decoding `SpecFragment` until EOF.
+
+This keeps the raw artifact aligned with the real spec model and avoids an ad
+hoc tagged text format for the staging section.
 
 ## Emission Rules
 
@@ -374,7 +375,7 @@ end-to-end implementations can be wired in without redesigning the format.
 Those manual implementations should follow the type-reflection strategy above:
 
 - define the type's own symbol and local definition
-- serialize only that local definition into the emitted raw fragment
+- wrap only that local definition in `SpecFragment::TypeDef` before emission
 - reference child types symbolically through `ContractType`
 
 ## Postprocessing
@@ -384,7 +385,7 @@ canonical `ContractSpec`.
 
 Responsibilities:
 
-1. parse raw fragments
+1. parse a stream of XDR `SpecFragment` values
 2. filter interface and method fragments to the requested package
 3. group methods under `(interface_name, interface_version)`
 4. merge repeated free-function interface buckets
@@ -411,7 +412,7 @@ as:
 - adding an internal indexed representation for optimization
 
 Those later checks should operate on the canonical assembled spec, not on the
-raw fragment stream.
+raw `SpecFragment` stream.
 
 ## Canonicalization Rules
 
@@ -440,6 +441,7 @@ The build pipeline for contract wasm remains:
 For this slice:
 
 - the staging section format remains an implementation detail
+- the staging section payload is a concatenated XDR stream of `SpecFragment`
 - the final section payload is the XDR serialization of `ContractSpec`
 - the JSON/debug sidecar is for inspection only and is not the canonical wire
   format
