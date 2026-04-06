@@ -123,6 +123,9 @@ fn apply_with_config(
 
             // Generate exports (with auto-derived module name for trait impls)
             out.extend(codegen::exports::generate(item, config)?);
+            out.extend(codegen::spec_reg::generate_impl_raw_spec_fragment(
+                item, config,
+            )?);
 
             if config.client_ident().is_some() && item.trait_.is_some() {
                 out.extend(quote::quote! {
@@ -157,6 +160,11 @@ fn apply_with_config(
             out.extend(codegen::exports::generate_free_function_bundle(
                 item, config,
             )?);
+            out.extend(
+                codegen::spec_reg::generate_free_function_raw_spec_fragment(
+                    item, config,
+                )?,
+            );
 
             if cfg!(feature = "mock") {
                 out.extend(

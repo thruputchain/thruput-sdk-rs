@@ -516,6 +516,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "free_fn_unnamed"
+version = "0.3.0"
+dependencies = [
+ "free_fn_unnamed",
+ "sdk",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"

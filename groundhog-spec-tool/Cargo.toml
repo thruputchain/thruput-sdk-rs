@@ -1,0 +1,23 @@
+[package]
+name = "groundhog-spec-tool"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = { workspace = true }
+wasm-encoder = "0.244.0"
+wasmparser = "0.244.0"
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"

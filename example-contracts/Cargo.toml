@@ -30,6 +30,7 @@ members = [
     "named_interface_caller",
     "bare_impl_callee",
     "bare_impl_caller",
+    "free_fn_unnamed",
     "versioned_callee",
     "versioned_caller",
     "imported_error_type",

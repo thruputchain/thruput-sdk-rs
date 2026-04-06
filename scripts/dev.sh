@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -u
-
 # These only work if this script is run in the SDK's top-level (workspace) directory.
 SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"
@@ -35,7 +33,8 @@ build_contract() {
     info "BUILD $package"
 
     build_wasm "$workspace_dir" "$package" --release &&
-    make_optimized "$package"
+    make_optimized "$package" &&
+    finalize_contract_spec "$package"
 }
 
 build_wasm() {
@@ -69,6 +68,27 @@ make_optimized() {
     # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
     # very slightly better)
     wasm-opt -O3 $debugging --enable-bulk-memory -o "${optimized}" "${contract}"
+}
+
+finalize_contract_spec() {
+    local package
+    package="$1"; shift
+
+    local wasm_name optimized json_out
+    wasm_name="${package//-/_}"
+    optimized="${OPTIMIZED}/${wasm_name}.wasm"
+    json_out="${OPTIMIZED}/${wasm_name}.spec.json"
+
+    info "SPEC $package"
+
+    (
+        cd "$SDK_DIR" &&
+        cargo run --quiet -p groundhog-spec-tool -- \
+            rewrite \
+            --package "${package}" \
+            --wasm "${optimized}" \
+            --json-out "${json_out}"
+    )
 }
 
 eg_build() {
@@ -136,6 +156,7 @@ lint_contract() {
 test_sdk() {
     cargo test --lib &&
     cargo test --tests &&
+    cargo test -p groundhog-spec-tool &&
     cargo test -F storage --tests &&
     cargo test -p vector-tests --tests &&
     true
@@ -422,72 +443,79 @@ fail() {
     return 1
 }
 
-action="$1"; shift
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    set -u
 
-case "$action" in
-    expand)
-        expand_contract "$1"
-        ;;
-    lint)
-        lint
-        ;;
-    [xX][xX][xX])
-        xxx
-        ;;
-    ci)
-        ci_check
-        ;;
-    ls-enabled)
-        ls_contract_packages "$1"
-        ;;
-    build)
-        dir=$(dirname "$1")
-        pkg=$(basename "$1")
+    action="${1:-}"
+    if [ $# -gt 0 ]; then
+        shift
+    fi
 
-        build_contract "$dir" "$pkg"
-        ;;
-    build-examples)
-        eg_build_all
-        ;;
-    build-itc)
-        itc_build_all
-        ;;
-    test)
-        if [ $# -gt 0 ]; then
+    case "$action" in
+        expand)
+            expand_contract "$1"
+            ;;
+        lint)
+            lint
+            ;;
+        [xX][xX][xX])
+            xxx
+            ;;
+        ci)
+            ci_check
+            ;;
+        ls-enabled)
+            ls_contract_packages "$1"
+            ;;
+        build)
             dir=$(dirname "$1")
             pkg=$(basename "$1")
 
-            test_contract "$dir" "$pkg"
-        else
-            test_all
-        fi
-        ;;
-    test-examples)
-        eg_test_all
-        ;;
-    test-itc)
-        itc_test_all "$@"
-        ;;
-    test-spec)
-        test_spec
-        ;;
-    run-bottle-tests)
-        eg_bottle_test_all &&
-            itc_bottle_test_all
-        ;;
-    tree)
-        tree_contract "$1"
-        ;;
-    build-docs)
-        build_docs
-        ;;
-    open-docs)
-        build_docs --open
-        ;;
-    rg)
-        rg -i --ignore-file .local_src_ignore "$@"
-        ;;
-    *)
-        fail "Sorry, didn't understand action '$action'."
-        ;;
-esac
+            build_contract "$dir" "$pkg"
+            ;;
+        build-examples)
+            eg_build_all
+            ;;
+        build-itc)
+            itc_build_all
+            ;;
+        test)
+            if [ $# -gt 0 ]; then
+                dir=$(dirname "$1")
+                pkg=$(basename "$1")
+
+                test_contract "$dir" "$pkg"
+            else
+                test_all
+            fi
+            ;;
+        test-examples)
+            eg_test_all
+            ;;
+        test-itc)
+            itc_test_all "$@"
+            ;;
+        test-spec)
+            test_spec
+            ;;
+        run-bottle-tests)
+            eg_bottle_test_all &&
+                itc_bottle_test_all
+            ;;
+        tree)
+            tree_contract "$1"
+            ;;
+        build-docs)
+            build_docs
+            ;;
+        open-docs)
+            build_docs --open
+            ;;
+        rg)
+            rg -i --ignore-file .local_src_ignore "$@"
+            ;;
+        *)
+            fail "Sorry, didn't understand action '$action'."
+            ;;
+    esac
+fi
