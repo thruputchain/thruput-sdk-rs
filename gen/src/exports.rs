@@ -16,6 +16,12 @@ use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
 
+/// True when the crate currently being compiled is the primary Cargo
+/// package (i.e. the one directly selected by the user, not a dependency).
+pub fn is_primary_package() -> bool {
+    std::env::var("CARGO_PRIMARY_PACKAGE").is_ok()
+}
+
 /// Generate exports
 pub fn generate(
     contract: &impl ContractSrc,
@@ -417,10 +423,18 @@ pub fn generate_method(
         quote! {}
     };
 
+    // Only the primary package emits wasm exports so that a dep
+    // cannot accidentally inject entrypoints into the contract binary.
+    let export_attr = if is_primary_package() {
+        quote! { #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))] }
+    } else {
+        quote! {}
+    };
+
     Ok(quote! {
 
         #[doc=#export_docstr]
-        #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
+        #export_attr
         pub extern "C" fn #extern_name() {
             #internal_name()
         }

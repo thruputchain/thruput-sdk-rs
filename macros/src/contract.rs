@@ -25,14 +25,6 @@ pub fn apply(
     apply_with_config(&contract, &config)
 }
 
-/// Only the primary Cargo package (the crate being directly built, not its
-/// dependencies) should emit wasm exports and interface spec fragments.
-/// This prevents a dependency from accidentally injecting entrypoints
-/// into a contract binary via the `#[contract]` macro.
-fn is_primary_package() -> bool {
-    std::env::var("CARGO_PRIMARY_PACKAGE").is_ok()
-}
-
 fn apply_with_config(
     item: &syn::Item,
     config: &Config,
@@ -129,11 +121,12 @@ fn apply_with_config(
                 )?);
             }
 
-            // Generate exports (with auto-derived module name for trait impls).
-            // Only the primary package emits wasm exports and spec fragments
-            // so that a dep bump cannot accidentally inject entrypoints.
-            if is_primary_package() {
-                out.extend(codegen::exports::generate(item, config)?);
+            // Generate exports (with auto-derived module name for trait impls)
+            out.extend(codegen::exports::generate(item, config)?);
+
+            // Only the primary package emits spec fragments so that a dep
+            // bump cannot accidentally inject interfaces.
+            if codegen::exports::is_primary_package() {
                 out.extend(
                     codegen::spec_reg::generate_impl_raw_spec_fragment(
                         item, config,
@@ -171,10 +164,11 @@ fn apply_with_config(
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
-            if is_primary_package() {
-                out.extend(codegen::exports::generate_free_function_bundle(
-                    item, config,
-                )?);
+            out.extend(codegen::exports::generate_free_function_bundle(
+                item, config,
+            )?);
+
+            if codegen::exports::is_primary_package() {
                 out.extend(
                     codegen::spec_reg::generate_free_function_raw_spec_fragment(
                         item, config,
