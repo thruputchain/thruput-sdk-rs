@@ -147,7 +147,7 @@ pub fn generate(
     Ok(quote! {
         #entrypoints_wrapper
 
-        #[allow(non_snake_case, unexpected_cfgs)]
+        #[allow(non_snake_case)]
         mod #exports_mod_ident {
             use super::*;
 
@@ -428,17 +428,15 @@ pub fn generate_method(
     // The build script sets --cfg groundhog_primary_crate="<name>" in
     // RUSTFLAGS; deps see a different value so their exports are gated off.
     let pkg_name = cargo_pkg_name();
-    let export_attr = quote! {
-        #[cfg_attr(
-            all(target_family = "wasm", groundhog_primary_crate = #pkg_name),
-            unsafe(export_name = #export_name)
-        )]
-    };
 
     Ok(quote! {
 
         #[doc=#export_docstr]
-        #export_attr
+        #[allow(unexpected_cfgs)]
+        #[cfg_attr(
+            all(target_family = "wasm", groundhog_primary_crate = #pkg_name),
+            unsafe(export_name = #export_name)
+        )]
         pub extern "C" fn #extern_name() {
             #internal_name()
         }
@@ -475,7 +473,7 @@ pub fn generate_free_function_bundle(
     let exports = generate_method(iface_name, contract, item, config)?;
 
     Ok(quote! {
-        #[allow(non_snake_case, unexpected_cfgs)]
+        #[allow(non_snake_case)]
         mod #exports_mod_ident {
             use super::*;
 
