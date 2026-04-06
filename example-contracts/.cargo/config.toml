@@ -2,6 +2,7 @@
 target-dir = "../target" # use SDK target-dir
 rustflags = [
     "--deny", "warnings",
+    "--check-cfg", "cfg(groundhog_primary_crate, values(any()))",
     ]
 
 [target.wasm32-unknown-unknown]
