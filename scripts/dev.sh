@@ -46,8 +46,8 @@ build_wasm() {
     (
         cd "$workspace_dir" &&
         cargo --config ".cargo/contract.toml" \
-            rustc -p "$package" "$@" \
-            -- --cfg "groundhog_primary_crate=\"${package}\""
+            --config "target.\"wasm32-unknown-unknown\".rustflags=['--cfg','groundhog_primary_crate=\"${package}\"']" \
+            build -p "$package" "$@"
     )
 }
 
