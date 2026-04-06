@@ -12,6 +12,7 @@ rustflags = [
     "-C", "link-args=-zstack-size=30000",
     "-Z", "unstable-options",
     "--deny", "warnings",
+    "--check-cfg", "cfg(groundhog_primary_crate, values(any()))",
     ]
 
 [profile.release]

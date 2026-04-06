@@ -45,12 +45,9 @@ build_wasm() {
 
     (
         cd "$workspace_dir" &&
-        # Clean the package so the proc macro re-evaluates
-        # CARGO_PRIMARY_PACKAGE (Cargo doesn't track it for caching).
-        cargo clean -p "$package" \
-            --target wasm32-unknown-unknown --release 2>/dev/null
         cargo --config ".cargo/contract.toml" \
-            build -p "$package" "$@"
+            rustc -p "$package" "$@" \
+            -- --cfg "groundhog_primary_crate=\"${package}\""
     )
 }
 

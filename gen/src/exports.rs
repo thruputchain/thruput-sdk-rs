@@ -16,14 +16,11 @@ use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
 
-/// True when the crate currently being compiled is the primary Cargo
-/// package (i.e. the one directly selected by the user, not a dependency).
-///
-/// NOTE: Cargo does not track this env var for fingerprinting with stable
-/// Rust, so cached compilations may use a stale result.  The build script
-/// works around this by cleaning each package before building.
-pub fn is_primary_package() -> bool {
-    std::env::var("CARGO_PRIMARY_PACKAGE").is_ok()
+/// The CARGO_PKG_NAME of the crate currently being compiled.
+/// Used to generate a cfg guard that only exports entrypoints when the
+/// build's `groundhog_primary_crate` flag matches this crate.
+pub fn cargo_pkg_name() -> String {
+    std::env::var("CARGO_PKG_NAME").unwrap_or_default()
 }
 
 /// Generate exports
@@ -150,7 +147,7 @@ pub fn generate(
     Ok(quote! {
         #entrypoints_wrapper
 
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unexpected_cfgs)]
         mod #exports_mod_ident {
             use super::*;
 
@@ -427,12 +424,15 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Only the primary package emits wasm exports so that a dep
-    // cannot accidentally inject entrypoints into the contract binary.
-    let export_attr = if is_primary_package() {
-        quote! { #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))] }
-    } else {
-        quote! {}
+    // Only export when this crate is the primary contract being built.
+    // The build script sets --cfg groundhog_primary_crate="<name>" in
+    // RUSTFLAGS; deps see a different value so their exports are gated off.
+    let pkg_name = cargo_pkg_name();
+    let export_attr = quote! {
+        #[cfg_attr(
+            all(target_family = "wasm", groundhog_primary_crate = #pkg_name),
+            unsafe(export_name = #export_name)
+        )]
     };
 
     Ok(quote! {
@@ -475,7 +475,7 @@ pub fn generate_free_function_bundle(
     let exports = generate_method(iface_name, contract, item, config)?;
 
     Ok(quote! {
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unexpected_cfgs)]
         mod #exports_mod_ident {
             use super::*;
 
