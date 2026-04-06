@@ -21,7 +21,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-erc20 = { path = "../erc20" }
+erc20 = { path = "../erc20", features = ["client"] }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
 
 [dev-dependencies]

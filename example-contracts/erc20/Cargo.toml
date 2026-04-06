@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+client = []
 dev = ["sdk/dev", "groundhog-erc20-if/dev"]
 bottle-test = ["dep:erc20-bottle-test"]
 

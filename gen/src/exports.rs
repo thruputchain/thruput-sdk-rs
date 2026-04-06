@@ -16,13 +16,6 @@ use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
 
-/// The CARGO_PKG_NAME of the crate currently being compiled.
-/// Used to generate a cfg guard that only exports entrypoints when the
-/// build's `groundhog_primary_crate` flag matches this crate.
-pub fn cargo_pkg_name() -> String {
-    std::env::var("CARGO_PKG_NAME").unwrap_or_default()
-}
-
 /// Generate exports
 pub fn generate(
     contract: &impl ContractSrc,
@@ -424,19 +417,23 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Only export when this crate is the primary contract being built.
-    // The build script sets --cfg groundhog_primary_crate="<name>" in
-    // RUSTFLAGS; deps see a different value so their exports are gated off.
-    let pkg_name = cargo_pkg_name();
+    // When the "client" feature is enabled, this crate is being used as a
+    // dependency for its generated Client — skip the export_name attribute
+    // so the dep cannot inject entrypoints into the consumer's wasm binary.
+    // We check CARGO_FEATURE_CLIENT at proc-macro time (which Cargo
+    // fingerprints properly) instead of cfg_attr (which triggers
+    // unexpected_cfgs when the feature isn't declared).
+    let is_client = std::env::var("CARGO_FEATURE_CLIENT").is_ok();
+    let export_attr = if is_client {
+        quote! {}
+    } else {
+        quote! { #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))] }
+    };
 
     Ok(quote! {
 
         #[doc=#export_docstr]
-        #[allow(unexpected_cfgs)]
-        #[cfg_attr(
-            all(target_family = "wasm", groundhog_primary_crate = #pkg_name),
-            unsafe(export_name = #export_name)
-        )]
+        #export_attr
         pub extern "C" fn #extern_name() {
             #internal_name()
         }

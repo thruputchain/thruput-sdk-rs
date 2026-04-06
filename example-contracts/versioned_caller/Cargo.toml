@@ -21,7 +21,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-versioned_callee = { path = "../versioned_callee" }
+versioned_callee = { path = "../versioned_callee", features = ["client"] }
 
 [dev-dependencies]
 versioned_caller = { path = ".", features = ["dev"] }

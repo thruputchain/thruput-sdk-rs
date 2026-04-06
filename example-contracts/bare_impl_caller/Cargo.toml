@@ -21,7 +21,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-bare_impl_callee = { path = "../bare_impl_callee" }
+bare_impl_callee = { path = "../bare_impl_callee", features = ["client"] }
 
 [dev-dependencies]
 bare_impl_caller = { path = ".", features = ["dev"] }

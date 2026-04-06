@@ -1,8 +1,5 @@
 [build]
-rustflags = [
-    "--deny", "warnings",
-    "--check-cfg", "cfg(groundhog_primary_crate, values(any()))",
-]
+rustflags = [ "--deny", "warnings" ]
 
 [target.'all(cfg(target_os = "macos"), not(target_family = "wasm"))']
 rustflags = [ "-C", "link-arg=-lSystem", ]

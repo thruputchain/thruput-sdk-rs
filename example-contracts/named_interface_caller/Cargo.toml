@@ -21,7 +21,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-named_interface_callee = { path = "../named_interface_callee" }
+named_interface_callee = { path = "../named_interface_callee", features = ["client"] }
 
 [dev-dependencies]
 named_interface_caller = { path = ".", features = ["dev"] }

@@ -53,10 +53,12 @@ fn generate_raw_fragment_tokens(
     interface_name: TokenStream,
     interface_version: TokenStream,
 ) -> TokenStream {
-    let pkg_name = crate::exports::cargo_pkg_name();
+    let is_client = std::env::var("CARGO_FEATURE_CLIENT").is_ok();
+    if is_client {
+        return TokenStream::new();
+    }
     quote! {
-        #[cfg(all(target_family = "wasm", groundhog_primary_crate = #pkg_name))]
-        #[allow(unexpected_cfgs)]
+        #[cfg(target_family = "wasm")]
         const _: () = {
             const PACKAGE_NAME: &str = #package_name;
             const INTERFACE_NAME: &str = #interface_name;

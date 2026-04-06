@@ -21,7 +21,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-imported_error_callee = { path = "../imported_error_callee" }
+imported_error_callee = { path = "../imported_error_callee", features = ["client"] }
 
 [dev-dependencies]
 imported_error_caller = { path = ".", features = ["dev"] }
