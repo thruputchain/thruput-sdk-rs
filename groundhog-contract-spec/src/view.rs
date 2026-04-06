@@ -58,6 +58,20 @@ pub enum ContractTypeDefView<'a> {
     Union(ContractUnionDefView<'a>),
 }
 
+impl<'a> ContractTypeDefView<'a> {
+    pub const fn symbol(self) -> &'a str {
+        match self {
+            Self::Struct(def) => def.name,
+            Self::Enum(def) => def.name,
+            Self::Union(def) => def.name,
+        }
+    }
+
+    pub const fn type_ref(self) -> ContractTypeView<'a> {
+        ContractTypeView::Named(self.symbol())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ContractStructDefView<'a> {
     pub name: &'a str,

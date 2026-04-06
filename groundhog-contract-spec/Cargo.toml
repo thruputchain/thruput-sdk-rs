@@ -16,4 +16,3 @@ crate-type = ["rlib"]
 
 [dependencies]
 xdrs = { workspace = true, features = ["heapless", "derive", "alloc"] }
-thiserror = { workspace = true, default-features = false }

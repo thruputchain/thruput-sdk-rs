@@ -3,10 +3,18 @@ use groundhog_contract_spec::{
     ContractEnumVariantView, ContractField, ContractFieldView, ContractSpec,
     ContractSpecInterface, ContractSpecInterfaceView, ContractSpecMethod,
     ContractSpecMethodView, ContractSpecView, ContractType, ContractTypeDef,
-    ContractTypeDefView, ContractTypeSpec, ContractTypeView, ContractStructDefView,
-    ContractUnionCaseView, ContractUnionDefView,
+    ContractTypeDefView, ContractTypeSpec, ContractTypeView,
+    ContractStructDefView, ContractUnionCaseView, ContractUnionDefView,
+    SpecFragment, SpecFragmentView, SpecInterfaceFragment,
+    SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
+
+fn assert_xdr_tag<T: xdrs::WriteXDR>(value: &T, expected: i32) {
+    let encoded = encode(value).unwrap();
+    assert!(!encoded.is_empty());
+    assert_eq!(encoded[0], expected as u8);
+}
 
 #[test]
 fn contract_spec_roundtrips_through_xdr() {
@@ -40,27 +48,39 @@ fn contract_spec_roundtrips_through_xdr() {
 
 #[test]
 fn borrowed_views_convert_to_owned_model() {
+    let named_payload = ContractTypeView::Named("Payload");
+    let named_error = ContractTypeView::Named("DemoError");
     let field_views = [ContractFieldView {
         name: "count",
         ty: ContractTypeView::U32,
     }];
-    let variant_views = [
-        ContractEnumVariantView {
-            name: "Nope",
-            value: 7,
-        },
-    ];
+    let variant_views = [ContractEnumVariantView {
+        name: "Nope",
+        value: 7,
+    }];
     let case_views = [ContractUnionCaseView {
         name: "Wrapped",
         discriminant: 1,
-        case_type: Some(ContractTypeView::Named("Payload")),
+        case_type: Some(named_payload),
     }];
     let method_args = [ContractFieldView {
         name: "payload",
-        ty: ContractTypeView::Named("Payload"),
+        ty: named_payload,
     }];
+    let option_named_error = ContractTypeView::Option(&named_error);
+    let vec_named_payload = ContractTypeView::Vec(&named_payload);
     let tuple_items = [
+        ContractTypeView::Void,
+        ContractTypeView::Bool,
         ContractTypeView::U32,
+        ContractTypeView::I32,
+        ContractTypeView::U64,
+        ContractTypeView::I64,
+        ContractTypeView::String,
+        ContractTypeView::Bytes,
+        ContractTypeView::Address,
+        option_named_error,
+        vec_named_payload,
         ContractTypeView::Named("Payload"),
     ];
     let methods = [ContractSpecMethodView {
@@ -68,7 +88,7 @@ fn borrowed_views_convert_to_owned_model() {
         args: &method_args,
         return_type: ContractTypeView::Tuple(&tuple_items),
     }];
-    let interface_throws = [ContractTypeView::Named("DemoError")];
+    let interface_throws = [named_error];
     let interfaces = [ContractSpecInterfaceView {
         name: "Named",
         version: "0.1.0",
@@ -97,23 +117,169 @@ fn borrowed_views_convert_to_owned_model() {
 
     assert_eq!(owned.interfaces.len(), 1);
     assert_eq!(owned.type_defs.len(), 3);
-    assert_eq!(owned.interfaces[0].throws, vec![ContractType::Named("DemoError".to_string())]);
+    assert_eq!(
+        owned.interfaces[0].throws,
+        vec![ContractType::Named("DemoError".to_string())]
+    );
     assert_eq!(
         owned.interfaces[0].methods[0].return_type,
         ContractType::Tuple(vec![
+            ContractType::Void,
+            ContractType::Bool,
             ContractType::U32,
+            ContractType::I32,
+            ContractType::U64,
+            ContractType::I64,
+            ContractType::String,
+            ContractType::Bytes,
+            ContractType::Address,
+            ContractType::Option(Box::new(ContractType::Named(
+                "DemoError".to_string(),
+            ))),
+            ContractType::Vec(Box::new(ContractType::Named(
+                "Payload".to_string(),
+            ))),
             ContractType::Named("Payload".to_string()),
         ])
     );
 }
 
 #[test]
-fn contract_type_spec_constants_can_be_exposed() {
+fn fragment_and_view_conversions_roundtrip() {
+    let interface = SpecInterfaceFragmentView {
+        package_name: "demo",
+        interface_name: "Named",
+        interface_version: "0.1.0",
+        throws: &[ContractTypeView::Named("DemoError")],
+    };
+    let method = SpecMethodFragmentView {
+        package_name: "demo",
+        interface_name: "Named",
+        interface_version: "0.1.0",
+        method: ContractSpecMethodView {
+            name: "ping",
+            args: &[ContractFieldView {
+                name: "payload",
+                ty: ContractTypeView::Named("Payload"),
+            }],
+            return_type: ContractTypeView::Void,
+        },
+    };
+    let type_def = ContractTypeDefView::Union(ContractUnionDefView {
+        name: "Envelope",
+        cases: &[ContractUnionCaseView {
+            name: "Empty",
+            discriminant: 0,
+            case_type: None,
+        }],
+    });
+
+    let interface_fragment = SpecFragment::from(SpecFragmentView::Interface(interface));
+    let method_fragment = SpecFragment::from(SpecFragmentView::Method(method));
+    let type_def_fragment = SpecFragment::from(SpecFragmentView::TypeDef(type_def));
+
+    assert!(matches!(interface_fragment, SpecFragment::Interface(_)));
+    assert!(matches!(method_fragment, SpecFragment::Method(_)));
+    assert!(matches!(type_def_fragment, SpecFragment::TypeDef(ContractTypeDef::Union(_))));
+
+    assert_eq!(
+        ContractTypeDef::from(type_def),
+        ContractTypeDef::Union(groundhog_contract_spec::ContractUnionDef {
+            name: "Envelope".to_string(),
+            cases: vec![groundhog_contract_spec::ContractUnionCase {
+                name: "Empty".to_string(),
+                discriminant: 0,
+                case_type: None,
+            }],
+        })
+    );
+
+    let encoded = encode(&interface_fragment).unwrap();
+    let decoded: SpecFragment = decode(&encoded).unwrap();
+    assert_eq!(decoded, interface_fragment);
+
+    let encoded = encode(&method_fragment).unwrap();
+    let decoded: SpecFragment = decode(&encoded).unwrap();
+    assert_eq!(decoded, method_fragment);
+
+    let encoded = encode(&type_def_fragment).unwrap();
+    let decoded: SpecFragment = decode(&encoded).unwrap();
+    assert_eq!(decoded, type_def_fragment);
+}
+
+#[test]
+fn enum_numbering_and_fragment_tags_are_pinned() {
+    assert_xdr_tag(&ContractType::Bool, 1);
+    assert_xdr_tag(&ContractType::U32, 2);
+    assert_xdr_tag(&ContractType::I32, 3);
+    assert_xdr_tag(&ContractType::U64, 4);
+    assert_xdr_tag(&ContractType::I64, 5);
+    assert_xdr_tag(&ContractType::String, 6);
+    assert_xdr_tag(&ContractType::Bytes, 7);
+    assert_xdr_tag(&ContractType::Address, 8);
+    assert_xdr_tag(&ContractType::Option(Box::new(ContractType::Void)), 9);
+    assert_xdr_tag(&ContractType::Vec(Box::new(ContractType::Void)), 10);
+    assert_xdr_tag(&ContractType::Tuple(vec![ContractType::Void]), 11);
+    assert_xdr_tag(&ContractType::Named("DemoError".to_string()), 12);
+
+    assert_xdr_tag(
+        &ContractTypeDef::Struct(groundhog_contract_spec::ContractStructDef {
+            name: "Payload".to_string(),
+            fields: vec![],
+        }),
+        0,
+    );
+    assert_xdr_tag(
+        &ContractTypeDef::Enum(groundhog_contract_spec::ContractEnumDef {
+            name: "Choice".to_string(),
+            variants: vec![],
+        }),
+        1,
+    );
+    assert_xdr_tag(
+        &ContractTypeDef::Union(groundhog_contract_spec::ContractUnionDef {
+            name: "Envelope".to_string(),
+            cases: vec![],
+        }),
+        2,
+    );
+
+    assert_xdr_tag(
+        &SpecFragment::Interface(SpecInterfaceFragment {
+            package_name: "demo".to_string(),
+            interface_name: "Named".to_string(),
+            interface_version: "0.1.0".to_string(),
+            throws: vec![],
+        }),
+        0,
+    );
+    assert_xdr_tag(
+        &SpecFragment::Method(SpecMethodFragment {
+            package_name: "demo".to_string(),
+            interface_name: "Named".to_string(),
+            interface_version: "0.1.0".to_string(),
+            method: ContractSpecMethod {
+                name: "ping".to_string(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        1,
+    );
+    assert_xdr_tag(
+        &SpecFragment::TypeDef(ContractTypeDef::Enum(groundhog_contract_spec::ContractEnumDef {
+            name: "Choice".to_string(),
+            variants: vec![],
+        })),
+        2,
+    );
+}
+
+#[test]
+fn contract_type_spec_constants_are_derived_from_type_def() {
     struct Payload;
 
     impl ContractTypeSpec for Payload {
-        const SYMBOL: &'static str = "Payload";
-        const TYPE_REF: ContractTypeView<'static> = ContractTypeView::Named("Payload");
         const TYPE_DEF: ContractTypeDefView<'static> = ContractTypeDefView::Struct(
             ContractStructDefView {
                 name: "Payload",
@@ -125,7 +291,9 @@ fn contract_type_spec_constants_can_be_exposed() {
         );
     }
 
+    assert_eq!(Payload::TYPE_DEF.symbol(), "Payload");
     assert_eq!(Payload::SYMBOL, "Payload");
     assert!(matches!(Payload::TYPE_REF, ContractTypeView::Named("Payload")));
     assert!(matches!(Payload::TYPE_DEF, ContractTypeDefView::Struct(_)));
+    assert_eq!(Payload::TYPE_REF, Payload::TYPE_DEF.type_ref());
 }

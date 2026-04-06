@@ -33,27 +33,27 @@ pub struct ContractField {
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ContractType {
-    Void,
-    Bool,
-    U32,
-    I32,
-    U64,
-    I64,
-    String,
-    Bytes,
-    Address,
-    Option(Box<ContractType>),
-    Vec(Box<ContractType>),
-    Tuple(Vec<ContractType>),
-    Named(String),
+    Void = 0,
+    Bool = 1,
+    U32 = 2,
+    I32 = 3,
+    U64 = 4,
+    I64 = 5,
+    String = 6,
+    Bytes = 7,
+    Address = 8,
+    Option(Box<ContractType>) = 9,
+    Vec(Box<ContractType>) = 10,
+    Tuple(Vec<ContractType>) = 11,
+    Named(String) = 12,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ContractTypeDef {
-    Struct(ContractStructDef),
-    Enum(ContractEnumDef),
-    Union(ContractUnionDef),
+    Struct(ContractStructDef) = 0,
+    Enum(ContractEnumDef) = 1,
+    Union(ContractUnionDef) = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
@@ -90,9 +90,9 @@ pub struct ContractUnionCase {
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum SpecFragment {
-    Interface(SpecInterfaceFragment),
-    Method(SpecMethodFragment),
-    TypeDef(ContractTypeDef),
+    Interface(SpecInterfaceFragment) = 0,
+    Method(SpecMethodFragment) = 1,
+    TypeDef(ContractTypeDef) = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]

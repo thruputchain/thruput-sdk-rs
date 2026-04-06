@@ -9,8 +9,8 @@ pub use model::*;
 pub use view::*;
 
 pub trait ContractTypeSpec {
-    const SYMBOL: &'static str;
-    const TYPE_REF: view::ContractTypeView<'static>;
     const TYPE_DEF: view::ContractTypeDefView<'static>;
+    const SYMBOL: &'static str = Self::TYPE_DEF.symbol();
+    const TYPE_REF: view::ContractTypeView<'static> =
+        Self::TYPE_DEF.type_ref();
 }
-
