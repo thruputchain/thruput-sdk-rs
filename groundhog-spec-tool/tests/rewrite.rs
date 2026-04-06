@@ -248,6 +248,53 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
 }
 
 #[test]
+fn rewrite_rejects_partial_data_segment_leaks() {
+    let leaked_fragment =
+        encode_raw_fragment(&RawInterfaceFragment::impl_backed(
+            "demo",
+            "ExplicitNamedInterface",
+            "0.3.0",
+        ));
+    let raw_blob = [
+        RawInterfaceFragment::impl_backed(
+            "demo",
+            "ExplicitNamedInterface",
+            "0.3.0",
+        ),
+        RawInterfaceFragment::impl_backed("demo", "VersionedCallee", "1.2.3"),
+    ]
+    .iter()
+    .flat_map(encode_raw_fragment)
+    .collect::<Vec<_>>();
+
+    let mut memory = MemorySection::new();
+    memory.memory(MemoryType {
+        minimum: 1,
+        maximum: None,
+        memory64: false,
+        shared: false,
+        page_size_log2: None,
+    });
+
+    let mut data = DataSection::new();
+    data.active(0, &ConstExpr::i32_const(0), leaked_fragment.iter().copied());
+
+    let mut module = Module::new();
+    module.section(&memory);
+    module.section(&data);
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw_blob.as_slice().into(),
+    });
+
+    let err = rewrite_wasm(&module.finish(), "demo").unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "raw interface spec bytes leaked into linear memory"
+    );
+}
+
+#[test]
 fn rewrite_preserves_unrelated_data_segments() {
     let raw_blob = encode_raw_fragment(&RawInterfaceFragment::impl_backed(
         "demo",
@@ -286,6 +333,31 @@ fn rewrite_preserves_unrelated_data_segments() {
             .count(),
         1
     );
+}
+
+#[test]
+fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
+    let mut raw_module = Module::new();
+    raw_module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: b"iface\tdemo\tExplicitNamedInterface\t0.3.0\n"
+            .as_slice()
+            .into(),
+    });
+
+    let first = rewrite_wasm(&raw_module.finish(), "demo").unwrap();
+    let second = rewrite_wasm(&first, "demo").unwrap();
+
+    let first_final = custom_sections(&first)
+        .into_iter()
+        .find(|(name, _)| name == FINAL_SECTION_NAME)
+        .unwrap();
+    let second_final = custom_sections(&second)
+        .into_iter()
+        .find(|(name, _)| name == FINAL_SECTION_NAME)
+        .unwrap();
+
+    assert_eq!(first_final.1, second_final.1);
 }
 
 #[test]
