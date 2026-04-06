@@ -209,6 +209,7 @@ fn fragment_and_view_conversions_roundtrip() {
 
 #[test]
 fn enum_numbering_and_fragment_tags_are_pinned() {
+    assert_xdr_tag(&ContractType::Void, 0);
     assert_xdr_tag(&ContractType::Bool, 1);
     assert_xdr_tag(&ContractType::U32, 2);
     assert_xdr_tag(&ContractType::I32, 3);
@@ -276,7 +277,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
 }
 
 #[test]
-fn contract_type_spec_constants_are_derived_from_type_def() {
+fn contract_type_spec_helpers_are_derived_from_type_def() {
     struct Payload;
 
     impl ContractTypeSpec for Payload {
@@ -292,8 +293,14 @@ fn contract_type_spec_constants_are_derived_from_type_def() {
     }
 
     assert_eq!(Payload::TYPE_DEF.symbol(), "Payload");
-    assert_eq!(Payload::SYMBOL, "Payload");
-    assert!(matches!(Payload::TYPE_REF, ContractTypeView::Named("Payload")));
+    assert_eq!(groundhog_contract_spec::symbol::<Payload>(), "Payload");
+    assert!(matches!(
+        groundhog_contract_spec::type_ref::<Payload>(),
+        ContractTypeView::Named("Payload")
+    ));
     assert!(matches!(Payload::TYPE_DEF, ContractTypeDefView::Struct(_)));
-    assert_eq!(Payload::TYPE_REF, Payload::TYPE_DEF.type_ref());
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<Payload>(),
+        Payload::TYPE_DEF.type_ref()
+    );
 }
