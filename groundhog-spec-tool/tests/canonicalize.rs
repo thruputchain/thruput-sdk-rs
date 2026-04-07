@@ -162,6 +162,47 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
 }
 
 #[test]
+fn canonicalize_spec_dedups_identical_methods() {
+    let method = ContractSpecMethod {
+        name: "alpha".into(),
+        args: vec![ContractField {
+            name: "value".into(),
+            ty: ContractType::U32,
+        }],
+        return_type: ContractType::Void,
+    };
+
+    let spec = canonicalize_spec(
+        "demo",
+        &[
+            SpecFragment::Interface(SpecInterfaceFragment {
+                package_name: "demo".into(),
+                interface_name: "Named".into(),
+                interface_version: "0.1.0".into(),
+                throws: vec![],
+            }),
+            SpecFragment::Method(SpecMethodFragment {
+                package_name: "demo".into(),
+                interface_name: "Named".into(),
+                interface_version: "0.1.0".into(),
+                method: method.clone(),
+            }),
+            SpecFragment::Method(SpecMethodFragment {
+                package_name: "demo".into(),
+                interface_name: "Named".into(),
+                interface_version: "0.1.0".into(),
+                method,
+            }),
+        ],
+    )
+    .unwrap();
+
+    assert_eq!(spec.interfaces.len(), 1);
+    assert_eq!(spec.interfaces[0].methods.len(), 1);
+    assert_eq!(spec.interfaces[0].methods[0].name, "alpha");
+}
+
+#[test]
 fn canonicalize_spec_dedups_identical_type_defs() {
     let payload = ContractTypeDef::Struct(ContractStructDef {
         name: "Payload".into(),

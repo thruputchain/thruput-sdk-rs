@@ -132,6 +132,7 @@ pub fn canonicalize_spec(
             bucket.methods.sort_by(|left, right| {
                 canonical_method_key(left).cmp(&canonical_method_key(right))
             });
+            bucket.methods.dedup();
 
             ContractSpecInterface {
                 name,
