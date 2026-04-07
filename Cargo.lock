@@ -504,6 +504,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-contract-spec"
+version = "0.8.6"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-contract-util"
 version = "0.8.6"
 dependencies = [
@@ -586,11 +593,13 @@ dependencies = [
 name = "groundhog-spec-tool"
 version = "0.8.6"
 dependencies = [
+ "groundhog-contract-spec",
  "serde_json",
  "tempfile",
  "thiserror",
  "wasm-encoder",
  "wasmparser",
+ "xdrs",
 ]
 
 [[package]]
@@ -1459,6 +1468,7 @@ name = "sdk"
 version = "0.8.6"
 dependencies = [
  "bitset-core",
+ "groundhog-contract-spec",
  "groundhog-contract-util",
  "groundhog-event",
  "groundhog-macros",

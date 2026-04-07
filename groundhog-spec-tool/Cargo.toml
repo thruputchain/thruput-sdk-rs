@@ -14,7 +14,7 @@ categories.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-groundhog-contract-spec = { workspace = true }
+groundhog-contract-spec = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }
 wasm-encoder = "0.244.0"

@@ -2,9 +2,9 @@ use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumDefView, ContractEnumVariant,
     ContractEnumVariantView, ContractField, ContractFieldView, ContractSpec,
     ContractSpecInterface, ContractSpecInterfaceView, ContractSpecMethod,
-    ContractSpecMethodView, ContractSpecView, ContractType, ContractTypeDef,
-    ContractTypeDefView, ContractTypeSpec, ContractTypeView,
-    ContractStructDefView, ContractUnionCaseView, ContractUnionDefView,
+    ContractSpecMethodView, ContractSpecView, ContractStructDefView,
+    ContractType, ContractTypeDef, ContractTypeDefView, ContractTypeSpec,
+    ContractTypeView, ContractUnionCaseView, ContractUnionDefView,
     SpecFragment, SpecFragmentView, SpecInterfaceFragment,
     SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
 };
@@ -174,13 +174,18 @@ fn fragment_and_view_conversions_roundtrip() {
         }],
     });
 
-    let interface_fragment = SpecFragment::from(SpecFragmentView::Interface(interface));
+    let interface_fragment =
+        SpecFragment::from(SpecFragmentView::Interface(interface));
     let method_fragment = SpecFragment::from(SpecFragmentView::Method(method));
-    let type_def_fragment = SpecFragment::from(SpecFragmentView::TypeDef(type_def));
+    let type_def_fragment =
+        SpecFragment::from(SpecFragmentView::TypeDef(type_def));
 
     assert!(matches!(interface_fragment, SpecFragment::Interface(_)));
     assert!(matches!(method_fragment, SpecFragment::Method(_)));
-    assert!(matches!(type_def_fragment, SpecFragment::TypeDef(ContractTypeDef::Union(_))));
+    assert!(matches!(
+        type_def_fragment,
+        SpecFragment::TypeDef(ContractTypeDef::Union(_))
+    ));
 
     assert_eq!(
         ContractTypeDef::from(type_def),
@@ -268,10 +273,12 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
         1,
     );
     assert_xdr_tag(
-        &SpecFragment::TypeDef(ContractTypeDef::Enum(groundhog_contract_spec::ContractEnumDef {
-            name: "Choice".to_string(),
-            variants: vec![],
-        })),
+        &SpecFragment::TypeDef(ContractTypeDef::Enum(
+            groundhog_contract_spec::ContractEnumDef {
+                name: "Choice".to_string(),
+                variants: vec![],
+            },
+        )),
         2,
     );
 }
@@ -281,15 +288,14 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
     struct Payload;
 
     impl ContractTypeSpec for Payload {
-        const TYPE_DEF: ContractTypeDefView<'static> = ContractTypeDefView::Struct(
-            ContractStructDefView {
+        const TYPE_DEF: ContractTypeDefView<'static> =
+            ContractTypeDefView::Struct(ContractStructDefView {
                 name: "Payload",
                 fields: &[ContractFieldView {
                     name: "count",
                     ty: ContractTypeView::U32,
                 }],
-            },
-        );
+            });
     }
 
     assert_eq!(Payload::TYPE_DEF.symbol(), "Payload");

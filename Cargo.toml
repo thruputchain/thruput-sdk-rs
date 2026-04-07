@@ -97,7 +97,7 @@ sdk = { path = "." }
     # workspace package version is updated prior to a new release.
 groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.8.6" }
 groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.8.6" }
-groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.8.6" }
+groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.8.6", default-features = false }
 groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.8.6" }
 groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.8.6" }
 groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.8.6" }

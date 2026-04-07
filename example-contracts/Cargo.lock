@@ -635,6 +635,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-contract-spec"
+version = "0.8.6"
+
+[[package]]
 name = "groundhog-contract-util"
 version = "0.8.6"
 dependencies = [
@@ -1630,6 +1634,7 @@ name = "sdk"
 version = "0.8.6"
 dependencies = [
  "bitset-core",
+ "groundhog-contract-spec",
  "groundhog-event",
  "groundhog-macros",
  "groundhog-native-exec",

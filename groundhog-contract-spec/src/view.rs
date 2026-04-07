@@ -1,11 +1,12 @@
-use alloc::boxed::Box;
-use alloc::borrow::ToOwned;
+#[cfg(feature = "alloc")]
 use crate::model::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
-    ContractSpecInterface, ContractSpecMethod, ContractStructDef, ContractType,
-    ContractTypeDef, ContractUnionCase, ContractUnionDef, SpecFragment,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractSpecInterface, ContractSpecMethod, ContractStructDef,
+    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionDef,
+    SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
+#[cfg(feature = "alloc")]
+use alloc::{borrow::ToOwned, boxed::Box};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ContractSpecView<'a> {
@@ -126,15 +127,27 @@ pub struct SpecMethodFragmentView<'a> {
     pub method: ContractSpecMethodView<'a>,
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractSpecView<'_>> for ContractSpec {
     fn from(value: ContractSpecView<'_>) -> Self {
         Self {
-            interfaces: value.interfaces.iter().copied().map(Into::into).collect(),
-            type_defs: value.type_defs.iter().copied().map(Into::into).collect(),
+            interfaces: value
+                .interfaces
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+            type_defs: value
+                .type_defs
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractSpecInterfaceView<'_>> for ContractSpecInterface {
     fn from(value: ContractSpecInterfaceView<'_>) -> Self {
         Self {
@@ -146,6 +159,7 @@ impl From<ContractSpecInterfaceView<'_>> for ContractSpecInterface {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
     fn from(value: ContractSpecMethodView<'_>) -> Self {
         Self {
@@ -156,6 +170,7 @@ impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractFieldView<'_>> for ContractField {
     fn from(value: ContractFieldView<'_>) -> Self {
         Self {
@@ -165,6 +180,7 @@ impl From<ContractFieldView<'_>> for ContractField {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractTypeView<'_>> for ContractType {
     fn from(value: ContractTypeView<'_>) -> Self {
         match value {
@@ -183,24 +199,34 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::Vec(inner) => {
                 ContractType::Vec(Box::new((*inner).into()))
             }
-            ContractTypeView::Tuple(items) => {
-                ContractType::Tuple(items.iter().copied().map(Into::into).collect())
+            ContractTypeView::Tuple(items) => ContractType::Tuple(
+                items.iter().copied().map(Into::into).collect(),
+            ),
+            ContractTypeView::Named(name) => {
+                ContractType::Named(name.to_owned())
             }
-            ContractTypeView::Named(name) => ContractType::Named(name.to_owned()),
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractTypeDefView<'_>> for ContractTypeDef {
     fn from(value: ContractTypeDefView<'_>) -> Self {
         match value {
-            ContractTypeDefView::Struct(def) => ContractTypeDef::Struct(def.into()),
-            ContractTypeDefView::Enum(def) => ContractTypeDef::Enum(def.into()),
-            ContractTypeDefView::Union(def) => ContractTypeDef::Union(def.into()),
+            ContractTypeDefView::Struct(def) => {
+                ContractTypeDef::Struct(def.into())
+            }
+            ContractTypeDefView::Enum(def) => {
+                ContractTypeDef::Enum(def.into())
+            }
+            ContractTypeDefView::Union(def) => {
+                ContractTypeDef::Union(def.into())
+            }
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractStructDefView<'_>> for ContractStructDef {
     fn from(value: ContractStructDefView<'_>) -> Self {
         Self {
@@ -210,6 +236,7 @@ impl From<ContractStructDefView<'_>> for ContractStructDef {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     fn from(value: ContractEnumDefView<'_>) -> Self {
         Self {
@@ -219,6 +246,7 @@ impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
     fn from(value: ContractEnumVariantView<'_>) -> Self {
         Self {
@@ -228,6 +256,7 @@ impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     fn from(value: ContractUnionDefView<'_>) -> Self {
         Self {
@@ -237,6 +266,7 @@ impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
     fn from(value: ContractUnionCaseView<'_>) -> Self {
         Self {
@@ -247,18 +277,24 @@ impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<SpecFragmentView<'_>> for SpecFragment {
     fn from(value: SpecFragmentView<'_>) -> Self {
         match value {
             SpecFragmentView::Interface(fragment) => {
                 SpecFragment::Interface(fragment.into())
             }
-            SpecFragmentView::Method(fragment) => SpecFragment::Method(fragment.into()),
-            SpecFragmentView::TypeDef(def) => SpecFragment::TypeDef(def.into()),
+            SpecFragmentView::Method(fragment) => {
+                SpecFragment::Method(fragment.into())
+            }
+            SpecFragmentView::TypeDef(def) => {
+                SpecFragment::TypeDef(def.into())
+            }
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
     fn from(value: SpecInterfaceFragmentView<'_>) -> Self {
         Self {
@@ -270,6 +306,7 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<SpecMethodFragmentView<'_>> for SpecMethodFragment {
     fn from(value: SpecMethodFragmentView<'_>) -> Self {
         Self {

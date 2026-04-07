@@ -14,5 +14,9 @@ description = "Canonical contract spec model for Groundhog contracts"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+default = ["alloc"]
+alloc = ["dep:xdrs", "xdrs/alloc", "xdrs/derive", "xdrs/heapless"]
+
 [dependencies]
-xdrs = { workspace = true, features = ["heapless", "derive", "alloc"] }
+xdrs = { workspace = true, features = ["heapless", "derive", "alloc"], optional = true }
