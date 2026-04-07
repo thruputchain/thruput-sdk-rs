@@ -11,6 +11,9 @@ keywords.workspace = true
 categories.workspace = true
 edition.workspace = true
 
+[features]
+entrypoints = []
+
 [lib]
 crate-type = ["rlib"]
 doctest = false

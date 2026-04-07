@@ -17,6 +17,7 @@ doctest = false
 test = false
 
 [features]
+entrypoints = []
 dev = ["sdk/dev"]
 
 [dependencies]

@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+entrypoints = []
 dev = ["sdk/dev", "imported_error_callee/dev"]
 
 [lib]

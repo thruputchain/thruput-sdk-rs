@@ -46,7 +46,7 @@ build_wasm() {
     (
         cd "$workspace_dir" &&
         cargo --config ".cargo/contract.toml" \
-            build -p "$package" "$@"
+            build -p "$package" -F entrypoints "$@"
     )
 }
 

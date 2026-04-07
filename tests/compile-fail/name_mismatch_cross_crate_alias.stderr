@@ -1,3 +1,17 @@
+warning: unexpected `cfg` condition value: `entrypoints`
+ --> tests/compile-fail/name_mismatch_cross_crate_alias.rs:6:1
+  |
+6 | #[contract(version = "1.0.0")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `alloc`, `call_tracking`, `debugging`, `dev`, `logging`, `mock`, `panic_logging`, `spec`, `std`, and `storage`
+  = note: using a cfg inside a attribute macro will use the cfgs from the destination crate and not the ones from the defining crate
+  = help: try referring to `contract` crate for guidance on how handle this unexpected cfg
+  = help: the attribute macro `contract` may come from an old version of the `groundhog_macros` crate, try updating your dependency with `cargo update -p groundhog_macros`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+  = note: this warning originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0080]: evaluation panicked: Interface name mismatch: impl-side name is 'RenamedTrait' but the trait defines 'VersionedTrait'. Repeat #[contract(interface = ...)] on the impl to match the trait definition.
  --> tests/compile-fail/name_mismatch_cross_crate_alias.rs:6:1
   |

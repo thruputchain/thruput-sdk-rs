@@ -15,11 +15,11 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [features]
-client = []
+entrypoints = []
 guest = []
 mock = ["guest", "sdk/mock"]
 logging = ["sdk/logging"]
-bottle-test = ["dep:bottle-test-if", "client"]
+bottle-test = ["dep:bottle-test-if", "entrypoints"]
 
 [dev-dependencies]
-playground = { path = ".", features = ["mock", "client"] }
+playground = { path = ".", features = ["mock", "entrypoints"] }
