@@ -423,8 +423,9 @@ pub fn generate_method(
     Ok(quote! {
 
         #[doc=#export_docstr]
+        #[cfg(feature = "entrypoints")]
         #[cfg_attr(
-            all(target_family = "wasm", feature = "entrypoints"),
+            target_family = "wasm",
             unsafe(export_name = #export_name)
         )]
         pub extern "C" fn #extern_name() {
