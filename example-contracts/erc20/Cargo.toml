@@ -14,7 +14,7 @@ edition.workspace = true
 [features]
 entrypoints = []
 dev = ["sdk/dev", "groundhog-erc20-if/dev"]
-bottle-test = ["dep:erc20-bottle-test"]
+bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
