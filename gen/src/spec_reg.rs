@@ -53,12 +53,8 @@ fn generate_raw_fragment_tokens(
     interface_name: TokenStream,
     interface_version: TokenStream,
 ) -> TokenStream {
-    let is_client = std::env::var("CARGO_FEATURE_CLIENT").is_ok();
-    if is_client {
-        return TokenStream::new();
-    }
     quote! {
-        #[cfg(target_family = "wasm")]
+        #[cfg(all(target_family = "wasm", not(feature = "client")))]
         const _: () = {
             const PACKAGE_NAME: &str = #package_name;
             const INTERFACE_NAME: &str = #interface_name;

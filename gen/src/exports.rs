@@ -417,23 +417,16 @@ pub fn generate_method(
         quote! {}
     };
 
-    // When the "client" feature is enabled, this crate is being used as a
-    // dependency for its generated Client — skip the export_name attribute
-    // so the dep cannot inject entrypoints into the consumer's wasm binary.
-    // We check CARGO_FEATURE_CLIENT at proc-macro time (which Cargo
-    // fingerprints properly) instead of cfg_attr (which triggers
-    // unexpected_cfgs when the feature isn't declared).
-    let is_client = std::env::var("CARGO_FEATURE_CLIENT").is_ok();
-    let export_attr = if is_client {
-        quote! {}
-    } else {
-        quote! { #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))] }
-    };
-
+    // Contract crates must declare `client = []` in [features].  When a
+    // consumer enables the feature, export_name is suppressed so the dep
+    // cannot inject entrypoints into the consumer's wasm binary.
     Ok(quote! {
 
         #[doc=#export_docstr]
-        #export_attr
+        #[cfg_attr(
+            all(target_family = "wasm", not(feature = "client")),
+            unsafe(export_name = #export_name)
+        )]
         pub extern "C" fn #extern_name() {
             #internal_name()
         }

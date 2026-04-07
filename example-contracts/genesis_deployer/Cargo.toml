@@ -17,6 +17,7 @@ doctest = false
 test = false
 
 [features]
+client = []
 dev = ["sdk/dev"]
 
 [dependencies]

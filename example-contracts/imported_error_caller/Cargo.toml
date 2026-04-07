@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+client = []
 dev = ["sdk/dev", "imported_error_callee/dev"]
 
 [lib]

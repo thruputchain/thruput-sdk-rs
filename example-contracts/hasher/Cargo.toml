@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+client = []
 dev = ["sdk/dev"]
 bottle-test = ["dep:bottle-test-if", "sdk/storage"]
 

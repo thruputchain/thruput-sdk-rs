@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+client = []
 dev = ["sdk/dev", "named_interface_callee/dev", "versioned_callee/dev"]
 
 [lib]

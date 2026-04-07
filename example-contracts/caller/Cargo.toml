@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+client = []
 dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
 
 [lib]

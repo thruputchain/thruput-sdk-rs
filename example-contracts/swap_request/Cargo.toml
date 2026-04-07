@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+client = []
 dev = ["std", "sdk/dev"]
 std = []
 
