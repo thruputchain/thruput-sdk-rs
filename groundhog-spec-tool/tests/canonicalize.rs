@@ -354,6 +354,47 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
 }
 
 #[test]
+fn canonicalize_spec_ignores_unreachable_conflicting_type_defs() {
+    let spec = canonicalize_spec(
+        "demo",
+        &[
+            SpecFragment::Interface(SpecInterfaceFragment {
+                package_name: "demo".into(),
+                interface_name: "Named".into(),
+                interface_version: "0.1.0".into(),
+                throws: vec![],
+            }),
+            SpecFragment::Method(SpecMethodFragment {
+                package_name: "demo".into(),
+                interface_name: "Named".into(),
+                interface_version: "0.1.0".into(),
+                method: ContractSpecMethod {
+                    name: "ping".into(),
+                    args: vec![],
+                    return_type: ContractType::Void,
+                },
+            }),
+            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+                name: "NeverUsed".into(),
+                variants: vec![ContractEnumVariant {
+                    name: "Left".into(),
+                    value: 1,
+                }],
+            })),
+            SpecFragment::TypeDef(ContractTypeDef::Struct(
+                ContractStructDef {
+                    name: "NeverUsed".into(),
+                    fields: vec![],
+                },
+            )),
+        ],
+    )
+    .unwrap();
+
+    assert!(spec.type_defs.is_empty());
+}
+
+#[test]
 fn canonicalize_spec_rejects_conflicting_interface_throws() {
     let err = canonicalize_spec(
         "demo",

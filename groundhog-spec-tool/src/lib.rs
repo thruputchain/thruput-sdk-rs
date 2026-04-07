@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 pub mod model;
 pub mod raw;
@@ -58,7 +58,7 @@ pub fn canonicalize_spec(
     }
 
     let mut interfaces = BTreeMap::<(String, String), InterfaceBucket>::new();
-    let mut type_defs = BTreeMap::<String, ContractTypeDef>::new();
+    let mut type_defs = BTreeMap::<String, Vec<ContractTypeDef>>::new();
 
     for fragment in raw {
         match fragment {
@@ -110,14 +110,9 @@ pub fn canonicalize_spec(
             }
             SpecFragment::TypeDef(type_def) => {
                 let symbol = type_def_symbol(type_def).to_owned();
-                match type_defs.get(&symbol) {
-                    Some(existing) if existing != type_def => {
-                        return Err(SpecToolError::ConflictingTypeDef(symbol));
-                    }
-                    Some(_) => {}
-                    None => {
-                        type_defs.insert(symbol, type_def.clone());
-                    }
+                let defs = type_defs.entry(symbol).or_default();
+                if !defs.iter().any(|existing| existing == type_def) {
+                    defs.push(type_def.clone());
                 }
             }
             _ => {}
@@ -151,12 +146,11 @@ pub fn canonicalize_spec(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let spec = ContractSpec {
+    let type_defs = resolve_reachable_type_defs(&interfaces, &type_defs)?;
+    Ok(ContractSpec {
         interfaces,
-        type_defs: type_defs.into_values().collect(),
-    };
-    ensure_named_type_closure(&spec)?;
-    Ok(spec)
+        type_defs,
+    })
 }
 
 pub fn canonicalize_interfaces(
@@ -312,47 +306,43 @@ fn canonicalize_type_list(types: &[ContractType]) -> Vec<ContractType> {
     types
 }
 
-fn ensure_named_type_closure(
-    spec: &ContractSpec,
-) -> Result<(), SpecToolError> {
-    let defs = spec
-        .type_defs
-        .iter()
-        .map(|type_def| (type_def_symbol(type_def), type_def))
-        .collect::<BTreeMap<_, _>>();
-    let mut visited = BTreeSet::<String>::new();
+fn resolve_reachable_type_defs(
+    interfaces: &[ContractSpecInterface],
+    defs: &BTreeMap<String, Vec<ContractTypeDef>>,
+) -> Result<Vec<ContractTypeDef>, SpecToolError> {
+    let mut resolved = BTreeMap::<String, ContractTypeDef>::new();
     let mut pending = Vec::<String>::new();
 
-    for interface in &spec.interfaces {
+    for interface in interfaces {
         for ty in &interface.throws {
-            collect_named_types(ty, &defs, &mut visited, &mut pending)?;
+            collect_named_types(ty, defs, &mut resolved, &mut pending)?;
         }
         for method in &interface.methods {
             for arg in &method.args {
                 collect_named_types(
                     &arg.ty,
-                    &defs,
-                    &mut visited,
+                    defs,
+                    &mut resolved,
                     &mut pending,
                 )?;
             }
             collect_named_types(
                 &method.return_type,
-                &defs,
-                &mut visited,
+                defs,
+                &mut resolved,
                 &mut pending,
             )?;
         }
     }
 
     while let Some(symbol) = pending.pop() {
-        match defs.get(symbol.as_str()) {
+        match resolved.get(symbol.as_str()).cloned() {
             Some(ContractTypeDef::Struct(def)) => {
                 for field in &def.fields {
                     collect_named_types(
                         &field.ty,
-                        &defs,
-                        &mut visited,
+                        defs,
+                        &mut resolved,
                         &mut pending,
                     )?;
                 }
@@ -363,8 +353,8 @@ fn ensure_named_type_closure(
                     if let Some(case_type) = &case.case_type {
                         collect_named_types(
                             case_type,
-                            &defs,
-                            &mut visited,
+                            defs,
+                            &mut resolved,
                             &mut pending,
                         )?;
                     }
@@ -374,29 +364,33 @@ fn ensure_named_type_closure(
         }
     }
 
-    Ok(())
+    Ok(resolved.into_values().collect())
 }
 
 fn collect_named_types(
     ty: &ContractType,
-    defs: &BTreeMap<&str, &ContractTypeDef>,
-    visited: &mut BTreeSet<String>,
+    defs: &BTreeMap<String, Vec<ContractTypeDef>>,
+    resolved: &mut BTreeMap<String, ContractTypeDef>,
     pending: &mut Vec<String>,
 ) -> Result<(), SpecToolError> {
     match ty {
         ContractType::Option(inner) | ContractType::Vec(inner) => {
-            collect_named_types(inner, defs, visited, pending)?;
+            collect_named_types(inner, defs, resolved, pending)?;
         }
         ContractType::Tuple(items) => {
             for item in items {
-                collect_named_types(item, defs, visited, pending)?;
+                collect_named_types(item, defs, resolved, pending)?;
             }
         }
         ContractType::Named(name) => {
-            if !defs.contains_key(name.as_str()) {
+            let Some(candidates) = defs.get(name.as_str()) else {
                 return Err(SpecToolError::MissingTypeDef(name.clone()));
+            };
+            if candidates.len() > 1 {
+                return Err(SpecToolError::ConflictingTypeDef(name.clone()));
             }
-            if visited.insert(name.clone()) {
+            if !resolved.contains_key(name.as_str()) {
+                resolved.insert(name.clone(), candidates[0].clone());
                 pending.push(name.clone());
             }
         }
