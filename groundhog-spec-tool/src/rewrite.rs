@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use wasm_encoder::{CustomSection, Module, RawSection};
 use wasmparser::Parser;
-use xdrs::cxs::{decode, encode};
+use xdrs::txs::{decode, encode};
 
 use crate::{
     ContractSpec, SpecFragment, SpecToolError, canonicalize_spec,

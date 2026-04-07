@@ -18,7 +18,7 @@ use wasm_encoder::{
     ConstExpr, CustomSection, DataSection, MemorySection, MemoryType, Module,
 };
 use wasmparser::{DataKind, Parser, Payload};
-use xdrs::cxs::{decode, encode};
+use xdrs::txs::{decode, encode};
 
 fn custom_sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let mut sections = Vec::new();

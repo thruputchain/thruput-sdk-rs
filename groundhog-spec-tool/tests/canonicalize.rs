@@ -6,7 +6,7 @@ use groundhog_contract_spec::{
 use groundhog_spec_tool::{
     SpecToolError, canonicalize_spec, parse_raw_fragments,
 };
-use xdrs::cxs::encode;
+use xdrs::txs::encode;
 
 #[test]
 fn canonicalize_spec_groups_methods_and_type_defs() {

@@ -31,6 +31,7 @@ members = [
     "bare_impl_callee",
     "bare_impl_caller",
     "free_fn_unnamed",
+    "spec_named_types",
     "versioned_callee",
     "versioned_caller",
     "imported_error_type",

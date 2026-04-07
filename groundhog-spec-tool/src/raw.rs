@@ -1,7 +1,7 @@
 use groundhog_contract_spec::SpecFragment;
 use xdrs::{
     ReadXDR,
-    cxs::{buf_reader::BufReader, encode},
+    txs::{buf_reader::BufReader, encode},
 };
 
 use crate::{RawInterfaceFragment, SpecToolError};
@@ -24,9 +24,10 @@ pub fn parse_raw_fragments(
 
     while !reader.remaining_slice().is_empty() {
         let before = reader.position();
-        let fragment = SpecFragment::read_xdr(&mut reader).map_err(|err| {
-            SpecToolError::InvalidRawFragment(err.to_string())
-        })?;
+        let fragment =
+            SpecFragment::read_xdr(&mut reader).map_err(|err| {
+                SpecToolError::InvalidRawFragment(err.to_string())
+            })?;
 
         if reader.position() == before {
             return Err(SpecToolError::InvalidRawFragment(
