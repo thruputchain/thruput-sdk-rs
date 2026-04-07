@@ -20,6 +20,7 @@ pub use raw::{
 pub enum SpecToolError {
     NoSpecFragments,
     InvalidRawFragment(String),
+    MissingInterfaceFragment(String),
     MissingTypeDef(String),
     ConflictingTypeDef(String),
     ConflictingInterfaceThrows(String),
@@ -32,6 +33,7 @@ impl core::fmt::Display for SpecToolError {
             Self::NoSpecFragments => write!(f, "no spec fragments"),
             Self::InvalidRawFragment(msg)
             | Self::Wasm(msg)
+            | Self::MissingInterfaceFragment(msg)
             | Self::MissingTypeDef(msg)
             | Self::ConflictingTypeDef(msg)
             | Self::ConflictingInterfaceThrows(msg) => f.write_str(msg),
@@ -134,14 +136,20 @@ pub fn canonicalize_spec(
             });
             bucket.methods.dedup();
 
-            ContractSpecInterface {
+            let throws = bucket.throws.ok_or_else(|| {
+                SpecToolError::MissingInterfaceFragment(interface_key_string(
+                    &name, &version,
+                ))
+            })?;
+
+            Ok(ContractSpecInterface {
                 name,
                 version,
-                throws: bucket.throws.unwrap_or_default(),
+                throws,
                 methods: bucket.methods,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let spec = ContractSpec {
         interfaces,
@@ -398,6 +406,8 @@ fn collect_named_types(
         | ContractType::I32
         | ContractType::U64
         | ContractType::I64
+        | ContractType::U128
+        | ContractType::I128
         | ContractType::String
         | ContractType::Bytes
         | ContractType::Address => {}
@@ -428,6 +438,8 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::I32 => "i32".to_string(),
         ContractType::U64 => "u64".to_string(),
         ContractType::I64 => "i64".to_string(),
+        ContractType::U128 => "u128".to_string(),
+        ContractType::I128 => "i128".to_string(),
         ContractType::String => "string".to_string(),
         ContractType::Bytes => "bytes".to_string(),
         ContractType::Address => "address".to_string(),
@@ -472,6 +484,8 @@ fn push_type_json(out: &mut String, ty: &ContractType) {
         ContractType::I32 => out.push_str("{\"kind\":\"i32\"}"),
         ContractType::U64 => out.push_str("{\"kind\":\"u64\"}"),
         ContractType::I64 => out.push_str("{\"kind\":\"i64\"}"),
+        ContractType::U128 => out.push_str("{\"kind\":\"u128\"}"),
+        ContractType::I128 => out.push_str("{\"kind\":\"i128\"}"),
         ContractType::String => out.push_str("{\"kind\":\"string\"}"),
         ContractType::Bytes => out.push_str("{\"kind\":\"bytes\"}"),
         ContractType::Address => out.push_str("{\"kind\":\"address\"}"),

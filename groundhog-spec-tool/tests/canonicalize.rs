@@ -222,6 +222,12 @@ fn canonicalize_spec_dedups_identical_type_defs() {
     let spec = canonicalize_spec(
         "demo",
         &[
+            SpecFragment::Interface(SpecInterfaceFragment {
+                package_name: "demo".into(),
+                interface_name: "Named".into(),
+                interface_version: "0.1.0".into(),
+                throws: vec![],
+            }),
             SpecFragment::Method(SpecMethodFragment {
                 package_name: "demo".into(),
                 interface_name: "Named".into(),
@@ -279,6 +285,28 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
 
     assert!(
         matches!(err, SpecToolError::MissingTypeDef(name) if name == "DemoError")
+    );
+}
+
+#[test]
+fn canonicalize_spec_rejects_method_only_interface_buckets() {
+    let err = canonicalize_spec(
+        "demo",
+        &[SpecFragment::Method(SpecMethodFragment {
+            package_name: "demo".into(),
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        })],
+    )
+    .unwrap_err();
+
+    assert!(
+        matches!(err, SpecToolError::MissingInterfaceFragment(key) if key == "Named@0.1.0")
     );
 }
 
