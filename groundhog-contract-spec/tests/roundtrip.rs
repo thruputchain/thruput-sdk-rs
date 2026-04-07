@@ -76,6 +76,8 @@ fn borrowed_views_convert_to_owned_model() {
         ContractTypeView::I32,
         ContractTypeView::U64,
         ContractTypeView::I64,
+        ContractTypeView::U128,
+        ContractTypeView::I128,
         ContractTypeView::String,
         ContractTypeView::Bytes,
         ContractTypeView::Address,
@@ -130,6 +132,8 @@ fn borrowed_views_convert_to_owned_model() {
             ContractType::I32,
             ContractType::U64,
             ContractType::I64,
+            ContractType::U128,
+            ContractType::I128,
             ContractType::String,
             ContractType::Bytes,
             ContractType::Address,
@@ -220,13 +224,15 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(&ContractType::I32, 3);
     assert_xdr_tag(&ContractType::U64, 4);
     assert_xdr_tag(&ContractType::I64, 5);
-    assert_xdr_tag(&ContractType::String, 6);
-    assert_xdr_tag(&ContractType::Bytes, 7);
-    assert_xdr_tag(&ContractType::Address, 8);
-    assert_xdr_tag(&ContractType::Option(Box::new(ContractType::Void)), 9);
-    assert_xdr_tag(&ContractType::Vec(Box::new(ContractType::Void)), 10);
-    assert_xdr_tag(&ContractType::Tuple(vec![ContractType::Void]), 11);
-    assert_xdr_tag(&ContractType::Named("DemoError".to_string()), 12);
+    assert_xdr_tag(&ContractType::U128, 6);
+    assert_xdr_tag(&ContractType::I128, 7);
+    assert_xdr_tag(&ContractType::String, 8);
+    assert_xdr_tag(&ContractType::Bytes, 9);
+    assert_xdr_tag(&ContractType::Address, 10);
+    assert_xdr_tag(&ContractType::Option(Box::new(ContractType::Void)), 11);
+    assert_xdr_tag(&ContractType::Vec(Box::new(ContractType::Void)), 12);
+    assert_xdr_tag(&ContractType::Tuple(vec![ContractType::Void]), 13);
+    assert_xdr_tag(&ContractType::Named("DemoError".to_string()), 14);
 
     assert_xdr_tag(
         &ContractTypeDef::Struct(groundhog_contract_spec::ContractStructDef {
@@ -308,5 +314,28 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
     assert_eq!(
         groundhog_contract_spec::type_ref::<Payload>(),
         Payload::TYPE_DEF.type_ref()
+    );
+}
+
+#[test]
+fn contract_type_ref_helpers_cover_primitives_and_composites() {
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<u32>(),
+        ContractTypeView::U32
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<Option<u32>>(),
+        ContractTypeView::Option(&ContractTypeView::U32)
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<Vec<u32>>(),
+        ContractTypeView::Vec(&ContractTypeView::U32)
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<(u32, bool)>(),
+        ContractTypeView::Tuple(&[
+            ContractTypeView::U32,
+            ContractTypeView::Bool,
+        ])
     );
 }

@@ -8,8 +8,8 @@ use crate::config::{Config, ThrownType};
 use crate::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
-use proc_macro2::Span;
-use quote::format_ident;
+use proc_macro2::{Span, TokenStream};
+use quote::{ToTokens, format_ident, quote};
 use syn::spanned::Spanned;
 use syn::*;
 
@@ -371,6 +371,196 @@ pub fn effective_interface_name(contract: &impl ContractSrc) -> String {
         .unwrap_or_else(|| "_unnamed_interface".to_string())
 }
 
+pub fn throws_spec_tokens(
+    contract: &impl ContractSrc,
+) -> Result<Vec<TokenStream>> {
+    contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| {
+            let path = thrown.ty();
+            let ty: syn::Type = syn::parse_quote! { #path };
+            contract_type_view_tokens(&ty)
+        })
+        .collect()
+}
+
 fn is_visible(vis: &syn::Visibility) -> bool {
     matches!(vis, syn::Visibility::Public(_))
+}
+
+pub fn method_arg_spec_tokens(
+    method: &impl Method,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    method
+        .sig()
+        .inputs
+        .iter()
+        .filter_map(|arg| match arg {
+            syn::FnArg::Typed(pat_type) => Some(pat_type),
+            syn::FnArg::Receiver(_) => None,
+        })
+        .map(|pat_type| {
+            let name = match pat_type.pat.as_ref() {
+                syn::Pat::Ident(pat_ident) => pat_ident.ident.to_string(),
+                _ => {
+                    return Err(error(
+                        pat_type,
+                        "couldn't interpret method arg",
+                    ));
+                }
+            };
+            let ty = contract_type_view_tokens(pat_type.ty.as_ref())?;
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractFieldView {
+                    name: #name,
+                    ty: #ty,
+                }
+            })
+        })
+        .collect()
+}
+
+pub fn method_return_spec_token(
+    method: &impl Method,
+) -> Result<proc_macro2::TokenStream> {
+    match &method.sig().output {
+        syn::ReturnType::Default => {
+            Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Void })
+        }
+        syn::ReturnType::Type(_, ty) => contract_type_view_tokens(ty),
+    }
+}
+
+pub fn contract_type_view_tokens(
+    ty: &syn::Type,
+) -> Result<proc_macro2::TokenStream> {
+    match ty {
+        syn::Type::Reference(reference) => match reference.elem.as_ref() {
+            syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
+                Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Bytes })
+            }
+            inner => contract_type_view_tokens(inner),
+        },
+        syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
+            Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Bytes })
+        }
+        syn::Type::Tuple(tuple) => {
+            if tuple.elems.is_empty() {
+                return Ok(
+                    quote! { ::sdk::__contract_spec::ContractTypeView::Void },
+                );
+            }
+            let items = tuple
+                .elems
+                .iter()
+                .map(contract_type_view_tokens)
+                .collect::<Result<Vec<_>>>()?;
+            Ok(quote! {{
+                const ITEMS: &[::sdk::__contract_spec::ContractTypeView<'static>] = &[#(#items),*];
+                ::sdk::__contract_spec::ContractTypeView::Tuple(ITEMS)
+            }})
+        }
+        syn::Type::Path(type_path) => {
+            if path_last_segment_ident(&type_path.path) == "Option" {
+                let inner =
+                    first_generic_type_arg(type_path).ok_or_else(|| {
+                        error(type_path, "Option requires one type argument")
+                    })?;
+                let inner = contract_type_view_tokens(inner)?;
+                return Ok(quote! {{
+                    const INNER: ::sdk::__contract_spec::ContractTypeView<'static> = #inner;
+                    ::sdk::__contract_spec::ContractTypeView::Option(&INNER)
+                }});
+            }
+            if path_last_segment_ident(&type_path.path) == "Vec" {
+                let inner =
+                    first_generic_type_arg(type_path).ok_or_else(|| {
+                        error(type_path, "Vec requires one type argument")
+                    })?;
+                if is_u8_type(inner) {
+                    return Ok(quote! {
+                        ::sdk::__contract_spec::ContractTypeView::Bytes
+                    });
+                }
+                let inner = contract_type_view_tokens(inner)?;
+                return Ok(quote! {{
+                    const INNER: ::sdk::__contract_spec::ContractTypeView<'static> = #inner;
+                    ::sdk::__contract_spec::ContractTypeView::Vec(&INNER)
+                }});
+            }
+            if path_last_segment_ident(&type_path.path) == "ContractAddress" {
+                return Ok(quote! {
+                    ::sdk::__contract_spec::ContractTypeView::Address
+                });
+            }
+            if path_last_segment_ident(&type_path.path) == "SHA256Hash" {
+                return Ok(quote! {
+                    ::sdk::__contract_spec::ContractTypeView::Bytes
+                });
+            }
+            if is_direct_contract_type_ref(ty) {
+                return Ok(quote! {
+                    <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::TYPE_REF
+                });
+            }
+            let symbol = canonical_named_type_symbol(ty);
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractTypeView::Named(#symbol)
+            })
+        }
+        syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
+        _ => {
+            let symbol = canonical_named_type_symbol(ty);
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractTypeView::Named(#symbol)
+            })
+        }
+    }
+}
+
+fn first_generic_type_arg(type_path: &syn::TypePath) -> Option<&syn::Type> {
+    let segment = type_path.path.segments.last()?;
+    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments
+    else {
+        return None;
+    };
+    arguments.args.iter().find_map(|arg| match arg {
+        syn::GenericArgument::Type(ty) => Some(ty),
+        _ => None,
+    })
+}
+
+fn is_u8_type(ty: &syn::Type) -> bool {
+    matches!(
+        ty,
+        syn::Type::Path(type_path)
+            if path_last_segment_ident(&type_path.path) == "u8"
+    )
+}
+
+fn is_direct_contract_type_ref(ty: &syn::Type) -> bool {
+    matches!(
+        ty,
+        syn::Type::Path(type_path)
+            if matches!(
+                path_last_segment_ident(&type_path.path).to_string().as_str(),
+                "bool"
+                    | "u32"
+                    | "i32"
+                    | "u64"
+                    | "i64"
+                    | "u128"
+                    | "i128"
+                    | "String"
+            )
+    )
+}
+
+fn canonical_named_type_symbol(ty: &syn::Type) -> String {
+    ty.to_token_stream()
+        .to_string()
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect()
 }
