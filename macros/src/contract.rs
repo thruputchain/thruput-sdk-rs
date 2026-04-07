@@ -36,6 +36,8 @@ fn apply_with_config(
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
+            let throws_tokens =
+                codegen::contract::throws_spec_tokens(&contract)?;
 
             let mut stripped = item.strip_our_attributes();
 
@@ -64,6 +66,10 @@ fn apply_with_config(
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractTypeView<'static>] = &[#(#throws_tokens),*];
             });
 
             if cfg!(feature = "mock") {
@@ -123,7 +129,7 @@ fn apply_with_config(
 
             // Generate exports (with auto-derived module name for trait impls)
             out.extend(codegen::exports::generate(item, config)?);
-            out.extend(codegen::spec_reg::generate_impl_raw_spec_fragment(
+            out.extend(codegen::spec_reg::generate_impl_raw_spec_fragments(
                 item, config,
             )?);
 
@@ -161,7 +167,7 @@ fn apply_with_config(
                 item, config,
             )?);
             out.extend(
-                codegen::spec_reg::generate_free_function_raw_spec_fragment(
+                codegen::spec_reg::generate_free_function_raw_spec_fragments(
                     item, config,
                 )?,
             );

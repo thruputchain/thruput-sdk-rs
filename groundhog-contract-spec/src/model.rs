@@ -39,13 +39,15 @@ pub enum ContractType {
     I32 = 3,
     U64 = 4,
     I64 = 5,
-    String = 6,
-    Bytes = 7,
-    Address = 8,
-    Option(Box<ContractType>) = 9,
-    Vec(Box<ContractType>) = 10,
-    Tuple(Vec<ContractType>) = 11,
-    Named(String) = 12,
+    U128 = 6,
+    I128 = 7,
+    String = 8,
+    Bytes = 9,
+    Address = 10,
+    Option(Box<ContractType>) = 11,
+    Vec(Box<ContractType>) = 12,
+    Tuple(Vec<ContractType>) = 13,
+    Named(String) = 14,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]

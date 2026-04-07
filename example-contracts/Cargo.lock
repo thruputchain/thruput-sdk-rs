@@ -1801,6 +1801,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "spec_named_types"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "spec_named_types",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

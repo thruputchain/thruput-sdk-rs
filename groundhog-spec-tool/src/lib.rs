@@ -8,12 +8,11 @@ pub use model::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
     ContractSpecInterface, ContractSpecMethod, ContractStructDef,
     ContractType, ContractTypeDef, ContractUnionCase, ContractUnionDef,
-    InterfaceId, RawInterfaceFragment, SpecFragment, SpecInterfaceFragment,
-    SpecMethodFragment,
+    SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use raw::{
-    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_RECORD_TAG, RAW_SECTION_NAME,
-    encode_raw_fragment, parse_raw_fragment_line, parse_raw_fragments,
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+    parse_raw_fragments,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,12 +30,22 @@ impl core::fmt::Display for SpecToolError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::NoSpecFragments => write!(f, "no spec fragments"),
-            Self::InvalidRawFragment(msg)
-            | Self::Wasm(msg)
-            | Self::MissingInterfaceFragment(msg)
-            | Self::MissingTypeDef(msg)
-            | Self::ConflictingTypeDef(msg)
-            | Self::ConflictingInterfaceThrows(msg) => f.write_str(msg),
+            Self::InvalidRawFragment(msg) => {
+                write!(f, "invalid raw spec fragment: {msg}")
+            }
+            Self::MissingInterfaceFragment(msg) => {
+                write!(f, "missing interface fragment for {msg}")
+            }
+            Self::MissingTypeDef(msg) => {
+                write!(f, "missing contract type definition for {msg}")
+            }
+            Self::ConflictingTypeDef(msg) => {
+                write!(f, "conflicting contract type definitions for {msg}")
+            }
+            Self::ConflictingInterfaceThrows(msg) => {
+                write!(f, "conflicting throws metadata for interface {msg}")
+            }
+            Self::Wasm(msg) => f.write_str(msg),
         }
     }
 }
@@ -153,31 +162,6 @@ pub fn canonicalize_spec(
     })
 }
 
-pub fn canonicalize_interfaces(
-    raw: &[RawInterfaceFragment],
-) -> Result<Vec<InterfaceId>, SpecToolError> {
-    if raw.is_empty() {
-        return Err(SpecToolError::NoSpecFragments);
-    }
-
-    let mut interfaces = Vec::with_capacity(raw.len());
-
-    for fragment in raw {
-        validate_interface_key(
-            &fragment.interface_name,
-            &fragment.interface_version,
-        )?;
-        interfaces.push(InterfaceId::new(
-            fragment.interface_name.clone(),
-            fragment.interface_version.clone(),
-        ));
-    }
-
-    interfaces.sort();
-    interfaces.dedup();
-    Ok(interfaces)
-}
-
 pub fn render_spec_json<T>(value: &T) -> String
 where
     T: RenderSpecJson + ?Sized,
@@ -243,34 +227,6 @@ impl RenderSpecJson for ContractSpec {
             }
             push_type_def_json(&mut json, type_def);
         }
-        json.push_str("]}");
-        json
-    }
-}
-
-impl RenderSpecJson for Vec<InterfaceId> {
-    fn render_spec_json(&self) -> String {
-        self.as_slice().render_spec_json()
-    }
-}
-
-impl RenderSpecJson for [InterfaceId] {
-    fn render_spec_json(&self) -> String {
-        let mut json = String::from("{\"format\":\"");
-        json.push_str(FINAL_FORMAT_TAG);
-        json.push_str("\",\"interfaces\":[");
-
-        for (index, interface) in self.iter().enumerate() {
-            if index > 0 {
-                json.push(',');
-            }
-            json.push_str("{\"interface_name\":\"");
-            push_json_string(&mut json, &interface.interface_name);
-            json.push_str("\",\"interface_version\":\"");
-            push_json_string(&mut json, &interface.interface_version);
-            json.push_str("\"}");
-        }
-
         json.push_str("]}");
         json
     }
