@@ -12,7 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-client = []
+entrypoints = []
 dev = ["sdk/dev", "imported_error_callee/dev"]
 
 [lib]
@@ -22,7 +22,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-imported_error_callee = { path = "../imported_error_callee", features = ["client"] }
+imported_error_callee = { path = "../imported_error_callee" }
 
 [dev-dependencies]
 imported_error_caller = { path = ".", features = ["dev"] }

@@ -10,7 +10,6 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 
 
 [features]
-client = []
 dev = ["sdk/dev"]
 spec = ["sdk/spec"]
 

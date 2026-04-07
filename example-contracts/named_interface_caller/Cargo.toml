@@ -12,7 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-client = []
+entrypoints = []
 dev = ["sdk/dev", "named_interface_callee/dev"]
 
 [lib]
@@ -22,7 +22,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-named_interface_callee = { path = "../named_interface_callee", features = ["client"] }
+named_interface_callee = { path = "../named_interface_callee" }
 
 [dev-dependencies]
 named_interface_caller = { path = ".", features = ["dev"] }

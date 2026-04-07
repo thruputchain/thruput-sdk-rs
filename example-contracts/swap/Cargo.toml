@@ -15,7 +15,7 @@ erc20 = { path = "../erc20" }
 uint = { version = "0.10.0", default-features = false }
 
 [features]
-client = []
+entrypoints = []
 dev = ["sdk/dev", "erc20/dev"]
 
 [dev-dependencies]

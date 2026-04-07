@@ -1,4 +1,4 @@
-warning: unexpected `cfg` condition value: `client`
+warning: unexpected `cfg` condition value: `entrypoints`
  --> tests/compile-fail/legacy_exports_export_num_path.rs:6:1
   |
 6 | #[contract(storage = false)]

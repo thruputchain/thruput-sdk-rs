@@ -1,4 +1,4 @@
-warning: unexpected `cfg` condition value: `client`
+warning: unexpected `cfg` condition value: `entrypoints`
  --> tests/compile-fail/version_mismatch_cross_crate.rs:6:1
   |
 6 | #[contract]

@@ -17,7 +17,7 @@ doctest = false
 test = false
 
 [features]
-client = []
+entrypoints = []
 dev = ["sdk/dev"]
 
 [dependencies]

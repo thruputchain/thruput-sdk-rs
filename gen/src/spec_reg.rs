@@ -54,7 +54,7 @@ fn generate_raw_fragment_tokens(
     interface_version: TokenStream,
 ) -> TokenStream {
     quote! {
-        #[cfg(all(target_family = "wasm", not(feature = "client")))]
+        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
         const _: () = {
             const PACKAGE_NAME: &str = #package_name;
             const INTERFACE_NAME: &str = #interface_name;

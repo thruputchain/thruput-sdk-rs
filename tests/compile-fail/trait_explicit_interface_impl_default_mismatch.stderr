@@ -1,4 +1,4 @@
-warning: unexpected `cfg` condition value: `client`
+warning: unexpected `cfg` condition value: `entrypoints`
   --> tests/compile-fail/trait_explicit_interface_impl_default_mismatch.rs:10:1
    |
 10 | #[contract]

@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [features]
-client = []
+entrypoints = []
 guest = []
 mock = ["guest", "sdk/mock"]
 logging = ["sdk/logging"]

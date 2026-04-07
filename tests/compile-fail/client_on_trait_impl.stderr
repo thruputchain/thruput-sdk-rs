@@ -6,7 +6,7 @@ error: Adding an explicit client attribute to an impl of a trait is not allowed.
    |
    = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-warning: unexpected `cfg` condition value: `client`
+warning: unexpected `cfg` condition value: `entrypoints`
   --> tests/compile-fail/client_on_trait_impl.rs:10:1
    |
 10 | #[contract(client = BadClient)]

@@ -417,14 +417,14 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Contract crates must declare `client = []` in [features].  When a
-    // consumer enables the feature, export_name is suppressed so the dep
-    // cannot inject entrypoints into the consumer's wasm binary.
+    // Wasm exports are only emitted when the "entrypoints" feature is
+    // enabled.  The build script passes --features entrypoints; deps
+    // that don't enable the feature cannot inject entrypoints.
     Ok(quote! {
 
         #[doc=#export_docstr]
         #[cfg_attr(
-            all(target_family = "wasm", not(feature = "client")),
+            all(target_family = "wasm", feature = "entrypoints"),
             unsafe(export_name = #export_name)
         )]
         pub extern "C" fn #extern_name() {

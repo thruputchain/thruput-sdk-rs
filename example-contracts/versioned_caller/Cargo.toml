@@ -12,7 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-client = []
+entrypoints = []
 dev = ["sdk/dev", "versioned_callee/dev"]
 
 [lib]
@@ -22,7 +22,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-versioned_callee = { path = "../versioned_callee", features = ["client"] }
+versioned_callee = { path = "../versioned_callee" }
 
 [dev-dependencies]
 versioned_caller = { path = ".", features = ["dev"] }

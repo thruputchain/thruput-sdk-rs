@@ -12,7 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-client = []
+entrypoints = []
 dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
 
 [lib]
@@ -22,7 +22,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-erc20 = { path = "../erc20", features = ["client"] }
+erc20 = { path = "../erc20" }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
 
 [dev-dependencies]

@@ -12,7 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-client = []
+entrypoints = []
 dev = ["sdk/dev", "bare_impl_callee/dev"]
 
 [lib]
@@ -22,7 +22,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-bare_impl_callee = { path = "../bare_impl_callee", features = ["client"] }
+bare_impl_callee = { path = "../bare_impl_callee" }
 
 [dev-dependencies]
 bare_impl_caller = { path = ".", features = ["dev"] }

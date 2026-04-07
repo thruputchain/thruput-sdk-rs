@@ -9,7 +9,6 @@ description = "ERC20 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
-client = []
 dev = ["sdk/dev", "dep:thiserror"]
 spec = ["sdk/spec"]
 # Needs storage feature for error conversion from StorageError
