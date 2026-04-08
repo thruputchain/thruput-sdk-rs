@@ -129,7 +129,7 @@ where
         let name = sig.ident.to_string();
         let name = name.strip_prefix("r#").unwrap_or(&name);
 
-        if let Some(message) = reserved_client_name_error(&name) {
+        if let Some(message) = reserved_client_name_error(name) {
             let err = error(sig, message);
             match combined.as_mut() {
                 Some(existing) => existing.combine(err),
