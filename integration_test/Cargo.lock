@@ -404,7 +404,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-native-test"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -629,7 +629,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -643,7 +643,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -671,7 +671,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -679,7 +679,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -696,7 +696,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1217,6 +1217,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "linkme"
+version = "0.3.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e3283ed2d0e50c06dd8602e0ab319bb048b6325d0bba739db64ed8205179898"
+dependencies = [
+ "linkme-impl",
+]
+
+[[package]]
+name = "linkme-impl"
+version = "0.3.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5cec0ec4228b4853bb129c84dbf093a27e6c7a20526da046defc334a1b017f7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1693,7 +1713,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "bitset-core",
  "groundhog-contract-util",
@@ -1704,6 +1724,7 @@ dependencies = [
  "groundhog-xdr",
  "heapless",
  "hogexec-internal",
+ "linkme",
  "sha2",
  "thiserror",
  "xdrs",
