@@ -240,6 +240,45 @@ fn borrowed_fragment_views_have_const_txs_writers() {
 }
 
 #[test]
+fn typedef_fragment_stream_helpers_match_runtime_xdr() {
+    const TYPE_DEFS: &[Option<ContractTypeDefView<'static>>] = &[
+        Some(ContractTypeDefView::Struct(ContractStructDefView {
+            name: "Payload",
+            fields: &[ContractFieldView {
+                name: "count",
+                ty: ContractTypeView::U32,
+            }],
+        })),
+        None,
+        Some(ContractTypeDefView::Enum(ContractEnumDefView {
+            name: "Choice",
+            variants: &[ContractEnumVariantView {
+                name: "Left",
+                value: 1,
+            }],
+        })),
+    ];
+    const LEN: usize =
+        groundhog_contract_spec::const_txs_typedef_fragment_stream_len(
+            TYPE_DEFS,
+        );
+    const RAW: [u8; LEN] =
+        groundhog_contract_spec::const_txs_typedef_fragment_stream_bytes::<LEN>(
+            TYPE_DEFS,
+        );
+
+    let expected = [
+        txs::encode(&SpecFragmentView::TypeDef(TYPE_DEFS[0].unwrap()))
+            .unwrap(),
+        txs::encode(&SpecFragmentView::TypeDef(TYPE_DEFS[2].unwrap()))
+            .unwrap(),
+    ]
+    .concat();
+
+    assert_eq!(&RAW, expected.as_slice());
+}
+
+#[test]
 fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(&ContractType::Void, 0);
     assert_xdr_tag(&ContractType::Bool, 1);

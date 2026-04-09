@@ -78,12 +78,16 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident) -> TokenStream {
     quote! {
         #[cfg(target_family = "wasm")]
         const _: () = {
-            const FRAGMENT: ::sdk::__contract_spec::ContractTypeDefView<'static> =
-                <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF;
-            const RAW_LEN: usize =
-                ::sdk::internal::const_xdr_spec_typedef_fragment_len(&FRAGMENT);
-            const RAW_FRAGMENT: [u8; RAW_LEN] =
-                ::sdk::internal::const_xdr_spec_typedef_fragment_bytes::<RAW_LEN>(&FRAGMENT);
+            const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
+                ::sdk::__contract_spec::SpecFragmentView::TypeDef(
+                    <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
+                );
+            const RAW_LEN: usize = FRAGMENT.const_txs_size();
+            const RAW_FRAGMENT: [u8; RAW_LEN] = {
+                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                FRAGMENT.const_write_txs(&mut w);
+                w.into_bytes()
+            };
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_TYPE_DEF_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;

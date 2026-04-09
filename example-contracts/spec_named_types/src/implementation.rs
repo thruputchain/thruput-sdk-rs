@@ -100,16 +100,17 @@ impl SpecNamedTypesContract {
 #[allow(dead_code)]
 mod raw_typedefs {
     use super::{Choice, Envelope, Payload};
-    use sdk::__contract_spec::{ContractTypeDefView, ContractTypeSpec};
+    use sdk::__contract_spec::{ContractTypeSpec, SpecFragmentView};
 
-    const PAYLOAD_FRAG: ContractTypeDefView<'static> =
-        <Payload as ContractTypeSpec>::TYPE_DEF;
-    const PAYLOAD_LEN: usize =
-        sdk::internal::const_xdr_spec_typedef_fragment_len(&PAYLOAD_FRAG);
-    const PAYLOAD_RAW: [u8; PAYLOAD_LEN] =
-        sdk::internal::const_xdr_spec_typedef_fragment_bytes::<PAYLOAD_LEN>(
-            &PAYLOAD_FRAG,
-        );
+    const PAYLOAD_FRAG: SpecFragmentView<'static> = SpecFragmentView::TypeDef(
+        <Payload as ContractTypeSpec>::TYPE_DEF,
+    );
+    const PAYLOAD_LEN: usize = PAYLOAD_FRAG.const_txs_size();
+    const PAYLOAD_RAW: [u8; PAYLOAD_LEN] = {
+        let mut w = sdk::__xdrs::txs::ConstWriter::<PAYLOAD_LEN>::new();
+        PAYLOAD_FRAG.const_write_txs(&mut w);
+        w.into_bytes()
+    };
 
     #[cfg_attr(
         target_family = "wasm",
@@ -117,14 +118,15 @@ mod raw_typedefs {
     )]
     pub static RAW_PAYLOAD_TYPE_DEF: [u8; PAYLOAD_LEN] = PAYLOAD_RAW;
 
-    const CHOICE_FRAG: ContractTypeDefView<'static> =
-        <Choice as ContractTypeSpec>::TYPE_DEF;
-    const CHOICE_LEN: usize =
-        sdk::internal::const_xdr_spec_typedef_fragment_len(&CHOICE_FRAG);
-    const CHOICE_RAW: [u8; CHOICE_LEN] =
-        sdk::internal::const_xdr_spec_typedef_fragment_bytes::<CHOICE_LEN>(
-            &CHOICE_FRAG,
-        );
+    const CHOICE_FRAG: SpecFragmentView<'static> = SpecFragmentView::TypeDef(
+        <Choice as ContractTypeSpec>::TYPE_DEF,
+    );
+    const CHOICE_LEN: usize = CHOICE_FRAG.const_txs_size();
+    const CHOICE_RAW: [u8; CHOICE_LEN] = {
+        let mut w = sdk::__xdrs::txs::ConstWriter::<CHOICE_LEN>::new();
+        CHOICE_FRAG.const_write_txs(&mut w);
+        w.into_bytes()
+    };
 
     #[cfg_attr(
         target_family = "wasm",
@@ -132,14 +134,14 @@ mod raw_typedefs {
     )]
     pub static RAW_CHOICE_TYPE_DEF: [u8; CHOICE_LEN] = CHOICE_RAW;
 
-    const ENVELOPE_FRAG: ContractTypeDefView<'static> =
-        <Envelope as ContractTypeSpec>::TYPE_DEF;
-    const ENVELOPE_LEN: usize =
-        sdk::internal::const_xdr_spec_typedef_fragment_len(&ENVELOPE_FRAG);
-    const ENVELOPE_RAW: [u8; ENVELOPE_LEN] =
-        sdk::internal::const_xdr_spec_typedef_fragment_bytes::<ENVELOPE_LEN>(
-            &ENVELOPE_FRAG,
-        );
+    const ENVELOPE_FRAG: SpecFragmentView<'static> =
+        SpecFragmentView::TypeDef(<Envelope as ContractTypeSpec>::TYPE_DEF);
+    const ENVELOPE_LEN: usize = ENVELOPE_FRAG.const_txs_size();
+    const ENVELOPE_RAW: [u8; ENVELOPE_LEN] = {
+        let mut w = sdk::__xdrs::txs::ConstWriter::<ENVELOPE_LEN>::new();
+        ENVELOPE_FRAG.const_write_txs(&mut w);
+        w.into_bytes()
+    };
 
     #[cfg_attr(
         target_family = "wasm",

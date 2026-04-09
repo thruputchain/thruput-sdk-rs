@@ -121,17 +121,20 @@ fn generate_interface_fragment_tokens(
     quote! {
         #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
         const _: () = {
-            const FRAGMENT: ::sdk::__contract_spec::SpecInterfaceFragmentView<'static> =
-                ::sdk::__contract_spec::SpecInterfaceFragmentView {
+            const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
+                ::sdk::__contract_spec::SpecFragmentView::Interface(
+                    ::sdk::__contract_spec::SpecInterfaceFragmentView {
                     package_name: #package_name,
                     interface_name: #interface_name,
                     interface_version: #interface_version,
                     throws: #throws,
-                };
-            const RAW_LEN: usize =
-                ::sdk::internal::const_xdr_spec_interface_fragment_len(&FRAGMENT);
-            const RAW_FRAGMENT: [u8; RAW_LEN] =
-                ::sdk::internal::const_xdr_spec_interface_fragment_bytes::<RAW_LEN>(&FRAGMENT);
+                });
+            const RAW_LEN: usize = FRAGMENT.const_txs_size();
+            const RAW_FRAGMENT: [u8; RAW_LEN] = {
+                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                FRAGMENT.const_write_txs(&mut w);
+                w.into_bytes()
+            };
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_INTERFACE_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
@@ -154,8 +157,9 @@ fn generate_method_fragment_tokens(
         const _: () = {
             const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
                 &[#(#args),*];
-            const FRAGMENT: ::sdk::__contract_spec::SpecMethodFragmentView<'static> =
-                ::sdk::__contract_spec::SpecMethodFragmentView {
+            const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
+                ::sdk::__contract_spec::SpecFragmentView::Method(
+                    ::sdk::__contract_spec::SpecMethodFragmentView {
                     package_name: #package_name,
                     interface_name: #interface_name,
                     interface_version: #interface_version,
@@ -164,11 +168,13 @@ fn generate_method_fragment_tokens(
                         args: METHOD_ARGS,
                         return_type: #return_type,
                     },
-                };
-            const RAW_LEN: usize =
-                ::sdk::internal::const_xdr_spec_method_fragment_len(&FRAGMENT);
-            const RAW_FRAGMENT: [u8; RAW_LEN] =
-                ::sdk::internal::const_xdr_spec_method_fragment_bytes::<RAW_LEN>(&FRAGMENT);
+                });
+            const RAW_LEN: usize = FRAGMENT.const_txs_size();
+            const RAW_FRAGMENT: [u8; RAW_LEN] = {
+                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                FRAGMENT.const_write_txs(&mut w);
+                w.into_bytes()
+            };
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_METHOD_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
@@ -185,9 +191,9 @@ fn generate_typedef_fragment_stream_tokens(
             const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
                 #type_defs;
             const RAW_LEN: usize =
-                ::sdk::internal::const_xdr_spec_typedef_fragments_len(TYPE_DEFS);
+                ::sdk::__contract_spec::const_txs_typedef_fragment_stream_len(TYPE_DEFS);
             const RAW_FRAGMENT: [u8; RAW_LEN] =
-                ::sdk::internal::const_xdr_spec_typedef_fragments_bytes::<RAW_LEN>(TYPE_DEFS);
+                ::sdk::__contract_spec::const_txs_typedef_fragment_stream_bytes::<RAW_LEN>(TYPE_DEFS);
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_TYPE_DEF_SPEC_STREAM: [u8; RAW_LEN] = RAW_FRAGMENT;
@@ -283,14 +289,12 @@ fn typedef_fragment_tokens_for_type(
                 const _: () = {
                     const TYPE_DEF: Option<::sdk::__contract_spec::ContractTypeDefView<'static>> =
                         <#ty as ::sdk::__contract_spec::MaybeContractTypeDefSpec>::TYPE_DEF;
-                    const RAW_LEN: usize = match TYPE_DEF {
-                        Some(def) => ::sdk::internal::const_xdr_spec_typedef_fragment_len(&def),
-                        None => 0,
-                    };
-                    const RAW_FRAGMENT: [u8; RAW_LEN] = match TYPE_DEF {
-                        Some(def) => ::sdk::internal::const_xdr_spec_typedef_fragment_bytes::<RAW_LEN>(&def),
-                        None => [0u8; RAW_LEN],
-                    };
+                    const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
+                        &[TYPE_DEF];
+                    const RAW_LEN: usize =
+                        ::sdk::__contract_spec::const_txs_typedef_fragment_stream_len(TYPE_DEFS);
+                    const RAW_FRAGMENT: [u8; RAW_LEN] =
+                        ::sdk::__contract_spec::const_txs_typedef_fragment_stream_bytes::<RAW_LEN>(TYPE_DEFS);
 
                     #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
                     pub static RAW_TYPE_DEF_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
@@ -359,7 +363,8 @@ mod tests {
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"));
         assert!(tokens.contains("__GROUNDHOG_IFACE_FULL_VERSION"));
         assert!(tokens.contains("__GROUNDHOG_IFACE_THROWS"));
-        assert!(tokens.contains("const_xdr_spec_method_fragment_bytes"));
+        assert!(tokens.contains("const_txs_size"));
+        assert!(tokens.contains("ConstWriter"));
     }
 
     #[test]
@@ -376,8 +381,8 @@ mod tests {
         assert!(tokens.contains("groundhogspecrawv0"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
-        assert!(tokens.contains("const_xdr_spec_interface_fragment_bytes"));
-        assert!(tokens.contains("const_xdr_spec_method_fragment_bytes"));
+        assert!(tokens.contains("const_txs_size"));
+        assert!(tokens.contains("ConstWriter"));
         assert!(tokens.contains("ERC20"));
         assert!(tokens.contains("0.1.0"));
         assert!(tokens.contains("transfer"));

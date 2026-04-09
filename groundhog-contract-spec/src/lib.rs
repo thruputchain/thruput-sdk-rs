@@ -204,3 +204,33 @@ pub const fn type_ref<T: ContractTypeRefSpec>()
 -> view::ContractTypeView<'static> {
     T::TYPE_REF
 }
+
+pub const fn const_txs_typedef_fragment_stream_len(
+    type_defs: &[Option<view::ContractTypeDefView<'_>>],
+) -> usize {
+    let mut total = 0usize;
+    let mut i = 0usize;
+    while i < type_defs.len() {
+        if let Some(type_def) = type_defs[i] {
+            total +=
+                view::SpecFragmentView::TypeDef(type_def).const_txs_size();
+        }
+        i += 1;
+    }
+    total
+}
+
+pub const fn const_txs_typedef_fragment_stream_bytes<const OUT: usize>(
+    type_defs: &[Option<view::ContractTypeDefView<'_>>],
+) -> [u8; OUT] {
+    assert!(OUT == const_txs_typedef_fragment_stream_len(type_defs));
+    let mut w = xdrs::txs::ConstWriter::<OUT>::new();
+    let mut i = 0usize;
+    while i < type_defs.len() {
+        if let Some(type_def) = type_defs[i] {
+            view::SpecFragmentView::TypeDef(type_def).const_write_txs(&mut w);
+        }
+        i += 1;
+    }
+    w.into_bytes()
+}
