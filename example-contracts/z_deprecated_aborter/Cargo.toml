@@ -13,7 +13,7 @@ doctest = false
 test = false
 
 [features]
-client = [] # ignored
+entrypoints = [] # ignored
 guest = []
 mock = ["guest", "sdk/mock"]
 logging = ["sdk/logging"]

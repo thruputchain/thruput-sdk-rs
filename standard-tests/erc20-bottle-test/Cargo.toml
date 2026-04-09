@@ -19,5 +19,7 @@ doctest = false
 test = false
 
 [features]
+default = []
+entrypoints = []
 # don't check operations expected to cause erc20 abort
 no_check_aborts = ["erc20-test/no_check_aborts"]

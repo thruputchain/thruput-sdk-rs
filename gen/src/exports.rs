@@ -417,10 +417,17 @@ pub fn generate_method(
         quote! {}
     };
 
+    // Wasm exports are only emitted when the "entrypoints" feature is
+    // enabled.  The build script passes --features entrypoints; deps
+    // that don't enable the feature cannot inject entrypoints.
     Ok(quote! {
 
         #[doc=#export_docstr]
-        #[cfg_attr(target_family = "wasm", unsafe(export_name = #export_name))]
+        #[cfg(feature = "entrypoints")]
+        #[cfg_attr(
+            target_family = "wasm",
+            unsafe(export_name = #export_name)
+        )]
         pub extern "C" fn #extern_name() {
             #internal_name()
         }

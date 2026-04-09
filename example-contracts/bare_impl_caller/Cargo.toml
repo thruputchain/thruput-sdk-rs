@@ -12,6 +12,7 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+entrypoints = []
 dev = ["sdk/dev", "bare_impl_callee/dev"]
 
 [lib]

@@ -96,7 +96,7 @@ fn generate_interface_fragment_tokens(
     throws: TokenStream,
 ) -> TokenStream {
     quote! {
-        #[cfg(target_family = "wasm")]
+        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
         const _: () = {
             const FRAGMENT: ::sdk::__contract_spec::SpecInterfaceFragmentView<'static> =
                 ::sdk::__contract_spec::SpecInterfaceFragmentView {
@@ -127,7 +127,7 @@ fn generate_method_fragment_tokens(
     let return_type = method_return_spec_token(method)?;
 
     Ok(quote! {
-        #[cfg(target_family = "wasm")]
+        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
         const _: () = {
             const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
                 &[#(#args),*];
