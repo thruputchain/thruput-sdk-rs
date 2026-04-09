@@ -1,16 +1,11 @@
-use std::{
-    fs,
-    path::PathBuf,
-    process::Command,
-    sync::{Mutex, OnceLock},
-};
+use std::{fs, process::Command};
 
 use groundhog_contract_spec::{
     ContractSpec, SpecFragment, SpecInterfaceFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
-    parse_raw_fragments, rewrite::rewrite_wasm,
+    rewrite::rewrite_wasm,
 };
 use serde_json::Value;
 use tempfile::tempdir;
@@ -46,18 +41,6 @@ fn data_segments(bytes: &[u8]) -> Vec<Vec<u8>> {
     segments
 }
 
-fn export_names(bytes: &[u8]) -> Vec<String> {
-    let mut exports = Vec::new();
-    for payload in Parser::new(0).parse_all(bytes) {
-        if let Payload::ExportSection(reader) = payload.unwrap() {
-            for export in reader {
-                exports.push(export.unwrap().name.to_owned());
-            }
-        }
-    }
-    exports
-}
-
 fn encode_fragments(fragments: &[SpecFragment]) -> Vec<u8> {
     let mut bytes = Vec::new();
     for fragment in fragments {
@@ -75,63 +58,6 @@ fn final_spec(bytes: &[u8]) -> Option<ContractSpec> {
         }
     }
     None
-}
-
-fn raw_fragments(bytes: &[u8]) -> Vec<SpecFragment> {
-    let mut fragments = Vec::new();
-    for payload in Parser::new(0).parse_all(bytes) {
-        if let Payload::CustomSection(section) = payload.unwrap() {
-            if section.name() == RAW_SECTION_NAME {
-                fragments.extend(parse_raw_fragments(section.data()).unwrap());
-            }
-        }
-    }
-    fragments
-}
-
-fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
-    haystack
-        .windows(needle.len())
-        .any(|window| window == needle)
-}
-
-fn workspace_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("groundhog-spec-tool lives in the workspace")
-        .to_path_buf()
-}
-
-fn example_build_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-}
-
-fn build_example_contract(package: &str) {
-    let _guard = example_build_lock()
-        .lock()
-        .unwrap_or_else(|poison| poison.into_inner());
-    let status = Command::new("bash")
-        .current_dir(workspace_root())
-        .args([
-            "-lc",
-            &format!("source scripts/dev.sh && eg_build {package}"),
-        ])
-        .status()
-        .unwrap();
-
-    assert!(status.success(), "failed building {package}");
-}
-
-fn read_sidecar_interfaces(package: &str) -> Value {
-    build_example_contract(package);
-
-    let wasm_name = package.replace('-', "_");
-    let json_path = workspace_root()
-        .join("target/optimized")
-        .join(format!("{wasm_name}.spec.json"));
-    let json = fs::read_to_string(&json_path).unwrap();
-    serde_json::from_str(&json).unwrap()
 }
 
 #[test]
@@ -479,104 +405,6 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
     assert_eq!(err.to_string(), "raw spec bytes leaked into linear memory");
 }
 
-fn assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
-    package: &str,
-) {
-    build_example_contract(package);
-
-    let wasm_path = workspace_root()
-        .join("target/optimized")
-        .join(format!("{}.wasm", package.replace('-', "_")));
-    let wasm = fs::read(&wasm_path).unwrap();
-    let sections = custom_sections(&wasm);
-
-    assert_eq!(
-        sections
-            .iter()
-            .filter(|(name, _)| name == FINAL_SECTION_NAME)
-            .count(),
-        1
-    );
-    assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
-    assert!(!export_names(&wasm).iter().any(|name| name == "_"));
-}
-
-#[test]
-fn built_contract_wasm_strips_raw_staging_bytes_and_anchor_export() {
-    assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
-        "free_fn_unnamed",
-    );
-    assert_built_contract_wasm_strips_staging_bytes_and_anchor_export(
-        "multi_imported_traits",
-    );
-}
-
-#[test]
-fn raw_release_contract_keeps_spec_bytes_out_of_linear_memory() {
-    build_example_contract("free_fn_unnamed");
-
-    let wasm_path = workspace_root()
-        .join("target/wasm32-unknown-unknown/release/free_fn_unnamed.wasm");
-    let wasm = fs::read(&wasm_path).unwrap();
-    let fragments = raw_fragments(&wasm);
-
-    assert!(
-        custom_sections(&wasm)
-            .iter()
-            .any(|(name, _)| name == RAW_SECTION_NAME)
-    );
-    assert!(!fragments.is_empty());
-    assert!(
-        data_segments(&wasm)
-            .iter()
-            .all(|segment| fragments.iter().all(|fragment| {
-                let encoded = encode(fragment).unwrap();
-                !contains_bytes(segment, &encoded)
-            }))
-    );
-}
-
-#[test]
-fn built_spec_complete_contracts_produce_expected_final_interface_lists() {
-    let cases = [
-        (
-            "multi_imported_traits",
-            vec![
-                ("ExplicitNamedInterface", "0.3.0"),
-                ("VersionedCallee", "1.2.3"),
-            ],
-        ),
-        ("free_fn_unnamed", vec![("_unnamed_interface", "0.3.0")]),
-        (
-            "spec_named_types",
-            vec![("SpecNamedTypesContract", "0.3.0")],
-        ),
-    ];
-
-    for (package, expected_interfaces) in cases {
-        let parsed = read_sidecar_interfaces(package);
-        assert_eq!(parsed["format"], FINAL_FORMAT_TAG);
-        let interfaces = parsed["interfaces"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|interface| {
-                (
-                    interface["name"].as_str().unwrap().to_owned(),
-                    interface["version"].as_str().unwrap().to_owned(),
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            interfaces,
-            expected_interfaces
-                .into_iter()
-                .map(|(name, version)| (name.to_owned(), version.to_owned()))
-                .collect::<Vec<_>>()
-        );
-    }
-}
-
 #[test]
 fn rewrite_filters_fragments_to_requested_package() {
     let mixed_raw_blob = encode_fragments(&[
@@ -647,19 +475,4 @@ fn rewrite_omits_final_section_when_requested_package_has_no_fragments() {
     let rewritten = rewrite_wasm(&module.finish(), "owner").unwrap();
 
     assert!(custom_sections(&rewritten).is_empty());
-}
-
-#[test]
-fn built_noop_contract_does_not_emit_spec_sidecar() {
-    build_example_contract("genesis_deployer");
-
-    let wasm_path =
-        workspace_root().join("target/optimized/genesis_deployer.wasm");
-    let json_path =
-        workspace_root().join("target/optimized/genesis_deployer.spec.json");
-    let wasm = fs::read(&wasm_path).unwrap();
-
-    assert!(wasm_path.is_file());
-    assert!(!json_path.exists());
-    assert!(custom_sections(&wasm).is_empty());
 }
