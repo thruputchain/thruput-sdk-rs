@@ -2,6 +2,7 @@
 
 use crate::sys;
 use crate::sys::SysResult as Result;
+use crate::sys::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 
 use core::mem::MaybeUninit;
@@ -29,7 +30,15 @@ pub fn retrocausal_queue_peek_sized<const N: usize>(
     retrocausal_queue_get_sized(key, peek)
 }
 
-fn retrocausal_queue_get_sized<const N: usize>(
+pub fn retrocausal_queue_peek_len(key: &StorageKey) -> Result<u32> {
+    let mut len: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
+
+    sys::uninit_RetrocausalQueuePeekLen(key, &mut len)?;
+
+    Ok(unsafe { len.assume_init() })
+}
+
+pub(crate) fn retrocausal_queue_get_sized<const N: usize>(
     key: &StorageKey,
     peek: bool,
 ) -> Result<[u8; N]> {
@@ -53,28 +62,65 @@ fn retrocausal_queue_get_sized<const N: usize>(
     Ok(bytes)
 }
 
-/// Get the next queue entry.
-///
-/// A vector of maximum length `N` is returned.
-///
-#[cfg(feature = "alloc")]
-pub fn retrocausal_queue_get_max<const N: usize>(
+pub(crate) fn retrocausal_queue_try_get_sized<const N: usize>(
     key: &StorageKey,
     peek: bool,
-) -> Result<crate::Vec<u8>> {
-    let mut v = crate::Vec::with_capacity(N);
-
-    let data = v.spare_capacity_mut();
-    let mut written_len: MaybeUninit<RuntimeMemoryLength> =
-        MaybeUninit::uninit();
-
-    sys::uninit_RetrocausalQueueConsume(key, peek, data, &mut written_len)?;
-
-    // Safety: Successful syscall return means the indicated bytes have been
-    // filled.
-    unsafe {
-        v.set_len(written_len.assume_init() as usize);
+) -> Result<Option<[u8; N]>> {
+    match retrocausal_queue_get_sized(key, peek) {
+        Ok(v) => Ok(Some(v)),
+        Err(e)
+            if e.is_code(
+                SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
+            ) =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e),
     }
+}
 
-    Ok(v)
+/// Get the next queue entry into a boxed slice.
+///
+#[cfg(feature = "alloc")]
+pub(crate) fn retrocausal_queue_get(
+    key: &StorageKey,
+    peek: bool,
+) -> Result<crate::Box<[u8]>> {
+    let len = retrocausal_queue_peek_len(key)?;
+
+    let mut data = crate::Box::<[u8]>::new_uninit_slice(len as usize);
+    let mut written_len = MaybeUninit::uninit();
+    sys::uninit_RetrocausalQueueConsume(
+        key,
+        peek,
+        &mut data,
+        &mut written_len,
+    )?;
+
+    debug_assert!(
+        unsafe { written_len.assume_init() } == len,
+        "Inconsistent RCQ size",
+    );
+
+    Ok(unsafe { data.assume_init() })
+}
+
+/// Get the next queue entry into a boxed slice.
+///
+#[cfg(feature = "alloc")]
+pub(crate) fn retrocausal_queue_try_get(
+    key: &StorageKey,
+    peek: bool,
+) -> Result<Option<crate::Box<[u8]>>> {
+    match retrocausal_queue_get(key, peek) {
+        Ok(v) => Ok(Some(v)),
+        Err(e)
+            if e.is_code(
+                SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
+            ) =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e),
+    }
 }

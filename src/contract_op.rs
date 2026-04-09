@@ -47,7 +47,7 @@ where
         std::println!("Throwing exception {:?}", ret);
         std::println!("Location: {}", core::panic::Location::caller());
         std::println!(
-            "Backtrace: {}",
+            "Backtrace:\n{}",
             crate::debug_context::Backtrace::capture()
         );
     }

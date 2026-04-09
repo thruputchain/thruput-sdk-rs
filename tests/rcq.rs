@@ -7,6 +7,7 @@ type Entry = [u8; 4];
 const ENTRY_0: Entry = [0; 4];
 const ENTRY_1: Entry = [1; 4];
 
+// Two transactions inserting in the same block: Ok
 #[test]
 fn concurrent_insert() {
     let env = TestEnvironment::no_cost();
@@ -24,6 +25,7 @@ fn concurrent_insert() {
     .assert_success();
 }
 
+// Insert in one block, consume in the next: Ok
 #[test]
 fn insert_then_consume() {
     let env = TestEnvironment::no_cost();
@@ -44,6 +46,8 @@ fn insert_then_consume() {
     .assert_success();
 }
 
+// Insert and consume in the same block: Happens to succeed because of lucky
+// submission ordering.
 #[test]
 fn concurrent_insert_consume() {
     let env = TestEnvironment::no_cost();
@@ -62,6 +66,8 @@ fn concurrent_insert_consume() {
     .assert_success();
 }
 
+// Consume and insert in the same block: Happens to fail due to unlucky
+// submission ordering.
 #[test]
 fn failing_consume_insert() {
     let env = TestEnvironment::no_cost();
@@ -80,8 +86,10 @@ fn failing_consume_insert() {
     .assert_success();
 }
 
+// Insert in one block, then two transactions in the next block, both
+// consuming: Fails because `consume` doesn't commute.
 #[test]
-fn concurrent_consume() {
+fn concurrent_consume_fails() {
     let env = TestEnvironment::no_cost();
 
     env.transact(|tx| {
@@ -101,7 +109,7 @@ fn concurrent_consume() {
     })
     .assert_success();
 
-    // XXX: Why does this fail?
+    // Only one transaction per block can call `consume` on a particular RCQ
     env.transact(|tx| {
         tx.call(&ADDR).run(|| {
             let _: Entry = retrocausal_queue_consume_sized(&KEY);
