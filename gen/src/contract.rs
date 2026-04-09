@@ -513,7 +513,19 @@ pub fn contract_type_view_tokens(
                     ::sdk::__contract_spec::ContractTypeView::Address
                 });
             }
-            if path_last_segment_ident(&type_path.path) == "SHA256Hash" {
+            if path_last_segment_ident(&type_path.path) == "BlockHeight" {
+                return Ok(quote! {
+                    ::sdk::__contract_spec::ContractTypeView::I64
+                });
+            }
+            if path_last_segment_ident(&type_path.path) == "SHA256Hash"
+                || path_last_segment_ident(&type_path.path)
+                    == "Ed25519Signature"
+                || path_last_segment_ident(&type_path.path)
+                    == "Ed25519PublicKey"
+                || path_last_segment_ident(&type_path.path)
+                    == "ContractEntrypointID"
+            {
                 return Ok(quote! {
                     ::sdk::__contract_spec::ContractTypeView::Bytes
                 });
@@ -582,5 +594,29 @@ mod tests {
 
         assert!(tokens.contains("ContractTypeView :: Bytes"));
         assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
+
+    #[test]
+    fn builtin_byte_blob_types_lower_to_bytes() {
+        for ty in [
+            syn::parse_quote!(sdk::Ed25519Signature),
+            syn::parse_quote!(sdk::Ed25519PublicKey),
+            syn::parse_quote!(sdk::ContractEntrypointID),
+        ] {
+            let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+            assert!(tokens.contains("ContractTypeView :: Bytes"));
+            assert!(!tokens.contains("ContractTypeRefSpec"));
+        }
+    }
+
+    #[test]
+    fn block_height_lowers_to_i64() {
+        let ty: syn::Type = syn::parse_quote!(sdk::BlockHeight);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("ContractTypeView :: I64"));
+        assert!(!tokens.contains("ContractTypeRefSpec"));
     }
 }

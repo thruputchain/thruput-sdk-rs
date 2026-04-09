@@ -267,7 +267,14 @@ fn typedef_fragment_tokens_for_type(
                 return typedef_fragment_tokens_for_type(inner);
             }
             if path_last_segment_ident(&type_path.path) == "ContractAddress"
+                || path_last_segment_ident(&type_path.path) == "BlockHeight"
                 || path_last_segment_ident(&type_path.path) == "SHA256Hash"
+                || path_last_segment_ident(&type_path.path)
+                    == "Ed25519Signature"
+                || path_last_segment_ident(&type_path.path)
+                    == "Ed25519PublicKey"
+                || path_last_segment_ident(&type_path.path)
+                    == "ContractEntrypointID"
             {
                 return Ok(vec![]);
             }
@@ -391,6 +398,50 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains("u8 as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
+        assert!(!tokens.contains(
+            "u8 as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"
+        ));
+    }
+
+    #[test]
+    fn builtin_byte_blob_types_do_not_emit_typedef_fragments() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                fn verify(
+                    signature: &sdk::Ed25519Signature,
+                    public_key: &sdk::Ed25519PublicKey,
+                    entrypoint: &sdk::ContractEntrypointID,
+                ) -> bool { true }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(!tokens.contains("Ed25519Signature as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
+        assert!(!tokens.contains("Ed25519PublicKey as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
+        assert!(!tokens.contains("ContractEntrypointID as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
+    }
+
+    #[test]
+    fn block_height_does_not_emit_typedef_fragments() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                fn deadline(height: sdk::BlockHeight) -> sdk::BlockHeight { height }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(!tokens.contains("BlockHeight as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
     }
 }

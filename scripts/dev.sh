@@ -365,6 +365,7 @@ ls_contract_packages() {
     local contract
     for contract in "$contracts_dir"/* ; do
         [ -d "$contract" ] || continue;
+        [ -f "$contract"/Cargo.toml ] || continue;
         [ ! -f "$contract"/disabled ] || continue;
 
         c="$(basename "$contract")"
