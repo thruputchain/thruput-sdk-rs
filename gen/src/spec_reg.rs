@@ -42,6 +42,17 @@ pub fn generate_impl_raw_spec_fragments(
         iface_vers.clone(),
         iface_throws,
     );
+    let trait_throw_typedef_fragments =
+        item.trait_.as_ref().map(|(_, trait_path, _)| {
+            generate_typedef_fragment_stream_tokens(quote! {
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_TYPE_DEFS
+            })
+        });
+    let mut typedef_fragments = contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| typedef_fragment_tokens_for_type_path(thrown.ty()))
+        .collect::<Result<Vec<_>>>()?;
     let method_fragments = contract
         .methods_sorted()
         .into_iter()
@@ -54,10 +65,15 @@ pub fn generate_impl_raw_spec_fragments(
             )
         })
         .collect::<Result<Vec<_>>>()?;
+    for method in contract.methods_sorted() {
+        typedef_fragments.extend(typedef_fragment_tokens_for_method(&method)?);
+    }
 
     Ok(quote! {
         #interface_fragment
         #(#method_fragments)*
+        #trait_throw_typedef_fragments
+        #(#typedef_fragments)*
     })
 }
 
@@ -82,10 +98,17 @@ pub fn generate_free_function_raw_spec_fragments(
         quote! { #iface_vers },
         item,
     )?;
+    let mut typedef_fragments = contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| typedef_fragment_tokens_for_type_path(thrown.ty()))
+        .collect::<Result<Vec<_>>>()?;
+    typedef_fragments.extend(typedef_fragment_tokens_for_method(item)?);
 
     Ok(quote! {
         #interface_fragment
         #method_fragment
+        #(#typedef_fragments)*
     })
 }
 
@@ -150,6 +173,126 @@ fn generate_method_fragment_tokens(
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_METHOD_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
+    })
+}
+
+fn generate_typedef_fragment_stream_tokens(
+    type_defs: TokenStream,
+) -> TokenStream {
+    quote! {
+        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+        const _: () = {
+            const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
+                #type_defs;
+            const RAW_LEN: usize =
+                ::sdk::internal::const_xdr_spec_typedef_fragments_len(TYPE_DEFS);
+            const RAW_FRAGMENT: [u8; RAW_LEN] =
+                ::sdk::internal::const_xdr_spec_typedef_fragments_bytes::<RAW_LEN>(TYPE_DEFS);
+
+            #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
+            pub static RAW_TYPE_DEF_SPEC_STREAM: [u8; RAW_LEN] = RAW_FRAGMENT;
+        };
+    }
+}
+
+fn typedef_fragment_tokens_for_method(
+    method: &impl Method,
+) -> Result<Vec<TokenStream>> {
+    let mut fragments = Vec::new();
+
+    for arg in &method.sig().inputs {
+        if let syn::FnArg::Typed(pat_type) = arg {
+            fragments.extend(typedef_fragment_tokens_for_type(
+                pat_type.ty.as_ref(),
+            )?);
+        }
+    }
+
+    if let syn::ReturnType::Type(_, ty) = &method.sig().output {
+        fragments.extend(typedef_fragment_tokens_for_type(ty.as_ref())?);
+    }
+
+    Ok(fragments)
+}
+
+fn typedef_fragment_tokens_for_type_path(
+    path: &syn::Path,
+) -> Result<TokenStream> {
+    let ty = syn::Type::Path(syn::TypePath {
+        qself: None,
+        path: path.clone(),
+    });
+    let mut tokens = typedef_fragment_tokens_for_type(&ty)?;
+    debug_assert!(tokens.len() <= 1);
+    Ok(tokens.pop().unwrap_or_else(|| quote! {}))
+}
+
+fn typedef_fragment_tokens_for_type(
+    ty: &syn::Type,
+) -> Result<Vec<TokenStream>> {
+    match ty {
+        syn::Type::Reference(reference) => {
+            typedef_fragment_tokens_for_type(reference.elem.as_ref())
+        }
+        syn::Type::Paren(paren) => {
+            typedef_fragment_tokens_for_type(paren.elem.as_ref())
+        }
+        syn::Type::Tuple(tuple) => tuple
+            .elems
+            .iter()
+            .map(typedef_fragment_tokens_for_type)
+            .collect::<Result<Vec<_>>>()
+            .map(|nested| nested.into_iter().flatten().collect()),
+        syn::Type::Path(type_path) => {
+            if path_last_segment_ident(&type_path.path) == "Option"
+                || path_last_segment_ident(&type_path.path) == "Vec"
+            {
+                return first_generic_type_arg(type_path)
+                    .map(typedef_fragment_tokens_for_type)
+                    .unwrap_or_else(|| Ok(vec![]));
+            }
+            if path_last_segment_ident(&type_path.path) == "ContractAddress"
+                || path_last_segment_ident(&type_path.path) == "SHA256Hash"
+            {
+                return Ok(vec![]);
+            }
+            Ok(vec![quote! {
+                #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+                const _: () = {
+                    const TYPE_DEF: Option<::sdk::__contract_spec::ContractTypeDefView<'static>> =
+                        <#ty as ::sdk::__contract_spec::MaybeContractTypeDefSpec>::TYPE_DEF;
+                    const RAW_LEN: usize = match TYPE_DEF {
+                        Some(def) => ::sdk::internal::const_xdr_spec_typedef_fragment_len(&def),
+                        None => 0,
+                    };
+                    const RAW_FRAGMENT: [u8; RAW_LEN] = match TYPE_DEF {
+                        Some(def) => ::sdk::internal::const_xdr_spec_typedef_fragment_bytes::<RAW_LEN>(&def),
+                        None => [0u8; RAW_LEN],
+                    };
+
+                    #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
+                    pub static RAW_TYPE_DEF_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
+                };
+            }])
+        }
+        _ => Ok(vec![]),
+    }
+}
+
+fn path_last_segment_ident(path: &syn::Path) -> &syn::Ident {
+    let seg = path.segments.last().unwrap();
+    &seg.ident
+}
+
+fn first_generic_type_arg(type_path: &syn::TypePath) -> Option<&syn::Type> {
+    let segment = type_path.path.segments.last()?;
+    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments
+    else {
+        return None;
+    };
+    arguments.args.iter().find_map(|arg| match arg {
+        syn::GenericArgument::Type(ty) => Some(ty),
+        _ => None,
     })
 }
 

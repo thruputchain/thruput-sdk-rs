@@ -8,6 +8,10 @@ use sdk::sys_result::rcq::{
     retrocausal_queue_consume_sized, retrocausal_queue_insert,
 };
 use sdk::*;
+use sdk::__contract_spec::{
+    ContractFieldView, ContractStructDefView, ContractTypeDefView,
+    ContractTypeSpec, ContractTypeView,
+};
 use sys::SyscallErrorCode;
 
 static REQUEST_QUEUE: StorageKey = static_key!("queue key");
@@ -19,6 +23,17 @@ pub type RequestID = u32;
 pub struct SwapRequest {
     pub id: RequestID,
     /* info about tokens to swap, amount, etc. */
+}
+
+impl ContractTypeSpec for SwapRequest {
+    const TYPE_DEF: ContractTypeDefView<'static> =
+        ContractTypeDefView::Struct(ContractStructDefView {
+            name: "SwapRequest",
+            fields: &[ContractFieldView {
+                name: "id",
+                ty: ContractTypeView::U32,
+            }],
+        });
 }
 
 contract_local! {

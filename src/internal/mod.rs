@@ -116,6 +116,23 @@ pub const fn const_xdr_spec_typedef_fragment_len(
 }
 
 #[doc(hidden)]
+pub const fn const_xdr_spec_typedef_fragments_len(
+    type_defs: &[Option<crate::__contract_spec::ContractTypeDefView<'_>>],
+) -> usize {
+    let mut total = 0usize;
+    let mut i = 0usize;
+    while i < type_defs.len() {
+        if let Some(type_def) = type_defs[i] {
+            total +=
+                crate::__contract_spec::SpecFragmentView::TypeDef(type_def)
+                    .const_txs_size();
+        }
+        i += 1;
+    }
+    total
+}
+
+#[doc(hidden)]
 #[inline]
 pub const fn const_xdr_spec_interface_fragment_bytes<const OUT: usize>(
     fragment: &crate::__contract_spec::SpecInterfaceFragmentView<'_>,
@@ -150,6 +167,25 @@ pub const fn const_xdr_spec_typedef_fragment_bytes<const OUT: usize>(
     assert!(OUT == fragment.const_txs_size());
     let mut w = xdrs::txs::ConstWriter::<OUT>::new();
     fragment.const_write_txs(&mut w);
+    w.into_bytes()
+}
+
+#[doc(hidden)]
+#[inline]
+pub const fn const_xdr_spec_typedef_fragments_bytes<const OUT: usize>(
+    type_defs: &[Option<crate::__contract_spec::ContractTypeDefView<'_>>],
+) -> [u8; OUT] {
+    assert!(OUT == const_xdr_spec_typedef_fragments_len(type_defs));
+    let mut w = xdrs::txs::ConstWriter::<OUT>::new();
+    let mut i = 0usize;
+    while i < type_defs.len() {
+        if let Some(type_def) = type_defs[i] {
+            let fragment =
+                crate::__contract_spec::SpecFragmentView::TypeDef(type_def);
+            fragment.const_write_txs(&mut w);
+        }
+        i += 1;
+    }
     w.into_bytes()
 }
 

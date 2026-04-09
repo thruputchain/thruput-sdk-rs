@@ -385,6 +385,22 @@ pub fn throws_spec_tokens(
         .collect()
 }
 
+pub fn throws_typedef_tokens(
+    contract: &impl ContractSrc,
+) -> Result<Vec<TokenStream>> {
+    contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| {
+            let path = thrown.ty();
+            let ty: syn::Type = syn::parse_quote! { #path };
+            Ok(quote! {
+                <#ty as ::sdk::__contract_spec::MaybeContractTypeDefSpec>::TYPE_DEF
+            })
+        })
+        .collect()
+}
+
 fn is_visible(vis: &syn::Visibility) -> bool {
     matches!(vis, syn::Visibility::Public(_))
 }
@@ -445,6 +461,9 @@ pub fn contract_type_view_tokens(
         syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
             Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Bytes })
         }
+        syn::Type::Array(array) if is_u8_type(array.elem.as_ref()) => {
+            Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Bytes })
+        }
         syn::Type::Tuple(tuple) => {
             if tuple.elems.is_empty() {
                 return Ok(
@@ -499,14 +518,8 @@ pub fn contract_type_view_tokens(
                     ::sdk::__contract_spec::ContractTypeView::Bytes
                 });
             }
-            if is_direct_contract_type_ref(ty) {
-                return Ok(quote! {
-                    <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::TYPE_REF
-                });
-            }
-            let symbol = canonical_named_type_symbol(ty);
             Ok(quote! {
-                ::sdk::__contract_spec::ContractTypeView::Named(#symbol)
+                <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::TYPE_REF
             })
         }
         syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
@@ -539,28 +552,35 @@ fn is_u8_type(ty: &syn::Type) -> bool {
     )
 }
 
-fn is_direct_contract_type_ref(ty: &syn::Type) -> bool {
-    matches!(
-        ty,
-        syn::Type::Path(type_path)
-            if matches!(
-                path_last_segment_ident(&type_path.path).to_string().as_str(),
-                "bool"
-                    | "u32"
-                    | "i32"
-                    | "u64"
-                    | "i64"
-                    | "u128"
-                    | "i128"
-                    | "String"
-            )
-    )
-}
-
 fn canonical_named_type_symbol(ty: &syn::Type) -> String {
     ty.to_token_stream()
         .to_string()
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::contract_type_view_tokens;
+
+    #[test]
+    fn alias_paths_use_trait_resolution_for_spec_types() {
+        let ty: syn::Type = syn::parse_quote!(Amount);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("ContractTypeRefSpec"));
+        assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
+
+    #[test]
+    fn fixed_u8_arrays_lower_to_bytes() {
+        let ty: syn::Type = syn::parse_quote!([u8; 32]);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("ContractTypeView :: Bytes"));
+        assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
 }
