@@ -8,13 +8,15 @@ use crate::model::{
 #[cfg(feature = "alloc")]
 use alloc::{borrow::ToOwned, boxed::Box};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use xdrs::*;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractSpecView<'a> {
     pub interfaces: &'a [ContractSpecInterfaceView<'a>],
     pub type_defs: &'a [ContractTypeDefView<'a>],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractSpecInterfaceView<'a> {
     pub name: &'a str,
     pub version: &'a str,
@@ -22,43 +24,45 @@ pub struct ContractSpecInterfaceView<'a> {
     pub methods: &'a [ContractSpecMethodView<'a>],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractSpecMethodView<'a> {
     pub name: &'a str,
     pub args: &'a [ContractFieldView<'a>],
     pub return_type: ContractTypeView<'a>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractFieldView<'a> {
     pub name: &'a str,
     pub ty: ContractTypeView<'a>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[repr(i32)]
 pub enum ContractTypeView<'a> {
-    Void,
-    Bool,
-    U32,
-    I32,
-    U64,
-    I64,
-    U128,
-    I128,
-    String,
-    Bytes,
-    Address,
-    Option(&'a ContractTypeView<'a>),
-    Vec(&'a ContractTypeView<'a>),
-    Tuple(&'a [ContractTypeView<'a>]),
-    Named(&'a str),
+    Void = 0,
+    Bool = 1,
+    U32 = 2,
+    I32 = 3,
+    U64 = 4,
+    I64 = 5,
+    U128 = 6,
+    I128 = 7,
+    String = 8,
+    Bytes = 9,
+    Address = 10,
+    Option(&'a ContractTypeView<'a>) = 11,
+    Vec(&'a ContractTypeView<'a>) = 12,
+    Tuple(&'a [ContractTypeView<'a>]) = 13,
+    Named(&'a str) = 14,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[repr(i32)]
 pub enum ContractTypeDefView<'a> {
-    Struct(ContractStructDefView<'a>),
-    Enum(ContractEnumDefView<'a>),
-    Union(ContractUnionDefView<'a>),
+    Struct(ContractStructDefView<'a>) = 0,
+    Enum(ContractEnumDefView<'a>) = 1,
+    Union(ContractUnionDefView<'a>) = 2,
 }
 
 impl<'a> ContractTypeDefView<'a> {
@@ -75,45 +79,46 @@ impl<'a> ContractTypeDefView<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractStructDefView<'a> {
     pub name: &'a str,
     pub fields: &'a [ContractFieldView<'a>],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractEnumDefView<'a> {
     pub name: &'a str,
     pub variants: &'a [ContractEnumVariantView<'a>],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractEnumVariantView<'a> {
     pub name: &'a str,
     pub value: i32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractUnionDefView<'a> {
     pub name: &'a str,
     pub cases: &'a [ContractUnionCaseView<'a>],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractUnionCaseView<'a> {
     pub name: &'a str,
     pub discriminant: i32,
     pub case_type: Option<ContractTypeView<'a>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[repr(i32)]
 pub enum SpecFragmentView<'a> {
-    Interface(SpecInterfaceFragmentView<'a>),
-    Method(SpecMethodFragmentView<'a>),
-    TypeDef(ContractTypeDefView<'a>),
+    Interface(SpecInterfaceFragmentView<'a>) = 0,
+    Method(SpecMethodFragmentView<'a>) = 1,
+    TypeDef(ContractTypeDefView<'a>) = 2,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecInterfaceFragmentView<'a> {
     pub package_name: &'a str,
     pub interface_name: &'a str,
@@ -121,7 +126,7 @@ pub struct SpecInterfaceFragmentView<'a> {
     pub throws: &'a [ContractTypeView<'a>],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecMethodFragmentView<'a> {
     pub package_name: &'a str,
     pub interface_name: &'a str,

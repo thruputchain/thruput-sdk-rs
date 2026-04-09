@@ -16,7 +16,7 @@ crate-type = ["rlib"]
 
 [features]
 default = ["alloc"]
-alloc = ["dep:xdrs", "xdrs/alloc", "xdrs/derive", "xdrs/heapless"]
+alloc = ["xdrs/alloc"]
 
 [dependencies]
-xdrs = { workspace = true, features = ["heapless", "derive", "alloc"], optional = true }
+xdrs = { workspace = true, features = ["heapless", "derive"] }

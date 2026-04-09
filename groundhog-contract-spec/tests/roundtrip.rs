@@ -9,6 +9,7 @@ use groundhog_contract_spec::{
     SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
+use xdrs::txs;
 
 fn assert_xdr_tag<T: xdrs::WriteXDR>(value: &T, expected: i32) {
     let encoded = encode(value).unwrap();
@@ -214,6 +215,27 @@ fn fragment_and_view_conversions_roundtrip() {
     let encoded = encode(&type_def_fragment).unwrap();
     let decoded: SpecFragment = decode(&encoded).unwrap();
     assert_eq!(decoded, type_def_fragment);
+}
+
+#[test]
+fn borrowed_fragment_views_have_const_txs_writers() {
+    const THROWS: [ContractTypeView<'static>; 1] =
+        [ContractTypeView::Named("DemoError")];
+    const FRAGMENT: SpecInterfaceFragmentView<'static> =
+        SpecInterfaceFragmentView {
+            package_name: "demo",
+            interface_name: "Named",
+            interface_version: "0.1.0",
+            throws: &THROWS,
+        };
+    const RAW: [u8; FRAGMENT.const_txs_size()] = {
+        let mut w = txs::ConstWriter::<{ FRAGMENT.const_txs_size() }>::new();
+        FRAGMENT.const_write_txs(&mut w);
+        w.into_bytes()
+    };
+
+    let runtime = txs::encode(&FRAGMENT).unwrap();
+    assert_eq!(&RAW, runtime.as_slice());
 }
 
 #[test]
