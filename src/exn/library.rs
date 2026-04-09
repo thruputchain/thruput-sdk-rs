@@ -44,7 +44,7 @@ pub enum LibraryExn {
     NonNegativeIntOverflow,
 
     #[cfg(feature = "storage")]
-    #[cfg_attr(feature = "debugging", error("Storage error"))]
+    #[cfg_attr(feature = "debugging", error("Storage error: {0}"))]
     Storage(StorageError),
 }
 

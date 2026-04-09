@@ -27,7 +27,7 @@ impl RawException {
     pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, ReadError> {
         let mut reader = cxs::buf_reader::BufReader::new(bytes);
         let selector: u64 = ReadXDR::read_xdr(&mut reader)?;
-        let payload_bytes = &bytes[reader.position()..];
+        let payload_bytes = reader.remaining_slice();
         Ok(Self::new(selector, payload_bytes))
     }
 

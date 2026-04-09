@@ -1,4 +1,3 @@
-// src/storage/slot.rs
 use super::node::StorageType;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};

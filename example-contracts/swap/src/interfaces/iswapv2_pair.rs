@@ -53,8 +53,6 @@ pub trait ISwapV2Pair {
     fn get_reserves(&self) -> (U112, U112, u32);
     fn get_liquidity(&self) -> Amount;
 
-    // These names need to not collide with ERC20::{mint, burn} because
-    // the swap contract will implement that interface also
     fn mint_lp(&mut self, to: &Address) -> u128;
     fn burn_lp(&mut self, to: &Address) -> (Amount, Amount);
 

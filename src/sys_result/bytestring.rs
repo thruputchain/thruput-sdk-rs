@@ -111,16 +111,16 @@ mod bytestring_get_alloc {
     pub fn bytestring_get(key: &StorageKey) -> Result<Box<[u8]>> {
         let len = bytestring_get_len(key)?;
 
-        let mut vec = Box::<[u8]>::new_uninit_slice(len as usize);
+        let mut array = Box::<[u8]>::new_uninit_slice(len as usize);
         let mut written_len = MaybeUninit::uninit();
-        sys::uninit_BytestringGet(key, &mut vec, &mut written_len)?;
+        sys::uninit_BytestringGet(key, &mut array, &mut written_len)?;
 
         debug_assert!(
             unsafe { written_len.assume_init() } == len,
             "Inconsistent bytestring size",
         );
 
-        Ok(unsafe { vec.assume_init() })
+        Ok(unsafe { array.assume_init() })
     }
 
     /// Like `bytestring_get`, but returns `None` (instead of an error) when no value is stored at

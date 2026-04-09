@@ -177,6 +177,10 @@ name = "storage"
 required-features = ["storage"]
 
 [[test]]
+name = "rcq_storage"
+required-features = ["storage"]
+
+[[test]]
 name = "compile_fail_storage"
 required-features = ["storage"]
 

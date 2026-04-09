@@ -2,96 +2,69 @@
 #![allow(clippy::new_without_default)]
 #![allow(dead_code)]
 
+mod request;
+pub use request::*;
+
+use sdk::storage::*;
+use sdk::*;
+
 sdk::declare_mock_contract!();
 
-use sdk::sys_result::rcq::{
-    retrocausal_queue_consume_sized, retrocausal_queue_insert,
-};
-use sdk::*;
-use sys::SyscallErrorCode;
-
-static REQUEST_QUEUE: StorageKey = static_key!("queue key");
-
-pub type RequestID = u32;
-
-#[derive(ReadXDR, WriteXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
-pub struct SwapRequest {
-    pub id: RequestID,
-    /* info about tokens to swap, amount, etc. */
+/// State for the `Swap` contract.
+#[storage]
+pub struct Swap {
+    requests: RCQ<SwapRequest>,
+    reserves: Value<Reserves>,
 }
 
-contract_local! {
-    static LAST_REQUEST_ID: ContractCell<RequestID> = ContractCell::new(0);
+/// A part of the `Swap` contract's state that must be updated
+/// non-commutatively after processing a swap request.
+#[derive(Default, ReadXDR, WriteXDR)]
+pub struct Reserves {
+    balance0: u32,
+    balance1: u32,
 }
 
-impl SwapRequest {
-    pub fn new() -> Self {
-        let id = LAST_REQUEST_ID.get() + 1;
-        LAST_REQUEST_ID.set(id);
+pub const MAX_BATCH_SIZE: u32 = 3;
 
-        Self { id }
+#[contract]
+impl Swap {
+    /// Submit a swap request.  Many requests may be submitted per block.
+    pub fn submit_request(&mut self, r: SwapRequest) {
+        self.requests.insert(&r);
     }
 
-    pub fn last_id() -> RequestID {
-        LAST_REQUEST_ID.get()
-    }
-}
+    /// Process some (or all) accumulated requests.
+    pub fn process_requests(&mut self) -> (u32, RequestID) {
+        assert!(self.caller_is_administrator());
 
-type EncodedSwapRequest = [u8; 4];
+        let mut n_processed = 0;
+        let mut id_extent = 0;
+        let mut reserves = self.reserves.try_get().unwrap_or_default();
 
-impl From<EncodedSwapRequest> for SwapRequest {
-    fn from(array: EncodedSwapRequest) -> Self {
-        let id: RequestID = u32::from_be_bytes(array);
-        SwapRequest { id }
-    }
-}
-
-impl From<SwapRequest> for EncodedSwapRequest {
-    fn from(s: SwapRequest) -> Self {
-        s.id.to_be_bytes()
-    }
-}
-
-#[derive(Storage)]
-pub struct SwapContract;
-
-#[contract(client = SwapClient)]
-impl SwapContract {
-    pub fn submit_request(&self, r: SwapRequest) {
-        let r: EncodedSwapRequest = r.into();
-
-        retrocausal_queue_insert(&REQUEST_QUEUE, &r).unwrap();
-    }
-
-    pub fn process_requests(&self) -> RequestID {
-        let mut extent = 0;
-
-        while let Some(r) = self.dequeue_request() {
+        while let Some(req) = self.requests.try_consume() {
             // Keep track of the highest request id
-            extent = extent.max(r.id);
+            id_extent = id_extent.max(req.id);
+
+            // Simulate pending update of swap state
+            reserves.balance0 += 1;
+            reserves.balance1 += 1;
+
+            n_processed += 1;
+            if n_processed == MAX_BATCH_SIZE {
+                break;
+            }
         }
 
-        extent
+        // Simulate non-commutative update of swap state after processing the batch
+        self.reserves.set(&reserves);
+
+        (n_processed, id_extent)
     }
 
-    pub fn die() {
-        panic!("Died");
-    }
-}
+    fn caller_is_administrator(&self) -> bool {
+        let _ = get_caller();
 
-impl SwapContract {
-    fn dequeue_request(&self) -> Option<SwapRequest> {
-        // Consume a queue entry
-        retrocausal_queue_consume_sized(&REQUEST_QUEUE)
-            .map(|r| r.into())
-            .inspect_err(|e| {
-                if !e.is_code(
-                    SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
-                ) {
-                    panic!("rcq consume failed: {}", e);
-                }
-            })
-            .ok()
+        true
     }
 }
