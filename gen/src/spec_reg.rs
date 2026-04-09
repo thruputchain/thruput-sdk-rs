@@ -288,7 +288,7 @@ fn typedef_fragment_tokens_for_type(
                 #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
                 const _: () = {
                     const TYPE_DEF: Option<::sdk::__contract_spec::ContractTypeDefView<'static>> =
-                        <#ty as ::sdk::__contract_spec::MaybeContractTypeDefSpec>::TYPE_DEF;
+                        ::sdk::__contract_spec::maybe_type_def::<#ty>();
                     const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
                         &[TYPE_DEF];
                     const RAW_LEN: usize =
@@ -403,9 +403,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains(
-            "u8 as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"
-        ));
+        assert!(!tokens.contains("MaybeContractTypeDefSpec"));
     }
 
     #[test]
@@ -427,9 +425,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains("Ed25519Signature as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
-        assert!(!tokens.contains("Ed25519PublicKey as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
-        assert!(!tokens.contains("ContractEntrypointID as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
+        assert!(!tokens.contains("MaybeContractTypeDefSpec"));
     }
 
     #[test]
@@ -447,6 +443,6 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains("BlockHeight as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
+        assert!(!tokens.contains("MaybeContractTypeDefSpec"));
     }
 }

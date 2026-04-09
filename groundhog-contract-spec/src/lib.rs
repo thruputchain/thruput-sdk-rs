@@ -17,113 +17,92 @@ pub trait ContractTypeSpec {
     const TYPE_DEF: view::ContractTypeDefView<'static>;
 }
 
-pub trait ContractTypeRefSpec {
-    const TYPE_REF: view::ContractTypeView<'static>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ContractTypeInfo<'a> {
+    pub ty: view::ContractTypeView<'a>,
+    pub type_def: Option<view::ContractTypeDefView<'a>>,
 }
 
-pub trait MaybeContractTypeDefSpec {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>>;
+pub trait ContractTypeRefSpec {
+    const INFO: ContractTypeInfo<'static>;
 }
 
 impl ContractTypeRefSpec for () {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::Void;
-}
-
-impl MaybeContractTypeDefSpec for () {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Void,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for bool {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::Bool;
-}
-
-impl MaybeContractTypeDefSpec for bool {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Bool,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for u32 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::U32;
-}
-
-impl MaybeContractTypeDefSpec for u32 {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U32,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for i32 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::I32;
-}
-
-impl MaybeContractTypeDefSpec for i32 {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::I32,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for u64 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::U64;
-}
-
-impl MaybeContractTypeDefSpec for u64 {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U64,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for i64 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::I64;
-}
-
-impl MaybeContractTypeDefSpec for i64 {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::I64,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for u128 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::U128;
-}
-
-impl MaybeContractTypeDefSpec for u128 {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U128,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for i128 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::I128;
-}
-
-impl MaybeContractTypeDefSpec for i128 {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::I128,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for str {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::String;
-}
-
-impl MaybeContractTypeDefSpec for str {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::String,
+        type_def: None,
+    };
 }
 
 impl ContractTypeRefSpec for [u8] {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::Bytes;
-}
-
-impl MaybeContractTypeDefSpec for [u8] {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Bytes,
+        type_def: None,
+    };
 }
 
 #[cfg(feature = "alloc")]
 impl ContractTypeRefSpec for String {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::String;
-}
-
-#[cfg(feature = "alloc")]
-impl MaybeContractTypeDefSpec for String {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::String,
+        type_def: None,
+    };
 }
 
 #[cfg(feature = "alloc")]
@@ -131,40 +110,30 @@ impl<T> ContractTypeRefSpec for Vec<T>
 where
     T: ContractTypeRefSpec,
 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::Vec(&T::TYPE_REF);
-}
-
-#[cfg(feature = "alloc")]
-impl<T> MaybeContractTypeDefSpec for Vec<T> {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Vec(&type_ref::<T>()),
+        type_def: None,
+    };
 }
 
 impl<T> ContractTypeRefSpec for Option<T>
 where
     T: ContractTypeRefSpec,
 {
-    const TYPE_REF: view::ContractTypeView<'static> =
-        view::ContractTypeView::Option(&T::TYPE_REF);
-}
-
-impl<T> MaybeContractTypeDefSpec for Option<T> {
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Option(&type_ref::<T>()),
+        type_def: None,
+    };
 }
 
 impl<T> ContractTypeRefSpec for T
 where
     T: ContractTypeSpec,
 {
-    const TYPE_REF: view::ContractTypeView<'static> = T::TYPE_DEF.type_ref();
-}
-
-impl<T> MaybeContractTypeDefSpec for T
-where
-    T: ContractTypeSpec,
-{
-    const TYPE_DEF: Option<view::ContractTypeDefView<'static>> =
-        Some(T::TYPE_DEF);
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: T::TYPE_DEF.type_ref(),
+        type_def: Some(T::TYPE_DEF),
+    };
 }
 
 macro_rules! impl_tuple_type_ref_spec {
@@ -174,12 +143,10 @@ macro_rules! impl_tuple_type_ref_spec {
             where
                 $($name: ContractTypeRefSpec),+
             {
-                const TYPE_REF: view::ContractTypeView<'static> =
-                    view::ContractTypeView::Tuple(&[$($name::TYPE_REF),+]);
-            }
-
-            impl<$($name),+> MaybeContractTypeDefSpec for ($($name,)+) {
-                const TYPE_DEF: Option<view::ContractTypeDefView<'static>> = None;
+                const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+                    ty: view::ContractTypeView::Tuple(&[$(type_ref::<$name>()),+]),
+                    type_def: None,
+                };
             }
         )+
     };
@@ -202,7 +169,12 @@ pub const fn symbol<T: ContractTypeSpec>() -> &'static str {
 
 pub const fn type_ref<T: ContractTypeRefSpec>()
 -> view::ContractTypeView<'static> {
-    T::TYPE_REF
+    T::INFO.ty
+}
+
+pub const fn maybe_type_def<T: ContractTypeRefSpec>()
+-> Option<view::ContractTypeDefView<'static>> {
+    T::INFO.type_def
 }
 
 pub const fn const_txs_typedef_fragment_stream_len(

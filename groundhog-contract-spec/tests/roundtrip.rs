@@ -377,6 +377,10 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
         groundhog_contract_spec::type_ref::<Payload>(),
         Payload::TYPE_DEF.type_ref()
     );
+    assert_eq!(
+        groundhog_contract_spec::maybe_type_def::<Payload>(),
+        Some(Payload::TYPE_DEF)
+    );
 }
 
 #[test]
@@ -399,5 +403,15 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
             ContractTypeView::U32,
             ContractTypeView::Bool,
         ])
+    );
+    assert_eq!(groundhog_contract_spec::maybe_type_def::<u32>(), None);
+    assert_eq!(
+        groundhog_contract_spec::maybe_type_def::<Option<u32>>(),
+        None
+    );
+    assert_eq!(groundhog_contract_spec::maybe_type_def::<Vec<u32>>(), None);
+    assert_eq!(
+        groundhog_contract_spec::maybe_type_def::<(u32, bool)>(),
+        None
     );
 }

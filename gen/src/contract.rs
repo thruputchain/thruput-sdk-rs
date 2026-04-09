@@ -395,7 +395,7 @@ pub fn throws_typedef_tokens(
             let path = thrown.ty();
             let ty: syn::Type = syn::parse_quote! { #path };
             Ok(quote! {
-                <#ty as ::sdk::__contract_spec::MaybeContractTypeDefSpec>::TYPE_DEF
+                ::sdk::__contract_spec::maybe_type_def::<#ty>()
             })
         })
         .collect()
@@ -531,7 +531,7 @@ pub fn contract_type_view_tokens(
                 });
             }
             Ok(quote! {
-                <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::TYPE_REF
+                ::sdk::__contract_spec::type_ref::<#ty>()
             })
         }
         syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
@@ -582,7 +582,7 @@ mod tests {
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
-        assert!(tokens.contains("ContractTypeRefSpec"));
+        assert!(tokens.contains("type_ref"));
         assert!(!tokens.contains("ContractTypeView :: Named"));
     }
 
@@ -606,7 +606,7 @@ mod tests {
             let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
             assert!(tokens.contains("ContractTypeView :: Bytes"));
-            assert!(!tokens.contains("ContractTypeRefSpec"));
+            assert!(!tokens.contains("type_ref"));
         }
     }
 
@@ -617,6 +617,6 @@ mod tests {
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
         assert!(tokens.contains("ContractTypeView :: I64"));
-        assert!(!tokens.contains("ContractTypeRefSpec"));
+        assert!(!tokens.contains("type_ref"));
     }
 }
