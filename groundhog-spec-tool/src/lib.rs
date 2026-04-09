@@ -241,7 +241,26 @@ fn validate_interface_key(
             "interface fragments must include name and version".to_string(),
         ));
     }
+    if !is_semver_triplet(interface_version) {
+        return Err(SpecToolError::InvalidRawFragment(format!(
+            "interface version must be MAJOR.MINOR.PATCH, got {interface_version}"
+        )));
+    }
     Ok(())
+}
+
+fn is_semver_triplet(version: &str) -> bool {
+    let mut parts = version.split('.');
+    matches!(
+        (parts.next(), parts.next(), parts.next(), parts.next()),
+        (Some(major), Some(minor), Some(patch), None)
+            if !major.is_empty()
+                && !minor.is_empty()
+                && !patch.is_empty()
+                && major.chars().all(|ch| ch.is_ascii_digit())
+                && minor.chars().all(|ch| ch.is_ascii_digit())
+                && patch.chars().all(|ch| ch.is_ascii_digit())
+    )
 }
 
 fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {

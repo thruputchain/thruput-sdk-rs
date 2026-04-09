@@ -14,6 +14,7 @@ use xdrs::txs;
 fn assert_xdr_tag<T: xdrs::WriteXDR>(value: &T, expected: i32) {
     let encoded = encode(value).unwrap();
     assert!(!encoded.is_empty());
+    // cxs encodes these small discriminants as a single leading tag byte.
     assert_eq!(encoded[0], expected as u8);
 }
 

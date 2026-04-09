@@ -476,3 +476,24 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
 
     assert_eq!(parse_raw_fragments(&bytes).unwrap(), fragments);
 }
+
+#[test]
+fn canonicalize_spec_rejects_non_semver_interface_versions() {
+    let err = canonicalize_spec(
+        "demo",
+        &[SpecFragment::Interface(SpecInterfaceFragment {
+            package_name: "demo".into(),
+            interface_name: "Named".into(),
+            interface_version: "v1".into(),
+            throws: vec![],
+        })],
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        err,
+        SpecToolError::InvalidRawFragment(
+            "interface version must be MAJOR.MINOR.PATCH, got v1".into()
+        )
+    );
+}
