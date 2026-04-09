@@ -63,6 +63,10 @@ impl<T> RCQ<T> {
     }
 
     /// Try to consume a fixed-size queue entry.
+    ///
+    /// If an entry is present but does not have the expected size, an
+    /// exception is thrown.
+    ///
     pub fn try_consume_sized<const N: usize>(&mut self) -> Option<[u8; N]> {
         retrocausal_queue_try_consume_sized(self.key())
     }
@@ -83,6 +87,10 @@ impl<T> RCQ<T> {
     }
 
     /// Try to retrieve a fixed-size queue entry without consuming it.
+    ///
+    /// If an entry is present but does not have the expected size, an
+    /// exception is thrown.
+    ///
     pub fn try_peek_sized<const N: usize>(&self) -> Option<[u8; N]> {
         retrocausal_queue_try_peek_sized(self.key())
     }
