@@ -231,11 +231,20 @@ fn typedef_fragment_tokens_for_type(
     ty: &syn::Type,
 ) -> Result<Vec<TokenStream>> {
     match ty {
-        syn::Type::Reference(reference) => {
-            typedef_fragment_tokens_for_type(reference.elem.as_ref())
-        }
+        syn::Type::Reference(reference) => match reference.elem.as_ref() {
+            syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
+                Ok(vec![])
+            }
+            inner => typedef_fragment_tokens_for_type(inner),
+        },
         syn::Type::Paren(paren) => {
             typedef_fragment_tokens_for_type(paren.elem.as_ref())
+        }
+        syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
+            Ok(vec![])
+        }
+        syn::Type::Array(array) if is_u8_type(array.elem.as_ref()) => {
+            Ok(vec![])
         }
         syn::Type::Tuple(tuple) => tuple
             .elems
@@ -247,9 +256,15 @@ fn typedef_fragment_tokens_for_type(
             if path_last_segment_ident(&type_path.path) == "Option"
                 || path_last_segment_ident(&type_path.path) == "Vec"
             {
-                return first_generic_type_arg(type_path)
-                    .map(typedef_fragment_tokens_for_type)
-                    .unwrap_or_else(|| Ok(vec![]));
+                let Some(inner) = first_generic_type_arg(type_path) else {
+                    return Ok(vec![]);
+                };
+                if path_last_segment_ident(&type_path.path) == "Vec"
+                    && is_u8_type(inner)
+                {
+                    return Ok(vec![]);
+                }
+                return typedef_fragment_tokens_for_type(inner);
             }
             if path_last_segment_ident(&type_path.path) == "ContractAddress"
                 || path_last_segment_ident(&type_path.path) == "SHA256Hash"
@@ -282,6 +297,14 @@ fn typedef_fragment_tokens_for_type(
 fn path_last_segment_ident(path: &syn::Path) -> &syn::Ident {
     let seg = path.segments.last().unwrap();
     &seg.ident
+}
+
+fn is_u8_type(ty: &syn::Type) -> bool {
+    matches!(
+        ty,
+        syn::Type::Path(type_path)
+            if path_last_segment_ident(&type_path.path) == "u8"
+    )
 }
 
 fn first_generic_type_arg(type_path: &syn::TypePath) -> Option<&syn::Type> {
@@ -351,5 +374,23 @@ mod tests {
         assert!(tokens.contains("ERC20"));
         assert!(tokens.contains("0.1.0"));
         assert!(tokens.contains("transfer"));
+    }
+
+    #[test]
+    fn byte_slices_and_vecs_do_not_emit_u8_typedef_fragments() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                fn echo(data: &[u8]) -> Vec<u8> { data.into() }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(!tokens.contains("u8 as :: sdk :: __contract_spec :: MaybeContractTypeDefSpec"));
     }
 }
