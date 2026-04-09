@@ -1,15 +1,7 @@
-#![allow(unused_imports)]
-
 use super::keypath::{KeyCache, Keypath};
-use super::nnint::NNInt;
-use super::node::StorageType;
-use super::slot::{SlotMut, SlotRef};
 use super::{throw_load_exn, throw_store_exn};
 use crate::StorageKey;
-use crate::exn::*;
 use crate::sys_exn::rcq::*;
-use crate::throw;
-use crate::xdr::cxs::{decode, encode};
 use crate::xdr::*;
 use core::fmt::Debug;
 use core::marker::PhantomData;
