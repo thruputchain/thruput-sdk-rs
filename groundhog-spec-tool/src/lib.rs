@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 
-pub mod model;
 pub mod raw;
 pub mod rewrite;
 
-pub use model::{
+pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
     ContractSpecInterface, ContractSpecMethod, ContractStructDef,
     ContractType, ContractTypeDef, ContractUnionCase, ContractUnionDef,
@@ -162,74 +161,60 @@ pub fn canonicalize_spec(
     })
 }
 
-pub fn render_spec_json<T>(value: &T) -> String
-where
-    T: RenderSpecJson + ?Sized,
-{
-    value.render_spec_json()
-}
+pub fn render_spec_json(spec: &ContractSpec) -> String {
+    let mut json = String::from("{\"format\":\"");
+    json.push_str(FINAL_FORMAT_TAG);
+    json.push_str("\",\"interfaces\":[");
 
-pub trait RenderSpecJson {
-    fn render_spec_json(&self) -> String;
-}
-
-impl RenderSpecJson for ContractSpec {
-    fn render_spec_json(&self) -> String {
-        let mut json = String::from("{\"format\":\"");
-        json.push_str(FINAL_FORMAT_TAG);
-        json.push_str("\",\"interfaces\":[");
-
-        for (index, interface) in self.interfaces.iter().enumerate() {
-            if index > 0 {
+    for (index, interface) in spec.interfaces.iter().enumerate() {
+        if index > 0 {
+            json.push(',');
+        }
+        json.push_str("{\"name\":\"");
+        push_json_string(&mut json, &interface.name);
+        json.push_str("\",\"version\":\"");
+        push_json_string(&mut json, &interface.version);
+        json.push_str("\",\"throws\":[");
+        for (throws_index, ty) in interface.throws.iter().enumerate() {
+            if throws_index > 0 {
+                json.push(',');
+            }
+            push_type_json(&mut json, ty);
+        }
+        json.push_str("],\"methods\":[");
+        for (method_index, method) in interface.methods.iter().enumerate() {
+            if method_index > 0 {
                 json.push(',');
             }
             json.push_str("{\"name\":\"");
-            push_json_string(&mut json, &interface.name);
-            json.push_str("\",\"version\":\"");
-            push_json_string(&mut json, &interface.version);
-            json.push_str("\",\"throws\":[");
-            for (throws_index, ty) in interface.throws.iter().enumerate() {
-                if throws_index > 0 {
-                    json.push(',');
-                }
-                push_type_json(&mut json, ty);
-            }
-            json.push_str("],\"methods\":[");
-            for (method_index, method) in interface.methods.iter().enumerate()
-            {
-                if method_index > 0 {
+            push_json_string(&mut json, &method.name);
+            json.push_str("\",\"args\":[");
+            for (arg_index, arg) in method.args.iter().enumerate() {
+                if arg_index > 0 {
                     json.push(',');
                 }
                 json.push_str("{\"name\":\"");
-                push_json_string(&mut json, &method.name);
-                json.push_str("\",\"args\":[");
-                for (arg_index, arg) in method.args.iter().enumerate() {
-                    if arg_index > 0 {
-                        json.push(',');
-                    }
-                    json.push_str("{\"name\":\"");
-                    push_json_string(&mut json, &arg.name);
-                    json.push_str("\",\"ty\":");
-                    push_type_json(&mut json, &arg.ty);
-                    json.push('}');
-                }
-                json.push_str("],\"return_type\":");
-                push_type_json(&mut json, &method.return_type);
+                push_json_string(&mut json, &arg.name);
+                json.push_str("\",\"ty\":");
+                push_type_json(&mut json, &arg.ty);
                 json.push('}');
             }
-            json.push_str("]}");
-        }
-
-        json.push_str("],\"type_defs\":[");
-        for (index, type_def) in self.type_defs.iter().enumerate() {
-            if index > 0 {
-                json.push(',');
-            }
-            push_type_def_json(&mut json, type_def);
+            json.push_str("],\"return_type\":");
+            push_type_json(&mut json, &method.return_type);
+            json.push('}');
         }
         json.push_str("]}");
-        json
     }
+
+    json.push_str("],\"type_defs\":[");
+    for (index, type_def) in spec.type_defs.iter().enumerate() {
+        if index > 0 {
+            json.push(',');
+        }
+        push_type_def_json(&mut json, type_def);
+    }
+    json.push_str("]}");
+    json
 }
 
 fn validate_interface_key(

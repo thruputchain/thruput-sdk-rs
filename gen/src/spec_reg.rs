@@ -14,6 +14,7 @@ pub fn generate_impl_raw_spec_fragments(
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), item);
     let self_ty = &item.self_ty;
+    let methods = contract.methods_sorted().into_iter().collect::<Vec<_>>();
 
     let (iface_name, iface_vers, iface_throws) = if let Some((
         _,
@@ -45,7 +46,7 @@ pub fn generate_impl_raw_spec_fragments(
     );
     let trait_throw_typedef_fragments =
         item.trait_.as_ref().map(|(_, trait_path, _)| {
-            generate_typedef_fragment_stream_tokens(quote! {
+            emit_raw_typedef_fragment_stream_tokens(quote! {
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_TYPE_DEFS
             })
         });
@@ -54,20 +55,19 @@ pub fn generate_impl_raw_spec_fragments(
         .into_iter()
         .map(|thrown| typedef_fragment_tokens_for_type_path(thrown.ty()))
         .collect::<Result<Vec<_>>>()?;
-    let method_fragments = contract
-        .methods_sorted()
-        .into_iter()
+    let method_fragments = methods
+        .iter()
         .map(|method| {
             generate_method_fragment_tokens(
                 quote! { env!("CARGO_PKG_NAME") },
                 iface_name.clone(),
                 iface_vers.clone(),
-                &method,
+                method,
             )
         })
         .collect::<Result<Vec<_>>>()?;
-    for method in contract.methods_sorted() {
-        typedef_fragments.extend(typedef_fragment_tokens_for_method(&method)?);
+    for method in &methods {
+        typedef_fragments.extend(typedef_fragment_tokens_for_method(method)?);
     }
 
     Ok(quote! {
@@ -119,28 +119,16 @@ fn generate_interface_fragment_tokens(
     interface_version: TokenStream,
     throws: TokenStream,
 ) -> TokenStream {
-    quote! {
-        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
-        const _: () = {
-            const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
-                ::sdk::__contract_spec::SpecFragmentView::Interface(
-                    ::sdk::__contract_spec::SpecInterfaceFragmentView {
-                    package_name: #package_name,
-                    interface_name: #interface_name,
-                    interface_version: #interface_version,
-                    throws: #throws,
-                });
-            const RAW_LEN: usize = FRAGMENT.const_txs_size();
-            const RAW_FRAGMENT: [u8; RAW_LEN] = {
-                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
-                FRAGMENT.const_write_txs(&mut w);
-                w.into_bytes()
-            };
-
-            #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-            pub static RAW_INTERFACE_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
-        };
-    }
+    emit_raw_fragment_tokens(quote! {
+        ::sdk::__contract_spec::SpecFragmentView::Interface(
+            ::sdk::__contract_spec::SpecInterfaceFragmentView {
+                package_name: #package_name,
+                interface_name: #interface_name,
+                interface_version: #interface_version,
+                throws: #throws,
+            }
+        )
+    })
 }
 
 fn generate_method_fragment_tokens(
@@ -153,23 +141,40 @@ fn generate_method_fragment_tokens(
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
 
-    Ok(quote! {
-        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+    Ok(emit_raw_fragment_tokens(quote! {{
+        const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
+            &[#(#args),*];
+        ::sdk::__contract_spec::SpecFragmentView::Method(
+            ::sdk::__contract_spec::SpecMethodFragmentView {
+                package_name: #package_name,
+                interface_name: #interface_name,
+                interface_version: #interface_version,
+                method: ::sdk::__contract_spec::ContractSpecMethodView {
+                    name: #method_name,
+                    args: METHOD_ARGS,
+                    return_type: #return_type,
+                },
+            }
+        )
+    }}))
+}
+
+pub fn emit_raw_fragment_tokens(fragment: TokenStream) -> TokenStream {
+    emit_raw_fragment_tokens_with_cfg(
+        quote! { all(target_family = "wasm", feature = "entrypoints") },
+        fragment,
+    )
+}
+
+pub fn emit_raw_fragment_tokens_with_cfg(
+    cfg_guard: TokenStream,
+    fragment: TokenStream,
+) -> TokenStream {
+    quote! {
+        #[cfg(#cfg_guard)]
         const _: () = {
-            const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
-                &[#(#args),*];
             const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
-                ::sdk::__contract_spec::SpecFragmentView::Method(
-                    ::sdk::__contract_spec::SpecMethodFragmentView {
-                    package_name: #package_name,
-                    interface_name: #interface_name,
-                    interface_version: #interface_version,
-                    method: ::sdk::__contract_spec::ContractSpecMethodView {
-                        name: #method_name,
-                        args: METHOD_ARGS,
-                        return_type: #return_type,
-                    },
-                });
+                #fragment;
             const RAW_LEN: usize = FRAGMENT.const_txs_size();
             const RAW_FRAGMENT: [u8; RAW_LEN] = {
                 let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
@@ -178,12 +183,12 @@ fn generate_method_fragment_tokens(
             };
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-            pub static RAW_METHOD_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
+            pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
-    })
+    }
 }
 
-fn generate_typedef_fragment_stream_tokens(
+pub fn emit_raw_typedef_fragment_stream_tokens(
     type_defs: TokenStream,
 ) -> TokenStream {
     quote! {
@@ -197,7 +202,7 @@ fn generate_typedef_fragment_stream_tokens(
                 ::sdk::__contract_spec::const_txs_typedef_fragment_stream_bytes::<RAW_LEN>(TYPE_DEFS);
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-            pub static RAW_TYPE_DEF_SPEC_STREAM: [u8; RAW_LEN] = RAW_FRAGMENT;
+            pub static RAW_TYPE_DEF_FRAGMENT_STREAM: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
     }
 }
@@ -241,22 +246,9 @@ fn typedef_fragment_tokens_for_type(
         type_defs
             .into_iter()
             .map(|type_def| {
-                quote! {
-                #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
-                const _: () = {
-                    const TYPE_DEF: Option<::sdk::__contract_spec::ContractTypeDefView<'static>> =
-                        #type_def;
-                    const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
-                        &[TYPE_DEF];
-                    const RAW_LEN: usize =
-                        ::sdk::__contract_spec::const_txs_typedef_fragment_stream_len(TYPE_DEFS);
-                    const RAW_FRAGMENT: [u8; RAW_LEN] =
-                        ::sdk::__contract_spec::const_txs_typedef_fragment_stream_bytes::<RAW_LEN>(TYPE_DEFS);
-
-                    #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-                    pub static RAW_TYPE_DEF_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
-                };
-                }
+                emit_raw_typedef_fragment_stream_tokens(
+                    quote! { &[#type_def] },
+                )
             })
             .collect()
     })
