@@ -410,8 +410,35 @@ pub fn alloc_requirement_assertions(
         assertions.push(alloc_requirement_assertion_tokens(&ty)?);
     }
 
+    if contract.trait_path().is_some() && contract.self_ty().is_some() {
+        if let Some(client_error_ty) =
+            trait_client_error_type(contract.trait_path().as_ref().unwrap())
+        {
+            assertions.push(
+                alloc_requirement_assertion_tokens(&client_error_ty)?,
+            );
+        }
+    }
+
     Ok(quote! {
         #(#assertions)*
+    })
+}
+
+pub fn client_error_alloc_spec_tokens(
+    client_ident: &syn::Ident,
+    throws_list: &[ThrownType],
+) -> Result<TokenStream> {
+    let error_ident = format_ident!("{}Error", client_ident);
+    let requires_alloc = throws_list.iter().map(|thrown| {
+        let path = thrown.ty();
+        quote! { || ::sdk::__contract_spec::requires_alloc::<#path>() }
+    });
+
+    Ok(quote! {
+        impl ::sdk::__contract_spec::ContractAllocSpec for #error_ident {
+            const REQUIRES_ALLOC: bool = false #(#requires_alloc)*;
+        }
     })
 }
 
@@ -419,14 +446,17 @@ pub fn alloc_requirement_assertion_tokens(
     ty: &syn::Type,
 ) -> Result<TokenStream> {
     let ty_string = quote!(#ty).to_string();
+    let query_ty = alloc_requirement_query_type(ty);
     let message = format!(
         "`{}` requires `sdk = {{ ..., features = [\"alloc\"] }}` because it uses owned ABI allocation",
         ty_string
-    );
+    )
+    .replace('{', "{{")
+    .replace('}', "}}");
 
     Ok(quote! {
         const _: () = {
-            if ::sdk::__contract_spec::requires_alloc::<#ty>()
+            if ::sdk::__contract_spec::requires_alloc::<#query_ty>()
                 && !::sdk::internal::SDK_ALLOC_ENABLED
             {
                 panic!(#message);
@@ -565,12 +595,57 @@ fn is_u8_type(ty: &syn::Type) -> bool {
     )
 }
 
+fn alloc_requirement_query_type(ty: &syn::Type) -> &syn::Type {
+    match ty {
+        syn::Type::Reference(reference) => {
+            alloc_requirement_query_type(&reference.elem)
+        }
+        syn::Type::Paren(paren) => alloc_requirement_query_type(&paren.elem),
+        _ => ty,
+    }
+}
+
+fn trait_client_error_type(trait_path: &syn::Path) -> Option<syn::Type> {
+    let trait_ident = path_last_segment_ident(trait_path);
+    let client_error_ident = format_ident!("{}ClientError", trait_ident);
+    let prefix = trait_path_prefix(trait_path);
+    let path = if let Some(prefix) = prefix {
+        let mut path = prefix;
+        path.segments.push(syn::PathSegment {
+            ident: client_error_ident,
+            arguments: syn::PathArguments::None,
+        });
+        path
+    } else {
+        syn::parse_quote! { crate::#client_error_ident }
+    };
+
+    Some(syn::Type::Path(syn::TypePath { qself: None, path }))
+}
+
+fn trait_path_prefix(path: &syn::Path) -> Option<syn::Path> {
+    if path.segments.len() <= 1 {
+        return None;
+    }
+
+    let mut segments = syn::punctuated::Punctuated::new();
+    for segment in path.segments.iter().take(path.segments.len() - 1) {
+        segments.push(segment.clone());
+    }
+
+    Some(syn::Path {
+        leading_colon: path.leading_colon,
+        segments,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
     use super::{
         alloc_requirement_assertion_tokens, alloc_requirement_assertions,
-        contract_type_typedef_tokens, contract_type_view_tokens,
+        client_error_alloc_spec_tokens, contract_type_typedef_tokens,
+        contract_type_view_tokens,
         ConfiguredContract,
     };
     use darling::FromMeta;
@@ -679,6 +754,19 @@ mod tests {
     }
 
     #[test]
+    fn alloc_required_references_are_normalized_before_querying() {
+        let ty: syn::Type = syn::parse_quote!(&Blob);
+
+        let tokens = alloc_requirement_assertion_tokens(&ty)
+            .unwrap()
+            .to_string();
+
+        assert!(tokens.contains("requires_alloc :: < Blob > ()"), "{tokens}");
+        assert!(!tokens.contains("requires_alloc :: < & Blob > ()"), "{tokens}");
+        assert!(tokens.contains("Blob"), "{tokens}");
+    }
+
+    #[test]
     fn free_function_throws_are_included_in_alloc_assertions() {
         let item: syn::ItemFn = syn::parse_quote! {
             fn relay(blob: Blob) -> Blob {
@@ -702,6 +790,61 @@ mod tests {
             "{tokens}"
         );
         assert!(tokens.contains("SDK_ALLOC_ENABLED"), "{tokens}");
+    }
+
+    #[test]
+    fn trait_impl_alloc_assertions_cover_client_error_proxy() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl imported_error_callee::ImportedErrorCallee for Relay {
+                fn throw_imported_error() {}
+            }
+        };
+        let contract = ConfiguredContract::new(
+            Config::from_list(&[]).unwrap(),
+            &item,
+        );
+
+        let tokens = alloc_requirement_assertions(&contract)
+            .unwrap()
+            .to_string();
+
+        assert!(
+            tokens.contains(
+                "requires_alloc :: < imported_error_callee :: ImportedErrorCalleeClientError > ()"
+            ),
+            "{tokens}"
+        );
+        assert!(tokens.contains("SDK_ALLOC_ENABLED"), "{tokens}");
+    }
+
+    #[test]
+    fn client_error_alloc_spec_tokens_cover_all_declared_throws() {
+        let meta_list = NestedMeta::parse_meta_list(
+            quote! { throws(BlobError, StringError) }.into(),
+        )
+        .unwrap();
+        let config = Config::from_list(&meta_list).unwrap();
+        let client_ident = syn::parse_quote!(ImportedErrorCalleeClient);
+
+        let tokens = client_error_alloc_spec_tokens(
+            &client_ident,
+            &config.throws_list(),
+        )
+            .unwrap()
+            .to_string();
+
+        assert!(
+            tokens.contains("impl :: sdk :: __contract_spec :: ContractAllocSpec for ImportedErrorCalleeClientError"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("requires_alloc :: < BlobError > ()"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("requires_alloc :: < StringError > ()"),
+            "{tokens}"
+        );
     }
 
     #[test]
