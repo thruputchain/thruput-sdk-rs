@@ -169,11 +169,13 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Fn(item) => {
+            let contract =
+                codegen::ConfiguredContract::new(config.clone(), item);
             codegen::contract::validate_reserved_client_method_names(
-                core::iter::once(item.clone()),
+                contract.methods_sorted(),
             )?;
             let alloc_requirement_assertions =
-                codegen::contract::alloc_requirement_assertions(item)?;
+                codegen::contract::alloc_requirement_assertions(&contract)?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();

@@ -567,10 +567,15 @@ fn is_u8_type(ty: &syn::Type) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::Config;
     use super::{
-        alloc_requirement_assertion_tokens, contract_type_typedef_tokens,
-        contract_type_view_tokens,
+        alloc_requirement_assertion_tokens, alloc_requirement_assertions,
+        contract_type_typedef_tokens, contract_type_view_tokens,
+        ConfiguredContract,
     };
+    use darling::FromMeta;
+    use darling::ast::NestedMeta;
+    use quote::quote;
 
     #[test]
     fn alias_paths_use_trait_resolution_for_spec_types() {
@@ -671,6 +676,32 @@ mod tests {
         assert!(tokens.contains("SDK_ALLOC_ENABLED"), "{tokens}");
         assert!(tokens.contains("features = [\\\"alloc\\\"]"), "{tokens}");
         assert!(tokens.contains("Blob"), "{tokens}");
+    }
+
+    #[test]
+    fn free_function_throws_are_included_in_alloc_assertions() {
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn relay(blob: Blob) -> Blob {
+                blob
+            }
+        };
+        let meta_list = NestedMeta::parse_meta_list(
+            quote! { throws(BlobError) }.into(),
+        )
+        .unwrap();
+        let config = Config::from_list(&meta_list).unwrap();
+        let contract = ConfiguredContract::new(config, &item);
+
+        let tokens = alloc_requirement_assertions(&contract)
+            .unwrap()
+            .to_string();
+
+        assert!(tokens.contains("requires_alloc :: < Blob > ()"), "{tokens}");
+        assert!(
+            tokens.contains("requires_alloc :: < BlobError > ()"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("SDK_ALLOC_ENABLED"), "{tokens}");
     }
 
     #[test]
