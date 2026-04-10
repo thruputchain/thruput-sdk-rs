@@ -2,6 +2,7 @@ use super::derive_exn::ExnArgs;
 use groundhog_codegen as codegen;
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::convert::TryFrom;
 use syn::Item;
 
 /// Expand `#[contract_error]` or `#[contract_error(version = "...")]`
@@ -408,7 +409,18 @@ fn parse_i32_expr(expr: &syn::Expr) -> syn::Result<i32> {
             op: syn::UnOp::Neg(_),
             expr,
             ..
-        }) => parse_i32_expr(expr).map(|value| -value),
+        }) => match expr.as_ref() {
+            syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Int(value),
+                ..
+            }) => {
+                let value = value.base10_parse::<i64>()?;
+                i32::try_from(-value).map_err(|err| {
+                    syn::Error::new_spanned(expr, err)
+                })
+            }
+            _ => parse_i32_expr(expr).map(|value| -value),
+        },
         _ => Err(syn::Error::new_spanned(
             expr,
             "#[contract_error] discriminants must be integer literals for contract specs",
@@ -424,4 +436,16 @@ fn compute_selector(args: &ExnArgs, type_name: &str) -> u64 {
     let crate_name = std::env::var("CARGO_PKG_NAME")
         .unwrap_or_else(|_| "_unknown_".to_string());
     groundhog_contract_util::error_selector(&version, &crate_name, type_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_i32_expr;
+
+    #[test]
+    fn parse_i32_expr_accepts_i32_min_literal() {
+        let expr: syn::Expr = syn::parse_quote!(-2147483648);
+
+        assert_eq!(parse_i32_expr(&expr).unwrap(), i32::MIN);
+    }
 }
