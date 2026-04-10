@@ -131,6 +131,12 @@ pub fn canonicalize_spec(
         return Err(SpecToolError::NoSpecFragments);
     }
 
+    for (symbol, defs) in &type_defs {
+        if defs.len() > 1 {
+            return Err(SpecToolError::ConflictingTypeDef(symbol.clone()));
+        }
+    }
+
     let interfaces = interfaces
         .into_iter()
         .map(|((name, version), mut bucket)| {

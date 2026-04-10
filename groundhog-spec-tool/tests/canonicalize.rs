@@ -354,8 +354,8 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
 }
 
 #[test]
-fn canonicalize_spec_ignores_unreachable_conflicting_type_defs() {
-    let spec = canonicalize_spec(
+fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
+    let err = canonicalize_spec(
         "demo",
         &[
             SpecFragment::Interface(SpecInterfaceFragment {
@@ -389,9 +389,11 @@ fn canonicalize_spec_ignores_unreachable_conflicting_type_defs() {
             )),
         ],
     )
-    .unwrap();
+    .unwrap_err();
 
-    assert!(spec.type_defs.is_empty());
+    assert!(
+        matches!(err, SpecToolError::ConflictingTypeDef(name) if name == "NeverUsed")
+    );
 }
 
 #[test]
