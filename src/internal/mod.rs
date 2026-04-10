@@ -15,6 +15,9 @@ pub use mu_buf::*;
 pub use serialize::*;
 pub use track::*;
 
+#[doc(hidden)]
+pub const SDK_ALLOC_ENABLED: bool = cfg!(feature = "alloc");
+
 /// Constant-time string equality check for use in `const` assertions.
 pub const fn const_str_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());

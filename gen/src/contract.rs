@@ -9,7 +9,7 @@ use crate::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use proc_macro2::{Span, TokenStream};
-use quote::{ToTokens, format_ident, quote};
+use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 use syn::*;
 
@@ -385,6 +385,56 @@ pub fn throws_spec_tokens(
         .collect()
 }
 
+pub fn alloc_requirement_assertions(
+    contract: &impl ContractSrc,
+) -> Result<TokenStream> {
+    let mut assertions = Vec::new();
+
+    for method in contract.methods_sorted() {
+        for arg in method.sig().inputs.iter() {
+            if let syn::FnArg::Typed(pat_type) = arg {
+                assertions.push(
+                    alloc_requirement_assertion_tokens(pat_type.ty.as_ref())?,
+                );
+            }
+        }
+
+        if let syn::ReturnType::Type(_, ty) = &method.sig().output {
+            assertions.push(alloc_requirement_assertion_tokens(ty.as_ref())?);
+        }
+    }
+
+    for thrown in contract.throws_list() {
+        let path = thrown.ty();
+        let ty: syn::Type = syn::parse_quote! { #path };
+        assertions.push(alloc_requirement_assertion_tokens(&ty)?);
+    }
+
+    Ok(quote! {
+        #(#assertions)*
+    })
+}
+
+pub fn alloc_requirement_assertion_tokens(
+    ty: &syn::Type,
+) -> Result<TokenStream> {
+    let ty_string = quote!(#ty).to_string();
+    let message = format!(
+        "`{}` requires `sdk = {{ ..., features = [\"alloc\"] }}` because it uses owned ABI allocation",
+        ty_string
+    );
+
+    Ok(quote! {
+        const _: () = {
+            if ::sdk::__contract_spec::requires_alloc::<#ty>()
+                && !::sdk::internal::SDK_ALLOC_ENABLED
+            {
+                panic!(#message);
+            }
+        };
+    })
+}
+
 pub fn throws_typedef_tokens(
     contract: &impl ContractSrc,
 ) -> Result<Vec<TokenStream>> {
@@ -456,56 +506,14 @@ pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
         syn::Type::Reference(reference) => {
             lower_contract_type(&reference.elem)
         }
-        syn::Type::Path(type_path) => {
-            if path_last_segment_ident(&type_path.path) == "Option" {
-                let inner =
-                    first_generic_type_arg(type_path).ok_or_else(|| {
-                        error(type_path, "Option requires one type argument")
-                    })?;
-                let lowered = lower_contract_type(inner)?;
-                let inner_view = lowered.view;
-                let inner_type_defs = lowered.type_defs;
-                return Ok(LoweredContractType {
-                    view: quote! {
-                        ::sdk::__contract_spec::ContractTypeView::Option(
-                            &#inner_view
-                        )
-                    },
-                    type_defs: inner_type_defs,
-                });
-            }
-            if path_last_segment_ident(&type_path.path) == "Vec" {
-                let inner =
-                    first_generic_type_arg(type_path).ok_or_else(|| {
-                        error(type_path, "Vec requires one type argument")
-                    })?;
-                if is_u8_type(inner) {
-                    return Ok(LoweredContractType {
-                        view: quote! { ::sdk::__contract_spec::ContractTypeView::Bytes },
-                        type_defs: quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
-                    });
-                }
-                let lowered = lower_contract_type(inner)?;
-                let inner_view = lowered.view;
-                let inner_type_defs = lowered.type_defs;
-                return Ok(LoweredContractType {
-                    view: quote! {
-                        ::sdk::__contract_spec::ContractTypeView::Vec(
-                            &#inner_view
-                        )
-                    },
-                    type_defs: inner_type_defs,
-                });
-            }
-            Ok(LoweredContractType {
-                view: quote! {
-                    ::sdk::__contract_spec::type_ref::<#ty>()
-                },
-                type_defs: quote! {
-                    ::sdk::__contract_spec::type_defs::<#ty>()
-                },
-            })
-        }
+        syn::Type::Path(_) => Ok(LoweredContractType {
+            view: quote! {
+                ::sdk::__contract_spec::type_ref::<#ty>()
+            },
+            type_defs: quote! {
+                ::sdk::__contract_spec::type_defs::<#ty>()
+            },
+        }),
         syn::Type::Paren(paren) => lower_contract_type(&paren.elem),
         syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
             Ok(LoweredContractType {
@@ -517,44 +525,25 @@ pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
                 },
             })
         }
-        syn::Type::Array(array) if is_u8_type(array.elem.as_ref()) => {
-            Ok(LoweredContractType {
-                view: quote! {
-                    ::sdk::__contract_spec::type_ref::<#ty>()
-                },
-                type_defs: quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
-            })
-        }
-        syn::Type::Tuple(tuple) => {
-            let lowered = tuple
-                .elems
-                .iter()
-                .map(lower_contract_type)
-                .collect::<Result<Vec<_>>>()?;
-            let views = lowered.iter().map(|ty| &ty.view);
-            let type_defs = lowered.iter().map(|ty| &ty.type_defs);
-            Ok(LoweredContractType {
-                view: quote! {
-                    ::sdk::__contract_spec::ContractTypeView::Tuple(
-                        &[#(#views),*]
-                    )
-                },
-                type_defs: quote! {
-                    ::sdk::__contract_spec::ContractTypeDefsView::Many(
-                        &[#(#type_defs),*]
-                    )
-                },
-            })
-        }
-        _ => {
-            let symbol = canonical_named_type_symbol(ty);
-            Ok(LoweredContractType {
-                view: quote! {
-                    ::sdk::__contract_spec::ContractTypeView::Named(#symbol)
-                },
-                type_defs: quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
-            })
-        }
+        syn::Type::Array(_) | syn::Type::Tuple(_) => Ok(LoweredContractType {
+            view: quote! {
+                ::sdk::__contract_spec::type_ref::<#ty>()
+            },
+            type_defs: quote! {
+                ::sdk::__contract_spec::type_defs::<#ty>()
+            },
+        }),
+        syn::Type::ImplTrait(_)
+        | syn::Type::TraitObject(_)
+        | syn::Type::BareFn(_)
+        | syn::Type::Ptr(_) => Err(error(
+            ty,
+            "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
+        )),
+        _ => Err(error(
+            ty,
+            "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
+        )),
     }
 }
 
@@ -568,18 +557,6 @@ pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
     Ok(lower_contract_type(ty)?.type_defs)
 }
 
-fn first_generic_type_arg(type_path: &syn::TypePath) -> Option<&syn::Type> {
-    let segment = type_path.path.segments.last()?;
-    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments
-    else {
-        return None;
-    };
-    arguments.args.iter().find_map(|arg| match arg {
-        syn::GenericArgument::Type(ty) => Some(ty),
-        _ => None,
-    })
-}
-
 fn is_u8_type(ty: &syn::Type) -> bool {
     matches!(
         ty,
@@ -588,17 +565,12 @@ fn is_u8_type(ty: &syn::Type) -> bool {
     )
 }
 
-fn canonical_named_type_symbol(ty: &syn::Type) -> String {
-    ty.to_token_stream()
-        .to_string()
-        .chars()
-        .filter(|ch| !ch.is_whitespace())
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{contract_type_typedef_tokens, contract_type_view_tokens};
+    use super::{
+        alloc_requirement_assertion_tokens, contract_type_typedef_tokens,
+        contract_type_view_tokens,
+    };
 
     #[test]
     fn alias_paths_use_trait_resolution_for_spec_types() {
@@ -621,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn fixed_u8_arrays_lower_to_bytes() {
+    fn fixed_u8_arrays_lower_via_trait_resolution() {
         let ty: syn::Type = syn::parse_quote!([u8; 32]);
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
@@ -638,14 +610,9 @@ mod tests {
         let typedef_tokens =
             contract_type_typedef_tokens(&ty).unwrap().to_string();
 
-        assert!(view_tokens.contains("ContractTypeView :: Option"));
+        assert!(view_tokens.contains("type_ref :: < Option < & [u8] > >"));
         assert!(
-            view_tokens.contains("type_ref :: < [u8] >"),
-            "{view_tokens}"
-        );
-        assert!(!view_tokens.contains("type_ref :: < Option < & [u8] > >"));
-        assert!(
-            typedef_tokens.contains("ContractTypeDefsView :: Empty"),
+            typedef_tokens.contains("type_defs :: < Option < & [u8] > >"),
             "{typedef_tokens}"
         );
     }
@@ -658,12 +625,11 @@ mod tests {
         let typedef_tokens =
             contract_type_typedef_tokens(&ty).unwrap().to_string();
 
-        assert!(view_tokens.contains("ContractTypeView :: Option"));
-        assert!(view_tokens.contains("ContractTypeView :: Bytes"));
+        assert!(view_tokens.contains("type_ref :: < Option < Vec < u8 > > >"));
+        assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
         assert!(
-            !view_tokens.contains("type_ref :: < Option < Vec < u8 > > >")
+            typedef_tokens.contains("type_defs :: < Option < Vec < u8 > > >")
         );
-        assert!(typedef_tokens.contains("ContractTypeDefsView :: Empty"));
     }
 
     #[test]
@@ -674,15 +640,37 @@ mod tests {
         let typedef_tokens =
             contract_type_typedef_tokens(&ty).unwrap().to_string();
 
-        assert!(view_tokens.contains("ContractTypeView :: Tuple"));
-        assert!(view_tokens.contains("ContractTypeView :: Bytes"));
-        assert!(view_tokens.contains("type_ref :: < bool >"));
+        assert!(view_tokens.contains("type_ref :: < (Vec < u8 > , bool) >"));
         assert!(
-            !view_tokens.contains("type_ref :: < ( Vec < u8 > , bool ) >")
+            typedef_tokens.contains("type_defs :: < (Vec < u8 > , bool) >")
         );
-        assert!(typedef_tokens.contains("ContractTypeDefsView :: Many"));
-        assert!(typedef_tokens.contains("ContractTypeDefsView :: Empty"));
-        assert!(typedef_tokens.contains("type_defs :: < bool >"));
+    }
+
+    #[test]
+    fn alias_of_u8_collections_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(Blob);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < Blob >"));
+        assert!(typedef_tokens.contains("type_defs :: < Blob >"));
+        assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
+    }
+
+    #[test]
+    fn alloc_required_aliases_emit_direct_assertions() {
+        let ty: syn::Type = syn::parse_quote!(Blob);
+
+        let tokens = alloc_requirement_assertion_tokens(&ty)
+            .unwrap()
+            .to_string();
+
+        assert!(tokens.contains("requires_alloc :: < Blob > ()"), "{tokens}");
+        assert!(tokens.contains("SDK_ALLOC_ENABLED"), "{tokens}");
+        assert!(tokens.contains("features = [\\\"alloc\\\"]"), "{tokens}");
+        assert!(tokens.contains("Blob"), "{tokens}");
     }
 
     #[test]
@@ -717,5 +705,22 @@ mod tests {
 
         assert!(tokens.contains("type_ref"));
         assert!(!tokens.contains("ContractTypeView :: Address"));
+    }
+
+    #[test]
+    fn unsupported_type_shapes_are_rejected() {
+        for ty in [
+            syn::parse_quote!(impl core::fmt::Debug),
+            syn::parse_quote!(&dyn core::fmt::Debug),
+            syn::parse_quote!(fn(u32) -> u32),
+            syn::parse_quote!(*const u8),
+        ] {
+            let err = contract_type_view_tokens(&ty).unwrap_err();
+            assert!(
+                err.to_string().contains("unsupported contract spec type"),
+                "{}",
+                err
+            );
+        }
     }
 }
