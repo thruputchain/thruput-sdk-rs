@@ -32,6 +32,10 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
     };
+    let alloc_marker_impl = match enum_alloc_enabled_impl_tokens(&item) {
+        Ok(tokens) => tokens,
+        Err(err) => return err.into_compile_error(),
+    };
     let raw_typedef = emit_raw_typedef_fragment(ident);
 
     quote! {
@@ -49,7 +53,7 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
             const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
 
-        impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
+        #alloc_marker_impl
 
         #raw_typedef
     }
@@ -63,6 +67,10 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
         Err(err) => return err.into_compile_error(),
     };
     let type_defs = match struct_type_defs_tokens(&item) {
+        Ok(tokens) => tokens,
+        Err(err) => return err.into_compile_error(),
+    };
+    let alloc_marker_impl = match struct_alloc_enabled_impl_tokens(&item) {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
     };
@@ -82,7 +90,7 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
             const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
 
-        impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
+        #alloc_marker_impl
 
         #raw_typedef
     }
@@ -107,6 +115,12 @@ fn struct_type_defs_tokens(
     })
 }
 
+fn struct_alloc_enabled_impl_tokens(
+    item: &syn::ItemStruct,
+) -> syn::Result<TokenStream> {
+    alloc_enabled_impl_tokens(&item.ident, field_types(&item.fields)?)
+}
+
 fn enum_type_defs_tokens(item: &syn::ItemEnum) -> syn::Result<TokenStream> {
     let nested = item
         .variants
@@ -119,6 +133,34 @@ fn enum_type_defs_tokens(item: &syn::ItemEnum) -> syn::Result<TokenStream> {
             ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
             #(#nested),*
         ])
+    })
+}
+
+fn enum_alloc_enabled_impl_tokens(
+    item: &syn::ItemEnum,
+) -> syn::Result<TokenStream> {
+    let mut tys = Vec::new();
+    for variant in &item.variants {
+        tys.extend(enum_variant_field_types(variant)?);
+    }
+    alloc_enabled_impl_tokens(&item.ident, tys)
+}
+
+fn alloc_enabled_impl_tokens(
+    ident: &syn::Ident,
+    tys: Vec<&syn::Type>,
+) -> syn::Result<TokenStream> {
+    if tys.is_empty() {
+        return Ok(quote! {
+            impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
+        });
+    }
+
+    Ok(quote! {
+        impl ::sdk::internal::ContractAbiAllocEnabled for #ident
+        where
+            #(#tys: ::sdk::internal::ContractAbiAllocEnabled),*
+        {}
     })
 }
 
@@ -144,6 +186,18 @@ fn fields_type_defs_tokens(
     }
 }
 
+fn field_types(fields: &syn::Fields) -> syn::Result<Vec<&syn::Type>> {
+    match fields {
+        syn::Fields::Named(named) => {
+            Ok(named.named.iter().map(|field| &field.ty).collect())
+        }
+        syn::Fields::Unnamed(unnamed) => {
+            Ok(unnamed.unnamed.iter().map(|field| &field.ty).collect())
+        }
+        syn::Fields::Unit => Ok(vec![]),
+    }
+}
+
 fn enum_variant_type_defs_tokens(
     variant: &syn::Variant,
 ) -> syn::Result<TokenStream> {
@@ -160,6 +214,24 @@ fn enum_variant_type_defs_tokens(
             codegen::contract::contract_type_typedef_tokens(
                 &fields.named.first().unwrap().ty,
             )
+        }
+        _ => Err(syn::Error::new_spanned(
+            variant,
+            "#[contract_error] variants with multiple payload fields are not yet supported in contract specs",
+        )),
+    }
+}
+
+fn enum_variant_field_types(
+    variant: &syn::Variant,
+) -> syn::Result<Vec<&syn::Type>> {
+    match &variant.fields {
+        syn::Fields::Unit => Ok(vec![]),
+        syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+            Ok(vec![&fields.unnamed.first().unwrap().ty])
+        }
+        syn::Fields::Named(fields) if fields.named.len() == 1 => {
+            Ok(vec![&fields.named.first().unwrap().ty])
         }
         _ => Err(syn::Error::new_spanned(
             variant,

@@ -18,6 +18,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloc-required-contract-error"
+version = "0.9.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "alloc-required-vec-alias"
 version = "0.9.0"
 dependencies = [

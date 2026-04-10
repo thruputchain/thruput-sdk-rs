@@ -221,6 +221,23 @@ check_alloc_requirement_diagnostics() {
         fail "Expected ContractAbiAllocEnabled diagnostic in wasm build output"
         return 1
     }
+
+    if output="$(
+        env -u RUSTC_WRAPPER cargo build \
+            --manifest-path tests/alloc-required-contract-error/Cargo.toml \
+            --target wasm32-unknown-unknown \
+            --release \
+            --features entrypoints 2>&1
+    )"; then
+        fail "Expected alloc-required-contract-error wasm build to fail"
+        return 1
+    fi
+
+    printf '%s\n' "$output" | rg -F --quiet \
+        "ContractAbiAllocEnabled" || {
+        fail "Expected ContractAbiAllocEnabled diagnostic for nested contract_error payloads"
+        return 1
+    }
 }
 
 itc_build() {
