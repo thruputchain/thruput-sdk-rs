@@ -541,42 +541,6 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
 }
 
 #[test]
-fn alloc_requirement_flags_cover_aliases_and_composites() {
-    type Byte = u8;
-    type Blob = Vec<Byte>;
-    type Text = String;
-    type Hash = [Byte; 32];
-    type BlobPair = (Blob, Hash);
-
-    struct NamedBlob;
-
-    impl ContractTypeSpec for NamedBlob {
-        const TYPE_DEF: ContractTypeDefView<'static> =
-            ContractTypeDefView::Struct(ContractStructDefView {
-                name: "NamedBlob",
-                fields: &[ContractFieldView {
-                    name: "payload",
-                    ty: ContractTypeView::Vec(&ContractTypeView::U8),
-                }],
-            });
-        const REQUIRES_ALLOC: bool = true;
-    }
-
-    assert!(!groundhog_contract_spec::requires_alloc::<u8>());
-    assert!(!groundhog_contract_spec::requires_alloc::<[u8; 32]>());
-    assert!(!groundhog_contract_spec::requires_alloc::<str>());
-    assert!(!groundhog_contract_spec::requires_alloc::<&str>());
-    assert!(!groundhog_contract_spec::requires_alloc::<&[u8]>());
-    assert!(!groundhog_contract_spec::requires_alloc::<Hash>());
-    assert!(groundhog_contract_spec::requires_alloc::<Vec<u8>>());
-    assert!(groundhog_contract_spec::requires_alloc::<String>());
-    assert!(groundhog_contract_spec::requires_alloc::<Blob>());
-    assert!(groundhog_contract_spec::requires_alloc::<Text>());
-    assert!(groundhog_contract_spec::requires_alloc::<BlobPair>());
-    assert!(groundhog_contract_spec::requires_alloc::<NamedBlob>());
-}
-
-#[test]
 fn alias_byte_collections_resolve_via_trait_layer() {
     type Byte = u8;
     type Blob = Vec<Byte>;

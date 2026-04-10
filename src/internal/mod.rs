@@ -16,7 +16,82 @@ pub use serialize::*;
 pub use track::*;
 
 #[doc(hidden)]
-pub const SDK_ALLOC_ENABLED: bool = cfg!(feature = "alloc");
+pub trait ContractAbiAllocEnabled {}
+
+impl ContractAbiAllocEnabled for () {}
+impl ContractAbiAllocEnabled for bool {}
+impl ContractAbiAllocEnabled for u8 {}
+impl ContractAbiAllocEnabled for u32 {}
+impl ContractAbiAllocEnabled for i32 {}
+impl ContractAbiAllocEnabled for u64 {}
+impl ContractAbiAllocEnabled for i64 {}
+impl ContractAbiAllocEnabled for u128 {}
+impl ContractAbiAllocEnabled for i128 {}
+impl ContractAbiAllocEnabled for str {}
+impl ContractAbiAllocEnabled for [u8] {}
+impl ContractAbiAllocEnabled for crate::types::ContractAddress {}
+impl ContractAbiAllocEnabled for crate::types::SHA256Hash {}
+impl ContractAbiAllocEnabled for crate::types::Ed25519Signature {}
+impl ContractAbiAllocEnabled for crate::types::Ed25519PublicKey {}
+impl ContractAbiAllocEnabled for crate::types::BlockHeight {}
+impl ContractAbiAllocEnabled for crate::types::ContractEntrypointID {}
+
+impl<T> ContractAbiAllocEnabled for &T where T: ContractAbiAllocEnabled {}
+impl<T> ContractAbiAllocEnabled for &mut T where T: ContractAbiAllocEnabled {}
+impl<T> ContractAbiAllocEnabled for core::option::Option<T>
+where
+    T: ContractAbiAllocEnabled,
+{
+}
+
+impl<T> ContractAbiAllocEnabled for T
+where
+    T: crate::__contract_spec::ContractTypeSpec,
+{
+}
+
+impl<T, const N: usize> ContractAbiAllocEnabled for [T; N]
+where
+    T: ContractAbiAllocEnabled,
+{
+}
+
+macro_rules! impl_contract_abi_alloc_enabled_tuple {
+    ($(($($name:ident),+)),+ $(,)?) => {
+        $(
+            impl<$($name),+> ContractAbiAllocEnabled for ($($name,)+)
+            where
+                $($name: ContractAbiAllocEnabled),+
+            {
+            }
+        )+
+    };
+}
+
+impl_contract_abi_alloc_enabled_tuple!(
+    (A),
+    (A, B),
+    (A, B, C),
+    (A, B, C, D),
+    (A, B, C, D, E),
+    (A, B, C, D, E, F),
+    (A, B, C, D, E, F, G),
+    (A, B, C, D, E, F, G, H),
+);
+
+#[cfg(feature = "alloc")]
+impl<T> ContractAbiAllocEnabled for ::alloc::vec::Vec<T>
+where
+    T: ContractAbiAllocEnabled,
+{
+}
+
+#[cfg(feature = "alloc")]
+impl ContractAbiAllocEnabled for ::alloc::string::String {}
+
+#[doc(hidden)]
+#[inline]
+pub const fn assert_contract_abi_alloc_enabled<T: ContractAbiAllocEnabled>() {}
 
 /// Constant-time string equality check for use in `const` assertions.
 pub const fn const_str_eq(a: &str, b: &str) -> bool {

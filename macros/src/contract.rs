@@ -42,8 +42,8 @@ fn apply_with_config(
                 codegen::contract::throws_spec_tokens(&contract)?;
             let throws_typedef_tokens =
                 codegen::contract::throws_typedef_tokens(&contract)?;
-            let client_error_alloc_spec_tokens =
-                codegen::contract::client_error_alloc_spec_tokens(
+            let client_error_marker_impl_tokens =
+                codegen::contract::client_error_marker_impl_tokens(
                     &contract.client_ident().unwrap(),
                     &contract.throws_list(),
                 )?;
@@ -100,7 +100,7 @@ fn apply_with_config(
 
             // Generate client interface
             out.extend(codegen::client::generate(item, config)?);
-            out.extend(client_error_alloc_spec_tokens);
+            out.extend(client_error_marker_impl_tokens);
             out.extend(codegen::exports::generate_entrypoints(item, config)?);
 
             Ok(out)
