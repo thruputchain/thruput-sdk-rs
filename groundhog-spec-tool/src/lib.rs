@@ -58,7 +58,6 @@ struct InterfaceBucket {
 }
 
 pub fn canonicalize_spec(
-    package_name: &str,
     raw: &[SpecFragment],
 ) -> Result<ContractSpec, SpecToolError> {
     if raw.is_empty() {
@@ -70,9 +69,7 @@ pub fn canonicalize_spec(
 
     for fragment in raw {
         match fragment {
-            SpecFragment::Interface(fragment)
-                if fragment.package_name == package_name =>
-            {
+            SpecFragment::Interface(fragment) => {
                 validate_interface_key(
                     &fragment.interface_name,
                     &fragment.interface_version,
@@ -97,9 +94,7 @@ pub fn canonicalize_spec(
                     None => bucket.throws = Some(throws),
                 }
             }
-            SpecFragment::Method(fragment)
-                if fragment.package_name == package_name =>
-            {
+            SpecFragment::Method(fragment) => {
                 validate_interface_key(
                     &fragment.interface_name,
                     &fragment.interface_version,
@@ -123,7 +118,6 @@ pub fn canonicalize_spec(
                     defs.push(type_def.clone());
                 }
             }
-            _ => {}
         }
     }
 

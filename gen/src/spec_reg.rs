@@ -39,7 +39,6 @@ pub fn generate_impl_raw_spec_fragments(
     };
 
     let interface_fragment = generate_interface_fragment_tokens(
-        quote! { env!("CARGO_PKG_NAME") },
         iface_name.clone(),
         iface_vers.clone(),
         iface_throws,
@@ -59,7 +58,6 @@ pub fn generate_impl_raw_spec_fragments(
         .iter()
         .map(|method| {
             generate_method_fragment_tokens(
-                quote! { env!("CARGO_PKG_NAME") },
                 iface_name.clone(),
                 iface_vers.clone(),
                 method,
@@ -88,13 +86,11 @@ pub fn generate_free_function_raw_spec_fragments(
     let throws = throws_spec_tokens(&contract)?;
 
     let interface_fragment = generate_interface_fragment_tokens(
-        quote! { env!("CARGO_PKG_NAME") },
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
     );
     let method_fragment = generate_method_fragment_tokens(
-        quote! { env!("CARGO_PKG_NAME") },
         quote! { #iface_name },
         quote! { #iface_vers },
         item,
@@ -114,7 +110,6 @@ pub fn generate_free_function_raw_spec_fragments(
 }
 
 fn generate_interface_fragment_tokens(
-    package_name: TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
     throws: TokenStream,
@@ -122,7 +117,6 @@ fn generate_interface_fragment_tokens(
     emit_raw_fragment_tokens(quote! {
         ::sdk::__contract_spec::SpecFragmentView::Interface(
             ::sdk::__contract_spec::SpecInterfaceFragmentView {
-                package_name: #package_name,
                 interface_name: #interface_name,
                 interface_version: #interface_version,
                 throws: #throws,
@@ -132,7 +126,6 @@ fn generate_interface_fragment_tokens(
 }
 
 fn generate_method_fragment_tokens(
-    package_name: TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
     method: &impl Method,
@@ -146,7 +139,6 @@ fn generate_method_fragment_tokens(
             &[#(#args),*];
         ::sdk::__contract_spec::SpecFragmentView::Method(
             ::sdk::__contract_spec::SpecMethodFragmentView {
-                package_name: #package_name,
                 interface_name: #interface_name,
                 interface_version: #interface_version,
                 method: ::sdk::__contract_spec::ContractSpecMethodView {

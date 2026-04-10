@@ -120,7 +120,6 @@ pub enum SpecFragmentView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecInterfaceFragmentView<'a> {
-    pub package_name: &'a str,
     pub interface_name: &'a str,
     pub interface_version: &'a str,
     pub throws: &'a [ContractTypeView<'a>],
@@ -128,7 +127,6 @@ pub struct SpecInterfaceFragmentView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecMethodFragmentView<'a> {
-    pub package_name: &'a str,
     pub interface_name: &'a str,
     pub interface_version: &'a str,
     pub method: ContractSpecMethodView<'a>,
@@ -307,7 +305,6 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
 impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
     fn from(value: SpecInterfaceFragmentView<'_>) -> Self {
         Self {
-            package_name: value.package_name.to_owned(),
             interface_name: value.interface_name.to_owned(),
             interface_version: value.interface_version.to_owned(),
             throws: value.throws.iter().copied().map(Into::into).collect(),
@@ -319,7 +316,6 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
 impl From<SpecMethodFragmentView<'_>> for SpecMethodFragment {
     fn from(value: SpecMethodFragmentView<'_>) -> Self {
         Self {
-            package_name: value.package_name.to_owned(),
             interface_name: value.interface_name.to_owned(),
             interface_version: value.interface_version.to_owned(),
             method: value.method.into(),

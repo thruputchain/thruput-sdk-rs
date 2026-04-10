@@ -9,11 +9,8 @@ use crate::{
     raw::{FINAL_SECTION_NAME, RAW_SECTION_NAME, parse_raw_fragments},
 };
 
-pub fn rewrite_wasm(
-    bytes: &[u8],
-    package_name: &str,
-) -> Result<Vec<u8>, SpecToolError> {
-    Ok(rewrite_wasm_with_spec(bytes, package_name)?.wasm)
+pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
+    Ok(rewrite_wasm_with_spec(bytes)?.wasm)
 }
 
 pub struct RewrittenWasm {
@@ -23,13 +20,12 @@ pub struct RewrittenWasm {
 
 pub fn rewrite_wasm_with_spec(
     bytes: &[u8],
-    package_name: &str,
 ) -> Result<RewrittenWasm, SpecToolError> {
     let raw_fragments = collect_raw_fragments(bytes)?;
     let spec = if raw_fragments.is_empty() {
         collect_final_spec(bytes)?
     } else {
-        match canonicalize_spec(package_name, &raw_fragments) {
+        match canonicalize_spec(&raw_fragments) {
             Ok(spec) => Some(spec),
             Err(SpecToolError::NoSpecFragments) => None,
             Err(err) => return Err(err),

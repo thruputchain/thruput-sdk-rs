@@ -10,75 +10,55 @@ use xdrs::txs::encode;
 
 #[test]
 fn canonicalize_spec_groups_methods_and_type_defs() {
-    let spec = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "ping".into(),
-                    args: vec![ContractField {
-                        name: "request".into(),
-                        ty: ContractType::Named("Payload".into()),
-                    }],
-                    return_type: ContractType::Named("Response".into()),
-                },
-            }),
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("DemoError".into())],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "pong".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "other".into(),
-                interface_name: "Ignored".into(),
-                interface_version: "9.9.9".into(),
-                method: ContractSpecMethod {
-                    name: "skip".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
-                name: "DemoError".into(),
-                variants: vec![ContractEnumVariant {
-                    name: "Nope".into(),
-                    value: 7,
+    let spec = canonicalize_spec(&[
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![ContractField {
+                    name: "request".into(),
+                    ty: ContractType::Named("Payload".into()),
                 }],
-            })),
-            SpecFragment::TypeDef(ContractTypeDef::Struct(
-                ContractStructDef {
-                    name: "Payload".into(),
-                    fields: vec![ContractField {
-                        name: "count".into(),
-                        ty: ContractType::U32,
-                    }],
-                },
-            )),
-            SpecFragment::TypeDef(ContractTypeDef::Struct(
-                ContractStructDef {
-                    name: "Response".into(),
-                    fields: vec![ContractField {
-                        name: "ok".into(),
-                        ty: ContractType::Bool,
-                    }],
-                },
-            )),
-        ],
-    )
+                return_type: ContractType::Named("Response".into()),
+            },
+        }),
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("DemoError".into())],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "pong".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+            name: "DemoError".into(),
+            variants: vec![ContractEnumVariant {
+                name: "Nope".into(),
+                value: 7,
+            }],
+        })),
+        SpecFragment::TypeDef(ContractTypeDef::Struct(ContractStructDef {
+            name: "Payload".into(),
+            fields: vec![ContractField {
+                name: "count".into(),
+                ty: ContractType::U32,
+            }],
+        })),
+        SpecFragment::TypeDef(ContractTypeDef::Struct(ContractStructDef {
+            name: "Response".into(),
+            fields: vec![ContractField {
+                name: "ok".into(),
+                ty: ContractType::Bool,
+            }],
+        })),
+    ])
     .unwrap();
 
     assert_eq!(spec.interfaces.len(), 1);
@@ -107,47 +87,40 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
 
 #[test]
 fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
-    let spec = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("DemoError".into())],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "zeta".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("DemoError".into())],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "alpha".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
-                name: "DemoError".into(),
-                variants: vec![],
-            })),
-        ],
-    )
+    let spec = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("DemoError".into())],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "zeta".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("DemoError".into())],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "alpha".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+            name: "DemoError".into(),
+            variants: vec![],
+        })),
+    ])
     .unwrap();
 
     assert_eq!(spec.interfaces.len(), 1);
@@ -172,29 +145,23 @@ fn canonicalize_spec_dedups_identical_methods() {
         return_type: ContractType::Void,
     };
 
-    let spec = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: method.clone(),
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method,
-            }),
-        ],
-    )
+    let spec = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: method.clone(),
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method,
+        }),
+    ])
     .unwrap();
 
     assert_eq!(spec.interfaces.len(), 1);
@@ -219,30 +186,25 @@ fn canonicalize_spec_dedups_identical_type_defs() {
         }],
     });
 
-    let spec = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "ping".into(),
-                    args: vec![],
-                    return_type: ContractType::Named("Response".into()),
-                },
-            }),
-            SpecFragment::TypeDef(payload.clone()),
-            SpecFragment::TypeDef(response),
-            SpecFragment::TypeDef(payload),
-        ],
-    )
+    let spec = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![],
+                return_type: ContractType::Named("Response".into()),
+            },
+        }),
+        SpecFragment::TypeDef(payload.clone()),
+        SpecFragment::TypeDef(response),
+        SpecFragment::TypeDef(payload),
+    ])
     .unwrap();
 
     assert_eq!(
@@ -260,27 +222,22 @@ fn canonicalize_spec_dedups_identical_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_missing_named_type_defs() {
-    let err = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("DemoError".into())],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "ping".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-        ],
-    )
+    let err = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("DemoError".into())],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+    ])
     .unwrap_err();
 
     assert!(
@@ -290,19 +247,15 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_method_only_interface_buckets() {
-    let err = canonicalize_spec(
-        "demo",
-        &[SpecFragment::Method(SpecMethodFragment {
-            package_name: "demo".into(),
-            interface_name: "Named".into(),
-            interface_version: "0.1.0".into(),
-            method: ContractSpecMethod {
-                name: "ping".into(),
-                args: vec![],
-                return_type: ContractType::Void,
-            },
-        })],
-    )
+    let err = canonicalize_spec(&[SpecFragment::Method(SpecMethodFragment {
+        interface_name: "Named".into(),
+        interface_version: "0.1.0".into(),
+        method: ContractSpecMethod {
+            name: "ping".into(),
+            args: vec![],
+            return_type: ContractType::Void,
+        },
+    })])
     .unwrap_err();
 
     assert!(
@@ -312,40 +265,33 @@ fn canonicalize_spec_rejects_method_only_interface_buckets() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_type_defs() {
-    let err = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("DemoError".into())],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "ping".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
-                name: "DemoError".into(),
-                variants: vec![ContractEnumVariant {
-                    name: "Nope".into(),
-                    value: 7,
-                }],
-            })),
-            SpecFragment::TypeDef(ContractTypeDef::Struct(
-                ContractStructDef {
-                    name: "DemoError".into(),
-                    fields: vec![],
-                },
-            )),
-        ],
-    )
+    let err = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("DemoError".into())],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+            name: "DemoError".into(),
+            variants: vec![ContractEnumVariant {
+                name: "Nope".into(),
+                value: 7,
+            }],
+        })),
+        SpecFragment::TypeDef(ContractTypeDef::Struct(ContractStructDef {
+            name: "DemoError".into(),
+            fields: vec![],
+        })),
+    ])
     .unwrap_err();
 
     assert!(
@@ -355,40 +301,33 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
-    let err = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "ping".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
-                name: "NeverUsed".into(),
-                variants: vec![ContractEnumVariant {
-                    name: "Left".into(),
-                    value: 1,
-                }],
-            })),
-            SpecFragment::TypeDef(ContractTypeDef::Struct(
-                ContractStructDef {
-                    name: "NeverUsed".into(),
-                    fields: vec![],
-                },
-            )),
-        ],
-    )
+    let err = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+            name: "NeverUsed".into(),
+            variants: vec![ContractEnumVariant {
+                name: "Left".into(),
+                value: 1,
+            }],
+        })),
+        SpecFragment::TypeDef(ContractTypeDef::Struct(ContractStructDef {
+            name: "NeverUsed".into(),
+            fields: vec![],
+        })),
+    ])
     .unwrap_err();
 
     assert!(
@@ -398,41 +337,35 @@ fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_interface_throws() {
-    let err = canonicalize_spec(
-        "demo",
-        &[
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("DemoError".into())],
-            }),
-            SpecFragment::Interface(SpecInterfaceFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                throws: vec![ContractType::Named("OtherError".into())],
-            }),
-            SpecFragment::Method(SpecMethodFragment {
-                package_name: "demo".into(),
-                interface_name: "Named".into(),
-                interface_version: "0.1.0".into(),
-                method: ContractSpecMethod {
-                    name: "ping".into(),
-                    args: vec![],
-                    return_type: ContractType::Void,
-                },
-            }),
-            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
-                name: "DemoError".into(),
-                variants: vec![],
-            })),
-            SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
-                name: "OtherError".into(),
-                variants: vec![],
-            })),
-        ],
-    )
+    let err = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("DemoError".into())],
+        }),
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![ContractType::Named("OtherError".into())],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "ping".into(),
+                args: vec![],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+            name: "DemoError".into(),
+            variants: vec![],
+        })),
+        SpecFragment::TypeDef(ContractTypeDef::Enum(ContractEnumDef {
+            name: "OtherError".into(),
+            variants: vec![],
+        })),
+    ])
     .unwrap_err();
 
     assert!(
@@ -444,13 +377,11 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
 fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
     let fragments = vec![
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "Named".into(),
             interface_version: "0.1.0".into(),
             throws: vec![ContractType::Named("DemoError".into())],
         }),
         SpecFragment::Method(SpecMethodFragment {
-            package_name: "demo".into(),
             interface_name: "Named".into(),
             interface_version: "0.1.0".into(),
             method: ContractSpecMethod {
@@ -481,16 +412,13 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
 
 #[test]
 fn canonicalize_spec_rejects_non_semver_interface_versions() {
-    let err = canonicalize_spec(
-        "demo",
-        &[SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
+    let err =
+        canonicalize_spec(&[SpecFragment::Interface(SpecInterfaceFragment {
             interface_name: "Named".into(),
             interface_version: "v1".into(),
             throws: vec![],
-        })],
-    )
-    .unwrap_err();
+        })])
+        .unwrap_err();
 
     assert_eq!(
         err,

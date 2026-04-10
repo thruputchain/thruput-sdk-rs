@@ -99,7 +99,6 @@ pub enum SpecFragment {
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
 pub struct SpecInterfaceFragment {
-    pub package_name: String,
     pub interface_name: String,
     pub interface_version: String,
     pub throws: Vec<ContractType>,
@@ -107,7 +106,6 @@ pub struct SpecInterfaceFragment {
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
 pub struct SpecMethodFragment {
-    pub package_name: String,
     pub interface_name: String,
     pub interface_version: String,
     pub method: ContractSpecMethod,

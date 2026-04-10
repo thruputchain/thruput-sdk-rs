@@ -153,13 +153,11 @@ fn borrowed_views_convert_to_owned_model() {
 #[test]
 fn fragment_and_view_conversions_roundtrip() {
     let interface = SpecInterfaceFragmentView {
-        package_name: "demo",
         interface_name: "Named",
         interface_version: "0.1.0",
         throws: &[ContractTypeView::Named("DemoError")],
     };
     let method = SpecMethodFragmentView {
-        package_name: "demo",
         interface_name: "Named",
         interface_version: "0.1.0",
         method: ContractSpecMethodView {
@@ -224,7 +222,6 @@ fn borrowed_fragment_views_have_const_txs_writers() {
         [ContractTypeView::Named("DemoError")];
     const FRAGMENT: SpecInterfaceFragmentView<'static> =
         SpecInterfaceFragmentView {
-            package_name: "demo",
             interface_name: "Named",
             interface_version: "0.1.0",
             throws: &THROWS,
@@ -320,7 +317,6 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
 
     assert_xdr_tag(
         &SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".to_string(),
             interface_name: "Named".to_string(),
             interface_version: "0.1.0".to_string(),
             throws: vec![],
@@ -329,7 +325,6 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     );
     assert_xdr_tag(
         &SpecFragment::Method(SpecMethodFragment {
-            package_name: "demo".to_string(),
             interface_name: "Named".to_string(),
             interface_version: "0.1.0".to_string(),
             method: ContractSpecMethod {

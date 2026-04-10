@@ -85,7 +85,6 @@ finalize_contract_spec() {
         cd "$SDK_DIR" &&
         cargo run --quiet -p groundhog-spec-tool -- \
             rewrite \
-            --package "${package}" \
             --wasm "${optimized}" \
             --json-out "${json_out}"
     )

@@ -67,7 +67,6 @@ fn rewrite_cli_writes_a_json_sidecar() {
     let json_path = tempdir.path().join("rewrite-cli.spec.json");
     let raw =
         encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
@@ -83,8 +82,6 @@ fn rewrite_cli_writes_a_json_sidecar() {
     let status = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
         .args([
             "rewrite",
-            "--package",
-            "demo",
             "--wasm",
             wasm_path.to_str().unwrap(),
             "--json-out",
@@ -114,13 +111,11 @@ fn rewrite_cli_writes_a_json_sidecar() {
 fn rewrite_replaces_raw_section_with_one_final_section() {
     let raw = encode_fragments(&[
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
         }),
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "VersionedCallee".into(),
             interface_version: "1.2.3".into(),
             throws: vec![],
@@ -132,7 +127,7 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
         data: raw.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
     let sections = custom_sections(&rewritten);
 
     assert!(sections.iter().all(|(name, _)| name != RAW_SECTION_NAME));
@@ -161,7 +156,6 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
 fn rewrite_preserves_unrelated_custom_sections() {
     let raw =
         encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
@@ -184,7 +178,7 @@ fn rewrite_preserves_unrelated_custom_sections() {
         data: b"stale\n".as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
     let sections = custom_sections(&rewritten);
 
     assert!(sections.iter().any(|(name, body)| {
@@ -207,13 +201,11 @@ fn rewrite_preserves_unrelated_custom_sections() {
 fn rewrite_rejects_raw_only_data_segment_leaks() {
     let raw_blob = encode_fragments(&[
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
         }),
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "VersionedCallee".into(),
             interface_version: "1.2.3".into(),
             throws: vec![],
@@ -240,7 +232,7 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
         data: raw_blob.as_slice().into(),
     });
 
-    let err = rewrite_wasm(&module.finish(), "demo").unwrap_err();
+    let err = rewrite_wasm(&module.finish()).unwrap_err();
     assert_eq!(err.to_string(), "raw spec bytes leaked into linear memory");
 }
 
@@ -248,7 +240,6 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
 fn rewrite_rejects_partial_data_segment_leaks() {
     let leaked_fragment =
         encode(&SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
@@ -256,13 +247,11 @@ fn rewrite_rejects_partial_data_segment_leaks() {
         .unwrap();
     let raw_blob = encode_fragments(&[
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
         }),
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "VersionedCallee".into(),
             interface_version: "1.2.3".into(),
             throws: vec![],
@@ -289,7 +278,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
         data: raw_blob.as_slice().into(),
     });
 
-    let err = rewrite_wasm(&module.finish(), "demo").unwrap_err();
+    let err = rewrite_wasm(&module.finish()).unwrap_err();
     assert_eq!(err.to_string(), "raw spec bytes leaked into linear memory");
 }
 
@@ -297,7 +286,6 @@ fn rewrite_rejects_partial_data_segment_leaks() {
 fn rewrite_preserves_unrelated_data_segments() {
     let raw_blob =
         encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
@@ -324,7 +312,7 @@ fn rewrite_preserves_unrelated_data_segments() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish(), "demo").unwrap();
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
 
     assert_eq!(data_segments(&rewritten), vec![kept_data]);
     assert_eq!(
@@ -340,7 +328,6 @@ fn rewrite_preserves_unrelated_data_segments() {
 fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
     let raw =
         encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
@@ -351,8 +338,8 @@ fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
         data: raw.as_slice().into(),
     });
 
-    let first = rewrite_wasm(&raw_module.finish(), "demo").unwrap();
-    let second = rewrite_wasm(&first, "demo").unwrap();
+    let first = rewrite_wasm(&raw_module.finish()).unwrap();
+    let second = rewrite_wasm(&first).unwrap();
     assert_eq!(final_spec(&first), final_spec(&second));
 }
 
@@ -360,13 +347,11 @@ fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
 fn rewrite_rejects_mixed_data_segment_leaks() {
     let raw_blob = encode_fragments(&[
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "ExplicitNamedInterface".into(),
             interface_version: "0.3.0".into(),
             throws: vec![],
         }),
         SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "demo".into(),
             interface_name: "VersionedCallee".into(),
             interface_version: "1.2.3".into(),
             throws: vec![],
@@ -401,61 +386,20 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
         data: raw_blob.as_slice().into(),
     });
 
-    let err = rewrite_wasm(&module.finish(), "demo").unwrap_err();
+    let err = rewrite_wasm(&module.finish()).unwrap_err();
     assert_eq!(err.to_string(), "raw spec bytes leaked into linear memory");
 }
 
 #[test]
-fn rewrite_filters_fragments_to_requested_package() {
-    let mixed_raw_blob = encode_fragments(&[
-        SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "helper".into(),
-            interface_name: "LeakedInterface".into(),
-            interface_version: "9.9.9".into(),
-            throws: vec![],
-        }),
-        SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "owner".into(),
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }),
-    ]);
-
-    let mut module = Module::new();
-    module.section(&CustomSection {
-        name: RAW_SECTION_NAME.into(),
-        data: mixed_raw_blob.as_slice().into(),
-    });
-
-    let rewritten = rewrite_wasm(&module.finish(), "owner").unwrap();
-    let sections = custom_sections(&rewritten);
-    let final_section = sections
-        .into_iter()
-        .find(|(name, _)| name == FINAL_SECTION_NAME)
-        .unwrap();
-    let spec: ContractSpec = decode(&final_section.1).unwrap();
-    assert_eq!(
-        spec.interfaces
-            .iter()
-            .map(|interface| (
-                interface.name.as_str(),
-                interface.version.as_str()
-            ))
-            .collect::<Vec<_>>(),
-        vec![("ExplicitNamedInterface", "0.3.0")]
-    );
-}
-
-#[test]
-fn rewrite_omits_final_section_when_requested_package_has_no_fragments() {
-    let raw_blob =
-        encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            package_name: "helper".into(),
-            interface_name: "LeakedInterface".into(),
-            interface_version: "9.9.9".into(),
-            throws: vec![],
-        })]);
+fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
+    let raw_blob = encode_fragments(&[SpecFragment::TypeDef(
+        groundhog_contract_spec::ContractTypeDef::Struct(
+            groundhog_contract_spec::ContractStructDef {
+                name: "HelperType".into(),
+                fields: vec![],
+            },
+        ),
+    )]);
 
     let mut module = Module::new();
     let mut memory = MemorySection::new();
@@ -472,7 +416,7 @@ fn rewrite_omits_final_section_when_requested_package_has_no_fragments() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish(), "owner").unwrap();
+    let rewritten = rewrite_wasm(&module.finish()).unwrap();
 
     assert!(custom_sections(&rewritten).is_empty());
 }
