@@ -412,45 +412,9 @@ pub fn alloc_requirement_assertions(
         }
     }
 
-    if contract.trait_path().is_some() && contract.self_ty().is_some() {
-        if let Some(client_error_ty) =
-            trait_client_error_type(contract.trait_path().as_ref().unwrap())
-        {
-            assertions
-                .push(alloc_requirement_assertion_tokens(&client_error_ty)?);
-        }
-    }
-
     Ok(quote! {
         #(#assertions)*
     })
-}
-
-pub fn client_error_marker_impl_tokens(
-    client_ident: &syn::Ident,
-    throws_list: &[ThrownType],
-) -> Result<TokenStream> {
-    let error_ident = format_ident!("{}Error", client_ident);
-    let where_clauses = throws_list
-        .iter()
-        .map(|thrown| {
-            let ty = thrown.ty();
-            quote! { #ty: ::sdk::internal::ContractAbiAllocEnabled }
-        })
-        .collect::<Vec<_>>();
-    let impl_tokens = if where_clauses.is_empty() {
-        quote! {
-            impl ::sdk::internal::ContractAbiAllocEnabled for #error_ident {}
-        }
-    } else {
-        quote! {
-            impl ::sdk::internal::ContractAbiAllocEnabled for #error_ident
-            where
-                #(#where_clauses,)*
-            {}
-        }
-    };
-    Ok(impl_tokens)
 }
 
 pub fn alloc_requirement_assertion_tokens(
@@ -574,46 +538,12 @@ pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
     Ok(lower_contract_type(ty)?.type_defs)
 }
 
-fn trait_client_error_type(trait_path: &syn::Path) -> Option<syn::Type> {
-    let trait_ident = path_last_segment_ident(trait_path);
-    let client_error_ident = format_ident!("{}ClientError", trait_ident);
-    let prefix = trait_path_prefix(trait_path);
-    let path = if let Some(prefix) = prefix {
-        let mut path = prefix;
-        path.segments.push(syn::PathSegment {
-            ident: client_error_ident,
-            arguments: syn::PathArguments::None,
-        });
-        path
-    } else {
-        syn::parse_quote! { crate::#client_error_ident }
-    };
-
-    Some(syn::Type::Path(syn::TypePath { qself: None, path }))
-}
-
-fn trait_path_prefix(path: &syn::Path) -> Option<syn::Path> {
-    if path.segments.len() <= 1 {
-        return None;
-    }
-
-    let mut segments = syn::punctuated::Punctuated::new();
-    for segment in path.segments.iter().take(path.segments.len() - 1) {
-        segments.push(segment.clone());
-    }
-
-    Some(syn::Path {
-        leading_colon: path.leading_colon,
-        segments,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
         ConfiguredContract, alloc_requirement_assertion_tokens,
-        alloc_requirement_assertions, client_error_marker_impl_tokens,
-        contract_type_typedef_tokens, contract_type_view_tokens,
+        alloc_requirement_assertions, contract_type_typedef_tokens,
+        contract_type_view_tokens,
     };
     use crate::config::Config;
     use darling::FromMeta;
@@ -780,61 +710,6 @@ mod tests {
         assert!(
             tokens.contains(
                 "assert_contract_abi_alloc_enabled :: < BlobError >"
-            ),
-            "{tokens}"
-        );
-    }
-
-    #[test]
-    fn trait_impl_alloc_assertions_cover_client_error_type() {
-        let item: syn::ItemImpl = syn::parse_quote! {
-            impl imported_error_callee::ImportedErrorCallee for Relay {
-                fn throw_imported_error() {}
-            }
-        };
-        let contract =
-            ConfiguredContract::new(Config::from_list(&[]).unwrap(), &item);
-
-        let tokens =
-            alloc_requirement_assertions(&contract).unwrap().to_string();
-
-        assert!(
-            tokens.contains(
-                "assert_contract_abi_alloc_enabled :: < imported_error_callee :: ImportedErrorCalleeClientError >"
-            ),
-            "{tokens}"
-        );
-    }
-
-    #[test]
-    fn client_error_marker_impl_tokens_cover_all_declared_throws() {
-        let meta_list = NestedMeta::parse_meta_list(
-            quote! { throws(BlobError, StringError) }.into(),
-        )
-        .unwrap();
-        let config = Config::from_list(&meta_list).unwrap();
-        let client_ident = syn::parse_quote!(ImportedErrorCalleeClient);
-
-        let tokens = client_error_marker_impl_tokens(
-            &client_ident,
-            &config.throws_list(),
-        )
-        .unwrap()
-        .to_string();
-
-        assert!(
-            tokens.contains("impl :: sdk :: internal :: ContractAbiAllocEnabled for ImportedErrorCalleeClientError"),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains(
-                "BlobError : :: sdk :: internal :: ContractAbiAllocEnabled"
-            ),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains(
-                "StringError : :: sdk :: internal :: ContractAbiAllocEnabled"
             ),
             "{tokens}"
         );
