@@ -191,11 +191,9 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     // OUT_DIR is target/<profile>/build/<pkg>-<hash>/out
     let deps_dir = out_dir
         .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .ok_or("OUT_DIR does not have expected depth (target/<profile>/build/<pkg>-<hash>/out)")?
         .join("deps");
 
     let lib_name = shared_lib_name();
@@ -208,6 +206,11 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
             "cargo:warning=Copied {} to {} for rpath resolution",
             src.display(),
             dst.display()
+        );
+    } else {
+        println!(
+            "cargo:warning=Shared library not found at {} — rpath resolution may fail at runtime",
+            src.display()
         );
     }
 
