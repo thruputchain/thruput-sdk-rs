@@ -75,7 +75,8 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROW_TYPE_DEFS: &'static [Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] = &[#(#throws_typedef_tokens),*];
+                const __GROUNDHOG_IFACE_THROW_TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> =
+                    ::sdk::__contract_spec::ContractTypeDefsView::Many(&[#(#throws_typedef_tokens),*]);
             });
 
             if cfg!(feature = "mock") {

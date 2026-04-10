@@ -3,10 +3,11 @@ use groundhog_contract_spec::{
     ContractEnumVariantView, ContractField, ContractFieldView, ContractSpec,
     ContractSpecInterface, ContractSpecInterfaceView, ContractSpecMethod,
     ContractSpecMethodView, ContractSpecView, ContractStructDefView,
-    ContractType, ContractTypeDef, ContractTypeDefView, ContractTypeSpec,
-    ContractTypeView, ContractUnionCaseView, ContractUnionDefView,
-    SpecFragment, SpecFragmentView, SpecInterfaceFragment,
-    SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
+    ContractType, ContractTypeDef, ContractTypeDefView, ContractTypeDefsView,
+    ContractTypeSpec, ContractTypeView, ContractUnionCaseView,
+    ContractUnionDefView, SpecFragment, SpecFragmentView,
+    SpecInterfaceFragment, SpecInterfaceFragmentView, SpecMethodFragment,
+    SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
 use xdrs::txs;
@@ -217,6 +218,48 @@ fn fragment_and_view_conversions_roundtrip() {
 }
 
 #[test]
+fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
+    let interface = SpecFragmentView::Interface(SpecInterfaceFragmentView {
+        interface_name: "Named",
+        interface_version: "0.3.0",
+        throws: &[ContractTypeView::Named("DemoError")],
+    });
+    let method = SpecFragmentView::Method(SpecMethodFragmentView {
+        interface_name: "Named",
+        interface_version: "0.3.0",
+        method: ContractSpecMethodView {
+            name: "ping",
+            args: &[ContractFieldView {
+                name: "payload",
+                ty: ContractTypeView::Named("Payload"),
+            }],
+            return_type: ContractTypeView::Void,
+        },
+    });
+    let type_def = SpecFragmentView::TypeDef(ContractTypeDefView::Struct(
+        ContractStructDefView {
+            name: "Payload",
+            fields: &[ContractFieldView {
+                name: "count",
+                ty: ContractTypeView::U32,
+            }],
+        },
+    ));
+
+    let encoded = txs::encode(&interface).unwrap();
+    let decoded: SpecFragment = txs::decode(&encoded).unwrap();
+    assert_eq!(decoded, SpecFragment::from(interface));
+
+    let encoded = txs::encode(&method).unwrap();
+    let decoded: SpecFragment = txs::decode(&encoded).unwrap();
+    assert_eq!(decoded, SpecFragment::from(method));
+
+    let encoded = txs::encode(&type_def).unwrap();
+    let decoded: SpecFragment = txs::decode(&encoded).unwrap();
+    assert_eq!(decoded, SpecFragment::from(type_def));
+}
+
+#[test]
 fn borrowed_fragment_views_have_const_txs_writers() {
     const THROWS: [ContractTypeView<'static>; 1] =
         [ContractTypeView::Named("DemoError")];
@@ -237,38 +280,59 @@ fn borrowed_fragment_views_have_const_txs_writers() {
 }
 
 #[test]
-fn typedef_fragment_stream_helpers_match_runtime_xdr() {
-    const TYPE_DEFS: &[Option<ContractTypeDefView<'static>>] = &[
-        Some(ContractTypeDefView::Struct(ContractStructDefView {
-            name: "Payload",
-            fields: &[ContractFieldView {
-                name: "count",
-                ty: ContractTypeView::U32,
-            }],
-        })),
-        None,
-        Some(ContractTypeDefView::Enum(ContractEnumDefView {
-            name: "Choice",
-            variants: &[ContractEnumVariantView {
-                name: "Left",
-                value: 1,
-            }],
-        })),
-    ];
+fn typedef_fragment_closure_helpers_match_runtime_xdr() {
+    const TYPE_DEFS: ContractTypeDefsView<'static> =
+        ContractTypeDefsView::Many(&[
+            ContractTypeDefsView::One(ContractTypeDefView::Struct(
+                ContractStructDefView {
+                    name: "Payload",
+                    fields: &[ContractFieldView {
+                        name: "count",
+                        ty: ContractTypeView::U32,
+                    }],
+                },
+            )),
+            ContractTypeDefsView::Empty,
+            ContractTypeDefsView::Many(&[ContractTypeDefsView::One(
+                ContractTypeDefView::Enum(ContractEnumDefView {
+                    name: "Choice",
+                    variants: &[ContractEnumVariantView {
+                        name: "Left",
+                        value: 1,
+                    }],
+                }),
+            )]),
+        ]);
     const LEN: usize =
-        groundhog_contract_spec::const_txs_typedef_fragment_stream_len(
+        groundhog_contract_spec::const_txs_typedef_fragment_closure_len(
             TYPE_DEFS,
         );
     const RAW: [u8; LEN] =
-        groundhog_contract_spec::const_txs_typedef_fragment_stream_bytes::<LEN>(
+        groundhog_contract_spec::const_txs_typedef_fragment_closure_bytes::<LEN>(
             TYPE_DEFS,
         );
 
     let expected = [
-        txs::encode(&SpecFragmentView::TypeDef(TYPE_DEFS[0].unwrap()))
-            .unwrap(),
-        txs::encode(&SpecFragmentView::TypeDef(TYPE_DEFS[2].unwrap()))
-            .unwrap(),
+        txs::encode(&SpecFragmentView::TypeDef(ContractTypeDefView::Struct(
+            ContractStructDefView {
+                name: "Payload",
+                fields: &[ContractFieldView {
+                    name: "count",
+                    ty: ContractTypeView::U32,
+                }],
+            },
+        )))
+        .unwrap(),
+        txs::encode(&SpecFragmentView::TypeDef(ContractTypeDefView::Enum(
+            ContractEnumDefView {
+                name: "Choice",
+                variants: &[ContractEnumVariantView {
+                    name: "Left",
+                    value: 1,
+                }],
+            },
+        )))
+        .unwrap(),
     ]
     .concat();
 
@@ -373,8 +437,8 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
         Payload::TYPE_DEF.type_ref()
     );
     assert_eq!(
-        groundhog_contract_spec::maybe_type_def::<Payload>(),
-        Some(Payload::TYPE_DEF)
+        groundhog_contract_spec::type_defs::<Payload>(),
+        ContractTypeDefsView::One(Payload::TYPE_DEF)
     );
 }
 
@@ -399,15 +463,24 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
             ContractTypeView::Bool,
         ])
     );
-    assert_eq!(groundhog_contract_spec::maybe_type_def::<u32>(), None);
     assert_eq!(
-        groundhog_contract_spec::maybe_type_def::<Option<u32>>(),
-        None
+        groundhog_contract_spec::type_defs::<u32>(),
+        ContractTypeDefsView::Empty
     );
-    assert_eq!(groundhog_contract_spec::maybe_type_def::<Vec<u32>>(), None);
     assert_eq!(
-        groundhog_contract_spec::maybe_type_def::<(u32, bool)>(),
-        None
+        groundhog_contract_spec::type_defs::<Option<u32>>(),
+        ContractTypeDefsView::Empty
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<Vec<u32>>(),
+        ContractTypeDefsView::Empty
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<(u32, bool)>(),
+        ContractTypeDefsView::Many(&[
+            ContractTypeDefsView::Empty,
+            ContractTypeDefsView::Empty,
+        ])
     );
 }
 
@@ -448,15 +521,61 @@ fn contract_type_ref_helpers_cover_groundhog_xdr_builtins() {
         ContractTypeView::I64
     );
     assert_eq!(
-        groundhog_contract_spec::maybe_type_def::<
+        groundhog_contract_spec::type_defs::<
             groundhog_xdr::types::ContractAddress,
         >(),
-        None
+        ContractTypeDefsView::Empty
     );
     assert_eq!(
-        groundhog_contract_spec::maybe_type_def::<
-            groundhog_xdr::types::BlockHeight,
-        >(),
-        None
+        groundhog_contract_spec::type_defs::<groundhog_xdr::types::BlockHeight>(
+        ),
+        ContractTypeDefsView::Empty
     );
+}
+
+#[test]
+fn alias_composites_forward_nested_typedef_closure() {
+    struct Payload;
+
+    impl ContractTypeSpec for Payload {
+        const TYPE_DEF: ContractTypeDefView<'static> =
+            ContractTypeDefView::Struct(ContractStructDefView {
+                name: "Payload",
+                fields: &[ContractFieldView {
+                    name: "count",
+                    ty: ContractTypeView::U32,
+                }],
+            });
+    }
+
+    type PayloadList = Vec<Payload>;
+    type PayloadPair = (Payload, Option<Payload>);
+
+    const LIST_TYPE_DEFS: ContractTypeDefsView<'static> =
+        groundhog_contract_spec::type_defs::<PayloadList>();
+    const LIST_LEN: usize =
+        groundhog_contract_spec::const_txs_typedef_fragment_closure_len(
+            LIST_TYPE_DEFS,
+        );
+    const LIST_RAW: [u8; LIST_LEN] =
+        groundhog_contract_spec::const_txs_typedef_fragment_closure_bytes::<
+            LIST_LEN,
+        >(LIST_TYPE_DEFS);
+
+    const PAIR_TYPE_DEFS: ContractTypeDefsView<'static> =
+        groundhog_contract_spec::type_defs::<PayloadPair>();
+    const PAIR_LEN: usize =
+        groundhog_contract_spec::const_txs_typedef_fragment_closure_len(
+            PAIR_TYPE_DEFS,
+        );
+    const PAIR_RAW: [u8; PAIR_LEN] =
+        groundhog_contract_spec::const_txs_typedef_fragment_closure_bytes::<
+            PAIR_LEN,
+        >(PAIR_TYPE_DEFS);
+
+    let expected =
+        txs::encode(&SpecFragmentView::TypeDef(Payload::TYPE_DEF)).unwrap();
+
+    assert_eq!(&LIST_RAW, expected.as_slice());
+    assert_eq!(PAIR_RAW.to_vec(), expected.repeat(2));
 }

@@ -183,15 +183,25 @@ pub fn emit_raw_fragment_tokens_with_cfg(
 pub fn emit_raw_typedef_fragment_stream_tokens(
     type_defs: TokenStream,
 ) -> TokenStream {
+    emit_raw_typedef_fragment_stream_tokens_with_cfg(
+        quote! { all(target_family = "wasm", feature = "entrypoints") },
+        type_defs,
+    )
+}
+
+pub fn emit_raw_typedef_fragment_stream_tokens_with_cfg(
+    cfg_guard: TokenStream,
+    type_defs: TokenStream,
+) -> TokenStream {
     quote! {
-        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+        #[cfg(#cfg_guard)]
         const _: () = {
-            const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
+            const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> =
                 #type_defs;
             const RAW_LEN: usize =
-                ::sdk::__contract_spec::const_txs_typedef_fragment_stream_len(TYPE_DEFS);
+                ::sdk::__contract_spec::const_txs_typedef_fragment_closure_len(TYPE_DEFS);
             const RAW_FRAGMENT: [u8; RAW_LEN] =
-                ::sdk::__contract_spec::const_txs_typedef_fragment_stream_bytes::<RAW_LEN>(TYPE_DEFS);
+                ::sdk::__contract_spec::const_txs_typedef_fragment_closure_bytes::<RAW_LEN>(TYPE_DEFS);
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
             pub static RAW_TYPE_DEF_FRAGMENT_STREAM: [u8; RAW_LEN] = RAW_FRAGMENT;
@@ -235,14 +245,7 @@ fn typedef_fragment_tokens_for_type(
     ty: &syn::Type,
 ) -> Result<Vec<TokenStream>> {
     contract_type_typedef_tokens(ty).map(|type_defs| {
-        type_defs
-            .into_iter()
-            .map(|type_def| {
-                emit_raw_typedef_fragment_stream_tokens(
-                    quote! { &[#type_def] },
-                )
-            })
-            .collect()
+        vec![emit_raw_typedef_fragment_stream_tokens(type_defs)]
     })
 }
 
@@ -319,7 +322,46 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains("MaybeContractTypeDefSpec"));
+        assert!(!tokens.contains("maybe_type_def"));
+    }
+
+    #[test]
+    fn byte_composite_shapes_lower_without_trait_specialization() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                pub fn maybe_bytes(data: Option<&[u8]>) -> Option<Vec<u8>> {
+                    data.map(Into::into)
+                }
+
+                pub fn tuple_bytes(data: (Vec<u8>, bool)) -> (Vec<u8>, bool) {
+                    data
+                }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(tokens.contains("ContractTypeView :: Option"), "{tokens}");
+        assert!(tokens.contains("ContractTypeView :: Tuple"), "{tokens}");
+        assert!(tokens.contains("type_ref :: < [u8] >"), "{tokens}");
+        assert!(tokens.contains("ContractTypeView :: Bytes"), "{tokens}");
+        assert!(
+            !tokens.contains("type_ref :: < Option < & [u8] > >"),
+            "{tokens}"
+        );
+        assert!(
+            !tokens.contains("type_ref :: < Option < Vec < u8 > > >"),
+            "{tokens}"
+        );
+        assert!(
+            !tokens.contains("type_ref :: < ( Vec < u8 > , bool ) >"),
+            "{tokens}"
+        );
     }
 
     #[test]
@@ -341,7 +383,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("maybe_type_def"));
+        assert!(tokens.contains("type_defs"));
         assert!(tokens.contains("Ed25519Signature"));
         assert!(tokens.contains("Ed25519PublicKey"));
         assert!(tokens.contains("ContractEntrypointID"));
@@ -362,7 +404,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("maybe_type_def"));
+        assert!(tokens.contains("type_defs"));
         assert!(tokens.contains("BlockHeight"));
     }
 }

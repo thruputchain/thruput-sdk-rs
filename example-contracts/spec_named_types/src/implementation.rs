@@ -27,6 +27,8 @@ pub enum Envelope {
     Wrapped { payload: Payload } = 1,
 }
 
+pub type PayloadPair = (Payload, Option<Payload>);
+
 impl ContractTypeSpec for Payload {
     const TYPE_DEF: ContractTypeDefView<'static> =
         ContractTypeDefView::Struct(ContractStructDefView {
@@ -72,6 +74,11 @@ impl ContractTypeSpec for Envelope {
                 },
             ],
         });
+    const TYPE_DEFS: sdk::__contract_spec::ContractTypeDefsView<'static> =
+        sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
+            sdk::__contract_spec::type_defs::<Payload>(),
+        ]);
 }
 
 #[derive(Default)]
@@ -93,6 +100,10 @@ impl SpecNamedTypesContract {
         } else {
             Envelope::Empty
         }
+    }
+
+    pub fn echo_pair(payloads: PayloadPair) -> PayloadPair {
+        payloads
     }
 }
 

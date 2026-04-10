@@ -28,6 +28,10 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
     };
+    let type_defs = match enum_type_defs_tokens(&item) {
+        Ok(tokens) => tokens,
+        Err(err) => return err.into_compile_error(),
+    };
     let raw_typedef = emit_raw_typedef_fragment(ident);
 
     quote! {
@@ -42,6 +46,7 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
 
         impl ::sdk::__contract_spec::ContractTypeSpec for #ident {
             const TYPE_DEF: ::sdk::__contract_spec::ContractTypeDefView<'static> = #type_def;
+            const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
 
         #raw_typedef
@@ -52,6 +57,10 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
     let ident = &item.ident;
     let selector = compute_selector(&args, &ident.to_string());
     let type_def = match struct_type_def_tokens(&item) {
+        Ok(tokens) => tokens,
+        Err(err) => return err.into_compile_error(),
+    };
+    let type_defs = match struct_type_defs_tokens(&item) {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
     };
@@ -68,6 +77,7 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
 
         impl ::sdk::__contract_spec::ContractTypeSpec for #ident {
             const TYPE_DEF: ::sdk::__contract_spec::ContractTypeDefView<'static> = #type_def;
+            const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
 
         #raw_typedef
@@ -75,14 +85,83 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
 }
 
 fn emit_raw_typedef_fragment(ident: &syn::Ident) -> TokenStream {
-    codegen::spec_reg::emit_raw_fragment_tokens_with_cfg(
+    codegen::spec_reg::emit_raw_typedef_fragment_stream_tokens_with_cfg(
         quote! { target_family = "wasm" },
-        quote! {
-            ::sdk::__contract_spec::SpecFragmentView::TypeDef(
-                <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
-            )
-        },
+        quote! { <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEFS },
     )
+}
+
+fn struct_type_defs_tokens(
+    item: &syn::ItemStruct,
+) -> syn::Result<TokenStream> {
+    let nested = fields_type_defs_tokens(&item.fields)?;
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
+            #(#nested),*
+        ])
+    })
+}
+
+fn enum_type_defs_tokens(item: &syn::ItemEnum) -> syn::Result<TokenStream> {
+    let nested = item
+        .variants
+        .iter()
+        .map(enum_variant_type_defs_tokens)
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
+            #(#nested),*
+        ])
+    })
+}
+
+fn fields_type_defs_tokens(
+    fields: &syn::Fields,
+) -> syn::Result<Vec<TokenStream>> {
+    match fields {
+        syn::Fields::Named(named) => named
+            .named
+            .iter()
+            .map(|field| {
+                codegen::contract::contract_type_typedef_tokens(&field.ty)
+            })
+            .collect(),
+        syn::Fields::Unnamed(unnamed) => unnamed
+            .unnamed
+            .iter()
+            .map(|field| {
+                codegen::contract::contract_type_typedef_tokens(&field.ty)
+            })
+            .collect(),
+        syn::Fields::Unit => Ok(vec![]),
+    }
+}
+
+fn enum_variant_type_defs_tokens(
+    variant: &syn::Variant,
+) -> syn::Result<TokenStream> {
+    match &variant.fields {
+        syn::Fields::Unit => {
+            Ok(quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty })
+        }
+        syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+            codegen::contract::contract_type_typedef_tokens(
+                &fields.unnamed.first().unwrap().ty,
+            )
+        }
+        syn::Fields::Named(fields) if fields.named.len() == 1 => {
+            codegen::contract::contract_type_typedef_tokens(
+                &fields.named.first().unwrap().ty,
+            )
+        }
+        _ => Err(syn::Error::new_spanned(
+            variant,
+            "#[contract_error] variants with multiple payload fields are not yet supported in contract specs",
+        )),
+    }
 }
 
 fn struct_type_def_tokens(item: &syn::ItemStruct) -> syn::Result<TokenStream> {

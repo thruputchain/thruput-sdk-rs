@@ -396,8 +396,7 @@ pub fn throws_typedef_tokens(
             let ty: syn::Type = syn::parse_quote! { #path };
             Ok(lower_contract_type(&ty)?.type_defs)
         })
-        .collect::<Result<Vec<_>>>()
-        .map(|nested| nested.into_iter().flatten().collect())
+        .collect()
 }
 
 fn is_visible(vis: &syn::Visibility) -> bool {
@@ -449,59 +448,13 @@ pub fn method_return_spec_token(
 
 pub struct LoweredContractType {
     pub view: TokenStream,
-    pub type_defs: Vec<TokenStream>,
+    pub type_defs: TokenStream,
 }
 
 pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
     match ty {
-        syn::Type::Reference(reference) => match reference.elem.as_ref() {
-            syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
-                Ok(LoweredContractType {
-                    view: quote! { ::sdk::__contract_spec::ContractTypeView::Bytes },
-                    type_defs: vec![],
-                })
-            }
-            inner => lower_contract_type(inner),
-        },
-        syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
-            Ok(LoweredContractType {
-                view: quote! { ::sdk::__contract_spec::ContractTypeView::Bytes },
-                type_defs: vec![],
-            })
-        }
-        syn::Type::Array(array) if is_u8_type(array.elem.as_ref()) => {
-            Ok(LoweredContractType {
-                view: quote! { ::sdk::__contract_spec::ContractTypeView::Bytes },
-                type_defs: vec![],
-            })
-        }
-        syn::Type::Tuple(tuple) => {
-            if tuple.elems.is_empty() {
-                return Ok(LoweredContractType {
-                    view: quote! { ::sdk::__contract_spec::ContractTypeView::Void },
-                    type_defs: vec![],
-                });
-            }
-            let lowered = tuple
-                .elems
-                .iter()
-                .map(lower_contract_type)
-                .collect::<Result<Vec<_>>>()?;
-            let items = lowered
-                .iter()
-                .map(|item| item.view.clone())
-                .collect::<Vec<_>>();
-            let type_defs = lowered
-                .into_iter()
-                .flat_map(|item| item.type_defs)
-                .collect::<Vec<_>>();
-            Ok(LoweredContractType {
-                view: quote! {{
-                    const ITEMS: &[::sdk::__contract_spec::ContractTypeView<'static>] = &[#(#items),*];
-                    ::sdk::__contract_spec::ContractTypeView::Tuple(ITEMS)
-                }},
-                type_defs,
-            })
+        syn::Type::Reference(reference) => {
+            lower_contract_type(&reference.elem)
         }
         syn::Type::Path(type_path) => {
             if path_last_segment_ident(&type_path.path) == "Option" {
@@ -510,13 +463,15 @@ pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
                         error(type_path, "Option requires one type argument")
                     })?;
                 let lowered = lower_contract_type(inner)?;
-                let view = lowered.view;
+                let inner_view = lowered.view;
+                let inner_type_defs = lowered.type_defs;
                 return Ok(LoweredContractType {
-                    view: quote! {{
-                        const INNER: ::sdk::__contract_spec::ContractTypeView<'static> = #view;
-                        ::sdk::__contract_spec::ContractTypeView::Option(&INNER)
-                    }},
-                    type_defs: lowered.type_defs,
+                    view: quote! {
+                        ::sdk::__contract_spec::ContractTypeView::Option(
+                            &#inner_view
+                        )
+                    },
+                    type_defs: inner_type_defs,
                 });
             }
             if path_last_segment_ident(&type_path.path) == "Vec" {
@@ -527,36 +482,77 @@ pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
                 if is_u8_type(inner) {
                     return Ok(LoweredContractType {
                         view: quote! { ::sdk::__contract_spec::ContractTypeView::Bytes },
-                        type_defs: vec![],
+                        type_defs: quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
                     });
                 }
                 let lowered = lower_contract_type(inner)?;
-                let view = lowered.view;
+                let inner_view = lowered.view;
+                let inner_type_defs = lowered.type_defs;
                 return Ok(LoweredContractType {
-                    view: quote! {{
-                        const INNER: ::sdk::__contract_spec::ContractTypeView<'static> = #view;
-                        ::sdk::__contract_spec::ContractTypeView::Vec(&INNER)
-                    }},
-                    type_defs: lowered.type_defs,
+                    view: quote! {
+                        ::sdk::__contract_spec::ContractTypeView::Vec(
+                            &#inner_view
+                        )
+                    },
+                    type_defs: inner_type_defs,
                 });
             }
             Ok(LoweredContractType {
                 view: quote! {
                     ::sdk::__contract_spec::type_ref::<#ty>()
                 },
-                type_defs: vec![quote! {
-                    ::sdk::__contract_spec::maybe_type_def::<#ty>()
-                }],
+                type_defs: quote! {
+                    ::sdk::__contract_spec::type_defs::<#ty>()
+                },
             })
         }
         syn::Type::Paren(paren) => lower_contract_type(&paren.elem),
+        syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
+            Ok(LoweredContractType {
+                view: quote! {
+                    ::sdk::__contract_spec::type_ref::<#ty>()
+                },
+                type_defs: quote! {
+                    ::sdk::__contract_spec::ContractTypeDefsView::Empty
+                },
+            })
+        }
+        syn::Type::Array(array) if is_u8_type(array.elem.as_ref()) => {
+            Ok(LoweredContractType {
+                view: quote! {
+                    ::sdk::__contract_spec::type_ref::<#ty>()
+                },
+                type_defs: quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
+            })
+        }
+        syn::Type::Tuple(tuple) => {
+            let lowered = tuple
+                .elems
+                .iter()
+                .map(lower_contract_type)
+                .collect::<Result<Vec<_>>>()?;
+            let views = lowered.iter().map(|ty| &ty.view);
+            let type_defs = lowered.iter().map(|ty| &ty.type_defs);
+            Ok(LoweredContractType {
+                view: quote! {
+                    ::sdk::__contract_spec::ContractTypeView::Tuple(
+                        &[#(#views),*]
+                    )
+                },
+                type_defs: quote! {
+                    ::sdk::__contract_spec::ContractTypeDefsView::Many(
+                        &[#(#type_defs),*]
+                    )
+                },
+            })
+        }
         _ => {
             let symbol = canonical_named_type_symbol(ty);
             Ok(LoweredContractType {
                 view: quote! {
                     ::sdk::__contract_spec::ContractTypeView::Named(#symbol)
                 },
-                type_defs: vec![],
+                type_defs: quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
             })
         }
     }
@@ -568,9 +564,7 @@ pub fn contract_type_view_tokens(
     Ok(lower_contract_type(ty)?.view)
 }
 
-pub fn contract_type_typedef_tokens(
-    ty: &syn::Type,
-) -> Result<Vec<TokenStream>> {
+pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
     Ok(lower_contract_type(ty)?.type_defs)
 }
 
@@ -604,7 +598,7 @@ fn canonical_named_type_symbol(ty: &syn::Type) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::contract_type_view_tokens;
+    use super::{contract_type_typedef_tokens, contract_type_view_tokens};
 
     #[test]
     fn alias_paths_use_trait_resolution_for_spec_types() {
@@ -617,13 +611,78 @@ mod tests {
     }
 
     #[test]
+    fn alias_paths_use_trait_resolution_for_spec_typedefs() {
+        let ty: syn::Type = syn::parse_quote!(PayloadList);
+
+        let tokens = contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_defs"));
+        assert!(!tokens.contains("maybe_type_def"));
+    }
+
+    #[test]
     fn fixed_u8_arrays_lower_to_bytes() {
         let ty: syn::Type = syn::parse_quote!([u8; 32]);
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
-        assert!(tokens.contains("ContractTypeView :: Bytes"));
+        assert!(tokens.contains("type_ref"));
         assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
+
+    #[test]
+    fn option_of_byte_slice_lowers_structurally() {
+        let ty: syn::Type = syn::parse_quote!(Option<&[u8]>);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("ContractTypeView :: Option"));
+        assert!(
+            view_tokens.contains("type_ref :: < [u8] >"),
+            "{view_tokens}"
+        );
+        assert!(!view_tokens.contains("type_ref :: < Option < & [u8] > >"));
+        assert!(
+            typedef_tokens.contains("ContractTypeDefsView :: Empty"),
+            "{typedef_tokens}"
+        );
+    }
+
+    #[test]
+    fn option_of_vec_u8_lowers_structurally() {
+        let ty: syn::Type = syn::parse_quote!(Option<Vec<u8>>);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("ContractTypeView :: Option"));
+        assert!(view_tokens.contains("ContractTypeView :: Bytes"));
+        assert!(
+            !view_tokens.contains("type_ref :: < Option < Vec < u8 > > >")
+        );
+        assert!(typedef_tokens.contains("ContractTypeDefsView :: Empty"));
+    }
+
+    #[test]
+    fn tuple_with_vec_u8_lowers_structurally() {
+        let ty: syn::Type = syn::parse_quote!((Vec<u8>, bool));
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("ContractTypeView :: Tuple"));
+        assert!(view_tokens.contains("ContractTypeView :: Bytes"));
+        assert!(view_tokens.contains("type_ref :: < bool >"));
+        assert!(
+            !view_tokens.contains("type_ref :: < ( Vec < u8 > , bool ) >")
+        );
+        assert!(typedef_tokens.contains("ContractTypeDefsView :: Many"));
+        assert!(typedef_tokens.contains("ContractTypeDefsView :: Empty"));
+        assert!(typedef_tokens.contains("type_defs :: < bool >"));
     }
 
     #[test]

@@ -65,6 +65,13 @@ pub enum ContractTypeDefView<'a> {
     Union(ContractUnionDefView<'a>) = 2,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContractTypeDefsView<'a> {
+    Empty,
+    One(ContractTypeDefView<'a>),
+    Many(&'a [ContractTypeDefsView<'a>]),
+}
+
 impl<'a> ContractTypeDefView<'a> {
     pub const fn symbol(self) -> &'a str {
         match self {
