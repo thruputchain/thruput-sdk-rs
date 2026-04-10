@@ -507,6 +507,7 @@ dependencies = [
 name = "groundhog-contract-spec"
 version = "0.9.0"
 dependencies = [
+ "groundhog-xdr",
  "xdrs",
 ]
 

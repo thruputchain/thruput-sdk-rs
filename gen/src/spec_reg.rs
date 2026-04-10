@@ -1,7 +1,8 @@
 use crate::Config;
 use crate::contract::{
-    ConfiguredContract, ContractSrc, Method, effective_interface_name,
-    method_arg_spec_tokens, method_return_spec_token, throws_spec_tokens,
+    ConfiguredContract, ContractSrc, Method, contract_type_typedef_tokens,
+    effective_interface_name, method_arg_spec_tokens,
+    method_return_spec_token, throws_spec_tokens,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -236,59 +237,15 @@ fn typedef_fragment_tokens_for_type_path(
 fn typedef_fragment_tokens_for_type(
     ty: &syn::Type,
 ) -> Result<Vec<TokenStream>> {
-    match ty {
-        syn::Type::Reference(reference) => match reference.elem.as_ref() {
-            syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
-                Ok(vec![])
-            }
-            inner => typedef_fragment_tokens_for_type(inner),
-        },
-        syn::Type::Paren(paren) => {
-            typedef_fragment_tokens_for_type(paren.elem.as_ref())
-        }
-        syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
-            Ok(vec![])
-        }
-        syn::Type::Array(array) if is_u8_type(array.elem.as_ref()) => {
-            Ok(vec![])
-        }
-        syn::Type::Tuple(tuple) => tuple
-            .elems
-            .iter()
-            .map(typedef_fragment_tokens_for_type)
-            .collect::<Result<Vec<_>>>()
-            .map(|nested| nested.into_iter().flatten().collect()),
-        syn::Type::Path(type_path) => {
-            if path_last_segment_ident(&type_path.path) == "Option"
-                || path_last_segment_ident(&type_path.path) == "Vec"
-            {
-                let Some(inner) = first_generic_type_arg(type_path) else {
-                    return Ok(vec![]);
-                };
-                if path_last_segment_ident(&type_path.path) == "Vec"
-                    && is_u8_type(inner)
-                {
-                    return Ok(vec![]);
-                }
-                return typedef_fragment_tokens_for_type(inner);
-            }
-            if path_last_segment_ident(&type_path.path) == "ContractAddress"
-                || path_last_segment_ident(&type_path.path) == "BlockHeight"
-                || path_last_segment_ident(&type_path.path) == "SHA256Hash"
-                || path_last_segment_ident(&type_path.path)
-                    == "Ed25519Signature"
-                || path_last_segment_ident(&type_path.path)
-                    == "Ed25519PublicKey"
-                || path_last_segment_ident(&type_path.path)
-                    == "ContractEntrypointID"
-            {
-                return Ok(vec![]);
-            }
-            Ok(vec![quote! {
+    contract_type_typedef_tokens(ty).map(|type_defs| {
+        type_defs
+            .into_iter()
+            .map(|type_def| {
+                quote! {
                 #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
                 const _: () = {
                     const TYPE_DEF: Option<::sdk::__contract_spec::ContractTypeDefView<'static>> =
-                        ::sdk::__contract_spec::maybe_type_def::<#ty>();
+                        #type_def;
                     const TYPE_DEFS: &[Option<::sdk::__contract_spec::ContractTypeDefView<'static>>] =
                         &[TYPE_DEF];
                     const RAW_LEN: usize =
@@ -299,34 +256,9 @@ fn typedef_fragment_tokens_for_type(
                     #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
                     pub static RAW_TYPE_DEF_SPEC: [u8; RAW_LEN] = RAW_FRAGMENT;
                 };
-            }])
-        }
-        _ => Ok(vec![]),
-    }
-}
-
-fn path_last_segment_ident(path: &syn::Path) -> &syn::Ident {
-    let seg = path.segments.last().unwrap();
-    &seg.ident
-}
-
-fn is_u8_type(ty: &syn::Type) -> bool {
-    matches!(
-        ty,
-        syn::Type::Path(type_path)
-            if path_last_segment_ident(&type_path.path) == "u8"
-    )
-}
-
-fn first_generic_type_arg(type_path: &syn::TypePath) -> Option<&syn::Type> {
-    let segment = type_path.path.segments.last()?;
-    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments
-    else {
-        return None;
-    };
-    arguments.args.iter().find_map(|arg| match arg {
-        syn::GenericArgument::Type(ty) => Some(ty),
-        _ => None,
+                }
+            })
+            .collect()
     })
 }
 
@@ -407,10 +339,10 @@ mod tests {
     }
 
     #[test]
-    fn builtin_byte_blob_types_do_not_emit_typedef_fragments() {
+    fn builtin_byte_blob_types_use_trait_typedef_resolution() {
         let item: syn::ItemImpl = syn::parse_quote! {
             impl Demo {
-                fn verify(
+                pub fn verify(
                     signature: &sdk::Ed25519Signature,
                     public_key: &sdk::Ed25519PublicKey,
                     entrypoint: &sdk::ContractEntrypointID,
@@ -425,14 +357,17 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains("MaybeContractTypeDefSpec"));
+        assert!(tokens.contains("maybe_type_def"));
+        assert!(tokens.contains("Ed25519Signature"));
+        assert!(tokens.contains("Ed25519PublicKey"));
+        assert!(tokens.contains("ContractEntrypointID"));
     }
 
     #[test]
-    fn block_height_does_not_emit_typedef_fragments() {
+    fn block_height_uses_trait_typedef_resolution() {
         let item: syn::ItemImpl = syn::parse_quote! {
             impl Demo {
-                fn deadline(height: sdk::BlockHeight) -> sdk::BlockHeight { height }
+                pub fn deadline(height: sdk::BlockHeight) -> sdk::BlockHeight { height }
             }
         };
 
@@ -443,6 +378,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(!tokens.contains("MaybeContractTypeDefSpec"));
+        assert!(tokens.contains("maybe_type_def"));
+        assert!(tokens.contains("BlockHeight"));
     }
 }

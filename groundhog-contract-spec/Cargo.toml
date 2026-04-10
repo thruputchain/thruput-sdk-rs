@@ -19,4 +19,5 @@ default = ["alloc"]
 alloc = ["xdrs/alloc"]
 
 [dependencies]
+groundhog-xdr = { workspace = true }
 xdrs = { workspace = true, features = ["heapless", "derive"] }

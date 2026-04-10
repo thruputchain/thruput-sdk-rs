@@ -1,5 +1,11 @@
 #![no_std]
 
+use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::types::{
+    BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
+    SHA256Hash,
+};
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
@@ -93,6 +99,48 @@ impl ContractTypeRefSpec for str {
 impl ContractTypeRefSpec for [u8] {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Bytes,
+        type_def: None,
+    };
+}
+
+impl ContractTypeRefSpec for ContractAddress {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Address,
+        type_def: None,
+    };
+}
+
+impl ContractTypeRefSpec for SHA256Hash {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Bytes,
+        type_def: None,
+    };
+}
+
+impl ContractTypeRefSpec for Ed25519Signature {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Bytes,
+        type_def: None,
+    };
+}
+
+impl ContractTypeRefSpec for Ed25519PublicKey {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Bytes,
+        type_def: None,
+    };
+}
+
+impl ContractTypeRefSpec for ContractEntrypointID {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Bytes,
+        type_def: None,
+    };
+}
+
+impl ContractTypeRefSpec for BlockHeight {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::I64,
         type_def: None,
     };
 }

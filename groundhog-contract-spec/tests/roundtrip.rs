@@ -415,3 +415,53 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
         None
     );
 }
+
+#[test]
+fn contract_type_ref_helpers_cover_groundhog_xdr_builtins() {
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<
+            groundhog_xdr::types::ContractAddress,
+        >(),
+        ContractTypeView::Address
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<groundhog_xdr::types::SHA256Hash>(
+        ),
+        ContractTypeView::Bytes
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<
+            groundhog_xdr::types::Ed25519Signature,
+        >(),
+        ContractTypeView::Bytes
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<
+            groundhog_xdr::types::Ed25519PublicKey,
+        >(),
+        ContractTypeView::Bytes
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<
+            groundhog_xdr::contract::ContractEntrypointID,
+        >(),
+        ContractTypeView::Bytes
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<groundhog_xdr::types::BlockHeight>(
+        ),
+        ContractTypeView::I64
+    );
+    assert_eq!(
+        groundhog_contract_spec::maybe_type_def::<
+            groundhog_xdr::types::ContractAddress,
+        >(),
+        None
+    );
+    assert_eq!(
+        groundhog_contract_spec::maybe_type_def::<
+            groundhog_xdr::types::BlockHeight,
+        >(),
+        None
+    );
+}
