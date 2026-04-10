@@ -1,13 +1,13 @@
 use groundhog_contract_spec::{
-    ContractEnumDef, ContractEnumDefView, ContractEnumVariant,
-    ContractEnumVariantView, ContractField, ContractFieldView, ContractSpec,
-    ContractSpecInterface, ContractSpecInterfaceView, ContractSpecMethod,
-    ContractSpecMethodView, ContractSpecView, ContractStructDefView,
-    ContractType, ContractTypeDef, ContractTypeDefView, ContractTypeDefsView,
-    ContractTypeSpec, ContractTypeView, ContractUnionCaseView,
-    ContractUnionDefView, SpecFragment, SpecFragmentView,
-    SpecInterfaceFragment, SpecInterfaceFragmentView, SpecMethodFragment,
-    SpecMethodFragmentView,
+    ContractArrayType, ContractArrayTypeView, ContractEnumDef,
+    ContractEnumDefView, ContractEnumVariant, ContractEnumVariantView,
+    ContractField, ContractFieldView, ContractSpec, ContractSpecInterface,
+    ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
+    ContractSpecView, ContractStructDefView, ContractType, ContractTypeDef,
+    ContractTypeDefView, ContractTypeDefsView, ContractTypeSpec,
+    ContractTypeView, ContractUnionCaseView, ContractUnionDefView,
+    SpecFragment, SpecFragmentView, SpecInterfaceFragment,
+    SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
 use xdrs::txs;
@@ -87,6 +87,11 @@ fn borrowed_views_convert_to_owned_model() {
         option_named_error,
         vec_named_payload,
         ContractTypeView::Named("Payload"),
+        ContractTypeView::U8,
+        ContractTypeView::Array(ContractArrayTypeView {
+            element: &ContractTypeView::U8,
+            len: 32,
+        }),
     ];
     let methods = [ContractSpecMethodView {
         name: "ping",
@@ -147,6 +152,11 @@ fn borrowed_views_convert_to_owned_model() {
                 "Payload".to_string(),
             ))),
             ContractType::Named("Payload".to_string()),
+            ContractType::U8,
+            ContractType::Array(ContractArrayType {
+                element: Box::new(ContractType::U8),
+                len: 32,
+            }),
         ])
     );
 }
@@ -356,6 +366,14 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(&ContractType::Vec(Box::new(ContractType::Void)), 12);
     assert_xdr_tag(&ContractType::Tuple(vec![ContractType::Void]), 13);
     assert_xdr_tag(&ContractType::Named("DemoError".to_string()), 14);
+    assert_xdr_tag(&ContractType::U8, 15);
+    assert_xdr_tag(
+        &ContractType::Array(ContractArrayType {
+            element: Box::new(ContractType::U8),
+            len: 32,
+        }),
+        16,
+    );
 
     assert_xdr_tag(
         &ContractTypeDef::Struct(groundhog_contract_spec::ContractStructDef {
@@ -445,6 +463,10 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
 #[test]
 fn contract_type_ref_helpers_cover_primitives_and_composites() {
     assert_eq!(
+        groundhog_contract_spec::type_ref::<u8>(),
+        ContractTypeView::U8
+    );
+    assert_eq!(
         groundhog_contract_spec::type_ref::<u32>(),
         ContractTypeView::U32
     );
@@ -453,8 +475,30 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
         ContractTypeView::Option(&ContractTypeView::U32)
     );
     assert_eq!(
+        groundhog_contract_spec::type_ref::<Vec<u8>>(),
+        ContractTypeView::Vec(&ContractTypeView::U8)
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<&[u8]>(),
+        ContractTypeView::Vec(&ContractTypeView::U8)
+    );
+    assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u32>>(),
         ContractTypeView::Vec(&ContractTypeView::U32)
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<[u8; 32]>(),
+        ContractTypeView::Array(ContractArrayTypeView {
+            element: &ContractTypeView::U8,
+            len: 32,
+        })
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<[bool; 4]>(),
+        ContractTypeView::Array(ContractArrayTypeView {
+            element: &ContractTypeView::Bool,
+            len: 4,
+        })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<(u32, bool)>(),
@@ -462,6 +506,10 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
             ContractTypeView::U32,
             ContractTypeView::Bool,
         ])
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<u8>(),
+        ContractTypeDefsView::Empty
     );
     assert_eq!(
         groundhog_contract_spec::type_defs::<u32>(),
@@ -476,11 +524,80 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
         ContractTypeDefsView::Empty
     );
     assert_eq!(
+        groundhog_contract_spec::type_defs::<&[u8]>(),
+        ContractTypeDefsView::Empty
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<[u8; 32]>(),
+        ContractTypeDefsView::Empty
+    );
+    assert_eq!(
         groundhog_contract_spec::type_defs::<(u32, bool)>(),
         ContractTypeDefsView::Many(&[
             ContractTypeDefsView::Empty,
             ContractTypeDefsView::Empty,
         ])
+    );
+}
+
+#[test]
+fn alloc_requirement_flags_cover_aliases_and_composites() {
+    type Byte = u8;
+    type Blob = Vec<Byte>;
+    type Hash = [Byte; 32];
+    type BlobPair = (Blob, Hash);
+
+    struct NamedBlob;
+
+    impl ContractTypeSpec for NamedBlob {
+        const TYPE_DEF: ContractTypeDefView<'static> =
+            ContractTypeDefView::Struct(ContractStructDefView {
+                name: "NamedBlob",
+                fields: &[ContractFieldView {
+                    name: "payload",
+                    ty: ContractTypeView::Vec(&ContractTypeView::U8),
+                }],
+            });
+        const REQUIRES_ALLOC: bool = true;
+    }
+
+    assert!(!groundhog_contract_spec::requires_alloc::<u8>());
+    assert!(!groundhog_contract_spec::requires_alloc::<[u8; 32]>());
+    assert!(!groundhog_contract_spec::requires_alloc::<str>());
+    assert!(!groundhog_contract_spec::requires_alloc::<&str>());
+    assert!(!groundhog_contract_spec::requires_alloc::<&[u8]>());
+    assert!(!groundhog_contract_spec::requires_alloc::<Hash>());
+    assert!(groundhog_contract_spec::requires_alloc::<Vec<u8>>());
+    assert!(groundhog_contract_spec::requires_alloc::<String>());
+    assert!(groundhog_contract_spec::requires_alloc::<Blob>());
+    assert!(groundhog_contract_spec::requires_alloc::<BlobPair>());
+    assert!(groundhog_contract_spec::requires_alloc::<NamedBlob>());
+}
+
+#[test]
+fn alias_byte_collections_resolve_via_trait_layer() {
+    type Byte = u8;
+    type Blob = Vec<Byte>;
+    type Hash = [Byte; 32];
+
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<Blob>(),
+        ContractTypeView::Vec(&ContractTypeView::U8)
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_ref::<Hash>(),
+        ContractTypeView::Array(ContractArrayTypeView {
+            element: &ContractTypeView::U8,
+            len: 32,
+        })
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<Blob>(),
+        ContractTypeDefsView::Empty
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<Hash>(),
+        ContractTypeDefsView::Empty
     );
 }
 
