@@ -8,7 +8,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.12.1";
+const TEST_FFI_VERSION: &str = "0.12.2";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If HOGD_SRC is set and directory exists, use it as-is
@@ -179,6 +179,37 @@ fn find_prebuilt_bindings(
         "cargo:warning=Copied bindings.rs from tarball to: {}",
         bindings_dst.display()
     );
+
+    Ok(())
+}
+
+/// Copy the shared library to the deps directory so that test binaries
+/// can find it at runtime via @loader_path (macOS) or $ORIGIN (Linux)
+/// rpath entries configured in .cargo/config.toml.
+fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+    // OUT_DIR is target/<profile>/build/<pkg>-<hash>/out
+    let deps_dir = out_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("deps");
+
+    let lib_name = shared_lib_name();
+    let src = lib_dir.join(&lib_name);
+    let dst = deps_dir.join(&lib_name);
+
+    if src.exists() {
+        fs::copy(&src, &dst)?;
+        println!(
+            "cargo:warning=Copied {} to {} for rpath resolution",
+            src.display(),
+            dst.display()
+        );
+    }
 
     Ok(())
 }
@@ -404,6 +435,8 @@ fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
         lib_dir, expected_lib
     );
 
+    copy_lib_to_deps(&lib_path)?;
+
     Ok(())
 }
 
@@ -596,6 +629,8 @@ fn download_and_extract(
     println!("cargo:rustc-link-search=native={}", extract_dir.display());
     println!("cargo:rustc-link-lib=dylib=test_ffi");
 
+    copy_lib_to_deps(&extract_dir)?;
+
     Ok(())
 }
 
@@ -627,15 +662,15 @@ fn build_from_cmake(hogd_src: &str) -> Result<(), Box<dyn std::error::Error>> {
     let dst = cfg.build();
 
     // Tell Rust where to find the built library
-    println!(
-        "cargo:rustc-link-search=native={}/build/hogd/test_ffi/",
-        dst.display()
-    );
+    let cmake_lib_dir = dst.join("build/hogd/test_ffi");
+    println!("cargo:rustc-link-search=native={}", cmake_lib_dir.display());
     println!("cargo:rustc-link-lib=dylib=test_ffi");
     println!(
         "cargo:warning=Built library from source at: {}",
         dst.display()
     );
+
+    copy_lib_to_deps(&cmake_lib_dir)?;
 
     Ok(())
 }
