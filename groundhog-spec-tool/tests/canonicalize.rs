@@ -170,6 +170,46 @@ fn canonicalize_spec_dedups_identical_methods() {
 }
 
 #[test]
+fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
+    let err = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "alpha".into(),
+                args: vec![ContractField {
+                    name: "value".into(),
+                    ty: ContractType::U32,
+                }],
+                return_type: ContractType::Void,
+            },
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "alpha".into(),
+                args: vec![ContractField {
+                    name: "value".into(),
+                    ty: ContractType::I32,
+                }],
+                return_type: ContractType::Void,
+            },
+        }),
+    ])
+    .unwrap_err();
+
+    assert!(
+        matches!(err, SpecToolError::ConflictingMethod(name) if name == "Named@0.1.0::alpha")
+    );
+}
+
+#[test]
 fn canonicalize_spec_dedups_identical_type_defs() {
     let payload = ContractTypeDef::Struct(ContractStructDef {
         name: "Payload".into(),

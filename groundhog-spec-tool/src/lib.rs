@@ -22,6 +22,7 @@ pub enum SpecToolError {
     MissingTypeDef(String),
     ConflictingTypeDef(String),
     ConflictingInterfaceThrows(String),
+    ConflictingMethod(String),
     Wasm(String),
 }
 
@@ -43,6 +44,9 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::ConflictingInterfaceThrows(msg) => {
                 write!(f, "conflicting throws metadata for interface {msg}")
+            }
+            Self::ConflictingMethod(msg) => {
+                write!(f, "conflicting method definitions for {msg}")
             }
             Self::Wasm(msg) => f.write_str(msg),
         }
@@ -135,9 +139,26 @@ pub fn canonicalize_spec(
         .into_iter()
         .map(|((name, version), mut bucket)| {
             bucket.methods.sort_by(|left, right| {
-                canonical_method_key(left).cmp(&canonical_method_key(right))
+                left.name.cmp(&right.name).then_with(|| {
+                    canonical_method_key(left)
+                        .cmp(&canonical_method_key(right))
+                })
             });
-            bucket.methods.dedup();
+            let mut deduped_methods: Vec<ContractSpecMethod> =
+                Vec::with_capacity(bucket.methods.len());
+            for method in bucket.methods {
+                if let Some(existing) = deduped_methods.last() {
+                    if existing.name == method.name {
+                        if existing == &method {
+                            continue;
+                        }
+                        return Err(SpecToolError::ConflictingMethod(
+                            format!("{}@{}::{}", name, version, method.name),
+                        ));
+                    }
+                }
+                deduped_methods.push(method);
+            }
 
             let throws = bucket.throws.ok_or_else(|| {
                 SpecToolError::MissingInterfaceFragment(interface_key_string(
@@ -149,7 +170,7 @@ pub fn canonicalize_spec(
                 name,
                 version,
                 throws,
-                methods: bucket.methods,
+                methods: deduped_methods,
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
