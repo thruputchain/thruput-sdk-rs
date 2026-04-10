@@ -358,6 +358,9 @@ fn collect_named_types(
         ContractType::Option(inner) | ContractType::Vec(inner) => {
             collect_named_types(inner, defs, resolved, pending)?;
         }
+        ContractType::Array(array) => {
+            collect_named_types(&array.element, defs, resolved, pending)?;
+        }
         ContractType::Tuple(items) => {
             for item in items {
                 collect_named_types(item, defs, resolved, pending)?;
@@ -377,6 +380,7 @@ fn collect_named_types(
         }
         ContractType::Void
         | ContractType::Bool
+        | ContractType::U8
         | ContractType::U32
         | ContractType::I32
         | ContractType::U64
@@ -409,6 +413,7 @@ fn canonical_type_key(ty: &ContractType) -> String {
     match ty {
         ContractType::Void => "void".to_string(),
         ContractType::Bool => "bool".to_string(),
+        ContractType::U8 => "u8".to_string(),
         ContractType::U32 => "u32".to_string(),
         ContractType::I32 => "i32".to_string(),
         ContractType::U64 => "u64".to_string(),
@@ -435,6 +440,13 @@ fn canonical_type_key(ty: &ContractType) -> String {
             key.push(')');
             key
         }
+        ContractType::Array(array) => {
+            format!(
+                "array({}, {})",
+                canonical_type_key(&array.element),
+                array.len
+            )
+        }
         ContractType::Named(name) => format!("named({name})"),
     }
 }
@@ -455,6 +467,7 @@ fn push_type_json(out: &mut String, ty: &ContractType) {
     match ty {
         ContractType::Void => out.push_str("{\"kind\":\"void\"}"),
         ContractType::Bool => out.push_str("{\"kind\":\"bool\"}"),
+        ContractType::U8 => out.push_str("{\"kind\":\"u8\"}"),
         ContractType::U32 => out.push_str("{\"kind\":\"u32\"}"),
         ContractType::I32 => out.push_str("{\"kind\":\"i32\"}"),
         ContractType::U64 => out.push_str("{\"kind\":\"u64\"}"),
@@ -483,6 +496,13 @@ fn push_type_json(out: &mut String, ty: &ContractType) {
                 push_type_json(out, item);
             }
             out.push_str("]}");
+        }
+        ContractType::Array(array) => {
+            out.push_str("{\"kind\":\"array\",\"len\":");
+            out.push_str(&array.len.to_string());
+            out.push_str(",\"element\":");
+            push_type_json(out, &array.element);
+            out.push('}');
         }
         ContractType::Named(name) => {
             out.push_str("{\"kind\":\"named\",\"name\":\"");

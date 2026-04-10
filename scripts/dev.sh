@@ -185,9 +185,42 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"Payload"' &&
     assert_file_contains "$spec_named_json" '"Choice"' &&
     assert_file_contains "$spec_named_json" '"Envelope"' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
+    assert_file_contains "$spec_named_json" '"kind":"vec","inner":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
+    assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
 
     assert_file_not_exists "$genesis_json" &&
     assert_wasm_has_no_spec_sections "$genesis_wasm"
+}
+
+check_alloc_requirement_diagnostics() {
+    info "CHECK-ALLOC-DIAGNOSTICS"
+
+    local output
+    if output="$(
+        env -u RUSTC_WRAPPER cargo build \
+            --manifest-path tests/alloc-required-vec-alias/Cargo.toml \
+            --target wasm32-unknown-unknown \
+            --release \
+            --features entrypoints 2>&1
+    )"; then
+        fail "Expected alloc-required-vec-alias wasm build to fail"
+        return 1
+    fi
+
+    printf '%s\n' "$output" | rg -F --quiet \
+        "no global memory allocator found but one is required" || {
+        fail "Expected missing allocator diagnostic in wasm build output"
+        return 1
+    }
+
+    printf '%s\n' "$output" | rg -F --quiet \
+        "ContractAbiAllocEnabled" || {
+        fail "Expected ContractAbiAllocEnabled diagnostic in wasm build output"
+        return 1
+    }
 }
 
 itc_build() {
@@ -405,6 +438,7 @@ check_all() {
 
     eg_build_all &&
     check_contract_spec_artifacts &&
+    check_alloc_requirement_diagnostics &&
     eg_test_all &&
     eg_bottle_test_all &&
 

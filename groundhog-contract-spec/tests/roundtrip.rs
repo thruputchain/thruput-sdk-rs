@@ -483,6 +483,10 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
         ContractTypeView::Vec(&ContractTypeView::U8)
     );
     assert_eq!(
+        groundhog_contract_spec::type_ref::<&str>(),
+        ContractTypeView::String
+    );
+    assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u32>>(),
         ContractTypeView::Vec(&ContractTypeView::U32)
     );
@@ -525,6 +529,10 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     );
     assert_eq!(
         groundhog_contract_spec::type_defs::<&[u8]>(),
+        ContractTypeDefsView::Empty
+    );
+    assert_eq!(
+        groundhog_contract_spec::type_defs::<&str>(),
         ContractTypeDefsView::Empty
     );
     assert_eq!(

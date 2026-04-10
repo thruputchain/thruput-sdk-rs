@@ -38,21 +38,13 @@ impl ContractAbiAllocEnabled for crate::types::ContractEntrypointID {}
 
 impl<T> ContractAbiAllocEnabled for &T where T: ContractAbiAllocEnabled {}
 impl<T> ContractAbiAllocEnabled for &mut T where T: ContractAbiAllocEnabled {}
-impl<T> ContractAbiAllocEnabled for core::option::Option<T>
-where
-    T: ContractAbiAllocEnabled,
+impl<T> ContractAbiAllocEnabled for core::option::Option<T> where
+    T: ContractAbiAllocEnabled
 {
 }
 
-impl<T> ContractAbiAllocEnabled for T
-where
-    T: crate::__contract_spec::ContractTypeSpec,
-{
-}
-
-impl<T, const N: usize> ContractAbiAllocEnabled for [T; N]
-where
-    T: ContractAbiAllocEnabled,
+impl<T, const N: usize> ContractAbiAllocEnabled for [T; N] where
+    T: ContractAbiAllocEnabled
 {
 }
 
@@ -80,9 +72,8 @@ impl_contract_abi_alloc_enabled_tuple!(
 );
 
 #[cfg(feature = "alloc")]
-impl<T> ContractAbiAllocEnabled for ::alloc::vec::Vec<T>
-where
-    T: ContractAbiAllocEnabled,
+impl<T> ContractAbiAllocEnabled for ::alloc::vec::Vec<T> where
+    T: ContractAbiAllocEnabled
 {
 }
 

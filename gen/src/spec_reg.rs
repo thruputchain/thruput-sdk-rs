@@ -346,22 +346,74 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("ContractTypeView :: Option"), "{tokens}");
-        assert!(tokens.contains("ContractTypeView :: Tuple"), "{tokens}");
-        assert!(tokens.contains("type_ref :: < [u8] >"), "{tokens}");
-        assert!(tokens.contains("ContractTypeView :: Bytes"), "{tokens}");
         assert!(
-            !tokens.contains("type_ref :: < Option < & [u8] > >"),
+            tokens.contains("type_ref :: < Option < & [u8] > >"),
             "{tokens}"
         );
         assert!(
-            !tokens.contains("type_ref :: < Option < Vec < u8 > > >"),
+            tokens.contains("type_ref :: < Option < Vec < u8 > > >"),
             "{tokens}"
         );
         assert!(
-            !tokens.contains("type_ref :: < ( Vec < u8 > , bool ) >"),
+            tokens.contains("type_ref :: < (Vec < u8 > , bool) >"),
             "{tokens}"
         );
+        assert!(
+            tokens.contains("type_defs :: < Option < & [u8] > >"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("type_defs :: < Option < Vec < u8 > > >"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn array_shapes_lower_via_trait_resolution() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                pub fn digest(data: [u8; 32], flags: [bool; 4]) -> [u8; 32] {
+                    data
+                }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(tokens.contains("type_ref :: < [u8 ; 32] >"), "{tokens}");
+        assert!(tokens.contains("type_ref :: < [bool ; 4] >"), "{tokens}");
+    }
+
+    #[test]
+    fn alias_byte_collections_emit_trait_calls() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                pub fn echo_blob(blob: Blob) -> Blob {
+                    blob
+                }
+
+                pub fn echo_hash(hash: Hash) -> Hash {
+                    hash
+                }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(tokens.contains("type_ref :: < Blob >"), "{tokens}");
+        assert!(tokens.contains("type_defs :: < Blob >"), "{tokens}");
+        assert!(tokens.contains("type_ref :: < Hash >"), "{tokens}");
+        assert!(tokens.contains("type_defs :: < Hash >"), "{tokens}");
     }
 
     #[test]

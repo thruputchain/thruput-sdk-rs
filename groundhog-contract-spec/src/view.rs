@@ -55,6 +55,14 @@ pub enum ContractTypeView<'a> {
     Vec(&'a ContractTypeView<'a>) = 12,
     Tuple(&'a [ContractTypeView<'a>]) = 13,
     Named(&'a str) = 14,
+    U8 = 15,
+    Array(ContractArrayTypeView<'a>) = 16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+pub struct ContractArrayTypeView<'a> {
+    pub element: &'a ContractTypeView<'a>,
+    pub len: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -219,6 +227,20 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::Named(name) => {
                 ContractType::Named(name.to_owned())
             }
+            ContractTypeView::U8 => ContractType::U8,
+            ContractTypeView::Array(array) => {
+                ContractType::Array(array.into())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl From<ContractArrayTypeView<'_>> for crate::model::ContractArrayType {
+    fn from(value: ContractArrayTypeView<'_>) -> Self {
+        Self {
+            element: Box::new((*value.element).into()),
+            len: value.len,
         }
     }
 }

@@ -1,7 +1,8 @@
 use std::{fs, process::Command};
 
 use groundhog_contract_spec::{
-    ContractSpec, SpecFragment, SpecInterfaceFragment,
+    ContractArrayType, ContractField, ContractSpec, ContractSpecMethod,
+    ContractType, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
@@ -105,6 +106,106 @@ fn rewrite_cli_writes_a_json_sidecar() {
         }])
     );
     assert_eq!(parsed["type_defs"], serde_json::json!([]));
+}
+
+#[test]
+fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
+    let tempdir = tempdir().unwrap();
+    let wasm_path = tempdir.path().join("rewrite-cli-u8.wasm");
+    let json_path = tempdir.path().join("rewrite-cli-u8.spec.json");
+    let raw = encode_fragments(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "ExplicitNamedInterface".into(),
+            interface_version: "0.3.0".into(),
+            throws: vec![],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "ExplicitNamedInterface".into(),
+            interface_version: "0.3.0".into(),
+            method: ContractSpecMethod {
+                name: "echo_blob".into(),
+                args: vec![ContractField {
+                    name: "blob".into(),
+                    ty: ContractType::Vec(Box::new(ContractType::U8)),
+                }],
+                return_type: ContractType::Vec(Box::new(ContractType::U8)),
+            },
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "ExplicitNamedInterface".into(),
+            interface_version: "0.3.0".into(),
+            method: ContractSpecMethod {
+                name: "echo_hash".into(),
+                args: vec![ContractField {
+                    name: "hash".into(),
+                    ty: ContractType::Array(ContractArrayType {
+                        element: Box::new(ContractType::U8),
+                        len: 32,
+                    }),
+                }],
+                return_type: ContractType::Array(ContractArrayType {
+                    element: Box::new(ContractType::U8),
+                    len: 32,
+                }),
+            },
+        }),
+    ]);
+
+    let mut module = Module::new();
+    module.section(&CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw.as_slice().into(),
+    });
+    fs::write(&wasm_path, module.finish()).unwrap();
+
+    let status = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
+        .args([
+            "rewrite",
+            "--wasm",
+            wasm_path.to_str().unwrap(),
+            "--json-out",
+            json_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+
+    let json = fs::read_to_string(&json_path).unwrap();
+    let parsed: Value = serde_json::from_str(&json).unwrap();
+    let methods = &parsed["interfaces"][0]["methods"];
+    assert_eq!(methods[0]["name"], "echo_blob");
+    assert_eq!(
+        methods[0]["args"][0]["ty"],
+        serde_json::json!({
+            "kind": "vec",
+            "inner": { "kind": "u8" }
+        })
+    );
+    assert_eq!(
+        methods[0]["return_type"],
+        serde_json::json!({
+            "kind": "vec",
+            "inner": { "kind": "u8" }
+        })
+    );
+    assert_eq!(methods[1]["name"], "echo_hash");
+    assert_eq!(
+        methods[1]["args"][0]["ty"],
+        serde_json::json!({
+            "kind": "array",
+            "len": 32,
+            "element": { "kind": "u8" }
+        })
+    );
+    assert_eq!(
+        methods[1]["return_type"],
+        serde_json::json!({
+            "kind": "array",
+            "len": 32,
+            "element": { "kind": "u8" }
+        })
+    );
 }
 
 #[test]

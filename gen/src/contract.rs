@@ -416,7 +416,8 @@ pub fn alloc_requirement_assertions(
         if let Some(client_error_ty) =
             trait_client_error_type(contract.trait_path().as_ref().unwrap())
         {
-            assertions.push(alloc_requirement_assertion_tokens(&client_error_ty)?);
+            assertions
+                .push(alloc_requirement_assertion_tokens(&client_error_ty)?);
         }
     }
 
@@ -430,10 +431,13 @@ pub fn client_error_marker_impl_tokens(
     throws_list: &[ThrownType],
 ) -> Result<TokenStream> {
     let error_ident = format_ident!("{}Error", client_ident);
-    let where_clauses = throws_list.iter().map(|thrown| {
-        let ty = thrown.ty();
-        quote! { #ty: ::sdk::internal::ContractAbiAllocEnabled }
-    }).collect::<Vec<_>>();
+    let where_clauses = throws_list
+        .iter()
+        .map(|thrown| {
+            let ty = thrown.ty();
+            quote! { #ty: ::sdk::internal::ContractAbiAllocEnabled }
+        })
+        .collect::<Vec<_>>();
     let impl_tokens = if where_clauses.is_empty() {
         quote! {
             impl ::sdk::internal::ContractAbiAllocEnabled for #error_ident {}
@@ -525,38 +529,27 @@ pub struct LoweredContractType {
     pub type_defs: TokenStream,
 }
 
+fn lower_via_type_ref_trait(ty: &syn::Type) -> LoweredContractType {
+    LoweredContractType {
+        view: quote! {
+            ::sdk::__contract_spec::type_ref::<#ty>()
+        },
+        type_defs: quote! {
+            ::sdk::__contract_spec::type_defs::<#ty>()
+        },
+    }
+}
+
 pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
     match ty {
         syn::Type::Reference(reference) => {
             lower_contract_type(&reference.elem)
         }
-        syn::Type::Path(_) => Ok(LoweredContractType {
-            view: quote! {
-                ::sdk::__contract_spec::type_ref::<#ty>()
-            },
-            type_defs: quote! {
-                ::sdk::__contract_spec::type_defs::<#ty>()
-            },
-        }),
+        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(ty)),
         syn::Type::Paren(paren) => lower_contract_type(&paren.elem),
-        syn::Type::Slice(slice) if is_u8_type(slice.elem.as_ref()) => {
-            Ok(LoweredContractType {
-                view: quote! {
-                    ::sdk::__contract_spec::type_ref::<#ty>()
-                },
-                type_defs: quote! {
-                    ::sdk::__contract_spec::ContractTypeDefsView::Empty
-                },
-            })
+        syn::Type::Slice(_) | syn::Type::Array(_) | syn::Type::Tuple(_) => {
+            Ok(lower_via_type_ref_trait(ty))
         }
-        syn::Type::Array(_) | syn::Type::Tuple(_) => Ok(LoweredContractType {
-            view: quote! {
-                ::sdk::__contract_spec::type_ref::<#ty>()
-            },
-            type_defs: quote! {
-                ::sdk::__contract_spec::type_defs::<#ty>()
-            },
-        }),
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
         | syn::Type::BareFn(_)
@@ -579,14 +572,6 @@ pub fn contract_type_view_tokens(
 
 pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
     Ok(lower_contract_type(ty)?.type_defs)
-}
-
-fn is_u8_type(ty: &syn::Type) -> bool {
-    matches!(
-        ty,
-        syn::Type::Path(type_path)
-            if path_last_segment_ident(&type_path.path) == "u8"
-    )
 }
 
 fn trait_client_error_type(trait_path: &syn::Path) -> Option<syn::Type> {
@@ -625,13 +610,12 @@ fn trait_path_prefix(path: &syn::Path) -> Option<syn::Path> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::Config;
     use super::{
-        alloc_requirement_assertion_tokens, alloc_requirement_assertions,
-        client_error_marker_impl_tokens, contract_type_typedef_tokens,
-        contract_type_view_tokens,
-        ConfiguredContract,
+        ConfiguredContract, alloc_requirement_assertion_tokens,
+        alloc_requirement_assertions, client_error_marker_impl_tokens,
+        contract_type_typedef_tokens, contract_type_view_tokens,
     };
+    use crate::config::Config;
     use darling::FromMeta;
     use darling::ast::NestedMeta;
     use quote::quote;
@@ -667,7 +651,31 @@ mod tests {
     }
 
     #[test]
-    fn option_of_byte_slice_lowers_structurally() {
+    fn byte_slice_references_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(&[u8]);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < [u8] >"));
+        assert!(typedef_tokens.contains("type_defs :: < [u8] >"));
+    }
+
+    #[test]
+    fn borrowed_named_types_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(&Payload);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < Payload >"));
+        assert!(typedef_tokens.contains("type_defs :: < Payload >"));
+    }
+
+    #[test]
+    fn option_of_byte_slice_lowers_via_trait_resolution() {
         let ty: syn::Type = syn::parse_quote!(Option<&[u8]>);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
@@ -727,9 +735,8 @@ mod tests {
     fn alloc_required_aliases_emit_direct_assertions() {
         let ty: syn::Type = syn::parse_quote!(Blob);
 
-        let tokens = alloc_requirement_assertion_tokens(&ty)
-            .unwrap()
-            .to_string();
+        let tokens =
+            alloc_requirement_assertion_tokens(&ty).unwrap().to_string();
 
         assert!(
             tokens.contains("assert_contract_abi_alloc_enabled :: < Blob >"),
@@ -741,9 +748,8 @@ mod tests {
     fn alloc_required_references_keep_original_spelling_in_assertions() {
         let ty: syn::Type = syn::parse_quote!(&Blob);
 
-        let tokens = alloc_requirement_assertion_tokens(&ty)
-            .unwrap()
-            .to_string();
+        let tokens =
+            alloc_requirement_assertion_tokens(&ty).unwrap().to_string();
 
         assert!(
             tokens.contains("assert_contract_abi_alloc_enabled :: < & Blob >"),
@@ -758,23 +764,23 @@ mod tests {
                 blob
             }
         };
-        let meta_list = NestedMeta::parse_meta_list(
-            quote! { throws(BlobError) }.into(),
-        )
-        .unwrap();
+        let meta_list =
+            NestedMeta::parse_meta_list(quote! { throws(BlobError) }.into())
+                .unwrap();
         let config = Config::from_list(&meta_list).unwrap();
         let contract = ConfiguredContract::new(config, &item);
 
-        let tokens = alloc_requirement_assertions(&contract)
-            .unwrap()
-            .to_string();
+        let tokens =
+            alloc_requirement_assertions(&contract).unwrap().to_string();
 
         assert!(
             tokens.contains("assert_contract_abi_alloc_enabled :: < Blob >"),
             "{tokens}"
         );
         assert!(
-            tokens.contains("assert_contract_abi_alloc_enabled :: < BlobError >"),
+            tokens.contains(
+                "assert_contract_abi_alloc_enabled :: < BlobError >"
+            ),
             "{tokens}"
         );
     }
@@ -786,14 +792,11 @@ mod tests {
                 fn throw_imported_error() {}
             }
         };
-        let contract = ConfiguredContract::new(
-            Config::from_list(&[]).unwrap(),
-            &item,
-        );
+        let contract =
+            ConfiguredContract::new(Config::from_list(&[]).unwrap(), &item);
 
-        let tokens = alloc_requirement_assertions(&contract)
-            .unwrap()
-            .to_string();
+        let tokens =
+            alloc_requirement_assertions(&contract).unwrap().to_string();
 
         assert!(
             tokens.contains(
@@ -816,8 +819,8 @@ mod tests {
             &client_ident,
             &config.throws_list(),
         )
-            .unwrap()
-            .to_string();
+        .unwrap()
+        .to_string();
 
         assert!(
             tokens.contains("impl :: sdk :: internal :: ContractAbiAllocEnabled for ImportedErrorCalleeClientError"),

@@ -1,3 +1,6 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
 use sdk::__contract_spec::{
     ContractEnumDefView, ContractEnumVariantView, ContractFieldView,
     ContractStructDefView, ContractTypeDefView, ContractTypeSpec,
@@ -28,6 +31,10 @@ pub enum Envelope {
 }
 
 pub type PayloadPair = (Payload, Option<Payload>);
+pub type Byte = u8;
+pub type Blob = Vec<Byte>;
+pub type Hash = [Byte; 32];
+pub type BlobEnvelope = (Blob, Hash);
 
 impl ContractTypeSpec for Payload {
     const TYPE_DEF: ContractTypeDefView<'static> =
@@ -39,6 +46,8 @@ impl ContractTypeSpec for Payload {
             }],
         });
 }
+
+impl sdk::internal::ContractAbiAllocEnabled for Payload {}
 
 impl ContractTypeSpec for Choice {
     const TYPE_DEF: ContractTypeDefView<'static> =
@@ -56,6 +65,8 @@ impl ContractTypeSpec for Choice {
             ],
         });
 }
+
+impl sdk::internal::ContractAbiAllocEnabled for Choice {}
 
 impl ContractTypeSpec for Envelope {
     const TYPE_DEF: ContractTypeDefView<'static> =
@@ -77,9 +88,11 @@ impl ContractTypeSpec for Envelope {
     const TYPE_DEFS: sdk::__contract_spec::ContractTypeDefsView<'static> =
         sdk::__contract_spec::ContractTypeDefsView::Many(&[
             sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
-            sdk::__contract_spec::type_defs::<Payload>(),
+        sdk::__contract_spec::type_defs::<Payload>(),
         ]);
 }
+
+impl sdk::internal::ContractAbiAllocEnabled for Envelope {}
 
 #[derive(Default)]
 pub struct SpecNamedTypesContract;
@@ -104,6 +117,18 @@ impl SpecNamedTypesContract {
 
     pub fn echo_pair(payloads: PayloadPair) -> PayloadPair {
         payloads
+    }
+
+    pub fn echo_blob(blob: Blob) -> Blob {
+        blob
+    }
+
+    pub fn echo_hash(hash: Hash) -> Hash {
+        hash
+    }
+
+    pub fn echo_blob_envelope(envelope: BlobEnvelope) -> BlobEnvelope {
+        envelope
     }
 }
 

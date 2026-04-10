@@ -48,6 +48,14 @@ pub enum ContractType {
     Vec(Box<ContractType>) = 12,
     Tuple(Vec<ContractType>) = 13,
     Named(String) = 14,
+    U8 = 15,
+    Array(ContractArrayType) = 16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
+pub struct ContractArrayType {
+    pub element: Box<ContractType>,
+    pub len: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]

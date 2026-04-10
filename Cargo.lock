@@ -18,6 +18,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloc-required-vec-alias"
+version = "0.9.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -49,6 +49,8 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
             const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
 
+        impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
+
         #raw_typedef
     }
 }
@@ -79,6 +81,8 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
             const TYPE_DEF: ::sdk::__contract_spec::ContractTypeDefView<'static> = #type_def;
             const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
+
+        impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
 
         #raw_typedef
     }
