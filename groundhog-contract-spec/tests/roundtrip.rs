@@ -544,6 +544,7 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
 fn alloc_requirement_flags_cover_aliases_and_composites() {
     type Byte = u8;
     type Blob = Vec<Byte>;
+    type Text = String;
     type Hash = [Byte; 32];
     type BlobPair = (Blob, Hash);
 
@@ -570,6 +571,7 @@ fn alloc_requirement_flags_cover_aliases_and_composites() {
     assert!(groundhog_contract_spec::requires_alloc::<Vec<u8>>());
     assert!(groundhog_contract_spec::requires_alloc::<String>());
     assert!(groundhog_contract_spec::requires_alloc::<Blob>());
+    assert!(groundhog_contract_spec::requires_alloc::<Text>());
     assert!(groundhog_contract_spec::requires_alloc::<BlobPair>());
     assert!(groundhog_contract_spec::requires_alloc::<NamedBlob>());
 }

@@ -6,9 +6,7 @@ use groundhog_xdr::types::{
     SHA256Hash,
 };
 
-#[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
 #[cfg(feature = "alloc")]
@@ -37,11 +35,19 @@ pub trait ContractTypeRefSpec {
     const REQUIRES_ALLOC: bool = false;
 }
 
+pub trait ContractAllocSpec {
+    const REQUIRES_ALLOC: bool;
+}
+
 impl ContractTypeRefSpec for () {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Void,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for () {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -53,11 +59,19 @@ impl ContractTypeRefSpec for bool {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for bool {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for u8 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::U8,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for u8 {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -69,11 +83,19 @@ impl ContractTypeRefSpec for u32 {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for u32 {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for i32 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I32,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for i32 {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -85,11 +107,19 @@ impl ContractTypeRefSpec for u64 {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for u64 {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for i64 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I64,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for i64 {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -101,11 +131,19 @@ impl ContractTypeRefSpec for u128 {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for u128 {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for i128 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I128,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for i128 {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -117,11 +155,19 @@ impl ContractTypeRefSpec for str {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for str {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for [u8] {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vec(&view::ContractTypeView::U8),
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for [u8] {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -131,8 +177,16 @@ impl<'a> ContractTypeRefSpec for &'a [u8] {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl<'a> ContractAllocSpec for &'a [u8] {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl<'a> ContractTypeRefSpec for &'a str {
     const INFO: ContractTypeInfo<'static> = <str as ContractTypeRefSpec>::INFO;
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl<'a> ContractAllocSpec for &'a str {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -150,11 +204,22 @@ where
     const REQUIRES_ALLOC: bool = T::REQUIRES_ALLOC;
 }
 
+impl<T, const N: usize> ContractAllocSpec for [T; N]
+where
+    T: ContractAllocSpec,
+{
+    const REQUIRES_ALLOC: bool = T::REQUIRES_ALLOC;
+}
+
 impl ContractTypeRefSpec for ContractAddress {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Address,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for ContractAddress {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -166,11 +231,19 @@ impl ContractTypeRefSpec for SHA256Hash {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for SHA256Hash {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for Ed25519Signature {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Bytes,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for Ed25519Signature {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -182,11 +255,19 @@ impl ContractTypeRefSpec for Ed25519PublicKey {
     const REQUIRES_ALLOC: bool = false;
 }
 
+impl ContractAllocSpec for Ed25519PublicKey {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for ContractEntrypointID {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Bytes,
         type_defs: view::ContractTypeDefsView::Empty,
     };
+    const REQUIRES_ALLOC: bool = false;
+}
+
+impl ContractAllocSpec for ContractEntrypointID {
     const REQUIRES_ALLOC: bool = false;
 }
 
@@ -198,7 +279,10 @@ impl ContractTypeRefSpec for BlockHeight {
     const REQUIRES_ALLOC: bool = false;
 }
 
-#[cfg(feature = "alloc")]
+impl ContractAllocSpec for BlockHeight {
+    const REQUIRES_ALLOC: bool = false;
+}
+
 impl ContractTypeRefSpec for String {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::String,
@@ -207,7 +291,10 @@ impl ContractTypeRefSpec for String {
     const REQUIRES_ALLOC: bool = true;
 }
 
-#[cfg(feature = "alloc")]
+impl ContractAllocSpec for String {
+    const REQUIRES_ALLOC: bool = true;
+}
+
 impl<T> ContractTypeRefSpec for Vec<T>
 where
     T: ContractTypeRefSpec,
@@ -216,6 +303,10 @@ where
         ty: view::ContractTypeView::Vec(&type_ref::<T>()),
         type_defs: type_defs::<T>(),
     };
+    const REQUIRES_ALLOC: bool = true;
+}
+
+impl<T> ContractAllocSpec for Vec<T> {
     const REQUIRES_ALLOC: bool = true;
 }
 
@@ -230,6 +321,13 @@ where
     const REQUIRES_ALLOC: bool = T::REQUIRES_ALLOC;
 }
 
+impl<T> ContractAllocSpec for Option<T>
+where
+    T: ContractAllocSpec,
+{
+    const REQUIRES_ALLOC: bool = T::REQUIRES_ALLOC;
+}
+
 impl<T> ContractTypeRefSpec for T
 where
     T: ContractTypeSpec,
@@ -238,6 +336,13 @@ where
         ty: T::TYPE_DEF.type_ref(),
         type_defs: T::TYPE_DEFS,
     };
+    const REQUIRES_ALLOC: bool = T::REQUIRES_ALLOC;
+}
+
+impl<T> ContractAllocSpec for T
+where
+    T: ContractTypeSpec,
+{
     const REQUIRES_ALLOC: bool = T::REQUIRES_ALLOC;
 }
 
@@ -258,7 +363,31 @@ macro_rules! impl_tuple_type_ref_spec {
     };
 }
 
+macro_rules! impl_tuple_alloc_spec {
+    ($(($($name:ident),+)),+ $(,)?) => {
+        $(
+            impl<$($name),+> ContractAllocSpec for ($($name,)+)
+            where
+                $($name: ContractAllocSpec),+
+            {
+                const REQUIRES_ALLOC: bool = false $(|| $name::REQUIRES_ALLOC)+;
+            }
+        )+
+    };
+}
+
 impl_tuple_type_ref_spec!(
+    (A),
+    (A, B),
+    (A, B, C),
+    (A, B, C, D),
+    (A, B, C, D, E),
+    (A, B, C, D, E, F),
+    (A, B, C, D, E, F, G),
+    (A, B, C, D, E, F, G, H),
+);
+
+impl_tuple_alloc_spec!(
     (A),
     (A, B),
     (A, B, C),
@@ -283,7 +412,7 @@ pub const fn type_defs<T: ContractTypeRefSpec + ?Sized>()
     T::INFO.type_defs
 }
 
-pub const fn requires_alloc<T: ContractTypeRefSpec + ?Sized>() -> bool {
+pub const fn requires_alloc<T: ContractAllocSpec + ?Sized>() -> bool {
     T::REQUIRES_ALLOC
 }
 
