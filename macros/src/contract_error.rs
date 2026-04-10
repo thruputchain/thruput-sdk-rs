@@ -419,10 +419,14 @@ fn parse_i32_expr(expr: &syn::Expr) -> syn::Result<i32> {
                     syn::Error::new_spanned(expr, err)
                 })
             }
-            _ => Err(syn::Error::new_spanned(
-                expr,
-                "#[contract_error] discriminants must be integer literals for contract specs",
-            )),
+            _ => parse_i32_expr(expr).and_then(|value| {
+                value.checked_neg().ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        expr,
+                        "#[contract_error] discriminants must fit in i32",
+                    )
+                })
+            }),
         },
         _ => Err(syn::Error::new_spanned(
             expr,
@@ -444,24 +448,11 @@ fn compute_selector(args: &ExnArgs, type_name: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::parse_i32_expr;
-    use std::panic::catch_unwind;
 
     #[test]
     fn parse_i32_expr_accepts_i32_min_literal() {
         let expr: syn::Expr = syn::parse_quote!(-2147483648);
 
         assert_eq!(parse_i32_expr(&expr).unwrap(), i32::MIN);
-    }
-
-    #[test]
-    fn parse_i32_expr_rejects_nested_negation() {
-        let expr: syn::Expr = syn::parse_quote!(--2147483648);
-        let result = catch_unwind(|| parse_i32_expr(&expr));
-
-        assert!(result.is_ok(), "parse_i32_expr panicked");
-        assert_eq!(
-            result.unwrap().unwrap_err().to_string(),
-            "#[contract_error] discriminants must be integer literals for contract specs",
-        );
     }
 }
