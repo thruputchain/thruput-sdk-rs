@@ -255,17 +255,26 @@ where
 {
     use crate::contract::ContractBlob;
 
-    let wasm = std::fs::read(path.as_ref())
-        .map(BytesM)
+    let raw_wasm = std::fs::read(path.as_ref()).unwrap_or_else(|e| {
+        panic!(
+            "{}: couldn't load wasm: {}",
+            path.as_ref().to_str().unwrap_or("?"),
+            e
+        )
+    });
+
+    let instrumented = groundhog_wasm_meter::instrument(&raw_wasm)
         .unwrap_or_else(|e| {
             panic!(
-                "{}: couldn't load wasm: {}",
+                "{}: wasm instrumentation failed: {}",
                 path.as_ref().to_str().unwrap_or("?"),
                 e
             )
         });
 
-    let contract: ContractBlob = ContractBlob { wasm };
+    let contract: ContractBlob = ContractBlob {
+        wasm: BytesM(instrumented),
+    };
 
     Contract::kWasmi {
         wasmi_contract: contract,
