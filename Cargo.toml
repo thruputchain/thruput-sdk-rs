@@ -83,6 +83,7 @@ heapless = { workspace = true }
 
 # Optional dependencies
 groundhog-native-exec = { workspace = true, optional = true }
+groundhog-wasm-meter = { workspace = true, optional = true }
 
 [dev-dependencies]
 sdk = { workspace = true, features = ["dev"] }
@@ -122,6 +123,7 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 groundhog-trace = { registry = "groundhog", version = "0.7.7" }
 groundhog-xdr = { registry = "groundhog", version = "0.7.7", features = ["xdrs"] }
 hogexec-internal = { registry = "groundhog", version = "0.7.7" }
+groundhog-wasm-meter = { registry = "groundhog", version = "0.1.2" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.5.6", features = ["int128", "heapless"] }
 xdr-common = { registry = "groundhog", version = "0.5.6" }
@@ -149,6 +151,7 @@ dev = [
 mock = [
     "std",
     "dep:groundhog-native-exec",
+    "dep:groundhog-wasm-meter",
     "groundhog-macros/mock",
     "groundhog-xdr/syscalls_mock",
     "dep:linkme",

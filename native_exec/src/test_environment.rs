@@ -191,6 +191,7 @@ impl TestEnvironmentInner {
                     "setup_create_contract failed: {err}\n\
                      \n\
                      The contract's WASM binary failed validation. Common causes:\n\
+                     - Missing stack limit instrumentation (WASM not run through groundhog-wasm-meter)\n\
                      - Linear memory bounds too large\n\
                      - Unsupported WASM extension (e.g. threads, SIMD, reference types)\n"
                 );
