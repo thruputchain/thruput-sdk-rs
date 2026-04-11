@@ -2,7 +2,8 @@ use std::{fs, process::Command};
 
 use groundhog_contract_spec::{
     ContractArrayType, ContractField, ContractSpec, ContractSpecMethod,
-    ContractType, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractType, ContractVectorType, SpecFragment, SpecInterfaceFragment,
+    SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
@@ -126,9 +127,15 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                 name: "echo_blob".into(),
                 args: vec![ContractField {
                     name: "blob".into(),
-                    ty: ContractType::Vec(Box::new(ContractType::U8)),
+                    ty: ContractType::Vector(ContractVectorType {
+                        element: Box::new(ContractType::U8),
+                        max_len: u32::MAX,
+                    }),
                 }],
-                return_type: ContractType::Vec(Box::new(ContractType::U8)),
+                return_type: ContractType::Vector(ContractVectorType {
+                    element: Box::new(ContractType::U8),
+                    max_len: u32::MAX,
+                }),
             },
         }),
         SpecFragment::Method(SpecMethodFragment {
@@ -179,14 +186,16 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
         methods[0]["args"][0]["ty"],
         serde_json::json!({
             "kind": "vec",
-            "inner": { "kind": "u8" }
+            "inner": { "kind": "u8" },
+            "max_len": 4294967295u32
         })
     );
     assert_eq!(
         methods[0]["return_type"],
         serde_json::json!({
             "kind": "vec",
-            "inner": { "kind": "u8" }
+            "inner": { "kind": "u8" },
+            "max_len": 4294967295u32
         })
     );
     assert_eq!(methods[1]["name"], "echo_hash");

@@ -6,8 +6,9 @@ use groundhog_contract_spec::{
     ContractSpecView, ContractStructDefView, ContractType, ContractTypeDef,
     ContractTypeDefView, ContractTypeDefsView, ContractTypeSpec,
     ContractTypeView, ContractUnionCaseView, ContractUnionDefView,
-    SpecFragment, SpecFragmentView, SpecInterfaceFragment,
-    SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
+    ContractVectorType, ContractVectorTypeView, SpecFragment,
+    SpecFragmentView, SpecInterfaceFragment, SpecInterfaceFragmentView,
+    SpecMethodFragment, SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
 use xdrs::txs;
@@ -71,7 +72,10 @@ fn borrowed_views_convert_to_owned_model() {
         ty: named_payload,
     }];
     let option_named_error = ContractTypeView::Option(&named_error);
-    let vec_named_payload = ContractTypeView::Vec(&named_payload);
+    let vec_named_payload = ContractTypeView::Vector(ContractVectorTypeView {
+        element: &named_payload,
+        max_len: u32::MAX,
+    });
     let tuple_items = [
         ContractTypeView::Void,
         ContractTypeView::Bool,
@@ -148,9 +152,10 @@ fn borrowed_views_convert_to_owned_model() {
             ContractType::Option(Box::new(ContractType::Named(
                 "DemoError".to_string(),
             ))),
-            ContractType::Vec(Box::new(ContractType::Named(
-                "Payload".to_string(),
-            ))),
+            ContractType::Vector(ContractVectorType {
+                element: Box::new(ContractType::Named("Payload".to_string(),)),
+                max_len: u32::MAX,
+            }),
             ContractType::Named("Payload".to_string()),
             ContractType::U8,
             ContractType::Array(ContractArrayType {
@@ -363,7 +368,13 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(&ContractType::Bytes, 9);
     assert_xdr_tag(&ContractType::Address, 10);
     assert_xdr_tag(&ContractType::Option(Box::new(ContractType::Void)), 11);
-    assert_xdr_tag(&ContractType::Vec(Box::new(ContractType::Void)), 12);
+    assert_xdr_tag(
+        &ContractType::Vector(ContractVectorType {
+            element: Box::new(ContractType::Void),
+            max_len: u32::MAX,
+        }),
+        12,
+    );
     assert_xdr_tag(&ContractType::Tuple(vec![ContractType::Void]), 13);
     assert_xdr_tag(&ContractType::Named("DemoError".to_string()), 14);
     assert_xdr_tag(&ContractType::U8, 15);
@@ -476,11 +487,17 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u8>>(),
-        ContractTypeView::Vec(&ContractTypeView::U8)
+        ContractTypeView::Vector(ContractVectorTypeView {
+            element: &ContractTypeView::U8,
+            max_len: u32::MAX,
+        })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<&[u8]>(),
-        ContractTypeView::Vec(&ContractTypeView::U8)
+        ContractTypeView::Vector(ContractVectorTypeView {
+            element: &ContractTypeView::U8,
+            max_len: u32::MAX,
+        })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<&str>(),
@@ -488,7 +505,10 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u32>>(),
-        ContractTypeView::Vec(&ContractTypeView::U32)
+        ContractTypeView::Vector(ContractVectorTypeView {
+            element: &ContractTypeView::U32,
+            max_len: u32::MAX,
+        })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<[u8; 32]>(),
@@ -556,7 +576,10 @@ fn alias_byte_collections_resolve_via_trait_layer() {
 
     assert_eq!(
         groundhog_contract_spec::type_ref::<Blob>(),
-        ContractTypeView::Vec(&ContractTypeView::U8)
+        ContractTypeView::Vector(ContractVectorTypeView {
+            element: &ContractTypeView::U8,
+            max_len: u32::MAX,
+        })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Hash>(),

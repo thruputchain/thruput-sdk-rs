@@ -1,7 +1,5 @@
 #![no_std]
 
-use groundhog_xdr::types::{BlockHeight, ContractAddress};
-
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
@@ -18,6 +16,8 @@ pub use view::*;
 use xdrs::VecM;
 
 pub mod contract_abi_alloc;
+
+mod groundhog_xdr_types;
 
 pub trait ContractTypeSpec {
     const TYPE_DEF: view::ContractTypeDefView<'static>;
@@ -107,7 +107,10 @@ impl ContractTypeRefSpec for str {
 
 impl ContractTypeRefSpec for [u8] {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Vec(&view::ContractTypeView::U8),
+        ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
+            element: &view::ContractTypeView::U8,
+            max_len: u32::MAX,
+        }),
         type_defs: view::ContractTypeDefsView::Empty,
     };
 }
@@ -134,20 +137,6 @@ where
     };
 }
 
-impl ContractTypeRefSpec for ContractAddress {
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Address,
-        type_defs: view::ContractTypeDefsView::Empty,
-    };
-}
-
-impl ContractTypeRefSpec for BlockHeight {
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::I64,
-        type_defs: view::ContractTypeDefsView::Empty,
-    };
-}
-
 #[cfg(feature = "alloc")]
 impl ContractTypeRefSpec for String {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
@@ -162,7 +151,10 @@ where
     T: ContractTypeRefSpec,
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Vec(&type_ref::<T>()),
+        ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
+            element: &type_ref::<T>(),
+            max_len: u32::MAX,
+        }),
         type_defs: type_defs::<T>(),
     };
 }
@@ -173,7 +165,10 @@ where
     T: ContractTypeRefSpec,
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Vec(&type_ref::<T>()),
+        ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
+            element: &type_ref::<T>(),
+            max_len: N,
+        }),
         type_defs: type_defs::<T>(),
     };
 }

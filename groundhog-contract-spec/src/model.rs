@@ -45,7 +45,7 @@ pub enum ContractType {
     Bytes = 9,
     Address = 10,
     Option(Box<ContractType>) = 11,
-    Vec(Box<ContractType>) = 12,
+    Vector(ContractVectorType) = 12,
     Tuple(Vec<ContractType>) = 13,
     Named(String) = 14,
     U8 = 15,
@@ -56,6 +56,12 @@ pub enum ContractType {
 pub struct ContractArrayType {
     pub element: Box<ContractType>,
     pub len: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
+pub struct ContractVectorType {
+    pub element: Box<ContractType>,
+    pub max_len: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]

@@ -52,7 +52,7 @@ pub enum ContractTypeView<'a> {
     Bytes = 9,
     Address = 10,
     Option(&'a ContractTypeView<'a>) = 11,
-    Vec(&'a ContractTypeView<'a>) = 12,
+    Vector(ContractVectorTypeView<'a>) = 12,
     Tuple(&'a [ContractTypeView<'a>]) = 13,
     Named(&'a str) = 14,
     U8 = 15,
@@ -63,6 +63,12 @@ pub enum ContractTypeView<'a> {
 pub struct ContractArrayTypeView<'a> {
     pub element: &'a ContractTypeView<'a>,
     pub len: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+pub struct ContractVectorTypeView<'a> {
+    pub element: &'a ContractTypeView<'a>,
+    pub max_len: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -218,8 +224,8 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::Option(inner) => {
                 ContractType::Option(Box::new((*inner).into()))
             }
-            ContractTypeView::Vec(inner) => {
-                ContractType::Vec(Box::new((*inner).into()))
+            ContractTypeView::Vector(inner) => {
+                ContractType::Vector(inner.into())
             }
             ContractTypeView::Tuple(items) => ContractType::Tuple(
                 items.iter().copied().map(Into::into).collect(),
@@ -241,6 +247,16 @@ impl From<ContractArrayTypeView<'_>> for crate::model::ContractArrayType {
         Self {
             element: Box::new((*value.element).into()),
             len: value.len,
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl From<ContractVectorTypeView<'_>> for crate::model::ContractVectorType {
+    fn from(value: ContractVectorTypeView<'_>) -> Self {
+        Self {
+            element: Box::new((*value.element).into()),
+            max_len: value.max_len,
         }
     }
 }

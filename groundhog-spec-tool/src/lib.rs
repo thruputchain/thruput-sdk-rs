@@ -355,8 +355,11 @@ fn collect_named_types(
     pending: &mut Vec<String>,
 ) -> Result<(), SpecToolError> {
     match ty {
-        ContractType::Option(inner) | ContractType::Vec(inner) => {
+        ContractType::Option(inner) => {
             collect_named_types(inner, defs, resolved, pending)?;
+        }
+        ContractType::Vector(vector) => {
+            collect_named_types(&vector.element, defs, resolved, pending)?;
         }
         ContractType::Array(array) => {
             collect_named_types(&array.element, defs, resolved, pending)?;
@@ -426,8 +429,12 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::Option(inner) => {
             format!("option({})", canonical_type_key(inner))
         }
-        ContractType::Vec(inner) => {
-            format!("vec({})", canonical_type_key(inner))
+        ContractType::Vector(vector) => {
+            format!(
+                "vector({}, {})",
+                canonical_type_key(&vector.element),
+                vector.max_len
+            )
         }
         ContractType::Tuple(items) => {
             let mut key = String::from("tuple(");
@@ -482,9 +489,11 @@ fn push_type_json(out: &mut String, ty: &ContractType) {
             push_type_json(out, inner);
             out.push('}');
         }
-        ContractType::Vec(inner) => {
+        ContractType::Vector(vector) => {
             out.push_str("{\"kind\":\"vec\",\"inner\":");
-            push_type_json(out, inner);
+            push_type_json(out, &vector.element);
+            out.push_str(",\"max_len\":");
+            out.push_str(&vector.max_len.to_string());
             out.push('}');
         }
         ContractType::Tuple(items) => {
