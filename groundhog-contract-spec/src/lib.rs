@@ -14,6 +14,10 @@ pub mod view;
 #[cfg(feature = "alloc")]
 pub use model::*;
 pub use view::*;
+#[cfg(feature = "alloc")]
+use xdrs::VecM;
+
+pub mod contract_abi_alloc;
 
 pub trait ContractTypeSpec {
     const TYPE_DEF: view::ContractTypeDefView<'static>;
@@ -163,6 +167,17 @@ where
     };
 }
 
+#[cfg(feature = "alloc")]
+impl<T, const N: u32> ContractTypeRefSpec for VecM<T, N>
+where
+    T: ContractTypeRefSpec,
+{
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Vec(&type_ref::<T>()),
+        type_defs: type_defs::<T>(),
+    };
+}
+
 impl<T> ContractTypeRefSpec for Option<T>
 where
     T: ContractTypeRefSpec,
@@ -208,6 +223,14 @@ impl_tuple_type_ref_spec!(
     (A, B, C, D, E, F),
     (A, B, C, D, E, F, G),
     (A, B, C, D, E, F, G, H),
+    (A, B, C, D, E, F, G, H, I),
+    (A, B, C, D, E, F, G, H, I, J),
+    (A, B, C, D, E, F, G, H, I, J, K),
+    (A, B, C, D, E, F, G, H, I, J, K, L),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P),
 );
 
 pub const fn symbol<T: ContractTypeSpec>() -> &'static str {
