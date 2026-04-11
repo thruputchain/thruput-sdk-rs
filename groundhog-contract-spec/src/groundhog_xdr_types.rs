@@ -1,4 +1,4 @@
-use groundhog_xdr::types::{BlockHeight, ContractAddress, SHA256Hash, Ed25519PublicKey, Ed25519Signature};
+use groundhog_xdr::{contract::ContractEntrypointID, types::{BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature, SHA256Hash}};
 
 use crate::{ContractTypeInfo, ContractTypeRefSpec, view};
 
@@ -42,6 +42,13 @@ impl ContractTypeRefSpec for Ed25519Signature {
             element: &view::ContractTypeView::U8,
             max_len: 64,
         }),
+        type_defs: view::ContractTypeDefsView::Empty,
+    };
+}
+
+impl ContractTypeRefSpec for ContractEntrypointID {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U64,
         type_defs: view::ContractTypeDefsView::Empty,
     };
 }
