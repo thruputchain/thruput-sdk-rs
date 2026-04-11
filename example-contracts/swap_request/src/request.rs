@@ -26,8 +26,6 @@ impl ContractTypeSpec for SwapRequest {
         });
 }
 
-impl sdk::internal::ContractAbiAllocEnabled for SwapRequest {}
-
 contract_local! {
     static LAST_REQUEST_ID: ContractCell<RequestID> = ContractCell::new(0);
 }
