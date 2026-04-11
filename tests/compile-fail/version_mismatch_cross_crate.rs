@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use sdk::*;
 use version_mismatch_helper::VersionedTrait;
 
