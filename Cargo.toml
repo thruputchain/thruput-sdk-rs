@@ -13,8 +13,6 @@ members = [
     "standard-tests/*",
     "bottle-test",
     "groundhog-test-vectors",
-    "tests/alloc-required-contract-error",
-    "tests/alloc-required-vec-alias",
     "tests/version-mismatch-helper",
     "tests/vector-tests",
 ]

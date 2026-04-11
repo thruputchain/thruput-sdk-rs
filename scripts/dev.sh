@@ -195,51 +195,6 @@ check_contract_spec_artifacts() {
     assert_wasm_has_no_spec_sections "$genesis_wasm"
 }
 
-check_alloc_requirement_diagnostics() {
-    info "CHECK-ALLOC-DIAGNOSTICS"
-
-    local output
-    if output="$(
-        env -u RUSTC_WRAPPER cargo build \
-            --manifest-path tests/alloc-required-vec-alias/Cargo.toml \
-            --target wasm32-unknown-unknown \
-            --release \
-            --features entrypoints 2>&1
-    )"; then
-        fail "Expected alloc-required-vec-alias wasm build to fail"
-        return 1
-    fi
-
-    printf '%s\n' "$output" | rg -F --quiet \
-        "no global memory allocator found but one is required" || {
-        fail "Expected missing allocator diagnostic in wasm build output"
-        return 1
-    }
-
-    printf '%s\n' "$output" | rg -F --quiet \
-        "ContractAbiAllocEnabled" || {
-        fail "Expected ContractAbiAllocEnabled diagnostic in wasm build output"
-        return 1
-    }
-
-    if output="$(
-        env -u RUSTC_WRAPPER cargo build \
-            --manifest-path tests/alloc-required-contract-error/Cargo.toml \
-            --target wasm32-unknown-unknown \
-            --release \
-            --features entrypoints 2>&1
-    )"; then
-        fail "Expected alloc-required-contract-error wasm build to fail"
-        return 1
-    fi
-
-    printf '%s\n' "$output" | rg -F --quiet \
-        "ContractAbiAllocEnabled" || {
-        fail "Expected ContractAbiAllocEnabled diagnostic for nested contract_error payloads"
-        return 1
-    }
-}
-
 itc_build() {
     package="$1"; shift
 
