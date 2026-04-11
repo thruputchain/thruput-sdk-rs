@@ -139,19 +139,7 @@ fn field_types(fields: &syn::Fields) -> syn::Result<Vec<&syn::Type>> {
 fn enum_variant_field_types(
     variant: &syn::Variant,
 ) -> syn::Result<Vec<&syn::Type>> {
-    match &variant.fields {
-        syn::Fields::Unit => Ok(vec![]),
-        syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-            Ok(vec![&fields.unnamed.first().unwrap().ty])
-        }
-        syn::Fields::Named(fields) if fields.named.len() == 1 => {
-            Ok(vec![&fields.named.first().unwrap().ty])
-        }
-        _ => Err(syn::Error::new_spanned(
-            variant,
-            "#[contract_error] variants with multiple payload fields are not yet supported in contract specs",
-        )),
-    }
+    field_types(&variant.fields)
 }
 
 fn compute_selector(args: &ContractErrorArgs, type_name: &str) -> u64 {
