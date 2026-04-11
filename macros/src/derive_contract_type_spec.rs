@@ -45,14 +45,14 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident) -> TokenStream {
 }
 
 fn struct_type_def_tokens(
-    ident: &syn::Ident,
+    _ident: &syn::Ident,
     fields: &syn::Fields,
 ) -> syn::Result<TokenStream> {
     let field_tokens = struct_field_tokens(fields)?;
     Ok(quote! {
         ::sdk::__contract_spec::ContractTypeDefView::Struct(
             ::sdk::__contract_spec::ContractStructDefView {
-                name: stringify!(#ident),
+                name: <Self as ::sdk::__contract_spec::ContractTypeName>::NAME,
                 fields: &[#(#field_tokens),*],
             }
         )
@@ -70,7 +70,7 @@ fn struct_type_defs_tokens(fields: &syn::Fields) -> syn::Result<TokenStream> {
 }
 
 fn enum_type_def_tokens(
-    ident: &syn::Ident,
+    _ident: &syn::Ident,
     variants: &Punctuated<syn::Variant, syn::Token![,]>,
 ) -> syn::Result<TokenStream> {
     let discriminants = enum_discriminant_tokens(variants)?;
@@ -96,7 +96,7 @@ fn enum_type_def_tokens(
         return Ok(quote! {
             ::sdk::__contract_spec::ContractTypeDefView::Enum(
                 ::sdk::__contract_spec::ContractEnumDefView {
-                    name: stringify!(#ident),
+                    name: <Self as ::sdk::__contract_spec::ContractTypeName>::NAME,
                     variants: &[#(#variant_tokens),*],
                 }
             )
@@ -122,7 +122,7 @@ fn enum_type_def_tokens(
     Ok(quote! {
         ::sdk::__contract_spec::ContractTypeDefView::Union(
             ::sdk::__contract_spec::ContractUnionDefView {
-                name: stringify!(#ident),
+                name: <Self as ::sdk::__contract_spec::ContractTypeName>::NAME,
                 cases: &[#(#cases),*],
             }
         )
