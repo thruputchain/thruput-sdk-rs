@@ -32,7 +32,7 @@ jobs:
           rm -f /home/hogci/.gitconfig
 
       - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.1
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: |
             ${{ secrets.ACTIONS_KEY }}
@@ -40,7 +40,7 @@ jobs:
             ${{ secrets.SDK_TO_SELF }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -49,7 +49,7 @@ jobs:
           git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - name: Checkout actions repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: groundhogchain/actions
           path: actions

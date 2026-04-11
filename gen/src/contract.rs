@@ -8,8 +8,8 @@ use crate::config::{Config, ThrownType};
 use crate::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
-use proc_macro2::Span;
-use quote::format_ident;
+use proc_macro2::{Span, TokenStream};
+use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 use syn::*;
 
@@ -371,6 +371,294 @@ pub fn effective_interface_name(contract: &impl ContractSrc) -> String {
         .unwrap_or_else(|| "_unnamed_interface".to_string())
 }
 
+pub fn throws_spec_tokens(
+    contract: &impl ContractSrc,
+) -> Result<Vec<TokenStream>> {
+    contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| {
+            let path = thrown.ty();
+            let ty: syn::Type = syn::parse_quote! { #path };
+            Ok(lower_contract_type(&ty)?.view)
+        })
+        .collect()
+}
+
+pub fn throws_typedef_tokens(
+    contract: &impl ContractSrc,
+) -> Result<Vec<TokenStream>> {
+    contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| {
+            let path = thrown.ty();
+            let ty: syn::Type = syn::parse_quote! { #path };
+            Ok(lower_contract_type(&ty)?.type_defs)
+        })
+        .collect()
+}
+
 fn is_visible(vis: &syn::Visibility) -> bool {
     matches!(vis, syn::Visibility::Public(_))
+}
+
+pub fn method_arg_spec_tokens(
+    method: &impl Method,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    method
+        .sig()
+        .inputs
+        .iter()
+        .filter_map(|arg| match arg {
+            syn::FnArg::Typed(pat_type) => Some(pat_type),
+            syn::FnArg::Receiver(_) => None,
+        })
+        .map(|pat_type| {
+            let name = match pat_type.pat.as_ref() {
+                syn::Pat::Ident(pat_ident) => pat_ident.ident.to_string(),
+                _ => {
+                    return Err(error(
+                        pat_type,
+                        "couldn't interpret method arg",
+                    ));
+                }
+            };
+            let ty = contract_type_view_tokens(pat_type.ty.as_ref())?;
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractFieldView {
+                    name: #name,
+                    ty: #ty,
+                }
+            })
+        })
+        .collect()
+}
+
+pub fn method_return_spec_token(
+    method: &impl Method,
+) -> Result<proc_macro2::TokenStream> {
+    match &method.sig().output {
+        syn::ReturnType::Default => {
+            Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Void })
+        }
+        syn::ReturnType::Type(_, ty) => contract_type_view_tokens(ty),
+    }
+}
+
+pub struct LoweredContractType {
+    pub view: TokenStream,
+    pub type_defs: TokenStream,
+}
+
+fn lower_via_type_ref_trait(ty: &syn::Type) -> LoweredContractType {
+    LoweredContractType {
+        view: quote! {
+            ::sdk::__contract_spec::type_ref::<#ty>()
+        },
+        type_defs: quote! {
+            ::sdk::__contract_spec::type_defs::<#ty>()
+        },
+    }
+}
+
+pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
+    match ty {
+        syn::Type::Reference(reference) => {
+            lower_contract_type(&reference.elem)
+        }
+        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(ty)),
+        syn::Type::Paren(paren) => lower_contract_type(&paren.elem),
+        syn::Type::Slice(_) | syn::Type::Array(_) | syn::Type::Tuple(_) => {
+            Ok(lower_via_type_ref_trait(ty))
+        }
+        syn::Type::ImplTrait(_)
+        | syn::Type::TraitObject(_)
+        | syn::Type::BareFn(_)
+        | syn::Type::Ptr(_) => Err(error(
+            ty,
+            "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
+        )),
+        _ => Err(error(
+            ty,
+            "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
+        )),
+    }
+}
+
+pub fn contract_type_view_tokens(
+    ty: &syn::Type,
+) -> Result<proc_macro2::TokenStream> {
+    Ok(lower_contract_type(ty)?.view)
+}
+
+pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
+    Ok(lower_contract_type(ty)?.type_defs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{contract_type_typedef_tokens, contract_type_view_tokens};
+
+    #[test]
+    fn alias_paths_use_trait_resolution_for_spec_types() {
+        let ty: syn::Type = syn::parse_quote!(Amount);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_ref"));
+        assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
+
+    #[test]
+    fn alias_paths_use_trait_resolution_for_spec_typedefs() {
+        let ty: syn::Type = syn::parse_quote!(PayloadList);
+
+        let tokens = contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_defs"));
+        assert!(!tokens.contains("maybe_type_def"));
+    }
+
+    #[test]
+    fn fixed_u8_arrays_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!([u8; 32]);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_ref"));
+        assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
+
+    #[test]
+    fn byte_slice_references_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(&[u8]);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < [u8] >"));
+        assert!(typedef_tokens.contains("type_defs :: < [u8] >"));
+    }
+
+    #[test]
+    fn borrowed_named_types_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(&Payload);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < Payload >"));
+        assert!(typedef_tokens.contains("type_defs :: < Payload >"));
+    }
+
+    #[test]
+    fn option_of_byte_slice_lowers_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(Option<&[u8]>);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < Option < & [u8] > >"));
+        assert!(
+            typedef_tokens.contains("type_defs :: < Option < & [u8] > >"),
+            "{typedef_tokens}"
+        );
+    }
+
+    #[test]
+    fn option_of_vec_u8_lowers_structurally() {
+        let ty: syn::Type = syn::parse_quote!(Option<Vec<u8>>);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < Option < Vec < u8 > > >"));
+        assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
+        assert!(
+            typedef_tokens.contains("type_defs :: < Option < Vec < u8 > > >")
+        );
+    }
+
+    #[test]
+    fn tuple_with_vec_u8_lowers_structurally() {
+        let ty: syn::Type = syn::parse_quote!((Vec<u8>, bool));
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < (Vec < u8 > , bool) >"));
+        assert!(
+            typedef_tokens.contains("type_defs :: < (Vec < u8 > , bool) >")
+        );
+    }
+
+    #[test]
+    fn alias_of_u8_collections_lower_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(Blob);
+
+        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(view_tokens.contains("type_ref :: < Blob >"));
+        assert!(typedef_tokens.contains("type_defs :: < Blob >"));
+        assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
+    }
+
+    #[test]
+    fn builtin_byte_blob_types_lower_to_bytes() {
+        for ty in [
+            syn::parse_quote!(sdk::Ed25519Signature),
+            syn::parse_quote!(sdk::Ed25519PublicKey),
+            syn::parse_quote!(sdk::ContractEntrypointID),
+        ] {
+            let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+            assert!(tokens.contains("type_ref"));
+            assert!(!tokens.contains("ContractTypeView :: Bytes"));
+        }
+    }
+
+    #[test]
+    fn block_height_lowers_to_i64() {
+        let ty: syn::Type = syn::parse_quote!(sdk::BlockHeight);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_ref"));
+        assert!(!tokens.contains("ContractTypeView :: I64"));
+    }
+
+    #[test]
+    fn contract_address_lowers_via_trait_resolution() {
+        let ty: syn::Type = syn::parse_quote!(sdk::ContractAddress);
+
+        let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_ref"));
+        assert!(!tokens.contains("ContractTypeView :: Address"));
+    }
+
+    #[test]
+    fn unsupported_type_shapes_are_rejected() {
+        for ty in [
+            syn::parse_quote!(impl core::fmt::Debug),
+            syn::parse_quote!(&dyn core::fmt::Debug),
+            syn::parse_quote!(fn(u32) -> u32),
+            syn::parse_quote!(*const u8),
+        ] {
+            let err = contract_type_view_tokens(&ty).unwrap_err();
+            assert!(
+                err.to_string().contains("unsupported contract spec type"),
+                "{}",
+                err
+            );
+        }
+    }
 }

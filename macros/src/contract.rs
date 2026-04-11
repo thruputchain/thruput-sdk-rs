@@ -36,6 +36,10 @@ fn apply_with_config(
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
+            let throws_tokens =
+                codegen::contract::throws_spec_tokens(&contract)?;
+            let throws_typedef_tokens =
+                codegen::contract::throws_typedef_tokens(&contract)?;
 
             let mut stripped = item.strip_our_attributes();
 
@@ -65,6 +69,15 @@ fn apply_with_config(
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractTypeView<'static>] = &[#(#throws_tokens),*];
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_THROW_TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> =
+                    ::sdk::__contract_spec::ContractTypeDefsView::Many(&[#(#throws_typedef_tokens),*]);
+            });
 
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
@@ -89,7 +102,6 @@ fn apply_with_config(
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -123,7 +135,7 @@ fn apply_with_config(
 
             // Generate exports (with auto-derived module name for trait impls)
             out.extend(codegen::exports::generate(item, config)?);
-            out.extend(codegen::spec_reg::generate_impl_raw_spec_fragment(
+            out.extend(codegen::spec_reg::generate_impl_raw_spec_fragments(
                 item, config,
             )?);
 
@@ -150,8 +162,10 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Fn(item) => {
+            let contract =
+                codegen::ConfiguredContract::new(config.clone(), item);
             codegen::contract::validate_reserved_client_method_names(
-                core::iter::once(item.clone()),
+                contract.methods_sorted(),
             )?;
 
             // Start with the item itself, stripped of proprietary attributes
@@ -161,7 +175,7 @@ fn apply_with_config(
                 item, config,
             )?);
             out.extend(
-                codegen::spec_reg::generate_free_function_raw_spec_fragment(
+                codegen::spec_reg::generate_free_function_raw_spec_fragments(
                     item, config,
                 )?,
             );

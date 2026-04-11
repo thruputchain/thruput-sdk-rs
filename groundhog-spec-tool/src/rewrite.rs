@@ -2,42 +2,34 @@ use core::ops::Range;
 
 use wasm_encoder::{CustomSection, Module, RawSection};
 use wasmparser::Parser;
+use xdrs::txs::{decode, encode};
 
 use crate::{
-    RawInterfaceFragment, SpecToolError, canonicalize_interfaces,
-    raw::{
-        FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
-        parse_raw_fragment_line,
-    },
+    ContractSpec, SpecFragment, SpecToolError, canonicalize_spec,
+    raw::{FINAL_SECTION_NAME, RAW_SECTION_NAME, parse_raw_fragments},
 };
 
-pub fn rewrite_wasm(
-    bytes: &[u8],
-    package_name: &str,
-) -> Result<Vec<u8>, SpecToolError> {
-    Ok(rewrite_wasm_with_interfaces(bytes, package_name)?.wasm)
+pub fn rewrite_wasm(bytes: &[u8]) -> Result<Vec<u8>, SpecToolError> {
+    Ok(rewrite_wasm_with_spec(bytes)?.wasm)
 }
 
 pub struct RewrittenWasm {
     pub wasm: Vec<u8>,
-    pub interfaces: Vec<crate::InterfaceId>,
+    pub spec: Option<ContractSpec>,
 }
 
-pub fn rewrite_wasm_with_interfaces(
+pub fn rewrite_wasm_with_spec(
     bytes: &[u8],
-    package_name: &str,
 ) -> Result<RewrittenWasm, SpecToolError> {
     let raw_fragments = collect_raw_fragments(bytes)?;
-    let owned_raw_fragments = raw_fragments
-        .iter()
-        .filter(|fragment| fragment.package_name == package_name)
-        .cloned()
-        .collect::<Vec<_>>();
-
-    let interfaces = if owned_raw_fragments.is_empty() {
-        collect_final_interfaces(bytes)?
+    let spec = if raw_fragments.is_empty() {
+        collect_final_spec(bytes)?
     } else {
-        canonicalize_interfaces(&owned_raw_fragments)?
+        match canonicalize_spec(&raw_fragments) {
+            Ok(spec) => Some(spec),
+            Err(SpecToolError::NoSpecFragments) => None,
+            Err(err) => return Err(err),
+        }
     };
     ensure_raw_fragments_stay_out_of_linear_memory(&raw_fragments, bytes)?;
     let mut module = Module::new();
@@ -61,31 +53,22 @@ pub fn rewrite_wasm_with_interfaces(
         }
     }
 
-    if !interfaces.is_empty() {
-        let mut final_text = String::from(FINAL_FORMAT_TAG);
-        final_text.push('\n');
-        for interface in &interfaces {
-            final_text.push_str(&interface.interface_name);
-            final_text.push('\t');
-            final_text.push_str(&interface.interface_version);
-            final_text.push('\n');
-        }
-
+    if let Some(spec) = &spec {
         module.section(&CustomSection {
             name: FINAL_SECTION_NAME.into(),
-            data: final_text.into_bytes().into(),
+            data: encode(spec).expect("contract specs must XDR encode").into(),
         });
     }
     Ok(RewrittenWasm {
         wasm: module.finish(),
-        interfaces,
+        spec,
     })
 }
 
 fn collect_raw_fragments(
     bytes: &[u8],
-) -> Result<Vec<RawInterfaceFragment>, SpecToolError> {
-    let mut raw_fragments = Vec::<RawInterfaceFragment>::new();
+) -> Result<Vec<SpecFragment>, SpecToolError> {
+    let mut raw_fragments = Vec::<SpecFragment>::new();
 
     for payload in Parser::new(0).parse_all(bytes) {
         let payload =
@@ -96,20 +79,16 @@ fn collect_raw_fragments(
                 continue;
             }
 
-            let text = core::str::from_utf8(section.data())
-                .map_err(|err| SpecToolError::Wasm(err.to_string()))?;
-            for line in text.lines().filter(|line| !line.is_empty()) {
-                raw_fragments.push(parse_raw_fragment_line(line)?);
-            }
+            raw_fragments.extend(parse_raw_fragments(section.data())?);
         }
     }
 
     Ok(raw_fragments)
 }
 
-fn collect_final_interfaces(
+fn collect_final_spec(
     bytes: &[u8],
-) -> Result<Vec<crate::InterfaceId>, SpecToolError> {
+) -> Result<Option<ContractSpec>, SpecToolError> {
     for payload in Parser::new(0).parse_all(bytes) {
         let payload =
             payload.map_err(|err| SpecToolError::Wasm(err.to_string()))?;
@@ -119,45 +98,17 @@ fn collect_final_interfaces(
                 continue;
             }
 
-            let text = core::str::from_utf8(section.data())
-                .map_err(|err| SpecToolError::Wasm(err.to_string()))?;
-            return parse_final_interfaces(text);
+            return decode(section.data())
+                .map(Some)
+                .map_err(|err| SpecToolError::Wasm(err.to_string()));
         }
     }
 
-    Ok(Vec::new())
-}
-
-fn parse_final_interfaces(
-    text: &str,
-) -> Result<Vec<crate::InterfaceId>, SpecToolError> {
-    let mut lines = text.lines().filter(|line| !line.is_empty());
-    match lines.next() {
-        None => return Ok(Vec::new()),
-        Some(FINAL_FORMAT_TAG) => {}
-        Some(other) => {
-            return Err(SpecToolError::Wasm(format!(
-                "invalid final interface spec header: {other}"
-            )));
-        }
-    }
-
-    let mut interfaces = Vec::new();
-    for line in lines {
-        let (interface_name, interface_version) =
-            line.split_once('\t').ok_or_else(|| {
-                SpecToolError::Wasm(format!(
-                    "invalid final interface spec line: {line}"
-                ))
-            })?;
-        interfaces
-            .push(crate::InterfaceId::new(interface_name, interface_version));
-    }
-    Ok(interfaces)
+    Ok(None)
 }
 
 fn ensure_raw_fragments_stay_out_of_linear_memory(
-    raw_fragments: &[RawInterfaceFragment],
+    raw_fragments: &[SpecFragment],
     bytes: &[u8],
 ) -> Result<(), SpecToolError> {
     if raw_fragments.is_empty() {
@@ -172,10 +123,12 @@ fn ensure_raw_fragments_stay_out_of_linear_memory(
                 let segment = segment
                     .map_err(|err| SpecToolError::Wasm(err.to_string()))?;
                 for fragment in raw_fragments {
-                    let encoded = crate::encode_raw_fragment(fragment);
+                    let encoded = encode(fragment).expect(
+                        "raw spec fragments must XDR encode for leak checks",
+                    );
                     if contains_subslice(segment.data, &encoded) {
                         return Err(SpecToolError::Wasm(
-                            "raw interface spec bytes leaked into linear memory"
+                            "raw spec bytes leaked into linear memory"
                                 .to_string(),
                         ));
                     }

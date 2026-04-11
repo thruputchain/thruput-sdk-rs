@@ -1,35 +1,32 @@
-use crate::{RawInterfaceFragment, SpecToolError};
+use groundhog_contract_spec::SpecFragment;
+use xdrs::{ReadXDR, txs::buf_reader::BufReader};
+
+use crate::SpecToolError;
 
 pub const RAW_SECTION_NAME: &str = "groundhogspecrawv0";
 pub const FINAL_SECTION_NAME: &str = "groundhogspecv0";
-pub const RAW_RECORD_TAG: &str = "iface";
-pub const FINAL_FORMAT_TAG: &str = "gh_iface_v1";
+pub const FINAL_FORMAT_TAG: &str = "gh_contract_spec_v1";
 
-pub fn encode_raw_fragment(fragment: &RawInterfaceFragment) -> Vec<u8> {
-    format!(
-        "{RAW_RECORD_TAG}\t{}\t{}\t{}\n",
-        fragment.package_name,
-        fragment.interface_name,
-        fragment.interface_version,
-    )
-    .into_bytes()
-}
+pub fn parse_raw_fragments(
+    bytes: &[u8],
+) -> Result<Vec<SpecFragment>, SpecToolError> {
+    let mut fragments = Vec::new();
+    let mut reader = BufReader::new(bytes);
 
-pub fn parse_raw_fragment_line(
-    line: &str,
-) -> Result<RawInterfaceFragment, SpecToolError> {
-    let parts = line.split('\t').collect::<Vec<_>>();
-    match parts.as_slice() {
-        [
-            RAW_RECORD_TAG,
-            package_name,
-            interface_name,
-            interface_version,
-        ] => Ok(RawInterfaceFragment {
-            package_name: (*package_name).to_owned(),
-            interface_name: (*interface_name).to_owned(),
-            interface_version: (*interface_version).to_owned(),
-        }),
-        _ => Err(SpecToolError::InvalidRawFragment(line.to_owned())),
+    while !reader.remaining_slice().is_empty() {
+        let before = reader.position();
+        let fragment = SpecFragment::read_xdr(&mut reader).map_err(|err| {
+            SpecToolError::InvalidRawFragment(err.to_string())
+        })?;
+
+        if reader.position() == before {
+            return Err(SpecToolError::InvalidRawFragment(
+                "spec fragment parser made no progress".to_string(),
+            ));
+        }
+
+        fragments.push(fragment);
     }
+
+    Ok(fragments)
 }

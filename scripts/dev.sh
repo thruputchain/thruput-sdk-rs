@@ -85,7 +85,6 @@ finalize_contract_spec() {
         cd "$SDK_DIR" &&
         cargo run --quiet -p groundhog-spec-tool -- \
             rewrite \
-            --package "${package}" \
             --wasm "${optimized}" \
             --json-out "${json_out}"
     )
@@ -100,6 +99,100 @@ eg_build() {
 
 eg_build_all() {
     build_contracts "${SDK_DIR}/example-contracts"
+}
+
+assert_file_contains() {
+    local path
+    path="$1"; shift
+    local needle
+    needle="$1"; shift
+
+    rg -F --quiet "$needle" "$path" || {
+        fail "Expected $path to contain $needle"
+        return 1
+    }
+}
+
+assert_file_not_exists() {
+    local path
+    path="$1"; shift
+
+    [ ! -e "$path" ] || {
+        fail "Expected $path to be absent"
+        return 1
+    }
+}
+
+assert_wasm_has_final_spec_only() {
+    local path
+    path="$1"; shift
+    local dump
+    dump="$(wasm-objdump -x "$path")" || return 1
+
+    printf '%s\n' "$dump" | rg -F --quiet "groundhogspecv0" || {
+        fail "Expected $path to contain groundhogspecv0"
+        return 1
+    }
+    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspecrawv0"; then
+        fail "Expected $path to omit groundhogspecrawv0"
+        return 1
+    fi
+}
+
+assert_wasm_has_no_spec_sections() {
+    local path
+    path="$1"; shift
+    local dump
+    dump="$(wasm-objdump -x "$path")" || return 1
+
+    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspec"; then
+        fail "Expected $path to omit groundhogspec sections"
+        return 1
+    fi
+}
+
+check_contract_spec_artifacts() {
+    info "CHECK-SPECS"
+
+    local optimized
+    optimized="${TARGET_DIR}/optimized"
+
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm
+    free_fn_json="${optimized}/free_fn_unnamed.spec.json"
+    free_fn_wasm="${optimized}/free_fn_unnamed.wasm"
+    imported_json="${optimized}/imported_error_callee.spec.json"
+    multi_json="${optimized}/multi_imported_traits.spec.json"
+    multi_wasm="${optimized}/multi_imported_traits.wasm"
+    spec_named_json="${optimized}/spec_named_types.spec.json"
+    genesis_json="${optimized}/genesis_deployer.spec.json"
+    genesis_wasm="${optimized}/genesis_deployer.wasm"
+
+    assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
+    assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
+    assert_file_contains "$free_fn_json" '"version":"0.3.0"' &&
+    assert_wasm_has_final_spec_only "$free_fn_wasm" &&
+
+    assert_file_contains "$imported_json" '"name":"ImportedErrorCallee"' &&
+    assert_file_contains "$imported_json" '"ImportedError"' &&
+
+    assert_file_contains "$multi_json" '"name":"ExplicitNamedInterface"' &&
+    assert_file_contains "$multi_json" '"name":"VersionedCallee"' &&
+    assert_file_contains "$multi_json" '"version":"1.2.3"' &&
+    assert_wasm_has_final_spec_only "$multi_wasm" &&
+
+    assert_file_contains "$spec_named_json" '"type_defs":[' &&
+    assert_file_contains "$spec_named_json" '"name":"SpecNamedTypesContract"' &&
+    assert_file_contains "$spec_named_json" '"Payload"' &&
+    assert_file_contains "$spec_named_json" '"Choice"' &&
+    assert_file_contains "$spec_named_json" '"Envelope"' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
+    assert_file_contains "$spec_named_json" '"kind":"vec","inner":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
+    assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
+
+    assert_file_not_exists "$genesis_json" &&
+    assert_wasm_has_no_spec_sections "$genesis_wasm"
 }
 
 itc_build() {
@@ -276,6 +369,7 @@ ls_contract_packages() {
     local contract
     for contract in "$contracts_dir"/* ; do
         [ -d "$contract" ] || continue;
+        [ -f "$contract"/Cargo.toml ] || continue;
         [ ! -f "$contract"/disabled ] || continue;
 
         c="$(basename "$contract")"
@@ -315,6 +409,7 @@ check_all() {
     test_spec &&
 
     eg_build_all &&
+    check_contract_spec_artifacts &&
     eg_test_all &&
     eg_bottle_test_all &&
 

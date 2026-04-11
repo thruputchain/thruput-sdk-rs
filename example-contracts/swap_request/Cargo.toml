@@ -23,7 +23,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
-xdrs = { registry = "groundhog", version = "0.5.3", features = ["int128", "heapless"] }
+xdrs = { registry = "groundhog", version = "0.5.6", features = ["int128", "heapless"] }
 
 [dev-dependencies]
 swap_request = { path = ".", features = ["dev"] }

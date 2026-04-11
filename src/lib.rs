@@ -24,6 +24,10 @@ pub extern crate xdrs as __xdrs;
 #[cfg(feature = "std")]
 extern crate std;
 
+pub use groundhog_contract_spec as contract_spec;
+#[doc(hidden)]
+pub use groundhog_contract_spec as __contract_spec;
+
 #[cfg(feature = "mock")]
 #[doc(hidden)]
 pub extern crate linkme as __linkme;

@@ -1,0 +1,23 @@
+[package]
+name = "groundhog-contract-spec"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Canonical contract spec model for Groundhog contracts"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = ["alloc"]
+alloc = ["xdrs/alloc"]
+
+[dependencies]
+groundhog-xdr = { workspace = true }
+xdrs = { workspace = true, features = ["heapless", "derive"] }
