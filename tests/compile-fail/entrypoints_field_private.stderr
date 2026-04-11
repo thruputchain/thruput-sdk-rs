@@ -1,4 +1,4 @@
-warning: unexpected `cfg` condition value: `entrypoints`
+error: unexpected `cfg` condition value: `entrypoints`
  --> tests/compile-fail/entrypoints_field_private.rs:7:5
   |
 7 |     #[contract(storage = false)]
@@ -9,8 +9,9 @@ warning: unexpected `cfg` condition value: `entrypoints`
   = help: try referring to `contract` crate for guidance on how handle this unexpected cfg
   = help: the attribute macro `contract` may come from an old version of the `groundhog_macros` crate, try updating your dependency with `cargo update -p groundhog_macros`
   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
-  = note: `#[warn(unexpected_cfgs)]` on by default
-  = note: this warning originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: `-D unexpected-cfgs` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(unexpected_cfgs)]`
+  = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0616]: field `0` of struct `BareContractEntrypoints` is private
   --> tests/compile-fail/entrypoints_field_private.rs:16:50

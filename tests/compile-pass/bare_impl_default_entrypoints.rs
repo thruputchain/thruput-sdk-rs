@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use sdk::*;
 
 #[derive(Default)]
