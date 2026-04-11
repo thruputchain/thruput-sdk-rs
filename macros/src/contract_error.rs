@@ -2,7 +2,6 @@ use super::derive_exn::ExnArgs;
 use groundhog_codegen as codegen;
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::convert::TryFrom;
 use syn::Item;
 
 /// Expand `#[contract_error]` or `#[contract_error(version = "...")]`
@@ -256,7 +255,7 @@ fn struct_type_def_tokens(item: &syn::ItemStruct) -> syn::Result<TokenStream> {
 
 fn enum_type_def_tokens(item: &syn::ItemEnum) -> syn::Result<TokenStream> {
     let ident = &item.ident;
-    let discriminants = enum_discriminants(&item.variants)?;
+    let discriminants = enum_discriminant_tokens(&item.variants)?;
     let is_plain_enum = item
         .variants
         .iter()
@@ -376,63 +375,21 @@ fn enum_variant_case_type_tokens(
     }
 }
 
-fn enum_discriminants(
+fn enum_discriminant_tokens(
     variants: &syn::punctuated::Punctuated<syn::Variant, syn::Token![,]>,
-) -> syn::Result<Vec<i32>> {
-    let mut next = 0_i32;
-    let mut values = Vec::with_capacity(variants.len());
-
-    for variant in variants {
-        let value = match &variant.discriminant {
-            Some((_, expr)) => parse_i32_expr(expr)?,
-            None => next,
-        };
-        values.push(value);
-        next = value.checked_add(1).ok_or_else(|| {
-            syn::Error::new_spanned(
-                variant,
-                "enum discriminant overflow in #[contract_error]",
-            )
-        })?;
-    }
-
-    Ok(values)
-}
-
-fn parse_i32_expr(expr: &syn::Expr) -> syn::Result<i32> {
-    match expr {
-        syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Int(value),
-            ..
-        }) => value.base10_parse::<i32>(),
-        syn::Expr::Unary(syn::ExprUnary {
-            op: syn::UnOp::Neg(_),
-            expr,
-            ..
-        }) => match expr.as_ref() {
-            syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(value),
-                ..
-            }) => {
-                let value = value.base10_parse::<i64>()?;
-                i32::try_from(-value).map_err(|err| {
-                    syn::Error::new_spanned(expr, err)
-                })
-            }
-            _ => parse_i32_expr(expr).and_then(|value| {
-                value.checked_neg().ok_or_else(|| {
-                    syn::Error::new_spanned(
-                        expr,
-                        "#[contract_error] discriminants must fit in i32",
-                    )
-                })
-            }),
-        },
-        _ => Err(syn::Error::new_spanned(
-            expr,
-            "#[contract_error] discriminants must be integer literals for contract specs",
-        )),
-    }
+) -> syn::Result<Vec<TokenStream>> {
+    variants
+        .iter()
+        .map(|variant| {
+            let Some((_, expr)) = &variant.discriminant else {
+                return Err(syn::Error::new_spanned(
+                    variant,
+                    "#[contract_error] enum variants must use explicit discriminants for contract specs",
+                ));
+            };
+            Ok(quote! { #expr })
+        })
+        .collect()
 }
 
 fn compute_selector(args: &ExnArgs, type_name: &str) -> u64 {
@@ -447,12 +404,17 @@ fn compute_selector(args: &ExnArgs, type_name: &str) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_i32_expr;
+    use super::enum_type_def_tokens;
 
     #[test]
-    fn parse_i32_expr_accepts_i32_min_literal() {
-        let expr: syn::Expr = syn::parse_quote!(-2147483648);
+    fn enum_type_def_tokens_accepts_explicit_i32_min_discriminant() {
+        let item: syn::ItemEnum = syn::parse_quote! {
+            enum Error {
+                Min = -2147483647 - 1,
+            }
+        };
 
-        assert_eq!(parse_i32_expr(&expr).unwrap(), i32::MIN);
+        let tokens = enum_type_def_tokens(&item).unwrap().to_string();
+        assert!(tokens.contains("- 2147483647 - 1"));
     }
 }
