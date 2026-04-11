@@ -14,6 +14,7 @@ impl ContractAbiAllocEnabled for str {}
 impl ContractAbiAllocEnabled for [u8] {}
 impl ContractAbiAllocEnabled for groundhog_xdr::types::ContractAddress {}
 impl ContractAbiAllocEnabled for groundhog_xdr::types::BlockHeight {}
+impl ContractAbiAllocEnabled for groundhog_xdr::types::SHA256Hash {}
 
 impl<T> ContractAbiAllocEnabled for &T where T: ContractAbiAllocEnabled {}
 impl<T> ContractAbiAllocEnabled for &mut T where T: ContractAbiAllocEnabled {}
