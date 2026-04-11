@@ -210,48 +210,61 @@ fn enum_variant_case_type_tokens(
     variant: &syn::Variant,
 ) -> syn::Result<TokenStream> {
     match &variant.fields {
-        syn::Fields::Unit => Ok(quote! { None }),
-        syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-            let ty = codegen::contract::contract_type_view_tokens(
-                &fields.unnamed.first().unwrap().ty,
-            )?;
-            Ok(quote! { Some(#ty) })
+        syn::Fields::Unit => Ok(quote! {
+            ::sdk::__contract_spec::ContractUnionCaseTypeView::Void
+        }),
+        syn::Fields::Unnamed(fields) => {
+            let tys = fields
+                .unnamed
+                .iter()
+                .map(|f| codegen::contract::contract_type_view_tokens(&f.ty))
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractUnionCaseTypeView::Tuple(
+                    &[#(#tys),*]
+                )
+            })
         }
-        syn::Fields::Named(fields) if fields.named.len() == 1 => {
-            let ty = codegen::contract::contract_type_view_tokens(
-                &fields.named.first().unwrap().ty,
-            )?;
-            Ok(quote! { Some(#ty) })
+        syn::Fields::Named(fields) => {
+            let field_tokens = fields
+                .named
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap().to_string();
+                    let ty = codegen::contract::contract_type_view_tokens(
+                        &field.ty,
+                    )?;
+                    Ok(quote! {
+                        ::sdk::__contract_spec::ContractFieldView {
+                            name: #name,
+                            ty: #ty,
+                        }
+                    })
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractUnionCaseTypeView::Struct(
+                    &[#(#field_tokens),*]
+                )
+            })
         }
-        _ => Err(syn::Error::new_spanned(
-            variant,
-            "ContractTypeSpec variants with multiple payload fields are not yet supported",
-        )),
     }
 }
 
 fn enum_variant_type_defs_tokens(
     variant: &syn::Variant,
 ) -> syn::Result<TokenStream> {
-    match &variant.fields {
-        syn::Fields::Unit => {
-            Ok(quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty })
-        }
-        syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-            codegen::contract::contract_type_typedef_tokens(
-                &fields.unnamed.first().unwrap().ty,
-            )
-        }
-        syn::Fields::Named(fields) if fields.named.len() == 1 => {
-            codegen::contract::contract_type_typedef_tokens(
-                &fields.named.first().unwrap().ty,
-            )
-        }
-        _ => Err(syn::Error::new_spanned(
-            variant,
-            "ContractTypeSpec variants with multiple payload fields are not yet supported",
-        )),
+    let nested = fields_type_defs_tokens(&variant.fields)?;
+    if nested.is_empty() {
+        return Ok(
+            quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
+        );
     }
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            #(#nested),*
+        ])
+    })
 }
 
 fn fields_type_defs_tokens(
