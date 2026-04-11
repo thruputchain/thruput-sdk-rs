@@ -10,6 +10,23 @@ mod derive_event;
 mod derive_exn;
 mod static_hash;
 
+/// Early check that all enum variants have explicit discriminants.
+/// Called by attribute macros before emitting derives, so the user
+/// sees one error instead of cascading failures from multiple derives.
+fn check_enum_discriminants(
+    variants: &syn::punctuated::Punctuated<syn::Variant, syn::Token![,]>,
+) -> syn::Result<()> {
+    for variant in variants {
+        if variant.discriminant.is_none() {
+            return Err(syn::Error::new_spanned(
+                variant,
+                "enum variants must use explicit discriminants for contract specs",
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Shared helper: generate `impl ContractTypeName for #ident`.
 /// Used by both `#[contracttype]` and `#[contract_error]`.
 fn contract_type_name_impl(

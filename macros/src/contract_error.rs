@@ -34,6 +34,9 @@ fn expand_contract_type_name(
 }
 
 fn expand_enum(args: ContractErrorArgs, item: syn::ItemEnum) -> TokenStream {
+    if let Err(err) = crate::check_enum_discriminants(&item.variants) {
+        return err.into_compile_error();
+    }
     let ident = &item.ident;
     let selector = compute_selector(&args, &ident.to_string());
     let alloc_marker_impl = match enum_alloc_enabled_impl_tokens(&item) {

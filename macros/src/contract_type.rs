@@ -11,6 +11,9 @@ pub struct ContractTypeArgs {
 pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
     match item {
         Item::Enum(item) => {
+            if let Err(err) = crate::check_enum_discriminants(&item.variants) {
+                return err.into_compile_error();
+            }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
             quote! {
