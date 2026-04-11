@@ -20,6 +20,21 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
     }
 }
 
+fn expand_contract_type_name(
+    ident: &syn::Ident,
+    args: &ExnArgs,
+) -> TokenStream {
+    let name_value = match &args.name {
+        Some(custom) => quote! { #custom },
+        None => quote! { stringify!(#ident) },
+    };
+    quote! {
+        impl ::sdk::__contract_spec::ContractTypeName for #ident {
+            const NAME: &'static str = #name_value;
+        }
+    }
+}
+
 fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
     let ident = &item.ident;
     let selector = compute_selector(&args, &ident.to_string());
@@ -27,6 +42,7 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
     };
+    let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
         #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
@@ -39,6 +55,7 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
         }
 
         #alloc_marker_impl
+        #name_impl
     }
 }
 
@@ -49,6 +66,7 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
     };
+    let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
         #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
@@ -60,6 +78,7 @@ fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
         }
 
         #alloc_marker_impl
+        #name_impl
     }
 }
 
