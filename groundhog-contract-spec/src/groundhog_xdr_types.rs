@@ -1,4 +1,10 @@
-use groundhog_xdr::{contract::ContractEntrypointID, types::{BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature, SHA256Hash}};
+use groundhog_xdr::{
+    contract::ContractEntrypointID,
+    types::{
+        BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
+        SHA256Hash,
+    },
+};
 
 use crate::{ContractTypeInfo, ContractTypeRefSpec, view};
 
