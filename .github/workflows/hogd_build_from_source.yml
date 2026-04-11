@@ -24,7 +24,7 @@ jobs:
       run: |
         echo "Cleaning up .gitconfig"
         rm -f /home/hogci/.gitconfig
-    - uses: webfactory/ssh-agent@v0.9.1
+    - uses: webfactory/ssh-agent@v0.10.0
       with:
         ssh-private-key: |
           ${{ secrets.HOGD_ACCESS_KEY }}
@@ -46,7 +46,7 @@ jobs:
           ${{ secrets.SDK_TO_HOGX_KEY }}
           ${{ secrets.SDK_TO_SCP_KEY }}
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Run hog schedule
       run: |
         BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
