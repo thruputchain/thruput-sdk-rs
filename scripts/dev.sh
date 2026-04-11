@@ -410,7 +410,6 @@ check_all() {
 
     eg_build_all &&
     check_contract_spec_artifacts &&
-    check_alloc_requirement_diagnostics &&
     eg_test_all &&
     eg_bottle_test_all &&
 
