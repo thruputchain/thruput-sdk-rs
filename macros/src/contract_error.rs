@@ -1,14 +1,20 @@
-use super::derive_exn::ExnArgs;
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Item;
+
+#[derive(Debug, Default, FromMeta)]
+pub struct ContractErrorArgs {
+    pub version: Option<String>,
+    pub name: Option<String>,
+}
 
 /// Expand `#[contract_error]` or `#[contract_error(version = "...")]`
 /// into the standard derive set + `#[repr(i32)]` (enums only) + `impl Exn`.
 ///
 /// Supported on enums and structs. All user-supplied attributes (including
 /// `#[error("...")]` from thiserror) are passed through unchanged.
-pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
+pub fn expand(args: ContractErrorArgs, item: Item) -> TokenStream {
     match item {
         Item::Enum(e) => expand_enum(args, e),
         Item::Struct(s) => expand_struct(args, s),
@@ -22,20 +28,12 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
 
 fn expand_contract_type_name(
     ident: &syn::Ident,
-    args: &ExnArgs,
+    args: &ContractErrorArgs,
 ) -> TokenStream {
-    let name_value = match &args.name {
-        Some(custom) => quote! { #custom },
-        None => quote! { stringify!(#ident) },
-    };
-    quote! {
-        impl ::sdk::__contract_spec::ContractTypeName for #ident {
-            const NAME: &'static str = #name_value;
-        }
-    }
+    crate::contract_type_name_impl(ident, args.name.as_deref())
 }
 
-fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
+fn expand_enum(args: ContractErrorArgs, item: syn::ItemEnum) -> TokenStream {
     let ident = &item.ident;
     let selector = compute_selector(&args, &ident.to_string());
     let alloc_marker_impl = match enum_alloc_enabled_impl_tokens(&item) {
@@ -59,7 +57,10 @@ fn expand_enum(args: ExnArgs, item: syn::ItemEnum) -> TokenStream {
     }
 }
 
-fn expand_struct(args: ExnArgs, item: syn::ItemStruct) -> TokenStream {
+fn expand_struct(
+    args: ContractErrorArgs,
+    item: syn::ItemStruct,
+) -> TokenStream {
     let ident = &item.ident;
     let selector = compute_selector(&args, &ident.to_string());
     let alloc_marker_impl = match struct_alloc_enabled_impl_tokens(&item) {
@@ -146,7 +147,7 @@ fn enum_variant_field_types(
     }
 }
 
-fn compute_selector(args: &ExnArgs, type_name: &str) -> u64 {
+fn compute_selector(args: &ContractErrorArgs, type_name: &str) -> u64 {
     let version = args.version.clone().unwrap_or_else(|| {
         std::env::var("CARGO_PKG_VERSION")
             .unwrap_or_else(|_| "0.0.0".to_string())

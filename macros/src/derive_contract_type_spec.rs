@@ -8,6 +8,13 @@ use syn::punctuated::Punctuated;
 pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
     let ident = &input.ident;
 
+    if !input.generics.params.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &input.generics,
+            "ContractTypeSpec cannot be derived for generic types",
+        ));
+    }
+
     let (type_def, type_defs) = match &input.data {
         syn::Data::Struct(data) => (
             struct_type_def_tokens(ident, &data.fields)?,

@@ -45,13 +45,5 @@ fn expand_contract_type_name(
     ident: &syn::Ident,
     args: &ContractTypeArgs,
 ) -> TokenStream {
-    let name_value = match &args.name {
-        Some(custom) => quote! { #custom },
-        None => quote! { stringify!(#ident) },
-    };
-    quote! {
-        impl ::sdk::__contract_spec::ContractTypeName for #ident {
-            const NAME: &'static str = #name_value;
-        }
-    }
+    crate::contract_type_name_impl(ident, args.name.as_deref())
 }

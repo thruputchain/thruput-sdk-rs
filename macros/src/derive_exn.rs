@@ -6,7 +6,6 @@ use syn::Item;
 #[derive(Debug, Default, FromMeta)]
 pub struct ExnArgs {
     pub version: Option<String>,
-    pub name: Option<String>,
 }
 
 /// Parse `#[exn(...)]` or `#[contract_error(...)]` attribute args.
