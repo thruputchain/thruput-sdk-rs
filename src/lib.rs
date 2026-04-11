@@ -118,6 +118,7 @@ pub use ::thiserror::Error;
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use groundhog_macros::contract;
 // These must be enumerated to avoid stomping on the above docstrings
+pub use groundhog_macros::ContractTypeSpec;
 pub use groundhog_macros::Event;
 pub use groundhog_macros::contract_error;
 pub use groundhog_macros::exn;
