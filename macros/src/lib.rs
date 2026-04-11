@@ -1,3 +1,4 @@
+use darling::FromMeta;
 use proc_macro::TokenStream;
 
 mod contract;
@@ -123,11 +124,29 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn contracttype(
-    _attr_args: TokenStream,
+    attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
     let item = syn::parse_macro_input!(item_tokens as syn::Item);
-    contract_type::expand(item).into()
+    let args = if attr_args.is_empty() {
+        contract_type::ContractTypeArgs::default()
+    } else {
+        let meta_list = match darling::ast::NestedMeta::parse_meta_list(
+            attr_args.into(),
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                return TokenStream::from(
+                    darling::Error::from(e).write_errors(),
+                );
+            }
+        };
+        match contract_type::ContractTypeArgs::from_list(&meta_list) {
+            Ok(v) => v,
+            Err(e) => return TokenStream::from(e.write_errors()),
+        }
+    };
+    contract_type::expand(args, item).into()
 }
 
 #[proc_macro_derive(ContractTypeSpec)]
