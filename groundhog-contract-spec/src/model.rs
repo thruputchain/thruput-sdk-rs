@@ -100,7 +100,15 @@ pub struct ContractUnionDef {
 pub struct ContractUnionCase {
     pub name: String,
     pub discriminant: i32,
-    pub case_type: Option<ContractType>,
+    pub case_type: ContractUnionCaseType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
+#[repr(i32)]
+pub enum ContractUnionCaseType {
+    Void = 0,
+    Tuple(Vec<ContractType>) = 1,
+    Struct(Vec<ContractField>) = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ReadXDR, WriteXDR)]
