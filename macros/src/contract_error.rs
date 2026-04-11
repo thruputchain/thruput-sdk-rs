@@ -38,7 +38,9 @@ fn expand_enum(args: ContractErrorArgs, item: syn::ItemEnum) -> TokenStream {
         return err.into_compile_error();
     }
     let ident = &item.ident;
-    let selector = compute_selector(&args, &ident.to_string());
+    let ident_string = ident.to_string();
+    let type_name = args.name.as_deref().unwrap_or(&ident_string);
+    let selector = compute_selector(&args, type_name);
     let alloc_marker_impl = match enum_alloc_enabled_impl_tokens(&item) {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
@@ -65,7 +67,9 @@ fn expand_struct(
     item: syn::ItemStruct,
 ) -> TokenStream {
     let ident = &item.ident;
-    let selector = compute_selector(&args, &ident.to_string());
+    let ident_string = ident.to_string();
+    let type_name = args.name.as_deref().unwrap_or(&ident_string);
+    let selector = compute_selector(&args, type_name);
     let alloc_marker_impl = match struct_alloc_enabled_impl_tokens(&item) {
         Ok(tokens) => tokens,
         Err(err) => return err.into_compile_error(),
