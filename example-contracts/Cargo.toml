@@ -37,6 +37,7 @@ members = [
     "imported_error_type",
     "imported_error_callee",
     "imported_error_caller",
+    "bare_type_fails",
 ]
 
 [workspace.package]

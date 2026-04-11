@@ -1,0 +1,27 @@
+[package]
+name = "bare_type_fails"
+description = "Demonstrates compile failure when a type lacks ContractTypeSpec"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+bare_type_fails = { path = ".", features = ["dev"] }
