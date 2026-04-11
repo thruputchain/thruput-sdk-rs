@@ -1,0 +1,5 @@
+error: #[contract_error] enum variants must use explicit discriminants for contract specs
+ --> tests/compile-fail/contract_error_missing_discriminant.rs:6:5
+  |
+6 |     Two,
+  |     ^^^
