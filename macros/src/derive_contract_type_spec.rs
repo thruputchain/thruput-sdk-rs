@@ -69,7 +69,7 @@ fn struct_type_defs_tokens(fields: &syn::Fields) -> syn::Result<TokenStream> {
     })
 }
 
-pub(crate) fn enum_type_def_tokens(
+fn enum_type_def_tokens(
     ident: &syn::Ident,
     variants: &Punctuated<syn::Variant, syn::Token![,]>,
 ) -> syn::Result<TokenStream> {
@@ -154,7 +154,7 @@ fn enum_discriminant_tokens(
             let Some((_, expr)) = &variant.discriminant else {
                 return Err(syn::Error::new_spanned(
                     variant,
-                    "ContractTypeSpec enum variants must use explicit discriminants",
+                    "enum variants must use explicit discriminants for contract specs",
                 ));
             };
             Ok(quote! { #expr })
