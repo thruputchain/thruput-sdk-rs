@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 
 mod contract;
 mod contract_error;
+mod contract_type;
 mod derive_contract_type_spec;
 mod derive_event;
 mod derive_exn;
@@ -118,6 +119,15 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
     derive_event::expand(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
+}
+
+#[proc_macro_attribute]
+pub fn contracttype(
+    _attr_args: TokenStream,
+    item_tokens: TokenStream,
+) -> TokenStream {
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
+    contract_type::expand(item).into()
 }
 
 #[proc_macro_derive(ContractTypeSpec)]
