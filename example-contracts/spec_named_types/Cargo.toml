@@ -1,6 +1,6 @@
 [package]
 name = "spec_named_types"
-description = "A contract with manually emitted named type spec fragments"
+description = "A contract demonstrating #[contracttype] for named type spec generation"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
