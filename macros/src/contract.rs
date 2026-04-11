@@ -36,8 +36,6 @@ fn apply_with_config(
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            let alloc_requirement_assertions =
-                codegen::contract::alloc_requirement_assertions(&contract)?;
             let throws_tokens =
                 codegen::contract::throws_spec_tokens(&contract)?;
             let throws_typedef_tokens =
@@ -91,7 +89,6 @@ fn apply_with_config(
             }
 
             let mut out = stripped.into_token_stream();
-            out.extend(alloc_requirement_assertions);
 
             // Generate client interface
             out.extend(codegen::client::generate(item, config)?);
@@ -105,9 +102,6 @@ fn apply_with_config(
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            let alloc_requirement_assertions =
-                codegen::contract::alloc_requirement_assertions(&contract)?;
-
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -131,7 +125,6 @@ fn apply_with_config(
             }
 
             let mut out = stripped.into_token_stream();
-            out.extend(alloc_requirement_assertions);
 
             // For bare impls, generate a separate impl block with __mock
             if cfg!(feature = "mock") && item.trait_.is_none() {
@@ -174,12 +167,9 @@ fn apply_with_config(
             codegen::contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            let alloc_requirement_assertions =
-                codegen::contract::alloc_requirement_assertions(&contract)?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
-            out.extend(alloc_requirement_assertions);
 
             out.extend(codegen::exports::generate_free_function_bundle(
                 item, config,

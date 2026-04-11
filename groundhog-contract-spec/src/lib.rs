@@ -15,8 +15,6 @@ pub use view::*;
 #[cfg(feature = "alloc")]
 use xdrs::VecM;
 
-pub mod contract_abi_alloc;
-
 mod groundhog_xdr_types;
 
 pub trait ContractTypeSpec {

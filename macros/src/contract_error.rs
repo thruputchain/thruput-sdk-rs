@@ -147,20 +147,20 @@ fn enum_alloc_enabled_impl_tokens(
 }
 
 fn alloc_enabled_impl_tokens(
-    ident: &syn::Ident,
+    _ident: &syn::Ident,
     tys: Vec<&syn::Type>,
 ) -> syn::Result<TokenStream> {
     if tys.is_empty() {
         return Ok(quote! {
-            impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
+            //impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
         });
     }
 
     Ok(quote! {
-        impl ::sdk::internal::ContractAbiAllocEnabled for #ident
-        where
-            #(#tys: ::sdk::internal::ContractAbiAllocEnabled),*
-        {}
+       //impl ::sdk::internal::ContractAbiAllocEnabled for #ident
+       // where
+       //     #(#tys: ::sdk::internal::ContractAbiAllocEnabled),*
+       // {}
     })
 }
 

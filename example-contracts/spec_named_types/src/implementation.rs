@@ -47,8 +47,6 @@ impl ContractTypeSpec for Payload {
         });
 }
 
-impl sdk::internal::ContractAbiAllocEnabled for Payload {}
-
 impl ContractTypeSpec for Choice {
     const TYPE_DEF: ContractTypeDefView<'static> =
         ContractTypeDefView::Enum(ContractEnumDefView {
@@ -65,8 +63,6 @@ impl ContractTypeSpec for Choice {
             ],
         });
 }
-
-impl sdk::internal::ContractAbiAllocEnabled for Choice {}
 
 impl ContractTypeSpec for Envelope {
     const TYPE_DEF: ContractTypeDefView<'static> =
@@ -92,7 +88,7 @@ impl ContractTypeSpec for Envelope {
         ]);
 }
 
-impl sdk::internal::ContractAbiAllocEnabled for Envelope {}
+//impl sdk::internal::ContractAbiAllocEnabled for Envelope {}
 
 #[derive(Default)]
 pub struct SpecNamedTypesContract;

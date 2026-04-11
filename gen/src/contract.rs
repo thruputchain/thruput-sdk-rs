@@ -385,48 +385,6 @@ pub fn throws_spec_tokens(
         .collect()
 }
 
-pub fn alloc_requirement_assertions(
-    contract: &impl ContractSrc,
-) -> Result<TokenStream> {
-    let mut assertions = Vec::new();
-
-    for method in contract.methods_sorted() {
-        for arg in method.sig().inputs.iter() {
-            if let syn::FnArg::Typed(pat_type) = arg {
-                assertions.push(alloc_requirement_assertion_tokens(
-                    pat_type.ty.as_ref(),
-                )?);
-            }
-        }
-
-        if let syn::ReturnType::Type(_, ty) = &method.sig().output {
-            assertions.push(alloc_requirement_assertion_tokens(ty.as_ref())?);
-        }
-    }
-
-    if contract.trait_path().is_none() {
-        for thrown in contract.throws_list() {
-            let path = thrown.ty();
-            let ty: syn::Type = syn::parse_quote! { #path };
-            assertions.push(alloc_requirement_assertion_tokens(&ty)?);
-        }
-    }
-
-    Ok(quote! {
-        #(#assertions)*
-    })
-}
-
-pub fn alloc_requirement_assertion_tokens(
-    ty: &syn::Type,
-) -> Result<TokenStream> {
-    Ok(quote! {
-        const _: () = {
-            ::sdk::internal::assert_contract_abi_alloc_enabled::<#ty>();
-        };
-    })
-}
-
 pub fn throws_typedef_tokens(
     contract: &impl ContractSrc,
 ) -> Result<Vec<TokenStream>> {
@@ -540,15 +498,7 @@ pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ConfiguredContract, alloc_requirement_assertion_tokens,
-        alloc_requirement_assertions, contract_type_typedef_tokens,
-        contract_type_view_tokens,
-    };
-    use crate::config::Config;
-    use darling::FromMeta;
-    use darling::ast::NestedMeta;
-    use quote::quote;
+    use super::{contract_type_typedef_tokens, contract_type_view_tokens};
 
     #[test]
     fn alias_paths_use_trait_resolution_for_spec_types() {
@@ -659,60 +609,6 @@ mod tests {
         assert!(view_tokens.contains("type_ref :: < Blob >"));
         assert!(typedef_tokens.contains("type_defs :: < Blob >"));
         assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
-    }
-
-    #[test]
-    fn alloc_required_aliases_emit_direct_assertions() {
-        let ty: syn::Type = syn::parse_quote!(Blob);
-
-        let tokens =
-            alloc_requirement_assertion_tokens(&ty).unwrap().to_string();
-
-        assert!(
-            tokens.contains("assert_contract_abi_alloc_enabled :: < Blob >"),
-            "{tokens}"
-        );
-    }
-
-    #[test]
-    fn alloc_required_references_keep_original_spelling_in_assertions() {
-        let ty: syn::Type = syn::parse_quote!(&Blob);
-
-        let tokens =
-            alloc_requirement_assertion_tokens(&ty).unwrap().to_string();
-
-        assert!(
-            tokens.contains("assert_contract_abi_alloc_enabled :: < & Blob >"),
-            "{tokens}"
-        );
-    }
-
-    #[test]
-    fn free_function_throws_are_included_in_alloc_assertions() {
-        let item: syn::ItemFn = syn::parse_quote! {
-            fn relay(blob: Blob) -> Blob {
-                blob
-            }
-        };
-        let meta_list =
-            NestedMeta::parse_meta_list(quote! { throws(BlobError) }.into())
-                .unwrap();
-        let config = Config::from_list(&meta_list).unwrap();
-        let contract = ConfiguredContract::new(config, &item);
-
-        let tokens =
-            alloc_requirement_assertions(&contract).unwrap().to_string();
-
-        assert!(
-            tokens.contains("assert_contract_abi_alloc_enabled :: < Blob >"),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains(
-                "assert_contract_abi_alloc_enabled :: < BlobError >"
-            ),
-            "{tokens}"
-        );
     }
 
     #[test]
