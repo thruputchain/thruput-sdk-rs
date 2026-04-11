@@ -48,6 +48,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bare_type_fails"
+version = "0.3.0"
+dependencies = [
+ "bare_type_fails",
+ "sdk",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

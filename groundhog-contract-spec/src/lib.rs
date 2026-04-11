@@ -23,6 +23,10 @@ pub trait ContractTypeSpec {
         view::ContractTypeDefsView::One(Self::TYPE_DEF);
 }
 
+pub trait ContractTypeName {
+    const NAME: &'static str;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ContractTypeInfo<'a> {
     pub ty: view::ContractTypeView<'a>,

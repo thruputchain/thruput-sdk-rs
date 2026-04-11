@@ -1,10 +1,48 @@
+use darling::FromMeta;
 use proc_macro::TokenStream;
+use quote::quote;
 
 mod contract;
 mod contract_error;
+mod contract_type;
+mod derive_contract_type_spec;
 mod derive_event;
 mod derive_exn;
 mod static_hash;
+
+/// Early check that all enum variants have explicit discriminants.
+/// Called by attribute macros before emitting derives, so the user
+/// sees one error instead of cascading failures from multiple derives.
+fn check_enum_discriminants(
+    variants: &syn::punctuated::Punctuated<syn::Variant, syn::Token![,]>,
+) -> syn::Result<()> {
+    for variant in variants {
+        if variant.discriminant.is_none() {
+            return Err(syn::Error::new_spanned(
+                variant,
+                "enum variants must use explicit discriminants for contract specs",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Shared helper: generate `impl ContractTypeName for #ident`.
+/// Used by both `#[contracttype]` and `#[contract_error]`.
+fn contract_type_name_impl(
+    ident: &syn::Ident,
+    name: Option<&str>,
+) -> proc_macro2::TokenStream {
+    let name_value = match name {
+        Some(custom) => quote! { #custom },
+        None => quote! { stringify!(#ident) },
+    };
+    quote! {
+        impl ::sdk::__contract_spec::ContractTypeName for #ident {
+            const NAME: &'static str = #name_value;
+        }
+    }
+}
 
 #[cfg(feature = "storage")]
 mod deletable;
@@ -96,18 +134,34 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
     }
 }
 
-/// `#[contract_error]` or `#[contract_error(version = "1")]` — full
-/// convenience macro: derives + `#[repr(i32)]` + `impl Exn`.
+/// `#[contract_error]` or `#[contract_error(version = "1", name = "...")]` —
+/// full convenience macro: derives + `#[repr(i32)]` + `impl Exn` +
+/// `impl ContractTypeName`.
 #[proc_macro_attribute]
 pub fn contract_error(
     attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
     let item = syn::parse_macro_input!(item_tokens as syn::Item);
-    match derive_exn::parse_args(attr_args) {
-        Ok(args) => contract_error::expand(args, item).into(),
-        Err(err) => err,
-    }
+    let args = if attr_args.is_empty() {
+        contract_error::ContractErrorArgs::default()
+    } else {
+        let meta_list = match darling::ast::NestedMeta::parse_meta_list(
+            attr_args.into(),
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                return TokenStream::from(
+                    darling::Error::from(e).write_errors(),
+                );
+            }
+        };
+        match contract_error::ContractErrorArgs::from_list(&meta_list) {
+            Ok(v) => v,
+            Err(e) => return TokenStream::from(e.write_errors()),
+        }
+    };
+    contract_error::expand(args, item).into()
 }
 
 #[proc_macro_derive(Event, attributes(topic))]
@@ -115,6 +169,42 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
     derive_event::expand(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn contracttype(
+    attr_args: TokenStream,
+    item_tokens: TokenStream,
+) -> TokenStream {
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
+    let args = if attr_args.is_empty() {
+        contract_type::ContractTypeArgs::default()
+    } else {
+        let meta_list = match darling::ast::NestedMeta::parse_meta_list(
+            attr_args.into(),
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                return TokenStream::from(
+                    darling::Error::from(e).write_errors(),
+                );
+            }
+        };
+        match contract_type::ContractTypeArgs::from_list(&meta_list) {
+            Ok(v) => v,
+            Err(e) => return TokenStream::from(e.write_errors()),
+        }
+    };
+    contract_type::expand(args, item).into()
+}
+
+#[proc_macro_derive(ContractTypeSpec)]
+pub fn derive_contract_type_spec(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    derive_contract_type_spec::expand(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
