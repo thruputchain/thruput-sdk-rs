@@ -1,0 +1,5 @@
+error: unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types
+  --> tests/compile-fail/unsupported_raw_pointer_type.rs:10:24
+   |
+10 |     pub fn bad(_value: *const u8) {}
+   |                        ^^^^^^^^^

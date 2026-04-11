@@ -1,10 +1,6 @@
 #![no_std]
 
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::types::{
-    BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
-    SHA256Hash,
-};
+use groundhog_xdr::types::{BlockHeight, ContractAddress};
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -137,34 +133,6 @@ where
 impl ContractTypeRefSpec for ContractAddress {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Address,
-        type_defs: view::ContractTypeDefsView::Empty,
-    };
-}
-
-impl ContractTypeRefSpec for SHA256Hash {
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Bytes,
-        type_defs: view::ContractTypeDefsView::Empty,
-    };
-}
-
-impl ContractTypeRefSpec for Ed25519Signature {
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Bytes,
-        type_defs: view::ContractTypeDefsView::Empty,
-    };
-}
-
-impl ContractTypeRefSpec for Ed25519PublicKey {
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Bytes,
-        type_defs: view::ContractTypeDefsView::Empty,
-    };
-}
-
-impl ContractTypeRefSpec for ContractEntrypointID {
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Bytes,
         type_defs: view::ContractTypeDefsView::Empty,
     };
 }
