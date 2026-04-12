@@ -99,7 +99,7 @@ fn fill_return_buf(
         return_buf.spare_capacity_mut(),
         &mut written_mu,
     )
-    .map_err(|e| FaultString::from_display(e))?;
+    .map_err(FaultString::from_display)?;
 
     let written = unsafe { written_mu.assume_init() };
 
