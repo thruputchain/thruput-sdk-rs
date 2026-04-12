@@ -206,6 +206,24 @@ itc_build_all() {
     build_contracts "${SDK_DIR}/integration_test" "${SDK_DIR}/integration_test/contracts"
 }
 
+# Regression guard: the logging-test workspace unconditionally enables
+# sdk/logging, which makes the codegen emit debug_log! calls in client
+# stubs.  This catches use-after-move bugs for non-Copy by-value params
+# (e.g. BlockHeight) that only surface under feature unification.
+logging_test_build() {
+    info "BUILD logging-test (wasm + spec)"
+
+    (
+        cd "${SDK_DIR}/logging-test" &&
+        cargo check -p htlc-logging --target wasm32-unknown-unknown
+    ) &&
+
+    (
+        cd "${SDK_DIR}/logging-test" &&
+        cargo build --bin generate_spec_htlc_logging -F spec
+    )
+}
+
 ### LINT ###
 
 lint_contracts() {
@@ -416,6 +434,8 @@ check_all() {
     itc_build_all &&
     itc_test_all &&
     itc_bottle_test_all &&
+
+    logging_test_build &&
 
     info "All tests succeeded." ||
     fail "Some tests failed"

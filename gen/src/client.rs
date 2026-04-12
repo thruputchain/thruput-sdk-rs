@@ -208,7 +208,7 @@ fn generate_client_fn(
         let print_string = format!("[sdk] Client: Calling method {}", ident);
 
         quote! {
-            ::sdk::debug_log!("{} with args {:?}", #print_string, #args_tuple);
+            ::sdk::debug_log!("{} with args {:?}", #print_string, args);
         }
     } else {
         quote! {}
