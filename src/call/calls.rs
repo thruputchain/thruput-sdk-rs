@@ -5,7 +5,7 @@ use super::contract_result::*;
 use super::internal::contract_call_encode;
 use crate::contract::ContractEntrypointID;
 use crate::exn::{CallingError, FaultString, library_throw};
-use crate::sys::{self, SysErr};
+use crate::sys;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 
@@ -24,14 +24,7 @@ where
     });
 
     let contract_result =
-        match contract_call(address, entrypoint, gas_limit, &args_buf) {
-            Ok(result) => result,
-            Err(syserr) => {
-                return Err(RawCallError::Fault(FaultString::from_display(
-                    syserr,
-                )));
-            }
-        };
+        contract_call(address, entrypoint, gas_limit, &args_buf)?;
 
     into_raw_call_result(contract_result)
 }
@@ -48,7 +41,7 @@ pub fn contract_call<A>(
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &A,
-) -> Result<ContractResult, SysErr>
+) -> Result<ContractResult, RawCallError>
 where
     A: AsRef<[u8]> + ?Sized,
 {
@@ -68,15 +61,22 @@ where
         Ok(()) => true,
         Err(syserr) if syserr.is_aborted() => false,
         Err(syserr) => {
-            // Neither ok nor aborted
-            return Err(syserr);
+            return Err(RawCallError::Fault(FaultString::from_display(
+                syserr,
+            )));
         }
     };
 
     // Ok or exception: get the return data from the VM ...
 
     let mut return_buf = ReturnBuf::new();
-    fill_return_buf(return_len, &mut return_buf);
+    if let Err(fault) = fill_return_buf(return_len, &mut return_buf) {
+        return Err(if is_ok {
+            RawCallError::UnparseableReturn(fault)
+        } else {
+            RawCallError::UnparseableAbort(fault)
+        });
+    }
 
     let contract_result = if is_ok {
         Ok(return_buf)
@@ -88,7 +88,10 @@ where
 }
 
 #[inline]
-fn fill_return_buf(return_len: u32, return_buf: &mut ReturnBuf) {
+fn fill_return_buf(
+    return_len: u32,
+    return_buf: &mut ReturnBuf,
+) -> Result<(), FaultString> {
     let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> =
         core::mem::MaybeUninit::uninit();
 
@@ -96,20 +99,22 @@ fn fill_return_buf(return_len: u32, return_buf: &mut ReturnBuf) {
         return_buf.spare_capacity_mut(),
         &mut written_mu,
     )
-    .unwrap_or_else(|_| panic!("couldn't get return data"));
+    .map_err(|e| FaultString::from_display(e))?;
 
     let written = unsafe { written_mu.assume_init() };
 
     if written != return_len {
-        panic!(
+        return Err(FaultString::from_display(format_args!(
             "unexpected return-data length from system call: \
                     written = {written}, \
                     return_len = {return_len}"
-        );
+        )));
     }
 
     // Safety: The VM reports above that this many bytes were written
     unsafe {
         return_buf.set_len(written as usize);
     }
+
+    Ok(())
 }

@@ -12,6 +12,10 @@ pub enum RawCallError {
     Exception(RawException),
     /// The called contract terminated without providing a return value.
     Fault(FaultString),
+    /// Decode error: the called contract returned some unparseable return result
+    UnparseableReturn(FaultString),
+    /// Decode error: the called contract aborted with some unparseable result
+    UnparseableAbort(FaultString),
 }
 
 #[cfg(feature = "debugging")]
@@ -28,6 +32,12 @@ impl core::fmt::Display for RawCallError {
                 )
             }
             RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
+            RawCallError::UnparseableReturn(error) => {
+                write!(f, "unparseable return: {error}")
+            }
+            RawCallError::UnparseableAbort(error) => {
+                write!(f, "unparseable abort: {error}")
+            }
         }
     }
 }
@@ -39,6 +49,12 @@ impl crate::re_throw::ReThrow for RawCallError {
                 crate::re_throw::ReThrow::re_throw(exn)
             }
             RawCallError::Fault(f) => panic!("{f}"),
+            RawCallError::UnparseableReturn(error) => {
+                library_throw(CallingError::DecodingSuccess(error))
+            }
+            RawCallError::UnparseableAbort(error) => {
+                library_throw(CallingError::DecodingException(error))
+            }
         }
     }
 }
@@ -58,20 +74,17 @@ where
         Ok(return_val) => contract_call_decode(return_val.as_slice())
             .map(Ok)
             .unwrap_or_else(|e| {
-                library_throw(CallingError::DecodingSuccess(
+                Err(RawCallError::UnparseableReturn(
                     FaultString::from_display(e),
                 ))
             }),
         Err(ContractError::Abort(abort_buf)) => {
-            let exn = RawException::from_abort_buf(abort_buf.as_slice())
-                .unwrap_or_else(|_| {
-                    library_throw(CallingError::DecodingException(
-                        FaultString::from_display(
-                            "failed to decode selector from exception buffer",
-                        ),
-                    ))
-                });
-            Err(RawCallError::Exception(exn))
+            match RawException::from_abort_buf(abort_buf.as_slice()) {
+                Ok(exn) => Err(RawCallError::Exception(exn)),
+                Err(e) => Err(RawCallError::UnparseableAbort(
+                    FaultString::from_display(e),
+                )),
+            }
         }
         Err(ContractError::Fault(fault_val)) => {
             Err(RawCallError::Fault(fault_val))
