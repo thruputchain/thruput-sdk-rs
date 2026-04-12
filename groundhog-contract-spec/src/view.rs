@@ -62,7 +62,7 @@ pub enum ContractTypeView<'a> {
     String = 8,
     Bytes = 9,
     Address = 10,
-    Option(&'a ContractTypeView<'a>) = 11,
+    Option(Option<&'a ContractTypeView<'a>>) = 11,
     Vector(ContractVectorTypeView<'a>) = 12,
     Tuple(&'a [ContractTypeView<'a>]) = 13,
     Named(&'a str) = 14,
@@ -72,13 +72,13 @@ pub enum ContractTypeView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractArrayTypeView<'a> {
-    pub element: &'a ContractTypeView<'a>,
+    pub element: Option<&'a ContractTypeView<'a>>,
     pub len: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractVectorTypeView<'a> {
-    pub element: &'a ContractTypeView<'a>,
+    pub element: Option<&'a ContractTypeView<'a>>,
     pub max_len: u32,
 }
 
@@ -266,7 +266,7 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::Bytes => ContractType::Bytes,
             ContractTypeView::Address => ContractType::Address,
             ContractTypeView::Option(inner) => ContractType::Option {
-                option_inner: Some(Box::new((*inner).into())),
+                option_inner: inner.map(|i| Box::new((*i).into())),
             },
             ContractTypeView::Vector(inner) => ContractType::Vector {
                 vector: inner.into(),
@@ -295,7 +295,7 @@ impl From<ContractTypeView<'_>> for ContractType {
 impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
     fn from(value: ContractArrayTypeView<'_>) -> Self {
         Self {
-            element: Some(Box::new((*value.element).into())),
+            element: value.element.map(|e| Box::new((*e).into())),
             len: value.len,
         }
     }
@@ -305,7 +305,7 @@ impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
 impl From<ContractVectorTypeView<'_>> for crate::ContractVectorType {
     fn from(value: ContractVectorTypeView<'_>) -> Self {
         Self {
-            element: Some(Box::new((*value.element).into())),
+            element: value.element.map(|e| Box::new((*e).into())),
             max_len: value.max_len,
         }
     }

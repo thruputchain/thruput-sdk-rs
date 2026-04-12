@@ -105,9 +105,9 @@ fn borrowed_views_convert_to_owned_model() {
         name: "payload",
         ty: named_payload,
     }];
-    let option_named_error = ContractTypeView::Option(&named_error);
+    let option_named_error = ContractTypeView::Option(Some(&named_error));
     let vec_named_payload = ContractTypeView::Vector(ContractVectorTypeView {
-        element: &named_payload,
+        element: Some(&named_payload),
         max_len: u32::MAX,
     });
     let tuple_items = [
@@ -127,7 +127,7 @@ fn borrowed_views_convert_to_owned_model() {
         ContractTypeView::Named("Payload"),
         ContractTypeView::U8,
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             len: 32,
         }),
     ];
@@ -610,19 +610,19 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Option<u32>>(),
-        ContractTypeView::Option(&ContractTypeView::U32)
+        ContractTypeView::Option(Some(&ContractTypeView::U32))
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u8>>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             max_len: u32::MAX,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<&[u8]>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             max_len: u32::MAX,
         })
     );
@@ -633,21 +633,21 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u32>>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U32,
+            element: Some(&ContractTypeView::U32),
             max_len: u32::MAX,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<[u8; 32]>(),
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             len: 32,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<[bool; 4]>(),
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::Bool,
+            element: Some(&ContractTypeView::Bool),
             len: 4,
         })
     );
@@ -704,14 +704,14 @@ fn alias_byte_collections_resolve_via_trait_layer() {
     assert_eq!(
         groundhog_contract_spec::type_ref::<Blob>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             max_len: u32::MAX,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Hash>(),
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             len: 32,
         })
     );

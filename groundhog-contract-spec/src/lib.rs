@@ -127,7 +127,7 @@ impl ContractTypeRefSpec for str {
 impl ContractTypeRefSpec for [u8] {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: &view::ContractTypeView::U8,
+            element: Some(&view::ContractTypeView::U8),
             max_len: u32::MAX,
         }),
         type_defs: view::ContractTypeDefsView::Empty,
@@ -149,7 +149,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Array(view::ContractArrayTypeView {
-            element: &type_ref::<T>(),
+            element: Some(&type_ref::<T>()),
             len: N as u32,
         }),
         type_defs: type_defs::<T>(),
@@ -171,7 +171,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: &type_ref::<T>(),
+            element: Some(&type_ref::<T>()),
             max_len: u32::MAX,
         }),
         type_defs: type_defs::<T>(),
@@ -185,7 +185,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: &type_ref::<T>(),
+            element: Some(&type_ref::<T>()),
             max_len: N,
         }),
         type_defs: type_defs::<T>(),
@@ -197,7 +197,7 @@ where
     T: ContractTypeRefSpec,
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Option(&type_ref::<T>()),
+        ty: view::ContractTypeView::Option(Some(&type_ref::<T>())),
         type_defs: type_defs::<T>(),
     };
 }
