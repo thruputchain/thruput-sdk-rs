@@ -1,0 +1,27 @@
+cargo-features = ["trim-paths"] #unstable
+
+# Regression test workspace: verifies that contracts taking non-Copy
+# by-value parameters (e.g. BlockHeight) compile when the `logging`
+# feature is active.  The logging codegen previously emitted the args
+# expression twice—once for `let args = …` and again inside
+# `debug_log!`—which caused a use-after-move for non-Copy types.
+# Keeping `logging` unconditionally on here catches that regression
+# via feature unification in any workspace that enables it.
+
+[workspace]
+resolver = "3"
+members = [
+    "htlc_logging",
+]
+
+[workspace.package]
+version = "0.2.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+edition = "2024"
+
+[workspace.dependencies]
+sdk = { path = "..", features = ["logging"] }
+
+[profile.release]
+trim-paths = "all" # unstable
