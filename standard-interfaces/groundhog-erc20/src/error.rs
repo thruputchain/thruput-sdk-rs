@@ -11,7 +11,7 @@ use sdk::XDR;
 #[repr(i32)]
 #[non_exhaustive]
 */
-#[sdk::contract_error]
+#[sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]

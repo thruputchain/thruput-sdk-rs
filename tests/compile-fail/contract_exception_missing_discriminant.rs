@@ -1,8 +1,8 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::contract_error;
+use sdk::contract_exception;
 
-#[contract_error]
+#[contract_exception]
 enum Error {
     One = 1,
     Two,

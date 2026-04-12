@@ -2,7 +2,7 @@
 
 use sdk::*;
 
-#[contract_error]
+#[contract_exception]
 pub enum ImportedError {
     Denied = 1,
 }

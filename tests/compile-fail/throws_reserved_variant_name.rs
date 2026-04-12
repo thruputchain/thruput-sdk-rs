@@ -3,7 +3,7 @@ use sdk::*;
 mod errors {
     use sdk::*;
 
-    #[contract_error]
+    #[contract_exception]
     pub struct Library;
 }
 

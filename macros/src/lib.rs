@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 
 mod contract;
-mod contract_error;
+mod contract_exception;
 mod contract_type;
 mod derive_contract_type_spec;
 mod derive_event;
@@ -28,7 +28,7 @@ fn check_enum_discriminants(
 }
 
 /// Shared helper: generate `impl ContractTypeName for #ident`.
-/// Used by both `#[contracttype]` and `#[contract_error]`.
+/// Used by both `#[contracttype]` and `#[contract_exception]`.
 fn contract_type_name_impl(
     ident: &syn::Ident,
     name: Option<&str>,
@@ -124,7 +124,7 @@ pub fn derive_deletable(input: TokenStream) -> TokenStream {
 
 /// `#[exn]` or `#[exn(version = "1")]` — emits `impl Exn` with a
 /// computed selector. Use this when you handle your own derives.
-/// For the full convenience macro, use `#[contract_error]` instead.
+/// For the full convenience macro, use `#[contract_exception]` instead.
 #[proc_macro_attribute]
 pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
     let item = syn::parse_macro_input!(item_tokens as syn::Item);
@@ -134,17 +134,17 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
     }
 }
 
-/// `#[contract_error]` or `#[contract_error(version = "1", name = "...")]` —
+/// `#[contract_exception]` or `#[contract_exception(version = "1", name = "...")]` —
 /// full convenience macro: derives + `#[repr(i32)]` + `impl Exn` +
 /// `impl ContractTypeName`.
 #[proc_macro_attribute]
-pub fn contract_error(
+pub fn contract_exception(
     attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
     let item = syn::parse_macro_input!(item_tokens as syn::Item);
     let args = if attr_args.is_empty() {
-        contract_error::ContractErrorArgs::default()
+        contract_exception::ContractExceptionArgs::default()
     } else {
         let meta_list = match darling::ast::NestedMeta::parse_meta_list(
             attr_args.into(),
@@ -156,12 +156,13 @@ pub fn contract_error(
                 );
             }
         };
-        match contract_error::ContractErrorArgs::from_list(&meta_list) {
+        match contract_exception::ContractExceptionArgs::from_list(&meta_list)
+        {
             Ok(v) => v,
             Err(e) => return TokenStream::from(e.write_errors()),
         }
     };
-    contract_error::expand(args, item).into()
+    contract_exception::expand(args, item).into()
 }
 
 #[proc_macro_derive(Event, attributes(topic))]

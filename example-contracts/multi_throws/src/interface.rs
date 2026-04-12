@@ -1,12 +1,12 @@
 use sdk::*;
 
-#[contract_error]
+#[contract_exception]
 pub enum AlphaError {
     NotFound = 1,
     Overflow = 2,
 }
 
-#[contract_error]
+#[contract_exception]
 pub enum BetaError {
     Denied = 1,
 }

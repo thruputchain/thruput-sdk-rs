@@ -1,9 +1,9 @@
 use sdk::*;
 
-#[contract_error]
+#[contract_exception]
 pub struct MyExn;
 
-#[contract_error]
+#[contract_exception]
 pub struct BigExn {
     pub payload: [u8; 600],
 }

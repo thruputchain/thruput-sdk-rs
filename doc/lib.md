@@ -172,7 +172,7 @@ pub struct MyContract {
     contract_owner: Value<ContractAddress>,
 }
 
-#[contract_error]
+#[contract_exception]
 pub struct MyError;
 
 #[contract(throws = MyError)]

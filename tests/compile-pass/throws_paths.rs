@@ -5,7 +5,7 @@ use sdk::*;
 mod alpha {
     use sdk::*;
 
-    #[contract_error]
+    #[contract_exception]
     pub enum AlphaError {
         Denied = 1,
     }
@@ -14,7 +14,7 @@ mod alpha {
 mod beta {
     use sdk::*;
 
-    #[contract_error]
+    #[contract_exception]
     pub enum BetaError {
         Overflow = 1,
     }

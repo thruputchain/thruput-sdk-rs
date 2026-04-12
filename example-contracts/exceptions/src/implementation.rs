@@ -4,10 +4,10 @@ use sdk::*;
 #[derive(Default)]
 pub struct Contract;
 
-#[contract_error]
+#[contract_exception]
 struct Thing;
 
-#[contract_error]
+#[contract_exception]
 pub struct Unauthorized;
 
 #[contract]

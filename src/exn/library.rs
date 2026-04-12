@@ -165,7 +165,7 @@ mod selector_tests {
 
     #[test]
     fn library_exn_selector_matches_sha256() {
-        let expected = groundhog_contract_util::error_selector(
+        let expected = groundhog_contract_util::exception_selector(
             "1.0.0",
             env!("CARGO_PKG_NAME"),
             "LibraryExn",
