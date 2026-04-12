@@ -14,15 +14,24 @@ pub use raw::{
     parse_raw_fragments,
 };
 
+/// Errors that can occur during spec canonicalization or rendering.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecToolError {
+    /// No spec fragments were found in the input.
     NoSpecFragments,
+    /// A raw fragment failed validation (e.g. missing name or bad version).
     InvalidRawFragment(String),
+    /// A method references an interface that has no interface fragment.
     MissingInterfaceFragment(String),
+    /// A named type is referenced but no definition was provided.
     MissingTypeDef(String),
+    /// Multiple conflicting definitions exist for the same type name.
     ConflictingTypeDef(String),
+    /// Multiple interface fragments declare different `throws` for the same interface.
     ConflictingInterfaceThrows(String),
+    /// Multiple conflicting method definitions share the same name in an interface.
     ConflictingMethod(String),
+    /// An error occurred while parsing or writing the wasm binary.
     Wasm(String),
 }
 
@@ -61,6 +70,10 @@ struct InterfaceBucket {
     methods: Vec<ContractSpecMethod>,
 }
 
+/// Assembles raw spec fragments into a canonical [`ContractSpec`].
+///
+/// Deduplicates methods and type definitions, validates interface keys,
+/// and resolves only the type definitions reachable from interface signatures.
 pub fn canonicalize_spec(
     raw: &[SpecFragment],
 ) -> Result<ContractSpec, SpecToolError> {
@@ -183,6 +196,7 @@ pub fn canonicalize_spec(
     })
 }
 
+/// Renders a [`ContractSpec`] as a JSON string for debugging and inspection.
 pub fn render_spec_json(spec: &ContractSpec) -> String {
     use serde_json::json;
 
