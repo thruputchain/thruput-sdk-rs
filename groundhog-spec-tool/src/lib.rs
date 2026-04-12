@@ -353,19 +353,24 @@ fn collect_named_types(
 ) -> Result<(), SpecToolError> {
     match ty {
         ContractType::Option { option_inner } => {
-            if let Some(inner) = option_inner {
-                collect_named_types(inner, defs, resolved, pending)?;
-            }
+            let inner = option_inner
+                .as_ref()
+                .expect("ContractType::Option must have an inner type");
+            collect_named_types(inner, defs, resolved, pending)?;
         }
         ContractType::Vector { vector } => {
-            if let Some(element) = &vector.element {
-                collect_named_types(element, defs, resolved, pending)?;
-            }
+            let element = vector
+                .element
+                .as_ref()
+                .expect("ContractVectorType must have an element type");
+            collect_named_types(element, defs, resolved, pending)?;
         }
         ContractType::Array { array } => {
-            if let Some(element) = &array.element {
-                collect_named_types(element, defs, resolved, pending)?;
-            }
+            let element = array
+                .element
+                .as_ref()
+                .expect("ContractArrayType must have an element type");
+            collect_named_types(element, defs, resolved, pending)?;
         }
         ContractType::Tuple { tuple } => {
             for item in tuple.iter() {
@@ -458,19 +463,21 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::Bytes => "bytes".to_string(),
         ContractType::Address => "address".to_string(),
         ContractType::Option { option_inner } => {
-            let inner_key = option_inner
+            let inner = option_inner
                 .as_ref()
-                .map(|inner| canonical_type_key(inner))
-                .unwrap_or_default();
-            format!("option({inner_key})")
+                .expect("ContractType::Option must have an inner type");
+            format!("option({})", canonical_type_key(inner))
         }
         ContractType::Vector { vector } => {
-            let element_key = vector
+            let element = vector
                 .element
                 .as_ref()
-                .map(|e| canonical_type_key(e))
-                .unwrap_or_default();
-            format!("vector({}, {})", element_key, vector.max_len)
+                .expect("ContractVectorType must have an element type");
+            format!(
+                "vector({}, {})",
+                canonical_type_key(element),
+                vector.max_len
+            )
         }
         ContractType::Tuple { tuple } => {
             let mut key = String::from("tuple(");
@@ -484,12 +491,11 @@ fn canonical_type_key(ty: &ContractType) -> String {
             key
         }
         ContractType::Array { array } => {
-            let element_key = array
+            let element = array
                 .element
                 .as_ref()
-                .map(|e| canonical_type_key(e))
-                .unwrap_or_default();
-            format!("array({}, {})", element_key, array.len)
+                .expect("ContractArrayType must have an element type");
+            format!("array({}, {})", canonical_type_key(element), array.len)
         }
         ContractType::Named { named } => {
             format!("named({})", spec_str(named))
@@ -551,19 +557,17 @@ fn type_to_json(ty: &ContractType) -> serde_json::Value {
         ContractType::Bytes => json!({"kind": "bytes"}),
         ContractType::Address => json!({"kind": "address"}),
         ContractType::Option { option_inner } => {
-            let inner_json = option_inner
+            let inner = option_inner
                 .as_ref()
-                .map(|inner| type_to_json(inner))
-                .unwrap_or(json!(null));
-            json!({"kind": "option", "inner": inner_json})
+                .expect("ContractType::Option must have an inner type");
+            json!({"kind": "option", "inner": type_to_json(inner)})
         }
         ContractType::Vector { vector } => {
-            let element_json = vector
+            let element = vector
                 .element
                 .as_ref()
-                .map(|e| type_to_json(e))
-                .unwrap_or(json!(null));
-            json!({"kind": "vec", "inner": element_json, "max_len": vector.max_len})
+                .expect("ContractVectorType must have an element type");
+            json!({"kind": "vec", "inner": type_to_json(element), "max_len": vector.max_len})
         }
         ContractType::Tuple { tuple } => {
             json!({"kind": "tuple", "items": tuple.iter().map(type_to_json).collect::<Vec<_>>()})
@@ -572,12 +576,11 @@ fn type_to_json(ty: &ContractType) -> serde_json::Value {
             json!({"kind": "named", "name": spec_str(named)})
         }
         ContractType::Array { array } => {
-            let element_json = array
+            let element = array
                 .element
                 .as_ref()
-                .map(|e| type_to_json(e))
-                .unwrap_or(json!(null));
-            json!({"kind": "array", "len": array.len, "element": element_json})
+                .expect("ContractArrayType must have an element type");
+            json!({"kind": "array", "len": array.len, "element": type_to_json(element)})
         }
         _ => panic!("unknown ContractType variant"),
     }
