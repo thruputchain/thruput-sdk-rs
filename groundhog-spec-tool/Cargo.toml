@@ -15,7 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 groundhog-contract-spec = { workspace = true, features = ["alloc"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }
 wasm-encoder = "0.244.0"
