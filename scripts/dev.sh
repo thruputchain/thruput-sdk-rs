@@ -421,21 +421,30 @@ test_spec() {
     )
 }
 
+skip() {
+    local var="SKIP_$1"
+    [ "${!var:-}" = "1" ]
+}
+
 check_all() {
-    build_docs &&
-    test_sdk &&
-    test_spec &&
+    { skip DOCS || build_docs; } &&
+    { skip SDK_TESTS || test_sdk; } &&
+    { skip SPEC_TESTS || test_spec; } &&
 
-    eg_build_all &&
-    check_contract_spec_artifacts &&
-    eg_test_all &&
-    eg_bottle_test_all &&
+    { skip EXAMPLES || {
+        eg_build_all &&
+        check_contract_spec_artifacts &&
+        eg_test_all &&
+        eg_bottle_test_all
+    }; } &&
 
-    itc_build_all &&
-    itc_test_all &&
-    itc_bottle_test_all &&
+    { skip INTEGRATION || {
+        itc_build_all &&
+        itc_test_all &&
+        itc_bottle_test_all
+    }; } &&
 
-    logging_test_build &&
+    { skip LOGGING || logging_test_build; } &&
 
     info "All tests succeeded." ||
     fail "Some tests failed"
@@ -532,10 +541,10 @@ fmt_check() {
 
 ci_check() {
     check_all &&
-    lint_check &&
-    fmt_check &&
+    { skip LINT || lint_check; } &&
+    { skip FMT || fmt_check; } &&
     # xxx_check &&
-    check_wasm_strings &&
+    { skip WASM_STRINGS || check_wasm_strings; } &&
     info "CI clean!" ||
     fail "CI failed!"
 }
