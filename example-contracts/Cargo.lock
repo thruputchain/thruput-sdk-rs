@@ -95,6 +95,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "blockheight-test"
+version = "0.3.0"
+dependencies = [
+ "blockheight-test",
+ "htlc",
+ "sdk",
+]
+
+[[package]]
 name = "bottle-test-if"
 version = "0.1.0"
 dependencies = [
@@ -886,6 +895,14 @@ source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "ec480c588e7d5fea176fffcbc49ab50c1ce5c77a86d04b50ce860d13291c060f"
 dependencies = [
  "xdrs",
+]
+
+[[package]]
+name = "htlc"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "sdk",
 ]
 
 [[package]]

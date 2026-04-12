@@ -1,0 +1,25 @@
+[package]
+name = "htlc-logging"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+sdk = { workspace = true, features = ["storage"] }
+
+[[bin]]
+name = "generate_spec_htlc_logging"
+path = "src/bin/generate_spec.rs"
+required-features = ["spec"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+spec = ["sdk/spec", "std"]
+std = ["sdk/std"]
