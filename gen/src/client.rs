@@ -289,6 +289,8 @@ fn generate_client_fn(
                         let payload = exn.payload();
                         #selector_dispatch
                     }
+                    Err(::sdk::call::RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
+                    Err(::sdk::call::RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
                 }
             })
         }
@@ -335,6 +337,8 @@ fn generate_error_enum(
             Fault(::sdk::exn::FaultString),
             Unknown(::sdk::exn::RawException),
             BadDecode(::sdk::exn::RawException),
+            UnparseableReturn(::sdk::exn::FaultString),
+            UnparseableAbort(::sdk::exn::FaultString),
         }
 
         #[allow(unexpected_cfgs)]
@@ -347,6 +351,8 @@ fn generate_error_enum(
                     Self::BadDecode(raw) => ::core::write!(f, "BadDecode({:?})", raw),
                     Self::Fault(e) => ::core::write!(f, "Fault({:?})", e),
                     Self::Unknown(e) => ::core::write!(f, "Unknown({:?})", e),
+                    Self::UnparseableReturn(e) => ::core::write!(f, "UnparseableReturn({:?})", e),
+                    Self::UnparseableAbort(e) => ::core::write!(f, "UnparseableAbort({:?})", e),
                 }
             }
         }
@@ -359,6 +365,8 @@ fn generate_error_enum(
                     Self::BadDecode(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),
+                    Self::UnparseableReturn(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),
+                    Self::UnparseableAbort(s) => ::sdk::library_throw(::sdk::CallingError::DecodingException(s)),
                 }
             }
         }
