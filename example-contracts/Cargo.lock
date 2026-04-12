@@ -95,15 +95,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blockheight-test"
-version = "0.3.0"
-dependencies = [
- "blockheight-test",
- "htlc",
- "sdk",
-]
-
-[[package]]
 name = "bottle-test-if"
 version = "0.1.0"
 dependencies = [
@@ -382,7 +373,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -392,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -402,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -637,7 +628,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -651,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -660,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -680,7 +671,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -688,7 +679,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -705,7 +696,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -739,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -747,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "bindgen",
  "cmake",
@@ -895,14 +886,6 @@ source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "ec480c588e7d5fea176fffcbc49ab50c1ce5c77a86d04b50ce860d13291c060f"
 dependencies = [
  "xdrs",
-]
-
-[[package]]
-name = "htlc"
-version = "0.1.0"
-dependencies = [
- "groundhog-erc20-if",
- "sdk",
 ]
 
 [[package]]
@@ -1683,7 +1666,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "bitset-core",
  "groundhog-contract-spec",
