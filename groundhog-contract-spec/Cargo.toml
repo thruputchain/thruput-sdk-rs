@@ -16,8 +16,9 @@ crate-type = ["rlib"]
 
 [features]
 default = ["alloc"]
-alloc = ["xdrs/alloc"]
+alloc = ["xdrs/alloc", "dep:groundhog-spec"]
 
 [dependencies]
 groundhog-xdr = { workspace = true }
+groundhog-spec = { workspace = true, optional = true }
 xdrs = { workspace = true, features = ["heapless", "derive"] }

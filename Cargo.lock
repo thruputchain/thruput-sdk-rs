@@ -513,6 +513,7 @@ dependencies = [
 name = "groundhog-contract-spec"
 version = "0.9.0"
 dependencies = [
+ "groundhog-spec",
  "groundhog-xdr",
  "xdrs",
 ]
@@ -594,6 +595,15 @@ source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "5f38492b48f71b7723c02af35531586816c22057e25c3acf173ef8a9b878ecbf"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "groundhog-spec"
+version = "0.7.8"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "1a55f32ba2cca989f6a4367951984d907356e809f8407dbdafd8b91d179da7df"
+dependencies = [
+ "xdrs",
 ]
 
 [[package]]
@@ -1575,6 +1585,7 @@ version = "1.0.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83fc039473c5595ace860d8c4fafa220ff474b3fc6bfdb4293327f1a37e94d86"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "serde",
