@@ -14,7 +14,7 @@ categories.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-groundhog-contract-spec = { workspace = true, features = ["alloc"] }
+groundhog-contract-spec = { workspace = true, features = ["alloc", "serde"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }
