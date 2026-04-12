@@ -17,7 +17,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
             quote! {
-                #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #[repr(i32)]
                 #item
@@ -29,7 +29,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
             quote! {
-                #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #item
 
