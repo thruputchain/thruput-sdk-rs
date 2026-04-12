@@ -147,15 +147,16 @@ pub fn canonicalize_spec(
             let mut deduped_methods: Vec<ContractSpecMethod> =
                 Vec::with_capacity(bucket.methods.len());
             for method in bucket.methods {
-                if let Some(existing) = deduped_methods.last() {
-                    if existing.name == method.name {
-                        if existing == &method {
-                            continue;
-                        }
-                        return Err(SpecToolError::ConflictingMethod(
-                            format!("{}@{}::{}", name, version, method.name),
-                        ));
+                if let Some(existing) = deduped_methods.last()
+                    && existing.name == method.name
+                {
+                    if existing == &method {
+                        continue;
                     }
+                    return Err(SpecToolError::ConflictingMethod(format!(
+                        "{}@{}::{}",
+                        name, version, method.name
+                    )));
                 }
                 deduped_methods.push(method);
             }

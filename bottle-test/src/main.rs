@@ -6,8 +6,7 @@ use sdk::*;
 
 pub fn main() {
     let package = std::env::args()
-        .skip(1)
-        .next()
+        .nth(1)
         .unwrap_or_else(|| panic!("Please specify contract package to test"));
 
     bottle_test(&package);

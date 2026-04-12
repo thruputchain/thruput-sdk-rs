@@ -117,12 +117,12 @@ impl ContractTypeRefSpec for [u8] {
     };
 }
 
-impl<'a> ContractTypeRefSpec for &'a [u8] {
+impl ContractTypeRefSpec for &[u8] {
     const INFO: ContractTypeInfo<'static> =
         <[u8] as ContractTypeRefSpec>::INFO;
 }
 
-impl<'a> ContractTypeRefSpec for &'a str {
+impl ContractTypeRefSpec for &str {
     const INFO: ContractTypeInfo<'static> = <str as ContractTypeRefSpec>::INFO;
 }
 
