@@ -546,7 +546,7 @@ fn union_case_type_to_json(
 ) -> serde_json::Value {
     use serde_json::json;
     match case_type {
-        ContractUnionCaseType::Void => serde_json::Value::Null,
+        ContractUnionCaseType::Void => json!({"kind": "void"}),
         ContractUnionCaseType::Tuple(types) => json!({
             "kind": "tuple",
             "items": types.iter().map(type_to_json).collect::<Vec<_>>(),
