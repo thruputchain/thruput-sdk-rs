@@ -184,59 +184,15 @@ pub fn canonicalize_spec(
 }
 
 pub fn render_spec_json(spec: &ContractSpec) -> String {
-    let mut json = String::from("{\"format\":\"");
-    json.push_str(FINAL_FORMAT_TAG);
-    json.push_str("\",\"interfaces\":[");
+    use serde_json::json;
 
-    for (index, interface) in spec.interfaces.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
-        }
-        json.push_str("{\"name\":\"");
-        push_json_string(&mut json, &interface.name);
-        json.push_str("\",\"version\":\"");
-        push_json_string(&mut json, &interface.version);
-        json.push_str("\",\"throws\":[");
-        for (throws_index, ty) in interface.throws.iter().enumerate() {
-            if throws_index > 0 {
-                json.push(',');
-            }
-            push_type_json(&mut json, ty);
-        }
-        json.push_str("],\"methods\":[");
-        for (method_index, method) in interface.methods.iter().enumerate() {
-            if method_index > 0 {
-                json.push(',');
-            }
-            json.push_str("{\"name\":\"");
-            push_json_string(&mut json, &method.name);
-            json.push_str("\",\"args\":[");
-            for (arg_index, arg) in method.args.iter().enumerate() {
-                if arg_index > 0 {
-                    json.push(',');
-                }
-                json.push_str("{\"name\":\"");
-                push_json_string(&mut json, &arg.name);
-                json.push_str("\",\"ty\":");
-                push_type_json(&mut json, &arg.ty);
-                json.push('}');
-            }
-            json.push_str("],\"return_type\":");
-            push_type_json(&mut json, &method.return_type);
-            json.push('}');
-        }
-        json.push_str("]}");
-    }
-
-    json.push_str("],\"type_defs\":[");
-    for (index, type_def) in spec.type_defs.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
-        }
-        push_type_def_json(&mut json, type_def);
-    }
-    json.push_str("]}");
-    json
+    let value = json!({
+        "format": FINAL_FORMAT_TAG,
+        "interfaces": spec.interfaces.iter().map(interface_to_json).collect::<Vec<_>>(),
+        "type_defs": spec.type_defs.iter().map(type_def_to_json).collect::<Vec<_>>(),
+    });
+    serde_json::to_string(&value)
+        .expect("contract spec must serialize to JSON")
 }
 
 fn validate_interface_key(
@@ -491,160 +447,99 @@ fn interface_key_string(name: &str, version: &str) -> String {
     format!("{name}@{version}")
 }
 
-fn push_type_json(out: &mut String, ty: &ContractType) {
+fn interface_to_json(interface: &ContractSpecInterface) -> serde_json::Value {
+    serde_json::json!({
+        "name": interface.name,
+        "version": interface.version,
+        "throws": interface.throws.iter().map(type_to_json).collect::<Vec<_>>(),
+        "methods": interface.methods.iter().map(method_to_json).collect::<Vec<_>>(),
+    })
+}
+
+fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
+    serde_json::json!({
+        "name": method.name,
+        "args": method.args.iter().map(field_to_json).collect::<Vec<_>>(),
+        "return_type": type_to_json(&method.return_type),
+    })
+}
+
+fn field_to_json(field: &ContractField) -> serde_json::Value {
+    serde_json::json!({
+        "name": field.name,
+        "ty": type_to_json(&field.ty),
+    })
+}
+
+fn type_to_json(ty: &ContractType) -> serde_json::Value {
+    use serde_json::json;
     match ty {
-        ContractType::Void => out.push_str("{\"kind\":\"void\"}"),
-        ContractType::Bool => out.push_str("{\"kind\":\"bool\"}"),
-        ContractType::U8 => out.push_str("{\"kind\":\"u8\"}"),
-        ContractType::U32 => out.push_str("{\"kind\":\"u32\"}"),
-        ContractType::I32 => out.push_str("{\"kind\":\"i32\"}"),
-        ContractType::U64 => out.push_str("{\"kind\":\"u64\"}"),
-        ContractType::I64 => out.push_str("{\"kind\":\"i64\"}"),
-        ContractType::U128 => out.push_str("{\"kind\":\"u128\"}"),
-        ContractType::I128 => out.push_str("{\"kind\":\"i128\"}"),
-        ContractType::String => out.push_str("{\"kind\":\"string\"}"),
-        ContractType::Bytes => out.push_str("{\"kind\":\"bytes\"}"),
-        ContractType::Address => out.push_str("{\"kind\":\"address\"}"),
+        ContractType::Void => json!({"kind": "void"}),
+        ContractType::Bool => json!({"kind": "bool"}),
+        ContractType::U8 => json!({"kind": "u8"}),
+        ContractType::U32 => json!({"kind": "u32"}),
+        ContractType::I32 => json!({"kind": "i32"}),
+        ContractType::U64 => json!({"kind": "u64"}),
+        ContractType::I64 => json!({"kind": "i64"}),
+        ContractType::U128 => json!({"kind": "u128"}),
+        ContractType::I128 => json!({"kind": "i128"}),
+        ContractType::String => json!({"kind": "string"}),
+        ContractType::Bytes => json!({"kind": "bytes"}),
+        ContractType::Address => json!({"kind": "address"}),
         ContractType::Option(inner) => {
-            out.push_str("{\"kind\":\"option\",\"inner\":");
-            push_type_json(out, inner);
-            out.push('}');
+            json!({"kind": "option", "inner": type_to_json(inner)})
         }
-        ContractType::Vector(vector) => {
-            out.push_str("{\"kind\":\"vec\",\"inner\":");
-            push_type_json(out, &vector.element);
-            out.push_str(",\"max_len\":");
-            out.push_str(&vector.max_len.to_string());
-            out.push('}');
+        ContractType::Vector(v) => {
+            json!({"kind": "vec", "inner": type_to_json(&v.element), "max_len": v.max_len})
         }
         ContractType::Tuple(items) => {
-            out.push_str("{\"kind\":\"tuple\",\"items\":[");
-            for (index, item) in items.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                push_type_json(out, item);
-            }
-            out.push_str("]}");
+            json!({"kind": "tuple", "items": items.iter().map(type_to_json).collect::<Vec<_>>()})
         }
-        ContractType::Array(array) => {
-            out.push_str("{\"kind\":\"array\",\"len\":");
-            out.push_str(&array.len.to_string());
-            out.push_str(",\"element\":");
-            push_type_json(out, &array.element);
-            out.push('}');
-        }
-        ContractType::Named(name) => {
-            out.push_str("{\"kind\":\"named\",\"name\":\"");
-            push_json_string(out, name);
-            out.push_str("\"}");
+        ContractType::Named(name) => json!({"kind": "named", "name": name}),
+        ContractType::Array(a) => {
+            json!({"kind": "array", "len": a.len, "element": type_to_json(&a.element)})
         }
     }
 }
 
-fn push_type_def_json(out: &mut String, type_def: &ContractTypeDef) {
+fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
+    use serde_json::json;
     match type_def {
-        ContractTypeDef::Struct(def) => {
-            out.push_str("{\"kind\":\"struct\",\"name\":\"");
-            push_json_string(out, &def.name);
-            out.push_str("\",\"fields\":[");
-            for (index, field) in def.fields.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                out.push_str("{\"name\":\"");
-                push_json_string(out, &field.name);
-                out.push_str("\",\"ty\":");
-                push_type_json(out, &field.ty);
-                out.push('}');
-            }
-            out.push_str("]}");
-        }
-        ContractTypeDef::Enum(def) => {
-            out.push_str("{\"kind\":\"enum\",\"name\":\"");
-            push_json_string(out, &def.name);
-            out.push_str("\",\"variants\":[");
-            for (index, variant) in def.variants.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                out.push_str("{\"name\":\"");
-                push_json_string(out, &variant.name);
-                out.push_str("\",\"value\":");
-                out.push_str(&variant.value.to_string());
-                out.push('}');
-            }
-            out.push_str("]}");
-        }
-        ContractTypeDef::Union(def) => {
-            out.push_str("{\"kind\":\"union\",\"name\":\"");
-            push_json_string(out, &def.name);
-            out.push_str("\",\"cases\":[");
-            for (index, case) in def.cases.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                out.push_str("{\"name\":\"");
-                push_json_string(out, &case.name);
-                out.push_str("\",\"discriminant\":");
-                out.push_str(&case.discriminant.to_string());
-                out.push_str(",\"case_type\":");
-                push_union_case_type_json(out, &case.case_type);
-                out.push('}');
-            }
-            out.push_str("]}");
-        }
+        ContractTypeDef::Struct(def) => json!({
+            "kind": "struct",
+            "name": def.name,
+            "fields": def.fields.iter().map(field_to_json).collect::<Vec<_>>(),
+        }),
+        ContractTypeDef::Enum(def) => json!({
+            "kind": "enum",
+            "name": def.name,
+            "variants": def.variants.iter().map(|v| json!({"name": v.name, "value": v.value})).collect::<Vec<_>>(),
+        }),
+        ContractTypeDef::Union(def) => json!({
+            "kind": "union",
+            "name": def.name,
+            "cases": def.cases.iter().map(|c| json!({
+                "name": c.name,
+                "discriminant": c.discriminant,
+                "case_type": union_case_type_to_json(&c.case_type),
+            })).collect::<Vec<_>>(),
+        }),
     }
 }
 
-fn push_union_case_type_json(
-    out: &mut String,
+fn union_case_type_to_json(
     case_type: &ContractUnionCaseType,
-) {
+) -> serde_json::Value {
+    use serde_json::json;
     match case_type {
-        ContractUnionCaseType::Void => out.push_str("null"),
-        ContractUnionCaseType::Tuple(types) => {
-            out.push_str("{\"kind\":\"tuple\",\"items\":[");
-            for (index, ty) in types.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                push_type_json(out, ty);
-            }
-            out.push_str("]}");
-        }
-        ContractUnionCaseType::Struct(fields) => {
-            out.push_str("{\"kind\":\"struct\",\"fields\":[");
-            for (index, field) in fields.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                out.push_str("{\"name\":\"");
-                push_json_string(out, &field.name);
-                out.push_str("\",\"ty\":");
-                push_type_json(out, &field.ty);
-                out.push('}');
-            }
-            out.push_str("]}");
-        }
-    }
-}
-
-fn push_json_string(out: &mut String, value: &str) {
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{08}' => out.push_str("\\b"),
-            '\u{0C}' => out.push_str("\\f"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            ch if ch.is_control() => {
-                use core::fmt::Write as _;
-                write!(out, "\\u{:04x}", ch as u32).unwrap();
-            }
-            ch => out.push(ch),
-        }
+        ContractUnionCaseType::Void => serde_json::Value::Null,
+        ContractUnionCaseType::Tuple(types) => json!({
+            "kind": "tuple",
+            "items": types.iter().map(type_to_json).collect::<Vec<_>>(),
+        }),
+        ContractUnionCaseType::Struct(fields) => json!({
+            "kind": "struct",
+            "fields": fields.iter().map(field_to_json).collect::<Vec<_>>(),
+        }),
     }
 }
