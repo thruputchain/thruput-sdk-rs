@@ -5,14 +5,19 @@ pub mod rewrite;
 
 pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
-    ContractSpecInterface, ContractSpecMethod, ContractStructDef,
-    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use raw::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
     parse_raw_fragments,
 };
+
+fn spec_str(s: &ContractSpecString) -> &str {
+    std::str::from_utf8(s).expect("contract spec strings must be valid UTF-8")
+}
 
 /// Errors that can occur during spec canonicalization or rendering.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,15 +86,21 @@ pub fn canonicalize_spec(
         return Err(SpecToolError::NoSpecFragments);
     }
 
-    let mut interfaces = BTreeMap::<(String, String), InterfaceBucket>::new();
-    let mut type_defs = BTreeMap::<String, Vec<ContractTypeDef>>::new();
+    let mut interfaces = BTreeMap::<
+        (ContractSpecString, ContractSpecString),
+        InterfaceBucket,
+    >::new();
+    let mut type_defs =
+        BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
 
     for fragment in raw {
         match fragment {
-            SpecFragment::Interface(fragment) => {
+            SpecFragment::SpecInterface {
+                interface_fragment: fragment,
+            } => {
                 validate_interface_key(
-                    &fragment.interface_name,
-                    &fragment.interface_version,
+                    spec_str(&fragment.interface_name),
+                    spec_str(&fragment.interface_version),
                 )?;
 
                 let key = (
@@ -103,7 +114,10 @@ pub fn canonicalize_spec(
                     Some(existing) if *existing != throws => {
                         return Err(
                             SpecToolError::ConflictingInterfaceThrows(
-                                interface_key_string(&key.0, &key.1),
+                                interface_key_string(
+                                    spec_str(&key.0),
+                                    spec_str(&key.1),
+                                ),
                             ),
                         );
                     }
@@ -111,10 +125,12 @@ pub fn canonicalize_spec(
                     None => bucket.throws = Some(throws),
                 }
             }
-            SpecFragment::Method(fragment) => {
+            SpecFragment::SpecMethod {
+                method_fragment: fragment,
+            } => {
                 validate_interface_key(
-                    &fragment.interface_name,
-                    &fragment.interface_version,
+                    spec_str(&fragment.interface_name),
+                    spec_str(&fragment.interface_version),
                 )?;
                 validate_method(&fragment.method)?;
 
@@ -128,13 +144,14 @@ pub fn canonicalize_spec(
                     .methods
                     .push(fragment.method.clone());
             }
-            SpecFragment::TypeDef(type_def) => {
-                let symbol = type_def_symbol(type_def).to_owned();
+            SpecFragment::SpecTypeDef { type_def } => {
+                let symbol = type_def_symbol(type_def).clone();
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
                     defs.push(type_def.clone());
                 }
             }
+            _ => {}
         }
     }
 
@@ -144,13 +161,15 @@ pub fn canonicalize_spec(
 
     for (symbol, defs) in &type_defs {
         if defs.len() > 1 {
-            return Err(SpecToolError::ConflictingTypeDef(symbol.clone()));
+            return Err(SpecToolError::ConflictingTypeDef(
+                spec_str(symbol).to_owned(),
+            ));
         }
     }
 
     let interfaces = interfaces
         .into_iter()
-        .map(|((name, version), mut bucket)| {
+        .map(|((name, vers), mut bucket)| {
             bucket.methods.sort_by(|left, right| {
                 left.name.cmp(&right.name).then_with(|| {
                     canonical_method_key(left)
@@ -168,7 +187,9 @@ pub fn canonicalize_spec(
                     }
                     return Err(SpecToolError::ConflictingMethod(format!(
                         "{}@{}::{}",
-                        name, version, method.name
+                        spec_str(&name),
+                        spec_str(&vers),
+                        spec_str(&method.name),
                     )));
                 }
                 deduped_methods.push(method);
@@ -176,23 +197,24 @@ pub fn canonicalize_spec(
 
             let throws = bucket.throws.ok_or_else(|| {
                 SpecToolError::MissingInterfaceFragment(interface_key_string(
-                    &name, &version,
+                    spec_str(&name),
+                    spec_str(&vers),
                 ))
             })?;
 
             Ok(ContractSpecInterface {
                 name,
-                version,
-                throws,
-                methods: deduped_methods,
+                vers,
+                throws: throws.try_into().unwrap(),
+                methods: deduped_methods.try_into().unwrap(),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
 
     let type_defs = resolve_reachable_type_defs(&interfaces, &type_defs)?;
     Ok(ContractSpec {
-        interfaces,
-        type_defs,
+        interfaces: interfaces.try_into().unwrap(),
+        type_defs: type_defs.try_into().unwrap(),
     })
 }
 
@@ -205,6 +227,7 @@ pub fn render_spec_json(spec: &ContractSpec) -> String {
         "interfaces": spec.interfaces.iter().map(interface_to_json).collect::<Vec<_>>(),
         "type_defs": spec.type_defs.iter().map(type_def_to_json).collect::<Vec<_>>(),
     });
+
     serde_json::to_string(&value)
         .expect("contract spec must serialize to JSON")
 }
@@ -260,17 +283,17 @@ fn canonicalize_type_list(types: &[ContractType]) -> Vec<ContractType> {
 
 fn resolve_reachable_type_defs(
     interfaces: &[ContractSpecInterface],
-    defs: &BTreeMap<String, Vec<ContractTypeDef>>,
+    defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
 ) -> Result<Vec<ContractTypeDef>, SpecToolError> {
-    let mut resolved = BTreeMap::<String, ContractTypeDef>::new();
-    let mut pending = Vec::<String>::new();
+    let mut resolved = BTreeMap::<ContractSpecString, ContractTypeDef>::new();
+    let mut pending = Vec::<ContractSpecString>::new();
 
     for interface in interfaces {
-        for ty in &interface.throws {
+        for ty in interface.throws.iter() {
             collect_named_types(ty, defs, &mut resolved, &mut pending)?;
         }
-        for method in &interface.methods {
-            for arg in &method.args {
+        for method in interface.methods.iter() {
+            for arg in method.args.iter() {
                 collect_named_types(
                     &arg.ty,
                     defs,
@@ -288,9 +311,9 @@ fn resolve_reachable_type_defs(
     }
 
     while let Some(symbol) = pending.pop() {
-        match resolved.get(symbol.as_str()).cloned() {
-            Some(ContractTypeDef::Struct(def)) => {
-                for field in &def.fields {
+        match resolved.get(&symbol).cloned() {
+            Some(ContractTypeDef::TypeDefStruct { struct_def }) => {
+                for field in struct_def.fields.iter() {
                     collect_named_types(
                         &field.ty,
                         defs,
@@ -299,9 +322,9 @@ fn resolve_reachable_type_defs(
                     )?;
                 }
             }
-            Some(ContractTypeDef::Enum(_)) => {}
-            Some(ContractTypeDef::Union(def)) => {
-                for case in &def.cases {
+            Some(ContractTypeDef::TypeDefEnum { .. }) => {}
+            Some(ContractTypeDef::TypeDefUnion { union_def }) => {
+                for case in union_def.cases.iter() {
                     collect_union_case_named_types(
                         &case.case_type,
                         defs,
@@ -310,7 +333,12 @@ fn resolve_reachable_type_defs(
                     )?;
                 }
             }
-            None => return Err(SpecToolError::MissingTypeDef(symbol)),
+            Some(_) => panic!("unknown ContractTypeDef variant"),
+            None => {
+                return Err(SpecToolError::MissingTypeDef(
+                    spec_str(&symbol).to_owned(),
+                ));
+            }
         }
     }
 
@@ -319,35 +347,45 @@ fn resolve_reachable_type_defs(
 
 fn collect_named_types(
     ty: &ContractType,
-    defs: &BTreeMap<String, Vec<ContractTypeDef>>,
-    resolved: &mut BTreeMap<String, ContractTypeDef>,
-    pending: &mut Vec<String>,
+    defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
+    resolved: &mut BTreeMap<ContractSpecString, ContractTypeDef>,
+    pending: &mut Vec<ContractSpecString>,
 ) -> Result<(), SpecToolError> {
     match ty {
-        ContractType::Option(inner) => {
-            collect_named_types(inner, defs, resolved, pending)?;
+        ContractType::Option { option_inner } => {
+            if let Some(inner) = option_inner {
+                collect_named_types(inner, defs, resolved, pending)?;
+            }
         }
-        ContractType::Vector(vector) => {
-            collect_named_types(&vector.element, defs, resolved, pending)?;
+        ContractType::Vector { vector } => {
+            if let Some(element) = &vector.element {
+                collect_named_types(element, defs, resolved, pending)?;
+            }
         }
-        ContractType::Array(array) => {
-            collect_named_types(&array.element, defs, resolved, pending)?;
+        ContractType::Array { array } => {
+            if let Some(element) = &array.element {
+                collect_named_types(element, defs, resolved, pending)?;
+            }
         }
-        ContractType::Tuple(items) => {
-            for item in items {
+        ContractType::Tuple { tuple } => {
+            for item in tuple.iter() {
                 collect_named_types(item, defs, resolved, pending)?;
             }
         }
-        ContractType::Named(name) => {
-            let Some(candidates) = defs.get(name.as_str()) else {
-                return Err(SpecToolError::MissingTypeDef(name.clone()));
+        ContractType::Named { named } => {
+            let Some(candidates) = defs.get(named) else {
+                return Err(SpecToolError::MissingTypeDef(
+                    spec_str(named).to_owned(),
+                ));
             };
             if candidates.len() > 1 {
-                return Err(SpecToolError::ConflictingTypeDef(name.clone()));
+                return Err(SpecToolError::ConflictingTypeDef(
+                    spec_str(named).to_owned(),
+                ));
             }
-            if !resolved.contains_key(name.as_str()) {
-                resolved.insert(name.clone(), candidates[0].clone());
-                pending.push(name.clone());
+            if !resolved.contains_key(named) {
+                resolved.insert(named.clone(), candidates[0].clone());
+                pending.push(named.clone());
             }
         }
         ContractType::Void
@@ -362,6 +400,7 @@ fn collect_named_types(
         | ContractType::String
         | ContractType::Bytes
         | ContractType::Address => {}
+        _ => {}
     }
 
     Ok(())
@@ -369,31 +408,32 @@ fn collect_named_types(
 
 fn collect_union_case_named_types(
     case_type: &ContractUnionCaseType,
-    defs: &BTreeMap<String, Vec<ContractTypeDef>>,
-    resolved: &mut BTreeMap<String, ContractTypeDef>,
-    pending: &mut Vec<String>,
+    defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
+    resolved: &mut BTreeMap<ContractSpecString, ContractTypeDef>,
+    pending: &mut Vec<ContractSpecString>,
 ) -> Result<(), SpecToolError> {
     match case_type {
-        ContractUnionCaseType::Void => {}
-        ContractUnionCaseType::Tuple(types) => {
-            for ty in types {
+        ContractUnionCaseType::UnionCaseVoid => {}
+        ContractUnionCaseType::UnionCaseTuple { tuple } => {
+            for ty in tuple.iter() {
                 collect_named_types(ty, defs, resolved, pending)?;
             }
         }
-        ContractUnionCaseType::Struct(fields) => {
-            for field in fields {
+        ContractUnionCaseType::UnionCaseStruct { struct_fields } => {
+            for field in struct_fields.iter() {
                 collect_named_types(&field.ty, defs, resolved, pending)?;
             }
         }
+        _ => {}
     }
     Ok(())
 }
 
 fn canonical_method_key(method: &ContractSpecMethod) -> String {
-    let mut key = method.name.clone();
+    let mut key = spec_str(&method.name).to_owned();
     key.push('|');
-    for arg in &method.args {
-        key.push_str(&arg.name);
+    for arg in method.args.iter() {
+        key.push_str(spec_str(&arg.name));
         key.push(':');
         key.push_str(&canonical_type_key(&arg.ty));
         key.push('|');
@@ -417,19 +457,24 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::String => "string".to_string(),
         ContractType::Bytes => "bytes".to_string(),
         ContractType::Address => "address".to_string(),
-        ContractType::Option(inner) => {
-            format!("option({})", canonical_type_key(inner))
+        ContractType::Option { option_inner } => {
+            let inner_key = option_inner
+                .as_ref()
+                .map(|inner| canonical_type_key(inner))
+                .unwrap_or_default();
+            format!("option({inner_key})")
         }
-        ContractType::Vector(vector) => {
-            format!(
-                "vector({}, {})",
-                canonical_type_key(&vector.element),
-                vector.max_len
-            )
+        ContractType::Vector { vector } => {
+            let element_key = vector
+                .element
+                .as_ref()
+                .map(|e| canonical_type_key(e))
+                .unwrap_or_default();
+            format!("vector({}, {})", element_key, vector.max_len)
         }
-        ContractType::Tuple(items) => {
+        ContractType::Tuple { tuple } => {
             let mut key = String::from("tuple(");
-            for (index, item) in items.iter().enumerate() {
+            for (index, item) in tuple.iter().enumerate() {
                 if index > 0 {
                     key.push(',');
                 }
@@ -438,22 +483,27 @@ fn canonical_type_key(ty: &ContractType) -> String {
             key.push(')');
             key
         }
-        ContractType::Array(array) => {
-            format!(
-                "array({}, {})",
-                canonical_type_key(&array.element),
-                array.len
-            )
+        ContractType::Array { array } => {
+            let element_key = array
+                .element
+                .as_ref()
+                .map(|e| canonical_type_key(e))
+                .unwrap_or_default();
+            format!("array({}, {})", element_key, array.len)
         }
-        ContractType::Named(name) => format!("named({name})"),
+        ContractType::Named { named } => {
+            format!("named({})", spec_str(named))
+        }
+        _ => panic!("unknown ContractType variant"),
     }
 }
 
-fn type_def_symbol(type_def: &ContractTypeDef) -> &str {
+fn type_def_symbol(type_def: &ContractTypeDef) -> &ContractSpecString {
     match type_def {
-        ContractTypeDef::Struct(def) => &def.name,
-        ContractTypeDef::Enum(def) => &def.name,
-        ContractTypeDef::Union(def) => &def.name,
+        ContractTypeDef::TypeDefStruct { struct_def } => &struct_def.name,
+        ContractTypeDef::TypeDefEnum { enum_def } => &enum_def.name,
+        ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
+        _ => panic!("unknown ContractTypeDef variant"),
     }
 }
 
@@ -463,8 +513,8 @@ fn interface_key_string(name: &str, version: &str) -> String {
 
 fn interface_to_json(interface: &ContractSpecInterface) -> serde_json::Value {
     serde_json::json!({
-        "name": interface.name,
-        "version": interface.version,
+        "name": spec_str(&interface.name),
+        "version": spec_str(&interface.vers),
         "throws": interface.throws.iter().map(type_to_json).collect::<Vec<_>>(),
         "methods": interface.methods.iter().map(method_to_json).collect::<Vec<_>>(),
     })
@@ -472,7 +522,7 @@ fn interface_to_json(interface: &ContractSpecInterface) -> serde_json::Value {
 
 fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
     serde_json::json!({
-        "name": method.name,
+        "name": spec_str(&method.name),
         "args": method.args.iter().map(field_to_json).collect::<Vec<_>>(),
         "return_type": type_to_json(&method.return_type),
     })
@@ -480,7 +530,7 @@ fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
 
 fn field_to_json(field: &ContractField) -> serde_json::Value {
     serde_json::json!({
-        "name": field.name,
+        "name": spec_str(&field.name),
         "ty": type_to_json(&field.ty),
     })
 }
@@ -500,44 +550,62 @@ fn type_to_json(ty: &ContractType) -> serde_json::Value {
         ContractType::String => json!({"kind": "string"}),
         ContractType::Bytes => json!({"kind": "bytes"}),
         ContractType::Address => json!({"kind": "address"}),
-        ContractType::Option(inner) => {
-            json!({"kind": "option", "inner": type_to_json(inner)})
+        ContractType::Option { option_inner } => {
+            let inner_json = option_inner
+                .as_ref()
+                .map(|inner| type_to_json(inner))
+                .unwrap_or(json!(null));
+            json!({"kind": "option", "inner": inner_json})
         }
-        ContractType::Vector(v) => {
-            json!({"kind": "vec", "inner": type_to_json(&v.element), "max_len": v.max_len})
+        ContractType::Vector { vector } => {
+            let element_json = vector
+                .element
+                .as_ref()
+                .map(|e| type_to_json(e))
+                .unwrap_or(json!(null));
+            json!({"kind": "vec", "inner": element_json, "max_len": vector.max_len})
         }
-        ContractType::Tuple(items) => {
-            json!({"kind": "tuple", "items": items.iter().map(type_to_json).collect::<Vec<_>>()})
+        ContractType::Tuple { tuple } => {
+            json!({"kind": "tuple", "items": tuple.iter().map(type_to_json).collect::<Vec<_>>()})
         }
-        ContractType::Named(name) => json!({"kind": "named", "name": name}),
-        ContractType::Array(a) => {
-            json!({"kind": "array", "len": a.len, "element": type_to_json(&a.element)})
+        ContractType::Named { named } => {
+            json!({"kind": "named", "name": spec_str(named)})
         }
+        ContractType::Array { array } => {
+            let element_json = array
+                .element
+                .as_ref()
+                .map(|e| type_to_json(e))
+                .unwrap_or(json!(null));
+            json!({"kind": "array", "len": array.len, "element": element_json})
+        }
+        _ => panic!("unknown ContractType variant"),
     }
 }
 
 fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
     use serde_json::json;
     match type_def {
-        ContractTypeDef::Struct(def) => json!({
+        ContractTypeDef::TypeDefStruct { struct_def } => json!({
             "kind": "struct",
-            "name": def.name,
-            "fields": def.fields.iter().map(field_to_json).collect::<Vec<_>>(),
+            "name": spec_str(&struct_def.name),
+            "fields": struct_def.fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
-        ContractTypeDef::Enum(def) => json!({
+        ContractTypeDef::TypeDefEnum { enum_def } => json!({
             "kind": "enum",
-            "name": def.name,
-            "variants": def.variants.iter().map(|v| json!({"name": v.name, "value": v.value})).collect::<Vec<_>>(),
+            "name": spec_str(&enum_def.name),
+            "variants": enum_def.variants.iter().map(|v| json!({"name": spec_str(&v.name), "value": v.value})).collect::<Vec<_>>(),
         }),
-        ContractTypeDef::Union(def) => json!({
+        ContractTypeDef::TypeDefUnion { union_def } => json!({
             "kind": "union",
-            "name": def.name,
-            "cases": def.cases.iter().map(|c| json!({
-                "name": c.name,
+            "name": spec_str(&union_def.name),
+            "cases": union_def.cases.iter().map(|c| json!({
+                "name": spec_str(&c.name),
                 "discriminant": c.discriminant,
                 "case_type": union_case_type_to_json(&c.case_type),
             })).collect::<Vec<_>>(),
         }),
+        _ => panic!("unknown ContractTypeDef variant"),
     }
 }
 
@@ -546,14 +614,15 @@ fn union_case_type_to_json(
 ) -> serde_json::Value {
     use serde_json::json;
     match case_type {
-        ContractUnionCaseType::Void => json!({"kind": "void"}),
-        ContractUnionCaseType::Tuple(types) => json!({
+        ContractUnionCaseType::UnionCaseVoid => json!({"kind": "void"}),
+        ContractUnionCaseType::UnionCaseTuple { tuple } => json!({
             "kind": "tuple",
-            "items": types.iter().map(type_to_json).collect::<Vec<_>>(),
+            "items": tuple.iter().map(type_to_json).collect::<Vec<_>>(),
         }),
-        ContractUnionCaseType::Struct(fields) => json!({
+        ContractUnionCaseType::UnionCaseStruct { struct_fields } => json!({
             "kind": "struct",
-            "fields": fields.iter().map(field_to_json).collect::<Vec<_>>(),
+            "fields": struct_fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
+        _ => panic!("unknown ContractUnionCaseType variant"),
     }
 }
