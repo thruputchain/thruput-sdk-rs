@@ -5,6 +5,7 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  PUBLISH_PACKAGES: groundhog-event groundhog-storage-cost groundhog-contract-util groundhog-contract-spec groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros groundhog-test-vectors sdk
 
 jobs:
 
@@ -43,7 +44,7 @@ jobs:
       - name: publish dry run
         uses: ./actions/cargo-publish-dry-run
         with:
-          packages: groundhog-event groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros groundhog-test-vectors sdk
+          packages: ${{ env.PUBLISH_PACKAGES }}
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
           cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip spec --skip dev
           cargo-hack-wasm32-packages: sdk
