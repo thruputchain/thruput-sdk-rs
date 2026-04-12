@@ -9,6 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
+description = "Tools for reading, writing, and embedding Groundhog contract specs in Wasm modules"
 
 [lib]
 path = "src/lib.rs"
