@@ -30,6 +30,7 @@ error: test failed, to rerun pass `--test aborts`
 
 use sdk::call::ContractError;
 use sdk::call::RawCallError;
+use sdk::contract_return;
 use sdk::*;
 
 #[test]
@@ -67,6 +68,46 @@ fn test_exception_raw() {
         }
         r => {
             panic!("Unexpected invocation result: {:?}", r);
+        }
+    }
+}
+
+#[test]
+fn test_unparseable_return() {
+    let env = TestEnvironment::no_cost();
+
+    // The contract "returns successfully" but with garbage bytes that
+    // can't be XDR-decoded as the expected return type.
+    let result: Result<u64, RawCallError> = contract_test(env, || {
+        contract_return(&[0xFF]);
+    });
+
+    match &result {
+        Err(RawCallError::UnparseableReturn(_)) => {
+            println!("OK: got UnparseableReturn as expected")
+        }
+        r => {
+            panic!("Expected UnparseableReturn, got: {:?}", r)
+        }
+    }
+}
+
+#[test]
+fn test_unparseable_abort() {
+    let env = TestEnvironment::no_cost();
+
+    // The contract aborts with garbage bytes that can't be parsed
+    // as a RawException (needs at least a u64 selector).
+    let result: Result<(), RawCallError> = contract_test(env, || {
+        contract_abort(&[0xFF]);
+    });
+
+    match &result {
+        Err(RawCallError::UnparseableAbort(_)) => {
+            println!("OK: got UnparseableAbort as expected")
+        }
+        r => {
+            panic!("Expected UnparseableAbort, got: {:?}", r)
         }
     }
 }
