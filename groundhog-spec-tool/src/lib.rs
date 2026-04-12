@@ -4,10 +4,10 @@ pub mod raw;
 pub mod rewrite;
 
 pub use groundhog_contract_spec::{
-    ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
-    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
-    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
-    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    ContractEnumDef, ContractEnumVariant, ContractExceptionType,
+    ContractField, ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use raw::{
@@ -71,7 +71,7 @@ impl std::error::Error for SpecToolError {}
 
 #[derive(Default)]
 struct InterfaceBucket {
-    throws: Option<Vec<ContractType>>,
+    throws: Option<Vec<ContractExceptionType>>,
     methods: Vec<ContractSpecMethod>,
 }
 
@@ -107,7 +107,7 @@ pub fn canonicalize_spec(
                     fragment.interface_name.clone(),
                     fragment.interface_version.clone(),
                 );
-                let throws = canonicalize_type_list(&fragment.throws);
+                let throws = canonicalize_exception_list(&fragment.throws);
                 let bucket = interfaces.entry(key.clone()).or_default();
 
                 match &bucket.throws {
@@ -287,10 +287,12 @@ fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
     Ok(())
 }
 
-fn canonicalize_type_list(types: &[ContractType]) -> Vec<ContractType> {
+fn canonicalize_exception_list(
+    types: &[ContractExceptionType],
+) -> Vec<ContractExceptionType> {
     let mut types = types.to_vec();
     types.sort_by(|left, right| {
-        canonical_type_key(left).cmp(&canonical_type_key(right))
+        canonical_type_key(&left.ty).cmp(&canonical_type_key(&right.ty))
     });
     types.dedup();
     types
@@ -304,8 +306,8 @@ fn resolve_reachable_type_defs(
     let mut pending = Vec::<ContractSpecString>::new();
 
     for interface in interfaces {
-        for ty in interface.throws.iter() {
-            collect_named_types(ty, defs, &mut resolved, &mut pending)?;
+        for exn in interface.throws.iter() {
+            collect_named_types(&exn.ty, defs, &mut resolved, &mut pending)?;
         }
         for method in interface.methods.iter() {
             for arg in method.args.iter() {
@@ -536,8 +538,15 @@ fn interface_to_json(interface: &ContractSpecInterface) -> serde_json::Value {
     serde_json::json!({
         "name": spec_str(&interface.name),
         "version": spec_str(&interface.vers),
-        "throws": interface.throws.iter().map(type_to_json).collect::<Vec<_>>(),
+        "throws": interface.throws.iter().map(exception_type_to_json).collect::<Vec<_>>(),
         "methods": interface.methods.iter().map(method_to_json).collect::<Vec<_>>(),
+    })
+}
+
+fn exception_type_to_json(exn: &ContractExceptionType) -> serde_json::Value {
+    serde_json::json!({
+        "selector": format!("0x{:016x}", exn.selector),
+        "type": type_to_json(&exn.ty),
     })
 }
 

@@ -9,10 +9,10 @@ pub mod view;
 
 #[cfg(feature = "alloc")]
 pub use groundhog_spec::{
-    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractField,
-    ContractSpec, ContractSpecInterface, ContractSpecMethod,
-    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
-    ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
+    ContractArrayType, ContractEnumDef, ContractEnumVariant,
+    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
+    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
+    ContractTypeDef, ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
     ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
     ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceFragment,
     SpecMethodFragment,

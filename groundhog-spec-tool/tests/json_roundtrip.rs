@@ -1,14 +1,18 @@
 use groundhog_contract_spec::{
-    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractField,
-    ContractSpec, ContractSpecInterface, ContractSpecMethod,
-    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
-    ContractUnionCase, ContractUnionCaseType, ContractUnionDef,
-    ContractVectorType,
+    ContractArrayType, ContractEnumDef, ContractEnumVariant,
+    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
+    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
+    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
+    ContractUnionDef, ContractVectorType,
 };
 use groundhog_spec_tool::{parse_spec_json, spec_to_json};
 
 fn s(value: &str) -> ContractSpecString {
     ContractSpecString::try_from(value).unwrap()
+}
+
+fn exn(ty: ContractType) -> ContractExceptionType {
+    ContractExceptionType { selector: 0, ty }
 }
 
 fn roundtrip(spec: &ContractSpec) {
@@ -454,12 +458,12 @@ fn interface_with_throws_roundtrips() {
             name: s("Fallible"),
             vers: s("0.1.0"),
             throws: vec![
-                ContractType::Named {
+                exn(ContractType::Named {
                     named: s("AppError"),
-                },
-                ContractType::Named {
+                }),
+                exn(ContractType::Named {
                     named: s("AuthError"),
-                },
+                }),
             ]
             .try_into()
             .unwrap(),
@@ -553,9 +557,9 @@ fn kitchen_sink_roundtrips() {
             ContractSpecInterface {
                 name: s("TokenInterface"),
                 vers: s("1.0.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("TokenError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
                 methods: vec![
@@ -739,7 +743,7 @@ fn xdr_to_json_to_xdr_roundtrips() {
         interfaces: vec![ContractSpecInterface {
             name: s("Iface"),
             vers: s("0.1.0"),
-            throws: vec![ContractType::Named { named: s("Err") }]
+            throws: vec![exn(ContractType::Named { named: s("Err") })]
                 .try_into()
                 .unwrap(),
             methods: vec![ContractSpecMethod {

@@ -1,10 +1,10 @@
 #![allow(clippy::new_without_default)]
 
-use sdk::*;
 use sdk::__contract_spec::{
     ContractFieldView, ContractStructDefView, ContractTypeDefView,
     ContractTypeSpec, ContractTypeView,
 };
+use sdk::*;
 
 pub type RequestID = u32;
 

@@ -5,10 +5,10 @@
 
 #[cfg(feature = "alloc")]
 use crate::{
-    ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
-    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
-    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
-    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    ContractEnumDef, ContractEnumVariant, ContractExceptionType,
+    ContractField, ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceFragment, SpecMethodFragment,
 };
 #[cfg(feature = "alloc")]
@@ -31,7 +31,7 @@ pub struct ContractSpecView<'a> {
 pub struct ContractSpecInterfaceView<'a> {
     pub name: &'a str,
     pub version: &'a str,
-    pub throws: &'a [ContractTypeView<'a>],
+    pub throws: &'a [ContractExceptionTypeView<'a>],
     pub methods: &'a [ContractSpecMethodView<'a>],
 }
 
@@ -68,6 +68,12 @@ pub enum ContractTypeView<'a> {
     Named(&'a str) = 14,
     U8 = 15,
     Array(ContractArrayTypeView<'a>) = 16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+pub struct ContractExceptionTypeView<'a> {
+    pub selector: u64,
+    pub ty: ContractTypeView<'a>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -162,7 +168,7 @@ pub enum SpecFragmentView<'a> {
 pub struct SpecInterfaceFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
-    pub throws: &'a [ContractTypeView<'a>],
+    pub throws: &'a [ContractExceptionTypeView<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -192,6 +198,16 @@ impl From<ContractSpecView<'_>> for ContractSpec {
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl From<ContractExceptionTypeView<'_>> for ContractExceptionType {
+    fn from(value: ContractExceptionTypeView<'_>) -> Self {
+        Self {
+            selector: value.selector,
+            ty: value.ty.into(),
         }
     }
 }
