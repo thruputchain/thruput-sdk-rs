@@ -11,13 +11,20 @@ pub struct ContractTypeArgs {
 pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
     match item {
         Item::Enum(item) => {
+            if !item.generics.params.is_empty() {
+                return syn::Error::new_spanned(
+                    &item.generics,
+                    "#[contracttype] is not supported on generic types",
+                )
+                .into_compile_error();
+            }
             if let Err(err) = crate::check_enum_discriminants(&item.variants) {
                 return err.into_compile_error();
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
             quote! {
-                #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #[repr(i32)]
                 #item
@@ -26,10 +33,17 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
         }
         Item::Struct(item) => {
+            if !item.generics.params.is_empty() {
+                return syn::Error::new_spanned(
+                    &item.generics,
+                    "#[contracttype] is not supported on generic types",
+                )
+                .into_compile_error();
+            }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
             quote! {
-                #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #item
 

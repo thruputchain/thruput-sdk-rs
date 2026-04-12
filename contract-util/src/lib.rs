@@ -121,20 +121,20 @@ pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
     format!("{:016X}", u64::from_be_bytes(*id))
 }
 
-/// Derive a standard error selector for a contract error type.
+/// Derive a standard exception selector for a contract exception type.
 ///
-/// Error selector = sha256(MAJOR_VERSION :: CRATE_NAME :: TYPE_NAME)[0..8]
+/// Exception selector = sha256(MAJOR_VERSION :: CRATE_NAME :: TYPE_NAME)[0..8]
 ///
 /// The crate name is included to reduce collisions between types with the
 /// same name defined in different crates. Correctness across breaking
-/// changes is delegated to SemVer — if the error type changes in a
+/// changes is delegated to SemVer — if the exception type changes in a
 /// wire-incompatible way, the crate's major version must bump, which
 /// changes the selector.
 ///
 /// Note: structurally different types with the same name, crate, and major
 /// version will intentionally share a selector. This is a tradeoff of
 /// stability over collision resistance, acceptable given the u64 space.
-pub fn error_selector(
+pub fn exception_selector(
     version_str: &str,
     crate_name: &str,
     type_name: &str,
@@ -156,7 +156,7 @@ pub fn error_selector(
 ///
 /// Event signature = sha256(MAJOR_VERSION :: CRATE_NAME :: TYPE_NAME)
 ///
-/// Uses the same hashing scheme as `error_selector` but returns the
+/// Uses the same hashing scheme as `exception_selector` but returns the
 /// full 32-byte hash instead of truncating to u64.
 pub fn event_signature(
     version_str: &str,

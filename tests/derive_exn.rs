@@ -44,7 +44,7 @@ fn derive_exn_produces_stable_selector() {
 
 #[test]
 fn derive_exn_selector_matches_contract_util() {
-    let expected = groundhog_contract_util::error_selector(
+    let expected = groundhog_contract_util::exception_selector(
         env!("CARGO_PKG_VERSION"),
         env!("CARGO_PKG_NAME"),
         "TestError",

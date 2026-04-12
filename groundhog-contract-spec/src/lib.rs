@@ -17,23 +17,34 @@ use xdrs::VecM;
 
 mod groundhog_xdr_types;
 
+/// Implemented by `#[contracttype]` types to provide their spec type definition.
 pub trait ContractTypeSpec {
+    /// The type's definition (struct, enum, or union) as a const view.
     const TYPE_DEF: view::ContractTypeDefView<'static>;
+    /// All type definitions this type transitively depends on, including itself.
     const TYPE_DEFS: view::ContractTypeDefsView<'static> =
         view::ContractTypeDefsView::One(Self::TYPE_DEF);
 }
 
+/// Provides the spec-visible name for a contract type.
 pub trait ContractTypeName {
+    /// The name used to identify this type in the contract spec.
     const NAME: &'static str;
 }
 
+/// Bundles a type reference with all transitive type definitions it depends on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ContractTypeInfo<'a> {
+    /// The type reference (e.g. `U32`, `Named("Foo")`, `Option(&U64)`).
     pub ty: view::ContractTypeView<'a>,
+    /// All type definitions reachable from `ty`.
     pub type_defs: view::ContractTypeDefsView<'a>,
 }
 
+/// Trait for types that can appear in contract spec signatures.
+/// Implemented for primitives, collections, and `#[contracttype]` types.
 pub trait ContractTypeRefSpec {
+    /// The type reference and its transitive type definitions.
     const INFO: ContractTypeInfo<'static>;
 }
 
@@ -230,20 +241,24 @@ impl_tuple_type_ref_spec!(
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P),
 );
 
+/// Returns the spec-visible symbol name for a `ContractTypeSpec` type.
 pub const fn symbol<T: ContractTypeSpec>() -> &'static str {
     T::TYPE_DEF.symbol()
 }
 
+/// Returns the spec type reference for `T` (e.g. `U32`, `Named("Foo")`).
 pub const fn type_ref<T: ContractTypeRefSpec + ?Sized>()
 -> view::ContractTypeView<'static> {
     T::INFO.ty
 }
 
+/// Returns all transitive type definitions that `T` depends on.
 pub const fn type_defs<T: ContractTypeRefSpec + ?Sized>()
 -> view::ContractTypeDefsView<'static> {
     T::INFO.type_defs
 }
 
+/// Computes the XDR-serialized byte length for a tree of type-def spec fragments.
 pub const fn const_txs_typedef_fragment_closure_len(
     type_defs: view::ContractTypeDefsView<'_>,
 ) -> usize {
@@ -283,6 +298,7 @@ const fn const_write_txs_typedef_fragment_closure<const OUT: usize>(
     }
 }
 
+/// Serializes a tree of type-def spec fragments into a fixed-size byte array at compile time.
 pub const fn const_txs_typedef_fragment_closure_bytes<const OUT: usize>(
     type_defs: view::ContractTypeDefsView<'_>,
 ) -> [u8; OUT] {

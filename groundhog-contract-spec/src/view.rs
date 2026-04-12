@@ -1,3 +1,8 @@
+//! Borrowed/const equivalents of the model types in [`super::model`].
+//!
+//! View types use `&'a str` and `&'a [T]` instead of `String` and `Vec<T>`,
+//! enabling compile-time spec generation via `const` evaluation.
+
 #[cfg(feature = "alloc")]
 use crate::model::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,

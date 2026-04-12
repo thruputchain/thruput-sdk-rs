@@ -3,7 +3,7 @@ use sdk::*;
 
 pub use crate::bignum::{U112, U256};
 
-#[contract_error]
+#[contract_exception]
 #[non_exhaustive]
 pub enum ISwapV2PairError {
     InitializeFailed,

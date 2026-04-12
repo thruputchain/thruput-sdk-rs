@@ -3,14 +3,14 @@ use sdk::*;
 mod alpha {
     use sdk::*;
 
-    #[contract_error]
+    #[contract_exception]
     pub struct Error;
 }
 
 mod beta {
     use sdk::*;
 
-    #[contract_error]
+    #[contract_exception]
     pub struct Error;
 }
 

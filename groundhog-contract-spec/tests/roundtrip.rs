@@ -5,11 +5,11 @@ use groundhog_contract_spec::{
     ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
     ContractSpecView, ContractStructDefView, ContractType, ContractTypeDef,
     ContractTypeDefView, ContractTypeDefsView, ContractTypeSpec,
-    ContractTypeView, ContractUnionCaseType, ContractUnionCaseTypeView,
-    ContractUnionCaseView, ContractUnionDefView, ContractVectorType,
-    ContractVectorTypeView, SpecFragment, SpecFragmentView,
-    SpecInterfaceFragment, SpecInterfaceFragmentView, SpecMethodFragment,
-    SpecMethodFragmentView,
+    ContractTypeView, ContractUnionCase, ContractUnionCaseType,
+    ContractUnionCaseTypeView, ContractUnionCaseView, ContractUnionDef,
+    ContractUnionDefView, ContractVectorType, ContractVectorTypeView,
+    SpecFragment, SpecFragmentView, SpecInterfaceFragment,
+    SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
 use xdrs::txs;
@@ -67,11 +67,19 @@ fn borrowed_views_convert_to_owned_model() {
         name: "payload",
         ty: named_payload,
     }];
-    let case_views = [ContractUnionCaseView {
-        name: "Wrapped",
-        discriminant: 1,
-        case_type: ContractUnionCaseTypeView::Struct(&wrapped_fields),
-    }];
+    let tuple_types = [named_payload];
+    let case_views = [
+        ContractUnionCaseView {
+            name: "Wrapped",
+            discriminant: 1,
+            case_type: ContractUnionCaseTypeView::Struct(&wrapped_fields),
+        },
+        ContractUnionCaseView {
+            name: "Packed",
+            discriminant: 2,
+            case_type: ContractUnionCaseTypeView::Tuple(&tuple_types),
+        },
+    ];
     let method_args = [ContractFieldView {
         name: "payload",
         ty: named_payload,
@@ -168,6 +176,31 @@ fn borrowed_views_convert_to_owned_model() {
                 len: 32,
             }),
         ])
+    );
+    assert_eq!(
+        owned.type_defs[2],
+        ContractTypeDef::Union(ContractUnionDef {
+            name: "Envelope".to_string(),
+            cases: vec![
+                ContractUnionCase {
+                    name: "Wrapped".to_string(),
+                    discriminant: 1,
+                    case_type: ContractUnionCaseType::Struct(vec![
+                        ContractField {
+                            name: "payload".to_string(),
+                            ty: ContractType::Named("Payload".to_string()),
+                        },
+                    ]),
+                },
+                ContractUnionCase {
+                    name: "Packed".to_string(),
+                    discriminant: 2,
+                    case_type: ContractUnionCaseType::Tuple(vec![
+                        ContractType::Named("Payload".to_string()),
+                    ]),
+                },
+            ],
+        })
     );
 }
 

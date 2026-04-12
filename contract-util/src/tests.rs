@@ -62,38 +62,38 @@ mod tests {
     }
 
     #[test]
-    fn test_error_selector_deterministic() {
-        let s1 = crate::error_selector("1.2.3", "mycrate", "MyError");
-        let s2 = crate::error_selector("1.2.3", "mycrate", "MyError");
+    fn test_exception_selector_deterministic() {
+        let s1 = crate::exception_selector("1.2.3", "mycrate", "MyError");
+        let s2 = crate::exception_selector("1.2.3", "mycrate", "MyError");
         assert_eq!(s1, s2);
     }
 
     #[test]
-    fn test_error_selector_differs_by_version() {
-        let s1 = crate::error_selector("1.0.0", "mycrate", "MyError");
-        let s2 = crate::error_selector("2.0.0", "mycrate", "MyError");
+    fn test_exception_selector_differs_by_version() {
+        let s1 = crate::exception_selector("1.0.0", "mycrate", "MyError");
+        let s2 = crate::exception_selector("2.0.0", "mycrate", "MyError");
         assert_ne!(s1, s2);
     }
 
     #[test]
-    fn test_error_selector_differs_by_name() {
-        let s1 = crate::error_selector("1.0.0", "mycrate", "AlphaError");
-        let s2 = crate::error_selector("1.0.0", "mycrate", "BetaError");
+    fn test_exception_selector_differs_by_name() {
+        let s1 = crate::exception_selector("1.0.0", "mycrate", "AlphaError");
+        let s2 = crate::exception_selector("1.0.0", "mycrate", "BetaError");
         assert_ne!(s1, s2);
     }
 
     #[test]
-    fn test_error_selector_same_major_same_selector() {
+    fn test_exception_selector_same_major_same_selector() {
         // 1.2.3 and 1.9.0 have the same major version "1"
-        let s1 = crate::error_selector("1.2.3", "mycrate", "MyError");
-        let s2 = crate::error_selector("1.9.0", "mycrate", "MyError");
+        let s1 = crate::exception_selector("1.2.3", "mycrate", "MyError");
+        let s2 = crate::exception_selector("1.9.0", "mycrate", "MyError");
         assert_eq!(s1, s2);
     }
 
     #[test]
-    fn test_error_selector_differs_by_crate() {
-        let s1 = crate::error_selector("1.0.0", "crate_a", "MyError");
-        let s2 = crate::error_selector("1.0.0", "crate_b", "MyError");
+    fn test_exception_selector_differs_by_crate() {
+        let s1 = crate::exception_selector("1.0.0", "crate_a", "MyError");
+        let s2 = crate::exception_selector("1.0.0", "crate_b", "MyError");
         assert_ne!(s1, s2);
     }
 

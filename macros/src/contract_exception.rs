@@ -4,23 +4,23 @@ use quote::quote;
 use syn::Item;
 
 #[derive(Debug, Default, FromMeta)]
-pub struct ContractErrorArgs {
+pub struct ContractExceptionArgs {
     pub version: Option<String>,
     pub name: Option<String>,
 }
 
-/// Expand `#[contract_error]` or `#[contract_error(version = "...")]`
+/// Expand `#[contract_exception]` or `#[contract_exception(version = "...")]`
 /// into the standard derive set + `#[repr(i32)]` (enums only) + `impl Exn`.
 ///
 /// Supported on enums and structs. All user-supplied attributes (including
 /// `#[error("...")]` from thiserror) are passed through unchanged.
-pub fn expand(args: ContractErrorArgs, item: Item) -> TokenStream {
+pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
     match item {
         Item::Enum(e) => expand_enum(args, e),
         Item::Struct(s) => expand_struct(args, s),
         other => syn::Error::new_spanned(
             other,
-            "#[contract_error] is only supported on enums and structs",
+            "#[contract_exception] is only supported on enums and structs",
         )
         .into_compile_error(),
     }
@@ -28,12 +28,15 @@ pub fn expand(args: ContractErrorArgs, item: Item) -> TokenStream {
 
 fn expand_contract_type_name(
     ident: &syn::Ident,
-    args: &ContractErrorArgs,
+    args: &ContractExceptionArgs,
 ) -> TokenStream {
     crate::contract_type_name_impl(ident, args.name.as_deref())
 }
 
-fn expand_enum(args: ContractErrorArgs, item: syn::ItemEnum) -> TokenStream {
+fn expand_enum(
+    args: ContractExceptionArgs,
+    item: syn::ItemEnum,
+) -> TokenStream {
     if let Err(err) = crate::check_enum_discriminants(&item.variants) {
         return err.into_compile_error();
     }
@@ -63,7 +66,7 @@ fn expand_enum(args: ContractErrorArgs, item: syn::ItemEnum) -> TokenStream {
 }
 
 fn expand_struct(
-    args: ContractErrorArgs,
+    args: ContractExceptionArgs,
     item: syn::ItemStruct,
 ) -> TokenStream {
     let ident = &item.ident;
@@ -142,12 +145,16 @@ fn enum_variant_field_types(
     field_types(&variant.fields)
 }
 
-fn compute_selector(args: &ContractErrorArgs, type_name: &str) -> u64 {
+fn compute_selector(args: &ContractExceptionArgs, type_name: &str) -> u64 {
     let version = args.version.clone().unwrap_or_else(|| {
         std::env::var("CARGO_PKG_VERSION")
             .unwrap_or_else(|_| "0.0.0".to_string())
     });
     let crate_name = std::env::var("CARGO_PKG_NAME")
         .unwrap_or_else(|_| "_unknown_".to_string());
-    groundhog_contract_util::error_selector(&version, &crate_name, type_name)
+    groundhog_contract_util::exception_selector(
+        &version,
+        &crate_name,
+        type_name,
+    )
 }

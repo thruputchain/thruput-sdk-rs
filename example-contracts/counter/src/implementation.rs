@@ -1,7 +1,7 @@
 use sdk::storage::NNInt;
 use sdk::*;
 
-#[contract_error]
+#[contract_exception]
 pub enum Error {
     NotAuthorized = 1,
 }
