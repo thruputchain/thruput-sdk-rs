@@ -2,8 +2,8 @@ use std::{fs, process::Command};
 
 use groundhog_contract_spec::{
     ContractArrayType, ContractField, ContractSpec, ContractSpecMethod,
-    ContractType, ContractVectorType, SpecFragment, SpecInterfaceFragment,
-    SpecMethodFragment,
+    ContractSpecString, ContractType, ContractVectorType, SpecFragment,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
@@ -16,6 +16,14 @@ use wasm_encoder::{
 };
 use wasmparser::{DataKind, Parser, Payload};
 use xdrs::txs::{decode, encode};
+
+fn s(value: &str) -> ContractSpecString {
+    ContractSpecString::try_from(value).unwrap()
+}
+
+fn spec_str(value: &ContractSpecString) -> &str {
+    std::str::from_utf8(value).unwrap()
+}
 
 fn custom_sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let mut sections = Vec::new();
@@ -67,12 +75,13 @@ fn rewrite_cli_writes_a_json_sidecar() {
     let tempdir = tempdir().unwrap();
     let wasm_path = tempdir.path().join("rewrite-cli.wasm");
     let json_path = tempdir.path().join("rewrite-cli.spec.json");
-    let raw =
-        encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        })]);
+    let raw = encode_fragments(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("ExplicitNamedInterface"),
+            interface_version: s("0.3.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    }]);
 
     let mut module = Module::new();
     module.section(&CustomSection {
@@ -115,47 +124,65 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
     let wasm_path = tempdir.path().join("rewrite-cli-u8.wasm");
     let json_path = tempdir.path().join("rewrite-cli-u8.spec.json");
     let raw = encode_fragments(&[
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }),
-        SpecFragment::Method(SpecMethodFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            method: ContractSpecMethod {
-                name: "echo_blob".into(),
-                args: vec![ContractField {
-                    name: "blob".into(),
-                    ty: ContractType::Vector(ContractVectorType {
-                        element: Box::new(ContractType::U8),
-                        max_len: u32::MAX,
-                    }),
-                }],
-                return_type: ContractType::Vector(ContractVectorType {
-                    element: Box::new(ContractType::U8),
-                    max_len: u32::MAX,
-                }),
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                throws: vec![].try_into().unwrap(),
             },
-        }),
-        SpecFragment::Method(SpecMethodFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            method: ContractSpecMethod {
-                name: "echo_hash".into(),
-                args: vec![ContractField {
-                    name: "hash".into(),
-                    ty: ContractType::Array(ContractArrayType {
-                        element: Box::new(ContractType::U8),
-                        len: 32,
-                    }),
-                }],
-                return_type: ContractType::Array(ContractArrayType {
-                    element: Box::new(ContractType::U8),
-                    len: 32,
-                }),
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                method: ContractSpecMethod {
+                    name: s("echo_blob"),
+                    args: vec![ContractField {
+                        name: s("blob"),
+                        ty: ContractType::Vector {
+                            vector: ContractVectorType {
+                                element: Some(Box::new(ContractType::U8)),
+                                max_len: u32::MAX,
+                            },
+                        },
+                    }]
+                    .try_into()
+                    .unwrap(),
+                    return_type: ContractType::Vector {
+                        vector: ContractVectorType {
+                            element: Some(Box::new(ContractType::U8)),
+                            max_len: u32::MAX,
+                        },
+                    },
+                },
             },
-        }),
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                method: ContractSpecMethod {
+                    name: s("echo_hash"),
+                    args: vec![ContractField {
+                        name: s("hash"),
+                        ty: ContractType::Array {
+                            array: ContractArrayType {
+                                element: Some(Box::new(ContractType::U8)),
+                                len: 32,
+                            },
+                        },
+                    }]
+                    .try_into()
+                    .unwrap(),
+                    return_type: ContractType::Array {
+                        array: ContractArrayType {
+                            element: Some(Box::new(ContractType::U8)),
+                            len: 32,
+                        },
+                    },
+                },
+            },
+        },
     ]);
 
     let mut module = Module::new();
@@ -220,16 +247,20 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
 #[test]
 fn rewrite_replaces_raw_section_with_one_final_section() {
     let raw = encode_fragments(&[
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }),
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "VersionedCallee".into(),
-            interface_version: "1.2.3".into(),
-            throws: vec![],
-        }),
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("VersionedCallee"),
+                interface_version: s("1.2.3"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
     ]);
     let mut module = Module::new();
     module.section(&CustomSection {
@@ -251,8 +282,8 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
         spec.interfaces
             .iter()
             .map(|interface| (
-                interface.name.as_str(),
-                interface.version.as_str()
+                spec_str(&interface.name),
+                spec_str(&interface.vers)
             ))
             .collect::<Vec<_>>(),
         vec![
@@ -264,12 +295,13 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
 
 #[test]
 fn rewrite_preserves_unrelated_custom_sections() {
-    let raw =
-        encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        })]);
+    let raw = encode_fragments(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("ExplicitNamedInterface"),
+            interface_version: s("0.3.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    }]);
     let mut module = Module::new();
     module.section(&CustomSection {
         name: "kept".into(),
@@ -310,16 +342,20 @@ fn rewrite_preserves_unrelated_custom_sections() {
 #[test]
 fn rewrite_rejects_raw_only_data_segment_leaks() {
     let raw_blob = encode_fragments(&[
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }),
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "VersionedCallee".into(),
-            interface_version: "1.2.3".into(),
-            throws: vec![],
-        }),
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("VersionedCallee"),
+                interface_version: s("1.2.3"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
     ]);
 
     let mut memory = MemorySection::new();
@@ -348,24 +384,29 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
 
 #[test]
 fn rewrite_rejects_partial_data_segment_leaks() {
-    let leaked_fragment =
-        encode(&SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }))
-        .unwrap();
+    let leaked_fragment = encode(&SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("ExplicitNamedInterface"),
+            interface_version: s("0.3.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    })
+    .unwrap();
     let raw_blob = encode_fragments(&[
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }),
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "VersionedCallee".into(),
-            interface_version: "1.2.3".into(),
-            throws: vec![],
-        }),
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("VersionedCallee"),
+                interface_version: s("1.2.3"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
     ]);
 
     let mut memory = MemorySection::new();
@@ -394,12 +435,13 @@ fn rewrite_rejects_partial_data_segment_leaks() {
 
 #[test]
 fn rewrite_preserves_unrelated_data_segments() {
-    let raw_blob =
-        encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        })]);
+    let raw_blob = encode_fragments(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("ExplicitNamedInterface"),
+            interface_version: s("0.3.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    }]);
     let kept_data = b"retain-me".to_vec();
 
     let mut memory = MemorySection::new();
@@ -436,12 +478,13 @@ fn rewrite_preserves_unrelated_data_segments() {
 
 #[test]
 fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
-    let raw =
-        encode_fragments(&[SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        })]);
+    let raw = encode_fragments(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("ExplicitNamedInterface"),
+            interface_version: s("0.3.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    }]);
     let mut raw_module = Module::new();
     raw_module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
@@ -456,16 +499,20 @@ fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
 #[test]
 fn rewrite_rejects_mixed_data_segment_leaks() {
     let raw_blob = encode_fragments(&[
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "ExplicitNamedInterface".into(),
-            interface_version: "0.3.0".into(),
-            throws: vec![],
-        }),
-        SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "VersionedCallee".into(),
-            interface_version: "1.2.3".into(),
-            throws: vec![],
-        }),
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("ExplicitNamedInterface"),
+                interface_version: s("0.3.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("VersionedCallee"),
+                interface_version: s("1.2.3"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
     ]);
     let retained_suffix = [0_u8, 0, 0, 0, b'K', b'E', b'P', b'T'];
     let original_offset = 7;
@@ -502,14 +549,14 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
 
 #[test]
 fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
-    let raw_blob = encode_fragments(&[SpecFragment::TypeDef(
-        groundhog_contract_spec::ContractTypeDef::Struct(
-            groundhog_contract_spec::ContractStructDef {
-                name: "HelperType".into(),
-                fields: vec![],
+    let raw_blob = encode_fragments(&[SpecFragment::SpecTypeDef {
+        type_def: groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
+            struct_def: groundhog_contract_spec::ContractStructDef {
+                name: s("HelperType"),
+                fields: vec![].try_into().unwrap(),
             },
-        ),
-    )]);
+        },
+    }]);
 
     let mut module = Module::new();
     let mut memory = MemorySection::new();

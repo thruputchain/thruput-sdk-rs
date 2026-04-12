@@ -3,16 +3,21 @@ use groundhog_contract_spec::{
     ContractEnumDefView, ContractEnumVariant, ContractEnumVariantView,
     ContractField, ContractFieldView, ContractSpec, ContractSpecInterface,
     ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
-    ContractSpecView, ContractStructDefView, ContractType, ContractTypeDef,
-    ContractTypeDefView, ContractTypeDefsView, ContractTypeSpec,
-    ContractTypeView, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionCaseTypeView, ContractUnionCaseView, ContractUnionDef,
-    ContractUnionDefView, ContractVectorType, ContractVectorTypeView,
-    SpecFragment, SpecFragmentView, SpecInterfaceFragment,
-    SpecInterfaceFragmentView, SpecMethodFragment, SpecMethodFragmentView,
+    ContractSpecString, ContractSpecView, ContractStructDefView, ContractType,
+    ContractTypeDef, ContractTypeDefView, ContractTypeDefsView,
+    ContractTypeSpec, ContractTypeView, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionCaseTypeView, ContractUnionCaseView,
+    ContractUnionDef, ContractUnionDefView, ContractVectorType,
+    ContractVectorTypeView, SpecFragment, SpecFragmentView,
+    SpecInterfaceFragment, SpecInterfaceFragmentView, SpecMethodFragment,
+    SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
 use xdrs::txs;
+
+fn s(value: &str) -> ContractSpecString {
+    ContractSpecString::try_from(value).unwrap()
+}
 
 fn assert_xdr_tag<T: xdrs::WriteXDR>(value: &T, expected: i32) {
     let encoded = encode(value).unwrap();
@@ -25,25 +30,41 @@ fn assert_xdr_tag<T: xdrs::WriteXDR>(value: &T, expected: i32) {
 fn contract_spec_roundtrips_through_xdr() {
     let spec = ContractSpec {
         interfaces: vec![ContractSpecInterface {
-            name: "Named".to_string(),
-            version: "0.1.0".to_string(),
-            throws: vec![ContractType::Named("DemoError".to_string())],
+            name: s("Named"),
+            vers: s("0.1.0"),
+            throws: vec![ContractType::Named {
+                named: s("DemoError"),
+            }]
+            .try_into()
+            .unwrap(),
             methods: vec![ContractSpecMethod {
-                name: "ping".to_string(),
+                name: s("ping"),
                 args: vec![ContractField {
-                    name: "value".to_string(),
+                    name: s("value"),
                     ty: ContractType::U32,
-                }],
+                }]
+                .try_into()
+                .unwrap(),
                 return_type: ContractType::Void,
-            }],
-        }],
-        type_defs: vec![ContractTypeDef::Enum(ContractEnumDef {
-            name: "DemoError".to_string(),
-            variants: vec![ContractEnumVariant {
-                name: "Nope".to_string(),
-                value: 7,
-            }],
-        })],
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        type_defs: vec![ContractTypeDef::TypeDefEnum {
+            enum_def: ContractEnumDef {
+                name: s("DemoError"),
+                variants: vec![ContractEnumVariant {
+                    name: s("Nope"),
+                    value: 7,
+                }]
+                .try_into()
+                .unwrap(),
+            },
+        }]
+        .try_into()
+        .unwrap(),
     };
 
     let encoded = encode(&spec).unwrap();
@@ -84,9 +105,9 @@ fn borrowed_views_convert_to_owned_model() {
         name: "payload",
         ty: named_payload,
     }];
-    let option_named_error = ContractTypeView::Option(&named_error);
+    let option_named_error = ContractTypeView::Option(Some(&named_error));
     let vec_named_payload = ContractTypeView::Vector(ContractVectorTypeView {
-        element: &named_payload,
+        element: Some(&named_payload),
         max_len: u32::MAX,
     });
     let tuple_items = [
@@ -106,7 +127,7 @@ fn borrowed_views_convert_to_owned_model() {
         ContractTypeView::Named("Payload"),
         ContractTypeView::U8,
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             len: 32,
         }),
     ];
@@ -145,62 +166,90 @@ fn borrowed_views_convert_to_owned_model() {
     assert_eq!(owned.interfaces.len(), 1);
     assert_eq!(owned.type_defs.len(), 3);
     assert_eq!(
-        owned.interfaces[0].throws,
-        vec![ContractType::Named("DemoError".to_string())]
+        owned.interfaces[0].throws.as_slice(),
+        &[ContractType::Named {
+            named: s("DemoError")
+        }]
     );
     assert_eq!(
         owned.interfaces[0].methods[0].return_type,
-        ContractType::Tuple(vec![
-            ContractType::Void,
-            ContractType::Bool,
-            ContractType::U32,
-            ContractType::I32,
-            ContractType::U64,
-            ContractType::I64,
-            ContractType::U128,
-            ContractType::I128,
-            ContractType::String,
-            ContractType::Bytes,
-            ContractType::Address,
-            ContractType::Option(Box::new(ContractType::Named(
-                "DemoError".to_string(),
-            ))),
-            ContractType::Vector(ContractVectorType {
-                element: Box::new(ContractType::Named("Payload".to_string(),)),
-                max_len: u32::MAX,
-            }),
-            ContractType::Named("Payload".to_string()),
-            ContractType::U8,
-            ContractType::Array(ContractArrayType {
-                element: Box::new(ContractType::U8),
-                len: 32,
-            }),
-        ])
+        ContractType::Tuple {
+            tuple: vec![
+                ContractType::Void,
+                ContractType::Bool,
+                ContractType::U32,
+                ContractType::I32,
+                ContractType::U64,
+                ContractType::I64,
+                ContractType::U128,
+                ContractType::I128,
+                ContractType::String,
+                ContractType::Bytes,
+                ContractType::Address,
+                ContractType::Option {
+                    option_inner: Some(Box::new(ContractType::Named {
+                        named: s("DemoError"),
+                    })),
+                },
+                ContractType::Vector {
+                    vector: ContractVectorType {
+                        element: Some(Box::new(ContractType::Named {
+                            named: s("Payload"),
+                        })),
+                        max_len: u32::MAX,
+                    },
+                },
+                ContractType::Named {
+                    named: s("Payload")
+                },
+                ContractType::U8,
+                ContractType::Array {
+                    array: ContractArrayType {
+                        element: Some(Box::new(ContractType::U8)),
+                        len: 32,
+                    },
+                },
+            ]
+            .try_into()
+            .unwrap()
+        }
     );
     assert_eq!(
         owned.type_defs[2],
-        ContractTypeDef::Union(ContractUnionDef {
-            name: "Envelope".to_string(),
-            cases: vec![
-                ContractUnionCase {
-                    name: "Wrapped".to_string(),
-                    discriminant: 1,
-                    case_type: ContractUnionCaseType::Struct(vec![
-                        ContractField {
-                            name: "payload".to_string(),
-                            ty: ContractType::Named("Payload".to_string()),
+        ContractTypeDef::TypeDefUnion {
+            union_def: ContractUnionDef {
+                name: s("Envelope"),
+                cases: vec![
+                    ContractUnionCase {
+                        name: s("Wrapped"),
+                        discriminant: 1,
+                        case_type: ContractUnionCaseType::UnionCaseStruct {
+                            struct_fields: vec![ContractField {
+                                name: s("payload"),
+                                ty: ContractType::Named {
+                                    named: s("Payload")
+                                },
+                            },]
+                            .try_into()
+                            .unwrap(),
                         },
-                    ]),
-                },
-                ContractUnionCase {
-                    name: "Packed".to_string(),
-                    discriminant: 2,
-                    case_type: ContractUnionCaseType::Tuple(vec![
-                        ContractType::Named("Payload".to_string()),
-                    ]),
-                },
-            ],
-        })
+                    },
+                    ContractUnionCase {
+                        name: s("Packed"),
+                        discriminant: 2,
+                        case_type: ContractUnionCaseType::UnionCaseTuple {
+                            tuple: vec![ContractType::Named {
+                                named: s("Payload")
+                            },]
+                            .try_into()
+                            .unwrap(),
+                        },
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+            }
+        }
     );
 }
 
@@ -238,23 +287,32 @@ fn fragment_and_view_conversions_roundtrip() {
     let type_def_fragment =
         SpecFragment::from(SpecFragmentView::TypeDef(type_def));
 
-    assert!(matches!(interface_fragment, SpecFragment::Interface(_)));
-    assert!(matches!(method_fragment, SpecFragment::Method(_)));
+    assert!(matches!(
+        interface_fragment,
+        SpecFragment::SpecInterface { .. }
+    ));
+    assert!(matches!(method_fragment, SpecFragment::SpecMethod { .. }));
     assert!(matches!(
         type_def_fragment,
-        SpecFragment::TypeDef(ContractTypeDef::Union(_))
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefUnion { .. }
+        }
     ));
 
     assert_eq!(
         ContractTypeDef::from(type_def),
-        ContractTypeDef::Union(groundhog_contract_spec::ContractUnionDef {
-            name: "Envelope".to_string(),
-            cases: vec![groundhog_contract_spec::ContractUnionCase {
-                name: "Empty".to_string(),
-                discriminant: 0,
-                case_type: ContractUnionCaseType::Void,
-            }],
-        })
+        ContractTypeDef::TypeDefUnion {
+            union_def: groundhog_contract_spec::ContractUnionDef {
+                name: s("Envelope"),
+                cases: vec![groundhog_contract_spec::ContractUnionCase {
+                    name: s("Empty"),
+                    discriminant: 0,
+                    case_type: ContractUnionCaseType::UnionCaseVoid,
+                }]
+                .try_into()
+                .unwrap(),
+            }
+        }
     );
 
     let encoded = encode(&interface_fragment).unwrap();
@@ -405,74 +463,105 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(&ContractType::String, 8);
     assert_xdr_tag(&ContractType::Bytes, 9);
     assert_xdr_tag(&ContractType::Address, 10);
-    assert_xdr_tag(&ContractType::Option(Box::new(ContractType::Void)), 11);
     assert_xdr_tag(
-        &ContractType::Vector(ContractVectorType {
-            element: Box::new(ContractType::Void),
-            max_len: u32::MAX,
-        }),
+        &ContractType::Option {
+            option_inner: Some(Box::new(ContractType::Void)),
+        },
+        11,
+    );
+    assert_xdr_tag(
+        &ContractType::Vector {
+            vector: ContractVectorType {
+                element: Some(Box::new(ContractType::Void)),
+                max_len: u32::MAX,
+            },
+        },
         12,
     );
-    assert_xdr_tag(&ContractType::Tuple(vec![ContractType::Void]), 13);
-    assert_xdr_tag(&ContractType::Named("DemoError".to_string()), 14);
+    assert_xdr_tag(
+        &ContractType::Tuple {
+            tuple: vec![ContractType::Void].try_into().unwrap(),
+        },
+        13,
+    );
+    assert_xdr_tag(
+        &ContractType::Named {
+            named: s("DemoError"),
+        },
+        14,
+    );
     assert_xdr_tag(&ContractType::U8, 15);
     assert_xdr_tag(
-        &ContractType::Array(ContractArrayType {
-            element: Box::new(ContractType::U8),
-            len: 32,
-        }),
+        &ContractType::Array {
+            array: ContractArrayType {
+                element: Some(Box::new(ContractType::U8)),
+                len: 32,
+            },
+        },
         16,
     );
 
     assert_xdr_tag(
-        &ContractTypeDef::Struct(groundhog_contract_spec::ContractStructDef {
-            name: "Payload".to_string(),
-            fields: vec![],
-        }),
+        &ContractTypeDef::TypeDefStruct {
+            struct_def: groundhog_contract_spec::ContractStructDef {
+                name: s("Payload"),
+                fields: vec![].try_into().unwrap(),
+            },
+        },
         0,
     );
     assert_xdr_tag(
-        &ContractTypeDef::Enum(groundhog_contract_spec::ContractEnumDef {
-            name: "Choice".to_string(),
-            variants: vec![],
-        }),
+        &ContractTypeDef::TypeDefEnum {
+            enum_def: groundhog_contract_spec::ContractEnumDef {
+                name: s("Choice"),
+                variants: vec![].try_into().unwrap(),
+            },
+        },
         1,
     );
     assert_xdr_tag(
-        &ContractTypeDef::Union(groundhog_contract_spec::ContractUnionDef {
-            name: "Envelope".to_string(),
-            cases: vec![],
-        }),
+        &ContractTypeDef::TypeDefUnion {
+            union_def: groundhog_contract_spec::ContractUnionDef {
+                name: s("Envelope"),
+                cases: vec![].try_into().unwrap(),
+            },
+        },
         2,
     );
 
     assert_xdr_tag(
-        &SpecFragment::Interface(SpecInterfaceFragment {
-            interface_name: "Named".to_string(),
-            interface_version: "0.1.0".to_string(),
-            throws: vec![],
-        }),
+        &SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
         0,
     );
     assert_xdr_tag(
-        &SpecFragment::Method(SpecMethodFragment {
-            interface_name: "Named".to_string(),
-            interface_version: "0.1.0".to_string(),
-            method: ContractSpecMethod {
-                name: "ping".to_string(),
-                args: vec![],
-                return_type: ContractType::Void,
+        &SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
             },
-        }),
+        },
         1,
     );
     assert_xdr_tag(
-        &SpecFragment::TypeDef(ContractTypeDef::Enum(
-            groundhog_contract_spec::ContractEnumDef {
-                name: "Choice".to_string(),
-                variants: vec![],
+        &SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefEnum {
+                enum_def: groundhog_contract_spec::ContractEnumDef {
+                    name: s("Choice"),
+                    variants: vec![].try_into().unwrap(),
+                },
             },
-        )),
+        },
         2,
     );
 }
@@ -521,19 +610,19 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Option<u32>>(),
-        ContractTypeView::Option(&ContractTypeView::U32)
+        ContractTypeView::Option(Some(&ContractTypeView::U32))
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u8>>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             max_len: u32::MAX,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<&[u8]>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             max_len: u32::MAX,
         })
     );
@@ -544,21 +633,21 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u32>>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U32,
+            element: Some(&ContractTypeView::U32),
             max_len: u32::MAX,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<[u8; 32]>(),
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             len: 32,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<[bool; 4]>(),
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::Bool,
+            element: Some(&ContractTypeView::Bool),
             len: 4,
         })
     );
@@ -615,14 +704,14 @@ fn alias_byte_collections_resolve_via_trait_layer() {
     assert_eq!(
         groundhog_contract_spec::type_ref::<Blob>(),
         ContractTypeView::Vector(ContractVectorTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             max_len: u32::MAX,
         })
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Hash>(),
         ContractTypeView::Array(ContractArrayTypeView {
-            element: &ContractTypeView::U8,
+            element: Some(&ContractTypeView::U8),
             len: 32,
         })
     );
