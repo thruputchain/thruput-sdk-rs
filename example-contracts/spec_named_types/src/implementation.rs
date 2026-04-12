@@ -18,6 +18,9 @@ pub enum Choice {
 pub enum Envelope {
     Empty = 0,
     Wrapped { payload: Payload } = 1,
+    Full { payload: Payload, choice: Choice } = 2,
+    Pair(Payload, Choice) = 3,
+    Single(Payload) = 4,
 }
 
 pub type PayloadPair = (Payload, Option<Payload>);

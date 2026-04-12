@@ -128,7 +128,15 @@ pub struct ContractUnionDefView<'a> {
 pub struct ContractUnionCaseView<'a> {
     pub name: &'a str,
     pub discriminant: i32,
-    pub case_type: Option<ContractTypeView<'a>>,
+    pub case_type: ContractUnionCaseTypeView<'a>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[repr(i32)]
+pub enum ContractUnionCaseTypeView<'a> {
+    Void = 0,
+    Tuple(&'a [ContractTypeView<'a>]) = 1,
+    Struct(&'a [ContractFieldView<'a>]) = 2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -324,7 +332,30 @@ impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
         Self {
             name: value.name.to_owned(),
             discriminant: value.discriminant,
-            case_type: value.case_type.map(Into::into),
+            case_type: value.case_type.into(),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl From<ContractUnionCaseTypeView<'_>>
+    for crate::model::ContractUnionCaseType
+{
+    fn from(value: ContractUnionCaseTypeView<'_>) -> Self {
+        match value {
+            ContractUnionCaseTypeView::Void => {
+                crate::model::ContractUnionCaseType::Void
+            }
+            ContractUnionCaseTypeView::Tuple(types) => {
+                crate::model::ContractUnionCaseType::Tuple(
+                    types.iter().copied().map(Into::into).collect(),
+                )
+            }
+            ContractUnionCaseTypeView::Struct(fields) => {
+                crate::model::ContractUnionCaseType::Struct(
+                    fields.iter().copied().map(Into::into).collect(),
+                )
+            }
         }
     }
 }

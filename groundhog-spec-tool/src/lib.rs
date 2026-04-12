@@ -6,8 +6,8 @@ pub mod rewrite;
 pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
     ContractSpecInterface, ContractSpecMethod, ContractStructDef,
-    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionDef,
-    SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
+    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use raw::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
@@ -147,15 +147,16 @@ pub fn canonicalize_spec(
             let mut deduped_methods: Vec<ContractSpecMethod> =
                 Vec::with_capacity(bucket.methods.len());
             for method in bucket.methods {
-                if let Some(existing) = deduped_methods.last() {
-                    if existing.name == method.name {
-                        if existing == &method {
-                            continue;
-                        }
-                        return Err(SpecToolError::ConflictingMethod(
-                            format!("{}@{}::{}", name, version, method.name),
-                        ));
+                if let Some(existing) = deduped_methods.last()
+                    && existing.name == method.name
+                {
+                    if existing == &method {
+                        continue;
                     }
+                    return Err(SpecToolError::ConflictingMethod(format!(
+                        "{}@{}::{}",
+                        name, version, method.name
+                    )));
                 }
                 deduped_methods.push(method);
             }
@@ -331,14 +332,12 @@ fn resolve_reachable_type_defs(
             Some(ContractTypeDef::Enum(_)) => {}
             Some(ContractTypeDef::Union(def)) => {
                 for case in &def.cases {
-                    if let Some(case_type) = &case.case_type {
-                        collect_named_types(
-                            case_type,
-                            defs,
-                            &mut resolved,
-                            &mut pending,
-                        )?;
-                    }
+                    collect_union_case_named_types(
+                        &case.case_type,
+                        defs,
+                        &mut resolved,
+                        &mut pending,
+                    )?;
                 }
             }
             None => return Err(SpecToolError::MissingTypeDef(symbol)),
@@ -395,6 +394,28 @@ fn collect_named_types(
         | ContractType::Address => {}
     }
 
+    Ok(())
+}
+
+fn collect_union_case_named_types(
+    case_type: &ContractUnionCaseType,
+    defs: &BTreeMap<String, Vec<ContractTypeDef>>,
+    resolved: &mut BTreeMap<String, ContractTypeDef>,
+    pending: &mut Vec<String>,
+) -> Result<(), SpecToolError> {
+    match case_type {
+        ContractUnionCaseType::Void => {}
+        ContractUnionCaseType::Tuple(types) => {
+            for ty in types {
+                collect_named_types(ty, defs, resolved, pending)?;
+            }
+        }
+        ContractUnionCaseType::Struct(fields) => {
+            for field in fields {
+                collect_named_types(&field.ty, defs, resolved, pending)?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -568,10 +589,40 @@ fn push_type_def_json(out: &mut String, type_def: &ContractTypeDef) {
                 out.push_str("\",\"discriminant\":");
                 out.push_str(&case.discriminant.to_string());
                 out.push_str(",\"case_type\":");
-                match &case.case_type {
-                    Some(case_type) => push_type_json(out, case_type),
-                    None => out.push_str("null"),
+                push_union_case_type_json(out, &case.case_type);
+                out.push('}');
+            }
+            out.push_str("]}");
+        }
+    }
+}
+
+fn push_union_case_type_json(
+    out: &mut String,
+    case_type: &ContractUnionCaseType,
+) {
+    match case_type {
+        ContractUnionCaseType::Void => out.push_str("null"),
+        ContractUnionCaseType::Tuple(types) => {
+            out.push_str("{\"kind\":\"tuple\",\"items\":[");
+            for (index, ty) in types.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
                 }
+                push_type_json(out, ty);
+            }
+            out.push_str("]}");
+        }
+        ContractUnionCaseType::Struct(fields) => {
+            out.push_str("{\"kind\":\"struct\",\"fields\":[");
+            for (index, field) in fields.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                out.push_str("{\"name\":\"");
+                push_json_string(out, &field.name);
+                out.push_str("\",\"ty\":");
+                push_type_json(out, &field.ty);
                 out.push('}');
             }
             out.push_str("]}");

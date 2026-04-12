@@ -38,7 +38,7 @@ impl Model {
 
         *balance = (*balance).checked_add(amount).unwrap();
 
-        self.log_transfer_event(&CONTRACT_ADDR_ZERO, receiver, 100);
+        self.log_transfer_event(CONTRACT_ADDR_ZERO, receiver, 100);
     }
 
     pub fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
@@ -48,7 +48,7 @@ impl Model {
 
         *balance = (*balance).checked_sub(amount).unwrap();
 
-        self.log_transfer_event(owner, &CONTRACT_ADDR_ZERO, amount);
+        self.log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount);
     }
 
     pub fn adjust_allowance(

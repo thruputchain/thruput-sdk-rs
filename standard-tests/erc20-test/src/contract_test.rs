@@ -18,7 +18,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 
     let mut m = Model::default();
 
-    let client = ERC20Client::new(&deployed_addr);
+    let client = ERC20Client::new(deployed_addr);
 
     client.initialize(&owner);
     m.initialize(&owner);

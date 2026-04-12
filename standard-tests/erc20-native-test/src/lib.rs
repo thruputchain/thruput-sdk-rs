@@ -7,7 +7,7 @@ pub fn test_erc20_contract(
     env: TestEnvironmentHandle,
     test_contract_hash: &SHA256Hash,
 ) {
-    let test_contract_hash = test_contract_hash.clone();
+    let test_contract_hash = *test_contract_hash;
 
     // It's currently difficult to extract state from mock contracts,
     // so we'll allocate shared storage for the model we want to extract

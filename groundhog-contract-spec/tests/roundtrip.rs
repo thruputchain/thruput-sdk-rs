@@ -5,10 +5,11 @@ use groundhog_contract_spec::{
     ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
     ContractSpecView, ContractStructDefView, ContractType, ContractTypeDef,
     ContractTypeDefView, ContractTypeDefsView, ContractTypeSpec,
-    ContractTypeView, ContractUnionCaseView, ContractUnionDefView,
-    ContractVectorType, ContractVectorTypeView, SpecFragment,
-    SpecFragmentView, SpecInterfaceFragment, SpecInterfaceFragmentView,
-    SpecMethodFragment, SpecMethodFragmentView,
+    ContractTypeView, ContractUnionCaseType, ContractUnionCaseTypeView,
+    ContractUnionCaseView, ContractUnionDefView, ContractVectorType,
+    ContractVectorTypeView, SpecFragment, SpecFragmentView,
+    SpecInterfaceFragment, SpecInterfaceFragmentView, SpecMethodFragment,
+    SpecMethodFragmentView,
 };
 use xdrs::cxs::{decode, encode};
 use xdrs::txs;
@@ -62,10 +63,14 @@ fn borrowed_views_convert_to_owned_model() {
         name: "Nope",
         value: 7,
     }];
+    let wrapped_fields = [ContractFieldView {
+        name: "payload",
+        ty: named_payload,
+    }];
     let case_views = [ContractUnionCaseView {
         name: "Wrapped",
         discriminant: 1,
-        case_type: Some(named_payload),
+        case_type: ContractUnionCaseTypeView::Struct(&wrapped_fields),
     }];
     let method_args = [ContractFieldView {
         name: "payload",
@@ -190,7 +195,7 @@ fn fragment_and_view_conversions_roundtrip() {
         cases: &[ContractUnionCaseView {
             name: "Empty",
             discriminant: 0,
-            case_type: None,
+            case_type: ContractUnionCaseTypeView::Void,
         }],
     });
 
@@ -214,7 +219,7 @@ fn fragment_and_view_conversions_roundtrip() {
             cases: vec![groundhog_contract_spec::ContractUnionCase {
                 name: "Empty".to_string(),
                 discriminant: 0,
-                case_type: None,
+                case_type: ContractUnionCaseType::Void,
             }],
         })
     );
