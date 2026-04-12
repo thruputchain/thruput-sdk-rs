@@ -1,19 +1,25 @@
-//! Borrowed/const equivalents of the model types in [`super::model`].
+//! Borrowed/const equivalents of the model types.
 //!
 //! View types use `&'a str` and `&'a [T]` instead of `String` and `Vec<T>`,
 //! enabling compile-time spec generation via `const` evaluation.
 
 #[cfg(feature = "alloc")]
-use crate::model::{
+use crate::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpec,
-    ContractSpecInterface, ContractSpecMethod, ContractStructDef,
-    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionDef,
-    SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 #[cfg(feature = "alloc")]
-use alloc::{borrow::ToOwned, boxed::Box};
+use alloc::{boxed::Box, vec::Vec};
 
 use xdrs::*;
+
+#[cfg(feature = "alloc")]
+fn to_spec_string(s: &str) -> ContractSpecString {
+    ContractSpecString::try_from(s).expect("spec string conversion")
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractSpecView<'a> {
@@ -175,13 +181,17 @@ impl From<ContractSpecView<'_>> for ContractSpec {
                 .iter()
                 .copied()
                 .map(Into::into)
-                .collect(),
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
             type_defs: value
                 .type_defs
                 .iter()
                 .copied()
                 .map(Into::into)
-                .collect(),
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -190,10 +200,24 @@ impl From<ContractSpecView<'_>> for ContractSpec {
 impl From<ContractSpecInterfaceView<'_>> for ContractSpecInterface {
     fn from(value: ContractSpecInterfaceView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
-            version: value.version.to_owned(),
-            throws: value.throws.iter().copied().map(Into::into).collect(),
-            methods: value.methods.iter().copied().map(Into::into).collect(),
+            name: to_spec_string(value.name),
+            vers: to_spec_string(value.version),
+            throws: value
+                .throws
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+            methods: value
+                .methods
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -202,8 +226,15 @@ impl From<ContractSpecInterfaceView<'_>> for ContractSpecInterface {
 impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
     fn from(value: ContractSpecMethodView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
-            args: value.args.iter().copied().map(Into::into).collect(),
+            name: to_spec_string(value.name),
+            args: value
+                .args
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
             return_type: value.return_type.into(),
         }
     }
@@ -213,7 +244,7 @@ impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
 impl From<ContractFieldView<'_>> for ContractField {
     fn from(value: ContractFieldView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
+            name: to_spec_string(value.name),
             ty: value.ty.into(),
         }
     }
@@ -234,41 +265,47 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::String => ContractType::String,
             ContractTypeView::Bytes => ContractType::Bytes,
             ContractTypeView::Address => ContractType::Address,
-            ContractTypeView::Option(inner) => {
-                ContractType::Option(Box::new((*inner).into()))
-            }
-            ContractTypeView::Vector(inner) => {
-                ContractType::Vector(inner.into())
-            }
-            ContractTypeView::Tuple(items) => ContractType::Tuple(
-                items.iter().copied().map(Into::into).collect(),
-            ),
-            ContractTypeView::Named(name) => {
-                ContractType::Named(name.to_owned())
-            }
+            ContractTypeView::Option(inner) => ContractType::Option {
+                option_inner: Some(Box::new((*inner).into())),
+            },
+            ContractTypeView::Vector(inner) => ContractType::Vector {
+                vector: inner.into(),
+            },
+            ContractTypeView::Tuple(items) => ContractType::Tuple {
+                tuple: items
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+            },
+            ContractTypeView::Named(name) => ContractType::Named {
+                named: to_spec_string(name),
+            },
             ContractTypeView::U8 => ContractType::U8,
-            ContractTypeView::Array(array) => {
-                ContractType::Array(array.into())
-            }
+            ContractTypeView::Array(array) => ContractType::Array {
+                array: array.into(),
+            },
         }
     }
 }
 
 #[cfg(feature = "alloc")]
-impl From<ContractArrayTypeView<'_>> for crate::model::ContractArrayType {
+impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
     fn from(value: ContractArrayTypeView<'_>) -> Self {
         Self {
-            element: Box::new((*value.element).into()),
+            element: Some(Box::new((*value.element).into())),
             len: value.len,
         }
     }
 }
 
 #[cfg(feature = "alloc")]
-impl From<ContractVectorTypeView<'_>> for crate::model::ContractVectorType {
+impl From<ContractVectorTypeView<'_>> for crate::ContractVectorType {
     fn from(value: ContractVectorTypeView<'_>) -> Self {
         Self {
-            element: Box::new((*value.element).into()),
+            element: Some(Box::new((*value.element).into())),
             max_len: value.max_len,
         }
     }
@@ -279,14 +316,16 @@ impl From<ContractTypeDefView<'_>> for ContractTypeDef {
     fn from(value: ContractTypeDefView<'_>) -> Self {
         match value {
             ContractTypeDefView::Struct(def) => {
-                ContractTypeDef::Struct(def.into())
+                ContractTypeDef::TypeDefStruct {
+                    struct_def: def.into(),
+                }
             }
-            ContractTypeDefView::Enum(def) => {
-                ContractTypeDef::Enum(def.into())
-            }
-            ContractTypeDefView::Union(def) => {
-                ContractTypeDef::Union(def.into())
-            }
+            ContractTypeDefView::Enum(def) => ContractTypeDef::TypeDefEnum {
+                enum_def: def.into(),
+            },
+            ContractTypeDefView::Union(def) => ContractTypeDef::TypeDefUnion {
+                union_def: def.into(),
+            },
         }
     }
 }
@@ -295,8 +334,15 @@ impl From<ContractTypeDefView<'_>> for ContractTypeDef {
 impl From<ContractStructDefView<'_>> for ContractStructDef {
     fn from(value: ContractStructDefView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
-            fields: value.fields.iter().copied().map(Into::into).collect(),
+            name: to_spec_string(value.name),
+            fields: value
+                .fields
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -305,8 +351,15 @@ impl From<ContractStructDefView<'_>> for ContractStructDef {
 impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     fn from(value: ContractEnumDefView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
-            variants: value.variants.iter().copied().map(Into::into).collect(),
+            name: to_spec_string(value.name),
+            variants: value
+                .variants
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -315,7 +368,7 @@ impl From<ContractEnumDefView<'_>> for ContractEnumDef {
 impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
     fn from(value: ContractEnumVariantView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
+            name: to_spec_string(value.name),
             value: value.value,
         }
     }
@@ -325,8 +378,15 @@ impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
 impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     fn from(value: ContractUnionDefView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
-            cases: value.cases.iter().copied().map(Into::into).collect(),
+            name: to_spec_string(value.name),
+            cases: value
+                .cases
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -335,7 +395,7 @@ impl From<ContractUnionDefView<'_>> for ContractUnionDef {
 impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
     fn from(value: ContractUnionCaseView<'_>) -> Self {
         Self {
-            name: value.name.to_owned(),
+            name: to_spec_string(value.name),
             discriminant: value.discriminant,
             case_type: value.case_type.into(),
         }
@@ -343,23 +403,33 @@ impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
 }
 
 #[cfg(feature = "alloc")]
-impl From<ContractUnionCaseTypeView<'_>>
-    for crate::model::ContractUnionCaseType
-{
+impl From<ContractUnionCaseTypeView<'_>> for ContractUnionCaseType {
     fn from(value: ContractUnionCaseTypeView<'_>) -> Self {
         match value {
             ContractUnionCaseTypeView::Void => {
-                crate::model::ContractUnionCaseType::Void
+                ContractUnionCaseType::UnionCaseVoid
             }
             ContractUnionCaseTypeView::Tuple(types) => {
-                crate::model::ContractUnionCaseType::Tuple(
-                    types.iter().copied().map(Into::into).collect(),
-                )
+                ContractUnionCaseType::UnionCaseTuple {
+                    tuple: types
+                        .iter()
+                        .copied()
+                        .map(Into::into)
+                        .collect::<Vec<_>>()
+                        .try_into()
+                        .unwrap(),
+                }
             }
             ContractUnionCaseTypeView::Struct(fields) => {
-                crate::model::ContractUnionCaseType::Struct(
-                    fields.iter().copied().map(Into::into).collect(),
-                )
+                ContractUnionCaseType::UnionCaseStruct {
+                    struct_fields: fields
+                        .iter()
+                        .copied()
+                        .map(Into::into)
+                        .collect::<Vec<_>>()
+                        .try_into()
+                        .unwrap(),
+                }
             }
         }
     }
@@ -370,14 +440,16 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
     fn from(value: SpecFragmentView<'_>) -> Self {
         match value {
             SpecFragmentView::Interface(fragment) => {
-                SpecFragment::Interface(fragment.into())
+                SpecFragment::SpecInterface {
+                    interface_fragment: fragment.into(),
+                }
             }
-            SpecFragmentView::Method(fragment) => {
-                SpecFragment::Method(fragment.into())
-            }
-            SpecFragmentView::TypeDef(def) => {
-                SpecFragment::TypeDef(def.into())
-            }
+            SpecFragmentView::Method(fragment) => SpecFragment::SpecMethod {
+                method_fragment: fragment.into(),
+            },
+            SpecFragmentView::TypeDef(def) => SpecFragment::SpecTypeDef {
+                type_def: def.into(),
+            },
         }
     }
 }
@@ -386,9 +458,16 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
 impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
     fn from(value: SpecInterfaceFragmentView<'_>) -> Self {
         Self {
-            interface_name: value.interface_name.to_owned(),
-            interface_version: value.interface_version.to_owned(),
-            throws: value.throws.iter().copied().map(Into::into).collect(),
+            interface_name: to_spec_string(value.interface_name),
+            interface_version: to_spec_string(value.interface_version),
+            throws: value
+                .throws
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -397,8 +476,8 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
 impl From<SpecMethodFragmentView<'_>> for SpecMethodFragment {
     fn from(value: SpecMethodFragmentView<'_>) -> Self {
         Self {
-            interface_name: value.interface_name.to_owned(),
-            interface_version: value.interface_version.to_owned(),
+            interface_name: to_spec_string(value.interface_name),
+            interface_version: to_spec_string(value.interface_version),
             method: value.method.into(),
         }
     }
