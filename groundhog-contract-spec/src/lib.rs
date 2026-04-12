@@ -5,12 +5,18 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
-#[cfg(feature = "alloc")]
-pub mod model;
 pub mod view;
 
 #[cfg(feature = "alloc")]
-pub use model::*;
+pub use groundhog_spec::{
+    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractField,
+    ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
+    ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
+    ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceFragment,
+    SpecMethodFragment,
+};
 pub use view::*;
 #[cfg(feature = "alloc")]
 use xdrs::VecM;
