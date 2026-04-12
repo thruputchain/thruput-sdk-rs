@@ -5,7 +5,18 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  PUBLISH_PACKAGES: groundhog-event groundhog-storage-cost groundhog-contract-util groundhog-contract-spec groundhog-sys groundhog-native-exec groundhog-codegen groundhog-macros groundhog-test-vectors sdk
+  PUBLISH_PACKAGES: >-
+    groundhog-event
+    groundhog-storage-cost
+    groundhog-contract-util
+    groundhog-contract-spec
+    groundhog-spec-tool
+    groundhog-sys
+    groundhog-native-exec
+    groundhog-codegen
+    groundhog-macros
+    groundhog-test-vectors
+    sdk
 
 jobs:
   publish:
