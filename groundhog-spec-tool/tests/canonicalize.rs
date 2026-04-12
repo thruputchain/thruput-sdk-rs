@@ -1,6 +1,7 @@
 use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractField, ContractSpecMethod,
-    ContractStructDef, ContractType, ContractTypeDef, SpecFragment,
+    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
@@ -466,4 +467,76 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
             "interface version must be MAJOR.MINOR.PATCH, got v1".into()
         )
     );
+}
+
+#[test]
+fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
+    let spec = canonicalize_spec(&[
+        SpecFragment::Interface(SpecInterfaceFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            throws: vec![],
+        }),
+        SpecFragment::Method(SpecMethodFragment {
+            interface_name: "Named".into(),
+            interface_version: "0.1.0".into(),
+            method: ContractSpecMethod {
+                name: "get".into(),
+                args: vec![],
+                return_type: ContractType::Named("Envelope".into()),
+            },
+        }),
+        SpecFragment::TypeDef(ContractTypeDef::Union(ContractUnionDef {
+            name: "Envelope".into(),
+            cases: vec![
+                ContractUnionCase {
+                    name: "Empty".into(),
+                    discriminant: 0,
+                    case_type: ContractUnionCaseType::Void,
+                },
+                ContractUnionCase {
+                    name: "Full".into(),
+                    discriminant: 1,
+                    case_type: ContractUnionCaseType::Struct(vec![
+                        ContractField {
+                            name: "payload".into(),
+                            ty: ContractType::Named("Payload".into()),
+                        },
+                        ContractField {
+                            name: "count".into(),
+                            ty: ContractType::U32,
+                        },
+                    ]),
+                },
+                ContractUnionCase {
+                    name: "Pair".into(),
+                    discriminant: 2,
+                    case_type: ContractUnionCaseType::Tuple(vec![
+                        ContractType::Named("Payload".into()),
+                        ContractType::U32,
+                    ]),
+                },
+            ],
+        })),
+        SpecFragment::TypeDef(ContractTypeDef::Struct(ContractStructDef {
+            name: "Payload".into(),
+            fields: vec![ContractField {
+                name: "data".into(),
+                ty: ContractType::U32,
+            }],
+        })),
+    ])
+    .unwrap();
+
+    let type_names: Vec<_> = spec
+        .type_defs
+        .iter()
+        .map(|td| match td {
+            ContractTypeDef::Struct(d) => d.name.as_str(),
+            ContractTypeDef::Enum(d) => d.name.as_str(),
+            ContractTypeDef::Union(d) => d.name.as_str(),
+        })
+        .collect();
+    assert!(type_names.contains(&"Envelope"));
+    assert!(type_names.contains(&"Payload"));
 }
