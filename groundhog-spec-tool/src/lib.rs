@@ -218,7 +218,22 @@ pub fn canonicalize_spec(
     })
 }
 
-/// Renders a [`ContractSpec`] as a JSON string for debugging and inspection.
+/// Serializes a [`ContractSpec`] to a JSON string using the serde-derived
+/// representation.  The output is guaranteed to round-trip through
+/// [`parse_spec_json`].
+pub fn spec_to_json(spec: &ContractSpec) -> String {
+    serde_json::to_string(spec).expect("contract spec must serialize to JSON")
+}
+
+/// Deserializes a [`ContractSpec`] from a JSON string produced by
+/// [`spec_to_json`].
+pub fn parse_spec_json(json: &str) -> Result<ContractSpec, serde_json::Error> {
+    serde_json::from_str(json)
+}
+
+/// Renders a [`ContractSpec`] as a human-friendly JSON string for debugging
+/// and inspection.  This format includes a `format` tag and is **not**
+/// guaranteed to be parseable back into a [`ContractSpec`].
 pub fn render_spec_json(spec: &ContractSpec) -> String {
     use serde_json::json;
 

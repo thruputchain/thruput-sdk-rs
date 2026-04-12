@@ -17,6 +17,7 @@ crate-type = ["rlib"]
 [features]
 default = ["alloc"]
 alloc = ["xdrs/alloc", "dep:groundhog-spec"]
+serde = ["groundhog-spec/serde"]
 
 [dependencies]
 groundhog-xdr = { workspace = true }
