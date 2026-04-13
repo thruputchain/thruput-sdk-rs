@@ -292,7 +292,9 @@ fn canonicalize_exception_list(
 ) -> Vec<ContractExceptionType> {
     let mut types = types.to_vec();
     types.sort_by(|left, right| {
-        canonical_type_key(&left.ty).cmp(&canonical_type_key(&right.ty))
+        canonical_type_key(&left.ty)
+            .cmp(&canonical_type_key(&right.ty))
+            .then_with(|| left.selector.cmp(&right.selector))
     });
     types.dedup();
     types
