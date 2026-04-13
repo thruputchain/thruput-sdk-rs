@@ -19,7 +19,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -96,16 +96,16 @@ sdk = { path = "." }
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.11.0" }
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.11.0" }
-groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.11.0", default-features = false }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.11.0" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.11.0" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.11.0" }
-groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.11.0" }
-groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.11.0" }
-groundhog-spec-tool = { path = "groundhog-spec-tool", registry = "groundhog", version = "=0.11.0" }
-groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.11.0" }
+groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.11.1" }
+groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.11.1" }
+groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.11.1", default-features = false }
+groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.11.1" }
+groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.11.1" }
+groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.11.1" }
+groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.11.1" }
+groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.11.1" }
+groundhog-spec-tool = { path = "groundhog-spec-tool", registry = "groundhog", version = "=0.11.1" }
+groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.11.1" }
 linkme = "0.3"
 
 # Standard interface crates
@@ -119,7 +119,7 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 # External dependencies
-groundhog-spec = { registry = "groundhog", version = "0.7.8", default-features = false }
+groundhog-spec = { registry = "groundhog", version = "0.7.9", default-features = false }
 groundhog-trace = { registry = "groundhog", version = "0.7.8" }
 groundhog-xdr = { registry = "groundhog", version = "0.7.8", features = ["xdrs"] }
 hogexec-internal = { registry = "groundhog", version = "0.7.8" }

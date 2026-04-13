@@ -71,7 +71,7 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractTypeView<'static>] = &[#(#throws_tokens),*];
+                const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]

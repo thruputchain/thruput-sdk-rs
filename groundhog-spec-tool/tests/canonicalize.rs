@@ -1,8 +1,8 @@
 use groundhog_contract_spec::{
-    ContractEnumDef, ContractEnumVariant, ContractField, ContractSpecMethod,
-    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
-    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractEnumDef, ContractEnumVariant, ContractExceptionType,
+    ContractField, ContractSpecMethod, ContractSpecString, ContractStructDef,
+    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
+    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     SpecToolError, canonicalize_spec, parse_raw_fragments,
@@ -11,6 +11,10 @@ use xdrs::txs::encode;
 
 fn s(value: &str) -> ContractSpecString {
     ContractSpecString::try_from(value).unwrap()
+}
+
+fn exn(ty: ContractType) -> ContractExceptionType {
+    ContractExceptionType { selector: 0, ty }
 }
 
 fn spec_str(value: &ContractSpecString) -> &str {
@@ -44,9 +48,9 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -139,9 +143,9 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -161,9 +165,9 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -374,9 +378,9 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -427,9 +431,9 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -531,9 +535,9 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -542,9 +546,9 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("OtherError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },
@@ -591,9 +595,9 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
-                throws: vec![ContractType::Named {
+                throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
-                }]
+                })]
                 .try_into()
                 .unwrap(),
             },

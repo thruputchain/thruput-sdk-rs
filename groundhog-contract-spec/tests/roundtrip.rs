@@ -1,7 +1,8 @@
 use groundhog_contract_spec::{
     ContractArrayType, ContractArrayTypeView, ContractEnumDef,
     ContractEnumDefView, ContractEnumVariant, ContractEnumVariantView,
-    ContractField, ContractFieldView, ContractSpec, ContractSpecInterface,
+    ContractExceptionType, ContractExceptionTypeView, ContractField,
+    ContractFieldView, ContractSpec, ContractSpecInterface,
     ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
     ContractSpecString, ContractSpecView, ContractStructDefView, ContractType,
     ContractTypeDef, ContractTypeDefView, ContractTypeDefsView,
@@ -32,8 +33,11 @@ fn contract_spec_roundtrips_through_xdr() {
         interfaces: vec![ContractSpecInterface {
             name: s("Named"),
             vers: s("0.1.0"),
-            throws: vec![ContractType::Named {
-                named: s("DemoError"),
+            throws: vec![ContractExceptionType {
+                selector: 0xDEAD,
+                ty: ContractType::Named {
+                    named: s("DemoError"),
+                },
             }]
             .try_into()
             .unwrap(),
@@ -136,7 +140,10 @@ fn borrowed_views_convert_to_owned_model() {
         args: &method_args,
         return_type: ContractTypeView::Tuple(&tuple_items),
     }];
-    let interface_throws = [named_error];
+    let interface_throws = [ContractExceptionTypeView {
+        selector: 0xDEAD,
+        ty: named_error,
+    }];
     let interfaces = [ContractSpecInterfaceView {
         name: "Named",
         version: "0.1.0",
@@ -167,8 +174,11 @@ fn borrowed_views_convert_to_owned_model() {
     assert_eq!(owned.type_defs.len(), 3);
     assert_eq!(
         owned.interfaces[0].throws.as_slice(),
-        &[ContractType::Named {
-            named: s("DemoError")
+        &[ContractExceptionType {
+            selector: 0xDEAD,
+            ty: ContractType::Named {
+                named: s("DemoError")
+            },
         }]
     );
     assert_eq!(
@@ -255,10 +265,14 @@ fn borrowed_views_convert_to_owned_model() {
 
 #[test]
 fn fragment_and_view_conversions_roundtrip() {
+    let interface_throws = [ContractExceptionTypeView {
+        selector: 0xDEAD,
+        ty: ContractTypeView::Named("DemoError"),
+    }];
     let interface = SpecInterfaceFragmentView {
         interface_name: "Named",
         interface_version: "0.1.0",
-        throws: &[ContractTypeView::Named("DemoError")],
+        throws: &interface_throws,
     };
     let method = SpecMethodFragmentView {
         interface_name: "Named",
@@ -330,10 +344,14 @@ fn fragment_and_view_conversions_roundtrip() {
 
 #[test]
 fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
+    let interface_throws = [ContractExceptionTypeView {
+        selector: 0xDEAD,
+        ty: ContractTypeView::Named("DemoError"),
+    }];
     let interface = SpecFragmentView::Interface(SpecInterfaceFragmentView {
         interface_name: "Named",
         interface_version: "0.3.0",
-        throws: &[ContractTypeView::Named("DemoError")],
+        throws: &interface_throws,
     });
     let method = SpecFragmentView::Method(SpecMethodFragmentView {
         interface_name: "Named",
@@ -372,8 +390,11 @@ fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
 
 #[test]
 fn borrowed_fragment_views_have_const_txs_writers() {
-    const THROWS: [ContractTypeView<'static>; 1] =
-        [ContractTypeView::Named("DemoError")];
+    const THROWS: [ContractExceptionTypeView<'static>; 1] =
+        [ContractExceptionTypeView {
+            selector: 0xDEAD,
+            ty: ContractTypeView::Named("DemoError"),
+        }];
     const FRAGMENT: SpecInterfaceFragmentView<'static> =
         SpecInterfaceFragmentView {
             interface_name: "Named",

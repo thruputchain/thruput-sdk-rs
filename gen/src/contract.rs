@@ -380,7 +380,13 @@ pub fn throws_spec_tokens(
         .map(|thrown| {
             let path = thrown.ty();
             let ty: syn::Type = syn::parse_quote! { #path };
-            Ok(lower_contract_type(&ty)?.view)
+            let type_view = lower_contract_type(&ty)?.view;
+            Ok(quote! {
+                ::sdk::__contract_spec::ContractExceptionTypeView {
+                    selector: <#ty as ::sdk::exn::Exn>::SELECTOR,
+                    ty: #type_view,
+                }
+            })
         })
         .collect()
 }
