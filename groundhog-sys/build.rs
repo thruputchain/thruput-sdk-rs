@@ -471,8 +471,7 @@ fn add_auth_to_curl(cmd: &mut Command, user: &str) {
 /// Download a file with retry and exponential backoff.
 ///
 /// Downloads to a `.tmp` file first and atomically renames on success, so
-/// a partial download never corrupts the cache. Falls back to `python3`
-/// `urllib` if all `curl` attempts fail.
+/// a partial download never corrupts the cache.
 fn download_with_retry(
     url: &str,
     dest: &Path,
@@ -504,7 +503,7 @@ fn download_with_retry(
                 if attempt < max_retries {
                     let code = s.code().unwrap_or(-1);
                     let next = attempt + 1;
-                    eprintln!(
+                    println!(
                         "cargo:warning=download attempt {next} failed (exit {code}), retrying in {wait_secs}s...",
                     );
                     std::thread::sleep(std::time::Duration::from_secs(
@@ -521,28 +520,6 @@ fn download_with_retry(
             }
         }
     }
-
-    // Fallback to Python urllib
-    let tmp = dest.with_extension("tmp");
-    let py_status = Command::new("python3")
-        .args([
-            "-c",
-            &format!(
-                "import urllib.request; urllib.request.urlretrieve('{url}', '{}')",
-                tmp.display()
-            ),
-        ])
-        .status();
-
-    if let Ok(s) = py_status
-        && s.success()
-        && tmp.exists()
-    {
-        fs::rename(&tmp, dest)
-            .map_err(|e| format!("python fallback rename failed: {e}"))?;
-        return Ok(());
-    }
-    let _ = fs::remove_file(&tmp);
 
     let total = max_retries + 1;
     Err(format!("download failed after {total} attempts: {url}"))
