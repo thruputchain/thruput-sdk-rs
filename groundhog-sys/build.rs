@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,13 +12,13 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 const TEST_FFI_VERSION: &str = "0.12.2";
 
 /// Clone hogd repository on-demand for build-from-source.
-/// - If HOGD_SRC is set and directory exists, use it as-is
-/// - If HOGD_SRC is set but empty/missing, clone there
-/// - Otherwise, clone to OUT_DIR/hogd_clone
+/// - If `HOGD_SRC` is set and directory exists, use it as-is
+/// - If `HOGD_SRC` is set but empty/missing, clone there
+/// - Otherwise, clone to `OUT_DIR/hogd_clone`
 fn ensure_hogd_clone(
     out_dir: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let expected_tag = format!("test-ffi-v{}", TEST_FFI_VERSION);
+    let expected_tag = format!("test-ffi-v{TEST_FFI_VERSION}");
 
     // Check if HOGD_SRC is set
     if let Ok(hogd_src) = env::var("HOGD_SRC") {
@@ -72,14 +73,14 @@ fn clone_hogd_repo(
         .into());
     }
 
-    println!("cargo:warning=Successfully cloned hogd at tag: {}", tag);
+    println!("cargo:warning=Successfully cloned hogd at tag: {tag}");
     Ok(())
 }
 
-/// Parse the test_ffi version from test_bindings.h
+/// Parse the `test_ffi` version from `test_bindings.h`.
 /// Returns version string in the format "MAJOR.MINOR.PATCH"
 fn parse_version_from_header(
-    header_path: &PathBuf,
+    header_path: &Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(header_path)?;
 
@@ -108,9 +109,7 @@ fn parse_version_from_header(
     }
 
     match (major, minor, patch) {
-        (Some(maj), Some(min), Some(pat)) => {
-            Ok(format!("{}.{}.{}", maj, min, pat))
-        }
+        (Some(maj), Some(min), Some(pat)) => Ok(format!("{maj}.{min}.{pat}")),
         _ => Err("Could not parse version from test_bindings.h".into()),
     }
 }
@@ -131,14 +130,15 @@ fn shared_lib_prefix() -> &'static str {
 }
 
 fn download_cache_dir() -> PathBuf {
-    let dir: PathBuf = env::var_os("HOGD_DOWNLOAD_CACHE_DIR")
-        .map(|d| d.into())
-        .unwrap_or_else(|| {
+    let dir: PathBuf = env::var_os("HOGD_DOWNLOAD_CACHE_DIR").map_or_else(
+        || {
             PathBuf::from(env::var("OUT_DIR").unwrap())
                 .join("hogd_download_cache")
-        });
+        },
+        Into::into,
+    );
 
-    dir.join(format!("test-ffi-v{}", TEST_FFI_VERSION))
+    dir.join(format!("test-ffi-v{TEST_FFI_VERSION}"))
 }
 
 fn shared_lib_suffix() -> &'static str {
@@ -150,11 +150,19 @@ fn shared_lib_suffix() -> &'static str {
 }
 
 fn shared_lib_name() -> String {
-    format!("{}test_ffi{}", shared_lib_prefix(), shared_lib_suffix())
+    let prefix = shared_lib_prefix();
+    let suffix = shared_lib_suffix();
+    format!("{prefix}test_ffi{suffix}")
 }
 
-/// Find and copy prebuilt bindings.rs from the extracted tarball directory.
-/// Returns an error if bindings.rs is not found in the tarball.
+fn emit_link_config(lib_dir: &Path) {
+    println!("cargo:rustc-link-search=native={}", lib_dir.display());
+    println!("cargo:rustc-link-lib=dylib=test_ffi");
+    println!("cargo:metadata=lib_dir={}", lib_dir.display());
+}
+
+/// Find and copy prebuilt `bindings.rs` from the extracted tarball directory.
+/// Returns an error if `bindings.rs` is not found in the tarball.
 fn find_prebuilt_bindings(
     extract_dir: &Path,
     out_dir: &Path,
@@ -217,11 +225,60 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // native exec builds for host, not for the cargo target (which might be wasm)
-    let target = env::var("TARGET").unwrap();
+/// Which build strategy the build script should use.
+enum BuildMethod {
+    /// Download prebuilt binaries from `groundhog.dev`.
+    Prebuilt,
+    /// User pointed us at a directory containing the library.
+    CustomLib(String),
+    /// Build the C++ library from source via cmake.
+    Source,
+}
 
-    println!("cargo:warning=TARGET is '{}'", target);
+/// Resolve the build method from env vars and platform support.
+fn resolve_build_method() -> Result<BuildMethod, Box<dyn std::error::Error>> {
+    let prebuilt_supported = matches!(
+        (target_arch().as_str(), target_os().as_str()),
+        ("x86_64" | "aarch64", "linux") | ("aarch64", "macos")
+    );
+    let build_from_source = env::var("HOGD_FFI_BUILD")
+        .map(|v| v == "1" || v.to_lowercase() == "true")
+        .unwrap_or(false);
+    let lib_dir = env::var("HOGD_FFI_LIB_DIR").ok();
+
+    if build_from_source && lib_dir.is_some() {
+        return Err(
+            "Multiple build methods specified. Please set only one of: \
+             HOGD_FFI_BUILD or HOGD_FFI_LIB_DIR"
+                .into(),
+        );
+    }
+
+    if let Some(dir) = lib_dir {
+        return Ok(BuildMethod::CustomLib(dir));
+    }
+    if build_from_source {
+        return Ok(BuildMethod::Source);
+    }
+    if prebuilt_supported {
+        return Ok(BuildMethod::Prebuilt);
+    }
+
+    let arch = target_arch();
+    let os = target_os();
+    Err(format!(
+        "No prebuilt library available for {arch}-{os}.\n\
+         Supported platforms: x86_64-linux, aarch64-linux, aarch64-macos\n\
+         Please set one of the following environment variables:\n\
+         - HOGD_FFI_BUILD=1        : Build from source using CMake\n\
+         - HOGD_FFI_LIB_DIR=<path> : Use prebuilt library from specified directory",
+    )
+    .into())
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let target = env::var("TARGET").unwrap();
+    println!("cargo:warning=TARGET is '{target}'");
 
     if target == "wasm32-unknown-unknown" {
         return Err(
@@ -234,124 +291,80 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-env-changed=HOGD_SRC");
     println!("cargo:rerun-if-env-changed=NATIVE_EXEC_ALWAYS_CONFIGURE");
 
-    // Check if this platform has prebuilt library support
-    let prebuilt_supported = matches!(
-        (target_arch().as_str(), target_os().as_str()),
-        ("x86_64", "linux") | ("aarch64", "linux") | ("aarch64", "macos")
-    );
-
-    // Check user overrides
-    let build_from_source = env::var("HOGD_FFI_BUILD")
-        .map(|v| v == "1" || v.to_lowercase() == "true")
-        .unwrap_or(false);
-    let lib_dir = env::var("HOGD_FFI_LIB_DIR").ok();
-
-    // Validate that only one override is set
-    if build_from_source && lib_dir.is_some() {
-        return Err(
-            "Multiple build methods specified. Please set only one of: \
-             HOGD_FFI_BUILD or HOGD_FFI_LIB_DIR"
-                .into(),
-        );
-    }
-
-    // Determine build method
-    let use_prebuilt = if lib_dir.is_some() {
-        // User specified custom library directory
-        false
-    } else if build_from_source {
-        // User explicitly requested building from source
-        false
-    } else if prebuilt_supported {
-        // Platform supports prebuilt, and no override was specified
-        true
-    } else {
-        // Platform doesn't support prebuilt and user didn't specify an alternative
-        return Err(format!(
-            "No prebuilt library available for {}-{}.\n\
-             Supported platforms: x86_64-linux, aarch64-linux, aarch64-macos\n\
-             Please set one of the following environment variables:\n\
-             - HOGD_FFI_BUILD=1        : Build from source using CMake\n\
-             - HOGD_FFI_LIB_DIR=<path> : Use prebuilt library from specified directory",
-            target_arch(), target_os()
-        )
-        .into());
-    };
-
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
-    // =========================================================================
-    // PREBUILT PATH: Download prebuilt library with bundled bindings.rs
-    // This path does NOT require the hogd submodule to be present.
-    // =========================================================================
-    if use_prebuilt {
-        println!(
-            "cargo:warning=Platform {}-{} supports prebuilt libraries, downloading...",
-            target_arch(),
-            target_os()
-        );
-        println!(
-            "cargo:warning=Using hardcoded version: {}",
-            TEST_FFI_VERSION
-        );
-
-        // Download, extract, copy bindings.rs, and link library
-        download_and_extract(
-            &out_dir,
-            &target_arch(),
-            &target_os(),
-            TEST_FFI_VERSION,
-        )?;
-
-        return Ok(());
+    match resolve_build_method()? {
+        BuildMethod::Prebuilt => {
+            run_prebuilt_download(&out_dir)?;
+        }
+        BuildMethod::CustomLib(dir) => {
+            println!("cargo:warning=Using custom library directory");
+            let lib_path = PathBuf::from(&dir);
+            find_prebuilt_bindings(&lib_path, &out_dir)?;
+            use_prebuilt_lib(&dir)?;
+        }
+        BuildMethod::Source => {
+            run_build_from_source(&out_dir)?;
+        }
     }
 
-    // =========================================================================
-    // CUSTOM LIB DIR PATH: Uses prebuilt library with bundled bindings.rs
-    // =========================================================================
-    if let Some(dir) = lib_dir {
-        println!("cargo:warning=Using custom library directory");
-        // Look for bindings.rs in lib dir (like prebuilt tarball)
-        let lib_path = PathBuf::from(&dir);
-        find_prebuilt_bindings(&lib_path, &out_dir)?;
-        use_prebuilt_lib(&dir)?;
-        return Ok(());
-    }
+    Ok(())
+}
 
-    // =========================================================================
-    // BUILD FROM SOURCE PATH: Clone hogd on-demand
-    // =========================================================================
+/// Prebuilt download path: acquire lock, download, extract, link.
+fn run_prebuilt_download(
+    out_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let lock_path = out_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("groundhog-sys.fslock");
+    let mut lockfile = fslock::LockFile::open(&lock_path)
+        .expect("bug: could not open build lock file");
+    lockfile.lock_with_pid().expect(
+        "could not acquire build lock — another cargo build may be running",
+    );
+
+    let arch = target_arch();
+    let os = target_os();
+    println!(
+        "cargo:warning=Platform {arch}-{os} supports prebuilt libraries, downloading...",
+    );
+    println!("cargo:warning=Using hardcoded version: {TEST_FFI_VERSION}");
+
+    download_and_extract(out_dir, &arch, &os, TEST_FFI_VERSION)
+}
+
+/// Build-from-source path: clone hogd, generate bindings, cmake build.
+fn run_build_from_source(
+    out_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:warning=Building from source (HOGD_FFI_BUILD=1)");
 
-    let hogd_path = ensure_hogd_clone(&out_dir)?;
+    let hogd_path = ensure_hogd_clone(out_dir)?;
     let hogd_src = hogd_path.to_str().unwrap();
 
-    println!("cargo:warning=HOGD_SRC is '{}'", hogd_src);
-    println!("cargo:rerun-if-changed={}", hogd_src);
+    println!("cargo:warning=HOGD_SRC is '{hogd_src}'");
+    println!("cargo:rerun-if-changed={hogd_src}");
     println!("cargo:rerun-if-changed=.");
 
     let native_exec_bindings = hogd_path.join("hogd/test_ffi/test_bindings.h");
 
-    // Parse version from header file
     let hogd_ffi_version = parse_version_from_header(&native_exec_bindings)?;
-    println!(
-        "cargo:warning=Parsed test_ffi version: {}",
-        hogd_ffi_version
-    );
+    println!("cargo:warning=Parsed test_ffi version: {hogd_ffi_version}");
 
-    // Cross-check: parsed version must match hardcoded version
     if hogd_ffi_version != TEST_FFI_VERSION {
         return Err(format!(
             "Version mismatch between hogd header and build.rs constant.\n\
-             Header version:   {}\n\
-             Constant version: {}\n\
+             Header version:   {hogd_ffi_version}\n\
+             Constant version: {TEST_FFI_VERSION}\n\
              Please update TEST_FFI_VERSION in native_exec/build.rs to match the header.",
-            hogd_ffi_version, TEST_FFI_VERSION
         )
         .into());
     }
 
-    // Generate Rust bindings from the C header file
     let bindings = bindgen::Builder::default()
         .header(native_exec_bindings.to_str().unwrap())
         .no_copy("FFIDataBuffer")
@@ -368,12 +381,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Verify that the hogd submodule has the correct release tag
+/// Verify that the hogd submodule has the correct release tag.
 fn verify_hogd_version(
     hogd_src: &str,
     version: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let expected_tag = format!("test-ffi-v{}", version);
+    let expected_tag = format!("test-ffi-v{version}");
 
     let output = Command::new("git")
         .args(["describe", "--tags", "--exact-match"])
@@ -382,10 +395,9 @@ fn verify_hogd_version(
 
     if !output.status.success() {
         return Err(format!(
-            "hogd submodule is not at a release tag. Expected tag: {}\n\
+            "hogd submodule is not at a release tag. Expected tag: {expected_tag}\n\
              Please checkout the correct tag in the hogd submodule:\n\
-             cd {} && git checkout {}",
-            expected_tag, hogd_src, expected_tag
+             cd {hogd_src} && git checkout {expected_tag}",
         )
         .into());
     }
@@ -395,50 +407,48 @@ fn verify_hogd_version(
     if current_tag != expected_tag {
         return Err(format!(
             "hogd submodule version mismatch.\n\
-             Expected tag: {}\n\
-             Current tag:  {}\n\
+             Expected tag: {expected_tag}\n\
+             Current tag:  {current_tag}\n\
              Please checkout the correct tag:\n\
-             cd {} && git checkout {}",
-            expected_tag, current_tag, hogd_src, expected_tag
+             cd {hogd_src} && git checkout {expected_tag}",
         )
         .into());
     }
 
-    println!("cargo:warning=hogd version verified: {}", current_tag);
+    println!("cargo:warning=hogd version verified: {current_tag}");
     Ok(())
 }
 
-/// Use a prebuilt library from a specified directory
+/// Use a prebuilt library from a specified directory.
 fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
     let lib_path = PathBuf::from(lib_dir);
 
     if !lib_path.exists() {
         return Err(
-            format!("Library directory does not exist: {}", lib_dir).into()
+            format!("Library directory does not exist: {lib_dir}").into()
         );
     }
 
     // Determine the expected library filename based on target platform
     let expected_lib = shared_lib_name();
 
-    let lib_file = lib_path.join(expected_lib.clone());
+    let lib_file = lib_path.join(&expected_lib);
     if !lib_file.exists() {
+        let arch = target_arch();
+        let os = target_os();
         return Err(format!(
-            "Could not find expected library file '{}' for target '{}' os '{}' in directory: {}\n\
+            "Could not find expected library file '{expected_lib}' \
+             for target '{arch}' os '{os}' in directory: {lib_dir}\n\
              Please ensure the correct library file exists.",
-            expected_lib, target_arch(), target_os(), lib_dir
         )
         .into());
     }
 
-    println!("cargo:rustc-link-search=native={}", lib_dir);
-    println!("cargo:rustc-link-lib=dylib=test_ffi");
-    println!(
-        "cargo:warning=Using prebuilt library from: {} (found: {})",
-        lib_dir, expected_lib
-    );
-
+    emit_link_config(&lib_path);
     copy_lib_to_deps(&lib_path)?;
+    println!(
+        "cargo:warning=Using prebuilt library from: {lib_dir} (found: {expected_lib})",
+    );
 
     Ok(())
 }
@@ -449,7 +459,7 @@ fn add_auth_to_curl(cmd: &mut Command, user: &str) {
             println!(
                 "cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables."
             );
-            cmd.arg("-u").arg(format!("{}:{}", user, pass));
+            cmd.arg("-u").arg(format!("{user}:{pass}"));
         }
     } else {
         println!(
@@ -458,37 +468,187 @@ fn add_auth_to_curl(cmd: &mut Command, user: &str) {
     }
 }
 
-/// Download and extract the prebuilt library from groundhog.dev
+/// Download a file with retry and exponential backoff.
+///
+/// Downloads to a `.tmp` file first and atomically renames on success, so
+/// a partial download never corrupts the cache. Falls back to `python3`
+/// `urllib` if all `curl` attempts fail.
+fn download_with_retry(
+    url: &str,
+    dest: &Path,
+    max_retries: u32,
+    user: &str,
+) -> Result<(), String> {
+    let tmp = dest.with_extension("tmp");
+    if tmp.exists() {
+        let _ = fs::remove_file(&tmp);
+    }
+
+    let mut wait_secs = 5;
+    for attempt in 0..=max_retries {
+        let mut cmd = Command::new("curl");
+        cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
+        add_auth_to_curl(&mut cmd, user);
+
+        let status = cmd.status();
+
+        match status {
+            Ok(s) if s.success() && tmp.exists() => {
+                // Atomic rename
+                fs::rename(&tmp, dest)
+                    .map_err(|e| format!("rename failed: {e}"))?;
+                return Ok(());
+            }
+            Ok(s) => {
+                let _ = fs::remove_file(&tmp);
+                if attempt < max_retries {
+                    let code = s.code().unwrap_or(-1);
+                    let next = attempt + 1;
+                    eprintln!(
+                        "cargo:warning=download attempt {next} failed (exit {code}), retrying in {wait_secs}s...",
+                    );
+                    std::thread::sleep(std::time::Duration::from_secs(
+                        wait_secs,
+                    ));
+                    wait_secs *= 2;
+                }
+            }
+            Err(e) => {
+                let _ = fs::remove_file(&tmp);
+                return Err(format!(
+                    "curl not found or failed to execute: {e}"
+                ));
+            }
+        }
+    }
+
+    // Fallback to Python urllib
+    let tmp = dest.with_extension("tmp");
+    let py_status = Command::new("python3")
+        .args([
+            "-c",
+            &format!(
+                "import urllib.request; urllib.request.urlretrieve('{url}', '{}')",
+                tmp.display()
+            ),
+        ])
+        .status();
+
+    if let Ok(s) = py_status
+        && s.success()
+        && tmp.exists()
+    {
+        fs::rename(&tmp, dest)
+            .map_err(|e| format!("python fallback rename failed: {e}"))?;
+        return Ok(());
+    }
+    let _ = fs::remove_file(&tmp);
+
+    let total = max_retries + 1;
+    Err(format!("download failed after {total} attempts: {url}"))
+}
+
+/// Download a file if not already cached, using URL-based invalidation.
+fn ensure_cached_download(
+    url: &str,
+    dest: &Path,
+    user: &str,
+    label: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let sum_path = dest.with_extension("sum");
+    let cache_valid = dest.exists()
+        && sum_path.exists()
+        && fs::read_to_string(&sum_path)
+            .map(|cached| cached == url)
+            .unwrap_or(false);
+
+    if cache_valid {
+        println!(
+            "cargo:warning={label} cache hit at {}, skipping download",
+            dest.display()
+        );
+        return Ok(());
+    }
+
+    // Stale or missing cache — remove and re-download
+    let _ = fs::remove_file(dest);
+    let _ = fs::remove_file(&sum_path);
+
+    println!("cargo:warning=Downloading {label} from: {url}");
+
+    download_with_retry(url, dest, 3, user)
+        .map_err(|e| format!("{label} download failed: {e}"))?;
+
+    fs::write(&sum_path, url)
+        .map_err(|e| format!("failed to write {label} cache sum: {e}"))?;
+    Ok(())
+}
+
+/// Verify the archive against its `.sha256` checksum file.
+fn verify_checksum(
+    archive_path: &Path,
+    checksum_path: &Path,
+    archive_bytes: &[u8],
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !checksum_path.exists() {
+        println!(
+            "cargo:warning=Checksum file not found, skipping verification"
+        );
+        return Ok(());
+    }
+
+    let checksum_content = fs::read_to_string(checksum_path)?;
+    let expected = checksum_content
+        .split_whitespace()
+        .next()
+        .ok_or("Checksum file is empty")?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(archive_bytes);
+    let actual = format!("{:x}", hasher.finalize());
+
+    if actual != expected {
+        return Err(format!(
+            "Checksum verification failed!\n\
+             Expected: {expected}\n\
+             Actual:   {actual}\n\
+             Archive:  {}",
+            archive_path.display()
+        )
+        .into());
+    }
+    println!("cargo:warning=Checksum verified: {actual}");
+    Ok(())
+}
+
+/// Download and extract the prebuilt library from `groundhog.dev`.
 fn download_and_extract(
     out_dir: &Path,
     target_arch: &str,
     target_os: &str,
     version: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Determine the platform-specific archive name
     let archive_name = match (target_arch, target_os) {
         ("x86_64", "linux") => "libtest_ffi-linux-x86_64.tar.gz",
         ("aarch64", "linux") => "libtest_ffi-linux-arm64.tar.gz",
         ("aarch64", "macos") => "libtest_ffi-macos-arm64.tar.gz",
         _ => {
             return Err(format!(
-                "No prebuilt library available for {}-{}.\n\
+                "No prebuilt library available for {target_arch}-{target_os}.\n\
                  Supported platforms: x86_64-linux, aarch64-linux, aarch64-macos\n\
                  Please use HOGD_FFI_BUILD=1 to build from source instead.",
-                target_arch, target_os
             )
             .into());
         }
     };
 
     let download_url = format!(
-        "https://groundhog.dev/builds/test-ffi/test-ffi-v{}/{}",
-        version, archive_name
+        "https://groundhog.dev/builds/test-ffi/test-ffi-v{version}/{archive_name}",
     );
 
-    let download_cache_dir = download_cache_dir();
-    fs::create_dir_all(&download_cache_dir)?;
-    let archive_path = download_cache_dir.join(archive_name);
+    let cache_dir = download_cache_dir();
+    fs::create_dir_all(&cache_dir)?;
+    let archive_path = cache_dir.join(archive_name);
 
     let user =
         env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
@@ -496,112 +656,28 @@ fn download_and_extract(
     println!("cargo:rerun-if-env-changed=HOGD_FFI_USER");
     println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
 
-    if !archive_path.exists() {
+    ensure_cached_download(&download_url, &archive_path, &user, "Archive")?;
+
+    // Download checksum (non-fatal on failure)
+    let checksum_url = format!("{download_url}.sha256");
+    let checksum_path = cache_dir.join(format!("{archive_name}.sha256"));
+    if let Err(e) = ensure_cached_download(
+        &checksum_url,
+        &checksum_path,
+        &user,
+        "Checksum",
+    ) {
+        let _ = fs::remove_file(&checksum_path);
         println!(
-            "cargo:warning=Downloading prebuilt library from: {}",
-            download_url
-        );
-        println!(
-            "cargo:warning=Downloading archive to {}",
-            archive_path.display()
-        );
-
-        let mut cmd = Command::new("curl");
-        cmd.arg("--fail").arg("-L").arg("-o").arg(&archive_path);
-
-        add_auth_to_curl(&mut cmd, &user);
-
-        cmd.arg(&download_url);
-
-        let output = cmd.output()?;
-
-        if !output.status.success() {
-            return Err(format!(
-                "Failed to download prebuilt library using curl: {}\nURL: {}\nError: {}",
-                String::from_utf8_lossy(&output.stderr),
-                download_url,
-                output.status
-            )
-            .into());
-        }
-    } else {
-        println!(
-            "cargo:warning=Archive already exists at {}, skipping download",
-            archive_path.display()
+            "cargo:warning=Checksum download failed ({e}), skipping verification",
         );
     }
 
-    // Download checksum
-    let checksum_url = format!("{}.sha256", download_url);
-    let checksum_path =
-        download_cache_dir.join(format!("{}.sha256", archive_name));
-    if !checksum_path.exists() {
-        println!("cargo:warning=Downloading checksum from: {}", checksum_url);
-        let mut cmd = Command::new("curl");
-        cmd.arg("--fail").arg("-L").arg("-o").arg(&checksum_path);
-        add_auth_to_curl(&mut cmd, &user);
-
-        cmd.arg(&checksum_url);
-        let output = cmd.output()?;
-        if !output.status.success() {
-            // curl -o creates the file even if the download fails, so we remove it.
-            let _ = fs::remove_file(&checksum_path);
-            return Err(format!(
-                "Failed to download checksum file from: {}\nStderr: {}",
-                checksum_url,
-                String::from_utf8_lossy(&output.stderr)
-            )
-            .into());
-        } else {
-            println!(
-                "cargo:warning=Checksum downloaded to {}",
-                checksum_path.display()
-            );
-        }
-    } else {
-        println!(
-            "cargo:warning=Checksum file already exists, skipping download."
-        );
-    }
-
-    // Read the archive for checksum verification and extraction
     let archive_bytes = fs::read(&archive_path)?;
-
-    // Verify checksum if available
-    if checksum_path.exists() {
-        let checksum_content = fs::read_to_string(&checksum_path)?;
-        let expected_checksum = checksum_content
-            .split_whitespace()
-            .next()
-            .ok_or("Checksum file is empty")?
-            .to_string();
-
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(&archive_bytes);
-        let actual_checksum = format!("{:x}", hasher.finalize());
-
-        if actual_checksum != expected_checksum {
-            return Err(format!(
-                "Checksum verification failed!\n\
-                 Expected: {}\n\
-                 Actual:   {}\n\
-                 Archive:  {}",
-                expected_checksum,
-                actual_checksum,
-                archive_path.display()
-            )
-            .into());
-        }
-        println!("cargo:warning=Checksum verified: {}", actual_checksum);
-    } else {
-        println!(
-            "cargo:warning=Checksum file not found, skipping verification"
-        );
-    }
+    verify_checksum(&archive_path, &checksum_path, &archive_bytes)?;
 
     // Extract the archive
-    let extract_dir = out_dir.join(format!("hogd_lib_{}", version));
+    let extract_dir = out_dir.join(format!("hogd_lib_{version}"));
     fs::create_dir_all(&extract_dir)?;
 
     let tar = flate2::read::GzDecoder::new(&archive_bytes[..]);
@@ -613,12 +689,11 @@ fn download_and_extract(
         extract_dir.display()
     );
 
-    // Verify the library file exists
-    let lib_file = extract_dir.join("libtest_ffi.so").exists()
+    let lib_found = extract_dir.join("libtest_ffi.so").exists()
         || extract_dir.join("libtest_ffi.dylib").exists()
         || extract_dir.join("test_ffi.dll").exists();
 
-    if !lib_file {
+    if !lib_found {
         return Err(format!(
             "Could not find libtest_ffi library in extracted archive at: {}",
             extract_dir.display()
@@ -626,21 +701,16 @@ fn download_and_extract(
         .into());
     }
 
-    // Copy bindings.rs from the tarball to OUT_DIR
     find_prebuilt_bindings(&extract_dir, out_dir)?;
 
-    println!("cargo:rustc-link-search=native={}", extract_dir.display());
-    println!("cargo:rustc-link-lib=dylib=test_ffi");
-
+    emit_link_config(&extract_dir);
     copy_lib_to_deps(&extract_dir)?;
 
     Ok(())
 }
 
-/// Build the library from source using CMake
+/// Build the library from source using cmake.
 fn build_from_cmake(hogd_src: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use cmake;
-
     let mut cfg = cmake::Config::new(hogd_src);
     cfg.define("CMAKE_BUILD_TYPE", "Debug")
         // run cargo b -vv to see the full cmake output
@@ -665,15 +735,13 @@ fn build_from_cmake(hogd_src: &str) -> Result<(), Box<dyn std::error::Error>> {
     let dst = cfg.build();
 
     // Tell Rust where to find the built library
-    let cmake_lib_dir = dst.join("build/hogd/test_ffi");
-    println!("cargo:rustc-link-search=native={}", cmake_lib_dir.display());
-    println!("cargo:rustc-link-lib=dylib=test_ffi");
+    let lib_dir = dst.join("build/hogd/test_ffi");
+    emit_link_config(&lib_dir);
+    copy_lib_to_deps(&lib_dir)?;
     println!(
         "cargo:warning=Built library from source at: {}",
         dst.display()
     );
-
-    copy_lib_to_deps(&cmake_lib_dir)?;
 
     Ok(())
 }

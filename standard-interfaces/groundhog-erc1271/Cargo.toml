@@ -14,7 +14,7 @@ dev = ["sdk/dev"]
 spec = ["sdk/spec"]
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.11.1" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.11.2" }
 thiserror = { workspace = true }
 
 [[bin]]
@@ -22,7 +22,7 @@ name = "show_spec"
 required-features = ["spec"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.11.1", features = ["std"] }
+sdk = { path = "../..", registry = "groundhog", version = "=0.11.2", features = ["std"] }
 
 
 [lib]
