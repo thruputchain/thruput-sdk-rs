@@ -1,8 +1,7 @@
 use crate::Config;
 use crate::contract::{
-    ConfiguredContract, ContractSrc, Method, contract_type_typedef_tokens,
-    effective_interface_name, method_arg_spec_tokens,
-    method_return_spec_token, throws_spec_tokens,
+    ConfiguredContract, ContractSrc, Method, effective_interface_name,
+    method_arg_spec_tokens, method_return_spec_token, throws_spec_tokens,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -43,17 +42,6 @@ pub fn generate_impl_raw_spec_fragments(
         iface_vers.clone(),
         iface_throws,
     );
-    let trait_throw_typedef_fragments =
-        item.trait_.as_ref().map(|(_, trait_path, _)| {
-            emit_raw_typedef_fragment_stream_tokens(quote! {
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_TYPE_DEFS
-            })
-        });
-    let mut typedef_fragments = contract
-        .throws_list()
-        .into_iter()
-        .map(|thrown| typedef_fragment_tokens_for_type_path(thrown.ty()))
-        .collect::<Result<Vec<_>>>()?;
     let method_fragments = methods
         .iter()
         .map(|method| {
@@ -64,15 +52,10 @@ pub fn generate_impl_raw_spec_fragments(
             )
         })
         .collect::<Result<Vec<_>>>()?;
-    for method in &methods {
-        typedef_fragments.extend(typedef_fragment_tokens_for_method(method)?);
-    }
 
     Ok(quote! {
         #interface_fragment
         #(#method_fragments)*
-        #trait_throw_typedef_fragments
-        #(#typedef_fragments)*
     })
 }
 
@@ -95,17 +78,10 @@ pub fn generate_free_function_raw_spec_fragments(
         quote! { #iface_vers },
         item,
     )?;
-    let mut typedef_fragments = contract
-        .throws_list()
-        .into_iter()
-        .map(|thrown| typedef_fragment_tokens_for_type_path(thrown.ty()))
-        .collect::<Result<Vec<_>>>()?;
-    typedef_fragments.extend(typedef_fragment_tokens_for_method(item)?);
 
     Ok(quote! {
         #interface_fragment
         #method_fragment
-        #(#typedef_fragments)*
     })
 }
 
@@ -180,75 +156,6 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     }
 }
 
-pub fn emit_raw_typedef_fragment_stream_tokens(
-    type_defs: TokenStream,
-) -> TokenStream {
-    emit_raw_typedef_fragment_stream_tokens_with_cfg(
-        quote! { all(target_family = "wasm", feature = "entrypoints") },
-        type_defs,
-    )
-}
-
-pub fn emit_raw_typedef_fragment_stream_tokens_with_cfg(
-    cfg_guard: TokenStream,
-    type_defs: TokenStream,
-) -> TokenStream {
-    quote! {
-        #[cfg(#cfg_guard)]
-        const _: () = {
-            const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> =
-                #type_defs;
-            const RAW_LEN: usize =
-                ::sdk::__contract_spec::const_txs_typedef_fragment_closure_len(TYPE_DEFS);
-            const RAW_FRAGMENT: [u8; RAW_LEN] =
-                ::sdk::__contract_spec::const_txs_typedef_fragment_closure_bytes::<RAW_LEN>(TYPE_DEFS);
-
-            #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-            pub static RAW_TYPE_DEF_FRAGMENT_STREAM: [u8; RAW_LEN] = RAW_FRAGMENT;
-        };
-    }
-}
-
-fn typedef_fragment_tokens_for_method(
-    method: &impl Method,
-) -> Result<Vec<TokenStream>> {
-    let mut fragments = Vec::new();
-
-    for arg in &method.sig().inputs {
-        if let syn::FnArg::Typed(pat_type) = arg {
-            fragments.extend(typedef_fragment_tokens_for_type(
-                pat_type.ty.as_ref(),
-            )?);
-        }
-    }
-
-    if let syn::ReturnType::Type(_, ty) = &method.sig().output {
-        fragments.extend(typedef_fragment_tokens_for_type(ty.as_ref())?);
-    }
-
-    Ok(fragments)
-}
-
-fn typedef_fragment_tokens_for_type_path(
-    path: &syn::Path,
-) -> Result<TokenStream> {
-    let ty = syn::Type::Path(syn::TypePath {
-        qself: None,
-        path: path.clone(),
-    });
-    let mut tokens = typedef_fragment_tokens_for_type(&ty)?;
-    debug_assert!(tokens.len() <= 1);
-    Ok(tokens.pop().unwrap_or_else(|| quote! {}))
-}
-
-fn typedef_fragment_tokens_for_type(
-    ty: &syn::Type,
-) -> Result<Vec<TokenStream>> {
-    contract_type_typedef_tokens(ty).map(|type_defs| {
-        vec![emit_raw_typedef_fragment_stream_tokens(type_defs)]
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -308,24 +215,6 @@ mod tests {
     }
 
     #[test]
-    fn byte_slices_and_vecs_do_not_emit_u8_typedef_fragments() {
-        let item: syn::ItemImpl = syn::parse_quote! {
-            impl Demo {
-                fn echo(data: &[u8]) -> Vec<u8> { data.into() }
-            }
-        };
-
-        let tokens = generate_impl_raw_spec_fragments(
-            &item,
-            &crate::Config::from_list(&[]).unwrap(),
-        )
-        .unwrap()
-        .to_string();
-
-        assert!(!tokens.contains("maybe_type_def"));
-    }
-
-    #[test]
     fn byte_composite_shapes_lower_without_trait_specialization() {
         let item: syn::ItemImpl = syn::parse_quote! {
             impl Demo {
@@ -356,14 +245,6 @@ mod tests {
         );
         assert!(
             tokens.contains("type_ref :: < (Vec < u8 > , bool) >"),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains("type_defs :: < Option < & [u8] > >"),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains("type_defs :: < Option < Vec < u8 > > >"),
             "{tokens}"
         );
     }
@@ -411,52 +292,6 @@ mod tests {
         .to_string();
 
         assert!(tokens.contains("type_ref :: < Blob >"), "{tokens}");
-        assert!(tokens.contains("type_defs :: < Blob >"), "{tokens}");
         assert!(tokens.contains("type_ref :: < Hash >"), "{tokens}");
-        assert!(tokens.contains("type_defs :: < Hash >"), "{tokens}");
-    }
-
-    #[test]
-    fn builtin_byte_blob_types_use_trait_typedef_resolution() {
-        let item: syn::ItemImpl = syn::parse_quote! {
-            impl Demo {
-                pub fn verify(
-                    signature: &sdk::Ed25519Signature,
-                    public_key: &sdk::Ed25519PublicKey,
-                    entrypoint: &sdk::ContractEntrypointID,
-                ) -> bool { true }
-            }
-        };
-
-        let tokens = generate_impl_raw_spec_fragments(
-            &item,
-            &crate::Config::from_list(&[]).unwrap(),
-        )
-        .unwrap()
-        .to_string();
-
-        assert!(tokens.contains("type_defs"));
-        assert!(tokens.contains("Ed25519Signature"));
-        assert!(tokens.contains("Ed25519PublicKey"));
-        assert!(tokens.contains("ContractEntrypointID"));
-    }
-
-    #[test]
-    fn block_height_uses_trait_typedef_resolution() {
-        let item: syn::ItemImpl = syn::parse_quote! {
-            impl Demo {
-                pub fn deadline(height: sdk::BlockHeight) -> sdk::BlockHeight { height }
-            }
-        };
-
-        let tokens = generate_impl_raw_spec_fragments(
-            &item,
-            &crate::Config::from_list(&[]).unwrap(),
-        )
-        .unwrap()
-        .to_string();
-
-        assert!(tokens.contains("type_defs"));
-        assert!(tokens.contains("BlockHeight"));
     }
 }

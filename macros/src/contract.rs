@@ -38,8 +38,6 @@ fn apply_with_config(
             )?;
             let throws_tokens =
                 codegen::contract::throws_spec_tokens(&contract)?;
-            let throws_typedef_tokens =
-                codegen::contract::throws_typedef_tokens(&contract)?;
 
             let mut stripped = item.strip_our_attributes();
 
@@ -72,11 +70,6 @@ fn apply_with_config(
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
-            });
-            stripped.items.push(parse_quote! {
-                #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROW_TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> =
-                    ::sdk::__contract_spec::ContractTypeDefsView::Many(&[#(#throws_typedef_tokens),*]);
             });
 
             if cfg!(feature = "mock") {
