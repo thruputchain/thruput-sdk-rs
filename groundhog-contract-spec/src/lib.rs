@@ -190,6 +190,11 @@ where
     };
 }
 
+#[cfg(feature = "alloc")]
+impl<T: ContractTypeSpec> ContractTypeSpec for alloc::boxed::Box<T> {
+    const TYPE_DEF: view::ContractTypeDefView<'static> = T::TYPE_DEF;
+}
+
 macro_rules! impl_tuple_type_ref_spec {
     ($(($($name:ident),+)),+ $(,)?) => {
         $(

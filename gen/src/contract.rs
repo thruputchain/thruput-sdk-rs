@@ -444,33 +444,12 @@ fn lower_via_type_ref_trait(ty: &syn::Type) -> TokenStream {
     }
 }
 
-fn extract_box_inner(type_path: &syn::TypePath) -> Option<&syn::Type> {
-    let seg = type_path.path.segments.last()?;
-    if seg.ident != "Box" {
-        return None;
-    }
-    if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
-        if args.args.len() == 1 {
-            if let syn::GenericArgument::Type(inner) = &args.args[0] {
-                return Some(inner);
-            }
-        }
-    }
-    None
-}
-
 pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
     match ty {
         syn::Type::Reference(reference) => {
             contract_type_view_tokens(&reference.elem)
         }
-        syn::Type::Path(type_path) => {
-            if let Some(inner) = extract_box_inner(type_path) {
-                contract_type_view_tokens(inner)
-            } else {
-                Ok(lower_via_type_ref_trait(ty))
-            }
-        }
+        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(ty)),
         syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
         syn::Type::Slice(_) | syn::Type::Array(_) | syn::Type::Tuple(_) => {
             Ok(lower_via_type_ref_trait(ty))
@@ -570,13 +549,13 @@ mod tests {
     }
 
     #[test]
-    fn box_of_named_type_strips_box_wrapper() {
+    fn box_of_named_type_resolves_via_trait() {
         let ty: syn::Type = syn::parse_quote!(Box<Payload>);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
         assert!(
-            view_tokens.contains("type_ref :: < Payload >"),
+            view_tokens.contains("type_ref :: < Box < Payload > >"),
             "{view_tokens}"
         );
     }
