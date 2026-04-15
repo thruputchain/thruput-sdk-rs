@@ -79,3 +79,58 @@ fn depth_of_right_spine() {
     })
     .unwrap();
 }
+
+#[test]
+fn forest_leaf_depth_is_one() {
+    let (env, contract_hash) = setup();
+    contract_exec(env, move || {
+        let addr = deploy_contract(&NONCE, &contract_hash);
+        let client = Client::new(&addr);
+
+        let f = Forest {
+            trees: vec![],
+            label: 1,
+        };
+        assert_eq!(client.forest_depth(f), 1);
+    })
+    .unwrap();
+}
+
+#[test]
+fn forest_nested_depth() {
+    let (env, contract_hash) = setup();
+    contract_exec(env, move || {
+        let addr = deploy_contract(&NONCE, &contract_hash);
+        let client = Client::new(&addr);
+
+        let f = Forest {
+            label: 1,
+            trees: vec![
+                Forest {
+                    label: 2,
+                    trees: vec![Forest {
+                        label: 3,
+                        trees: vec![],
+                    }],
+                },
+                Forest {
+                    label: 4,
+                    trees: vec![],
+                },
+            ],
+        };
+        assert_eq!(client.forest_depth(f), 3);
+    })
+    .unwrap();
+}
+
+#[test]
+fn unbox_u32() {
+    let (env, contract_hash) = setup();
+    contract_exec(env, move || {
+        let addr = deploy_contract(&NONCE, &contract_hash);
+        let client = Client::new(&addr);
+        assert_eq!(client.unbox(Box::new(99)), 99);
+    })
+    .unwrap();
+}
