@@ -11,14 +11,12 @@ use crate::{ContractTypeInfo, ContractTypeRefSpec, view};
 impl ContractTypeRefSpec for ContractAddress {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Address,
-        type_defs: view::ContractTypeDefsView::Empty,
     };
 }
 
 impl ContractTypeRefSpec for BlockHeight {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I64,
-        type_defs: view::ContractTypeDefsView::Empty,
     };
 }
 
@@ -28,7 +26,6 @@ impl ContractTypeRefSpec for SHA256Hash {
             element: Some(&view::ContractTypeView::U8),
             len: 32,
         }),
-        type_defs: view::ContractTypeDefsView::Empty,
     };
 }
 
@@ -38,7 +35,6 @@ impl ContractTypeRefSpec for Ed25519PublicKey {
             element: Some(&view::ContractTypeView::U8),
             len: 32,
         }),
-        type_defs: view::ContractTypeDefsView::Empty,
     };
 }
 
@@ -48,7 +44,6 @@ impl ContractTypeRefSpec for Ed25519Signature {
             element: Some(&view::ContractTypeView::U8),
             len: 64,
         }),
-        type_defs: view::ContractTypeDefsView::Empty,
     };
 }
 
@@ -58,6 +53,5 @@ impl ContractTypeRefSpec for ContractEntrypointID {
             element: Some(&view::ContractTypeView::U8),
             len: 8,
         }),
-        type_defs: view::ContractTypeDefsView::Empty,
     };
 }
