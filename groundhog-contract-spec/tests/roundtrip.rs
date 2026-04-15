@@ -5,7 +5,8 @@ use groundhog_contract_spec::{
     ContractFieldView, ContractSpec, ContractSpecInterface,
     ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
     ContractSpecString, ContractSpecView, ContractStructDefView, ContractType,
-    ContractTypeDef, ContractTypeDefView, ContractTypeSpec, ContractTypeView,
+    ContractTypeDef, ContractTypeDefView, ContractTypeInfo,
+    ContractTypeRefSpec, ContractTypeSpec, ContractTypeView,
     ContractUnionCase, ContractUnionCaseType, ContractUnionCaseTypeView,
     ContractUnionCaseView, ContractUnionDef, ContractUnionDefView,
     ContractVectorType, ContractVectorTypeView, SpecFragment,
@@ -539,6 +540,12 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
                     ty: ContractTypeView::U32,
                 }],
             });
+    }
+
+    impl ContractTypeRefSpec for Payload {
+        const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+            ty: <Self as ContractTypeSpec>::TYPE_DEF.type_ref(),
+        };
     }
 
     assert_eq!(Payload::TYPE_DEF.symbol(), "Payload");

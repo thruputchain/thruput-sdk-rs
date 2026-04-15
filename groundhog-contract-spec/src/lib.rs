@@ -181,18 +181,12 @@ where
     };
 }
 
-impl<T> ContractTypeRefSpec for T
-where
-    T: ContractTypeSpec,
-{
-    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: T::TYPE_DEF.type_ref(),
-    };
-}
-
 #[cfg(feature = "alloc")]
-impl<T: ContractTypeSpec> ContractTypeSpec for alloc::boxed::Box<T> {
-    const TYPE_DEF: view::ContractTypeDefView<'static> = T::TYPE_DEF;
+impl<T> ContractTypeRefSpec for alloc::boxed::Box<T>
+where
+    T: ContractTypeRefSpec,
+{
+    const INFO: ContractTypeInfo<'static> = T::INFO;
 }
 
 macro_rules! impl_tuple_type_ref_spec {

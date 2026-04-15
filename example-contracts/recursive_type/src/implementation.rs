@@ -13,7 +13,7 @@ pub struct Tree {
 #[derive(Default)]
 pub struct RecursiveTypeContract;
 
-#[contract(version = "0.1.0")]
+#[contract(version = "0.1.0", client = Client)]
 impl RecursiveTypeContract {
     pub fn depth(tree: Tree) -> u32 {
         let left_depth = match tree.left {

@@ -35,6 +35,14 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
             const TYPE_DEF: ::sdk::__contract_spec::ContractTypeDefView<'static> = #type_def;
         }
 
+        impl ::sdk::__contract_spec::ContractTypeRefSpec for #ident {
+            const INFO: ::sdk::__contract_spec::ContractTypeInfo<'static> = ::sdk::__contract_spec::ContractTypeInfo {
+                ty: ::sdk::__contract_spec::ContractTypeView::Named(
+                    <Self as ::sdk::__contract_spec::ContractTypeName>::NAME
+                ),
+            };
+        }
+
         #raw_typedef
     })
 }

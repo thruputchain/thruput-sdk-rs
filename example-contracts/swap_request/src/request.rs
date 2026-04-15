@@ -2,7 +2,7 @@
 
 use sdk::__contract_spec::{
     ContractFieldView, ContractStructDefView, ContractTypeDefView,
-    ContractTypeSpec, ContractTypeView,
+    ContractTypeInfo, ContractTypeRefSpec, ContractTypeSpec, ContractTypeView,
 };
 use sdk::*;
 
@@ -24,6 +24,12 @@ impl ContractTypeSpec for SwapRequest {
                 ty: ContractTypeView::U32,
             }],
         });
+}
+
+impl ContractTypeRefSpec for SwapRequest {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: <Self as ContractTypeSpec>::TYPE_DEF.type_ref(),
+    };
 }
 
 contract_local! {
