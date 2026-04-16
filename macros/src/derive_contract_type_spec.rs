@@ -32,13 +32,24 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
         }
     };
 
-    let export = input.attrs.iter().any(|attr| {
-        attr.path().is_ident("contract_type_spec")
-            && attr
-                .parse_args::<syn::Ident>()
-                .map(|id| id == "export")
-                .unwrap_or(false)
-    });
+    let export = {
+        use darling::FromMeta;
+        #[derive(Debug, Default, FromMeta)]
+        struct ContractTypeSpecArgs {
+            #[darling(default)]
+            export: bool,
+        }
+        input
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("contract_type_spec"))
+            .try_fold(false, |acc, attr| {
+                let meta = &attr.meta;
+                let args = ContractTypeSpecArgs::from_meta(meta)?;
+                Ok::<_, darling::Error>(acc || args.export)
+            })
+            .map_err(|e| syn::Error::new_spanned(ident, e.to_string()))?
+    };
     let raw_typedef = emit_raw_typedef_fragment(ident, export);
     let anchor_stmts = anchor_refs.iter().map(|anchor| {
         quote! {
