@@ -93,7 +93,7 @@ pub fn canonicalize_spec(
     let mut type_defs =
         BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
     let mut exported_roots =
-        std::collections::HashSet::<ContractSpecString>::new();
+        std::collections::BTreeSet::<ContractSpecString>::new();
 
     for fragment in raw {
         match fragment {
@@ -314,7 +314,7 @@ fn canonicalize_exception_list(
 fn resolve_reachable_type_defs(
     interfaces: &[ContractSpecInterface],
     defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
-    exported_roots: &std::collections::HashSet<ContractSpecString>,
+    exported_roots: &std::collections::BTreeSet<ContractSpecString>,
 ) -> Result<Vec<ContractTypeDef>, SpecToolError> {
     let mut resolved = BTreeMap::<ContractSpecString, ContractTypeDef>::new();
     let mut pending = Vec::<ContractSpecString>::new();
