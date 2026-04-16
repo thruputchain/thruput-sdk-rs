@@ -1,6 +1,6 @@
 use groundhog_codegen as codegen;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::punctuated::Punctuated;
 
 /// Expand `#[derive(ContractTypeSpec)]` into `impl ContractTypeSpec` plus a
@@ -15,14 +15,14 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
         ));
     }
 
-    let (type_def, type_defs) = match &input.data {
+    let (type_def, anchor_refs) = match &input.data {
         syn::Data::Struct(data) => (
             struct_type_def_tokens(ident, &data.fields)?,
-            struct_type_defs_tokens(&data.fields)?,
+            field_anchor_tokens(&data.fields)?,
         ),
         syn::Data::Enum(data) => (
             enum_type_def_tokens(ident, &data.variants)?,
-            enum_type_defs_tokens(&data.variants)?,
+            enum_anchor_tokens(&data.variants)?,
         ),
         syn::Data::Union(_) => {
             return Err(syn::Error::new_spanned(
@@ -33,11 +33,45 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
     };
 
     let raw_typedef = emit_raw_typedef_fragment(ident);
+    let anchor_stmts = anchor_refs.iter().map(|anchor| {
+        quote! {
+            acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+        }
+    });
+    let anchor_fn_ident = format_ident!("__groundhog_spec_anchor_fn_{ident}");
 
     Ok(quote! {
+        #[doc(hidden)]
+        #[inline(never)]
+        pub fn #anchor_fn_ident() -> usize {
+            #[cfg(target_family = "wasm")]
+            {
+                let mut acc = 0usize;
+                #(#anchor_stmts)*
+                acc
+            }
+            #[cfg(not(target_family = "wasm"))]
+            {
+                0usize
+            }
+        }
+
         impl ::sdk::__contract_spec::ContractTypeSpec for #ident {
             const TYPE_DEF: ::sdk::__contract_spec::ContractTypeDefView<'static> = #type_def;
-            const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
+        }
+
+        impl ::sdk::__contract_spec::ContractTypeRefSpec for #ident {
+            const INFO: ::sdk::__contract_spec::ContractTypeInfo<'static> = ::sdk::__contract_spec::ContractTypeInfo {
+                ty: ::sdk::__contract_spec::ContractTypeView::Named(
+                    <Self as ::sdk::__contract_spec::ContractTypeName>::NAME
+                ),
+            };
+
+            const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
+
+            fn __groundhog_spec_anchor() -> usize {
+                #anchor_fn_ident()
+            }
         }
 
         #raw_typedef
@@ -45,10 +79,31 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
 }
 
 fn emit_raw_typedef_fragment(ident: &syn::Ident) -> TokenStream {
-    codegen::spec_reg::emit_raw_typedef_fragment_stream_tokens_with_cfg(
-        quote! { target_family = "wasm" },
-        quote! { <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEFS },
-    )
+    let fragment_ident = format_ident!("__groundhog_spec_fragment_{ident}");
+    let raw_len_ident = format_ident!("__groundhog_spec_raw_len_{ident}");
+    let raw_fragment_ident =
+        format_ident!("__groundhog_spec_raw_typedef_fragment_{ident}");
+
+    quote! {
+        #[doc(hidden)]
+        const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
+            ::sdk::__contract_spec::SpecFragmentView::TypeDef(
+                <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
+            );
+
+        #[doc(hidden)]
+        const #raw_len_ident: usize = #fragment_ident.const_txs_size();
+
+        #[cfg(target_family = "wasm")]
+        #[doc(hidden)]
+        #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
+        static #raw_fragment_ident: [u8; #raw_len_ident] = {
+            let mut w =
+                ::sdk::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();
+            #fragment_ident.const_write_txs(&mut w);
+            w.into_bytes()
+        };
+    }
 }
 
 fn struct_type_def_tokens(
@@ -63,16 +118,6 @@ fn struct_type_def_tokens(
                 fields: &[#(#field_tokens),*],
             }
         )
-    })
-}
-
-fn struct_type_defs_tokens(fields: &syn::Fields) -> syn::Result<TokenStream> {
-    let nested = fields_type_defs_tokens(fields)?;
-    Ok(quote! {
-        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
-            ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
-            #(#nested),*
-        ])
     })
 }
 
@@ -136,22 +181,6 @@ fn enum_type_def_tokens(
     })
 }
 
-fn enum_type_defs_tokens(
-    variants: &Punctuated<syn::Variant, syn::Token![,]>,
-) -> syn::Result<TokenStream> {
-    let nested = variants
-        .iter()
-        .map(enum_variant_type_defs_tokens)
-        .collect::<syn::Result<Vec<_>>>()?;
-
-    Ok(quote! {
-        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
-            ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
-            #(#nested),*
-        ])
-    })
-}
-
 fn enum_discriminant_tokens(
     variants: &Punctuated<syn::Variant, syn::Token![,]>,
 ) -> syn::Result<Vec<TokenStream>> {
@@ -206,6 +235,25 @@ fn struct_field_tokens(fields: &syn::Fields) -> syn::Result<Vec<TokenStream>> {
     }
 }
 
+fn field_anchor_tokens(fields: &syn::Fields) -> syn::Result<Vec<TokenStream>> {
+    match fields {
+        syn::Fields::Named(named) => {
+            named.named.iter().map(field_anchor_token).collect()
+        }
+        syn::Fields::Unnamed(unnamed) => {
+            unnamed.unnamed.iter().map(field_anchor_token).collect()
+        }
+        syn::Fields::Unit => Ok(vec![]),
+    }
+}
+
+fn field_anchor_token(field: &syn::Field) -> syn::Result<TokenStream> {
+    let ty = &field.ty;
+    Ok(quote! {
+        <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+    })
+}
+
 fn enum_variant_case_type_tokens(
     variant: &syn::Variant,
 ) -> syn::Result<TokenStream> {
@@ -251,47 +299,19 @@ fn enum_variant_case_type_tokens(
     }
 }
 
-fn enum_variant_type_defs_tokens(
-    variant: &syn::Variant,
-) -> syn::Result<TokenStream> {
-    let nested = fields_type_defs_tokens(&variant.fields)?;
-    if nested.is_empty() {
-        return Ok(
-            quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
-        );
-    }
-    Ok(quote! {
-        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
-            #(#nested),*
-        ])
-    })
-}
-
-fn fields_type_defs_tokens(
-    fields: &syn::Fields,
+fn enum_anchor_tokens(
+    variants: &Punctuated<syn::Variant, syn::Token![,]>,
 ) -> syn::Result<Vec<TokenStream>> {
-    match fields {
-        syn::Fields::Named(named) => named
-            .named
-            .iter()
-            .map(|field| {
-                codegen::contract::contract_type_typedef_tokens(&field.ty)
-            })
-            .collect(),
-        syn::Fields::Unnamed(unnamed) => unnamed
-            .unnamed
-            .iter()
-            .map(|field| {
-                codegen::contract::contract_type_typedef_tokens(&field.ty)
-            })
-            .collect(),
-        syn::Fields::Unit => Ok(vec![]),
+    let mut anchors = Vec::new();
+    for variant in variants {
+        anchors.extend(field_anchor_tokens(&variant.fields)?);
     }
+    Ok(anchors)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::enum_type_def_tokens;
+    use super::{enum_type_def_tokens, expand};
 
     #[test]
     fn enum_type_def_tokens_accepts_explicit_i32_min_discriminant() {
@@ -306,5 +326,49 @@ mod tests {
         let tokens =
             enum_type_def_tokens(&ident, &variants).unwrap().to_string();
         assert!(tokens.contains("- 2147483647 - 1"));
+    }
+
+    #[test]
+    fn expand_emits_anchor_for_nested_named_dependencies() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct Envelope {
+                payload: Option<Vec<Payload>>,
+            }
+        };
+
+        let tokens = expand(&input).unwrap().to_string();
+
+        assert!(tokens.contains("__groundhog_spec_anchor"), "{tokens}");
+        assert!(
+            tokens.contains("Option < Vec < Payload > > as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn expand_emits_explicit_anchor_root_fn() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct Envelope {
+                payload: Payload,
+            }
+        };
+
+        let tokens = expand(&input).unwrap().to_string();
+
+        assert!(
+            tokens.contains(
+                "pub fn __groundhog_spec_anchor_fn_Envelope () -> usize"
+            ),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("const __GROUNDHOG_SPEC_ANCHOR_ROOT : fn () -> usize = __groundhog_spec_anchor_fn_Envelope"),
+            "{tokens}"
+        );
+        assert!(
+            !tokens.contains("# [used] static __groundhog_spec_raw_typedef_fragment_Envelope"),
+            "{tokens}"
+        );
+        assert!(!tokens.contains("mix_anchor_ptr"), "{tokens}");
     }
 }

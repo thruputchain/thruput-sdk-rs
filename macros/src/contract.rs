@@ -38,8 +38,13 @@ fn apply_with_config(
             )?;
             let throws_tokens =
                 codegen::contract::throws_spec_tokens(&contract)?;
-            let throws_typedef_tokens =
-                codegen::contract::throws_typedef_tokens(&contract)?;
+            let throw_anchor_tokens =
+                codegen::contract::throws_anchor_tokens(&contract)?;
+            let throw_anchor_stmts = throw_anchor_tokens.iter().map(|anchor| {
+                quote::quote! {
+                    acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                }
+            });
 
             let mut stripped = item.strip_our_attributes();
 
@@ -75,8 +80,11 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROW_TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> =
-                    ::sdk::__contract_spec::ContractTypeDefsView::Many(&[#(#throws_typedef_tokens),*]);
+                fn __GROUNDHOG_IFACE_THROW_ANCHOR_ROOT() -> usize {
+                    let mut acc = 0usize;
+                    #(#throw_anchor_stmts)*
+                    acc
+                }
             });
 
             if cfg!(feature = "mock") {
@@ -194,5 +202,41 @@ fn apply_with_config(
             item,
             format!("Can't apply attribute to item {:?}", item),
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_with_config;
+    use darling::FromMeta;
+    use darling::ast::NestedMeta;
+    use groundhog_codegen::Config;
+
+    fn parse_config(attrs: &str) -> Config {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn trait_contract_emits_throw_anchor_root() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait ImportedErrorCallee {
+                fn throw_imported_error();
+            }
+        };
+
+        let config =
+            parse_config(r#"throws(imported_error_type::ImportedError)"#);
+        let tokens = apply_with_config(&item, &config).unwrap().to_string();
+
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("ImportedError as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
+            "{tokens}"
+        );
     }
 }
