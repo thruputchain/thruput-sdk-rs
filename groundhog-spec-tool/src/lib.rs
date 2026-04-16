@@ -92,6 +92,8 @@ pub fn canonicalize_spec(
     >::new();
     let mut type_defs =
         BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
+    let mut exported_roots =
+        std::collections::BTreeSet::<ContractSpecString>::new();
 
     for fragment in raw {
         match fragment {
@@ -146,6 +148,14 @@ pub fn canonicalize_spec(
             }
             SpecFragment::SpecTypeDef { type_def } => {
                 let symbol = type_def_symbol(type_def).clone();
+                let defs = type_defs.entry(symbol).or_default();
+                if !defs.iter().any(|existing| existing == type_def) {
+                    defs.push(type_def.clone());
+                }
+            }
+            SpecFragment::ExportedSpecTypeDef { type_def } => {
+                let symbol = type_def_symbol(type_def).clone();
+                exported_roots.insert(symbol.clone());
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
                     defs.push(type_def.clone());
@@ -211,7 +221,8 @@ pub fn canonicalize_spec(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let type_defs = resolve_reachable_type_defs(&interfaces, &type_defs)?;
+    let type_defs =
+        resolve_reachable_type_defs(&interfaces, &type_defs, &exported_roots)?;
     Ok(ContractSpec {
         interfaces: interfaces.try_into().unwrap(),
         type_defs: type_defs.try_into().unwrap(),
@@ -303,6 +314,7 @@ fn canonicalize_exception_list(
 fn resolve_reachable_type_defs(
     interfaces: &[ContractSpecInterface],
     defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
+    exported_roots: &std::collections::BTreeSet<ContractSpecString>,
 ) -> Result<Vec<ContractTypeDef>, SpecToolError> {
     let mut resolved = BTreeMap::<ContractSpecString, ContractTypeDef>::new();
     let mut pending = Vec::<ContractSpecString>::new();
@@ -327,6 +339,17 @@ fn resolve_reachable_type_defs(
                 &mut pending,
             )?;
         }
+    }
+
+    for symbol in exported_roots {
+        collect_named_types(
+            &ContractType::Named {
+                named: symbol.clone(),
+            },
+            defs,
+            &mut resolved,
+            &mut pending,
+        )?;
     }
 
     while let Some(symbol) = pending.pop() {

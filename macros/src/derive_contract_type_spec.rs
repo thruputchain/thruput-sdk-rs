@@ -32,7 +32,25 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
         }
     };
 
-    let raw_typedef = emit_raw_typedef_fragment(ident);
+    let export = {
+        use darling::FromMeta;
+        #[derive(Debug, Default, FromMeta)]
+        struct ContractTypeSpecArgs {
+            #[darling(default)]
+            export: bool,
+        }
+        input
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("contract_type_spec"))
+            .try_fold(false, |acc, attr| {
+                let meta = &attr.meta;
+                let args = ContractTypeSpecArgs::from_meta(meta)?;
+                Ok::<_, darling::Error>(acc || args.export)
+            })
+            .map_err(|e| syn::Error::new_spanned(ident, e.to_string()))?
+    };
+    let raw_typedef = emit_raw_typedef_fragment(ident, export);
     let anchor_stmts = anchor_refs.iter().map(|anchor| {
         quote! {
             acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
@@ -78,18 +96,26 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
     })
 }
 
-fn emit_raw_typedef_fragment(ident: &syn::Ident) -> TokenStream {
+fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
     let fragment_ident = format_ident!("__groundhog_spec_fragment_{ident}");
     let raw_len_ident = format_ident!("__groundhog_spec_raw_len_{ident}");
     let raw_fragment_ident =
         format_ident!("__groundhog_spec_raw_typedef_fragment_{ident}");
 
+    let fragment_variant = if export {
+        quote! { ::sdk::__contract_spec::SpecFragmentView::ExportedTypeDef(
+            <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
+        ) }
+    } else {
+        quote! { ::sdk::__contract_spec::SpecFragmentView::TypeDef(
+            <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
+        ) }
+    };
+
     quote! {
         #[doc(hidden)]
         const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
-            ::sdk::__contract_spec::SpecFragmentView::TypeDef(
-                <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
-            );
+            #fragment_variant;
 
         #[doc(hidden)]
         const #raw_len_ident: usize = #fragment_ident.const_txs_size();

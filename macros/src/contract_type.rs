@@ -6,6 +6,7 @@ use syn::Item;
 #[derive(Debug, Default, FromMeta)]
 pub struct ContractTypeArgs {
     pub name: Option<String>,
+    pub export: Option<bool>,
 }
 
 pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
@@ -23,10 +24,16 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
+            let export_attr = if args.export == Some(true) {
+                quote! { #[contract_type_spec(export)] }
+            } else {
+                quote! {}
+            };
             quote! {
                 #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #[repr(i32)]
+                #export_attr
                 #item
 
                 #name
@@ -42,9 +49,15 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
+            let export_attr = if args.export == Some(true) {
+                quote! { #[contract_type_spec(export)] }
+            } else {
+                quote! {}
+            };
             quote! {
                 #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
+                #export_attr
                 #item
 
                 #name

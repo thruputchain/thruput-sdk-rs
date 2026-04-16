@@ -155,6 +155,7 @@ pub enum SpecFragmentView<'a> {
     Interface(SpecInterfaceFragmentView<'a>) = 0,
     Method(SpecMethodFragmentView<'a>) = 1,
     TypeDef(ContractTypeDefView<'a>) = 2,
+    ExportedTypeDef(ContractTypeDefView<'a>) = 3,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -459,6 +460,11 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
             SpecFragmentView::TypeDef(def) => SpecFragment::SpecTypeDef {
                 type_def: def.into(),
             },
+            SpecFragmentView::ExportedTypeDef(def) => {
+                SpecFragment::ExportedSpecTypeDef {
+                    type_def: def.into(),
+                }
+            }
         }
     }
 }

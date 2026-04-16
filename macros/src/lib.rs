@@ -201,7 +201,7 @@ pub fn contracttype(
     contract_type::expand(args, item).into()
 }
 
-#[proc_macro_derive(ContractTypeSpec)]
+#[proc_macro_derive(ContractTypeSpec, attributes(contract_type_spec))]
 pub fn derive_contract_type_spec(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
