@@ -391,6 +391,20 @@ pub fn throws_spec_tokens(
         .collect()
 }
 
+pub fn throws_anchor_tokens(
+    contract: &impl ContractSrc,
+) -> Result<Vec<TokenStream>> {
+    contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| {
+            let path = thrown.ty();
+            let ty: syn::Type = syn::parse_quote! { #path };
+            contract_type_anchor_token(&ty)
+        })
+        .collect()
+}
+
 fn is_visible(vis: &syn::Visibility) -> bool {
     matches!(vis, syn::Visibility::Public(_))
 }
@@ -438,9 +452,61 @@ pub fn method_return_spec_token(
     }
 }
 
+pub fn method_anchor_tokens(
+    method: &impl Method,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    let mut tokens = Vec::new();
+
+    for arg in method.sig().inputs.iter() {
+        match arg {
+            syn::FnArg::Typed(pat_type) => {
+                tokens.push(contract_type_anchor_token(pat_type.ty.as_ref())?);
+            }
+            syn::FnArg::Receiver(_) => {}
+        }
+    }
+
+    match &method.sig().output {
+        syn::ReturnType::Default => tokens.push(quote! {
+            <() as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+        }),
+        syn::ReturnType::Type(_, ty) => {
+            tokens.push(contract_type_anchor_token(ty)?);
+        }
+    }
+
+    Ok(tokens)
+}
+
 fn lower_via_type_ref_trait(ty: &syn::Type) -> TokenStream {
     quote! {
         ::sdk::__contract_spec::type_ref::<#ty>()
+    }
+}
+
+pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
+    match ty {
+        syn::Type::Reference(reference) => {
+            contract_type_anchor_token(&reference.elem)
+        }
+        syn::Type::Path(_)
+        | syn::Type::Paren(_)
+        | syn::Type::Slice(_)
+        | syn::Type::Array(_)
+        | syn::Type::Tuple(_) => Ok(quote! {
+            <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+        }),
+        syn::Type::ImplTrait(_)
+        | syn::Type::TraitObject(_)
+        | syn::Type::BareFn(_)
+        | syn::Type::Ptr(_) => Err(error(
+            ty,
+            "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
+        )),
+        _ => Err(error(
+            ty,
+            "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
+        )),
     }
 }
 

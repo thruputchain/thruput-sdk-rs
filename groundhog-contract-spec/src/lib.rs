@@ -47,6 +47,23 @@ pub struct ContractTypeInfo<'a> {
 pub trait ContractTypeRefSpec {
     /// The type reference and its transitive type definitions.
     const INFO: ContractTypeInfo<'static>;
+
+    /// Hidden root symbol used to retain imported raw typedef fragments.
+    #[doc(hidden)]
+    const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize =
+        Self::__groundhog_spec_anchor;
+
+    /// Hidden linker-anchor hook used to retain raw typedef fragments.
+    #[doc(hidden)]
+    fn __groundhog_spec_anchor() -> usize {
+        0
+    }
+}
+
+#[doc(hidden)]
+#[inline(always)]
+pub fn mix_anchor_fn(current: usize, anchor: fn() -> usize) -> usize {
+    current ^ core::hint::black_box(anchor as usize)
 }
 
 impl ContractTypeRefSpec for () {
@@ -137,6 +154,13 @@ where
             len: N as u32,
         }),
     };
+
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -157,6 +181,13 @@ where
             max_len: u32::MAX,
         }),
     };
+
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -170,6 +201,13 @@ where
             max_len: N,
         }),
     };
+
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 impl<T> ContractTypeRefSpec for Option<T>
@@ -179,6 +217,13 @@ where
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Option(Some(&type_ref::<T>())),
     };
+
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -187,6 +232,13 @@ where
     T: ContractTypeRefSpec,
 {
     const INFO: ContractTypeInfo<'static> = T::INFO;
+
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 macro_rules! impl_tuple_type_ref_spec {
@@ -199,6 +251,12 @@ macro_rules! impl_tuple_type_ref_spec {
                 const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
                     ty: view::ContractTypeView::Tuple(&[$(type_ref::<$name>()),+]),
                 };
+
+                fn __groundhog_spec_anchor() -> usize {
+                    let mut acc = 0usize;
+                    $(acc = mix_anchor_fn(acc, <$name as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT);)+
+                    acc
+                }
             }
         )+
     };

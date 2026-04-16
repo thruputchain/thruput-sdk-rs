@@ -1,7 +1,8 @@
 use crate::Config;
 use crate::contract::{
     ConfiguredContract, ContractSrc, Method, effective_interface_name,
-    method_arg_spec_tokens, method_return_spec_token, throws_spec_tokens,
+    method_anchor_tokens, method_arg_spec_tokens, method_return_spec_token,
+    throws_anchor_tokens, throws_spec_tokens,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -42,6 +43,13 @@ pub fn generate_impl_raw_spec_fragments(
         iface_vers.clone(),
         iface_throws,
     );
+    let mut anchor_roots = if let Some((_, trait_path, _)) = &item.trait_ {
+        vec![quote! {
+            <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT
+        }]
+    } else {
+        throws_anchor_tokens(&contract)?
+    };
     let method_fragments = methods
         .iter()
         .map(|method| {
@@ -52,10 +60,16 @@ pub fn generate_impl_raw_spec_fragments(
             )
         })
         .collect::<Result<Vec<_>>>()?;
+    for method in &methods {
+        anchor_roots.extend(method_anchor_tokens(method)?);
+    }
+    let anchor_root =
+        emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
 
     Ok(quote! {
         #interface_fragment
         #(#method_fragments)*
+        #anchor_root
     })
 }
 
@@ -78,10 +92,15 @@ pub fn generate_free_function_raw_spec_fragments(
         quote! { #iface_vers },
         item,
     )?;
+    let mut anchor_roots = throws_anchor_tokens(&contract)?;
+    anchor_roots.extend(method_anchor_tokens(item)?);
+    let anchor_root =
+        emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
 
     Ok(quote! {
         #interface_fragment
         #method_fragment
+        #anchor_root
     })
 }
 
@@ -154,6 +173,23 @@ pub fn emit_raw_fragment_tokens_with_cfg(
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
     }
+}
+
+fn emit_root_anchor_tokens(anchor_roots: &[TokenStream]) -> Option<TokenStream> {
+    if anchor_roots.is_empty() {
+        return None;
+    }
+
+    let count = anchor_roots.len();
+    Some(quote! {
+        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+        const _: () = {
+            #[used]
+            static ROOT_SPEC_ANCHORS: [fn() -> usize; #count] = [
+                #(#anchor_roots),*
+            ];
+        };
+    })
 }
 
 #[cfg(test)]
@@ -293,5 +329,53 @@ mod tests {
 
         assert!(tokens.contains("type_ref :: < Blob >"), "{tokens}");
         assert!(tokens.contains("type_ref :: < Hash >"), "{tokens}");
+    }
+
+    #[test]
+    fn impl_fragments_include_signature_anchor_roots() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                pub fn echo(payload: Option<Vec<Payload>>) -> Payload {
+                    payload.unwrap().pop().unwrap()
+                }
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(
+            tokens.contains("__GROUNDHOG_SPEC_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("Option < Vec < Payload > >"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn trait_impl_fragments_reference_throw_anchor_root() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl imported_error_callee::ImportedErrorCallee for Demo {
+                fn throw_imported_error() {}
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &crate::Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT"),
+            "{tokens}"
+        );
     }
 }
