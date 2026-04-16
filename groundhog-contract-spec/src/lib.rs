@@ -45,7 +45,7 @@ pub struct ContractTypeInfo<'a> {
 /// Trait for types that can appear in contract spec signatures.
 /// Implemented for primitives, collections, and `#[contracttype]` types.
 pub trait ContractTypeRefSpec {
-    /// The type reference and its transitive type definitions.
+    /// The spec type reference for this type.
     const INFO: ContractTypeInfo<'static>;
 }
 
