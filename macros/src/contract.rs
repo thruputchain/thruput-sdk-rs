@@ -208,8 +208,8 @@ fn apply_with_config(
 #[cfg(test)]
 mod tests {
     use super::apply_with_config;
-    use darling::ast::NestedMeta;
     use darling::FromMeta;
+    use darling::ast::NestedMeta;
     use groundhog_codegen::Config;
 
     fn parse_config(attrs: &str) -> Config {
@@ -226,7 +226,8 @@ mod tests {
             }
         };
 
-        let config = parse_config(r#"throws(imported_error_type::ImportedError)"#);
+        let config =
+            parse_config(r#"throws(imported_error_type::ImportedError)"#);
         let tokens = apply_with_config(&item, &config).unwrap().to_string();
 
         assert!(

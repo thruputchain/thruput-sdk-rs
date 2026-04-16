@@ -38,8 +38,7 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
             acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
         }
     });
-    let anchor_fn_ident =
-        format_ident!("__groundhog_spec_anchor_fn_{ident}");
+    let anchor_fn_ident = format_ident!("__groundhog_spec_anchor_fn_{ident}");
 
     Ok(quote! {
         #[doc(hidden)]
@@ -238,16 +237,12 @@ fn struct_field_tokens(fields: &syn::Fields) -> syn::Result<Vec<TokenStream>> {
 
 fn field_anchor_tokens(fields: &syn::Fields) -> syn::Result<Vec<TokenStream>> {
     match fields {
-        syn::Fields::Named(named) => named
-            .named
-            .iter()
-            .map(field_anchor_token)
-            .collect(),
-        syn::Fields::Unnamed(unnamed) => unnamed
-            .unnamed
-            .iter()
-            .map(field_anchor_token)
-            .collect(),
+        syn::Fields::Named(named) => {
+            named.named.iter().map(field_anchor_token).collect()
+        }
+        syn::Fields::Unnamed(unnamed) => {
+            unnamed.unnamed.iter().map(field_anchor_token).collect()
+        }
         syn::Fields::Unit => Ok(vec![]),
     }
 }
@@ -361,7 +356,9 @@ mod tests {
         let tokens = expand(&input).unwrap().to_string();
 
         assert!(
-            tokens.contains("pub fn __groundhog_spec_anchor_fn_Envelope () -> usize"),
+            tokens.contains(
+                "pub fn __groundhog_spec_anchor_fn_Envelope () -> usize"
+            ),
             "{tokens}"
         );
         assert!(

@@ -175,7 +175,9 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     }
 }
 
-fn emit_root_anchor_tokens(anchor_roots: &[TokenStream]) -> Option<TokenStream> {
+fn emit_root_anchor_tokens(
+    anchor_roots: &[TokenStream],
+) -> Option<TokenStream> {
     if anchor_roots.is_empty() {
         return None;
     }
@@ -348,14 +350,8 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(
-            tokens.contains("__GROUNDHOG_SPEC_ANCHOR_ROOT"),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains("Option < Vec < Payload > >"),
-            "{tokens}"
-        );
+        assert!(tokens.contains("__GROUNDHOG_SPEC_ANCHOR_ROOT"), "{tokens}");
+        assert!(tokens.contains("Option < Vec < Payload > >"), "{tokens}");
     }
 
     #[test]
