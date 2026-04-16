@@ -686,9 +686,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.7.9"
+version = "0.7.10"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "ee597641e4e0bd6015286e4f1d5ab14d32184b6fc8578d4301763dbf6e1aead6"
+checksum = "194f0881357bcf946ddcd77e950bb10e87663d59ef55d8b3e4bc5ed0804f9124"
 dependencies = [
  "groundhog-serde_arrays",
  "serde",

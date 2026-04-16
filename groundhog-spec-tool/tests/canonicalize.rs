@@ -769,3 +769,165 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
     assert!(type_names.contains(&"Envelope"));
     assert!(type_names.contains(&"Payload"));
 }
+
+#[test]
+fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not()
+ {
+    // ExportedTypeDef should be included regardless of reachability.
+    // A plain SpecTypeDef that is unreachable from method signatures should
+    // NOT be included.
+    let spec = canonicalize_spec(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        // This type is exported explicitly — must appear in output.
+        SpecFragment::ExportedSpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("ExportedEvent"),
+                    fields: vec![ContractField {
+                        name: s("value"),
+                        ty: ContractType::U32,
+                    }]
+                    .try_into()
+                    .unwrap(),
+                },
+            },
+        },
+        // This type is a plain typedef unreachable from any signature — must
+        // NOT appear in output.
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("NeverUsedHelper"),
+                    fields: vec![].try_into().unwrap(),
+                },
+            },
+        },
+    ])
+    .unwrap();
+
+    let type_names: Vec<_> = spec
+        .type_defs
+        .iter()
+        .map(|td| match td {
+            ContractTypeDef::TypeDefStruct { struct_def } => {
+                spec_str(&struct_def.name)
+            }
+            ContractTypeDef::TypeDefEnum { enum_def } => {
+                spec_str(&enum_def.name)
+            }
+            ContractTypeDef::TypeDefUnion { union_def } => {
+                spec_str(&union_def.name)
+            }
+            _ => panic!("unexpected variant"),
+        })
+        .collect();
+
+    assert!(
+        type_names.contains(&"ExportedEvent"),
+        "exported type should be present"
+    );
+    assert!(
+        !type_names.contains(&"NeverUsedHelper"),
+        "unreachable plain type should be absent"
+    );
+}
+
+#[test]
+fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
+    // When an exported type references another named type, that dependency
+    // must also be resolved and included in the output.
+    let spec = canonicalize_spec(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        // ExportedEvent references Metadata as a field type.
+        SpecFragment::ExportedSpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("ExportedEvent"),
+                    fields: vec![ContractField {
+                        name: s("meta"),
+                        ty: ContractType::Named {
+                            named: s("Metadata"),
+                        },
+                    }]
+                    .try_into()
+                    .unwrap(),
+                },
+            },
+        },
+        // Metadata is a transitive dep — not exported directly.
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("Metadata"),
+                    fields: vec![ContractField {
+                        name: s("tag"),
+                        ty: ContractType::U64,
+                    }]
+                    .try_into()
+                    .unwrap(),
+                },
+            },
+        },
+    ])
+    .unwrap();
+
+    let type_names: Vec<_> = spec
+        .type_defs
+        .iter()
+        .map(|td| match td {
+            ContractTypeDef::TypeDefStruct { struct_def } => {
+                spec_str(&struct_def.name)
+            }
+            ContractTypeDef::TypeDefEnum { enum_def } => {
+                spec_str(&enum_def.name)
+            }
+            ContractTypeDef::TypeDefUnion { union_def } => {
+                spec_str(&union_def.name)
+            }
+            _ => panic!("unexpected variant"),
+        })
+        .collect();
+
+    assert!(
+        type_names.contains(&"ExportedEvent"),
+        "exported type should be present"
+    );
+    assert!(
+        type_names.contains(&"Metadata"),
+        "transitive dep of exported type should be present"
+    );
+}
