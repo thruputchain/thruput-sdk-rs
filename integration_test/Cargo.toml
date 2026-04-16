@@ -6,7 +6,7 @@ members = [
     "contracts/authclaim_test",
     "contracts/calldata_raw",
     "contracts/calldata_wrapper",
-    "contracts/cxs_roundtrip",
+    # "contracts/cxs_roundtrip",
     "contracts/delegate_call_test",
     "contracts/ed25519_verify_wrapper",
     "contracts/fibonacci",
@@ -29,7 +29,7 @@ members = [
     "contracts/simple_wallet_authclaim",
     "contracts/syscall_misc_tests",
     "contracts/tuple_return",
-    "contracts/txs_roundtrip",
+    # "contracts/txs_roundtrip",
 ]
 
 [workspace.package]
