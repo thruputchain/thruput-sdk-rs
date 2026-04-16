@@ -49,6 +49,7 @@ impl RecursiveTypeContract {
         1 + max
     }
 
+    #[allow(clippy::boxed_local)]
     pub fn unbox(val: Box<u32>) -> u32 {
         *val
     }
