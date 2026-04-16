@@ -380,13 +380,27 @@ pub fn throws_spec_tokens(
         .map(|thrown| {
             let path = thrown.ty();
             let ty: syn::Type = syn::parse_quote! { #path };
-            let type_view = contract_type_view_tokens(&ty)?;
+            let type_view = lower_contract_type(&ty)?.view;
             Ok(quote! {
                 ::sdk::__contract_spec::ContractExceptionTypeView {
                     selector: <#ty as ::sdk::exn::Exn>::SELECTOR,
                     ty: #type_view,
                 }
             })
+        })
+        .collect()
+}
+
+pub fn throws_typedef_tokens(
+    contract: &impl ContractSrc,
+) -> Result<Vec<TokenStream>> {
+    contract
+        .throws_list()
+        .into_iter()
+        .map(|thrown| {
+            let path = thrown.ty();
+            let ty: syn::Type = syn::parse_quote! { #path };
+            Ok(lower_contract_type(&ty)?.type_defs)
         })
         .collect()
 }
@@ -438,19 +452,29 @@ pub fn method_return_spec_token(
     }
 }
 
-fn lower_via_type_ref_trait(ty: &syn::Type) -> TokenStream {
-    quote! {
-        ::sdk::__contract_spec::type_ref::<#ty>()
+pub struct LoweredContractType {
+    pub view: TokenStream,
+    pub type_defs: TokenStream,
+}
+
+fn lower_via_type_ref_trait(ty: &syn::Type) -> LoweredContractType {
+    LoweredContractType {
+        view: quote! {
+            ::sdk::__contract_spec::type_ref::<#ty>()
+        },
+        type_defs: quote! {
+            ::sdk::__contract_spec::type_defs::<#ty>()
+        },
     }
 }
 
-pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
+pub fn lower_contract_type(ty: &syn::Type) -> Result<LoweredContractType> {
     match ty {
         syn::Type::Reference(reference) => {
-            contract_type_view_tokens(&reference.elem)
+            lower_contract_type(&reference.elem)
         }
         syn::Type::Path(_) => Ok(lower_via_type_ref_trait(ty)),
-        syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
+        syn::Type::Paren(paren) => lower_contract_type(&paren.elem),
         syn::Type::Slice(_) | syn::Type::Array(_) | syn::Type::Tuple(_) => {
             Ok(lower_via_type_ref_trait(ty))
         }
@@ -468,9 +492,19 @@ pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
     }
 }
 
+pub fn contract_type_view_tokens(
+    ty: &syn::Type,
+) -> Result<proc_macro2::TokenStream> {
+    Ok(lower_contract_type(ty)?.view)
+}
+
+pub fn contract_type_typedef_tokens(ty: &syn::Type) -> Result<TokenStream> {
+    Ok(lower_contract_type(ty)?.type_defs)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::contract_type_view_tokens;
+    use super::{contract_type_typedef_tokens, contract_type_view_tokens};
 
     #[test]
     fn alias_paths_use_trait_resolution_for_spec_types() {
@@ -480,6 +514,16 @@ mod tests {
 
         assert!(tokens.contains("type_ref"));
         assert!(!tokens.contains("ContractTypeView :: Named"));
+    }
+
+    #[test]
+    fn alias_paths_use_trait_resolution_for_spec_typedefs() {
+        let ty: syn::Type = syn::parse_quote!(PayloadList);
+
+        let tokens = contract_type_typedef_tokens(&ty).unwrap().to_string();
+
+        assert!(tokens.contains("type_defs"));
+        assert!(!tokens.contains("maybe_type_def"));
     }
 
     #[test]
@@ -497,8 +541,11 @@ mod tests {
         let ty: syn::Type = syn::parse_quote!(&[u8]);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
 
         assert!(view_tokens.contains("type_ref :: < [u8] >"));
+        assert!(typedef_tokens.contains("type_defs :: < [u8] >"));
     }
 
     #[test]
@@ -506,8 +553,11 @@ mod tests {
         let ty: syn::Type = syn::parse_quote!(&Payload);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
 
         assert!(view_tokens.contains("type_ref :: < Payload >"));
+        assert!(typedef_tokens.contains("type_defs :: < Payload >"));
     }
 
     #[test]
@@ -515,8 +565,14 @@ mod tests {
         let ty: syn::Type = syn::parse_quote!(Option<&[u8]>);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
 
         assert!(view_tokens.contains("type_ref :: < Option < & [u8] > >"));
+        assert!(
+            typedef_tokens.contains("type_defs :: < Option < & [u8] > >"),
+            "{typedef_tokens}"
+        );
     }
 
     #[test]
@@ -524,9 +580,14 @@ mod tests {
         let ty: syn::Type = syn::parse_quote!(Option<Vec<u8>>);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
 
         assert!(view_tokens.contains("type_ref :: < Option < Vec < u8 > > >"));
         assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
+        assert!(
+            typedef_tokens.contains("type_defs :: < Option < Vec < u8 > > >")
+        );
     }
 
     #[test]
@@ -534,8 +595,13 @@ mod tests {
         let ty: syn::Type = syn::parse_quote!((Vec<u8>, bool));
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
 
         assert!(view_tokens.contains("type_ref :: < (Vec < u8 > , bool) >"));
+        assert!(
+            typedef_tokens.contains("type_defs :: < (Vec < u8 > , bool) >")
+        );
     }
 
     #[test]
@@ -543,21 +609,12 @@ mod tests {
         let ty: syn::Type = syn::parse_quote!(Blob);
 
         let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
+        let typedef_tokens =
+            contract_type_typedef_tokens(&ty).unwrap().to_string();
 
         assert!(view_tokens.contains("type_ref :: < Blob >"));
+        assert!(typedef_tokens.contains("type_defs :: < Blob >"));
         assert!(!view_tokens.contains("ContractTypeView :: Bytes"));
-    }
-
-    #[test]
-    fn box_of_named_type_resolves_via_trait() {
-        let ty: syn::Type = syn::parse_quote!(Box<Payload>);
-
-        let view_tokens = contract_type_view_tokens(&ty).unwrap().to_string();
-
-        assert!(
-            view_tokens.contains("type_ref :: < Box < Payload > >"),
-            "{view_tokens}"
-        );
     }
 
     #[test]

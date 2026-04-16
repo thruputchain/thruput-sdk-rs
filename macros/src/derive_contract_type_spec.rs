@@ -15,11 +15,15 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
         ));
     }
 
-    let type_def = match &input.data {
-        syn::Data::Struct(data) => {
-            struct_type_def_tokens(ident, &data.fields)?
-        }
-        syn::Data::Enum(data) => enum_type_def_tokens(ident, &data.variants)?,
+    let (type_def, type_defs) = match &input.data {
+        syn::Data::Struct(data) => (
+            struct_type_def_tokens(ident, &data.fields)?,
+            struct_type_defs_tokens(&data.fields)?,
+        ),
+        syn::Data::Enum(data) => (
+            enum_type_def_tokens(ident, &data.variants)?,
+            enum_type_defs_tokens(&data.variants)?,
+        ),
         syn::Data::Union(_) => {
             return Err(syn::Error::new_spanned(
                 ident,
@@ -33,14 +37,7 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
     Ok(quote! {
         impl ::sdk::__contract_spec::ContractTypeSpec for #ident {
             const TYPE_DEF: ::sdk::__contract_spec::ContractTypeDefView<'static> = #type_def;
-        }
-
-        impl ::sdk::__contract_spec::ContractTypeRefSpec for #ident {
-            const INFO: ::sdk::__contract_spec::ContractTypeInfo<'static> = ::sdk::__contract_spec::ContractTypeInfo {
-                ty: ::sdk::__contract_spec::ContractTypeView::Named(
-                    <Self as ::sdk::__contract_spec::ContractTypeName>::NAME
-                ),
-            };
+            const TYPE_DEFS: ::sdk::__contract_spec::ContractTypeDefsView<'static> = #type_defs;
         }
 
         #raw_typedef
@@ -48,13 +45,9 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
 }
 
 fn emit_raw_typedef_fragment(ident: &syn::Ident) -> TokenStream {
-    codegen::spec_reg::emit_raw_fragment_tokens_with_cfg(
+    codegen::spec_reg::emit_raw_typedef_fragment_stream_tokens_with_cfg(
         quote! { target_family = "wasm" },
-        quote! {
-            ::sdk::__contract_spec::SpecFragmentView::TypeDef(
-                <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEF
-            )
-        },
+        quote! { <#ident as ::sdk::__contract_spec::ContractTypeSpec>::TYPE_DEFS },
     )
 }
 
@@ -70,6 +63,16 @@ fn struct_type_def_tokens(
                 fields: &[#(#field_tokens),*],
             }
         )
+    })
+}
+
+fn struct_type_defs_tokens(fields: &syn::Fields) -> syn::Result<TokenStream> {
+    let nested = fields_type_defs_tokens(fields)?;
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
+            #(#nested),*
+        ])
     })
 }
 
@@ -130,6 +133,22 @@ fn enum_type_def_tokens(
                 cases: &[#(#cases),*],
             }
         )
+    })
+}
+
+fn enum_type_defs_tokens(
+    variants: &Punctuated<syn::Variant, syn::Token![,]>,
+) -> syn::Result<TokenStream> {
+    let nested = variants
+        .iter()
+        .map(enum_variant_type_defs_tokens)
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            ::sdk::__contract_spec::ContractTypeDefsView::One(Self::TYPE_DEF),
+            #(#nested),*
+        ])
     })
 }
 
@@ -229,6 +248,44 @@ fn enum_variant_case_type_tokens(
                 )
             })
         }
+    }
+}
+
+fn enum_variant_type_defs_tokens(
+    variant: &syn::Variant,
+) -> syn::Result<TokenStream> {
+    let nested = fields_type_defs_tokens(&variant.fields)?;
+    if nested.is_empty() {
+        return Ok(
+            quote! { ::sdk::__contract_spec::ContractTypeDefsView::Empty },
+        );
+    }
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractTypeDefsView::Many(&[
+            #(#nested),*
+        ])
+    })
+}
+
+fn fields_type_defs_tokens(
+    fields: &syn::Fields,
+) -> syn::Result<Vec<TokenStream>> {
+    match fields {
+        syn::Fields::Named(named) => named
+            .named
+            .iter()
+            .map(|field| {
+                codegen::contract::contract_type_typedef_tokens(&field.ty)
+            })
+            .collect(),
+        syn::Fields::Unnamed(unnamed) => unnamed
+            .unnamed
+            .iter()
+            .map(|field| {
+                codegen::contract::contract_type_typedef_tokens(&field.ty)
+            })
+            .collect(),
+        syn::Fields::Unit => Ok(vec![]),
     }
 }
 
