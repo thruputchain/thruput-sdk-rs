@@ -48,7 +48,9 @@ pub use bindings::{
     VerifyAuthResultFromDBResult,
     FFIDataBuffer,
     GetCostModelResult,
+    GetSnapshotStorageItemResult,
     VerifyContractResult,
+    FFISerializedAddressAndKey,
 };
 
 // Functions
@@ -57,6 +59,7 @@ pub use bindings::{
     create_db,
     free_db,
     get_cost_model,
+    get_snapshot_storage_item,
     advance_new_block,
     open_runtime_context,
     close_runtime_context,

@@ -9,7 +9,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.12.2";
+const TEST_FFI_VERSION: &str = "0.12.3";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
@@ -161,6 +161,45 @@ fn emit_link_config(lib_dir: &Path) {
     println!("cargo:metadata=lib_dir={}", lib_dir.display());
 }
 
+fn staged_lib_dir(out_dir: &Path) -> PathBuf {
+    out_dir.join(format!("hogd_lib_{TEST_FFI_VERSION}"))
+}
+
+/// Stage the selected shared library into a stable directory under OUT_DIR.
+///
+/// Executables load `libtest_ffi` from an rpath rooted in the crate build
+/// output. If we link against an arbitrary source directory, an older staged
+/// dylib can still win at runtime. Staging the chosen library into
+/// `OUT_DIR/hogd_lib_*` keeps link-time and runtime resolution aligned across
+/// download, custom-lib, and source-build flows.
+fn stage_shared_lib(
+    source_lib_dir: &Path,
+    out_dir: &Path,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let lib_name = shared_lib_name();
+    let src = source_lib_dir.join(&lib_name);
+    if !src.exists() {
+        return Err(
+            format!("Shared library not found at {}", src.display()).into()
+        );
+    }
+
+    let stage_dir = staged_lib_dir(out_dir);
+    fs::create_dir_all(&stage_dir)?;
+    let dst = stage_dir.join(&lib_name);
+
+    if src != dst {
+        fs::copy(&src, &dst)?;
+        println!(
+            "cargo:warning=Staged {} to {}",
+            src.display(),
+            dst.display()
+        );
+    }
+
+    Ok(stage_dir)
+}
+
 /// Find and copy prebuilt `bindings.rs` from the extracted tarball directory.
 /// Returns an error if `bindings.rs` is not found in the tarball.
 fn find_prebuilt_bindings(
@@ -301,7 +340,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("cargo:warning=Using custom library directory");
             let lib_path = PathBuf::from(&dir);
             find_prebuilt_bindings(&lib_path, &out_dir)?;
-            use_prebuilt_lib(&dir)?;
+            use_prebuilt_lib(&dir, &out_dir)?;
         }
         BuildMethod::Source => {
             run_build_from_source(&out_dir)?;
@@ -376,7 +415,7 @@ fn run_build_from_source(
         .expect("Couldn't write bindings!");
 
     verify_hogd_version(hogd_src, &hogd_ffi_version)?;
-    build_from_cmake(hogd_src)?;
+    build_from_cmake(hogd_src, out_dir)?;
 
     Ok(())
 }
@@ -420,7 +459,10 @@ fn verify_hogd_version(
 }
 
 /// Use a prebuilt library from a specified directory.
-fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn use_prebuilt_lib(
+    lib_dir: &str,
+    out_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     let lib_path = PathBuf::from(lib_dir);
 
     if !lib_path.exists() {
@@ -444,10 +486,12 @@ fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
         .into());
     }
 
-    emit_link_config(&lib_path);
-    copy_lib_to_deps(&lib_path)?;
+    let staged_dir = stage_shared_lib(&lib_path, out_dir)?;
+    emit_link_config(&staged_dir);
+    copy_lib_to_deps(&staged_dir)?;
     println!(
-        "cargo:warning=Using prebuilt library from: {lib_dir} (found: {expected_lib})",
+        "cargo:warning=Using prebuilt library from: {lib_dir} (found: {expected_lib}); staged at {}",
+        staged_dir.display(),
     );
 
     Ok(())
@@ -687,7 +731,10 @@ fn download_and_extract(
 }
 
 /// Build the library from source using cmake.
-fn build_from_cmake(hogd_src: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn build_from_cmake(
+    hogd_src: &str,
+    out_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut cfg = cmake::Config::new(hogd_src);
     cfg.define("CMAKE_BUILD_TYPE", "Debug")
         // run cargo b -vv to see the full cmake output
@@ -713,11 +760,13 @@ fn build_from_cmake(hogd_src: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     // Tell Rust where to find the built library
     let lib_dir = dst.join("build/hogd/test_ffi");
-    emit_link_config(&lib_dir);
-    copy_lib_to_deps(&lib_dir)?;
+    let staged_dir = stage_shared_lib(&lib_dir, out_dir)?;
+    emit_link_config(&staged_dir);
+    copy_lib_to_deps(&staged_dir)?;
     println!(
-        "cargo:warning=Built library from source at: {}",
-        dst.display()
+        "cargo:warning=Built library from source at: {}; staged at {}",
+        dst.display(),
+        staged_dir.display()
     );
 
     Ok(())

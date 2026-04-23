@@ -10,6 +10,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Bindings for the external Groundhog test environment"
+links = "groundhog_test_ffi"
 
 
 [lib]
@@ -38,4 +39,3 @@ tar = "0.4"
 flate2 = "1.0"
 sha2 = "0.10"
 fslock = "0.2"
-

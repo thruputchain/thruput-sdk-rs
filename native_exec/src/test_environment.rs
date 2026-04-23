@@ -9,6 +9,7 @@ use groundhog_sys::FFIErrorCode;
 use groundhog_xdr::address_auth::AddressAuthData;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
+use groundhog_xdr::storage_item::WireStorageItem;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
 use hogexec_internal::ffi_enums::InvokeErrorCode;
@@ -100,6 +101,36 @@ impl DBWrapper {
         >(res.data.as_slice().unwrap())
         .unwrap();
         StorageCostModel::new(data)
+    }
+
+    pub fn get_snapshot_storage_item(
+        &self,
+        addr: &ContractAddress,
+        key: &StorageKeyContractData,
+    ) -> Option<WireStorageItem> {
+        let addrkey = AddressAndKey {
+            address: *addr,
+            key: StorageKey::ContractData {
+                contract_data_key: *key,
+            },
+        };
+        let serialized_addrkey = txs::encode(&addrkey).unwrap();
+        let ffi_addrkey = groundhog_sys::FFISerializedAddressAndKey {
+            data: serialized_addrkey.as_ptr(),
+            len: serialized_addrkey.len().try_into().unwrap(),
+        };
+
+        let res = unsafe {
+            groundhog_sys::get_snapshot_storage_item(self.db, ffi_addrkey)
+        };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to get snapshot storage item: {err}");
+        }
+
+        res.data
+            .as_slice()
+            .map(|bytes| txs::decode::<WireStorageItem>(bytes).unwrap())
     }
 }
 
@@ -411,6 +442,14 @@ impl TestEnvironment {
         self.inner.borrow().get_current_cost_model()
     }
 
+    pub fn get_snapshot_storage_item(
+        self: &TestEnvironmentHandle,
+        addr: &ContractAddress,
+        key: &StorageKeyContractData,
+    ) -> Option<WireStorageItem> {
+        self.inner.borrow().db.get_snapshot_storage_item(addr, key)
+    }
+
     pub fn add_contract(self: &TestEnvironmentHandle) -> MockContract {
         let inner = self.inner.borrow_mut().add_contract();
         MockContract::new(inner, self.clone())
@@ -600,5 +639,87 @@ impl TestEnvironment {
             panic!("failed to run auth checks: {:?}", err);
         }
         res.auth_error_code.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use groundhog_xdr::storage_item::StorageDeltaFlags;
+
+    const TEST_ADDR: ContractAddress = ContractAddress::new([0x11; 32]);
+
+    #[test]
+    fn get_snapshot_storage_item_reads_committed_bytestring() {
+        let env = TestEnvironment::new(None);
+        let key = StorageKeyContractData::new([0x22; 32]);
+        env.setup_grant_storage_tokens(&TEST_ADDR, 1_000_000_000);
+
+        let result = env.transact(|tx| {
+            tx.call(&TEST_ADDR).run(|| {
+                groundhog_xdr::syscalls::raw_BytestringSet(
+                    &key,
+                    b"hello",
+                    StorageDeltaFlags::None.0,
+                )
+                .unwrap();
+            })
+        });
+        result.assert_success();
+
+        env.advance_block();
+
+        let item = env.get_snapshot_storage_item(&TEST_ADDR, &key);
+        assert_eq!(
+            item,
+            Some(WireStorageItem::kItemTypeBytestring {
+                bytestring: b"hello".to_vec().try_into().unwrap(),
+            }),
+        );
+    }
+
+    #[test]
+    fn get_snapshot_storage_item_returns_none_for_missing_key() {
+        let env = TestEnvironment::new(None);
+        let key = StorageKeyContractData::new([0x33; 32]);
+
+        assert_eq!(env.get_snapshot_storage_item(&TEST_ADDR, &key), None);
+    }
+
+    #[test]
+    fn get_snapshot_storage_item_reads_committed_bytestring_on_deployed_address()
+     {
+        let env = TestEnvironment::new(None);
+        let key = StorageKeyContractData::new([0x44; 32]);
+        env.setup_grant_storage_tokens(&TEST_ADDR, 1_000_000_000);
+        env.inner.borrow_mut().setup_create_deployment(
+            &TEST_ADDR,
+            &groundhog_xdr::contract::Contract::kNative {
+                native_contract_id:
+                    groundhog_xdr::precompiles::HogexecPrecompiledNativeContracts::kNativeContractHogToken,
+            },
+        );
+
+        let result = env.transact(|tx| {
+            tx.call(&TEST_ADDR).run(|| {
+                groundhog_xdr::syscalls::raw_BytestringSet(
+                    &key,
+                    b"hello",
+                    StorageDeltaFlags::None.0,
+                )
+                .unwrap();
+            })
+        });
+        result.assert_success();
+
+        env.advance_block();
+
+        let item = env.get_snapshot_storage_item(&TEST_ADDR, &key);
+        assert_eq!(
+            item,
+            Some(WireStorageItem::kItemTypeBytestring {
+                bytestring: b"hello".to_vec().try_into().unwrap(),
+            }),
+        );
     }
 }
