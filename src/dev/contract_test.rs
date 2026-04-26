@@ -263,14 +263,21 @@ where
         )
     });
 
-    let instrumented = groundhog_wasm_meter::instrument(&raw_wasm)
-        .unwrap_or_else(|e| {
-            panic!(
-                "{}: wasm instrumentation failed: {}",
-                path.as_ref().to_str().unwrap_or("?"),
-                e
-            )
-        });
+    let instrument_config = groundhog_wasm_meter::Config {
+        max_imported_functions: 1,
+        reject_floats: true,
+        ..groundhog_wasm_meter::Config::default()
+    };
+
+    let instrumented =
+        groundhog_wasm_meter::instrument(&raw_wasm, &instrument_config)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "{}: wasm instrumentation failed: {}",
+                    path.as_ref().to_str().unwrap_or("?"),
+                    e
+                )
+            });
 
     let contract: ContractBlob = ContractBlob {
         wasm: BytesM(instrumented),

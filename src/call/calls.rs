@@ -47,14 +47,17 @@ where
 {
     // Perform the cross-contract call
     let mut return_len = 0;
+    let mut auth_token_id_list_return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
     let result = sys::raw_Invoke(
         address,
         entrypoint,
         gas_limit,
         args.as_ref(),
-        0, // TODO(geoff): invoke flags go here
+        0,   // TODO(geoff): invoke flags go here
+        &[], // TODO(geoff): auth token id list goes here
         &mut return_len,
+        &mut auth_token_id_list_return_len,
     );
 
     let is_ok = match result {
@@ -70,7 +73,13 @@ where
     // Ok or exception: get the return data from the VM ...
 
     let mut return_buf = ReturnBuf::new();
-    if let Err(fault) = fill_return_buf(return_len, &mut return_buf) {
+    let mut auth_token_id_list_buf = ReturnBuf::new();
+    if let Err(fault) = fill_return_buf(
+        return_len,
+        auth_token_id_list_return_len,
+        &mut return_buf,
+        &mut auth_token_id_list_buf,
+    ) {
         return Err(if is_ok {
             RawCallError::UnparseableReturn(fault)
         } else {
@@ -90,14 +99,21 @@ where
 #[inline]
 fn fill_return_buf(
     return_len: u32,
+    auth_token_id_list_return_len: u32,
     return_buf: &mut ReturnBuf,
+    auth_token_id_list_buf: &mut ReturnBuf,
 ) -> Result<(), FaultString> {
     let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> =
         core::mem::MaybeUninit::uninit();
+    let mut auth_token_id_list_written_mu: core::mem::MaybeUninit<
+        RuntimeMemoryLength,
+    > = core::mem::MaybeUninit::uninit();
 
     sys::uninit_GetReturnedBuffer(
         return_buf.spare_capacity_mut(),
         &mut written_mu,
+        auth_token_id_list_buf.spare_capacity_mut(),
+        &mut auth_token_id_list_written_mu,
     )
     .map_err(FaultString::from_display)?;
 
@@ -114,6 +130,21 @@ fn fill_return_buf(
     // Safety: The VM reports above that this many bytes were written
     unsafe {
         return_buf.set_len(written as usize);
+    }
+
+    let written_auth_token_id_list =
+        unsafe { auth_token_id_list_written_mu.assume_init() };
+    if written_auth_token_id_list != auth_token_id_list_return_len {
+        return Err(FaultString::from_display(format_args!(
+            "unexpected auth token id list length from system call: \
+                    written = {written_auth_token_id_list}, \
+                    auth_token_id_list_return_len = {auth_token_id_list_return_len}"
+        )));
+    }
+
+    // Safety: The VM reports above that this many bytes were written
+    unsafe {
+        auth_token_id_list_buf.set_len(written_auth_token_id_list as usize);
     }
 
     Ok(())
