@@ -91,7 +91,8 @@ pub fn get_current_address() -> ContractAddress {
 
 pub fn try_get_calldata_len() -> SysResult<RuntimeMemoryLength> {
     let mut out: RuntimeMemoryLength = 0;
-    sys::raw_GetCalldataLen(&mut out)?;
+    let mut _auth_token_count: u32 = 0;
+    sys::raw_GetCalldataLen(&mut out, &mut _auth_token_count)?;
     Ok(out)
 }
 
@@ -108,7 +109,14 @@ pub fn try_get_calldata() -> SysResult<Calldata> {
 
     // Fetch the calldata from the VM, hoping our buffer is large enough
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
-    sys::uninit_GetCalldata(calldata.spare_capacity_mut(), &mut written)?;
+    let mut _auth_token_written: MaybeUninit<RuntimeMemoryLength> =
+        MaybeUninit::uninit();
+    sys::uninit_GetCalldata(
+        calldata.spare_capacity_mut(),
+        &mut written,
+        &mut [],
+        &mut _auth_token_written,
+    )?;
     let written = unsafe { written.assume_init() };
 
     // SAFETY: At least this many bytes of the buffer are now initialized

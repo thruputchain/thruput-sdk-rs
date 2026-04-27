@@ -86,6 +86,7 @@ pub mod log;
 pub mod precompiles;
 pub mod rt;
 pub mod serialize;
+pub mod signer;
 pub mod stats;
 pub mod types;
 
@@ -104,6 +105,7 @@ pub use panic::*;
 pub use re_throw::*;
 pub use rt::*;
 pub use serialize::*;
+pub use signer::*;
 pub use throw::*;
 pub use types::*;
 pub use util::*;
