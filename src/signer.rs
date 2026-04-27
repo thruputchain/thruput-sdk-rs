@@ -49,6 +49,15 @@ impl<T> core::fmt::Debug for Signer<T> {
     }
 }
 
+impl<T> Default for Signer<T> {
+    fn default() -> Self {
+        Self {
+            handle: u32::MAX,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 use crate::receive_auth_handles::ReceiveAuthHandles;
 
@@ -73,6 +82,32 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
         groundhog_contract_spec::ContractTypeInfo {
             ty: groundhog_contract_spec::view::ContractTypeView::U32,
         };
+}
+
+#[cfg(feature = "alloc")]
+use crate::mintable::{Mintable, UnsignedSigner};
+
+#[cfg(feature = "alloc")]
+impl<T: Mintable> Mintable for Signer<T> {
+    type Unsigned = UnsignedSigner<<T as Mintable>::Unsigned>;
+
+    fn mint_into_parent(
+        unsigned: UnsignedSigner<<T as Mintable>::Unsigned>,
+        children: &mut alloc::vec::Vec<crate::types::AuthTokenNode>,
+    ) -> Self {
+        let mut node = T::build_auth_token_node(unsigned.data);
+        node.consumer_address = unsigned.consumer;
+        children.push(node);
+        Signer::default()
+    }
+
+    fn build_auth_token_node(
+        unsigned: UnsignedSigner<<T as Mintable>::Unsigned>,
+    ) -> crate::types::AuthTokenNode {
+        let mut node = T::build_auth_token_node(unsigned.data);
+        node.consumer_address = unsigned.consumer;
+        node
+    }
 }
 
 pub fn mint_auth_token<T: WriteXDR>(

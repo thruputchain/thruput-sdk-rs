@@ -29,3 +29,8 @@ pub mod sys {
 
 // Shorthand for use in contracts
 pub use StorageKeyContractData as StorageKey;
+
+pub use groundhog_xdr::{AuthToken, AuthTokenNode, AuthTokenPayload};
+pub use groundhog_xdr::{
+    kAuthTokenMaxChildNodes, kAuthTokenMaxDepth, kAuthTokenMaxLen,
+};
