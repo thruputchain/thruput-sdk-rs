@@ -73,6 +73,7 @@ pub use call::ContractClient;
 // reorganization without breaking changes.
 pub mod auth_claim;
 pub mod block;
+pub mod collect_auth_handles;
 pub mod contract_op;
 pub mod crypto;
 pub mod deploy;
@@ -92,6 +93,7 @@ pub mod types;
 
 pub use auth_claim::*;
 pub use cell::*;
+pub use collect_auth_handles::*;
 pub use contract_op::*;
 pub use deploy::*;
 pub use event::*;

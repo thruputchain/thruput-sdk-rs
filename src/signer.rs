@@ -43,6 +43,15 @@ impl<'r, T> ReadXDR<'r> for Signer<T> {
     }
 }
 
+use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
+
+impl<T> CollectAuthHandles for Signer<T> {
+    #[inline(always)]
+    fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
+        out.push(self.handle).expect("auth handle buffer overflow");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
