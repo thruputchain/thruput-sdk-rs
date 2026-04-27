@@ -2,13 +2,9 @@
 
 ## Summary
 
-Add a `Mintable` trait, `UnsignedSigner<T>` type, and `Signer::consume()` method that let developers build and consume auth token trees as plain Rust structs. The `#[contracttype]` macro derives `Mintable` automatically, generating a companion "unsigned" type where `Signer<T>` fields become `UnsignedSigner<T::Unsigned>`. Minting recursively converts the unsigned struct into an `AuthTokenNode` tree and calls the `MintAuthToken` syscall. Consuming reverses the process via the `ConsumeAuthToken` syscall.
+Add a `Mintable` trait and `UnsignedSigner<T>` type that let developers build and consume auth token trees as plain Rust structs. The `#[contracttype]` macro derives `Mintable` automatically, generating a companion "unsigned" type where `Signer<T>` fields become `UnsignedSigner<T::Unsigned>`. Minting recursively converts the unsigned struct into an `AuthTokenNode` tree. Consuming reverses the process.
 
-## Motivation
-
-The `MintAuthToken` syscall expects a serialized `AuthTokenNode` (confirmed from the runtime C++ — `x23::deserialize(&auth_token.root_node, ...)` — the runtime wraps it with `mint_address` and `expiry_height` to form the full `AuthToken`). Each node has a consumer address, an opaque payload, and up to 4 child nodes. Manually constructing this tree is error-prone and leaks protocol internals into contract code.
-
-The SDK should let developers work with typed structs. A struct with `Signer<T>` fields maps naturally to the tree: each `Signer` becomes a child `AuthTokenNode`, and the remaining fields become the payload.
+**Key insight**: because `Signer<T>` serializes as zero bytes in XDR (see signer-token-design.md), the same `WriteXDR`/`ReadXDR` + `CollectAuthHandles`/`ReceiveAuthHandles` code paths work for both calldata and auth token payloads. The `Mintable` trait builds on this — it doesn't need a custom payload encoding.
 
 ## Protocol Types (from groundhog-xdr 0.9.2)
 
@@ -44,19 +40,19 @@ outputs:
 inputs:
   - token_id: u32
 outputs:
-  - auth_payload: span           # the consumed node's payload bytes
+  - auth_payload: span
   - unwrapped_auth_tokens: span  # child token handles as [u32]
   - unwrapped_auth_token_written_len: RuntimeMemoryLength
   - unwrapped_auth_token_count: u32
 ```
 
-Returns the payload of the consumed node plus new u32 handles for each child node. The child nodes remain in the runtime until consumed individually.
+Returns the payload of the consumed node plus new u32 handles for each child node.
 
 ## Design
 
 ### `UnsignedSigner<T>`
 
-A named wrapper pairing a consumer address with unsigned data. Lives in `src/signer.rs` alongside `Signer<T>`.
+A named wrapper pairing a consumer address with unsigned data.
 
 ```rust
 pub struct UnsignedSigner<T> {
@@ -65,7 +61,7 @@ pub struct UnsignedSigner<T> {
 }
 ```
 
-This is the unsigned form of a `Signer<T>`. When minting, each `UnsignedSigner` becomes one `AuthTokenNode` in the tree.
+The unsigned form of a `Signer<T>`. Each `UnsignedSigner` becomes one `AuthTokenNode` in the tree.
 
 ### `Mintable` Trait
 
@@ -74,20 +70,30 @@ pub trait Mintable: Sized {
     type Unsigned;
 
     fn build_auth_token_node(unsigned: Self::Unsigned) -> AuthTokenNode;
-
-    fn from_consumed(payload: &[u8], child_handles: &mut impl Iterator<Item = u32>) -> Self;
 }
 ```
 
-- `Unsigned`: the companion type used to construct values before minting.
-- `build_auth_token_node`: recursively converts an unsigned value into an `AuthTokenNode`. Returns a node with a placeholder `consumer_address` — the `Signer<T>` impl sets the real consumer from `UnsignedSigner`.
-- `from_consumed`: reconstructs the type from a consumed node's payload bytes and a stream of child handles. Greedy: each Signer slot pops the next handle from the iterator.
+- `Unsigned`: companion type for constructing values before minting.
+- `build_auth_token_node`: recursively converts an unsigned value into an `AuthTokenNode`. Returns a node with a placeholder `consumer_address`; the `Signer<T>` impl sets the real consumer from `UnsignedSigner`.
+
+No `from_consumed` method on the trait — consuming uses the standard `ReadXDR` + `ReceiveAuthHandles` code path (same as calldata decoding). See "Consuming" section below.
+
+### Payload Encoding
+
+Because `Signer<T>` serializes as zero bytes in XDR, the payload of each `AuthTokenNode` is just `WriteXDR` of the type:
+
+- Non-Signer fields serialize normally
+- `Signer<T>` fields contribute zero bytes
+- `Option` discriminants and `Vec` lengths are preserved (structural metadata)
+- Signer handles are **never** in the payload — they are runtime-local ephemeral IDs
+
+Child nodes correspond to Signer fields by depth-first traversal order (same as `CollectAuthHandles`).
 
 ### Trait Implementations
 
 #### Primitive types
 
-For types with no `Signer` fields, unsigned form is the type itself. The node is a leaf (payload = XDR of value, no children). Consuming reads the full payload.
+For types with no Signer fields, unsigned form is the type itself. Leaf node.
 
 ```rust
 impl Mintable for u64 {
@@ -95,14 +101,10 @@ impl Mintable for u64 {
 
     fn build_auth_token_node(unsigned: u64) -> AuthTokenNode {
         AuthTokenNode {
-            consumer_address: ContractAddress::default(),
+            consumer_address: ContractAddress::default(), // placeholder
             payload: xdr_encode(&unsigned),
             child_nodes: VecM::default(),
         }
-    }
-
-    fn from_consumed(payload: &[u8], _handles: &mut impl Iterator<Item = u32>) -> Self {
-        xdr_decode(payload)
     }
 }
 ```
@@ -122,45 +124,10 @@ impl<T: Mintable> Mintable for Signer<T> {
         node.consumer_address = unsigned.consumer;
         node
     }
-
-    fn from_consumed(_payload: &[u8], handles: &mut impl Iterator<Item = u32>) -> Self {
-        Signer::from_handle(handles.next().expect("missing child handle"))
-    }
 }
 ```
 
-At mint: builds the inner node, then sets consumer from `UnsignedSigner`.
-
-At consume: pops the next child handle from the iterator. The `Signer<T>` is now a live handle that can be consumed again later to get the inner `T`.
-
-#### `Option<Signer<T>>` and `Vec<Signer<T>>`
-
-These work naturally with the greedy iterator approach.
-
-**`Option<T>` where T: Mintable:**
-
-```rust
-impl<T: Mintable> Mintable for Option<T> {
-    type Unsigned = Option<T::Unsigned>;
-
-    fn build_auth_token_node(unsigned: Option<T::Unsigned>) -> AuthTokenNode {
-        // Payload: discriminant (0 or 1) + inner payload if Some
-        // Children: inner's children if Some, none if None
-    }
-
-    fn from_consumed(payload: &[u8], handles: &mut impl Iterator<Item = u32>) -> Self {
-        // Read discriminant from payload
-        // If Some: T::from_consumed(remaining_payload, handles)
-        // If None: None (no handles consumed)
-    }
-}
-```
-
-**`Vec<T>` / slices where T: Mintable:**
-
-At mint: payload contains the length, then each element's non-signer data. Each element's Signer fields become child nodes.
-
-At consume: read length from payload, then reconstruct each element via `T::from_consumed`, which greedily pops handles as needed.
+Builds the inner node, then sets consumer from `UnsignedSigner`. This is the only place consumer addresses are set.
 
 #### `#[contracttype]` structs
 
@@ -188,68 +155,52 @@ impl ::sdk::Mintable for Transfer {
     type Unsigned = __groundhog_mintable::TransferUnsigned;
 
     fn build_auth_token_node(unsigned: Self::Unsigned) -> ::sdk::AuthTokenNode {
-        // Walk fields in declaration order:
-        // - amount (non-Signer): XDR-encode into payload
-        // - auth (Signer): build child AuthTokenNode
-
+        // 1. Build child AuthTokenNodes from Signer fields via CollectAuthHandles-like walk
         let auth_child = <::sdk::Signer<SubAuth> as ::sdk::Mintable>::build_auth_token_node(
             unsigned.auth,
         );
 
-        let payload = ::sdk::xdr_encode(&unsigned.amount);
+        // 2. Payload = WriteXDR of the struct (Signers write zero bytes)
+        //    Construct a Transfer with the non-Signer values and a default Signer
+        let payload_value = Transfer {
+            amount: unsigned.amount,
+            auth: ::sdk::Signer::default(),  // handle value is irrelevant — writes 0 bytes
+        };
+        let payload = ::sdk::xdr_encode(&payload_value);
 
+        // 3. Assemble the node
         ::sdk::AuthTokenNode {
-            consumer_address: ::sdk::ContractAddress::default(),
+            consumer_address: ::sdk::ContractAddress::default(), // placeholder
             payload,
             child_nodes: ::sdk::auth_token_children(&[auth_child]),
         }
     }
-
-    fn from_consumed(
-        payload: &[u8],
-        handles: &mut impl Iterator<Item = u32>,
-    ) -> Self {
-        // Walk fields in declaration order:
-        // - amount (non-Signer): XDR-decode from payload
-        // - auth (Signer): pop next handle
-
-        let mut reader = ::sdk::xdr_reader(payload);
-        let amount = u64::xdr_read(&mut reader);
-        let auth = <::sdk::Signer<SubAuth>>::from_consumed(&[], handles);
-
-        Transfer { amount, auth }
-    }
 }
 ```
 
-### Payload Encoding Strategy
+The resolving types:
+- `<u64 as Mintable>::Unsigned` = `u64`
+- `<Signer<SubAuth> as Mintable>::Unsigned` = `UnsignedSigner<SubAuth>` (if SubAuth has no Signers)
 
-The payload is a **structural walk** of the type where:
+Developer writes:
 
-- **Non-Signer fields**: serialized as XDR inline (standard `WriteXDR`)
-- **Signer fields**: contribute 0 bytes to payload; become child nodes instead
-- **`Option<T>` containing Signers**: discriminant written to payload; if Some, inner T's non-signer parts go in payload, inner T's signers go to children
-- **`Vec<T>` containing Signers**: length written to payload; each element's non-signer parts go in payload, signers go to children
+```rust
+let unsigned = <Transfer as Mintable>::Unsigned {
+    amount: 100,
+    auth: UnsignedSigner {
+        consumer: token_contract_addr,
+        data: SubAuth { nonce: 42 },
+    },
+};
+```
 
-Signer handles are ephemeral runtime-local IDs (allocated from a bump allocator) and must never appear in the persisted `AuthTokenNode` tree.
+#### Types with no Signer fields
 
-The correspondence between child nodes and Signer fields is **greedy positional**: child handles are consumed in the order that Signer slots are encountered during a depth-first walk of the type. This is deterministic from the type layout.
-
-**Example**: struct with fields `[x: u32, opt: Option<Signer<A>>, y: i64, items: Vec<Signer<B>>]`:
-
-Mint (assuming opt=Some, items has 2 elements):
-- Payload bytes: `XDR(x) || discriminant(1) || XDR(y) || length(2)`
-- child_nodes: `[A_node, B_node_0, B_node_1]`
-
-Consume:
-- Read `x` from payload → u32
-- Read discriminant=1 → Some, pop handle → `Some(Signer(h0))`
-- Read `y` from payload → i64
-- Read length=2, pop 2 handles → `vec![Signer(h1), Signer(h2)]`
+If all fields have `Unsigned = Self` (no direct Signer fields), the macro can set `type Unsigned = Self` and use standard `WriteXDR` directly. The companion struct is isomorphic anyway.
 
 ### `mint_auth_token` function
 
-The top-level minting entry point takes an `UnsignedSigner` so the root consumer is provided the same way as nested consumers:
+Takes an `UnsignedSigner` for uniform consumer handling:
 
 ```rust
 pub fn mint_auth_token<T: Mintable>(
@@ -263,39 +214,39 @@ pub fn mint_auth_token<T: Mintable>(
 }
 ```
 
-### `Signer::consume` method
+### Consuming
+
+`Signer::consume` uses the same `ReadXDR` + `ReceiveAuthHandles` pattern as calldata decoding:
 
 ```rust
-impl<T: Mintable> Signer<T> {
+impl<T: ReadXDROwned + ReceiveAuthHandles> Signer<T> {
     pub fn consume(self) -> T {
-        // Call ConsumeAuthToken syscall with self.handle
-        // Returns: payload bytes + child handle list
         let (payload, child_handles) = syscall_consume(self.handle);
+        let mut value: T = xdr_decode(&payload);
         let mut handles = child_handles.iter().copied();
-        T::from_consumed(&payload, &mut handles)
+        value.receive_auth_handles(&mut handles);
+        value
     }
 }
 ```
+
+This is identical to how entrypoint codegen decodes calldata:
+1. `ReadXDR` → struct with Signer handles uninitialized (zero bytes read)
+2. `ReceiveAuthHandles` → fill in handles from side channel
+
+No `Mintable::from_consumed` method needed — the standard traits handle it.
 
 ### Example: Nested Signers
 
 ```rust
 #[contracttype]
-struct Outer {
-    x: u32,
-    inner: Signer<Inner>,
-}
+struct Outer { x: u32, inner: Signer<Inner> }
 
 #[contracttype]
-struct Inner {
-    y: u64,
-    deep: Signer<Leaf>,
-}
+struct Inner { y: u64, deep: Signer<Leaf> }
 
 #[contracttype]
-struct Leaf {
-    data: u32,
-}
+struct Leaf { data: u32 }
 ```
 
 **Minting:**
@@ -321,63 +272,59 @@ let unsigned = UnsignedSigner {
 let signer: Signer<Outer> = mint_auth_token::<Outer>(expiry, unsigned);
 ```
 
-Produces tree:
+Tree:
 
 ```
 AuthTokenNode (consumer = root_consumer)
-├── payload: XDR(x=1)
+├── payload: WriteXDR(Outer { x: 1, inner: Signer(default) })
+│            = just the bytes for x=1, inner contributes 0 bytes
 └── child[0]: AuthTokenNode (consumer = contract_a)
-    ├── payload: XDR(y=2)
+    ├── payload: WriteXDR(Inner { y: 2, deep: Signer(default) })
+    │            = just the bytes for y=2
     └── child[0]: AuthTokenNode (consumer = contract_b)
-        ├── payload: XDR(data=3)
+        ├── payload: WriteXDR(Leaf { data: 3 })
         └── children: []
 ```
 
-**Consuming** (at root_consumer's contract):
+**Consuming** (at root_consumer):
 
 ```rust
 let outer: Outer = signer.consume();
-// outer.x == 1
-// outer.inner is a Signer<Inner> with a live handle
+// ReadXDR(payload) → Outer { x: 1, inner: Signer(uninit) }
+// ReceiveAuthHandles → Outer { x: 1, inner: Signer(child_handle_0) }
 
 let inner: Inner = outer.inner.consume();  // at contract_a
-// inner.y == 2
-// inner.deep is a Signer<Leaf> with a live handle
-
 let leaf: Leaf = inner.deep.consume();     // at contract_b
-// leaf.data == 3
 ```
 
 ### Constraints
 
-- **Max depth**: 4 (`kAuthTokenMaxDepth`). Nesting more than 4 levels of `Signer` will fail at runtime.
-- **Max children per node**: 4 (`kAuthTokenMaxChildNodes`). A struct with more than 4 Signer fields at one level will fail at runtime. `Vec<Signer<T>>` with >4 elements will also fail.
-- **Max payload**: 256 bytes (`kAuthTokenMaxLen`). The XDR-encoded non-Signer data of each individual node must fit.
+- **Max depth**: 4 (`kAuthTokenMaxDepth`)
+- **Max children per node**: 4 (`kAuthTokenMaxChildNodes`)
+- **Max payload**: 256 bytes (`kAuthTokenMaxLen`)
 
-These are runtime limits, not compile-time. The SDK could add compile-time checks later.
+Runtime limits, not compile-time.
 
 ### Changes Required
 
-#### New types and traits (`src/signer.rs` or `src/mintable.rs`)
+#### New types (`src/signer.rs`)
 - `UnsignedSigner<T>` struct
-- `Mintable` trait definition (with `build_auth_token_node` and `from_consumed`)
-- `Mintable` impl for `Signer<T>`
-- Updated `mint_auth_token` function using the trait
-- `Signer::consume` method (once ConsumeAuthToken syscall is available)
 
-#### `Mintable` impls for primitives
-- Macro-generated impls for all primitive types, byte types, `Option<T>`, `Vec<T>`, tuples
-- Pattern mirrors `CollectAuthHandles` impls
+#### `Mintable` trait + impls
+- Trait definition with `Unsigned` + `build_auth_token_node`
+- Primitive impls (macro), `Signer<T>` impl, `Option`, `Vec`, tuples
+- `#[contracttype]` macro generates companion unsigned struct + `Mintable` impl
 
-#### `#[contracttype]` macro changes (`macros/src/contract_type.rs`)
-- Generate companion unsigned struct in a private `__groundhog_mintable` module
-- Generate `Mintable` impl with `build_auth_token_node` and `from_consumed`
-- Field-by-field walk: non-Signer fields serialize/deserialize inline, Signer fields become/consume child nodes
+#### Updated `mint_auth_token`
+- Takes `UnsignedSigner`, builds tree, serializes `AuthTokenNode`, calls syscall
 
-#### Re-export auth token types from groundhog-xdr
-- `src/types.rs`: add `pub use groundhog_xdr::auth_token::*;`
+#### `Signer::consume`
+- Calls `ConsumeAuthToken` syscall, uses `ReadXDR` + `ReceiveAuthHandles`
+
+#### `ReceiveAuthHandles` trait (from signer-token-design.md)
+- Needed for both calldata decoding and consume — same trait, same impls
 
 ### Deferred Work
 
-- **Compile-time depth/width checks**: Static assertions that the Signer nesting depth doesn't exceed `kAuthTokenMaxDepth`.
-- **`#[contracttype]` enum support for Mintable**: Enums with Signer-containing variants.
+- **Compile-time depth/width checks**
+- **`#[contracttype]` enum support for Mintable**
