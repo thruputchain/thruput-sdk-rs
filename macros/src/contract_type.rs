@@ -57,6 +57,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             let name = expand_contract_type_name(ident, &args);
             let collect_auth = expand_collect_auth_handles_struct(&item);
             let receive_auth = expand_receive_auth_handles_struct(&item);
+            let mintable = expand_mintable_struct(&item);
             let export_attr = if args.export == Some(true) {
                 quote! { #[contract_type_spec(export)] }
             } else {
@@ -73,6 +74,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #collect_auth
 
                 #receive_auth
+
+                #mintable
             }
         }
         other => syn::Error::new_spanned(
@@ -206,6 +209,84 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
             ) {
                 match self {
                     #(#arms,)*
+                }
+            }
+        }
+    }
+}
+
+fn to_snake_case(s: &str) -> String {
+    let mut out = String::new();
+    for (i, ch) in s.chars().enumerate() {
+        if ch.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.extend(ch.to_lowercase());
+    }
+    out
+}
+
+fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
+    let ident = &item.ident;
+    let unsigned_ident = quote::format_ident!("{}Unsigned", ident);
+    let snake = to_snake_case(&ident.to_string());
+    let mintable_mod_ident =
+        quote::format_ident!("__groundhog_mintable_{}", snake);
+
+    let fields = match &item.fields {
+        syn::Fields::Named(fields) => &fields.named,
+        _ => {
+            return syn::Error::new_spanned(
+                item,
+                "Mintable derive requires named fields",
+            )
+            .into_compile_error();
+        }
+    };
+
+    let unsigned_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let name = &f.ident;
+            let ty = &f.ty;
+            quote! { pub #name: <#ty as ::sdk::Mintable>::Unsigned }
+        })
+        .collect();
+
+    let mint_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let name = &f.ident;
+            let ty = &f.ty;
+            quote! {
+                #name: <#ty as ::sdk::Mintable>::mint_into_parent(
+                    unsigned.#name, children,
+                )
+            }
+        })
+        .collect();
+
+    quote! {
+        #[cfg(feature = "alloc")]
+        mod #mintable_mod_ident {
+            #[allow(unused_imports)]
+            use super::*;
+
+            pub struct #unsigned_ident {
+                #(#unsigned_fields,)*
+            }
+        }
+
+        #[cfg(feature = "alloc")]
+        impl ::sdk::Mintable for #ident {
+            type Unsigned = #mintable_mod_ident::#unsigned_ident;
+
+            fn mint_into_parent(
+                unsigned: Self::Unsigned,
+                children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
+            ) -> Self {
+                Self {
+                    #(#mint_fields,)*
                 }
             }
         }
