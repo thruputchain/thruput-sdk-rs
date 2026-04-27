@@ -1,5 +1,5 @@
 use super::fault::*;
-use super::{CallingError, HandlingError, AuthTokenError};
+use super::{AuthTokenError, CallingError, HandlingError};
 #[cfg(feature = "storage")]
 use crate::storage::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};

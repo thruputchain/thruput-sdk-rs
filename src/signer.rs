@@ -5,11 +5,27 @@ use crate::{AuthTokenError, xdr::*};
 use core::marker::PhantomData;
 use groundhog_xdr::types::BlockHeight;
 
-#[derive(Clone, Copy, ReadXDR, WriteXDR)]
-#[xdrs(crate = "crate::__xdrs")]
+#[derive(Clone, Copy)]
 pub struct Signer<T> {
     handle: u32,
     _phantom: PhantomData<T>,
+}
+
+impl<T> WriteXDR for Signer<T> {
+    #[inline(always)]
+    fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
+        Ok(())
+    }
+}
+
+impl<'r, T> ReadXDR<'r> for Signer<T> {
+    #[inline(always)]
+    fn read_xdr<R: Reader<'r>>(_r: &mut R) -> ReadResult<Self> {
+        Ok(Self {
+            handle: u32::MAX, // sentinel — must be filled by ReceiveAuthHandles
+            _phantom: PhantomData,
+        })
+    }
 }
 
 impl<T> Signer<T> {
@@ -34,11 +50,21 @@ impl<T> core::fmt::Debug for Signer<T> {
 }
 
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
+use crate::receive_auth_handles::ReceiveAuthHandles;
 
 impl<T> CollectAuthHandles for Signer<T> {
     #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
         out.push(self.handle).expect("auth handle buffer overflow");
+    }
+}
+
+impl<T> ReceiveAuthHandles for Signer<T> {
+    fn receive_auth_handles(
+        &mut self,
+        handles: &mut impl Iterator<Item = u32>,
+    ) {
+        self.handle = handles.next().expect("missing auth handle for Signer");
     }
 }
 
@@ -75,35 +101,59 @@ mod tests {
     use core::mem::MaybeUninit;
 
     #[test]
-    fn signer_xdr_roundtrip() {
+    fn signer_xdr_writes_zero_bytes() {
         let signer: Signer<u64> = Signer::from_handle(42);
-
         let mut buf: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
         let written = cxs::encode_into(&signer, &mut buf).unwrap();
-        assert!(written > 0);
-
-        // SAFETY: encode_into initialized `written` bytes.
-        let init: &[u8] = unsafe {
-            core::slice::from_raw_parts(buf.as_ptr() as *const u8, written)
-        };
-        let decoded: Signer<u64> = cxs::decode(init).unwrap();
-        assert_eq!(decoded.handle(), 42);
+        assert_eq!(written, 0);
     }
 
     #[test]
-    fn signer_xdr_as_tuple_member() {
+    fn signer_xdr_reads_sentinel() {
+        let decoded: Signer<u64> = cxs::decode(&[]).unwrap();
+        assert_eq!(decoded.handle(), u32::MAX);
+    }
+
+    #[test]
+    fn signer_xdr_in_tuple_excludes_handle() {
         let args: (u64, Signer<u32>, i32) = (100, Signer::from_handle(7), -1);
 
         let mut buf: [MaybeUninit<u8>; 64] = [MaybeUninit::uninit(); 64];
         let written = cxs::encode_into(&args, &mut buf).unwrap();
 
-        // SAFETY: encode_into initialized `written` bytes.
         let init: &[u8] = unsafe {
             core::slice::from_raw_parts(buf.as_ptr() as *const u8, written)
         };
+
+        // Decode: Signer reads 0 bytes (gets sentinel), other fields normal
         let decoded: (u64, Signer<u32>, i32) = cxs::decode(init).unwrap();
         assert_eq!(decoded.0, 100);
-        assert_eq!(decoded.1.handle(), 7);
+        assert_eq!(decoded.1.handle(), u32::MAX); // sentinel, not 7
         assert_eq!(decoded.2, -1);
+    }
+
+    #[test]
+    fn signer_receive_auth_handles() {
+        use crate::collect_auth_handles::CollectAuthHandles;
+
+        // Decode with sentinel handles
+        let mut args: (u64, Signer<u32>, i32, Signer<bool>) = (
+            100,
+            Signer::from_handle(u32::MAX),
+            -1,
+            Signer::from_handle(u32::MAX),
+        );
+
+        // Fill in real handles
+        let mut iter = [10u32, 20u32].into_iter();
+        args.receive_auth_handles(&mut iter);
+
+        assert_eq!(args.1.handle(), 10);
+        assert_eq!(args.3.handle(), 20);
+
+        // Verify CollectAuthHandles works on the result
+        let mut buf = crate::collect_auth_handles::AuthHandleBuf::new();
+        args.collect_auth_handles(&mut buf);
+        assert_eq!(buf.as_slice(), &[10, 20]);
     }
 }
