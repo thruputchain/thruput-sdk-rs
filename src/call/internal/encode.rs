@@ -67,3 +67,23 @@ pub fn contract_result_encode(r: &ContractResult) -> ReturnBuf {
         }
     })
 }
+
+use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
+
+pub fn collect_auth_handle_bytes<T: CollectAuthHandles>(
+    args: &T,
+) -> AuthHandleBuf {
+    let mut handles = AuthHandleBuf::new();
+    args.collect_auth_handles(&mut handles);
+    handles
+}
+
+pub fn auth_handles_as_bytes(handles: &[u32]) -> &[u8] {
+    // Safety: &[u32] → &[u8] is always valid; u8 has alignment 1.
+    unsafe {
+        core::slice::from_raw_parts(
+            handles.as_ptr() as *const u8,
+            handles.len() * core::mem::size_of::<u32>(),
+        )
+    }
+}

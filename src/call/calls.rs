@@ -16,15 +16,22 @@ pub fn try_call_raw<ARGS, RET>(
     args: &ARGS,
 ) -> Result<RET, RawCallError>
 where
-    ARGS: WriteXDR,
+    ARGS: WriteXDR + crate::CollectAuthHandles,
     RET: ReadXDROwned,
 {
     let args_buf = contract_call_encode(args).unwrap_or_else(|e| {
         library_throw(CallingError::EncodingArgs(FaultString::from_display(e)))
     });
 
-    let contract_result =
-        contract_call(address, entrypoint, gas_limit, &args_buf)?;
+    let auth_handles = super::internal::collect_auth_handle_bytes(args);
+
+    let contract_result = contract_call(
+        address,
+        entrypoint,
+        gas_limit,
+        &args_buf,
+        &auth_handles,
+    )?;
 
     into_raw_call_result(contract_result)
 }
@@ -41,6 +48,7 @@ pub fn contract_call<A>(
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &A,
+    auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
 ) -> Result<ContractResult, RawCallError>
 where
     A: AsRef<[u8]> + ?Sized,
@@ -49,13 +57,15 @@ where
     let mut return_len = 0;
     let mut auth_token_id_list_return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
+    let auth_bytes =
+        super::internal::auth_handles_as_bytes(auth_token_ids.as_slice());
     let result = sys::raw_Invoke(
         address,
         entrypoint,
         gas_limit,
         args.as_ref(),
-        0,   // TODO(geoff): invoke flags go here
-        &[], // TODO(geoff): auth token id list goes here
+        0, // TODO(geoff): invoke flags go here
+        auth_bytes,
         &mut return_len,
         &mut auth_token_id_list_return_len,
     );
