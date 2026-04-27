@@ -52,6 +52,13 @@ impl<T> CollectAuthHandles for Signer<T> {
     }
 }
 
+impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
+    const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
+        groundhog_contract_spec::ContractTypeInfo {
+            ty: groundhog_contract_spec::view::ContractTypeView::U32,
+        };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

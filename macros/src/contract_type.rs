@@ -24,6 +24,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
+            let collect_auth = expand_collect_auth_handles_enum(&item);
             let export_attr = if args.export == Some(true) {
                 quote! { #[contract_type_spec(export)] }
             } else {
@@ -37,6 +38,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #item
 
                 #name
+
+                #collect_auth
             }
         }
         Item::Struct(item) => {
@@ -49,6 +52,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
+            let collect_auth = expand_collect_auth_handles_struct(&item);
             let export_attr = if args.export == Some(true) {
                 quote! { #[contract_type_spec(export)] }
             } else {
@@ -61,6 +65,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #item
 
                 #name
+
+                #collect_auth
             }
         }
         other => syn::Error::new_spanned(
@@ -76,4 +82,91 @@ fn expand_contract_type_name(
     args: &ContractTypeArgs,
 ) -> TokenStream {
     crate::contract_type_name_impl(ident, args.name.as_deref())
+}
+
+fn expand_collect_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
+    let ident = &item.ident;
+    let field_calls: Vec<TokenStream> = match &item.fields {
+        syn::Fields::Named(fields) => fields
+            .named
+            .iter()
+            .map(|f| {
+                let name = &f.ident;
+                quote! { self.#name.collect_auth_handles(out); }
+            })
+            .collect(),
+        syn::Fields::Unnamed(fields) => fields
+            .unnamed
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                let idx = syn::Index::from(i);
+                quote! { self.#idx.collect_auth_handles(out); }
+            })
+            .collect(),
+        syn::Fields::Unit => vec![],
+    };
+
+    quote! {
+        impl ::sdk::CollectAuthHandles for #ident {
+            fn collect_auth_handles(
+                &self,
+                out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
+            ) {
+                #(#field_calls)*
+            }
+        }
+    }
+}
+
+fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
+    let ident = &item.ident;
+    let arms: Vec<TokenStream> = item
+        .variants
+        .iter()
+        .map(|variant| {
+            let vident = &variant.ident;
+            match &variant.fields {
+                syn::Fields::Named(fields) => {
+                    let names: Vec<_> =
+                        fields.named.iter().map(|f| &f.ident).collect();
+                    let calls: Vec<TokenStream> = names
+                        .iter()
+                        .map(|n| quote! { #n.collect_auth_handles(out); })
+                        .collect();
+                    quote! {
+                        Self::#vident { #(#names),* } => { #(#calls)* }
+                    }
+                }
+                syn::Fields::Unnamed(fields) => {
+                    let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
+                        .map(|i| quote::format_ident!("f{}", i))
+                        .collect();
+                    let calls: Vec<TokenStream> = bindings
+                        .iter()
+                        .map(|b| quote! { #b.collect_auth_handles(out); })
+                        .collect();
+                    quote! {
+                        Self::#vident(#(#bindings),*) => { #(#calls)* }
+                    }
+                }
+                syn::Fields::Unit => {
+                    quote! { Self::#vident => {} }
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        impl ::sdk::CollectAuthHandles for #ident {
+            fn collect_auth_handles(
+                &self,
+                out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
+            ) {
+                match self {
+                    #(#arms,)*
+                }
+            }
+        }
+    }
 }
