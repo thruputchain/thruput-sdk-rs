@@ -762,9 +762,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.9.1"
+version = "0.9.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "e2cef1adb690148862e6c49d2b07c9797383760333e29fdbc6dfb465a2fc6e79"
+checksum = "2cc86b0c1b1098779b483a8ff36a076ca4dc11baee9d75e4539f76cf0c8bf875"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -784,9 +784,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.9.1"
+version = "0.9.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "0a38b4fdbba5c993f22491996aff774e64f8d034bc0a4b04f98d4c4c1f311132"
+checksum = "7dfb188f66a78f04730116034c7b19e0c35163313fa718661844957d404d84f3"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -798,9 +798,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.9.1"
+version = "0.9.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "3dc030b058d6bc934ebef29bc53afc305e4c55878398d8e2b7cf3eb0a0457065"
+checksum = "eefffc82d62999c42a0e9ace6cf2eb0804cf3b07550cbbe58ec23d3269e6e7a4"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -892,9 +892,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.9.1"
+version = "0.9.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "c387a2d178d723a731ea6b2c18fb62ea07a6035cd46a129b7e792e2aaacd5a7a"
+checksum = "778afec915e226709416e684ec518ab27b161bf8bdc25a20b6c0773a7aa0310d"
 dependencies = [
  "xdrs",
 ]
@@ -1816,6 +1816,24 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "signer_callee"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_callee",
+]
+
+[[package]]
+name = "signer_caller"
+version = "0.3.0"
+dependencies = [
+ "groundhog-contract-util",
+ "sdk",
+ "signer_callee",
+ "signer_caller",
+]
 
 [[package]]
 name = "simd-adler32"

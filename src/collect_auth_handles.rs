@@ -53,7 +53,8 @@ impl<T: CollectAuthHandles> CollectAuthHandles for [T] {
     }
 }
 
-impl<T: CollectAuthHandles, const MAX: u32> CollectAuthHandles
+#[cfg(feature = "alloc")]
+impl<T: CollectAuthHandles + 'static, const MAX: u32> CollectAuthHandles
     for xdrs::VecM<T, MAX>
 {
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
@@ -64,6 +65,23 @@ impl<T: CollectAuthHandles, const MAX: u32> CollectAuthHandles
 impl<const MAX: u32> CollectAuthHandles for xdrs::BytesM<MAX> {
     #[inline(always)]
     fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
+}
+
+impl CollectAuthHandles for crate::types::ContractAddress {
+    #[inline(always)]
+    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
+}
+
+impl CollectAuthHandles for crate::types::SHA256Hash {
+    #[inline(always)]
+    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
+}
+
+#[cfg(feature = "alloc")]
+impl<T: CollectAuthHandles> CollectAuthHandles for alloc::vec::Vec<T> {
+    fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
+        self.as_slice().collect_auth_handles(out);
+    }
 }
 
 macro_rules! impl_collect_tuple {

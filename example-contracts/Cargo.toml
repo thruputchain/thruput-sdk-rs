@@ -38,6 +38,8 @@ members = [
     "imported_error_type",
     "imported_error_callee",
     "imported_error_caller",
+    "signer_callee",
+    "signer_caller",
 ]
 
 [workspace.package]

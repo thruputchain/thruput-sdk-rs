@@ -75,7 +75,8 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
     }
 }
 
-impl<T: ReceiveAuthHandles, const MAX: u32> ReceiveAuthHandles
+#[cfg(feature = "alloc")]
+impl<T: ReceiveAuthHandles + 'static, const MAX: u32> ReceiveAuthHandles
     for xdrs::VecM<T, MAX>
 {
     fn receive_auth_handles(
@@ -94,6 +95,42 @@ impl<const MAX: u32> ReceiveAuthHandles for xdrs::BytesM<MAX> {
         &mut self,
         _handles: &mut impl Iterator<Item = u32>,
     ) {
+    }
+}
+
+impl ReceiveAuthHandles for crate::types::ContractAddress {
+    #[inline(always)]
+    fn receive_auth_handles(
+        &mut self,
+        _handles: &mut impl Iterator<Item = u32>,
+    ) {
+    }
+}
+
+impl ReceiveAuthHandles for crate::types::SHA256Hash {
+    #[inline(always)]
+    fn receive_auth_handles(
+        &mut self,
+        _handles: &mut impl Iterator<Item = u32>,
+    ) {
+    }
+}
+
+impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &T {
+    fn receive_auth_handles(
+        &mut self,
+        _handles: &mut impl Iterator<Item = u32>,
+    ) {
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T: ReceiveAuthHandles> ReceiveAuthHandles for alloc::vec::Vec<T> {
+    fn receive_auth_handles(
+        &mut self,
+        handles: &mut impl Iterator<Item = u32>,
+    ) {
+        self.as_mut_slice().receive_auth_handles(handles);
     }
 }
 

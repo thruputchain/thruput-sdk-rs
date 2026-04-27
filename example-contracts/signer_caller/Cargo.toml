@@ -1,0 +1,29 @@
+[package]
+name = "signer_caller"
+description = "A contract that passes a Signer<T> to another contract"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "signer_callee/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+signer_callee = { path = "../signer_callee" }
+
+[dev-dependencies]
+signer_caller = { path = ".", features = ["dev"] }
+groundhog-contract-util = { workspace = true }
