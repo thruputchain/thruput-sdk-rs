@@ -85,6 +85,16 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
     AuthTokenPayload::from(bytes)
 }
 
+pub fn encode_auth_token_node(node: &AuthTokenNode) -> alloc::vec::Vec<u8> {
+    let mut buf = alloc::vec::Vec::new();
+    xdrs::txs::encode_into_vec(node, &mut buf).unwrap_or_else(|e| {
+        crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
+            crate::exn::FaultString::from_display(e),
+        ))
+    });
+    buf
+}
+
 pub fn auth_token_children(
     nodes: alloc::vec::Vec<AuthTokenNode>,
 ) -> xdrs::VecM<AuthTokenNode, kAuthTokenMaxChildNodes> {
@@ -146,8 +156,21 @@ The `WriteXDR` bound on `Mintable` is satisfied because `Signer<T>` already impl
 
 - [ ] **Step 5: Register module in `src/lib.rs`**
 
-Add `pub mod mintable;` alongside other module declarations.
-Add `pub use mintable::*;` alongside other re-exports.
+Add alongside other module declarations:
+
+```rust
+#[cfg(feature = "alloc")]
+pub mod mintable;
+```
+
+Add alongside other re-exports:
+
+```rust
+#[cfg(feature = "alloc")]
+pub use mintable::*;
+```
+
+The `alloc` feature is required because `Mintable` uses `Vec<AuthTokenNode>` for child collection and `Vec<u8>` for auth token serialization. The `alloc` feature is enabled by `storage`, `dev`, and `std` features, covering all practical use cases.
 
 - [ ] **Step 6: Add unit tests in `src/mintable.rs`**
 
@@ -267,18 +290,53 @@ impl Mintable for crate::types::SHA256Hash {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [ ] **Step 2: Add `Option<T>` impl**
+
+```rust
+impl<T: Mintable> Mintable for Option<T> {
+    type Unsigned = Option<T::Unsigned>;
+
+    fn mint_into_parent(
+        unsigned: Option<T::Unsigned>,
+        children: &mut alloc::vec::Vec<AuthTokenNode>,
+    ) -> Self {
+        unsigned.map(|inner| T::mint_into_parent(inner, children))
+    }
+}
+```
+
+For `Option::None`, no children are pushed. For `Option::Some`, the inner type handles itself. The XDR discriminant is preserved because `Option<T>` implements `WriteXDR` which writes the discriminant.
+
+- [ ] **Step 3: Add `Vec<T>` impl**
+
+```rust
+impl<T: Mintable> Mintable for alloc::vec::Vec<T> {
+    type Unsigned = alloc::vec::Vec<T::Unsigned>;
+
+    fn mint_into_parent(
+        unsigned: alloc::vec::Vec<T::Unsigned>,
+        children: &mut alloc::vec::Vec<AuthTokenNode>,
+    ) -> Self {
+        unsigned
+            .into_iter()
+            .map(|item| T::mint_into_parent(item, children))
+            .collect()
+    }
+}
+```
+
+- [ ] **Step 4: Verify**
 
 Run: `cargo test --lib mintable -- --nocapture`
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cargo fmt
 git add src/mintable.rs
-git commit -m "feat: add Mintable impls for primitives and common types"
+git commit -m "feat: add Mintable impls for primitives, Option, Vec, and common types"
 ```
 
 ---
@@ -298,6 +356,7 @@ In `macros/src/contract_type.rs`, add:
 fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
     let ident = &item.ident;
     let unsigned_ident = quote::format_ident!("{}Unsigned", ident);
+    let mintable_mod_ident = quote::format_ident!("__groundhog_mintable_{}", ident);
 
     let fields = match &item.fields {
         syn::Fields::Named(fields) => &fields.named,
@@ -333,7 +392,7 @@ fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
         .collect();
 
     quote! {
-        mod __groundhog_mintable {
+        mod #mintable_mod_ident {
             #[allow(unused_imports)]
             use super::*;
 
@@ -343,7 +402,7 @@ fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
         }
 
         impl ::sdk::Mintable for #ident {
-            type Unsigned = __groundhog_mintable::#unsigned_ident;
+            type Unsigned = #mintable_mod_ident::#unsigned_ident;
 
             fn mint_into_parent(
                 unsigned: Self::Unsigned,
@@ -394,9 +453,8 @@ pub struct Payment {
 
 fn main() {
     // Verify types resolve and are constructible via the trait
-    let _leaf = <TransferAuth as Mintable>::Unsigned { amount: 100 };
-
-    let _nested = <Payment as Mintable>::Unsigned {
+    // Verify types resolve and are constructible via the associated type
+    let unsigned = <Payment as Mintable>::Unsigned {
         memo: 42,
         auth: UnsignedSigner {
             consumer: ContractAddress::default(),
@@ -404,8 +462,8 @@ fn main() {
         },
     };
 
-    // Verify build_auth_token_node works
-    let _node = <Payment as Mintable>::build_auth_token_node(_nested);
+    // Verify build_auth_token_node compiles
+    let _node = <Payment as Mintable>::build_auth_token_node(unsigned);
 }
 ```
 
@@ -444,11 +502,7 @@ pub fn mint_auth_token<T: Mintable>(
     let root_node =
         <Signer<T> as Mintable>::build_auth_token_node(unsigned);
 
-    let buf = contract_call_encode(&root_node).unwrap_or_else(|e| {
-        library_throw(AuthTokenError::MintEncodeFailure(
-            FaultString::from_display(e),
-        ))
-    });
+    let buf = crate::mintable::encode_auth_token_node(&root_node);
 
     let mut token_id: core::mem::MaybeUninit<u32> =
         core::mem::MaybeUninit::uninit();
@@ -537,7 +591,7 @@ impl SignerCallee {
             expiry,
             UnsignedSigner {
                 consumer: consumer.clone(),
-                data: TransferAuth { amount },
+                data: <TransferAuth as Mintable>::Unsigned { amount },
             },
         )
     }
