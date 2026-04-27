@@ -1,5 +1,5 @@
 use super::fault::*;
-use super::{CallingError, HandlingError};
+use super::{CallingError, HandlingError, AuthTokenError};
 #[cfg(feature = "storage")]
 use crate::storage::*;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
@@ -31,6 +31,9 @@ pub enum LibraryExn {
     #[cfg_attr(feature = "debugging", error("Called contract reverted"))]
     Called(#[cfg_attr(feature = "debugging", source)] FaultString),
 
+    #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
+    AuthToken(AuthTokenError),
+
     #[cfg_attr(
         feature = "debugging",
         error("bytestring_get_sized: expected {expected}, found {found}")
@@ -57,6 +60,12 @@ impl From<HandlingError> for LibraryExn {
 impl From<CallingError> for LibraryExn {
     fn from(e: CallingError) -> Self {
         Self::Calling(e)
+    }
+}
+
+impl From<AuthTokenError> for LibraryExn {
+    fn from(e: AuthTokenError) -> Self {
+        Self::AuthToken(e)
     }
 }
 

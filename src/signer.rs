@@ -1,11 +1,12 @@
 use crate::call::internal::contract_call_encode;
-use crate::exn::{FaultString, HandlingError, library_throw, syscall_throw};
+use crate::exn::{FaultString, library_throw, syscall_throw};
 use crate::sys::{self, SyscallNo};
-use crate::xdr::*;
+use crate::{AuthTokenError, xdr::*};
 use core::marker::PhantomData;
 use groundhog_xdr::types::BlockHeight;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, ReadXDR, WriteXDR)]
+#[xdrs(crate = "crate::__xdrs")]
 pub struct Signer<T> {
     handle: u32,
     _phantom: PhantomData<T>,
@@ -32,21 +33,6 @@ impl<T> core::fmt::Debug for Signer<T> {
     }
 }
 
-impl<T> WriteXDR for Signer<T> {
-    #[inline(always)]
-    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-        self.handle.write_xdr(w)
-    }
-}
-
-impl<'r, T> ReadXDR<'r> for Signer<T> {
-    #[inline(always)]
-    fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
-        let handle = u32::read_xdr(r)?;
-        Ok(Self::from_handle(handle))
-    }
-}
-
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 
 impl<T> CollectAuthHandles for Signer<T> {
@@ -68,7 +54,7 @@ pub fn mint_auth_token<T: WriteXDR>(
     data: &T,
 ) -> Signer<T> {
     let buf = contract_call_encode(data).unwrap_or_else(|e| {
-        library_throw(HandlingError::EncodingSuccess(
+        library_throw(AuthTokenError::MintEncodeFailure(
             FaultString::from_display(e),
         ))
     });

@@ -52,3 +52,12 @@ pub enum HandlingError {
     #[cfg_attr(feature = "debugging", error("Encoding event: {0}"))]
     EncodingEvent(FaultString),
 }
+
+/// Plumbing errors resulting from working with auth tokens:
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[cfg_attr(feature = "debugging", derive(Error))]
+#[repr(i32)]
+pub enum AuthTokenError {
+    #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
+    MintEncodeFailure(FaultString),
+}
