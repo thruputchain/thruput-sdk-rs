@@ -1,3 +1,11 @@
+pub fn receive_auth_handles_from_slice<T: ReceiveAuthHandles>(
+    value: &mut T,
+    handles: &[u32],
+) {
+    let mut iter = handles.iter().copied();
+    value.receive_auth_handles(&mut iter);
+}
+
 pub trait ReceiveAuthHandles {
     fn receive_auth_handles(
         &mut self,
