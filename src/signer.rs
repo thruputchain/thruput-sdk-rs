@@ -1,5 +1,9 @@
+use crate::call::internal::contract_call_encode;
+use crate::exn::{FaultString, HandlingError, library_throw, syscall_throw};
+use crate::sys::{self, SyscallNo};
 use crate::xdr::*;
 use core::marker::PhantomData;
+use groundhog_xdr::types::BlockHeight;
 
 #[derive(Clone, Copy)]
 pub struct Signer<T> {
@@ -57,6 +61,26 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
         groundhog_contract_spec::ContractTypeInfo {
             ty: groundhog_contract_spec::view::ContractTypeView::U32,
         };
+}
+
+pub fn mint_auth_token<T: WriteXDR>(
+    expiry: BlockHeight,
+    data: &T,
+) -> Signer<T> {
+    let buf = contract_call_encode(data).unwrap_or_else(|e| {
+        library_throw(HandlingError::EncodingSuccess(
+            FaultString::from_display(e),
+        ))
+    });
+
+    let mut token_id: core::mem::MaybeUninit<u32> =
+        core::mem::MaybeUninit::uninit();
+
+    sys::uninit_MintAuthToken(expiry, buf.as_ref(), &mut token_id)
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kMintAuthToken, e));
+
+    let handle = unsafe { token_id.assume_init() };
+    Signer::from_handle(handle)
 }
 
 #[cfg(test)]
