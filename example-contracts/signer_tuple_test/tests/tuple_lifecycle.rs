@@ -3,12 +3,12 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{SignerPreimage, build_auth_token_node};
+use sdk::mintable::{build_auth_token_node, SignerPreimage};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signer;
 use sdk::*;
+use signer_tuple_test::__preimage_TupleAuth;
 use signer_tuple_test::TupleAuth;
-use signer_tuple_test::__tupleauth_preimage;
 
 fn addr(byte: u8) -> ContractAddress {
     ContractAddress::from([byte; 32])
@@ -21,7 +21,9 @@ fn tuple_struct_auth_token_tree() {
 
     let preimage = SignerPreimage {
         consumer: addr_consumer.clone(),
-        data: __tupleauth_preimage::Preimage(
+        // Tuple structs can't use type aliases as constructors,
+        // so we use the preimage module path directly.
+        data: __preimage_TupleAuth::Preimage(
             42u64,
             SignerPreimage {
                 consumer: addr_leaf.clone(),
@@ -46,7 +48,7 @@ fn tuple_struct_payload_roundtrip() {
 
     let preimage = SignerPreimage {
         consumer: addr_consumer,
-        data: __tupleauth_preimage::Preimage(
+        data: __preimage_TupleAuth::Preimage(
             42u64,
             SignerPreimage {
                 consumer: addr_leaf,

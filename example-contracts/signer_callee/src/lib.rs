@@ -4,7 +4,10 @@ sdk::declare_mock_contract!();
 
 use sdk::mintable::SignerPreimage;
 use sdk::signer::Signer;
+use sdk::signer_mapper::MintableType;
 use sdk::*;
+
+type TransferAuthPreimage = <TransferAuth as MintableType>::Preimage;
 
 #[contracttype]
 pub struct TransferAuth {
@@ -33,7 +36,7 @@ impl SignerCallee {
             expiry,
             SignerPreimage {
                 consumer: consumer.clone(),
-                data: __transferauth_preimage::Preimage { amount },
+                data: TransferAuthPreimage { amount },
             },
         )
     }

@@ -45,6 +45,9 @@ pub struct MiddleAuth {
     pub multi_children: Vec<Signer<LeafAuth>>,
 }
 
+type MiddleAuthPreimage = <MiddleAuth as MintableType>::Preimage;
+type LeafAuthPreimage = <LeafAuth as MintableType>::Preimage;
+
 // ── Helper addresses ──
 
 fn addr(byte: u8) -> ContractAddress {
@@ -60,23 +63,22 @@ fn build_nested_auth_token_tree() {
     let addr_c2 = addr(0xC2);
     let addr_c3 = addr(0xC3);
 
-    // Build preimage form: A mints for B, which nests C tokens
     let preimage = SignerPreimage {
         consumer: addr_b.clone(),
-        data: __middleauth_preimage::Preimage {
+        data: MiddleAuthPreimage {
             label: 42,
             single_child: SignerPreimage {
                 consumer: addr_c1.clone(),
-                data: __leafauth_preimage::Preimage { data: 100 },
+                data: LeafAuthPreimage { data: 100 },
             },
             multi_children: vec![
                 SignerPreimage {
                     consumer: addr_c2.clone(),
-                    data: __leafauth_preimage::Preimage { data: 200 },
+                    data: LeafAuthPreimage { data: 200 },
                 },
                 SignerPreimage {
                     consumer: addr_c3.clone(),
-                    data: __leafauth_preimage::Preimage { data: 300 },
+                    data: LeafAuthPreimage { data: 300 },
                 },
             ],
         },
@@ -84,21 +86,12 @@ fn build_nested_auth_token_tree() {
 
     let root_node = build_signer_node::<MiddleAuth>(preimage);
 
-    // Root node: consumer = B
     assert_eq!(root_node.consumer_address, addr_b);
-
-    // Root has 3 children: single_child + 2 from multi_children
     assert_eq!(root_node.child_nodes.len(), 3);
-
-    // Child 0: single_child → consumer = C1, leaf (no children)
     assert_eq!(root_node.child_nodes[0].consumer_address, addr_c1);
     assert!(root_node.child_nodes[0].child_nodes.is_empty());
-
-    // Child 1: multi_children[0] → consumer = C2, leaf
     assert_eq!(root_node.child_nodes[1].consumer_address, addr_c2);
     assert!(root_node.child_nodes[1].child_nodes.is_empty());
-
-    // Child 2: multi_children[1] → consumer = C3, leaf
     assert_eq!(root_node.child_nodes[2].consumer_address, addr_c3);
     assert!(root_node.child_nodes[2].child_nodes.is_empty());
 }
@@ -114,20 +107,20 @@ fn payload_roundtrip_with_receive_handles() {
 
     let preimage = SignerPreimage {
         consumer: addr_b,
-        data: __middleauth_preimage::Preimage {
+        data: MiddleAuthPreimage {
             label: 42,
             single_child: SignerPreimage {
                 consumer: addr_c1,
-                data: __leafauth_preimage::Preimage { data: 100 },
+                data: LeafAuthPreimage { data: 100 },
             },
             multi_children: vec![
                 SignerPreimage {
                     consumer: addr_c2,
-                    data: __leafauth_preimage::Preimage { data: 200 },
+                    data: LeafAuthPreimage { data: 200 },
                 },
                 SignerPreimage {
                     consumer: addr_c3,
-                    data: __leafauth_preimage::Preimage { data: 300 },
+                    data: LeafAuthPreimage { data: 300 },
                 },
             ],
         },
@@ -135,27 +128,19 @@ fn payload_roundtrip_with_receive_handles() {
 
     let root_node = build_signer_node::<MiddleAuth>(preimage);
 
-    // The root node's payload is WriteXDR of MiddleAuth
-    // (Signer fields write 0 bytes, Vec length is preserved)
     let payload_bytes: &[u8] = root_node.payload.as_ref();
-
-    // Decode the payload via ReadXDR — Signers get sentinel handles
     let mut decoded: MiddleAuth =
         xdrs::cxs::decode(payload_bytes).expect("payload decode failed");
 
-    // Before ReceiveAuthHandles: signers have sentinel handles
     assert_eq!(decoded.single_child.handle(), u32::MAX);
     for s in &decoded.multi_children {
         assert_eq!(s.handle(), u32::MAX);
     }
 
-    // Simulate what consume() does: fill in child handles
-    // The runtime would return handles [10, 20, 30] for the 3 children
     let child_handles = vec![10u32, 20u32, 30u32];
     let mut iter = child_handles.into_iter();
     decoded.receive_auth_handles(&mut iter);
 
-    // After ReceiveAuthHandles: signers have real handles
     assert_eq!(decoded.label, 42);
     assert_eq!(decoded.single_child.handle(), 10);
     assert_eq!(decoded.multi_children.len(), 2);
@@ -167,8 +152,6 @@ fn payload_roundtrip_with_receive_handles() {
 
 #[test]
 fn collect_handles_for_forwarding() {
-    // Simulate B has consumed: decode + receive handles (same as consume() does)
-    // Start with default MiddleAuth (sentinel handles)
     let mut middle = MiddleAuth {
         label: 42,
         single_child: Signer::default(),
@@ -177,13 +160,10 @@ fn collect_handles_for_forwarding() {
     let mut iter = [10u32, 20u32, 30u32].into_iter();
     middle.receive_auth_handles(&mut iter);
 
-    // CollectAuthHandles should extract [10, 20, 30]
     let mut buf = sdk::collect_auth_handles::AuthHandleBuf::new();
     middle.collect_auth_handles(&mut buf);
     assert_eq!(buf.as_slice(), &[10, 20, 30]);
 
-    // Forwarding single_child to C via a method call:
-    // The generated client code wraps args in a tuple and collects handles
     let call_args = (42u64, middle.single_child);
     let mut buf2 = sdk::collect_auth_handles::AuthHandleBuf::new();
     call_args.collect_auth_handles(&mut buf2);
@@ -196,7 +176,7 @@ fn collect_handles_for_forwarding() {
 fn leaf_payload_roundtrip() {
     let leaf_preimage = SignerPreimage {
         consumer: addr(0xCC),
-        data: __leafauth_preimage::Preimage { data: 99 },
+        data: LeafAuthPreimage { data: 99 },
     };
 
     let node = build_signer_node::<LeafAuth>(leaf_preimage);
@@ -204,7 +184,6 @@ fn leaf_payload_roundtrip() {
     assert_eq!(node.consumer_address, addr(0xCC));
     assert!(node.child_nodes.is_empty());
 
-    // Decode leaf payload
     let decoded: LeafAuth = xdrs::cxs::decode(node.payload.as_ref())
         .expect("leaf payload decode failed");
     assert_eq!(decoded.data, 99);
@@ -216,16 +195,14 @@ fn leaf_payload_roundtrip() {
 fn encode_auth_token_node_roundtrip() {
     let preimage = SignerPreimage {
         consumer: addr(0xBB),
-        data: __leafauth_preimage::Preimage { data: 77 },
+        data: LeafAuthPreimage { data: 77 },
     };
 
     let node = build_signer_node::<LeafAuth>(preimage);
 
-    // Encode the full AuthTokenNode (what gets passed to MintAuthToken syscall)
     let encoded = sdk::mintable::encode_auth_token_node(&node);
     assert!(!encoded.is_empty());
 
-    // Decode it back
     let decoded: sdk::AuthTokenNode =
         xdrs::txs::decode(&encoded).expect("AuthTokenNode decode failed");
     assert_eq!(decoded.consumer_address, addr(0xBB));

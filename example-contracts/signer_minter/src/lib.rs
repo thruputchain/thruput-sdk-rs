@@ -4,10 +4,13 @@ sdk::declare_mock_contract!();
 
 use sdk::mintable::SignerPreimage;
 use sdk::signer::Signer;
+use sdk::signer_mapper::MintableType;
 use sdk::*;
-use signer_leaf::__leafauth_preimage;
+use signer_leaf::LeafAuth;
 use signer_middle::{MiddleAuth, SignerMiddleClient};
-use signer_middle::__middleauth_preimage;
+
+type MiddleAuthPreimage = <MiddleAuth as MintableType>::Preimage;
+type LeafAuthPreimage = <LeafAuth as MintableType>::Preimage;
 
 #[derive(Default)]
 pub struct SignerMinter;
@@ -22,20 +25,20 @@ impl SignerMinter {
 
         let preimage = SignerPreimage {
             consumer: middle_contract.clone(),
-            data: __middleauth_preimage::Preimage {
+            data: MiddleAuthPreimage {
                 label: 1000,
                 child: SignerPreimage {
                     consumer: leaf_contract.clone(),
-                    data: __leafauth_preimage::Preimage { data: 10 },
+                    data: LeafAuthPreimage { data: 10 },
                 },
                 extra_children: vec![
                     SignerPreimage {
                         consumer: leaf_contract.clone(),
-                        data: __leafauth_preimage::Preimage { data: 20 },
+                        data: LeafAuthPreimage { data: 20 },
                     },
                     SignerPreimage {
                         consumer: leaf_contract.clone(),
-                        data: __leafauth_preimage::Preimage { data: 30 },
+                        data: LeafAuthPreimage { data: 30 },
                     },
                 ],
             },

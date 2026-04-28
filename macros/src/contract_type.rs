@@ -305,8 +305,7 @@ fn generate_preimage_and_mintable(
 ) -> syn::Result<(TokenStream, TokenStream)> {
     let ident = &item.ident;
     let vis = &item.vis;
-    let mod_name =
-        format_ident!("__{}_preimage", ident.to_string().to_lowercase());
+    let mod_name = format_ident!("__preimage_{}", ident);
 
     match &item.fields {
         syn::Fields::Named(fields) => {
@@ -325,6 +324,7 @@ fn generate_preimage_and_mintable(
 
             let preimage_mod = quote! {
                 #[doc(hidden)]
+                #[allow(non_snake_case)]
                 #vis mod #mod_name {
                     use super::*;
 
@@ -384,6 +384,7 @@ fn generate_preimage_and_mintable(
 
             let preimage_mod = quote! {
                 #[doc(hidden)]
+                #[allow(non_snake_case)]
                 #vis mod #mod_name {
                     use super::*;
 
@@ -432,6 +433,7 @@ fn generate_preimage_and_mintable(
         syn::Fields::Unit => {
             let preimage_mod = quote! {
                 #[doc(hidden)]
+                #[allow(non_snake_case)]
                 #vis mod #mod_name {
                     #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
                     #[xdrs(crate = "::sdk::__xdrs")]
