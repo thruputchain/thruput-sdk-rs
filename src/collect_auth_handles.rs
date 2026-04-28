@@ -17,12 +17,25 @@ macro_rules! impl_collect_noop {
     };
 }
 
-impl_collect_noop!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, bool, (),);
-
-impl CollectAuthHandles for str {
-    #[inline(always)]
-    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
-}
+impl_collect_noop!(
+    u8,
+    u16,
+    u32,
+    u64,
+    u128,
+    i8,
+    i16,
+    i32,
+    i64,
+    i128,
+    bool,
+    (),
+    str,
+    sdk::types::BlockHeight,
+    sdk::types::SHA256Hash,
+    sdk::types::Ed25519PublicKey,
+    sdk::types::Ed25519Signature
+);
 
 impl<const N: usize> CollectAuthHandles for [u8; N] {
     #[inline(always)]
@@ -63,26 +76,6 @@ impl<T: CollectAuthHandles + 'static, const MAX: u32> CollectAuthHandles
 }
 
 impl<const MAX: u32> CollectAuthHandles for xdrs::BytesM<MAX> {
-    #[inline(always)]
-    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
-}
-
-impl CollectAuthHandles for crate::types::ContractAddress {
-    #[inline(always)]
-    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
-}
-
-impl CollectAuthHandles for crate::types::SHA256Hash {
-    #[inline(always)]
-    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
-}
-
-impl CollectAuthHandles for crate::types::Ed25519PublicKey {
-    #[inline(always)]
-    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
-}
-
-impl CollectAuthHandles for crate::types::Ed25519Signature {
     #[inline(always)]
     fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
 }
