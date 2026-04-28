@@ -159,7 +159,7 @@ impl<T: MintableType> MintableType for alloc::vec::Vec<T> {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: MintableType + ?Sized> MintableType for alloc::boxed::Box<T> {
+impl<T: MintableType> MintableType for alloc::boxed::Box<T> {
     type Preimage = alloc::boxed::Box<T::Preimage>;
 }
 
@@ -262,7 +262,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Mintable + ?Sized> Mintable for alloc::boxed::Box<T>
+impl<T: Mintable> Mintable for alloc::boxed::Box<T>
 where
     T::Preimage: Sized + WriteXDR + for<'r> ReadXDR<'r>,
     alloc::boxed::Box<T::Preimage>: WriteXDR + for<'r> ReadXDR<'r>,

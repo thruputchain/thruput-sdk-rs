@@ -83,7 +83,7 @@ pub fn auth_handles_as_bytes(handles: &[u32]) -> &[u8] {
     unsafe {
         core::slice::from_raw_parts(
             handles.as_ptr() as *const u8,
-            handles.len() * core::mem::size_of::<u32>(),
+            core::mem::size_of_val(handles),
         )
     }
 }
