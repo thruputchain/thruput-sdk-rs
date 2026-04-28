@@ -223,28 +223,3 @@ mod tests {
         assert_eq!(children.len(), 1);
     }
 }
-
-// Temporary test: verify derive macros work with SignerMapper generic
-#[cfg(test)]
-mod gat_derive_test {
-    use super::*;
-    use crate::signer::Signer;
-
-    #[derive(::xdrs::ReadXDR, ::xdrs::WriteXDR)]
-    #[xdrs(crate = "::xdrs")]
-    struct TestStruct<M: SignerMapper = Signed> {
-        val: <M as SignerMapper>::Map<u32>,
-        auth: <M as SignerMapper>::Map<Signer<u32>>,
-    }
-
-    #[test]
-    fn gat_struct_roundtrip() {
-        let s: TestStruct = TestStruct {
-            val: 42u32,
-            auth: Signer::default(),
-        };
-        let encoded = cxs::encode(&s).unwrap();
-        let decoded: TestStruct = cxs::decode(&encoded).unwrap();
-        assert_eq!(decoded.val, 42);
-    }
-}
