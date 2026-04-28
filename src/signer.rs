@@ -1,7 +1,6 @@
-use crate::call::internal::contract_call_encode;
-use crate::exn::{FaultString, library_throw, syscall_throw};
+use crate::exn::syscall_throw;
 use crate::sys::{self, SyscallNo};
-use crate::{AuthTokenError, xdr::*};
+use crate::xdr::*;
 use core::marker::PhantomData;
 use groundhog_xdr::types::BlockHeight;
 
@@ -110,15 +109,13 @@ impl<T: Mintable> Mintable for Signer<T> {
     }
 }
 
-pub fn mint_auth_token<T: WriteXDR>(
+#[cfg(feature = "alloc")]
+pub fn mint_auth_token<T: Mintable>(
     expiry: BlockHeight,
-    data: &T,
+    unsigned: crate::mintable::UnsignedSigner<<T as Mintable>::Unsigned>,
 ) -> Signer<T> {
-    let buf = contract_call_encode(data).unwrap_or_else(|e| {
-        library_throw(AuthTokenError::MintEncodeFailure(
-            FaultString::from_display(e),
-        ))
-    });
+    let root_node = <Signer<T> as Mintable>::build_auth_token_node(unsigned);
+    let buf = crate::mintable::encode_auth_token_node(&root_node);
 
     let mut token_id: core::mem::MaybeUninit<u32> =
         core::mem::MaybeUninit::uninit();
@@ -128,6 +125,16 @@ pub fn mint_auth_token<T: WriteXDR>(
 
     let handle = unsafe { token_id.assume_init() };
     Signer::from_handle(handle)
+}
+
+#[cfg(feature = "alloc")]
+impl<T> Signer<T>
+where
+    T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
+{
+    pub fn consume(self) -> T {
+        panic!("ConsumeAuthToken syscall not yet available")
+    }
 }
 
 #[cfg(test)]

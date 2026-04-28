@@ -12,7 +12,9 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
+default = ["alloc"]
 entrypoints = []
+alloc = ["sdk/alloc"]
 dev = ["sdk/dev"]
 
 [lib]
