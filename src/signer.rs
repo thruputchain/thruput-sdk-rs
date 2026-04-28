@@ -1,6 +1,5 @@
 use crate::xdr::*;
 use core::marker::PhantomData;
-use groundhog_xdr::types::BlockHeight;
 
 #[derive(Clone, Copy)]
 pub struct Signer<T> {
@@ -110,7 +109,7 @@ impl<T: Mintable> Mintable for Signer<T> {
 
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
-    expiry: BlockHeight,
+    expiry: groundhog_xdr::types::BlockHeight,
     unsigned: crate::mintable::UnsignedSigner<<T as Mintable>::Unsigned>,
 ) -> Signer<T> {
     use crate::sys::SyscallNo;
