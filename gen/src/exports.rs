@@ -368,14 +368,20 @@ pub fn generate_method(
         // Load contract state
         #load_state
 
-        // Fetch the calldata from the VM
-        let calldata = ::sdk::contract_op::get_calldata();
+        // Fetch the calldata and auth token IDs from the VM
+        let (calldata, auth_token_ids) = ::sdk::contract_op::get_calldata_with_auth_tokens();
 
-        // Decode the args
-        let (#arg_names) =
+        // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle)
+        let mut __args =
             ::sdk::call::internal::contract_call_decode(calldata.as_ref())
                 .unwrap_or_else(|e|
                     ::sdk::exn::decoding_args_throw(e));
+
+        // Fill in Signer handles from the auth token ID list
+        ::sdk::receive_auth_handles_from_slice(&mut __args, auth_token_ids.as_slice());
+
+        // Destructure into named args
+        let (#arg_names) = __args;
 
         // TODO: can we get the fetch-and-decode into one internal function?
 

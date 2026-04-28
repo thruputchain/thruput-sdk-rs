@@ -91,7 +91,8 @@ pub fn get_current_address() -> ContractAddress {
 
 pub fn try_get_calldata_len() -> SysResult<RuntimeMemoryLength> {
     let mut out: RuntimeMemoryLength = 0;
-    sys::raw_GetCalldataLen(&mut out)?;
+    let mut _auth_token_count: u32 = 0;
+    sys::raw_GetCalldataLen(&mut out, &mut _auth_token_count)?;
     Ok(out)
 }
 
@@ -108,7 +109,14 @@ pub fn try_get_calldata() -> SysResult<Calldata> {
 
     // Fetch the calldata from the VM, hoping our buffer is large enough
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
-    sys::uninit_GetCalldata(calldata.spare_capacity_mut(), &mut written)?;
+    let mut _auth_token_written: MaybeUninit<RuntimeMemoryLength> =
+        MaybeUninit::uninit();
+    sys::uninit_GetCalldata(
+        calldata.spare_capacity_mut(),
+        &mut written,
+        &mut [],
+        &mut _auth_token_written,
+    )?;
     let written = unsafe { written.assume_init() };
 
     // SAFETY: At least this many bytes of the buffer are now initialized
@@ -124,8 +132,50 @@ pub fn try_get_calldata() -> SysResult<Calldata> {
 
 // This should probably become `get_calldata`, once the existing clients
 // of that function are adapted to non-result return.
+#[deprecated(note = "use get_calldata_with_auth_tokens() for Signer support")]
 pub fn get_calldata() -> Calldata {
     try_get_calldata().unwrap_or_else(|syserr| {
         syscall_throw(SyscallNo::kGetCalldata, syserr)
     })
+}
+
+pub type AuthTokenIdBuf = heapless::Vec<u32, 32>;
+
+pub fn get_calldata_with_auth_tokens() -> (Calldata, AuthTokenIdBuf) {
+    try_get_calldata_with_auth_tokens().unwrap_or_else(|syserr| {
+        syscall_throw(SyscallNo::kGetCalldata, syserr)
+    })
+}
+
+pub fn try_get_calldata_with_auth_tokens()
+-> SysResult<(Calldata, AuthTokenIdBuf)> {
+    let mut calldata: Calldata = MUBuf::new();
+    // 32 u32s * 4 bytes each
+    let mut auth_token_buf: MUBuf<{ 32 * 4 }> = MUBuf::new();
+
+    let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
+    let mut auth_token_written: MaybeUninit<RuntimeMemoryLength> =
+        MaybeUninit::uninit();
+
+    sys::uninit_GetCalldata(
+        calldata.spare_capacity_mut(),
+        &mut written,
+        auth_token_buf.spare_capacity_mut(),
+        &mut auth_token_written,
+    )?;
+
+    let written = unsafe { written.assume_init() };
+    unsafe { calldata.set_len(written as usize) };
+
+    let auth_written = unsafe { auth_token_written.assume_init() };
+    unsafe { auth_token_buf.set_len(auth_written as usize) };
+
+    // Convert bytes to u32s using native byte order (wasm is little-endian)
+    let mut auth_ids = AuthTokenIdBuf::new();
+    for chunk in auth_token_buf.as_ref().chunks_exact(4) {
+        let id = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        auth_ids.push(id).expect("too many auth token IDs");
+    }
+
+    Ok((calldata, auth_ids))
 }

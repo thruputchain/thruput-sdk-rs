@@ -373,7 +373,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -638,7 +638,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-codegen"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -652,7 +652,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -661,7 +661,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -681,7 +681,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -689,7 +689,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "darling",
  "groundhog-codegen",
@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -731,16 +731,16 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.7.10"
+version = "0.9.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "194f0881357bcf946ddcd77e950bb10e87663d59ef55d8b3e4bc5ed0804f9124"
+checksum = "bd66fe49f116ce58e582cdff3e17721b23333e8dcdc75fc259f34bc7e82087c3"
 dependencies = [
  "xdrs",
 ]
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -762,9 +762,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.7.8"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "30e3a3ffa4207437af9624c282b415013c03e4fbd81f0841c9868ec57c2226f1"
+checksum = "5a9c14cc426b6012a1c2a57f3c24ebecba1d4d03e35e004693204ca3f43f8b42"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -774,9 +774,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-wasm-meter"
-version = "0.1.2"
+version = "0.3.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d6124165147df5283538f1f03c2f3ae24dc48fa7e86d17003a72910c9a500ef9"
+checksum = "44ecac25b56261eb42d76a7016f5496f350fc32814a4075110c70be0abeed152"
 dependencies = [
  "wasm-encoder 0.246.2",
  "wasmparser 0.246.2",
@@ -784,9 +784,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.7.8"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "e945be8ba009163de3a780e7a91f1d614801ff6267afef7fc0400a531aa38137"
+checksum = "0cec74b925b961fa1e5e8d5c4f775923da6dd844ba062cf503731b6f8df164e9"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -798,9 +798,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.7.8"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "5718a9f4adad0087fe79590a2d28580ea04b61a0ac976b5d1c32b3259cb68d56"
+checksum = "c596450810d0d9d73ebe06df70c348f6c904e145fe7242232ddab0bf84716ac8"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -892,9 +892,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.7.8"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "ec480c588e7d5fea176fffcbc49ab50c1ce5c77a86d04b50ce860d13291c060f"
+checksum = "020ca6029a4ecd2d336dd722b70cb0a57285679303dadd9d1b09bff7eef1d221"
 dependencies = [
  "xdrs",
 ]
@@ -1685,7 +1685,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "bitset-core",
  "groundhog-contract-spec",
@@ -1816,6 +1816,59 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "signer_callee"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_callee",
+]
+
+[[package]]
+name = "signer_caller"
+version = "0.3.0"
+dependencies = [
+ "groundhog-contract-util",
+ "sdk",
+ "signer_callee",
+ "signer_caller",
+]
+
+[[package]]
+name = "signer_leaf"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_leaf",
+]
+
+[[package]]
+name = "signer_middle"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_leaf",
+ "signer_middle",
+]
+
+[[package]]
+name = "signer_minter"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_leaf",
+ "signer_middle",
+ "signer_minter",
+]
+
+[[package]]
+name = "signer_tuple_test"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_tuple_test",
+]
 
 [[package]]
 name = "simd-adler32"

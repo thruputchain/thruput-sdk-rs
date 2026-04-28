@@ -170,6 +170,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
             };
 
             #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
+
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
     }

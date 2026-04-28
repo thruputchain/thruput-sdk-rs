@@ -1,0 +1,33 @@
+[package]
+name = "signer_tuple_test"
+description = "Test contract exercising tuple struct contracttype with Signer fields"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+default = ["alloc"]
+entrypoints = []
+alloc = ["sdk/alloc"]
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+
+[dev-dependencies]
+signer_tuple_test = { path = ".", features = ["dev"] }
+
+[[test]]
+name = "tuple_lifecycle"
+path = "tests/tuple_lifecycle.rs"

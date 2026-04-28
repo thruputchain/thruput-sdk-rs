@@ -686,9 +686,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.8.0"
+version = "0.9.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "b1d2b3871fe59255579b416be1a506cfaccf6fa29c8e6399948866463a7f8ce9"
+checksum = "bd66fe49f116ce58e582cdff3e17721b23333e8dcdc75fc259f34bc7e82087c3"
 dependencies = [
  "groundhog-serde_arrays",
  "serde",
@@ -743,9 +743,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.8.0"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "bfff34f907cd386adba818824434180f590385e2deacc31320c35d2f407c4c11"
+checksum = "5a9c14cc426b6012a1c2a57f3c24ebecba1d4d03e35e004693204ca3f43f8b42"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -765,9 +765,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.8.0"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "8c94c8c9a10521261787e9f98718d12416e40beffe1b35abbd358219b2f7306b"
+checksum = "0cec74b925b961fa1e5e8d5c4f775923da6dd844ba062cf503731b6f8df164e9"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -779,9 +779,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.8.0"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "8f8170ee95fc942e96fdefdf56402551873b116bb92547b313be2e2c796b6651"
+checksum = "c596450810d0d9d73ebe06df70c348f6c904e145fe7242232ddab0bf84716ac8"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
@@ -883,9 +883,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.8.0"
+version = "0.9.3"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "89949f6043db7e98d22ba055e2538c3b92b03c6d893216751e1d9242db7cddf8"
+checksum = "020ca6029a4ecd2d336dd722b70cb0a57285679303dadd9d1b09bff7eef1d221"
 dependencies = [
  "xdrs",
 ]
@@ -1137,9 +1137,9 @@ dependencies = [
 
 [[package]]
 name = "idna_adapter"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3acae9609540aa318d1bc588455225fb2085b9ed0c4f6bd0d9d5bcd86f1a0344"
+checksum = "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
 dependencies = [
  "icu_normalizer",
  "icu_properties",

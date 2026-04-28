@@ -73,6 +73,7 @@ pub use call::ContractClient;
 // reorganization without breaking changes.
 pub mod auth_claim;
 pub mod block;
+pub mod collect_auth_handles;
 pub mod contract_op;
 pub mod crypto;
 pub mod deploy;
@@ -84,13 +85,17 @@ pub mod hex;
 pub mod invoke_config;
 pub mod log;
 pub mod precompiles;
+pub mod receive_auth_handles;
 pub mod rt;
 pub mod serialize;
+pub mod signer;
+pub mod signer_mapper;
 pub mod stats;
 pub mod types;
 
 pub use auth_claim::*;
 pub use cell::*;
+pub use collect_auth_handles::*;
 pub use contract_op::*;
 pub use deploy::*;
 pub use event::*;
@@ -102,8 +107,10 @@ pub use invoke_config::*;
 pub use log::*;
 pub use panic::*;
 pub use re_throw::*;
+pub use receive_auth_handles::*;
 pub use rt::*;
 pub use serialize::*;
+pub use signer::*;
 pub use throw::*;
 pub use types::*;
 pub use util::*;
@@ -128,6 +135,10 @@ pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
+
+pub mod mintable;
+
+pub use mintable::*;
 
 #[cfg(feature = "spec")]
 #[rustfmt::skip]
