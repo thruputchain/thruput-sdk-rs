@@ -41,7 +41,8 @@ impl_receive_noop!(
     sdk::types::BlockHeight,
     sdk::types::SHA256Hash,
     sdk::types::Ed25519PublicKey,
-    sdk::types::Ed25519Signature
+    sdk::types::Ed25519Signature,
+    sdk::types::ContractEntrypointID,
 );
 
 impl<const N: usize> ReceiveAuthHandles for [u8; N] {
