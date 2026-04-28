@@ -27,7 +27,6 @@ impl<T: WriteXDR> WriteXDR for UnsignedSigner<T> {
     }
 }
 
-
 impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for UnsignedSigner<T> {
     fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
         Ok(Self {

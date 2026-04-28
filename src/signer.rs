@@ -1,5 +1,3 @@
-use crate::exn::syscall_throw;
-use crate::sys::{self, SyscallNo};
 use crate::xdr::*;
 use core::marker::PhantomData;
 use groundhog_xdr::types::BlockHeight;
@@ -28,6 +26,7 @@ impl<'r, T> ReadXDR<'r> for Signer<T> {
 }
 
 impl<T> Signer<T> {
+    #[cfg(feature = "alloc")]
     pub(crate) fn from_handle(handle: u32) -> Self {
         Self {
             handle,
@@ -114,14 +113,18 @@ pub fn mint_auth_token<T: Mintable>(
     expiry: BlockHeight,
     unsigned: crate::mintable::UnsignedSigner<<T as Mintable>::Unsigned>,
 ) -> Signer<T> {
+    use crate::sys::SyscallNo;
+
     let root_node = <Signer<T> as Mintable>::build_auth_token_node(unsigned);
     let buf = crate::mintable::encode_auth_token_node(&root_node);
 
     let mut token_id: core::mem::MaybeUninit<u32> =
         core::mem::MaybeUninit::uninit();
 
-    sys::uninit_MintAuthToken(expiry, buf.as_ref(), &mut token_id)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kMintAuthToken, e));
+    crate::sys::uninit_MintAuthToken(expiry, buf.as_ref(), &mut token_id)
+        .unwrap_or_else(|e| {
+            crate::exn::syscall_throw(SyscallNo::kMintAuthToken, e)
+        });
 
     let handle = unsafe { token_id.assume_init() };
     Signer::from_handle(handle)
@@ -134,6 +137,7 @@ where
 {
     pub fn consume(self) -> T {
         use crate::internal::MUBuf;
+        use crate::sys::SyscallNo;
         use core::mem::MaybeUninit;
 
         let mut payload_buf: MUBuf<500> = MUBuf::new();
@@ -143,14 +147,16 @@ where
         let mut child_start: MaybeUninit<u32> = MaybeUninit::uninit();
         let mut child_count: MaybeUninit<u32> = MaybeUninit::uninit();
 
-        sys::uninit_ConsumeAuthToken(
+        crate::sys::uninit_ConsumeAuthToken(
             self.handle,
             payload_buf.spare_capacity_mut(),
             &mut payload_written,
             &mut child_start,
             &mut child_count,
         )
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kConsumeAuthToken, e));
+        .unwrap_or_else(|e| {
+            crate::exn::syscall_throw(SyscallNo::kConsumeAuthToken, e)
+        });
 
         let written = unsafe { payload_written.assume_init() } as usize;
         unsafe { payload_buf.set_len(written) };
