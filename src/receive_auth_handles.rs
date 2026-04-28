@@ -54,6 +54,7 @@ impl<const N: usize> ReceiveAuthHandles for [u8; N] {
 }
 
 impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &mut T {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
@@ -63,6 +64,7 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &mut T {
 }
 
 impl<T: ReceiveAuthHandles> ReceiveAuthHandles for Option<T> {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
@@ -74,6 +76,7 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for Option<T> {
 }
 
 impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
@@ -88,6 +91,7 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
 impl<T: ReceiveAuthHandles + 'static, const MAX: u32> ReceiveAuthHandles
     for xdrs::VecM<T, MAX>
 {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
@@ -111,6 +115,7 @@ impl<const MAX: u32> ReceiveAuthHandles for xdrs::BytesM<MAX> {
 impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles
     for alloc::boxed::Box<T>
 {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
@@ -120,6 +125,7 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles
 }
 
 impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &T {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         _handles: &mut impl Iterator<Item = u32>,
@@ -129,6 +135,7 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &T {
 
 #[cfg(feature = "alloc")]
 impl<T: ReceiveAuthHandles> ReceiveAuthHandles for alloc::vec::Vec<T> {
+    #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,

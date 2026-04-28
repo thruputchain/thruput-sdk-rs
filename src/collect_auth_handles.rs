@@ -60,6 +60,7 @@ impl<T: CollectAuthHandles> CollectAuthHandles for Option<T> {
 }
 
 impl<T: CollectAuthHandles> CollectAuthHandles for [T] {
+    #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
         for item in self {
             item.collect_auth_handles(out);
@@ -71,6 +72,7 @@ impl<T: CollectAuthHandles> CollectAuthHandles for [T] {
 impl<T: CollectAuthHandles + 'static, const MAX: u32> CollectAuthHandles
     for xdrs::VecM<T, MAX>
 {
+    #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
         self.0.as_slice().collect_auth_handles(out);
     }
@@ -85,6 +87,7 @@ impl<const MAX: u32> CollectAuthHandles for xdrs::BytesM<MAX> {
 impl<T: CollectAuthHandles + ?Sized> CollectAuthHandles
     for alloc::boxed::Box<T>
 {
+    #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
         (**self).collect_auth_handles(out);
     }
@@ -92,6 +95,7 @@ impl<T: CollectAuthHandles + ?Sized> CollectAuthHandles
 
 #[cfg(feature = "alloc")]
 impl<T: CollectAuthHandles> CollectAuthHandles for alloc::vec::Vec<T> {
+    #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
         self.as_slice().collect_auth_handles(out);
     }
