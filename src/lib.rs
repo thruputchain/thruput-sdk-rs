@@ -136,10 +136,8 @@ pub use groundhog_macros::{hash_to_array, sha256_static, static_key};
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
 
-#[cfg(feature = "alloc")]
 pub mod mintable;
 
-#[cfg(feature = "alloc")]
 pub use mintable::*;
 
 #[cfg(feature = "spec")]

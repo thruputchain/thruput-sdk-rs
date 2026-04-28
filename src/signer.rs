@@ -88,25 +88,21 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
         };
 }
 
-#[cfg(feature = "alloc")]
-use crate::mintable::{Mintable, UnsignedSigner};
-#[cfg(feature = "alloc")]
+use crate::mintable::{ChildNodeBuf, Mintable, UnsignedSigner};
 use crate::signer_mapper::MintableType;
 
-#[cfg(feature = "alloc")]
 impl<T: Mintable> MintableType for Signer<T> {
     type Unsigned = UnsignedSigner<<T as MintableType>::Unsigned>;
 }
 
-#[cfg(feature = "alloc")]
 impl<T: Mintable> Mintable for Signer<T> {
     fn mint_into_parent(
         unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
-        children: &mut alloc::vec::Vec<crate::types::AuthTokenNode>,
+        children: &mut ChildNodeBuf,
     ) -> Self {
         let mut node = T::build_auth_token_node(unsigned.data);
         node.consumer_address = unsigned.consumer;
-        children.push(node);
+        children.push(node).expect("too many auth token children");
         Signer::default()
     }
 
