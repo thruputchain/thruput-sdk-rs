@@ -1,13 +1,43 @@
 use crate::types::{AuthTokenNode, AuthTokenPayload, ContractAddress};
 use crate::xdr::*;
 
+pub trait SignerMapper {
+    type Map<T: Mintable>: WriteXDR + for<'r> ReadXDR<'r>;
+}
+
+pub struct Signed;
+impl SignerMapper for Signed {
+    type Map<T: Mintable> = T;
+}
+
+pub struct ForMinting;
+impl SignerMapper for ForMinting {
+    type Map<T: Mintable> = <T as Mintable>::Unsigned;
+}
+
 pub struct UnsignedSigner<T> {
     pub consumer: ContractAddress,
     pub data: T,
 }
 
-pub trait Mintable: Sized + WriteXDR {
-    type Unsigned;
+impl<T: WriteXDR> WriteXDR for UnsignedSigner<T> {
+    fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
+        self.consumer.write_xdr(w)?;
+        self.data.write_xdr(w)
+    }
+}
+
+impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for UnsignedSigner<T> {
+    fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
+        Ok(Self {
+            consumer: ContractAddress::read_xdr(r)?,
+            data: T::read_xdr(r)?,
+        })
+    }
+}
+
+pub trait Mintable: Sized + WriteXDR + for<'r> ReadXDR<'r> {
+    type Unsigned: WriteXDR + for<'r> ReadXDR<'r>;
 
     fn mint_into_parent(
         unsigned: Self::Unsigned,
@@ -42,8 +72,7 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
 }
 
 pub fn encode_auth_token_node(node: &AuthTokenNode) -> alloc::vec::Vec<u8> {
-    // Use alloc Vec instead of heapless EncodeBuf — nested trees can exceed 500 bytes
-    xdrs::txs::encode(node).unwrap_or_else(|e| {
+    cxs::encode(node).unwrap_or_else(|e| {
         crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
             crate::exn::FaultString::from_display(e),
         ))
@@ -192,5 +221,30 @@ mod tests {
         );
         assert!(val.is_some());
         assert_eq!(children.len(), 1);
+    }
+}
+
+// Temporary test: verify derive macros work with SignerMapper generic
+#[cfg(test)]
+mod gat_derive_test {
+    use super::*;
+    use crate::signer::Signer;
+
+    #[derive(::xdrs::ReadXDR, ::xdrs::WriteXDR)]
+    #[xdrs(crate = "::xdrs")]
+    struct TestStruct<M: SignerMapper = Signed> {
+        val: <M as SignerMapper>::Map<u32>,
+        auth: <M as SignerMapper>::Map<Signer<u32>>,
+    }
+
+    #[test]
+    fn gat_struct_roundtrip() {
+        let s: TestStruct = TestStruct {
+            val: 42u32,
+            auth: Signer::default(),
+        };
+        let encoded = cxs::encode(&s).unwrap();
+        let decoded: TestStruct = cxs::decode(&encoded).unwrap();
+        assert_eq!(decoded.val, 42);
     }
 }
