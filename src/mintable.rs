@@ -34,11 +34,15 @@ impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for UnsignedSigner<T> {
     }
 }
 
-#[cfg(feature = "alloc")]
+const AUTH_TOKEN_MAX_CHILDREN: usize =
+    groundhog_xdr::auth_token::kAuthTokenMaxChildNodes as usize;
+
+pub type ChildNodeBuf = heapless::Vec<AuthTokenNode, AUTH_TOKEN_MAX_CHILDREN>;
+
 pub trait Mintable: MintableType {
     fn mint_into_parent(
         unsigned: Self::Unsigned,
-        children: &mut alloc::vec::Vec<AuthTokenNode>,
+        children: &mut ChildNodeBuf,
     ) -> Self;
 }
 
@@ -46,7 +50,7 @@ pub trait Mintable: MintableType {
 pub fn build_auth_token_node<T: Mintable>(
     unsigned: T::Unsigned,
 ) -> AuthTokenNode {
-    let mut children = alloc::vec::Vec::new();
+    let mut children = ChildNodeBuf::new();
     let payload_value = T::mint_into_parent(unsigned, &mut children);
     AuthTokenNode {
         consumer_address: ContractAddress::default(),
@@ -80,7 +84,7 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
 
 #[cfg(feature = "alloc")]
 fn children_to_vecm(
-    children: alloc::vec::Vec<AuthTokenNode>,
+    children: ChildNodeBuf,
 ) -> xdrs::VecM<
     AuthTokenNode,
     { groundhog_xdr::auth_token::kAuthTokenMaxChildNodes },
@@ -160,17 +164,13 @@ impl<T: MintableType + ?Sized> MintableType for alloc::boxed::Box<T> {
     type Unsigned = alloc::boxed::Box<T::Unsigned>;
 }
 
-// ── Mintable impls (alloc required) ──
+// ── Mintable impls ──
 
-#[cfg(feature = "alloc")]
 macro_rules! impl_mintable_leaf {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl Mintable for $ty {
-                fn mint_into_parent(
-                    unsigned: $ty,
-                    _children: &mut alloc::vec::Vec<AuthTokenNode>,
-                ) -> Self {
+                fn mint_into_parent(unsigned: $ty, _children: &mut ChildNodeBuf) -> Self {
                     unsigned
                 }
             }
@@ -178,7 +178,6 @@ macro_rules! impl_mintable_leaf {
     };
 }
 
-#[cfg(feature = "alloc")]
 impl_mintable_leaf!(
     u16,
     u32,
@@ -196,31 +195,28 @@ impl_mintable_leaf!(
     crate::types::Ed25519Signature,
 );
 
-#[cfg(feature = "alloc")]
 impl<const MAX: u32> Mintable for BytesM<MAX> {
     fn mint_into_parent(
         unsigned: BytesM<MAX>,
-        _children: &mut alloc::vec::Vec<AuthTokenNode>,
+        _children: &mut ChildNodeBuf,
     ) -> Self {
         unsigned
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<const N: usize> Mintable for [u8; N] {
     fn mint_into_parent(
         unsigned: [u8; N],
-        _children: &mut alloc::vec::Vec<AuthTokenNode>,
+        _children: &mut ChildNodeBuf,
     ) -> Self {
         unsigned
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<T: Mintable> Mintable for Option<T> {
     fn mint_into_parent(
         unsigned: Option<T::Unsigned>,
-        children: &mut alloc::vec::Vec<AuthTokenNode>,
+        children: &mut ChildNodeBuf,
     ) -> Self {
         unsigned.map(|inner| T::mint_into_parent(inner, children))
     }
@@ -233,7 +229,7 @@ where
 {
     fn mint_into_parent(
         unsigned: VecM<T::Unsigned, MAX>,
-        children: &mut alloc::vec::Vec<AuthTokenNode>,
+        children: &mut ChildNodeBuf,
     ) -> Self {
         let v: alloc::vec::Vec<T> = unsigned
             .0
@@ -248,7 +244,7 @@ where
 impl<T: Mintable> Mintable for alloc::vec::Vec<T> {
     fn mint_into_parent(
         unsigned: alloc::vec::Vec<T::Unsigned>,
-        children: &mut alloc::vec::Vec<AuthTokenNode>,
+        children: &mut ChildNodeBuf,
     ) -> Self {
         unsigned
             .into_iter()
@@ -264,7 +260,7 @@ where
 {
     fn mint_into_parent(
         unsigned: alloc::boxed::Box<T::Unsigned>,
-        children: &mut alloc::vec::Vec<AuthTokenNode>,
+        children: &mut ChildNodeBuf,
     ) -> Self {
         alloc::boxed::Box::new(T::mint_into_parent(*unsigned, children))
     }
@@ -283,7 +279,7 @@ mod tests {
 
     #[test]
     fn primitive_mint_into_parent_no_children() {
-        let mut children = alloc::vec::Vec::new();
+        let mut children = ChildNodeBuf::new();
         let val = u64::mint_into_parent(42u64, &mut children);
         assert_eq!(val, 42);
         assert!(children.is_empty());
@@ -301,7 +297,7 @@ mod tests {
 
     #[test]
     fn signer_mint_into_parent_pushes_child() {
-        let mut children = alloc::vec::Vec::new();
+        let mut children = ChildNodeBuf::new();
         let consumer = crate::types::ContractAddress::default();
         let val = <Signer<u64>>::mint_into_parent(
             UnsignedSigner {
@@ -316,7 +312,7 @@ mod tests {
 
     #[test]
     fn option_none_no_children() {
-        let mut children = alloc::vec::Vec::new();
+        let mut children = ChildNodeBuf::new();
         let val = <Option<Signer<u64>>>::mint_into_parent(None, &mut children);
         assert!(val.is_none());
         assert!(children.is_empty());
@@ -324,7 +320,7 @@ mod tests {
 
     #[test]
     fn option_some_signer_pushes_child() {
-        let mut children = alloc::vec::Vec::new();
+        let mut children = ChildNodeBuf::new();
         let consumer = crate::types::ContractAddress::default();
         let val = <Option<Signer<u64>>>::mint_into_parent(
             Some(UnsignedSigner {

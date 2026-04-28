@@ -102,12 +102,12 @@ impl<T: MintableType> MintableType for Signer<T> {
 impl<T: Mintable> Mintable for Signer<T> {
     fn mint_into_parent(
         unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
-        children: &mut alloc::vec::Vec<crate::types::AuthTokenNode>,
+        children: &mut crate::mintable::ChildNodeBuf,
     ) -> Self {
         let mut node =
             crate::mintable::build_auth_token_node::<T>(unsigned.data);
         node.consumer_address = unsigned.consumer;
-        children.push(node);
+        children.push(node).expect("too many auth token children");
         Signer::default()
     }
 }
