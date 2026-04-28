@@ -1,12 +1,12 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::*;
-use sdk::signer::Signer;
+use sdk::signer::Signed;
 
 #[contracttype]
 pub struct TransferRequest {
     pub amount: u64,
-    pub auth: Signer<u32>,
+    pub auth: Signed<u32>,
 }
 
 #[derive(Default)]

@@ -180,7 +180,7 @@ impl_receive_tuple!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::signer::Signer;
+    use crate::signer::Signed;
 
     #[test]
     fn primitives_receive_nothing() {
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn signer_receives_handle() {
-        let mut s: Signer<u32> = Signer::from_handle(u32::MAX);
+        let mut s: Signed<u32> = Signed::from_handle(u32::MAX);
         let mut iter = [99u32].into_iter();
         s.receive_auth_handles(&mut iter);
         assert_eq!(s.handle(), 99);
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn option_some_receives() {
-        let mut s: Option<Signer<u32>> = Some(Signer::from_handle(u32::MAX));
+        let mut s: Option<Signed<u32>> = Some(Signed::from_handle(u32::MAX));
         let mut iter = [5u32].into_iter();
         s.receive_auth_handles(&mut iter);
         assert_eq!(s.unwrap().handle(), 5);
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn option_none_skips() {
-        let mut s: Option<Signer<u32>> = None;
+        let mut s: Option<Signed<u32>> = None;
         let mut iter = [5u32].into_iter();
         s.receive_auth_handles(&mut iter);
         // handle 5 was NOT consumed
@@ -216,11 +216,11 @@ mod tests {
 
     #[test]
     fn mixed_tuple_receives_in_order() {
-        let mut args: (u64, Signer<u32>, i32, Signer<bool>) = (
+        let mut args: (u64, Signed<u32>, i32, Signed<bool>) = (
             100,
-            Signer::from_handle(u32::MAX),
+            Signed::from_handle(u32::MAX),
             -1,
-            Signer::from_handle(u32::MAX),
+            Signed::from_handle(u32::MAX),
         );
         let mut iter = [10u32, 20u32].into_iter();
         args.receive_auth_handles(&mut iter);

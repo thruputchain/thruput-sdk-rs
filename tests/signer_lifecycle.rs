@@ -11,18 +11,18 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{SignerPreimage, build_auth_token_node};
+use sdk::mintable::MintableType;
+use sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
-use sdk::signer::Signer;
-use sdk::signer_mapper::MintableType;
+use sdk::signer::Signed;
 use sdk::*;
 
 fn build_signer_node<T: sdk::Mintable>(
-    preimage: SignerPreimage<<T as MintableType>::Preimage>,
+    preimage: AuthTokenPreimage<<T as MintableType>::Preimage>,
 ) -> sdk::AuthTokenNode
 where
     T::Preimage: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
-    SignerPreimage<T::Preimage>: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
+    AuthTokenPreimage<T::Preimage>: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
 {
     let mut node = build_auth_token_node::<T>(preimage.data);
     node.consumer_address = preimage.consumer;
@@ -36,13 +36,13 @@ pub struct LeafAuth {
     pub data: u32,
 }
 
-// ── Contract B's auth data (has a single Signer<LeafAuth> + Vec<Signer<LeafAuth>>) ──
+// ── Contract B's auth data (has a single Signed<LeafAuth> + Vec<Signed<LeafAuth>>) ──
 
 #[contracttype]
 pub struct MiddleAuth {
     pub label: u64,
-    pub single_child: Signer<LeafAuth>,
-    pub multi_children: Vec<Signer<LeafAuth>>,
+    pub single_child: Signed<LeafAuth>,
+    pub multi_children: Vec<Signed<LeafAuth>>,
 }
 
 type MiddleAuthPreimage = <MiddleAuth as MintableType>::Preimage;
@@ -63,20 +63,20 @@ fn build_nested_auth_token_tree() {
     let addr_c2 = addr(0xC2);
     let addr_c3 = addr(0xC3);
 
-    let preimage = SignerPreimage {
+    let preimage = AuthTokenPreimage {
         consumer: addr_b.clone(),
         data: MiddleAuthPreimage {
             label: 42,
-            single_child: SignerPreimage {
+            single_child: AuthTokenPreimage {
                 consumer: addr_c1.clone(),
                 data: LeafAuthPreimage { data: 100 },
             },
             multi_children: vec![
-                SignerPreimage {
+                AuthTokenPreimage {
                     consumer: addr_c2.clone(),
                     data: LeafAuthPreimage { data: 200 },
                 },
-                SignerPreimage {
+                AuthTokenPreimage {
                     consumer: addr_c3.clone(),
                     data: LeafAuthPreimage { data: 300 },
                 },
@@ -105,20 +105,20 @@ fn payload_roundtrip_with_receive_handles() {
     let addr_c2 = addr(0xC2);
     let addr_c3 = addr(0xC3);
 
-    let preimage = SignerPreimage {
+    let preimage = AuthTokenPreimage {
         consumer: addr_b,
         data: MiddleAuthPreimage {
             label: 42,
-            single_child: SignerPreimage {
+            single_child: AuthTokenPreimage {
                 consumer: addr_c1,
                 data: LeafAuthPreimage { data: 100 },
             },
             multi_children: vec![
-                SignerPreimage {
+                AuthTokenPreimage {
                     consumer: addr_c2,
                     data: LeafAuthPreimage { data: 200 },
                 },
-                SignerPreimage {
+                AuthTokenPreimage {
                     consumer: addr_c3,
                     data: LeafAuthPreimage { data: 300 },
                 },
@@ -154,8 +154,8 @@ fn payload_roundtrip_with_receive_handles() {
 fn collect_handles_for_forwarding() {
     let mut middle = MiddleAuth {
         label: 42,
-        single_child: Signer::default(),
-        multi_children: vec![Signer::default(), Signer::default()],
+        single_child: Signed::default(),
+        multi_children: vec![Signed::default(), Signed::default()],
     };
     let mut iter = [10u32, 20u32, 30u32].into_iter();
     middle.receive_auth_handles(&mut iter);
@@ -174,7 +174,7 @@ fn collect_handles_for_forwarding() {
 
 #[test]
 fn leaf_payload_roundtrip() {
-    let leaf_preimage = SignerPreimage {
+    let leaf_preimage = AuthTokenPreimage {
         consumer: addr(0xCC),
         data: LeafAuthPreimage { data: 99 },
     };
@@ -193,7 +193,7 @@ fn leaf_payload_roundtrip() {
 
 #[test]
 fn encode_auth_token_node_roundtrip() {
-    let preimage = SignerPreimage {
+    let preimage = AuthTokenPreimage {
         consumer: addr(0xBB),
         data: LeafAuthPreimage { data: 77 },
     };

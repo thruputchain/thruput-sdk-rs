@@ -2,9 +2,8 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::mintable::SignerPreimage;
-use sdk::signer::Signer;
-use sdk::signer_mapper::MintableType;
+use sdk::mintable::{AuthTokenPreimage, MintableType};
+use sdk::signer::Signed;
 use sdk::*;
 
 type TransferAuthPreimage = <TransferAuth as MintableType>::Preimage;
@@ -19,22 +18,22 @@ pub struct SignerCallee;
 
 #[contract(storage = false)]
 impl SignerCallee {
-    pub fn accept_signer(auth: Signer<TransferAuth>) -> u32 {
+    pub fn accept_signer(auth: Signed<TransferAuth>) -> u32 {
         auth.handle()
     }
 
-    pub fn accept_mixed(x: u32, auth: Signer<TransferAuth>, y: u32) -> u32 {
+    pub fn accept_mixed(x: u32, auth: Signed<TransferAuth>, y: u32) -> u32 {
         x + y + auth.handle()
     }
 
     pub fn mint_and_return(
         consumer: &ContractAddress,
         amount: u64,
-    ) -> Signer<TransferAuth> {
+    ) -> Signed<TransferAuth> {
         let expiry = sdk::block::get_block_height();
         sdk::signer::mint_auth_token::<TransferAuth>(
             expiry,
-            SignerPreimage {
+            AuthTokenPreimage {
                 consumer: *consumer,
                 data: TransferAuthPreimage { amount },
             },

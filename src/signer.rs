@@ -2,19 +2,19 @@ use crate::xdr::*;
 use core::marker::PhantomData;
 
 #[derive(Clone, Copy)]
-pub struct Signer<T> {
+pub struct Signed<T> {
     handle: u32,
     _phantom: PhantomData<T>,
 }
 
-impl<T> WriteXDR for Signer<T> {
+impl<T> WriteXDR for Signed<T> {
     #[inline(always)]
     fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
         Ok(())
     }
 }
 
-impl<'r, T> ReadXDR<'r> for Signer<T> {
+impl<'r, T> ReadXDR<'r> for Signed<T> {
     #[inline(always)]
     fn read_xdr<R: Reader<'r>>(_r: &mut R) -> ReadResult<Self> {
         Ok(Self {
@@ -24,7 +24,7 @@ impl<'r, T> ReadXDR<'r> for Signer<T> {
     }
 }
 
-impl<T> Signer<T> {
+impl<T> Signed<T> {
     #[cfg(feature = "alloc")]
     pub(crate) fn from_handle(handle: u32) -> Self {
         Self {
@@ -38,7 +38,7 @@ impl<T> Signer<T> {
     }
 }
 
-impl<T> core::fmt::Debug for Signer<T> {
+impl<T> core::fmt::Debug for Signed<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Signer")
             .field("handle", &self.handle)
@@ -46,9 +46,9 @@ impl<T> core::fmt::Debug for Signer<T> {
     }
 }
 
-/// Returns a Signer with sentinel handle (u32::MAX). Used internally
+/// Returns a Signed with sentinel handle (u32::MAX). Used internally
 /// by Mintable to construct payload values — not for direct use.
-impl<T> Default for Signer<T> {
+impl<T> Default for Signed<T> {
     fn default() -> Self {
         Self {
             handle: u32::MAX,
@@ -60,7 +60,7 @@ impl<T> Default for Signer<T> {
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 use crate::receive_auth_handles::ReceiveAuthHandles;
 
-impl<T> CollectAuthHandles for Signer<T> {
+impl<T> CollectAuthHandles for Signed<T> {
     #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
         debug_assert_ne!(
@@ -72,59 +72,61 @@ impl<T> CollectAuthHandles for Signer<T> {
     }
 }
 
-impl<T> ReceiveAuthHandles for Signer<T> {
+impl<T> ReceiveAuthHandles for Signed<T> {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
     ) {
-        self.handle = handles.next().expect("missing auth handle for Signer");
+        self.handle = handles.next().expect("missing auth handle for Signed");
     }
 }
 
-impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
+impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T> {
     const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
         groundhog_contract_spec::ContractTypeInfo {
             ty: groundhog_contract_spec::view::ContractTypeView::U32,
         };
 }
 
-use crate::signer_mapper::MintableType;
+use crate::mintable::MintableType;
 
 #[cfg(feature = "alloc")]
-use crate::mintable::{Mintable, SignerPreimage};
+use crate::mintable::{AuthTokenPreimage, Mintable};
 
-impl<T: MintableType> MintableType for Signer<T> {
+impl<T: MintableType> MintableType for Signed<T> {
     type Preimage =
-        crate::mintable::SignerPreimage<<T as MintableType>::Preimage>;
+        crate::mintable::AuthTokenPreimage<<T as MintableType>::Preimage>;
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Mintable> Mintable for Signer<T>
+impl<T: Mintable> Mintable for Signed<T>
 where
     T::Preimage: crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
-    SignerPreimage<T::Preimage>:
+    AuthTokenPreimage<T::Preimage>:
         crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
 {
     fn mint_into_parent(
-        preimage: SignerPreimage<<T as MintableType>::Preimage>,
+        preimage: AuthTokenPreimage<<T as MintableType>::Preimage>,
         children: &mut crate::mintable::ChildNodeBuf,
     ) -> Self {
         let mut node =
             crate::mintable::build_auth_token_node::<T>(preimage.data);
         node.consumer_address = preimage.consumer;
         children.push(node).expect("too many auth token children");
-        Signer::default()
+        Signed::default()
     }
 }
 
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
     expiry: groundhog_xdr::types::BlockHeight,
-    preimage: crate::mintable::SignerPreimage<<T as MintableType>::Preimage>,
-) -> Signer<T>
+    preimage: crate::mintable::AuthTokenPreimage<
+        <T as MintableType>::Preimage,
+    >,
+) -> Signed<T>
 where
     T::Preimage: crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
-    SignerPreimage<T::Preimage>:
+    AuthTokenPreimage<T::Preimage>:
         crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
 {
     use crate::sys::SyscallNo;
@@ -143,10 +145,10 @@ where
         });
 
     let handle = unsafe { token_id.assume_init() };
-    Signer::from_handle(handle)
+    Signed::from_handle(handle)
 }
 
-impl<T> Signer<T>
+impl<T> Signed<T>
 where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
 {
@@ -154,7 +156,7 @@ where
         debug_assert_ne!(
             self.handle,
             u32::MAX,
-            "Signer handle not initialized"
+            "Signed handle not initialized"
         );
 
         use crate::internal::MUBuf;
@@ -211,7 +213,7 @@ mod tests {
 
     #[test]
     fn signer_xdr_writes_zero_bytes() {
-        let signer: Signer<u64> = Signer::from_handle(42);
+        let signer: Signed<u64> = Signed::from_handle(42);
         let mut buf: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
         let written = cxs::encode_into(&signer, &mut buf).unwrap();
         assert_eq!(written, 0);
@@ -219,13 +221,13 @@ mod tests {
 
     #[test]
     fn signer_xdr_reads_sentinel() {
-        let decoded: Signer<u64> = cxs::decode(&[]).unwrap();
+        let decoded: Signed<u64> = cxs::decode(&[]).unwrap();
         assert_eq!(decoded.handle(), u32::MAX);
     }
 
     #[test]
     fn signer_xdr_in_tuple_excludes_handle() {
-        let args: (u64, Signer<u32>, i32) = (100, Signer::from_handle(7), -1);
+        let args: (u64, Signed<u32>, i32) = (100, Signed::from_handle(7), -1);
 
         let mut buf: [MaybeUninit<u8>; 64] = [MaybeUninit::uninit(); 64];
         let written = cxs::encode_into(&args, &mut buf).unwrap();
@@ -235,7 +237,7 @@ mod tests {
         };
 
         // Decode: Signer reads 0 bytes (gets sentinel), other fields normal
-        let decoded: (u64, Signer<u32>, i32) = cxs::decode(init).unwrap();
+        let decoded: (u64, Signed<u32>, i32) = cxs::decode(init).unwrap();
         assert_eq!(decoded.0, 100);
         assert_eq!(decoded.1.handle(), u32::MAX); // sentinel, not 7
         assert_eq!(decoded.2, -1);
@@ -246,11 +248,11 @@ mod tests {
         use crate::collect_auth_handles::CollectAuthHandles;
 
         // Decode with sentinel handles
-        let mut args: (u64, Signer<u32>, i32, Signer<bool>) = (
+        let mut args: (u64, Signed<u32>, i32, Signed<bool>) = (
             100,
-            Signer::from_handle(u32::MAX),
+            Signed::from_handle(u32::MAX),
             -1,
-            Signer::from_handle(u32::MAX),
+            Signed::from_handle(u32::MAX),
         );
 
         // Fill in real handles

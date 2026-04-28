@@ -137,7 +137,7 @@ impl_collect_tuple!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::signer::Signer;
+    use crate::signer::Signed;
 
     #[test]
     fn primitives_collect_nothing() {
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn signer_collects_handle() {
         let mut buf = AuthHandleBuf::new();
-        let s: Signer<u32> = Signer::from_handle(99);
+        let s: Signed<u32> = Signed::from_handle(99);
         s.collect_auth_handles(&mut buf);
         assert_eq!(buf.as_slice(), &[99]);
     }
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn option_some_collects() {
         let mut buf = AuthHandleBuf::new();
-        let s: Option<Signer<u32>> = Some(Signer::from_handle(5));
+        let s: Option<Signed<u32>> = Some(Signed::from_handle(5));
         s.collect_auth_handles(&mut buf);
         assert_eq!(buf.as_slice(), &[5]);
     }
@@ -167,28 +167,28 @@ mod tests {
     #[test]
     fn option_none_collects_nothing() {
         let mut buf = AuthHandleBuf::new();
-        let s: Option<Signer<u32>> = None;
+        let s: Option<Signed<u32>> = None;
         s.collect_auth_handles(&mut buf);
         assert!(buf.is_empty());
     }
 
     #[test]
-    fn slice_of_signers() {
+    fn slice_of_signeds() {
         let mut buf = AuthHandleBuf::new();
-        let signers: &[Signer<u32>] = &[
-            Signer::from_handle(1),
-            Signer::from_handle(2),
-            Signer::from_handle(3),
+        let signeds: &[Signed<u32>] = &[
+            Signed::from_handle(1),
+            Signed::from_handle(2),
+            Signed::from_handle(3),
         ];
-        signers.collect_auth_handles(&mut buf);
+        signeds.collect_auth_handles(&mut buf);
         assert_eq!(buf.as_slice(), &[1, 2, 3]);
     }
 
     #[test]
-    fn mixed_tuple_collects_only_signers() {
+    fn mixed_tuple_collects_only_signeds() {
         let mut buf = AuthHandleBuf::new();
-        let args: (u64, Signer<u32>, i32, Signer<bool>) =
-            (100, Signer::from_handle(10), -1, Signer::from_handle(20));
+        let args: (u64, Signed<u32>, i32, Signed<bool>) =
+            (100, Signed::from_handle(10), -1, Signed::from_handle(20));
         args.collect_auth_handles(&mut buf);
         assert_eq!(buf.as_slice(), &[10, 20]);
     }
@@ -196,13 +196,13 @@ mod tests {
     #[test]
     fn single_element_tuple() {
         let mut buf = AuthHandleBuf::new();
-        let args: (Signer<u32>,) = (Signer::from_handle(42),);
+        let args: (Signed<u32>,) = (Signed::from_handle(42),);
         args.collect_auth_handles(&mut buf);
         assert_eq!(buf.as_slice(), &[42]);
     }
 
     #[test]
-    fn tuple_with_no_signers() {
+    fn tuple_with_no_signeds() {
         let mut buf = AuthHandleBuf::new();
         let args: (u64, i32, bool) = (1, 2, true);
         args.collect_auth_handles(&mut buf);
