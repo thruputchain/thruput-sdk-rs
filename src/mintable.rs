@@ -82,10 +82,12 @@ pub fn auth_token_children(
     { groundhog_xdr::auth_token::kAuthTokenMaxChildNodes },
 > {
     nodes.try_into().unwrap_or_else(|_| {
-        panic!(
-            "too many auth token children (max {})",
-            groundhog_xdr::auth_token::kAuthTokenMaxChildNodes
-        )
+        crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
+            crate::exn::FaultString::from_display(format_args!(
+                "too many auth token children (max {})",
+                groundhog_xdr::auth_token::kAuthTokenMaxChildNodes
+            )),
+        ))
     })
 }
 

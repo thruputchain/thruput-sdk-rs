@@ -46,6 +46,8 @@ impl<T> core::fmt::Debug for Signer<T> {
     }
 }
 
+/// Returns a Signer with sentinel handle (u32::MAX). Used internally
+/// by Mintable to construct payload values — not for direct use.
 impl<T> Default for Signer<T> {
     fn default() -> Self {
         Self {
@@ -182,7 +184,7 @@ where
         let mut value: T =
             cxs::decode(payload_buf.as_ref()).unwrap_or_else(|e| {
                 crate::exn::library_throw(
-                    crate::exn::CallingError::DecodingSuccess(
+                    crate::AuthTokenError::ConsumeDecodeFailure(
                         crate::exn::FaultString::from_display(e),
                     ),
                 )

@@ -60,4 +60,9 @@ pub enum HandlingError {
 pub enum AuthTokenError {
     #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
     MintEncodeFailure(FaultString),
+    #[cfg_attr(
+        feature = "debugging",
+        error("Decoding auth token payload: {0}")
+    )]
+    ConsumeDecodeFailure(FaultString),
 }
