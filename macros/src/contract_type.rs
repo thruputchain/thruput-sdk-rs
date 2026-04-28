@@ -36,10 +36,11 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                     type Unsigned = #ident;
                 }
 
+                #[cfg(feature = "alloc")]
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
                         unsigned: Self::Unsigned,
-                        _children: &mut ::sdk::mintable::ChildNodeBuf,
+                        _children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
                     ) -> Self {
                         unsigned
                     }
@@ -329,10 +330,11 @@ fn transform_struct_for_signer_mapper(
                     type Unsigned = #ident<::sdk::mintable::ForMinting>;
                 }
 
+                #[cfg(feature = "alloc")]
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
                         unsigned: Self::Unsigned,
-                        children: &mut ::sdk::mintable::ChildNodeBuf,
+                        children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
                     ) -> Self {
                         Self {
                             #(#mint_fields,)*
@@ -385,10 +387,11 @@ fn transform_struct_for_signer_mapper(
                     type Unsigned = #ident<::sdk::mintable::ForMinting>;
                 }
 
+                #[cfg(feature = "alloc")]
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
                         unsigned: Self::Unsigned,
-                        children: &mut ::sdk::mintable::ChildNodeBuf,
+                        children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
                     ) -> Self {
                         Self(
                             #(#mint_fields,)*
@@ -412,10 +415,11 @@ fn transform_struct_for_signer_mapper(
                     type Unsigned = #ident<::sdk::mintable::ForMinting>;
                 }
 
+                #[cfg(feature = "alloc")]
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
                         _unsigned: Self::Unsigned,
-                        _children: &mut ::sdk::mintable::ChildNodeBuf,
+                        _children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
                     ) -> Self {
                         Self
                     }

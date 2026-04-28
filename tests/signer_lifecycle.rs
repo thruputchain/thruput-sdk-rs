@@ -11,10 +11,20 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{ForMinting, Mintable, UnsignedSigner};
+use sdk::mintable::{ForMinting, UnsignedSigner, build_auth_token_node};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signer;
 use sdk::*;
+
+fn build_signer_node<T: sdk::Mintable>(
+    unsigned: UnsignedSigner<
+        <T as sdk::signer_mapper::MintableType>::Unsigned,
+    >,
+) -> sdk::AuthTokenNode {
+    let mut node = build_auth_token_node::<T>(unsigned.data);
+    node.consumer_address = unsigned.consumer;
+    node
+}
 
 // ── Contract C's auth data (leaf, no nested signers) ──
 
@@ -69,8 +79,7 @@ fn build_nested_auth_token_tree() {
         },
     };
 
-    let root_node =
-        <Signer<MiddleAuth> as Mintable>::build_auth_token_node(unsigned);
+    let root_node = build_signer_node::<MiddleAuth>(unsigned);
 
     // Root node: consumer = B
     assert_eq!(root_node.consumer_address, addr_b);
@@ -121,8 +130,7 @@ fn payload_roundtrip_with_receive_handles() {
         },
     };
 
-    let root_node =
-        <Signer<MiddleAuth> as Mintable>::build_auth_token_node(unsigned);
+    let root_node = build_signer_node::<MiddleAuth>(unsigned);
 
     // The root node's payload is WriteXDR of MiddleAuth
     // (Signer fields write 0 bytes, Vec length is preserved)
@@ -188,8 +196,7 @@ fn leaf_payload_roundtrip() {
         data: LeafAuth { data: 99 },
     };
 
-    let node =
-        <Signer<LeafAuth> as Mintable>::build_auth_token_node(leaf_unsigned);
+    let node = build_signer_node::<LeafAuth>(leaf_unsigned);
 
     assert_eq!(node.consumer_address, addr(0xCC));
     assert!(node.child_nodes.is_empty());
@@ -209,7 +216,7 @@ fn encode_auth_token_node_roundtrip() {
         data: LeafAuth { data: 77 },
     };
 
-    let node = <Signer<LeafAuth> as Mintable>::build_auth_token_node(unsigned);
+    let node = build_signer_node::<LeafAuth>(unsigned);
 
     // Encode the full AuthTokenNode (what gets passed to MintAuthToken syscall)
     let encoded = sdk::mintable::encode_auth_token_node(&node);

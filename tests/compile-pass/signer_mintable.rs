@@ -2,7 +2,7 @@
 
 use sdk::*;
 use sdk::signer::Signer;
-use sdk::mintable::{Mintable, UnsignedSigner, ForMinting};
+use sdk::mintable::{UnsignedSigner, ForMinting};
 
 #[contracttype]
 pub struct TransferAuth {
@@ -25,5 +25,5 @@ fn main() {
         },
     };
 
-    let _node = <Payment as Mintable>::build_auth_token_node(unsigned);
+    let _node = sdk::mintable::build_auth_token_node::<Payment>(unsigned);
 }

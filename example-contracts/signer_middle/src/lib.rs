@@ -29,8 +29,8 @@ impl SignerMiddle {
 
         let mut extra_sum: u64 = 0;
         for child in middle.extra_children {
-            extra_sum +=
-                SignerLeafClient::new(leaf_contract).consume_leaf(child) as u64;
+            extra_sum += SignerLeafClient::new(leaf_contract)
+                .consume_leaf(child) as u64;
         }
 
         middle.label + child_result as u64 + extra_sum

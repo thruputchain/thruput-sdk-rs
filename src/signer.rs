@@ -25,7 +25,6 @@ impl<'r, T> ReadXDR<'r> for Signer<T> {
 }
 
 impl<T> Signer<T> {
-    #[cfg(feature = "alloc")]
     pub(crate) fn from_handle(handle: u32) -> Self {
         Self {
             handle,
@@ -88,30 +87,27 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
         };
 }
 
-use crate::mintable::{ChildNodeBuf, Mintable, UnsignedSigner};
 use crate::signer_mapper::MintableType;
 
-impl<T: Mintable> MintableType for Signer<T> {
-    type Unsigned = UnsignedSigner<<T as MintableType>::Unsigned>;
+#[cfg(feature = "alloc")]
+use crate::mintable::{Mintable, UnsignedSigner};
+
+impl<T: MintableType> MintableType for Signer<T> {
+    type Unsigned =
+        crate::mintable::UnsignedSigner<<T as MintableType>::Unsigned>;
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Mintable> Mintable for Signer<T> {
     fn mint_into_parent(
         unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
-        children: &mut ChildNodeBuf,
+        children: &mut alloc::vec::Vec<crate::types::AuthTokenNode>,
     ) -> Self {
-        let mut node = T::build_auth_token_node(unsigned.data);
+        let mut node =
+            crate::mintable::build_auth_token_node::<T>(unsigned.data);
         node.consumer_address = unsigned.consumer;
-        children.push(node).expect("too many auth token children");
+        children.push(node);
         Signer::default()
-    }
-
-    fn build_auth_token_node(
-        unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
-    ) -> crate::types::AuthTokenNode {
-        let mut node = T::build_auth_token_node(unsigned.data);
-        node.consumer_address = unsigned.consumer;
-        node
     }
 }
 
@@ -122,7 +118,9 @@ pub fn mint_auth_token<T: Mintable>(
 ) -> Signer<T> {
     use crate::sys::SyscallNo;
 
-    let root_node = <Signer<T> as Mintable>::build_auth_token_node(unsigned);
+    let mut root_node =
+        crate::mintable::build_auth_token_node::<T>(unsigned.data);
+    root_node.consumer_address = unsigned.consumer;
     let buf = crate::mintable::encode_auth_token_node(&root_node);
 
     let mut token_id: core::mem::MaybeUninit<u32> =

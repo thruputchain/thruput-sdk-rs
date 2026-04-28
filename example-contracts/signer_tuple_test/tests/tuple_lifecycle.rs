@@ -3,7 +3,7 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{ForMinting, Mintable, UnsignedSigner};
+use sdk::mintable::{ForMinting, UnsignedSigner, build_auth_token_node};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signer;
 use sdk::*;
@@ -29,8 +29,8 @@ fn tuple_struct_auth_token_tree() {
         ),
     };
 
-    let root_node =
-        <Signer<TupleAuth> as Mintable>::build_auth_token_node(unsigned);
+    let mut root_node = build_auth_token_node::<TupleAuth>(unsigned.data);
+    root_node.consumer_address = unsigned.consumer;
 
     assert_eq!(root_node.consumer_address, addr_consumer);
     // The nested Signer<u32> produces one child node
@@ -54,8 +54,8 @@ fn tuple_struct_payload_roundtrip() {
         ),
     };
 
-    let root_node =
-        <Signer<TupleAuth> as Mintable>::build_auth_token_node(unsigned);
+    let mut root_node = build_auth_token_node::<TupleAuth>(unsigned.data);
+    root_node.consumer_address = unsigned.consumer;
 
     let payload_bytes: &[u8] = root_node.payload.as_ref();
     let mut decoded: TupleAuth =
