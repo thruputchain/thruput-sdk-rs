@@ -40,6 +40,9 @@ members = [
     "imported_error_caller",
     "signer_callee",
     "signer_caller",
+    "signer_leaf",
+    "signer_middle",
+    "signer_minter",
 ]
 
 [workspace.package]

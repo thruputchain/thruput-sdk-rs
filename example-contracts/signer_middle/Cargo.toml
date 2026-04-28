@@ -1,0 +1,30 @@
+[package]
+name = "signer_middle"
+description = "Middle contract that consumes a nested Signer and forwards children"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+default = ["alloc"]
+entrypoints = []
+alloc = ["sdk/alloc"]
+dev = ["sdk/dev", "signer_leaf/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+signer_leaf = { path = "../signer_leaf" }
+
+[dev-dependencies]
+signer_middle = { path = ".", features = ["dev"] }

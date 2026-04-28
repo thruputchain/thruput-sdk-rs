@@ -1836,6 +1836,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "signer_leaf"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_leaf",
+]
+
+[[package]]
+name = "signer_middle"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_leaf",
+ "signer_middle",
+]
+
+[[package]]
+name = "signer_minter"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_leaf",
+ "signer_middle",
+ "signer_minter",
+]
+
+[[package]]
 name = "simd-adler32"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

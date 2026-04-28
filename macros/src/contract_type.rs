@@ -268,7 +268,7 @@ fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
 
     quote! {
         #[cfg(feature = "alloc")]
-        mod #mintable_mod_ident {
+        pub mod #mintable_mod_ident {
             #[allow(unused_imports)]
             use super::*;
 

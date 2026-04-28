@@ -2,8 +2,8 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::*;
 use sdk::signer::Signer;
+use sdk::*;
 use signer_callee::{SignerCalleeClient, TransferAuth};
 
 #[derive(Default)]
