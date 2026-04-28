@@ -11,7 +11,7 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{Mintable, UnsignedSigner};
+use sdk::mintable::{ForMinting, Mintable, UnsignedSigner};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signer;
 use sdk::*;
@@ -50,26 +50,20 @@ fn build_nested_auth_token_tree() {
     // Build unsigned form: A mints for B, which nests C tokens
     let unsigned = UnsignedSigner {
         consumer: addr_b.clone(),
-        data: __groundhog_mintable_middle_auth::MiddleAuthUnsigned {
+        data: MiddleAuth::<ForMinting> {
             label: 42,
             single_child: UnsignedSigner {
                 consumer: addr_c1.clone(),
-                data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned {
-                    data: 100,
-                },
+                data: LeafAuth { data: 100 },
             },
             multi_children: vec![
                 UnsignedSigner {
                     consumer: addr_c2.clone(),
-                    data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned {
-                        data: 200,
-                    },
+                    data: LeafAuth { data: 200 },
                 },
                 UnsignedSigner {
                     consumer: addr_c3.clone(),
-                    data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned {
-                        data: 300,
-                    },
+                    data: LeafAuth { data: 300 },
                 },
             ],
         },
@@ -108,26 +102,20 @@ fn payload_roundtrip_with_receive_handles() {
 
     let unsigned = UnsignedSigner {
         consumer: addr_b,
-        data: __groundhog_mintable_middle_auth::MiddleAuthUnsigned {
+        data: MiddleAuth::<ForMinting> {
             label: 42,
             single_child: UnsignedSigner {
                 consumer: addr_c1,
-                data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned {
-                    data: 100,
-                },
+                data: LeafAuth { data: 100 },
             },
             multi_children: vec![
                 UnsignedSigner {
                     consumer: addr_c2,
-                    data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned {
-                        data: 200,
-                    },
+                    data: LeafAuth { data: 200 },
                 },
                 UnsignedSigner {
                     consumer: addr_c3,
-                    data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned {
-                        data: 300,
-                    },
+                    data: LeafAuth { data: 300 },
                 },
             ],
         },
@@ -197,7 +185,7 @@ fn collect_handles_for_forwarding() {
 fn leaf_payload_roundtrip() {
     let leaf_unsigned = UnsignedSigner {
         consumer: addr(0xCC),
-        data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned { data: 99 },
+        data: LeafAuth { data: 99 },
     };
 
     let node =
@@ -218,7 +206,7 @@ fn leaf_payload_roundtrip() {
 fn encode_auth_token_node_roundtrip() {
     let unsigned = UnsignedSigner {
         consumer: addr(0xBB),
-        data: __groundhog_mintable_leaf_auth::LeafAuthUnsigned { data: 77 },
+        data: LeafAuth { data: 77 },
     };
 
     let node = <Signer<LeafAuth> as Mintable>::build_auth_token_node(unsigned);
