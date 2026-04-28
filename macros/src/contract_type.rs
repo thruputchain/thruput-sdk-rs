@@ -57,19 +57,35 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             let name = expand_contract_type_name(ident, &args);
             let collect_auth = expand_collect_auth_handles_struct(&item);
             let receive_auth = expand_receive_auth_handles_struct(&item);
-            let mintable = expand_mintable_struct(&item);
+            let (transformed_struct, mintable) =
+                match transform_struct_for_signer_mapper(&item) {
+                    Ok(pair) => pair,
+                    Err(err) => return err.into_compile_error(),
+                };
             let export_attr = if args.export == Some(true) {
                 quote! { #[contract_type_spec(export)] }
             } else {
                 quote! {}
             };
+
+            // Generate ContractTypeSpec from the original (non-generic)
+            // struct so the derive sees no generic parameters.
+            let spec_input =
+                derive_input_from_item_struct(&item, &export_attr);
+            let spec_tokens =
+                match crate::derive_contract_type_spec::expand(&spec_input) {
+                    Ok(tokens) => tokens,
+                    Err(err) => return err.into_compile_error(),
+                };
+
             quote! {
-                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
                 #[xdrs(crate = "::sdk::__xdrs")]
-                #export_attr
-                #item
+                #transformed_struct
 
                 #name
+
+                #spec_tokens
 
                 #collect_auth
 
@@ -83,6 +99,31 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             "#[contracttype] is only supported on enums and structs",
         )
         .into_compile_error(),
+    }
+}
+
+/// Build a synthetic `DeriveInput` from the original (non-generic)
+/// `ItemStruct` so that `ContractTypeSpec` derive logic can run on
+/// the concrete field types (without the `SignerMapper` wrapper).
+fn derive_input_from_item_struct(
+    item: &syn::ItemStruct,
+    export_attr: &TokenStream,
+) -> syn::DeriveInput {
+    let mut attrs = item.attrs.clone();
+    // Add the export attribute if present so the derive picks it up.
+    if !export_attr.is_empty() {
+        attrs.push(syn::parse_quote!(#[contract_type_spec(export)]));
+    }
+    syn::DeriveInput {
+        attrs,
+        vis: item.vis.clone(),
+        ident: item.ident.clone(),
+        generics: item.generics.clone(), // empty — original has no generics
+        data: syn::Data::Struct(syn::DataStruct {
+            struct_token: item.struct_token,
+            fields: item.fields.clone(),
+            semi_token: item.semi_token,
+        }),
     }
 }
 
@@ -215,43 +256,54 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
     }
 }
 
-fn to_snake_case(s: &str) -> String {
-    let mut out = String::new();
-    for (i, ch) in s.chars().enumerate() {
-        if ch.is_uppercase() && i > 0 {
-            out.push('_');
-        }
-        out.extend(ch.to_lowercase());
-    }
-    out
-}
-
-fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
+/// Transform a `#[contracttype]` struct to add a
+/// `__M: ::sdk::mintable::SignerMapper = ::sdk::mintable::Signed` generic
+/// parameter, wrapping each named field type `T` in
+/// `<__M as ::sdk::mintable::SignerMapper>::Map<T>`.
+///
+/// Returns `(transformed_struct_tokens, mintable_impl_tokens)`.
+fn transform_struct_for_signer_mapper(
+    item: &syn::ItemStruct,
+) -> syn::Result<(TokenStream, TokenStream)> {
     let ident = &item.ident;
-    let unsigned_ident = quote::format_ident!("{}Unsigned", ident);
-    let snake = to_snake_case(&ident.to_string());
-    let mintable_mod_ident =
-        quote::format_ident!("__groundhog_mintable_{}", snake);
 
     let fields = match &item.fields {
         syn::Fields::Named(fields) => &fields.named,
         _ => {
-            return syn::Error::new_spanned(
+            return Err(syn::Error::new_spanned(
                 item,
-                "Mintable derive requires named fields",
-            )
-            .into_compile_error();
+                "#[contracttype] structs must have named fields",
+            ));
         }
     };
 
-    let unsigned_fields: Vec<TokenStream> = fields
+    // ── Build the transformed struct ──
+
+    let user_attrs: Vec<_> = item.attrs.iter().collect();
+    let vis = &item.vis;
+
+    let transformed_fields: Vec<TokenStream> = fields
         .iter()
         .map(|f| {
+            let field_vis = &f.vis;
+            let field_attrs: Vec<_> = f.attrs.iter().collect();
             let name = &f.ident;
             let ty = &f.ty;
-            quote! { pub #name: <#ty as ::sdk::Mintable>::Unsigned }
+            quote! {
+                #(#field_attrs)*
+                #field_vis #name: <__M as ::sdk::mintable::SignerMapper>::Map<#ty>
+            }
         })
         .collect();
+
+    let transformed_struct = quote! {
+        #(#user_attrs)*
+        #vis struct #ident <__M: ::sdk::mintable::SignerMapper = ::sdk::mintable::Signed> {
+            #(#transformed_fields,)*
+        }
+    };
+
+    // ── Build the Mintable impl ──
 
     let mint_fields: Vec<TokenStream> = fields
         .iter()
@@ -266,20 +318,10 @@ fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
         })
         .collect();
 
-    quote! {
-        #[cfg(feature = "alloc")]
-        pub mod #mintable_mod_ident {
-            #[allow(unused_imports)]
-            use super::*;
-
-            pub struct #unsigned_ident {
-                #(#unsigned_fields,)*
-            }
-        }
-
+    let mintable_impl = quote! {
         #[cfg(feature = "alloc")]
         impl ::sdk::Mintable for #ident {
-            type Unsigned = #mintable_mod_ident::#unsigned_ident;
+            type Unsigned = #ident<::sdk::mintable::ForMinting>;
 
             fn mint_into_parent(
                 unsigned: Self::Unsigned,
@@ -290,7 +332,9 @@ fn expand_mintable_struct(item: &syn::ItemStruct) -> TokenStream {
                 }
             }
         }
-    }
+    };
+
+    Ok((transformed_struct, mintable_impl))
 }
 
 fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
