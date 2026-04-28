@@ -31,6 +31,7 @@ impl_collect_noop!(
     bool,
     (),
     str,
+    sdk::types::ContractAddress,
     sdk::types::BlockHeight,
     sdk::types::SHA256Hash,
     sdk::types::Ed25519PublicKey,
