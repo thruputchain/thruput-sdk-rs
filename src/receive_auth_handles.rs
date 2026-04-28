@@ -24,16 +24,25 @@ macro_rules! impl_receive_noop {
     };
 }
 
-impl_receive_noop!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, bool, (),);
-
-impl ReceiveAuthHandles for str {
-    #[inline(always)]
-    fn receive_auth_handles(
-        &mut self,
-        _handles: &mut impl Iterator<Item = u32>,
-    ) {
-    }
-}
+impl_receive_noop!(
+    u8,
+    u16,
+    u32,
+    u64,
+    u128,
+    i8,
+    i16,
+    i32,
+    i64,
+    i128,
+    bool,
+    (),
+    sdk::types::ContractAddress,
+    sdk::types::BlockHeight,
+    sdk::types::SHA256Hash,
+    sdk::types::Ed25519PublicKey,
+    sdk::types::Ed25519Signature
+);
 
 impl<const N: usize> ReceiveAuthHandles for [u8; N] {
     #[inline(always)]
@@ -90,42 +99,6 @@ impl<T: ReceiveAuthHandles + 'static, const MAX: u32> ReceiveAuthHandles
 }
 
 impl<const MAX: u32> ReceiveAuthHandles for xdrs::BytesM<MAX> {
-    #[inline(always)]
-    fn receive_auth_handles(
-        &mut self,
-        _handles: &mut impl Iterator<Item = u32>,
-    ) {
-    }
-}
-
-impl ReceiveAuthHandles for crate::types::ContractAddress {
-    #[inline(always)]
-    fn receive_auth_handles(
-        &mut self,
-        _handles: &mut impl Iterator<Item = u32>,
-    ) {
-    }
-}
-
-impl ReceiveAuthHandles for crate::types::SHA256Hash {
-    #[inline(always)]
-    fn receive_auth_handles(
-        &mut self,
-        _handles: &mut impl Iterator<Item = u32>,
-    ) {
-    }
-}
-
-impl ReceiveAuthHandles for crate::types::Ed25519PublicKey {
-    #[inline(always)]
-    fn receive_auth_handles(
-        &mut self,
-        _handles: &mut impl Iterator<Item = u32>,
-    ) {
-    }
-}
-
-impl ReceiveAuthHandles for crate::types::Ed25519Signature {
     #[inline(always)]
     fn receive_auth_handles(
         &mut self,
