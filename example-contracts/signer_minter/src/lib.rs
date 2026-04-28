@@ -2,11 +2,12 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::mintable::{ForMinting, UnsignedSigner};
+use sdk::mintable::SignerPreimage;
 use sdk::signer::Signer;
 use sdk::*;
-use signer_leaf::LeafAuth;
+use signer_leaf::__leafauth_preimage;
 use signer_middle::{MiddleAuth, SignerMiddleClient};
+use signer_middle::__middleauth_preimage;
 
 #[derive(Default)]
 pub struct SignerMinter;
@@ -19,29 +20,29 @@ impl SignerMinter {
     ) -> u64 {
         let expiry = sdk::block::get_block_height();
 
-        let unsigned = UnsignedSigner {
+        let preimage = SignerPreimage {
             consumer: middle_contract.clone(),
-            data: MiddleAuth::<ForMinting> {
+            data: __middleauth_preimage::Preimage {
                 label: 1000,
-                child: UnsignedSigner {
+                child: SignerPreimage {
                     consumer: leaf_contract.clone(),
-                    data: LeafAuth { data: 10 },
+                    data: __leafauth_preimage::Preimage { data: 10 },
                 },
                 extra_children: vec![
-                    UnsignedSigner {
+                    SignerPreimage {
                         consumer: leaf_contract.clone(),
-                        data: LeafAuth { data: 20 },
+                        data: __leafauth_preimage::Preimage { data: 20 },
                     },
-                    UnsignedSigner {
+                    SignerPreimage {
                         consumer: leaf_contract.clone(),
-                        data: LeafAuth { data: 30 },
+                        data: __leafauth_preimage::Preimage { data: 30 },
                     },
                 ],
             },
         };
 
         let signer: Signer<MiddleAuth> =
-            sdk::signer::mint_auth_token::<MiddleAuth>(expiry, unsigned);
+            sdk::signer::mint_auth_token::<MiddleAuth>(expiry, preimage);
 
         SignerMiddleClient::new(middle_contract)
             .consume_and_forward(signer, leaf_contract)

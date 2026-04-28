@@ -2,7 +2,7 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::mintable::UnsignedSigner;
+use sdk::mintable::SignerPreimage;
 use sdk::signer::Signer;
 use sdk::*;
 
@@ -31,9 +31,9 @@ impl SignerCallee {
         let expiry = sdk::block::get_block_height();
         sdk::signer::mint_auth_token::<TransferAuth>(
             expiry,
-            UnsignedSigner {
+            SignerPreimage {
                 consumer: consumer.clone(),
-                data: TransferAuth { amount },
+                data: __transferauth_preimage::Preimage { amount },
             },
         )
     }

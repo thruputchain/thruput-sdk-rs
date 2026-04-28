@@ -11,18 +11,21 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{ForMinting, UnsignedSigner, build_auth_token_node};
+use sdk::mintable::{SignerPreimage, build_auth_token_node};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signer;
+use sdk::signer_mapper::MintableType;
 use sdk::*;
 
 fn build_signer_node<T: sdk::Mintable>(
-    unsigned: UnsignedSigner<
-        <T as sdk::signer_mapper::MintableType>::Unsigned,
-    >,
-) -> sdk::AuthTokenNode {
-    let mut node = build_auth_token_node::<T>(unsigned.data);
-    node.consumer_address = unsigned.consumer;
+    preimage: SignerPreimage<<T as MintableType>::Preimage>,
+) -> sdk::AuthTokenNode
+where
+    T::Preimage: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
+    SignerPreimage<T::Preimage>: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
+{
+    let mut node = build_auth_token_node::<T>(preimage.data);
+    node.consumer_address = preimage.consumer;
     node
 }
 
@@ -57,29 +60,29 @@ fn build_nested_auth_token_tree() {
     let addr_c2 = addr(0xC2);
     let addr_c3 = addr(0xC3);
 
-    // Build unsigned form: A mints for B, which nests C tokens
-    let unsigned = UnsignedSigner {
+    // Build preimage form: A mints for B, which nests C tokens
+    let preimage = SignerPreimage {
         consumer: addr_b.clone(),
-        data: MiddleAuth::<ForMinting> {
+        data: __middleauth_preimage::Preimage {
             label: 42,
-            single_child: UnsignedSigner {
+            single_child: SignerPreimage {
                 consumer: addr_c1.clone(),
-                data: LeafAuth { data: 100 },
+                data: __leafauth_preimage::Preimage { data: 100 },
             },
             multi_children: vec![
-                UnsignedSigner {
+                SignerPreimage {
                     consumer: addr_c2.clone(),
-                    data: LeafAuth { data: 200 },
+                    data: __leafauth_preimage::Preimage { data: 200 },
                 },
-                UnsignedSigner {
+                SignerPreimage {
                     consumer: addr_c3.clone(),
-                    data: LeafAuth { data: 300 },
+                    data: __leafauth_preimage::Preimage { data: 300 },
                 },
             ],
         },
     };
 
-    let root_node = build_signer_node::<MiddleAuth>(unsigned);
+    let root_node = build_signer_node::<MiddleAuth>(preimage);
 
     // Root node: consumer = B
     assert_eq!(root_node.consumer_address, addr_b);
@@ -109,28 +112,28 @@ fn payload_roundtrip_with_receive_handles() {
     let addr_c2 = addr(0xC2);
     let addr_c3 = addr(0xC3);
 
-    let unsigned = UnsignedSigner {
+    let preimage = SignerPreimage {
         consumer: addr_b,
-        data: MiddleAuth::<ForMinting> {
+        data: __middleauth_preimage::Preimage {
             label: 42,
-            single_child: UnsignedSigner {
+            single_child: SignerPreimage {
                 consumer: addr_c1,
-                data: LeafAuth { data: 100 },
+                data: __leafauth_preimage::Preimage { data: 100 },
             },
             multi_children: vec![
-                UnsignedSigner {
+                SignerPreimage {
                     consumer: addr_c2,
-                    data: LeafAuth { data: 200 },
+                    data: __leafauth_preimage::Preimage { data: 200 },
                 },
-                UnsignedSigner {
+                SignerPreimage {
                     consumer: addr_c3,
-                    data: LeafAuth { data: 300 },
+                    data: __leafauth_preimage::Preimage { data: 300 },
                 },
             ],
         },
     };
 
-    let root_node = build_signer_node::<MiddleAuth>(unsigned);
+    let root_node = build_signer_node::<MiddleAuth>(preimage);
 
     // The root node's payload is WriteXDR of MiddleAuth
     // (Signer fields write 0 bytes, Vec length is preserved)
@@ -191,12 +194,12 @@ fn collect_handles_for_forwarding() {
 
 #[test]
 fn leaf_payload_roundtrip() {
-    let leaf_unsigned = UnsignedSigner {
+    let leaf_preimage = SignerPreimage {
         consumer: addr(0xCC),
-        data: LeafAuth { data: 99 },
+        data: __leafauth_preimage::Preimage { data: 99 },
     };
 
-    let node = build_signer_node::<LeafAuth>(leaf_unsigned);
+    let node = build_signer_node::<LeafAuth>(leaf_preimage);
 
     assert_eq!(node.consumer_address, addr(0xCC));
     assert!(node.child_nodes.is_empty());
@@ -211,12 +214,12 @@ fn leaf_payload_roundtrip() {
 
 #[test]
 fn encode_auth_token_node_roundtrip() {
-    let unsigned = UnsignedSigner {
+    let preimage = SignerPreimage {
         consumer: addr(0xBB),
-        data: LeafAuth { data: 77 },
+        data: __leafauth_preimage::Preimage { data: 77 },
     };
 
-    let node = build_signer_node::<LeafAuth>(unsigned);
+    let node = build_signer_node::<LeafAuth>(preimage);
 
     // Encode the full AuthTokenNode (what gets passed to MintAuthToken syscall)
     let encoded = sdk::mintable::encode_auth_token_node(&node);

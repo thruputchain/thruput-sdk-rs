@@ -1,31 +1,24 @@
 use crate::signer_mapper::MintableType;
 use crate::xdr::*;
 
-#[cfg(feature = "alloc")]
-use crate::signer_mapper::SignerMapper;
-#[cfg(feature = "alloc")]
-use crate::types::{AuthTokenNode, AuthTokenPayload, ContractAddress};
+use crate::types::AuthTokenNode;
 
 #[cfg(feature = "alloc")]
-pub struct ForMinting;
-#[cfg(feature = "alloc")]
-impl SignerMapper for ForMinting {
-    type Map<T: MintableType> = <T as MintableType>::Unsigned;
-}
+use crate::types::{AuthTokenPayload, ContractAddress};
 
-pub struct UnsignedSigner<T> {
+pub struct SignerPreimage<T> {
     pub consumer: crate::types::ContractAddress,
     pub data: T,
 }
 
-impl<T: WriteXDR> WriteXDR for UnsignedSigner<T> {
+impl<T: WriteXDR> WriteXDR for SignerPreimage<T> {
     fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         self.consumer.write_xdr(w)?;
         self.data.write_xdr(w)
     }
 }
 
-impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for UnsignedSigner<T> {
+impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for SignerPreimage<T> {
     fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
         Ok(Self {
             consumer: crate::types::ContractAddress::read_xdr(r)?,
@@ -39,19 +32,25 @@ const AUTH_TOKEN_MAX_CHILDREN: usize =
 
 pub type ChildNodeBuf = heapless::Vec<AuthTokenNode, AUTH_TOKEN_MAX_CHILDREN>;
 
-pub trait Mintable: MintableType {
+pub trait Mintable: MintableType
+where
+    Self::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
+{
     fn mint_into_parent(
-        unsigned: Self::Unsigned,
+        preimage: Self::Preimage,
         children: &mut ChildNodeBuf,
     ) -> Self;
 }
 
 #[cfg(feature = "alloc")]
 pub fn build_auth_token_node<T: Mintable>(
-    unsigned: T::Unsigned,
-) -> AuthTokenNode {
+    preimage: T::Preimage,
+) -> AuthTokenNode
+where
+    T::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
+{
     let mut children = ChildNodeBuf::new();
-    let payload_value = T::mint_into_parent(unsigned, &mut children);
+    let payload_value = T::mint_into_parent(preimage, &mut children);
     AuthTokenNode {
         consumer_address: ContractAddress::default(),
         payload: encode_payload(&payload_value),
@@ -108,13 +107,13 @@ pub fn encode_auth_token_node(node: &AuthTokenNode) -> alloc::vec::Vec<u8> {
     })
 }
 
-// ── MintableType impls (no alloc needed) ──
+// ── MintableType leaf impls ──
 
 macro_rules! impl_mintable_type_leaf {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl MintableType for $ty {
-                type Unsigned = $ty;
+                type Preimage = $ty;
             }
         )+
     };
@@ -138,40 +137,40 @@ impl_mintable_type_leaf!(
 );
 
 impl<const MAX: u32> MintableType for BytesM<MAX> {
-    type Unsigned = BytesM<MAX>;
+    type Preimage = BytesM<MAX>;
 }
 
 impl<const N: usize> MintableType for [u8; N] {
-    type Unsigned = [u8; N];
+    type Preimage = [u8; N];
 }
 
 impl<T: MintableType> MintableType for Option<T> {
-    type Unsigned = Option<T::Unsigned>;
+    type Preimage = Option<T::Preimage>;
 }
 
 #[cfg(feature = "alloc")]
 impl<T: MintableType + 'static, const MAX: u32> MintableType for VecM<T, MAX> {
-    type Unsigned = VecM<T::Unsigned, MAX>;
+    type Preimage = VecM<T::Preimage, MAX>;
 }
 
 #[cfg(feature = "alloc")]
 impl<T: MintableType> MintableType for alloc::vec::Vec<T> {
-    type Unsigned = alloc::vec::Vec<T::Unsigned>;
+    type Preimage = alloc::vec::Vec<T::Preimage>;
 }
 
 #[cfg(feature = "alloc")]
 impl<T: MintableType + ?Sized> MintableType for alloc::boxed::Box<T> {
-    type Unsigned = alloc::boxed::Box<T::Unsigned>;
+    type Preimage = alloc::boxed::Box<T::Preimage>;
 }
 
-// ── Mintable impls ──
+// ── Mintable leaf impls ──
 
 macro_rules! impl_mintable_leaf {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl Mintable for $ty {
-                fn mint_into_parent(unsigned: $ty, _children: &mut ChildNodeBuf) -> Self {
-                    unsigned
+                fn mint_into_parent(preimage: $ty, _children: &mut ChildNodeBuf) -> Self {
+                    preimage
                 }
             }
         )+
@@ -197,41 +196,46 @@ impl_mintable_leaf!(
 
 impl<const MAX: u32> Mintable for BytesM<MAX> {
     fn mint_into_parent(
-        unsigned: BytesM<MAX>,
+        preimage: BytesM<MAX>,
         _children: &mut ChildNodeBuf,
     ) -> Self {
-        unsigned
+        preimage
     }
 }
 
 impl<const N: usize> Mintable for [u8; N] {
     fn mint_into_parent(
-        unsigned: [u8; N],
+        preimage: [u8; N],
         _children: &mut ChildNodeBuf,
     ) -> Self {
-        unsigned
+        preimage
     }
 }
 
-impl<T: Mintable> Mintable for Option<T> {
+impl<T: Mintable> Mintable for Option<T>
+where
+    T::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
+    Option<T::Preimage>: WriteXDR + for<'r> ReadXDR<'r>,
+{
     fn mint_into_parent(
-        unsigned: Option<T::Unsigned>,
+        preimage: Option<T::Preimage>,
         children: &mut ChildNodeBuf,
     ) -> Self {
-        unsigned.map(|inner| T::mint_into_parent(inner, children))
+        preimage.map(|inner| T::mint_into_parent(inner, children))
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<T: Mintable + 'static, const MAX: u32> Mintable for VecM<T, MAX>
 where
-    T::Unsigned: 'static,
+    T::Preimage: WriteXDR + for<'r> ReadXDR<'r> + 'static,
+    VecM<T::Preimage, MAX>: WriteXDR + for<'r> ReadXDR<'r>,
 {
     fn mint_into_parent(
-        unsigned: VecM<T::Unsigned, MAX>,
+        preimage: VecM<T::Preimage, MAX>,
         children: &mut ChildNodeBuf,
     ) -> Self {
-        let v: alloc::vec::Vec<T> = unsigned
+        let v: alloc::vec::Vec<T> = preimage
             .0
             .into_iter()
             .map(|item| T::mint_into_parent(item, children))
@@ -241,12 +245,16 @@ where
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Mintable> Mintable for alloc::vec::Vec<T> {
+impl<T: Mintable> Mintable for alloc::vec::Vec<T>
+where
+    T::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
+    alloc::vec::Vec<T::Preimage>: WriteXDR + for<'r> ReadXDR<'r>,
+{
     fn mint_into_parent(
-        unsigned: alloc::vec::Vec<T::Unsigned>,
+        preimage: alloc::vec::Vec<T::Preimage>,
         children: &mut ChildNodeBuf,
     ) -> Self {
-        unsigned
+        preimage
             .into_iter()
             .map(|item| T::mint_into_parent(item, children))
             .collect()
@@ -256,13 +264,14 @@ impl<T: Mintable> Mintable for alloc::vec::Vec<T> {
 #[cfg(feature = "alloc")]
 impl<T: Mintable + ?Sized> Mintable for alloc::boxed::Box<T>
 where
-    T::Unsigned: Sized,
+    T::Preimage: Sized + WriteXDR + for<'r> ReadXDR<'r>,
+    alloc::boxed::Box<T::Preimage>: WriteXDR + for<'r> ReadXDR<'r>,
 {
     fn mint_into_parent(
-        unsigned: alloc::boxed::Box<T::Unsigned>,
+        preimage: alloc::boxed::Box<T::Preimage>,
         children: &mut ChildNodeBuf,
     ) -> Self {
-        alloc::boxed::Box::new(T::mint_into_parent(*unsigned, children))
+        alloc::boxed::Box::new(T::mint_into_parent(*preimage, children))
     }
 }
 
@@ -287,7 +296,6 @@ mod tests {
 
     #[test]
     fn signer_mintable_sets_consumer() {
-        // Simulate what mint_auth_token does: build inner node, set consumer
         let consumer = crate::types::ContractAddress::default();
         let mut node = build_auth_token_node::<u64>(42u64);
         node.consumer_address = consumer;
@@ -300,7 +308,7 @@ mod tests {
         let mut children = ChildNodeBuf::new();
         let consumer = crate::types::ContractAddress::default();
         let val = <Signer<u64>>::mint_into_parent(
-            UnsignedSigner {
+            SignerPreimage {
                 consumer,
                 data: 42u64,
             },
@@ -323,7 +331,7 @@ mod tests {
         let mut children = ChildNodeBuf::new();
         let consumer = crate::types::ContractAddress::default();
         let val = <Option<Signer<u64>>>::mint_into_parent(
-            Some(UnsignedSigner {
+            Some(SignerPreimage {
                 consumer,
                 data: 42u64,
             }),

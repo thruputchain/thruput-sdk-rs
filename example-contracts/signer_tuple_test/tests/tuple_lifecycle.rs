@@ -3,11 +3,12 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{ForMinting, UnsignedSigner, build_auth_token_node};
+use sdk::mintable::{SignerPreimage, build_auth_token_node};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signer;
 use sdk::*;
 use signer_tuple_test::TupleAuth;
+use signer_tuple_test::__tupleauth_preimage;
 
 fn addr(byte: u8) -> ContractAddress {
     ContractAddress::from([byte; 32])
@@ -18,19 +19,19 @@ fn tuple_struct_auth_token_tree() {
     let addr_leaf = addr(0xAA);
     let addr_consumer = addr(0xBB);
 
-    let unsigned = UnsignedSigner {
+    let preimage = SignerPreimage {
         consumer: addr_consumer.clone(),
-        data: TupleAuth::<ForMinting>(
+        data: __tupleauth_preimage::Preimage(
             42u64,
-            UnsignedSigner {
+            SignerPreimage {
                 consumer: addr_leaf.clone(),
                 data: 99u32,
             },
         ),
     };
 
-    let mut root_node = build_auth_token_node::<TupleAuth>(unsigned.data);
-    root_node.consumer_address = unsigned.consumer;
+    let mut root_node = build_auth_token_node::<TupleAuth>(preimage.data);
+    root_node.consumer_address = preimage.consumer;
 
     assert_eq!(root_node.consumer_address, addr_consumer);
     // The nested Signer<u32> produces one child node
@@ -43,19 +44,19 @@ fn tuple_struct_payload_roundtrip() {
     let addr_leaf = addr(0xAA);
     let addr_consumer = addr(0xBB);
 
-    let unsigned = UnsignedSigner {
+    let preimage = SignerPreimage {
         consumer: addr_consumer,
-        data: TupleAuth::<ForMinting>(
+        data: __tupleauth_preimage::Preimage(
             42u64,
-            UnsignedSigner {
+            SignerPreimage {
                 consumer: addr_leaf,
                 data: 99u32,
             },
         ),
     };
 
-    let mut root_node = build_auth_token_node::<TupleAuth>(unsigned.data);
-    root_node.consumer_address = unsigned.consumer;
+    let mut root_node = build_auth_token_node::<TupleAuth>(preimage.data);
+    root_node.consumer_address = preimage.consumer;
 
     let payload_bytes: &[u8] = root_node.payload.as_ref();
     let mut decoded: TupleAuth =

@@ -1,6 +1,6 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::Item;
 
 #[derive(Debug, Default, FromMeta)]
@@ -33,15 +33,15 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             };
             let mintable_enum = quote! {
                 impl ::sdk::signer_mapper::MintableType for #ident {
-                    type Unsigned = #ident;
+                    type Preimage = #ident;
                 }
 
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
-                        unsigned: Self::Unsigned,
+                        preimage: Self::Preimage,
                         _children: &mut ::sdk::mintable::ChildNodeBuf,
                     ) -> Self {
-                        unsigned
+                        preimage
                     }
                 }
             };
@@ -73,8 +73,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             let name = expand_contract_type_name(ident, &args);
             let collect_auth = expand_collect_auth_handles_struct(&item);
             let receive_auth = expand_receive_auth_handles_struct(&item);
-            let (transformed_struct, mintable) =
-                match transform_struct_for_signer_mapper(&item) {
+            let (preimage_mod, mintable) =
+                match generate_preimage_and_mintable(&item) {
                     Ok(pair) => pair,
                     Err(err) => return err.into_compile_error(),
                 };
@@ -84,8 +84,6 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 quote! {}
             };
 
-            // Generate ContractTypeSpec from the original (non-generic)
-            // struct so the derive sees no generic parameters.
             let spec_input =
                 derive_input_from_item_struct(&item, &export_attr);
             let spec_tokens =
@@ -94,10 +92,34 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                     Err(err) => return err.into_compile_error(),
                 };
 
+            // Reconstruct the struct from parts to avoid duplicating the
+            // #[contracttype] attribute that syn already consumed.
+            let user_attrs: Vec<_> = item.attrs.iter().collect();
+            let vis = &item.vis;
+            let fields = &item.fields;
+            let semi = item.semi_token.map(|s| quote! { #s });
+
+            let original_struct = match fields {
+                syn::Fields::Named(_) => quote! {
+                    #(#user_attrs)*
+                    #vis struct #ident #fields
+                },
+                syn::Fields::Unnamed(_) => quote! {
+                    #(#user_attrs)*
+                    #vis struct #ident #fields #semi
+                },
+                syn::Fields::Unit => quote! {
+                    #(#user_attrs)*
+                    #vis struct #ident #semi
+                },
+            };
+
             quote! {
                 #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
                 #[xdrs(crate = "::sdk::__xdrs")]
-                #transformed_struct
+                #original_struct
+
+                #preimage_mod
 
                 #name
 
@@ -118,9 +140,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
     }
 }
 
-/// Build a synthetic `DeriveInput` from the original (non-generic)
-/// `ItemStruct` so that `ContractTypeSpec` derive logic can run on
-/// the concrete field types (without the `SignerMapper` wrapper).
+/// Build a synthetic `DeriveInput` from the `ItemStruct` so that
+/// `ContractTypeSpec` derive logic can run on the concrete field types.
 fn derive_input_from_item_struct(
     item: &syn::ItemStruct,
     export_attr: &TokenStream,
@@ -272,41 +293,46 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
     }
 }
 
-/// Transform a `#[contracttype]` struct to add a
-/// `__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed` generic
-/// parameter, wrapping each field type `T` in
-/// `<__M as ::sdk::signer_mapper::SignerMapper>::Map<T>`.
+/// Generate a `#[doc(hidden)]` companion module containing a `Preimage`
+/// struct, plus `MintableType` and `Mintable` impls for the original struct.
 ///
-/// Supports named fields, unnamed (tuple) fields, and unit structs.
-/// Returns `(transformed_struct_tokens, mintable_impl_tokens)`.
-fn transform_struct_for_signer_mapper(
+/// Each field `T` in the Preimage becomes
+/// `<T as ::sdk::signer_mapper::MintableType>::Preimage`.
+///
+/// Returns `(preimage_mod_tokens, mintable_impl_tokens)`.
+fn generate_preimage_and_mintable(
     item: &syn::ItemStruct,
 ) -> syn::Result<(TokenStream, TokenStream)> {
     let ident = &item.ident;
-    let user_attrs: Vec<_> = item.attrs.iter().collect();
     let vis = &item.vis;
+    let mod_name =
+        format_ident!("__{}_preimage", ident.to_string().to_lowercase());
 
     match &item.fields {
         syn::Fields::Named(fields) => {
-            let transformed_fields: Vec<TokenStream> = fields
+            let preimage_fields: Vec<TokenStream> = fields
                 .named
                 .iter()
                 .map(|f| {
                     let field_vis = &f.vis;
-                    let field_attrs: Vec<_> = f.attrs.iter().collect();
                     let name = &f.ident;
                     let ty = &f.ty;
                     quote! {
-                        #(#field_attrs)*
-                        #field_vis #name: <__M as ::sdk::signer_mapper::SignerMapper>::Map<#ty>
+                        #field_vis #name: <#ty as ::sdk::signer_mapper::MintableType>::Preimage
                     }
                 })
                 .collect();
 
-            let transformed_struct = quote! {
-                #(#user_attrs)*
-                #vis struct #ident <__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed> {
-                    #(#transformed_fields,)*
+            let preimage_mod = quote! {
+                #[doc(hidden)]
+                #vis mod #mod_name {
+                    use super::*;
+
+                    #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
+                    #[xdrs(crate = "::sdk::__xdrs")]
+                    pub struct Preimage {
+                        #(#preimage_fields,)*
+                    }
                 }
             };
 
@@ -318,7 +344,7 @@ fn transform_struct_for_signer_mapper(
                     let ty = &f.ty;
                     quote! {
                         #name: <#ty as ::sdk::Mintable>::mint_into_parent(
-                            unsigned.#name, children,
+                            preimage.#name, children,
                         )
                     }
                 })
@@ -326,12 +352,12 @@ fn transform_struct_for_signer_mapper(
 
             let mintable_impl = quote! {
                 impl ::sdk::signer_mapper::MintableType for #ident {
-                    type Unsigned = #ident<::sdk::mintable::ForMinting>;
+                    type Preimage = #mod_name::Preimage;
                 }
 
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
-                        unsigned: Self::Unsigned,
+                        preimage: Self::Preimage,
                         children: &mut ::sdk::mintable::ChildNodeBuf,
                     ) -> Self {
                         Self {
@@ -341,28 +367,32 @@ fn transform_struct_for_signer_mapper(
                 }
             };
 
-            Ok((transformed_struct, mintable_impl))
+            Ok((preimage_mod, mintable_impl))
         }
         syn::Fields::Unnamed(fields) => {
-            let transformed_fields: Vec<TokenStream> = fields
+            let preimage_fields: Vec<TokenStream> = fields
                 .unnamed
                 .iter()
                 .map(|f| {
                     let field_vis = &f.vis;
-                    let field_attrs: Vec<_> = f.attrs.iter().collect();
                     let ty = &f.ty;
                     quote! {
-                        #(#field_attrs)*
-                        #field_vis <__M as ::sdk::signer_mapper::SignerMapper>::Map<#ty>
+                        #field_vis <#ty as ::sdk::signer_mapper::MintableType>::Preimage
                     }
                 })
                 .collect();
 
-            let transformed_struct = quote! {
-                #(#user_attrs)*
-                #vis struct #ident <__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed>(
-                    #(#transformed_fields,)*
-                );
+            let preimage_mod = quote! {
+                #[doc(hidden)]
+                #vis mod #mod_name {
+                    use super::*;
+
+                    #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
+                    #[xdrs(crate = "::sdk::__xdrs")]
+                    pub struct Preimage(
+                        #(#preimage_fields,)*
+                    );
+                }
             };
 
             let mint_fields: Vec<TokenStream> = fields
@@ -374,7 +404,7 @@ fn transform_struct_for_signer_mapper(
                     let ty = &f.ty;
                     quote! {
                         <#ty as ::sdk::Mintable>::mint_into_parent(
-                            unsigned.#idx, children,
+                            preimage.#idx, children,
                         )
                     }
                 })
@@ -382,12 +412,12 @@ fn transform_struct_for_signer_mapper(
 
             let mintable_impl = quote! {
                 impl ::sdk::signer_mapper::MintableType for #ident {
-                    type Unsigned = #ident<::sdk::mintable::ForMinting>;
+                    type Preimage = #mod_name::Preimage;
                 }
 
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
-                        unsigned: Self::Unsigned,
+                        preimage: Self::Preimage,
                         children: &mut ::sdk::mintable::ChildNodeBuf,
                     ) -> Self {
                         Self(
@@ -397,24 +427,26 @@ fn transform_struct_for_signer_mapper(
                 }
             };
 
-            Ok((transformed_struct, mintable_impl))
+            Ok((preimage_mod, mintable_impl))
         }
         syn::Fields::Unit => {
-            // Unit structs: no fields to transform, emit unchanged with
-            // the generic parameter but no field wrapping needed.
-            let transformed_struct = quote! {
-                #(#user_attrs)*
-                #vis struct #ident <__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed>;
+            let preimage_mod = quote! {
+                #[doc(hidden)]
+                #vis mod #mod_name {
+                    #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
+                    #[xdrs(crate = "::sdk::__xdrs")]
+                    pub struct Preimage;
+                }
             };
 
             let mintable_impl = quote! {
                 impl ::sdk::signer_mapper::MintableType for #ident {
-                    type Unsigned = #ident<::sdk::mintable::ForMinting>;
+                    type Preimage = #mod_name::Preimage;
                 }
 
                 impl ::sdk::Mintable for #ident {
                     fn mint_into_parent(
-                        _unsigned: Self::Unsigned,
+                        _preimage: Self::Preimage,
                         _children: &mut ::sdk::mintable::ChildNodeBuf,
                     ) -> Self {
                         Self
@@ -422,7 +454,7 @@ fn transform_struct_for_signer_mapper(
                 }
             };
 
-            Ok((transformed_struct, mintable_impl))
+            Ok((preimage_mod, mintable_impl))
         }
     }
 }

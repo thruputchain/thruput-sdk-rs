@@ -2,7 +2,7 @@
 
 use sdk::*;
 use sdk::signer::Signer;
-use sdk::mintable::{UnsignedSigner, ForMinting};
+use sdk::mintable::SignerPreimage;
 
 #[contracttype]
 pub struct TransferAuth {
@@ -16,14 +16,14 @@ pub struct Payment {
 }
 
 fn main() {
-    // ForMinting mode: same struct name, different generic parameter
-    let unsigned: Payment<ForMinting> = Payment {
+    // Preimage mode: separate preimage struct in companion module
+    let preimage = __payment_preimage::Preimage {
         memo: 42,
-        auth: UnsignedSigner {
+        auth: SignerPreimage {
             consumer: ContractAddress::default(),
-            data: TransferAuth { amount: 100 },
+            data: __transferauth_preimage::Preimage { amount: 100 },
         },
     };
 
-    let _node = sdk::mintable::build_auth_token_node::<Payment>(unsigned);
+    let _node = sdk::mintable::build_auth_token_node::<Payment>(preimage);
 }

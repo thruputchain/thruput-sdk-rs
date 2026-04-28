@@ -91,22 +91,27 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
 use crate::signer_mapper::MintableType;
 
 #[cfg(feature = "alloc")]
-use crate::mintable::{Mintable, UnsignedSigner};
+use crate::mintable::{Mintable, SignerPreimage};
 
 impl<T: MintableType> MintableType for Signer<T> {
-    type Unsigned =
-        crate::mintable::UnsignedSigner<<T as MintableType>::Unsigned>;
+    type Preimage =
+        crate::mintable::SignerPreimage<<T as MintableType>::Preimage>;
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Mintable> Mintable for Signer<T> {
+impl<T: Mintable> Mintable for Signer<T>
+where
+    T::Preimage: crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
+    SignerPreimage<T::Preimage>:
+        crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
+{
     fn mint_into_parent(
-        unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
+        preimage: SignerPreimage<<T as MintableType>::Preimage>,
         children: &mut crate::mintable::ChildNodeBuf,
     ) -> Self {
         let mut node =
-            crate::mintable::build_auth_token_node::<T>(unsigned.data);
-        node.consumer_address = unsigned.consumer;
+            crate::mintable::build_auth_token_node::<T>(preimage.data);
+        node.consumer_address = preimage.consumer;
         children.push(node).expect("too many auth token children");
         Signer::default()
     }
@@ -115,13 +120,18 @@ impl<T: Mintable> Mintable for Signer<T> {
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
     expiry: groundhog_xdr::types::BlockHeight,
-    unsigned: crate::mintable::UnsignedSigner<<T as MintableType>::Unsigned>,
-) -> Signer<T> {
+    preimage: crate::mintable::SignerPreimage<<T as MintableType>::Preimage>,
+) -> Signer<T>
+where
+    T::Preimage: crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
+    SignerPreimage<T::Preimage>:
+        crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
+{
     use crate::sys::SyscallNo;
 
     let mut root_node =
-        crate::mintable::build_auth_token_node::<T>(unsigned.data);
-    root_node.consumer_address = unsigned.consumer;
+        crate::mintable::build_auth_token_node::<T>(preimage.data);
+    root_node.consumer_address = preimage.consumer;
     let buf = crate::mintable::encode_auth_token_node(&root_node);
 
     let mut token_id: core::mem::MaybeUninit<u32> =
