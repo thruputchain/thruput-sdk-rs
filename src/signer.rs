@@ -66,7 +66,7 @@ impl<T> CollectAuthHandles for Signed<T> {
         debug_assert_ne!(
             self.handle,
             u32::MAX,
-            "Signer handle not initialized"
+            "Signed handle not initialized"
         );
         out.push(self.handle).expect("auth handle buffer overflow");
     }
