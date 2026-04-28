@@ -89,6 +89,7 @@ pub mod receive_auth_handles;
 pub mod rt;
 pub mod serialize;
 pub mod signer;
+pub mod signer_mapper;
 pub mod stats;
 pub mod types;
 

@@ -61,6 +61,11 @@ use crate::receive_auth_handles::ReceiveAuthHandles;
 impl<T> CollectAuthHandles for Signer<T> {
     #[inline(always)]
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
+        debug_assert_ne!(
+            self.handle,
+            u32::MAX,
+            "Signer handle not initialized"
+        );
         out.push(self.handle).expect("auth handle buffer overflow");
     }
 }
@@ -83,13 +88,18 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signer<T> {
 
 #[cfg(feature = "alloc")]
 use crate::mintable::{Mintable, UnsignedSigner};
+#[cfg(feature = "alloc")]
+use crate::signer_mapper::MintableType;
+
+#[cfg(feature = "alloc")]
+impl<T: Mintable> MintableType for Signer<T> {
+    type Unsigned = UnsignedSigner<<T as MintableType>::Unsigned>;
+}
 
 #[cfg(feature = "alloc")]
 impl<T: Mintable> Mintable for Signer<T> {
-    type Unsigned = UnsignedSigner<<T as Mintable>::Unsigned>;
-
     fn mint_into_parent(
-        unsigned: UnsignedSigner<<T as Mintable>::Unsigned>,
+        unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
         children: &mut alloc::vec::Vec<crate::types::AuthTokenNode>,
     ) -> Self {
         let mut node = T::build_auth_token_node(unsigned.data);
@@ -99,7 +109,7 @@ impl<T: Mintable> Mintable for Signer<T> {
     }
 
     fn build_auth_token_node(
-        unsigned: UnsignedSigner<<T as Mintable>::Unsigned>,
+        unsigned: UnsignedSigner<<T as MintableType>::Unsigned>,
     ) -> crate::types::AuthTokenNode {
         let mut node = T::build_auth_token_node(unsigned.data);
         node.consumer_address = unsigned.consumer;
@@ -110,7 +120,7 @@ impl<T: Mintable> Mintable for Signer<T> {
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
     expiry: groundhog_xdr::types::BlockHeight,
-    unsigned: crate::mintable::UnsignedSigner<<T as Mintable>::Unsigned>,
+    unsigned: crate::mintable::UnsignedSigner<<T as MintableType>::Unsigned>,
 ) -> Signer<T> {
     use crate::sys::SyscallNo;
 
@@ -135,6 +145,12 @@ where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
 {
     pub fn consume(self) -> T {
+        debug_assert_ne!(
+            self.handle,
+            u32::MAX,
+            "Signer handle not initialized"
+        );
+
         use crate::internal::MUBuf;
         use crate::sys::SyscallNo;
         use core::mem::MaybeUninit;
@@ -172,7 +188,10 @@ where
                 )
             });
 
-        let handles: alloc::vec::Vec<u32> = (start..start + count).collect();
+        let end = start
+            .checked_add(count)
+            .expect("child handle range overflow");
+        let handles: alloc::vec::Vec<u32> = (start..end).collect();
         let mut iter = handles.into_iter();
         value.receive_auth_handles(&mut iter);
 

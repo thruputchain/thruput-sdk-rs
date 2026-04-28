@@ -132,6 +132,7 @@ pub fn try_get_calldata() -> SysResult<Calldata> {
 
 // This should probably become `get_calldata`, once the existing clients
 // of that function are adapted to non-result return.
+#[deprecated(note = "use get_calldata_with_auth_tokens() for Signer support")]
 pub fn get_calldata() -> Calldata {
     try_get_calldata().unwrap_or_else(|syserr| {
         syscall_throw(SyscallNo::kGetCalldata, syserr)

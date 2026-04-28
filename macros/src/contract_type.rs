@@ -31,6 +31,22 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             } else {
                 quote! {}
             };
+            let mintable_enum = quote! {
+                #[cfg(feature = "alloc")]
+                impl ::sdk::signer_mapper::MintableType for #ident {
+                    type Unsigned = #ident;
+                }
+
+                #[cfg(feature = "alloc")]
+                impl ::sdk::Mintable for #ident {
+                    fn mint_into_parent(
+                        unsigned: Self::Unsigned,
+                        _children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
+                    ) -> Self {
+                        unsigned
+                    }
+                }
+            };
             quote! {
                 #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
@@ -43,6 +59,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #collect_auth
 
                 #receive_auth
+
+                #mintable_enum
             }
         }
         Item::Struct(item) => {
@@ -257,84 +275,164 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
 }
 
 /// Transform a `#[contracttype]` struct to add a
-/// `__M: ::sdk::mintable::SignerMapper = ::sdk::mintable::Signed` generic
-/// parameter, wrapping each named field type `T` in
-/// `<__M as ::sdk::mintable::SignerMapper>::Map<T>`.
+/// `__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed` generic
+/// parameter, wrapping each field type `T` in
+/// `<__M as ::sdk::signer_mapper::SignerMapper>::Map<T>`.
 ///
+/// Supports named fields, unnamed (tuple) fields, and unit structs.
 /// Returns `(transformed_struct_tokens, mintable_impl_tokens)`.
 fn transform_struct_for_signer_mapper(
     item: &syn::ItemStruct,
 ) -> syn::Result<(TokenStream, TokenStream)> {
     let ident = &item.ident;
-
-    let fields = match &item.fields {
-        syn::Fields::Named(fields) => &fields.named,
-        _ => {
-            return Err(syn::Error::new_spanned(
-                item,
-                "#[contracttype] structs must have named fields",
-            ));
-        }
-    };
-
-    // ── Build the transformed struct ──
-
     let user_attrs: Vec<_> = item.attrs.iter().collect();
     let vis = &item.vis;
 
-    let transformed_fields: Vec<TokenStream> = fields
-        .iter()
-        .map(|f| {
-            let field_vis = &f.vis;
-            let field_attrs: Vec<_> = f.attrs.iter().collect();
-            let name = &f.ident;
-            let ty = &f.ty;
-            quote! {
-                #(#field_attrs)*
-                #field_vis #name: <__M as ::sdk::mintable::SignerMapper>::Map<#ty>
-            }
-        })
-        .collect();
+    match &item.fields {
+        syn::Fields::Named(fields) => {
+            let transformed_fields: Vec<TokenStream> = fields
+                .named
+                .iter()
+                .map(|f| {
+                    let field_vis = &f.vis;
+                    let field_attrs: Vec<_> = f.attrs.iter().collect();
+                    let name = &f.ident;
+                    let ty = &f.ty;
+                    quote! {
+                        #(#field_attrs)*
+                        #field_vis #name: <__M as ::sdk::signer_mapper::SignerMapper>::Map<#ty>
+                    }
+                })
+                .collect();
 
-    let transformed_struct = quote! {
-        #(#user_attrs)*
-        #vis struct #ident <__M: ::sdk::mintable::SignerMapper = ::sdk::mintable::Signed> {
-            #(#transformed_fields,)*
-        }
-    };
-
-    // ── Build the Mintable impl ──
-
-    let mint_fields: Vec<TokenStream> = fields
-        .iter()
-        .map(|f| {
-            let name = &f.ident;
-            let ty = &f.ty;
-            quote! {
-                #name: <#ty as ::sdk::Mintable>::mint_into_parent(
-                    unsigned.#name, children,
-                )
-            }
-        })
-        .collect();
-
-    let mintable_impl = quote! {
-        #[cfg(feature = "alloc")]
-        impl ::sdk::Mintable for #ident {
-            type Unsigned = #ident<::sdk::mintable::ForMinting>;
-
-            fn mint_into_parent(
-                unsigned: Self::Unsigned,
-                children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
-            ) -> Self {
-                Self {
-                    #(#mint_fields,)*
+            let transformed_struct = quote! {
+                #(#user_attrs)*
+                #vis struct #ident <__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed> {
+                    #(#transformed_fields,)*
                 }
-            }
-        }
-    };
+            };
 
-    Ok((transformed_struct, mintable_impl))
+            let mint_fields: Vec<TokenStream> = fields
+                .named
+                .iter()
+                .map(|f| {
+                    let name = &f.ident;
+                    let ty = &f.ty;
+                    quote! {
+                        #name: <#ty as ::sdk::Mintable>::mint_into_parent(
+                            unsigned.#name, children,
+                        )
+                    }
+                })
+                .collect();
+
+            let mintable_impl = quote! {
+                #[cfg(feature = "alloc")]
+                impl ::sdk::signer_mapper::MintableType for #ident {
+                    type Unsigned = #ident<::sdk::mintable::ForMinting>;
+                }
+
+                #[cfg(feature = "alloc")]
+                impl ::sdk::Mintable for #ident {
+                    fn mint_into_parent(
+                        unsigned: Self::Unsigned,
+                        children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
+                    ) -> Self {
+                        Self {
+                            #(#mint_fields,)*
+                        }
+                    }
+                }
+            };
+
+            Ok((transformed_struct, mintable_impl))
+        }
+        syn::Fields::Unnamed(fields) => {
+            let transformed_fields: Vec<TokenStream> = fields
+                .unnamed
+                .iter()
+                .map(|f| {
+                    let field_vis = &f.vis;
+                    let field_attrs: Vec<_> = f.attrs.iter().collect();
+                    let ty = &f.ty;
+                    quote! {
+                        #(#field_attrs)*
+                        #field_vis <__M as ::sdk::signer_mapper::SignerMapper>::Map<#ty>
+                    }
+                })
+                .collect();
+
+            let transformed_struct = quote! {
+                #(#user_attrs)*
+                #vis struct #ident <__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed>(
+                    #(#transformed_fields,)*
+                );
+            };
+
+            let mint_fields: Vec<TokenStream> = fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(i, f)| {
+                    let idx = syn::Index::from(i);
+                    let ty = &f.ty;
+                    quote! {
+                        <#ty as ::sdk::Mintable>::mint_into_parent(
+                            unsigned.#idx, children,
+                        )
+                    }
+                })
+                .collect();
+
+            let mintable_impl = quote! {
+                #[cfg(feature = "alloc")]
+                impl ::sdk::signer_mapper::MintableType for #ident {
+                    type Unsigned = #ident<::sdk::mintable::ForMinting>;
+                }
+
+                #[cfg(feature = "alloc")]
+                impl ::sdk::Mintable for #ident {
+                    fn mint_into_parent(
+                        unsigned: Self::Unsigned,
+                        children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
+                    ) -> Self {
+                        Self(
+                            #(#mint_fields,)*
+                        )
+                    }
+                }
+            };
+
+            Ok((transformed_struct, mintable_impl))
+        }
+        syn::Fields::Unit => {
+            // Unit structs: no fields to transform, emit unchanged with
+            // the generic parameter but no field wrapping needed.
+            let transformed_struct = quote! {
+                #(#user_attrs)*
+                #vis struct #ident <__M: ::sdk::signer_mapper::SignerMapper = ::sdk::signer_mapper::Signed>;
+            };
+
+            let mintable_impl = quote! {
+                #[cfg(feature = "alloc")]
+                impl ::sdk::signer_mapper::MintableType for #ident {
+                    type Unsigned = #ident<::sdk::mintable::ForMinting>;
+                }
+
+                #[cfg(feature = "alloc")]
+                impl ::sdk::Mintable for #ident {
+                    fn mint_into_parent(
+                        _unsigned: Self::Unsigned,
+                        _children: &mut ::sdk::Vec<::sdk::AuthTokenNode>,
+                    ) -> Self {
+                        Self
+                    }
+                }
+            };
+
+            Ok((transformed_struct, mintable_impl))
+        }
+    }
 }
 
 fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {

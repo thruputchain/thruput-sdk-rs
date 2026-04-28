@@ -1863,6 +1863,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "signer_tuple_test"
+version = "0.3.0"
+dependencies = [
+ "sdk",
+ "signer_tuple_test",
+]
+
+[[package]]
 name = "simd-adler32"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

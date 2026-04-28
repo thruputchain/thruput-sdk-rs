@@ -43,6 +43,7 @@ members = [
     "signer_leaf",
     "signer_middle",
     "signer_minter",
+    "signer_tuple_test",
 ]
 
 [workspace.package]
