@@ -2,13 +2,11 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::mintable::UnsignedSigner;
+use sdk::mintable::{ForMinting, UnsignedSigner};
 use sdk::signer::Signer;
 use sdk::*;
+use signer_leaf::LeafAuth;
 use signer_middle::{MiddleAuth, SignerMiddleClient};
-
-use signer_leaf::__groundhog_mintable_leaf_auth::LeafAuthUnsigned;
-use signer_middle::__groundhog_mintable_middle_auth::MiddleAuthUnsigned;
 
 #[derive(Default)]
 pub struct SignerMinter;
@@ -23,28 +21,20 @@ impl SignerMinter {
 
         let unsigned = UnsignedSigner {
             consumer: middle_contract.clone(),
-            data: MiddleAuthUnsigned {
+            data: MiddleAuth::<ForMinting> {
                 label: 1000,
                 child: UnsignedSigner {
                     consumer: leaf_contract.clone(),
-                    data: LeafAuthUnsigned {
-                        data: 10,
-                    },
+                    data: LeafAuth { data: 10 },
                 },
                 extra_children: vec![
                     UnsignedSigner {
                         consumer: leaf_contract.clone(),
-                        data:
-                            LeafAuthUnsigned {
-                                data: 20,
-                            },
+                        data: LeafAuth { data: 20 },
                     },
                     UnsignedSigner {
                         consumer: leaf_contract.clone(),
-                        data:
-                            LeafAuthUnsigned {
-                                data: 30,
-                            },
+                        data: LeafAuth { data: 30 },
                     },
                 ],
             },

@@ -27,6 +27,7 @@ impl<T: WriteXDR> WriteXDR for UnsignedSigner<T> {
     }
 }
 
+
 impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for UnsignedSigner<T> {
     fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
         Ok(Self {
@@ -72,7 +73,7 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
 }
 
 pub fn encode_auth_token_node(node: &AuthTokenNode) -> alloc::vec::Vec<u8> {
-    cxs::encode(node).unwrap_or_else(|e| {
+    xdrs::txs::encode(node).unwrap_or_else(|e| {
         crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
             crate::exn::FaultString::from_display(e),
         ))
@@ -178,7 +179,7 @@ mod tests {
     fn signer_mintable_sets_consumer() {
         let consumer = ContractAddress::default();
         let node = <Signer<u64>>::build_auth_token_node(UnsignedSigner {
-            consumer: consumer.clone(),
+            consumer: consumer,
             data: 42u64,
         });
         assert_eq!(node.consumer_address, consumer);
@@ -191,7 +192,7 @@ mod tests {
         let consumer = ContractAddress::default();
         let val = <Signer<u64>>::mint_into_parent(
             UnsignedSigner {
-                consumer,
+                consumer: consumer,
                 data: 42u64,
             },
             &mut children,
@@ -214,7 +215,7 @@ mod tests {
         let consumer = ContractAddress::default();
         let val = <Option<Signer<u64>>>::mint_into_parent(
             Some(UnsignedSigner {
-                consumer,
+                consumer: consumer,
                 data: 42u64,
             }),
             &mut children,

@@ -33,10 +33,7 @@ impl SignerCallee {
             expiry,
             UnsignedSigner {
                 consumer: consumer.clone(),
-                data:
-                    __groundhog_mintable_transfer_auth::TransferAuthUnsigned {
-                        amount,
-                    },
+                data: TransferAuth { amount },
             },
         )
     }
