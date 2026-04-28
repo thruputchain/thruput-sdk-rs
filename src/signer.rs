@@ -25,6 +25,7 @@ impl<'r, T> ReadXDR<'r> for Signer<T> {
 }
 
 impl<T> Signer<T> {
+    #[cfg(feature = "alloc")]
     pub(crate) fn from_handle(handle: u32) -> Self {
         Self {
             handle,
