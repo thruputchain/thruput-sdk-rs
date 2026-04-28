@@ -135,7 +135,6 @@ pub fn mint_auth_token<T: Mintable>(
     Signer::from_handle(handle)
 }
 
-#[cfg(feature = "alloc")]
 impl<T> Signer<T>
 where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
@@ -187,8 +186,7 @@ where
         let end = start
             .checked_add(count)
             .expect("child handle range overflow");
-        let handles: alloc::vec::Vec<u32> = (start..end).collect();
-        let mut iter = handles.into_iter();
+        let mut iter = start..end;
         value.receive_auth_handles(&mut iter);
 
         value
