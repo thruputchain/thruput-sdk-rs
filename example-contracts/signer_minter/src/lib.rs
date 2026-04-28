@@ -24,20 +24,20 @@ impl SignerMinter {
         let expiry = sdk::block::get_block_height();
 
         let preimage = SignerPreimage {
-            consumer: middle_contract.clone(),
+            consumer: *middle_contract,
             data: MiddleAuthPreimage {
                 label: 1000,
                 child: SignerPreimage {
-                    consumer: leaf_contract.clone(),
+                    consumer: *leaf_contract,
                     data: LeafAuthPreimage { data: 10 },
                 },
                 extra_children: vec![
                     SignerPreimage {
-                        consumer: leaf_contract.clone(),
+                        consumer: *leaf_contract,
                         data: LeafAuthPreimage { data: 20 },
                     },
                     SignerPreimage {
-                        consumer: leaf_contract.clone(),
+                        consumer: *leaf_contract,
                         data: LeafAuthPreimage { data: 30 },
                     },
                 ],

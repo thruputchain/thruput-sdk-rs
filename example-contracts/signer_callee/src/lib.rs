@@ -35,7 +35,7 @@ impl SignerCallee {
         sdk::signer::mint_auth_token::<TransferAuth>(
             expiry,
             SignerPreimage {
-                consumer: consumer.clone(),
+                consumer: *consumer,
                 data: TransferAuthPreimage { amount },
             },
         )
