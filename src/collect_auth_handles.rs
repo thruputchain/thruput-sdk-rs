@@ -77,6 +77,25 @@ impl CollectAuthHandles for crate::types::SHA256Hash {
     fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
 }
 
+impl CollectAuthHandles for crate::types::Ed25519PublicKey {
+    #[inline(always)]
+    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
+}
+
+impl CollectAuthHandles for crate::types::Ed25519Signature {
+    #[inline(always)]
+    fn collect_auth_handles(&self, _out: &mut AuthHandleBuf) {}
+}
+
+#[cfg(feature = "alloc")]
+impl<T: CollectAuthHandles + ?Sized> CollectAuthHandles
+    for alloc::boxed::Box<T>
+{
+    fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
+        (**self).collect_auth_handles(out);
+    }
+}
+
 #[cfg(feature = "alloc")]
 impl<T: CollectAuthHandles> CollectAuthHandles for alloc::vec::Vec<T> {
     fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {

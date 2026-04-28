@@ -34,10 +34,10 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
                 ),
             )
         });
-    let bytes: xdrs::BytesM<{ groundhog_xdr::kAuthTokenMaxLen }> = buf
-        .as_slice()
-        .try_into()
-        .unwrap_or_else(|_| panic!("auth token payload exceeds max length"));
+    let bytes: xdrs::BytesM<{ groundhog_xdr::auth_token::kAuthTokenMaxLen }> =
+        buf.as_slice().try_into().unwrap_or_else(|_| {
+            panic!("auth token payload exceeds max length")
+        });
     AuthTokenPayload::from(bytes)
 }
 
@@ -52,11 +52,14 @@ pub fn encode_auth_token_node(node: &AuthTokenNode) -> alloc::vec::Vec<u8> {
 
 pub fn auth_token_children(
     nodes: alloc::vec::Vec<AuthTokenNode>,
-) -> xdrs::VecM<AuthTokenNode, { groundhog_xdr::kAuthTokenMaxChildNodes }> {
+) -> xdrs::VecM<
+    AuthTokenNode,
+    { groundhog_xdr::auth_token::kAuthTokenMaxChildNodes },
+> {
     nodes.try_into().unwrap_or_else(|_| {
         panic!(
             "too many auth token children (max {})",
-            groundhog_xdr::kAuthTokenMaxChildNodes
+            groundhog_xdr::auth_token::kAuthTokenMaxChildNodes
         )
     })
 }

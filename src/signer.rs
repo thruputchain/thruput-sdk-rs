@@ -133,7 +133,45 @@ where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
 {
     pub fn consume(self) -> T {
-        panic!("ConsumeAuthToken syscall not yet available")
+        use crate::internal::MUBuf;
+        use core::mem::MaybeUninit;
+
+        let mut payload_buf: MUBuf<500> = MUBuf::new();
+        let mut payload_written: MaybeUninit<
+            crate::types::RuntimeMemoryLength,
+        > = MaybeUninit::uninit();
+        let mut child_start: MaybeUninit<u32> = MaybeUninit::uninit();
+        let mut child_count: MaybeUninit<u32> = MaybeUninit::uninit();
+
+        sys::uninit_ConsumeAuthToken(
+            self.handle,
+            payload_buf.spare_capacity_mut(),
+            &mut payload_written,
+            &mut child_start,
+            &mut child_count,
+        )
+        .unwrap_or_else(|e| syscall_throw(SyscallNo::kConsumeAuthToken, e));
+
+        let written = unsafe { payload_written.assume_init() } as usize;
+        unsafe { payload_buf.set_len(written) };
+
+        let start = unsafe { child_start.assume_init() };
+        let count = unsafe { child_count.assume_init() };
+
+        let mut value: T =
+            cxs::decode(payload_buf.as_ref()).unwrap_or_else(|e| {
+                crate::exn::library_throw(
+                    crate::exn::CallingError::DecodingSuccess(
+                        crate::exn::FaultString::from_display(e),
+                    ),
+                )
+            });
+
+        let handles: alloc::vec::Vec<u32> = (start..start + count).collect();
+        let mut iter = handles.into_iter();
+        value.receive_auth_handles(&mut iter);
+
+        value
     }
 }
 

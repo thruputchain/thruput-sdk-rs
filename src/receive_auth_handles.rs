@@ -116,6 +116,36 @@ impl ReceiveAuthHandles for crate::types::SHA256Hash {
     }
 }
 
+impl ReceiveAuthHandles for crate::types::Ed25519PublicKey {
+    #[inline(always)]
+    fn receive_auth_handles(
+        &mut self,
+        _handles: &mut impl Iterator<Item = u32>,
+    ) {
+    }
+}
+
+impl ReceiveAuthHandles for crate::types::Ed25519Signature {
+    #[inline(always)]
+    fn receive_auth_handles(
+        &mut self,
+        _handles: &mut impl Iterator<Item = u32>,
+    ) {
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles
+    for alloc::boxed::Box<T>
+{
+    fn receive_auth_handles(
+        &mut self,
+        handles: &mut impl Iterator<Item = u32>,
+    ) {
+        (**self).receive_auth_handles(handles);
+    }
+}
+
 impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &T {
     fn receive_auth_handles(
         &mut self,

@@ -121,7 +121,7 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 # External dependencies
 groundhog-spec = { registry = "groundhog", version = "0.9.1", default-features = false }
 groundhog-trace = { registry = "groundhog", version = "0.9.1" }
-groundhog-xdr = { registry = "groundhog", version = "0.9.2", features = ["xdrs"] }
+groundhog-xdr = { registry = "groundhog", version = "0.9.3", features = ["xdrs"] }
 hogexec-internal = { registry = "groundhog", version = "0.9.1" }
 groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
 thiserror = { version = "2.0.12", default-features = false }
