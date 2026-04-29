@@ -363,41 +363,38 @@ pub fn generate_method(
         // If debug mode: log the method-call
         #log_guest_call
 
-        let return_buf ={
+        let res ={
 
-        // Load contract state
-        #load_state
+            // Load contract state
+            #load_state
 
-        // Fetch the calldata and auth token IDs from the VM
-        let (calldata, auth_token_ids) = ::sdk::contract_op::get_calldata_with_auth_tokens();
+            // Fetch the calldata and auth token IDs from the VM
+            let (calldata, auth_token_ids) = ::sdk::contract_op::get_calldata_with_auth_tokens();
 
-        // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle)
-        let mut __args =
-            ::sdk::call::internal::contract_call_decode(calldata.as_ref())
-                .unwrap_or_else(|e|
-                    ::sdk::exn::decoding_args_throw(e));
+            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle)
+            let mut __args =
+                ::sdk::call::internal::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
+                    .unwrap_or_else(|e|
+                        ::sdk::exn::decoding_args_throw(&e));
 
-        // Fill in Signer handles from the auth token ID list
-        ::sdk::receive_auth_handles_from_slice(&mut __args, auth_token_ids.as_slice());
+            // Fill in Signer handles from the auth token ID list
+        // ::sdk::receive_auth_handles_from_slice(&mut __args, auth_token_ids.as_slice());
 
-        // Destructure into named args
-        let (#arg_names) = __args;
+            // Destructure into named args
+            let (#arg_names) = __args;
 
-        // TODO: can we get the fetch-and-decode into one internal function?
+            // TODO: can we get the fetch-and-decode into one internal function?
 
-        // Call the method implementation (passing the contract state, if any,
-        // and the args)
-        let result = #invoke;
+            // Call the method implementation (passing the contract state, if any,
+            // and the args)
+            #invoke
 
-        // Encode the result
-        ::sdk::call::internal::encode_success(&result)
-
-        // Make sure any storage nodes are fully dropped (and written to environment).
-        // Not technically necessary, given that the storage is wrapped in a Node<T>.
+            // Make sure any storage nodes are fully dropped (and written to environment).
+            // Not technically necessary, given that the storage is wrapped in a Node<T>.
         };
 
         // Return the result to the VM
-        ::sdk::contract_return(return_buf.as_ref());
+        ::sdk::contract_return_encoded(&res);
     }};
 
     // Include method info in debugging context (when enabled)

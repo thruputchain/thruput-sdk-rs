@@ -1,19 +1,43 @@
-use crate::call::{ContractResult, ReturnBuf};
+use crate::call::{RawCallError, ReturnBuf};
 use crate::exn::{FaultString, HandlingError, library_throw};
-use crate::xdr::*;
+use crate::{ReceiveAuthHandles, receive_auth_handles_from_slice, xdr::*};
 
-pub fn contract_call_decode<'b, T>(bytes: &'b [u8]) -> Result<T, ReadError>
+pub fn contract_call_decode<'b, T>(
+    bytes: &'b [u8],
+    handles: &[u32],
+) -> Result<T, RawCallError>
 where
-    T: ReadXDR<'b>,
+    T: ReadXDR<'b> + ReceiveAuthHandles,
 {
-    cxs::decode(bytes)
-}
+    let mut args = cxs::decode(bytes).map_err(|e| {
+        RawCallError::UnparseableReturn(FaultString::from_display(e))
+    })?;
 
+    receive_auth_handles_from_slice(&mut args, handles).map_err(|e| {
+        RawCallError::UnparseableAuthHandles(FaultString::from_display(e))
+    })?;
+    Ok(args)
+}
+/*
 /// Like `contract_call_decode`, but tolerates trailing bytes after the
 /// decoded value.  Used for decoding exception payloads which may carry
 /// additional debugging information (location, backtrace) appended by
 /// `ContractExn` when the `debugging` feature is active.
 pub fn contract_call_decode_prefix<'b, T>(
+    bytes: &'b [u8],
+    handles: &[u32],
+) -> Result<T, ReadError>
+where
+    T: ReadXDR<'b> + ReceiveAuthHandles,
+{
+    let mut reader = cxs::buf_reader::BufReader::new(bytes);
+    let mut args = ReadXDR::read_xdr(&mut reader)?;
+
+    receive_auth_handles_from_slice(&mut args, handles)?;
+    Ok(args)
+}*/
+
+pub fn contract_call_decode_exn_prefix<'b, T>(
     bytes: &'b [u8],
 ) -> Result<T, ReadError>
 where
@@ -54,28 +78,27 @@ where
     })
 }
 
-pub fn contract_result_encode(r: &ContractResult) -> ReturnBuf {
-    contract_call_encode(r).unwrap_or_else(|e| {
-        if r.is_ok() {
-            library_throw(HandlingError::EncodingSuccess(
-                FaultString::from_display(e),
-            ))
-        } else {
-            library_throw(HandlingError::EncodingException(
-                FaultString::from_display(e),
-            ))
-        }
-    })
-}
-
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 
-pub fn collect_auth_handle_bytes<T: CollectAuthHandles>(
+pub fn collect_auth_handle_bytes<T: CollectAuthHandles + ?Sized>(
     args: &T,
-) -> AuthHandleBuf {
+) -> Result<AuthHandleBuf, FaultString> {
     let mut handles = AuthHandleBuf::new();
-    args.collect_auth_handles(&mut handles);
-    handles
+    args.collect_auth_handles(&mut handles)?;
+    Ok(handles)
+}
+
+pub fn auth_handles_as_mut_bytes(
+    handles: &mut AuthHandleBuf,
+) -> &mut [core::mem::MaybeUninit<u8>] {
+    let slice = handles.as_mut_slice();
+    // Safety: &mut [u32] → &mut [MaybeUninit<u8>] is always valid; u8 has alignment 1.
+    unsafe {
+        core::slice::from_raw_parts_mut(
+            slice.as_mut_ptr() as *mut core::mem::MaybeUninit<u8>,
+            core::mem::size_of_val(slice),
+        )
+    }
 }
 
 pub fn auth_handles_as_bytes(handles: &[u32]) -> &[u8] {

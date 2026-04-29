@@ -5,8 +5,8 @@
 //! - contract exception (with serialized return-value)
 //! - contract fault (with debugging message when `cfg(feature = "debugging")`)
 
-use crate::exn::FaultString;
 use crate::xdr::*;
+use crate::{AuthHandleBuf, exn::FaultString};
 use core::fmt::{Debug, Display};
 
 const ARGS_MAX: usize = crate::contract_op::CALLDATA_MAX;
@@ -16,7 +16,7 @@ pub type Buf = heapless::Vec<u8, 500>;
 pub type ReturnBuf = Buf;
 pub type AbortBuf = Buf;
 
-pub type ContractResult = Result<ReturnBuf, ContractError>;
+pub type ContractResult = Result<(ReturnBuf, AuthHandleBuf), ContractError>;
 
 pub fn contract_result_should_commit(cr: &ContractResult) -> bool {
     cr.is_ok()

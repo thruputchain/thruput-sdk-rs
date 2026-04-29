@@ -65,4 +65,10 @@ pub enum AuthTokenError {
         error("Decoding auth token payload: {0}")
     )]
     ConsumeDecodeFailure(FaultString),
+
+    #[cfg_attr(
+        feature = "debugging",
+        error("Receiving auth token handles: {0}")
+    )]
+    ReceiveAuthHandlesFailure(FaultString),
 }

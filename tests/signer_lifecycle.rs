@@ -139,7 +139,7 @@ fn payload_roundtrip_with_receive_handles() {
 
     let child_handles = vec![10u32, 20u32, 30u32];
     let mut iter = child_handles.into_iter();
-    decoded.receive_auth_handles(&mut iter);
+    decoded.receive_auth_handles(&mut iter).unwrap();
 
     assert_eq!(decoded.label, 42);
     assert_eq!(decoded.single_child.handle(), 10);
@@ -158,15 +158,15 @@ fn collect_handles_for_forwarding() {
         multi_children: vec![Signed::default(), Signed::default()],
     };
     let mut iter = [10u32, 20u32, 30u32].into_iter();
-    middle.receive_auth_handles(&mut iter);
+    middle.receive_auth_handles(&mut iter).unwrap();
 
     let mut buf = sdk::collect_auth_handles::AuthHandleBuf::new();
-    middle.collect_auth_handles(&mut buf);
+    middle.collect_auth_handles(&mut buf).unwrap();
     assert_eq!(buf.as_slice(), &[10, 20, 30]);
 
     let call_args = (42u64, middle.single_child);
     let mut buf2 = sdk::collect_auth_handles::AuthHandleBuf::new();
-    call_args.collect_auth_handles(&mut buf2);
+    call_args.collect_auth_handles(&mut buf2).unwrap();
     assert_eq!(buf2.as_slice(), &[10]);
 }
 

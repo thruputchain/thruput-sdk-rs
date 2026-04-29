@@ -1,7 +1,7 @@
-use crate::xdr::*;
+use crate::{AuthTokenError, FaultString, xdr::*};
 use core::marker::PhantomData;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Signed<T> {
     handle: u32,
     _phantom: PhantomData<T>,
@@ -38,14 +38,6 @@ impl<T> Signed<T> {
     }
 }
 
-impl<T> core::fmt::Debug for Signed<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Signer")
-            .field("handle", &self.handle)
-            .finish()
-    }
-}
-
 /// Returns a Signed with sentinel handle (u32::MAX). Used internally
 /// by Mintable to construct payload values — not for direct use.
 impl<T> Default for Signed<T> {
@@ -62,13 +54,23 @@ use crate::receive_auth_handles::ReceiveAuthHandles;
 
 impl<T> CollectAuthHandles for Signed<T> {
     #[inline(always)]
-    fn collect_auth_handles(&self, out: &mut AuthHandleBuf) {
+    fn collect_auth_handles(
+        &self,
+        out: &mut AuthHandleBuf,
+    ) -> Result<(), FaultString> {
         debug_assert_ne!(
             self.handle,
             u32::MAX,
             "Signed handle not initialized"
         );
-        out.push(self.handle).expect("auth handle buffer overflow");
+        #[cfg(not(feature = "alloc"))]
+        match out.push(self.handle) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(FaultString::from_display(e)),
+        }?;
+        #[cfg(feature = "alloc")]
+        out.push(self.handle);
+        Ok(())
     }
 }
 
@@ -76,8 +78,16 @@ impl<T> ReceiveAuthHandles for Signed<T> {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
-        self.handle = handles.next().expect("missing auth handle for Signed");
+    ) -> Result<(), AuthTokenError> {
+        match handles.next() {
+            Some(handle) => {
+                self.handle = handle;
+                Ok(())
+            }
+            None => Err(AuthTokenError::ReceiveAuthHandlesFailure(
+                FaultString::from_display("missing auth handle for Signed"),
+            )),
+        }
     }
 }
 
@@ -200,7 +210,9 @@ where
             .checked_add(count)
             .expect("child handle range overflow");
         let mut iter = start..end;
-        value.receive_auth_handles(&mut iter);
+        value
+            .receive_auth_handles(&mut iter)
+            .unwrap_or_else(|e| crate::exn::library_throw(e));
 
         value
     }
@@ -257,14 +269,14 @@ mod tests {
 
         // Fill in real handles
         let mut iter = [10u32, 20u32].into_iter();
-        args.receive_auth_handles(&mut iter);
+        args.receive_auth_handles(&mut iter).unwrap();
 
         assert_eq!(args.1.handle(), 10);
         assert_eq!(args.3.handle(), 20);
 
         // Verify CollectAuthHandles works on the result
         let mut buf = crate::collect_auth_handles::AuthHandleBuf::new();
-        args.collect_auth_handles(&mut buf);
+        args.collect_auth_handles(&mut buf).unwrap();
         assert_eq!(buf.as_slice(), &[10, 20]);
     }
 }

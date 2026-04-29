@@ -179,7 +179,7 @@ fn expand_collect_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             .iter()
             .map(|f| {
                 let name = &f.ident;
-                quote! { self.#name.collect_auth_handles(out); }
+                quote! { self.#name.collect_auth_handles(out)?; }
             })
             .collect(),
         syn::Fields::Unnamed(fields) => fields
@@ -188,7 +188,7 @@ fn expand_collect_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             .enumerate()
             .map(|(i, _)| {
                 let idx = syn::Index::from(i);
-                quote! { self.#idx.collect_auth_handles(out); }
+                quote! { self.#idx.collect_auth_handles(out)?; }
             })
             .collect(),
         syn::Fields::Unit => vec![],
@@ -199,8 +199,9 @@ fn expand_collect_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             fn collect_auth_handles(
                 &self,
                 out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
-            ) {
+            ) -> Result<(), ::sdk::FaultString> {
                 #(#field_calls)*
+                Ok(())
             }
         }
     }
@@ -214,7 +215,7 @@ fn expand_receive_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             .iter()
             .map(|f| {
                 let name = &f.ident;
-                quote! { self.#name.receive_auth_handles(handles); }
+                quote! { self.#name.receive_auth_handles(handles)?; }
             })
             .collect(),
         syn::Fields::Unnamed(fields) => fields
@@ -223,7 +224,7 @@ fn expand_receive_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             .enumerate()
             .map(|(i, _)| {
                 let idx = syn::Index::from(i);
-                quote! { self.#idx.receive_auth_handles(handles); }
+                quote! { self.#idx.receive_auth_handles(handles)?; }
             })
             .collect(),
         syn::Fields::Unit => vec![],
@@ -234,8 +235,9 @@ fn expand_receive_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             fn receive_auth_handles(
                 &mut self,
                 handles: &mut impl ::core::iter::Iterator<Item = u32>,
-            ) {
+            ) -> Result<(), ::sdk::AuthTokenError> {
                 #(#field_calls)*
+                Ok(())
             }
         }
     }
@@ -254,7 +256,7 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
                         fields.named.iter().map(|f| &f.ident).collect();
                     let calls: Vec<TokenStream> = names
                         .iter()
-                        .map(|n| quote! { #n.receive_auth_handles(handles); })
+                        .map(|n| quote! { #n.receive_auth_handles(handles)?; })
                         .collect();
                     quote! {
                         Self::#vident { #(#names),* } => { #(#calls)* }
@@ -266,7 +268,7 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
                         .collect();
                     let calls: Vec<TokenStream> = bindings
                         .iter()
-                        .map(|b| quote! { #b.receive_auth_handles(handles); })
+                        .map(|b| quote! { #b.receive_auth_handles(handles)?; })
                         .collect();
                     quote! {
                         Self::#vident(#(#bindings),*) => { #(#calls)* }
@@ -284,10 +286,11 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
             fn receive_auth_handles(
                 &mut self,
                 handles: &mut impl ::core::iter::Iterator<Item = u32>,
-            ) {
+            ) -> Result<(), ::sdk::AuthTokenError> {
                 match self {
                     #(#arms,)*
                 }
+                Ok(())
             }
         }
     }
@@ -474,7 +477,7 @@ fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
                         fields.named.iter().map(|f| &f.ident).collect();
                     let calls: Vec<TokenStream> = names
                         .iter()
-                        .map(|n| quote! { #n.collect_auth_handles(out); })
+                        .map(|n| quote! { #n.collect_auth_handles(out)?; })
                         .collect();
                     quote! {
                         Self::#vident { #(#names),* } => { #(#calls)* }
@@ -486,7 +489,7 @@ fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
                         .collect();
                     let calls: Vec<TokenStream> = bindings
                         .iter()
-                        .map(|b| quote! { #b.collect_auth_handles(out); })
+                        .map(|b| quote! { #b.collect_auth_handles(out)?; })
                         .collect();
                     quote! {
                         Self::#vident(#(#bindings),*) => { #(#calls)* }
@@ -504,10 +507,11 @@ fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
             fn collect_auth_handles(
                 &self,
                 out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
-            ) {
+            ) -> Result<(), ::sdk::FaultString> {
                 match self {
                     #(#arms,)*
                 }
+                Ok(())
             }
         }
     }

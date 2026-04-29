@@ -463,7 +463,7 @@ fn test_transact_abort_buffer_access() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             // Trigger an abort via the Return syscall with revert_frame=true
-            groundhog_xdr::syscalls::raw_Return(&[42u8, 43, 44], true);
+            groundhog_xdr::syscalls::raw_Return(&[42u8, 43, 44], true, &[]);
         })
     });
 
@@ -599,7 +599,7 @@ fn test_frame_events_empty_on_revert() {
                 b"before_revert",
             )
             .unwrap();
-            groundhog_xdr::syscalls::raw_Return(&[1], true);
+            groundhog_xdr::syscalls::raw_Return(&[1], true, &[]);
         })
     });
 
@@ -793,7 +793,7 @@ fn test_assert_return_with() {
         tx.call(&[1u8; 32].into()).run(|| {
             let v: u32 = 42;
             let data = xdrs::cxs::encode(&v).unwrap();
-            groundhog_xdr::syscalls::raw_Return(&data, false);
+            groundhog_xdr::syscalls::raw_Return(&data, false, &[]);
         })
     });
 

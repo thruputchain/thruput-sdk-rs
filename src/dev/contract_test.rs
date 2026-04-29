@@ -57,7 +57,7 @@ pub fn contract_test<F, RET>(
 ) -> Result<RET, RawCallError>
 where
     F: Fn() + UnwindSafe + Clone + 'static,
-    RET: ReadXDROwned,
+    RET: ReadXDROwned + ReceiveAuthHandles,
 {
     crate::call::into_raw_call_result(contract_test_raw(env, f))
 }
@@ -129,7 +129,7 @@ pub fn contract_handler_exec_raw(
         r => panic!("Transaction failed: {:?}", r),
     }
 
-    Ok(return_buf)
+    Ok((return_buf, AuthHandleBuf::new()))
 }
 
 /// Run some code in the test environment.

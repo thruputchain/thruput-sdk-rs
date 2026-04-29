@@ -3,7 +3,7 @@
 use crate::call::ContractError;
 use crate::call::internal::contract_call_decode;
 use crate::exn::{CallingError, FaultString, RawException, library_throw};
-use crate::xdr::*;
+use crate::{ReceiveAuthHandles, xdr::*};
 
 /// The raw, untyped error from a contract call.
 #[derive(Debug, PartialEq)]
@@ -16,6 +16,11 @@ pub enum RawCallError {
     UnparseableReturn(FaultString),
     /// Decode error: the called contract aborted with some unparseable result
     UnparseableAbort(FaultString),
+    /// Decode error: the called contract aborted with some unparseable result
+    UnparseableAuthHandles(FaultString),
+
+    /// Encode error: the arguments supplied failed to encode
+    EncodingArgs(FaultString),
 }
 
 #[cfg(feature = "debugging")]
@@ -38,6 +43,12 @@ impl core::fmt::Display for RawCallError {
             RawCallError::UnparseableAbort(error) => {
                 write!(f, "unparseable abort: {error}")
             }
+            RawCallError::UnparseableAuthHandles(error) => {
+                write!(f, "unparseable auth handles: {error}")
+            }
+            RawCallError::EncodingArgs(error) => {
+                write!(f, "encoding args: {error}")
+            }
         }
     }
 }
@@ -55,6 +66,12 @@ impl crate::re_throw::ReThrow for RawCallError {
             RawCallError::UnparseableAbort(error) => {
                 library_throw(CallingError::DecodingException(error))
             }
+            RawCallError::UnparseableAuthHandles(error) => {
+                library_throw(CallingError::DecodingSuccess(error))
+            }
+            RawCallError::EncodingArgs(error) => {
+                library_throw(CallingError::EncodingArgs(error))
+            }
         }
     }
 }
@@ -68,16 +85,19 @@ pub fn into_raw_call_result<T>(
     contract_result: crate::call::ContractResult,
 ) -> Result<T, RawCallError>
 where
-    T: ReadXDROwned,
+    T: ReadXDROwned + ReceiveAuthHandles,
 {
     match contract_result {
-        Ok(return_val) => contract_call_decode(return_val.as_slice())
-            .map(Ok)
-            .unwrap_or_else(|e| {
-                Err(RawCallError::UnparseableReturn(
-                    FaultString::from_display(e),
-                ))
-            }),
+        Ok(return_val) => contract_call_decode(
+            return_val.0.as_slice(),
+            return_val.1.as_slice(),
+        )
+        .map(Ok)
+        .unwrap_or_else(|e| {
+            Err(RawCallError::UnparseableReturn(FaultString::from_display(
+                e,
+            )))
+        }),
         Err(ContractError::Abort(abort_buf)) => {
             match RawException::from_abort_buf(abort_buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),

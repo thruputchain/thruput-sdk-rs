@@ -1,16 +1,26 @@
+use crate::{AuthTokenError, FaultString};
+
 pub fn receive_auth_handles_from_slice<T: ReceiveAuthHandles>(
     value: &mut T,
     handles: &[u32],
-) {
+) -> Result<(), AuthTokenError> {
     let mut iter = handles.iter().copied();
-    value.receive_auth_handles(&mut iter);
+    value.receive_auth_handles(&mut iter)?;
+
+    if iter.next().is_some() {
+        Err(AuthTokenError::ReceiveAuthHandlesFailure(
+            FaultString::from_display("unexpected auth handle remaining"),
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 pub trait ReceiveAuthHandles {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    );
+    ) -> Result<(), AuthTokenError>;
 }
 
 macro_rules! impl_receive_noop {
@@ -18,7 +28,9 @@ macro_rules! impl_receive_noop {
         $(
             impl ReceiveAuthHandles for $ty {
                 #[inline(always)]
-                fn receive_auth_handles(&mut self, _handles: &mut impl Iterator<Item = u32>) {}
+                fn receive_auth_handles(&mut self, _handles: &mut impl Iterator<Item = u32>) -> Result<(), AuthTokenError> {
+                    Ok(())
+                }
             }
         )+
     };
@@ -45,12 +57,13 @@ impl_receive_noop!(
     sdk::types::ContractEntrypointID,
 );
 
-impl<const N: usize> ReceiveAuthHandles for [u8; N] {
+impl<T: ReceiveAuthHandles, const N: usize> ReceiveAuthHandles for [T; N] {
     #[inline(always)]
     fn receive_auth_handles(
         &mut self,
         _handles: &mut impl Iterator<Item = u32>,
-    ) {
+    ) -> Result<(), AuthTokenError> {
+        Ok(())
     }
 }
 
@@ -59,8 +72,8 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &mut T {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
-        (**self).receive_auth_handles(handles);
+    ) -> Result<(), AuthTokenError> {
+        (**self).receive_auth_handles(handles)
     }
 }
 
@@ -69,10 +82,11 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for Option<T> {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
+    ) -> Result<(), AuthTokenError> {
         if let Some(inner) = self {
-            inner.receive_auth_handles(handles);
+            return inner.receive_auth_handles(handles);
         }
+        Ok(())
     }
 }
 
@@ -81,10 +95,11 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
+    ) -> Result<(), AuthTokenError> {
         for item in self {
-            item.receive_auth_handles(handles);
+            item.receive_auth_handles(handles)?;
         }
+        Ok(())
     }
 }
 
@@ -96,10 +111,11 @@ impl<T: ReceiveAuthHandles + 'static, const MAX: u32> ReceiveAuthHandles
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
+    ) -> Result<(), AuthTokenError> {
         for item in self.0.iter_mut() {
-            item.receive_auth_handles(handles);
+            item.receive_auth_handles(handles)?;
         }
+        Ok(())
     }
 }
 
@@ -108,7 +124,8 @@ impl<const MAX: u32> ReceiveAuthHandles for xdrs::BytesM<MAX> {
     fn receive_auth_handles(
         &mut self,
         _handles: &mut impl Iterator<Item = u32>,
-    ) {
+    ) -> Result<(), AuthTokenError> {
+        Ok(())
     }
 }
 
@@ -120,8 +137,8 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
-        (**self).receive_auth_handles(handles);
+    ) -> Result<(), AuthTokenError> {
+        (**self).receive_auth_handles(handles)
     }
 }
 
@@ -130,7 +147,8 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &T {
     fn receive_auth_handles(
         &mut self,
         _handles: &mut impl Iterator<Item = u32>,
-    ) {
+    ) -> Result<(), AuthTokenError> {
+        Ok(())
     }
 }
 
@@ -140,8 +158,8 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for alloc::vec::Vec<T> {
     fn receive_auth_handles(
         &mut self,
         handles: &mut impl Iterator<Item = u32>,
-    ) {
-        self.as_mut_slice().receive_auth_handles(handles);
+    ) -> Result<(), AuthTokenError> {
+        self.as_mut_slice().receive_auth_handles(handles)
     }
 }
 
@@ -151,9 +169,10 @@ macro_rules! impl_receive_tuple {
             impl<$($name: ReceiveAuthHandles),+> ReceiveAuthHandles for ($($name,)+) {
                 #[inline(always)]
                 #[allow(non_snake_case)]
-                fn receive_auth_handles(&mut self, handles: &mut impl Iterator<Item = u32>) {
+                fn receive_auth_handles(&mut self, handles: &mut impl Iterator<Item = u32>) -> Result<(), AuthTokenError> {
                     let ($($name,)+) = self;
-                    $($name.receive_auth_handles(handles);)+
+                    $($name.receive_auth_handles(handles)?;)+
+                    Ok(())
                 }
             }
         )+
@@ -175,6 +194,12 @@ impl_receive_tuple!(
     (A, B, C, D, E, F, G, H, I, J, K, L),
     (A, B, C, D, E, F, G, H, I, J, K, L, M),
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S),
+    (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T),
 );
 
 #[cfg(test)]
@@ -186,14 +211,14 @@ mod tests {
     fn primitives_receive_nothing() {
         let mut x = 42u64;
         let mut handles = core::iter::empty();
-        x.receive_auth_handles(&mut handles);
+        x.receive_auth_handles(&mut handles).unwrap();
     }
 
     #[test]
     fn signer_receives_handle() {
         let mut s: Signed<u32> = Signed::from_handle(u32::MAX);
         let mut iter = [99u32].into_iter();
-        s.receive_auth_handles(&mut iter);
+        s.receive_auth_handles(&mut iter).unwrap();
         assert_eq!(s.handle(), 99);
     }
 
@@ -201,7 +226,7 @@ mod tests {
     fn option_some_receives() {
         let mut s: Option<Signed<u32>> = Some(Signed::from_handle(u32::MAX));
         let mut iter = [5u32].into_iter();
-        s.receive_auth_handles(&mut iter);
+        s.receive_auth_handles(&mut iter).unwrap();
         assert_eq!(s.unwrap().handle(), 5);
     }
 
@@ -209,7 +234,7 @@ mod tests {
     fn option_none_skips() {
         let mut s: Option<Signed<u32>> = None;
         let mut iter = [5u32].into_iter();
-        s.receive_auth_handles(&mut iter);
+        s.receive_auth_handles(&mut iter).unwrap();
         // handle 5 was NOT consumed
         assert_eq!(iter.next(), Some(5));
     }
@@ -223,8 +248,20 @@ mod tests {
             Signed::from_handle(u32::MAX),
         );
         let mut iter = [10u32, 20u32].into_iter();
-        args.receive_auth_handles(&mut iter);
+        args.receive_auth_handles(&mut iter).unwrap();
         assert_eq!(args.1.handle(), 10);
         assert_eq!(args.3.handle(), 20);
+    }
+
+    #[test]
+    fn receive_insufficient_handles() {
+        let mut args: (u64, Signed<u32>, i32, Signed<bool>) = (
+            100,
+            Signed::from_handle(u32::MAX),
+            -1,
+            Signed::from_handle(u32::MAX),
+        );
+        let mut iter = [10u32].into_iter();
+        args.receive_auth_handles(&mut iter).unwrap_err();
     }
 }
