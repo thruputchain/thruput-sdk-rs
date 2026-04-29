@@ -13,7 +13,7 @@ fn addr(byte: u8) -> ContractAddress {
     ContractAddress::from([byte; 32])
 }
 
-pub type TupleAuthPreimage = <TupleAuth as sdk::signer_mapper::MintableType>::Preimage;
+pub type TupleAuthPreimage = <TupleAuth as sdk::mintable::MintableType>::Preimage;
 
 #[test]
 fn tuple_struct_auth_token_tree() {
