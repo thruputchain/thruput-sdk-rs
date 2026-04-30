@@ -1,23 +1,23 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::*;
-use sdk::signer::Signer;
+use sdk::signer::Signed;
 
 #[derive(Default)]
 pub struct SignerTestContract;
 
 #[contract(storage = false)]
 impl SignerTestContract {
-    pub fn with_signer(&self, amount: u64, auth: Signer<u32>) -> u32 {
+    pub fn with_signer(&self, amount: u64, auth: Signed<u32>) -> u32 {
         let _ = (amount, auth);
         0
     }
 
     pub fn multiple_signers(
         &self,
-        a: Signer<u32>,
+        a: Signed<u32>,
         x: i32,
-        b: Signer<bool>,
+        b: Signed<bool>,
     ) -> u32 {
         let _ = (a, x, b);
         0

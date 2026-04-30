@@ -2,7 +2,7 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::signer::Signer;
+use sdk::signer::Signed;
 use sdk::*;
 
 #[contracttype]
@@ -15,7 +15,7 @@ pub struct SignerLeaf;
 
 #[contract(storage = false)]
 impl SignerLeaf {
-    pub fn consume_leaf(auth: Signer<LeafAuth>) -> u32 {
+    pub fn consume_leaf(auth: Signed<LeafAuth>) -> u32 {
         let leaf: LeafAuth = auth.consume();
         leaf.data
     }

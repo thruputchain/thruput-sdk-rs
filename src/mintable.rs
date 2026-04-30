@@ -1,4 +1,3 @@
-use crate::signer_mapper::MintableType;
 use crate::xdr::*;
 
 use crate::types::AuthTokenNode;
@@ -6,19 +5,28 @@ use crate::types::AuthTokenNode;
 #[cfg(feature = "alloc")]
 use crate::types::{AuthTokenPayload, ContractAddress};
 
-pub struct SignerPreimage<T> {
+/// Marker trait for types that have a pre-signing (preimage) representation.
+///
+/// `Preimage` is intentionally unbound — the `WriteXDR + ReadXDR` requirement
+/// is deferred to the `Mintable` trait so that recursive contracttypes can
+/// implement `MintableType` without triggering trait-solver overflow.
+pub trait MintableType: Sized + WriteXDR + for<'r> ReadXDR<'r> {
+    type Preimage;
+}
+
+pub struct AuthTokenPreimage<T> {
     pub consumer: crate::types::ContractAddress,
     pub data: T,
 }
 
-impl<T: WriteXDR> WriteXDR for SignerPreimage<T> {
+impl<T: WriteXDR> WriteXDR for AuthTokenPreimage<T> {
     fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         self.consumer.write_xdr(w)?;
         self.data.write_xdr(w)
     }
 }
 
-impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for SignerPreimage<T> {
+impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for AuthTokenPreimage<T> {
     fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
         Ok(Self {
             consumer: crate::types::ContractAddress::read_xdr(r)?,
@@ -278,7 +286,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::signer::Signer;
+    use crate::signer::Signed;
 
     #[test]
     fn primitive_mintable_builds_leaf_node() {
@@ -295,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn signer_mintable_sets_consumer() {
+    fn signed_mintable_sets_consumer() {
         let consumer = crate::types::ContractAddress::default();
         let mut node = build_auth_token_node::<u64>(42u64);
         node.consumer_address = consumer;
@@ -304,11 +312,11 @@ mod tests {
     }
 
     #[test]
-    fn signer_mint_into_parent_pushes_child() {
+    fn signed_mint_into_parent_pushes_child() {
         let mut children = ChildNodeBuf::new();
         let consumer = crate::types::ContractAddress::default();
-        let val = <Signer<u64>>::mint_into_parent(
-            SignerPreimage {
+        let val = <Signed<u64>>::mint_into_parent(
+            AuthTokenPreimage {
                 consumer,
                 data: 42u64,
             },
@@ -321,17 +329,17 @@ mod tests {
     #[test]
     fn option_none_no_children() {
         let mut children = ChildNodeBuf::new();
-        let val = <Option<Signer<u64>>>::mint_into_parent(None, &mut children);
+        let val = <Option<Signed<u64>>>::mint_into_parent(None, &mut children);
         assert!(val.is_none());
         assert!(children.is_empty());
     }
 
     #[test]
-    fn option_some_signer_pushes_child() {
+    fn option_some_signed_pushes_child() {
         let mut children = ChildNodeBuf::new();
         let consumer = crate::types::ContractAddress::default();
-        let val = <Option<Signer<u64>>>::mint_into_parent(
-            Some(SignerPreimage {
+        let val = <Option<Signed<u64>>>::mint_into_parent(
+            Some(AuthTokenPreimage {
                 consumer,
                 data: 42u64,
             }),

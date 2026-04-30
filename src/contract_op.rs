@@ -3,25 +3,31 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
+use crate::call::internal::auth_handles_as_bytes;
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
-use crate::syscall_throw;
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::xdr::*;
+use crate::{
+    CollectAuthHandles, FaultString, HandlingError, library_throw,
+    syscall_throw,
+};
 use core::mem::MaybeUninit;
 
 pub(crate) const CALLDATA_MAX: usize = 500;
 
-pub fn contract_return(buf: &[u8]) -> ! {
+pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
     let revert = false;
 
-    sys::raw_Return(buf, revert);
+    let auth_token_ids_bytes = auth_handles_as_bytes(auth_token_ids);
+
+    sys::raw_Return(buf, revert, auth_token_ids_bytes);
 }
 
 pub fn contract_abort(buf: &[u8]) -> ! {
     let revert = true;
 
-    sys::raw_Return(buf, revert);
+    sys::raw_Return(buf, revert, &[]);
 }
 
 pub fn contract_exit(_code: i32) -> ! {
@@ -29,11 +35,11 @@ pub fn contract_exit(_code: i32) -> ! {
 }
 
 pub fn contract_revert() -> ! {
-    sys::raw_Exit(/* crate::syscall::SyscallErrorCode::kDeterministicWasm as i32 */);
+    sys::raw_Exit();
 }
 
 pub fn contract_return_empty() -> ! {
-    contract_return(&[])
+    contract_return(&[], &[]);
 }
 
 #[inline]
@@ -51,15 +57,37 @@ where
             crate::debug_context::Backtrace::capture()
         );
     }
-    crate::call::abort_encoded(ret)
+
+    let return_buf = crate::call::internal::contract_call_encode(ret)
+        .unwrap_or_else(|e| {
+            library_throw(HandlingError::EncodingException(
+                FaultString::via_display(&e),
+            ))
+        });
+
+    contract_abort(return_buf.as_ref());
 }
 
 #[inline]
+#[cfg_attr(feature = "debugging", track_caller)]
 pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
-    RET: WriteXDR + ?Sized,
+    RET: WriteXDR + ?Sized + CollectAuthHandles,
 {
-    crate::call::return_encoded(ret)
+    let return_buf = crate::call::internal::contract_call_encode(ret)
+        .unwrap_or_else(|e| {
+            library_throw(HandlingError::EncodingException(
+                FaultString::via_display(&e),
+            ))
+        });
+    let auth_handles = crate::call::internal::collect_auth_handle_bytes(ret)
+        .unwrap_or_else(|e| {
+            library_throw(HandlingError::EncodingException(
+                FaultString::from_display(e),
+            ));
+        });
+
+    contract_return(return_buf.as_ref(), auth_handles.as_slice());
 }
 
 pub fn get_caller() -> ContractAddress {
@@ -132,7 +160,9 @@ pub fn try_get_calldata() -> SysResult<Calldata> {
 
 // This should probably become `get_calldata`, once the existing clients
 // of that function are adapted to non-result return.
-#[deprecated(note = "use get_calldata_with_auth_tokens() for Signer support")]
+#[deprecated(
+    note = "use get_calldata_with_auth_tokens() for Signed token support"
+)]
 pub fn get_calldata() -> Calldata {
     try_get_calldata().unwrap_or_else(|syserr| {
         syscall_throw(SyscallNo::kGetCalldata, syserr)

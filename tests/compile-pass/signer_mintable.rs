@@ -1,8 +1,7 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::mintable::SignerPreimage;
-use sdk::signer::Signer;
-use sdk::signer_mapper::MintableType;
+use sdk::mintable::{AuthTokenPreimage, MintableType};
+use sdk::signer::Signed;
 use sdk::*;
 
 #[contracttype]
@@ -13,7 +12,7 @@ pub struct TransferAuth {
 #[contracttype]
 pub struct Payment {
     pub memo: u32,
-    pub auth: Signer<TransferAuth>,
+    pub auth: Signed<TransferAuth>,
 }
 
 type PaymentPreimage = <Payment as MintableType>::Preimage;
@@ -22,7 +21,7 @@ type TransferAuthPreimage = <TransferAuth as MintableType>::Preimage;
 fn main() {
     let preimage = PaymentPreimage {
         memo: 42,
-        auth: SignerPreimage {
+        auth: AuthTokenPreimage {
             consumer: ContractAddress::default(),
             data: TransferAuthPreimage { amount: 100 },
         },

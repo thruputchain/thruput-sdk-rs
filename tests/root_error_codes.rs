@@ -6,7 +6,7 @@ fn test_root_frame_revert() {
     let env = TestEnvironment::new(None);
 
     let mut handler = env.prepare_test(|| {
-        sdk::sys::raw_Return(&[], true);
+        sdk::sys::raw_Return(&[], true, &[]);
     });
 
     let res = handler.root_invoke();

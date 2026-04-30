@@ -2,9 +2,9 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::mintable::SignerPreimage;
-use sdk::signer::Signer;
-use sdk::signer_mapper::MintableType;
+use sdk::mintable::AuthTokenPreimage;
+use sdk::mintable::MintableType;
+use sdk::signer::Signed;
 use sdk::*;
 use signer_leaf::LeafAuth;
 use signer_middle::{MiddleAuth, SignerMiddleClient};
@@ -23,20 +23,20 @@ impl SignerMinter {
     ) -> u64 {
         let expiry = sdk::block::get_block_height();
 
-        let preimage = SignerPreimage {
+        let preimage = AuthTokenPreimage {
             consumer: *middle_contract,
             data: MiddleAuthPreimage {
                 label: 1000,
-                child: SignerPreimage {
+                child: AuthTokenPreimage {
                     consumer: *leaf_contract,
                     data: LeafAuthPreimage { data: 10 },
                 },
                 extra_children: vec![
-                    SignerPreimage {
+                    AuthTokenPreimage {
                         consumer: *leaf_contract,
                         data: LeafAuthPreimage { data: 20 },
                     },
-                    SignerPreimage {
+                    AuthTokenPreimage {
                         consumer: *leaf_contract,
                         data: LeafAuthPreimage { data: 30 },
                     },
@@ -44,10 +44,10 @@ impl SignerMinter {
             },
         };
 
-        let signer: Signer<MiddleAuth> =
+        let token: Signed<MiddleAuth> =
             sdk::signer::mint_auth_token::<MiddleAuth>(expiry, preimage);
 
         SignerMiddleClient::new(middle_contract)
-            .consume_and_forward(signer, leaf_contract)
+            .consume_and_forward(token, leaf_contract)
     }
 }

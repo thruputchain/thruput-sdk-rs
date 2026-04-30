@@ -2,19 +2,19 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::signer::Signer;
+use sdk::signer::Signed;
 use sdk::*;
 
-/// A tuple struct contracttype with a Signer field.
+/// A tuple struct contracttype with a Signed field.
 #[contracttype]
-pub struct TupleAuth(pub u64, pub Signer<u32>);
+pub struct TupleAuth(pub u64, pub Signed<u32>);
 
 #[derive(Default)]
 pub struct SignerTupleTest;
 
 #[contract(storage = false)]
 impl SignerTupleTest {
-    pub fn consume_tuple(auth: Signer<TupleAuth>) -> u64 {
+    pub fn consume_tuple(auth: Signed<TupleAuth>) -> u64 {
         let inner: TupleAuth = auth.consume();
         inner.0
     }

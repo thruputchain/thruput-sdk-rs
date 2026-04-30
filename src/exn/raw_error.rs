@@ -1,4 +1,4 @@
-use crate::call::internal::contract_call_decode_prefix;
+use crate::call::internal::contract_call_decode_exn_prefix;
 use crate::exn::Exn;
 use crate::xdr::*;
 use core::fmt::{self, Debug};
@@ -41,7 +41,8 @@ impl RawException {
 
     pub fn try_as<T: Exn>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
-            contract_call_decode_prefix(&self.payload).ok()
+            // no auth handles on exception handling path
+            contract_call_decode_exn_prefix(&self.payload).ok()
         } else {
             None
         }

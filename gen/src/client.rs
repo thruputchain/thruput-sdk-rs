@@ -291,6 +291,8 @@ fn generate_client_fn(
                     }
                     Err(::sdk::call::RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
                     Err(::sdk::call::RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
+                    Err(::sdk::call::RawCallError::UnparseableAuthHandles(s)) => Err(#error_enum_ident::UnparseableAuthHandles(s)),
+                    Err(::sdk::call::RawCallError::EncodingArgs(s)) => Err(#error_enum_ident::EncodingArgs(s)),
                 }
             })
         }
@@ -339,6 +341,8 @@ fn generate_error_enum(
             BadDecode(::sdk::exn::RawException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
+            UnparseableAuthHandles(::sdk::exn::FaultString),
+            EncodingArgs(::sdk::exn::FaultString),
         }
 
         #[allow(unexpected_cfgs)]
@@ -353,6 +357,8 @@ fn generate_error_enum(
                     Self::Unknown(e) => ::core::write!(f, "Unknown({:?})", e),
                     Self::UnparseableReturn(e) => ::core::write!(f, "UnparseableReturn({:?})", e),
                     Self::UnparseableAbort(e) => ::core::write!(f, "UnparseableAbort({:?})", e),
+                    Self::UnparseableAuthHandles(e) => ::core::write!(f, "UnparseableAuthHandles({:?})", e),
+                    Self::EncodingArgs(e) => ::core::write!(f, "EncodingArgs({:?})", e),
                 }
             }
         }
@@ -367,6 +373,8 @@ fn generate_error_enum(
                     Self::Fault(f) => panic!("{f}"),
                     Self::UnparseableReturn(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),
                     Self::UnparseableAbort(s) => ::sdk::library_throw(::sdk::CallingError::DecodingException(s)),
+                    Self::UnparseableAuthHandles(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),
+                    Self::EncodingArgs(s) => ::sdk::library_throw(::sdk::CallingError::EncodingArgs(s)),
                 }
             }
         }
@@ -384,7 +392,7 @@ fn generate_selector_dispatch(
             let ty = thrown.ty();
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
-                    let err = ::sdk::call::internal::contract_call_decode_prefix(payload);
+                    let err = ::sdk::call::internal::contract_call_decode_exn_prefix(payload);
                     if err.is_err() {
                         return Err(#error_enum_ident::BadDecode(
                             ::sdk::exn::RawException::new(selector, payload)));
@@ -399,7 +407,7 @@ fn generate_selector_dispatch(
         match selector {
             #(#declared_arms)*
             <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                let err = ::sdk::call::internal::contract_call_decode_prefix(payload);
+                let err = ::sdk::call::internal::contract_call_decode_exn_prefix(payload);
                 if err.is_err() {
                     return Err(#error_enum_ident::BadDecode(
                         ::sdk::exn::RawException::new(selector, payload)));

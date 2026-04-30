@@ -4,10 +4,10 @@ use super::call_result::{RawCallError, into_raw_call_result};
 use super::contract_result::*;
 use super::internal::contract_call_encode;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{CallingError, FaultString, library_throw};
-use crate::sys;
+use crate::exn::FaultString;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
+use crate::{AuthHandleBuf, sys};
 
 pub fn try_call_raw<ARGS, RET>(
     address: &ContractAddress,
@@ -17,13 +17,25 @@ pub fn try_call_raw<ARGS, RET>(
 ) -> Result<RET, RawCallError>
 where
     ARGS: WriteXDR + crate::CollectAuthHandles,
-    RET: ReadXDROwned,
+    RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
-    let args_buf = contract_call_encode(args).unwrap_or_else(|e| {
-        library_throw(CallingError::EncodingArgs(FaultString::from_display(e)))
-    });
+    let args_buf = match contract_call_encode(args) {
+        Ok(buf) => buf,
+        Err(e) => {
+            return Err(RawCallError::EncodingArgs(
+                FaultString::from_display(e),
+            ));
+        }
+    };
 
-    let auth_handles = super::internal::collect_auth_handle_bytes(args);
+    let auth_handles = match super::internal::collect_auth_handle_bytes(args) {
+        Ok(handles) => handles,
+        Err(e) => {
+            return Err(RawCallError::EncodingArgs(
+                FaultString::from_display(e),
+            ));
+        }
+    };
 
     let contract_result = contract_call(
         address,
@@ -83,7 +95,19 @@ where
     // Ok or exception: get the return data from the VM ...
 
     let mut return_buf = ReturnBuf::new();
-    let mut auth_token_id_list_buf = ReturnBuf::new();
+    let mut auth_token_id_list_buf = AuthHandleBuf::new();
+    let auth_handle_count =
+        auth_token_id_list_return_len as usize / core::mem::size_of::<u32>();
+    #[cfg(not(feature = "alloc"))]
+    auth_token_id_list_buf
+        .resize(auth_handle_count, 0)
+        .map_err(|_| {
+            RawCallError::UnparseableAuthHandles(FaultString::from_display(
+                "auth handle buffer capacity exceeded",
+            ))
+        })?;
+    #[cfg(feature = "alloc")]
+    auth_token_id_list_buf.resize(auth_handle_count, 0);
     if let Err(fault) = fill_return_buf(
         return_len,
         auth_token_id_list_return_len,
@@ -98,7 +122,7 @@ where
     }
 
     let contract_result = if is_ok {
-        Ok(return_buf)
+        Ok((return_buf, auth_token_id_list_buf))
     } else {
         Err(ContractError::Abort(return_buf))
     };
@@ -111,7 +135,7 @@ fn fill_return_buf(
     return_len: u32,
     auth_token_id_list_return_len: u32,
     return_buf: &mut ReturnBuf,
-    auth_token_id_list_buf: &mut ReturnBuf,
+    auth_token_id_list_buf: &mut AuthHandleBuf,
 ) -> Result<(), FaultString> {
     let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> =
         core::mem::MaybeUninit::uninit();
@@ -119,10 +143,13 @@ fn fill_return_buf(
         RuntimeMemoryLength,
     > = core::mem::MaybeUninit::uninit();
 
+    let auth_token_id_list_bytes =
+        super::internal::auth_handles_as_mut_bytes(auth_token_id_list_buf);
+
     sys::uninit_GetReturnedBuffer(
         return_buf.spare_capacity_mut(),
         &mut written_mu,
-        auth_token_id_list_buf.spare_capacity_mut(),
+        auth_token_id_list_bytes,
         &mut auth_token_id_list_written_mu,
     )
     .map_err(FaultString::from_display)?;
@@ -150,11 +177,6 @@ fn fill_return_buf(
                     written = {written_auth_token_id_list}, \
                     auth_token_id_list_return_len = {auth_token_id_list_return_len}"
         )));
-    }
-
-    // Safety: The VM reports above that this many bytes were written
-    unsafe {
-        auth_token_id_list_buf.set_len(written_auth_token_id_list as usize);
     }
 
     Ok(())

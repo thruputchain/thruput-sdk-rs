@@ -1,11 +1,11 @@
-//! Integration test for tuple struct contracttype with Signer fields.
+//! Integration test for tuple struct contracttype with Signed fields.
 
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{build_auth_token_node, SignerPreimage};
+use sdk::mintable::{build_auth_token_node, AuthTokenPreimage};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
-use sdk::signer::Signer;
+use sdk::signer::Signed;
 use sdk::*;
 use signer_tuple_test::TupleAuth;
 
@@ -13,20 +13,20 @@ fn addr(byte: u8) -> ContractAddress {
     ContractAddress::from([byte; 32])
 }
 
-pub type TupleAuthPreimage = <TupleAuth as sdk::signer_mapper::MintableType>::Preimage;
+pub type TupleAuthPreimage = <TupleAuth as sdk::mintable::MintableType>::Preimage;
 
 #[test]
 fn tuple_struct_auth_token_tree() {
     let addr_leaf = addr(0xAA);
     let addr_consumer = addr(0xBB);
 
-    let preimage = SignerPreimage {
+    let preimage = AuthTokenPreimage {
         consumer: addr_consumer.clone(),
         // Tuple structs can't use type aliases as constructors,
         // so we use the preimage module path directly.
         data: TupleAuthPreimage {
             0: 42u64,
-            1: SignerPreimage {
+            1: AuthTokenPreimage {
                 consumer: addr_leaf.clone(),
                 data: 99u32,
             },
@@ -37,7 +37,7 @@ fn tuple_struct_auth_token_tree() {
     root_node.consumer_address = preimage.consumer;
 
     assert_eq!(root_node.consumer_address, addr_consumer);
-    // The nested Signer<u32> produces one child node
+    // The nested Signed<u32> produces one child node
     assert_eq!(root_node.child_nodes.len(), 1);
     assert_eq!(root_node.child_nodes[0].consumer_address, addr_leaf);
 }
@@ -47,11 +47,11 @@ fn tuple_struct_payload_roundtrip() {
     let addr_leaf = addr(0xAA);
     let addr_consumer = addr(0xBB);
 
-    let preimage = SignerPreimage {
+    let preimage = AuthTokenPreimage {
         consumer: addr_consumer,
         data: TupleAuthPreimage {
             0: 42u64,
-            1: SignerPreimage {
+            1: AuthTokenPreimage {
                 consumer: addr_leaf,
                 data: 99u32,
             },
@@ -65,13 +65,13 @@ fn tuple_struct_payload_roundtrip() {
     let mut decoded: TupleAuth =
         sdk::cxs::decode(payload_bytes).expect("payload decode failed");
 
-    // Before ReceiveAuthHandles: Signer has sentinel handle
+    // Before ReceiveAuthHandles: Signed has sentinel handle
     assert_eq!(decoded.1.handle(), u32::MAX);
 
     // Fill in real handle
     let child_handles = vec![10u32];
     let mut iter = child_handles.into_iter();
-    decoded.receive_auth_handles(&mut iter);
+    decoded.receive_auth_handles(&mut iter).unwrap();
 
     assert_eq!(decoded.0, 42);
     assert_eq!(decoded.1.handle(), 10);
@@ -79,11 +79,11 @@ fn tuple_struct_payload_roundtrip() {
 
 #[test]
 fn tuple_struct_collect_handles() {
-    let mut auth = TupleAuth(42, Signer::default());
+    let mut auth = TupleAuth(42, Signed::default());
     let mut iter = [5u32].into_iter();
-    auth.receive_auth_handles(&mut iter);
+    auth.receive_auth_handles(&mut iter).unwrap();
 
     let mut buf = sdk::collect_auth_handles::AuthHandleBuf::new();
-    auth.collect_auth_handles(&mut buf);
+    auth.collect_auth_handles(&mut buf).unwrap();
     assert_eq!(buf.as_slice(), &[5]);
 }
