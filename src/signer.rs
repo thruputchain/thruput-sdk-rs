@@ -2,6 +2,11 @@ use crate::mintable::MintableType;
 use crate::{AuthTokenError, FaultString, xdr::*};
 use core::marker::PhantomData;
 
+/// Type-erased marker for [`Signed`] auth tokens. A `Signed<Opaque>` carries a
+/// valid auth token handle but hides the payload type. Use [`Signed::assume`] to
+/// reinterpret as a concrete `Signed<T>`, or [`AssumeTokens`] to destructure a
+/// `Vec<Signed<Opaque>>` into a typed tuple.
+#[derive(Debug)]
 pub struct Opaque(());
 
 #[derive(Debug)]
@@ -48,13 +53,6 @@ impl Signed<Opaque> {
             _phantom: PhantomData,
         }
     }
-
-    fn rehandle<T: MintableType>(&self) -> Signed<T> {
-        Signed {
-            handle: self.handle,
-            _phantom: PhantomData,
-        }
-    }
 }
 
 #[cfg(feature = "alloc")]
@@ -86,9 +84,13 @@ macro_rules! impl_assume_tokens {
                     N,
                     tokens.len()
                 );
-                ($(tokens[$idx].rehandle(),)+)
+                let mut iter = tokens.into_iter();
+                ($(impl_assume_tokens!(@take iter, $idx, $T),)+)
             }
         }
+    };
+    (@take $iter:ident, $idx:tt, $T:ident) => {
+        $iter.next().unwrap().assume::<$T>()
     };
     (@count $head:ident $(, $tail:ident)*) => {
         1 + impl_assume_tokens!(@count $($tail),*)

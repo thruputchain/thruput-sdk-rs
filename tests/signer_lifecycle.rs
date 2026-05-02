@@ -209,33 +209,21 @@ fn encode_auth_token_node_roundtrip() {
     assert!(decoded.child_nodes.is_empty());
 }
 
-// ── Test: mint_opaque_auth_token compiles and takes pre-encoded bytes ──
-
+// TEMPORARY: reproducer for SIGSEGV when calling MintAuthToken outside contract_exec.
+// Run with: cargo test --test signer_lifecycle opaque_mint_segfault_repro -- --nocapture
 use sdk::signer::Opaque;
 
-/// Mint an opaque auth token from a pre-built AuthTokenNode, then
-/// assume it as a concrete type and verify the payload decodes correctly.
 #[test]
-fn opaque_mint_assume_roundtrip() {
+fn opaque_mint_segfault_repro() {
     let preimage = AuthTokenPreimage {
         consumer: addr(0xCC),
         data: LeafAuthPreimage { data: 55 },
     };
 
-    // Build and encode the node the same way mint_auth_token does internally.
     let mut node = build_auth_token_node::<LeafAuth>(preimage.data);
     node.consumer_address = addr(0xCC);
     let encoded = sdk::mintable::encode_auth_token_node(&node);
 
-    // This is what the wallet contract would do:
-    let _opaque: Signed<Opaque> = sdk::signer::mint_opaque_auth_token(
-        0i64.into(), // expiry
-        &encoded,
-    );
-
-    // In a real flow the caller would do:
-    //   let typed: Signed<LeafAuth> = opaque.assume();
-    //   let leaf: LeafAuth = typed.consume();
-    // We can't call consume() in unit tests (requires VM), but we verified
-    // the handle flows through in the assume_preserves_handle test.
+    let _opaque: Signed<Opaque> =
+        sdk::signer::mint_opaque_auth_token(0i64.into(), &encoded);
 }
