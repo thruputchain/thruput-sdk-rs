@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 
 pub struct Opaque(());
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Signed<T> {
     handle: u32,
     _phantom: PhantomData<T>,
