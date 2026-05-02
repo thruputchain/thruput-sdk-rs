@@ -85,11 +85,11 @@ macro_rules! impl_assume_tokens {
                     tokens.len()
                 );
                 let mut iter = tokens.into_iter();
-                ($(impl_assume_tokens!(@take iter, $idx, $T),)+)
+                ($(impl_assume_tokens!(@take iter, $T),)+)
             }
         }
     };
-    (@take $iter:ident, $idx:tt, $T:ident) => {
+    (@take $iter:ident, $T:ident) => {
         $iter.next().unwrap().assume::<$T>()
     };
     (@count $head:ident $(, $tail:ident)*) => {

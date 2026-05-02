@@ -24,7 +24,7 @@ impl Caller {
         token
     }
 
-    /// Call the wallet, expect two tokens back with different types.
+    /// Call the wallet, expect two u64-typed tokens back.
     pub fn authorize_pair(
         wallet: &ContractAddress,
         message: &[u8],

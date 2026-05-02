@@ -7,7 +7,6 @@ sdk::declare_mock_contract!();
 use alloc::vec::Vec;
 use groundhog_erc1271_if::{ERC1271, ERC1271Error};
 use sdk::contract;
-use sdk::mintable::AuthTokenPreimage;
 use sdk::signer::{Opaque, Signed};
 
 #[derive(Default)]
@@ -34,13 +33,9 @@ impl ERC1271 for Wallet {
                 let value = u64::from_le_bytes(payload_bytes);
 
                 let consumer = sdk::get_caller();
-                let preimage = AuthTokenPreimage {
-                    consumer,
-                    data: value,
-                };
                 let mut node =
-                    sdk::mintable::build_auth_token_node::<u64>(preimage.data);
-                node.consumer_address = preimage.consumer;
+                    sdk::mintable::build_auth_token_node::<u64>(value);
+                node.consumer_address = consumer;
                 let encoded = sdk::mintable::encode_auth_token_node(&node);
 
                 let expiry = sdk::block::get_block_height();
