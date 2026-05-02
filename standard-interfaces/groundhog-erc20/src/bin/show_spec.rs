@@ -1,7 +1,0 @@
-fn main() {
-    let spec = groundhog_erc20_if::ERC20_spec();
-
-    println!("\n{spec}");
-
-    println!("\n{}", spec.print_json_summary());
-}
