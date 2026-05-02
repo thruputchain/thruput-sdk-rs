@@ -168,6 +168,25 @@ where
     Signed::from_handle(handle)
 }
 
+#[cfg(feature = "alloc")]
+pub fn mint_opaque_auth_token(
+    expiry: groundhog_xdr::types::BlockHeight,
+    encoded_node: &[u8],
+) -> Signed<Opaque> {
+    use crate::sys::SyscallNo;
+
+    let mut token_id: core::mem::MaybeUninit<u32> =
+        core::mem::MaybeUninit::uninit();
+
+    crate::sys::uninit_MintAuthToken(expiry, encoded_node, &mut token_id)
+        .unwrap_or_else(|e| {
+            crate::exn::syscall_throw(SyscallNo::kMintAuthToken, e)
+        });
+
+    let handle = unsafe { token_id.assume_init() };
+    Signed::from_handle(handle)
+}
+
 impl<T> Signed<T>
 where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
