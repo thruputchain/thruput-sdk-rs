@@ -11,19 +11,13 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
 dev = ["sdk/dev"]
-spec = ["sdk/spec"]
 
 [dependencies]
 sdk = { path = "../..", registry = "groundhog", version = "=0.14.0" }
 thiserror = { workspace = true }
 
-[[bin]]
-name = "show_spec"
-required-features = ["spec"]
-
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 sdk = { path = "../..", registry = "groundhog", version = "=0.14.0", features = ["std"] }
-
 
 [lib]
 crate-type = ["rlib"]

@@ -1,16 +1,28 @@
-#![cfg_attr(not(any(feature = "dev", feature = "spec")), no_std)]
+#![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
-use sdk::contract;
+extern crate alloc;
 
-#[contract(client = ERC1271Client)]
+mod error;
+pub use error::*;
+
+use alloc::vec::Vec;
+use sdk::contract;
+use sdk::signer::{Opaque, Signed};
+
+#[contract(client = ERC1271Client, throws = ERC1271Error)]
 pub trait ERC1271 {
-    /// Verifies if the given signature is valid for the given message hash.
+    /// Validates the given signature against the given message and returns
+    /// any auth tokens the wallet wishes to produce.
     ///
-    /// Note: Unlike the ERC1271 standard, the msg here is a &[u8], not a &[u8;32].
-    /// A signature scheme might require some metadata on the message (such as which public key
-    /// it refers to) and we want the standard to be agnostic to that metadata.
-    /// We also want to allow the is_valid_signature to be able to operate on the message contents
-    /// if necessary, instead of just on the message hash.
-    fn is_valid_signature(&self, message: &[u8], signature: &[u8]) -> bool;
+    /// Returns an empty Vec if the wallet authorizes but no tokens are needed.
+    /// Aborts (throws) if the wallet refuses to authorize.
+    ///
+    /// The caller uses [`AssumeTokens::assume_tokens`] to destructure the
+    /// returned tokens into concrete `Signed<T>` values.
+    fn is_valid_signature(
+        &self,
+        message: &[u8],
+        signature: &[u8],
+    ) -> Vec<Signed<Opaque>>;
 }

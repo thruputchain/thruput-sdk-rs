@@ -413,7 +413,6 @@ build_docs() {
 }
 
 test_spec() {
-    cargo run -p groundhog-erc20-if -F spec --bin show_spec >/dev/null &&
     (
         cd integration_test &&
         cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null &&
