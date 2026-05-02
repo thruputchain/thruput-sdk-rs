@@ -208,22 +208,3 @@ fn encode_auth_token_node_roundtrip() {
     assert_eq!(decoded.consumer_address, addr(0xBB));
     assert!(decoded.child_nodes.is_empty());
 }
-
-// TEMPORARY: reproducer for SIGSEGV when calling MintAuthToken outside contract_exec.
-// Run with: cargo test --test signer_lifecycle opaque_mint_segfault_repro -- --nocapture
-use sdk::signer::Opaque;
-
-#[test]
-fn opaque_mint_segfault_repro() {
-    let preimage = AuthTokenPreimage {
-        consumer: addr(0xCC),
-        data: LeafAuthPreimage { data: 55 },
-    };
-
-    let mut node = build_auth_token_node::<LeafAuth>(preimage.data);
-    node.consumer_address = addr(0xCC);
-    let encoded = sdk::mintable::encode_auth_token_node(&node);
-
-    let _opaque: Signed<Opaque> =
-        sdk::signer::mint_opaque_auth_token(0i64.into(), &encoded);
-}
