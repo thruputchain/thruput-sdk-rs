@@ -34,10 +34,7 @@ impl SignerCaller {
         SignerCalleeClient::new(target).mint_and_return(&address, amount)
     }
 
-    pub fn consume_minted_token(
-        auth: Signed<TransferAuth>,
-        amount: u64,
-    ) {
+    pub fn consume_minted_token(auth: Signed<TransferAuth>, amount: u64) {
         let value = auth.consume();
         assert_eq!(value.amount, amount);
     }

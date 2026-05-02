@@ -7,6 +7,7 @@ use core::ffi::c_void;
 use groundhog_storage_cost::StorageCostModel;
 use groundhog_sys::FFIErrorCode;
 use groundhog_xdr::address_auth::AddressAuthData;
+use groundhog_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::storage_item::WireStorageItem;
@@ -491,6 +492,14 @@ impl TestEnvironment {
             &test_contract.as_contract(),
         );
 
+        let default_auth_claim: AuthClaim =
+            AuthClaim::kSourceAddressAuthData {
+                source_address_claim: AuthClaim_source_address_claim {
+                    allowed_keys: 0,
+                    required_weight: 0,
+                },
+            };
+
         let stx = SignedTransaction {
             signatures: vec![].try_into().unwrap(),
             tx: Transaction {
@@ -498,8 +507,7 @@ impl TestEnvironment {
                     block_expiry_height: 0.into(),
                     nonce: 0,
                 },
-                auth_claims: vec![].try_into().unwrap(),
-                gas_claims: vec![].try_into().unwrap(),
+                auth_claim: default_auth_claim,
                 invocation: Invocation {
                     invoked_address: invoke_addr,
                     entrypoint,
@@ -587,7 +595,6 @@ impl TestEnvironment {
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
         source_auth_data: &AddressAuthData,
-        aux_auth_data: &[(ContractAddress, AddressAuthData)],
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
         let ffi_serialized_tx =
@@ -604,34 +611,10 @@ impl TestEnvironment {
                 len: serialized_source_auth_data.len().try_into().unwrap(),
             };
 
-        let serialized_aux_auth_data: Vec<(ContractAddress, Vec<u8>)> =
-            aux_auth_data
-                .iter()
-                .map(|x| (x.0, txs::encode(&x.1).unwrap()))
-                .collect();
-
-        let ffi_serialized_aux_auth_data: Vec<
-            groundhog_sys::FFISerializedAuthData,
-        > = serialized_aux_auth_data
-            .iter()
-            .map(|x| groundhog_sys::FFISerializedAuthData {
-                address: *x.0,
-                data: x.1.as_ptr() as *mut u8,
-                len: x.1.len().try_into().unwrap(),
-            })
-            .collect();
-
-        let ffi_auxiliary_auth_data = groundhog_sys::FFIAuxiliaryAuthData {
-            auth_data: ffi_serialized_aux_auth_data.as_ptr()
-                as *mut groundhog_sys::FFISerializedAuthData,
-            count: ffi_serialized_aux_auth_data.len().try_into().unwrap(),
-        };
-
         let res = unsafe {
             groundhog_sys::verify_signed_transaction_auth(
                 ffi_serialized_tx,
                 ffi_serialized_source_auth_data,
-                ffi_auxiliary_auth_data,
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();

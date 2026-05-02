@@ -9,7 +9,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.13.3";
+const TEST_FFI_VERSION: &str = "0.14.1";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
@@ -415,7 +415,43 @@ fn run_build_from_source(
         .expect("Couldn't write bindings!");
 
     verify_hogd_version(hogd_src, &hogd_ffi_version)?;
+    fetch_hogd_rust_deps(&hogd_path)?;
     build_from_cmake(hogd_src, out_dir)?;
+
+    Ok(())
+}
+
+/// Pre-fetch cargo dependencies for hogd's embedded Rust crates.
+///
+/// The hogd cmake build uses corrosion to compile Rust crates under
+/// `hogd/rust/`. Running `cargo fetch` here resolves git
+/// dependencies before cmake invokes cargo with `--frozen`.
+fn fetch_hogd_rust_deps(
+    hogd_path: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let rust_dir = hogd_path.join("hogd/rust");
+    if !rust_dir.exists() {
+        println!(
+            "cargo:warning=hogd/rust not found, skipping \
+             pre-fetch"
+        );
+        return Ok(());
+    }
+
+    println!("cargo:warning=Pre-fetching hogd Rust dependencies...");
+
+    let output = Command::new("cargo")
+        .args(["fetch"])
+        .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
+        .current_dir(&rust_dir)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(
+            format!("cargo fetch in hogd/rust failed: {stderr}").into()
+        );
+    }
 
     Ok(())
 }
