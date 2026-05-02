@@ -1,5 +1,8 @@
+use crate::mintable::MintableType;
 use crate::{AuthTokenError, FaultString, xdr::*};
 use core::marker::PhantomData;
+
+pub struct Opaque(());
 
 #[derive(Clone, Copy, Debug)]
 pub struct Signed<T> {
@@ -97,8 +100,6 @@ impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T> {
             ty: groundhog_contract_spec::view::ContractTypeView::U32,
         };
 }
-
-use crate::mintable::MintableType;
 
 #[cfg(feature = "alloc")]
 use crate::mintable::{AuthTokenPreimage, Mintable};
