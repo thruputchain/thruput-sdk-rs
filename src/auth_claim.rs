@@ -31,10 +31,18 @@ fn key_bytes<'a>(public_key: &'a PublicKey) -> SysResult<&'a [u8]> {
     }
 }
 
-pub fn add_address_public_key(pk_index: u32, public_key: PublicKey, key_weight: Weight) -> SysResult<()> {
+pub fn add_address_public_key(
+    pk_index: u32,
+    public_key: PublicKey,
+    key_weight: Weight,
+) -> SysResult<()> {
     let scheme = public_key.scheme();
-    sys::uninit_ChangePublicKeyRegistration(pk_index, Some(&scheme.0), 
-    key_bytes(&public_key)?, Some(&key_weight))
+    sys::uninit_ChangePublicKeyRegistration(
+        pk_index,
+        Some(&scheme.0),
+        key_bytes(&public_key)?,
+        Some(&key_weight),
+    )
 }
 
 pub fn remove_address_public_key(pk_index: u32) -> SysResult<()> {
