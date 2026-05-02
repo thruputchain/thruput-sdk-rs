@@ -360,16 +360,14 @@ impl MockTransactionHandler {
     pub fn new(env: Rc<TestEnvironment>) -> Self {
         // TODO(geoff): ways to mock this out
         use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
-        let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData { 
+        let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData {
             source_address_claim: AuthClaim_source_address_claim {
                 allowed_keys: 0,
                 required_weight: 0,
-            } 
+            },
         };
 
-
-        let serialized_auth_claim =
-            xdrs::txs::encode(&auth_claim).unwrap();
+        let serialized_auth_claim = xdrs::txs::encode(&auth_claim).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
             groundhog_sys::open_mocked_syscall_handler(

@@ -1,4 +1,3 @@
-
 use sdk::*;
 
 #[test]
@@ -18,12 +17,13 @@ fn signer_pass_back_and_forth() {
         let caller = signer_caller::SignerCallerClient::new(&caller_addr);
 
         std::println!("got here");
-        
+
         let token = caller.mint_and_forward(&callee_addr, 100);
         std::println!("got here 2");
         caller.consume_minted_token(token, 100);
         std::println!("got here 3");
-
     })
-    .unwrap_or_else(|e| panic!("Signed token forwarding test failed: {:?}", e));
+    .unwrap_or_else(|e| {
+        panic!("Signed token forwarding test failed: {:?}", e)
+    });
 }

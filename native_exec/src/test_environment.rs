@@ -492,12 +492,13 @@ impl TestEnvironment {
             &test_contract.as_contract(),
         );
 
-        let default_auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData { 
-            source_address_claim: AuthClaim_source_address_claim {
-                allowed_keys: 0,
-                required_weight: 0,
-            } 
-        };
+        let default_auth_claim: AuthClaim =
+            AuthClaim::kSourceAddressAuthData {
+                source_address_claim: AuthClaim_source_address_claim {
+                    allowed_keys: 0,
+                    required_weight: 0,
+                },
+            };
 
         let stx = SignedTransaction {
             signatures: vec![].try_into().unwrap(),

@@ -27,7 +27,11 @@ pub fn set_address_required_weight(required_weight: Weight) -> SysResult<()> {
 fn key_bytes<'a>(public_key: &'a PublicKey) -> SysResult<&'a [u8]> {
     match public_key {
         PublicKey::Ed25519 { ed25519 } => Ok(ed25519.as_ref()),
-        _ => return Err(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into()),
+        _ => {
+            return Err(
+                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into()
+            );
+        }
     }
 }
 

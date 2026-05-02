@@ -313,11 +313,11 @@ fn protocol_struct_vectors() -> Vec<Value> {
         max_weight: 10,
     };
 
-    let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData { 
+    let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData {
         source_address_claim: AuthClaim_source_address_claim {
             allowed_keys: 0x0000_00FF,
             required_weight: 5,
-        } 
+        },
     };
 
     // Transaction with minimal fields

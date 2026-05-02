@@ -3,7 +3,7 @@
 #![allow(unexpected_cfgs)]
 
 use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{build_auth_token_node, AuthTokenPreimage};
+use sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
 use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signed;
 use sdk::*;
@@ -13,7 +13,8 @@ fn addr(byte: u8) -> ContractAddress {
     ContractAddress::from([byte; 32])
 }
 
-pub type TupleAuthPreimage = <TupleAuth as sdk::mintable::MintableType>::Preimage;
+pub type TupleAuthPreimage =
+    <TupleAuth as sdk::mintable::MintableType>::Preimage;
 
 #[test]
 fn tuple_struct_auth_token_tree() {
