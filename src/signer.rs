@@ -41,6 +41,15 @@ impl<T> Signed<T> {
     }
 }
 
+impl Signed<Opaque> {
+    pub fn assume<T: MintableType>(self) -> Signed<T> {
+        Signed {
+            handle: self.handle,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 /// Returns a Signed with sentinel handle (u32::MAX). Used internally
 /// by Mintable to construct payload values — not for direct use.
 impl<T> Default for Signed<T> {
@@ -279,5 +288,12 @@ mod tests {
         let mut buf = crate::collect_auth_handles::AuthHandleBuf::new();
         args.collect_auth_handles(&mut buf).unwrap();
         assert_eq!(buf.as_slice(), &[10, 20]);
+    }
+
+    #[test]
+    fn assume_preserves_handle() {
+        let opaque: Signed<Opaque> = Signed::from_handle(42);
+        let typed: Signed<u64> = opaque.assume();
+        assert_eq!(typed.handle(), 42);
     }
 }
