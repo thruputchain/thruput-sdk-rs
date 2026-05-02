@@ -48,7 +48,72 @@ impl Signed<Opaque> {
             _phantom: PhantomData,
         }
     }
+
+    fn rehandle<T: MintableType>(&self) -> Signed<T> {
+        Signed {
+            handle: self.handle,
+            _phantom: PhantomData,
+        }
+    }
 }
+
+#[cfg(feature = "alloc")]
+pub trait AssumeTokens {
+    fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self;
+}
+
+#[cfg(feature = "alloc")]
+macro_rules! impl_assume_tokens {
+    () => {
+        impl AssumeTokens for () {
+            fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
+                assert!(
+                    tokens.is_empty(),
+                    "expected 0 auth tokens, got {}",
+                    tokens.len()
+                );
+            }
+        }
+    };
+    ($($idx:tt : $T:ident),+) => {
+        impl<$($T: MintableType),+> AssumeTokens for ($(Signed<$T>,)+) {
+            fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
+                const N: usize = impl_assume_tokens!(@count $($T),+);
+                assert_eq!(
+                    tokens.len(),
+                    N,
+                    "expected {} auth tokens, got {}",
+                    N,
+                    tokens.len()
+                );
+                ($(tokens[$idx].rehandle(),)+)
+            }
+        }
+    };
+    (@count $head:ident $(, $tail:ident)*) => {
+        1 + impl_assume_tokens!(@count $($tail),*)
+    };
+    (@count) => { 0 };
+}
+
+#[cfg(feature = "alloc")]
+impl_assume_tokens!();
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C, 3: D);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H);
 
 /// Returns a Signed with sentinel handle (u32::MAX). Used internally
 /// by Mintable to construct payload values — not for direct use.
@@ -250,6 +315,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "alloc")]
+    use alloc::vec;
     use core::mem::MaybeUninit;
 
     #[test]
@@ -314,5 +381,52 @@ mod tests {
         let opaque: Signed<Opaque> = Signed::from_handle(42);
         let typed: Signed<u64> = opaque.assume();
         assert_eq!(typed.handle(), 42);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn assume_tokens_unit() {
+        use crate::signer::AssumeTokens;
+        let tokens = vec![];
+        let () = AssumeTokens::assume_tokens(tokens);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn assume_tokens_single() {
+        use crate::signer::AssumeTokens;
+        let tokens = vec![Signed::<Opaque>::from_handle(10)];
+        let (a,): (Signed<u64>,) = AssumeTokens::assume_tokens(tokens);
+        assert_eq!(a.handle(), 10);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn assume_tokens_triple() {
+        use crate::signer::AssumeTokens;
+        let tokens = vec![
+            Signed::<Opaque>::from_handle(10),
+            Signed::<Opaque>::from_handle(20),
+            Signed::<Opaque>::from_handle(30),
+        ];
+        let (a, b, c): (Signed<u64>, Signed<u32>, Signed<bool>) =
+            AssumeTokens::assume_tokens(tokens);
+        assert_eq!(a.handle(), 10);
+        assert_eq!(b.handle(), 20);
+        assert_eq!(c.handle(), 30);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    #[should_panic(expected = "expected 2 auth tokens, got 3")]
+    fn assume_tokens_length_mismatch_panics() {
+        use crate::signer::AssumeTokens;
+        let tokens = vec![
+            Signed::<Opaque>::from_handle(1),
+            Signed::<Opaque>::from_handle(2),
+            Signed::<Opaque>::from_handle(3),
+        ];
+        let (_, _): (Signed<u64>, Signed<u32>) =
+            AssumeTokens::assume_tokens(tokens);
     }
 }
