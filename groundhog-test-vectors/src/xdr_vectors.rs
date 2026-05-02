@@ -366,8 +366,13 @@ fn protocol_struct_vectors() -> Vec<Value> {
                     "nonce": "42",
                 },
                 "contracts_to_deploy": [],
-                "auth_claims": [],
-                "gas_claims": [],
+                "auth_claim": {
+                    "variant": "kSourceAddressAuthData",
+                    "value": {
+                        "allowed_keys": "255",
+                        "required_weight": "5",
+                    },
+                },
             },
             "expected_hex": xdr_hex(&tx),
         }),

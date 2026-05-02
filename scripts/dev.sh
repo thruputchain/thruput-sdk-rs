@@ -268,6 +268,7 @@ test_sdk() {
     cargo test --lib &&
     cargo test --tests &&
     cargo test -p groundhog-spec-tool &&
+    cargo test -p groundhog-test-vectors &&
     cargo test -F storage --tests &&
     cargo test -p vector-tests --tests &&
     true
