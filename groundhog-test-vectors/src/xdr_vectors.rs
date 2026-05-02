@@ -333,7 +333,7 @@ fn protocol_struct_vectors() -> Vec<Value> {
             nonce: 42,
         },
         contracts_to_deploy: Default::default(),
-        auth_claim: auth_claim,
+        auth_claim,
     };
 
     vec![
