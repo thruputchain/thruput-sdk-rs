@@ -441,7 +441,8 @@ fn fetch_hogd_rust_deps(
     println!("cargo:warning=Pre-fetching hogd Rust dependencies...");
 
     let output = Command::new("cargo")
-        .args(["fetch", "--config", "net.git-fetch-with-cli=true"])
+        .args(["fetch"])
+        .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
         .current_dir(&rust_dir)
         .output()?;
 
