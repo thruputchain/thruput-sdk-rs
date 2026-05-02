@@ -5,7 +5,7 @@ extern crate alloc;
 sdk::declare_mock_contract!();
 
 use alloc::vec::Vec;
-use groundhog_erc1271_if::ERC1271;
+use groundhog_erc1271_if::{ERC1271, ERC1271Error};
 use sdk::contract;
 use sdk::mintable::AuthTokenPreimage;
 use sdk::signer::{Opaque, Signed};
@@ -20,9 +20,9 @@ impl ERC1271 for Wallet {
         message: &[u8],
         signature: &[u8],
     ) -> Vec<Signed<Opaque>> {
-        // Trivial example: signature must equal message (echo check).
-        // A real wallet would verify a cryptographic signature here.
-        assert_eq!(message, signature, "invalid signature");
+        if message != signature {
+            sdk::throw(ERC1271Error::InvalidSignature);
+        }
 
         // Mint one opaque auth token per 8-byte chunk of the message.
         // Each chunk becomes a u64 payload in its own token node.
