@@ -438,9 +438,7 @@ fn fetch_hogd_rust_deps(
         return Ok(());
     }
 
-    println!(
-        "cargo:warning=Pre-fetching hogd Rust dependencies..."
-    );
+    println!("cargo:warning=Pre-fetching hogd Rust dependencies...");
 
     let output = Command::new("cargo")
         .args(["fetch", "--config", "net.git-fetch-with-cli=true"])
@@ -449,10 +447,9 @@ fn fetch_hogd_rust_deps(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "cargo fetch in hogd/rust failed: {stderr}"
-        )
-        .into());
+        return Err(
+            format!("cargo fetch in hogd/rust failed: {stderr}").into()
+        );
     }
 
     Ok(())
