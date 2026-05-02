@@ -1,3 +1,5 @@
+use groundhog_xdr::auth_claim::AuthClaim;
+use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
 use serde_json::{Value, json};
 use xdrs::WriteXDR;
 use xdrs::txs;
@@ -311,6 +313,13 @@ fn protocol_struct_vectors() -> Vec<Value> {
         max_weight: 10,
     };
 
+    let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData { 
+        source_address_claim: AuthClaim_source_address_claim {
+            allowed_keys: 0x0000_00FF,
+            required_weight: 5,
+        } 
+    };
+
     // Transaction with minimal fields
     let tx = Transaction {
         invocation: Invocation {
@@ -324,8 +333,7 @@ fn protocol_struct_vectors() -> Vec<Value> {
             nonce: 42,
         },
         contracts_to_deploy: Default::default(),
-        auth_claims: Default::default(),
-        gas_claims: Default::default(),
+        auth_claim: auth_claim,
     };
 
     vec![

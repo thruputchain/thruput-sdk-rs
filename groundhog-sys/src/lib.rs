@@ -40,8 +40,6 @@ pub use bindings::{
     FFISerializedSignedTransaction,
     OpenSyscallHandlerResult,
     FFISourceAuthData,
-    FFISerializedAuthData,
-    FFIAuxiliaryAuthData,
     FFISerializedAuthClaimData,
     FFISerializedInvocation,
     VerifyAuthResult,

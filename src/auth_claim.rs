@@ -7,41 +7,36 @@
 
 use crate::sys::{self, SysResult};
 use core::mem::MaybeUninit;
-use groundhog_xdr::address_auth::GasPermissionConfig;
-use groundhog_xdr::address_auth::NonceConfig;
 use groundhog_xdr::auth_claim::AuthClaim;
 
 pub use groundhog_xdr::auth_claim::BitMap;
 pub use groundhog_xdr::auth_claim::Weight;
+use groundhog_xdr::syscall_error::SyscallErrorCode;
+use groundhog_xdr::types::PublicKey;
 
-pub fn get_auth_claim(index: u32) -> SysResult<AuthClaim> {
+pub fn get_auth_claim() -> SysResult<AuthClaim> {
     let mut auth_claim = MaybeUninit::uninit();
-    sys::uninit_GetAuthClaim(index, &mut auth_claim)?;
+    sys::uninit_GetAuthClaim(&mut auth_claim)?;
     Ok(unsafe { auth_claim.assume_init() })
 }
 
-pub fn get_auth_claim_count() -> SysResult<u32> {
-    let mut count: MaybeUninit<u32> = MaybeUninit::uninit();
-    sys::uninit_GetAuthClaimCount(&mut count)?;
-    Ok(unsafe { count.assume_init() })
+pub fn set_address_required_weight(required_weight: Weight) -> SysResult<()> {
+    sys::uninit_WriteAddressRequiredWeight(required_weight)
 }
 
-pub fn set_nonce_config(nonce_config: NonceConfig) -> SysResult<()> {
-    sys::uninit_WriteAddressNonceConfig(&nonce_config)?;
-    Ok(())
+fn key_bytes<'a>(public_key: &'a PublicKey) -> SysResult<&'a [u8]> {
+    match public_key {
+        PublicKey::Ed25519 { ed25519 } => Ok(ed25519.as_ref()),
+        _ => return Err(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into()),
+    }
 }
 
-// TODO(geoff): is there a better interface?  Do we want to have an "add permission" option?
-// TODO(dobog): same question as above
-pub fn set_gas_permission_config(
-    gas_permission_config: GasPermissionConfig,
-) -> SysResult<()> {
-    sys::uninit_WriteAddressGasPermissionConfigs(
-        Some(&gas_permission_config),
-        None,
-        None,
-        None,
-        None,
-    )?;
-    Ok(())
+pub fn add_address_public_key(pk_index: u32, public_key: PublicKey, key_weight: Weight) -> SysResult<()> {
+    let scheme = public_key.scheme();
+    sys::uninit_ChangePublicKeyRegistration(pk_index, Some(&scheme.0), 
+    key_bytes(&public_key)?, Some(&key_weight))
+}
+
+pub fn remove_address_public_key(pk_index: u32) -> SysResult<()> {
+    sys::uninit_ChangePublicKeyRegistration(pk_index, None, &[], None)
 }

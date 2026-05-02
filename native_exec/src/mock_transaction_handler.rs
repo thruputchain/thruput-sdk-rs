@@ -5,7 +5,7 @@ use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use groundhog_sys::ForeignTryCommitResult;
 use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::auth_claim::AuthClaimData;
+use groundhog_xdr::auth_claim::AuthClaim;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::SHA256Hash;
@@ -359,17 +359,25 @@ pub struct MockTransactionHandler {
 impl MockTransactionHandler {
     pub fn new(env: Rc<TestEnvironment>) -> Self {
         // TODO(geoff): ways to mock this out
-        let auth_claim_data: AuthClaimData = AuthClaimData::default();
-        let serialized_auth_claim_data =
-            xdrs::txs::encode(&auth_claim_data).unwrap();
+        use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
+        let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData { 
+            source_address_claim: AuthClaim_source_address_claim {
+                allowed_keys: 0,
+                required_weight: 0,
+            } 
+        };
+
+
+        let serialized_auth_claim =
+            xdrs::txs::encode(&auth_claim).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
             groundhog_sys::open_mocked_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
                 groundhog_sys::FFISerializedAuthClaimData {
-                    data: serialized_auth_claim_data.as_ptr() as *mut u8,
-                    len: serialized_auth_claim_data.len().try_into().unwrap(),
+                    data: serialized_auth_claim.as_ptr() as *mut u8,
+                    len: serialized_auth_claim.len().try_into().unwrap(),
                 },
                 source_tx_hash.as_ptr(),
                 /*enable_tracing*/ 1,
