@@ -7,8 +7,8 @@ use sdk::*;
 type Balance = NNInt;
 type Allowance = NNInt;
 
-#[derive(Debug)]
 #[sdk::storage]
+#[derive(Debug)]
 pub struct TokenContract {
     config: Value<Config>,
     balances: Map<ContractAddress, Balance>,
@@ -16,13 +16,13 @@ pub struct TokenContract {
     total_supply: NNInt,
 }
 
-#[derive(Debug, ReadXDR, WriteXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[contracttype]
+#[derive(Debug)]
 pub struct Config {
-    administrator: ContractAddress,
-    name: Option<Name>,
-    symbol: Option<Symbol>,
-    decimals: Option<u32>,
+    pub administrator: ContractAddress,
+    pub name: Option<Name>,
+    pub symbol: Option<Symbol>,
+    pub decimals: Option<u32>,
 }
 
 impl TokenContract {

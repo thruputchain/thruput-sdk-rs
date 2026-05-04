@@ -7,18 +7,18 @@ use sdk::*;
 //
 // No concurrent sets allowed.
 //
-#[derive(Copy, Clone, Debug, ReadXDR, WriteXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[contracttype]
+#[derive(Copy, Clone, Debug)]
 pub struct Reserves {
     // The last recorded reserve balances.
-    balances: [U112; 2],
+    pub balances: [U112; 2],
 
     // Cumulative prices associated with the balances above.
     // (Consider calculating these dynamically instead of storing?)
-    cumulative_prices: [U256; 2],
+    pub cumulative_prices: [U256; 2],
 
     // The block in which the reserve balances were last recorded.
-    block_timestamp: u32,
+    pub block_timestamp: u32,
 }
 
 impl Reserves {
