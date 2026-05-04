@@ -1,28 +1,21 @@
-use core::cmp::Ord;
-use sdk::{ReadXDR, WriteXDR};
+use sdk::*;
 
 pub const U112_MAX: u128 = 2u128.pow(112) - 1;
 
-#[derive(
-    Default,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Copy,
-    Clone,
-    ReadXDR,
-    WriteXDR,
-)]
+#[contracttype]
+#[derive(Copy, Clone, Debug, Default, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct U112(u128);
+pub struct U112(pub u128);
 
 impl U112 {
     pub const MAX: u128 = 2u128.pow(112) - 1;
 
     pub fn new_strict(n: u128) -> Self {
         n.try_into().unwrap()
+    }
+
+    pub const fn zero() -> Self {
+        Self(0)
     }
 }
 

@@ -54,6 +54,7 @@ impl core::fmt::Display for RawCallError {
 }
 
 impl crate::re_throw::ReThrow for RawCallError {
+    #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> ! {
         match self {
             RawCallError::Exception(exn) => {

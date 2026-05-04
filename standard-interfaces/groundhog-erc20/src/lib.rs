@@ -17,7 +17,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 
 #[contract(client = ERC20Client, throws = ERC20Error)]
 pub trait ERC20 {
-    fn initialize(&mut self, contract_owner: &ContractAddress);
+    fn initialize(&mut self, administrator: &ContractAddress);
 
     /// Transfer from caller to `receiver` address
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount);

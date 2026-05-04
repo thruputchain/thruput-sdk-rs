@@ -4,8 +4,6 @@ use crate::xdr::*;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
 
-pub type Result<T, E = StorageError> = core::result::Result<T, E>;
-
 #[cfg(feature = "spec")]
 use xdrs::{XDR, xdr_repr::XDR};
 

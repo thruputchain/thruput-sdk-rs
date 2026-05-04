@@ -9,27 +9,36 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 
-pub const CLIENT_CONSTRUCTOR_NAME: &str = "new";
-pub const CLIENT_GAS_LIMIT_HELPER_NAME: &str = "with_gas_limit";
 pub const CLIENT_TRY_METHOD_PREFIX: &str = "try_";
 
-pub fn reserved_client_name_error(name: &str) -> Option<&'static str> {
-    if name == CLIENT_CONSTRUCTOR_NAME {
-        return Some(
-            "the name `new` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions",
-        );
-    }
+pub const CLIENT_CONSTRUCTOR_NAME: &str = "new";
+pub const CLIENT_GAS_LIMIT_HELPER_NAME: &str = "with_gas_limit";
+pub const CLIENT_TRY_INVOKE_HELPER_NAME: &str = "with_commit_locking";
 
-    if name == CLIENT_GAS_LIMIT_HELPER_NAME {
-        return Some(
-            "the name `with_gas_limit` is reserved by generated client helpers; rename the contract item so client APIs stay consistent across traits, impls, and free functions",
-        );
+const CLIENT_RESERVED_NAMES: [&str; 3] = [
+    CLIENT_CONSTRUCTOR_NAME,
+    CLIENT_GAS_LIMIT_HELPER_NAME,
+    CLIENT_TRY_INVOKE_HELPER_NAME,
+];
+
+pub fn reserved_client_name_error(name: &str) -> Option<String> {
+    for reserved_name in CLIENT_RESERVED_NAMES {
+        if name == reserved_name {
+            return Some(format!(
+                "the name `{}` is reserved by generated client helpers; rename \
+                the contract item so client APIs stay consistent across traits, \
+                impls, and free functions",
+                name,
+            ));
+        }
     }
 
     if name.starts_with(CLIENT_TRY_METHOD_PREFIX) {
-        return Some(
-            "names beginning with `try_` are reserved by generated client inspection methods",
-        );
+        return Some(format!(
+            "names beginning with `{}` are reserved by generated client \
+            inspection methods",
+            CLIENT_TRY_METHOD_PREFIX,
+        ));
     }
 
     None
@@ -41,6 +50,10 @@ fn client_constructor_ident() -> syn::Ident {
 
 fn client_gas_limit_helper_ident() -> syn::Ident {
     format_ident!("{}", CLIENT_GAS_LIMIT_HELPER_NAME)
+}
+
+fn client_try_invoke_helper_ident() -> syn::Ident {
+    format_ident!("{}", CLIENT_TRY_INVOKE_HELPER_NAME)
 }
 
 fn try_client_method_ident(method_ident: &syn::Ident) -> syn::Ident {
@@ -80,6 +93,7 @@ pub fn generate(
     let iface_vers = contract.defaulted_interface_vers();
     let constructor_ident = client_constructor_ident();
     let gas_limit_helper_ident = client_gas_limit_helper_ident();
+    let try_invoke_helper_ident = client_try_invoke_helper_ident();
 
     let client = quote! {
 
@@ -114,6 +128,17 @@ pub fn generate(
                             gas_limit,
                             ..self.config
                         },
+                    }
+                }
+
+                pub fn #try_invoke_helper_ident(self) -> Self {
+                    Self {
+                        config: ::sdk::invoke_config::InvokeConfig {
+                                flags: self.config.flags
+                                    | ::sdk::invoke_config::InvokeFlag::TryInvoke.0,
+                                .. self.config
+                        },
+                        .. self
                     }
                 }
 

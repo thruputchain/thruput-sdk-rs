@@ -50,10 +50,11 @@ where
 {
     #[cfg(all(feature = "debugging", feature = "std"))]
     {
-        std::println!("Throwing exception {:?}", ret);
-        std::println!("Location: {}", core::panic::Location::caller());
+        std::println!();
+        std::println!("  Throwing exception {:?}", ret);
+        std::println!("  Location: {}", core::panic::Location::caller());
         std::println!(
-            "Backtrace:\n{}",
+            "  Backtrace:\n{}",
             crate::debug_context::Backtrace::capture()
         );
     }

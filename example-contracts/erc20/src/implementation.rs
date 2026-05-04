@@ -7,27 +7,40 @@ use sdk::*;
 type Balance = NNInt;
 type Allowance = NNInt;
 
-#[derive(Debug)]
 #[sdk::storage]
+#[derive(Debug)]
 pub struct TokenContract {
-    contract_owner: Value<ContractAddress>,
+    config: Value<Config>,
     balances: Map<ContractAddress, Balance>,
     allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
     total_supply: NNInt,
 }
 
+#[contracttype]
+#[derive(Debug)]
+pub struct Config {
+    pub administrator: ContractAddress,
+    pub name: Option<Name>,
+    pub symbol: Option<Symbol>,
+    pub decimals: Option<u32>,
+}
+
 impl TokenContract {
+    fn _init(&mut self, config: &Config) {
+        if self.config.try_get().is_some() {
+            throw(ERC20Error::AlreadyInitialized);
+        }
+
+        self.config.set(config)
+    }
+
+    fn _administrator(&self) -> ContractAddress {
+        self.config.get().administrator
+    }
+
     // These internal functions use the underlying storage to create an
     // abstraction whereby all balances and allowances exist, defaulting to
     // zero if never set. They do _not_ check authorization.
-
-    fn _init(&mut self, contract_owner: &ContractAddress) {
-        self.contract_owner.set(contract_owner);
-    }
-
-    fn _contract_owner(&self) -> ContractAddress {
-        self.contract_owner.get()
-    }
 
     // Balance stored at given owner address, or zero if empty
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Amount {
@@ -76,12 +89,19 @@ impl TokenContract {
     }
 }
 
-// This implements the ERC20 interface.  The `contract` macro provides
-// an exported entrypoint for each method.
+// This implements the ERC20 interface.
+//
+// The `contract` macro provides an exported entrypoint for each method.
+//
 #[contract(version = "0.1.0")]
 impl ERC20 for TokenContract {
-    fn initialize(&mut self, contract_owner: &ContractAddress) {
-        self._init(contract_owner);
+    fn initialize(&mut self, administrator: &ContractAddress) {
+        self._init(&Config {
+            administrator: *administrator,
+            name: None,
+            symbol: None,
+            decimals: None,
+        });
     }
 
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
@@ -140,7 +160,7 @@ impl ERC20 for TokenContract {
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
         let caller = get_caller();
         ensure(
-            caller == self._contract_owner(),
+            caller == self._administrator(),
             ERC20Error::MustBeContractOwner,
         );
 
@@ -154,7 +174,7 @@ impl ERC20 for TokenContract {
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
         let caller = get_caller();
         ensure(
-            caller == self._contract_owner(),
+            caller == self._administrator(),
             ERC20Error::MustBeContractOwner,
         );
 
@@ -167,5 +187,35 @@ impl ERC20 for TokenContract {
 
     fn total_supply(&self) -> Amount {
         self._total_supply()
+    }
+}
+
+#[contract(version = "0.1.0")]
+impl ERC20Metadata for TokenContract {
+    fn initialize(
+        &mut self,
+        administrator: &ContractAddress,
+        name: Option<Name>,
+        symbol: Option<Symbol>,
+        decimals: Option<u32>,
+    ) {
+        self._init(&Config {
+            administrator: *administrator,
+            name,
+            symbol,
+            decimals,
+        });
+    }
+
+    fn name(&self) -> Option<Name> {
+        self.config.get().name
+    }
+
+    fn symbol(&self) -> Option<Symbol> {
+        self.config.get().symbol
+    }
+
+    fn decimals(&self) -> Option<u32> {
+        self.config.get().decimals
     }
 }

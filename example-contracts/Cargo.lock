@@ -386,6 +386,7 @@ dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
  "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
  "sdk",
  "sha2",
 ]
@@ -415,6 +416,7 @@ name = "erc20-test"
 version = "0.14.0"
 dependencies = [
  "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
  "sdk",
  "thiserror",
 ]
@@ -675,6 +677,7 @@ version = "0.14.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
+ "xdr-common",
  "xdrs",
 ]
 
@@ -704,6 +707,18 @@ dependencies = [
  "groundhog-xdr",
  "sdk",
  "thiserror",
+]
+
+[[package]]
+name = "groundhog-erc20-metadata-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-xdr",
+ "heapless",
+ "sdk",
+ "thiserror",
+ "xdr-common",
+ "xdrs",
 ]
 
 [[package]]
@@ -1989,8 +2004,24 @@ version = "0.1.0"
 dependencies = [
  "erc20",
  "groundhog-erc20-if",
+ "heapless",
  "sdk",
  "swap",
+ "uint",
+]
+
+[[package]]
+name = "swap_driver"
+version = "0.1.0"
+dependencies = [
+ "erc20",
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "heapless",
+ "sdk",
+ "swap",
+ "swap_driver",
+ "thiserror",
  "uint",
 ]
 

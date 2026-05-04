@@ -2,13 +2,23 @@ use crate::model::Model;
 use groundhog_erc20_if::*;
 use sdk::*;
 
-pub const NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
-pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
-const OTHER: ContractAddress = ContractAddress::new([0xBB; 32]);
+#[cfg(feature = "metadata")]
+mod metadata {
+    pub use groundhog_erc20_metadata_if::*;
+
+    pub const TOKEN_NAME: &str = "Test Token";
+    pub const TOKEN_SYMBOL: &str = "TEST-TOK";
+    pub const TOKEN_DECIMALS: u32 = 18;
+}
+#[cfg(feature = "metadata")]
+use metadata::*;
+
+hash_ident! { static TEST_NONCE: SHA256Hash;  }
+hash_ident! { static OTHER: ContractAddress; }
 
 pub fn erc20_test_setup(target_contract_hash: &SHA256Hash) -> ContractAddress {
     // Deploy the target contract
-    deploy_contract(&NONCE, target_contract_hash)
+    deploy_contract(&TEST_NONCE, target_contract_hash)
 }
 
 /// Test the logic of an ERC20 contract
@@ -17,11 +27,33 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     let other = &OTHER;
 
     let mut m = Model::default();
+    m.initialize(&owner);
 
     let client = ERC20Client::new(deployed_addr);
 
+    #[cfg(feature = "metadata")]
+    {
+        let client_meta = ERC20MetadataClient::new(deployed_addr);
+        client_meta.initialize(
+            &owner,
+            Some(TOKEN_NAME.try_into().unwrap()),
+            Some(TOKEN_SYMBOL.try_into().unwrap()),
+            Some(TOKEN_DECIMALS),
+        );
+
+        assert_eq!(
+            Some(TOKEN_NAME.to_string()),
+            client_meta.name().map(|s| s.into()),
+        );
+        assert_eq!(
+            Some(TOKEN_SYMBOL.to_string()),
+            client_meta.symbol().map(|s| s.into()),
+        );
+        assert_eq!(Some(TOKEN_DECIMALS), client_meta.decimals());
+    }
+
+    #[cfg(not(feature = "metadata"))]
     client.initialize(&owner);
-    m.initialize(&owner);
 
     // Mint
     let amt = 100;

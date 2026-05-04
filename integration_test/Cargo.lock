@@ -655,6 +655,7 @@ version = "0.14.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
+ "xdr-common",
  "xdrs",
 ]
 

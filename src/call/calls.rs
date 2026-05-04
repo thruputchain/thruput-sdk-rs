@@ -9,6 +9,8 @@ use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
 
+// Used by the contract macro in method wrappers
+#[cfg_attr(feature = "debugging", track_caller)]
 pub fn try_call_raw<ARGS, RET>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,

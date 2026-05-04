@@ -23,3 +23,4 @@ serde = ["alloc", "groundhog-spec/serde"]
 groundhog-xdr = { workspace = true }
 groundhog-spec = { workspace = true, optional = true }
 xdrs = { workspace = true, features = ["heapless", "derive"] }
+xdr-common = { workspace = true }

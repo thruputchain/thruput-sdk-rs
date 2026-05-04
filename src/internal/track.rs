@@ -40,7 +40,7 @@ impl Display for CallMethod<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Call   {}[v{}]::{}(...)",
+            "Calling  {}[v{}]::{}(...)",
             self.iface.unwrap_or("_unnamed_interface"),
             self.iface_vers,
             self.name

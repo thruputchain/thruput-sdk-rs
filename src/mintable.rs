@@ -152,6 +152,10 @@ impl<const N: usize> MintableType for [u8; N] {
     type Preimage = [u8; N];
 }
 
+impl<const N: usize, T: MintableType> MintableType for [T; N] {
+    type Preimage = [T::Preimage; N];
+}
+
 impl<T: MintableType> MintableType for Option<T> {
     type Preimage = Option<T::Preimage>;
 }
@@ -159,6 +163,11 @@ impl<T: MintableType> MintableType for Option<T> {
 #[cfg(feature = "alloc")]
 impl<T: MintableType + 'static, const MAX: u32> MintableType for VecM<T, MAX> {
     type Preimage = VecM<T::Preimage, MAX>;
+}
+
+#[cfg(feature = "alloc")]
+impl<const MAX: u32> MintableType for StringM<MAX> {
+    type Preimage = StringM<MAX>;
 }
 
 #[cfg(feature = "alloc")]
@@ -211,6 +220,16 @@ impl<const MAX: u32> Mintable for BytesM<MAX> {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl<const MAX: u32> Mintable for StringM<MAX> {
+    fn mint_into_parent(
+        preimage: StringM<MAX>,
+        _children: &mut ChildNodeBuf,
+    ) -> Self {
+        preimage
+    }
+}
+
 impl<const N: usize> Mintable for [u8; N] {
     fn mint_into_parent(
         preimage: [u8; N],
@@ -249,6 +268,19 @@ where
             .map(|item| T::mint_into_parent(item, children))
             .collect();
         VecM(v)
+    }
+}
+
+impl<const N: usize, T: Mintable> Mintable for [T; N]
+where
+    T::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
+    [T::Preimage; N]: WriteXDR + for<'r> ReadXDR<'r>,
+{
+    fn mint_into_parent(
+        preimage: [T::Preimage; N],
+        children: &mut ChildNodeBuf,
+    ) -> Self {
+        preimage.map(|inner| T::mint_into_parent(inner, children))
     }
 }
 

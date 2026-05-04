@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc20-if/dev"]
+dev = ["sdk/dev", "groundhog-erc20-if/dev", "groundhog-erc20-metadata-if/dev"]
 bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
 
 [lib]
@@ -24,11 +24,12 @@ test = false
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
+groundhog-erc20-metadata-if = { workspace = true }
 
 # Optional testing dependencies
 erc20-bottle-test = { workspace = true, optional = true }
 
 [dev-dependencies]
 erc20 = { path = ".", features = ["dev"] }
-erc20-native-test.workspace = true
+erc20-native-test = { workspace = true, features = ["metadata"] }
 sha2.workspace = true

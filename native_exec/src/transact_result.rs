@@ -6,6 +6,7 @@ use groundhog_xdr::types::ContractAddress;
 
 /// Result of a full transaction: root frame result + commit outcome.
 /// Events are accessed via the root frame's per-frame events.
+#[derive(Debug)]
 pub struct TransactResult {
     frame: FrameResult,
     exec_result: ExecResult,
@@ -14,6 +15,10 @@ pub struct TransactResult {
 impl TransactResult {
     pub fn new(frame: FrameResult, exec_result: ExecResult) -> Self {
         Self { frame, exec_result }
+    }
+
+    pub fn is_success(&self) -> bool {
+        self.frame.is_success() && self.exec_result == ExecResult::ExecResultOK
     }
 
     /// Asserts the root frame returned successfully AND the transaction committed OK.
