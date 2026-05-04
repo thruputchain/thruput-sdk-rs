@@ -24,7 +24,7 @@ pub fn set_address_required_weight(required_weight: Weight) -> SysResult<()> {
     sys::uninit_WriteAddressRequiredWeight(required_weight)
 }
 
-fn key_bytes<'a>(public_key: &'a PublicKey) -> SysResult<&'a [u8]> {
+fn key_bytes(public_key: &PublicKey) -> SysResult<&[u8]> {
     match public_key {
         PublicKey::Ed25519 { ed25519 } => Ok(ed25519.as_ref()),
         _ => {
