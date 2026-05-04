@@ -170,12 +170,8 @@ impl ISwapV2Pair for SwapV2Pair {
         amount1_out: Amount,
         to: &Address,
     ) {
-        ensure(
-            amount0_out > 0 || amount1_out > 0,
-            ISwapV2PairError::InsufficientOutputAmount,
-        );
-
         let amounts_out = [amount0_out, amount1_out];
+
         ensure(
             amounts_out[0] > 0 || amounts_out[1] > 0,
             ISwapV2PairError::InsufficientOutputAmount,
@@ -361,8 +357,10 @@ impl SwapV2Pair {
             // We are allowed to spend this much on behalf of the owner
             let amount = t.allowance(owner, &this);
 
-            // Transfer it all to us
-            t.transfer_from(owner, &this, amount);
+            if amount > 0 {
+                // Transfer it all to us
+                t.transfer_from(owner, &this, amount);
+            }
         }
     }
 

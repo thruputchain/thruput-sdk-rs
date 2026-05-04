@@ -96,10 +96,6 @@ impl TokenContract {
 #[contract(version = "0.1.0")]
 impl ERC20 for TokenContract {
     fn initialize(&mut self, administrator: &ContractAddress) {
-        if self.config.try_get().is_some() {
-            throw(ERC20Error::AlreadyInitialized);
-        }
-
         self._init(&Config {
             administrator: *administrator,
             name: None,
