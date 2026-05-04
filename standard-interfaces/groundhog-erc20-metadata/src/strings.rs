@@ -5,7 +5,7 @@ use sdk::*;
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[derive(Debug)]
 pub struct Name {
-    inner: xdr_common::StringM<100>,
+    pub inner: xdr_common::BytesM<100>,
 }
 
 impl TryFrom<&str> for Name {
@@ -34,7 +34,7 @@ impl Display for Name {
 #[cfg_attr(feature = "spec", derive(XDR))]
 #[derive(Debug)]
 pub struct Symbol {
-    inner: xdr_common::StringM<10>,
+    pub inner: xdr_common::BytesM<10>,
 }
 
 impl TryFrom<&str> for Symbol {

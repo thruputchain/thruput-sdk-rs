@@ -162,6 +162,11 @@ impl<T: MintableType + 'static, const MAX: u32> MintableType for VecM<T, MAX> {
 }
 
 #[cfg(feature = "alloc")]
+impl<const MAX: u32> MintableType for StringM<MAX> {
+    type Preimage = StringM<MAX>;
+}
+
+#[cfg(feature = "alloc")]
 impl<T: MintableType> MintableType for alloc::vec::Vec<T> {
     type Preimage = alloc::vec::Vec<T::Preimage>;
 }
@@ -205,6 +210,16 @@ impl_mintable_leaf!(
 impl<const MAX: u32> Mintable for BytesM<MAX> {
     fn mint_into_parent(
         preimage: BytesM<MAX>,
+        _children: &mut ChildNodeBuf,
+    ) -> Self {
+        preimage
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<const MAX: u32> Mintable for StringM<MAX> {
+    fn mint_into_parent(
+        preimage: StringM<MAX>,
         _children: &mut ChildNodeBuf,
     ) -> Self {
         preimage

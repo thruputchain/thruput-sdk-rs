@@ -144,9 +144,12 @@ impl ContractTypeRefSpec for &str {
     const INFO: ContractTypeInfo<'static> = <str as ContractTypeRefSpec>::INFO;
 }
 
-// XXX
 impl<const MAX: u32> ContractTypeRefSpec for xdr_common::StringM<MAX> {
     const INFO: ContractTypeInfo<'static> = <str as ContractTypeRefSpec>::INFO;
+}
+
+impl<const MAX: u32> ContractTypeRefSpec for xdr_common::BytesM<MAX> {
+    const INFO: ContractTypeInfo<'static> = <&[u8] as ContractTypeRefSpec>::INFO;
 }
 
 impl<T, const N: usize> ContractTypeRefSpec for [T; N]
