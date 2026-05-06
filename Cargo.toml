@@ -159,7 +159,7 @@ mock = [
 ]
 
 # Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std"]
+std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/protocol"]
 
 # Diagnostic features
 debugging = []
