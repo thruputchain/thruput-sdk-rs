@@ -109,7 +109,7 @@ fn borrowed_views_convert_to_owned_model() {
         name: "payload",
         ty: named_payload,
     }];
-    let option_named_error = ContractTypeView::Option(Some(&named_error));
+    let option_named_error = ContractTypeView::Option(&named_error);
     let vec_named_payload = ContractTypeView::Vector(ContractVectorTypeView {
         element: Some(&named_payload),
         max_len: u32::MAX,
@@ -197,9 +197,9 @@ fn borrowed_views_convert_to_owned_model() {
                 ContractType::Bytes,
                 ContractType::Address,
                 ContractType::Option {
-                    option_inner: Some(Box::new(ContractType::Named {
+                    option_inner: Box::new(ContractType::Named {
                         named: s("DemoError"),
-                    })),
+                    }),
                 },
                 ContractType::Vector {
                     vector: ContractVectorType {
@@ -426,7 +426,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(&ContractType::Address, 10);
     assert_xdr_tag(
         &ContractType::Option {
-            option_inner: Some(Box::new(ContractType::Void)),
+            option_inner: Box::new(ContractType::Void),
         },
         11,
     );
@@ -573,7 +573,7 @@ fn contract_type_ref_helpers_cover_primitives_and_composites() {
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Option<u32>>(),
-        ContractTypeView::Option(Some(&ContractTypeView::U32))
+        ContractTypeView::Option(&ContractTypeView::U32)
     );
     assert_eq!(
         groundhog_contract_spec::type_ref::<Vec<u8>>(),

@@ -62,7 +62,7 @@ pub enum ContractTypeView<'a> {
     String = 8,
     Bytes = 9,
     Address = 10,
-    Option(Option<&'a ContractTypeView<'a>>) = 11,
+    Option(&'a ContractTypeView<'a>) = 11,
     Vector(ContractVectorTypeView<'a>) = 12,
     Tuple(&'a [ContractTypeView<'a>]) = 13,
     Named(&'a str) = 14,
@@ -276,7 +276,7 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::Bytes => ContractType::Bytes,
             ContractTypeView::Address => ContractType::Address,
             ContractTypeView::Option(inner) => ContractType::Option {
-                option_inner: inner.map(|i| Box::new((*i).into())),
+                option_inner: Box::new((*inner).into()),
             },
             ContractTypeView::Vector(inner) => ContractType::Vector {
                 vector: inner.into(),

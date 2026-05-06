@@ -224,7 +224,7 @@ where
     T: ContractTypeRefSpec,
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
-        ty: view::ContractTypeView::Option(Some(&type_ref::<T>())),
+        ty: view::ContractTypeView::Option(&type_ref::<T>()),
     };
 
     fn __groundhog_spec_anchor() -> usize {
