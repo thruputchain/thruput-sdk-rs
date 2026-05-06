@@ -15,9 +15,10 @@ description = "Canonical contract spec model for Groundhog contracts"
 crate-type = ["rlib"]
 
 [features]
-default = ["alloc"]
-alloc = ["xdrs/alloc", "dep:groundhog-spec"]
-serde = ["alloc", "groundhog-spec/serde"]
+default = ["owned-model"]
+alloc = ["xdrs/alloc"]
+owned-model = ["alloc", "dep:groundhog-spec"]
+serde = ["owned-model", "groundhog-spec/serde"]
 
 [dependencies]
 groundhog-xdr = { workspace = true }

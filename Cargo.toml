@@ -120,10 +120,10 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 # External dependencies
-groundhog-spec = { registry = "groundhog", version = "0.10.0", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "0.10.0" }
-groundhog-xdr = { registry = "groundhog", version = "0.10.0", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "0.10.0" }
+groundhog-spec = { registry = "groundhog", version = "=0.12.0", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "=0.12.0" }
+groundhog-xdr = { registry = "groundhog", version = "=0.12.0", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "=0.12.0" }
 groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.5.6", features = ["int128", "heapless"] }
@@ -135,7 +135,7 @@ bitset-core = { version = "0.1.1", default-features = false }
 
 [features]
 # Enable allocation features
-alloc = ["groundhog-xdr/alloc", "groundhog-contract-spec/alloc", "xdrs/alloc"]
+alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
 
 # Include the structured-storage module
 storage = ["alloc", "groundhog-macros/storage"]
@@ -159,7 +159,7 @@ mock = [
 ]
 
 # Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std"]
+std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
 
 # Diagnostic features
 debugging = []

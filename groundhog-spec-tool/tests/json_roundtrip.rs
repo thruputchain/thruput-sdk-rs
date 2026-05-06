@@ -122,7 +122,7 @@ fn option_type_roundtrips() {
     roundtrip(&spec_with_method(
         "opt",
         ContractType::Option {
-            option_inner: Some(Box::new(ContractType::U64)),
+            option_inner: Box::new(ContractType::U64),
         },
     ));
 }
@@ -132,9 +132,9 @@ fn nested_option_roundtrips() {
     roundtrip(&spec_with_method(
         "nested_opt",
         ContractType::Option {
-            option_inner: Some(Box::new(ContractType::Option {
-                option_inner: Some(Box::new(ContractType::Bool)),
-            })),
+            option_inner: Box::new(ContractType::Option {
+                option_inner: Box::new(ContractType::Bool),
+            }),
         },
     ));
 }
@@ -253,7 +253,7 @@ fn deeply_nested_types_roundtrip() {
         },
     };
     let opt_vec = ContractType::Option {
-        option_inner: Some(Box::new(vec_of_tuples)),
+        option_inner: Box::new(vec_of_tuples),
     };
 
     roundtrip(&ContractSpec {
@@ -657,16 +657,14 @@ fn kitchen_sink_roundtrips() {
                         ContractField {
                             name: s("icon"),
                             ty: ContractType::Option {
-                                option_inner: Some(Box::new(
-                                    ContractType::Vector {
-                                        vector: ContractVectorType {
-                                            element: Some(Box::new(
-                                                ContractType::U8,
-                                            )),
-                                            max_len: 4096,
-                                        },
+                                option_inner: Box::new(ContractType::Vector {
+                                    vector: ContractVectorType {
+                                        element: Some(Box::new(
+                                            ContractType::U8,
+                                        )),
+                                        max_len: 4096,
                                     },
-                                )),
+                                }),
                             },
                         },
                     ]
