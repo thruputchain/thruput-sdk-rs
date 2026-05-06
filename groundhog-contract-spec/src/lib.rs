@@ -7,7 +7,7 @@ use alloc::{string::String, vec::Vec};
 
 pub mod view;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "protocol")]
 pub use groundhog_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant,
     ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,

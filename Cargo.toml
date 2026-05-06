@@ -135,7 +135,7 @@ bitset-core = { version = "0.1.1", default-features = false }
 
 [features]
 # Enable allocation features
-alloc = ["groundhog-xdr/alloc", "xdrs/alloc"]
+alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
 
 # Include the structured-storage module
 storage = ["alloc", "groundhog-macros/storage"]
@@ -159,7 +159,7 @@ mock = [
 ]
 
 # Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/alloc"]
+std = ["alloc", "groundhog-xdr/std"]
 
 # Diagnostic features
 debugging = []
