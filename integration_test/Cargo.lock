@@ -659,6 +659,7 @@ dependencies = [
 name = "groundhog-contract-spec"
 version = "0.14.0"
 dependencies = [
+ "groundhog-spec",
  "groundhog-xdr",
  "xdr-common",
  "xdrs",
@@ -740,6 +741,16 @@ source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "5f38492b48f71b7723c02af35531586816c22057e25c3acf173ef8a9b878ecbf"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "groundhog-spec"
+version = "0.12.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "b0531fb4c801926455a6de5f12d78a1d2490f85ca1afaf0589024d80839d0d24"
+dependencies = [
+ "schemars",
+ "xdrs",
 ]
 
 [[package]]
