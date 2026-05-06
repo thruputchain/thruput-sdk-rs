@@ -3,7 +3,7 @@
 //! View types use `&'a str` and `&'a [T]` instead of `String` and `Vec<T>`,
 //! enabling compile-time spec generation via `const` evaluation.
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 use crate::{
     ContractEnumDef, ContractEnumVariant, ContractExceptionType,
     ContractField, ContractSpec, ContractSpecInterface, ContractSpecMethod,
@@ -11,12 +11,12 @@ use crate::{
     ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceFragment, SpecMethodFragment,
 };
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 use alloc::{boxed::Box, vec::Vec};
 
 use xdrs::*;
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 fn to_spec_string(s: &str) -> ContractSpecString {
     ContractSpecString::try_from(s).expect("spec string conversion")
 }
@@ -172,7 +172,7 @@ pub struct SpecMethodFragmentView<'a> {
     pub method: ContractSpecMethodView<'a>,
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractSpecView<'_>> for ContractSpec {
     fn from(value: ContractSpecView<'_>) -> Self {
         Self {
@@ -196,7 +196,7 @@ impl From<ContractSpecView<'_>> for ContractSpec {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractExceptionTypeView<'_>> for ContractExceptionType {
     fn from(value: ContractExceptionTypeView<'_>) -> Self {
         Self {
@@ -206,7 +206,7 @@ impl From<ContractExceptionTypeView<'_>> for ContractExceptionType {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractSpecInterfaceView<'_>> for ContractSpecInterface {
     fn from(value: ContractSpecInterfaceView<'_>) -> Self {
         Self {
@@ -232,7 +232,7 @@ impl From<ContractSpecInterfaceView<'_>> for ContractSpecInterface {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
     fn from(value: ContractSpecMethodView<'_>) -> Self {
         Self {
@@ -250,7 +250,7 @@ impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractFieldView<'_>> for ContractField {
     fn from(value: ContractFieldView<'_>) -> Self {
         Self {
@@ -260,7 +260,7 @@ impl From<ContractFieldView<'_>> for ContractField {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractTypeView<'_>> for ContractType {
     fn from(value: ContractTypeView<'_>) -> Self {
         match value {
@@ -301,7 +301,7 @@ impl From<ContractTypeView<'_>> for ContractType {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
     fn from(value: ContractArrayTypeView<'_>) -> Self {
         Self {
@@ -311,7 +311,7 @@ impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractVectorTypeView<'_>> for crate::ContractVectorType {
     fn from(value: ContractVectorTypeView<'_>) -> Self {
         Self {
@@ -321,7 +321,7 @@ impl From<ContractVectorTypeView<'_>> for crate::ContractVectorType {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractTypeDefView<'_>> for ContractTypeDef {
     fn from(value: ContractTypeDefView<'_>) -> Self {
         match value {
@@ -340,7 +340,7 @@ impl From<ContractTypeDefView<'_>> for ContractTypeDef {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractStructDefView<'_>> for ContractStructDef {
     fn from(value: ContractStructDefView<'_>) -> Self {
         Self {
@@ -357,7 +357,7 @@ impl From<ContractStructDefView<'_>> for ContractStructDef {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     fn from(value: ContractEnumDefView<'_>) -> Self {
         Self {
@@ -374,7 +374,7 @@ impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
     fn from(value: ContractEnumVariantView<'_>) -> Self {
         Self {
@@ -384,7 +384,7 @@ impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     fn from(value: ContractUnionDefView<'_>) -> Self {
         Self {
@@ -401,7 +401,7 @@ impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
     fn from(value: ContractUnionCaseView<'_>) -> Self {
         Self {
@@ -412,7 +412,7 @@ impl From<ContractUnionCaseView<'_>> for ContractUnionCase {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<ContractUnionCaseTypeView<'_>> for ContractUnionCaseType {
     fn from(value: ContractUnionCaseTypeView<'_>) -> Self {
         match value {
@@ -445,7 +445,7 @@ impl From<ContractUnionCaseTypeView<'_>> for ContractUnionCaseType {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<SpecFragmentView<'_>> for SpecFragment {
     fn from(value: SpecFragmentView<'_>) -> Self {
         match value {
@@ -469,7 +469,7 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
     fn from(value: SpecInterfaceFragmentView<'_>) -> Self {
         Self {
@@ -487,7 +487,7 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
     }
 }
 
-#[cfg(feature = "protocol")]
+#[cfg(feature = "owned-model")]
 impl From<SpecMethodFragmentView<'_>> for SpecMethodFragment {
     fn from(value: SpecMethodFragmentView<'_>) -> Self {
         Self {
