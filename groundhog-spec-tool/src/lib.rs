@@ -395,10 +395,7 @@ fn collect_named_types(
 ) -> Result<(), SpecToolError> {
     match ty {
         ContractType::Option { option_inner } => {
-            let inner = option_inner
-                .as_ref()
-                .expect("ContractType::Option must have an inner type");
-            collect_named_types(inner, defs, resolved, pending)?;
+            collect_named_types(option_inner, defs, resolved, pending)?;
         }
         ContractType::Vector { vector } => {
             let element = vector
@@ -505,10 +502,7 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::Bytes => "bytes".to_string(),
         ContractType::Address => "address".to_string(),
         ContractType::Option { option_inner } => {
-            let inner = option_inner
-                .as_ref()
-                .expect("ContractType::Option must have an inner type");
-            format!("option({})", canonical_type_key(inner))
+            format!("option({})", canonical_type_key(option_inner))
         }
         ContractType::Vector { vector } => {
             let element = vector
@@ -606,10 +600,7 @@ fn type_to_json(ty: &ContractType) -> serde_json::Value {
         ContractType::Bytes => json!({"kind": "bytes"}),
         ContractType::Address => json!({"kind": "address"}),
         ContractType::Option { option_inner } => {
-            let inner = option_inner
-                .as_ref()
-                .expect("ContractType::Option must have an inner type");
-            json!({"kind": "option", "inner": type_to_json(inner)})
+            json!({"kind": "option", "inner": type_to_json(option_inner)})
         }
         ContractType::Vector { vector } => {
             let element = vector
