@@ -7,6 +7,7 @@ use crate::request::*;
 use sdk::storage::*;
 use sdk::*;
 use swap::*;
+use groundhog_erc20_permit_if::*;
 
 /// State for the pair contract
 #[storage]
@@ -37,6 +38,10 @@ impl SwapV2Driver {
         self.requests.insert(&Request::purchase(purchaser));
     }
 
+    pub fn request_purchase_with_permits(&mut self, purchaser: &ContractAddress, amounts: Amounts, recipient: &Address, permits: [Permit; 2]) {
+        self.requests.insert(&Request::purchase_with_permits(purchaser, amounts, recipient, permits));
+    }
+
     pub fn request_redeem(&mut self, redeemer: &ContractAddress) {
         self.requests.insert(&Request::redeem(redeemer));
     }
@@ -64,6 +69,10 @@ impl SwapV2Driver {
                         operation_failed("Purchase", &e);
                         n_failed += 1;
                     }),
+                Request::PurchaseWithPermits(ref req) => {
+                    let _ = req;
+                    todo!();
+                }
                 Request::Redeem(ref req) => cfg
                     .pair()
                     .try_handle_redeem(&req.redeemer)

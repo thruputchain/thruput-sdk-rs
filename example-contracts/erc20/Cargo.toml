@@ -13,7 +13,12 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc20-if/dev", "groundhog-erc20-metadata-if/dev"]
+dev = [
+    "sdk/dev",
+    "groundhog-erc20-if/dev",
+    "groundhog-erc20-metadata-if/dev",
+    "groundhog-erc20-permit-if/dev",
+]
 bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
 
 [lib]
@@ -25,6 +30,7 @@ test = false
 sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true, features = ["storage"] }
 groundhog-erc20-metadata-if = { workspace = true }
+groundhog-erc20-permit-if = { workspace = true }
 
 # Optional testing dependencies
 erc20-bottle-test = { workspace = true, optional = true }

@@ -1,0 +1,26 @@
+[package]
+name = "swap_router"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false # suppress output from our zero unit-tests
+
+[dependencies]
+sdk = { workspace = true, features = ["storage"] }
+groundhog-erc20-if = { workspace = true }
+groundhog-erc20-metadata-if = { workspace = true }
+groundhog-erc20-permit-if = { workspace = true }
+swap = { path = "../swap" }
+swap_driver = { path = "../swap_driver" }
+erc20 = { path = "../erc20" }
+thiserror = { workspace = true }
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "erc20/dev", "swap/dev", "swap_driver/dev", "groundhog-erc20-permit-if/dev"]
+
+[dev-dependencies]
+swap_router = { path = ".", features = ["dev"] }

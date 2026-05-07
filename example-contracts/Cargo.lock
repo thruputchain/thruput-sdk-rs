@@ -393,6 +393,7 @@ dependencies = [
  "erc20-native-test",
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
+ "groundhog-erc20-permit-if",
  "sdk",
  "sha2",
 ]
@@ -705,6 +706,19 @@ dependencies = [
 name = "groundhog-erc20-metadata-if"
 version = "0.1.0"
 dependencies = [
+ "groundhog-xdr",
+ "heapless",
+ "sdk",
+ "thiserror",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "groundhog-erc20-permit-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
  "groundhog-xdr",
  "heapless",
  "sdk",
@@ -2067,7 +2081,7 @@ dependencies = [
  "erc20",
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
- "heapless",
+ "groundhog-erc20-permit-if",
  "sdk",
  "swap",
  "swap_driver",
@@ -2076,12 +2090,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "swap_request"
-version = "0.3.0"
+name = "swap_router"
+version = "0.1.0"
 dependencies = [
+ "erc20",
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "groundhog-erc20-permit-if",
  "sdk",
- "swap_request",
- "xdrs",
+ "swap",
+ "swap_driver",
+ "swap_router",
+ "thiserror",
 ]
 
 [[package]]

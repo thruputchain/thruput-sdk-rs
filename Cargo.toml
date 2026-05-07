@@ -109,6 +109,7 @@ linkme = "0.3"
 # Standard interface crates
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.0" }
+groundhog-erc20-permit-if = { path = "standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
 bottle-test-if = { path = "standard-interfaces/bottle-test-if" , registry = "groundhog", version = "=0.1.0" }
 
