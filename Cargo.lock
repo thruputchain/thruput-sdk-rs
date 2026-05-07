@@ -636,6 +636,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc20-permit-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "groundhog-erc20-permit-if",
+ "groundhog-xdr",
+ "heapless",
+ "sdk",
+ "thiserror",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-event"
 version = "0.14.2"
 dependencies = [

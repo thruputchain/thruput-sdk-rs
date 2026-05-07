@@ -16,9 +16,9 @@ members = [
     "simple_wallet_old",
     "swap",
     "swap_driver",
+    "swap_router",
     "test_bytestring",
     "rcq_test",
-    "swap_request",
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",
@@ -71,6 +71,7 @@ xdrs = { registry = "groundhog", version = "0.7.0"  }
 # Standard interface crates
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.0" }
+groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
 bottle-test-if = { path = "../standard-interfaces/bottle-test-if", registry = "groundhog", version = "=0.1.0" }
 groundhog-contract-util = { path = "../contract-util" , registry = "groundhog", version = "=0.14.2" }

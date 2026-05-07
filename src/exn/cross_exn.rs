@@ -1,5 +1,6 @@
 //! Exceptions passed across contract calls.
 
+use super::location::*;
 use crate::xdr::*;
 
 /// A typed exception ready for serialization across the contract boundary.
@@ -9,6 +10,8 @@ use crate::xdr::*;
 pub(crate) struct ContractExn<E: WriteXDR> {
     selector: u64,
     exn: E,
+
+    location: DebuggingOnly<Location>,
 }
 
 impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
@@ -17,6 +20,12 @@ impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
         Self {
             selector: E::SELECTOR,
             exn,
+
+            #[cfg(feature = "debugging")]
+            location: Location::from(core::panic::Location::caller()).into(),
+
+            #[cfg(not(feature = "debugging"))]
+            location: DebuggingOnly::empty(),
         }
     }
 }

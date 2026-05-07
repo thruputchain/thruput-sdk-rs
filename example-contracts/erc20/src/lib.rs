@@ -8,6 +8,7 @@ sdk::declare_mock_contract!();
 mod interface {
     pub use groundhog_erc20_if::*;
     pub use groundhog_erc20_metadata_if::*;
+    pub use groundhog_erc20_permit_if::*;
 }
 
 // A client stub that provides the interface via cross-contract calls

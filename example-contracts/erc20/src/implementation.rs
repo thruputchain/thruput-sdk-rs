@@ -219,3 +219,24 @@ impl ERC20Metadata for TokenContract {
         self.config.get().decimals
     }
 }
+
+#[contract(version = "0.1.0")]
+impl ERC20Permit for TokenContract {
+    fn transfer_with_permit(
+        &mut self,
+        owner: &ContractAddress,
+        receiver: &ContractAddress,
+        amount: Amount,
+        permit: Permit,
+    ) {
+        assert_eq!(owner, &permit.owner);
+        assert_eq!(&get_current_address(), &permit.token);
+        assert!(amount <= permit.amount);
+
+        let diff = amount_to_diff(amount);
+        self._adjust_balance(owner, -diff);
+        self._adjust_balance(receiver, diff);
+
+        log_transfer_event(owner, receiver, amount);
+    }
+}

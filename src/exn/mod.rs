@@ -3,6 +3,7 @@
 pub(crate) mod cross_exn;
 mod fault;
 mod library;
+mod location;
 mod wrapper;
 
 use crate::xdr::*;
@@ -28,4 +29,5 @@ pub use raw::*;
 
 pub use fault::*;
 pub use library::*;
+pub use location::*;
 pub use wrapper::*;

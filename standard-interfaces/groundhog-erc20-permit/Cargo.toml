@@ -1,0 +1,33 @@
+[package]
+name = "groundhog-erc20-permit-if"
+version = "0.1.0"
+edition.workspace = true
+publish = ["groundhog"]
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "ERC20 standard interface for Groundhog smart contracts"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+[features]
+dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
+spec = ["sdk/spec"]
+
+[dependencies]
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.2" }
+thiserror = { workspace = true, optional = true }
+groundhog-xdr = { workspace = true }
+xdr-common = { workspace = true }
+heapless = { workspace = true }
+xdrs = { workspace = true }
+groundhog-erc20-if = { workspace = true }
+
+[dev-dependencies]
+groundhog-erc20-permit-if = { path = ".", features = ["dev"] }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.2", features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false

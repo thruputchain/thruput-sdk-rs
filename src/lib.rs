@@ -153,7 +153,6 @@ pub use groundhog_macros::Storage;
 pub use groundhog_macros::storage;
 
 // Mock contract execution environment
-
 mod mock;
 
 #[cfg(feature = "mock")]

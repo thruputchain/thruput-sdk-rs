@@ -22,7 +22,7 @@ pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
     let auth_token_ids_bytes =
         crate::call::auth_handles_as_bytes(auth_token_ids);
 
-    sys::raw_Return(buf, revert, auth_token_ids_bytes);
+    sys::raw_Return(buf, revert, auth_token_ids_bytes)
 }
 
 #[inline]
@@ -35,19 +35,19 @@ pub fn contract_return_buf(buf: &[u8]) -> ! {
 pub fn contract_abort(buf: &[u8]) -> ! {
     let revert = true;
 
-    sys::raw_Return(buf, revert, &[]);
+    sys::raw_Return(buf, revert, &[])
 }
 
 pub fn contract_exit(_code: i32) -> ! {
-    sys::raw_Exit();
+    sys::raw_Exit()
 }
 
 pub fn contract_revert() -> ! {
-    sys::raw_Exit();
+    sys::raw_Exit()
 }
 
 pub fn contract_return_empty() -> ! {
-    contract_return(&[], &[]);
+    contract_return(&[], &[])
 }
 
 #[inline]
