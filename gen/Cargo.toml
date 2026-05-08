@@ -28,9 +28,6 @@ spec = ["groundhog-xdr/spec", "xdrs/repr"]
 # Print traces of method calls to stdout when testing
 logging = []
 
-# Track contract calls for giving backtraces on abort
-call_tracking = []
-
 # Don't inline `*_internal` methods directly into their exported entrypoints.
 # (Not recommended except when decompiling, where method names are inscrutable.)
 no_inline_methods = []

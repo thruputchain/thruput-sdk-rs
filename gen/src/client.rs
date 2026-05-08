@@ -248,12 +248,6 @@ fn generate_client_fn(
         CallMethod::new(#call_iface, #iface_vers, #call_ident)
     };
 
-    let track_caller = if cfg!(feature = "call_tracking") {
-        quote! { #[track_caller] }
-    } else {
-        quote! {}
-    };
-
     let try_ident = try_client_method_ident(ident);
 
     let explicit_type =
@@ -280,7 +274,7 @@ fn generate_client_fn(
     Ok(quote_spanned! {method.sig().span()=>
 
         // This method-wrapper re-throws if the called contract throws.
-        #track_caller
+        #[cfg_attr(test, track_caller)]
         pub fn #ident(&self, #(#sent_params),* ) #sig_output
         {
             let entrypoint = #entrypoint_lit;
@@ -297,7 +291,7 @@ fn generate_client_fn(
         // This method-wrapper returns a Result with the per-client error enum
         // so that exceptions may be inspected.
         #[allow(clippy::result_large_err)]
-        #track_caller
+        #[cfg_attr(test, track_caller)]
         pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
         {
             let entrypoint = #entrypoint_lit;

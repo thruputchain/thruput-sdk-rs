@@ -29,7 +29,6 @@ xdrs = { workspace = true }
 
 [features]
 logging = ["groundhog-codegen/logging"]
-call_tracking = ["groundhog-codegen/call_tracking"]
 spec = ["groundhog-codegen/spec", "groundhog-xdr/spec"]
 storage = []
 
