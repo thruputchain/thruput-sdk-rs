@@ -1,7 +1,7 @@
 #![cfg_attr(not(any(feature = "dev", feature = "spec")), no_std)]
 
-use sdk::*;
 use groundhog_erc20_if::*;
+use sdk::*;
 
 /// A bearer-permit to spend an amount of some token.
 ///
