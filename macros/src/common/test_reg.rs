@@ -1,8 +1,8 @@
 //! Generate test registration
 
-use super::entrypoint::*;
 use super::config::Config;
 use super::contract::{ConfiguredContract, ContractSrc, Method};
+use super::entrypoint::*;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Result;
