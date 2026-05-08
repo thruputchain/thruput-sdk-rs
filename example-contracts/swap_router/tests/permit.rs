@@ -19,15 +19,26 @@ fn _purchase_with_permit(etx: &Etx) -> Result<()> {
 
         router.succeeds();
 
-        let router_erc20 = ERC20Client::new(&ctx.router_addr);
+        {
+            // Temporary test of SDK diagnostics
 
-        router.try_fails()
-            .inspect_err(|e| println!("Router fails as advertized: {e}"))
-            .unwrap_err();
+            router.try_fails()
+                .inspect_err(|e| println!("OK: Router fails as advertized: {e}"))
+                .unwrap_err();
 
-        router_erc20.try_total_supply()
-            .inspect_err(|e| println!("Router fails on wrong interface: {e}"))
-            .unwrap_err();
+            let not_erc20 = ERC20Client::new(&ctx.router_addr);
+            not_erc20.try_total_supply()
+                .inspect_err(|e| println!("OK: Router fails with wrong interface: {e}"))
+                .unwrap_err();
+
+            let bad_erc20 = ERC20Client::new(&ContractAddress::new([17; 32]));
+            bad_erc20.try_total_supply()
+                .inspect_err(|e| println!("OK: Undeployed address fails: {e}"))
+                .unwrap_err();
+
+            // let bad_erc20 = ERC20Client::new(&ContractAddress::new([17; 32]));
+            // let _ = bad_erc20.total_supply();
+        }
 
         let me = get_current_address();
 
