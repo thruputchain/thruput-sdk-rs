@@ -3,7 +3,6 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-use crate::call::internal::auth_handles_as_bytes;
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
@@ -19,7 +18,7 @@ pub(crate) const CALLDATA_MAX: usize = 500;
 pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
     let revert = false;
 
-    let auth_token_ids_bytes = auth_handles_as_bytes(auth_token_ids);
+    let auth_token_ids_bytes = crate::call::auth_handles_as_bytes(auth_token_ids);
 
     sys::raw_Return(buf, revert, auth_token_ids_bytes);
 }
@@ -90,7 +89,7 @@ where
     RET: WriteXDR + ?Sized + core::fmt::Debug,
 {
     // Use match to preserve call tracking
-    let return_buf = match crate::call::internal::contract_call_encode(ret) {
+    let return_buf = match crate::call::contract_call_encode(ret) {
         Ok(buf) => buf,
         Err(e) => {
             // XXX: potential recursion
@@ -109,13 +108,13 @@ pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized + CollectAuthHandles,
 {
-    let return_buf = crate::call::internal::contract_call_encode(ret)
+    let return_buf = crate::call::contract_call_encode(ret)
         .unwrap_or_else(|e| {
             library_throw(HandlingError::EncodingException(
                 FaultString::via_display(&e),
             ))
         });
-    let auth_handles = crate::call::internal::collect_auth_handle_bytes(ret)
+    let auth_handles = crate::call::collect_auth_handle_bytes(ret)
         .unwrap_or_else(|e| {
             library_throw(HandlingError::EncodingException(
                 FaultString::from_display(e),

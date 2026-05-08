@@ -1,7 +1,7 @@
 //! The raw, untyped error from a contract call.
 
-use crate::call::ContractError;
-use crate::call::internal::contract_call_decode;
+use super::ContractError;
+use super::contract_call_decode;
 use crate::exn::{CallingError, FaultString, RawException, client_library_throw as library_throw};
 use crate::{ReceiveAuthHandles, xdr::*};
 

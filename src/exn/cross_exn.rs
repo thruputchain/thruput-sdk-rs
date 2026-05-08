@@ -24,7 +24,7 @@ impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::call::internal::contract_call_encode;
+    use crate::call::contract_call_encode;
     use crate::exn::{Exn, LibraryExn};
 
     // A contract-level exception type for testing

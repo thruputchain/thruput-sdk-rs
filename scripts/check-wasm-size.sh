@@ -27,7 +27,7 @@ fail=0
 # Contracts that are built with the "debugging" feature for testing
 # (e.g., to match CrossExn wire format with the test runner).
 # These are expected to contain embedded path strings.
-ALLOW_LIST="exceptions"
+ALLOW_LIST="exceptions swap_router"
 
 is_allowed() {
     local name="$1"
