@@ -425,7 +425,7 @@ fn generate_selector_dispatch(
             let ty = thrown.ty();
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
-                    let err = ::sdk::call::internal::contract_call_decode_exn_prefix(payload);
+                    let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
                     if err.is_err() {
                         return Err(#error_enum_ident::BadDecode(
                             ::sdk::exn::RawException::new(selector, payload)));
@@ -440,7 +440,7 @@ fn generate_selector_dispatch(
         match selector {
             #(#declared_arms)*
             <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                let err = ::sdk::call::internal::contract_call_decode_exn_prefix(payload);
+                let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
                 if err.is_err() {
                     return Err(#error_enum_ident::BadDecode(
                         ::sdk::exn::RawException::new(selector, payload)));

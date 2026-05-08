@@ -668,6 +668,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         entrypoints)
             contract_entrypoints "$@"
             ;;
+        strings)
+            check_wasm_strings
+            ;;
         tree)
             tree_contract "$1"
             ;;

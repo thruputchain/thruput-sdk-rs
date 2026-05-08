@@ -22,15 +22,14 @@
 //! - Call invoke syscall
 //! - Decode result
 
-mod call_result;
+mod raw_call_error;
 mod calls;
-mod client;
+mod contract_client;
 mod contract_result;
+mod encode;
 
-pub use call_result::*;
+pub use raw_call_error::*;
 pub use calls::*;
-pub use client::*;
+pub use contract_client::*;
 pub use contract_result::*;
-
-#[doc(hidden)]
-pub mod internal; // used by contract macro
+pub use encode::*;

@@ -1,4 +1,4 @@
-use crate::call::internal::contract_call_decode_exn_prefix;
+use crate::call::contract_call_decode_exn_prefix;
 use crate::exn::Exn;
 use crate::xdr::*;
 use core::fmt::{self, Debug};
@@ -91,7 +91,7 @@ impl crate::re_throw::ReThrow for RawException {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::call::internal::contract_call_encode;
+    use crate::call::contract_call_encode;
 
     #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error)]
     #[repr(i32)]

@@ -373,7 +373,7 @@ pub fn generate_method(
 
             // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle)
             let mut __args =
-                ::sdk::call::internal::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
+                ::sdk::call::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
                     .unwrap_or_else(|e|
                         ::sdk::exn::decoding_args_throw(&e));
 

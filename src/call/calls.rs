@@ -1,8 +1,8 @@
 //! Making contract calls
 
-use super::call_result::{RawCallError, into_raw_call_result};
+use super::raw_call_error::*;
 use super::contract_result::*;
-use super::internal::contract_call_encode;
+use super::encode::*;
 use crate::contract::ContractEntrypointID;
 use crate::exn::FaultString;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
@@ -30,7 +30,7 @@ where
         }
     };
 
-    let auth_handles = match super::internal::collect_auth_handle_bytes(args) {
+    let auth_handles = match collect_auth_handle_bytes(args) {
         Ok(handles) => handles,
         Err(e) => {
             return Err(RawCallError::EncodingArgs(
@@ -66,8 +66,7 @@ where
     let mut return_len = 0;
     let mut auth_token_id_list_return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
-    let auth_bytes =
-        super::internal::auth_handles_as_bytes(auth_token_ids.as_slice());
+    let auth_bytes = auth_handles_as_bytes(auth_token_ids.as_slice());
     let result = sys::raw_Invoke(
         address,
         entrypoint,
@@ -143,8 +142,7 @@ fn fill_return_buf(
         RuntimeMemoryLength,
     > = core::mem::MaybeUninit::uninit();
 
-    let auth_token_id_list_bytes =
-        super::internal::auth_handles_as_mut_bytes(auth_token_id_list_buf);
+    let auth_token_id_list_bytes = auth_handles_as_mut_bytes(auth_token_id_list_buf);
 
     sys::uninit_GetReturnedBuffer(
         return_buf.spare_capacity_mut(),
