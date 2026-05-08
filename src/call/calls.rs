@@ -1,8 +1,8 @@
 //! Making contract calls
 
-use super::raw_call_error::*;
 use super::contract_result::*;
 use super::encode::*;
+use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
 use crate::exn::FaultString;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
@@ -142,7 +142,8 @@ fn fill_return_buf(
         RuntimeMemoryLength,
     > = core::mem::MaybeUninit::uninit();
 
-    let auth_token_id_list_bytes = auth_handles_as_mut_bytes(auth_token_id_list_buf);
+    let auth_token_id_list_bytes =
+        auth_handles_as_mut_bytes(auth_token_id_list_buf);
 
     sys::uninit_GetReturnedBuffer(
         return_buf.spare_capacity_mut(),

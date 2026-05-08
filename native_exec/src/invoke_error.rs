@@ -90,13 +90,9 @@ fn install_panic_hook() {
 }
 
 fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
-    if let Some(payload) =
-        panic_info.payload().downcast_ref::<String>()
-    {
+    if let Some(payload) = panic_info.payload().downcast_ref::<String>() {
         eprintln!("Panic message: {}", payload);
-    } else if let Some(payload) =
-        panic_info.payload().downcast_ref::<&str>()
-    {
+    } else if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
         eprintln!("Panic message: {}", payload);
     } else {
         eprintln!("Panic: {:?}", panic_info.payload());

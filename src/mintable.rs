@@ -68,14 +68,11 @@ where
 
 #[cfg(feature = "alloc")]
 pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
-    let buf = crate::call::contract_call_encode(value)
-        .unwrap_or_else(|e| {
-            crate::exn::library_throw(
-                crate::AuthTokenError::MintEncodeFailure(
-                    crate::exn::FaultString::from_display(e),
-                ),
-            )
-        });
+    let buf = crate::call::contract_call_encode(value).unwrap_or_else(|e| {
+        crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
+            crate::exn::FaultString::from_display(e),
+        ))
+    });
     let bytes: xdrs::BytesM<{ groundhog_xdr::auth_token::kAuthTokenMaxLen }> =
         buf.as_slice().try_into().unwrap_or_else(|_| {
             crate::exn::library_throw(

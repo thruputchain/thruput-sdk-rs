@@ -94,7 +94,9 @@ pub fn library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
+pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(
+    e: E,
+) -> ! {
     let exn = crate::exn::cross_exn::ContractExn::new(e.into());
     crate::client_contract_abort_encoded(&exn)
 }

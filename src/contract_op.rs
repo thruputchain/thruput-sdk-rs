@@ -18,7 +18,8 @@ pub(crate) const CALLDATA_MAX: usize = 500;
 pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
     let revert = false;
 
-    let auth_token_ids_bytes = crate::call::auth_handles_as_bytes(auth_token_ids);
+    let auth_token_ids_bytes =
+        crate::call::auth_handles_as_bytes(auth_token_ids);
 
     sys::raw_Return(buf, revert, auth_token_ids_bytes);
 }
@@ -72,7 +73,10 @@ where
     {
         std::println!();
         std::println!("  Throwing exception {:?}", ret);
-        std::println!("  Interface location: {}", core::panic::Location::caller());
+        std::println!(
+            "  Interface location: {}",
+            core::panic::Location::caller()
+        );
         std::println!(
             "  Backtrace:\n{}",
             crate::debug_context::Backtrace::capture()
@@ -108,8 +112,8 @@ pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized + CollectAuthHandles,
 {
-    let return_buf = crate::call::contract_call_encode(ret)
-        .unwrap_or_else(|e| {
+    let return_buf =
+        crate::call::contract_call_encode(ret).unwrap_or_else(|e| {
             library_throw(HandlingError::EncodingException(
                 FaultString::via_display(&e),
             ))
