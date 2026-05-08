@@ -1,5 +1,4 @@
 use crate::exn::fault::*;
-use crate::sys::SysErr;
 use crate::xdr::*;
 use core::fmt::Debug;
 #[cfg(feature = "debugging")]
@@ -15,6 +14,12 @@ use thiserror::Error;
 pub enum CallingError {
     #[cfg_attr(
         feature = "debugging",
+        error("Invalid call: contract not found (or bad auth tokens)")
+    )]
+    Invalid,
+
+    #[cfg_attr(
+        feature = "debugging",
         error("Decoding a successful result: {0}")
     )]
     DecodingSuccess(FaultString),
@@ -27,9 +32,6 @@ pub enum CallingError {
 
     #[cfg_attr(feature = "debugging", error("Encoding arguments: {0}"))]
     EncodingArgs(FaultString),
-
-    #[cfg_attr(feature = "debugging", error("Invoke syscall failed: {0}"))]
-    Syscall(SysErr),
 }
 
 /// Plumbing errors resulting from handling a contract call:

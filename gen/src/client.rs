@@ -306,18 +306,20 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
+                use ::sdk::call::RawCallError;
                 match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args) {
                     Ok(val) => Ok(val),
-                    Err(::sdk::call::RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(::sdk::call::RawCallError::Exception(ref exn)) => {
+                    Err(RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
+                    Err(RawCallError::Exception(ref exn)) => {
                         let selector = exn.selector();
                         let payload = exn.payload();
                         #selector_dispatch
                     }
-                    Err(::sdk::call::RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
-                    Err(::sdk::call::RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
-                    Err(::sdk::call::RawCallError::UnparseableAuthHandles(s)) => Err(#error_enum_ident::UnparseableAuthHandles(s)),
-                    Err(::sdk::call::RawCallError::EncodingArgs(s)) => Err(#error_enum_ident::EncodingArgs(s)),
+                    Err(RawCallError::Invalid) => Err(#error_enum_ident::Invalid),
+                    Err(RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
+                    Err(RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
+                    Err(RawCallError::UnparseableAuthHandles(s)) => Err(#error_enum_ident::UnparseableAuthHandles(s)),
+                    Err(RawCallError::EncodingArgs(s)) => Err(#error_enum_ident::EncodingArgs(s)),
                 }
             })
         }
@@ -363,6 +365,7 @@ fn generate_error_enum(
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
             Unknown(::sdk::exn::RawException),
+            Invalid,
             BadDecode(::sdk::exn::RawException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
@@ -380,6 +383,7 @@ fn generate_error_enum(
                     Self::BadDecode(raw) => ::core::write!(f, "BadDecode({:?})", raw),
                     Self::Fault(e) => ::core::write!(f, "Fault({:?})", e),
                     Self::Unknown(e) => ::core::write!(f, "Unknown({:?})", e),
+                    Self::Invalid => ::core::write!(f, "Invalid call: contract not found (or invalid auth tokens)"),
                     Self::UnparseableReturn(e) => ::core::write!(f, "UnparseableReturn({:?})", e),
                     Self::UnparseableAbort(e) => ::core::write!(f, "UnparseableAbort({:?})", e),
                     Self::UnparseableAuthHandles(e) => ::core::write!(f, "UnparseableAuthHandles({:?})", e),
@@ -396,6 +400,7 @@ fn generate_error_enum(
                     Self::BadDecode(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),
+                    Self::Invalid => ::sdk::library_throw(::sdk::CallingError::Invalid),
                     Self::UnparseableReturn(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),
                     Self::UnparseableAbort(s) => ::sdk::library_throw(::sdk::CallingError::DecodingException(s)),
                     Self::UnparseableAuthHandles(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),

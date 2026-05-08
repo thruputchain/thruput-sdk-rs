@@ -8,6 +8,8 @@ use crate::{ReceiveAuthHandles, xdr::*};
 /// The raw, untyped error from a contract call.
 #[derive(Debug, PartialEq)]
 pub enum RawCallError {
+    /// The invoke syscall reported invalid parameters
+    Invalid,
     /// The called contract threw an exception with a selector-tagged error.
     Exception(RawException),
     /// The called contract terminated without providing a return value.
@@ -27,6 +29,9 @@ pub enum RawCallError {
 impl core::fmt::Display for RawCallError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            RawCallError::Invalid => {
+                write!(f, "contract not found (or invalid auth tokens)")
+            }
             RawCallError::Exception(exn) => {
                 let payload = exn.payload();
                 write!(
@@ -57,6 +62,9 @@ impl crate::re_throw::ReThrow for RawCallError {
     #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> ! {
         match self {
+            RawCallError::Invalid => {
+                library_throw(CallingError::Invalid)
+            }
             RawCallError::Exception(exn) => {
                 crate::re_throw::ReThrow::re_throw(exn)
             }
