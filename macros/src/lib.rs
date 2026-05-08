@@ -1,3 +1,10 @@
+//! Generate interfacing materials from a trait or impl that has
+//! been annotated with the `contract` macro.  This crate produces:
+//!
+//! - Client-stub implementations for making contract calls
+//! - Guest method stubs and external symbols for calling into the contract
+//! - Test-registration code
+
 use darling::FromMeta;
 use proc_macro::TokenStream;
 use quote::quote;

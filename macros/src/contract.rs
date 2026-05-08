@@ -1,8 +1,9 @@
 use super::common;
-use common::{Config, ContractSrc, ConfiguredContract};
+use common::config::Config;
 use common::strip::*;
 use common::util::*;
 use common::contract;
+use common::contract::{ContractSrc, ConfiguredContract};
 use common::client;
 use common::exports;
 use common::test_reg;

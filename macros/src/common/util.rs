@@ -3,6 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::parse::Error;
 
+#[allow(dead_code)]
 pub fn cmp_sig_ref_by_name(
     a: &&syn::Signature,
     b: &&syn::Signature,
