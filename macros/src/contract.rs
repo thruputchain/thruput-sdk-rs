@@ -1,13 +1,13 @@
 use super::common;
-use common::config::Config;
-use common::strip::*;
-use common::util::*;
-use common::contract;
-use common::contract::{ContractSrc, ConfiguredContract};
 use common::client;
+use common::config::Config;
+use common::contract;
+use common::contract::{ConfiguredContract, ContractSrc};
 use common::exports;
-use common::test_reg;
 use common::spec_reg;
+use common::strip::*;
+use common::test_reg;
+use common::util::*;
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
@@ -40,8 +40,7 @@ fn apply_with_config(
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            let throws_tokens =
-                contract::throws_spec_tokens(&contract)?;
+            let throws_tokens = contract::throws_spec_tokens(&contract)?;
             let throw_anchor_tokens =
                 contract::throws_anchor_tokens(&contract)?;
             let throw_anchor_stmts = throw_anchor_tokens.iter().map(|anchor| {
@@ -109,8 +108,7 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
-            let contract =
-                ConfiguredContract::new(config.clone(), item);
+            let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
@@ -140,9 +138,7 @@ fn apply_with_config(
 
             // For bare impls, generate a separate impl block with __mock
             if cfg!(feature = "mock") && item.trait_.is_none() {
-                out.extend(test_reg::generate_bare_method(
-                    item, config,
-                )?);
+                out.extend(test_reg::generate_bare_method(item, config)?);
             }
 
             // Generate exports (with auto-derived module name for trait impls)
@@ -159,11 +155,9 @@ fn apply_with_config(
             }
 
             if cfg!(feature = "mock") {
-                out.extend(
-                    test_reg::generate_impl_registry_fragment(
-                        item, config,
-                    )?,
-                );
+                out.extend(test_reg::generate_impl_registry_fragment(
+                    item, config,
+                )?);
             }
 
             if item.trait_.is_none() {
@@ -174,8 +168,7 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Fn(item) => {
-            let contract =
-                ConfiguredContract::new(config.clone(), item);
+            let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
@@ -183,14 +176,10 @@ fn apply_with_config(
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
-            out.extend(exports::generate_free_function_bundle(
+            out.extend(exports::generate_free_function_bundle(item, config)?);
+            out.extend(spec_reg::generate_free_function_raw_spec_fragments(
                 item, config,
             )?);
-            out.extend(
-                spec_reg::generate_free_function_raw_spec_fragments(
-                    item, config,
-                )?,
-            );
 
             if cfg!(feature = "mock") {
                 out.extend(
@@ -211,8 +200,8 @@ fn apply_with_config(
 
 #[cfg(test)]
 mod tests {
-    use super::apply_with_config;
     use super::Config;
+    use super::apply_with_config;
     use darling::FromMeta;
     use darling::ast::NestedMeta;
 

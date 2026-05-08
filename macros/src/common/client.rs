@@ -211,10 +211,10 @@ fn generate_client_fn(
     let mut params = method.sig().inputs.iter().peekable();
 
     // Pop the self parameter, if any
-    if let Some(param) = params.peek() {
-        if is_receiver(param) {
-            let _ = params.next().unwrap();
-        }
+    if let Some(param) = params.peek()
+        && is_receiver(param)
+    {
+        let _ = params.next().unwrap();
     }
 
     let sent_params: Vec<&syn::FnArg> = params.collect();
