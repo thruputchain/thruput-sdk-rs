@@ -642,20 +642,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
-name = "groundhog-codegen"
-version = "0.14.0"
-dependencies = [
- "darling",
- "groundhog-contract-util",
- "groundhog-xdr",
- "proc-macro2",
- "quote",
- "sha2",
- "syn",
- "xdrs",
-]
-
-[[package]]
 name = "groundhog-contract-spec"
 version = "0.14.0"
 dependencies = [
@@ -706,7 +692,6 @@ name = "groundhog-macros"
 version = "0.14.0"
 dependencies = [
  "darling",
- "groundhog-codegen",
  "groundhog-contract-util",
  "groundhog-xdr",
  "proc-macro2",

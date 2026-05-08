@@ -15,22 +15,25 @@ description = "Macros for Groundhog smart contract development"
 proc-macro = true
 
 [dependencies]
-groundhog-codegen = { workspace = true }
-groundhog-contract-util = { workspace = true }
+groundhog-contract-util = { workspace = true, features = ["syn"] }
 darling = "0.20.10"
 proc-macro2 = "1.0.92"
 quote = "1.0.38"
 sha2 = { workspace = true }
-syn = { version = "2.0.93" , features = [ "full" , "extra-traits", "visit", "printing" ] }
+syn = { version = "2.0.93" , features = [ "full" , "extra-traits", "visit", "printing", "fold" ] }
 serde = { version = "1.0.217", default-features = false, features = ["derive"] }
 serde_yaml = "0.9"
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
-xdrs = { workspace = true }
+xdrs = { workspace = true, features = ["derive", "alloc"] }
 
 [features]
-logging = ["groundhog-codegen/logging"]
-spec = ["groundhog-codegen/spec", "groundhog-xdr/spec"]
+logging = []
+spec = ["groundhog-xdr/spec"]
 storage = []
+
+# Don't inline `*_internal` methods directly into their exported entrypoints.
+# (Not recommended except when decompiling, where method names are inscrutable.)
+no_inline_methods = []
 
 # generate test-registration in contract-macro
 mock = ["groundhog-xdr/syscalls_mock"]

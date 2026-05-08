@@ -176,7 +176,7 @@ fn generate_spec_fn(
         "{}_spec",
         contract.interface_name().unwrap_or("contract".into())
     );
-    let spec = crate::spec::contract_repr(contract)?;
+    let spec = super::spec::contract_repr(contract)?;
 
     Ok(quote! {
         #[cfg(feature = "spec")] // contract-macro-user must define feature "spec"

@@ -3,9 +3,9 @@
 //! - trait impls
 //! - bare impls
 
-use crate::client::reserved_client_name_error;
-use crate::config::{Config, ThrownType};
-use crate::util::{cmp_sig_by_name, error};
+use super::client::reserved_client_name_error;
+use super::config::{Config, ThrownType};
+use super::util::{cmp_sig_by_name, error};
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use proc_macro2::{Span, TokenStream};

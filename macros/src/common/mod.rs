@@ -1,3 +1,5 @@
+#![allow(unused)] // XXX
+
 //! Generate interfacing materials from a trait or impl that has
 //! been annotated with the `contract` macro.  This crate produces:
 //!

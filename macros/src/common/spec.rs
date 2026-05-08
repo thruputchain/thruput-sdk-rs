@@ -1,5 +1,5 @@
-use crate::contract::{ContractSrc, Method, effective_interface_name};
-use crate::util::*;
+use super::contract::{ContractSrc, Method, effective_interface_name};
+use super::util::*;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Result;

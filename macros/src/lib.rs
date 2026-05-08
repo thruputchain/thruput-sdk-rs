@@ -2,6 +2,7 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use quote::quote;
 
+mod common;
 mod contract;
 mod contract_exception;
 mod contract_type;
