@@ -1,5 +1,5 @@
 use core::cmp::Ordering;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Error;
 
@@ -69,31 +69,4 @@ where
     M: AsRef<str>,
 {
     Error::new(spanned.span(), msg.as_ref())
-}
-
-// Produce an error referencing a particular code span
-pub fn span_error<M>(span: Span, msg: M) -> Error
-where
-    M: AsRef<str>,
-{
-    Error::new(span, msg.as_ref())
-}
-
-pub fn generic_type_first_arg(ty: &syn::Type) -> Option<&syn::Type> {
-    if let syn::Type::Path(tp) = ty {
-        // let mut segments = &tp.path.segments.iter();
-        let seg = tp.path.segments.iter().next().unwrap();
-        if seg.ident == "Result" {
-            if let syn::PathArguments::AngleBracketed(bracket_args) =
-                &seg.arguments
-            {
-                let arg = bracket_args.args.iter().next().unwrap();
-                if let syn::GenericArgument::Type(ty) = arg {
-                    return Some(ty);
-                }
-            }
-        }
-    }
-
-    None
 }
