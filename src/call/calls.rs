@@ -87,6 +87,9 @@ where
     let is_ok = match result {
         Ok(()) => true,
         Err(syserr) if syserr.is_aborted() => false,
+        Err(syserr) if syserr.is_invalid_input() => {
+            return Err(RawCallError::Invalid);
+        }
         Err(syserr) => {
             return Err(RawCallError::Fault(FaultString::from_display(
                 syserr,

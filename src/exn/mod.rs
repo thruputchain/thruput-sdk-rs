@@ -1,3 +1,5 @@
+//! Exceptions (part of the SDK's call-wrapper)
+
 pub(crate) mod cross_exn;
 mod fault;
 mod library;
