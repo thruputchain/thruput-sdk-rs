@@ -50,11 +50,6 @@ where
     into_raw_call_result(contract_result)
 }
 
-/// Re-throw a raw exception to our caller unchanged.
-pub fn re_throw(exn: &crate::exn::RawException) -> ! {
-    exn.re_throw()
-}
-
 #[inline(never)]
 #[allow(clippy::result_large_err)]
 pub fn contract_call<A>(

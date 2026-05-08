@@ -82,29 +82,33 @@ fn install_panic_hook() {
                 panic::resume_unwind(Box::new(payload.clone()));
             }
 
-            if let Some(payload) =
-                panic_info.payload().downcast_ref::<String>()
-            {
-                eprintln!("Panic message: {}", payload);
-            } else if let Some(payload) =
-                panic_info.payload().downcast_ref::<&str>()
-            {
-                eprintln!("Panic message: {}", payload);
-            } else {
-                eprintln!("Panic: {:?}", panic_info.payload());
-            }
-
-            if let Some(location) = panic_info.location() {
-                eprintln!(
-                    "Panic occurred at file '{}' line {}",
-                    location.file(),
-                    location.line()
-                );
-            }
+            _print_panic_info(panic_info);
 
             panic::resume_unwind(Box::new(deterministic_error()));
         }));
     });
+}
+
+fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
+    if let Some(payload) =
+        panic_info.payload().downcast_ref::<String>()
+    {
+        eprintln!("Panic message: {}", payload);
+    } else if let Some(payload) =
+        panic_info.payload().downcast_ref::<&str>()
+    {
+        eprintln!("Panic message: {}", payload);
+    } else {
+        eprintln!("Panic: {:?}", panic_info.payload());
+    }
+
+    if let Some(location) = panic_info.location() {
+        eprintln!(
+            "Panic occurred at file '{}' line {}",
+            location.file(),
+            location.line()
+        );
+    }
 }
 
 pub(crate) fn is_panic_hook_active() -> bool {

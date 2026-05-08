@@ -59,12 +59,46 @@ where
         );
     }
 
-    let return_buf = crate::call::internal::contract_call_encode(ret)
-        .unwrap_or_else(|e| {
+    _contract_abort_encoded(ret)
+}
+
+// Codepath for aborts in client-side codegen
+#[inline]
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn client_contract_abort_encoded<RET>(ret: &RET) -> !
+where
+    RET: WriteXDR + ?Sized + core::fmt::Debug,
+{
+    #[cfg(all(feature = "debugging", feature = "std"))]
+    {
+        std::println!();
+        std::println!("  Throwing exception {:?}", ret);
+        std::println!("  Interface location: {}", core::panic::Location::caller());
+        std::println!(
+            "  Backtrace:\n{}",
+            crate::debug_context::Backtrace::capture()
+        );
+    }
+
+    _contract_abort_encoded(ret)
+}
+
+#[inline]
+#[cfg_attr(feature = "debugging", track_caller)]
+fn _contract_abort_encoded<RET>(ret: &RET) -> !
+where
+    RET: WriteXDR + ?Sized + core::fmt::Debug,
+{
+    // Use match to preserve call tracking
+    let return_buf = match crate::call::internal::contract_call_encode(ret) {
+        Ok(buf) => buf,
+        Err(e) => {
+            // XXX: potential recursion
             library_throw(HandlingError::EncodingException(
                 FaultString::via_display(&e),
             ))
-        });
+        }
+    };
 
     contract_abort(return_buf.as_ref());
 }
