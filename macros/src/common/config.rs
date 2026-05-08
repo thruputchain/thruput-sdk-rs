@@ -128,7 +128,6 @@ pub struct Config {
     pub storage: Option<bool>,
     pub interface: Option<String>,
     pub version: Option<String>,
-    pub doc: Option<String>,
 
     client: Option<syn::Ident>,
     throws: Option<ThrowsList>,

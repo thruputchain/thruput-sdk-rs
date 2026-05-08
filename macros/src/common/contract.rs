@@ -6,8 +6,6 @@
 use super::client::reserved_client_name_error;
 use super::config::{Config, ThrownType};
 use super::util::{cmp_sig_by_name, error};
-use darling::FromMeta;
-use darling::ast::NestedMeta;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::spanned::Spanned;
@@ -15,33 +13,11 @@ use syn::*;
 
 pub trait Method {
     fn sig(&self) -> &syn::Signature;
-
-    fn attrs(&self) -> Vec<Attribute> {
-        vec![]
-    }
-
-    fn config(&self) -> Config {
-        let meta_list: Vec<NestedMeta> = self
-            .attrs()
-            .into_iter()
-            .filter(|a| !is_doc_attr(a))
-            .map(|a| NestedMeta::Meta(a.meta))
-            .collect();
-        Config::from_list(&meta_list)
-            .unwrap_or_else(|e| panic!("Couldn't parse attributes: {}", e))
-    }
-}
-
-fn is_doc_attr(attr: &Attribute) -> bool {
-    matches!(&attr.meta, Meta::NameValue(MetaNameValue { path, .. }) if path.is_ident("doc"))
 }
 
 impl Method for syn::ItemFn {
     fn sig(&self) -> &syn::Signature {
         &self.sig
-    }
-    fn attrs(&self) -> Vec<Attribute> {
-        self.attrs.clone()
     }
 }
 
@@ -49,17 +25,11 @@ impl Method for syn::ImplItemFn {
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
-    fn attrs(&self) -> Vec<Attribute> {
-        self.attrs.clone()
-    }
 }
 
 impl Method for syn::TraitItemFn {
     fn sig(&self) -> &syn::Signature {
         &self.sig
-    }
-    fn attrs(&self) -> Vec<Attribute> {
-        self.attrs.clone()
     }
 }
 
@@ -80,10 +50,6 @@ pub trait ContractSrc {
 
     fn self_ty(&self) -> Option<&syn::Type>;
 
-    fn throws(&self) -> Option<ThrownType> {
-        None
-    }
-
     fn throws_list(&self) -> Vec<ThrownType> {
         vec![]
     }
@@ -98,16 +64,6 @@ pub trait ContractSrc {
 
     fn make_internal_name(&self, bare_ident: &syn::Ident) -> syn::Ident {
         format_ident!("{}_internal", bare_ident)
-
-        /* If we someday need an internal name unique across interfaces:
-         *
-        format_ident!(
-            "{}{}_{}_internal",
-            self.interface_name().map(|s| s + "_").unwrap_or(String::new()),
-            self.defaulted_interface_vers().replace(".", "_"),
-            bare_ident,
-        )
-        */
     }
 }
 
@@ -336,10 +292,6 @@ where
                     .map(|name| format_ident!("{}Client", name))
             })
             .or_else(|| self.contract.client_ident())
-    }
-
-    fn throws(&self) -> Option<ThrownType> {
-        self.config.throws().or_else(|| self.contract.throws())
     }
 
     fn throws_list(&self) -> Vec<ThrownType> {
