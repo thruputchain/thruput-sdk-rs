@@ -165,7 +165,7 @@ std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
 debugging = []
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
-call_tracking = ["debugging", "groundhog-macros/call_tracking"] # contract-call backtrace
+call_tracking = ["debugging"] # contract-call backtrace
 
 # Generate specs
 spec = [
