@@ -22,14 +22,14 @@
 //! - Call invoke syscall
 //! - Decode result
 
-mod raw_call_error;
 mod calls;
 mod contract_client;
 mod contract_result;
 mod encode;
+mod raw_call_error;
 
-pub use raw_call_error::*;
 pub use calls::*;
 pub use contract_client::*;
 pub use contract_result::*;
 pub use encode::*;
+pub use raw_call_error::*;

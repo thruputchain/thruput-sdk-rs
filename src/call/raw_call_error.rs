@@ -2,7 +2,10 @@
 
 use super::ContractError;
 use super::contract_call_decode;
-use crate::exn::{CallingError, FaultString, RawException, client_library_throw as library_throw};
+use crate::exn::{
+    CallingError, FaultString, RawException,
+    client_library_throw as library_throw,
+};
 use crate::{ReceiveAuthHandles, xdr::*};
 
 /// The raw, untyped error from a contract call.
@@ -62,9 +65,7 @@ impl crate::re_throw::ReThrow for RawCallError {
     #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> ! {
         match self {
-            RawCallError::Invalid => {
-                library_throw(CallingError::Invalid)
-            }
+            RawCallError::Invalid => library_throw(CallingError::Invalid),
             RawCallError::Exception(exn) => {
                 crate::re_throw::ReThrow::re_throw(exn)
             }
