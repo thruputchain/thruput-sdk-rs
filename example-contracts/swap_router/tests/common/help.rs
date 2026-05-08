@@ -53,7 +53,7 @@ pub fn show_result(r: &TransactResult) {
     } else if frame.is_fault() {
         println!("FAULT");
     } else if frame.is_abort() {
-        println!("EXCEPTION:");
+        print!("EXCEPTION: ");
         show_exn(r);
     } else {
         unreachable!();
@@ -64,12 +64,12 @@ pub fn show_exn(r: &TransactResult) {
     let exn = RawException::from_abort_buf(r.frame().abort_buffer()).unwrap();
 
     if let Some(exn) = exn.try_as::<ERC20Error>() {
-        println!("\tERC20: {:?}", exn);
+        println!("ERC20: {:?}", exn);
     } else if let Some(exn) = exn.try_as::<ISwapV2PairError>() {
-        println!("\tISwapV2Pair: {:?}", exn);
+        println!("ISwapV2Pair: {:?}", exn);
     } else if let Some(exn) = exn.try_as::<LibraryExn>() {
-        println!("\tLibrary: {:?}", exn);
+        println!("SDK error: {}", exn);
     } else {
-        println!("\t<unknown error>");
+        println!("<unknown error>");
     }
 }

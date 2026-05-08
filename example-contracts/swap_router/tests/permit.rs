@@ -17,6 +17,18 @@ fn _purchase_with_permit(etx: &Etx) -> Result<()> {
 
     etx.exec_user_tx(PRIMER, |_user| {
 
+        router.succeeds();
+
+        let router_erc20 = ERC20Client::new(&ctx.router_addr);
+
+        router.try_fails()
+            .inspect_err(|e| println!("Router fails as advertized: {e}"))
+            .unwrap_err();
+
+        router_erc20.try_total_supply()
+            .inspect_err(|e| println!("Router fails on wrong interface: {e}"))
+            .unwrap_err();
+
         let me = get_current_address();
 
         let amounts_desired = [ctx.token0().get_balance(), ctx.token1().get_balance()];

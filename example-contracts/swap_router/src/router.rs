@@ -45,6 +45,13 @@ impl Router {
         self.cfg.set(&cfg);
     }
 
+    pub fn succeeds() {}
+
+    pub fn fails() {
+        panic!("Uh oh!");
+    }
+
+    #[allow(unreachable_code, unused_variables)]
     pub fn add_liquidity(
         &self,
         token_a: &Address,
@@ -58,7 +65,7 @@ impl Router {
 
         let (pair, driver) = cfg.get_pair(token_a, token_b);
 
-        let (reserve_a, reserve_b, _) = pair.get_reserves();
+        let (reserve_a, reserve_b, _) = pair.try_get_reserves().unwrap();
 
         let amounts: Amounts = if reserve_a == 0 && reserve_b == 0 {
             amounts_desired
@@ -84,11 +91,11 @@ impl Router {
         //   self.token1()
         //     .transfer(&cfg.pair_addr, amounts[1]);
         //
-        // For our batched flow, we'll instead just forward the permit to the
+        // For our batched flow, we'll instead just forward the permits to the
         // driver.
 
         let purchaser = get_caller();
-        driver.request_purchase_with_permits(&purchaser, amounts, recipient, permits);
+        driver.try_request_purchase_with_permits(&purchaser, amounts, recipient, permits).unwrap();
     }
 }
 

@@ -49,6 +49,8 @@ pub fn setup_etx() -> Result<Etx> {
         router_deploy_init(&router_hash, &driver_addr, &pair_addr, &liquidity_token, &token_addrs)
     })?;
 
+    /* ----- */ env.advance_block(); /* ----- */
+
     let env = env.clone();
     let ctx = Ctx {
         router_addr,

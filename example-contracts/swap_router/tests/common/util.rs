@@ -14,9 +14,9 @@ where
     match f() {
         Ok(v) => v,
         Err(r) => {
+            print!("Transaction error: ");
             show_result(&r);
-            r.assert_success();
-            unreachable!();
+            panic!("Fatal: expected transaction success");
         }
     }
 }

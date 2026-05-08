@@ -9,7 +9,7 @@ doctest = false
 test = false # suppress output from our zero unit-tests
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true, features = ["storage", "debugging", "call_tracking"] }
 groundhog-erc20-if = { workspace = true }
 groundhog-erc20-metadata-if = { workspace = true }
 groundhog-erc20-permit-if = { workspace = true }
