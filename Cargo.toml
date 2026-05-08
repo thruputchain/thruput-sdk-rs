@@ -2,7 +2,6 @@
 members = [
     "macros",
     "contract-util",
-    "gen",
     "native_exec",
     "groundhog-sys",
     "groundhog-contract-spec",
@@ -96,7 +95,6 @@ sdk = { path = "." }
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
-groundhog-codegen = { path = "gen" , registry = "groundhog", version = "=0.14.0" }
 groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.14.0" }
 groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.14.0", default-features = false }
 groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.14.0" }

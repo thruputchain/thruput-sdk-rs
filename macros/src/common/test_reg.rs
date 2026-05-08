@@ -97,11 +97,11 @@ pub fn generate_free_function_registry_fragment(
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), item);
     let effective_interface_name =
-        crate::contract::effective_interface_name(&contract);
+        super::contract::effective_interface_name(&contract);
     let exports_mod_ident = if config.exports.is_some() {
         config.internal_exports_mod_ident(&effective_interface_name)
     } else {
-        crate::exports::free_function_exports_mod_ident(
+        super::exports::free_function_exports_mod_ident(
             &effective_interface_name,
             &item.sig.ident,
         )
@@ -144,7 +144,7 @@ fn build_registrations(
 ) -> Result<TokenStream> {
     let contract = ConfiguredContract::new(config.clone(), item);
     let effective_interface_name =
-        crate::contract::effective_interface_name(&contract);
+        super::contract::effective_interface_name(&contract);
     let exports_mod_ident =
         config.internal_exports_mod_ident(&effective_interface_name);
     let mut registrations = TokenStream::new();

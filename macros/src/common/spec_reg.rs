@@ -1,5 +1,5 @@
-use crate::Config;
-use crate::contract::{
+use super::Config;
+use super::contract::{
     ConfiguredContract, ContractSrc, Method, effective_interface_name,
     method_anchor_tokens, method_arg_spec_tokens, method_return_spec_token,
     throws_anchor_tokens, throws_spec_tokens,
@@ -201,10 +201,10 @@ mod tests {
     use darling::FromMeta;
     use darling::ast::NestedMeta;
 
-    fn parse_config(attrs: &str) -> crate::Config {
+    fn parse_config(attrs: &str) -> Config {
         let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
         let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
-        crate::Config::from_list(&meta_list).unwrap()
+        Config::from_list(&meta_list).unwrap()
     }
 
     #[test]
@@ -217,7 +217,7 @@ mod tests {
 
         let tokens = generate_impl_raw_spec_fragments(
             &item,
-            &crate::Config::from_list(&[]).unwrap(),
+            &Config::from_list(&[]).unwrap(),
         )
         .unwrap()
         .to_string();
@@ -269,7 +269,7 @@ mod tests {
 
         let tokens = generate_impl_raw_spec_fragments(
             &item,
-            &crate::Config::from_list(&[]).unwrap(),
+            &Config::from_list(&[]).unwrap(),
         )
         .unwrap()
         .to_string();
@@ -300,7 +300,7 @@ mod tests {
 
         let tokens = generate_impl_raw_spec_fragments(
             &item,
-            &crate::Config::from_list(&[]).unwrap(),
+            &Config::from_list(&[]).unwrap(),
         )
         .unwrap()
         .to_string();
@@ -325,7 +325,7 @@ mod tests {
 
         let tokens = generate_impl_raw_spec_fragments(
             &item,
-            &crate::Config::from_list(&[]).unwrap(),
+            &Config::from_list(&[]).unwrap(),
         )
         .unwrap()
         .to_string();
@@ -346,7 +346,7 @@ mod tests {
 
         let tokens = generate_impl_raw_spec_fragments(
             &item,
-            &crate::Config::from_list(&[]).unwrap(),
+            &Config::from_list(&[]).unwrap(),
         )
         .unwrap()
         .to_string();
@@ -365,7 +365,7 @@ mod tests {
 
         let tokens = generate_impl_raw_spec_fragments(
             &item,
-            &crate::Config::from_list(&[]).unwrap(),
+            &Config::from_list(&[]).unwrap(),
         )
         .unwrap()
         .to_string();

@@ -1,4 +1,4 @@
-use groundhog_codegen as codegen;
+use super::common;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::punctuated::Punctuated;
@@ -232,7 +232,7 @@ fn struct_field_tokens(fields: &syn::Fields) -> syn::Result<Vec<TokenStream>> {
             .map(|field| {
                 let name = field.ident.as_ref().unwrap().to_string();
                 let ty =
-                    codegen::contract::contract_type_view_tokens(&field.ty)?;
+                    common::contract::contract_type_view_tokens(&field.ty)?;
                 Ok(quote! {
                     ::sdk::__contract_spec::ContractFieldView {
                         name: #name,
@@ -248,7 +248,7 @@ fn struct_field_tokens(fields: &syn::Fields) -> syn::Result<Vec<TokenStream>> {
             .map(|(index, field)| {
                 let name = format!("_{index}");
                 let ty =
-                    codegen::contract::contract_type_view_tokens(&field.ty)?;
+                    common::contract::contract_type_view_tokens(&field.ty)?;
                 Ok(quote! {
                     ::sdk::__contract_spec::ContractFieldView {
                         name: #name,
@@ -291,7 +291,7 @@ fn enum_variant_case_type_tokens(
             let tys = fields
                 .unnamed
                 .iter()
-                .map(|f| codegen::contract::contract_type_view_tokens(&f.ty))
+                .map(|f| common::contract::contract_type_view_tokens(&f.ty))
                 .collect::<syn::Result<Vec<_>>>()?;
             Ok(quote! {
                 ::sdk::__contract_spec::ContractUnionCaseTypeView::Tuple(
@@ -305,7 +305,7 @@ fn enum_variant_case_type_tokens(
                 .iter()
                 .map(|field| {
                     let name = field.ident.as_ref().unwrap().to_string();
-                    let ty = codegen::contract::contract_type_view_tokens(
+                    let ty = common::contract::contract_type_view_tokens(
                         &field.ty,
                     )?;
                     Ok(quote! {

@@ -259,7 +259,7 @@ pub fn generate_method(
         config
             .version
             .clone()
-            .unwrap_or_else(crate::contract::interface_vers_default)
+            .unwrap_or_else(super::contract::interface_vers_default)
     };
 
     let entrypoint_sig =
@@ -476,7 +476,7 @@ pub fn generate_free_function_bundle(
     })
 }
 
-pub(crate) fn free_function_exports_mod_ident(
+pub fn free_function_exports_mod_ident(
     effective_interface_name: &str,
     ident: &syn::Ident,
 ) -> syn::Ident {

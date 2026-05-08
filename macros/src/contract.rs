@@ -1,10 +1,14 @@
-use codegen::Config;
-use codegen::ContractSrc;
-use codegen::strip::*;
-use codegen::util::*;
+use super::common;
+use common::{Config, ContractSrc, ConfiguredContract};
+use common::strip::*;
+use common::util::*;
+use common::contract;
+use common::client;
+use common::exports;
+use common::test_reg;
+use common::spec_reg;
 use darling::FromMeta;
 use darling::ast::NestedMeta;
-use groundhog_codegen as codegen;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
@@ -31,15 +35,14 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            let contract =
-                codegen::ConfiguredContract::new(config.clone(), item);
-            codegen::contract::validate_reserved_client_method_names(
+            let contract = ConfiguredContract::new(config.clone(), item);
+            contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
             let throws_tokens =
-                codegen::contract::throws_spec_tokens(&contract)?;
+                contract::throws_spec_tokens(&contract)?;
             let throw_anchor_tokens =
-                codegen::contract::throws_anchor_tokens(&contract)?;
+                contract::throws_anchor_tokens(&contract)?;
             let throw_anchor_stmts = throw_anchor_tokens.iter().map(|anchor| {
                 quote::quote! {
                     acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
@@ -54,7 +57,7 @@ fn apply_with_config(
             let iface_vers = config
                 .version
                 .clone()
-                .unwrap_or_else(codegen::contract::interface_vers_default);
+                .unwrap_or_else(contract::interface_vers_default);
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(
                     &iface_vers,
@@ -99,15 +102,15 @@ fn apply_with_config(
             let mut out = stripped.into_token_stream();
 
             // Generate client interface
-            out.extend(codegen::client::generate(item, config)?);
-            out.extend(codegen::exports::generate_entrypoints(item, config)?);
+            out.extend(client::generate(item, config)?);
+            out.extend(exports::generate_entrypoints(item, config)?);
 
             Ok(out)
         }
         syn::Item::Impl(item) => {
             let contract =
-                codegen::ConfiguredContract::new(config.clone(), item);
-            codegen::contract::validate_reserved_client_method_names(
+                ConfiguredContract::new(config.clone(), item);
+            contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
             let mut stripped = item.strip_our_attributes();
@@ -117,7 +120,7 @@ fn apply_with_config(
             if cfg!(feature = "mock")
                 && item.trait_.is_some()
                 && let Some(method) =
-                    codegen::test_reg::generate_trait_method(item, config)?
+                    test_reg::generate_trait_method(item, config)?
             {
                 stripped.items.push(method);
             }
@@ -136,14 +139,14 @@ fn apply_with_config(
 
             // For bare impls, generate a separate impl block with __mock
             if cfg!(feature = "mock") && item.trait_.is_none() {
-                out.extend(codegen::test_reg::generate_bare_method(
+                out.extend(test_reg::generate_bare_method(
                     item, config,
                 )?);
             }
 
             // Generate exports (with auto-derived module name for trait impls)
-            out.extend(codegen::exports::generate(item, config)?);
-            out.extend(codegen::spec_reg::generate_impl_raw_spec_fragments(
+            out.extend(exports::generate(item, config)?);
+            out.extend(spec_reg::generate_impl_raw_spec_fragments(
                 item, config,
             )?);
 
@@ -156,7 +159,7 @@ fn apply_with_config(
 
             if cfg!(feature = "mock") {
                 out.extend(
-                    codegen::test_reg::generate_impl_registry_fragment(
+                    test_reg::generate_impl_registry_fragment(
                         item, config,
                     )?,
                 );
@@ -164,33 +167,33 @@ fn apply_with_config(
 
             if item.trait_.is_none() {
                 // Bare impl: generate client (name from config or auto-derived)
-                out.extend(codegen::client::generate(item, config)?);
+                out.extend(client::generate(item, config)?);
             }
 
             Ok(out)
         }
         syn::Item::Fn(item) => {
             let contract =
-                codegen::ConfiguredContract::new(config.clone(), item);
-            codegen::contract::validate_reserved_client_method_names(
+                ConfiguredContract::new(config.clone(), item);
+            contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
 
-            out.extend(codegen::exports::generate_free_function_bundle(
+            out.extend(exports::generate_free_function_bundle(
                 item, config,
             )?);
             out.extend(
-                codegen::spec_reg::generate_free_function_raw_spec_fragments(
+                spec_reg::generate_free_function_raw_spec_fragments(
                     item, config,
                 )?,
             );
 
             if cfg!(feature = "mock") {
                 out.extend(
-                    codegen::test_reg::generate_free_function_registry_fragment(
+                    test_reg::generate_free_function_registry_fragment(
                         item, config,
                     )?,
                 );
@@ -208,9 +211,9 @@ fn apply_with_config(
 #[cfg(test)]
 mod tests {
     use super::apply_with_config;
+    use super::Config;
     use darling::FromMeta;
     use darling::ast::NestedMeta;
-    use groundhog_codegen::Config;
 
     fn parse_config(attrs: &str) -> Config {
         let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
