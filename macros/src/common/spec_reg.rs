@@ -1,4 +1,4 @@
-use super::Config;
+use super::config::Config;
 use super::contract::{
     ConfiguredContract, ContractSrc, Method, effective_interface_name,
     method_anchor_tokens, method_arg_spec_tokens, method_return_spec_token,

@@ -1,6 +1,6 @@
 //! Generate exports
 
-use super::Config;
+use super::config::Config;
 use super::contract::{
     ConfiguredContract, ContractSrc, Method, effective_interface_name,
 };
