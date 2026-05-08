@@ -379,9 +379,9 @@ fn generate_error_enum(
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 match self {
                     #(#display_declared_arms,)*
-                    Self::Library(e) => ::core::write!(f, "Library({:?})", e),
+                    Self::Library(e) => ::core::write!(f, "SDK exception: {}", e),
                     Self::BadDecode(raw) => ::core::write!(f, "BadDecode({:?})", raw),
-                    Self::Fault(e) => ::core::write!(f, "Fault({:?})", e),
+                    Self::Fault(e) => ::core::write!(f, "Contract faulted: {}", e),
                     Self::Unknown(e) => ::core::write!(f, "Unknown({:?})", e),
                     Self::Invalid => ::core::write!(f, "Invalid call: contract not found (or invalid auth tokens)"),
                     Self::UnparseableReturn(e) => ::core::write!(f, "UnparseableReturn({:?})", e),
@@ -394,17 +394,20 @@ fn generate_error_enum(
 
         impl ::sdk::ReThrow for #error_enum_ident {
             fn re_throw(self) -> ! {
+                use sdk::CallingError;
+                use sdk::client_library_throw as cthrow;
+
                 match self {
                     #(#rethrow_declared_arms,)*
                     Self::Library(e) => ::sdk::throw(e),
                     Self::BadDecode(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),
-                    Self::Invalid => ::sdk::library_throw(::sdk::CallingError::Invalid),
-                    Self::UnparseableReturn(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),
-                    Self::UnparseableAbort(s) => ::sdk::library_throw(::sdk::CallingError::DecodingException(s)),
-                    Self::UnparseableAuthHandles(s) => ::sdk::library_throw(::sdk::CallingError::DecodingSuccess(s)),
-                    Self::EncodingArgs(s) => ::sdk::library_throw(::sdk::CallingError::EncodingArgs(s)),
+                    Self::Invalid => cthrow(CallingError::Invalid),
+                    Self::UnparseableReturn(s) => cthrow(CallingError::DecodingSuccess(s)),
+                    Self::UnparseableAbort(s) => cthrow(CallingError::DecodingException(s)),
+                    Self::UnparseableAuthHandles(s) => cthrow(CallingError::DecodingSuccess(s)),
+                    Self::EncodingArgs(s) => cthrow(CallingError::EncodingArgs(s)),
                 }
             }
         }

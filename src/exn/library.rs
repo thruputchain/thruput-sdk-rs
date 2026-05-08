@@ -23,13 +23,13 @@ pub enum LibraryExn {
     #[cfg_attr(feature = "debugging", error(transparent))]
     Syscall(SyscallExn),
 
-    #[cfg_attr(feature = "debugging", error("Handling a contract call"))]
+    #[cfg_attr(feature = "debugging", error("Handling a contract call: {0}"))]
     Handling(HandlingError),
 
-    #[cfg_attr(feature = "debugging", error("Making a contract call"))]
+    #[cfg_attr(feature = "debugging", error("Making a contract call: {0}"))]
     Calling(CallingError),
 
-    #[cfg_attr(feature = "debugging", error("Called contract reverted"))]
+    #[cfg_attr(feature = "debugging", error("Called contract reverted: {0}"))]
     Called(#[cfg_attr(feature = "debugging", source)] FaultString),
 
     #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
@@ -91,6 +91,12 @@ impl LibraryExn {
 pub fn library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
     let exn = crate::exn::cross_exn::ContractExn::new(e.into());
     crate::contract_abort_encoded(&exn)
+}
+
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
+    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
+    crate::client_contract_abort_encoded(&exn)
 }
 
 /// Throw an exception because a syscall produced an error.

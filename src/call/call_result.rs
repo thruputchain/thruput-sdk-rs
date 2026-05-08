@@ -2,7 +2,7 @@
 
 use crate::call::ContractError;
 use crate::call::internal::contract_call_decode;
-use crate::exn::{CallingError, FaultString, RawException, library_throw};
+use crate::exn::{CallingError, FaultString, RawException, client_library_throw as library_throw};
 use crate::{ReceiveAuthHandles, xdr::*};
 
 /// The raw, untyped error from a contract call.
