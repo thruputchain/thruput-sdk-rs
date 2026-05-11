@@ -35,7 +35,7 @@ impl SignerCaller {
     }
 
     pub fn consume_minted_token(auth: Signed<TransferAuth>, amount: u64) {
-        let value = auth.consume();
+        let value = auth.consume().0;
         assert_eq!(value.amount, amount);
     }
 }

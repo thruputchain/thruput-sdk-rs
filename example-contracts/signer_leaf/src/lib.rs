@@ -16,7 +16,7 @@ pub struct SignerLeaf;
 #[contract(storage = false)]
 impl SignerLeaf {
     pub fn consume_leaf(auth: Signed<LeafAuth>) -> u32 {
-        let leaf: LeafAuth = auth.consume();
+        let leaf: LeafAuth = auth.consume().0;
         leaf.data
     }
 }

@@ -34,8 +34,10 @@ impl Caller {
             ERC1271Client::new(wallet).is_valid_signature(message, signature);
         let (a, b): (Signed<u64>, Signed<u64>) =
             AssumeTokens::assume_tokens(tokens);
-        let val_a: u64 = a.consume();
-        let val_b: u64 = b.consume();
+        let (val_a, minter_a): (u64, ContractAddress) = a.consume();
+        let (val_b, minter_b): (u64, ContractAddress) = b.consume();
+        assert_eq!(*wallet, minter_a);
+        assert_eq!(*wallet, minter_b);
         val_a + val_b
     }
 
@@ -53,6 +55,6 @@ impl Caller {
     /// Consume a Signed<u64> token and return its inner value.
     /// Used in tests to consume tokens that are returned across contract boundaries.
     pub fn consume_token(token: Signed<u64>) -> u64 {
-        token.consume()
+        token.consume().0
     }
 }
