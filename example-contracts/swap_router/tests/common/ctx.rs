@@ -194,7 +194,7 @@ impl Ctx {
         self.token1()
             .adjust_allowance(&self.pair_addr, amounts[1].try_into().unwrap());
 
-        self.driver().request_purchase(user.addr);
+        self.driver().request_purchase(user.addr, amounts, user.addr);
 
         {
             println!(

@@ -34,8 +34,8 @@ impl SwapV2Driver {
         self.cfg.set(&cfg);
     }
 
-    pub fn request_purchase(&mut self, purchaser: &ContractAddress) {
-        self.requests.insert(&Request::purchase(purchaser));
+    pub fn request_purchase(&mut self, purchaser: &ContractAddress, amounts: Amounts, recipient: &Address) {
+        self.requests.insert(&Request::purchase(purchaser, amounts, recipient));
     }
 
     pub fn request_purchase_with_permits(&mut self, purchaser: &ContractAddress, amounts: Amounts, recipient: &Address, permits: [Permit; 2]) {
@@ -64,7 +64,7 @@ impl SwapV2Driver {
             match req {
                 Request::Purchase(ref req) => cfg
                     .pair()
-                    .try_handle_purchase(&req.purchaser)
+                    .try_handle_purchase(&req.purchaser, req.amounts, &req.recipient)
                     .unwrap_or_else(|e| {
                         operation_failed("Purchase", &e);
                         n_failed += 1;

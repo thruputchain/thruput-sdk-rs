@@ -72,7 +72,7 @@ pub trait ISwapV2Pair {
 
     // Driver helpers
 
-    fn handle_purchase(&mut self, purchaser: &ContractAddress);
+    fn handle_purchase(&mut self, purchaser: &ContractAddress, amounts_in: Amounts, recipient: &ContractAddress);
     fn handle_redeem(&mut self, redeemer: &ContractAddress);
     fn handle_swap(&mut self, trader: &ContractAddress, amounts_out: Amounts);
 }

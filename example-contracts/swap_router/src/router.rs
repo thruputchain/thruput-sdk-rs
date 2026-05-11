@@ -6,7 +6,6 @@ use crate::cfg::*;
 use sdk::storage::*;
 use sdk::*;
 use swap::*;
-use groundhog_erc20_permit_if::*;
 
 #[storage]
 pub struct Router {
@@ -51,7 +50,8 @@ impl Router {
         panic!("Uh oh!");
     }
 
-    #[allow(unreachable_code, unused_variables)]
+    // The user must give the pair the needed allowances of tokens A/B
+    // (typically `amounts_desired`).
     pub fn add_liquidity(
         &self,
         token_a: &Address,
@@ -59,7 +59,6 @@ impl Router {
         amounts_desired: Amounts,
         amounts_min: Amounts,
         recipient: &Address,
-        permits: [Permit; 2],
     ) {
         let cfg = self.cfg.get();
 
@@ -83,19 +82,10 @@ impl Router {
             }
         };
 
-        // In the standard flow, we'd now transfer the amounts (which should
-        // be within allowances set by the caller) to the pair:
-        //
-        //   self.token0()
-        //     .transfer(&cfg.pair_addr, amounts[0]);
-        //   self.token1()
-        //     .transfer(&cfg.pair_addr, amounts[1]);
-        //
-        // For our batched flow, we'll instead just forward the permits to the
-        // driver.
-
         let purchaser = get_caller();
-        driver.try_request_purchase_with_permits(&purchaser, amounts, recipient, permits).unwrap();
+        driver.request_purchase(&purchaser, amounts, recipient);
+
+        println!("Requested purchase of LP tokens in exchange for {amounts:?}");
     }
 }
 

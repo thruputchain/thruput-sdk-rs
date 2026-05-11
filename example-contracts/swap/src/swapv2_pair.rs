@@ -258,11 +258,11 @@ impl ISwapV2Pair for SwapV2Pair {
 
     // Driver helpers
 
-    fn handle_purchase(&mut self, purchaser: &ContractAddress) {
-        // Transfer in our allowances of the purchaser's A/B tokens
-        self.transfer_allowances_from(purchaser);
+    fn handle_purchase(&mut self, purchaser: &ContractAddress, amounts_in: Amounts, recipient: &Address) {
+        // Transfer in the purchaser's A/B tokens
+        self.transfer_amounts_from(purchaser, amounts_in);
 
-        let _minted = self.mint_lp(purchaser);
+        let _minted = self.mint_lp(recipient);
     }
 
     fn handle_redeem(&mut self, redeemer: &ContractAddress) {
@@ -349,6 +349,15 @@ impl SwapV2Pair {
     }
 
     // Helpers for driver routines
+
+    fn transfer_amounts_from(&self, owner: &Address, amounts: Amounts) {
+        let this = get_current_address();
+        let tokens = self.tokens();
+
+        for i in 0..=1 {
+            tokens[i].transfer_from(owner, &this, amounts[i]);
+        }
+    }
 
     fn transfer_allowances_from(&self, owner: &Address) {
         let this = get_current_address();

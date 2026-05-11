@@ -17,9 +17,11 @@ pub enum Request {
 }
 
 impl Request {
-    pub const fn purchase(purchaser: &Address) -> Request {
+    pub const fn purchase(purchaser: &Address, amounts: Amounts, recipient: &Address) -> Request {
         Self::Purchase(PurchaseRequest {
             purchaser: *purchaser,
+            amounts,
+            recipient: *recipient,
         })
     }
 
@@ -52,6 +54,8 @@ impl Request {
 pub struct PurchaseRequest {
     // The would-be purchaser of LP-tokens
     pub purchaser: Address,
+    pub amounts: Amounts,
+    pub recipient: Address,
 }
 
 #[derive(ReadXDR, WriteXDR)]

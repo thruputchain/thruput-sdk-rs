@@ -47,13 +47,25 @@ impl Etx {
 
     pub fn record_stats(
         &self,
-        user_a: User,
-        user_b: User,
+        users: &[User],
     ) -> Result<SwapStats> {
+        let ctx = &self.ctx;
+
+        let get_user_stats = |&u| Ok((u, self.user_balances(u)?));
+        let user_stats: UserStats = users
+            .iter()
+            .map(get_user_stats)
+            .collect::<Result<UserStats>>()?;
+
+        let pair_allowances: UserAllows = users
+            .iter()
+            .map(|&u| Ok((u, self.user_pledges(u)?)))
+            .collect::<Result<UserAllows>>()?;
+
         Ok(SwapStats {
-            user_a: (user_a, self.user_balances(user_a)?),
-            user_b: (user_b, self.user_balances(user_b)?),
+            user_stats,
             swap_pair: self.swap_pair_balances()?,
+            pair_allowances,
         })
     }
 
