@@ -1,3 +1,5 @@
+use groundhog_xdr::types::ContractAddress;
+
 use crate::mintable::MintableType;
 use crate::{AuthTokenError, FaultString, xdr::*};
 use core::marker::PhantomData;
@@ -258,7 +260,7 @@ impl<T> Signed<T>
 where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
 {
-    pub fn consume(self) -> T {
+    pub fn consume(self) -> (T, ContractAddress) {
         debug_assert_ne!(
             self.handle,
             u32::MAX,
@@ -276,9 +278,12 @@ where
         let mut child_start: MaybeUninit<u32> = MaybeUninit::uninit();
         let mut child_count: MaybeUninit<u32> = MaybeUninit::uninit();
 
+        let mut minter_address: MaybeUninit<ContractAddress> = MaybeUninit::uninit();
+
         crate::sys::uninit_ConsumeAuthToken(
             self.handle,
             payload_buf.spare_capacity_mut(),
+            &mut minter_address,
             &mut payload_written,
             &mut child_start,
             &mut child_count,
@@ -292,6 +297,7 @@ where
 
         let start = unsafe { child_start.assume_init() };
         let count = unsafe { child_count.assume_init() };
+        let minter_address = unsafe { minter_address.assume_init() };
 
         let mut value: T =
             cxs::decode(payload_buf.as_ref()).unwrap_or_else(|e| {
@@ -310,7 +316,7 @@ where
             .receive_auth_handles(&mut iter)
             .unwrap_or_else(|e| crate::exn::library_throw(e));
 
-        value
+        (value, minter_address)
     }
 }
 

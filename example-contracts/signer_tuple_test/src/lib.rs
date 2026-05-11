@@ -15,7 +15,7 @@ pub struct SignerTupleTest;
 #[contract(storage = false)]
 impl SignerTupleTest {
     pub fn consume_tuple(auth: Signed<TupleAuth>) -> u64 {
-        let inner: TupleAuth = auth.consume();
+        let inner: TupleAuth = auth.consume().0;
         inner.0
     }
 }

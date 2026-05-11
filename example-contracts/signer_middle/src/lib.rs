@@ -22,7 +22,7 @@ impl SignerMiddle {
         auth: Signed<MiddleAuth>,
         leaf_contract: &ContractAddress,
     ) -> u64 {
-        let middle: MiddleAuth = auth.consume();
+        let middle: MiddleAuth = auth.consume().0;
 
         let child_result =
             SignerLeafClient::new(leaf_contract).consume_leaf(middle.child);
