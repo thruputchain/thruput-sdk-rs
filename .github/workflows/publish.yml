@@ -13,7 +13,6 @@ env:
     groundhog-spec-tool
     groundhog-sys
     groundhog-native-exec
-    groundhog-codegen
     groundhog-macros
     groundhog-test-vectors
     sdk
