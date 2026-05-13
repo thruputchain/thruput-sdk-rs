@@ -9,10 +9,10 @@ description = "Bottle-test interface"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.0" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.1" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.0", features = ["std"] }
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
