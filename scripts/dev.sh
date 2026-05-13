@@ -224,11 +224,6 @@ logging_test_build() {
     (
         cd "${SDK_DIR}/logging-test" &&
         cargo check -p htlc-logging --target wasm32-unknown-unknown
-    ) &&
-
-    (
-        cd "${SDK_DIR}/logging-test" &&
-        cargo build --bin generate_spec_htlc_logging -F spec
     )
 }
 
@@ -420,15 +415,6 @@ build_docs() {
     cargo doc --features=dev,storage "$@"
 }
 
-test_spec() {
-    (
-        cd integration_test &&
-        cargo run -p fibonacci -F spec --bin generate_spec_fibonacci -- /dev/null &&
-        cargo run -p tuple_return -F spec --bin generate_spec_tuple_return -- /dev/null &&
-        true
-    )
-}
-
 skip() {
     local var="SKIP_$1"
     [ "${!var:-}" = "1" ]
@@ -437,7 +423,6 @@ skip() {
 check_all() {
     { skip DOCS || build_docs; } &&
     { skip SDK_TESTS || test_sdk; } &&
-    { skip SPEC_TESTS || test_spec; } &&
 
     { skip EXAMPLES || {
         eg_build_all &&

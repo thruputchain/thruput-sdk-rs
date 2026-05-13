@@ -278,7 +278,8 @@ where
         let mut child_start: MaybeUninit<u32> = MaybeUninit::uninit();
         let mut child_count: MaybeUninit<u32> = MaybeUninit::uninit();
 
-        let mut minter_address: MaybeUninit<ContractAddress> = MaybeUninit::uninit();
+        let mut minter_address: MaybeUninit<ContractAddress> =
+            MaybeUninit::uninit();
 
         crate::sys::uninit_ConsumeAuthToken(
             self.handle,
