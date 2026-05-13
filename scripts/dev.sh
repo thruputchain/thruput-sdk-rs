@@ -224,11 +224,6 @@ logging_test_build() {
     (
         cd "${SDK_DIR}/logging-test" &&
         cargo check -p htlc-logging --target wasm32-unknown-unknown
-    ) &&
-
-    (
-        cd "${SDK_DIR}/logging-test" &&
-        cargo build --bin generate_spec_htlc_logging -F spec
     )
 }
 
