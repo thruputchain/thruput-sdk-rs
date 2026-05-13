@@ -7,6 +7,7 @@ members = [
     "contracts/calldata_raw",
     "contracts/calldata_wrapper",
     # "contracts/cxs_roundtrip",
+    "contracts/dev_wallet",
     "contracts/delegate_call_test",
     "contracts/ed25519_verify_wrapper",
     "contracts/fibonacci",
