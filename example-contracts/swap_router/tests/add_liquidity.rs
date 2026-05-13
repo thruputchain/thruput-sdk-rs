@@ -26,6 +26,30 @@ test_transaction! {
         Ok(())
     }
 
+    fn alice_add_some(etx: &Etx) -> Result<()> {
+        let user = ALICE;
+
+        // First, prime the AMM
+        etx.prime()?;
+
+        println!("{}", etx.record_stats(&[PRIMER, user])?);
+
+        // Give an allowance of some of our AB-tokens to the pair contract
+        let amt = 10*UNIT_AMT;
+        etx.user_allow_for_pair(user, [amt, amt])?;
+
+        /* ----- */ etx.advance_block(); /* ----- */
+
+        etx.user_add_liquidity(ALICE, [amt, 0])?;
+
+        etx.process_outstanding_requests()?;
+
+        /* ----- */ etx.advance_block(); /* ----- */
+
+        println!("{}", etx.record_stats(&[PRIMER, ALICE])?);
+        Ok(())
+    }
+
     fn primer_add_liquidity(etx: &Etx) -> Result<()> {
         etx.prime()
     }

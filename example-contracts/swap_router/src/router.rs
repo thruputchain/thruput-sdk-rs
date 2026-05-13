@@ -3,6 +3,7 @@
 #![allow(clippy::result_large_err)]
 
 use crate::cfg::*;
+use crate::library::*;
 use sdk::storage::*;
 use sdk::*;
 use swap::*;
@@ -13,10 +14,18 @@ pub struct Router {
     cfg: Value<Cfg>,
 }
 
+#[contract_exception]
+pub enum SwapRouterError {
+    InsufficientAmountA = 1,
+    InsufficientAmountB = 2,
+}
+
+use SwapRouterError::*;
+
 const A: usize = 0;
 const B: usize = 1;
 
-#[contract(throws(ERC20Error, ISwapV2PairError))]
+#[contract(throws(ERC20Error, ISwapV2PairError, SwapRouterError, SwapLibraryError))]
 impl Router {
     // Initialize router with knowledge of a single swap pair.
     //
@@ -66,12 +75,12 @@ impl Router {
             let amount_optimal_b = quote(amounts_desired[A], [reserve_a, reserve_b]);
 
             if amount_optimal_b <= amounts_desired[B] {
-                assert!(amount_optimal_b >= amounts_min[B], "UniswapV2Router: INSUFFICIENT_B_AMOUNT");
+                ensure(amount_optimal_b >= amounts_min[B], InsufficientAmountA);
                 [amounts_desired[A], amount_optimal_b]
             } else {
                 let amount_optimal_a = quote(amounts_desired[B], [reserve_b, reserve_a]);
                 assert!(amount_optimal_a <= amounts_desired[A]);
-                assert!(amount_optimal_a >= amounts_min[A], "UniswapV2Router: INSUFFICIENT_A_AMOUNT");
+                ensure(amount_optimal_a >= amounts_min[A], InsufficientAmountB);
                 [amount_optimal_a, amounts_desired[B]]
             }
         };
@@ -81,17 +90,4 @@ impl Router {
 
         println!("Requested purchase of LP tokens in exchange for {amounts:?}");
     }
-}
-
-// adapted from UniswapV2Library
-/// Given an amount of token X, give a price quote for token Y
-fn quote(amount_x: Amount, reserves: Amounts) -> Amount {
-    const X: usize = 0;
-    const Y: usize = 1;
-
-    assert!(amount_x > 0, "Insufficient amount");
-
-    let amount_y = (U256::from(amount_x) * U256::from(reserves[Y])) / U256::from(reserves[X]);
-
-    amount_y.try_into().unwrap()
 }
