@@ -3,18 +3,17 @@ use common::*;
 
 #[rustfmt::skip]
 #[test]
-fn add_liquidity() {
+fn primer_add_liquidity() {
     transact_assert_success(|| {
         let etx = setup_etx()?;
-        _add_liquidity(&etx)
+        _primer_add_liquidity(&etx)
     });
 }
 
-fn _add_liquidity(etx: &Etx) -> Result<()> {
+fn _primer_add_liquidity(etx: &Etx) -> Result<()> {
     let ctx = &etx.ctx;
 
-    let stats = etx.record_stats(&[PRIMER])?;
-    println!("{}", stats);
+    println!("{}", etx.record_stats(&[PRIMER])?);
 
     let amounts_min = [0, 0];
 
@@ -46,6 +45,7 @@ fn _add_liquidity(etx: &Etx) -> Result<()> {
         );
     })?;
 
+    // Process outstanding requests
     let (n_processed, n_failed) =
         etx.exec_tx(&TEST_ADDR, || ctx.driver().process_requests())?;
     assert_eq!(1, n_processed);
@@ -55,8 +55,7 @@ fn _add_liquidity(etx: &Etx) -> Result<()> {
 
     /* ----- */ etx.advance_block(); /* ----- */
 
-    let stats = etx.record_stats(&[PRIMER])?;
-    println!("{}", stats);
+    println!("{}", etx.record_stats(&[PRIMER])?);
 
     Ok(())
 }

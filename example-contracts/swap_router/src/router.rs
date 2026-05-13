@@ -44,14 +44,8 @@ impl Router {
         self.cfg.set(&cfg);
     }
 
-    pub fn succeeds() {}
-
-    pub fn fails() {
-        panic!("Uh oh!");
-    }
-
-    // The user must give the pair the needed allowances of tokens A/B
-    // (typically `amounts_desired`).
+    // Before calling, the user must give the pair the needed allowances of
+    // tokens A/B (typically `amounts_desired`).
     pub fn add_liquidity(
         &self,
         token_a: &Address,
