@@ -3,107 +3,96 @@ use common::*;
 
 test_transaction! {
     fn alice_add_liquidity(etx: &Etx) -> Result<()> {
-        let ctx = &etx.ctx;
+        let user = ALICE;
 
         // First, prime the AMM
-        prime(etx)?;
+        etx.prime()?;
 
-        println!("{}", etx.record_stats(&[PRIMER, ALICE])?);
+        println!("{}", etx.record_stats(&[PRIMER, user])?);
 
         // Give an allowance of all our AB-tokens to the pair contract
-        // TODO: Get quote, then add_liquidity.
-        //
-        let amounts_desired = etx.exec_user_tx(ALICE, |_| {
-            let amounts_desired = [ctx.token0().get_balance(), ctx.token1().get_balance()];
-
-            ctx.token0()
-                .adjust_allowance(&ctx.pair_addr, amounts_desired[0].try_into().unwrap());
-            ctx.token1()
-                .adjust_allowance(&ctx.pair_addr, amounts_desired[1].try_into().unwrap());
-
-            amounts_desired
-        })?;
+        let (amounts_desired, _) = etx.user_balances(user)?;
+        etx.user_allow_for_pair(user, amounts_desired)?;
 
         /* ----- */ etx.advance_block(); /* ----- */
 
-        user_add_liquidity(etx, ALICE, amounts_desired)?;
+        etx.user_add_liquidity(ALICE, amounts_desired)?;
 
-        process_outstanding_requests(etx)?;
+        etx.process_outstanding_requests()?;
 
         /* ----- */ etx.advance_block(); /* ----- */
 
         println!("{}", etx.record_stats(&[PRIMER, ALICE])?);
         Ok(())
     }
+
+    fn primer_add_liquidity(etx: &Etx) -> Result<()> {
+        etx.prime()
+    }
 }
 
-#[rustfmt::skip]
-#[test]
-fn primer_add_liquidity() {
-    transact_assert_success(|| {
-        let etx = setup_etx()?;
-        prime(&etx)
-    });
-}
+impl Etx {
+    #[rustfmt::skip]
+    pub fn prime(&self) -> Result<()> {
+        println!("{}", self.record_stats(&[PRIMER])?);
 
-fn prime(etx: &Etx) -> Result<()> {
-    let ctx = &etx.ctx;
+        // Give an allowance of all our AB-tokens to the pair contract
+        let (amounts_desired, _) = self.user_balances(PRIMER)?;
+        self.user_allow_for_pair(PRIMER, amounts_desired)?;
 
-    println!("{}", etx.record_stats(&[PRIMER])?);
+        /* ----- */ self.advance_block(); /* ----- */
 
-    // Give an allowance of all our AB-tokens to the pair contract
-    let amounts_desired = etx.exec_user_tx(PRIMER, |_| {
-        let amounts_desired = [ctx.token0().get_balance(), ctx.token1().get_balance()];
+        self.user_add_liquidity(PRIMER, amounts_desired)?;
 
-        ctx.token0()
-            .adjust_allowance(&ctx.pair_addr, amounts_desired[0].try_into().unwrap());
-        ctx.token1()
-            .adjust_allowance(&ctx.pair_addr, amounts_desired[1].try_into().unwrap());
+        self.process_outstanding_requests()?;
 
-        amounts_desired
-    })?;
+        /* ----- */ self.advance_block(); /* ----- */
 
-    /* ----- */ etx.advance_block(); /* ----- */
+        println!("{}", self.record_stats(&[PRIMER])?);
+        Ok(())
+    }
 
-    user_add_liquidity(etx, PRIMER, amounts_desired);
+    pub fn user_add_liquidity(&self, user: User, amounts_desired: Amounts) -> Result<()> {
+        let ctx = &self.ctx;
 
-    process_outstanding_requests(etx)?;
+        // Request to buy into the liquidity pool
+        self.exec_user_tx(user, |_| {
+            // Where the LP tokens go: back to the user
+            let recipient = &get_current_address();
 
-    /* ----- */ etx.advance_block(); /* ----- */
+            // Unsure how to use these
+            let amounts_min = [0, 0];
 
-    println!("{}", etx.record_stats(&[PRIMER])?);
-    Ok(())
-}
+            ctx.router().add_liquidity(
+                &ctx.token_addrs[0],
+                &ctx.token_addrs[1],
+                amounts_desired,
+                amounts_min,
+                recipient,
+            );
+        })
+    }
 
-fn user_add_liquidity(etx: &Etx, user: User, amounts_desired: Amounts) -> Result<()> {
-    let ctx = &etx.ctx;
+    pub fn user_allow_for_pair(&self, user: User, amounts_allowed: Amounts) -> Result<()> {
+        let ctx = &self.ctx;
 
-    // Request to buy into the liquidity pool
-    etx.exec_user_tx(user, |_| {
-        // Where the LP tokens go: back to the user
-        let recipient = &get_current_address();
+        self.exec_user_tx(user, |_| {
+            ctx.token0()
+                .adjust_allowance(&ctx.pair_addr, amounts_allowed[0].try_into().unwrap());
+            ctx.token1()
+                .adjust_allowance(&ctx.pair_addr, amounts_allowed[1].try_into().unwrap());
+        })
+    }
 
-        // Unsure how to use these
-        let amounts_min = [0, 0];
+    pub fn process_outstanding_requests(&self) -> Result<()> {
+        let ctx = &self.ctx;
 
-        ctx.router().add_liquidity(
-            &ctx.token_addrs[0],
-            &ctx.token_addrs[1],
-            amounts_desired,
-            amounts_min,
-            recipient,
-        );
-    })
-}
+        let (n_processed, n_failed) =
+            self.exec_tx(&TEST_ADDR, || ctx.driver().process_requests())?;
+        assert_eq!(1, n_processed);
+        assert_eq!(0, n_failed);
 
-fn process_outstanding_requests(etx: &Etx) -> Result<()> {
-    let ctx = &etx.ctx;
-
-    let (n_processed, n_failed) =
-        etx.exec_tx(&TEST_ADDR, || ctx.driver().process_requests())?;
-    assert_eq!(1, n_processed);
-    assert_eq!(0, n_failed);
-
-    println!("Processed {n_processed} requests");
-    Ok(())
+        println!("Processed {n_processed} requests");
+        Ok(())
+    }
 }
