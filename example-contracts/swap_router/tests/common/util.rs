@@ -50,3 +50,21 @@ where
         Err(r)
     }
 }
+
+#[macro_export]
+macro_rules! test_transaction {
+    (fn $test_name:ident($etx:ident: &Etx) -> Result<()> $body:tt) => {
+
+        #[test]
+        fn $test_name() {
+            fn body($etx: &$crate::Etx) -> $crate::Result<()> {
+                $body
+            }
+
+            transact_assert_success(|| {
+                let etx = setup_etx()?;
+                body(&etx)
+            });
+        }
+    };
+}
