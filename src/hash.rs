@@ -16,7 +16,7 @@ where
     T: xdrs::WriteXDR,
 {
     fn hash(&self) -> Hash256 {
-        let buf = crate::internal::encode_xdr(self).unwrap(); // XXX
+        let buf = crate::internal::encode_xdr(self).unwrap();
 
         sha256(buf.as_ref())
     }

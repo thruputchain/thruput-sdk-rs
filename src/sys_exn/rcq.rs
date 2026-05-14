@@ -74,8 +74,8 @@ pub(crate) fn retrocausal_queue_get(
     peek: bool,
 ) -> Box<[u8]> {
     rcq_result::retrocausal_queue_get(key, peek).unwrap_or_else(
-        // XXX: We don't actually know which syscall failed.
-        // The result-based routines should return syscall exns.
+        // We don't actually know which syscall failed.
+        // TODO: The result-based routines should return syscall exns.
         |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
     )
 }

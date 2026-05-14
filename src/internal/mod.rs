@@ -8,12 +8,16 @@
 mod mu_buf;
 mod serialize;
 mod static_buf;
-mod track;
 
 #[allow(unused_imports)]
 pub use mu_buf::*;
 pub use serialize::*;
-pub use track::*;
+
+#[cfg(feature = "call_tracking")]
+mod call_tracking_contexts;
+
+#[cfg(feature = "call_tracking")]
+pub use call_tracking_contexts::*;
 
 //pub use groundhog_contract_spec::contract_abi_alloc::ContractAbiAllocEnabled;
 

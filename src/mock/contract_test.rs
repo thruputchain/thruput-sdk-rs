@@ -100,9 +100,6 @@ pub fn contract_handler_exec(
 pub fn contract_handler_exec_raw(
     handler: &mut TransactionHandler,
 ) -> ContractResult {
-    // Initialize dev stuff (set panic handler)
-    // crate::dev_init(); // XXX
-
     let res = handler.root_invoke();
 
     let return_buf = match res.output {

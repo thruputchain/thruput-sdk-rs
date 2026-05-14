@@ -269,10 +269,9 @@ lint_contract() {
 
 test_sdk() {
     cargo test --lib &&
-    cargo test --tests &&
+    cargo test -Fstorage --tests &&
     cargo test -p groundhog-spec-tool &&
     cargo test -p groundhog-test-vectors &&
-    cargo test -F storage --tests &&
     cargo test -p vector-tests --tests &&
     true
 }
@@ -530,8 +529,7 @@ lint() {
 }
 
 lint_check() {
-    lint >& /dev/null ||
-        fail "Trapped lint!"
+    lint || fail "Trapped lint!"
 }
 
 fmt() {

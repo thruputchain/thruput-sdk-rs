@@ -155,12 +155,8 @@ fn set_add_negative_sum_fails() {
     );
 }
 
-// XXX: In the `should_panic` tests below, the expected panic sometimes has the
-// expected string payload, and sometimes some other (unknown) type of payload.
-// For now we just accept any panic, but there's something broken here.
-
 #[test]
-#[should_panic] //  = "Transaction failed"
+#[should_panic = "Transaction failed"]
 // We can call `set_add(None, -3)`, but the transaction reverts.
 fn negative_increment_reverts() {
     contract_exec(TestEnvironment::no_cost(), || {
@@ -169,7 +165,7 @@ fn negative_increment_reverts() {
 }
 
 #[test]
-#[should_panic] // = "Transaction failed"
+#[should_panic = "Transaction failed"]
 // We can make serial `set_add` calls such that the total would be negative,
 // but the transaction reverts.
 fn negative_set_add_serially_reverts() {
@@ -196,7 +192,7 @@ fn negative_set_succeeds() {
 }
 
 #[test]
-#[should_panic] // = "Transaction failed"
+#[should_panic = "Transaction failed"]
 // We can't complete a transaction with "set" and "add" values whose sum would
 // overflow an `i128`.
 fn set_overflowing_sum_reverts() {
