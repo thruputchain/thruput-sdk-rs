@@ -13,7 +13,7 @@ dev = ["sdk/dev", "dep:thiserror"]
 spec = ["sdk/spec"]
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.1" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.2" }
 thiserror = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 xdr-common = { workspace = true }
@@ -24,7 +24,7 @@ xdrs = { workspace = true }
 groundhog-erc20-metadata-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.1", features = ["std"] }
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.2", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

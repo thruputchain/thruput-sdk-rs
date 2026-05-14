@@ -23,7 +23,7 @@ impl ContractTypeRefSpec for BlockHeight {
 impl ContractTypeRefSpec for SHA256Hash {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Array(view::ContractArrayTypeView {
-            element: Some(&view::ContractTypeView::U8),
+            element: &view::ContractTypeView::U8,
             len: 32,
         }),
     };
@@ -32,7 +32,7 @@ impl ContractTypeRefSpec for SHA256Hash {
 impl ContractTypeRefSpec for Ed25519PublicKey {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Array(view::ContractArrayTypeView {
-            element: Some(&view::ContractTypeView::U8),
+            element: &view::ContractTypeView::U8,
             len: 32,
         }),
     };
@@ -41,7 +41,7 @@ impl ContractTypeRefSpec for Ed25519PublicKey {
 impl ContractTypeRefSpec for Ed25519Signature {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Array(view::ContractArrayTypeView {
-            element: Some(&view::ContractTypeView::U8),
+            element: &view::ContractTypeView::U8,
             len: 64,
         }),
     };
@@ -50,7 +50,7 @@ impl ContractTypeRefSpec for Ed25519Signature {
 impl ContractTypeRefSpec for ContractEntrypointID {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Array(view::ContractArrayTypeView {
-            element: Some(&view::ContractTypeView::U8),
+            element: &view::ContractTypeView::U8,
             len: 8,
         }),
     };

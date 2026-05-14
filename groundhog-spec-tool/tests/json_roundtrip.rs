@@ -145,7 +145,7 @@ fn vector_type_roundtrips() {
         "vec_u8",
         ContractType::Vector {
             vector: ContractVectorType {
-                element: Some(Box::new(ContractType::U8)),
+                element: Box::new(ContractType::U8),
                 max_len: u32::MAX,
             },
         },
@@ -158,7 +158,7 @@ fn vector_with_bounded_len_roundtrips() {
         "bounded_vec",
         ContractType::Vector {
             vector: ContractVectorType {
-                element: Some(Box::new(ContractType::U32)),
+                element: Box::new(ContractType::U32),
                 max_len: 100,
             },
         },
@@ -171,7 +171,7 @@ fn array_type_roundtrips() {
         "hash",
         ContractType::Array {
             array: ContractArrayType {
-                element: Some(Box::new(ContractType::U8)),
+                element: Box::new(ContractType::U8),
                 len: 32,
             },
         },
@@ -238,7 +238,7 @@ fn deeply_nested_types_roundtrip() {
             ContractType::Named { named: s("Widget") },
             ContractType::Array {
                 array: ContractArrayType {
-                    element: Some(Box::new(ContractType::U8)),
+                    element: Box::new(ContractType::U8),
                     len: 32,
                 },
             },
@@ -248,7 +248,7 @@ fn deeply_nested_types_roundtrip() {
     };
     let vec_of_tuples = ContractType::Vector {
         vector: ContractVectorType {
-            element: Some(Box::new(inner_tuple)),
+            element: Box::new(inner_tuple),
             max_len: 256,
         },
     };
@@ -659,9 +659,7 @@ fn kitchen_sink_roundtrips() {
                             ty: ContractType::Option {
                                 option_inner: Box::new(ContractType::Vector {
                                     vector: ContractVectorType {
-                                        element: Some(Box::new(
-                                            ContractType::U8,
-                                        )),
+                                        element: Box::new(ContractType::U8),
                                         max_len: 4096,
                                     },
                                 }),
@@ -750,7 +748,7 @@ fn xdr_to_json_to_xdr_roundtrips() {
                     name: s("input"),
                     ty: ContractType::Vector {
                         vector: ContractVectorType {
-                            element: Some(Box::new(ContractType::U8)),
+                            element: Box::new(ContractType::U8),
                             max_len: u32::MAX,
                         },
                     },
@@ -759,7 +757,7 @@ fn xdr_to_json_to_xdr_roundtrips() {
                 .unwrap(),
                 return_type: ContractType::Array {
                     array: ContractArrayType {
-                        element: Some(Box::new(ContractType::U8)),
+                        element: Box::new(ContractType::U8),
                         len: 32,
                     },
                 },

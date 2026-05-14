@@ -129,7 +129,7 @@ impl ContractTypeRefSpec for str {
 impl ContractTypeRefSpec for [u8] {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: Some(&view::ContractTypeView::U8),
+            element: &view::ContractTypeView::U8,
             max_len: u32::MAX,
         }),
     };
@@ -159,7 +159,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Array(view::ContractArrayTypeView {
-            element: Some(&type_ref::<T>()),
+            element: &type_ref::<T>(),
             len: N as u32,
         }),
     };
@@ -186,7 +186,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: Some(&type_ref::<T>()),
+            element: &type_ref::<T>(),
             max_len: u32::MAX,
         }),
     };
@@ -206,7 +206,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: Some(&type_ref::<T>()),
+            element: &type_ref::<T>(),
             max_len: N,
         }),
     };
