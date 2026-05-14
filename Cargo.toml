@@ -156,6 +156,7 @@ mock = [
     "std",
     "dep:groundhog-native-exec",
     "dep:groundhog-wasm-meter",
+    "dep:groundhog-storage-cost",
     "groundhog-macros/mock",
     "groundhog-xdr/syscalls_mock",
     "dep:linkme",
