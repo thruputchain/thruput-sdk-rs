@@ -1,11 +1,8 @@
-#![allow(unused)] // XXX
-
 // test working directory is example contract directory
 const WASM_PATH: &str = "../../target/optimized/exceptions.wasm";
 
 mod common;
 use common::*;
-use core::convert::Infallible;
 use sdk::*;
 
 #[test]

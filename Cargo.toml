@@ -83,7 +83,9 @@ groundhog-native-exec = { workspace = true, optional = true }
 groundhog-wasm-meter = { workspace = true, optional = true }
 
 [dev-dependencies]
+# When running tests, enable recommended development features
 sdk = { workspace = true, features = ["dev"] }
+
 hex-literal = { workspace = true }
 groundhog-contract-util = { workspace = true }
 trybuild = "1"
@@ -138,15 +140,18 @@ alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
 # Include the structured-storage module
 storage = ["alloc", "groundhog-macros/storage"]
 
-# Enable development features
+# Include interfaces requiring std
+std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
+
+# Enable recommended development features
 dev = [
     "debugging",
     "call_tracking",
     "dep:groundhog-storage-cost",
     "mock",
-]
+    ]
 
-# Enable the mock executor for testing
+# Enable the mock executor for local testing
 mock = [
     "std",
     "dep:groundhog-native-exec",
@@ -156,14 +161,13 @@ mock = [
     "dep:linkme",
 ]
 
-# Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
-
-# Diagnostic features
+# Diagnostics (can be enabled without mock, alloc and std)
 debugging = []
+call_tracking = ["debugging"] # contract-call tracking
+
+# Optional diagnostic features (not enabled by "dev")
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
-call_tracking = ["debugging"] # contract-call backtrace
 
 # Generate specs
 spec = [
@@ -190,13 +194,6 @@ required-features = ["storage"]
 [[test]]
 name = "compile_fail_storage"
 required-features = ["storage"]
-
-[[test]]
-name = "aborts"
-test = false # XXX: fix aborts test
-
-[lints.clippy]
-collapsible_if = "allow"
 
 [target.wasm32-unknown-unknown.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls"] }

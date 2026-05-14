@@ -24,6 +24,13 @@ pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
     sys::raw_Return(buf, revert, auth_token_ids_bytes);
 }
 
+#[inline]
+pub fn contract_return_buf(buf: &[u8]) -> ! {
+    let auth_token_ids = &[];
+
+    contract_return(buf, auth_token_ids)
+}
+
 pub fn contract_abort(buf: &[u8]) -> ! {
     let revert = true;
 
@@ -53,10 +60,7 @@ where
         std::println!();
         std::println!("  Throwing exception {:?}", ret);
         std::println!("  Location: {}", core::panic::Location::caller());
-        std::println!(
-            "  Backtrace:\n{}",
-            crate::debug_context::Backtrace::capture()
-        );
+        std::println!("  Backtrace:\n{}", crate::Backtrace::capture());
     }
 
     _contract_abort_encoded(ret)
@@ -77,10 +81,7 @@ where
             "  Interface location: {}",
             core::panic::Location::caller()
         );
-        std::println!(
-            "  Backtrace:\n{}",
-            crate::debug_context::Backtrace::capture()
-        );
+        std::println!("  Backtrace:\n{}", crate::Backtrace::capture());
     }
 
     _contract_abort_encoded(ret)

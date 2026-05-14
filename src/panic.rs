@@ -44,6 +44,7 @@ mod with_message {
     impl Error for Panic {}
 
     impl Panic {
+        #[cfg_attr(test, allow(dead_code))]
         pub fn from_info(info: &core::panic::PanicInfo) -> Self {
             Self::from_hook_info(
                 info.message().as_str().unwrap_or("<has args>"),

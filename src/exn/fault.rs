@@ -70,6 +70,7 @@ mod with_strings {
             Self::via_display(&s)
         }
 
+        #[cfg_attr(test, allow(dead_code))]
         pub fn from_any(a: &dyn Any) -> Self {
             if let Some(s) = a.downcast_ref::<&str>() {
                 Self::from_display(s)

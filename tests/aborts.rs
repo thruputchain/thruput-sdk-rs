@@ -1,36 +1,5 @@
-// XXX
-// When run in parallel with the other test, this sometimes fails with:
-//   E[syscall_handler.cc:217] handle_root_host_fn_status: received Unrecoverable
-/*
-test test_abort_bare ... ok
-test test_panic ... FAILED
-
-failures:
-
----- test_panic stdout ----
-
-thread 'test_panic' (411211) panicked at tests/aborts.rs:8:9:
-Just panic
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
-thread 'test_panic' (411211) panicked at native_exec/src/host_fn_error.rs:29:13:
-Box<dyn Any>
-
-thread 'test_panic' (411211) panicked at /home/dbg/gh/sdk/src/dev/contract_test.rs:84:9:
-Root invocation panicked with code Unrecoverable
-
-
-failures:
-    test_panic
-
-test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
-
-error: test failed, to rerun pass `--test aborts`
-*/
-
 use sdk::call::ContractError;
 use sdk::call::RawCallError;
-use sdk::contract_return;
 use sdk::*;
 
 #[test]
@@ -79,7 +48,7 @@ fn test_unparseable_return() {
     // The contract "returns successfully" but with garbage bytes that
     // can't be XDR-decoded as the expected return type.
     let result: Result<u64, RawCallError> = contract_test(env, || {
-        contract_return(&[0xFF]);
+        sdk::contract_return_buf(&[0xFF]);
     });
 
     match &result {

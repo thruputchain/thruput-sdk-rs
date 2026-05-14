@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-// Much of this debugging code is dead with the debugging feature disabled.
-
 use core::any::Any;
 use core::fmt::{self, Display, Write};
 use core::panic::Location;

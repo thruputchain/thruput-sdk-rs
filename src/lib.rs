@@ -28,10 +28,6 @@ pub use groundhog_contract_spec as contract_spec;
 #[doc(hidden)]
 pub use groundhog_contract_spec as __contract_spec;
 
-#[cfg(feature = "mock")]
-#[doc(hidden)]
-pub extern crate linkme as __linkme;
-
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -42,9 +38,7 @@ pub mod allocator;
 pub mod internal;
 
 mod cell;
-mod debug;
-#[cfg(feature = "debugging")]
-mod debug_context;
+mod diagnostics;
 mod local;
 mod panic;
 mod re_throw;
@@ -92,6 +86,9 @@ pub mod signer;
 pub mod stats;
 pub mod types;
 
+#[doc(hidden)]
+pub mod mintable;
+
 pub use auth_claim::*;
 pub use block::*;
 pub use cell::*;
@@ -105,6 +102,7 @@ pub use hasher::*;
 pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
+pub use mintable::*;
 pub use panic::*;
 pub use re_throw::*;
 pub use receive_auth_handles::*;
@@ -116,11 +114,8 @@ pub use types::*;
 pub use util::*;
 pub use xdr::*;
 
-#[cfg(feature = "debugging")]
-pub use debug_context::with_debug_context;
-
-#[cfg(feature = "debugging")]
-pub use ::thiserror::Error;
+#[allow(unused_imports)]
+pub use diagnostics::*;
 
 #[doc = include_str!("../doc/macro-contract.md")]
 pub use groundhog_macros::contract;
@@ -137,10 +132,6 @@ pub use groundhog_macros::{
 
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
-
-pub mod mintable;
-
-pub use mintable::*;
 
 #[cfg(feature = "spec")]
 #[rustfmt::skip]
@@ -161,28 +152,9 @@ pub use groundhog_macros::Storage;
 #[doc = include_str!("../doc/macro-storage.md")]
 pub use groundhog_macros::storage;
 
-// Development environment
+// Mock contract execution environment
+
+mod mock;
 
 #[cfg(feature = "mock")]
-#[doc(hidden)]
-#[path = "dev/mock_registry.rs"]
-pub mod mock_registry;
-
-#[cfg(feature = "dev")]
-mod dev;
-
-#[cfg(feature = "dev")]
-pub use dev::*;
-
-#[macro_export]
-macro_rules! declare_mock_contract {
-    () => {
-        #[cfg(feature = "dev")]
-        #[doc(hidden)]
-        pub fn register_mock_contract(
-            env: &::sdk::TestEnvironmentHandle,
-        ) -> ::sdk::MockContract {
-            ::sdk::register_mock_package(env, env!("CARGO_PKG_NAME"))
-        }
-    };
-}
+pub use mock::*;

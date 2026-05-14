@@ -1,9 +1,7 @@
 use groundhog_native_exec::mock_contract::MockContract;
 use linkme::distributed_slice;
 
-#[cfg(any(test, feature = "dev"))]
 use crate::{String, Vec};
-#[cfg(any(test, feature = "dev"))]
 use core::fmt;
 
 #[doc(hidden)]
@@ -15,7 +13,6 @@ pub struct ContractMockFragment {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg(any(test, feature = "dev"))]
 enum MockRegistryError {
     NoFragments {
         package_name: String,
@@ -27,7 +24,6 @@ enum MockRegistryError {
     },
 }
 
-#[cfg(any(test, feature = "dev"))]
 impl fmt::Display for MockRegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -53,7 +49,6 @@ impl fmt::Display for MockRegistryError {
 #[distributed_slice]
 pub static CONTRACT_MOCK_FRAGMENTS: [ContractMockFragment];
 
-#[cfg(any(test, feature = "dev"))]
 fn collect_mock_fragments<'a>(
     package_name: &str,
     fragments: &'a [ContractMockFragment],
@@ -89,7 +84,6 @@ fn collect_mock_fragments<'a>(
     Ok(collected)
 }
 
-#[cfg(feature = "dev")]
 pub fn register_mock_package(
     env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
     package_name: &str,

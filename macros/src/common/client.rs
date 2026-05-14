@@ -110,7 +110,6 @@ pub fn generate(
             use ::sdk::{ContractAddress, RuntimeMemoryLength};
             use ::sdk::contract::ContractEntrypointID;
             use ::sdk::with_call_tracking;
-            use ::sdk::internal::CallMethod;
             use ::sdk::OrReThrow;
 
             impl #client_ident {
@@ -245,7 +244,7 @@ fn generate_client_fn(
         None => quote! { None },
     };
     let call_info = quote! {
-        CallMethod::new(#call_iface, #iface_vers, #call_ident)
+        ::sdk::internal::CallMethod::new(#call_iface, #iface_vers, #call_ident)
     };
 
     let try_ident = try_client_method_ident(ident);
