@@ -38,11 +38,10 @@ pub use mock_registry::register_mock_package;
 #[doc(hidden)]
 pub extern crate linkme as __linkme;
 
-// This requires the user to define the feature "dev"
+#[cfg(feature = "mock")]
 #[macro_export]
 macro_rules! declare_mock_contract {
     () => {
-        #[cfg(feature = "dev")]
         #[doc(hidden)]
         pub fn register_mock_contract(
             env: &::sdk::TestEnvironmentHandle,
@@ -50,4 +49,10 @@ macro_rules! declare_mock_contract {
             ::sdk::register_mock_package(env, env!("CARGO_PKG_NAME"))
         }
     };
+}
+
+#[cfg(not(feature = "mock"))]
+#[macro_export]
+macro_rules! declare_mock_contract {
+    () => {};
 }
