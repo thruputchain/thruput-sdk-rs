@@ -1,30 +1,5 @@
 //! Runtime exit (trap)
 
-#[cfg(not(feature = "mock"))]
-#[macro_export]
-/// Halt execution
-macro_rules! fault {
-    { $( $expr:expr ),* } => {
-        {
-            let _ = ( $($expr),* );
-
-            $crate::trap();
-        }
-    };
-}
-
-#[cfg(feature = "mock")]
-#[macro_export]
-/// Halt execution
-macro_rules! fault {
-    { $( $expr:expr ),* } => {
-        {
-            // XXX: This may be a recursive panic
-            ::std::panic!( $($expr),* );
-        }
-    };
-}
-
 #[cfg(target_arch = "wasm32")]
 #[inline(always)]
 /// WASM: execute an illegal instruction

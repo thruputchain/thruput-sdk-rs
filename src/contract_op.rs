@@ -3,6 +3,7 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
+use crate::call::contract_call_encode;
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
@@ -51,32 +52,33 @@ pub fn contract_return_empty() -> ! {
 
 #[inline]
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn contract_abort_encoded<RET>(ret: &RET) -> !
+pub fn contract_abort_encoded<T>(exn: &T) -> !
 where
-    RET: WriteXDR + ?Sized + core::fmt::Debug,
+    T: WriteXDR + ?Sized + core::fmt::Debug,
 {
     #[cfg(all(feature = "debugging", feature = "std"))]
     {
         std::println!();
-        std::println!("  Throwing exception {:?}", ret);
+        std::println!("  Throwing exception {:?}", exn);
         std::println!("  Location: {}", core::panic::Location::caller());
         std::println!("  Backtrace:\n{}", crate::Backtrace::capture());
     }
 
-    _contract_abort_encoded(ret)
+    _contract_abort_encoded(exn)
 }
 
-// Codepath for aborts in client-side codegen
+// Codepath for aborts in client-side codegen; coalesce with above after
+// removing printlns.
 #[inline]
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn client_contract_abort_encoded<RET>(ret: &RET) -> !
+pub fn client_contract_abort_encoded<T>(exn: &T) -> !
 where
-    RET: WriteXDR + ?Sized + core::fmt::Debug,
+    T: WriteXDR + ?Sized + core::fmt::Debug,
 {
     #[cfg(all(feature = "debugging", feature = "std"))]
     {
         std::println!();
-        std::println!("  Throwing exception {:?}", ret);
+        std::println!("  Throwing exception {:?}", exn);
         std::println!(
             "  Interface location: {}",
             core::panic::Location::caller()
@@ -84,27 +86,31 @@ where
         std::println!("  Backtrace:\n{}", crate::Backtrace::capture());
     }
 
-    _contract_abort_encoded(ret)
+    _contract_abort_encoded(exn)
 }
 
 #[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
-fn _contract_abort_encoded<RET>(ret: &RET) -> !
+fn _contract_abort_encoded<T>(exn: &T) -> !
 where
-    RET: WriteXDR + ?Sized + core::fmt::Debug,
+    T: WriteXDR + ?Sized + core::fmt::Debug,
 {
-    // Use match to preserve call tracking
-    let return_buf = match crate::call::contract_call_encode(ret) {
-        Ok(buf) => buf,
-        Err(e) => {
-            // XXX: potential recursion
-            library_throw(HandlingError::EncodingException(
-                FaultString::via_display(&e),
-            ))
-        }
-    };
+    let buf = contract_call_encode(exn)
+        .unwrap_or_else(|e| exception_encoding_error(e));
 
-    contract_abort(return_buf.as_ref());
+    contract_abort(buf.as_ref());
+}
+
+// Try once more to encode an exception before just trapping
+fn exception_encoding_error(err: WriteError) -> ! {
+    use crate::exn::LibraryExn;
+    use crate::exn::cross_exn::ContractExn;
+
+    let exn = ContractExn::new(LibraryExn::from(
+        HandlingError::EncodingException(FaultString::via_display(&err)),
+    ));
+    let buf = contract_call_encode(&exn).unwrap_or_else(|_| crate::trap());
+
+    contract_abort(buf.as_ref());
 }
 
 #[inline]

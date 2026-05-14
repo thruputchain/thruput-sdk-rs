@@ -61,26 +61,26 @@ crate-type = ["rlib"]
 doctest = true
 
 [dependencies]
-# Indigenous dependencies
-groundhog-macros = { workspace = true }
-groundhog-contract-util = { workspace = true, optional = true }
-groundhog-contract-spec = { workspace = true }
+# Groundhog dependencies
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
-groundhog-storage-cost = { workspace = true, optional = true }
-linkme = { workspace = true, optional = true }
-
-# External dependencies
+groundhog-macros = { workspace = true }
+groundhog-contract-spec = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
+
+# Optional Groundhog dependencies
+groundhog-contract-util = { workspace = true, optional = true }
+groundhog-storage-cost = { workspace = true, optional = true }
+groundhog-native-exec = { workspace = true, optional = true }
+groundhog-wasm-meter = { workspace = true, optional = true }
+
+# External dependencies
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
 bitset-core = { workspace = true }
 heapless = { workspace = true }
-
-# Optional dependencies
-groundhog-native-exec = { workspace = true, optional = true }
-groundhog-wasm-meter = { workspace = true, optional = true }
+linkme = { workspace = true, optional = true }
 
 [dev-dependencies]
 # When running tests, enable recommended development features
