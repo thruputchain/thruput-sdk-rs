@@ -141,7 +141,7 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                         name: s("blob"),
                         ty: ContractType::Vector {
                             vector: ContractVectorType {
-                                element: Some(Box::new(ContractType::U8)),
+                                element: Box::new(ContractType::U8),
                                 max_len: u32::MAX,
                             },
                         },
@@ -150,7 +150,7 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                     .unwrap(),
                     return_type: ContractType::Vector {
                         vector: ContractVectorType {
-                            element: Some(Box::new(ContractType::U8)),
+                            element: Box::new(ContractType::U8),
                             max_len: u32::MAX,
                         },
                     },
@@ -167,7 +167,7 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                         name: s("hash"),
                         ty: ContractType::Array {
                             array: ContractArrayType {
-                                element: Some(Box::new(ContractType::U8)),
+                                element: Box::new(ContractType::U8),
                                 len: 32,
                             },
                         },
@@ -176,7 +176,7 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                     .unwrap(),
                     return_type: ContractType::Array {
                         array: ContractArrayType {
-                            element: Some(Box::new(ContractType::U8)),
+                            element: Box::new(ContractType::U8),
                             len: 32,
                         },
                     },

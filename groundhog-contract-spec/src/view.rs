@@ -78,13 +78,13 @@ pub struct ContractExceptionTypeView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractArrayTypeView<'a> {
-    pub element: Option<&'a ContractTypeView<'a>>,
+    pub element: &'a ContractTypeView<'a>,
     pub len: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractVectorTypeView<'a> {
-    pub element: Option<&'a ContractTypeView<'a>>,
+    pub element: &'a ContractTypeView<'a>,
     pub max_len: u32,
 }
 
@@ -305,7 +305,7 @@ impl From<ContractTypeView<'_>> for ContractType {
 impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
     fn from(value: ContractArrayTypeView<'_>) -> Self {
         Self {
-            element: value.element.map(|e| Box::new((*e).into())),
+            element: Box::new((*value.element).into()),
             len: value.len,
         }
     }
@@ -315,7 +315,7 @@ impl From<ContractArrayTypeView<'_>> for crate::ContractArrayType {
 impl From<ContractVectorTypeView<'_>> for crate::ContractVectorType {
     fn from(value: ContractVectorTypeView<'_>) -> Self {
         Self {
-            element: value.element.map(|e| Box::new((*e).into())),
+            element: Box::new((*value.element).into()),
             max_len: value.max_len,
         }
     }
