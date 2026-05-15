@@ -16,22 +16,22 @@ pub enum CallingError {
         feature = "debugging",
         error("Invalid call: contract not found (or bad auth tokens)")
     )]
-    Invalid,
+    Invalid = 0,
 
     #[cfg_attr(
         feature = "debugging",
         error("Decoding a successful result: {0}")
     )]
-    DecodingSuccess(FaultString),
+    DecodingSuccess(FaultString) = 1,
 
     #[cfg_attr(
         feature = "debugging",
         error("Decoding an exception result: {0}")
     )]
-    DecodingException(FaultString),
+    DecodingException(FaultString) = 2,
 
     #[cfg_attr(feature = "debugging", error("Encoding arguments: {0}"))]
-    EncodingArgs(FaultString),
+    EncodingArgs(FaultString) = 3,
 }
 
 /// Plumbing errors resulting from handling a contract call:
@@ -40,19 +40,19 @@ pub enum CallingError {
 #[repr(i32)]
 pub enum HandlingError {
     #[cfg_attr(feature = "debugging", error("Decoding argument data: {0}"))]
-    DecodingArgs(FaultString),
+    DecodingArgs(FaultString) = 0,
 
     #[cfg_attr(
         feature = "debugging",
         error("Encoding successful result: {0}")
     )]
-    EncodingSuccess(FaultString),
+    EncodingSuccess(FaultString) = 1,
 
     #[cfg_attr(feature = "debugging", error("Encoding exception result: {0}"))]
-    EncodingException(FaultString),
+    EncodingException(FaultString) = 2,
 
     #[cfg_attr(feature = "debugging", error("Encoding event: {0}"))]
-    EncodingEvent(FaultString),
+    EncodingEvent(FaultString) = 3,
 }
 
 /// Plumbing errors resulting from working with auth tokens:
@@ -61,16 +61,16 @@ pub enum HandlingError {
 #[repr(i32)]
 pub enum AuthTokenError {
     #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
-    MintEncodeFailure(FaultString),
+    MintEncodeFailure(FaultString) = 0,
     #[cfg_attr(
         feature = "debugging",
         error("Decoding auth token payload: {0}")
     )]
-    ConsumeDecodeFailure(FaultString),
+    ConsumeDecodeFailure(FaultString) = 1,
 
     #[cfg_attr(
         feature = "debugging",
         error("Receiving auth token handles: {0}")
     )]
-    ReceiveAuthHandlesFailure(FaultString),
+    ReceiveAuthHandlesFailure(FaultString) = 2,
 }
