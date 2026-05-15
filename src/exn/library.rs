@@ -9,7 +9,7 @@ use core::error::Error;
 use core::fmt::{self, Display};
 #[cfg(feature = "debugging")]
 use thiserror::Error;
-#[cfg(feature = "spec")]
+#[cfg(all(feature = "spec", not(feature = "debugging")))]
 use crate::ContractTypeSpec;
 #[cfg(feature = "spec")]
 use xdrs::XDR;
@@ -148,7 +148,8 @@ pub fn encoding_event_throw<E: Display>(e: E) -> ! {
 
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(feature = "spec", derive(XDR, ContractTypeSpec))]
+#[cfg_attr(feature = "spec", derive(XDR))]
+#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
 pub struct SyscallExn {
     callno: SyscallNo,
     errno: SysErr,
@@ -178,7 +179,7 @@ impl Display for SyscallExn {
     }
 }
 
-#[cfg(feature = "spec")]
+#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for SyscallExn {
     const NAME: &'static str = "SyscallExn";
 }

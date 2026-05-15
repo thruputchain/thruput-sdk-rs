@@ -91,7 +91,7 @@ mod without_strings {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    #[cfg_attr(feature = "spec", derive(crate::ContractTypeSpec))]
+    #[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(crate::ContractTypeSpec))]
     pub struct FaultString;
 
     impl WriteXDR for FaultString {
@@ -136,7 +136,7 @@ mod without_strings {
         }
     }
 
-    #[cfg(feature = "spec")]
+    #[cfg(all(feature = "spec", not(feature = "debugging")))]
     impl crate::__contract_spec::ContractTypeName for FaultString {
         const NAME: &'static str = "FaultString";
     }
