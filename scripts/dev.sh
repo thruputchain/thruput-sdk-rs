@@ -177,7 +177,7 @@ check_contract_spec_artifacts() {
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
-    assert_file_contains "$free_fn_json" '"version":"0.3.0"' &&
+    assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
     assert_wasm_has_final_spec_only "$free_fn_wasm" &&
 
     assert_file_contains "$imported_json" '"name":"ImportedErrorCallee"' &&
@@ -267,9 +267,9 @@ lint_contract() {
 
 ### TESTING ###
 
-test_sdk() {
-    cargo test --lib &&
-    cargo test -Fstorage --tests &&
+test_package() {
+    cargo test &&
+    cargo test -p groundhog-runtime -Fstorage,std --tests &&
     cargo test -p groundhog-spec-tool --all-targets &&
     cargo test -p groundhog-test-vectors &&
     cargo test -p vector-tests --tests &&
@@ -322,9 +322,6 @@ itc_test_all() {
         cd integration_test &&
         cargo test \
             --workspace  \
-            --exclude txs_roundtrip \
-            --exclude cxs_roundtrip \
-            --exclude read_only_test \
             "$@" -- --show-output
     )
 }
@@ -347,9 +344,9 @@ bottle_test_contract() {
         --profile="bottle_test" \
         --features="bottle-test" \
         -Z unstable-options \
-        #
+        &&
 
-    local wasm_name="${package//-/_}"
+    local wasm_name="${package//-/_}" &&
     mkdir -p "$BOTTLE_TEST" &&
     wasm-opt -O3 --enable-bulk-memory \
         -o "$BOTTLE_TEST/${wasm_name}.wasm" \
@@ -411,7 +408,8 @@ itc_bottle_test_all() {
 }
 
 build_docs() {
-    cargo doc --features=dev,storage "$@"
+    RUSTDOCFLAGS="--deny warnings --cfg docsrs" \
+        cargo doc --features=dev,storage "$@"
 }
 
 skip() {
@@ -421,12 +419,12 @@ skip() {
 
 check_all() {
     { skip DOCS || build_docs; } &&
-    { skip SDK_TESTS || test_sdk; } &&
+    { skip SDK_TESTS || test_package; } &&
 
     { skip EXAMPLES || {
-        eg_build_all &&
+        { skip BUILD_EXAMPLES || eg_build_all; } &&
         check_contract_spec_artifacts &&
-        eg_test_all &&
+        { skip TEST_EXAMPLES || eg_test_all; } &&
         eg_bottle_test_all
     }; } &&
 
@@ -544,7 +542,7 @@ fmt_check() {
 ci_check() {
     check_all &&
     { skip WASM_STRINGS || check_wasm_strings; } &&
-    check_quality &&
+    { skip QUALITY || check_quality; } &&
     info "CI clean!" ||
     fail "CI failed!"
 }

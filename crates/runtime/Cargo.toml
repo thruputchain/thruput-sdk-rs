@@ -1,0 +1,120 @@
+[package]
+name = "groundhog-runtime"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Guest runtime"
+metadata.docs.rs.features = [
+    "std",
+    "storage",
+]
+
+[lib]
+crate-type = ["rlib"]
+doctest = true
+
+[dependencies]
+# Groundhog dependencies
+runtime-macros = { workspace = true }
+groundhog-xdr = { workspace = true }
+groundhog-event = { workspace = true }
+groundhog-contract-spec = { workspace = true }
+hogexec-internal = { workspace = true }
+xdrs = { workspace = true, features = ["heapless"] }
+
+# Optional Groundhog dependencies
+groundhog-contract-util = { workspace = true, optional = true }
+groundhog-storage-cost = { workspace = true, optional = true }
+groundhog-native-exec = { workspace = true, optional = true }
+groundhog-wasm-meter = { workspace = true, optional = true }
+
+# External dependencies
+thiserror = { workspace = true }
+sha2 = { workspace = true, default-features = false }
+bitset-core = { workspace = true }
+heapless = { workspace = true }
+linkme = { workspace = true, optional = true }
+
+[dev-dependencies]
+# When running tests, enable recommended development features
+groundhog-runtime = { workspace = true, features = ["dev"] }
+sdk = { workspace = true, features = ["dev"] }
+
+hex-literal = { workspace = true }
+groundhog-contract-util = { workspace = true }
+trybuild = "1"
+version-mismatch-helper = { path = "tests/version-mismatch-helper" }
+
+[features]
+# Enable allocation features
+alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
+
+# Include the structured-storage module
+storage = ["alloc", "runtime-macros/storage"]
+
+# Include interfaces requiring std
+std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
+
+# Enable recommended development features
+dev = [
+    "debugging",
+    "call_tracking",
+    "dep:groundhog-storage-cost",
+    "mock",
+    ]
+
+# Enable the mock executor for local testing
+mock = [
+    "std",
+    "dep:groundhog-native-exec",
+    "dep:groundhog-wasm-meter",
+    "dep:groundhog-storage-cost",
+    "runtime-macros/mock",
+    "groundhog-xdr/syscalls_mock",
+    "dep:linkme",
+]
+
+# Diagnostics (can be enabled without mock, alloc and std)
+debugging = []
+call_tracking = ["debugging"] # contract-call tracking
+
+# Optional diagnostic features (not enabled by "dev")
+logging = ["runtime-macros/logging", "alloc"] # trace contract calls when testing
+panic_logging = [] # send panic messages to the log() syscall
+
+# Generate specs
+spec = [
+    "std",
+    "groundhog-xdr/spec",
+    "groundhog-xdr/syscalls_mock",
+    "dep:groundhog-contract-util",
+    "xdrs/repr",
+]
+
+[[test]]
+name = "int128"
+required-features = ["std"]
+
+[[test]]
+name = "storage"
+required-features = ["storage"]
+
+[[test]]
+name = "rcq_storage"
+required-features = ["storage"]
+
+[[test]]
+name = "compile_fail_storage"
+required-features = ["storage"]
+
+[target.wasm32-unknown-unknown.dependencies]
+groundhog-xdr = { workspace = true, features = ["syscalls"] }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }

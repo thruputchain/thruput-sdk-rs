@@ -1,19 +1,11 @@
 [workspace]
+resolver = "3"
 members = [
-    "macros",
-    "contract-util",
-    "native_exec",
-    "groundhog-sys",
-    "groundhog-contract-spec",
-    "groundhog-event",
-    "groundhog-spec-tool",
-    "storage-cost",
+    "crates/*",
+    "crates/runtime/tests/vector-tests",
+    "crates/runtime/tests/version-mismatch-helper",
     "standard-interfaces/*",
     "standard-tests/*",
-    "bottle-test",
-    "groundhog-test-vectors",
-    "tests/version-mismatch-helper",
-    "tests/vector-tests",
 ]
 
 [workspace.package]
@@ -27,167 +19,61 @@ homepage = "https://github.com/groundhogchain/sdk_rs.git"
 keywords = ["groundhog"]
 categories = ["blockchain"]
 
-[package]
-name = "sdk"
-authors.workspace = true
-license.workspace = true
-edition.workspace = true
-version.workspace = true
-publish.workspace = true
-repository.workspace = true
-homepage.workspace = true
-keywords.workspace = true
-categories.workspace = true
-description = "SDK for contract development on the Groundhog blockchain"
-exclude = [
-    "rust-toolchain.toml",
-    "rustfmt.toml",
-    "bench/",
-    "integration_test/",
-    "examples/",
-    ".github/",
-    ".cargo/",
-    "scripts/",
-    "tests/",
-]
-metadata.docs.rs.features = [
-    "std",
-    "storage",
-    "groundhog-xdr/syscalls_mock",
-]
-
-[lib]
-crate-type = ["rlib"]
-doctest = true
-
-[dependencies]
-# Groundhog dependencies
-groundhog-xdr = { workspace = true }
-groundhog-event = { workspace = true }
-groundhog-macros = { workspace = true }
-groundhog-contract-spec = { workspace = true }
-hogexec-internal = { workspace = true }
-xdrs = { workspace = true, features = ["heapless"] }
-
-# Optional Groundhog dependencies
-groundhog-contract-util = { workspace = true, optional = true }
-groundhog-storage-cost = { workspace = true, optional = true }
-groundhog-native-exec = { workspace = true, optional = true }
-groundhog-wasm-meter = { workspace = true, optional = true }
-
-# External dependencies
-thiserror = { workspace = true }
-sha2 = { workspace = true, default-features = false }
-bitset-core = { workspace = true }
-heapless = { workspace = true }
-linkme = { workspace = true, optional = true }
-
-[dev-dependencies]
-# When running tests, enable recommended development features
-sdk = { path = ".", features = ["dev"] }
-
-hex-literal = { workspace = true }
-groundhog-contract-util = { workspace = true }
-trybuild = "1"
-version-mismatch-helper = { path = "tests/version-mismatch-helper" }
-
 [workspace.dependencies]
-sdk = { path = ".", registry = "groundhog", version = "=0.14.5" }
-# Dependencies from this repository
+# Publishable dependencies from this repository
+    #
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
-groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.14.5" }
-groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.14.5", default-features = false }
-groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.14.5" }
-groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.14.5" }
-groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.14.5" }
-groundhog-storage-cost = { path = "storage-cost" , registry = "groundhog", version = "=0.14.5" }
-groundhog-event = { path = "groundhog-event", registry = "groundhog", version = "=0.14.5" }
-groundhog-spec-tool = { path = "groundhog-spec-tool", registry = "groundhog", version = "=0.14.5" }
-groundhog-test-vectors = { path = "groundhog-test-vectors", registry = "groundhog", version = "=0.14.5" }
-linkme = "0.3"
+    #
+    # Additionally, these configs for embedded workspaces need updating:
+    #    example-contracts/Cargo.toml
+    #    integration_test/contracts/Cargo.toml
+    #
+    # TODO: Do all of these need to be publishable, thus needing a registry and version?
+    #
+sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.14.5" }
+groundhog-runtime = { path = "crates/runtime", registry = "groundhog", version = "=0.14.5" }
+groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.14.5" }
+groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.14.5", default-features = false }
+groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.14.5" }
+groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.14.5" }
+groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.14.5" }
+groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.14.5" }
+groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.14.5" }
+groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.14.5" }
 
-# Standard interface crates
+# Standard interfaces
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
-bottle-test-if = { path = "standard-interfaces/bottle-test-if" , registry = "groundhog", version = "=0.1.0" }
 
-# Standard test crates
+# Standard tests
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
-# External dependencies
+# Not-published crates
+bottle-test-if = { path = "crates/bottle-test-if" }
+runtime-macros = { path = "crates/runtime-macros" }
+
+# Deps from protocol-rs repo:
 groundhog-spec = { registry = "groundhog", version = "=0.13.6", default-features = false }
 groundhog-trace = { registry = "groundhog", version = "=0.13.6" }
 groundhog-xdr = { registry = "groundhog", version = "=0.13.6", features = ["xdrs"] }
 hogexec-internal = { registry = "groundhog", version = "=0.13.6" }
-groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
-thiserror = { version = "2.0.12", default-features = false }
+
+# Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }
 xdr-common = { registry = "groundhog", version = "0.7.1" }
-sha2 = { version = "0.10.8", default-features = false }
+
+# External groundhog dependencies
+groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
+
+# External crates.io dependencies
+thiserror = { version = "2.0.12", default-features = false }
+sha2 = { version = "0.11.0", default-features = false }
 heapless = { version = "0.9.2" }
 hex-literal = "1.0.0"
 bitset-core = { version = "0.1.1", default-features = false }
-
-[features]
-# Enable allocation features
-alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
-
-# Include the structured-storage module
-storage = ["alloc", "groundhog-macros/storage"]
-
-# Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
-
-# Enable recommended development features
-dev = [
-    "debugging",
-    "call_tracking",
-    "dep:groundhog-storage-cost",
-    "mock",
-    ]
-
-# Enable the mock executor for local testing
-mock = [
-    "std",
-    "dep:groundhog-native-exec",
-    "dep:groundhog-wasm-meter",
-    "dep:groundhog-storage-cost",
-    "groundhog-macros/mock",
-    "groundhog-xdr/syscalls_mock",
-    "dep:linkme",
-]
-
-# Diagnostics (can be enabled without mock, alloc and std)
-debugging = []
-call_tracking = ["debugging"] # contract-call tracking
-
-# Optional diagnostic features (not enabled by "dev")
-logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
-panic_logging = [] # send panic messages to the log() syscall
-
-[[test]]
-name = "int128"
-required-features = ["std"]
-
-[[test]]
-name = "storage"
-required-features = ["storage"]
-
-[[test]]
-name = "rcq_storage"
-required-features = ["storage"]
-
-[[test]]
-name = "compile_fail_storage"
-required-features = ["storage"]
-
-[target.wasm32-unknown-unknown.dependencies]
-groundhog-xdr = { workspace = true, features = ["syscalls"] }
-
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
+linkme = "0.3"

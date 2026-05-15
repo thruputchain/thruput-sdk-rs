@@ -1,6 +1,6 @@
 //! ERC20 Events
 //!
-//! See (EIP-20)[https://eips.ethereum.org/EIPS/eip-20#events].
+//! See [EIP-20].
 //!
 //! # Transfer
 //!
@@ -15,6 +15,8 @@
 //! `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
 //!
 //! "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+//!
+//! [EIP-20]: https://eips.ethereum.org/EIPS/eip-20#events
 
 use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
