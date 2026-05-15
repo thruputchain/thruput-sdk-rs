@@ -19,6 +19,7 @@ default = ["owned-model"]
 alloc = ["xdrs/alloc"]
 owned-model = ["alloc", "dep:groundhog-spec"]
 serde = ["owned-model", "groundhog-spec/serde"]
+syscalls = ["groundhog-xdr/syscalls_mock"]
 
 [dependencies]
 groundhog-xdr = { workspace = true }
