@@ -178,6 +178,7 @@ impl Display for SyscallExn {
     }
 }
 
+#[cfg(feature = "spec")]
 impl crate::__contract_spec::ContractTypeName for SyscallExn {
     const NAME: &'static str = "SyscallExn";
 }
