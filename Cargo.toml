@@ -178,6 +178,7 @@ spec = [
     "groundhog-xdr/syscalls_mock",
     "dep:groundhog-contract-util",
     "xdrs/repr",
+    "groundhog-contract-spec/syscalls",
 ]
 
 [[test]]

@@ -90,7 +90,7 @@ mod with_strings {
 mod without_strings {
     use super::*;
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, ::sdk::ContractTypeSpec)]
     pub struct FaultString;
 
     impl WriteXDR for FaultString {
@@ -133,6 +133,10 @@ mod without_strings {
         pub fn from_any(_a: &dyn Any) -> Self {
             Self
         }
+    }
+
+    impl ::sdk::__contract_spec::ContractTypeName for FaultString {
+        const NAME: &'static str = "FaultString";
     }
 }
 
