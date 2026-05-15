@@ -146,20 +146,13 @@ pub fn canonicalize_spec(
                     .methods
                     .push(fragment.method.clone());
             }
-            SpecFragment::SpecTypeDef { type_def } => {
-                let symbol = type_def_symbol(type_def).clone();
-                let defs = type_defs.entry(symbol).or_default();
-                if !defs.iter().any(|existing| existing == type_def) {
-                    defs.push(type_def.clone());
-                }
-            }
-            SpecFragment::ExportedSpecTypeDef { type_def } => {
-                let symbol = type_def_symbol(type_def).clone();
-                exported_roots.insert(symbol.clone());
-                let defs = type_defs.entry(symbol).or_default();
-                if !defs.iter().any(|existing| existing == type_def) {
-                    defs.push(type_def.clone());
-                }
+            SpecFragment::SpecTypeDef { .. }
+            | SpecFragment::ExportedSpecTypeDef { .. } => {
+                collect_type_def_fragment(
+                    fragment,
+                    &mut type_defs,
+                    &mut exported_roots,
+                );
             }
             _ => {}
         }
@@ -243,24 +236,7 @@ pub fn canonicalize_type_defs(
         std::collections::BTreeSet::<ContractSpecString>::new();
 
     for fragment in raw {
-        match fragment {
-            SpecFragment::SpecTypeDef { type_def } => {
-                let symbol = type_def_symbol(type_def).clone();
-                let defs = type_defs.entry(symbol).or_default();
-                if !defs.iter().any(|existing| existing == type_def) {
-                    defs.push(type_def.clone());
-                }
-            }
-            SpecFragment::ExportedSpecTypeDef { type_def } => {
-                let symbol = type_def_symbol(type_def).clone();
-                exported_roots.insert(symbol.clone());
-                let defs = type_defs.entry(symbol).or_default();
-                if !defs.iter().any(|existing| existing == type_def) {
-                    defs.push(type_def.clone());
-                }
-            }
-            _ => {}
-        }
+        collect_type_def_fragment(fragment, &mut type_defs, &mut exported_roots);
     }
 
     for symbol in roots {
@@ -275,7 +251,7 @@ pub fn canonicalize_type_defs(
         }
     }
 
-    let interfaces: Vec<ContractSpecInterface> = Vec::new();
+    let interfaces = Vec::<ContractSpecInterface>::new();
     let resolved =
         resolve_reachable_type_defs(&interfaces, &type_defs, &exported_roots)?;
     Ok(ContractSpec {
@@ -589,6 +565,31 @@ fn type_def_symbol(type_def: &ContractTypeDef) -> &ContractSpecString {
         ContractTypeDef::TypeDefEnum { enum_def } => &enum_def.name,
         ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
         _ => panic!("unknown ContractTypeDef variant"),
+    }
+}
+
+fn collect_type_def_fragment(
+    fragment: &SpecFragment,
+    type_defs: &mut BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
+    exported_roots: &mut std::collections::BTreeSet<ContractSpecString>,
+) {
+    match fragment {
+        SpecFragment::SpecTypeDef { type_def } => {
+            let symbol = type_def_symbol(type_def).clone();
+            let defs = type_defs.entry(symbol).or_default();
+            if !defs.iter().any(|existing| existing == type_def) {
+                defs.push(type_def.clone());
+            }
+        }
+        SpecFragment::ExportedSpecTypeDef { type_def } => {
+            let symbol = type_def_symbol(type_def).clone();
+            exported_roots.insert(symbol.clone());
+            let defs = type_defs.entry(symbol).or_default();
+            if !defs.iter().any(|existing| existing == type_def) {
+                defs.push(type_def.clone());
+            }
+        }
+        _ => {}
     }
 }
 
