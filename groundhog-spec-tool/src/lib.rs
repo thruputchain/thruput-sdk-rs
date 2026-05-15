@@ -229,6 +229,61 @@ pub fn canonicalize_spec(
     })
 }
 
+/// Assembles a [`ContractSpec`] whose `interfaces` list is empty and whose
+/// `type_defs` are the transitive closure of `roots` over the supplied
+/// fragments. Use this when you want to emit specs for named types without
+/// any associated interface (e.g. the `describe` subcommand).
+pub fn canonicalize_type_defs(
+    raw: &[SpecFragment],
+    roots: &[ContractSpecString],
+) -> Result<ContractSpec, SpecToolError> {
+    let mut type_defs =
+        BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
+    let mut exported_roots =
+        std::collections::BTreeSet::<ContractSpecString>::new();
+
+    for fragment in raw {
+        match fragment {
+            SpecFragment::SpecTypeDef { type_def } => {
+                let symbol = type_def_symbol(type_def).clone();
+                let defs = type_defs.entry(symbol).or_default();
+                if !defs.iter().any(|existing| existing == type_def) {
+                    defs.push(type_def.clone());
+                }
+            }
+            SpecFragment::ExportedSpecTypeDef { type_def } => {
+                let symbol = type_def_symbol(type_def).clone();
+                exported_roots.insert(symbol.clone());
+                let defs = type_defs.entry(symbol).or_default();
+                if !defs.iter().any(|existing| existing == type_def) {
+                    defs.push(type_def.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for symbol in roots {
+        exported_roots.insert(symbol.clone());
+    }
+
+    for (symbol, defs) in &type_defs {
+        if defs.len() > 1 {
+            return Err(SpecToolError::ConflictingTypeDef(
+                spec_str(symbol).to_owned(),
+            ));
+        }
+    }
+
+    let interfaces: Vec<ContractSpecInterface> = Vec::new();
+    let resolved =
+        resolve_reachable_type_defs(&interfaces, &type_defs, &exported_roots)?;
+    Ok(ContractSpec {
+        interfaces: interfaces.try_into().unwrap(),
+        type_defs: resolved.try_into().unwrap(),
+    })
+}
+
 /// Serializes a [`ContractSpec`] to a JSON string using the serde-derived
 /// representation.  The output is guaranteed to round-trip through
 /// [`parse_spec_json`].
@@ -649,5 +704,51 @@ fn union_case_type_to_json(
             "fields": struct_fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
         _ => panic!("unknown ContractUnionCaseType variant"),
+    }
+}
+
+#[cfg(test)]
+mod canonicalize_type_defs_tests {
+    use super::*;
+    use groundhog_contract_spec::{
+        ContractEnumDef, ContractEnumVariant, ContractTypeDef,
+    };
+
+    fn enum_def(name: &str) -> ContractTypeDef {
+        ContractTypeDef::TypeDefEnum {
+            enum_def: ContractEnumDef {
+                name: name.as_bytes().try_into().unwrap(),
+                variants: vec![ContractEnumVariant {
+                    name: b"A".as_slice().try_into().unwrap(),
+                    value: 0,
+                }]
+                .try_into()
+                .unwrap(),
+            },
+        }
+    }
+
+    #[test]
+    fn canonicalize_type_defs_resolves_root() {
+        let fragments = vec![SpecFragment::SpecTypeDef {
+            type_def: enum_def("MyEnum"),
+        }];
+        let roots = vec![b"MyEnum".as_slice().try_into().unwrap()];
+
+        let spec = canonicalize_type_defs(&fragments, &roots)
+            .expect("canonicalize_type_defs should succeed");
+
+        assert!(spec.interfaces.is_empty());
+        assert_eq!(spec.type_defs.len(), 1);
+    }
+
+    #[test]
+    fn canonicalize_type_defs_errors_on_missing_root() {
+        let fragments: Vec<SpecFragment> = vec![];
+        let roots = vec![b"MissingType".as_slice().try_into().unwrap()];
+
+        let err = canonicalize_type_defs(&fragments, &roots)
+            .expect_err("missing root should error");
+        assert!(matches!(err, SpecToolError::MissingTypeDef(_)));
     }
 }
