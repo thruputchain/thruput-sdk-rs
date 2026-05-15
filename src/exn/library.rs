@@ -18,6 +18,7 @@ use xdrs::XDR;
 ///
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
+#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
 #[groundhog_macros::exn(version = "1.0.0")]
 #[repr(i32)]
 #[non_exhaustive]
@@ -87,6 +88,11 @@ impl LibraryExn {
             None
         }
     }
+}
+
+#[cfg(all(feature = "spec", not(feature = "debugging")))]
+impl crate::__contract_spec::ContractTypeName for LibraryExn {
+    const NAME: &'static str = "LibraryExn";
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
