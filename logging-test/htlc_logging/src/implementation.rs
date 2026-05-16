@@ -3,8 +3,7 @@ use sdk::*;
 
 use sdk::storage::{Map, Value};
 
-#[derive(ReadXDR, WriteXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[contracttype]
 struct HTLCEntry {
     sender: ContractAddress,
     receiver: ContractAddress,
