@@ -270,7 +270,7 @@ lint_contract() {
 test_sdk() {
     cargo test --lib &&
     cargo test -Fstorage --tests &&
-    cargo test -p groundhog-spec-tool &&
+    cargo test -p groundhog-spec-tool --all-targets &&
     cargo test -p groundhog-test-vectors &&
     cargo test -p vector-tests --tests &&
     true
