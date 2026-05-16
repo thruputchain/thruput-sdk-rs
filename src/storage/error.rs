@@ -4,12 +4,8 @@ use crate::xdr::*;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
 
-#[cfg(feature = "spec")]
-use xdrs::{XDR, xdr_repr::XDR};
-
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(feature = "spec", derive(XDR))]
 #[repr(i32)]
 pub enum StorageError {
     #[cfg_attr(feature = "debugging", error(transparent))]
