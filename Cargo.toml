@@ -98,7 +98,7 @@ sdk = { path = "." }
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
 groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.14.2" }
-groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.14.2", default-features = false }
+groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.14.2", default-features = false, features = ["syscalls"] }
 groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.14.2" }
 groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.14.2" }
 groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.14.2" }
@@ -173,7 +173,6 @@ panic_logging = [] # send panic messages to the log() syscall
 # Generate specs
 spec = [
     "std",
-    "groundhog-macros/spec",
     "groundhog-xdr/spec",
     "groundhog-xdr/syscalls_mock",
     "dep:groundhog-contract-util",

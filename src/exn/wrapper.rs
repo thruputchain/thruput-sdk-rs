@@ -3,16 +3,14 @@ use crate::xdr::*;
 use core::fmt::Debug;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 use crate::ContractTypeSpec;
 
 // TODO: Maybe make the fault-strings into Error sources,
 // and figure out how to Display them at the right times.
 
 /// Plumbing errors resulting from making a contract call:
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
 #[repr(i32)]
 pub enum CallingError {
     #[cfg_attr(
@@ -38,9 +36,8 @@ pub enum CallingError {
 }
 
 /// Plumbing errors resulting from handling a contract call:
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
 #[repr(i32)]
 pub enum HandlingError {
     #[cfg_attr(feature = "debugging", error("Decoding argument data: {0}"))]
@@ -60,9 +57,8 @@ pub enum HandlingError {
 }
 
 /// Plumbing errors resulting from working with auth tokens:
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
 #[repr(i32)]
 pub enum AuthTokenError {
     #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
@@ -80,17 +76,14 @@ pub enum AuthTokenError {
     ReceiveAuthHandlesFailure(FaultString) = 2,
 }
 
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for CallingError {
     const NAME: &'static str = "CallingError";
 }
 
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for HandlingError {
     const NAME: &'static str = "HandlingError";
 }
 
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for AuthTokenError {
     const NAME: &'static str = "AuthTokenError";
 }

@@ -9,7 +9,6 @@ use core::error::Error;
 use core::fmt::{self, Display};
 #[cfg(feature = "debugging")]
 use thiserror::Error;
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 use crate::ContractTypeSpec;
 #[cfg(feature = "spec")]
 use xdrs::XDR;
@@ -18,7 +17,7 @@ use xdrs::XDR;
 ///
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
+#[derive(ContractTypeSpec)]
 #[groundhog_macros::exn(version = "1.0.0")]
 #[repr(i32)]
 #[non_exhaustive]
@@ -90,7 +89,6 @@ impl LibraryExn {
     }
 }
 
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for LibraryExn {
     const NAME: &'static str = "LibraryExn";
 }
@@ -155,7 +153,7 @@ pub fn encoding_event_throw<E: Display>(e: E) -> ! {
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[cfg_attr(feature = "spec", derive(XDR))]
-#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
+#[derive(ContractTypeSpec)]
 pub struct SyscallExn {
     callno: SyscallNo,
     errno: SysErr,
@@ -185,7 +183,6 @@ impl Display for SyscallExn {
     }
 }
 
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for SyscallExn {
     const NAME: &'static str = "SyscallExn";
 }

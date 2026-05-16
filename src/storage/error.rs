@@ -6,13 +6,12 @@ use thiserror::Error;
 
 #[cfg(feature = "spec")]
 use xdrs::{XDR, xdr_repr::XDR};
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 use crate::ContractTypeSpec;
 
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[cfg_attr(feature = "spec", derive(XDR))]
-#[cfg_attr(all(feature = "spec", not(feature = "debugging")), derive(ContractTypeSpec))]
+#[derive(ContractTypeSpec)]
 #[repr(i32)]
 pub enum StorageError {
     #[cfg_attr(feature = "debugging", error(transparent))]
@@ -63,7 +62,6 @@ pub fn storage_syserr(e: SysErr) -> StorageError {
     }
 }
 
-#[cfg(all(feature = "spec", not(feature = "debugging")))]
 impl crate::__contract_spec::ContractTypeName for StorageError {
     const NAME: &'static str = "StorageError";
 }
