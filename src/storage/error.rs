@@ -4,13 +4,10 @@ use crate::xdr::*;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
 
-#[cfg(feature = "spec")]
-use xdrs::{XDR, xdr_repr::XDR};
 use crate::ContractTypeSpec;
 
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
-#[cfg_attr(feature = "spec", derive(XDR))]
 #[derive(ContractTypeSpec)]
 #[repr(i32)]
 pub enum StorageError {

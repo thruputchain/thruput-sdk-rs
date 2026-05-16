@@ -28,7 +28,6 @@ xdrs = { workspace = true, features = ["derive", "alloc"] }
 
 [features]
 logging = []
-spec = ["groundhog-xdr/spec"]
 storage = []
 
 # Don't inline `*_internal` methods directly into their exported entrypoints.

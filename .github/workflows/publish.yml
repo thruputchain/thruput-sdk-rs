@@ -57,7 +57,7 @@ jobs:
         with:
           packages: ${{ env.PUBLISH_PACKAGES }}
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
-          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip spec --skip dev
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev
           cargo-hack-wasm32-packages: sdk
 
       - name: tag commit with version

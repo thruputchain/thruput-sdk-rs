@@ -170,16 +170,6 @@ call_tracking = ["debugging"] # contract-call tracking
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
 
-# Generate specs
-spec = [
-    "std",
-    "groundhog-xdr/spec",
-    "groundhog-xdr/syscalls_mock",
-    "dep:groundhog-contract-util",
-    "xdrs/repr",
-    "groundhog-contract-spec/syscalls",
-]
-
 [[test]]
 name = "int128"
 required-features = ["std"]

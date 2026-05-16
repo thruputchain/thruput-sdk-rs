@@ -133,10 +133,6 @@ pub use groundhog_macros::{
 #[cfg(feature = "alloc")]
 pub use alloc::{format, string::*, vec, vec::Vec};
 
-#[cfg(feature = "spec")]
-#[rustfmt::skip]
-pub mod spec;
-
 // "Storage" facility
 
 #[cfg(feature = "storage")]

@@ -83,6 +83,43 @@ mod with_strings {
             }
         }
     }
+
+    impl crate::__contract_spec::ContractTypeName for FaultString {
+        const NAME: &'static str = "FaultString";
+    }
+
+    impl crate::__contract_spec::ContractTypeSpec for FaultString {
+        const TYPE_DEF: crate::__contract_spec::ContractTypeDefView<'static> =
+            crate::__contract_spec::ContractTypeDefView::Struct(
+                crate::__contract_spec::ContractStructDefView {
+                    name: <Self as crate::__contract_spec::ContractTypeName>::NAME,
+                    fields: &[],
+                },
+            );
+    }
+
+    impl crate::__contract_spec::ContractTypeRefSpec for FaultString {
+        const INFO: crate::__contract_spec::ContractTypeInfo<'static> =
+            crate::__contract_spec::ContractTypeInfo {
+                ty: crate::__contract_spec::ContractTypeView::Named(
+                    <Self as crate::__contract_spec::ContractTypeName>::NAME,
+                ),
+            };
+
+        const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = || 0usize;
+
+        fn __groundhog_spec_anchor() -> usize {
+            0
+        }
+    }
+
+    #[doc(hidden)]
+    #[allow(non_upper_case_globals)]
+    pub const __groundhog_spec_fragment_FaultString:
+        crate::__contract_spec::SpecFragmentView<'static> =
+        crate::__contract_spec::SpecFragmentView::TypeDef(
+            <FaultString as crate::__contract_spec::ContractTypeSpec>::TYPE_DEF,
+        );
 }
 
 #[cfg(any(test, not(feature = "debugging")))]
