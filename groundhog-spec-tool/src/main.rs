@@ -79,7 +79,7 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
 
 fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     use groundhog_spec_tool::describe::{
-        OutputFormat, REGISTRY, build_spec, lookup, write_output,
+        OutputFormat, REGISTRY, build_describe, lookup, write_output,
     };
 
     let mut list = false;
@@ -150,7 +150,7 @@ fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     let type_name =
         type_name.ok_or(CliError::Usage("expected type name or --list"))?;
     let ty = lookup(&type_name).ok_or(CliError::Usage("unknown type name"))?;
-    let spec = build_spec(ty)?;
+    let spec = build_describe(ty)?;
     let format = format.unwrap_or(OutputFormat::Json);
 
     match output_path {

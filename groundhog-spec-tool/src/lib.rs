@@ -628,7 +628,7 @@ fn field_to_json(field: &ContractField) -> serde_json::Value {
     })
 }
 
-fn type_to_json(ty: &ContractType) -> serde_json::Value {
+pub fn type_to_json(ty: &ContractType) -> serde_json::Value {
     use serde_json::json;
     match ty {
         ContractType::Void => json!({"kind": "void"}),
@@ -664,7 +664,7 @@ fn type_to_json(ty: &ContractType) -> serde_json::Value {
     }
 }
 
-fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
+pub fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
     use serde_json::json;
     match type_def {
         ContractTypeDef::TypeDefStruct { struct_def } => json!({

@@ -1,7 +1,7 @@
 use groundhog_contract_spec::{
-    ContractSpec, ContractType, ContractTypeDef, ContractUnionCaseType,
+    ContractType, ContractTypeDef, ContractUnionCaseType,
 };
-use groundhog_spec_tool::describe::{REGISTRY, build_spec};
+use groundhog_spec_tool::describe::{DescribeOutput, REGISTRY, build_describe};
 use std::{collections::BTreeSet, process::Command};
 use tempfile::tempdir;
 
@@ -22,9 +22,10 @@ fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
     }
 }
 
-fn collect_named_refs(spec: &ContractSpec) -> BTreeSet<String> {
+fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<String> {
     let mut refs = BTreeSet::new();
-    for type_def in spec.type_defs.iter() {
+    walk_type(&output.exception.ty, &mut refs);
+    for type_def in &output.type_defs {
         match type_def {
             ContractTypeDef::TypeDefStruct { struct_def } => {
                 for field in struct_def.fields.iter() {
@@ -57,8 +58,9 @@ fn collect_named_refs(spec: &ContractSpec) -> BTreeSet<String> {
     refs
 }
 
-fn defined_names(spec: &ContractSpec) -> BTreeSet<String> {
-    spec.type_defs
+fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
+    output
+        .type_defs
         .iter()
         .map(|td| {
             let name = match td {
@@ -77,11 +79,11 @@ fn defined_names(spec: &ContractSpec) -> BTreeSet<String> {
 #[test]
 fn every_registered_type_has_complete_closure() {
     for entry in REGISTRY {
-        let spec = build_spec(entry).unwrap_or_else(|e| {
-            panic!("build_spec failed for {}: {e:?}", entry.name)
+        let output = build_describe(entry).unwrap_or_else(|e| {
+            panic!("build_describe failed for {}: {e:?}", entry.name)
         });
-        let refs = collect_named_refs(&spec);
-        let defined = defined_names(&spec);
+        let refs = collect_named_refs(&output);
+        let defined = defined_names(&output);
         let missing: Vec<_> = refs.difference(&defined).cloned().collect();
         assert!(
             missing.is_empty(),
@@ -93,14 +95,30 @@ fn every_registered_type_has_complete_closure() {
 }
 
 #[test]
+fn library_exn_has_nonzero_selector() {
+    let output = build_describe(
+        groundhog_spec_tool::describe::lookup("LibraryExn")
+            .expect("LibraryExn registered"),
+    )
+    .expect("build_describe");
+    assert_ne!(output.exception.selector, 0);
+}
+
+#[test]
 fn library_exn_json_snapshot() {
     let ty = groundhog_spec_tool::describe::lookup("LibraryExn")
         .expect("LibraryExn registered");
-    let spec = build_spec(ty).expect("build_spec");
-    let actual = groundhog_spec_tool::render_spec_json(&spec);
+    let output = build_describe(ty).expect("build_describe");
+    let mut buf = Vec::new();
+    groundhog_spec_tool::describe::write_output(
+        &output,
+        groundhog_spec_tool::describe::OutputFormat::Json,
+        &mut buf,
+    )
+    .expect("write_output");
+    let actual = String::from_utf8(buf).expect("valid utf8");
+    let actual = actual.trim_end();
 
-    // If this test fails, the spec output changed. If intentional, regenerate:
-    //   cargo run -p groundhog-spec-tool -- describe LibraryExn --json
     let expected = include_str!("snapshots/library_exn.json").trim_end();
     assert_eq!(actual, expected, "JSON snapshot drift");
 }
