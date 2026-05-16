@@ -40,7 +40,11 @@ pub fn build_spec(
         .iter()
         .map(|view| SpecFragment::from(*view))
         .collect();
-    let root: ContractSpecString = ty.root.as_bytes().try_into().unwrap();
+    let root: ContractSpecString = ty
+        .root
+        .as_bytes()
+        .try_into()
+        .expect("registered describe root must fit in ContractSpecString");
     canonicalize_type_defs(&fragments, &[root])
 }
 

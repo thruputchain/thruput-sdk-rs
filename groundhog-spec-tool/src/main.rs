@@ -131,6 +131,16 @@ fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
                 "--list is mutually exclusive with a type name",
             ));
         }
+        if format.is_some() {
+            return Err(CliError::Usage(
+                "--list is mutually exclusive with --json and --xdr",
+            ));
+        }
+        if output_path.is_some() {
+            return Err(CliError::Usage(
+                "--list is mutually exclusive with -o",
+            ));
+        }
         for entry in REGISTRY {
             println!("{}", entry.name);
         }

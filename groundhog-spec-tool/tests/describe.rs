@@ -2,7 +2,8 @@ use groundhog_contract_spec::{
     ContractSpec, ContractType, ContractTypeDef, ContractUnionCaseType,
 };
 use groundhog_spec_tool::describe::{REGISTRY, build_spec};
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, process::Command};
+use tempfile::tempdir;
 
 fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
     match ty {
@@ -102,4 +103,35 @@ fn library_exn_json_snapshot() {
     //   cargo run -p groundhog-spec-tool -- describe LibraryExn --json
     let expected = include_str!("snapshots/library_exn.json").trim_end();
     assert_eq!(actual, expected, "JSON snapshot drift");
+}
+
+#[test]
+fn describe_list_rejects_output_flags() {
+    let tempdir = tempdir().unwrap();
+    let out_path = tempdir.path().join("types.xdr");
+    let cases = [
+        vec!["describe", "--list", "--json"],
+        vec!["describe", "--list", "--xdr"],
+        vec!["describe", "--list", "-o", out_path.to_str().unwrap()],
+    ];
+
+    for args in cases {
+        let output = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
+            .args(&args)
+            .output()
+            .unwrap();
+
+        assert!(
+            !output.status.success(),
+            "expected {:?} to fail, stdout={:?}",
+            args,
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("--list"),
+            "stderr for {:?}: {:?}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }
