@@ -1433,7 +1433,6 @@ version = "0.14.2"
 dependencies = [
  "bitset-core",
  "groundhog-contract-spec",
- "groundhog-contract-util",
  "groundhog-event",
  "groundhog-macros",
  "groundhog-native-exec",
