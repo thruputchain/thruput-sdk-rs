@@ -78,12 +78,6 @@ pub fn generate(
     let throws_list = contract.throws_list();
     let error_enum = generate_error_enum(&client_ident, &throws_list);
 
-    let define_spec_fn = if cfg!(feature = "spec") {
-        generate_spec_fn(&contract, config)?
-    } else {
-        quote! {}
-    };
-
     let method_stubs = contract
         .methods_sorted()
         .into_iter()
@@ -96,8 +90,6 @@ pub fn generate(
     let try_invoke_helper_ident = client_try_invoke_helper_ident();
 
     let client = quote! {
-
-        #define_spec_fn
 
         #error_enum
 
@@ -155,42 +147,6 @@ pub fn generate(
     };
 
     Ok(client)
-}
-
-fn generate_spec_fn(
-    contract: &impl ContractSrc,
-    _config: &Config,
-) -> Result<TokenStream> {
-    let client_ident = contract.client_ident().ok_or_else(|| {
-        error(
-            &contract.span(),
-            "contract client identifier could not be auto-derived \
-                 (self type is not a simple path); \
-                 provide 'client = ClientName' attribute",
-        )
-    })?;
-
-    #[allow(unused)]
-    let spec_fn = format_ident!(
-        "{}_spec",
-        contract.interface_name().unwrap_or("contract".into())
-    );
-    let spec = super::spec::contract_repr(contract)?;
-
-    Ok(quote! {
-        #[cfg(feature = "spec")] // contract-macro-user must define feature "spec"
-        pub fn #spec_fn() -> ::sdk::spec::Contract {
-
-            #spec
-        }
-
-        #[cfg(feature = "spec")]
-        impl ::sdk::spec::HasContractSpec for #client_ident {
-            fn contract_spec() -> ::sdk::spec::Contract {
-                #spec_fn()
-            }
-        }
-    })
 }
 
 fn generate_client_fn(

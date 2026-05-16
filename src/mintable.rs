@@ -139,6 +139,7 @@ impl_mintable_type_leaf!(
     crate::types::SHA256Hash,
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,
+    crate::types::BlockHeight,
 );
 
 impl<const MAX: u32> MintableType for BytesM<MAX> {
@@ -206,6 +207,7 @@ impl_mintable_leaf!(
     crate::types::SHA256Hash,
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,
+    crate::types::BlockHeight,
 );
 
 impl<const MAX: u32> Mintable for BytesM<MAX> {

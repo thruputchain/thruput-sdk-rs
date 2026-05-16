@@ -16,5 +16,4 @@ test = false
 [features]
 entrypoints = []
 dev = ["sdk/dev"]
-spec = ["sdk/spec", "std"]
 std = ["sdk/std"]
