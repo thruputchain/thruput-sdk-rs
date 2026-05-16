@@ -1,5 +1,5 @@
 use groundhog_contract_spec::{ContractTypeRefSpec, view::ContractTypeView};
-use groundhog_xdr::{SyscallNo, syscalls::SysErr};
+use groundhog_xdr::{SyscallNo, syserr::SysErr};
 
 #[test]
 fn syscallno_refspec_is_u64() {

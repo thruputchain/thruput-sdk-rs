@@ -1,14 +1,12 @@
 use groundhog_xdr::{
     SyscallNo,
     contract::ContractEntrypointID,
+    syserr::SysErr,
     types::{
         BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
         SHA256Hash,
     },
 };
-
-#[cfg(feature = "syscalls")]
-use groundhog_xdr::syscalls::SysErr;
 
 use crate::{ContractTypeInfo, ContractTypeRefSpec, view};
 
@@ -66,7 +64,6 @@ impl ContractTypeRefSpec for SyscallNo {
     };
 }
 
-#[cfg(feature = "syscalls")]
 impl ContractTypeRefSpec for SysErr {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I32,

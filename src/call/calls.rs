@@ -86,7 +86,7 @@ where
         }
         Err(syserr) => {
             return Err(RawCallError::Fault(FaultString::from_display(
-                syserr,
+                format_args!("{syserr:?}"),
             )));
         }
     };
@@ -151,7 +151,7 @@ fn fill_return_buf(
         auth_token_id_list_bytes,
         &mut auth_token_id_list_written_mu,
     )
-    .map_err(FaultString::from_display)?;
+    .map_err(|syserr| FaultString::from_display(format_args!("{syserr:?}")))?;
 
     let written = unsafe { written_mu.assume_init() };
 

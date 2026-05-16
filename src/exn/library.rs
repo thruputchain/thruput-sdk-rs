@@ -176,7 +176,7 @@ impl SyscallExn {
 
 impl Display for SyscallExn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Syscall {:?} failed with {}", self.callno, self.errno)
+        write!(f, "Syscall {:?} failed with {:?}", self.callno, self.errno)
     }
 }
 

@@ -1,5 +1,5 @@
 use groundhog_xdr::SyscallNo;
-use groundhog_xdr::syscalls::SysErr;
+use groundhog_xdr::syserr::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
 

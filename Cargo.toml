@@ -65,7 +65,7 @@ doctest = true
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
 groundhog-macros = { workspace = true }
-groundhog-contract-spec = { workspace = true, features = ["syscalls"] }
+groundhog-contract-spec = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
 
@@ -120,10 +120,10 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 # External dependencies
-groundhog-spec = { registry = "groundhog", version = "=0.13.3", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "=0.13.3" }
-groundhog-xdr = { registry = "groundhog", version = "=0.13.3", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "=0.13.3" }
+groundhog-spec = { registry = "groundhog", version = "=0.13.6", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "=0.13.6" }
+groundhog-xdr = { registry = "groundhog", version = "=0.13.6", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "=0.13.6" }
 groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }
