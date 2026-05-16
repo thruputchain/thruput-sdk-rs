@@ -1,12 +1,9 @@
-use crate::{SpecToolError, canonicalize_type_defs};
 use groundhog_contract_spec::{
-    ContractExceptionType, ContractSpecString, ContractType, ContractTypeDef,
-    SpecFragment, SpecFragmentView,
+    ContractExceptionType, ContractType, ContractTypeDef, SpecFragmentView,
 };
 use std::io::{self, Write};
 use xdrs::txs;
 
-/// A named SDK-shared exception type that `describe` can emit.
 pub struct DescribableType {
     pub name: &'static str,
     pub selector: u64,
@@ -40,30 +37,28 @@ pub struct DescribeOutput {
     pub type_defs: Vec<ContractTypeDef>,
 }
 
-pub fn build_describe(
-    ty: &DescribableType,
-) -> Result<DescribeOutput, SpecToolError> {
-    let fragments: Vec<SpecFragment> = ty
+pub fn build_describe(ty: &DescribableType) -> DescribeOutput {
+    let type_defs: Vec<ContractTypeDef> = ty
         .fragments
         .iter()
-        .map(|view| SpecFragment::from(*view))
+        .filter_map(|frag| match frag {
+            SpecFragmentView::TypeDef(def)
+            | SpecFragmentView::ExportedTypeDef(def) => {
+                Some(ContractTypeDef::from(*def))
+            }
+            _ => None,
+        })
         .collect();
-    let root: ContractSpecString = ty
-        .root
-        .as_bytes()
-        .try_into()
-        .expect("registered describe root must fit in ContractSpecString");
-    let spec = canonicalize_type_defs(&fragments, &[root.clone()])?;
 
-    let exception = ContractExceptionType {
-        selector: ty.selector,
-        ty: ContractType::Named { named: root },
-    };
-
-    Ok(DescribeOutput {
-        exception,
-        type_defs: spec.type_defs.into(),
-    })
+    DescribeOutput {
+        exception: ContractExceptionType {
+            selector: ty.selector,
+            ty: ContractType::Named {
+                named: ty.root.as_bytes().try_into().unwrap(),
+            },
+        },
+        type_defs,
+    }
 }
 
 pub enum OutputFormat {

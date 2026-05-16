@@ -150,7 +150,7 @@ fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     let type_name =
         type_name.ok_or(CliError::Usage("expected type name or --list"))?;
     let ty = lookup(&type_name).ok_or(CliError::Usage("unknown type name"))?;
-    let spec = build_describe(ty)?;
+    let spec = build_describe(ty);
     let format = format.unwrap_or(OutputFormat::Json);
 
     match output_path {

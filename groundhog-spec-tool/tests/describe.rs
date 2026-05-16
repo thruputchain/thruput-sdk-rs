@@ -81,9 +81,7 @@ fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
 #[test]
 fn every_registered_type_has_complete_closure() {
     for entry in REGISTRY {
-        let output = build_describe(entry).unwrap_or_else(|e| {
-            panic!("build_describe failed for {}: {e:?}", entry.name)
-        });
+        let output = build_describe(entry);
         let refs = collect_named_refs(&output);
         let defined = defined_names(&output);
         let missing: Vec<_> = refs.difference(&defined).cloned().collect();
@@ -101,8 +99,7 @@ fn library_exn_has_nonzero_selector() {
     let output = build_describe(
         groundhog_spec_tool::describe::lookup("LibraryExn")
             .expect("LibraryExn registered"),
-    )
-    .expect("build_describe");
+    );
     assert_ne!(output.exception.selector, 0);
 }
 
@@ -110,7 +107,7 @@ fn library_exn_has_nonzero_selector() {
 fn library_exn_json_snapshot() {
     let ty = groundhog_spec_tool::describe::lookup("LibraryExn")
         .expect("LibraryExn registered");
-    let output = build_describe(ty).expect("build_describe");
+    let output = build_describe(ty);
     let mut buf = Vec::new();
     groundhog_spec_tool::describe::write_output(
         &output,
