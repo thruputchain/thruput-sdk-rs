@@ -65,7 +65,7 @@ doctest = true
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
 groundhog-macros = { workspace = true }
-groundhog-contract-spec = { workspace = true }
+groundhog-contract-spec = { workspace = true, features = ["syscalls"] }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
 
@@ -92,13 +92,13 @@ trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [workspace.dependencies]
-sdk = { path = "." }
+sdk = { path = ".", registry = "groundhog", version = "=0.14.2" }
 # Dependencies from this repository
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
     # workspace package version is updated prior to a new release.
 groundhog-contract-util = { path = "contract-util" , registry = "groundhog", version = "=0.14.2" }
-groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.14.2", default-features = false, features = ["syscalls"] }
+groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.14.2", default-features = false }
 groundhog-native-exec = { path = "native_exec" , registry = "groundhog", version = "=0.14.2" }
 groundhog-macros = { path = "macros" , registry = "groundhog", version = "=0.14.2" }
 groundhog-sys = { path = "groundhog-sys" , registry = "groundhog", version = "=0.14.2" }

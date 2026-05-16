@@ -19,13 +19,16 @@ default = ["owned-model"]
 alloc = ["xdrs/alloc"]
 owned-model = ["alloc", "dep:groundhog-spec"]
 serde = ["owned-model", "groundhog-spec/serde"]
-syscalls = ["groundhog-xdr/syscalls_mock"]
+syscalls = []
 
 [dependencies]
 groundhog-xdr = { workspace = true }
 groundhog-spec = { workspace = true, optional = true }
 xdrs = { workspace = true, features = ["heapless", "derive"] }
 xdr-common = { workspace = true }
+
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
 
 [[test]]
 name = "groundhog_xdr_refspec"
