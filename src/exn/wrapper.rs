@@ -1,9 +1,9 @@
+use crate::ContractTypeSpec;
 use crate::exn::fault::*;
 use crate::xdr::*;
 use core::fmt::Debug;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
-use crate::ContractTypeSpec;
 
 // TODO: Maybe make the fault-strings into Error sources,
 // and figure out how to Display them at the right times.

@@ -27,8 +27,12 @@ fn run() -> Result<(), CliError> {
     match args.next().as_deref() {
         Some("rewrite") => run_rewrite(args),
         Some("describe") => run_describe(args),
-        Some(_) => Err(CliError::Usage("expected subcommand 'rewrite' or 'describe'")),
-        None => Err(CliError::Usage("expected subcommand 'rewrite' or 'describe'")),
+        Some(_) => Err(CliError::Usage(
+            "expected subcommand 'rewrite' or 'describe'",
+        )),
+        None => Err(CliError::Usage(
+            "expected subcommand 'rewrite' or 'describe'",
+        )),
     }
 }
 
@@ -75,7 +79,7 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
 
 fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     use groundhog_spec_tool::describe::{
-        build_spec, lookup, write_output, OutputFormat, REGISTRY,
+        OutputFormat, REGISTRY, build_spec, lookup, write_output,
     };
 
     let mut list = false;
@@ -133,10 +137,9 @@ fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
         return Ok(());
     }
 
-    let type_name = type_name
-        .ok_or(CliError::Usage("expected type name or --list"))?;
-    let ty = lookup(&type_name)
-        .ok_or(CliError::Usage("unknown type name"))?;
+    let type_name =
+        type_name.ok_or(CliError::Usage("expected type name or --list"))?;
+    let ty = lookup(&type_name).ok_or(CliError::Usage("unknown type name"))?;
     let spec = build_spec(ty)?;
     let format = format.unwrap_or(OutputFormat::Json);
 

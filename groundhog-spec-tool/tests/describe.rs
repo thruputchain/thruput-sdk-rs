@@ -1,7 +1,7 @@
 use groundhog_contract_spec::{
     ContractSpec, ContractType, ContractTypeDef, ContractUnionCaseType,
 };
-use groundhog_spec_tool::describe::{build_spec, REGISTRY};
+use groundhog_spec_tool::describe::{REGISTRY, build_spec};
 use std::collections::BTreeSet;
 
 fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
@@ -61,7 +61,9 @@ fn defined_names(spec: &ContractSpec) -> BTreeSet<String> {
         .iter()
         .map(|td| {
             let name = match td {
-                ContractTypeDef::TypeDefStruct { struct_def } => &struct_def.name,
+                ContractTypeDef::TypeDefStruct { struct_def } => {
+                    &struct_def.name
+                }
                 ContractTypeDef::TypeDefEnum { enum_def } => &enum_def.name,
                 ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
                 _ => panic!("unknown ContractTypeDef variant"),
@@ -74,8 +76,9 @@ fn defined_names(spec: &ContractSpec) -> BTreeSet<String> {
 #[test]
 fn every_registered_type_has_complete_closure() {
     for entry in REGISTRY {
-        let spec = build_spec(entry)
-            .unwrap_or_else(|e| panic!("build_spec failed for {}: {e:?}", entry.name));
+        let spec = build_spec(entry).unwrap_or_else(|e| {
+            panic!("build_spec failed for {}: {e:?}", entry.name)
+        });
         let refs = collect_named_refs(&spec);
         let defined = defined_names(&spec);
         let missing: Vec<_> = refs.difference(&defined).cloned().collect();

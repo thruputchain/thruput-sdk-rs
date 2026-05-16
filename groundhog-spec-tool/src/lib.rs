@@ -593,7 +593,6 @@ fn type_def_symbol(type_def: &ContractTypeDef) -> &ContractSpecString {
     }
 }
 
-
 fn interface_key_string(name: &str, version: &str) -> String {
     format!("{name}@{version}")
 }

@@ -1,6 +1,4 @@
-use groundhog_contract_spec::{
-    ContractTypeRefSpec, view::ContractTypeView,
-};
+use groundhog_contract_spec::{ContractTypeRefSpec, view::ContractTypeView};
 use groundhog_xdr::{SyscallNo, syscalls::SysErr};
 
 #[test]

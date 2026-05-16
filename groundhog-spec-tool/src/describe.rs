@@ -1,6 +1,4 @@
-use crate::{
-    canonicalize_type_defs, render_spec_json, SpecToolError,
-};
+use crate::{SpecToolError, canonicalize_type_defs, render_spec_json};
 use groundhog_contract_spec::{
     ContractSpec, ContractSpecString, SpecFragment, SpecFragmentView,
 };
@@ -34,7 +32,9 @@ pub fn lookup(name: &str) -> Option<&'static DescribableType> {
     REGISTRY.iter().find(|t| t.name == name)
 }
 
-pub fn build_spec(ty: &DescribableType) -> Result<ContractSpec, SpecToolError> {
+pub fn build_spec(
+    ty: &DescribableType,
+) -> Result<ContractSpec, SpecToolError> {
     let fragments: Vec<SpecFragment> = ty
         .fragments
         .iter()
