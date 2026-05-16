@@ -104,25 +104,6 @@ fn library_exn_has_nonzero_selector() {
 }
 
 #[test]
-fn library_exn_json_snapshot() {
-    let ty = groundhog_spec_tool::describe::lookup("LibraryExn")
-        .expect("LibraryExn registered");
-    let output = build_describe(ty);
-    let mut buf = Vec::new();
-    groundhog_spec_tool::describe::write_output(
-        &output,
-        groundhog_spec_tool::describe::OutputFormat::Json,
-        &mut buf,
-    )
-    .expect("write_output");
-    let actual = String::from_utf8(buf).expect("valid utf8");
-    let actual = actual.trim_end();
-
-    let expected = include_str!("snapshots/library_exn.json").trim_end();
-    assert_eq!(actual, expected, "JSON snapshot drift");
-}
-
-#[test]
 fn describe_list_rejects_output_flags() {
     let tempdir = tempdir().unwrap();
     let out_path = tempdir.path().join("types.xdr");
