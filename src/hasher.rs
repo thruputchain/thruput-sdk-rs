@@ -48,7 +48,9 @@ impl Hasher {
         self.needs_reset = false;
 
         crate::sys::raw_SHA256Update(index, input.as_ref(), reset)
-            .unwrap_or_else(|e| panic!("SHA256Update: syscall failed: {:?}", e));
+            .unwrap_or_else(|e| {
+                panic!("SHA256Update: syscall failed: {:?}", e)
+            });
     }
 
     /// Consume the hasher and return the SHA256 hash of the prior input.

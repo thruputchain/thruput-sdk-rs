@@ -57,9 +57,7 @@ pub fn build_describe(
 
     let exception = ContractExceptionType {
         selector: ty.selector,
-        ty: ContractType::Named {
-            named: root,
-        },
+        ty: ContractType::Named { named: root },
     };
 
     Ok(DescribeOutput {
@@ -95,10 +93,12 @@ pub fn write_output<W: Write>(
             sink.write_all(b"\n")?;
         }
         OutputFormat::Xdr => {
-            let mut bytes = txs::encode(&output.exception)
-                .map_err(|e| io::Error::other(format!("xdr encode exception: {e}")))?;
-            let defs_bytes = txs::encode(&output.type_defs)
-                .map_err(|e| io::Error::other(format!("xdr encode type_defs: {e}")))?;
+            let mut bytes = txs::encode(&output.exception).map_err(|e| {
+                io::Error::other(format!("xdr encode exception: {e}"))
+            })?;
+            let defs_bytes = txs::encode(&output.type_defs).map_err(|e| {
+                io::Error::other(format!("xdr encode type_defs: {e}"))
+            })?;
             bytes.extend_from_slice(&defs_bytes);
             sink.write_all(&bytes)?;
         }

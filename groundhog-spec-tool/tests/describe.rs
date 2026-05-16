@@ -1,7 +1,9 @@
 use groundhog_contract_spec::{
     ContractType, ContractTypeDef, ContractUnionCaseType,
 };
-use groundhog_spec_tool::describe::{DescribeOutput, REGISTRY, build_describe};
+use groundhog_spec_tool::describe::{
+    DescribeOutput, REGISTRY, build_describe,
+};
 use std::{collections::BTreeSet, process::Command};
 use tempfile::tempdir;
 
