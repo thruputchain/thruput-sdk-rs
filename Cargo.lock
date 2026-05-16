@@ -702,6 +702,7 @@ name = "groundhog-spec-tool"
 version = "0.14.2"
 dependencies = [
  "groundhog-contract-spec",
+ "sdk",
  "serde_json",
  "tempfile",
  "thiserror",
