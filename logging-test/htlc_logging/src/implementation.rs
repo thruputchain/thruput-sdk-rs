@@ -5,11 +5,11 @@ use sdk::storage::{Map, Value};
 
 #[contracttype]
 struct HTLCEntry {
-    sender: ContractAddress,
-    receiver: ContractAddress,
-    token: ContractAddress,
-    amount: i128,
-    expiration_height: BlockHeight,
+    pub sender: ContractAddress,
+    pub receiver: ContractAddress,
+    pub token: ContractAddress,
+    pub amount: i128,
+    pub expiration_height: BlockHeight,
 }
 
 #[storage]
