@@ -14,7 +14,7 @@ dev = ["sdk/dev", "dep:thiserror"]
 storage = ["sdk/storage"]
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.2" }
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.3" }
 thiserror = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 
@@ -22,7 +22,7 @@ groundhog-xdr = { workspace = true }
 groundhog-erc20-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.2", features = ["std"] }
+sdk = { path = "../..", registry = "groundhog", version = "=0.14.3", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
