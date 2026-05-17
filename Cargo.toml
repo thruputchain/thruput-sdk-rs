@@ -92,7 +92,7 @@ trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [workspace.dependencies]
-sdk = { path = "." }
+sdk = { path = ".", registry = "groundhog", version = "=0.14.2" }
 # Dependencies from this repository
     # These version numbers need to match the overall workspace package
     # version, and must unfortunately be updated manually whenever the
@@ -120,10 +120,10 @@ erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 
 # External dependencies
-groundhog-spec = { registry = "groundhog", version = "=0.13.3", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "=0.13.3" }
-groundhog-xdr = { registry = "groundhog", version = "=0.13.3", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "=0.13.3" }
+groundhog-spec = { registry = "groundhog", version = "=0.13.6", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "=0.13.6" }
+groundhog-xdr = { registry = "groundhog", version = "=0.13.6", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "=0.13.6" }
 groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
 thiserror = { version = "2.0.12", default-features = false }
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }

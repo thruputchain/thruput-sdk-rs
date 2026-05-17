@@ -4,24 +4,27 @@ use crate::xdr::*;
 #[cfg(feature = "debugging")]
 use thiserror::Error;
 
+use crate::ContractTypeSpec;
+
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
+#[derive(ContractTypeSpec)]
 #[repr(i32)]
 pub enum StorageError {
     #[cfg_attr(feature = "debugging", error(transparent))]
-    Sys { exn: SyscallExn },
+    Sys { exn: SyscallExn } = 0,
 
     #[cfg_attr(
         feature = "debugging",
         error("Storage error due to serialization")
     )]
-    Serialization,
+    Serialization = 1,
 
     #[cfg_attr(
         feature = "debugging",
         error("Vector index out of bounds: len={len}, access={access}")
     )]
-    IndexOutOfBounds { len: u64, access: u64 },
+    IndexOutOfBounds { len: u64, access: u64 } = 2,
 }
 
 impl StorageError {
@@ -54,4 +57,8 @@ pub fn storage_syserr(e: SysErr) -> StorageError {
     StorageError::Sys {
         exn: SyscallExn::new(SyscallNo::kBytestringGet, e),
     }
+}
+
+impl crate::__contract_spec::ContractTypeName for StorageError {
+    const NAME: &'static str = "StorageError";
 }

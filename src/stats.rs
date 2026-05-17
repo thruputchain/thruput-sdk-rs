@@ -8,7 +8,7 @@ pub fn gas_remaining() -> GasAmount {
         TransactionStatistic::GasRemaining,
         &mut n,
     )
-    .unwrap_or_else(|e| panic!("GetTransactionStatistics failed: {}", e));
+    .unwrap_or_else(|e| panic!("GetTransactionStatistics failed: {:?}", e));
 
     n
 }

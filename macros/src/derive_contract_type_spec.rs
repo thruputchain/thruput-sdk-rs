@@ -114,7 +114,7 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
 
     quote! {
         #[doc(hidden)]
-        const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
+        pub const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
             #fragment_variant;
 
         #[doc(hidden)]

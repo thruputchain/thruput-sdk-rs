@@ -1,5 +1,6 @@
 use super::fault::*;
 use super::{AuthTokenError, CallingError, HandlingError};
+use crate::ContractTypeSpec;
 use crate::call::RawCallError;
 #[cfg(feature = "storage")]
 use crate::storage::*;
@@ -14,40 +15,41 @@ use thiserror::Error;
 ///
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
+#[derive(ContractTypeSpec)]
 #[groundhog_macros::exn(version = "1.0.0")]
 #[repr(i32)]
 #[non_exhaustive]
 pub enum LibraryExn {
     #[cfg_attr(feature = "debugging", error(transparent))]
-    Syscall(SyscallExn),
+    Syscall(SyscallExn) = 0,
 
     #[cfg_attr(feature = "debugging", error("Handling a contract call: {0}"))]
-    Handling(HandlingError),
+    Handling(HandlingError) = 1,
 
     #[cfg_attr(feature = "debugging", error("Making a contract call: {0}"))]
-    Calling(CallingError),
+    Calling(CallingError) = 2,
 
     #[cfg_attr(feature = "debugging", error("Called contract reverted: {0}"))]
-    Called(#[cfg_attr(feature = "debugging", source)] FaultString),
+    Called(#[cfg_attr(feature = "debugging", source)] FaultString) = 3,
 
     #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
-    AuthToken(AuthTokenError),
+    AuthToken(AuthTokenError) = 4,
 
     #[cfg_attr(
         feature = "debugging",
         error("bytestring_get_sized: expected {expected}, found {found}")
     )]
-    BytestringWrongSize { expected: u32, found: u32 },
+    BytestringWrongSize { expected: u32, found: u32 } = 5,
 
     #[cfg_attr(feature = "debugging", error("non-negative int went negative"))]
-    NonNegativeIntUnderflow,
+    NonNegativeIntUnderflow = 6,
 
     #[cfg_attr(feature = "debugging", error("non-negative int overflow"))]
-    NonNegativeIntOverflow,
+    NonNegativeIntOverflow = 7,
 
     #[cfg(feature = "storage")]
     #[cfg_attr(feature = "debugging", error("Storage error: {0}"))]
-    Storage(StorageError),
+    Storage(StorageError) = 8,
 }
 
 impl From<HandlingError> for LibraryExn {
@@ -83,6 +85,10 @@ impl LibraryExn {
             None
         }
     }
+}
+
+impl crate::__contract_spec::ContractTypeName for LibraryExn {
+    const NAME: &'static str = "LibraryExn";
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
@@ -144,6 +150,7 @@ pub fn encoding_event_throw<E: Display>(e: E) -> ! {
 
 #[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
 #[cfg_attr(feature = "debugging", derive(Error))]
+#[derive(ContractTypeSpec)]
 pub struct SyscallExn {
     callno: SyscallNo,
     errno: SysErr,
@@ -169,8 +176,12 @@ impl SyscallExn {
 
 impl Display for SyscallExn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Syscall {:?} failed with {}", self.callno, self.errno)
+        write!(f, "Syscall {:?} failed with {:?}", self.callno, self.errno)
     }
+}
+
+impl crate::__contract_spec::ContractTypeName for SyscallExn {
+    const NAME: &'static str = "SyscallExn";
 }
 
 #[cfg(test)]
