@@ -10,12 +10,12 @@ env:
     groundhog-storage-cost
     groundhog-contract-util
     groundhog-contract-spec
-    groundhog-spec-tool
     groundhog-sys
     groundhog-native-exec
     groundhog-macros
     groundhog-test-vectors
     sdk
+    groundhog-spec-tool
 
 jobs:
   publish:

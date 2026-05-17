@@ -46,7 +46,7 @@ Run `cargo update --workspace` against each workspace's manifest:
 cargo update --workspace                                                  # root
 cargo update --manifest-path example-contracts/Cargo.toml --workspace
 cargo update --manifest-path integration_test/Cargo.toml --workspace
-cargo update --manifest-path logging_test/Cargo.toml --workspace
+cargo update --manifest-path logging-test/Cargo.toml --workspace
 ```
 
 If `cargo update` fails with `failed to select a version for the requirement` against an in-repo crate, you missed a pin — fix it before re-running. The error names the offending crate.
