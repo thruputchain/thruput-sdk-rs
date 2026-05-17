@@ -230,7 +230,6 @@ pub fn canonicalize_spec(
     })
 }
 
-
 /// Serializes a [`ContractSpec`] to a JSON string using the serde-derived
 /// representation.  The output is guaranteed to round-trip through
 /// [`parse_spec_json`].
@@ -653,4 +652,3 @@ fn union_case_type_to_json(
         _ => panic!("unknown ContractUnionCaseType variant"),
     }
 }
-

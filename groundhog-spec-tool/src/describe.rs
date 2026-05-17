@@ -54,11 +54,9 @@ pub fn build_describe(ty: &DescribableType) -> DescribeOutput {
         exception: ContractExceptionType {
             selector: ty.selector,
             ty: ContractType::Named {
-                named: ty
-                    .root
-                    .as_bytes()
-                    .try_into()
-                    .expect("registered describe root must fit in ContractSpecString"),
+                named: ty.root.as_bytes().try_into().expect(
+                    "registered describe root must fit in ContractSpecString",
+                ),
             },
         },
         type_defs,
