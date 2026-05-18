@@ -23,7 +23,6 @@ jobs:
         crate:
           - groundhog-erc20-if
           - groundhog-erc1271-if
-          - bottle-test-if
           - groundhog-erc20-metadata-if
 
     steps:
@@ -60,7 +59,7 @@ jobs:
         uses: ./actions/cargo-publish-dry-run
         with:
           packages: ${{ matrix.crate }}
-          vendor-workspace-deps: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec  groundhog-macros sdk
+          vendor-workspace-deps: groundhog-storage-cost groundhog-contract-util groundhog-sys groundhog-native-exec  groundhog-runtime-macros groundhog-runtime sdk
           cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features
           cargo-hack-wasm32-feature-options: --feature-powerset --skip dev
           cargo-hack-wasm32-packages: ${{ matrix.crate }}

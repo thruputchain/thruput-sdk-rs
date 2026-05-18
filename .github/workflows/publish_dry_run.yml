@@ -12,8 +12,9 @@ env:
     groundhog-contract-spec
     groundhog-sys
     groundhog-native-exec
-    groundhog-macros
+    groundhog-runtime-macros
     groundhog-test-vectors
+    groundhog-runtime
     sdk
     groundhog-spec-tool
 
