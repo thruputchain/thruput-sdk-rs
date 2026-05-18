@@ -118,14 +118,14 @@ pub use xdr::*;
 pub use diagnostics::*;
 
 #[doc = include_str!("../doc/macro-contract.md")]
-pub use runtime_macros::contract;
+pub use groundhog_runtime_macros::contract;
 // These must be enumerated to avoid stomping on the above docstring
-pub use runtime_macros::ContractTypeSpec;
-pub use runtime_macros::Event;
-pub use runtime_macros::contract_exception;
-pub use runtime_macros::contracttype;
-pub use runtime_macros::exn;
-pub use runtime_macros::{
+pub use groundhog_runtime_macros::ContractTypeSpec;
+pub use groundhog_runtime_macros::Event;
+pub use groundhog_runtime_macros::contract_exception;
+pub use groundhog_runtime_macros::contracttype;
+pub use groundhog_runtime_macros::exn;
+pub use groundhog_runtime_macros::{
     hash_to_array, sha256_array_ident, sha256_ident, sha256_static, static_key,
 };
 
@@ -140,14 +140,14 @@ pub use alloc::{format, string::*, vec, vec::Vec};
 pub mod storage;
 
 #[cfg(feature = "storage")]
-pub use runtime_macros::Deletable;
+pub use groundhog_runtime_macros::Deletable;
 
 #[cfg(feature = "storage")]
-pub use runtime_macros::Storage;
+pub use groundhog_runtime_macros::Storage;
 
 #[cfg(feature = "storage")]
 #[doc = include_str!("../doc/macro-storage.md")]
-pub use runtime_macros::storage;
+pub use groundhog_runtime_macros::storage;
 
 // Mock contract execution environment
 

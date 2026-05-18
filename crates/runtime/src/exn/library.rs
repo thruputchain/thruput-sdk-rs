@@ -16,7 +16,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[derive(ContractTypeSpec)]
-#[runtime_macros::exn(version = "1.0.0")]
+#[groundhog_runtime_macros::exn(version = "1.0.0")]
 #[repr(i32)]
 #[non_exhaustive]
 pub enum LibraryExn {

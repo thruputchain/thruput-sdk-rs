@@ -21,7 +21,7 @@ doctest = true
 
 [dependencies]
 # Groundhog dependencies
-runtime-macros = { workspace = true }
+groundhog-runtime-macros = { workspace = true }
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
 groundhog-contract-spec = { workspace = true }
@@ -56,7 +56,7 @@ version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
 
 # Include the structured-storage module
-storage = ["alloc", "runtime-macros/storage"]
+storage = ["alloc", "groundhog-runtime-macros/storage"]
 
 # Include interfaces requiring std
 std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
@@ -75,7 +75,7 @@ mock = [
     "dep:groundhog-native-exec",
     "dep:groundhog-wasm-meter",
     "dep:groundhog-storage-cost",
-    "runtime-macros/mock",
+    "groundhog-runtime-macros/mock",
     "groundhog-xdr/syscalls_mock",
     "dep:linkme",
 ]
@@ -85,7 +85,7 @@ debugging = []
 call_tracking = ["debugging"] # contract-call tracking
 
 # Optional diagnostic features (not enabled by "dev")
-logging = ["runtime-macros/logging", "alloc"] # trace contract calls when testing
+logging = ["groundhog-runtime-macros/logging", "alloc"] # trace contract calls when testing
 panic_logging = [] # send panic messages to the log() syscall
 
 # Generate specs

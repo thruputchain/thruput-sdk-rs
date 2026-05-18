@@ -455,7 +455,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-native-test"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -465,7 +465,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -696,7 +696,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-xdr",
  "semver",
@@ -734,7 +734,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -742,7 +742,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -758,21 +758,37 @@ dependencies = [
 
 [[package]]
 name = "groundhog-runtime"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "bitset-core",
  "groundhog-contract-spec",
  "groundhog-event",
  "groundhog-native-exec",
+ "groundhog-runtime-macros",
  "groundhog-storage-cost",
  "groundhog-wasm-meter",
  "groundhog-xdr",
  "heapless",
  "hogexec-internal",
  "linkme",
- "runtime-macros",
  "sha2 0.11.0",
  "thiserror",
+ "xdrs",
+]
+
+[[package]]
+name = "groundhog-runtime-macros"
+version = "0.14.6"
+dependencies = [
+ "darling",
+ "groundhog-contract-util",
+ "groundhog-xdr",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_yaml",
+ "sha2 0.11.0",
+ "syn",
  "xdrs",
 ]
 
@@ -797,7 +813,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -805,7 +821,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1754,22 +1770,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime-macros"
-version = "0.14.5"
-dependencies = [
- "darling",
- "groundhog-contract-util",
- "groundhog-xdr",
- "proc-macro2",
- "quote",
- "serde",
- "serde_yaml",
- "sha2 0.11.0",
- "syn",
- "xdrs",
-]
-
-[[package]]
 name = "rustc-hash"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "groundhog-runtime",
 ]

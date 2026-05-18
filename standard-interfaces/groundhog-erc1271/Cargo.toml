@@ -2,7 +2,7 @@
 name = "groundhog-erc1271-if"
 version = "0.1.0"
 edition.workspace = true
-publish = ["groundhog"]
+publish.workspace = true
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
 description = "ERC1271 standard interface for Groundhog smart contracts"

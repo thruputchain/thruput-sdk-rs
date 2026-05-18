@@ -10,7 +10,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.14.5"
+version = "0.14.6"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -20,42 +20,37 @@ keywords = ["groundhog"]
 categories = ["blockchain"]
 
 [workspace.dependencies]
-# Publishable dependencies from this repository
-    #
-    # These version numbers need to match the overall workspace package
-    # version, and must unfortunately be updated manually whenever the
-    # workspace package version is updated prior to a new release.
-    #
-    # Additionally, these configs for embedded workspaces need updating:
-    #    example-contracts/Cargo.toml
-    #    integration_test/contracts/Cargo.toml
-    #
-    # TODO: Do all of these need to be publishable, thus needing a registry and version?
-    #
-sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.14.5" }
-groundhog-runtime = { path = "crates/runtime", registry = "groundhog", version = "=0.14.5" }
-groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.14.5" }
-groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.14.5", default-features = false }
-groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.14.5" }
-groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.14.5" }
-groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.14.5" }
-groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.14.5" }
-groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.14.5" }
-groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.14.5" }
+# Groundhog crates from local repository
+#
+# These version numbers need to match the overall workspace package
+# version, and must unfortunately be updated manually whenever the
+# workspace package version is updated prior to a new release.
+#
+# Additionally, these configs for embedded workspaces need updating:
+#    example-contracts/Cargo.toml
+#    integration_test/contracts/Cargo.toml
+#
+sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.14.6" }
+groundhog-runtime = { path = "crates/runtime", registry = "groundhog", version = "=0.14.6" }
+groundhog-runtime-macros = { path = "crates/runtime-macros", registry = "groundhog", version = "=0.14.6" }
+groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.14.6" }
+groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.14.6", default-features = false }
+groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.14.6" }
+groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.14.6" }
+groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.14.6" }
+groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.14.6" }
+groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.14.6" }
+groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.14.6" }
 
 # Standard interfaces
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
 
-# Standard tests
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
-
-# Not-published crates
 bottle-test-if = { path = "crates/bottle-test-if" }
-runtime-macros = { path = "crates/runtime-macros" }
 
 # Deps from protocol-rs repo:
 groundhog-spec = { registry = "groundhog", version = "=0.13.6", default-features = false }

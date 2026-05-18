@@ -45,16 +45,15 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-# Published path dependencies
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.14.5" }
+sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.14.6" }
+
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.0" }
 
-# Other path dependencies
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog" }
 erc20-test = { path = "../standard-tests/erc20-test" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "../standard-tests/erc20-native-test" }
+bottle-test-if = { path = "../crates/bottle-test-if" }
 
 # External groundhog dependencies
 groundhog-xdr = { registry = "groundhog", version = "=0.13.6", features = ["xdrs", "syscalls"] }
