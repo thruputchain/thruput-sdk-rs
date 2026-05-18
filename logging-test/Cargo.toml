@@ -21,7 +21,7 @@ license = "Apache-2.0"
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "..", features = ["logging"] }
+sdk = { path = "../crates/sdk", features = ["logging"] }
 
 [profile.release]
 trim-paths = "all" # unstable

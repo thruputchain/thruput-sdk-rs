@@ -8,16 +8,15 @@ license = "MIT OR Apache-2.0"
 description = "ERC1271 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
-
 [features]
 dev = ["sdk/dev"]
 
 [dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.5" }
+sdk = { workspace = true }
 thiserror = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { path = "../..", registry = "groundhog", version = "=0.14.5", features = ["std"] }
+sdk = { workspace = true, features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

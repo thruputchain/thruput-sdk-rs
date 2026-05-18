@@ -31,7 +31,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "bare_impl_callee"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bare_impl_callee",
  "sdk",
@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "bare_impl_caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bare_impl_callee",
  "bare_impl_caller",
@@ -95,6 +95,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdd35008169921d80bc60d3d0ab416eecb028c4cd653352907921d95084790be"
+dependencies = [
+ "hybrid-array",
+]
+
+[[package]]
 name = "bottle-test-if"
 version = "0.1.0"
 dependencies = [
@@ -121,7 +130,7 @@ checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "caller",
  "erc20",
@@ -176,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "codegen_impl_client"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "codegen_impl_client",
  "sdk",
@@ -184,7 +193,7 @@ dependencies = [
 
 [[package]]
 name = "codegen_impl_noclient"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "codegen_impl_noclient",
  "sdk",
@@ -192,7 +201,7 @@ dependencies = [
 
 [[package]]
 name = "codegen_trait_client"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "codegen_trait_client",
  "sdk",
@@ -200,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "codegen_trait_noclient"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "codegen_trait_noclient",
  "sdk",
@@ -208,11 +217,17 @@ dependencies = [
 
 [[package]]
 name = "complex-storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "complex-storage",
  "sdk",
 ]
+
+[[package]]
+name = "const-oid"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "core-foundation"
@@ -242,7 +257,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counter"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "counter",
  "sdk",
@@ -253,6 +268,15 @@ name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "cpufeatures"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
 dependencies = [
  "libc",
 ]
@@ -280,6 +304,15 @@ checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "crypto-common"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77727bb15fa921304124b128af125e7e3b968275d1b108b379190264f4423710"
+dependencies = [
+ "hybrid-array",
 ]
 
 [[package]]
@@ -323,8 +356,19 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
- "block-buffer",
- "crypto-common",
+ "block-buffer 0.10.4",
+ "crypto-common 0.1.7",
+]
+
+[[package]]
+name = "digest"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
+dependencies = [
+ "block-buffer 0.12.0",
+ "const-oid",
+ "crypto-common 0.2.1",
 ]
 
 [[package]]
@@ -367,7 +411,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc1271_caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "erc1271_caller",
  "erc1271_wallet",
@@ -377,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "erc1271_wallet"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "erc1271_wallet",
  "groundhog-erc1271-if",
@@ -386,7 +430,7 @@ dependencies = [
 
 [[package]]
 name = "erc20"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "erc20",
  "erc20-bottle-test",
@@ -394,7 +438,7 @@ dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
  "sdk",
- "sha2",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -429,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "erc20_low_level"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
@@ -440,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "erc20_no_storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
@@ -467,7 +511,7 @@ checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
 
 [[package]]
 name = "exceptions"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "exceptions",
  "sdk",
@@ -549,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "free_fn_unnamed"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "free_fn_unnamed",
  "sdk",
@@ -626,7 +670,7 @@ dependencies = [
 
 [[package]]
 name = "genesis_deployer"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "genesis_deployer",
  "sdk",
@@ -678,7 +722,7 @@ version = "0.14.5"
 dependencies = [
  "groundhog-xdr",
  "semver",
- "sha2",
+ "sha2 0.11.0",
  "syn",
  "xdrs",
 ]
@@ -721,22 +765,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "groundhog-macros"
-version = "0.14.5"
-dependencies = [
- "darling",
- "groundhog-contract-util",
- "groundhog-xdr",
- "proc-macro2",
- "quote",
- "serde",
- "serde_yaml",
- "sha2",
- "syn",
- "xdrs",
-]
-
-[[package]]
 name = "groundhog-native-exec"
 version = "0.14.5"
 dependencies = [
@@ -746,9 +774,29 @@ dependencies = [
  "groundhog-trace",
  "groundhog-xdr",
  "hogexec-internal",
- "sha2",
+ "sha2 0.11.0",
  "thiserror",
  "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "groundhog-runtime"
+version = "0.14.5"
+dependencies = [
+ "bitset-core",
+ "groundhog-contract-spec",
+ "groundhog-event",
+ "groundhog-native-exec",
+ "groundhog-storage-cost",
+ "groundhog-wasm-meter",
+ "groundhog-xdr",
+ "heapless",
+ "hogexec-internal",
+ "linkme",
+ "runtime-macros",
+ "sha2 0.11.0",
+ "thiserror",
  "xdrs",
 ]
 
@@ -788,7 +836,7 @@ dependencies = [
  "flate2",
  "fslock",
  "reqwest",
- "sha2",
+ "sha2 0.10.9",
  "tar",
  "thiserror",
 ]
@@ -902,7 +950,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hasher"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bottle-test-if",
  "hasher",
@@ -978,6 +1026,15 @@ name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
+
+[[package]]
+name = "hybrid-array"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9155a582abd142abc056962c29e3ce5ff2ad5469f4246b537ed42c5deba857da"
+dependencies = [
+ "typenum",
+]
 
 [[package]]
 name = "hyper"
@@ -1173,7 +1230,7 @@ dependencies = [
 
 [[package]]
 name = "imported_error_callee"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "imported_error_callee",
  "imported_error_type",
@@ -1182,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "imported_error_caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "imported_error_callee",
  "imported_error_caller",
@@ -1191,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "imported_error_type"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
 ]
@@ -1342,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "multi_imported_traits"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "multi_imported_traits",
  "named_interface_callee",
@@ -1352,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "multi_throws"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "multi_throws",
  "sdk",
@@ -1360,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "named_interface_callee"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "named_interface_callee",
  "sdk",
@@ -1368,7 +1425,7 @@ dependencies = [
 
 [[package]]
 name = "named_interface_caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "named_interface_callee",
  "named_interface_caller",
@@ -1514,7 +1571,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rcq_test"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rcq_test",
  "sdk",
@@ -1522,7 +1579,7 @@ dependencies = [
 
 [[package]]
 name = "recursive_type"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "recursive_type",
  "sdk",
@@ -1634,6 +1691,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "runtime-macros"
+version = "0.14.5"
+dependencies = [
+ "darling",
+ "groundhog-contract-util",
+ "groundhog-xdr",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_yaml",
+ "sha2 0.11.0",
+ "syn",
+ "xdrs",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1735,20 +1808,7 @@ dependencies = [
 name = "sdk"
 version = "0.14.5"
 dependencies = [
- "bitset-core",
- "groundhog-contract-spec",
- "groundhog-event",
- "groundhog-macros",
- "groundhog-native-exec",
- "groundhog-storage-cost",
- "groundhog-wasm-meter",
- "groundhog-xdr",
- "heapless",
- "hogexec-internal",
- "linkme",
- "sha2",
- "thiserror",
- "xdrs",
+ "groundhog-runtime",
 ]
 
 [[package]]
@@ -1866,8 +1926,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
- "cpufeatures",
- "digest",
+ "cpufeatures 0.2.17",
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "sha2"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.0",
+ "digest 0.11.3",
 ]
 
 [[package]]
@@ -1878,7 +1949,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signer_callee"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "signer_callee",
@@ -1886,7 +1957,7 @@ dependencies = [
 
 [[package]]
 name = "signer_caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "groundhog-contract-util",
  "sdk",
@@ -1896,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "signer_leaf"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "signer_leaf",
@@ -1904,7 +1975,7 @@ dependencies = [
 
 [[package]]
 name = "signer_middle"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "signer_leaf",
@@ -1913,7 +1984,7 @@ dependencies = [
 
 [[package]]
 name = "signer_minter"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "signer_leaf",
@@ -1923,7 +1994,7 @@ dependencies = [
 
 [[package]]
 name = "signer_tuple_test"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "signer_tuple_test",
@@ -1937,7 +2008,7 @@ checksum = "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
 
 [[package]]
 name = "simple_wallet_old"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "erc20_low_level",
  "groundhog-erc20-if",
@@ -1969,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "spec_named_types"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "spec_named_types",
@@ -1983,7 +2054,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stateless"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "stateless",
@@ -1997,7 +2068,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage_errors"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "storage_errors",
@@ -2044,7 +2115,7 @@ dependencies = [
 
 [[package]]
 name = "swap_request"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "swap_request",
@@ -2129,7 +2200,7 @@ dependencies = [
 
 [[package]]
 name = "test_bytestring"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "test_bytestring",
@@ -2356,7 +2427,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "versioned_callee"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "versioned_callee",
@@ -2364,7 +2435,7 @@ dependencies = [
 
 [[package]]
 name = "versioned_caller"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sdk",
  "versioned_callee",

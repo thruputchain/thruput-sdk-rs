@@ -18,7 +18,7 @@ pub trait ERC1271 {
     /// Returns an empty Vec if the wallet authorizes but no tokens are needed.
     /// Aborts (throws) if the wallet refuses to authorize.
     ///
-    /// The caller uses [`AssumeTokens::assume_tokens`] to destructure the
+    /// The caller uses [`sdk::AssumeTokens::assume_tokens`] to destructure the
     /// returned tokens into concrete `Signed<T>` values.
     fn is_valid_signature(
         &self,
