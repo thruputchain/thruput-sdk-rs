@@ -1,0 +1,8 @@
+error: #[contract_type] is only supported on enums and structs
+ --> tests/compile-fail/contract_type_on_union.rs:4:1
+  |
+4 | / pub union Bad {
+5 | |     a: u32,
+6 | |     b: i32,
+7 | | }
+  | |_^

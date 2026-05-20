@@ -3,7 +3,7 @@
 use sdk::*;
 use sdk::signer::Signed;
 
-#[contracttype]
+#[contract_type]
 pub struct TransferRequest {
     pub amount: u64,
     pub auth: Signed<u32>,

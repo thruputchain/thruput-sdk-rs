@@ -4,14 +4,14 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct Tree {
     pub value: u32,
     pub left: Option<Box<Tree>>,
     pub right: Option<Box<Tree>>,
 }
 
-#[contracttype]
+#[contract_type]
 pub struct Forest {
     pub trees: Vec<Forest>,
     pub label: u32,

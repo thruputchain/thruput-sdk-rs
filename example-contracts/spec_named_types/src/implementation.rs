@@ -3,18 +3,18 @@ extern crate alloc;
 use alloc::vec::Vec;
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct Payload {
     pub count: u32,
 }
 
-#[contracttype]
+#[contract_type]
 pub enum Choice {
     Left = 1,
     Right = 2,
 }
 
-#[contracttype]
+#[contract_type]
 pub enum Envelope {
     Empty = 0,
     Wrapped { payload: Payload } = 1,

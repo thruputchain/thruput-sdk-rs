@@ -1,6 +1,6 @@
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub union Bad {
     a: u32,
     b: i32,

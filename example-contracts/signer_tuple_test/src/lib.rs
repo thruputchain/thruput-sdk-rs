@@ -5,8 +5,8 @@ sdk::declare_mock_contract!();
 use sdk::signer::Signed;
 use sdk::*;
 
-/// A tuple struct contracttype with a Signed field.
-#[contracttype]
+/// A tuple struct contract_type with a Signed field.
+#[contract_type]
 pub struct TupleAuth(pub u64, pub Signed<u32>);
 
 #[derive(Default)]

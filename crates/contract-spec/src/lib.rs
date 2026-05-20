@@ -23,7 +23,7 @@ use xdrs::VecM;
 
 mod groundhog_xdr_types;
 
-/// Implemented by `#[contracttype]` types to provide their spec type definition.
+/// Implemented by `#[contract_type]` types to provide their spec type definition.
 pub trait ContractTypeSpec {
     /// The type's definition (struct, enum, or union) as a const view.
     const TYPE_DEF: view::ContractTypeDefView<'static>;
@@ -43,7 +43,7 @@ pub struct ContractTypeInfo<'a> {
 }
 
 /// Trait for types that can appear in contract spec signatures.
-/// Implemented for primitives, collections, and `#[contracttype]` types.
+/// Implemented for primitives, collections, and `#[contract_type]` types.
 pub trait ContractTypeRefSpec {
     /// The type reference and its transitive type definitions.
     const INFO: ContractTypeInfo<'static>;

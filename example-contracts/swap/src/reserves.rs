@@ -7,7 +7,7 @@ use sdk::*;
 //
 // No concurrent sets allowed.
 //
-#[contracttype]
+#[contract_type]
 #[derive(Copy, Clone, Debug)]
 pub struct Reserves {
     // The last recorded reserve balances.

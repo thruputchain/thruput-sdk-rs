@@ -1,6 +1,6 @@
 [package]
 name = "signer_tuple_test"
-description = "Test contract exercising tuple struct contracttype with Signer fields"
+description = "Test contract exercising tuple struct contract_type with Signer fields"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

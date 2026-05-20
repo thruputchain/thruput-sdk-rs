@@ -1,14 +1,14 @@
-# `#[contracttype(export)]` Implementation Plan
+# `#[contract_type(export)]` Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `#[contracttype(export)]` to force-include types in the contract spec even when they're not reachable from method signatures.
+**Goal:** Add `#[contract_type(export)]` to force-include types in the contract spec even when they're not reachable from method signatures.
 
-**Architecture:** A new `SpecFragmentView::ExportedTypeDef` variant (discriminant 3) distinguishes force-exported types from regular typedefs. The `#[contracttype(export)]` attribute passes `export` through to the derive via a helper attribute. The spec tool treats `ExportedTypeDef` fragments as both typedef definitions and reachability roots.
+**Architecture:** A new `SpecFragmentView::ExportedTypeDef` variant (discriminant 3) distinguishes force-exported types from regular typedefs. The `#[contract_type(export)]` attribute passes `export` through to the derive via a helper attribute. The spec tool treats `ExportedTypeDef` fragments as both typedef definitions and reachability roots.
 
 **Tech Stack:** Rust proc macros (syn/quote/darling), groundhog-contract-spec, groundhog-spec (external XDR crate), groundhog-spec-tool
 
-**Spec:** `docs/superpowers/specs/2026-04-15-contracttype-export.md`
+**Spec:** `docs/superpowers/specs/2026-04-15-contract_type-export.md`
 
 ---
 
@@ -59,7 +59,7 @@ git commit -m "Add ExportedTypeDef variant to SpecFragmentView"
 
 ---
 
-### Task 2: Add `export` to `#[contracttype]` macro and pass through to derive
+### Task 2: Add `export` to `#[contract_type]` macro and pass through to derive
 
 **Files:**
 - Modify: `macros/src/contract_type.rs`
@@ -86,7 +86,7 @@ Item::Struct(item) => {
     if !item.generics.params.is_empty() {
         return syn::Error::new_spanned(
             &item.generics,
-            "#[contracttype] is not supported on generic types",
+            "#[contract_type] is not supported on generic types",
         )
         .into_compile_error();
     }
@@ -185,7 +185,7 @@ Expected: Compiles. The `contract_type_spec` helper attribute may produce a warn
 
 ```bash
 git add macros/src/contract_type.rs macros/src/derive_contract_type_spec.rs macros/src/lib.rs
-git commit -m "Add export flag to #[contracttype] and pass through to derive"
+git commit -m "Add export flag to #[contract_type] and pass through to derive"
 ```
 
 ---
@@ -432,7 +432,7 @@ git commit -m "Handle ExportedTypeDef in spec tool as reachability root"
 - [ ] **Step 1: Add `export` to `ChannelState`**
 
 ```rust
-#[contracttype(export)]
+#[contract_type(export)]
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "spec", derive(XDR))]
 pub struct ChannelState {

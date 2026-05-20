@@ -1,6 +1,6 @@
 [package]
 name = "recursive_type"
-description = "A contract demonstrating recursive #[contracttype] structs"
+description = "A contract demonstrating recursive #[contract_type] structs"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

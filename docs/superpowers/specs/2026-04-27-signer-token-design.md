@@ -55,7 +55,7 @@ Where `AuthHandleBuf` is a small fixed-capacity buffer of `u32` values.
 - **`Vec<T>`** / `VecM<T>` / slices: iterates, delegates to each element
 - **`Option<T>`**: delegates if `Some`, no-op if `None`
 - **Tuples**: delegates to each element in order (macro-generated, up to 14 elements)
-- **`#[contracttype]` structs/enums**: macro-generated, delegates to each field/variant
+- **`#[contract_type]` structs/enums**: macro-generated, delegates to each field/variant
 
 #### Ordering Invariant
 
@@ -79,7 +79,7 @@ pub trait ReceiveAuthHandles {
 - **`Vec<T>`** / `VecM<T>` / slices: iterates, delegates to each element
 - **`Option<T>`**: delegates if `Some`, no-op if `None`
 - **Tuples**: delegates to each element in order
-- **`#[contracttype]` structs/enums**: macro-generated, delegates to each field/variant
+- **`#[contract_type]` structs/enums**: macro-generated, delegates to each field/variant
 
 #### Ordering Invariant
 
@@ -140,7 +140,7 @@ fn transfer(&self, amount: u64, auth: Signer<TransferAuth>, memo: &str)
 ```
 
 ```rust
-#[contracttype]
+#[contract_type]
 struct BatchTransfer {
     amount: u64,
     auth: Signer<TransferAuth>,
@@ -176,7 +176,7 @@ No separate "payload encoding" is needed — it's the same code path as calldata
 - Trait definition (mirror of `CollectAuthHandles`)
 - Same impl coverage: primitives (no-op), `Signer` (pop handle), containers (delegate), tuples (macro)
 
-#### `#[contracttype]` macro changes
+#### `#[contract_type]` macro changes
 - Derive `CollectAuthHandles` and `ReceiveAuthHandles` alongside XDR traits
 
 #### `contract_call` changes (`src/call/calls.rs`)

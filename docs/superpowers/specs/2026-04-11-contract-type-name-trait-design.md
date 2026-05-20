@@ -27,12 +27,12 @@ The derive generates only `impl ContractTypeSpec`. It no longer generates `impl 
 
 Standalone derive users must impl `ContractTypeName` themselves.
 
-### `#[contracttype]` changes
+### `#[contract_type]` changes
 
 The attribute macro generates `impl ContractTypeName` directly (not via derive):
 
-- `#[contracttype]` → `impl ContractTypeName { const NAME = stringify!(ident); }`
-- `#[contracttype(name = "Custom")]` → `impl ContractTypeName { const NAME = "Custom"; }`
+- `#[contract_type]` → `impl ContractTypeName { const NAME = stringify!(ident); }`
+- `#[contract_type(name = "Custom")]` → `impl ContractTypeName { const NAME = "Custom"; }`
 
 Then emits the item with `#[derive(ContractTypeSpec)]` as before.
 

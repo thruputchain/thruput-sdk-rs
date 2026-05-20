@@ -36,7 +36,7 @@ fn check_enum_discriminants(
 }
 
 /// Shared helper: generate `impl ContractTypeName for #ident`.
-/// Used by both `#[contracttype]` and `#[contract_exception]`.
+/// Used by both `#[contract_type]` and `#[contract_exception]`.
 fn contract_type_name_impl(
     ident: &syn::Ident,
     name: Option<&str>,

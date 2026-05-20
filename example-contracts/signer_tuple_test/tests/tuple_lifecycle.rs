@@ -1,4 +1,4 @@
-//! Integration test for tuple struct contracttype with Signed fields.
+//! Integration test for tuple struct contract_type with Signed fields.
 
 #![allow(unexpected_cfgs)]
 

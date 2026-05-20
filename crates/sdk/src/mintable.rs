@@ -8,7 +8,7 @@ use crate::types::{AuthTokenPayload, ContractAddress};
 /// Marker trait for types that have a pre-signing (preimage) representation.
 ///
 /// `Preimage` is intentionally unbound — the `WriteXDR + ReadXDR` requirement
-/// is deferred to the `Mintable` trait so that recursive contracttypes can
+/// is deferred to the `Mintable` trait so that recursive contract_types can
 /// implement `MintableType` without triggering trait-solver overflow.
 pub trait MintableType: Sized + WriteXDR + for<'r> ReadXDR<'r> {
     type Preimage;

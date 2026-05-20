@@ -8,7 +8,7 @@ use sdk::*;
 
 type TransferAuthPreimage = <TransferAuth as MintableType>::Preimage;
 
-#[contracttype]
+#[contract_type]
 pub struct TransferAuth {
     pub amount: u64,
 }

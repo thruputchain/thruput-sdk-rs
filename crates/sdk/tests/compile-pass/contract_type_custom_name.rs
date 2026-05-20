@@ -2,12 +2,12 @@
 
 use sdk::*;
 
-#[contracttype(name = "SpecPayload")]
+#[contract_type(name = "SpecPayload")]
 pub struct Payload {
     pub count: u32,
 }
 
-#[contracttype(name = "SpecChoice")]
+#[contract_type(name = "SpecChoice")]
 pub enum Choice {
     Left = 1,
     Right = 2,

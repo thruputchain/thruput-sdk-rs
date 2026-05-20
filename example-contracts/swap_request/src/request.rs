@@ -5,7 +5,7 @@ use sdk::*;
 pub type RequestID = u32;
 
 /// A request to perform a swap.
-#[contracttype]
+#[contract_type]
 pub struct SwapRequest {
     pub id: RequestID,
     /* info about tokens to swap, amount, etc. */

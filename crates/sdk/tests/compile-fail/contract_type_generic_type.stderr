@@ -1,0 +1,5 @@
+error: #[contract_type] is not supported on generic types
+ --> tests/compile-fail/contract_type_generic_type.rs:4:19
+  |
+4 | pub struct Wrapper<T> {
+  |                   ^^^
