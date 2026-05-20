@@ -1,4 +1,4 @@
-# `#[contracttype(export)]` — Force-Export Types in Spec
+# `#[contract_type(export)]` — Force-Export Types in Spec
 
 **Date:** 2026-04-15
 **Status:** Approved
@@ -9,10 +9,10 @@ The spec tool tree-shakes types, only including those reachable from method sign
 
 ## Solution
 
-Add an `export` flag to `#[contracttype]`. When set, the type is always included in the spec output regardless of whether it's reachable from a method signature.
+Add an `export` flag to `#[contract_type]`. When set, the type is always included in the spec output regardless of whether it's reachable from a method signature.
 
 ```rust
-#[contracttype(export)]
+#[contract_type(export)]
 pub struct ChannelState {
     pub channel_id: u64,
     pub balance_a: i128,
@@ -21,7 +21,7 @@ pub struct ChannelState {
 }
 ```
 
-The current default behavior (tree-shaken, only included if reachable) is unchanged. `#[contracttype]` without `export` works exactly as before.
+The current default behavior (tree-shaken, only included if reachable) is unchanged. `#[contract_type]` without `export` works exactly as before.
 
 ## Mechanism
 
@@ -63,13 +63,13 @@ In `resolve_reachable_type_defs`:
 Add `export` to `ChannelState`:
 
 ```rust
-#[contracttype(export)]
+#[contract_type(export)]
 pub struct ChannelState { ... }
 ```
 
 ## What Does NOT Change
 
-- Default `#[contracttype]` behavior (tree-shaken)
+- Default `#[contract_type]` behavior (tree-shaken)
 - The final spec output format (exported types appear identically to reachable types)
 - The reachability algorithm (same walk, just additional roots)
 - `#[contract_exception]` (no export flag needed — exceptions are always reachable via throws)

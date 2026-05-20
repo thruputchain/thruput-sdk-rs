@@ -602,7 +602,7 @@ Any direct caller that passed encoded bytes needs to also pass an `&AuthHandleBu
 
 Run: `cargo check`
 
-Expected: compiles with no errors. Existing code that calls `try_call_raw` with args that impl `WriteXDR` also needs those types to impl `CollectAuthHandles`. Since the generated client code uses tuples of contract types, and we've added tuple impls, this should work for all existing contracts (whose args are primitives/`#[contracttype]` structs — see Task 6 for contracttype).
+Expected: compiles with no errors. Existing code that calls `try_call_raw` with args that impl `WriteXDR` also needs those types to impl `CollectAuthHandles`. Since the generated client code uses tuples of contract types, and we've added tuple impls, this should work for all existing contracts (whose args are primitives/`#[contract_type]` structs — see Task 6 for contract_type).
 
 If the check fails because some type doesn't impl `CollectAuthHandles`, add the missing impl.
 
@@ -687,12 +687,12 @@ git commit -m "test: add compile-pass test for Signer<T> in contract methods"
 
 ---
 
-### Task 6: Add `CollectAuthHandles` derive to `#[contracttype]`
+### Task 6: Add `CollectAuthHandles` derive to `#[contract_type]`
 
 **Files:**
 - Modify: `macros/src/contract_type.rs`
 
-When `Signer<T>` appears inside a `#[contracttype]` struct or enum, that type must also impl `CollectAuthHandles`. The `#[contracttype]` macro already has access to the item AST, so we generate the impl inline.
+When `Signer<T>` appears inside a `#[contract_type]` struct or enum, that type must also impl `CollectAuthHandles`. The `#[contract_type]` macro already has access to the item AST, so we generate the impl inline.
 
 - [ ] **Step 1: Add a helper to generate `CollectAuthHandles` impl for structs**
 
@@ -853,9 +853,9 @@ For structs, similarly:
             }
 ```
 
-- [ ] **Step 4: Add a compile-pass test with `Signer` inside a `#[contracttype]` struct**
+- [ ] **Step 4: Add a compile-pass test with `Signer` inside a `#[contract_type]` struct**
 
-Create `tests/compile-pass/signer_in_contracttype.rs`:
+Create `tests/compile-pass/signer_in_contract_type.rs`:
 
 ```rust
 #![allow(unexpected_cfgs)]
@@ -863,7 +863,7 @@ Create `tests/compile-pass/signer_in_contracttype.rs`:
 use sdk::*;
 use sdk::signer::Signer;
 
-#[contracttype]
+#[contract_type]
 pub struct TransferRequest {
     pub amount: u64,
     pub auth: Signer<u32>,
@@ -895,8 +895,8 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add macros/src/contract_type.rs tests/compile-pass/signer_in_contracttype.rs
-git commit -m "feat: derive CollectAuthHandles in #[contracttype] macro"
+git add macros/src/contract_type.rs tests/compile-pass/signer_in_contract_type.rs
+git commit -m "feat: derive CollectAuthHandles in #[contract_type] macro"
 ```
 
 ---

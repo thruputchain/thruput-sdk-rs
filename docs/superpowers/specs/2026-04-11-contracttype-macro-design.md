@@ -1,4 +1,4 @@
-# `#[contracttype]` Macro Design
+# `#[contract_type]` Macro Design
 
 ## Problem
 
@@ -34,7 +34,7 @@ For `TYPE_DEFS`, the derive walks fields/variant payloads and collects transitiv
 
 Discriminant handling: all enum variants must have explicit `i32` discriminants (same requirement as `#[contract_error]`).
 
-### `#[contracttype]` — new attribute macro
+### `#[contract_type]` — new attribute macro
 
 A thin wrapper that emits the annotated item with injected attributes:
 
@@ -70,7 +70,7 @@ This fails because `type_ref::<Payload>()` requires `Payload: ContractTypeRefSpe
 After the macro:
 
 ```rust
-#[contracttype]
+#[contract_type]
 pub struct Payload { pub count: u32 }
 ```
 
@@ -78,7 +78,7 @@ generates all necessary impls and wasm fragments.
 
 ## Migration
 
-The `spec_named_types` example contract replaces hand-written `ContractTypeSpec` impls and the manual `raw_typedefs` module with `#[contracttype]` on each type (`Payload`, `Choice`, `Envelope`).
+The `spec_named_types` example contract replaces hand-written `ContractTypeSpec` impls and the manual `raw_typedefs` module with `#[contract_type]` on each type (`Payload`, `Choice`, `Envelope`).
 
 ## Scope
 
@@ -87,4 +87,4 @@ The `spec_named_types` example contract replaces hand-written `ContractTypeSpec`
 - Modified: `macros/src/contract_error.rs` — remove inline ContractTypeSpec codegen, inject derive instead
 - Modified: `macros/src/lib.rs` — register new macros
 - Modified: `src/lib.rs` — re-export `ContractTypeSpec` derive macro
-- Modified: `example-contracts/spec_named_types/src/implementation.rs` — migrate to `#[contracttype]`
+- Modified: `example-contracts/spec_named_types/src/implementation.rs` — migrate to `#[contract_type]`

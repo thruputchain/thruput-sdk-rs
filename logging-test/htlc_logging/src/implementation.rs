@@ -3,7 +3,7 @@ use sdk::*;
 
 use sdk::storage::{Map, Value};
 
-#[contracttype]
+#[contract_type]
 struct HTLCEntry {
     pub sender: ContractAddress,
     pub receiver: ContractAddress,

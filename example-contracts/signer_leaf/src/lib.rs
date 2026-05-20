@@ -5,7 +5,7 @@ sdk::declare_mock_contract!();
 use sdk::signer::Signed;
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct LeafAuth {
     pub data: u32,
 }

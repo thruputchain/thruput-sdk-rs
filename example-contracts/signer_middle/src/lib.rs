@@ -6,7 +6,7 @@ use sdk::signer::Signed;
 use sdk::*;
 use signer_leaf::{LeafAuth, SignerLeafClient};
 
-#[contracttype]
+#[contract_type]
 pub struct MiddleAuth {
     pub label: u64,
     pub child: Signed<LeafAuth>,

@@ -4,12 +4,12 @@ use sdk::mintable::{AuthTokenPreimage, MintableType};
 use sdk::signer::Signed;
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct TransferAuth {
     pub amount: u64,
 }
 
-#[contracttype]
+#[contract_type]
 pub struct Payment {
     pub memo: u32,
     pub auth: Signed<TransferAuth>,

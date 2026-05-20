@@ -15,7 +15,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             if !item.generics.params.is_empty() {
                 return syn::Error::new_spanned(
                     &item.generics,
-                    "#[contracttype] is not supported on generic types",
+                    "#[contract_type] is not supported on generic types",
                 )
                 .into_compile_error();
             }
@@ -65,7 +65,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             if !item.generics.params.is_empty() {
                 return syn::Error::new_spanned(
                     &item.generics,
-                    "#[contracttype] is not supported on generic types",
+                    "#[contract_type] is not supported on generic types",
                 )
                 .into_compile_error();
             }
@@ -93,7 +93,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 };
 
             // Reconstruct the struct from parts to avoid duplicating the
-            // #[contracttype] attribute that syn already consumed.
+            // #[contract_type] attribute that syn already consumed.
             let user_attrs: Vec<_> = item.attrs.iter().collect();
             let vis = &item.vis;
             let fields = &item.fields;
@@ -134,7 +134,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
         }
         other => syn::Error::new_spanned(
             other,
-            "#[contracttype] is only supported on enums and structs",
+            "#[contract_type] is only supported on enums and structs",
         )
         .into_compile_error(),
     }

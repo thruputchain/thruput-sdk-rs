@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Eliminate the transitive compile-time `TYPE_DEFS` closure so each `#[contracttype]` emits only its own typedef fragment, enabling recursive types and removing O(n^2) WASM bloat.
+**Goal:** Eliminate the transitive compile-time `TYPE_DEFS` closure so each `#[contract_type]` emits only its own typedef fragment, enabling recursive types and removing O(n^2) WASM bloat.
 
-**Architecture:** Delete `ContractTypeDefsView`, `TYPE_DEFS`, `ContractTypeInfo::type_defs`, and all method-level typedef emission. Each `#[contracttype]` self-registers via `emit_raw_fragment_tokens_with_cfg`. The spec tool's existing `resolve_reachable_type_defs` handles transitive discovery. Add `Box<T>` blanket impl for recursive type support.
+**Architecture:** Delete `ContractTypeDefsView`, `TYPE_DEFS`, `ContractTypeInfo::type_defs`, and all method-level typedef emission. Each `#[contract_type]` self-registers via `emit_raw_fragment_tokens_with_cfg`. The spec tool's existing `resolve_reachable_type_defs` handles transitive discovery. Add `Box<T>` blanket impl for recursive type support.
 
 **Tech Stack:** Rust proc macros (`syn`/`quote`/`darling`), `groundhog-contract-spec`, `groundhog-codegen`, `groundhog-macros`, `groundhog-spec-tool`
 
@@ -50,7 +50,7 @@ pub trait ContractTypeSpec {
 After:
 
 ```rust
-/// Implemented by `#[contracttype]` types to provide their spec type definition.
+/// Implemented by `#[contract_type]` types to provide their spec type definition.
 pub trait ContractTypeSpec {
     /// The type's definition (struct, enum, or union) as a const view.
     const TYPE_DEF: view::ContractTypeDefView<'static>;
@@ -275,7 +275,7 @@ Expected: Compilation succeeds (tests may fail, that's Task 2).
 git add groundhog-contract-spec/src/lib.rs groundhog-contract-spec/src/view.rs groundhog-contract-spec/src/groundhog_xdr_types.rs
 git commit -m "Remove TYPE_DEFS, ContractTypeDefsView, and type_defs from contract spec
 
-Each #[contracttype] will emit only its own typedef fragment.
+Each #[contract_type] will emit only its own typedef fragment.
 The transitive closure machinery is no longer needed since the
 spec tool's reachability walk handles transitive discovery.
 Also adds Box<T> blanket impl for recursive type support."
@@ -501,7 +501,7 @@ Expected: Compilation succeeds.
 git add macros/src/derive_contract_type_spec.rs
 git commit -m "Simplify ContractTypeSpec derive: emit single typedef fragment
 
-Remove transitive type_defs generation. Each #[contracttype]
+Remove transitive type_defs generation. Each #[contract_type]
 now emits exactly one SpecFragmentView::TypeDef for itself."
 ```
 
@@ -874,7 +874,7 @@ Expected: Compilation succeeds across the workspace.
 git add gen/src/spec_reg.rs gen/src/contract.rs macros/src/contract.rs
 git commit -m "Remove method-level typedef emission from #[contract] codegen
 
-Typedef fragments now come exclusively from #[contracttype].
+Typedef fragments now come exclusively from #[contract_type].
 The #[contract] macro only emits interface and method fragments."
 ```
 
@@ -956,7 +956,7 @@ Create `example-contracts/recursive_type/Cargo.toml`:
 ```toml
 [package]
 name = "recursive_type"
-description = "A contract demonstrating recursive #[contracttype] structs"
+description = "A contract demonstrating recursive #[contract_type] structs"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -1007,7 +1007,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct Tree {
     pub value: u32,
     pub left: Option<Box<Tree>>,
@@ -1045,7 +1045,7 @@ In `example-contracts/Cargo.toml`, add `"recursive_type"` to the workspace membe
 
 Run: `cargo check -p recursive_type`
 
-Expected: Compilation succeeds. This is the key validation that recursive `#[contracttype]` works.
+Expected: Compilation succeeds. This is the key validation that recursive `#[contract_type]` works.
 
 - [ ] **Step 6: Commit**
 
@@ -1053,7 +1053,7 @@ Expected: Compilation succeeds. This is the key validation that recursive `#[con
 git add example-contracts/recursive_type/ example-contracts/Cargo.toml
 git commit -m "Add recursive_type example contract
 
-Proves that recursive #[contracttype] structs (Tree with
+Proves that recursive #[contract_type] structs (Tree with
 Option<Box<Tree>> fields) compile correctly after the
 TYPE_DEFS removal."
 ```

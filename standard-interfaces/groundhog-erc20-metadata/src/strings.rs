@@ -1,7 +1,7 @@
 use core::fmt::{self, Display};
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 #[derive(Debug)]
 pub struct Name {
     pub inner: xdr_common::BytesM<100>,
@@ -29,7 +29,7 @@ impl Display for Name {
     }
 }
 
-#[contracttype]
+#[contract_type]
 #[derive(Debug)]
 pub struct Symbol {
     pub inner: xdr_common::BytesM<10>,

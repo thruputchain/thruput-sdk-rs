@@ -9,13 +9,13 @@
 
 1. **Recursive types are impossible.** A struct like `Node { child: Option<Box<Node>> }` causes infinite const recursion because `Node::TYPE_DEFS` evaluates `type_defs::<Option<Box<Node>>>()` which needs `type_defs::<Node>()` which is `Node::TYPE_DEFS` again.
 
-2. **Quadratic WASM bloat.** For a chain A embeds B embeds C: C emits `[C]`, B emits `[B, C]`, A emits `[A, B, C]`. Each `#[contracttype]` writes its full transitive closure. The spec tool deduplicates, but the raw section is O(n^2) in chain depth.
+2. **Quadratic WASM bloat.** For a chain A embeds B embeds C: C emits `[C]`, B emits `[B, C]`, A emits `[A, B, C]`. Each `#[contract_type]` writes its full transitive closure. The spec tool deduplicates, but the raw section is O(n^2) in chain depth.
 
 3. **Redundancy with the spec tool.** `resolve_reachable_type_defs` already walks struct fields and union cases to discover all transitively-referenced types. The compile-time closure duplicates this work.
 
 ## Solution
 
-Each `#[contracttype]` emits exactly one `SpecFragmentView::TypeDef(Self::TYPE_DEF)` fragment -- just its own definition. The spec tool discovers transitive dependencies at canonicalization time (which it already does). The transitive const-eval machinery is deleted.
+Each `#[contract_type]` emits exactly one `SpecFragmentView::TypeDef(Self::TYPE_DEF)` fragment -- just its own definition. The spec tool discovers transitive dependencies at canonicalization time (which it already does). The transitive const-eval machinery is deleted.
 
 Additionally, add a blanket `ContractTypeRefSpec` impl for `Box<T>` so that recursive types like `Option<Box<Node>>` can appear in contract type fields and method signatures.
 
@@ -75,7 +75,7 @@ Additionally, add a blanket `ContractTypeRefSpec` impl for `Box<T>` so that recu
 ### `macros` (`contract.rs` -- trait expansion)
 
 **Delete:**
-- The `__GROUNDHOG_IFACE_THROW_TYPE_DEFS` hidden const from trait expansion (line 76-79). This const stored the transitive typedef closure for exception types referenced by the trait's `throws` clause. Exception types are `#[contracttype]` themselves, so their fragments are already emitted independently.
+- The `__GROUNDHOG_IFACE_THROW_TYPE_DEFS` hidden const from trait expansion (line 76-79). This const stored the transitive typedef closure for exception types referenced by the trait's `throws` clause. Exception types are `#[contract_type]` themselves, so their fragments are already emitted independently.
 - The `throws_typedef_tokens` variable and its usage that feeds into the above const.
 
 ### `groundhog-spec-tool`
@@ -87,7 +87,7 @@ No changes. `resolve_reachable_type_defs` already does the full graph walk throu
 A new example contract proving the recursive case works:
 
 ```rust
-#[contracttype]
+#[contract_type]
 pub struct Tree {
     pub value: u32,
     pub left: Option<Box<Tree>>,
@@ -117,11 +117,11 @@ This contract must compile to WASM and produce a valid spec with the `Tree` type
 - `type_ref::<T>()` helper -- still exists
 - `SpecFragmentView` / `SpecFragment` enum variants -- unchanged
 - The spec tool's canonicalization and reachability algorithm -- unchanged
-- The `#[contracttype]` macro's attribute interface -- unchanged
+- The `#[contract_type]` macro's attribute interface -- unchanged
 - The final spec output format -- unchanged
 
 ## Why This Is Safe
 
-The spec tool's `resolve_reachable_type_defs` starts from method signatures and exception types, then walks struct fields and union cases to discover all transitively-referenced named types, looking each up in the typedef map. This map is populated from ALL `SpecTypeDef` fragments in the WASM section. Since every `#[contracttype]` emits its own fragment (with `cfg(target_family = "wasm")`), every type that's compiled into the WASM binary has its definition present. The reachability walk finds them all.
+The spec tool's `resolve_reachable_type_defs` starts from method signatures and exception types, then walks struct fields and union cases to discover all transitively-referenced named types, looking each up in the typedef map. This map is populated from ALL `SpecTypeDef` fragments in the WASM section. Since every `#[contract_type]` emits its own fragment (with `cfg(target_family = "wasm")`), every type that's compiled into the WASM binary has its definition present. The reachability walk finds them all.
 
-The method-level typedef emission was a belt-and-suspenders guarantee that all types referenced by a method were present. With each `#[contracttype]` self-registering, this is redundant.
+The method-level typedef emission was a belt-and-suspenders guarantee that all types referenced by a method were present. With each `#[contract_type]` self-registering, this is redundant.

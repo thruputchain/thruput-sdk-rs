@@ -16,7 +16,7 @@ pub struct TokenContract {
     total_supply: NNInt,
 }
 
-#[contracttype]
+#[contract_type]
 #[derive(Debug)]
 pub struct Config {
     pub administrator: ContractAddress,

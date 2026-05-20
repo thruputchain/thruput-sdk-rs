@@ -4,7 +4,7 @@
 
 **Goal:** Add the `Mintable` trait, `UnsignedSigner<T>`, tree-building `mint_auth_token`, and a `consume()` stub, enabling ergonomic auth token minting and typed consuming (minus the actual ConsumeAuthToken syscall).
 
-**Architecture:** `Mintable` trait has an associated `Unsigned` type, a `mint_into_parent` method (handles per-field dispatch without syntactic type detection), and a default `build_auth_token_node` implementation. `UnsignedSigner<T>` pairs a consumer address with unsigned data. The `#[contracttype]` macro generates companion unsigned structs in a private module + `Mintable` impls. No syntactic `is_signer_type` check — each type handles itself via trait dispatch.
+**Architecture:** `Mintable` trait has an associated `Unsigned` type, a `mint_into_parent` method (handles per-field dispatch without syntactic type detection), and a default `build_auth_token_node` implementation. `UnsignedSigner<T>` pairs a consumer address with unsigned data. The `#[contract_type]` macro generates companion unsigned structs in a private module + `Mintable` impls. No syntactic `is_signer_type` check — each type handles itself via trait dispatch.
 
 **Tech Stack:** Rust, `xdrs` (XDR), `heapless`, `groundhog-xdr` 0.9.2 (`AuthTokenNode`, `AuthTokenPayload`, `kAuthTokenMaxChildNodes`), `groundhog-macros` (proc macros)
 
@@ -341,7 +341,7 @@ git commit -m "feat: add Mintable impls for primitives, Option, Vec, and common 
 
 ---
 
-### Task 3: Generate `Mintable` impls in `#[contracttype]` macro
+### Task 3: Generate `Mintable` impls in `#[contract_type]` macro
 
 **Files:**
 - Modify: `macros/src/contract_type.rs`
@@ -440,12 +440,12 @@ use sdk::*;
 use sdk::signer::Signer;
 use sdk::mintable::{Mintable, UnsignedSigner};
 
-#[contracttype]
+#[contract_type]
 pub struct TransferAuth {
     pub amount: u64,
 }
 
-#[contracttype]
+#[contract_type]
 pub struct Payment {
     pub memo: u32,
     pub auth: Signer<TransferAuth>,
@@ -480,7 +480,7 @@ Expected: PASS.
 ```bash
 cargo fmt
 git add macros/src/contract_type.rs tests/compile-pass/signer_mintable.rs
-git commit -m "feat: #[contracttype] generates Mintable impls via trait dispatch"
+git commit -m "feat: #[contract_type] generates Mintable impls via trait dispatch"
 ```
 
 ---
@@ -564,7 +564,7 @@ use sdk::*;
 use sdk::signer::Signer;
 use sdk::mintable::{Mintable, UnsignedSigner};
 
-#[contracttype]
+#[contract_type]
 pub struct TransferAuth {
     pub amount: u64,
 }

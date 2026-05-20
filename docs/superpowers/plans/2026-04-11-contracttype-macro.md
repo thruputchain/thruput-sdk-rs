@@ -1,10 +1,10 @@
-# `#[contracttype]` Macro Implementation Plan
+# `#[contract_type]` Macro Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `#[contracttype]` attribute macro and `#[derive(ContractTypeSpec)]` derive macro so contract authors can annotate custom types instead of hand-writing spec impls.
+**Goal:** Add `#[contract_type]` attribute macro and `#[derive(ContractTypeSpec)]` derive macro so contract authors can annotate custom types instead of hand-writing spec impls.
 
-**Architecture:** Extract the `ContractTypeSpec` codegen from `contract_error.rs` into a new `derive_contract_type_spec.rs` derive macro. Add a thin `#[contracttype]` attribute macro. Refactor `#[contract_error]` to delegate to the new derive. Migrate the `spec_named_types` example.
+**Architecture:** Extract the `ContractTypeSpec` codegen from `contract_error.rs` into a new `derive_contract_type_spec.rs` derive macro. Add a thin `#[contract_type]` attribute macro. Refactor `#[contract_error]` to delegate to the new derive. Migrate the `spec_named_types` example.
 
 **Tech Stack:** Rust proc macros (syn, quote, proc_macro2), groundhog-codegen
 
@@ -448,7 +448,7 @@ git commit -m "Add #[derive(ContractTypeSpec)] derive macro"
 
 ---
 
-### Task 3: Create `#[contracttype]` attribute macro
+### Task 3: Create `#[contract_type]` attribute macro
 
 A thin wrapper that injects derives and repr.
 
@@ -479,7 +479,7 @@ pub fn expand(item: Item) -> TokenStream {
         },
         other => syn::Error::new_spanned(
             other,
-            "#[contracttype] is only supported on enums and structs",
+            "#[contract_type] is only supported on enums and structs",
         )
         .into_compile_error(),
     }
@@ -496,7 +496,7 @@ mod contract_type;
 Add macro:
 ```rust
 #[proc_macro_attribute]
-pub fn contracttype(
+pub fn contract_type(
     _attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
@@ -509,7 +509,7 @@ pub fn contracttype(
 
 Add alongside other macro re-exports:
 ```rust
-pub use groundhog_macros::contracttype;
+pub use groundhog_macros::contract_type;
 ```
 
 - [ ] **Step 4: Verify compiles**
@@ -524,17 +524,17 @@ Expected: compiles cleanly.
 
 ```bash
 git add macros/src/contract_type.rs macros/src/lib.rs src/lib.rs
-git commit -m "Add #[contracttype] attribute macro"
+git commit -m "Add #[contract_type] attribute macro"
 ```
 
 ---
 
-### Task 4: Fix the `bare_type_fails` example with `#[contracttype]`
+### Task 4: Fix the `bare_type_fails` example with `#[contract_type]`
 
 **Files:**
 - Modify: `example-contracts/bare_type_fails/src/lib.rs`
 
-- [ ] **Step 1: Replace manual derives with `#[contracttype]`**
+- [ ] **Step 1: Replace manual derives with `#[contract_type]`**
 
 Update `example-contracts/bare_type_fails/src/lib.rs`:
 ```rust
@@ -544,7 +544,7 @@ extern crate alloc;
 
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct Payload {
     pub count: u32,
 }
@@ -566,13 +566,13 @@ Run:
 ```bash
 cd example-contracts && cargo check -p bare_type_fails --features dev
 ```
-Expected: compiles cleanly — `#[contracttype]` generates the `ContractTypeSpec` impl that satisfies `ContractTypeRefSpec`.
+Expected: compiles cleanly — `#[contract_type]` generates the `ContractTypeSpec` impl that satisfies `ContractTypeRefSpec`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add example-contracts/bare_type_fails/src/lib.rs
-git commit -m "Fix bare_type_fails using #[contracttype]"
+git commit -m "Fix bare_type_fails using #[contract_type]"
 ```
 
 ---
@@ -699,13 +699,13 @@ git commit -m "Refactor #[contract_error] to delegate to #[derive(ContractTypeSp
 
 ---
 
-### Task 6: Migrate `spec_named_types` example to `#[contracttype]`
+### Task 6: Migrate `spec_named_types` example to `#[contract_type]`
 
 **Files:**
 - Modify: `example-contracts/spec_named_types/src/implementation.rs`
 - Modify: `example-contracts/spec_named_types/Cargo.toml` (update description)
 
-- [ ] **Step 1: Replace hand-written impls with `#[contracttype]`**
+- [ ] **Step 1: Replace hand-written impls with `#[contract_type]`**
 
 Rewrite `example-contracts/spec_named_types/src/implementation.rs`:
 ```rust
@@ -714,18 +714,18 @@ extern crate alloc;
 use alloc::vec::Vec;
 use sdk::*;
 
-#[contracttype]
+#[contract_type]
 pub struct Payload {
     pub count: u32,
 }
 
-#[contracttype]
+#[contract_type]
 pub enum Choice {
     Left = 1,
     Right = 2,
 }
 
-#[contracttype]
+#[contract_type]
 pub enum Envelope {
     Empty = 0,
     Wrapped { payload: Payload } = 1,
@@ -782,7 +782,7 @@ This removes: all manual `ContractTypeSpec` impls, all manual `use` of spec view
 
 In `example-contracts/spec_named_types/Cargo.toml`, change description:
 ```toml
-description = "A contract demonstrating #[contracttype] for named type spec generation"
+description = "A contract demonstrating #[contract_type] for named type spec generation"
 ```
 
 - [ ] **Step 3: Verify it compiles**
@@ -797,7 +797,7 @@ Expected: compiles cleanly.
 
 ```bash
 git add example-contracts/spec_named_types/
-git commit -m "Migrate spec_named_types to #[contracttype]"
+git commit -m "Migrate spec_named_types to #[contract_type]"
 ```
 
 ---

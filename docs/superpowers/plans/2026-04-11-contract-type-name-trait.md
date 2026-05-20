@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Decouple the spec name of a contract type from its Rust ident via a `ContractTypeName` trait, with optional `name = "..."` override on `#[contracttype]` and `#[contract_error]`.
+**Goal:** Decouple the spec name of a contract type from its Rust ident via a `ContractTypeName` trait, with optional `name = "..."` override on `#[contract_type]` and `#[contract_error]`.
 
-**Architecture:** Add `ContractTypeName` trait to `groundhog-contract-spec`. The `#[contracttype]` and `#[contract_error]` attribute macros generate `impl ContractTypeName` (using the ident or custom name). The `#[derive(ContractTypeSpec)]` derive uses `<Self as ContractTypeName>::NAME` in TYPE_DEF instead of `stringify!(ident)`. Standalone derive users must impl `ContractTypeName` themselves.
+**Architecture:** Add `ContractTypeName` trait to `groundhog-contract-spec`. The `#[contract_type]` and `#[contract_error]` attribute macros generate `impl ContractTypeName` (using the ident or custom name). The `#[derive(ContractTypeSpec)]` derive uses `<Self as ContractTypeName>::NAME` in TYPE_DEF instead of `stringify!(ident)`. Standalone derive users must impl `ContractTypeName` themselves.
 
 **Tech Stack:** Rust proc macros (syn, quote, darling), groundhog-contract-spec
 
@@ -106,7 +106,7 @@ git commit -m "Use ContractTypeName::NAME in derive(ContractTypeSpec) TYPE_DEF"
 
 ---
 
-### Task 3: Update `#[contracttype]` to generate `impl ContractTypeName`
+### Task 3: Update `#[contract_type]` to generate `impl ContractTypeName`
 
 **Files:**
 - Modify: `macros/src/contract_type.rs`
@@ -154,7 +154,7 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
         }
         other => syn::Error::new_spanned(
             other,
-            "#[contracttype] is only supported on enums and structs",
+            "#[contract_type] is only supported on enums and structs",
         )
         .into_compile_error(),
     }
@@ -178,11 +178,11 @@ fn expand_contract_type_name(
 
 - [ ] **Step 2: Update `lib.rs` to parse args**
 
-In `macros/src/lib.rs`, replace the `contracttype` function (lines 124-131):
+In `macros/src/lib.rs`, replace the `contract_type` function (lines 124-131):
 
 ```rust
 #[proc_macro_attribute]
-pub fn contracttype(
+pub fn contract_type(
     attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
@@ -235,7 +235,7 @@ cd /Users/geoff/groundhog/sdk_rs/example-contracts && cargo check -p spec_named_
 
 ```bash
 git add macros/src/contract_type.rs macros/src/lib.rs
-git commit -m "Add name arg to #[contracttype] and generate impl ContractTypeName"
+git commit -m "Add name arg to #[contract_type] and generate impl ContractTypeName"
 ```
 
 ---
@@ -364,23 +364,23 @@ git commit -m "Add name arg to #[contract_error] and generate impl ContractTypeN
 ### Task 5: Add compile-pass test for custom name
 
 **Files:**
-- Create: `tests/compile-pass/contracttype_custom_name.rs`
+- Create: `tests/compile-pass/contract_type_custom_name.rs`
 
 - [ ] **Step 1: Create the test**
 
-Create `tests/compile-pass/contracttype_custom_name.rs`:
+Create `tests/compile-pass/contract_type_custom_name.rs`:
 
 ```rust
 #![allow(unexpected_cfgs)]
 
 use sdk::*;
 
-#[contracttype(name = "SpecPayload")]
+#[contract_type(name = "SpecPayload")]
 pub struct Payload {
     pub count: u32,
 }
 
-#[contracttype(name = "SpecChoice")]
+#[contract_type(name = "SpecChoice")]
 pub enum Choice {
     Left = 1,
     Right = 2,
@@ -413,12 +413,12 @@ Actually, simplify the test to just verify compilation with the `name` arg:
 
 use sdk::*;
 
-#[contracttype(name = "SpecPayload")]
+#[contract_type(name = "SpecPayload")]
 pub struct Payload {
     pub count: u32,
 }
 
-#[contracttype(name = "SpecChoice")]
+#[contract_type(name = "SpecChoice")]
 pub enum Choice {
     Left = 1,
     Right = 2,
@@ -437,6 +437,6 @@ cargo test --test compile_pass
 - [ ] **Step 3: Commit**
 
 ```bash
-git add tests/compile-pass/contracttype_custom_name.rs
-git commit -m "Add compile-pass test for #[contracttype(name = \"...\")]"
+git add tests/compile-pass/contract_type_custom_name.rs
+git commit -m "Add compile-pass test for #[contract_type(name = \"...\")]"
 ```

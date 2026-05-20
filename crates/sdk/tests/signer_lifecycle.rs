@@ -31,14 +31,14 @@ where
 
 // ── Contract C's auth data (leaf, no nested signers) ──
 
-#[contracttype]
+#[contract_type]
 pub struct LeafAuth {
     pub data: u32,
 }
 
 // ── Contract B's auth data (has a single Signed<LeafAuth> + Vec<Signed<LeafAuth>>) ──
 
-#[contracttype]
+#[contract_type]
 pub struct MiddleAuth {
     pub label: u64,
     pub single_child: Signed<LeafAuth>,

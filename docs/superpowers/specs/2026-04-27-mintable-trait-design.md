@@ -2,7 +2,7 @@
 
 ## Summary
 
-Add a `Mintable` trait and `UnsignedSigner<T>` type that let developers build and consume auth token trees as plain Rust structs. The `#[contracttype]` macro derives `Mintable` automatically, generating a companion "unsigned" type where `Signer<T>` fields become `UnsignedSigner<T::Unsigned>`. Minting recursively converts the unsigned struct into an `AuthTokenNode` tree. Consuming reverses the process.
+Add a `Mintable` trait and `UnsignedSigner<T>` type that let developers build and consume auth token trees as plain Rust structs. The `#[contract_type]` macro derives `Mintable` automatically, generating a companion "unsigned" type where `Signer<T>` fields become `UnsignedSigner<T::Unsigned>`. Minting recursively converts the unsigned struct into an `AuthTokenNode` tree. Consuming reverses the process.
 
 **Key insight**: because `Signer<T>` serializes as zero bytes in XDR (see signer-token-design.md), the same `WriteXDR`/`ReadXDR` + `CollectAuthHandles`/`ReceiveAuthHandles` code paths work for both calldata and auth token payloads. The `Mintable` trait builds on this — it doesn't need a custom payload encoding.
 
@@ -129,12 +129,12 @@ impl<T: Mintable> Mintable for Signer<T> {
 
 Builds the inner node, then sets consumer from `UnsignedSigner`. This is the only place consumer addresses are set.
 
-#### `#[contracttype]` structs
+#### `#[contract_type]` structs
 
 For a struct like:
 
 ```rust
-#[contracttype]
+#[contract_type]
 struct Transfer {
     amount: u64,
     auth: Signer<SubAuth>,
@@ -239,13 +239,13 @@ No `Mintable::from_consumed` method needed — the standard traits handle it.
 ### Example: Nested Signers
 
 ```rust
-#[contracttype]
+#[contract_type]
 struct Outer { x: u32, inner: Signer<Inner> }
 
-#[contracttype]
+#[contract_type]
 struct Inner { y: u64, deep: Signer<Leaf> }
 
-#[contracttype]
+#[contract_type]
 struct Leaf { data: u32 }
 ```
 
@@ -313,7 +313,7 @@ Runtime limits, not compile-time.
 #### `Mintable` trait + impls
 - Trait definition with `Unsigned` + `build_auth_token_node`
 - Primitive impls (macro), `Signer<T>` impl, `Option`, `Vec`, tuples
-- `#[contracttype]` macro generates companion unsigned struct + `Mintable` impl
+- `#[contract_type]` macro generates companion unsigned struct + `Mintable` impl
 
 #### Updated `mint_auth_token`
 - Takes `UnsignedSigner`, builds tree, serializes `AuthTokenNode`, calls syscall
@@ -327,4 +327,4 @@ Runtime limits, not compile-time.
 ### Deferred Work
 
 - **Compile-time depth/width checks**
-- **`#[contracttype]` enum support for Mintable**
+- **`#[contract_type]` enum support for Mintable**

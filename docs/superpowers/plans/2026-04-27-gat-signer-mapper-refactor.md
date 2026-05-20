@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace generated companion unsigned structs (`__groundhog_mintable_*`) with a GAT-based `SignerMapper` generic on `#[contracttype]` structs, so `MiddleAuth<ForMinting>` replaces `MiddleAuthUnsigned`.
+**Goal:** Replace generated companion unsigned structs (`__groundhog_mintable_*`) with a GAT-based `SignerMapper` generic on `#[contract_type]` structs, so `MiddleAuth<ForMinting>` replaces `MiddleAuthUnsigned`.
 
-**Architecture:** The `#[contracttype]` macro adds `<M: SignerMapper = Signed>` to structs and wraps each field type in `<M as SignerMapper>::Map<FieldType>`. For `Signed` mode, `Map<T> = T` (identity). For `ForMinting` mode, `Map<T> = T::Unsigned` — which maps `Signer<T>` to `UnsignedSigner<T::Unsigned>` and leaves primitives unchanged. No companion types, no generated module names.
+**Architecture:** The `#[contract_type]` macro adds `<M: SignerMapper = Signed>` to structs and wraps each field type in `<M as SignerMapper>::Map<FieldType>`. For `Signed` mode, `Map<T> = T` (identity). For `ForMinting` mode, `Map<T> = T::Unsigned` — which maps `Signer<T>` to `UnsignedSigner<T::Unsigned>` and leaves primitives unchanged. No companion types, no generated module names.
 
 **Tech Stack:** Rust GATs, `xdrs` derive macros, `groundhog-macros` proc macros
 
@@ -77,7 +77,7 @@ git commit -m "refactor: derive ReadXDR/WriteXDR on UnsignedSigner, remove GAT t
 
 ---
 
-### Task 2: Rewrite `#[contracttype]` struct expansion to use SignerMapper generic
+### Task 2: Rewrite `#[contract_type]` struct expansion to use SignerMapper generic
 
 **Files:**
 - Modify: `macros/src/contract_type.rs`
@@ -180,7 +180,7 @@ The current code emits `#item` (original struct) with derive attributes prepende
             if !item.generics.params.is_empty() {
                 return syn::Error::new_spanned(
                     &item.generics,
-                    "#[contracttype] is not supported on generic types",
+                    "#[contract_type] is not supported on generic types",
                 )
                 .into_compile_error();
             }
@@ -233,7 +233,7 @@ Expected: all lib tests pass.
 ```bash
 cargo fmt
 git add macros/src/contract_type.rs
-git commit -m "refactor: #[contracttype] adds SignerMapper generic, removes companion structs"
+git commit -m "refactor: #[contract_type] adds SignerMapper generic, removes companion structs"
 ```
 
 ---
@@ -242,7 +242,7 @@ git commit -m "refactor: #[contracttype] adds SignerMapper generic, removes comp
 
 **Files:**
 - Modify: `tests/compile-pass/signer_mintable.rs`
-- Modify: `tests/compile-pass/signer_in_contracttype.rs`
+- Modify: `tests/compile-pass/signer_in_contract_type.rs`
 - Modify: `tests/signer_lifecycle.rs`
 
 - [ ] **Step 1: Update `tests/compile-pass/signer_mintable.rs`**
@@ -256,12 +256,12 @@ use sdk::*;
 use sdk::signer::Signer;
 use sdk::mintable::{Mintable, UnsignedSigner, ForMinting};
 
-#[contracttype]
+#[contract_type]
 pub struct TransferAuth {
     pub amount: u64,
 }
 
-#[contracttype]
+#[contract_type]
 pub struct Payment {
     pub memo: u32,
     pub auth: Signer<TransferAuth>,
