@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust proc macros (syn/quote/darling), groundhog-contract-spec, groundhog-spec (external XDR crate), groundhog-spec-tool
 
-**Spec:** `docs/superpowers/specs/2026-04-15-contract_type-export.md`
+**Spec:** `docs/superpowers/specs/2026-04-15-contract-type-export.md`
 
 ---
 
