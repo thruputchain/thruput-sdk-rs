@@ -123,7 +123,7 @@ pub use groundhog_macros::contract;
 pub use groundhog_macros::ContractTypeSpec;
 pub use groundhog_macros::Event;
 pub use groundhog_macros::contract_exception;
-pub use groundhog_macros::contracttype;
+pub use groundhog_macros::{contract_type, contracttype};
 pub use groundhog_macros::exn;
 pub use groundhog_macros::{
     hash_to_array, sha256_array_ident, sha256_ident, sha256_static, static_key,

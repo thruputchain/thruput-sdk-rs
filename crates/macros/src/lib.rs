@@ -197,7 +197,7 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn contracttype(
+pub fn contract_type(
     attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
@@ -221,6 +221,15 @@ pub fn contracttype(
         }
     };
     contract_type::expand(args, item).into()
+}
+
+// #[deprecated(note = "Use the preferred spelling: `contract_type`")]
+#[proc_macro_attribute]
+pub fn contracttype(
+    attr_args: TokenStream,
+    item_tokens: TokenStream,
+) -> TokenStream {
+    contract_type(attr_args, item_tokens)
 }
 
 #[proc_macro_derive(ContractTypeSpec, attributes(contract_type_spec))]
