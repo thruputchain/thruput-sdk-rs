@@ -1,8 +1,5 @@
 //! Test the semantics of `delete`
 
-mod common;
-test_cfg!();
-
 use sdk::sys_result::delete::delete_shared;
 use sdk::*;
 

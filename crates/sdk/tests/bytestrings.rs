@@ -1,8 +1,5 @@
 //! Test the semantics of the database (i.e., key-value store)
 
-mod common;
-test_cfg!();
-
 use sdk::sys_exn::nnint::*;
 use sdk::sys_result::bytestring::*;
 use sdk::sys_result::delete::*;

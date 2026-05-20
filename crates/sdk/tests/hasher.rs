@@ -1,8 +1,5 @@
 //! Test the semantics of hashers
 
-mod common;
-test_cfg!();
-
 use sdk::*;
 
 // This uses the sha2 module during macro expansion

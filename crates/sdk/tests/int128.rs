@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use sdk::types::{int128_xdr, uint128_xdr};
 use xdrs::txs::encode;
 

@@ -1,8 +1,5 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-mod common;
-test_cfg!();
-
 use sdk::contract_test;
 use sdk::storage::*;
 use sdk::{Deletable, Storage};

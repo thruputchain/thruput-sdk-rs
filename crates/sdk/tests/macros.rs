@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use hex_literal::hex;
 use sdk::static_key;
 

@@ -10,9 +10,6 @@
 
 #![allow(unexpected_cfgs)]
 
-mod common;
-test_cfg!();
-
 use sdk::collect_auth_handles::CollectAuthHandles;
 use sdk::mintable::MintableType;
 use sdk::mintable::{AuthTokenPreimage, build_auth_token_node};

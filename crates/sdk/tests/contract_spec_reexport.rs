@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use sdk::contract_spec::ContractSpec;
 
 #[test]

@@ -1,12 +1,5 @@
 #![allow(dead_code)]
 
-#[macro_export]
-macro_rules! test_cfg {
-    () => {};
-}
-
-test_cfg!();
-
 use sdk::call::RawCallError;
 use sdk::exn::{Exn, LibraryExn};
 use sdk::sys::{SyscallErrorCode, SyscallNo};
