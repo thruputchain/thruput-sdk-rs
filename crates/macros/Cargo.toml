@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-runtime-macros"
+name = "groundhog-macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -2,9 +2,7 @@
 
 #[macro_export]
 macro_rules! test_cfg {
-    () => {
-        // extern crate groundhog_runtime as sdk;
-    };
+    () => {};
 }
 
 test_cfg!();

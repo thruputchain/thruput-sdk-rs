@@ -2,8 +2,8 @@
 resolver = "3"
 members = [
     "crates/*",
-    "crates/runtime/tests/vector-tests",
-    "crates/runtime/tests/version-mismatch-helper",
+    "crates/sdk/tests/vector-tests",
+    "crates/sdk/tests/version-mismatch-helper",
     "standard-interfaces/*",
     "standard-tests/*",
 ]
@@ -31,8 +31,7 @@ categories = ["blockchain"]
 #    integration_test/contracts/Cargo.toml
 #
 sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.14.6" }
-groundhog-runtime = { path = "crates/runtime", registry = "groundhog", version = "=0.14.6" }
-groundhog-runtime-macros = { path = "crates/runtime-macros", registry = "groundhog", version = "=0.14.6" }
+groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.14.6" }
 groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.14.6" }
 groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.14.6", default-features = false }
 groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.14.6" }
