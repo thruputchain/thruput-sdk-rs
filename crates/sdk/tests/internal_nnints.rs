@@ -4,7 +4,6 @@
 
 mod common;
 use common::*;
-test_cfg!();
 
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 use sdk::call::RawCallError;

@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use sdk::*;
 
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);

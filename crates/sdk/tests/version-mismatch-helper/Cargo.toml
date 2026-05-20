@@ -5,10 +5,10 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-sdk = { package = "groundhog-runtime", path = "../.." }
+sdk = { package = "sdk", path = "../.." }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { package = "groundhog-runtime", path = "../..", features = ["std"] }
+sdk = { package = "sdk", path = "../..", features = ["std"] }
 
 [features]
 dev = ["sdk/dev"]

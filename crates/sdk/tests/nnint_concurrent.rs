@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use sdk::sys_exn::nnint::*;
 use sdk::*;
 

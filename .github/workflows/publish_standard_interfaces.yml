@@ -23,7 +23,6 @@ jobs:
         crate:
           - groundhog-erc20-if
           - groundhog-erc1271-if
-          - bottle-test-if
           - groundhog-erc20-metadata-if
 
     steps:

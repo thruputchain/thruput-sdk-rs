@@ -1,8 +1,5 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-mod common;
-test_cfg!();
-
 use sdk::storage::*;
 use sdk::*;
 use std::panic::UnwindSafe;

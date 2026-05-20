@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use groundhog_xdr::transaction::InvocationFrameStatusCode;
 use sdk::TestEnvironment;
 

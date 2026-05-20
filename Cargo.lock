@@ -688,6 +688,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-macros"
+version = "0.14.6"
+dependencies = [
+ "darling 0.20.11",
+ "groundhog-contract-util",
+ "groundhog-xdr",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_yaml",
+ "sha2 0.11.0",
+ "syn",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-native-exec"
 version = "0.14.6"
 dependencies = [
@@ -700,48 +716,6 @@ dependencies = [
  "sha2 0.11.0",
  "thiserror",
  "xdr-common",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-runtime"
-version = "0.14.6"
-dependencies = [
- "bitset-core",
- "groundhog-contract-spec",
- "groundhog-contract-util",
- "groundhog-event",
- "groundhog-native-exec",
- "groundhog-runtime",
- "groundhog-runtime-macros",
- "groundhog-storage-cost",
- "groundhog-wasm-meter",
- "groundhog-xdr",
- "heapless",
- "hex-literal",
- "hogexec-internal",
- "linkme",
- "sdk",
- "sha2 0.11.0",
- "thiserror",
- "trybuild",
- "version-mismatch-helper",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-runtime-macros"
-version = "0.14.6"
-dependencies = [
- "darling 0.20.11",
- "groundhog-contract-util",
- "groundhog-xdr",
- "proc-macro2",
- "quote",
- "serde",
- "serde_yaml",
- "sha2 0.11.0",
- "syn",
  "xdrs",
 ]
 
@@ -1798,7 +1772,25 @@ dependencies = [
 name = "sdk"
 version = "0.14.6"
 dependencies = [
- "groundhog-runtime",
+ "bitset-core",
+ "groundhog-contract-spec",
+ "groundhog-contract-util",
+ "groundhog-event",
+ "groundhog-macros",
+ "groundhog-native-exec",
+ "groundhog-storage-cost",
+ "groundhog-wasm-meter",
+ "groundhog-xdr",
+ "heapless",
+ "hex-literal",
+ "hogexec-internal",
+ "linkme",
+ "sdk",
+ "sha2 0.11.0",
+ "thiserror",
+ "trybuild",
+ "version-mismatch-helper",
+ "xdrs",
 ]
 
 [[package]]
@@ -2413,7 +2405,7 @@ dependencies = [
 name = "version-mismatch-helper"
 version = "1.0.0"
 dependencies = [
- "groundhog-runtime",
+ "sdk",
 ]
 
 [[package]]

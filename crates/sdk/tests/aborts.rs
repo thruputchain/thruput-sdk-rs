@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use sdk::call::ContractError;
 use sdk::call::RawCallError;
 use sdk::*;

@@ -1,6 +1,3 @@
-mod common;
-test_cfg!();
-
 use sdk::call::RawCallError;
 use sdk::event::*;
 use sdk::exn::{Exn, HandlingError, LibraryExn};

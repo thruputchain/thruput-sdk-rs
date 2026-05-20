@@ -4,7 +4,6 @@
 
 mod common;
 use common::*;
-test_cfg!();
 
 use sdk::call::RawCallError;
 use sdk::exn::{Exn, LibraryExn};
