@@ -70,8 +70,8 @@ pub fn generate(
         error(
             &contract.span(),
             "contract client identifier could not be auto-derived \
-                 (self type is not a simple path); \
-                 provide 'client = ClientName' attribute",
+                (self type is not a simple path); \
+                please provide 'client = ClientName' attribute",
         )
     })?;
 

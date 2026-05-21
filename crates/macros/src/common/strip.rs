@@ -12,6 +12,7 @@ impl Fold for StripOurAttributes {
 fn is_our_attribute(attr: &Attribute) -> bool {
     match &attr.meta {
         Meta::List(meta_list) => meta_list.path.is_ident("contract"),
+        Meta::Path(path) => path.is_ident("init"),
         _ => false,
     }
 }

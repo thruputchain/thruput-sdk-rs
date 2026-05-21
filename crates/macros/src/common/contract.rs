@@ -11,8 +11,21 @@ use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 use syn::*;
 
+#[derive(Default)]
+pub struct MethodAttrs {
+    pub init: Option<Init>,
+}
+
+pub enum Init {
+    Once,
+}
+
 pub trait Method {
     fn sig(&self) -> &syn::Signature;
+
+    fn attrs(&self) -> MethodAttrs {
+        MethodAttrs::default()
+    }
 }
 
 impl Method for syn::ItemFn {
