@@ -270,6 +270,7 @@ lint_contract() {
 test_package() {
     cargo test &&
     cargo test -p sdk -Fstorage,std --tests &&
+    cargo test -p groundhog-erc20-metadata-if --all-targets &&
     cargo test -p groundhog-spec-tool --all-targets &&
     cargo test -p groundhog-test-vectors &&
     cargo test -p vector-tests --tests &&

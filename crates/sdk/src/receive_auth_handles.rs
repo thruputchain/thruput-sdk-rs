@@ -129,6 +129,16 @@ impl<const MAX: u32> ReceiveAuthHandles for xdrs::BytesM<MAX> {
     }
 }
 
+impl<const MAX: usize> ReceiveAuthHandles for heapless::String<MAX> {
+    #[inline(always)]
+    fn receive_auth_handles(
+        &mut self,
+        _handles: &mut impl Iterator<Item = u32>,
+    ) -> Result<(), AuthTokenError> {
+        Ok(())
+    }
+}
+
 #[cfg(feature = "alloc")]
 impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles
     for alloc::boxed::Box<T>

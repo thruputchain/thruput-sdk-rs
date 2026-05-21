@@ -41,14 +41,11 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
             Some(TOKEN_DECIMALS),
         );
 
-        assert_eq!(
-            Some(TOKEN_NAME.to_string()),
-            client_meta.name().map(|s| s.into()),
-        );
-        assert_eq!(
-            Some(TOKEN_SYMBOL.to_string()),
-            client_meta.symbol().map(|s| s.into()),
-        );
+        let name = client_meta.name();
+        let symbol = client_meta.symbol();
+
+        assert_eq!(Some(TOKEN_NAME), name.as_ref().map(|n| n.as_str()));
+        assert_eq!(Some(TOKEN_SYMBOL), symbol.as_ref().map(|s| s.as_str()));
         assert_eq!(Some(TOKEN_DECIMALS), client_meta.decimals());
     }
 
