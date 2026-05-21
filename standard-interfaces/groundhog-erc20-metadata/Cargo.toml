@@ -23,7 +23,7 @@ xdrs = { workspace = true }
 groundhog-erc20-metadata-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
