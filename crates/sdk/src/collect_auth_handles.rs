@@ -121,6 +121,29 @@ impl<const MAX: u32> CollectAuthHandles for xdrs::BytesM<MAX> {
     }
 }
 
+impl<const MAX: usize, T: CollectAuthHandles> CollectAuthHandles for heapless::Vec<T, MAX> {
+    #[inline(always)]
+    fn collect_auth_handles(
+        &self,
+        out: &mut AuthHandleBuf,
+    ) -> Result<(), FaultString> {
+        for item in self {
+            item.collect_auth_handles(out)?;
+        }
+        Ok(())
+    }
+}
+
+impl<const MAX: usize> CollectAuthHandles for heapless::String<MAX> {
+    #[inline(always)]
+    fn collect_auth_handles(
+        &self,
+        _out: &mut AuthHandleBuf,
+    ) -> Result<(), FaultString> {
+        Ok(())
+    }
+}
+
 #[cfg(feature = "alloc")]
 impl<T: CollectAuthHandles + ?Sized> CollectAuthHandles
     for alloc::boxed::Box<T>

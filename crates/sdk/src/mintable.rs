@@ -158,6 +158,10 @@ impl<T: MintableType> MintableType for Option<T> {
     type Preimage = Option<T::Preimage>;
 }
 
+impl<const MAX: usize> MintableType for heapless::String<MAX> {
+    type Preimage = Self;
+}
+
 #[cfg(feature = "alloc")]
 impl<T: MintableType + 'static, const MAX: u32> MintableType for VecM<T, MAX> {
     type Preimage = VecM<T::Preimage, MAX>;
@@ -223,6 +227,15 @@ impl<const MAX: u32> Mintable for BytesM<MAX> {
 impl<const MAX: u32> Mintable for StringM<MAX> {
     fn mint_into_parent(
         preimage: StringM<MAX>,
+        _children: &mut ChildNodeBuf,
+    ) -> Self {
+        preimage
+    }
+}
+
+impl<const MAX: usize> Mintable for heapless::String<MAX> {
+    fn mint_into_parent(
+        preimage: Self,
         _children: &mut ChildNodeBuf,
     ) -> Self {
         preimage

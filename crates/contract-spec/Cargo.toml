@@ -25,6 +25,7 @@ groundhog-xdr = { workspace = true }
 groundhog-spec = { workspace = true, optional = true }
 xdrs = { workspace = true, features = ["heapless", "derive"] }
 xdr-common = { workspace = true }
+heapless = { workspace = true }
 
 [[test]]
 name = "groundhog_xdr_refspec"

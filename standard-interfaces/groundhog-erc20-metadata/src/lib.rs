@@ -1,9 +1,12 @@
-#![cfg_attr(not(feature = "dev"), no_std)]
+#![no_std]
 
-mod strings;
-pub use strings::*;
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 use sdk::*;
+
+pub type Name = heapless::String<100>;
+pub type Symbol = heapless::String<10>;
 
 #[sdk::contract]
 pub trait ERC20Metadata {
