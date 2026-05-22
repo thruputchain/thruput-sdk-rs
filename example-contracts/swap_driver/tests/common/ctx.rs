@@ -56,7 +56,7 @@ impl Ctx {
         let symbols = symbols.each_ref().map(|s| s.as_str());
 
         #[cfg(not(feature = "metadata"))]
-        let symbols = ["TOK1".try_into().unwrap(), "TOK2".try_into().unwrap()];
+        let symbols = ["TOK1", "TOK2"];
 
         print_balances(user.name, self.my_balances(), symbols);
     }
