@@ -53,9 +53,7 @@ impl StorageCostModel {
     }
 
     fn contract_deployment_cost_per_byte(&self) -> i128 {
-        self.cost_model
-            .contract_deployment_cost_per_byte
-            .into()
+        self.cost_model.contract_deployment_cost_per_byte.into()
     }
 
     /// Cost of a contract deployment of the given length
