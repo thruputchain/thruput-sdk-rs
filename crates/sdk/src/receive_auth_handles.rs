@@ -129,6 +129,21 @@ impl<const MAX: u32> ReceiveAuthHandles for xdrs::BytesM<MAX> {
     }
 }
 
+impl<const MAX: usize, T: ReceiveAuthHandles> ReceiveAuthHandles
+    for heapless::Vec<T, MAX>
+{
+    #[inline(always)]
+    fn receive_auth_handles(
+        &mut self,
+        handles: &mut impl Iterator<Item = u32>,
+    ) -> Result<(), AuthTokenError> {
+        for item in self {
+            item.receive_auth_handles(handles)?;
+        }
+        Ok(())
+    }
+}
+
 impl<const MAX: usize> ReceiveAuthHandles for heapless::String<MAX> {
     #[inline(always)]
     fn receive_auth_handles(
