@@ -52,10 +52,10 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 bottle-test-if = { path = "crates/bottle-test-if" }
 
 # Deps from protocol-rs repo:
-groundhog-spec = { registry = "groundhog", version = "=0.13.6", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "=0.13.6" }
-groundhog-xdr = { registry = "groundhog", version = "=0.13.6", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "=0.13.6" }
+groundhog-spec = { registry = "groundhog", version = "=0.13.7", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "=0.13.7" }
+groundhog-xdr = { registry = "groundhog", version = "=0.13.7", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "=0.13.7" }
 
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }
