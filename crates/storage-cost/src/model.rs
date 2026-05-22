@@ -13,14 +13,14 @@ impl StorageCostModel {
         Self {
             cost_model: StorageCostModelXdr {
                 ext: groundhog_xdr::types::ExtensionPoint::_0,
-                base_data_item_cost: 0i128.into(),
-                bytestring_cost_per_byte: 0,
-                base_contract_deployment_cost: 0i128.into(),
-                contract_deployment_cost_per_byte: 0i128.into(),
-                auth_per_key_cost: 0i128.into(),
-                rcq_cost_per_entry: 0i128.into(),
-                replay_cache_cost_per_entry: 0i128.into(),
-                balance_cost: 0i128.into(),
+                base_data_item_cost: 0u64,
+                bytestring_cost_per_byte: 0u32,
+                base_contract_deployment_cost: 0u64,
+                contract_deployment_cost_per_byte: 0u64,
+                auth_per_key_cost: 0u64,
+                rcq_cost_per_entry: 0u64,
+                replay_cache_cost_per_entry: 0u64,
+                balance_cost: 0u64,
             },
         }
     }
@@ -30,7 +30,7 @@ impl StorageCostModel {
     }
 
     fn base_data_item_cost(&self) -> i128 {
-        self.cost_model.base_data_item_cost.clone().into()
+        self.cost_model.base_data_item_cost.into()
     }
 
     fn bytestring_cost_per_byte(&self) -> i128 {
@@ -49,13 +49,12 @@ impl StorageCostModel {
     }
 
     fn base_contract_deployment_cost(&self) -> i128 {
-        self.cost_model.base_contract_deployment_cost.clone().into()
+        self.cost_model.base_contract_deployment_cost.into()
     }
 
     fn contract_deployment_cost_per_byte(&self) -> i128 {
         self.cost_model
             .contract_deployment_cost_per_byte
-            .clone()
             .into()
     }
 
@@ -67,7 +66,7 @@ impl StorageCostModel {
 
     /// Cost of a native token balance
     pub fn balance_cost(&self) -> i128 {
-        self.cost_model.balance_cost.clone().into()
+        self.cost_model.balance_cost.into()
     }
 
     pub fn as_xdr(&self) -> StorageCostModelXdr {
