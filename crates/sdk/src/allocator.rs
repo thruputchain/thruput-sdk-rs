@@ -1,97 +1,39 @@
-//! An optional "bump" allocator
+//! A fixed-size slab bump allocator that does not use memory.grow.
+//!
+//! Allocates from __heap_base to the end of the single wasm page.
 
-// This code is copied from https://github.com/stellar/rs-soroban-sdk/blob/main/soroban-sdk/src/alloc.rs,
-// which in turn is adapted from https://github.com/wenyuzhao/bump-allocator-rs
-
-/**
- * This code gives a smart contract the option, but not the requirment,
- * of including a heap allocator.  This one is the simple allocator
- * that just bumps a pointer (and is a no-op on free).
- */
 use core::alloc::{GlobalAlloc, Layout};
 
-pub static mut LOCAL_ALLOCATOR: BumpPointerLocal = BumpPointerLocal::new();
+const WASM_PAGE_SIZE: usize = 65536;
 
-pub struct BumpPointerLocal {
-    cursor: *mut u8,
-    limit: *mut u8,
+unsafe extern "C" {
+    static __heap_base: u8;
 }
 
-impl BumpPointerLocal {
-    const LOG_PAGE_SIZE: usize = 16;
-    const PAGE_SIZE: usize = 1 << Self::LOG_PAGE_SIZE; // 64KB
-    const MEM: u32 = 0; // Memory 0 is the only legal one currently
+static mut CURSOR: usize = usize::MAX;
 
-    pub const fn new() -> Self {
-        Self {
-            cursor: 0 as _,
-            limit: 0 as _,
-        }
-    }
+struct SlabAllocator;
 
-    #[inline(always)]
-    fn align_allocation(cursor: *mut u8, align: usize) -> *mut u8 {
-        let mask = align - 1;
-        (((cursor as usize) + mask) & !mask) as _
-    }
-
-    #[inline(always)]
-    fn maybe_init_inline(&mut self) {
-        if self.limit as usize == 0 {
-            // This is a slight over-estimate and ideally we would use __heap_base
-            // but that seems not to be easy to access and in any case it is just a
-            // convention whereas this is more guaranteed by the wasm spec to work.
-            self.cursor = (core::arch::wasm32::memory_size(Self::MEM)
-                * Self::PAGE_SIZE) as _;
-            self.limit = self.cursor;
-        }
-    }
-
-    #[inline(never)]
-    fn maybe_init(&mut self) {
-        self.maybe_init_inline()
-    }
-
-    #[inline(always)]
-    pub fn alloc(&mut self, bytes: usize, align: usize) -> *mut u8 {
-        self.maybe_init();
-        let start = Self::align_allocation(self.cursor, align);
-        let new_cursor = unsafe { start.add(bytes) };
-        if new_cursor <= self.limit {
-            self.cursor = new_cursor;
-            start
-        } else {
-            self.alloc_slow(bytes, align)
-        }
-    }
-
-    #[inline(always)]
-    fn alloc_slow_inline(&mut self, bytes: usize, align: usize) -> *mut u8 {
-        let pages = (bytes + Self::PAGE_SIZE - 1) / Self::PAGE_SIZE;
-        if core::arch::wasm32::memory_grow(Self::MEM, pages) == usize::MAX {
-            panic!("Out of memory");
-        }
-        self.limit = unsafe { self.limit.add(pages * Self::PAGE_SIZE) };
-        self.alloc(bytes, align)
-    }
-
-    #[inline(never)]
-    fn alloc_slow(&mut self, bytes: usize, align: usize) -> *mut u8 {
-        self.alloc_slow_inline(bytes, align)
-    }
-}
-
-pub struct BumpPointer;
-
-unsafe impl GlobalAlloc for BumpPointer {
+unsafe impl GlobalAlloc for SlabAllocator {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let (bytes, align) = (layout.size(), layout.align());
+        let size = layout.size();
+        let align = layout.align();
 
-        #[allow(static_mut_refs)]
-        let ptr = unsafe { LOCAL_ALLOCATOR.alloc(bytes, align) };
+        let mut cursor = unsafe { CURSOR };
+        if cursor == usize::MAX {
+            cursor = unsafe { &__heap_base as *const u8 as usize };
+        }
 
-        ptr
+        let aligned = (cursor + align - 1) & !(align - 1);
+        let new_cursor = aligned + size;
+
+        if new_cursor > WASM_PAGE_SIZE {
+            return core::ptr::null_mut();
+        }
+
+        unsafe { CURSOR = new_cursor };
+        aligned as *mut u8
     }
 
     #[inline(always)]
@@ -99,4 +41,4 @@ unsafe impl GlobalAlloc for BumpPointer {
 }
 
 #[global_allocator]
-static GLOBAL: BumpPointer = BumpPointer;
+static GLOBAL: SlabAllocator = SlabAllocator;
