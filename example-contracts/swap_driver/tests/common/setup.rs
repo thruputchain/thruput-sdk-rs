@@ -76,12 +76,25 @@ fn ab_tokens_deploy_init(token_hash: &SHA256Hash) -> Addresses {
     let token0_addr = deploy_contract(&TOKEN_0_NONCE, token_hash);
     let token1_addr = deploy_contract(&TOKEN_1_NONCE, token_hash);
 
-    let token0 = ERC20MetadataClient::new(&token0_addr);
-    let token1 = ERC20MetadataClient::new(&token1_addr);
+    #[cfg(not(feature = "metadata"))]
+    {
+        let token0 = ERC20Client::new(&token0_addr);
+        let token1 = ERC20Client::new(&token1_addr);
 
-    // Initialize the token contracts, putting them under control of the test
-    token0.initialize(TEST.addr, None, Some(Symbol::try_from("AAA").unwrap()), None);
-    token1.initialize(TEST.addr, None, Some(Symbol::try_from("BBB").unwrap()), None);
+        // Initialize the token contracts, putting them under control of the test
+        token0.initialize(TEST.addr);
+        token1.initialize(TEST.addr);
+    }
+
+    #[cfg(feature = "metadata")]
+    {
+        let token0 = ERC20MetadataClient::new(&token0_addr);
+        let token1 = ERC20MetadataClient::new(&token1_addr);
+
+        // Initialize the token contracts, putting them under control of the test
+        token0.initialize(TEST.addr, None, Some(Symbol::try_from("AAA").unwrap()), None);
+        token1.initialize(TEST.addr, None, Some(Symbol::try_from("BBB").unwrap()), None);
+    }
 
     [token0_addr, token1_addr]
 }

@@ -16,9 +16,11 @@ impl Ctx {
     pub fn token1(&self) -> ERC20Client {
         ERC20Client::new(&self.token_addrs[1])
     }
+    #[cfg(feature = "metadata")]
     pub fn token0_meta(&self) -> ERC20MetadataClient {
         ERC20MetadataClient::new(&self.token_addrs[0])
     }
+    #[cfg(feature = "metadata")]
     pub fn token1_meta(&self) -> ERC20MetadataClient {
         ERC20MetadataClient::new(&self.token_addrs[1])
     }
@@ -45,10 +47,16 @@ impl Ctx {
     pub fn user_print_balances(&self, user: &User) {
         assert_eq!(&get_current_address(), user.addr);
 
+        #[cfg(feature = "metadata")]
         let symbols = [
             self.token0_meta().symbol().unwrap(),
             self.token1_meta().symbol().unwrap(),
         ];
+        #[cfg(feature = "metadata")]
+        let symbols = symbols.each_ref().map(|s| s.as_str());
+
+        #[cfg(not(feature = "metadata"))]
+        let symbols = ["TOK1".try_into().unwrap(), "TOK2".try_into().unwrap()];
 
         print_balances(user.name, self.my_balances(), symbols);
     }

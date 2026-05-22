@@ -8,7 +8,7 @@ type Balance = NNInt;
 type Allowance = NNInt;
 
 #[sdk::storage]
-#[derive(Debug)]
+#[cfg_attr(feature = "dev", derive(Debug))]
 pub struct TokenContract {
     config: Value<Config>,
     balances: Map<ContractAddress, Balance>,
@@ -16,13 +16,21 @@ pub struct TokenContract {
     total_supply: NNInt,
 }
 
+#[cfg(feature = "metadata")]
 #[contract_type]
-#[derive(Debug)]
+#[cfg_attr(feature = "dev", derive(Debug))]
 pub struct Config {
     pub administrator: ContractAddress,
     pub name: Option<Name>,
     pub symbol: Option<Symbol>,
     pub decimals: Option<u32>,
+}
+
+#[cfg(not(feature = "metadata"))]
+#[contract_type]
+#[cfg_attr(feature = "dev", derive(Debug))]
+pub struct Config {
+    pub administrator: ContractAddress,
 }
 
 impl TokenContract {
@@ -98,8 +106,14 @@ impl ERC20 for TokenContract {
     fn initialize(&mut self, administrator: &ContractAddress) {
         self._init(&Config {
             administrator: *administrator,
+
+            #[cfg(feature = "metadata")]
             name: None,
+
+            #[cfg(feature = "metadata")]
             symbol: None,
+
+            #[cfg(feature = "metadata")]
             decimals: None,
         });
     }
@@ -190,6 +204,7 @@ impl ERC20 for TokenContract {
     }
 }
 
+#[cfg(feature = "metadata")]
 #[contract(version = "0.1.0")]
 impl ERC20Metadata for TokenContract {
     fn initialize(

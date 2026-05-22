@@ -12,7 +12,7 @@ pub fn is_pair_error_and(
     }
 }
 
-pub fn print_balances(name: &str, bals: (Amounts, Amount), symbols: [Symbol; 2]) {
+pub fn print_balances(name: &str, bals: (Amounts, Amount), symbols: [&str; 2]) {
     println!(
         "{name:>10}: {:>10.1} {}  {:>10.1} {}  {:>10.1} LP",
         decimalized(bals.0[0]),
