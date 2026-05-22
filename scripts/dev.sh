@@ -510,6 +510,11 @@ xxx() {
 }
 
 xxx_check() {
+    which rg >& /dev/null || {
+        echo "Can't find rg"
+        return 0;
+    }
+
     # capture exit code without triggering errexit
     xxx && rg=$? || rg=$?
 
