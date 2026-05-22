@@ -11,7 +11,7 @@ test = false # suppress output from our zero unit-tests
 [dependencies]
 sdk = { workspace = true, features = ["storage"] }
 groundhog-erc20-if = { workspace = true }
-groundhog-erc20-metadata-if = { workspace = true }
+groundhog-erc20-metadata-if = { workspace = true, optional = true }
 swap = { path = "../swap" }
 erc20 = { path = "../erc20" }
 uint = { version = "0.10.0", default-features = false }
@@ -20,6 +20,7 @@ thiserror = { workspace = true }
 
 [features]
 entrypoints = []
+metadata = ["dep:groundhog-erc20-metadata-if", "erc20/metadata"]
 dev = ["sdk/dev", "swap/dev", "erc20/dev"]
 
 [dev-dependencies]

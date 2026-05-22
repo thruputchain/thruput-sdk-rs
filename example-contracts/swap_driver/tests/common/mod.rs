@@ -19,6 +19,7 @@ pub use user::*;
 pub use util::*;
 
 pub use groundhog_erc20_if::ERC20Client;
+#[cfg(feature = "metadata")]
 pub use groundhog_erc20_metadata_if::*;
 pub use sdk::*;
 pub use swap::*;

@@ -7,11 +7,15 @@ sdk::declare_mock_contract!();
 // A trait describing the contract interface
 mod interface {
     pub use groundhog_erc20_if::*;
+
+    #[cfg(feature = "metadata")]
     pub use groundhog_erc20_metadata_if::*;
 }
 
 // A client stub that provides the interface via cross-contract calls
 pub use interface::ERC20Client;
+
+#[cfg(feature = "metadata")]
 pub use interface::ERC20MetadataClient;
 
 // An implementation of the contract interface
