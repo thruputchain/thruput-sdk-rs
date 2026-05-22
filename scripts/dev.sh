@@ -551,7 +551,7 @@ ci_check() {
 check_quality() {
     { skip LINT || lint_check; } &&
     { skip FMT || fmt_check; } &&
-    # xxx_check &&
+    xxx_check &&
     true
 }
 

@@ -121,7 +121,9 @@ impl<const MAX: u32> CollectAuthHandles for xdrs::BytesM<MAX> {
     }
 }
 
-impl<const MAX: usize, T: CollectAuthHandles> CollectAuthHandles for heapless::Vec<T, MAX> {
+impl<const MAX: usize, T: CollectAuthHandles> CollectAuthHandles
+    for heapless::Vec<T, MAX>
+{
     #[inline(always)]
     fn collect_auth_handles(
         &self,

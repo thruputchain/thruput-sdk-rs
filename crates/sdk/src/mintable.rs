@@ -234,10 +234,7 @@ impl<const MAX: u32> Mintable for StringM<MAX> {
 }
 
 impl<const MAX: usize> Mintable for heapless::String<MAX> {
-    fn mint_into_parent(
-        preimage: Self,
-        _children: &mut ChildNodeBuf,
-    ) -> Self {
+    fn mint_into_parent(preimage: Self, _children: &mut ChildNodeBuf) -> Self {
         preimage
     }
 }
