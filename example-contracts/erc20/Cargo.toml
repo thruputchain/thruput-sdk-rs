@@ -18,7 +18,6 @@ dev = [
     "metadata",
     "groundhog-erc20-if/dev",
     "groundhog-erc20-metadata-if/dev",
-    "erc20/metadata",
     "erc20-native-test/metadata"
     ]
 bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
