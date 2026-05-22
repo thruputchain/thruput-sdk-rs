@@ -4,11 +4,13 @@
 
 use core::alloc::{GlobalAlloc, Layout};
 
+const WASM_PAGE_SIZE: usize = 65536;
+
 unsafe extern "C" {
     static __heap_base: u8;
 }
 
-static mut CURSOR: usize = 0;
+static mut CURSOR: usize = usize::MAX;
 
 struct SlabAllocator;
 
@@ -19,12 +21,16 @@ unsafe impl GlobalAlloc for SlabAllocator {
         let align = layout.align();
 
         let mut cursor = unsafe { CURSOR };
-        if cursor == 0 {
+        if cursor == usize::MAX {
             cursor = unsafe { &__heap_base as *const u8 as usize };
         }
 
         let aligned = (cursor + align - 1) & !(align - 1);
         let new_cursor = aligned + size;
+
+        if new_cursor > WASM_PAGE_SIZE {
+            return core::ptr::null_mut();
+        }
 
         unsafe { CURSOR = new_cursor };
         aligned as *mut u8
