@@ -11,6 +11,9 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// When updating, also update the version in README.md.
 const TEST_FFI_VERSION: &str = "0.15.2";
 
+/// Must match the version expected by hogd/built_contracts/build_wasm.sh.
+const GROUNDHOG_CLI_VERSION: &str = "0.3.3";
+
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
@@ -434,9 +437,7 @@ fn fetch_hogd_rust_deps(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let contracts_dir = hogd_path.join("built_contracts");
     if contracts_dir.exists() {
-        println!(
-            "cargo:warning=Pre-fetching built_contracts dependencies..."
-        );
+        println!("cargo:warning=Pre-fetching built_contracts dependencies...");
 
         let output = Command::new("cargo")
             .args(["fetch", "-Zbuild-std"])
@@ -500,16 +501,37 @@ fn fetch_hogd_rust_deps(
 
     let cli_root = out_dir.join("groundhog-cli");
     let cli_bin_path = cli_root.join("bin/groundhog");
-    if cli_bin_path.exists() {
-        println!(
-            "cargo:warning=groundhog-cli already installed at {}, skipping",
-            cli_bin_path.display()
-        );
+    let expected_ver = format!("groundhog {GROUNDHOG_CLI_VERSION}");
+    let needs_install = if cli_bin_path.exists() {
+        let output =
+            Command::new(&cli_bin_path).arg("--version").output().ok();
+        let installed_ver = output
+            .as_ref()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+        if installed_ver == expected_ver {
+            println!(
+                "cargo:warning=groundhog-cli {GROUNDHOG_CLI_VERSION} \
+                 already installed, skipping",
+            );
+            false
+        } else {
+            println!(
+                "cargo:warning=groundhog-cli version mismatch \
+                 (have '{installed_ver}', want '{expected_ver}'), reinstalling",
+            );
+            true
+        }
     } else {
+        true
+    };
+
+    if needs_install {
         println!(
             "cargo:warning=Installing groundhog-cli to {}...",
             cli_root.display()
         );
+        let pkg = format!("groundhog-cli@{GROUNDHOG_CLI_VERSION}");
         let output = Command::new("cargo")
             .args([
                 "install",
@@ -517,7 +539,7 @@ fn fetch_hogd_rust_deps(
                 cli_root.to_str().unwrap(),
                 "--registry",
                 "groundhog",
-                "groundhog-cli@0.3.3",
+                &pkg,
             ])
             .env(
                 "CARGO_REGISTRIES_GROUNDHOG_INDEX",
@@ -527,10 +549,10 @@ fn fetch_hogd_rust_deps(
             .output()?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(
-                format!("cargo install groundhog-cli failed: {stderr}")
-                    .into(),
-            );
+            return Err(format!(
+                "cargo install groundhog-cli failed: {stderr}"
+            )
+            .into());
         }
     }
 
