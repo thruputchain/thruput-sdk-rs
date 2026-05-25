@@ -499,30 +499,39 @@ fn fetch_hogd_rust_deps(
     }
 
     let cli_root = out_dir.join("groundhog-cli");
-    println!(
-        "cargo:warning=Installing groundhog-cli to {}...",
-        cli_root.display()
-    );
-    let output = Command::new("cargo")
-        .args([
-            "install",
-            "--root",
-            cli_root.to_str().unwrap(),
-            "--registry",
-            "groundhog",
-            "groundhog-cli@0.3.3",
-        ])
-        .env(
-            "CARGO_REGISTRIES_GROUNDHOG_INDEX",
-            "sparse+https://groundhog.dev/crates/api/v1/crates/",
-        )
-        .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
-        .output()?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(
-            format!("cargo install groundhog-cli failed: {stderr}").into(),
+    let cli_bin_path = cli_root.join("bin/groundhog");
+    if cli_bin_path.exists() {
+        println!(
+            "cargo:warning=groundhog-cli already installed at {}, skipping",
+            cli_bin_path.display()
         );
+    } else {
+        println!(
+            "cargo:warning=Installing groundhog-cli to {}...",
+            cli_root.display()
+        );
+        let output = Command::new("cargo")
+            .args([
+                "install",
+                "--root",
+                cli_root.to_str().unwrap(),
+                "--registry",
+                "groundhog",
+                "groundhog-cli@0.3.3",
+            ])
+            .env(
+                "CARGO_REGISTRIES_GROUNDHOG_INDEX",
+                "sparse+https://groundhog.dev/crates/api/v1/crates/",
+            )
+            .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(
+                format!("cargo install groundhog-cli failed: {stderr}")
+                    .into(),
+            );
+        }
     }
 
     Ok(())
@@ -866,10 +875,7 @@ fn build_from_cmake(
     let cli_bin = out_dir.join("groundhog-cli/bin");
     if cli_bin.exists() {
         let path = env::var("PATH").unwrap_or_default();
-        // Safety: build scripts are single-threaded.
-        unsafe {
-            env::set_var("PATH", format!("{}:{path}", cli_bin.display()));
-        }
+        cfg.env("PATH", format!("{}:{path}", cli_bin.display()));
     }
 
     // important: only build a limited set of targets.  If we do this wrong
