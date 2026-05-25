@@ -11,6 +11,9 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// When updating, also update the version in README.md.
 const TEST_FFI_VERSION: &str = "0.15.2";
 
+/// Must match the version expected by hogd/built_contracts/build_wasm.sh.
+const GROUNDHOG_CLI_VERSION: &str = "0.3.3";
+
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
@@ -415,7 +418,7 @@ fn run_build_from_source(
         .expect("Couldn't write bindings!");
 
     verify_hogd_version(hogd_src, &hogd_ffi_version)?;
-    fetch_hogd_rust_deps(&hogd_path)?;
+    fetch_hogd_rust_deps(&hogd_path, out_dir)?;
     build_from_cmake(hogd_src, out_dir)?;
 
     Ok(())
@@ -423,34 +426,134 @@ fn run_build_from_source(
 
 /// Pre-fetch cargo dependencies for hogd's embedded Rust crates.
 ///
-/// The hogd cmake build uses corrosion to compile Rust crates under
-/// `hogd/rust/`. Running `cargo fetch` here resolves git
-/// dependencies before cmake invokes cargo with `--frozen`.
+/// Mirrors the steps in hogd/scripts/fetch.sh:
+///   1. cargo fetch -Zbuild-std              in built_contracts/
+///   2. cargo fetch -Zbuild-std --target …   in built_contracts/
+///   3. cargo fetch                           in hogd/rust/
+///   4. cargo install groundhog-cli
 fn fetch_hogd_rust_deps(
     hogd_path: &Path,
+    out_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let contracts_dir = hogd_path.join("built_contracts");
+    if contracts_dir.exists() {
+        println!("cargo:warning=Pre-fetching built_contracts dependencies...");
+
+        let output = Command::new("cargo")
+            .args(["fetch", "-Zbuild-std"])
+            .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
+            .current_dir(&contracts_dir)
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "cargo fetch -Zbuild-std in built_contracts failed: {stderr}"
+            )
+            .into());
+        }
+
+        let output = Command::new("cargo")
+            .args([
+                "fetch",
+                "-Zbuild-std",
+                "--target",
+                "wasm32-unknown-unknown",
+            ])
+            .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
+            .current_dir(&contracts_dir)
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "cargo fetch -Zbuild-std --target wasm32-unknown-unknown \
+                 in built_contracts failed: {stderr}"
+            )
+            .into());
+        }
+    } else {
+        println!(
+            "cargo:warning=built_contracts not found, skipping \
+             contracts pre-fetch"
+        );
+    }
+
     let rust_dir = hogd_path.join("hogd/rust");
-    if !rust_dir.exists() {
+    if rust_dir.exists() {
+        println!("cargo:warning=Pre-fetching hogd Rust dependencies...");
+
+        let output = Command::new("cargo")
+            .args(["fetch"])
+            .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
+            .current_dir(&rust_dir)
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(
+                format!("cargo fetch in hogd/rust failed: {stderr}").into()
+            );
+        }
+    } else {
         println!(
             "cargo:warning=hogd/rust not found, skipping \
              pre-fetch"
         );
-        return Ok(());
     }
 
-    println!("cargo:warning=Pre-fetching hogd Rust dependencies...");
+    let cli_root = out_dir.join("groundhog-cli");
+    let cli_bin_path = cli_root.join("bin/groundhog");
+    let expected_ver = format!("groundhog {GROUNDHOG_CLI_VERSION}");
+    let needs_install = if cli_bin_path.exists() {
+        let output =
+            Command::new(&cli_bin_path).arg("--version").output().ok();
+        let installed_ver = output
+            .as_ref()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+        if installed_ver == expected_ver {
+            println!(
+                "cargo:warning=groundhog-cli {GROUNDHOG_CLI_VERSION} \
+                 already installed, skipping",
+            );
+            false
+        } else {
+            println!(
+                "cargo:warning=groundhog-cli version mismatch \
+                 (have '{installed_ver}', want '{expected_ver}'), reinstalling",
+            );
+            true
+        }
+    } else {
+        true
+    };
 
-    let output = Command::new("cargo")
-        .args(["fetch"])
-        .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
-        .current_dir(&rust_dir)
-        .output()?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(
-            format!("cargo fetch in hogd/rust failed: {stderr}").into()
+    if needs_install {
+        println!(
+            "cargo:warning=Installing groundhog-cli to {}...",
+            cli_root.display()
         );
+        let pkg = format!("groundhog-cli@{GROUNDHOG_CLI_VERSION}");
+        let output = Command::new("cargo")
+            .args([
+                "install",
+                "--root",
+                cli_root.to_str().unwrap(),
+                "--registry",
+                "groundhog",
+                &pkg,
+            ])
+            .env(
+                "CARGO_REGISTRIES_GROUNDHOG_INDEX",
+                "sparse+https://groundhog.dev/crates/api/v1/crates/",
+            )
+            .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "cargo install groundhog-cli failed: {stderr}"
+            )
+            .into());
+        }
     }
 
     Ok(())
@@ -788,6 +891,14 @@ fn build_from_cmake(
     cfg.always_configure(
         env::var("NATIVE_EXEC_ALWAYS_CONFIGURE").is_ok_and(|s| !s.is_empty()),
     );
+
+    // Put the locally-installed groundhog-cli on PATH so cmake/build_wasm.sh
+    // can find it without touching the user's global cargo bin.
+    let cli_bin = out_dir.join("groundhog-cli/bin");
+    if cli_bin.exists() {
+        let path = env::var("PATH").unwrap_or_default();
+        cfg.env("PATH", format!("{}:{path}", cli_bin.display()));
+    }
 
     // important: only build a limited set of targets.  If we do this wrong
     // we could easily wind up with some kind of nonsense recursive build.
