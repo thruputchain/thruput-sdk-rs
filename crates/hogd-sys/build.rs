@@ -510,7 +510,7 @@ fn fetch_hogd_rust_deps(
             cli_root.to_str().unwrap(),
             "--registry",
             "groundhog",
-            "groundhog-cli@0.3.4",
+            "groundhog-cli@0.3.3",
         ])
         .env(
             "CARGO_REGISTRIES_GROUNDHOG_INDEX",
