@@ -730,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc1271-if"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "sdk",
  "thiserror",
@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "groundhog-xdr",
  "sdk",
@@ -747,7 +747,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-metadata-if"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "groundhog-xdr",
  "heapless",
