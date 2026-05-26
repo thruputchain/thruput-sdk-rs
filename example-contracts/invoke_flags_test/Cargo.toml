@@ -1,0 +1,27 @@
+[package]
+name = "invoke_flags_test"
+description = "Integration tests for invoke flags (TryInvoke, ReadOnly) through generated clients"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true, features = ["storage"] }
+
+[dev-dependencies]
+invoke_flags_test = { path = ".", features = ["dev"] }

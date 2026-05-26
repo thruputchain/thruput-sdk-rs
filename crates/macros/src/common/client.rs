@@ -14,11 +14,13 @@ pub const CLIENT_TRY_METHOD_PREFIX: &str = "try_";
 pub const CLIENT_CONSTRUCTOR_NAME: &str = "new";
 pub const CLIENT_GAS_LIMIT_HELPER_NAME: &str = "with_gas_limit";
 pub const CLIENT_TRY_INVOKE_HELPER_NAME: &str = "with_commit_locking";
+pub const CLIENT_READ_ONLY_HELPER_NAME: &str = "with_read_only";
 
-const CLIENT_RESERVED_NAMES: [&str; 3] = [
+const CLIENT_RESERVED_NAMES: [&str; 4] = [
     CLIENT_CONSTRUCTOR_NAME,
     CLIENT_GAS_LIMIT_HELPER_NAME,
     CLIENT_TRY_INVOKE_HELPER_NAME,
+    CLIENT_READ_ONLY_HELPER_NAME,
 ];
 
 pub fn reserved_client_name_error(name: &str) -> Option<String> {
@@ -56,6 +58,10 @@ fn client_try_invoke_helper_ident() -> syn::Ident {
     format_ident!("{}", CLIENT_TRY_INVOKE_HELPER_NAME)
 }
 
+fn client_read_only_helper_ident() -> syn::Ident {
+    format_ident!("{}", CLIENT_READ_ONLY_HELPER_NAME)
+}
+
 fn try_client_method_ident(method_ident: &syn::Ident) -> syn::Ident {
     format_ident!("{}{}", CLIENT_TRY_METHOD_PREFIX, method_ident)
 }
@@ -88,6 +94,7 @@ pub fn generate(
     let constructor_ident = client_constructor_ident();
     let gas_limit_helper_ident = client_gas_limit_helper_ident();
     let try_invoke_helper_ident = client_try_invoke_helper_ident();
+    let read_only_helper_ident = client_read_only_helper_ident();
 
     let client = quote! {
 
@@ -127,6 +134,17 @@ pub fn generate(
                         config: ::sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
                                     | ::sdk::invoke_config::InvokeFlag::TryInvoke.0,
+                                .. self.config
+                        },
+                        .. self
+                    }
+                }
+
+                pub fn #read_only_helper_ident(self) -> Self {
+                    Self {
+                        config: ::sdk::invoke_config::InvokeConfig {
+                                flags: self.config.flags
+                                    | ::sdk::invoke_config::InvokeFlag::ReadOnly.0,
                                 .. self.config
                         },
                         .. self
@@ -238,7 +256,7 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args)
+                ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags)
                     .or_re_throw()
             })
         }
@@ -256,7 +274,7 @@ fn generate_client_fn(
 
             with_call_tracking!(#call_info, {
                 use ::sdk::call::RawCallError;
-                match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args) {
+                match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags) {
                     Ok(val) => Ok(val),
                     Err(RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
                     Err(RawCallError::Exception(ref exn)) => {

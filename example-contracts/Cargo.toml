@@ -47,6 +47,7 @@ members = [
     "signer_tuple_test",
     "erc1271_wallet",
     "erc1271_caller",
+    "invoke_flags_test",
 ]
 
 [workspace.package]
