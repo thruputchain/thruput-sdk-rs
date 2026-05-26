@@ -112,9 +112,9 @@ fn no_flags_success() {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
                 let client = KeyValueStoreClient::new(&deployed_addr);
-                let err = client.try_write(42);
+                let result = client.try_write(42);
                 assert!(
-                    err.is_ok(),
+                    result.is_ok(),
                     "No flags should succeed"
                 );
             }))
