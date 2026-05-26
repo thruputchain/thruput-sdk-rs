@@ -10,9 +10,11 @@ impl<T> Context for T where T: Any + Display {}
 
 struct Frame {
     context: NonNull<dyn Context>,
-    location: String<100>,
+    location: LocString,
     next: Option<NonNull<Frame>>,
 }
+
+type LocString = String<100>;
 
 // On wasm (single-threaded), use a plain static with ContractCell (which is Sync).
 // On native (multi-threaded), use thread_local with core::cell::Cell.
@@ -33,11 +35,7 @@ pub fn with_debug_context<F, T>(context: &(impl Context + 'static), f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    let location = Location::caller();
-
-    let mut location_str = String::new();
-    write!(location_str, "{}", location)
-        .unwrap_or_else(|e| panic!("Failed rendering location: {}", e));
+    let location_str = write_location(Location::caller());
 
     let frames = FRAMES.get();
 
@@ -52,6 +50,33 @@ where
     let _guard = FramesGuard { prev: frames };
 
     f()
+}
+
+// Render the location to a fixed-length string, truncating the front of the
+// filepath (and prepending an elipsis) if necessary.
+//
+fn write_location(loc: &Location) -> LocString {
+    let mut out = LocString::new();
+    let mut rem = out.capacity();
+
+    let mut line_col = String::<16>::new();
+    write!(line_col, ":{}:{}", loc.line(), loc.column()).unwrap();
+    rem -= line_col.len();
+
+    let file = loc.file();
+    if file.len() > rem {
+        // Truncate front of filepath
+        let elipsis = "...";
+        out.write_str(elipsis).unwrap();
+        rem -= elipsis.len();
+        out.write_str(&file[file.len() - rem ..]).unwrap();
+    } else {
+        out.write_str(file).unwrap();
+    }
+
+    out.write_str(line_col.as_str()).unwrap();
+
+    out
 }
 
 struct FramesGuard {
