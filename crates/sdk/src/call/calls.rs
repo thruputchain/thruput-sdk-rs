@@ -16,6 +16,7 @@ pub fn try_call_raw<ARGS, RET>(
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &ARGS,
+    flags: crate::invoke_config::InvokeFlagSet,
 ) -> Result<RET, RawCallError>
 where
     ARGS: WriteXDR + crate::CollectAuthHandles,
@@ -45,6 +46,7 @@ where
         gas_limit,
         &args_buf,
         &auth_handles,
+        flags,
     )?;
 
     into_raw_call_result(contract_result)
@@ -58,6 +60,7 @@ pub fn contract_call<A>(
     gas_limit: u64,
     args: &A,
     auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
+    flags: crate::invoke_config::InvokeFlagSet,
 ) -> Result<ContractResult, RawCallError>
 where
     A: AsRef<[u8]> + ?Sized,
@@ -72,7 +75,7 @@ where
         entrypoint,
         gas_limit,
         args.as_ref(),
-        0, // TODO(geoff): invoke flags go here
+        flags,
         auth_bytes,
         &mut return_len,
         &mut auth_token_id_list_return_len,
