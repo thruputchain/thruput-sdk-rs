@@ -16,7 +16,7 @@ fn concurrent_write_conflict_at_commit() {
 
     let result1 = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller_a"))
-            .run(move || {
+            .run(|| {
                 KeyValueStoreClient::new(&DEPLOYED_ADDR).write(42);
             })
     });
@@ -25,7 +25,7 @@ fn concurrent_write_conflict_at_commit() {
     // Concurrent tx in the same block writes a different value to the same key.
     let result2 = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller_b"))
-            .run(move || {
+            .run(|| {
                 KeyValueStoreClient::new(&DEPLOYED_ADDR).write(99);
             })
     });
@@ -39,7 +39,7 @@ fn try_invoke_conflict_at_frame_close() {
 
     let result1 = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller_a"))
-            .run(move || {
+            .run(|| {
                 KeyValueStoreClient::new(&DEPLOYED_ADDR).write(42);
             })
     });
@@ -49,7 +49,7 @@ fn try_invoke_conflict_at_frame_close() {
     // The conflict is detected when the child frame closes, not at commit.
     let result2 = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller_b"))
-            .run(move || {
+            .run(|| {
                 let err = KeyValueStoreClient::new(&DEPLOYED_ADDR)
                     .with_commit_locking()
                     .try_write(99);
@@ -69,7 +69,7 @@ fn read_only_rejects_write() {
 
     let result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
-            .run(move || {
+            .run(|| {
                 let err = KeyValueStoreClient::new(&DEPLOYED_ADDR)
                     .with_read_only()
                     .try_write(42);
@@ -85,7 +85,7 @@ fn no_flags_success() {
 
     let result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
-            .run(move || {
+            .run(|| {
                 let result = KeyValueStoreClient::new(&DEPLOYED_ADDR).try_write(42);
                 assert!(result.is_ok(), "No flags should succeed");
             })
