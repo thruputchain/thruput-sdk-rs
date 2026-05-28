@@ -16,6 +16,6 @@ name = "counter-rv32"
 path = "src/main.rs"
 
 [dependencies]
-counter = { path = "../counter" }
+counter = { path = "../counter", features = ["entrypoints"] }
 groundhog-rv32-runtime = { path = "../../crates/rv32-runtime" }
 sdk = { workspace = true, features = ["storage"] }

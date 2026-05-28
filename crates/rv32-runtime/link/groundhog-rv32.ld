@@ -32,9 +32,15 @@ SECTIONS
     KEEP(*(.text._start))
 
     /* Method entry points emitted by the #[contract] macro on rv32.
-     * Naming convention: gh_method_<method_id>. Lowerer scans these.
+     * The macro places each method in `.text.gh_<EXPORT_NAME>` where
+     * EXPORT_NAME is the 16-char hex ContractEntrypointID also used
+     * for the wasm export name. The lowerer reads this symbol table
+     * to build the artifact dispatch table.
+     *
+     * Hand-written entry points (rv32-runtime's `entry_point!` macro)
+     * use the same prefix.
      */
-    KEEP(*(.text.gh_method_*))
+    KEEP(*(.text.gh_*))
 
     *(.text .text.*)
   } > RAM

@@ -423,13 +423,23 @@ pub fn generate_method(
     // Wasm exports are only emitted when the "entrypoints" feature is
     // enabled.  The build script passes --features entrypoints; deps
     // that don't enable the feature cannot inject entrypoints.
+    //
+    // SPIKE: also emit the symbol on rv32, using the same 16-char hex
+    // export name. On rv32 we additionally pin the symbol into a
+    // per-method link section so the linker script (in
+    // groundhog-rv32-runtime) can KEEP it through DCE.
+    let rv32_link_section = format!(".text.gh_{}", export_name);
     Ok(quote! {
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
         #[cfg_attr(
-            target_family = "wasm",
+            any(target_family = "wasm", target_arch = "riscv32"),
             unsafe(export_name = #export_name)
+        )]
+        #[cfg_attr(
+            target_arch = "riscv32",
+            unsafe(link_section = #rv32_link_section)
         )]
         pub extern "C" fn #extern_name() {
             #internal_name()
