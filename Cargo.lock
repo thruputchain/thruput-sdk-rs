@@ -721,6 +721,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-rv32-runtime"
+version = "0.14.7"
+
+[[package]]
 name = "groundhog-serde_arrays"
 version = "0.2.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"

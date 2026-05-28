@@ -1,0 +1,30 @@
+[package]
+name = "groundhog-rv32-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Bare-metal RV32 runtime support for Groundhog contracts: _start, panic handler, allocator, linker script"
+
+# Build script publishes link args to bin crates that depend on us, and
+# re-runs when the linker script changes.
+build = "build.rs"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+# When enabled, the panic handler abort()s via the host syscall.
+# When disabled, panic spins. Costs a dependency edge to groundhog-xdr,
+# which we may not want for the smallest contracts.
+panic_abort_syscall = []
+
+[dependencies]
+# Intentionally minimal. The runtime is target-specific glue; we want to
+# keep its dep graph small so it builds fast and is easy to audit.

@@ -1,0 +1,16 @@
+# RV32-specific link flags. The linker script `groundhog-rv32.ld` is on
+# the linker search path because `groundhog-rv32-runtime`'s build.rs
+# publishes its `link/` dir via `cargo:rustc-link-search`.
+
+[build]
+target = "riscv32im-unknown-none-elf"
+
+[target.riscv32im-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-dynamic-linker",
+    "-C", "link-arg=--gc-sections",
+    "-C", "panic=abort",
+    "-C", "relocation-model=static",
+]

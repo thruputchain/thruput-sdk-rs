@@ -103,8 +103,10 @@ required-features = ["storage"]
 name = "compile_fail_storage"
 required-features = ["storage"]
 
-[target.wasm32-unknown-unknown.dependencies]
+# SPIKE: rv32 uses the same `syscalls` feature as wasm — both make real ecalls
+# into hogd. Only host-native uses the mock that links against native-exec.
+[target.'cfg(any(target_family = "wasm", target_arch = "riscv32"))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls"] }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
+[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }

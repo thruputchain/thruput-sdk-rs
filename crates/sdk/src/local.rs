@@ -1,5 +1,5 @@
 // For the guest environment, `contract_local!{}` can just be stripped
-#[cfg(any(doc, target_family = "wasm"))]
+#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
 /// Use this macro to wrap static definitions in order to make them work
 /// correctly in the test environment.  The statics are placed in thread-local
 /// storage so that concurrently-run tests don't bash each other.
@@ -35,5 +35,8 @@ macro_rules! contract_local {
     }
 }
 
-#[cfg(all(not(any(doc, target_family = "wasm")), not(feature = "std")))]
+#[cfg(all(
+    not(any(doc, target_family = "wasm", target_arch = "riscv32")),
+    not(feature = "std"),
+))]
 compile_error!("When building natively, sdk feature \"std\" must be enabled.");

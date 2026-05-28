@@ -1,12 +1,12 @@
 // Test environment: just alias `core::cell::Cell`.
 // Statics will work if placed in `contract_local!{}`
-#[cfg(not(any(doc, target_family = "wasm")))]
+#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
 mod _impl {
     pub use core::cell::Cell as ContractCell;
 }
 
 // Guest environment: wrap
-#[cfg(any(doc, target_family = "wasm"))]
+#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
 mod _impl {
     // All we need to provide here is interior mutability. By also declaring
     // our wrapper thread-safe, we can use it in a static.

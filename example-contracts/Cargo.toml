@@ -48,6 +48,7 @@ members = [
     "erc1271_wallet",
     "erc1271_caller",
     "invoke_flags_test",
+    "counter-rv32",
 ]
 
 [workspace.package]
@@ -85,3 +86,7 @@ heapless = { version = "0.9.2" }
 
 [profile.release]
 trim-paths = "all" # unstable
+
+# SPIKE: redirect groundhog-xdr to local checkout to pick up rv32 syscall bridge.
+[patch.groundhog]
+groundhog-xdr = { path = "../../protocol-rs/groundhog-xdr" }
