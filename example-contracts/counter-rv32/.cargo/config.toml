@@ -13,4 +13,9 @@ rustflags = [
     "-C", "link-arg=--gc-sections",
     "-C", "panic=abort",
     "-C", "relocation-model=static",
+    # llvm pads unreachable code (after Return/Exit/Abort -> ! syscalls)
+    # with `unimp` (encoded as csrrw x0, cycle, x0 = 0xc0001073).
+    # The hogd RV32IM profile excludes CSRs, so Program::validate
+    # rejects every Return-call-site. Disable the safety pad.
+    "-Z", "trap-unreachable=false",
 ]

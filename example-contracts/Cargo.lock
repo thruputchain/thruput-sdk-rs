@@ -808,7 +808,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-rv32-runtime"
-version = "0.14.7"
+version = "0.14.10"
 
 [[package]]
 name = "groundhog-serde_arrays"
@@ -877,8 +877,6 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr"
 version = "0.15.0"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "a902e2a0e35792d75b4311e8c6123e0601783163f7aa946b2db49f2bdd75517b"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr-macros",
@@ -892,8 +890,6 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr-macros"
 version = "0.15.0"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "3585bfbbe049065b8dd29ce26c5f2ef811d77f913e928dd0ad93c390106cc532"
 dependencies = [
  "darling",
  "proc-macro2",

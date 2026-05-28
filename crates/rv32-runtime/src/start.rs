@@ -29,10 +29,16 @@ pub extern "C" fn _start() -> ! {
 
     // Default dispatch landed at _start instead of a real method
     // entry point. Treat as an unrecoverable contract bug.
+    //
+    // We can't use `ebreak` here: hogd's Program::validate accepts
+    // ECALL as the only SYSTEM-opcode instruction. EBREAK
+    // (0x00100073) decodes to kUnsupportedSystemInstruction and the
+    // whole artifact gets rejected at parse time. Until the VM
+    // accepts EBREAK as a deterministic trap, fall into a tight
+    // infinite loop and let gas exhaustion produce the OOG outcome.
     loop {
-        // `ebreak` is RV32I; the VM treats it as a trap.
         unsafe {
-            asm!("ebreak", options(nomem, nostack));
+            asm!("", options(nomem, nostack));
         }
     }
 }
