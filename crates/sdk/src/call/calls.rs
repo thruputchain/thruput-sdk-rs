@@ -5,6 +5,7 @@ use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
 use crate::exn::FaultString;
+use crate::types::transaction::InvocationFrameStatusCode;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
@@ -76,6 +77,9 @@ where
     let mut outputs = sys::CopyableInvokeOutputs {
         return_buffer_len: 0,
         returned_auth_token_len: 0,
+        // Placeholder; overwritten by the syscall whenever a child frame runs
+        // (i.e. when `raw_Invoke` returns `Ok`). Never read on the error path.
+        frame_status: InvocationFrameStatusCode::Fault,
     };
     let result = sys::raw_Invoke(
         address,
@@ -86,8 +90,21 @@ where
     );
 
     let is_ok = match result {
-        Ok(()) => true,
-        Err(syserr) if syserr.is_aborted() => false,
+        // A child frame ran; its outcome is reported in `frame_status`.
+        Ok(()) => {
+            let status = outputs.frame_status;
+            if status == InvocationFrameStatusCode::Return {
+                true
+            } else if status == InvocationFrameStatusCode::Abort {
+                false
+            } else {
+                // Fault (trap / out of gas) or an unexpected status code.
+                return Err(RawCallError::Fault(FaultString::from_display(
+                    format_args!("child frame faulted: {status:?}"),
+                )));
+            }
+        }
+        // The call was rejected before any child frame ran.
         Err(syserr) if syserr.is_invalid_input() => {
             return Err(RawCallError::Invalid);
         }
