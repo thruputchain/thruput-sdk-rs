@@ -69,7 +69,7 @@ fn write_location(loc: &Location) -> LocString {
         let elipsis = "...";
         out.write_str(elipsis).unwrap();
         rem -= elipsis.len();
-        out.write_str(&file[file.len() - rem ..]).unwrap();
+        out.write_str(&file[file.len() - rem..]).unwrap();
     } else {
         out.write_str(file).unwrap();
     }
