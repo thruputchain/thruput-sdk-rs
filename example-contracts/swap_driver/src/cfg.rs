@@ -1,7 +1,7 @@
 #![allow(clippy::result_large_err)]
 
-use swap::*;
 use sdk::*;
+use swap::*;
 
 #[derive(ReadXDR, WriteXDR)]
 #[xdrs(crate = "::sdk::__xdrs")]

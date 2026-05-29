@@ -1,7 +1,7 @@
 // General debugging utilities
 
-use sdk::*;
 use sdk::types::event::TxEmittedEvent;
+use sdk::*;
 
 pub type Result<T, E = TransactResult> = core::result::Result<T, E>;
 

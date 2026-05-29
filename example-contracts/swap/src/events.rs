@@ -1,5 +1,5 @@
-use sdk::*;
 use crate::interfaces::iswapv2_pair::{Amount, Amounts};
+use sdk::*;
 
 #[derive(Event, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MintEvent<'a> {
@@ -66,7 +66,12 @@ pub struct SwapEvent<'a> {
 }
 
 impl<'a> SwapEvent<'a> {
-    pub fn new(sender: &'a ContractAddress, amounts_in: Amounts, amounts_out: Amounts, recipient: &'a ContractAddress) -> Self {
+    pub fn new(
+        sender: &'a ContractAddress,
+        amounts_in: Amounts,
+        amounts_out: Amounts,
+        recipient: &'a ContractAddress,
+    ) -> Self {
         Self {
             sender,
             amounts_in,

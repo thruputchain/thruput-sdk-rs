@@ -127,7 +127,10 @@ fn event_handler(e: &sdk::types::event::TxEmittedEvent) {
             let amounts_in = payload.amounts_in;
             let amounts_out = payload.amounts_out;
 
-            println!("EEE Swap ({}/{} => {}/{})", amounts_in[0], amounts_in[1], amounts_out[0], amounts_out[1]);
+            println!(
+                "EEE Swap ({}/{} => {}/{})",
+                amounts_in[0], amounts_in[1], amounts_out[0], amounts_out[1]
+            );
         }
         swap::SyncEvent::SIGNATURE => {
             let e: TypedEvent<swap::SyncEvent> = TypedEvent::new(e.raw());

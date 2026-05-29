@@ -1,6 +1,6 @@
 use crate::bignum::{U112, U256};
-use crate::interfaces::iswapv2_pair::*;
 use crate::events::*;
+use crate::interfaces::iswapv2_pair::*;
 use sdk::*;
 
 // The state value

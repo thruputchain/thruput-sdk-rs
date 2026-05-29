@@ -1,8 +1,8 @@
 //! A contract implementing ISwapV2Pair
 
 use crate::bignum::U256;
-use crate::interfaces::iswapv2_pair::*;
 use crate::events::*;
+use crate::interfaces::iswapv2_pair::*;
 use crate::reserves::*;
 use core::cmp::min;
 use core::iter::zip;

@@ -91,8 +91,14 @@ impl Ctx {
     }
     */
     pub fn calculate_swap(&self, amounts_in: Amounts) -> Amounts {
-        assert!(!(amounts_in[0] > 0 && amounts_in[1] > 0), "Please don't swap with two tokens at once");
-        assert!(amounts_in[0] > 0 || amounts_in[1] > 0, "Can't calculate swap of nothing");
+        assert!(
+            !(amounts_in[0] > 0 && amounts_in[1] > 0),
+            "Please don't swap with two tokens at once"
+        );
+        assert!(
+            amounts_in[0] > 0 || amounts_in[1] > 0,
+            "Can't calculate swap of nothing"
+        );
 
         let reserves = [
             self.token0().get_balance_of(&self.pair_addr),
@@ -111,8 +117,10 @@ impl Ctx {
         // amount_out = amount_in_with_fee / ((reserve_in * 1000) + amount_in_with_fee)
 
         let amount_in_with_fee: U256 = Into::<U256>::into(amount_in) * 997;
-        let numerator: U256 = amount_in_with_fee * Into::<U256>::into(reserve_out);
-        let denominator: U256 = (Into::<U256>::into(reserve_in) * 1000) + amount_in_with_fee;
+        let numerator: U256 =
+            amount_in_with_fee * Into::<U256>::into(reserve_out);
+        let denominator: U256 =
+            (Into::<U256>::into(reserve_in) * 1000) + amount_in_with_fee;
         let amount_out = numerator / denominator;
 
         let mut amounts_out: Amounts = [0, 0];
