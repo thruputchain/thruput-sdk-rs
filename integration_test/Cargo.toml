@@ -9,6 +9,7 @@ members = [
     # "contracts/cxs_roundtrip",
     "contracts/dev_wallet",
     "contracts/delegate_call_test",
+    "contracts/deploy_and_transfer",
     "contracts/ed25519_verify_wrapper",
     "contracts/fibonacci",
     "contracts/fibonacci_call",
@@ -31,6 +32,7 @@ members = [
     "contracts/syscall_misc_tests",
     "contracts/tuple_return",
     # "contracts/txs_roundtrip",
+    "contracts/view_gateway_test",
 ]
 
 [workspace.package]
