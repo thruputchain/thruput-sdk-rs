@@ -18,6 +18,9 @@ pub use groundhog_xdr::types::*;
 
 pub mod sys {
     pub use groundhog_xdr::SyscallNo;
+    pub use groundhog_xdr::invoke_args::{
+        CopyableInvokeInputs, CopyableInvokeOutputs,
+    };
     pub use groundhog_xdr::syscall_error::SyscallErrorCode;
     pub use groundhog_xdr::syscalls::*;
     pub use groundhog_xdr::syserr::SysErr;
