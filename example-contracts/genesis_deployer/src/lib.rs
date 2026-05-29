@@ -3,6 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use sdk::transaction::InvocationFrameStatusCode;
 use sdk::{SHA256Hash, sys};
 
 pub struct GenesisDeployer;
@@ -30,6 +31,10 @@ impl GenesisDeployer {
         let mut outputs = sys::CopyableInvokeOutputs {
             return_buffer_len: 0,
             returned_auth_token_len: 0,
+            // Placeholder; overwritten by the syscall on Ok(). Using Fault
+            // (not Return) ensures an unwritten field is caught by the
+            // assert_eq below rather than silently passing.
+            frame_status: InvocationFrameStatusCode::Fault,
         };
         sys::raw_Invoke(
             &deployed_addr,
@@ -39,5 +44,12 @@ impl GenesisDeployer {
             &mut outputs,
         )
         .unwrap();
+        // A child abort/fault is no longer surfaced as a syscall error; keep
+        // genesis fail-closed by requiring the invoked frame to have returned.
+        assert_eq!(
+            outputs.frame_status,
+            InvocationFrameStatusCode::Return,
+            "genesis deploy_and_invoke: invoked frame did not return"
+        );
     }
 }
