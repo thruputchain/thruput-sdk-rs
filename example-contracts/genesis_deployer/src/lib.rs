@@ -31,7 +31,10 @@ impl GenesisDeployer {
         let mut outputs = sys::CopyableInvokeOutputs {
             return_buffer_len: 0,
             returned_auth_token_len: 0,
-            frame_status: InvocationFrameStatusCode::Return,
+            // Placeholder; overwritten by the syscall on Ok(). Using Fault
+            // (not Return) ensures an unwritten field is caught by the
+            // assert_eq below rather than silently passing.
+            frame_status: InvocationFrameStatusCode::Fault,
         };
         sys::raw_Invoke(
             &deployed_addr,
