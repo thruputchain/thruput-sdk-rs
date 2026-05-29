@@ -22,17 +22,21 @@ impl GenesisDeployer {
         let deployed_addr = sdk::deploy_contract(nonce, contract_hash);
         let flags = 0;
 
-        let mut return_len = 0;
-        let mut auth_token_id_list_return_len = 0;
+        let inputs = sys::CopyableInvokeInputs {
+            entrypoint_id: method,
+            gas_limit: u64::MAX,
+            flags,
+        };
+        let mut outputs = sys::CopyableInvokeOutputs {
+            return_buffer_len: 0,
+            returned_auth_token_len: 0,
+        };
         sys::raw_Invoke(
             &deployed_addr,
-            method,
-            u64::MAX,
             calldata.as_slice(),
-            flags,
             &[],
-            &mut return_len,
-            &mut auth_token_id_list_return_len,
+            &inputs,
+            &mut outputs,
         )
         .unwrap();
     }

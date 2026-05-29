@@ -15,19 +15,17 @@ fn concurrent_write_conflict_at_commit() {
     let env = setup();
 
     let result1 = env.transact(|tx| {
-        tx.call(&ContractAddress::named("caller_a"))
-            .run(|| {
-                KeyValueStoreClient::new(&DEPLOYED_ADDR).write(42);
-            })
+        tx.call(&ContractAddress::named("caller_a")).run(|| {
+            KeyValueStoreClient::new(&DEPLOYED_ADDR).write(42);
+        })
     });
     result1.assert_success();
 
     // Concurrent tx in the same block writes a different value to the same key.
     let result2 = env.transact(|tx| {
-        tx.call(&ContractAddress::named("caller_b"))
-            .run(|| {
-                KeyValueStoreClient::new(&DEPLOYED_ADDR).write(99);
-            })
+        tx.call(&ContractAddress::named("caller_b")).run(|| {
+            KeyValueStoreClient::new(&DEPLOYED_ADDR).write(99);
+        })
     });
     // Without TryInvoke, the conflict is caught at commit time.
     result2.assert_commit_failed_nondeterministically();
@@ -38,26 +36,24 @@ fn try_invoke_conflict_at_frame_close() {
     let env = setup();
 
     let result1 = env.transact(|tx| {
-        tx.call(&ContractAddress::named("caller_a"))
-            .run(|| {
-                KeyValueStoreClient::new(&DEPLOYED_ADDR).write(42);
-            })
+        tx.call(&ContractAddress::named("caller_a")).run(|| {
+            KeyValueStoreClient::new(&DEPLOYED_ADDR).write(42);
+        })
     });
     result1.assert_success();
 
     // Concurrent tx writes a different value via a TryInvoke child call.
     // The conflict is detected when the child frame closes, not at commit.
     let result2 = env.transact(|tx| {
-        tx.call(&ContractAddress::named("caller_b"))
-            .run(|| {
-                let err = KeyValueStoreClient::new(&DEPLOYED_ADDR)
-                    .with_commit_locking()
-                    .try_write(99);
-                assert!(
-                    err.is_err(),
-                    "TryInvoke should detect conflict at frame close"
-                );
-            })
+        tx.call(&ContractAddress::named("caller_b")).run(|| {
+            let err = KeyValueStoreClient::new(&DEPLOYED_ADDR)
+                .with_commit_locking()
+                .try_write(99);
+            assert!(
+                err.is_err(),
+                "TryInvoke should detect conflict at frame close"
+            );
+        })
     });
     // The root frame handled the error, so the tx commits OK.
     result2.assert_success();
@@ -68,13 +64,12 @@ fn read_only_rejects_write() {
     let env = setup();
 
     let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("caller"))
-            .run(|| {
-                let err = KeyValueStoreClient::new(&DEPLOYED_ADDR)
-                    .with_read_only()
-                    .try_write(42);
-                assert!(err.is_err(), "ReadOnly should reject storage writes");
-            })
+        tx.call(&ContractAddress::named("caller")).run(|| {
+            let err = KeyValueStoreClient::new(&DEPLOYED_ADDR)
+                .with_read_only()
+                .try_write(42);
+            assert!(err.is_err(), "ReadOnly should reject storage writes");
+        })
     });
     result.assert_success();
 }
@@ -84,11 +79,11 @@ fn no_flags_success() {
     let env = setup();
 
     let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("caller"))
-            .run(|| {
-                let result = KeyValueStoreClient::new(&DEPLOYED_ADDR).try_write(42);
-                assert!(result.is_ok(), "No flags should succeed");
-            })
+        tx.call(&ContractAddress::named("caller")).run(|| {
+            let result =
+                KeyValueStoreClient::new(&DEPLOYED_ADDR).try_write(42);
+            assert!(result.is_ok(), "No flags should succeed");
+        })
     });
     result.assert_success();
 }

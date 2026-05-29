@@ -13,14 +13,10 @@ pub fn perform_mocked_syscall(
     arg5: u64,
     arg6: u64,
     arg7: u64,
-    arg8: u64,
-    arg9: u64,
-    arg10: u64,
 ) -> i32 {
     let result: groundhog_sys::ForeignHostFnResult = unsafe {
         groundhog_sys::mock_syscall_entrypoint(
-            syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
-            arg10,
+            syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
         )
     };
 
@@ -60,9 +56,6 @@ pub extern "C-unwind" fn syscall_wrapper_impl(
     arg5: u64,
     arg6: u64,
     arg7: u64,
-    arg8: u64,
-    arg9: u64,
-    arg10: u64,
 ) -> SysErr {
     SysErr(perform_mocked_syscall(
         syscall_no.0 as i32,
@@ -73,8 +66,5 @@ pub extern "C-unwind" fn syscall_wrapper_impl(
         arg5,
         arg6,
         arg7,
-        arg8,
-        arg9,
-        arg10,
     ))
 }

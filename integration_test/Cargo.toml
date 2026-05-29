@@ -9,6 +9,7 @@ members = [
     # "contracts/cxs_roundtrip",
     "contracts/dev_wallet",
     "contracts/delegate_call_test",
+    "contracts/deploy_and_transfer",
     "contracts/ed25519_verify_wrapper",
     "contracts/fibonacci",
     "contracts/fibonacci_call",
@@ -31,6 +32,7 @@ members = [
     "contracts/syscall_misc_tests",
     "contracts/tuple_return",
     # "contracts/txs_roundtrip",
+    "contracts/view_gateway_test",
 ]
 
 [workspace.package]
@@ -45,7 +47,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.14.7" }
+sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.14.8" }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.1" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.1" }
@@ -56,7 +58,7 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 bottle-test-if = { path = "../crates/bottle-test-if" }
 
 # External groundhog dependencies
-groundhog-xdr = { registry = "groundhog", version = "=0.13.7", features = ["xdrs", "syscalls"] }
+groundhog-xdr = { registry = "groundhog", version = "=0.14.0", features = ["xdrs", "syscalls"] }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }

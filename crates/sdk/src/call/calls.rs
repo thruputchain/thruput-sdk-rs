@@ -66,19 +66,23 @@ where
     A: AsRef<[u8]> + ?Sized,
 {
     // Perform the cross-contract call
-    let mut return_len = 0;
-    let mut auth_token_id_list_return_len = 0;
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
     let auth_bytes = auth_handles_as_bytes(auth_token_ids.as_slice());
+    let inputs = sys::CopyableInvokeInputs {
+        entrypoint_id: entrypoint,
+        gas_limit,
+        flags,
+    };
+    let mut outputs = sys::CopyableInvokeOutputs {
+        return_buffer_len: 0,
+        returned_auth_token_len: 0,
+    };
     let result = sys::raw_Invoke(
         address,
-        entrypoint,
-        gas_limit,
         args.as_ref(),
-        flags,
         auth_bytes,
-        &mut return_len,
-        &mut auth_token_id_list_return_len,
+        &inputs,
+        &mut outputs,
     );
 
     let is_ok = match result {
@@ -95,6 +99,9 @@ where
     };
 
     // Ok or exception: get the return data from the VM ...
+
+    let return_len = outputs.return_buffer_len;
+    let auth_token_id_list_return_len = outputs.returned_auth_token_len;
 
     let mut return_buf = ReturnBuf::new();
     let mut auth_token_id_list_buf = AuthHandleBuf::new();
