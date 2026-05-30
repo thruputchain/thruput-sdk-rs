@@ -5,10 +5,19 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
 
-#[cfg(all(feature = "std", target_family = "wasm"))]
-compile_error!("Feature 'std' cannot be enabled when targetting wasm");
+#[cfg(all(
+    feature = "std",
+    any(target_family = "wasm", target_arch = "riscv32"),
+))]
+compile_error!(
+    "Feature 'std' cannot be enabled when targeting guest contracts"
+);
 
-#[cfg(all(not(feature = "std"), not(target_family = "wasm")))]
+#[cfg(all(
+    not(feature = "std"),
+    not(target_family = "wasm"),
+    not(target_arch = "riscv32"),
+))]
 compile_error!("Feature 'std' is required when compiling natively");
 
 // Allow `#[exn]` to emit `::sdk::exn::Exn` and have it resolve

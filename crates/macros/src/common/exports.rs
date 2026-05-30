@@ -420,16 +420,25 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Wasm exports are only emitted when the "entrypoints" feature is
+    // Contract exports are only emitted when the "entrypoints" feature is
     // enabled.  The build script passes --features entrypoints; deps
     // that don't enable the feature cannot inject entrypoints.
+    //
+    // RV32 uses the same 16-char hex export name as WASM. It also pins each
+    // method into a per-method link section so the RV32 linker script can KEEP
+    // the symbol through dead-code elimination for the lowerer dispatch table.
+    let rv32_link_section = format!(".text.gh_{}", export_name);
     Ok(quote! {
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
         #[cfg_attr(
-            target_family = "wasm",
+            any(target_family = "wasm", target_arch = "riscv32"),
             unsafe(export_name = #export_name)
+        )]
+        #[cfg_attr(
+            target_arch = "riscv32",
+            unsafe(link_section = #rv32_link_section)
         )]
         pub extern "C" fn #extern_name() {
             #internal_name()

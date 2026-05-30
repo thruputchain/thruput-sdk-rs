@@ -3,7 +3,7 @@
 
 channel = "nightly-2026-01-30"
 
-targets = ["wasm32-unknown-unknown"]
+targets = ["wasm32-unknown-unknown", "riscv32im-unknown-none-elf"]
 # (in addition to host target)
 
 profile = "default"
