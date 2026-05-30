@@ -228,7 +228,7 @@ where
     let mut token_id: core::mem::MaybeUninit<u32> =
         core::mem::MaybeUninit::uninit();
 
-    crate::sys::uninit_MintAuthToken(expiry, buf.as_ref(), &mut token_id)
+    crate::sys::uninit_MintAuthToken(&expiry, buf.as_ref(), &mut token_id)
         .unwrap_or_else(|e| {
             crate::exn::syscall_throw(SyscallNo::kMintAuthToken, e)
         });
@@ -247,7 +247,7 @@ pub fn mint_opaque_auth_token(
     let mut token_id: core::mem::MaybeUninit<u32> =
         core::mem::MaybeUninit::uninit();
 
-    crate::sys::uninit_MintAuthToken(expiry, encoded_node, &mut token_id)
+    crate::sys::uninit_MintAuthToken(&expiry, encoded_node, &mut token_id)
         .unwrap_or_else(|e| {
             crate::exn::syscall_throw(SyscallNo::kMintAuthToken, e)
         });
