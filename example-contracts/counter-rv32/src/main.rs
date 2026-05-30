@@ -10,9 +10,9 @@
 //!
 //!   1. Pull in the runtime crate so its `_start`, `#[panic_handler]`,
 //!      and `#[global_allocator]` items get linked.
-//!   2. Pull in `counter` with the `entrypoints` feature so the
-//!      `#[contract]` macro can emit the rv32 method entry symbols when
-//!      `entrypoints` is enabled by `groundhog build`.
+//!   2. Pull in `counter` and expose this crate's `entrypoints` feature,
+//!      which forwards to `counter/entrypoints`; `groundhog build` enables
+//!      it so the `#[contract]` macro emits rv32 method entry symbols.
 //!   3. Reference the symbols so DCE doesn't drop them. The linker
 //!      script in `groundhog-rv32-runtime` KEEPs `.text.gh_*`, which
 //!      covers it; the `extern crate counter;` line ensures the macro
@@ -31,6 +31,7 @@
 // script. Pulling it in unconditionally; it's empty on non-rv32 targets.
 extern crate groundhog_rv32_runtime;
 
-// The contract library. Linking it pulls in the macro-emitted method
-// entry symbols when `entrypoints` is enabled by `groundhog build`.
+// The contract library. This crate forwards its `entrypoints` feature to
+// `counter/entrypoints`; `groundhog build` enables it to pull in the
+// macro-emitted method entry symbols.
 extern crate counter;
