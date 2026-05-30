@@ -15,9 +15,10 @@
 //!
 //! Conceptual model (cf. CKB `ckb-std`): contract logic lives in a
 //! target-agnostic library crate. A thin per-contract bin crate depends
-//! on the contract library AND on this runtime, and is what `cargo build
-//! --target riscv32im-unknown-none-elf` produces a deployable ELF from.
-//! The hogd lowerer ingests that ELF and emits a v3 artifact.
+//! on the contract library AND on this runtime. Building with
+//! `--features entrypoints` (or via `groundhog build`) emits the
+//! contract method entry symbols; the hogd lowerer ingests that ELF
+//! and emits a v3 artifact.
 //!
 //! On non-rv32 targets this crate is empty — safe to depend on
 //! unconditionally so contract crates can `[dependencies]` it without
