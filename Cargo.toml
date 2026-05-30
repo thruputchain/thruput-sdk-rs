@@ -52,10 +52,10 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 bottle-test-if = { path = "crates/bottle-test-if" }
 
 # Deps from protocol-rs repo:
-groundhog-spec = { registry = "groundhog", version = "=0.15.0", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "=0.15.0" }
-groundhog-xdr = { registry = "groundhog", version = "=0.15.0", features = ["xdrs"] }
-hogexec-internal = { registry = "groundhog", version = "=0.15.0" }
+groundhog-spec = { registry = "groundhog", version = "=0.15.1", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "=0.15.1" }
+groundhog-xdr = { registry = "groundhog", version = "=0.15.1", features = ["xdrs"] }
+hogexec-internal = { registry = "groundhog", version = "=0.15.1" }
 
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }
@@ -71,7 +71,3 @@ heapless = { version = "0.9.2" }
 hex-literal = "1.0.0"
 bitset-core = { version = "0.1.1", default-features = false }
 linkme = "0.3"
-
-# SPIKE: redirect groundhog-xdr to local checkout to pick up rv32 syscall bridge.
-[patch.groundhog]
-groundhog-xdr = { path = "../protocol-rs/groundhog-xdr" }
