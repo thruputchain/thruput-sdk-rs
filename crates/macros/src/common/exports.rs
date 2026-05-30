@@ -537,4 +537,22 @@ mod tests {
 
         assert!(generated.contains("mod custom"));
     }
+
+    #[test]
+    fn free_function_exports_include_rv32_attributes() {
+        let config = parse_config(r#"interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        assert!(generated.contains("target_family = \"wasm\""));
+        assert!(generated.contains("target_arch = \"riscv32\""));
+        assert!(generated.contains("export_name"));
+        assert!(generated.contains("link_section"));
+        assert!(generated.contains(".text.gh_"));
+    }
 }
