@@ -27,18 +27,12 @@ pub extern "C" fn _start() -> ! {
         );
     }
 
-    // Default dispatch landed at _start instead of a real method
-    // entry point. Treat as an unrecoverable contract bug.
-    //
-    // We can't use `ebreak` here: hogd's Program::validate accepts
-    // ECALL as the only SYSTEM-opcode instruction. EBREAK
-    // (0x00100073) decodes to kUnsupportedSystemInstruction and the
-    // whole artifact gets rejected at parse time. Until the VM
-    // accepts EBREAK as a deterministic trap, fall into a tight
-    // infinite loop and let gas exhaustion produce the OOG outcome.
-    loop {
-        unsafe {
-            asm!("", options(nomem, nostack));
-        }
+    // Default dispatch landed at _start instead of a real method entry
+    // point — an unrecoverable contract bug. Issue `ebreak`: the hogd VM
+    // now traps it as Trap::kBreakpoint (deterministic failure), so the
+    // bug surfaces immediately during bring-up. (Before the VM accepted
+    // EBREAK we fell into a tight loop and relied on OOG.)
+    unsafe {
+        asm!("ebreak", options(noreturn));
     }
 }
