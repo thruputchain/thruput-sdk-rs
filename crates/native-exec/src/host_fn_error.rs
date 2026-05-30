@@ -1,4 +1,3 @@
-use groundhog_xdr::SyscallNo;
 use groundhog_xdr::syserr::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
@@ -48,7 +47,11 @@ pub fn perform_mocked_syscall(
 
 #[unsafe(no_mangle)]
 pub extern "C-unwind" fn syscall_wrapper_impl(
-    syscall_no: SyscallNo,
+    // Matches groundhog-xdr's `syscalls_mock` extern declaration, which passes
+    // `SyscallNo` widened to a native `SyscallWord` (u64). `SyscallNo` itself is
+    // now `repr(transparent)` over a `u32`, so taking it directly here would be
+    // an ABI mismatch.
+    syscall_no: u64,
     arg1: u64,
     arg2: u64,
     arg3: u64,
@@ -58,7 +61,7 @@ pub extern "C-unwind" fn syscall_wrapper_impl(
     arg7: u64,
 ) -> SysErr {
     SysErr(perform_mocked_syscall(
-        syscall_no.0 as i32,
+        syscall_no as i32,
         arg1,
         arg2,
         arg3,
