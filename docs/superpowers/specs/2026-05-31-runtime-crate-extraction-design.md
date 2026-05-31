@@ -133,20 +133,19 @@ forces the contract's macro-emitted method symbols to link. Removing those is a
 separate effort (lowerer-side `_start` removal + a build-time wrapper generator)
 and is out of scope.
 
-### 4. Mechanism to verify during implementation
+### 4. Linker-script search path (verified)
 
 The rv32 linker-script *search path* is published by `rv32-runtime`'s
-`build.rs` via `cargo:rustc-link-search`. Today the bin depends on
-`rv32-runtime` directly; after this change it depends on it only transitively
-(bin → counter → sdk → rv32-runtime). Confirm `rustc-link-search` still reaches
-the final bin link transitively.
+`build.rs` via `cargo:rustc-link-search`. Before this change the bin depended on
+`rv32-runtime` directly; after it, the dependency is only transitive
+(bin → counter → sdk → rv32-runtime).
 
-Fallbacks if propagation does not hold transitively:
-- Keep `groundhog-rv32-runtime` as a direct dependency of the `*-rv32` bin in
-  `Cargo.toml` only (no `extern crate` line) purely so its `build.rs` runs for
-  the final link; or
-- Add the `-L` search path in the example's `.cargo/config.toml` (alongside the
-  existing `-Tgroundhog-rv32.ld`).
+**Verified:** `cargo:rustc-link-search` propagates transitively to the final
+bin link. `counter-rv32` builds for `riscv32im-unknown-none-elf` with **no**
+direct `groundhog-rv32-runtime` dependency in its `Cargo.toml` — `-Tgroundhog-rv32.ld`
+resolves and the ELF contains `_start` (at vaddr 0) plus the four method entry
+symbols. The direct dependency was therefore removed from `counter-rv32`. No
+fallback needed.
 
 (Note: `-Tgroundhog-rv32.ld` itself is supplied via rustflags in
 `example-contracts/.cargo/config.toml` and is unaffected by this change.)

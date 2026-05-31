@@ -8,15 +8,19 @@
 //!
 //! This crate is intentionally tiny — its job is to:
 //!
-//!   1. Pull in the runtime crate so its `_start`, `#[panic_handler]`,
-//!      and `#[global_allocator]` items get linked.
-//!   2. Pull in `counter` and expose this crate's `entrypoints` feature,
+//!   1. Pull in `counter` and expose this crate's `entrypoints` feature,
 //!      which forwards to `counter/entrypoints`; `groundhog build` enables
 //!      it so the `#[contract]` macro emits rv32 method entry symbols.
-//!   3. Reference the symbols so DCE doesn't drop them. The linker
-//!      script in `groundhog-rv32-runtime` KEEPs `.text.gh_*`, which
-//!      covers it; the `extern crate counter;` line ensures the macro
-//!      runs and the rlib is linked.
+//!   2. Reference the contract crate so DCE doesn't drop it. The linker
+//!      script in `groundhog-rv32-runtime` KEEPs `.text.gh_*`, but the
+//!      `extern crate counter;` line is what makes the macro-emitted rlib
+//!      actually link in the first place.
+//!
+//! The runtime itself (`_start`, `#[panic_handler]`, `#[global_allocator]`,
+//! linker script) is no longer named here: `sdk` depends on
+//! `groundhog-rv32-runtime` on rv32 targets and force-links it, so any crate
+//! that depends on `sdk` — including `counter` — pulls the runtime in
+//! transitively.
 //!
 //! The contract's macro-emitted `<method>_extern` functions live in
 //! `counter::__groundhog_exports_Counter::*` (private mod) and carry
@@ -27,11 +31,8 @@
 #![no_std]
 #![no_main]
 
-// The runtime crate provides _start, panic handler, allocator, linker
-// script. Pulling it in unconditionally; it's empty on non-rv32 targets.
-extern crate groundhog_rv32_runtime;
-
 // The contract library. This crate forwards its `entrypoints` feature to
 // `counter/entrypoints`; `groundhog build` enables it to pull in the
-// macro-emitted method entry symbols.
+// macro-emitted method entry symbols. The runtime (_start, panic handler,
+// allocator, linker script) arrives transitively via `counter` -> `sdk`.
 extern crate counter;

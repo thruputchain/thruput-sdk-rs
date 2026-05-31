@@ -1,26 +1,11 @@
-// When natively-compiled contracts panic, we'll see a message printed from the
-// panic handler that comes with the standard library.
+// The wasm `#[panic_handler]` and `#[global_allocator]` live in
+// `groundhog-wasm-runtime`, which `sdk` force-links on wasm targets (see
+// `lib.rs`). The rv32 equivalents live in `groundhog-rv32-runtime`. Natively,
+// the standard library supplies the panic handler.
 //
-// For wasm contracts under test, we can instead use the `log()` syscall to
-// report the panic. Enable feature "panic_logging" for this.
-//
-// A contract compiled with the rustc flag `-Cpanic=immediate_abort` won't ever
-// call `handle_panic`. (That setting is useful because it results in panic
-// strings not being included in the binary.) The build scripts may be
-// configured to instead choose `panic=abort`, which will enable the logging
-// below.
-//
-#[cfg(target_arch = "wasm32")]
-#[panic_handler]
-fn handle_panic(info: &core::panic::PanicInfo) -> ! {
-    #[cfg(feature = "panic_logging")]
-    panic_logging(info);
-
-    #[cfg(not(feature = "panic_logging"))]
-    let _ = info;
-
-    crate::trap();
-}
+// This module retains only the `Panic` *type* below, which the exception
+// machinery (`exn`, `throw`, `re_throw`, …) uses to carry panic info under the
+// `debugging` feature — it is unrelated to the panic handler.
 
 #[cfg(any(test, feature = "debugging"))]
 mod with_message {
@@ -139,29 +124,6 @@ pub use with_message::*;
 
 #[cfg(not(feature = "debugging"))]
 pub use without_message::*;
-
-#[cfg(all(target_arch = "wasm32", feature = "panic_logging"))]
-#[inline(always)]
-fn panic_logging(info: &core::panic::PanicInfo) {
-    use crate::log;
-    use core::fmt::Write;
-    use heapless::String;
-
-    let mut msg: String<150> = String::new();
-
-    write!(msg, "Contract panic: {}", info.message()).unwrap_or_else(|_| {
-        // Failure only happens in case the static `msg` buffer is too
-        // small, which may be discovered after a partial write.  We
-        // could just log whatever has been written, but that's not
-        // usually useful, so instead:
-
-        let _ = log(b"Contract panic: <couldn't format panic message>");
-
-        crate::trap();
-    });
-
-    let _ = log(msg.as_str().as_bytes());
-}
 
 #[cfg(test)]
 mod tests {

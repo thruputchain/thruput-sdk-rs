@@ -268,7 +268,6 @@ name = "counter-rv32"
 version = "0.4.0"
 dependencies = [
  "counter",
- "groundhog-rv32-runtime",
  "sdk",
 ]
 
@@ -872,6 +871,14 @@ checksum = "44ecac25b56261eb42d76a7016f5496f350fc32814a4075110c70be0abeed152"
 dependencies = [
  "wasm-encoder 0.246.2",
  "wasmparser 0.246.2",
+]
+
+[[package]]
+name = "groundhog-wasm-runtime"
+version = "0.14.10"
+dependencies = [
+ "groundhog-xdr",
+ "heapless",
 ]
 
 [[package]]
@@ -1815,8 +1822,10 @@ dependencies = [
  "groundhog-event",
  "groundhog-macros",
  "groundhog-native-exec",
+ "groundhog-rv32-runtime",
  "groundhog-storage-cost",
  "groundhog-wasm-meter",
+ "groundhog-wasm-runtime",
  "groundhog-xdr",
  "heapless",
  "hogexec-internal",
