@@ -47,7 +47,7 @@ extern crate alloc;
 // `extern crate ... as _` is load-bearing: nothing references these items by
 // name, so without it the runtime would be pruned as an unused dependency,
 // taking the lang items with it.
-#[cfg(target_family = "wasm")]
+#[cfg(target_arch = "wasm32")]
 extern crate groundhog_wasm_runtime as _;
 
 #[cfg(target_arch = "riscv32")]
