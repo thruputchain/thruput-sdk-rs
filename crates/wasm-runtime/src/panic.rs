@@ -18,9 +18,18 @@ fn handle_panic(info: &core::panic::PanicInfo) -> ! {
 }
 
 /// WASM trap: execute an illegal instruction.
+#[cfg(target_arch = "wasm32")]
 #[inline(always)]
 fn trap() -> ! {
     core::arch::wasm32::unreachable()
+}
+
+/// Doc-only stub: `doc` builds compile this module on the host, where the
+/// wasm intrinsic is unavailable. Never built into a real artifact.
+#[cfg(all(doc, not(target_arch = "wasm32")))]
+#[inline(always)]
+fn trap() -> ! {
+    loop {}
 }
 
 /// Best-effort: format the panic message and emit it via the host
@@ -37,7 +46,8 @@ fn log_panic(info: &core::panic::PanicInfo) {
 
     if write!(msg, "Contract panic: {}", info.message()).is_err() {
         // The static buffer was too small; log a fixed notice instead.
-        let _ = raw_ConsoleLog(b"Contract panic: <couldn't format panic message>");
+        let _ =
+            raw_ConsoleLog(b"Contract panic: <couldn't format panic message>");
         return;
     }
 

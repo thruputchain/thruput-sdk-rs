@@ -20,8 +20,13 @@
 
 #![no_std]
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(any(target_arch = "wasm32", doc)))]
+compile_error!(
+    "groundhog-wasm-runtime can only be built for the wasm32 target"
+);
+
+// Allocator gated on `alloc`, matching `sdk`'s `alloc` feature.
+#[cfg(feature = "alloc")]
 mod allocator;
 
-#[cfg(target_arch = "wasm32")]
 mod panic;

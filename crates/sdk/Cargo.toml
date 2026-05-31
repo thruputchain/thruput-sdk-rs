@@ -52,7 +52,13 @@ version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [features]
 # Enable allocation features
-alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
+alloc = [
+    "groundhog-xdr/alloc",
+    "xdrs/alloc",
+    "groundhog-contract-spec/alloc",
+    "groundhog-wasm-runtime/alloc",
+    "groundhog-rv32-runtime/alloc",
+]
 
 # Include the structured-storage module
 storage = ["alloc", "groundhog-macros/storage"]

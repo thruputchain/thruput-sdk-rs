@@ -20,6 +20,9 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+# Install the bump `#[global_allocator]`. Forwarded from `sdk`'s `alloc`
+# feature so contracts that don't allocate don't carry an allocator.
+alloc = []
 
 [dependencies]
 # Intentionally minimal. The runtime is target-specific glue; we want to

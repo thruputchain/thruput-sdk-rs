@@ -16,6 +16,9 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+# Install the bump `#[global_allocator]`. Forwarded from `sdk`'s `alloc`
+# feature so contracts that don't allocate don't carry an allocator.
+alloc = []
 # Format the panic message and send it to the host via the ConsoleLog
 # syscall before trapping. Forwarded from `sdk`'s feature of the same name.
 panic_logging = []

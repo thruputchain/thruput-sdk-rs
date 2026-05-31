@@ -164,6 +164,24 @@ fallback needed.
 - **panic_logging:** still logs on wasm via the `groundhog-xdr` `ConsoleLog`
   syscall when the feature is enabled.
 
+## Implementation notes (deltas from the original design)
+
+- **Target gating is a `compile_error!`, not silent emptiness.** Each runtime
+  crate has `#[cfg(not(any(target_arch = "<t>", doc)))] compile_error!(...)` at
+  the crate root and leaves its modules ungated, so building it for the wrong
+  target fails loudly instead of producing an empty lib. `doc` is allowed so
+  rustdoc/docs.rs can still render the items (wasm needs a doc-only `trap()`
+  stub since `core::arch::wasm32` is absent off-wasm).
+- **Excluded from `default-members`.** Because CI's host-wide `cargo
+  build/test/doc` build every default member, the `compile_error!` would fire
+  on the host. The runtime crates stay `members` (field inheritance, `-p`
+  builds, publishing via sdk) but are removed from `default-members`, so
+  host-wide commands skip them while `-p ... --target ...` and the transitive
+  sdk dependency still build them.
+- **`alloc` feature.** Both runtimes gate the `#[global_allocator]` behind an
+  `alloc` feature, forwarded from `sdk`'s `alloc` feature, so contracts that
+  don't allocate don't carry an allocator.
+
 ## Out of scope
 
 - Removing `_start` from the rv32 ELF (separate effort; requires a lowerer
