@@ -14,6 +14,8 @@ env:
     groundhog-native-exec
     groundhog-macros
     groundhog-test-vectors
+    groundhog-rv32-runtime
+    groundhog-wasm-runtime
     sdk
     groundhog-spec-tool
 
@@ -57,4 +59,4 @@ jobs:
           packages: ${{ env.PUBLISH_PACKAGES }}
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
           cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev
-          cargo-hack-wasm32-packages: sdk
+          cargo-hack-wasm32-packages: groundhog-wasm-runtime sdk

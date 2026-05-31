@@ -20,5 +20,4 @@ path = "src/main.rs"
 
 [dependencies]
 counter = { path = "../counter" }
-groundhog-rv32-runtime = { path = "../../crates/rv32-runtime" }
 sdk = { workspace = true, features = ["storage"] }

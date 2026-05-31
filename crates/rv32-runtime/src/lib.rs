@@ -26,14 +26,17 @@
 
 #![no_std]
 
-#[cfg(target_arch = "riscv32")]
+#[cfg(not(any(target_arch = "riscv32", doc)))]
+compile_error!(
+    "groundhog-rv32-runtime can only be built for the riscv32 target"
+);
+
+// Allocator gated on `alloc`, matching `sdk`'s `alloc` feature.
+#[cfg(feature = "alloc")]
 mod allocator;
 
-#[cfg(target_arch = "riscv32")]
 mod panic;
 
-#[cfg(target_arch = "riscv32")]
 mod start;
 
-#[cfg(target_arch = "riscv32")]
 pub use start::_start;

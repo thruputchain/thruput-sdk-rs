@@ -40,8 +40,18 @@ pub use groundhog_contract_spec as __contract_spec;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(any(doc, all(target_family = "wasm", feature = "alloc")))]
-pub mod allocator;
+// Guest targets get their runtime — `#[global_allocator]`, `#[panic_handler]`,
+// and (on rv32) the `_start` entry — from a dedicated runtime crate, the same
+// way a hosted target gets these from std + the system. Force-link it so
+// contracts (and the rv32 bin wrapper) don't have to name it. The
+// `extern crate ... as _` is load-bearing: nothing references these items by
+// name, so without it the runtime would be pruned as an unused dependency,
+// taking the lang items with it.
+#[cfg(target_arch = "wasm32")]
+extern crate groundhog_wasm_runtime as _;
+
+#[cfg(target_arch = "riscv32")]
+extern crate groundhog_rv32_runtime as _;
 
 #[doc(hidden)]
 pub mod internal;

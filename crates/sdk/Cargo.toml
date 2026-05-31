@@ -52,7 +52,13 @@ version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [features]
 # Enable allocation features
-alloc = ["groundhog-xdr/alloc", "xdrs/alloc", "groundhog-contract-spec/alloc"]
+alloc = [
+    "groundhog-xdr/alloc",
+    "xdrs/alloc",
+    "groundhog-contract-spec/alloc",
+    "groundhog-wasm-runtime/alloc",
+    "groundhog-rv32-runtime/alloc",
+]
 
 # Include the structured-storage module
 storage = ["alloc", "groundhog-macros/storage"]
@@ -85,7 +91,7 @@ call_tracking = ["debugging"] # contract-call tracking
 
 # Optional diagnostic features (not enabled by "dev")
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
-panic_logging = [] # send panic messages to the log() syscall
+panic_logging = ["groundhog-wasm-runtime/panic_logging"] # send panic messages to the log() syscall
 
 [[test]]
 name = "int128"
@@ -110,3 +116,13 @@ groundhog-xdr = { workspace = true, features = ["syscalls"] }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
+
+# Guest runtimes: force-linked from lib.rs (`extern crate ... as _`) so
+# contracts and the rv32 bin wrapper don't declare them. Each crate is empty
+# on non-matching targets; gating the dependency by target also keeps it out
+# of the host/test dependency graph entirely.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+groundhog-wasm-runtime = { workspace = true }
+
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+groundhog-rv32-runtime = { workspace = true }

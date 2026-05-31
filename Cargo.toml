@@ -7,6 +7,30 @@ members = [
     "standard-interfaces/*",
     "standard-tests/*",
 ]
+# The guest runtime crates (crates/rv32-runtime, crates/wasm-runtime) only
+# compile for their target — a top-level compile_error! rejects every other
+# target. They stay workspace members (for field inheritance, `-p` builds, and
+# publishing via sdk), but are excluded from default-members so host-wide
+# `cargo build/test/doc` (which build all default members) skip them. Add new
+# crates/* packages here too unless they are target-only runtimes.
+default-members = [
+    "crates/bottle-test",
+    "crates/bottle-test-if",
+    "crates/contract-spec",
+    "crates/contract-util",
+    "crates/event",
+    "crates/hogd-sys",
+    "crates/macros",
+    "crates/native-exec",
+    "crates/sdk",
+    "crates/spec-tool",
+    "crates/storage-cost",
+    "crates/test-vectors",
+    "crates/sdk/tests/vector-tests",
+    "crates/sdk/tests/version-mismatch-helper",
+    "standard-interfaces/*",
+    "standard-tests/*",
+]
 
 [workspace.package]
 edition = "2024"
@@ -38,6 +62,8 @@ groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", 
 groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.14.10" }
 groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.14.10" }
 groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.14.10" }
+groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.14.10" }
+groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.14.10" }
 groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.14.10" }
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.14.10" }
 
