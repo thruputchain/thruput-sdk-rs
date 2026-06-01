@@ -112,6 +112,10 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
         ) }
     };
 
+    // `link_section` requires a string literal. Keep this in sync with
+    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
+    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[doc(hidden)]
         pub const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
@@ -126,6 +130,7 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
             any(target_family = "wasm", target_arch = "riscv32"),
             unsafe(link_section = "groundhogspecrawv0")
         )]
+        // Keep the section live through RV32 ELF linking for CLI extraction.
         #[used]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =

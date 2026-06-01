@@ -162,6 +162,10 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     cfg_guard: TokenStream,
     fragment: TokenStream,
 ) -> TokenStream {
+    // `link_section` requires a string literal. Keep this in sync with
+    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
+    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[cfg(#cfg_guard)]
         const _: () = {
@@ -178,6 +182,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
                 any(target_family = "wasm", target_arch = "riscv32"),
                 unsafe(link_section = "groundhogspecrawv0")
             )]
+            // Keep the section live through RV32 ELF linking for CLI extraction.
             #[used]
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };

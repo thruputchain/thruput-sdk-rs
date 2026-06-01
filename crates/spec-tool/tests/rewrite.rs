@@ -61,10 +61,10 @@ fn encode_fragments(fragments: &[SpecFragment]) -> Vec<u8> {
 
 fn final_spec(bytes: &[u8]) -> Option<ContractSpec> {
     for payload in Parser::new(0).parse_all(bytes) {
-        if let Payload::CustomSection(section) = payload.unwrap() {
-            if section.name() == FINAL_SECTION_NAME {
-                return Some(decode(section.data()).unwrap());
-            }
+        if let Payload::CustomSection(section) = payload.unwrap()
+            && section.name() == FINAL_SECTION_NAME
+        {
+            return Some(decode(section.data()).unwrap());
         }
     }
     None
