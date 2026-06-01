@@ -130,8 +130,11 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
             any(target_family = "wasm", target_arch = "riscv32"),
             unsafe(link_section = "groundhogspecrawv0")
         )]
-        // Keep the section live through RV32 ELF linking for CLI extraction.
-        #[used]
+        // RV32 only: `#[used]` keeps the section live through ELF linking for CLI
+        // extraction. On wasm the custom section is retained without it, and
+        // `#[used]` there would force the fragment bytes into linear memory
+        // (tripping the spec-tool leak guard).
+        #[cfg_attr(target_arch = "riscv32", used)]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =
                 ::sdk::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();
@@ -402,7 +405,7 @@ mod tests {
             "{tokens}"
         );
         assert!(
-            tokens.contains("# [used] static __groundhog_spec_raw_typedef_fragment_Envelope"),
+            tokens.contains("used)] static __groundhog_spec_raw_typedef_fragment_Envelope"),
             "{tokens}"
         );
         assert!(!tokens.contains("mix_anchor_ptr"), "{tokens}");

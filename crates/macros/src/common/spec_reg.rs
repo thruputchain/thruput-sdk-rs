@@ -182,8 +182,11 @@ pub fn emit_raw_fragment_tokens_with_cfg(
                 any(target_family = "wasm", target_arch = "riscv32"),
                 unsafe(link_section = "groundhogspecrawv0")
             )]
-            // Keep the section live through RV32 ELF linking for CLI extraction.
-            #[used]
+            // RV32 only: `#[used]` keeps the section live through ELF linking for
+            // CLI extraction. On wasm the custom section is retained without it,
+            // and `#[used]` there would force the fragment bytes into linear
+            // memory (tripping the spec-tool leak guard).
+            #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
     }
@@ -237,7 +240,7 @@ mod tests {
 
         assert!(tokens.contains("groundhogspecrawv0"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
-        assert!(tokens.contains("# [used] pub static RAW_SPEC_FRAGMENT"));
+        assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"));
@@ -260,7 +263,7 @@ mod tests {
 
         assert!(tokens.contains("groundhogspecrawv0"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
-        assert!(tokens.contains("# [used] pub static RAW_SPEC_FRAGMENT"));
+        assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("const_txs_size"));
