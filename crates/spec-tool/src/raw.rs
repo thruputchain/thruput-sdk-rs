@@ -30,3 +30,37 @@ pub fn parse_raw_fragments(
 
     Ok(fragments)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, path::Path};
+
+    use super::RAW_SECTION_NAME;
+
+    #[test]
+    fn sdk_macro_link_section_literals_match_raw_section_name() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir
+            .parent()
+            .and_then(Path::parent)
+            .expect("spec-tool lives under crates/spec-tool");
+        let expected =
+            format!(r#"unsafe(link_section = "{RAW_SECTION_NAME}")"#);
+
+        for relative in [
+            "crates/macros/src/common/spec_reg.rs",
+            "crates/macros/src/derive_contract_type_spec.rs",
+        ] {
+            let path = workspace_root.join(relative);
+            let source = fs::read_to_string(&path).unwrap_or_else(|err| {
+                let path = path.display();
+                panic!("failed to read {path}: {err}")
+            });
+            assert!(
+                source.contains(&expected),
+                "{} must use the canonical raw spec section name {RAW_SECTION_NAME:?}",
+                path.display()
+            );
+        }
+    }
+}

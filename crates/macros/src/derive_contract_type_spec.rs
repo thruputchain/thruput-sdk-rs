@@ -4,7 +4,7 @@ use quote::{format_ident, quote};
 use syn::punctuated::Punctuated;
 
 /// Expand `#[derive(ContractTypeSpec)]` into `impl ContractTypeSpec` plus a
-/// raw typedef wasm fragment.
+/// raw typedef fragment for link-section based spec extraction.
 pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
     let ident = &input.ident;
 
@@ -62,13 +62,13 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
         #[doc(hidden)]
         #[inline(never)]
         pub fn #anchor_fn_ident() -> usize {
-            #[cfg(target_family = "wasm")]
+            #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
             {
                 let mut acc = 0usize;
                 #(#anchor_stmts)*
                 acc
             }
-            #[cfg(not(target_family = "wasm"))]
+            #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
             {
                 0usize
             }
@@ -112,6 +112,10 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
         ) }
     };
 
+    // `link_section` requires a string literal. Keep this in sync with
+    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
+    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[doc(hidden)]
         pub const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
@@ -120,9 +124,17 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
         #[doc(hidden)]
         const #raw_len_ident: usize = #fragment_ident.const_txs_size();
 
-        #[cfg(target_family = "wasm")]
+        #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
         #[doc(hidden)]
-        #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
+        #[cfg_attr(
+            any(target_family = "wasm", target_arch = "riscv32"),
+            unsafe(link_section = "groundhogspecrawv0")
+        )]
+        // RV32 only: `#[used]` keeps the section live through ELF linking for CLI
+        // extraction. On wasm the custom section is retained without it, and
+        // `#[used]` there would force the fragment bytes into linear memory
+        // (tripping the spec-tool leak guard).
+        #[cfg_attr(target_arch = "riscv32", used)]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =
                 ::sdk::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();
@@ -365,6 +377,7 @@ mod tests {
         let tokens = expand(&input).unwrap().to_string();
 
         assert!(tokens.contains("__groundhog_spec_anchor"), "{tokens}");
+        assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
         assert!(
             tokens.contains("Option < Vec < Payload > > as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
             "{tokens}"
@@ -392,7 +405,9 @@ mod tests {
             "{tokens}"
         );
         assert!(
-            !tokens.contains("# [used] static __groundhog_spec_raw_typedef_fragment_Envelope"),
+            tokens.contains(
+                "used)] static __groundhog_spec_raw_typedef_fragment_Envelope"
+            ),
             "{tokens}"
         );
         assert!(!tokens.contains("mix_anchor_ptr"), "{tokens}");

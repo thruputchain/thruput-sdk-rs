@@ -148,7 +148,12 @@ fn generate_method_fragment_tokens(
 
 pub fn emit_raw_fragment_tokens(fragment: TokenStream) -> TokenStream {
     emit_raw_fragment_tokens_with_cfg(
-        quote! { all(target_family = "wasm", feature = "entrypoints") },
+        quote! {
+            all(
+                any(target_family = "wasm", target_arch = "riscv32"),
+                feature = "entrypoints"
+            )
+        },
         fragment,
     )
 }
@@ -157,6 +162,10 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     cfg_guard: TokenStream,
     fragment: TokenStream,
 ) -> TokenStream {
+    // `link_section` requires a string literal. Keep this in sync with
+    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
+    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[cfg(#cfg_guard)]
         const _: () = {
@@ -169,8 +178,15 @@ pub fn emit_raw_fragment_tokens_with_cfg(
                 w.into_bytes()
             };
 
-            #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-
+            #[cfg_attr(
+                any(target_family = "wasm", target_arch = "riscv32"),
+                unsafe(link_section = "groundhogspecrawv0")
+            )]
+            // RV32 only: `#[used]` keeps the section live through ELF linking for
+            // CLI extraction. On wasm the custom section is retained without it,
+            // and `#[used]` there would force the fragment bytes into linear
+            // memory (tripping the spec-tool leak guard).
+            #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
     }
@@ -185,7 +201,7 @@ fn emit_root_anchor_tokens(
 
     let count = anchor_roots.len();
     Some(quote! {
-        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+        #[cfg(all(any(target_family = "wasm", target_arch = "riscv32"), feature = "entrypoints"))]
         const _: () = {
             #[used]
             static ROOT_SPEC_ANCHORS: [fn() -> usize; #count] = [
@@ -223,6 +239,8 @@ mod tests {
         .to_string();
 
         assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("target_arch = \"riscv32\""));
+        assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"));
@@ -244,6 +262,8 @@ mod tests {
             .to_string();
 
         assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("target_arch = \"riscv32\""));
+        assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("const_txs_size"));
