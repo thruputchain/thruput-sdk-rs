@@ -148,7 +148,12 @@ fn generate_method_fragment_tokens(
 
 pub fn emit_raw_fragment_tokens(fragment: TokenStream) -> TokenStream {
     emit_raw_fragment_tokens_with_cfg(
-        quote! { all(target_family = "wasm", feature = "entrypoints") },
+        quote! {
+            all(
+                any(target_family = "wasm", target_arch = "riscv32"),
+                feature = "entrypoints"
+            )
+        },
         fragment,
     )
 }
@@ -169,8 +174,11 @@ pub fn emit_raw_fragment_tokens_with_cfg(
                 w.into_bytes()
             };
 
-            #[cfg_attr(target_family = "wasm", unsafe(link_section = "groundhogspecrawv0"))]
-
+            #[cfg_attr(
+                any(target_family = "wasm", target_arch = "riscv32"),
+                unsafe(link_section = "groundhogspecrawv0")
+            )]
+            #[used]
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
     }
@@ -185,7 +193,7 @@ fn emit_root_anchor_tokens(
 
     let count = anchor_roots.len();
     Some(quote! {
-        #[cfg(all(target_family = "wasm", feature = "entrypoints"))]
+        #[cfg(all(any(target_family = "wasm", target_arch = "riscv32"), feature = "entrypoints"))]
         const _: () = {
             #[used]
             static ROOT_SPEC_ANCHORS: [fn() -> usize; #count] = [
@@ -223,6 +231,8 @@ mod tests {
         .to_string();
 
         assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("target_arch = \"riscv32\""));
+        assert!(tokens.contains("# [used]"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"));
@@ -244,6 +254,8 @@ mod tests {
             .to_string();
 
         assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("target_arch = \"riscv32\""));
+        assert!(tokens.contains("# [used]"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("const_txs_size"));
