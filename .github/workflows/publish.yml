@@ -61,7 +61,7 @@ jobs:
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
           cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev
           cargo-hack-wasm32-packages: groundhog-wasm-runtime sdk
-          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --ignore-unknown-features
+          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
           cargo-hack-rv32-packages: groundhog-rv32-runtime sdk
           arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
 
