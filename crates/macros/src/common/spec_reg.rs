@@ -237,7 +237,7 @@ mod tests {
 
         assert!(tokens.contains("groundhogspecrawv0"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
-        assert!(tokens.contains("# [used]"));
+        assert!(tokens.contains("# [used] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"));
@@ -260,7 +260,7 @@ mod tests {
 
         assert!(tokens.contains("groundhogspecrawv0"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
-        assert!(tokens.contains("# [used]"));
+        assert!(tokens.contains("# [used] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
         assert!(tokens.contains("const_txs_size"));
