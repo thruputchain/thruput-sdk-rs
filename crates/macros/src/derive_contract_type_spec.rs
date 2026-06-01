@@ -405,7 +405,9 @@ mod tests {
             "{tokens}"
         );
         assert!(
-            tokens.contains("used)] static __groundhog_spec_raw_typedef_fragment_Envelope"),
+            tokens.contains(
+                "used)] static __groundhog_spec_raw_typedef_fragment_Envelope"
+            ),
             "{tokens}"
         );
         assert!(!tokens.contains("mix_anchor_ptr"), "{tokens}");
