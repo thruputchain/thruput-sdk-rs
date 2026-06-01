@@ -1425,6 +1425,8 @@ dependencies = [
 name = "no_syscall_test"
 version = "0.1.0"
 dependencies = [
+ "groundhog-syscall",
+ "groundhog-xdr",
  "no_syscall_test",
  "sdk",
 ]
@@ -1620,6 +1622,7 @@ version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
+ "groundhog-syscall",
  "groundhog-xdr",
  "read_only_test",
  "sdk",
@@ -2144,6 +2147,7 @@ dependencies = [
 name = "syscall_misc_tests"
 version = "0.2.0"
 dependencies = [
+ "groundhog-syscall",
  "groundhog-xdr",
  "sdk",
  "sha2 0.11.0",
