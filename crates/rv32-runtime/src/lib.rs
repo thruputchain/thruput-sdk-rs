@@ -15,10 +15,11 @@
 //!
 //! Conceptual model (cf. CKB `ckb-std`): contract logic lives in a
 //! target-agnostic library crate. A thin per-contract bin crate depends
-//! on the contract library AND on this runtime. Building with
-//! `--features entrypoints` (or via `groundhog build`) emits the
-//! contract method entry symbols; the hogd lowerer ingests that ELF
-//! and emits a v3 artifact.
+//! on the contract library AND on this runtime. The VM enters at `_start`
+//! (PC 0) with the invoked method id in `a0`/`a1`; `_start` tail-calls
+//! `rv32_dispatch`, which scans the `GROUNDHOG_RV32_ENTRYPOINTS` registry
+//! (populated by the `#[contract]` macro, one entry per method) and invokes
+//! the matching wrapper. No per-method export symbols are emitted on rv32.
 //!
 //! On non-rv32 targets this crate is empty — safe to depend on
 //! unconditionally so contract crates can `[dependencies]` it without
