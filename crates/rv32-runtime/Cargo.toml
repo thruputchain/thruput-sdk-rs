@@ -32,5 +32,12 @@ alloc = []
 # distributed_slice the `_start` dispatcher scans. This exact pin
 # (default features) was spike-verified to link on bare-metal rv32 with
 # --gc-sections + strip + LTO. Do not trim features without re-spiking.
+#
+# Section-name coupling: link/groundhog-rv32.ld places linkme's
+# `linkme_*`/`linkm2_*` input sections (an internal naming scheme, not a
+# documented linkme API) into .rodata via explicit __start_/__stop_ symbols.
+# A linkme bump that renames those sections would silently drop the dispatch
+# table. Cargo.lock pins the exact patch; scripts/check-rv32-dispatch.sh
+# guards against a silently-empty table. Re-spike on any linkme version bump.
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 linkme = "0.3"
