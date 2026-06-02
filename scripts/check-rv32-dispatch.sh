@@ -19,9 +19,13 @@ if "$OBJDUMP" --section-headers "$ELF" | grep -qE '\.text\.gh_'; then
   fail ".text.gh_* sections still present (v3 dispatch surface not removed)"
 fi
 
-# 2. _start at entry vaddr 0.
+# 2. _start at entry vaddr 0. Accept any spelling of zero; fail closed on an
+#    empty/unparsed value (a missing Entry line must not silently pass).
 ENTRY="$("$READOBJ" --file-headers "$ELF" | awk -F'[ ]+' '/Entry:/ {print $NF}')"
-[ "$ENTRY" = "0x0" ] || fail "_start not at vaddr 0 (entry=$ENTRY)"
+case "$ENTRY" in
+  0x0 | 0x00000000 | 0) : ;;
+  *) fail "_start not at vaddr 0 (entry='$ENTRY')" ;;
+esac
 
 # 3. .rodata exists and is non-empty (it carries the dispatch table). The
 #    cross-repo smoke additionally asserts specific method_ids appear in the
