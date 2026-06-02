@@ -27,3 +27,10 @@ alloc = []
 [dependencies]
 # Intentionally minimal. The runtime is target-specific glue; we want to
 # keep its dep graph small so it builds fast and is easy to audit.
+
+# Guest dispatch registry: each #[contract] method self-registers into a
+# distributed_slice the `_start` dispatcher scans. This exact pin
+# (default features) was spike-verified to link on bare-metal rv32 with
+# --gc-sections + strip + LTO. Do not trim features without re-spiking.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+linkme = "0.3"

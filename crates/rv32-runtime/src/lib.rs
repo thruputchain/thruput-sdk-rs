@@ -49,4 +49,4 @@ mod panic;
 mod start;
 
 #[cfg(target_arch = "riscv32")]
-pub use start::_start;
+pub use start::{GROUNDHOG_RV32_ENTRYPOINTS, _start};
