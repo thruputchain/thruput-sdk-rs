@@ -17,7 +17,7 @@ use linkme::distributed_slice;
 #[distributed_slice]
 pub static GROUNDHOG_RV32_ENTRYPOINTS: [Entrypoint];
 
-/// Immediate, deterministic trap (no gas burn, unlike the old OOG loop).
+/// Immediate, deterministic trap.
 /// Reached on an unknown method id (the Decision-2 default arm / host-filtered
 /// backstop) or if a wrapper returns (it shouldn't — wrappers diverge via the
 /// Return syscall). hogd traps `ebreak` as `Trap::kBreakpoint` → deterministic
