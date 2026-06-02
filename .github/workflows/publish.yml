@@ -87,3 +87,7 @@ jobs:
           # Verification is done in the dry-run job above; the host verify-build
           # here would fail for the architecture-only runtime crates.
           no-verify: 'true'
+          # These crates only build for their non-host target, so the publish
+          # action's host doc-validation must skip them (covered by the per-target
+          # verify in the dry-run job).
+          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
