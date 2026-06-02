@@ -424,25 +424,37 @@ pub fn generate_method(
     // enabled.  The build script passes --features entrypoints; deps
     // that don't enable the feature cannot inject entrypoints.
     //
-    // RV32 uses the same 16-char hex export name as WASM. It also pins each
-    // method into a per-method link section so the RV32 linker script can KEEP
-    // the symbol through dead-code elimination for the lowerer dispatch table.
-    let rv32_link_section = format!(".text.gh_{}", export_name);
+    // RV32 self-registers each method into the runtime's distributed_slice
+    // (GROUNDHOG_RV32_ENTRYPOINTS) which `_start` scans at runtime, instead of
+    // exporting a per-method symbol. WASM still uses host-side export dispatch.
+    let method_id_u64 = u64::from_be_bytes(*entrypoint);
+    let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
+    let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
     Ok(quote! {
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
         #[cfg_attr(
-            any(target_family = "wasm", target_arch = "riscv32"),
+            target_family = "wasm",
             unsafe(export_name = #export_name)
-        )]
-        #[cfg_attr(
-            target_arch = "riscv32",
-            unsafe(link_section = #rv32_link_section)
         )]
         pub extern "C" fn #extern_name() {
             #internal_name()
         }
+
+        // rv32 guest dispatch: register this method into the runtime's
+        // distributed_slice instead of exporting a per-method symbol.
+        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
+        #[::sdk::__rv32_linkme::distributed_slice(
+            ::sdk::__rv32::GROUNDHOG_RV32_ENTRYPOINTS
+        )]
+        #[linkme(crate = ::sdk::__rv32_linkme)]
+        #[allow(non_upper_case_globals)]
+        static #rv32_entry_static: ::sdk::__rv32::Entrypoint =
+            ::sdk::__rv32::Entrypoint {
+                method_id: #method_id_lit,
+                wrapper: #extern_name,
+            };
 
         #inline
         #[allow(non_snake_case)]
@@ -539,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    fn free_function_exports_include_rv32_attributes() {
+    fn free_function_exports_emit_rv32_registry_not_export_symbols() {
         let config = parse_config(r#"interface = "Iface""#);
         let item: syn::ItemFn = syn::parse_quote! {
             fn ping() {}
@@ -549,10 +561,17 @@ mod tests {
             .unwrap()
             .to_string();
 
+        // WASM still uses host-side export dispatch.
         assert!(generated.contains("target_family = \"wasm\""));
-        assert!(generated.contains("target_arch = \"riscv32\""));
         assert!(generated.contains("export_name"));
-        assert!(generated.contains("link_section"));
-        assert!(generated.contains(".text.gh_"));
+
+        // rv32 now self-registers into the distributed slice...
+        assert!(generated.contains("target_arch = \"riscv32\""));
+        assert!(generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
+        assert!(generated.contains("distributed_slice"));
+
+        // ...and the old rv32 dispatch symbols are gone.
+        assert!(!generated.contains(".text.gh_"));
+        assert!(!generated.contains("link_section"));
     }
 }
