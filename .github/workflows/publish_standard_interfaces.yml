@@ -67,10 +67,14 @@ jobs:
             groundhog-sys
             groundhog-native-exec
             groundhog-macros
+            groundhog-rv32-runtime
+            groundhog-wasm-runtime
             sdk
           cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features
-          cargo-hack-wasm32-feature-options: --feature-powerset --skip dev
-          cargo-hack-wasm32-packages: ${{ matrix.crate }}
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev
+          cargo-hack-wasm32-packages: groundhog-wasm-runtime ${{ matrix.crate }}
+          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
+          cargo-hack-rv32-packages: groundhog-rv32-runtime ${{ matrix.crate }}
 
       - name: Tag commit with version
         if: ${{ inputs.dry_run == false }}
