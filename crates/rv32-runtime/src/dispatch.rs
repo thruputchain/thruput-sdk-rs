@@ -37,10 +37,19 @@ mod tests {
 
     fn table() -> [Entrypoint; 3] {
         [
-            Entrypoint { method_id: 0x1111_2222_3333_4444, wrapper: a },
-            Entrypoint { method_id: 0x5555_6666_7777_8888, wrapper: b },
+            Entrypoint {
+                method_id: 0x1111_2222_3333_4444,
+                wrapper: a,
+            },
+            Entrypoint {
+                method_id: 0x5555_6666_7777_8888,
+                wrapper: b,
+            },
             // duplicate id to prove "first match wins"
-            Entrypoint { method_id: 0x5555_6666_7777_8888, wrapper: c },
+            Entrypoint {
+                method_id: 0x5555_6666_7777_8888,
+                wrapper: c,
+            },
         ]
     }
 
