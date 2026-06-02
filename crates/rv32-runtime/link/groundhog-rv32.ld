@@ -28,19 +28,11 @@ SECTIONS
 {
   .text 0 : ALIGN(4)
   {
-    /* _start is the linker entry, used when the artifact dispatch routes
-     * method ID 0 here. KEEP it so dead-code elimination can't drop it
-     * if the contract never references it by name.
+    /* _start is the linker entry and the sole dispatch surface: the VM
+     * always enters here at PC 0 with the method id in a0/a1. KEEP it so
+     * dead-code elimination can't drop it.
      */
     KEEP(*(.text._start))
-
-    /* Method entry points emitted by the #[contract] macro on rv32.
-     * The macro places each method in `.text.gh_<EXPORT_NAME>` where
-     * EXPORT_NAME is the 16-char hex ContractEntrypointID also used
-     * for the wasm export name. The lowerer reads this symbol table
-     * to build the artifact dispatch table.
-     */
-    KEEP(*(.text.gh_*))
 
     *(.text .text.*)
   } > RAM
@@ -48,6 +40,20 @@ SECTIONS
   . = ALIGN(8);
   .rodata : ALIGN(8)
   {
+    /* Guest dispatch registry (linkme distributed_slice). Placed inside
+     * .rodata with explicit __start_/__stop_ encapsulation symbols so the
+     * table rides the lowerer's existing .rodata -> initial-memory copy,
+     * instead of an orphan section the PROGBITS allowlist would skip.
+     * Section names are produced by linkme from the slice name
+     * GROUNDHOG_RV32_ENTRYPOINTS. */
+    . = ALIGN(8);
+    __start_linkme_GROUNDHOG_RV32_ENTRYPOINTS = .;
+    KEEP(*(linkme_GROUNDHOG_RV32_ENTRYPOINTS))
+    __stop_linkme_GROUNDHOG_RV32_ENTRYPOINTS = .;
+    __start_linkm2_GROUNDHOG_RV32_ENTRYPOINTS = .;
+    KEEP(*(linkm2_GROUNDHOG_RV32_ENTRYPOINTS))
+    __stop_linkm2_GROUNDHOG_RV32_ENTRYPOINTS = .;
+
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
   } > RAM
