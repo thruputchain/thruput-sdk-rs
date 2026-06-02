@@ -15,7 +15,7 @@ dev = ["sdk/dev"]
 sdk = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
+[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
 sdk = { workspace = true, features = ["std"] }
 
 [lib]
