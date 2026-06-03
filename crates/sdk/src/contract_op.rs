@@ -89,7 +89,8 @@ where
     _contract_abort_encoded(exn)
 }
 
-#[inline]
+// Inlining this leads to significant code size bloat.
+#[inline(never)]
 fn _contract_abort_encoded<T>(exn: &T) -> !
 where
     T: WriteXDR + ?Sized + core::fmt::Debug,
