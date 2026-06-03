@@ -15,6 +15,10 @@ rustflags = [
 [target.riscv32im-unknown-none-elf]
 rustflags = [
     "-C", "link-arg=-Tgroundhog-rv32.ld",
+    # CODE and DATA live in two MEMORY regions whose VMAs intentionally overlap
+    # (the VM's Harvard split keeps them in separate address spaces). LLD's
+    # default overlap check would abort the link, so disable it.
+    "-C", "link-arg=--no-check-sections",
     "-C", "link-arg=-static",
     "-C", "link-arg=--no-dynamic-linker",
     "-C", "link-arg=--gc-sections",
