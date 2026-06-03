@@ -21,9 +21,9 @@
 //! (populated by the `#[contract]` macro, one entry per method) and invokes
 //! the matching wrapper. No per-method export symbols are emitted on rv32.
 //!
-//! On non-rv32 targets this crate is empty — safe to depend on
-//! unconditionally so contract crates can `[dependencies]` it without
-//! `target.'cfg(...)'.dependencies` gymnastics.
+//! The target-specific runtime pieces only compile on rv32. The pure dispatch
+//! primitives are also compiled for docs/tests so host unit tests can exercise
+//! lookup behavior; production dependencies should remain target-gated.
 
 #![cfg_attr(not(test), no_std)]
 

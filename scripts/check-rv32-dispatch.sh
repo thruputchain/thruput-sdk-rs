@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assert a lowered/linked rv32 contract ELF uses guest-side dispatch:
+# Assert a linked rv32 contract ELF uses guest-side dispatch:
 #   - no legacy 16-hex / .text.gh_* method-export symbols remain
 #   - _start is the entry at vaddr 0
 #   - the linkme dispatch table is present AND non-empty
@@ -36,8 +36,8 @@ esac
 #
 #    Preferred check: assert __stop_linkme_… > __start_linkme_… via the symbol
 #    table. These encapsulation symbols are resolved to link-time constants, so
-#    a *stripped* release artifact (the v4 norm) no longer carries them — there
-#    we fall back to a .rodata presence check, and the authoritative per-method
+#    a *stripped* release ELF no longer carries them — there we fall back to a
+#    .rodata presence check, and the authoritative per-method
 #    population check lives in the cross-repo smoke (it knows the contract's
 #    method_ids and verifies they appear in the initial-memory image).
 SYMS="$("$NM" "$ELF" 2>/dev/null || true)"
@@ -50,7 +50,7 @@ if [ -n "$START_ADDR" ] && [ -n "$STOP_ADDR" ]; then
   fi
   echo "OK: $ELF uses guest-side dispatch (no .text.gh_*, _start@0, dispatch table non-empty)"
 elif "$OBJDUMP" --section-headers "$ELF" | grep -qE '\.rodata'; then
-  echo "OK: $ELF uses guest-side dispatch (no .text.gh_*, _start@0, stripped; .rodata present — table population verified by the smoke's method_id check)"
+  echo "WARN: $ELF passed only the weak stripped-ELF dispatch check (no .text.gh_*, _start@0, .rodata present); the smoke must verify method_id dispatch"
 else
   fail ".rodata missing (dispatch table would be unmaterialized)"
 fi

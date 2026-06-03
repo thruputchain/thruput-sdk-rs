@@ -17,11 +17,10 @@ use linkme::distributed_slice;
 #[distributed_slice]
 pub static GROUNDHOG_RV32_ENTRYPOINTS: [Entrypoint];
 
-/// Immediate, deterministic trap.
-/// Reached on an unknown method id (the Decision-2 default arm / host-filtered
-/// backstop) or if a wrapper returns (it shouldn't — wrappers diverge via the
-/// Return syscall). hogd traps `ebreak` as `Trap::kBreakpoint` → deterministic
-/// failure.
+/// Immediate deterministic trap.
+/// Reached on an unknown method id under guest-side dispatch, or if a wrapper
+/// returns (it shouldn't — wrappers diverge via the Return syscall). hogd traps
+/// `ebreak` as `Trap::kBreakpoint` → deterministic failure.
 fn deterministic_trap() -> ! {
     unsafe { asm!("ebreak", options(noreturn)) }
 }
@@ -39,9 +38,10 @@ extern "C" fn rv32_dispatch(method_id: u64) -> ! {
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
 pub extern "C" fn _start() -> ! {
-    // Set sp to the top of guest memory (16-byte aligned) and tail-call the
-    // dispatcher. The VM also seeds sp in Machine::reset(); we set it
-    // defensively so a real ELF entry is safe to call from a stale stack.
+    // Set sp to the linker-script stack top (16-byte aligned) and tail-call the
+    // dispatcher. hogd also seeds sp from artifact `memory_bytes`; those values
+    // must stay aligned with the SDK linker RAM size. We set it defensively so a
+    // real ELF entry is safe to call from a stale stack.
     // `naked` guarantees no prologue clobbers a0/a1.
     naked_asm!(
         "la sp, __stack_top",
