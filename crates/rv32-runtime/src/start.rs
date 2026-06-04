@@ -21,6 +21,7 @@ pub static GROUNDHOG_RV32_ENTRYPOINTS: [Entrypoint];
 /// Reached on an unknown method id under guest-side dispatch, or if a wrapper
 /// returns (it shouldn't — wrappers diverge via the Return syscall). hogd traps
 /// `ebreak` as `Trap::kBreakpoint` → deterministic failure.
+#[inline(always)]
 fn deterministic_trap() -> ! {
     unsafe { asm!("ebreak", options(noreturn)) }
 }

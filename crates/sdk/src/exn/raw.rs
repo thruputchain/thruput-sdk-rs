@@ -49,6 +49,7 @@ impl RawException {
     }
 
     /// Re-throw this exception to our caller, reconstructing the wire format.
+    #[inline]
     pub fn re_throw(&self) -> ! {
         crate::contract_abort_encoded(self)
     }
