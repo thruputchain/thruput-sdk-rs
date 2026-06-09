@@ -9,16 +9,14 @@ description = "ERC20 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
-alloc = ["xdrs/alloc", "groundhog-xdr/alloc", "heapless/alloc"]
+alloc = ["groundhog-xdr/alloc", "heapless/alloc"]
 dev = ["sdk/dev", "dep:thiserror"]
 
 [dependencies]
 sdk = { workspace = true }
 thiserror = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
-xdr-common = { workspace = true }
 heapless = { workspace = true }
-xdrs = { workspace = true }
 
 [dev-dependencies]
 groundhog-erc20-metadata-if = { path = ".", features = ["alloc"] }
