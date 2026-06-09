@@ -185,9 +185,11 @@ fn fill_return_buf(
     let written =
         checked_returned_len(written, return_len, return_buf.capacity())?;
 
-    // Safety: `checked_returned_len` confirmed the host wrote exactly `written`
-    // bytes into the destination span and that `written <= capacity`, so the
-    // first `written` bytes of `return_buf` are initialized and in bounds.
+    // Safety: `checked_returned_len` proved `written <= capacity`, so `set_len`
+    // stays within the allocation. That the host actually initialized those
+    // `written` bytes is trusted from the `GetReturnedBuffer` syscall contract,
+    // not proven here; if the host under-fills, bytes in `[actual, written)`
+    // would be read as valid data.
     unsafe {
         return_buf.set_len(written);
     }
