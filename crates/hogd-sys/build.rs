@@ -862,6 +862,35 @@ fn download_and_extract(
 
     // Shell out to `tar` (present on all supported prebuilt platforms),
     // mirroring how downloads shell out to `curl`.
+    //
+    // GNU and BSD tar both refuse absolute and `..` paths by default, but
+    // that protection is implicit; reject such entries explicitly so a
+    // crafted archive can't escape extract_dir regardless of the host tar.
+    let listing = Command::new("tar")
+        .arg("-tzf")
+        .arg(&archive_path)
+        .output()
+        .map_err(|e| format!("tar not found or failed to execute: {e}"))?;
+    if !listing.status.success() {
+        return Err(format!(
+            "tar failed to list {} (exit {:?})",
+            archive_path.display(),
+            listing.status.code()
+        )
+        .into());
+    }
+    for entry in String::from_utf8_lossy(&listing.stdout).lines() {
+        if entry.starts_with('/')
+            || entry.split('/').any(|component| component == "..")
+        {
+            return Err(format!(
+                "archive {} contains unsafe path: {entry}",
+                archive_path.display()
+            )
+            .into());
+        }
+    }
+
     let status = Command::new("tar")
         .arg("-xzf")
         .arg(&archive_path)
