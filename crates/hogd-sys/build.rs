@@ -801,23 +801,6 @@ fn verify_checksum(
     Ok(())
 }
 
-/// A safe archive entry is a single flat filename (optionally prefixed with
-/// `./`) made of `[A-Za-z0-9._-]` — no separators, so no nesting, absolute
-/// paths, or `..` traversal, and nothing a link entry could be written
-/// through.
-fn archive_entry_is_safe(entry: &str) -> bool {
-    let name = entry.strip_prefix("./").unwrap_or(entry);
-    if name.is_empty() {
-        // Accept only the bare `./` directory entry some tar invocations add.
-        return entry == "./";
-    }
-    name != "."
-        && name != ".."
-        && name.bytes().all(|b| {
-            b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-')
-        })
-}
-
 /// Download and extract the prebuilt library from `groundhog.dev`.
 fn download_and_extract(
     out_dir: &Path,
@@ -880,11 +863,11 @@ fn download_and_extract(
     // Shell out to `tar` (present on all supported prebuilt platforms),
     // mirroring how downloads shell out to `curl`.
     //
-    // The artifact layout is fully under our control: a flat set of plain
-    // filenames. Allowlist that shape rather than blocklisting known-bad
-    // patterns — `tar -t` can't show link targets, and link-based traversal
-    // needs nested paths, so refusing nesting outright closes the class
-    // without relying on host tar defaults.
+    // The artifact layout is fully under our control, so before extracting,
+    // assert the archive contains exactly the expected flat filenames and
+    // nothing else. This makes path traversal (absolute names, `..`,
+    // link-based nesting) impossible without relying on host tar defaults,
+    // and surfaces any unexpected layout change as a loud build error.
     let listing = Command::new("tar")
         .arg("-tzf")
         .arg(&archive_path)
@@ -898,15 +881,27 @@ fn download_and_extract(
         )
         .into());
     }
-    for entry in String::from_utf8_lossy(&listing.stdout).lines() {
-        if !archive_entry_is_safe(entry) {
-            return Err(format!(
-                "archive {} contains unexpected entry {entry:?}; \
-                 expected only flat plain filenames",
-                archive_path.display()
-            )
-            .into());
-        }
+    let mut expected_entries = vec![
+        shared_lib_name(),
+        "test_bindings.h".into(),
+        "bindings.rs".into(),
+    ];
+    expected_entries.sort();
+    let mut found_entries: Vec<String> =
+        String::from_utf8_lossy(&listing.stdout)
+            .lines()
+            .filter(|entry| *entry != "./")
+            .map(|entry| entry.strip_prefix("./").unwrap_or(entry).to_string())
+            .collect();
+    found_entries.sort();
+    if found_entries != expected_entries {
+        return Err(format!(
+            "archive {} does not contain exactly the expected files.\n\
+             Expected: {expected_entries:?}\n\
+             Found:    {found_entries:?}",
+            archive_path.display()
+        )
+        .into());
     }
 
     let status = Command::new("tar")
