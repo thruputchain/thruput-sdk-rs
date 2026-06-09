@@ -84,6 +84,10 @@ mock = [
     "dep:linkme",
 ]
 
+# Forwarded to groundhog-sys (via native-exec): build the FFI library from
+# source (HOGD_FFI_BUILD=1) instead of downloading a prebuilt binary.
+source-build = ["groundhog-native-exec?/source-build"]
+
 # Diagnostics (can be enabled without mock, alloc and std)
 debugging = []
 call_tracking = ["debugging"] # contract-call tracking

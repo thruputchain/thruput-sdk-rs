@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[cfg(feature = "source-build")]
 const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
@@ -12,12 +13,14 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 const TEST_FFI_VERSION: &str = "0.17.0";
 
 /// Must match the version expected by hogd/built_contracts/build_wasm.sh.
+#[cfg(feature = "source-build")]
 const GROUNDHOG_CLI_VERSION: &str = "0.3.4";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
 /// - Otherwise, clone to `OUT_DIR/hogd_clone`
+#[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -43,6 +46,7 @@ fn ensure_hogd_clone(
     Ok(hogd_path)
 }
 
+#[cfg(feature = "source-build")]
 fn clone_hogd_repo(
     target_dir: &Path,
     tag: &str,
@@ -82,6 +86,7 @@ fn clone_hogd_repo(
 
 /// Parse the `test_ffi` version from `test_bindings.h`.
 /// Returns version string in the format "MAJOR.MINOR.PATCH"
+#[cfg(feature = "source-build")]
 fn parse_version_from_header(
     header_path: &Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -346,7 +351,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             use_prebuilt_lib(&dir, &out_dir)?;
         }
         BuildMethod::Source => {
+            #[cfg(feature = "source-build")]
             run_build_from_source(&out_dir)?;
+            #[cfg(not(feature = "source-build"))]
+            return Err(
+                "HOGD_FFI_BUILD=1 requires the `source-build` feature so \
+                 cmake and bindgen are available.\n\
+                 Build with: cargo build -p groundhog-sys --features source-build"
+                    .into(),
+            );
         }
     }
 
@@ -380,6 +393,7 @@ fn run_prebuilt_download(
 }
 
 /// Build-from-source path: clone hogd, generate bindings, cmake build.
+#[cfg(feature = "source-build")]
 fn run_build_from_source(
     out_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -431,6 +445,7 @@ fn run_build_from_source(
 ///   2. cargo fetch -Zbuild-std --target …   in built_contracts/
 ///   3. cargo fetch                           in hogd/rust/
 ///   4. cargo install groundhog-cli
+#[cfg(feature = "source-build")]
 fn fetch_hogd_rust_deps(
     hogd_path: &Path,
     out_dir: &Path,
@@ -560,6 +575,7 @@ fn fetch_hogd_rust_deps(
 }
 
 /// Verify that the hogd submodule has the correct release tag.
+#[cfg(feature = "source-build")]
 fn verify_hogd_version(
     hogd_src: &str,
     version: &str,
@@ -765,7 +781,11 @@ fn verify_checksum(
 
     let mut hasher = Sha256::new();
     hasher.update(archive_bytes);
-    let actual = format!("{:x}", hasher.finalize());
+    let actual: String = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
 
     if actual != expected {
         return Err(format!(
@@ -840,9 +860,65 @@ fn download_and_extract(
     let extract_dir = out_dir.join(format!("hogd_lib_{version}"));
     fs::create_dir_all(&extract_dir)?;
 
-    let tar = flate2::read::GzDecoder::new(&archive_bytes[..]);
-    let mut archive = tar::Archive::new(tar);
-    archive.unpack(&extract_dir)?;
+    // Shell out to `tar` (present on all supported prebuilt platforms),
+    // mirroring how downloads shell out to `curl`.
+    //
+    // The artifact layout is fully under our control, so before extracting,
+    // assert the archive contains exactly the expected flat filenames and
+    // nothing else. This makes path traversal (absolute names, `..`,
+    // link-based nesting) impossible without relying on host tar defaults,
+    // and surfaces any unexpected layout change as a loud build error.
+    let listing = Command::new("tar")
+        .arg("-tzf")
+        .arg(&archive_path)
+        .output()
+        .map_err(|e| format!("tar not found or failed to execute: {e}"))?;
+    if !listing.status.success() {
+        return Err(format!(
+            "tar failed to list {} (exit {:?})",
+            archive_path.display(),
+            listing.status.code()
+        )
+        .into());
+    }
+    let mut expected_entries = vec![
+        shared_lib_name(),
+        "test_bindings.h".into(),
+        "bindings.rs".into(),
+    ];
+    expected_entries.sort();
+    let mut found_entries: Vec<String> =
+        String::from_utf8_lossy(&listing.stdout)
+            .lines()
+            .filter(|entry| *entry != "./")
+            .map(|entry| entry.strip_prefix("./").unwrap_or(entry).to_string())
+            .collect();
+    found_entries.sort();
+    if found_entries != expected_entries {
+        return Err(format!(
+            "archive {} does not contain exactly the expected files.\n\
+             Expected: {expected_entries:?}\n\
+             Found:    {found_entries:?}",
+            archive_path.display()
+        )
+        .into());
+    }
+
+    let status = Command::new("tar")
+        .arg("-xzf")
+        .arg(&archive_path)
+        .arg("-C")
+        .arg(&extract_dir)
+        .status()
+        .map_err(|e| format!("tar not found or failed to execute: {e}"))?;
+    if !status.success() {
+        return Err(format!(
+            "tar failed to extract {} (exit {:?})",
+            archive_path.display(),
+            status.code()
+        )
+        .into());
+    }
 
     println!(
         "cargo:warning=Extracted library to: {}",
@@ -870,6 +946,7 @@ fn download_and_extract(
 }
 
 /// Build the library from source using cmake.
+#[cfg(feature = "source-build")]
 fn build_from_cmake(
     hogd_src: &str,
     out_dir: &Path,

@@ -18,7 +18,7 @@ source ./scripts/ci/prepare_env.sh
 echo "branch: $GIT_BRANCH"
 
 echo 'run ci'
-CARGO_NET_GIT_FETCH_WITH_CLI=true HOGD_FFI_BUILD=1 cargo build -p groundhog-sys
+CARGO_NET_GIT_FETCH_WITH_CLI=true HOGD_FFI_BUILD=1 cargo build -p groundhog-sys --features source-build
 
 """
 
