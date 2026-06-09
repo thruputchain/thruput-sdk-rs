@@ -91,3 +91,19 @@ jobs:
           # action's host doc-validation must skip them (covered by the per-target
           # verify in the dry-run job).
           arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
+
+      # Build and upload rustdoc to groundhog.dev/docs, after the crates publish.
+      # HEAD is the freshly-tagged commit, so expected-tag validates cleanly.
+      # arch-only crates can't build docs on the host, so they're skipped (same
+      # as the publish step above).
+      - name: publish docs
+        uses: ./actions/cargo-doc
+        with:
+          packages: ${{ env.PUBLISH_PACKAGES }}
+          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
+          version: ${{ steps.publish-tag.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-01-30
+          force: 'true'
+          expected-tag: ${{ steps.publish-tag.outputs.tag }}
