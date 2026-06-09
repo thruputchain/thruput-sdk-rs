@@ -182,6 +182,40 @@ fn fill_return_buf(
 
     let written = unsafe { written_mu.assume_init() };
 
+    let written =
+        checked_returned_len(written, return_len, return_buf.capacity())?;
+
+    // Safety: `checked_returned_len` proved `written <= capacity`, so `set_len`
+    // stays within the allocation. That the host actually initialized those
+    // `written` bytes is trusted from the `GetReturnedBuffer` syscall contract,
+    // not proven here; if the host under-fills, bytes in `[actual, written)`
+    // would be read as valid data.
+    unsafe {
+        return_buf.set_len(written);
+    }
+
+    validate_auth_token_id_list_len(
+        unsafe { auth_token_id_list_written_mu.assume_init() },
+        auth_token_id_list_return_len,
+    )?;
+
+    Ok(())
+}
+
+/// Validate the length the host reports for a returned buffer before it is used
+/// as the buffer's logical length.
+///
+/// `GetReturnedBuffer` copies at most `capacity` bytes into the destination
+/// span but reports the *full* source length, which can exceed `capacity` when
+/// a child returns a buffer larger than this fixed-size [`ReturnBuf`]. Treating
+/// that reported length as the number of initialized bytes would push the
+/// buffer's logical length past its capacity, so it is rejected as a parse
+/// error here before any `set_len`.
+fn checked_returned_len(
+    written: RuntimeMemoryLength,
+    return_len: u32,
+    capacity: usize,
+) -> Result<usize, FaultString> {
     if written != return_len {
         return Err(FaultString::from_display(format_args!(
             "unexpected return-data length from system call: \
@@ -190,13 +224,21 @@ fn fill_return_buf(
         )));
     }
 
-    // Safety: The VM reports above that this many bytes were written
-    unsafe {
-        return_buf.set_len(written as usize);
+    let written = written as usize;
+    if written > capacity {
+        return Err(FaultString::from_display(format_args!(
+            "return-data length {written} exceeds return buffer \
+                    capacity {capacity}"
+        )));
     }
 
-    let written_auth_token_id_list =
-        unsafe { auth_token_id_list_written_mu.assume_init() };
+    Ok(written)
+}
+
+fn validate_auth_token_id_list_len(
+    written_auth_token_id_list: RuntimeMemoryLength,
+    auth_token_id_list_return_len: u32,
+) -> Result<(), FaultString> {
     if written_auth_token_id_list != auth_token_id_list_return_len {
         return Err(FaultString::from_display(format_args!(
             "unexpected auth token id list length from system call: \
@@ -206,4 +248,45 @@ fn fill_return_buf(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::checked_returned_len;
+
+    const CAPACITY: usize = 500;
+
+    #[test]
+    fn oversized_return_len_is_rejected() {
+        // A child can return up to the protocol's 1024-byte cap. When it returns
+        // 600 bytes, both `Invoke` and `GetReturnedBuffer` report 600 even though
+        // only `CAPACITY` bytes fit in the destination span. Accepting 600 as the
+        // logical length would push `ReturnBuf` past its capacity, so it must be
+        // rejected.
+        assert!(checked_returned_len(600, 600, CAPACITY).is_err());
+    }
+
+    #[test]
+    fn return_len_at_capacity_is_accepted() {
+        assert_eq!(
+            checked_returned_len(CAPACITY as u32, CAPACITY as u32, CAPACITY)
+                .unwrap(),
+            CAPACITY
+        );
+    }
+
+    #[test]
+    fn return_len_within_capacity_is_accepted() {
+        assert_eq!(checked_returned_len(480, 480, CAPACITY).unwrap(), 480);
+    }
+
+    #[test]
+    fn empty_return_is_accepted() {
+        assert_eq!(checked_returned_len(0, 0, CAPACITY).unwrap(), 0);
+    }
+
+    #[test]
+    fn mismatched_written_and_return_len_is_rejected() {
+        assert!(checked_returned_len(400, 500, CAPACITY).is_err());
+    }
 }
