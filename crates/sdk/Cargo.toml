@@ -37,7 +37,6 @@ groundhog-wasm-meter = { workspace = true, optional = true }
 # External dependencies
 thiserror = { workspace = true }
 sha2 = { workspace = true, default-features = false }
-bitset-core = { workspace = true }
 heapless = { workspace = true }
 linkme = { workspace = true, optional = true }
 

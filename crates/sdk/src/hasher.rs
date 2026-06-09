@@ -94,8 +94,6 @@ impl Debug for Hasher {
 #[allow(unused)]
 use crate::cell::ContractCell;
 use crate::contract_local;
-#[allow(unused)]
-use bitset_core::*;
 
 // A set of flags marking what hashers are available
 contract_local! {
@@ -116,8 +114,8 @@ fn slot_alloc() -> Option<HasherIndex> {
     let mut avail = AVAILABLE.get();
 
     for i in 0..N_HASHERS {
-        if avail.bit_test(i) {
-            avail.bit_reset(i);
+        if avail & (1 << i) != 0 {
+            avail &= !(1 << i);
             AVAILABLE.set(avail);
             return Some(i as _);
         }
@@ -146,8 +144,8 @@ fn slot_alloc() -> Option<HasherIndex> {
 fn slot_free(i: HasherIndex) -> bool {
     let mut avail = AVAILABLE.get();
 
-    if !avail.bit_test(i as _) {
-        avail.bit_set(i as _);
+    if avail & (1 << i) == 0 {
+        avail |= 1 << i;
         AVAILABLE.set(avail);
         true
     } else {

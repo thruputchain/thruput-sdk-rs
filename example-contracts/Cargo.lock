@@ -733,7 +733,6 @@ dependencies = [
  "semver",
  "sha2 0.11.0",
  "syn",
- "xdrs",
 ]
 
 [[package]]
@@ -782,11 +781,8 @@ dependencies = [
  "groundhog-xdr",
  "proc-macro2",
  "quote",
- "serde",
- "serde_yaml",
  "sha2 0.11.0",
  "syn",
- "xdrs",
 ]
 
 [[package]]
@@ -800,7 +796,6 @@ dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
  "sha2 0.11.0",
- "thiserror",
  "xdr-common",
  "xdrs",
 ]

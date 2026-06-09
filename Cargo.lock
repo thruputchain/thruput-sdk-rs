@@ -77,12 +77,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4512299f36f043ab09a583e57bceb5a5aab7a73db1805848e8fef3c9e8c78b3"
 
 [[package]]
-name = "bitset-core"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f421f1bcb30aa9d851a03c2920ab5d96ca920d5786645a597b5fc37922f8b89e"
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -646,7 +640,6 @@ dependencies = [
  "semver",
  "sha2 0.11.0",
  "syn",
- "xdrs",
 ]
 
 [[package]]
@@ -676,8 +669,6 @@ dependencies = [
  "heapless",
  "sdk",
  "thiserror",
- "xdr-common",
- "xdrs",
 ]
 
 [[package]]
@@ -697,11 +688,8 @@ dependencies = [
  "groundhog-xdr",
  "proc-macro2",
  "quote",
- "serde",
- "serde_yaml",
  "sha2 0.11.0",
  "syn",
- "xdrs",
 ]
 
 [[package]]
@@ -715,7 +703,6 @@ dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
  "sha2 0.11.0",
- "thiserror",
  "xdr-common",
  "xdrs",
 ]
@@ -1794,7 +1781,6 @@ dependencies = [
 name = "sdk"
 version = "0.14.11"
 dependencies = [
- "bitset-core",
  "groundhog-contract-spec",
  "groundhog-contract-util",
  "groundhog-event",
