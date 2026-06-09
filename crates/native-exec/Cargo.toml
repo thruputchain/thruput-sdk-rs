@@ -26,6 +26,10 @@ crate-type = ["rlib"]
 # Currently is only available with build from source enabled.
 wasm_backtraces = ["groundhog-sys/wasm_backtraces"]
 
+# Forwarded to groundhog-sys: build the FFI library from source
+# (HOGD_FFI_BUILD=1) instead of downloading a prebuilt binary.
+source-build = ["groundhog-sys/source-build"]
+
 [dependencies]
 groundhog-event = { workspace = true }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs", "syscalls_mock"]}
