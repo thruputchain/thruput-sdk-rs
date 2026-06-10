@@ -20,8 +20,36 @@ sdk = { path = "../sdk_rs" }
 my-contract = { path = ".", features = ["dev"] }
 ```
 
-The shortest test path is to call `sdk::declare_mock_contract!();` once in
-`src/lib.rs` (which generates `register_mock_contract`), then:
+Tests run contracts natively against a `TestEnvironment` (an in-process
+groundhog instance). The canonical pattern is the fluent transaction API:
+each `env.transact` call builds one transaction, `tx.call(&addr).run(...)`
+executes a closure as a contract frame at that address, and the returned
+result is asserted on:
+
+```rust,ignore
+use sdk::*;
+
+static NONCE: SHA256Hash = SHA256Hash::new(hash_to_array!("my-test-nonce"));
+
+let env = TestEnvironment::no_cost();
+let test_contract = my_contract::register_mock_contract(&env);
+let contract_hash = *test_contract.as_hash();
+
+env.transact(|tx| {
+    tx.call(&ContractAddress::named("test")).run(move || {
+        let addr = deploy_contract(&NONCE, &contract_hash);
+        let client = MyContractClient::new(&addr);
+        // exercise the generated client here
+    })
+})
+.assert_success();
+```
+
+(`sdk::declare_mock_contract!();` once in `src/lib.rs` generates
+`register_mock_contract`.)
+
+For the common single-transaction case, `sdk::client_test` is thin sugar
+over that pattern — it deploys the contract and hands the closure a client:
 
 ```rust,ignore
 sdk::client_test(
@@ -31,6 +59,10 @@ sdk::client_test(
     },
 );
 ```
+
+Use the full `env.transact` form when a test needs multiple transactions,
+asserts on aborts/faults, or decodes typed results via
+`sdk::into_root_call_result`.
 
 Generated clients default to `FooClient` for `#[contract] trait Foo` and for
 `#[contract] impl Foo { ... }`. Use `client = CustomClient` only when you want
