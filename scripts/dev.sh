@@ -200,6 +200,8 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
     assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
+    assert_file_contains "$spec_named_json" '"name":"PayloadEvent"' &&
+    assert_file_contains "$spec_named_json" '"name":"AuditEvent"' &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&

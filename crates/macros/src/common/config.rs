@@ -121,6 +121,59 @@ impl FromMeta for ThrowsList {
     }
 }
 
+/// A list of event type paths declared via `emits(...)`.
+#[derive(Clone, Debug)]
+pub struct EmitsList(Vec<syn::Path>);
+
+impl EmitsList {
+    fn new(events: Vec<syn::Path>) -> darling::Result<Self> {
+        if events.is_empty() {
+            return Err(darling::Error::custom(
+                "emits() requires at least one event type",
+            ));
+        }
+        Ok(Self(events))
+    }
+}
+
+impl FromMeta for EmitsList {
+    fn from_value(value: &syn::Lit) -> darling::Result<Self> {
+        Err(darling::Error::unexpected_lit_type(value))
+    }
+
+    fn from_word() -> darling::Result<Self> {
+        Err(darling::Error::unsupported_format("word"))
+    }
+
+    fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
+        match expr {
+            syn::Expr::Path(ep) if ep.qself.is_none() => {
+                Self::new(vec![ep.path.clone()])
+            }
+            _ => Err(darling::Error::custom(
+                "emits expects a type path or list of type paths",
+            )),
+        }
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let mut events = Vec::new();
+        for item in items {
+            match item {
+                darling::ast::NestedMeta::Meta(syn::Meta::Path(path)) => {
+                    events.push(path.clone());
+                }
+                _ => {
+                    return Err(darling::Error::custom(
+                        "emits expects type paths",
+                    ));
+                }
+            }
+        }
+        Self::new(events)
+    }
+}
+
 #[derive(Clone, Debug, FromMeta)]
 pub struct Config {
     pub exports: Option<String>,
@@ -131,6 +184,7 @@ pub struct Config {
 
     client: Option<syn::Ident>,
     throws: Option<ThrowsList>,
+    emits: Option<EmitsList>,
 }
 
 impl Config {
@@ -171,6 +225,19 @@ impl Config {
     /// Returns the first thrown error type (backwards compat).
     pub fn throws(&self) -> Option<ThrownType> {
         self.throws.as_ref().and_then(|t| t.0.first()).cloned()
+    }
+
+    /// Returns the list of declared event types (empty if none declared).
+    pub fn emits_list(&self) -> Vec<syn::Path> {
+        match &self.emits {
+            Some(EmitsList(events)) => events.clone(),
+            None => vec![],
+        }
+    }
+
+    /// Returns true if any events were declared via `emits(...)`.
+    pub fn has_emits(&self) -> bool {
+        self.emits.is_some()
     }
 }
 
@@ -292,5 +359,50 @@ mod tests {
         let config = parse_config(r#""#);
         let throws = config.throws_list();
         assert!(throws.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod emits_tests {
+    use super::*;
+    use darling::ast::NestedMeta;
+
+    fn parse_config(attrs: &str) -> darling::Result<Config> {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list)
+    }
+
+    #[test]
+    fn emits_list_syntax() {
+        let config =
+            parse_config(r#"emits(TransferEvent, events::ApprovalEvent)"#)
+                .unwrap();
+        let emits = config.emits_list();
+        assert_eq!(emits.len(), 2);
+        assert_eq!(emits[0].to_token_stream().to_string(), "TransferEvent");
+        assert_eq!(
+            emits[1].to_token_stream().to_string(),
+            "events :: ApprovalEvent"
+        );
+    }
+
+    #[test]
+    fn emits_single_path() {
+        let config = parse_config(r#"emits = TransferEvent"#).unwrap();
+        assert_eq!(config.emits_list().len(), 1);
+        assert!(config.has_emits());
+    }
+
+    #[test]
+    fn emits_none() {
+        let config = parse_config(r#""#).unwrap();
+        assert!(config.emits_list().is_empty());
+        assert!(!config.has_emits());
+    }
+
+    #[test]
+    fn emits_empty_list_rejected() {
+        assert!(parse_config(r#"emits()"#).is_err());
     }
 }

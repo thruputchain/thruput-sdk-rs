@@ -169,10 +169,11 @@ pub fn canonicalize_spec(
                     defs.push(type_def.clone());
                 }
             }
-            // Events have no reachability signal from interface signatures,
-            // so every event definition linked into the binary is part of
-            // the contract's event surface. The exported variant is treated
-            // identically today; it is reserved for a future opt-in split.
+            // `SpecEvent` fragments are emitted only at contract impl sites
+            // for events declared via `emits(...)` on the interface;
+            // `ExportedSpecEvent` fragments come from `#[event_spec(export)]`
+            // and force inclusion from any crate linked into the binary.
+            // Both land in the final spec.
             SpecFragment::SpecEvent { event_def }
             | SpecFragment::ExportedSpecEvent { event_def } => {
                 validate_event(event_def)?;

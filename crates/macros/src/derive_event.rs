@@ -58,21 +58,25 @@ fn field_view_tokens(field: &syn::Field) -> Result<TokenStream> {
     })
 }
 
-/// Emits the raw event spec fragment plus linker anchors for the event's
-/// field types, mirroring `derive_contract_type_spec::emit_raw_typedef_fragment`.
-fn emit_raw_event_fragment(
-    ident: &syn::Ident,
+/// Generates the `ContractEventSpec` impl (the event's spec definition as a
+/// const view) plus an anchor fn for its field types. The definition is only
+/// written to the raw spec section where the event is declared: from an
+/// interface's `emits(...)` list, or — when `#[event_spec(export)]` is set —
+/// unconditionally from the defining crate (forced inclusion).
+fn emit_event_spec(
+    input: &DeriveInput,
     type_name: &str,
     sig_bytes: &[u8; 32],
     topics: &[&syn::Field],
     payload: &[&syn::Field],
 ) -> Result<TokenStream> {
-    let fragment_ident =
-        format_ident!("__groundhog_spec_event_fragment_{ident}");
-    let raw_len_ident =
-        format_ident!("__groundhog_spec_event_raw_len_{ident}");
-    let raw_fragment_ident =
-        format_ident!("__groundhog_spec_raw_event_fragment_{ident}");
+    let ident = &input.ident;
+    let (impl_generics, ty_generics, where_clause) =
+        input.generics.split_for_impl();
+
+    let def_ident = format_ident!("__groundhog_spec_event_def_{ident}");
+    let anchor_fn_ident =
+        format_ident!("__groundhog_spec_event_anchor_fn_{ident}");
 
     let topic_views = topics
         .iter()
@@ -90,40 +94,100 @@ fn emit_raw_event_fragment(
             contract_type_anchor_token(&fold_lifetimes_to_static(&field.ty))
         })
         .collect::<Result<Vec<_>>>()?;
-    let anchor_count = anchor_tokens.len();
-    let anchors = if anchor_count == 0 {
-        quote! {}
-    } else {
-        // Retains the raw typedef fragments of the event's field types, so
-        // `Named` references in the event def resolve during spec assembly.
+    let anchor_stmts = anchor_tokens.iter().map(|anchor| {
         quote! {
-            #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
-            const _: () = {
-                #[used]
-                static __GROUNDHOG_EVENT_SPEC_ANCHORS: [fn() -> usize; #anchor_count] = [
-                    #(#anchor_tokens),*
-                ];
-            };
+            acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
         }
+    });
+
+    let export = {
+        use darling::FromMeta;
+        #[derive(Debug, Default, FromMeta)]
+        struct EventSpecArgs {
+            #[darling(default)]
+            export: bool,
+        }
+        input
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("event_spec"))
+            .try_fold(false, |acc, attr| {
+                let args = EventSpecArgs::from_meta(&attr.meta)?;
+                Ok::<_, darling::Error>(acc || args.export)
+            })
+            .map_err(|e| syn::Error::new_spanned(ident, e.to_string()))?
+    };
+    let exported_fragment = if export {
+        emit_exported_event_fragment(ident, &def_ident, &anchor_fn_ident)
+    } else {
+        quote! {}
     };
 
     let sig_array = sig_bytes.iter().copied();
+
+    Ok(quote! {
+        #[doc(hidden)]
+        pub const #def_ident: ::sdk::__contract_spec::ContractEventDefView<'static> =
+            ::sdk::__contract_spec::ContractEventDefView {
+                name: #type_name,
+                signature: [#(#sig_array),*],
+                topics: &[#(#topic_views),*],
+                fields: &[#(#payload_views),*],
+            };
+
+        #[doc(hidden)]
+        #[inline(never)]
+        pub fn #anchor_fn_ident() -> usize {
+            #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
+            {
+                let mut acc = 0usize;
+                #(#anchor_stmts)*
+                acc
+            }
+            #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+            {
+                0usize
+            }
+        }
+
+        impl #impl_generics ::sdk::__contract_spec::ContractEventSpec for #ident #ty_generics #where_clause {
+            const EVENT_DEF: ::sdk::__contract_spec::ContractEventDefView<'static> =
+                #def_ident;
+
+            const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
+
+            fn __groundhog_spec_anchor() -> usize {
+                #anchor_fn_ident()
+            }
+        }
+
+        #exported_fragment
+    })
+}
+
+/// Emits a raw `ExportedSpecEvent` fragment for `#[event_spec(export)]`,
+/// forcing the event into the contract spec of any binary that links the
+/// defining crate, mirroring `derive_contract_type_spec`'s exported typedefs.
+fn emit_exported_event_fragment(
+    ident: &syn::Ident,
+    def_ident: &syn::Ident,
+    anchor_fn_ident: &syn::Ident,
+) -> TokenStream {
+    let fragment_ident =
+        format_ident!("__groundhog_spec_event_fragment_{ident}");
+    let raw_len_ident =
+        format_ident!("__groundhog_spec_event_raw_len_{ident}");
+    let raw_fragment_ident =
+        format_ident!("__groundhog_spec_raw_event_fragment_{ident}");
 
     // `link_section` requires a string literal. Keep this in sync with
     // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
     // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
-    Ok(quote! {
+    quote! {
         #[doc(hidden)]
         pub const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
-            ::sdk::__contract_spec::SpecFragmentView::Event(
-                ::sdk::__contract_spec::ContractEventDefView {
-                    name: #type_name,
-                    signature: [#(#sig_array),*],
-                    topics: &[#(#topic_views),*],
-                    fields: &[#(#payload_views),*],
-                }
-            );
+            ::sdk::__contract_spec::SpecFragmentView::ExportedEvent(#def_ident);
 
         #[doc(hidden)]
         const #raw_len_ident: usize = #fragment_ident.const_txs_size();
@@ -146,8 +210,15 @@ fn emit_raw_event_fragment(
             w.into_bytes()
         };
 
-        #anchors
-    })
+        // Retains the raw typedef fragments of the event's field types, so
+        // `Named` references in the exported def resolve during spec assembly.
+        #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
+        const _: () = {
+            #[used]
+            static __GROUNDHOG_EVENT_SPEC_ANCHORS: [fn() -> usize; 1] =
+                [#anchor_fn_ident];
+        };
+    }
 }
 
 pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
@@ -193,10 +264,9 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 
     let sig_array = sig_bytes.iter().copied();
 
-    // --- Raw spec fragment for link-section based spec extraction ---
-    let raw_event_fragment = emit_raw_event_fragment(
-        ident, &type_name, &sig_bytes, &topics, &payload,
-    )?;
+    // --- Spec definition (ContractEventSpec impl + optional exported fragment) ---
+    let event_spec =
+        emit_event_spec(input, &type_name, &sig_bytes, &topics, &payload)?;
 
     // --- Event impl ---
     let num_topics = (topics.len() + 1) as u32; // +1 for SIGNATURE at index 0
@@ -267,7 +337,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     };
 
     Ok(quote! {
-        #raw_event_fragment
+        #event_spec
 
         impl #impl_generics #ident #ty_generics #where_clause {
             pub const SIGNATURE: &'static ::sdk::Topic = &[#(#sig_array),*];
@@ -327,7 +397,7 @@ mod tests {
     use super::expand;
 
     #[test]
-    fn expand_emits_event_spec_fragment_and_anchors() {
+    fn expand_emits_event_def_const_and_spec_impl() {
         let input: syn::DeriveInput = syn::parse_quote! {
             struct TransferEvent<'a> {
                 #[topic]
@@ -341,16 +411,17 @@ mod tests {
 
         let tokens = expand(&input).unwrap().to_string();
 
-        assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
-        assert!(tokens.contains("ContractEventDefView"), "{tokens}");
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
         assert!(
-            tokens
-                .contains("__groundhog_spec_raw_event_fragment_TransferEvent"),
+            tokens.contains("__groundhog_spec_event_def_TransferEvent"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("ContractEventDefView"), "{tokens}");
+        assert!(
+            tokens.contains("ContractEventSpec for TransferEvent"),
             "{tokens}"
         );
         assert!(
-            tokens.contains("__GROUNDHOG_EVENT_SPEC_ANCHORS"),
+            tokens.contains("__groundhog_spec_event_anchor_fn_TransferEvent"),
             "{tokens}"
         );
         // Topic fields strip the reference and lower via the type-ref trait.
@@ -360,6 +431,35 @@ mod tests {
         );
         // Slice payload fields lower through the unsized trait impl.
         assert!(tokens.contains("type_ref :: < [u8] >"), "{tokens}");
+        // Without `#[event_spec(export)]` no raw fragment is emitted.
+        assert!(!tokens.contains("groundhogspecrawv0"), "{tokens}");
+    }
+
+    #[test]
+    fn expand_with_export_emits_exported_raw_fragment() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            #[event_spec(export)]
+            struct AuditEvent {
+                tag: u64,
+            }
+        };
+
+        let tokens = expand(&input).unwrap().to_string();
+
+        assert!(
+            tokens.contains("SpecFragmentView :: ExportedEvent"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(
+            tokens.contains("__groundhog_spec_raw_event_fragment_AuditEvent"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("__GROUNDHOG_EVENT_SPEC_ANCHORS"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
     }
 
     #[test]
@@ -377,24 +477,5 @@ mod tests {
             "{tokens}"
         );
         assert!(!tokens.contains("Option < & 'a [u8] > as"), "{tokens}");
-    }
-
-    #[test]
-    fn expand_event_with_only_primitive_field_types_still_emits_anchors() {
-        let input: syn::DeriveInput = syn::parse_quote! {
-            struct SimpleEvent {
-                value: u128,
-            }
-        };
-
-        let tokens = expand(&input).unwrap().to_string();
-
-        assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
-        // Primitive field types still get anchor entries (they are no-ops),
-        // so the anchor array is present whenever the event has fields.
-        assert!(
-            tokens.contains("__GROUNDHOG_EVENT_SPEC_ANCHORS"),
-            "{tokens}"
-        );
     }
 }

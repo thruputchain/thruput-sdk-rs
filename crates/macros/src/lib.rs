@@ -187,7 +187,7 @@ pub fn contract_exception(
     contract_exception::expand(args, item).into()
 }
 
-#[proc_macro_derive(Event, attributes(topic))]
+#[proc_macro_derive(Event, attributes(topic, event_spec))]
 pub fn derive_event(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
