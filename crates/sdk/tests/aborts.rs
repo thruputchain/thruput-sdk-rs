@@ -5,9 +5,7 @@ fn run_at_test_addr(
     f: impl FnOnce() + std::panic::UnwindSafe,
 ) -> TransactResult {
     let env = TestEnvironment::no_cost();
-    env.transact(|tx| {
-        tx.call(&<ContractAddress as Named>::named("aborts")).run(f)
-    })
+    env.transact(|tx| tx.call(&ContractAddress::named("aborts")).run(f))
 }
 
 #[test]
@@ -15,7 +13,6 @@ fn test_panic() {
     let result = run_at_test_addr(|| {
         panic!("Just panic");
     });
-    result.assert_fault();
     let res: Result<(), RawCallError> = into_root_call_result(&result);
     assert!(
         matches!(res, Err(RawCallError::Fault(_))),

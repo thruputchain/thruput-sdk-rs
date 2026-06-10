@@ -10,6 +10,20 @@ use sdk::exn::{Exn, LibraryExn};
 use sdk::sys::{SyscallErrorCode, SyscallNo};
 use sdk::*;
 
+/// Run `f` as a single transaction at this file's test address.
+fn run_tx(f: impl FnOnce() + std::panic::UnwindSafe) -> TransactResult {
+    let env = TestEnvironment::no_cost();
+    env.transact(|tx| tx.call(&ContractAddress::named("nnints")).run(f))
+}
+
+/// Run `f` and decode the root-frame outcome as a client-style result,
+/// for matching typed exceptions.
+fn run_tx_result(
+    f: impl FnOnce() + std::panic::UnwindSafe,
+) -> Result<(), RawCallError> {
+    into_root_call_result(&run_tx(f))
+}
+
 contract_test!(test_nnints_exn {
     use sdk::sys_exn::nnint::*;
     use sdk::sys_exn::delete::*;
@@ -82,18 +96,14 @@ contract_test!(test_nnints_exn {
 fn set_negative_then_increment_succeeds() {
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let key = StorageKey::default();
-            let key = &key;
+    run_tx(|| {
+        let key = StorageKey::default();
+        let key = &key;
 
-            non_negative_int_set(key, -3);
-            non_negative_int_inc(key, 1);
-        })
-    });
-
-    result.assert_success();
+        non_negative_int_set(key, -3);
+        non_negative_int_inc(key, 1);
+    })
+    .assert_success();
 }
 
 // We can't set a positive value and then make an increment that results
@@ -106,18 +116,13 @@ fn set_negative_then_increment_succeeds() {
 fn set_negative_sum_fails() {
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let key = StorageKey::default();
-            let key = &key;
+    let res = run_tx_result(|| {
+        let key = StorageKey::default();
+        let key = &key;
 
-            non_negative_int_set(key, 2);
-            non_negative_int_inc(key, -5);
-        })
+        non_negative_int_set(key, 2);
+        non_negative_int_inc(key, -5);
     });
-    let res: Result<(), sdk::call::RawCallError> =
-        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -135,20 +140,15 @@ fn set_negative_sum_fails() {
 fn set_negative_then_positive_then_negative_sum_fails() {
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let key = StorageKey::default();
-            let key = &key;
+    let res = run_tx_result(|| {
+        let key = StorageKey::default();
+        let key = &key;
 
-            non_negative_int_set(key, -3);
-            non_negative_int_inc(key, 1); // still negative: OK
-            non_negative_int_set(key, 5);
-            non_negative_int_inc(key, -7); // Nope: last set was positive
-        })
+        non_negative_int_set(key, -3);
+        non_negative_int_inc(key, 1); // still negative: OK
+        non_negative_int_set(key, 5);
+        non_negative_int_inc(key, -7); // Nope: last set was positive
     });
-    let res: Result<(), sdk::call::RawCallError> =
-        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -163,14 +163,9 @@ fn set_negative_then_positive_then_negative_sum_fails() {
 fn get_unset_fails() {
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let _ = non_negative_int_get(&StorageKey::default());
-        })
+    let res = run_tx_result(|| {
+        let _ = non_negative_int_get(&StorageKey::default());
     });
-    let res: Result<(), sdk::call::RawCallError> =
-        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -185,18 +180,13 @@ fn get_unset_fails() {
 fn get_wrong_type_fails() {
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let key = StorageKey::default();
-            let key = &key;
+    let res = run_tx_result(|| {
+        let key = StorageKey::default();
+        let key = &key;
 
-            bytestring_set(key, b"");
-            let _ = non_negative_int_get(key);
-        })
+        bytestring_set(key, b"");
+        let _ = non_negative_int_get(key);
     });
-    let res: Result<(), sdk::call::RawCallError> =
-        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -211,18 +201,13 @@ fn get_wrong_type_fails() {
 fn try_get_wrong_type_fails() {
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let key = StorageKey::default();
-            let key = &key;
+    let res = run_tx_result(|| {
+        let key = StorageKey::default();
+        let key = &key;
 
-            bytestring_set(key, b"");
-            let _ = non_negative_int_try_get(key);
-        })
+        bytestring_set(key, b"");
+        let _ = non_negative_int_try_get(key);
     });
-    let res: Result<(), sdk::call::RawCallError> =
-        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -238,19 +223,14 @@ fn delete_actually_deletes() {
     use sdk::sys_exn::delete::*;
     use sdk::sys_exn::nnint::*;
 
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&ContractAddress::named("nnints")).run(|| {
-            let key = StorageKey::default();
-            let key = &key;
+    let res = run_tx_result(|| {
+        let key = StorageKey::default();
+        let key = &key;
 
-            non_negative_int_set(key, 27);
-            delete_shared(key);
-            let _ = non_negative_int_get(key);
-        })
+        non_negative_int_set(key, 27);
+        delete_shared(key);
+        let _ = non_negative_int_get(key);
     });
-    let res: Result<(), sdk::call::RawCallError> =
-        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
