@@ -5,11 +5,11 @@ pub mod raw;
 pub mod rewrite;
 
 pub use groundhog_contract_spec::{
-    ContractEnumDef, ContractEnumVariant, ContractExceptionType,
-    ContractField, ContractSpec, ContractSpecInterface, ContractSpecMethod,
-    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
-    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractEnumDef, ContractEnumVariant, ContractEventDef,
+    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
+    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
+    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
+    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use raw::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
@@ -37,6 +37,8 @@ pub enum SpecToolError {
     ConflictingInterfaceThrows(String),
     /// Multiple conflicting method definitions share the same name in an interface.
     ConflictingMethod(String),
+    /// Multiple conflicting event definitions exist for the same event name.
+    ConflictingEventDef(String),
     /// An error occurred while parsing or writing the wasm binary.
     Wasm(String),
 }
@@ -62,6 +64,9 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::ConflictingMethod(msg) => {
                 write!(f, "conflicting method definitions for {msg}")
+            }
+            Self::ConflictingEventDef(msg) => {
+                write!(f, "conflicting event definitions for {msg}")
             }
             Self::Wasm(msg) => f.write_str(msg),
         }
@@ -95,6 +100,8 @@ pub fn canonicalize_spec(
         BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
     let mut exported_roots =
         std::collections::BTreeSet::<ContractSpecString>::new();
+    let mut events =
+        BTreeMap::<ContractSpecString, Vec<ContractEventDef>>::new();
 
     for fragment in raw {
         match fragment {
@@ -162,6 +169,18 @@ pub fn canonicalize_spec(
                     defs.push(type_def.clone());
                 }
             }
+            // Events have no reachability signal from interface signatures,
+            // so every event definition linked into the binary is part of
+            // the contract's event surface. The exported variant is treated
+            // identically today; it is reserved for a future opt-in split.
+            SpecFragment::SpecEvent { event_def }
+            | SpecFragment::ExportedSpecEvent { event_def } => {
+                validate_event(event_def)?;
+                let defs = events.entry(event_def.name.clone()).or_default();
+                if !defs.iter().any(|existing| existing == event_def) {
+                    defs.push(event_def.clone());
+                }
+            }
             _ => {}
         }
     }
@@ -177,6 +196,18 @@ pub fn canonicalize_spec(
             ));
         }
     }
+
+    let events = events
+        .into_iter()
+        .map(|(name, defs)| {
+            if defs.len() > 1 {
+                return Err(SpecToolError::ConflictingEventDef(
+                    spec_str(&name).to_owned(),
+                ));
+            }
+            Ok(defs.into_iter().next().unwrap())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     let interfaces = interfaces
         .into_iter()
@@ -222,11 +253,16 @@ pub fn canonicalize_spec(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let type_defs =
-        resolve_reachable_type_defs(&interfaces, &type_defs, &exported_roots)?;
+    let type_defs = resolve_reachable_type_defs(
+        &interfaces,
+        &events,
+        &type_defs,
+        &exported_roots,
+    )?;
     Ok(ContractSpec {
         interfaces: interfaces.try_into().unwrap(),
         type_defs: type_defs.try_into().unwrap(),
+        events: events.try_into().unwrap(),
     })
 }
 
@@ -253,6 +289,7 @@ pub fn render_spec_json(spec: &ContractSpec) -> String {
         "format": FINAL_FORMAT_TAG,
         "interfaces": spec.interfaces.iter().map(interface_to_json).collect::<Vec<_>>(),
         "type_defs": spec.type_defs.iter().map(type_def_to_json).collect::<Vec<_>>(),
+        "events": spec.events.iter().map(event_def_to_json).collect::<Vec<_>>(),
     });
 
     serde_json::to_string(&value)
@@ -299,6 +336,24 @@ fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
     Ok(())
 }
 
+fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
+    if event.name.is_empty() {
+        return Err(SpecToolError::InvalidRawFragment(
+            "event fragments must include an event name".to_string(),
+        ));
+    }
+    // Topic 0 is reserved for the event signature.
+    let max_user_topics = (sdk::EVENT_MAX_TOPICS - 1) as usize;
+    if event.topics.len() > max_user_topics {
+        return Err(SpecToolError::InvalidRawFragment(format!(
+            "event {} declares {} topics, but at most {max_user_topics} are allowed",
+            spec_str(&event.name),
+            event.topics.len(),
+        )));
+    }
+    Ok(())
+}
+
 fn canonicalize_exception_list(
     types: &[ContractExceptionType],
 ) -> Vec<ContractExceptionType> {
@@ -314,6 +369,7 @@ fn canonicalize_exception_list(
 
 fn resolve_reachable_type_defs(
     interfaces: &[ContractSpecInterface],
+    events: &[ContractEventDef],
     defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
     exported_roots: &std::collections::BTreeSet<ContractSpecString>,
 ) -> Result<Vec<ContractTypeDef>, SpecToolError> {
@@ -339,6 +395,12 @@ fn resolve_reachable_type_defs(
                 &mut resolved,
                 &mut pending,
             )?;
+        }
+    }
+
+    for event in events {
+        for field in event.topics.iter().chain(event.fields.iter()) {
+            collect_named_types(&field.ty, defs, &mut resolved, &mut pending)?;
         }
     }
 
@@ -570,6 +632,17 @@ fn field_to_json(field: &ContractField) -> serde_json::Value {
     serde_json::json!({
         "name": spec_str(&field.name),
         "ty": type_to_json(&field.ty),
+    })
+}
+
+pub fn event_def_to_json(event: &ContractEventDef) -> serde_json::Value {
+    let signature: String =
+        event.signature.iter().map(|b| format!("{b:02x}")).collect();
+    serde_json::json!({
+        "name": spec_str(&event.name),
+        "signature": signature,
+        "topics": event.topics.iter().map(field_to_json).collect::<Vec<_>>(),
+        "fields": event.fields.iter().map(field_to_json).collect::<Vec<_>>(),
     })
 }
 

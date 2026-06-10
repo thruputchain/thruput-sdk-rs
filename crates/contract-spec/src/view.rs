@@ -5,11 +5,11 @@
 
 #[cfg(feature = "owned-model")]
 use crate::{
-    ContractEnumDef, ContractEnumVariant, ContractExceptionType,
-    ContractField, ContractSpec, ContractSpecInterface, ContractSpecMethod,
-    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
-    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractEnumDef, ContractEnumVariant, ContractEventDef,
+    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
+    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
+    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
+    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
 #[cfg(feature = "owned-model")]
 use alloc::{boxed::Box, vec::Vec};
@@ -25,6 +25,7 @@ fn to_spec_string(s: &str) -> ContractSpecString {
 pub struct ContractSpecView<'a> {
     pub interfaces: &'a [ContractSpecInterfaceView<'a>],
     pub type_defs: &'a [ContractTypeDefView<'a>],
+    pub events: &'a [ContractEventDefView<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -149,6 +150,17 @@ pub enum ContractUnionCaseTypeView<'a> {
     Struct(&'a [ContractFieldView<'a>]) = 2,
 }
 
+/// Describes an event emitted via the `LogEvent` syscall. Mirrors the owned
+/// `ContractEventDef`: `signature` is topic 0, `topics` are the indexed
+/// fields (topics 1..), and `fields` form the XDR-encoded payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+pub struct ContractEventDefView<'a> {
+    pub name: &'a str,
+    pub signature: [u8; 32],
+    pub topics: &'a [ContractFieldView<'a>],
+    pub fields: &'a [ContractFieldView<'a>],
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 #[repr(i32)]
 pub enum SpecFragmentView<'a> {
@@ -156,6 +168,8 @@ pub enum SpecFragmentView<'a> {
     Method(SpecMethodFragmentView<'a>) = 1,
     TypeDef(ContractTypeDefView<'a>) = 2,
     ExportedTypeDef(ContractTypeDefView<'a>) = 3,
+    Event(ContractEventDefView<'a>) = 4,
+    ExportedEvent(ContractEventDefView<'a>) = 5,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -186,6 +200,40 @@ impl From<ContractSpecView<'_>> for ContractSpec {
                 .unwrap(),
             type_defs: value
                 .type_defs
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+            events: value
+                .events
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        }
+    }
+}
+
+#[cfg(feature = "owned-model")]
+impl From<ContractEventDefView<'_>> for ContractEventDef {
+    fn from(value: ContractEventDefView<'_>) -> Self {
+        Self {
+            name: to_spec_string(value.name),
+            signature: value.signature.into(),
+            topics: value
+                .topics
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+            fields: value
+                .fields
                 .iter()
                 .copied()
                 .map(Into::into)
@@ -463,6 +511,14 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
             SpecFragmentView::ExportedTypeDef(def) => {
                 SpecFragment::ExportedSpecTypeDef {
                     type_def: def.into(),
+                }
+            }
+            SpecFragmentView::Event(def) => SpecFragment::SpecEvent {
+                event_def: def.into(),
+            },
+            SpecFragmentView::ExportedEvent(def) => {
+                SpecFragment::ExportedSpecEvent {
+                    event_def: def.into(),
                 }
             }
         }

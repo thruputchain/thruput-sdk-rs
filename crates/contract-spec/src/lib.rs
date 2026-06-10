@@ -9,7 +9,7 @@ pub mod view;
 
 #[cfg(feature = "owned-model")]
 pub use groundhog_spec::{
-    ContractArrayType, ContractEnumDef, ContractEnumVariant,
+    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
     ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
     ContractTypeDef, ContractTypeDefKind, ContractTypeKind, ContractUnionCase,

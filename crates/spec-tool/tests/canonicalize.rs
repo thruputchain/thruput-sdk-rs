@@ -931,3 +931,179 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
         "transitive dep of exported type should be present"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+use groundhog_contract_spec::ContractEventDef;
+
+fn base_interface_fragments() -> Vec<SpecFragment> {
+    vec![
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ]
+}
+
+fn event_def(name: &str, payload_ty: ContractType) -> ContractEventDef {
+    ContractEventDef {
+        name: s(name),
+        signature: [0xAB; 32].into(),
+        topics: vec![ContractField {
+            name: s("from"),
+            ty: ContractType::Address,
+        }]
+        .try_into()
+        .unwrap(),
+        fields: vec![ContractField {
+            name: s("amount"),
+            ty: payload_ty,
+        }]
+        .try_into()
+        .unwrap(),
+    }
+}
+
+#[test]
+fn canonicalize_spec_collects_and_dedupes_event_defs() {
+    let mut fragments = base_interface_fragments();
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: event_def("TransferEvent", ContractType::U128),
+    });
+    // An identical duplicate (e.g. from another codegen unit) merges.
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: event_def("TransferEvent", ContractType::U128),
+    });
+    // The exported variant is collected through the same path.
+    fragments.push(SpecFragment::ExportedSpecEvent {
+        event_def: event_def("ApprovalEvent", ContractType::I128),
+    });
+
+    let spec = canonicalize_spec(&fragments).unwrap();
+
+    let names: Vec<_> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["ApprovalEvent", "TransferEvent"]);
+}
+
+#[test]
+fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
+    let mut fragments = base_interface_fragments();
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: event_def(
+            "MintEvent",
+            ContractType::Named {
+                named: s("Payload"),
+            },
+        ),
+    });
+    fragments.push(SpecFragment::SpecTypeDef {
+        type_def: ContractTypeDef::TypeDefStruct {
+            struct_def: ContractStructDef {
+                name: s("Payload"),
+                fields: vec![ContractField {
+                    name: s("count"),
+                    ty: ContractType::U32,
+                }]
+                .try_into()
+                .unwrap(),
+            },
+        },
+    });
+
+    let spec = canonicalize_spec(&fragments).unwrap();
+
+    assert_eq!(spec.events.len(), 1);
+    assert_eq!(spec.type_defs.len(), 1);
+
+    // Without the typedef fragment the named reference must fail.
+    let mut missing = base_interface_fragments();
+    missing.push(SpecFragment::SpecEvent {
+        event_def: event_def(
+            "MintEvent",
+            ContractType::Named {
+                named: s("Payload"),
+            },
+        ),
+    });
+    assert_eq!(
+        canonicalize_spec(&missing),
+        Err(SpecToolError::MissingTypeDef("Payload".to_owned()))
+    );
+}
+
+#[test]
+fn canonicalize_spec_rejects_conflicting_event_defs() {
+    let mut fragments = base_interface_fragments();
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: event_def("TransferEvent", ContractType::U128),
+    });
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: event_def("TransferEvent", ContractType::I128),
+    });
+
+    assert_eq!(
+        canonicalize_spec(&fragments),
+        Err(SpecToolError::ConflictingEventDef(
+            "TransferEvent".to_owned()
+        ))
+    );
+}
+
+#[test]
+fn canonicalize_spec_rejects_event_with_too_many_topics() {
+    let mut fragments = base_interface_fragments();
+    let too_many_topics: Vec<ContractField> = (0..3)
+        .map(|i| ContractField {
+            name: s(&format!("topic{i}")),
+            ty: ContractType::Address,
+        })
+        .collect();
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: ContractEventDef {
+            name: s("NoisyEvent"),
+            signature: [0xAB; 32].into(),
+            topics: too_many_topics.try_into().unwrap(),
+            fields: vec![].try_into().unwrap(),
+        },
+    });
+
+    assert!(matches!(
+        canonicalize_spec(&fragments),
+        Err(SpecToolError::InvalidRawFragment(_))
+    ));
+}
+
+#[test]
+fn canonicalize_spec_rejects_event_without_name() {
+    let mut fragments = base_interface_fragments();
+    fragments.push(SpecFragment::SpecEvent {
+        event_def: ContractEventDef {
+            name: s(""),
+            signature: [0xAB; 32].into(),
+            topics: vec![].try_into().unwrap(),
+            fields: vec![].try_into().unwrap(),
+        },
+    });
+
+    assert!(matches!(
+        canonicalize_spec(&fragments),
+        Err(SpecToolError::InvalidRawFragment(_))
+    ));
+}

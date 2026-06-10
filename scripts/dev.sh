@@ -165,7 +165,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
     free_fn_wasm="${optimized}/free_fn_unnamed.wasm"
     imported_json="${optimized}/imported_error_callee.spec.json"
@@ -174,6 +174,8 @@ check_contract_spec_artifacts() {
     spec_named_json="${optimized}/spec_named_types.spec.json"
     genesis_json="${optimized}/genesis_deployer.spec.json"
     genesis_wasm="${optimized}/genesis_deployer.wasm"
+    erc20_json="${optimized}/erc20_no_storage.spec.json"
+    swap_json="${optimized}/swap.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -198,6 +200,16 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
     assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
+
+    assert_file_contains "$erc20_json" '"events":[' &&
+    assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
+    assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
+    assert_file_contains "$erc20_json" '"name":"from","ty":{"kind":"address"}' &&
+
+    assert_file_contains "$swap_json" '"name":"MintEvent"' &&
+    assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
+    assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
+    assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
 
     assert_file_not_exists "$genesis_json" &&
     assert_wasm_has_no_spec_sections "$genesis_wasm"
