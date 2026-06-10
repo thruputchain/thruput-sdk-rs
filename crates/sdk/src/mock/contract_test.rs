@@ -277,7 +277,7 @@ where
             });
 
     let contract: ContractBlob = ContractBlob {
-        wasm: BytesM(instrumented),
+        data: BytesM(instrumented),
     };
 
     Contract::kWasmi {

@@ -265,7 +265,7 @@ impl TestEnvironmentInner {
             Contract::kNative { .. } => 0,
             Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
             Contract::kWasmi { wasmi_contract } => {
-                wasmi_contract.wasm.len() as u32
+                wasmi_contract.data.len() as u32
             }
             other => panic!("unsupported contract variant: {:?}", other),
         };

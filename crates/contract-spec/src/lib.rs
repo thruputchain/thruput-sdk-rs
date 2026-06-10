@@ -9,7 +9,7 @@ pub mod view;
 
 #[cfg(feature = "owned-model")]
 pub use groundhog_spec::{
-    ContractArrayType, ContractEnumDef, ContractEnumVariant,
+    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
     ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
     ContractTypeDef, ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
@@ -27,6 +27,27 @@ mod groundhog_xdr_types;
 pub trait ContractTypeSpec {
     /// The type's definition (struct, enum, or union) as a const view.
     const TYPE_DEF: view::ContractTypeDefView<'static>;
+}
+
+/// Implemented by `#[derive(Event)]` types to provide their spec event
+/// definition. The definition is emitted into the raw spec section only
+/// where the event is declared (`emits(...)` on an interface) or exported
+/// (`#[event_spec(export)]` on the derive).
+pub trait ContractEventSpec {
+    /// The event's definition (name, signature, topics, fields) as a const view.
+    const EVENT_DEF: view::ContractEventDefView<'static>;
+
+    /// Hidden root symbol used to retain raw typedef fragments for the
+    /// event's field types.
+    #[doc(hidden)]
+    const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize =
+        Self::__groundhog_spec_anchor;
+
+    /// Hidden linker-anchor hook used to retain raw typedef fragments.
+    #[doc(hidden)]
+    fn __groundhog_spec_anchor() -> usize {
+        0
+    }
 }
 
 /// Provides the spec-visible name for a contract type.

@@ -49,6 +49,21 @@ fn apply_with_config(
                 }
             });
 
+            let emits = config.emits_list();
+            let event_def_tokens = emits.iter().map(|path| {
+                quote::quote! {
+                    <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
+                }
+            });
+            let event_anchor_stmts = emits.iter().map(|path| {
+                quote::quote! {
+                    acc = ::sdk::__contract_spec::mix_anchor_fn(
+                        acc,
+                        <#path as ::sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+                    );
+                }
+            });
+
             let mut stripped = item.strip_our_attributes();
 
             let iface_name = config
@@ -86,6 +101,18 @@ fn apply_with_config(
                 fn __GROUNDHOG_IFACE_THROW_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#throw_anchor_stmts)*
+                    acc
+                }
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_EVENTS: &'static [::sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                fn __GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT() -> usize {
+                    let mut acc = 0usize;
+                    #(#event_anchor_stmts)*
                     acc
                 }
             });
@@ -131,6 +158,15 @@ fn apply_with_config(
                 return Ok(quote::quote! {
                     #out
                     compile_error!("`throws` on a trait impl is not allowed. Add `throws` to the trait definition instead, since the trait defines the interface.");
+                });
+            }
+
+            // Same for `emits`: events are part of the interface.
+            if config.has_emits() && item.trait_.is_some() {
+                let out = stripped.into_token_stream();
+                return Ok(quote::quote! {
+                    #out
+                    compile_error!("`emits` on a trait impl is not allowed. Add `emits` to the trait definition instead, since the trait defines the interface.");
                 });
             }
 
@@ -229,6 +265,87 @@ mod tests {
         );
         assert!(
             tokens.contains("ImportedError as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
+            "{tokens}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod emits_tests {
+    use super::Config;
+    use super::apply_with_config;
+    use darling::FromMeta;
+    use darling::ast::NestedMeta;
+
+    fn parse_config(attrs: &str) -> Config {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn trait_contract_emits_event_consts_and_anchor_root() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Token {
+                fn transfer(&mut self);
+            }
+        };
+
+        let config =
+            parse_config(r#"emits(TransferEvent, events::ApprovalEvent)"#);
+        let tokens = apply_with_config(&item, &config).unwrap().to_string();
+
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains(
+                "TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
+            ),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains(
+                "events :: ApprovalEvent as :: sdk :: __contract_spec :: ContractEventSpec"
+            ),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn trait_contract_without_emits_declares_empty_events() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Quiet {
+                fn noop(&self);
+            }
+        };
+
+        let tokens = apply_with_config(&item, &parse_config(""))
+            .unwrap()
+            .to_string();
+
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn emits_on_trait_impl_is_rejected() {
+        let item: syn::Item = syn::parse_quote! {
+            impl Token for Demo {
+                fn transfer(&mut self) {}
+            }
+        };
+
+        let config = parse_config(r#"emits(TransferEvent)"#);
+        let tokens = apply_with_config(&item, &config).unwrap().to_string();
+
+        assert!(
+            tokens.contains("`emits` on a trait impl is not allowed"),
             "{tokens}"
         );
     }

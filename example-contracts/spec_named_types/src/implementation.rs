@@ -29,10 +29,27 @@ pub type Blob = Vec<Byte>;
 pub type Hash = [Byte; 32];
 pub type BlobEnvelope = (Blob, Hash);
 
+/// Declared on the contract below via `emits(...)`; lands in the spec as a
+/// regular (declared) event.
+#[derive(Event)]
+pub struct PayloadEvent<'a> {
+    #[topic]
+    pub origin: &'a ContractAddress,
+    pub payload: Payload,
+}
+
+/// Not declared anywhere; `export` forces it into the spec of any contract
+/// that links this code.
+#[derive(Event)]
+#[event_spec(export)]
+pub struct AuditEvent {
+    pub tag: u64,
+}
+
 #[derive(Default)]
 pub struct SpecNamedTypesContract;
 
-#[contract(version = "0.3.0")]
+#[contract(version = "0.3.0", emits(PayloadEvent))]
 impl SpecNamedTypesContract {
     pub fn echo(payload: Payload) -> Payload {
         payload

@@ -43,12 +43,24 @@ pub fn generate_impl_raw_spec_fragments(
         iface_vers.clone(),
         iface_throws,
     );
-    let mut anchor_roots = if let Some((_, trait_path, _)) = &item.trait_ {
-        vec![quote! {
-            <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT
-        }]
+    let event_fragments = if let Some((_, trait_path, _)) = &item.trait_ {
+        generate_trait_event_fragments_tokens(self_ty, trait_path)
     } else {
-        throws_anchor_tokens(&contract)?
+        generate_config_event_fragments_tokens(config)
+    };
+    let mut anchor_roots = if let Some((_, trait_path, _)) = &item.trait_ {
+        vec![
+            quote! {
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT
+            },
+            quote! {
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT
+            },
+        ]
+    } else {
+        let mut roots = throws_anchor_tokens(&contract)?;
+        roots.extend(config_event_anchor_tokens(config));
+        roots
     };
     let method_fragments = methods
         .iter()
@@ -69,6 +81,7 @@ pub fn generate_impl_raw_spec_fragments(
     Ok(quote! {
         #interface_fragment
         #(#method_fragments)*
+        #event_fragments
         #anchor_root
     })
 }
@@ -92,16 +105,101 @@ pub fn generate_free_function_raw_spec_fragments(
         quote! { #iface_vers },
         item,
     )?;
+    let event_fragments = generate_config_event_fragments_tokens(config);
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(method_anchor_tokens(item)?);
+    anchor_roots.extend(config_event_anchor_tokens(config));
     let anchor_root =
         emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
 
     Ok(quote! {
         #interface_fragment
         #method_fragment
+        #event_fragments
         #anchor_root
     })
+}
+
+/// Emits `SpecEvent` fragments for the events declared on a contract trait
+/// via `emits(...)`. The declared defs live in the trait's
+/// `__GROUNDHOG_IFACE_EVENTS` const (possibly in another crate), so the
+/// fragments are concatenated into a single raw byte array in const eval.
+fn generate_trait_event_fragments_tokens(
+    self_ty: &syn::Type,
+    trait_path: &syn::Path,
+) -> TokenStream {
+    // `link_section` requires a string literal. Keep this in sync with
+    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    quote! {
+        #[cfg(all(
+            any(target_family = "wasm", target_arch = "riscv32"),
+            feature = "entrypoints"
+        ))]
+        const _: () = {
+            const EVENTS: &[::sdk::__contract_spec::ContractEventDefView<'static>] =
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENTS;
+            const RAW_LEN: usize = {
+                let mut total = 0usize;
+                let mut i = 0;
+                while i < EVENTS.len() {
+                    total += ::sdk::__contract_spec::SpecFragmentView::Event(
+                        EVENTS[i],
+                    )
+                    .const_txs_size();
+                    i += 1;
+                }
+                total
+            };
+
+            #[cfg_attr(
+                any(target_family = "wasm", target_arch = "riscv32"),
+                unsafe(link_section = "groundhogspecrawv0")
+            )]
+            // RV32 only: `#[used]` keeps the section live through ELF linking
+            // for CLI extraction. On wasm the custom section is retained
+            // without it, and `#[used]` there would force the fragment bytes
+            // into linear memory (tripping the spec-tool leak guard).
+            #[cfg_attr(target_arch = "riscv32", used)]
+            pub static RAW_SPEC_EVENT_FRAGMENTS: [u8; RAW_LEN] = {
+                let mut w =
+                    ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                let mut i = 0;
+                while i < EVENTS.len() {
+                    ::sdk::__contract_spec::SpecFragmentView::Event(EVENTS[i])
+                        .const_write_txs(&mut w);
+                    i += 1;
+                }
+                w.into_bytes()
+            };
+        };
+    }
+}
+
+/// Emits one `SpecEvent` fragment per event declared via `emits(...)` on a
+/// bare impl or free-function contract.
+fn generate_config_event_fragments_tokens(config: &Config) -> TokenStream {
+    let fragments = config.emits_list().into_iter().map(|path| {
+        emit_raw_fragment_tokens(quote! {
+            ::sdk::__contract_spec::SpecFragmentView::Event(
+                <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
+            )
+        })
+    });
+    quote! { #(#fragments)* }
+}
+
+/// Anchor roots retaining typedef fragments for the field types of events
+/// declared via `emits(...)` on a bare impl or free-function contract.
+fn config_event_anchor_tokens(config: &Config) -> Vec<TokenStream> {
+    config
+        .emits_list()
+        .into_iter()
+        .map(|path| {
+            quote! {
+                <#path as ::sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            }
+        })
+        .collect()
 }
 
 fn generate_interface_fragment_tokens(
@@ -392,6 +490,91 @@ mod tests {
 
         assert!(
             tokens.contains("__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod emits_tests {
+    use super::*;
+    use darling::FromMeta;
+    use darling::ast::NestedMeta;
+
+    fn parse_config(attrs: &str) -> Config {
+        let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn trait_impl_emits_declared_event_fragments_and_anchor_root() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl token_if::Token for Demo {
+                fn transfer(&mut self) {}
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("RAW_SPEC_EVENT_FRAGMENTS"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+    }
+
+    #[test]
+    fn bare_impl_emits_config_declared_event_fragments() {
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl Demo {
+                pub fn touch(&mut self) {}
+            }
+        };
+
+        let config = parse_config(r#"emits(events::TouchEvent)"#);
+        let tokens = generate_impl_raw_spec_fragments(&item, &config)
+            .unwrap()
+            .to_string();
+
+        assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
+        assert!(
+            tokens.contains(
+                "events :: TouchEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
+            ),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains(
+                "ContractEventSpec > :: __GROUNDHOG_SPEC_ANCHOR_ROOT"
+            ),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn free_function_emits_config_declared_event_fragments() {
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let config = parse_config(r#"emits(PingEvent)"#);
+        let tokens = generate_free_function_raw_spec_fragments(&item, &config)
+            .unwrap()
+            .to_string();
+
+        assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
+        assert!(
+            tokens.contains(
+                "PingEvent as :: sdk :: __contract_spec :: ContractEventSpec"
+            ),
             "{tokens}"
         );
     }

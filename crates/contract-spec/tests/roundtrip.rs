@@ -1,12 +1,12 @@
 use groundhog_contract_spec::{
     ContractArrayType, ContractArrayTypeView, ContractEnumDef,
     ContractEnumDefView, ContractEnumVariant, ContractEnumVariantView,
-    ContractExceptionType, ContractExceptionTypeView, ContractField,
-    ContractFieldView, ContractSpec, ContractSpecInterface,
-    ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
-    ContractSpecString, ContractSpecView, ContractStructDefView, ContractType,
-    ContractTypeDef, ContractTypeDefView, ContractTypeInfo,
-    ContractTypeRefSpec, ContractTypeSpec, ContractTypeView,
+    ContractEventDef, ContractEventDefView, ContractExceptionType,
+    ContractExceptionTypeView, ContractField, ContractFieldView, ContractSpec,
+    ContractSpecInterface, ContractSpecInterfaceView, ContractSpecMethod,
+    ContractSpecMethodView, ContractSpecString, ContractSpecView,
+    ContractStructDefView, ContractType, ContractTypeDef, ContractTypeDefView,
+    ContractTypeInfo, ContractTypeRefSpec, ContractTypeSpec, ContractTypeView,
     ContractUnionCase, ContractUnionCaseType, ContractUnionCaseTypeView,
     ContractUnionCaseView, ContractUnionDef, ContractUnionDefView,
     ContractVectorType, ContractVectorTypeView, SpecFragment,
@@ -66,6 +66,24 @@ fn contract_spec_roundtrips_through_xdr() {
                 .try_into()
                 .unwrap(),
             },
+        }]
+        .try_into()
+        .unwrap(),
+        events: vec![ContractEventDef {
+            name: s("TransferEvent"),
+            signature: [0xAB; 32].into(),
+            topics: vec![ContractField {
+                name: s("from"),
+                ty: ContractType::Address,
+            }]
+            .try_into()
+            .unwrap(),
+            fields: vec![ContractField {
+                name: s("amount"),
+                ty: ContractType::U128,
+            }]
+            .try_into()
+            .unwrap(),
         }]
         .try_into()
         .unwrap(),
@@ -164,14 +182,50 @@ fn borrowed_views_convert_to_owned_model() {
             cases: &case_views,
         }),
     ];
+    let event_topics = [ContractFieldView {
+        name: "from",
+        ty: ContractTypeView::Address,
+    }];
+    let event_fields = [ContractFieldView {
+        name: "payload",
+        ty: named_payload,
+    }];
+    let events = [ContractEventDefView {
+        name: "TransferEvent",
+        signature: [0xAB; 32],
+        topics: &event_topics,
+        fields: &event_fields,
+    }];
 
     let owned = ContractSpec::from(ContractSpecView {
         interfaces: &interfaces,
         type_defs: &type_defs,
+        events: &events,
     });
 
     assert_eq!(owned.interfaces.len(), 1);
     assert_eq!(owned.type_defs.len(), 3);
+    assert_eq!(
+        owned.events.as_slice(),
+        &[ContractEventDef {
+            name: s("TransferEvent"),
+            signature: [0xAB; 32].into(),
+            topics: vec![ContractField {
+                name: s("from"),
+                ty: ContractType::Address,
+            }]
+            .try_into()
+            .unwrap(),
+            fields: vec![ContractField {
+                name: s("payload"),
+                ty: ContractType::Named {
+                    named: s("Payload")
+                },
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+    );
     assert_eq!(
         owned.interfaces[0].throws.as_slice(),
         &[ContractExceptionType {
@@ -374,6 +428,18 @@ fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
             }],
         },
     ));
+    let event = SpecFragmentView::Event(ContractEventDefView {
+        name: "TransferEvent",
+        signature: [0xAB; 32],
+        topics: &[ContractFieldView {
+            name: "from",
+            ty: ContractTypeView::Address,
+        }],
+        fields: &[ContractFieldView {
+            name: "payload",
+            ty: ContractTypeView::Named("Payload"),
+        }],
+    });
 
     let encoded = txs::encode(&interface).unwrap();
     let decoded: SpecFragment = txs::decode(&encoded).unwrap();
@@ -386,6 +452,14 @@ fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
     let encoded = txs::encode(&type_def).unwrap();
     let decoded: SpecFragment = txs::decode(&encoded).unwrap();
     assert_eq!(decoded, SpecFragment::from(type_def));
+
+    let encoded = txs::encode(&event).unwrap();
+    let decoded: SpecFragment = txs::decode(&encoded).unwrap();
+    assert_eq!(decoded, SpecFragment::from(event));
+    assert!(matches!(
+        SpecFragment::from(event),
+        SpecFragment::SpecEvent { .. }
+    ));
 }
 
 #[test]
@@ -525,6 +599,20 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
         },
         2,
     );
+
+    let event_def = ContractEventDef {
+        name: s("TransferEvent"),
+        signature: [0xAB; 32].into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    };
+    assert_xdr_tag(
+        &SpecFragment::SpecEvent {
+            event_def: event_def.clone(),
+        },
+        4,
+    );
+    assert_xdr_tag(&SpecFragment::ExportedSpecEvent { event_def }, 5);
 }
 
 #[test]

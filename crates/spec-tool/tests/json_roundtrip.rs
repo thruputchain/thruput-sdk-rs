@@ -38,6 +38,7 @@ fn empty_interface_roundtrips() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![].try_into().unwrap(),
     });
 }
@@ -61,6 +62,7 @@ fn multiple_interfaces_roundtrip() {
         ]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![].try_into().unwrap(),
     });
 }
@@ -109,6 +111,7 @@ fn all_primitive_types_roundtrip() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![].try_into().unwrap(),
     });
 }
@@ -209,6 +212,7 @@ fn named_type_roundtrips() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![ContractTypeDef::TypeDefStruct {
             struct_def: ContractStructDef {
                 name: s("Payload"),
@@ -276,6 +280,7 @@ fn deeply_nested_types_roundtrip() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![ContractTypeDef::TypeDefStruct {
             struct_def: ContractStructDef {
                 name: s("Widget"),
@@ -477,6 +482,7 @@ fn interface_with_throws_roundtrips() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![
             ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
@@ -542,6 +548,7 @@ fn method_with_multiple_args_roundtrips() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![].try_into().unwrap(),
     });
 }
@@ -620,6 +627,7 @@ fn kitchen_sink_roundtrips() {
         ]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![
             ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
@@ -767,6 +775,7 @@ fn xdr_to_json_to_xdr_roundtrips() {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![ContractTypeDef::TypeDefEnum {
             enum_def: ContractEnumDef {
                 name: s("Err"),
@@ -816,6 +825,7 @@ fn spec_with_method(name: &str, return_type: ContractType) -> ContractSpec {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![].try_into().unwrap(),
     }
 }
@@ -844,6 +854,64 @@ fn spec_with_typedef(type_def: ContractTypeDef) -> ContractSpec {
         }]
         .try_into()
         .unwrap(),
+        events: vec![].try_into().unwrap(),
         type_defs: vec![type_def].try_into().unwrap(),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+use groundhog_contract_spec::ContractEventDef;
+
+#[test]
+fn spec_with_events_roundtrips() {
+    let spec = ContractSpec {
+        interfaces: vec![ContractSpecInterface {
+            name: s("Token"),
+            vers: s("1.0.0"),
+            throws: vec![].try_into().unwrap(),
+            methods: vec![].try_into().unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        events: vec![ContractEventDef {
+            name: s("TransferEvent"),
+            signature: [0xAB; 32].into(),
+            topics: vec![
+                ContractField {
+                    name: s("from"),
+                    ty: ContractType::Address,
+                },
+                ContractField {
+                    name: s("to"),
+                    ty: ContractType::Address,
+                },
+            ]
+            .try_into()
+            .unwrap(),
+            fields: vec![ContractField {
+                name: s("amount"),
+                ty: ContractType::U128,
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        type_defs: vec![].try_into().unwrap(),
+    };
+    roundtrip(&spec);
+
+    let rendered = groundhog_spec_tool::render_spec_json(&spec);
+    assert!(rendered.contains("\"events\""), "{rendered}");
+    assert!(
+        rendered.contains("\"name\":\"TransferEvent\""),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains(&format!("\"signature\":\"{}\"", "ab".repeat(32))),
+        "{rendered}"
+    );
 }
