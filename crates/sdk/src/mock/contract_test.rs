@@ -1,3 +1,15 @@
+//! Test sugar over the fluent mock-execution API.
+//!
+//! The canonical test pattern is:
+//! ```rust,ignore
+//! let env = TestEnvironment::no_cost();
+//! let result = env.transact(|tx| tx.call(&addr).run(|| { /* contract code */ }));
+//! result.assert_success();
+//! ```
+//! `contract_test!` and `client_test` are thin sugar over that pattern.
+//! `test_wasm` is the harness for running real wasm blobs through the full
+//! SignedTransaction path (the only place gas_consumed is observable).
+
 use crate::call::{
     AbortBuf, ContractError, ContractResult, RawCallError, ReturnBuf,
 };
@@ -5,129 +17,15 @@ use crate::exn::FaultString;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
 use groundhog_native_exec as native_exec;
-use groundhog_xdr::transaction::InvocationFrameStatusCode;
+use groundhog_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
+use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::transaction::{
+    Invocation, InvocationFrameStatusCode, SignedTransaction, Transaction,
+    Uniquifier,
+};
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
-
-/// Run the provided code in a transaction in the test environment, at the
-/// given contract address.
-///
-pub fn contract_run<F>(
-    env: &TestEnvironmentHandle,
-    addr: &ContractAddress,
-    f: F,
-) -> TransactResult
-where
-    F: Fn() + UnwindSafe + Clone + 'static,
-{
-    env.transact(|tx| tx.call(addr).run(f))
-}
-
-/// Execute the provided thunk in a transaction in the test environment.
-///
-pub fn contract_exec<F>(
-    env: TestEnvironmentHandle,
-    f: F,
-) -> Result<(), RawCallError>
-where
-    F: Fn() + UnwindSafe + Clone + 'static,
-{
-    contract_test(env, f)
-}
-
-/// Execute the provided code in a transaction in the test environment,
-/// controlling the return type.
-///
-/// # Example:
-/// ```rust,ignore
-/// use sdk::{TestEnvironment, call::RawCallError};
-///
-/// let env = TestEnvironment::no_cost();
-///
-/// // Annotate the result type so that `contract_test` knows how to decode
-/// // the returned bytes.
-/// let call_result: Result<(), RawCallError> =
-///     sdk::contract_test(env, || { /* whatever */ });
-/// ```
-///
-pub fn contract_test<F, RET>(
-    env: TestEnvironmentHandle,
-    f: F,
-) -> Result<RET, RawCallError>
-where
-    F: Fn() + UnwindSafe + Clone + 'static,
-    RET: ReadXDROwned + ReceiveAuthHandles,
-{
-    crate::call::into_raw_call_result(contract_test_raw(env, f))
-}
-
-/// Execute the provided thunk in a transaction in the test environment,
-/// returning the raw `ContractResult`.
-///
-pub fn contract_test_raw<F>(env: TestEnvironmentHandle, f: F) -> ContractResult
-where
-    F: Fn() + UnwindSafe + Clone + 'static,
-{
-    let mut handler = contract_test_handler(env, f);
-
-    contract_handler_exec_raw(&mut handler)
-}
-
-/// Make a transaction handler that will run the provided thunk.
-///
-pub fn contract_test_handler<F>(
-    env: TestEnvironmentHandle,
-    f: F,
-) -> TransactionHandler
-where
-    F: Fn() + UnwindSafe + Clone + 'static,
-{
-    env.prepare_test(f)
-}
-
-/// Invoke the handler's root frame and commit the transaction, decoding the
-/// `ContractResult` into a `Result<(), RawCallError>`.
-///
-pub fn contract_handler_exec(
-    handler: &mut TransactionHandler,
-) -> Result<(), RawCallError> {
-    crate::call::into_raw_call_result(contract_handler_exec_raw(handler))
-}
-
-/// Invoke the handler's root frame and commit the transaction.
-///
-pub fn contract_handler_exec_raw(
-    handler: &mut TransactionHandler,
-) -> ContractResult {
-    let res = handler.root_invoke();
-
-    let return_buf = match res.output {
-        Return { return_buffer } => {
-            // TODO: Unify these types and skip the copy
-            ReturnBuf::from_slice(return_buffer.as_slice()).unwrap()
-        }
-        Abort { abort_buffer } => {
-            // TODO: Unify these types and skip the copy
-            let abort_buf =
-                AbortBuf::from_slice(abort_buffer.as_slice()).unwrap();
-            return Err(ContractError::Abort(abort_buf));
-        }
-        Fault => {
-            return Err(ContractError::Fault(FaultString::empty()));
-        }
-        other => {
-            panic!("unsupported InvocationFrameOutput variant: {:?}", other);
-        }
-    };
-
-    match handler.try_commit_transaction() {
-        ExecResult::ExecResultOK => {}
-        r => panic!("Transaction failed: {:?}", r),
-    }
-
-    Ok((return_buf, AuthHandleBuf::new()))
-}
 
 /// Decode a `TransactResult`'s root-frame outcome into the same
 /// `Result<T, RawCallError>` shape that contract clients produce.
@@ -216,20 +114,6 @@ where
     .assert_success();
 }
 
-pub fn grant_storage_tokens(
-    env: &TestEnvironmentHandle,
-    handler: &native_exec::transaction_handler::TransactionHandler,
-) {
-    env.setup_grant_storage_tokens(
-        &handler
-            .get_signed_transaction()
-            .tx
-            .invocation
-            .invoked_address,
-        1_000_000_000,
-    );
-}
-
 mod contract_test_wasm {
     use crate::SHA256Hash;
     use alloc::boxed::Box;
@@ -250,6 +134,53 @@ pub struct Stats {
     pub gas_consumed: u64,
 }
 
+/// Build a one-shot TransactionHandler that runs `test` as a mock contract
+/// method through the full SignedTransaction path. Internal harness for
+/// `test_wasm` — everything else uses `env.transact`.
+fn wasm_test_handler<F>(
+    env: &TestEnvironmentHandle,
+    test: F,
+) -> TransactionHandler
+where
+    F: Fn() + UnwindSafe + Clone + 'static,
+{
+    let mut test_contract = env.add_contract();
+    let entrypoint = ContractEntrypointID::from([0; 8]);
+    test_contract.register_method(entrypoint, test);
+    let _ = env.setup_create_contract(&test_contract.as_contract());
+
+    let invoke_addr: ContractAddress = [0xFF; 32].into();
+
+    env.setup_create_deployment(&invoke_addr, &test_contract.as_contract());
+
+    let default_auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData {
+        source_address_claim: AuthClaim_source_address_claim {
+            allowed_keys: 0,
+            required_weight: 0,
+        },
+    };
+
+    let stx = SignedTransaction {
+        signatures: Vec::new().try_into().unwrap(),
+        tx: Transaction {
+            uniquifier: Uniquifier {
+                block_expiry_height: 0.into(),
+                nonce: 0,
+            },
+            auth_claim: default_auth_claim,
+            invocation: Invocation {
+                invoked_address: invoke_addr,
+                entrypoint,
+                gas_limit: u64::MAX,
+                calldata: [].try_into().unwrap(),
+            },
+            contracts_to_deploy: Vec::new().try_into().unwrap(),
+        },
+    };
+
+    TransactionHandler::new(env.clone(), &stx)
+}
+
 pub fn test_wasm<P, T>(path: P, test: T) -> Stats
 where
     P: AsRef<std::path::Path>,
@@ -262,7 +193,7 @@ where
     TestEnvironment::enable_syscall_logging();
     let contract_hash = env.setup_create_contract(&contract);
 
-    let mut handler = env.prepare_test(move || -> () {
+    let mut handler = wasm_test_handler(&env, move || -> () {
         test.run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });

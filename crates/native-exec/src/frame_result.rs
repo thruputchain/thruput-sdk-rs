@@ -74,11 +74,17 @@ impl FrameResult {
 
     #[track_caller]
     pub fn assert_success(&self) {
-        assert!(
-            self.is_success(),
-            "expected success, got status code {}",
-            self.output.status_code()
-        );
+        match &self.output {
+            InvocationFrameOutput::Return { .. } => {}
+            InvocationFrameOutput::Abort { abort_buffer } => panic!(
+                "expected success, got abort (abort buffer: {:02x?})",
+                abort_buffer.as_slice()
+            ),
+            other => panic!(
+                "expected success, got status code {}",
+                other.status_code()
+            ),
+        }
     }
 
     #[track_caller]

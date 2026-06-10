@@ -464,37 +464,48 @@ contract_test!(test_map_at_disjoint_mut {
 #[test]
 fn test_map_at_disjoint_mut_duplicate_panics() {
     let env = sdk::TestEnvironment::no_cost();
-    let result = sdk::contract_exec(env, || {
-        let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
-        map.at_disjoint_mut([&1u32, &1u32]);
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_map_at_disjoint_mut_duplicate_panics",
+    );
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
+            map.at_disjoint_mut([&1u32, &1u32]);
+        })
     });
-    assert!(result.is_err());
+    assert!(!result.is_success());
 }
 
 #[test]
 fn test_data_fully_consumed() {
     let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_data_fully_consumed",
+    );
 
-    let result = sdk::contract_exec(env, || {
-        let keypath = Keypath::new();
-        {
-            let mut value: Value<(i32, i32)> = Value::new(&keypath.clone());
-            value.set(&(10, 20));
-        }
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let keypath = Keypath::new();
+            {
+                let mut value: Value<(i32, i32)> =
+                    Value::new(&keypath.clone());
+                value.set(&(10, 20));
+            }
 
-        {
-            // check that the value is read correctly
-            let value: Value<(i32, i32)> = keypath.clone().into();
-            let (a, b) = value.get();
-            assert_eq!(a, 10);
-            assert_eq!(b, 20);
-        }
+            {
+                // check that the value is read correctly
+                let value: Value<(i32, i32)> = keypath.clone().into();
+                let (a, b) = value.get();
+                assert_eq!(a, 10);
+                assert_eq!(b, 20);
+            }
 
-        {
-            let value: Value<i32> = keypath.clone().into();
-            value.try_get();
-            assert!(false, "unreachable");
-        }
+            {
+                let value: Value<i32> = keypath.clone().into();
+                value.try_get();
+                assert!(false, "unreachable");
+            }
+        })
     });
-    assert!(result.is_err());
+    assert!(!result.is_success());
 }
