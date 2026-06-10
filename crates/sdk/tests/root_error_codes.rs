@@ -1,17 +1,19 @@
-use groundhog_xdr::transaction::InvocationFrameStatusCode;
-use sdk::TestEnvironment;
+use sdk::{ContractAddress, Named, TestEnvironment};
 
 #[test]
 fn test_root_frame_revert() {
     let env = TestEnvironment::new(None);
 
-    let mut handler = env.prepare_test(|| {
-        sdk::sys::raw_Return(&[], true, &[]);
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("root_error_codes"))
+            .run(|| -> () {
+                sdk::sys::raw_Return(&[], true, &[]);
+            })
     });
 
-    let res = handler.root_invoke();
-    assert_eq!(res.output.status_code(), InvocationFrameStatusCode::Abort);
-
-    let commit_res = handler.try_commit_transaction();
-    assert_eq!(commit_res, sdk::ExecResult::ExecResultTxRootFrameReverted);
+    result.assert_abort();
+    assert_eq!(
+        *result.exec_result(),
+        sdk::ExecResult::ExecResultTxRootFrameReverted
+    );
 }

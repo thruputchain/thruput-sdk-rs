@@ -13,28 +13,14 @@ macro_rules! single_event_test {
     {
         #[test]
         fn $test_name() {
-            let env = $crate::TestEnvironment::no_cost();
-            let mut handler = contract_test_handler(env, || { $body });
-
-            let res = handler.root_invoke();
-            if res.output.status_code()
-                != sdk::types::transaction::InvocationFrameStatusCode::Return
-            {
-                panic!("Invocation failed with code {}", res.output.status_code());
-            }
-
-            match handler.try_commit_transaction() {
-                ExecResult::ExecResultOK => {}
-                r => panic!("Transaction failed: {:?}", r),
-            }
-
-            let events = &res.events;
-
-            assert_eq!(events.len(), 1);
-            let event = &events[0];
+            let env = TestEnvironment::no_cost();
+            let result =
+                env.transact(|tx| tx.call(&TEST_ADDR).run(|| $body));
+            result.assert_success();
+            result.assert_event_count(1);
 
             let event_check = |$event: &TxEmittedEvent| $body_event_check;
-            event_check(event);
+            event_check(&result.events()[0]);
         }
     };
 }
@@ -280,8 +266,9 @@ impl Event for ManualTooManyTopicsEvent {
     }
 }
 
-fn assert_encoding_event_exception(result: Result<(), RawCallError>) {
-    match result {
+fn assert_encoding_event_exception(result: TransactResult) {
+    let res: Result<(), RawCallError> = into_root_call_result(&result);
+    match res {
         Err(RawCallError::Exception(exn))
             if exn.selector() == LibraryExn::SELECTOR =>
         {
@@ -324,8 +311,10 @@ fn test_large_event_payload_within_runtime_limit_succeeds() {
 fn test_manual_event_with_too_many_topics_is_rejected() {
     let env = TestEnvironment::no_cost();
 
-    assert_encoding_event_exception(contract_exec(env, || {
-        log_event(&ManualTooManyTopicsEvent { value: 7 });
+    assert_encoding_event_exception(env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&ManualTooManyTopicsEvent { value: 7 });
+        })
     }));
 }
 
@@ -334,8 +323,10 @@ fn test_event_payload_exceeding_runtime_limit_is_rejected() {
     let env = TestEnvironment::no_cost();
     let payload = [0u8; EVENT_MAX_DATA as usize + 1];
 
-    assert_encoding_event_exception(contract_exec(env, move || {
-        log_event(&LargePayloadEvent { data: &payload });
+    assert_encoding_event_exception(env.transact(move |tx| {
+        tx.call(&TEST_ADDR).run(move || {
+            log_event(&LargePayloadEvent { data: &payload });
+        })
     }));
 }
 
@@ -380,43 +371,33 @@ struct FieldOrderC<'a> {
 #[test]
 fn test_field_order_does_not_affect_serialization() {
     let env = TestEnvironment::no_cost();
-    let mut handler = contract_test_handler(env, || {
-        let from = ContractAddress::default();
-        let to = ContractAddress::default();
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            let from = ContractAddress::default();
+            let to = ContractAddress::default();
 
-        log_event(&FieldOrderA {
-            from: &from,
-            to: &to,
-            amount: 42,
-            memo: b"hello",
-        });
-        log_event(&FieldOrderB {
-            from: &from,
-            amount: 42,
-            to: &to,
-            memo: b"hello",
-        });
-        log_event(&FieldOrderC {
-            amount: 42,
-            memo: b"hello",
-            from: &from,
-            to: &to,
-        });
+            log_event(&FieldOrderA {
+                from: &from,
+                to: &to,
+                amount: 42,
+                memo: b"hello",
+            });
+            log_event(&FieldOrderB {
+                from: &from,
+                amount: 42,
+                to: &to,
+                memo: b"hello",
+            });
+            log_event(&FieldOrderC {
+                amount: 42,
+                memo: b"hello",
+                from: &from,
+                to: &to,
+            });
+        })
     });
-
-    let res = handler.root_invoke();
-    if res.output.status_code()
-        != sdk::types::transaction::InvocationFrameStatusCode::Return
-    {
-        panic!("Invocation failed with code {}", res.output.status_code());
-    }
-
-    match handler.try_commit_transaction() {
-        ExecResult::ExecResultOK => {}
-        r => panic!("Transaction failed: {:?}", r),
-    }
-
-    let events = &res.events;
+    result.assert_success();
+    let events = result.events();
     assert_eq!(events.len(), 3);
 
     // All three events should have the same number of topics

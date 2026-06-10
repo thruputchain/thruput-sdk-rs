@@ -84,36 +84,43 @@ contract_test!(test_internal_nnints {
 #[test]
 // Get (without forcing) on a never-before-set location returns "add" == zero
 fn get_on_empty_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        get_values(&StorageKey::default());
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            get_values(&StorageKey::default());
+        })
     });
 
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
+    result.assert_success();
 }
 
 #[test]
 // Get (not forcing) on a wrong-type location succeeds.
 fn get_on_wrong_type_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            let key = StorageKey::default();
 
-        bytestring_set(&key, b"");
-        get_values(&key);
+            bytestring_set(&key, b"");
+            get_values(&key);
+        })
     });
 
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
+    result.assert_success();
 }
 
 #[test]
 // Get (forcing) on a never-before-set location fails with not-exist
 fn force_get_on_empty_fails() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        get_values_force(&StorageKey::default());
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            get_values_force(&StorageKey::default());
+        })
     });
+    let res: Result<(), sdk::call::RawCallError> =
+        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -125,12 +132,17 @@ fn force_get_on_empty_fails() {
 #[test]
 // Get (forcing) on a wrong-type location fails with invalid-input
 fn force_get_on_wrong_type_fails() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            let key = StorageKey::default();
 
-        bytestring_set(&key, b"");
-        get_values_force(&key);
+            bytestring_set(&key, b"");
+            get_values_force(&key);
+        })
     });
+    let res: Result<(), sdk::call::RawCallError> =
+        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -142,11 +154,16 @@ fn force_get_on_wrong_type_fails() {
 #[test]
 // We can't give "set" and "add" values whose sum is negative.
 fn set_add_negative_sum_fails() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let set = 1;
-        let add = -40;
-        set_add(&StorageKey::default(), Some(set), add, NONE)
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            let set = 1;
+            let add = -40;
+            set_add(&StorageKey::default(), Some(set), add, NONE)
+        })
     });
+    let res: Result<(), sdk::call::RawCallError> =
+        into_root_call_result(&result);
 
     assert_syscall_exception(
         &res,
@@ -159,9 +176,14 @@ fn set_add_negative_sum_fails() {
 #[should_panic = "Transaction failed"]
 // We can call `set_add(None, -3)`, but the transaction reverts.
 fn negative_increment_reverts() {
-    contract_exec(TestEnvironment::no_cost(), || {
-        set_add(&StorageKey::default(), None, -3, NONE);
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            set_add(&StorageKey::default(), None, -3, NONE);
+        })
     });
+    let _res: Result<(), sdk::call::RawCallError> =
+        into_root_call_result(&result);
 }
 
 #[test]
@@ -169,26 +191,32 @@ fn negative_increment_reverts() {
 // We can make serial `set_add` calls such that the total would be negative,
 // but the transaction reverts.
 fn negative_set_add_serially_reverts() {
-    contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            let key = StorageKey::default();
 
-        set_add(&key, Some(1), 0, NONE);
-        set_add(&key, None, -40, NONE);
+            set_add(&key, Some(1), 0, NONE);
+            set_add(&key, None, -40, NONE);
+        })
     });
+    let _res: Result<(), sdk::call::RawCallError> =
+        into_root_call_result(&result);
 }
 
 #[test]
 // We can explicitly set a negative value, and the transaction succeeds.
 fn negative_set_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
-        let set = -1;
-        let add = 0;
-        set_add(&StorageKey::default(), Some(set), add, NONE)
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            let set = -1;
+            let add = 0;
+            set_add(&StorageKey::default(), Some(set), add, NONE)
+        })
     });
 
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
+    result.assert_success();
 }
 
 #[test]
@@ -196,10 +224,15 @@ fn negative_set_succeeds() {
 // We can't complete a transaction with "set" and "add" values whose sum would
 // overflow an `i128`.
 fn set_overflowing_sum_reverts() {
-    contract_exec(TestEnvironment::no_cost(), || {
-        let key = StorageKey::default();
-        let set = i128::MAX;
-        let add = 47;
-        set_add(&key, Some(set), add, NONE);
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(|| {
+            let key = StorageKey::default();
+            let set = i128::MAX;
+            let add = 47;
+            set_add(&key, Some(set), add, NONE);
+        })
     });
+    let _res: Result<(), sdk::call::RawCallError> =
+        into_root_call_result(&result);
 }
