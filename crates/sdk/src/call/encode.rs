@@ -18,25 +18,6 @@ where
     })?;
     Ok(args)
 }
-/*
-/// Like `contract_call_decode`, but tolerates trailing bytes after the
-/// decoded value.  Used for decoding exception payloads which may carry
-/// additional debugging information (location, backtrace) appended by
-/// `ContractExn` when the `debugging` feature is active.
-pub fn contract_call_decode_prefix<'b, T>(
-    bytes: &'b [u8],
-    handles: &[u32],
-) -> Result<T, ReadError>
-where
-    T: ReadXDR<'b> + ReceiveAuthHandles,
-{
-    let mut reader = cxs::buf_reader::BufReader::new(bytes);
-    let mut args = ReadXDR::read_xdr(&mut reader)?;
-
-    receive_auth_handles_from_slice(&mut args, handles)?;
-    Ok(args)
-}*/
-
 pub fn contract_call_decode_exn_prefix<'b, T>(
     bytes: &'b [u8],
 ) -> Result<T, ReadError>

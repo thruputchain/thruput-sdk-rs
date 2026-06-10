@@ -22,11 +22,12 @@ sdk = { path = "../sdk_rs" }
 my-contract = { path = ".", features = ["dev"] }
 ```
 
-The shortest test path is:
+The shortest test path is to call `sdk::declare_mock_contract!();` once in
+`src/lib.rs` (which generates `register_mock_contract`), then:
 
 ```rust,ignore
 sdk::client_test(
-    |env| env.register_mock(MyContract::__mock),
+    |env| my_contract::register_mock_contract(env),
     |client: &MyContractClient| {
         // exercise the generated client here
     },
@@ -79,9 +80,6 @@ Install [ccache](https://ccache.dev/) with your package manager.
 ## Building
 
 ```shell
-# Retrieve needed cargo packages before building in offline mode in next step
-./hogd/scripts/fetch.sh
-
 # Run the CI test to ensure everything builds; this also runs many tests
 ./scripts/ci.sh
 ```
@@ -91,7 +89,7 @@ Install [ccache](https://ccache.dev/) with your package manager.
 To generate and open the SDK documentation:
 
 ```shell
-./scripts/make.sh doc --open
+./scripts/dev.sh open-docs
 ```
 
 ## Development
@@ -121,4 +119,3 @@ dev expand example-contracts/erc20
 
 When running tests:
 - Set `SDK_TEST_ENABLE_SYSCALL_LOGGING=1` to see a log of syscalls made
-- Set `TEST_FFI_TRACE` to see interactions with the test executor
