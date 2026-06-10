@@ -129,17 +129,48 @@ pub fn contract_handler_exec_raw(
     Ok((return_buf, AuthHandleBuf::new()))
 }
 
-/// Run some code in the test environment.
+/// Decode a `TransactResult`'s root-frame outcome into the same
+/// `Result<T, RawCallError>` shape that contract clients produce.
+/// Use this when a test asserts on typed exceptions/selectors rather
+/// than raw buffers.
+pub fn into_root_call_result<T>(
+    result: &TransactResult,
+) -> Result<T, RawCallError>
+where
+    T: ReadXDROwned + ReceiveAuthHandles,
+{
+    let contract_result: ContractResult = match result.frame().output() {
+        Return { return_buffer } => Ok((
+            ReturnBuf::from_slice(return_buffer.as_slice()).unwrap(),
+            AuthHandleBuf::new(),
+        )),
+        Abort { abort_buffer } => Err(ContractError::Abort(
+            AbortBuf::from_slice(abort_buffer.as_slice()).unwrap(),
+        )),
+        Fault => Err(ContractError::Fault(FaultString::empty())),
+        other => {
+            panic!("unsupported InvocationFrameOutput variant: {:?}", other)
+        }
+    };
+    crate::call::into_raw_call_result(contract_result)
+}
+
+/// Run some code in the test environment, as a single auto-committed
+/// transaction at a deterministic per-test address.
 ///
 #[macro_export]
 macro_rules! contract_test {
     ($name:ident $test_body:tt) => {
         #[test]
         fn $name() {
-            let mut env = $crate::TestEnvironment::no_cost();
-
-            $crate::contract_exec(env, || $test_body)
-                .unwrap_or_else(|e| panic!("Contract test failed: {:?}", e));
+            let env = $crate::TestEnvironment::no_cost();
+            env.transact(|tx| {
+                let addr = <$crate::ContractAddress as $crate::Named>::named(
+                    stringify!($name),
+                );
+                tx.call(&addr).run(|| $test_body)
+            })
+            .assert_success();
         }
     };
 }
@@ -152,26 +183,26 @@ impl<T> TestRegisterFn for T where T: Fn(&TestEnvironmentHandle) -> MockContract
 pub fn client_test<R, F, C>(register: R, run_test: F)
 where
     R: TestRegisterFn,
-    F: Fn(&C) + std::panic::UnwindSafe + Clone + 'static,
+    F: FnOnce(&C) + UnwindSafe,
     C: crate::call::ContractClient,
 {
     static CLIENT_TEST_NONCE: SHA256Hash =
         SHA256Hash::new(hash_to_array!("CLIENT_TEST_NONCE"));
 
-    let mut env = TestEnvironment::no_cost();
-    let test_contract = register(&mut env);
+    let env = TestEnvironment::no_cost();
+    let test_contract = register(&env);
     let contract_hash = *test_contract.as_hash();
 
-    contract_exec(env, move || {
-        // Deploy the contract under test
-        let addr = deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
-
-        // Create a client to interact with the contract
-        let client = C::new(&addr);
-
-        run_test(&client);
+    env.transact(|tx| {
+        let caller = <ContractAddress as Named>::named("client_test");
+        tx.call(&caller).run(move || {
+            // Deploy the contract under test and hand the caller a client.
+            let addr = deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
+            let client = C::new(&addr);
+            run_test(&client);
+        })
     })
-    .unwrap_or_else(|e| panic!("Client test failed: {:?}", e));
+    .assert_success();
 }
 
 pub fn grant_storage_tokens(
