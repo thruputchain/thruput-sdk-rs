@@ -379,7 +379,7 @@ contract_test!(test_vector_iter {
     vec.push_empty_slot().set(&20);
     vec.push_empty_slot().set(&30);
 
-    let values: sdk::Vec<u32> = vec.iter().map(|v| v.get()).collect();
+    let values: Vec<u32> = vec.iter().map(|v| v.get()).collect();
     assert_eq!(values, [10, 20, 30]);
 });
 
@@ -394,7 +394,7 @@ contract_test!(test_vector_iter_mut {
         elem.strict_inc(1);
     }
 
-    let values: sdk::Vec<i128> = vec.iter().map(|v| v.get()).collect();
+    let values: Vec<i128> = vec.iter().map(|v| v.get()).collect();
     assert_eq!(values, [11, 21, 31]);
 });
 
@@ -405,7 +405,7 @@ contract_test!(test_vector_iter_rev {
     vec.push_empty_slot().set(&20);
     vec.push_empty_slot().set(&30);
 
-    let values: sdk::Vec<u32> = vec.iter().rev().map(|v| v.get()).collect();
+    let values: Vec<u32> = vec.iter().rev().map(|v| v.get()).collect();
     assert_eq!(values, [30, 20, 10]);
 });
 

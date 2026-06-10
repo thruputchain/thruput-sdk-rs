@@ -76,7 +76,7 @@ mod panic;
 mod re_throw;
 mod throw;
 mod util;
-mod xdr;
+pub mod xdr;
 
 // Primitive storage types: interfaces returning Result
 pub mod sys_result;
@@ -144,7 +144,13 @@ pub use signer::*;
 pub use throw::*;
 pub use types::*;
 pub use util::*;
-pub use xdr::*;
+// XDR serialization vocabulary that is part of the SDK's public API (macro
+// expansions reference these as `::sdk::…`). The rest of the xdrs surface
+// stays namespaced under `sdk::xdr`.
+pub use xdr::{
+    ReadError, ReadResult, ReadXDR, Reader, WriteError, WriteResult, WriteXDR,
+    Writer,
+};
 
 #[allow(unused_imports)]
 pub use diagnostics::*;
@@ -162,9 +168,6 @@ pub use groundhog_macros::{
 };
 
 pub use groundhog_contract_spec::ContractTypeName;
-
-#[cfg(feature = "alloc")]
-pub use alloc::{format, string::*, vec, vec::Vec};
 
 // "Storage" facility
 

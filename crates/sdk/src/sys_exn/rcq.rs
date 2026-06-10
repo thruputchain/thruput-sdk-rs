@@ -4,7 +4,9 @@ use crate::syscall_throw;
 use crate::types::StorageKey;
 
 #[cfg(feature = "alloc")]
-use crate::{Box, sys::SyscallErrorCode};
+use crate::sys::SyscallErrorCode;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 
 pub fn retrocausal_queue_insert(key: &StorageKey, queue_entry: &[u8]) {
     rcq_result::retrocausal_queue_insert(key, queue_entry).unwrap_or_else(

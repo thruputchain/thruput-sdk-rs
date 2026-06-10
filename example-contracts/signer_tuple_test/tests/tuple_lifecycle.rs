@@ -64,7 +64,7 @@ fn tuple_struct_payload_roundtrip() {
 
     let payload_bytes: &[u8] = root_node.payload.as_ref();
     let mut decoded: TupleAuth =
-        sdk::cxs::decode(payload_bytes).expect("payload decode failed");
+        sdk::xdr::cxs::decode(payload_bytes).expect("payload decode failed");
 
     // Before ReceiveAuthHandles: Signed has sentinel handle
     assert_eq!(decoded.1.handle(), u32::MAX);
