@@ -119,3 +119,6 @@ dev expand example-contracts/erc20
 
 When running tests:
 - Set `SDK_TEST_ENABLE_SYSCALL_LOGGING=1` to see a log of syscalls made
+- Set `TEST_FFI_TRACE=1` to see interactions with the test executor. When
+  reporting a bug, it's helpful to include a trace captured with
+  `TEST_FFI_TRACE=1`.
