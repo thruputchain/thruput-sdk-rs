@@ -73,7 +73,7 @@ impl Event for OwnedEvent {
         }
     }
 
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<OwnedEvent, ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<OwnedEvent, ReadError> {
         decode_xdr(bytes)
     }
 }
@@ -114,14 +114,10 @@ impl<'a> Event for BorrowedEvent<'a> {
 
     fn topic<'t>(&'t self, index: u32) -> Option<TopicSrc<'t>> {
         match index {
-            0 => return Some(TopicSrc::Shared(self.payer)),
-            1 => return Some(TopicSrc::Shared(self.payee)),
-            2 => {
-                return Some(TopicSrc::Owned(
-                    self.currency.hash().into_inner(),
-                ));
-            }
-            _ => return None,
+            0 => Some(TopicSrc::Shared(self.payer)),
+            1 => Some(TopicSrc::Shared(self.payee)),
+            2 => Some(TopicSrc::Owned(self.currency.hash().into_inner())),
+            _ => None,
         }
     }
 
@@ -254,13 +250,13 @@ impl Event for ManualTooManyTopicsEvent {
 
     fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
         match index {
-            0 | 1 | 2 | 3 => Some(TopicSrc::Owned([index as u8; 32])),
+            0..=3 => Some(TopicSrc::Owned([index as u8; 32])),
             _ => None,
         }
     }
 
-    fn decode_payload<'a>(
-        bytes: &'a [u8],
+    fn decode_payload(
+        bytes: &[u8],
     ) -> Result<ManualTooManyTopicsEvent, ReadError> {
         decode_xdr(bytes)
     }

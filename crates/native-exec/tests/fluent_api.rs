@@ -19,9 +19,7 @@ impl Event for TestValue {
     fn num_topics(&self) -> u32 {
         0
     }
-    fn decode_payload<'a>(
-        bytes: &'a [u8],
-    ) -> Result<TestValue, xdrs::ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<TestValue, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
 }
@@ -44,7 +42,7 @@ impl Event for EventA {
             _ => None,
         }
     }
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventA, xdrs::ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<EventA, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
 }
@@ -64,7 +62,7 @@ impl Event for EventB {
             _ => None,
         }
     }
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventB, xdrs::ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<EventB, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
 }

@@ -25,6 +25,7 @@ fn run_tx(f: impl FnOnce() + std::panic::UnwindSafe) -> TransactResult {
 
 /// Run `f` and decode the root-frame outcome as a client-style result,
 /// for matching typed exceptions.
+#[allow(clippy::result_large_err)]
 fn run_tx_result(
     f: impl FnOnce() + std::panic::UnwindSafe,
 ) -> Result<(), RawCallError> {

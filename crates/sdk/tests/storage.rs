@@ -501,9 +501,10 @@ fn test_data_fully_consumed() {
             }
 
             {
+                // Decoding (i32, i32) data as i32 leaves bytes unconsumed,
+                // so try_get must abort; the outer assert checks failure.
                 let value: Value<i32> = keypath.clone().into();
                 value.try_get();
-                assert!(false, "unreachable");
             }
         })
     });

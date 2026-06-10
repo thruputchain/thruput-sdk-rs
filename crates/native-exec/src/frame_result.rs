@@ -186,9 +186,8 @@ impl FrameResult {
         E: xdrs::ReadXDROwned,
     {
         self.assert_abort();
-        xdrs::cxs::decode(self.abort_buffer()).unwrap_or_else(|e| {
-            panic!("failed to decode abort buffer: {}", e)
-        })
+        xdrs::cxs::decode(self.abort_buffer())
+            .unwrap_or_else(|e| panic!("failed to decode abort buffer: {}", e))
     }
 
     // -- Raw access --
