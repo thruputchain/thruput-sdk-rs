@@ -37,8 +37,10 @@ impl<'a> FrameBuilder<'a> {
     /// The closure's return value is XDR-encoded into the frame's return
     /// buffer (the same convention generated `#[contract]` entrypoints use),
     /// and can be recovered from the result via `assert_return_as`.
-    /// A `()` return encodes to zero bytes and leaves the buffer untouched,
-    /// so closures that call `raw_Return` themselves keep working.
+    /// Any value that encodes to zero bytes (e.g. `()`) skips the explicit
+    /// return and leaves the buffer untouched, so closures that call
+    /// `raw_Return` themselves keep working. Since an empty buffer is the
+    /// valid encoding of such types, decoding them still works.
     ///
     /// Mixing an explicit `raw_Return` with a non-unit closure return is
     /// unsupported; the observed behavior is that `raw_Return` terminates

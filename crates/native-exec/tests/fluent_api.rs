@@ -1132,11 +1132,64 @@ fn test_run_nonunit_return_after_explicit_raw_return_pins_behavior() {
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| {
             groundhog_xdr::syscalls::raw_Return(&[1u8], false, &[]);
-            // raw_Return never returns, so the wrapper never encodes 42.
             #[allow(unreachable_code)]
             42u32
         })
     });
     result.assert_success();
     assert_eq!(result.frame().return_buffer(), &[1]);
+}
+
+//-------------------------------------------------------------------------
+// Typed buffer extraction: assert_return_as / assert_abort_as.
+
+#[test]
+fn test_assert_return_as_decodes_value() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| tx.call(&TEST_ADDR).run(|| 1234u64));
+    result.assert_success();
+    let v: u64 = result.assert_return_as();
+    assert_eq!(v, 1234);
+}
+
+#[test]
+#[should_panic(expected = "failed to decode return buffer")]
+fn test_assert_return_as_panics_on_garbage() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| -> () {
+            groundhog_xdr::syscalls::raw_Return(&[0xFF], false, &[]);
+        })
+    });
+    let _: u64 = result.assert_return_as();
+}
+
+#[test]
+fn test_assert_abort_as_decodes_error() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| -> () {
+            let encoded = xdrs::cxs::encode(&77u32).unwrap();
+            groundhog_xdr::syscalls::raw_Return(&encoded, true, &[]);
+        })
+    });
+    result.assert_abort();
+    let e: u32 = result.assert_abort_as();
+    assert_eq!(e, 77);
+}
+
+/// Non-unit type whose XDR encoding is zero bytes.
+#[derive(Debug, PartialEq, xdrs::WriteXDR, xdrs::ReadXDR)]
+struct Empty;
+
+#[test]
+fn test_run_zero_byte_encoding_roundtrips() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| tx.call(&TEST_ADDR).run(|| Empty));
+    result.assert_success();
+    // Zero-byte encodings skip the explicit return, leaving the buffer
+    // empty — which is itself the valid encoding, so decoding works.
+    assert!(result.frame().return_buffer().is_empty());
+    let v: Empty = result.assert_return_as();
+    assert_eq!(v, Empty);
 }

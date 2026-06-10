@@ -65,6 +65,25 @@ impl TransactResult {
         self.frame.assert_abort_with(check);
     }
 
+    /// Assert the root frame returned successfully and decode its return
+    /// buffer, returning the decoded value. Frame-only check, like
+    /// `assert_return_with`.
+    #[track_caller]
+    pub fn assert_return_as<R>(&self) -> R
+    where
+        R: xdrs::ReadXDROwned,
+    {
+        self.frame.assert_return_as()
+    }
+
+    #[track_caller]
+    pub fn assert_abort_as<E>(&self) -> E
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        self.frame.assert_abort_as()
+    }
+
     /// Asserts the root frame succeeded but the DB commit step failed.
     #[track_caller]
     pub fn assert_commit_failed(&self) {
