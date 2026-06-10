@@ -107,7 +107,7 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
                 "OK: bad decode error with selector 0x{:016X}",
                 raw.selector()
             );
-            let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             println!("OK: try_as decoded UndecodableError successfully");
@@ -127,7 +127,7 @@ pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
                 raw.selector()
             );
             assert_eq!(raw.selector(), LibraryExn::SELECTOR);
-            let decoded: u32 = sdk::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: try_as decoded UndecodableError successfully");
         }

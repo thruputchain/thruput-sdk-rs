@@ -1,7 +1,10 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
+extern crate alloc;
+
 sdk::declare_mock_contract!();
 
+use alloc::vec;
 use sdk::mintable::AuthTokenPreimage;
 use sdk::mintable::MintableType;
 use sdk::signer::Signed;

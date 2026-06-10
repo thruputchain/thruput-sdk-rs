@@ -1,7 +1,8 @@
 use groundhog_native_exec::mock_contract::MockContract;
 use linkme::distributed_slice;
 
-use crate::{String, Vec};
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::fmt;
 
 #[doc(hidden)]

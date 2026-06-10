@@ -37,7 +37,7 @@ Static allocations are facilitated in contracts by [`ContractCell`] and
 
 If feature `alloc` is enabled:
 - The [`alloc`] crate is linked in, giving access to allocating datatypes like
-  [`String`] and [`Vec`].
+  `String` and `Vec`.
 - A simple bump allocator is installed by the guest runtime crate
   (`groundhog-wasm-runtime` on wasm, `groundhog-rv32-runtime` on rv32).
   Allocations are not freed until the current contract invocation terminates.

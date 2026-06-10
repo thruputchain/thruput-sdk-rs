@@ -7,7 +7,6 @@ mod contract_test;
 mod mock_public {
     pub use super::contract_test::*;
 
-    pub use core::convert::Infallible;
     pub use groundhog_native_exec::{
         frame_builder::{
             ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,

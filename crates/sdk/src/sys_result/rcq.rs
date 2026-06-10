@@ -85,10 +85,10 @@ pub(crate) fn retrocausal_queue_try_get_sized<const N: usize>(
 pub(crate) fn retrocausal_queue_get(
     key: &StorageKey,
     peek: bool,
-) -> Result<crate::Box<[u8]>> {
+) -> Result<alloc::boxed::Box<[u8]>> {
     let len = retrocausal_queue_peek_len(key)?;
 
-    let mut data = crate::Box::<[u8]>::new_uninit_slice(len as usize);
+    let mut data = alloc::boxed::Box::<[u8]>::new_uninit_slice(len as usize);
     let mut written_len = MaybeUninit::uninit();
     sys::uninit_RetrocausalQueueConsume(
         key,
@@ -111,7 +111,7 @@ pub(crate) fn retrocausal_queue_get(
 pub(crate) fn retrocausal_queue_try_get(
     key: &StorageKey,
     peek: bool,
-) -> Result<Option<crate::Box<[u8]>>> {
+) -> Result<Option<alloc::boxed::Box<[u8]>>> {
     match retrocausal_queue_get(key, peek) {
         Ok(v) => Ok(Some(v)),
         Err(e)
