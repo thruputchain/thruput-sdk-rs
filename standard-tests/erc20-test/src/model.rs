@@ -137,35 +137,37 @@ impl Model {
     }
 }
 
+/// Compare an expected event log (from the model) against the events a
+/// transaction actually emitted.
+pub fn check_events(expected: &[StdERC20Event], events: &[TxEmittedEvent]) {
+    let mut events = events.iter();
+
+    // For each event from our modelled event log ...
+    for (i, model_event) in expected.iter().enumerate() {
+        // Get the next event from the transaction event log
+        let emitted_event: EmittedEvent =
+            events.next().expect("Unexpected end of event log").into();
+
+        let event: ERC20Event = emitted_event.try_into().unwrap_or_else(|e| {
+            panic!("Couldn't parse emitted event as an ERC20 event: {}", e)
+        });
+
+        let event: StdERC20Event = (&event).into();
+
+        assert_eq!(&event, model_event, "Event {} doesn't match", i);
+    }
+
+    if events.len() > 0 {
+        panic!(
+            "Test contract produced {} more events than expected",
+            events.len()
+        );
+    }
+}
+
 impl Model {
     /// Check model state against events emitted by a transaction
     pub fn check_events(&self, events: &[TxEmittedEvent]) {
-        let mut events = events.iter();
-
-        // For each event from our modelled event log ...
-        for (i, model_event) in self.events.iter().enumerate() {
-            // Get the next event from the transaction event log
-            let emitted_event: EmittedEvent =
-                events.next().expect("Unexpected end of event log").into();
-
-            let event: ERC20Event =
-                emitted_event.try_into().unwrap_or_else(|e| {
-                    panic!(
-                        "Couldn't parse emitted event as an ERC20 event: {}",
-                        e
-                    )
-                });
-
-            let event: StdERC20Event = (&event).into();
-
-            assert_eq!(&event, model_event, "Event {} doesn't match", i);
-        }
-
-        if events.len() > 0 {
-            panic!(
-                "Test contract produced {} more events than expected",
-                events.len()
-            );
-        }
+        check_events(&self.events, events);
     }
 }
