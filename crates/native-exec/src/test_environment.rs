@@ -499,6 +499,15 @@ impl TestEnvironment {
         f(&mut tx)
     }
 
+    // -- Setup-phase methods --
+    //
+    // The setup_* methods seed groundhog state directly, bypassing
+    // transaction execution. Call them before running any transactions in
+    // a test; their effects appear as if applied in a previous block.
+
+    /// Setup phase: create a contract in groundhog state (not deployed at
+    /// any address). Returns the contract hash. Run before any
+    /// transactions in the test.
     pub fn setup_create_contract(
         self: &TestEnvironmentHandle,
         contract: &Contract,
@@ -506,6 +515,8 @@ impl TestEnvironment {
         self.inner.borrow_mut().setup_create_contract(contract)
     }
 
+    /// Setup phase: deploy an already-created contract at `addr`. Run
+    /// before any transactions in the test.
     pub fn setup_create_deployment(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
@@ -516,6 +527,9 @@ impl TestEnvironment {
             .setup_create_deployment(addr, contract)
     }
 
+    /// Setup phase: grant storage tokens to the contract at `addr`, as if
+    /// granted in a previous block. Like `setup_create_contract` and
+    /// `setup_create_deployment`, run before any transactions in the test.
     pub fn setup_grant_storage_tokens(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
