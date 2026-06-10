@@ -901,6 +901,25 @@ fn test_run_continuable_with_child_frame() {
     result.assert_success();
 }
 
+#[test]
+fn test_child_frame_return_value_decodes() {
+    let env = TestEnvironment::new(None);
+    let mut tx = MockTransactionHandler::new(env);
+
+    let result = tx
+        .call(&[1u8; 32].into())
+        .run_continuable(|frame| {
+            // Child frame returns a value; decode it from the child result.
+            let child_result =
+                frame.child_call(&[2u8; 32].into()).run(|| 7u32);
+            assert_eq!(child_result.assert_return_as::<u32>(), 7);
+            FrameAction::Close
+        })
+        .finish();
+
+    result.assert_success();
+}
+
 // ── Gas limit regression test ─────────────────────────────────────────
 
 #[test]

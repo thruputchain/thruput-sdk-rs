@@ -38,14 +38,15 @@ impl<'a> FrameBuilder<'a> {
     /// buffer (the same convention generated `#[contract]` entrypoints use),
     /// and can be recovered from the result via `assert_return_as`.
     /// Any value that encodes to zero bytes (e.g. `()`) skips the explicit
-    /// return and leaves the buffer untouched, so closures that call
-    /// `raw_Return` themselves keep working. Since an empty buffer is the
-    /// valid encoding of such types, decoding them still works.
+    /// return and leaves the buffer untouched: an empty buffer is already
+    /// the valid encoding of such types, so decoding them still works.
+    /// Separately, closures that call `raw_Return` themselves never reach
+    /// this encode step at all, since `raw_Return` terminates the
+    /// invocation immediately (it never returns).
     ///
     /// Mixing an explicit `raw_Return` with a non-unit closure return is
-    /// unsupported; the observed behavior is that `raw_Return` terminates
-    /// the invocation immediately (it never returns), so the explicit
-    /// buffer wins and the closure's value is never encoded.
+    /// unsupported; the explicit buffer wins and the closure's value is
+    /// never encoded.
     ///
     /// If you need to open child frames from within the closure, use
     /// `run_continuable` instead, which provides a `FrameHandle` with
