@@ -1,7 +1,7 @@
 error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::Map<u32, sdk::storage::NNInt>>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_map.rs:5:7
   |
-5 |     v.set(&Map::from(Keypath::new()));
+5 |     v.set(&Map::from(Keypath::root()));
   |       ^^^ method cannot be called due to unsatisfied trait bounds
   |
  ::: src/storage/map.rs

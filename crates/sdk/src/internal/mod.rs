@@ -19,12 +19,6 @@ mod call_tracking_contexts;
 #[cfg(feature = "call_tracking")]
 pub use call_tracking_contexts::*;
 
-//pub use groundhog_contract_spec::contract_abi_alloc::ContractAbiAllocEnabled;
-
-//#[doc(hidden)]
-//#[inline]
-//pub const fn assert_contract_abi_alloc_enabled<T: ContractAbiAllocEnabled>() {}
-
 /// Constant-time string equality check for use in `const` assertions.
 pub const fn const_str_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());

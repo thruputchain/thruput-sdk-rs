@@ -18,12 +18,6 @@ impl From<Keypath> for Bytestring {
 }
 
 impl Bytestring {
-    pub fn new(keypath: &Keypath) -> Self {
-        Self {
-            key: KeyCache::new(keypath),
-        }
-    }
-
     pub fn len(&self) -> usize {
         bytestring_get_len(&self.key) as usize
     }

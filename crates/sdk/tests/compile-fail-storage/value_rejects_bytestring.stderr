@@ -1,7 +1,7 @@
 error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::Bytestring>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_bytestring.rs:5:7
   |
-5 |     v.set(&Bytestring::from(Keypath::new()));
+5 |     v.set(&Bytestring::from(Keypath::root()));
   |       ^^^ method cannot be called on `sdk::storage::Value<sdk::storage::Bytestring>` due to unsatisfied trait bounds
   |
  ::: src/storage/bytestring.rs

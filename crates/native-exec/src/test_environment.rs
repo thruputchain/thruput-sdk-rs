@@ -36,6 +36,34 @@ pub struct TestEnvironmentInner {
     contracts: Vec<*mut MockContractInner>, // owns these contracts
 }
 
+/// An in-process groundhog instance for testing contracts natively.
+///
+/// A `TestEnvironment` owns a fresh in-memory database and runtime context
+/// (backed by hogd via FFI). Constructors return a [`TestEnvironmentHandle`];
+/// clone the handle to share the environment across helpers.
+///
+/// - [`TestEnvironment::new`] takes an optional storage cost model;
+///   [`TestEnvironment::no_cost`] disables storage costs entirely.
+/// - The `setup_*` methods seed state (contracts, deployments, storage
+///   tokens) as if applied in a previous block; call them before running
+///   transactions.
+/// - [`TestEnvironment::transact`] executes a transaction against the
+///   environment and auto-commits; build frames with the fluent
+///   `tx.call(&addr)` API. [`TestEnvironment::advance_block`] makes
+///   committed effects visible to subsequent transactions.
+///
+/// ```no_run
+/// use groundhog_native_exec::test_environment::TestEnvironment;
+/// use groundhog_xdr::types::ContractAddress;
+///
+/// let env = TestEnvironment::no_cost();
+/// let addr = ContractAddress::new([0x11; 32]);
+/// let result = env.transact(|tx| tx.call(&addr).run(|| { /* guest code */ }));
+/// result.assert_success();
+/// ```
+///
+/// Setting the `SDK_TEST_ENABLE_SYSCALL_LOGGING` environment variable turns
+/// on syscall tracing for environments created afterwards.
 pub struct TestEnvironment {
     pub(crate) inner: RefCell<TestEnvironmentInner>,
 }
@@ -395,6 +423,7 @@ impl Default for TestEnvironmentInner {
     }
 }
 
+/// Shared handle to a [`TestEnvironment`]; returned by its constructors.
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
 impl TestEnvironment {

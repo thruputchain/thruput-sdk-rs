@@ -27,15 +27,6 @@ impl<T> From<Keypath> for Value<T> {
 impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 
-impl<T> Value<T> {
-    pub fn new(keypath: &Keypath) -> Self {
-        Self {
-            key: KeyCache::new(keypath),
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<T> Value<T>
 where
     T: for<'a> xdrs::ReadXDR<'a>,

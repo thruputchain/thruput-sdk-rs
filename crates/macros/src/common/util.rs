@@ -3,14 +3,6 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Error;
 
-#[allow(dead_code)]
-pub fn cmp_sig_ref_by_name(
-    a: &&syn::Signature,
-    b: &&syn::Signature,
-) -> Ordering {
-    cmp_sig_by_name(a, b)
-}
-
 pub fn cmp_sig_by_name(a: &syn::Signature, b: &syn::Signature) -> Ordering {
     cmp_ident(&a.ident, &b.ident)
 }
