@@ -1,7 +1,7 @@
 error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::Value<i32>>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_value.rs:5:7
   |
-5 |     v.set(&Value::from(Keypath::new()));
+5 |     v.set(&Value::from(Keypath::root()));
   |       ^^^ method cannot be called on `sdk::storage::Value<sdk::storage::Value<i32>>` due to unsatisfied trait bounds
   |
  ::: src/storage/value.rs

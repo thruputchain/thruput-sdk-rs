@@ -28,7 +28,7 @@ struct InnerValuePair {
 }
 
 contract_test!(test_map {
-    let data_keypath = Keypath::new();
+    let data_keypath = Keypath::root();
     let slot: u32 = 3;
     {
         let mut data: Data = data_keypath.clone().into();
@@ -43,9 +43,7 @@ contract_test!(test_map {
 });
 
 contract_test!(test_map_entry {
-    // Use Map<u32, Value<i32>> with the new API
-    let keypath = Keypath::new();
-    let mut map: Map<u32, Value<i32>> = Map::new(&keypath);
+    let mut map: Map<u32, Value<i32>> = Keypath::root().into();
 
     let slot: u32 = 3;
 
@@ -98,7 +96,7 @@ contract_test!(test_map_entry {
 });
 
 contract_test!(test_storable {
-    let data_keypath = Keypath::new();
+    let data_keypath = Keypath::root();
     let mut data: Data = data_keypath.clone().into();
     for i in 0..3u64 {
         data.nums.push_with(|slot| slot.set(&i));
@@ -150,7 +148,7 @@ contract_test!(test_vector_push_with_nested_node {
 });
 
 contract_test!(test_map_at {
-    let data_keypath = Keypath::new();
+    let data_keypath = Keypath::root();
     let slot: u32 = 3;
     {
         let mut data: Data = data_keypath.clone().into();
@@ -165,7 +163,7 @@ contract_test!(test_map_at {
 });
 
 contract_test!(test_map_at_nested {
-    let data_keypath = Keypath::new();
+    let data_keypath = Keypath::root();
     let slot: u32 = 5;
     {
         let mut data: Data = data_keypath.clone().into();
@@ -180,8 +178,7 @@ contract_test!(test_map_at_nested {
 });
 
 contract_test!(test_value_basic {
-    let keypath = Keypath::new();
-    let mut val: Value<i32> = Value::new(&keypath);
+    let mut val: Value<i32> = Keypath::root().into();
 
     // Initially empty
     assert_eq!(val.try_get(), None);
@@ -200,8 +197,7 @@ contract_test!(test_value_basic {
 });
 
 contract_test!(test_value_load_mut {
-    let keypath = Keypath::new();
-    let mut val: Value<i32> = Value::new(&keypath);
+    let mut val: Value<i32> = Keypath::root().into();
 
     // Set initial value
     val.set(&10);
@@ -216,8 +212,7 @@ contract_test!(test_value_load_mut {
 });
 
 contract_test!(test_map_at_value {
-    let keypath = Keypath::new();
-    let mut map: Map<u32, Value<i32>> = Map::new(&keypath);
+    let mut map: Map<u32, Value<i32>> = Keypath::root().into();
 
     // Write via at_mut
     map.at_mut(&1u32).set(&100);
@@ -238,7 +233,7 @@ contract_test!(test_map_at_value {
 });
 
 contract_test!(test_exclusive_propagation {
-    let data_keypath = Keypath::new();
+    let data_keypath = Keypath::root();
     let slot: u32 = 7;
 
     // Use at_mut_exclusive -- exclusive flag reaches NNInt
@@ -305,7 +300,7 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     let elem = |kp: &Keypath, idx: u32| -> Value<u32> {
         let mut ekp = kp.clone();
         ekp.push_item(&idx);
-        Value::new(&ekp)
+        ekp.into()
     };
 
     // Before delete: elements are readable
@@ -324,12 +319,12 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     // Length storage is also gone
     let mut len_kp = root;
     len_kp.seq_begin();
-    let len_val: Value<u32> = Value::new(&len_kp);
+    let len_val: Value<u32> = len_kp.into();
     assert_eq!(len_val.try_get(), None);
 });
 
 contract_test!(test_generic_storage_struct {
-    let keypath = Keypath::new();
+    let keypath = Keypath::root();
     let pair: Pair<Value<u32>, Value<u64>> = keypath.into();
 
     let mut first = pair.first;
@@ -343,7 +338,7 @@ contract_test!(test_generic_storage_struct {
 });
 
 contract_test!(test_generic_storage_struct_delete {
-    let keypath = Keypath::new();
+    let keypath = Keypath::root();
     let mut pair: Pair<Value<u32>, Value<u64>> = keypath.into();
 
     pair.first.set(&42);
@@ -356,7 +351,7 @@ contract_test!(test_generic_storage_struct_delete {
 });
 
 contract_test!(test_nnint_delete {
-    let keypath = Keypath::new();
+    let keypath = Keypath::root();
     let mut n: NNInt = keypath.into();
     n.set(42);
     assert_eq!(n.get(), 42);
@@ -365,7 +360,7 @@ contract_test!(test_nnint_delete {
 });
 
 contract_test!(test_vector_pop_nnint {
-    let keypath = Keypath::new();
+    let keypath = Keypath::root();
     let mut vec: Vector<NNInt> = keypath.into();
 
     vec.push_empty_slot().set(10);
@@ -443,7 +438,7 @@ contract_test!(test_vector_iter_empty {
 });
 
 contract_test!(test_map_at_disjoint_mut {
-    let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
+    let mut map: Map<u32, NNInt> = Keypath::root().into();
 
     map.at_mut(&1u32).set(100);
     map.at_mut(&2u32).set(200);
@@ -469,7 +464,7 @@ fn test_map_at_disjoint_mut_duplicate_panics() {
     );
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
-            let mut map: Map<u32, NNInt> = Map::new(&Keypath::new());
+            let mut map: Map<u32, NNInt> = Keypath::root().into();
             map.at_disjoint_mut([&1u32, &1u32]);
         })
     });
@@ -485,10 +480,9 @@ fn test_data_fully_consumed() {
 
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
-            let keypath = Keypath::new();
+            let keypath = Keypath::root();
             {
-                let mut value: Value<(i32, i32)> =
-                    Value::new(&keypath.clone());
+                let mut value: Value<(i32, i32)> = keypath.clone().into();
                 value.set(&(10, 20));
             }
 

@@ -177,44 +177,6 @@ pub fn get_calldata_len() -> RuntimeMemoryLength {
 
 pub type Calldata = MUBuf<CALLDATA_MAX>;
 
-pub fn try_get_calldata() -> SysResult<Calldata> {
-    // Get a buffer to put the calldata in
-    let mut calldata: Calldata = MUBuf::new();
-
-    // Fetch the calldata from the VM, hoping our buffer is large enough
-    let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
-    let mut _auth_token_written: MaybeUninit<RuntimeMemoryLength> =
-        MaybeUninit::uninit();
-    sys::uninit_GetCalldata(
-        calldata.spare_capacity_mut(),
-        &mut written,
-        &mut [],
-        &mut _auth_token_written,
-    )?;
-    let written = unsafe { written.assume_init() };
-
-    // SAFETY: At least this many bytes of the buffer are now initialized
-    unsafe {
-        calldata.set_len(written as usize);
-    }
-
-    // TODO: Panic if the calldata got truncated.  (Augment the syscall interface to find out,
-    // or perhaps do get_calldata_len() if the buffer has been completely filled?)
-
-    Ok(calldata)
-}
-
-// This should probably become `get_calldata`, once the existing clients
-// of that function are adapted to non-result return.
-#[deprecated(
-    note = "use get_calldata_with_auth_tokens() for Signed token support"
-)]
-pub fn get_calldata() -> Calldata {
-    try_get_calldata().unwrap_or_else(|syserr| {
-        syscall_throw(SyscallNo::kGetCalldata, syserr)
-    })
-}
-
 pub type AuthTokenIdBuf = heapless::Vec<u32, 32>;
 
 pub fn get_calldata_with_auth_tokens() -> (Calldata, AuthTokenIdBuf) {

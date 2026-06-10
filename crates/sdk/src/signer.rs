@@ -206,6 +206,14 @@ where
     }
 }
 
+/// Mint an auth token whose payload is the preimage of `T`, returning a
+/// [`Signed<T>`] handle to it.
+///
+/// The token is valid until the block height `expiry` and may only be
+/// consumed by the contract named in `preimage.consumer`. Nested `Signed`
+/// fields inside the preimage are minted as child tokens of this one.
+///
+/// Aborts the transaction if the `MintAuthToken` syscall fails.
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
     expiry: groundhog_xdr::types::BlockHeight,
@@ -237,6 +245,17 @@ where
     Signed::from_handle(handle)
 }
 
+/// Mint an auth token from an already-encoded [`AuthTokenNode`], returning a
+/// type-erased [`Signed<Opaque>`] handle.
+///
+/// This is the untyped counterpart of [`mint_auth_token`], for callers that
+/// build or forward token nodes without knowing the payload type (see
+/// [`crate::mintable::encode_auth_token_node`]). The token is valid until the
+/// block height `expiry`.
+///
+/// Aborts the transaction if the `MintAuthToken` syscall fails.
+///
+/// [`AuthTokenNode`]: groundhog_xdr::types::AuthTokenNode
 #[cfg(feature = "alloc")]
 pub fn mint_opaque_auth_token(
     expiry: groundhog_xdr::types::BlockHeight,

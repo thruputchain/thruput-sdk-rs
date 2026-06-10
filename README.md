@@ -2,11 +2,9 @@ This SDK facilitates writing contracts in Rust.
 
 ## Contract Author Quickstart
 
-The fastest way to get a new contract crate working is to start from one of
-the small examples in this repository:
-
-- `example-contracts/stateless` for a contract with no persistent state
-- `example-contracts/complex-storage` for a contract using `sdk::storage`
+Polished examples and tutorials are maintained outside this repository.
+(The `example-contracts/` directory here is an internal test corpus for SDK
+development, not a set of recommended starting points.)
 
 Contract crates using the native test harness typically need:
 
@@ -93,13 +91,6 @@ To generate and open the SDK documentation:
 ```
 
 ## Development
-
-### Cargo layout for contracts
-
-The `example-contracts` sub-package can be cloned outside of the SDK to provide
-a testbed for your contracts. For a small starting point, prefer
-`example-contracts/stateless`; for storage-backed contracts, prefer
-`example-contracts/complex-storage`.
 
 ### Testing
 

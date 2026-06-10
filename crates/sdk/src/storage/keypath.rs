@@ -17,7 +17,7 @@ pub enum KeypathComponent {
 }
 
 impl Keypath {
-    pub fn new() -> Self {
+    pub fn root() -> Self {
         Self {
             path: vec![],
             exclusive: false,
@@ -25,20 +25,9 @@ impl Keypath {
     }
 
     pub fn from_key(key: &StorageKey) -> Self {
-        let mut keypath = Keypath::new();
+        let mut keypath = Keypath::root();
         keypath.push_item(key);
         keypath
-    }
-
-    pub fn root() -> Self {
-        Self::new()
-    }
-
-    pub fn clone_flattened(&self) -> Self {
-        Keypath {
-            path: vec![KeypathComponent::Bytes(self.flattened())],
-            exclusive: self.exclusive,
-        }
     }
 
     pub fn flattened(&self) -> Vec<u8> {
@@ -106,7 +95,7 @@ impl Keypath {
 
 impl Default for Keypath {
     fn default() -> Self {
-        Self::new()
+        Self::root()
     }
 }
 
@@ -114,36 +103,20 @@ impl Default for Keypath {
 mod test_keypath {
 
     #[test]
-    fn flattening_conserves_key() {
-        use super::*;
-
-        let mut kp = Keypath::new();
-        kp.push_item("some bytes");
-        kp.push_index(3);
-
-        let kp2 = kp.clone_flattened();
-
-        assert_eq!(kp.flattened(), kp2.flattened())
-    }
-
-    #[test]
     fn exclusive_flag_propagates_through_clone() {
         use super::*;
 
-        let mut kp = Keypath::new();
+        let mut kp = Keypath::root();
         kp.push_item("some bytes");
         kp.set_exclusive();
 
         let kp2 = kp.clone();
         assert!(kp2.is_exclusive());
-
-        let kp3 = kp.clone_flattened();
-        assert!(kp3.is_exclusive());
     }
 
     #[test]
     fn exclusive_flag_defaults_to_false() {
-        let kp = super::Keypath::new();
+        let kp = super::Keypath::root();
         assert!(!kp.is_exclusive());
     }
 }
@@ -171,13 +144,6 @@ mod keycache {
     }
 
     impl KeyCache {
-        pub fn new(keypath: &Keypath) -> Self {
-            Self {
-                keypath: keypath.clone_flattened(),
-                key: OnceCell::new(),
-            }
-        }
-
         pub fn get(&self) -> &StorageKey {
             self.key.get_or_init(|| self.keypath.generate_key())
         }

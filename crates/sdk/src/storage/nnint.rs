@@ -19,12 +19,6 @@ impl From<Keypath> for NNInt {
 }
 
 impl NNInt {
-    pub fn new(keypath: &Keypath) -> Self {
-        Self {
-            keypath: keypath.clone(),
-        }
-    }
-
     /// Get the current value.  Aborts if location not yet set.
     pub fn get(&self) -> i128 {
         non_negative_int_get(&self.keypath.generate_key())

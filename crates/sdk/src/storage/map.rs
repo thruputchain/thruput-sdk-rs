@@ -23,13 +23,6 @@ impl<K, V> From<Keypath> for Map<K, V> {
 }
 
 impl<K, V> Map<K, V> {
-    pub fn new(keypath: &Keypath) -> Self {
-        Self {
-            keypath: keypath.clone(),
-            _marker: PhantomData,
-        }
-    }
-
     pub fn keypath(&self) -> &Keypath {
         &self.keypath
     }
