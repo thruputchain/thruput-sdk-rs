@@ -48,6 +48,11 @@ impl<'a> FrameBuilder<'a> {
     /// unsupported; the explicit buffer wins and the closure's value is
     /// never encoded.
     ///
+    /// The return buffer is subject to the protocol's return-size cap
+    /// (1024 bytes); a larger encoded value deterministically reverts the
+    /// invocation, surfacing as an opaque frame failure. Keep test return
+    /// values small — return a digest or summary instead of bulk data.
+    ///
     /// If you need to open child frames from within the closure, use
     /// `run_continuable` instead, which provides a `FrameHandle` with
     /// `child_call()`.

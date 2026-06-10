@@ -49,12 +49,25 @@ where
                 r => panic!("Transaction failed: {:?}", r),
             }
             Ok((
-                ReturnBuf::from_slice(return_buffer.as_slice()).unwrap(),
+                ReturnBuf::from_slice(return_buffer.as_slice())
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "return buffer ({} bytes) exceeds ReturnBuf capacity",
+                            return_buffer.len()
+                        )
+                    }),
                 AuthHandleBuf::new(),
             ))
         }
         Abort { abort_buffer } => Err(ContractError::Abort(
-            AbortBuf::from_slice(abort_buffer.as_slice()).unwrap(),
+            AbortBuf::from_slice(abort_buffer.as_slice()).unwrap_or_else(
+                |_| {
+                    panic!(
+                        "abort buffer ({} bytes) exceeds AbortBuf capacity",
+                        abort_buffer.len()
+                    )
+                },
+            ),
         )),
         Fault => Err(ContractError::Fault(FaultString::empty())),
         other => {
