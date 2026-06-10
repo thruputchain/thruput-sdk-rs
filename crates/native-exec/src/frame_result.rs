@@ -74,11 +74,17 @@ impl FrameResult {
 
     #[track_caller]
     pub fn assert_success(&self) {
-        assert!(
-            self.is_success(),
-            "expected success, got status code {}",
-            self.output.status_code()
-        );
+        match &self.output {
+            InvocationFrameOutput::Return { .. } => {}
+            InvocationFrameOutput::Abort { abort_buffer } => panic!(
+                "expected success, got abort (abort buffer: {:02x?})",
+                abort_buffer.as_slice()
+            ),
+            other => panic!(
+                "expected success, got status code {}",
+                other.status_code()
+            ),
+        }
     }
 
     #[track_caller]
@@ -157,6 +163,31 @@ impl FrameResult {
             panic!("failed to decode abort buffer: {}", e)
         });
         check(&decoded);
+    }
+
+    /// Assert the frame succeeded and decode the return buffer, returning
+    /// the decoded value. The returning twin of `assert_return_with`.
+    #[track_caller]
+    pub fn assert_return_as<R>(&self) -> R
+    where
+        R: xdrs::ReadXDROwned,
+    {
+        self.assert_success();
+        xdrs::cxs::decode(self.return_buffer()).unwrap_or_else(|e| {
+            panic!("failed to decode return buffer: {}", e)
+        })
+    }
+
+    /// Assert the frame aborted and decode the abort buffer, returning
+    /// the decoded error. The returning twin of `assert_abort_with`.
+    #[track_caller]
+    pub fn assert_abort_as<E>(&self) -> E
+    where
+        E: xdrs::ReadXDROwned,
+    {
+        self.assert_abort();
+        xdrs::cxs::decode(self.abort_buffer())
+            .unwrap_or_else(|e| panic!("failed to decode abort buffer: {}", e))
     }
 
     // -- Raw access --

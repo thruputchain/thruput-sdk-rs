@@ -15,6 +15,23 @@ use sdk::sys_exn::nnint_internal::*;
 const NONE: StorageDeltaFlags = StorageDeltaFlags::None;
 use sdk::*;
 
+/// Run `f` as a single transaction at this file's test address.
+fn run_tx(f: impl FnOnce() + std::panic::UnwindSafe) -> TransactResult {
+    let env = TestEnvironment::no_cost();
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("internal_nnints")).run(f)
+    })
+}
+
+/// Run `f` and decode the root-frame outcome as a client-style result,
+/// for matching typed exceptions.
+#[allow(clippy::result_large_err)]
+fn run_tx_result(
+    f: impl FnOnce() + std::panic::UnwindSafe,
+) -> Result<(), RawCallError> {
+    into_root_call_result(&run_tx(f))
+}
+
 #[rustfmt::skip]
 contract_test!(test_internal_nnints {
     let key = StorageKey::default();
@@ -84,34 +101,28 @@ contract_test!(test_internal_nnints {
 #[test]
 // Get (without forcing) on a never-before-set location returns "add" == zero
 fn get_on_empty_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
+    run_tx(|| {
         get_values(&StorageKey::default());
-    });
-
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
+    })
+    .assert_success();
 }
 
 #[test]
 // Get (not forcing) on a wrong-type location succeeds.
 fn get_on_wrong_type_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
+    run_tx(|| {
         let key = StorageKey::default();
 
         bytestring_set(&key, b"");
         get_values(&key);
-    });
-
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
+    })
+    .assert_success();
 }
 
 #[test]
 // Get (forcing) on a never-before-set location fails with not-exist
 fn force_get_on_empty_fails() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
+    let res = run_tx_result(|| {
         get_values_force(&StorageKey::default());
     });
 
@@ -125,7 +136,7 @@ fn force_get_on_empty_fails() {
 #[test]
 // Get (forcing) on a wrong-type location fails with invalid-input
 fn force_get_on_wrong_type_fails() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
+    let res = run_tx_result(|| {
         let key = StorageKey::default();
 
         bytestring_set(&key, b"");
@@ -142,7 +153,7 @@ fn force_get_on_wrong_type_fails() {
 #[test]
 // We can't give "set" and "add" values whose sum is negative.
 fn set_add_negative_sum_fails() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
+    let res = run_tx_result(|| {
         let set = 1;
         let add = -40;
         set_add(&StorageKey::default(), Some(set), add, NONE)
@@ -156,50 +167,50 @@ fn set_add_negative_sum_fails() {
 }
 
 #[test]
-#[should_panic = "Transaction failed"]
 // We can call `set_add(None, -3)`, but the transaction reverts.
 fn negative_increment_reverts() {
-    contract_exec(TestEnvironment::no_cost(), || {
+    let result = run_tx(|| {
         set_add(&StorageKey::default(), None, -3, NONE);
     });
+    // The frame succeeds but the commit must fail.
+    result.assert_commit_failed();
 }
 
 #[test]
-#[should_panic = "Transaction failed"]
 // We can make serial `set_add` calls such that the total would be negative,
 // but the transaction reverts.
 fn negative_set_add_serially_reverts() {
-    contract_exec(TestEnvironment::no_cost(), || {
+    let result = run_tx(|| {
         let key = StorageKey::default();
 
         set_add(&key, Some(1), 0, NONE);
         set_add(&key, None, -40, NONE);
     });
+    // The frame succeeds but the commit must fail.
+    result.assert_commit_failed();
 }
 
 #[test]
 // We can explicitly set a negative value, and the transaction succeeds.
 fn negative_set_succeeds() {
-    let res = contract_exec(TestEnvironment::no_cost(), || {
+    run_tx(|| {
         let set = -1;
         let add = 0;
         set_add(&StorageKey::default(), Some(set), add, NONE)
-    });
-
-    if !res.is_ok() {
-        panic!("Unexpected failure: {:?}", res);
-    }
+    })
+    .assert_success();
 }
 
 #[test]
-#[should_panic = "Transaction failed"]
 // We can't complete a transaction with "set" and "add" values whose sum would
 // overflow an `i128`.
 fn set_overflowing_sum_reverts() {
-    contract_exec(TestEnvironment::no_cost(), || {
+    let result = run_tx(|| {
         let key = StorageKey::default();
         let set = i128::MAX;
         let add = 47;
         set_add(&key, Some(set), add, NONE);
     });
+    // The frame succeeds but the commit must fail.
+    result.assert_commit_failed();
 }

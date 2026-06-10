@@ -33,15 +33,48 @@ impl<'a> FrameBuilder<'a> {
     }
 
     /// Execute the frame with the given closure, then close it.
-    /// This is the common single-shot path for leaf-only execution
-    /// (no child frames needed). If you need to open child frames
-    /// from within the closure, use `run_continuable` instead,
-    /// which provides a `FrameHandle` with `child_call()`.
-    pub fn run(self, f: impl FnOnce() + UnwindSafe) -> FrameResult {
+    ///
+    /// The closure's return value is XDR-encoded into the frame's return
+    /// buffer (the same convention generated `#[contract]` entrypoints use),
+    /// and can be recovered from the result via `assert_return_as`.
+    /// Any value that encodes to zero bytes (e.g. `()`) skips the explicit
+    /// return and leaves the buffer untouched: an empty buffer is already
+    /// the valid encoding of such types, so decoding them still works.
+    /// Separately, closures that call `raw_Return` themselves never reach
+    /// this encode step at all, since `raw_Return` terminates the
+    /// invocation immediately (it never returns).
+    ///
+    /// Mixing an explicit `raw_Return` with a non-unit closure return is
+    /// unsupported; the explicit buffer wins and the closure's value is
+    /// never encoded.
+    ///
+    /// The return buffer is subject to the protocol's return-size cap
+    /// (1024 bytes); a larger encoded value deterministically reverts the
+    /// invocation, surfacing as an opaque frame failure. Keep test return
+    /// values small — return a digest or summary instead of bulk data.
+    ///
+    /// If you need to open child frames from within the closure, use
+    /// `run_continuable` instead, which provides a `FrameHandle` with
+    /// `child_call()`.
+    pub fn run<T: xdrs::WriteXDR>(
+        self,
+        f: impl FnOnce() -> T + UnwindSafe,
+    ) -> FrameResult {
         let frame = self.config.build();
         frame.execute(|_| {
-            f();
-            FrameAction::Close
+            let value = f();
+            let encoded = xdrs::cxs::encode(&value)
+                .expect("run(): failed to XDR-encode closure return value");
+            if encoded.is_empty() {
+                // Zero-byte encodings (e.g. `()`): an empty buffer is
+                // already the valid encoding, so close normally with no
+                // explicit return.
+                FrameAction::Close
+            } else {
+                // Sets the return buffer and diverges; the frame closes
+                // via the unwind path, equivalently to FrameAction::Close.
+                groundhog_xdr::syscalls::raw_Return(&encoded, false, &[])
+            }
         });
         frame.result()
     }
@@ -49,6 +82,20 @@ impl<'a> FrameBuilder<'a> {
     /// Execute the frame with a closure that receives a FrameHandle
     /// and returns a FrameAction. If FrameAction::Continue, returns
     /// a ContinuableFrame for further chaining.
+    ///
+    /// To return a typed value from a continuable frame, end the closing
+    /// step with an explicit `raw_Return` — it sets the buffer and
+    /// diverges (closing the frame), and `!` coerces to `FrameAction`:
+    ///
+    /// ```rust,ignore
+    /// let result = tx.call(&addr)
+    ///     .run_continuable(|frame| {
+    ///         // ... child calls, multi-step work ...
+    ///         raw_Return(&xdrs::cxs::encode(&value).unwrap(), false, &[])
+    ///     })
+    ///     .finish();
+    /// let v: T = result.assert_return_as();
+    /// ```
     pub fn run_continuable(
         self,
         f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,

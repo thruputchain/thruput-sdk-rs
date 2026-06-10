@@ -27,12 +27,15 @@ fn erc1271_two_token_lifecycle() {
         2, 0, 0, 0, 0, 0, 0, 0, // u64 = 2
     ];
 
-    sdk::contract_exec(env, move || {
-        let caller = erc1271_caller::CallerClient::new(&caller_addr);
-        let result = caller.authorize_pair(&wallet_addr, &message, &message);
-        assert_eq!(result, 3); // 1 + 2
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let caller = erc1271_caller::CallerClient::new(&caller_addr);
+            let result =
+                caller.authorize_pair(&wallet_addr, &message, &message);
+            assert_eq!(result, 3); // 1 + 2
+        })
     })
-    .unwrap_or_else(|e| panic!("ERC1271 lifecycle test failed: {:?}", e));
+    .assert_success();
 }
 
 #[test]
@@ -42,13 +45,16 @@ fn erc1271_single_token() {
     // 8 bytes = 1 chunk = wallet produces 1 token
     let message: [u8; 8] = [42, 0, 0, 0, 0, 0, 0, 0]; // u64 = 42
 
-    sdk::contract_exec(env, move || {
-        let caller = erc1271_caller::CallerClient::new(&caller_addr);
-        let token = caller.authorize_single(&wallet_addr, &message, &message);
-        let value: u64 = caller.consume_token(token);
-        assert_eq!(value, 42);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let caller = erc1271_caller::CallerClient::new(&caller_addr);
+            let token =
+                caller.authorize_single(&wallet_addr, &message, &message);
+            let value: u64 = caller.consume_token(token);
+            assert_eq!(value, 42);
+        })
     })
-    .unwrap_or_else(|e| panic!("ERC1271 single token test failed: {:?}", e));
+    .assert_success();
 }
 
 #[test]
@@ -58,19 +64,24 @@ fn erc1271_rejection_throws_error() {
     let message: [u8; 8] = [1, 0, 0, 0, 0, 0, 0, 0];
     let bad_sig: [u8; 8] = [99, 0, 0, 0, 0, 0, 0, 0];
 
-    sdk::contract_exec(env, move || {
-        let result = ERC1271Client::new(&wallet_addr)
-            .try_is_valid_signature(&message, &bad_sig);
-        match result {
-            Err(ERC1271ClientError::ERC1271Error(e)) => {
-                assert_eq!(e as i32, 1); // InvalidSignature = 1
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let result = ERC1271Client::new(&wallet_addr)
+                .try_is_valid_signature(&message, &bad_sig);
+            match result {
+                Err(ERC1271ClientError::ERC1271Error(e)) => {
+                    assert_eq!(e as i32, 1); // InvalidSignature = 1
+                }
+                other => {
+                    panic!(
+                        "Expected Throw(InvalidSignature), got: {:?}",
+                        other
+                    )
+                }
             }
-            other => {
-                panic!("Expected Throw(InvalidSignature), got: {:?}", other)
-            }
-        }
+        })
     })
-    .unwrap_or_else(|e| panic!("ERC1271 rejection test failed: {:?}", e));
+    .assert_success();
 }
 
 #[test]
@@ -79,9 +90,11 @@ fn erc1271_authorize_none_empty_message() {
 
     let message: [u8; 0] = [];
 
-    sdk::contract_exec(env, move || {
-        let caller = erc1271_caller::CallerClient::new(&caller_addr);
-        caller.authorize_none(&wallet_addr, &message, &message);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let caller = erc1271_caller::CallerClient::new(&caller_addr);
+            caller.authorize_none(&wallet_addr, &message, &message);
+        })
     })
-    .unwrap_or_else(|e| panic!("ERC1271 authorize_none test failed: {:?}", e));
+    .assert_success();
 }

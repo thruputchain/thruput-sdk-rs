@@ -19,9 +19,7 @@ impl Event for TestValue {
     fn num_topics(&self) -> u32 {
         0
     }
-    fn decode_payload<'a>(
-        bytes: &'a [u8],
-    ) -> Result<TestValue, xdrs::ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<TestValue, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
 }
@@ -44,7 +42,7 @@ impl Event for EventA {
             _ => None,
         }
     }
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventA, xdrs::ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<EventA, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
 }
@@ -64,7 +62,7 @@ impl Event for EventB {
             _ => None,
         }
     }
-    fn decode_payload<'a>(bytes: &'a [u8]) -> Result<EventB, xdrs::ReadError> {
+    fn decode_payload(bytes: &[u8]) -> Result<EventB, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
 }
@@ -307,7 +305,7 @@ fn test_transact_fault() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {
+        tx.call(&[1u8; 32].into()).run(|| -> () {
             panic!("intentional fault");
         })
     });
@@ -332,7 +330,7 @@ fn test_transact_manual_abort() {
     let env = TestEnvironment::new(None);
 
     env.transact_manual(|tx| {
-        let frame_result = tx.call(&[1u8; 32].into()).run(|| {
+        let frame_result = tx.call(&[1u8; 32].into()).run(|| -> () {
             panic!("this should fault");
         });
         frame_result.assert_fault();
@@ -390,7 +388,7 @@ fn test_transaction_call_run_fault() {
     let env = TestEnvironment::new(None);
     let mut tx = MockTransactionHandler::new(env);
 
-    let frame_result = tx.call(&[1u8; 32].into()).run(|| {
+    let frame_result = tx.call(&[1u8; 32].into()).run(|| -> () {
         panic!("intentional test fault");
     });
 
@@ -424,7 +422,7 @@ fn test_multi_transaction_scenario() {
 
     // Transaction 3: faults
     let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {
+        tx.call(&[1u8; 32].into()).run(|| -> () {
             panic!("simulated failure");
         })
     });
@@ -461,7 +459,7 @@ fn test_transact_abort_buffer_access() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {
+        tx.call(&[1u8; 32].into()).run(|| -> () {
             // Trigger an abort via the Return syscall with revert_frame=true
             groundhog_xdr::syscalls::raw_Return(&[42u8, 43, 44], true, &[]);
         })
@@ -569,7 +567,7 @@ fn test_frame_events_empty_on_fault() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {
+        tx.call(&[1u8; 32].into()).run(|| -> () {
             groundhog_xdr::syscalls::raw_LogEvent(
                 None,
                 None,
@@ -591,7 +589,7 @@ fn test_frame_events_empty_on_revert() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {
+        tx.call(&[1u8; 32].into()).run(|| -> () {
             groundhog_xdr::syscalls::raw_LogEvent(
                 None,
                 None,
@@ -790,7 +788,7 @@ fn test_assert_return_with() {
     let env = TestEnvironment::new(None);
 
     let result = env.transact(|tx| {
-        tx.call(&[1u8; 32].into()).run(|| {
+        tx.call(&[1u8; 32].into()).run(|| -> () {
             let v: u32 = 42;
             let data = xdrs::cxs::encode(&v).unwrap();
             groundhog_xdr::syscalls::raw_Return(&data, false, &[]);
@@ -896,6 +894,25 @@ fn test_run_continuable_with_child_frame() {
                 );
             });
             child_result.assert_success();
+            FrameAction::Close
+        })
+        .finish();
+
+    result.assert_success();
+}
+
+#[test]
+fn test_child_frame_return_value_decodes() {
+    let env = TestEnvironment::new(None);
+    let mut tx = MockTransactionHandler::new(env);
+
+    let result = tx
+        .call(&[1u8; 32].into())
+        .run_continuable(|frame| {
+            // Child frame returns a value; decode it from the child result.
+            let child_result =
+                frame.child_call(&[2u8; 32].into()).run(|| 7u32);
+            assert_eq!(child_result.assert_return_as::<u32>(), 7);
             FrameAction::Close
         })
         .finish();
@@ -1063,4 +1080,133 @@ fn test_assert_emitted_rejects_wrong_topic() {
 
     // EventB should NOT match — topic 0 differs despite compatible payload
     result.assert_emitted::<EventB>(&TEST_ADDR, |_| true);
+}
+
+//-------------------------------------------------------------------------
+// Generic run(): closure return values travel through the return buffer.
+
+#[test]
+fn test_run_encodes_closure_return_value() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| tx.call(&TEST_ADDR).run(|| 42u32));
+    result.assert_success();
+    let decoded: u32 =
+        xdrs::cxs::decode(result.frame().return_buffer()).unwrap();
+    assert_eq!(decoded, 42);
+}
+
+#[test]
+fn test_run_unit_closure_leaves_buffer_empty() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| tx.call(&TEST_ADDR).run(|| ()));
+    result.assert_success();
+    assert!(result.frame().return_buffer().is_empty());
+}
+
+#[test]
+fn test_run_unit_closure_with_explicit_raw_return_is_preserved() {
+    // Legacy style: unit closure sets the buffer itself. The wrapper must
+    // not emit a second return (unit encodes to zero bytes -> skipped).
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| -> () {
+            groundhog_xdr::syscalls::raw_Return(&[7u8, 8, 9], false, &[]);
+        })
+    });
+    result.assert_success();
+    assert_eq!(result.frame().return_buffer(), &[7, 8, 9]);
+}
+
+#[test]
+fn test_run_tuple_return_roundtrip() {
+    let env = TestEnvironment::new(None);
+    let result = env
+        .transact(|tx| tx.call(&TEST_ADDR).run(|| (1u64, String::from("hi"))));
+    result.assert_success();
+    let decoded: (u64, String) =
+        xdrs::cxs::decode(result.frame().return_buffer()).unwrap();
+    assert_eq!(decoded, (1, String::from("hi")));
+}
+
+#[test]
+fn test_run_panic_produces_fault_not_value() {
+    let env = TestEnvironment::new(None);
+    let result = env
+        .transact(|tx| tx.call(&TEST_ADDR).run(|| -> u32 { panic!("boom") }));
+    result.assert_fault();
+}
+
+#[test]
+fn test_run_nonunit_return_after_explicit_raw_return_pins_behavior() {
+    // Unsupported mix: closure sets the buffer explicitly AND returns a
+    // non-unit value. This test pins whatever the syscall layer does
+    // (overwrite / fault) so a behavior change is caught.
+    //
+    // Observed: raw_Return never returns (it immediately terminates the
+    // invocation), so the closure never produces the 42 and the wrapper
+    // never encodes it. The explicit buffer wins.
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            groundhog_xdr::syscalls::raw_Return(&[1u8], false, &[]);
+            #[allow(unreachable_code)]
+            42u32
+        })
+    });
+    result.assert_success();
+    assert_eq!(result.frame().return_buffer(), &[1]);
+}
+
+//-------------------------------------------------------------------------
+// Typed buffer extraction: assert_return_as / assert_abort_as.
+
+#[test]
+fn test_assert_return_as_decodes_value() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| tx.call(&TEST_ADDR).run(|| 1234u64));
+    result.assert_success();
+    let v: u64 = result.assert_return_as();
+    assert_eq!(v, 1234);
+}
+
+#[test]
+#[should_panic(expected = "failed to decode return buffer")]
+fn test_assert_return_as_panics_on_garbage() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| -> () {
+            groundhog_xdr::syscalls::raw_Return(&[0xFF], false, &[]);
+        })
+    });
+    let _: u64 = result.assert_return_as();
+}
+
+#[test]
+fn test_assert_abort_as_decodes_error() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| -> () {
+            let encoded = xdrs::cxs::encode(&77u32).unwrap();
+            groundhog_xdr::syscalls::raw_Return(&encoded, true, &[]);
+        })
+    });
+    result.assert_abort();
+    let e: u32 = result.assert_abort_as();
+    assert_eq!(e, 77);
+}
+
+/// Non-unit type whose XDR encoding is zero bytes.
+#[derive(Debug, PartialEq, xdrs::WriteXDR, xdrs::ReadXDR)]
+struct Empty;
+
+#[test]
+fn test_run_zero_byte_encoding_roundtrips() {
+    let env = TestEnvironment::new(None);
+    let result = env.transact(|tx| tx.call(&TEST_ADDR).run(|| Empty));
+    result.assert_success();
+    // Zero-byte encodings skip the explicit return, leaving the buffer
+    // empty — which is itself the valid encoding, so decoding works.
+    assert!(result.frame().return_buffer().is_empty());
+    let v: Empty = result.assert_return_as();
+    assert_eq!(v, Empty);
 }

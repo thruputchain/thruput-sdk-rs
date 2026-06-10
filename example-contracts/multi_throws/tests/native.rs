@@ -8,8 +8,11 @@ fn native_multi_throws() {
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
-    contract_exec(env, move || common::multi_throws_test(&contract_hash))
-        .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test"))
+            .run(move || common::multi_throws_test(&contract_hash))
+    })
+    .assert_success();
 }
 
 #[test]
@@ -18,10 +21,11 @@ fn native_multi_throws_undecodable() {
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
-    contract_exec(env, move || {
-        common::multi_throws_test_undecodable(&contract_hash)
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test"))
+            .run(move || common::multi_throws_test_undecodable(&contract_hash))
     })
-    .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
+    .assert_success();
 }
 
 #[test]
@@ -30,8 +34,10 @@ fn native_multi_throws_malicious_library_error() {
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
-    contract_exec(env, move || {
-        common::multi_throws_test_malicious_library_error(&contract_hash)
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            common::multi_throws_test_malicious_library_error(&contract_hash)
+        })
     })
-    .unwrap_or_else(|e| panic!("Test failed: {:?}", e));
+    .assert_success();
 }

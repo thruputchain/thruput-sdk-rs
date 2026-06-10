@@ -24,11 +24,13 @@ fn full_mint_consume_forward_lifecycle() {
     middle_mock.deploy_contract_to(&middle_addr);
     minter_mock.deploy_contract_to(&minter_addr);
 
-    sdk::contract_exec(env, move || {
-        let minter = signer_minter::SignerMinterClient::new(&minter_addr);
-        let result = minter.mint_and_call(&middle_addr, &leaf_addr);
-        // 1000 (label) + 10 (child) + 20 (extra[0]) + 30 (extra[1]) = 1060
-        assert_eq!(result, 1060);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let minter = signer_minter::SignerMinterClient::new(&minter_addr);
+            let result = minter.mint_and_call(&middle_addr, &leaf_addr);
+            // 1000 (label) + 10 (child) + 20 (extra[0]) + 30 (extra[1]) = 1060
+            assert_eq!(result, 1060);
+        })
     })
-    .unwrap_or_else(|e| panic!("Signer lifecycle test failed: {:?}", e));
+    .assert_success();
 }

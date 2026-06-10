@@ -1,5 +1,6 @@
 mod common;
 use common::*;
+use sdk::Named;
 
 // Load two contracts into the same test environment, and
 // have one call the other.
@@ -13,8 +14,10 @@ fn caller_test_native() {
     let caller_contract = caller::register_mock_contract(&env);
     let caller_hash = caller_contract.as_hash().clone();
 
-    sdk::contract_exec(env, move || {
-        caller_test_inner(&erc20_hash, &caller_hash);
+    env.transact(|tx| {
+        tx.call(&sdk::ContractAddress::named("test")).run(move || {
+            caller_test_inner(&erc20_hash, &caller_hash);
+        })
     })
-    .unwrap_or_else(|e| panic!("Caller test failed: {}", e));
+    .assert_success();
 }

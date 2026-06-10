@@ -21,7 +21,10 @@
 use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
-use sdk::{ContractAddress, EmittedEvent, Event, hex_encode, log_event};
+use sdk::{
+    ContractAddress, EmittedEvent, Event, ReadXDR, WriteXDR, hex_encode,
+    log_event,
+};
 
 pub fn log_transfer_event(
     from: &ContractAddress,
@@ -241,7 +244,9 @@ impl<'a> fmt::Display for ERC20Event<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
+#[repr(i32)]
 pub enum StdERC20Event {
     Transfer(stdevt::TransferEvent),
     Approval(stdevt::ApprovalEvent),

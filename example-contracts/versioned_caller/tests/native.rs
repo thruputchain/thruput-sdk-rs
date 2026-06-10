@@ -1,3 +1,5 @@
+use sdk::Named;
+
 static CALLEE_NONCE: sdk::SHA256Hash =
     sdk::sha256_static!("VERSIONED_CALLEE_EXAMPLE_TEST_NONCE");
 static CALLER_NONCE: sdk::SHA256Hash =
@@ -13,13 +15,17 @@ fn cross_call_uses_explicit_trait_version_entrypoint() {
     let caller_contract = versioned_caller::register_mock_contract(&env);
     let caller_hash = caller_contract.as_hash().clone();
 
-    sdk::contract_exec(env, move || {
-        let callee_addr = sdk::deploy_contract(&CALLEE_NONCE, &callee_hash);
-        let caller_addr = sdk::deploy_contract(&CALLER_NONCE, &caller_hash);
+    env.transact(|tx| {
+        tx.call(&sdk::ContractAddress::named("test")).run(move || {
+            let callee_addr =
+                sdk::deploy_contract(&CALLEE_NONCE, &callee_hash);
+            let caller_addr =
+                sdk::deploy_contract(&CALLER_NONCE, &caller_hash);
 
-        let client =
-            versioned_caller::VersionedCallerClient::new(&caller_addr);
-        assert_eq!(client.call_add_one(&callee_addr, 41), 42);
+            let client =
+                versioned_caller::VersionedCallerClient::new(&caller_addr);
+            assert_eq!(client.call_add_one(&callee_addr, 41), 42);
+        })
     })
-    .unwrap_or_else(|e| panic!("Versioned caller test failed: {}", e));
+    .assert_success();
 }

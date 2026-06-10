@@ -29,108 +29,120 @@ fn node(value: u32, left: Tree, right: Tree) -> Tree {
 #[test]
 fn depth_of_leaf_is_one() {
     let (env, contract_hash) = setup();
-    contract_exec(env, move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = Client::new(&addr);
-        assert_eq!(client.depth(leaf(42)), 1);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &contract_hash);
+            let client = Client::new(&addr);
+            assert_eq!(client.depth(leaf(42)), 1);
+        })
     })
-    .unwrap();
+    .assert_success();
 }
 
 #[test]
 fn depth_of_balanced_tree() {
     let (env, contract_hash) = setup();
-    contract_exec(env, move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = Client::new(&addr);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &contract_hash);
+            let client = Client::new(&addr);
 
-        //        1
-        //       / \
-        //      2   3
-        //     / \
-        //    4   5
-        let tree = node(1, node(2, leaf(4), leaf(5)), leaf(3));
-        assert_eq!(client.depth(tree), 3);
+            //        1
+            //       / \
+            //      2   3
+            //     / \
+            //    4   5
+            let tree = node(1, node(2, leaf(4), leaf(5)), leaf(3));
+            assert_eq!(client.depth(tree), 3);
+        })
     })
-    .unwrap();
+    .assert_success();
 }
 
 #[test]
 fn depth_of_right_spine() {
     let (env, contract_hash) = setup();
-    contract_exec(env, move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = Client::new(&addr);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &contract_hash);
+            let client = Client::new(&addr);
 
-        let tree = Tree {
-            value: 1,
-            left: None,
-            right: Some(Box::new(Tree {
-                value: 2,
+            let tree = Tree {
+                value: 1,
                 left: None,
                 right: Some(Box::new(Tree {
-                    value: 3,
+                    value: 2,
                     left: None,
-                    right: Some(Box::new(leaf(4))),
+                    right: Some(Box::new(Tree {
+                        value: 3,
+                        left: None,
+                        right: Some(Box::new(leaf(4))),
+                    })),
                 })),
-            })),
-        };
-        assert_eq!(client.depth(tree), 4);
+            };
+            assert_eq!(client.depth(tree), 4);
+        })
     })
-    .unwrap();
+    .assert_success();
 }
 
 #[test]
 fn forest_leaf_depth_is_one() {
     let (env, contract_hash) = setup();
-    contract_exec(env, move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = Client::new(&addr);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &contract_hash);
+            let client = Client::new(&addr);
 
-        let f = Forest {
-            trees: vec![],
-            label: 1,
-        };
-        assert_eq!(client.forest_depth(f), 1);
+            let f = Forest {
+                trees: vec![],
+                label: 1,
+            };
+            assert_eq!(client.forest_depth(f), 1);
+        })
     })
-    .unwrap();
+    .assert_success();
 }
 
 #[test]
 fn forest_nested_depth() {
     let (env, contract_hash) = setup();
-    contract_exec(env, move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = Client::new(&addr);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &contract_hash);
+            let client = Client::new(&addr);
 
-        let f = Forest {
-            label: 1,
-            trees: vec![
-                Forest {
-                    label: 2,
-                    trees: vec![Forest {
-                        label: 3,
+            let f = Forest {
+                label: 1,
+                trees: vec![
+                    Forest {
+                        label: 2,
+                        trees: vec![Forest {
+                            label: 3,
+                            trees: vec![],
+                        }],
+                    },
+                    Forest {
+                        label: 4,
                         trees: vec![],
-                    }],
-                },
-                Forest {
-                    label: 4,
-                    trees: vec![],
-                },
-            ],
-        };
-        assert_eq!(client.forest_depth(f), 3);
+                    },
+                ],
+            };
+            assert_eq!(client.forest_depth(f), 3);
+        })
     })
-    .unwrap();
+    .assert_success();
 }
 
 #[test]
 fn unbox_u32() {
     let (env, contract_hash) = setup();
-    contract_exec(env, move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = Client::new(&addr);
-        assert_eq!(client.unbox(Box::new(99)), 99);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &contract_hash);
+            let client = Client::new(&addr);
+            assert_eq!(client.unbox(Box::new(99)), 99);
+        })
     })
-    .unwrap();
+    .assert_success();
 }

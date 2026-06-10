@@ -141,25 +141,23 @@ sdk::client_test(
 Direct environment control:
 
 ```rust,ignore
-use sdk::{StorageKey, TestEnvironment, contract_exec};
+use sdk::{ContractAddress, Named, StorageKey, TestEnvironment};
 
 let env = TestEnvironment::no_cost();
+let addr = ContractAddress::named("my_test");
 
-contract_exec(env, || {
-    let key = StorageKey::default();
-    sdk::bytestring_set(&key, b"hello");
+env.transact(|tx| {
+    tx.call(&addr).run(|| {
+        let key = StorageKey::default();
+        sdk::bytestring_set(&key, b"hello");
+    })
 })
-.unwrap();
+.assert_success();
 ```
 
 Advanced helpers are available when you need lower-level control:
-- [`contract_exec()`]
-- [`contract_test()`]
-- [`contract_test_raw()`]
-- [`contract_test_handler()`]
-- [`contract_handler_exec()`]
-- [`contract_handler_exec_raw()`]
 - [`contract_test!`]
+- [`into_root_call_result()`]
 - [`load_wasm_contract()`]
 - [`test_wasm()`]
 

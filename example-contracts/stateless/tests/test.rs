@@ -1,3 +1,4 @@
+use sdk::Named;
 use stateless::*;
 
 #[test]
@@ -38,13 +39,13 @@ fn test_register_mock_contract_supports_direct_contract_client() {
 
     contract.deploy_contract_to(&addr);
 
-    sdk::contract_exec(env, move || {
-        let client = StatelessClient::new(&addr);
-        client.run();
+    env.transact(|tx| {
+        tx.call(&sdk::ContractAddress::named("test")).run(move || {
+            let client = StatelessClient::new(&addr);
+            client.run();
+        })
     })
-    .unwrap_or_else(|e| {
-        panic!("register_mock_contract direct-client test failed: {:?}", e)
-    });
+    .assert_success();
 }
 
 #[test]
@@ -55,19 +56,16 @@ fn test_register_mock_contract_supports_all_exported_interfaces() {
 
     contract.deploy_contract_to(&addr);
 
-    sdk::contract_exec(env, move || {
-        let client1 = interface1::Client::new(&addr);
-        let client2 = interface2::Client::new(&addr);
+    env.transact(|tx| {
+        tx.call(&sdk::ContractAddress::named("test")).run(move || {
+            let client1 = interface1::Client::new(&addr);
+            let client2 = interface2::Client::new(&addr);
 
-        assert_eq!(client1.perform_task(), 1);
-        assert_eq!(client2.perform_task(), 2);
+            assert_eq!(client1.perform_task(), 1);
+            assert_eq!(client2.perform_task(), 2);
+        })
     })
-    .unwrap_or_else(|e| {
-        panic!(
-            "register_mock_contract multi-interface test failed: {:?}",
-            e
-        )
-    });
+    .assert_success();
 }
 
 #[test]
@@ -78,14 +76,16 @@ fn test_register_mock_contract_all_exports() {
 
     contract.deploy_contract_to(&addr);
 
-    sdk::contract_exec(env, move || {
-        let stateless = StatelessClient::new(&addr);
-        let client1 = interface1::Client::new(&addr);
-        let client2 = interface2::Client::new(&addr);
+    env.transact(|tx| {
+        tx.call(&sdk::ContractAddress::named("test")).run(move || {
+            let stateless = StatelessClient::new(&addr);
+            let client1 = interface1::Client::new(&addr);
+            let client2 = interface2::Client::new(&addr);
 
-        stateless.run();
-        assert_eq!(client1.perform_task(), 1);
-        assert_eq!(client2.perform_task(), 2);
+            stateless.run();
+            assert_eq!(client1.perform_task(), 1);
+            assert_eq!(client2.perform_task(), 2);
+        })
     })
-    .unwrap_or_else(|e| panic!("register_mock_contract test failed: {:?}", e));
+    .assert_success();
 }

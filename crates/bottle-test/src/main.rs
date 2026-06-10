@@ -2,7 +2,6 @@ use bottle_test_if::*;
 
 use sdk::deploy_address;
 use sdk::load_wasm_contract;
-use sdk::transaction::InvocationFrameStatusCode;
 use sdk::*;
 
 pub fn main() {
@@ -40,48 +39,38 @@ fn bottle_test(package: &str) {
     // Something we can move into the test closure
     let package = package.to_string();
 
-    let mut handler = contract_test_handler(env, move || -> () {
-        let tester_addr = deploy_contract(&TESTER_NONCE, &tester_hash);
+    let result = env.transact(|tx| {
+        // OWNER is the address the legacy harness invoked at; keep it so
+        // deploy_address(&OWNER, ...) computed above stays consistent.
+        tx.call(&OWNER).run(move || {
+            let tester_addr = deploy_contract(&TESTER_NONCE, &tester_hash);
 
-        let tester = BottleTestClient::new(&tester_addr);
+            let tester = BottleTestClient::new(&tester_addr);
+            tester.setup(&target_hash);
 
-        tester.setup(&target_hash);
+            let gas_start = stats::gas_remaining();
+            tester.run();
+            let gas_end = stats::gas_remaining();
 
-        let gas_start = stats::gas_remaining();
+            let gas_consumed = gas_start
+                .checked_sub(gas_end)
+                .unwrap_or_else(|| panic!("Negative gas consumed!"));
 
-        tester.run();
-
-        let gas_end = stats::gas_remaining();
-
-        let gas_consumed = gas_start
-            .checked_sub(gas_end)
-            .unwrap_or_else(|| panic!("Negative gas consumed!"));
-
-        eprintln!("Bottle test succeeded (gas consumed: {})", gas_consumed);
-
-        // Emit metrics
-        println!("{}\tgas_consumed\t{}", package, gas_consumed);
+            eprintln!(
+                "Bottle test succeeded (gas consumed: {})",
+                gas_consumed
+            );
+            println!("{}\tgas_consumed\t{}", package, gas_consumed);
+        })
     });
-
-    let res = handler.root_invoke();
-    if res.output.status_code() != InvocationFrameStatusCode::Return {
-        panic!(
-            "Bottle-test invocation failed with code {}",
-            res.output.status_code()
-        );
-    }
-
-    let eres = handler.try_commit_transaction();
-    if eres != sdk::ExecResult::ExecResultOK {
-        panic!("Bottle-test transaction failed: {eres:?}");
-    }
+    result.assert_success();
 
     // Print out the transaction's event log
     {
         use groundhog_erc20_if::*;
         use sdk::EmittedEvent;
 
-        for (i, event) in res.events.iter().enumerate() {
+        for (i, event) in result.events().iter().enumerate() {
             let event: EmittedEvent = event.into();
             match ERC20Event::try_from(event) {
                 Ok(event) => eprintln!("\tevent {:?}: {}", i, event),

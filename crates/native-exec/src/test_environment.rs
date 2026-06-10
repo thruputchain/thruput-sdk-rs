@@ -2,12 +2,10 @@ use crate::frame_result::FrameResult;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::mock_transaction_handler::MockTransactionHandler;
 use crate::transact_result::TransactResult;
-use crate::transaction_handler::TransactionHandler;
 use core::ffi::c_void;
 use groundhog_storage_cost::StorageCostModel;
 use groundhog_sys::FFIErrorCode;
 use groundhog_xdr::address_auth::AddressAuthData;
-use groundhog_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
 use groundhog_xdr::storage_item::WireStorageItem;
@@ -16,7 +14,6 @@ use groundhog_xdr::types::*;
 use hogexec_internal::ffi_enums::InvokeErrorCode;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
-use std::panic::UnwindSafe;
 use std::rc::Rc;
 use xdrs::txs;
 
@@ -451,6 +448,9 @@ impl TestEnvironment {
         self.inner.borrow().db.get_snapshot_storage_item(addr, key)
     }
 
+    /// Internal: create an empty mock contract. Use `register_mock` (or the
+    /// generated `register_mock_contract`) instead.
+    #[doc(hidden)]
     pub fn add_contract(self: &TestEnvironmentHandle) -> MockContract {
         let inner = self.inner.borrow_mut().add_contract();
         MockContract::new(inner, self.clone())
@@ -469,56 +469,6 @@ impl TestEnvironment {
         f(&mut c);
         self.setup_create_contract(&c.as_contract());
         c
-    }
-
-    pub fn prepare_test<F>(
-        self: &TestEnvironmentHandle,
-        test: F,
-    ) -> TransactionHandler
-    where
-        F: Fn() + UnwindSafe + Clone + 'static,
-    {
-        let mut test_contract = self.add_contract();
-        let entrypoint = ContractEntrypointID::from([0; 8]);
-        test_contract.register_method(entrypoint, test);
-        self.inner
-            .borrow_mut()
-            .setup_create_contract(&test_contract.as_contract());
-
-        let invoke_addr: ContractAddress = [0xFF; 32].into();
-
-        self.inner.borrow_mut().setup_create_deployment(
-            &invoke_addr,
-            &test_contract.as_contract(),
-        );
-
-        let default_auth_claim: AuthClaim =
-            AuthClaim::kSourceAddressAuthData {
-                source_address_claim: AuthClaim_source_address_claim {
-                    allowed_keys: 0,
-                    required_weight: 0,
-                },
-            };
-
-        let stx = SignedTransaction {
-            signatures: vec![].try_into().unwrap(),
-            tx: Transaction {
-                uniquifier: Uniquifier {
-                    block_expiry_height: 0.into(),
-                    nonce: 0,
-                },
-                auth_claim: default_auth_claim,
-                invocation: Invocation {
-                    invoked_address: invoke_addr,
-                    entrypoint,
-                    gas_limit: u64::MAX,
-                    calldata: [].try_into().unwrap(),
-                },
-                contracts_to_deploy: vec![].try_into().unwrap(),
-            },
-        };
-
-        TransactionHandler::new(self.clone(), &stx)
     }
 
     /// Execute a transaction with auto-commit.
@@ -549,6 +499,15 @@ impl TestEnvironment {
         f(&mut tx)
     }
 
+    // -- Setup-phase methods --
+    //
+    // The setup_* methods seed groundhog state directly, bypassing
+    // transaction execution. Call them before running any transactions in
+    // a test; their effects appear as if applied in a previous block.
+
+    /// Setup phase: create a contract in groundhog state (not deployed at
+    /// any address). Returns the contract hash. Run before any
+    /// transactions in the test.
     pub fn setup_create_contract(
         self: &TestEnvironmentHandle,
         contract: &Contract,
@@ -556,6 +515,8 @@ impl TestEnvironment {
         self.inner.borrow_mut().setup_create_contract(contract)
     }
 
+    /// Setup phase: deploy an already-created contract at `addr`. Run
+    /// before any transactions in the test.
     pub fn setup_create_deployment(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
@@ -566,6 +527,9 @@ impl TestEnvironment {
             .setup_create_deployment(addr, contract)
     }
 
+    /// Setup phase: grant storage tokens to the contract at `addr`, as if
+    /// granted in a previous block. Like `setup_create_contract` and
+    /// `setup_create_deployment`, run before any transactions in the test.
     pub fn setup_grant_storage_tokens(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
