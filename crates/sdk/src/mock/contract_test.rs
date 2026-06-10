@@ -133,6 +133,9 @@ pub fn contract_handler_exec_raw(
 /// `Result<T, RawCallError>` shape that contract clients produce.
 /// Use this when a test asserts on typed exceptions/selectors rather
 /// than raw buffers.
+///
+/// The success path requires a committed transaction (panics on commit
+/// failure); Abort/Fault decode frame-only.
 pub fn into_root_call_result<T>(
     result: &TransactResult,
 ) -> Result<T, RawCallError>
@@ -140,10 +143,18 @@ where
     T: ReadXDROwned + ReceiveAuthHandles,
 {
     let contract_result: ContractResult = match result.frame().output() {
-        Return { return_buffer } => Ok((
-            ReturnBuf::from_slice(return_buffer.as_slice()).unwrap(),
-            AuthHandleBuf::new(),
-        )),
+        Return { return_buffer } => {
+            // A successful frame whose commit failed must not decode to Ok —
+            // mirror the legacy wrappers, which panicked on commit failure.
+            match result.exec_result() {
+                &ExecResult::ExecResultOK => {}
+                r => panic!("Transaction failed: {:?}", r),
+            }
+            Ok((
+                ReturnBuf::from_slice(return_buffer.as_slice()).unwrap(),
+                AuthHandleBuf::new(),
+            ))
+        }
         Abort { abort_buffer } => Err(ContractError::Abort(
             AbortBuf::from_slice(abort_buffer.as_slice()).unwrap(),
         )),
