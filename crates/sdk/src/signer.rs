@@ -255,7 +255,7 @@ where
 ///
 /// Aborts the transaction if the `MintAuthToken` syscall fails.
 ///
-/// [`AuthTokenNode`]: groundhog_xdr::types::AuthTokenNode
+/// [`AuthTokenNode`]: crate::types::AuthTokenNode
 #[cfg(feature = "alloc")]
 pub fn mint_opaque_auth_token(
     expiry: groundhog_xdr::types::BlockHeight,
