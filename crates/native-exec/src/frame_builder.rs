@@ -33,14 +33,33 @@ impl<'a> FrameBuilder<'a> {
     }
 
     /// Execute the frame with the given closure, then close it.
-    /// This is the common single-shot path for leaf-only execution
-    /// (no child frames needed). If you need to open child frames
-    /// from within the closure, use `run_continuable` instead,
-    /// which provides a `FrameHandle` with `child_call()`.
-    pub fn run(self, f: impl FnOnce() + UnwindSafe) -> FrameResult {
+    ///
+    /// The closure's return value is XDR-encoded into the frame's return
+    /// buffer (the same convention generated `#[contract]` entrypoints use),
+    /// and can be recovered from the result via `assert_return_as`.
+    /// A `()` return encodes to zero bytes and leaves the buffer untouched,
+    /// so closures that call `raw_Return` themselves keep working.
+    ///
+    /// Mixing an explicit `raw_Return` with a non-unit closure return is
+    /// unsupported; the observed behavior is that `raw_Return` terminates
+    /// the invocation immediately (it never returns), so the explicit
+    /// buffer wins and the closure's value is never encoded.
+    ///
+    /// If you need to open child frames from within the closure, use
+    /// `run_continuable` instead, which provides a `FrameHandle` with
+    /// `child_call()`.
+    pub fn run<T: xdrs::WriteXDR>(
+        self,
+        f: impl FnOnce() -> T + UnwindSafe,
+    ) -> FrameResult {
         let frame = self.config.build();
         frame.execute(|_| {
-            f();
+            let value = f();
+            let encoded = xdrs::cxs::encode(&value)
+                .expect("run(): failed to XDR-encode closure return value");
+            if !encoded.is_empty() {
+                groundhog_xdr::syscalls::raw_Return(&encoded, false, &[]);
+            }
             FrameAction::Close
         });
         frame.result()
