@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn expand_event_without_named_field_types_skips_anchors() {
+    fn expand_event_with_only_primitive_field_types_still_emits_anchors() {
         let input: syn::DeriveInput = syn::parse_quote! {
             struct SimpleEvent {
                 value: u128,
