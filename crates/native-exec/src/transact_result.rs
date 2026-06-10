@@ -76,6 +76,9 @@ impl TransactResult {
         self.frame.assert_return_as()
     }
 
+    /// Assert the root frame aborted and decode its abort buffer, returning
+    /// the decoded error. Frame-only check (commit status not checked), like
+    /// `assert_abort_with`.
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
