@@ -19,9 +19,10 @@ impl Etx {
         f: F,
     ) -> Result<T, TransactResult>
     where
-        F: Fn() -> T + std::panic::RefUnwindSafe,
+        F: FnOnce() -> T + std::panic::UnwindSafe,
+        T: WriteXDR + ReadXDROwned,
     {
-        exec_tx2(&self.env, addr, || f(), event_handler)
+        exec_tx2(&self.env, addr, f, event_handler)
     }
 
     pub fn exec_user_tx<F, T>(
@@ -30,9 +31,10 @@ impl Etx {
         f: F,
     ) -> Result<T, TransactResult>
     where
-        F: Fn(&User) -> T + std::panic::RefUnwindSafe,
+        F: FnOnce(&User) -> T + std::panic::UnwindSafe,
+        T: WriteXDR + ReadXDROwned,
     {
-        self.exec_tx(user.addr, || f(&user))
+        self.exec_tx(user.addr, move || f(&user))
     }
 
     pub fn user_balances(&self, user: User) -> Result<(Amounts, Amount)> {

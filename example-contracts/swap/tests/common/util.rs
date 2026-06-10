@@ -2,36 +2,47 @@
 
 use sdk::types::event::TxEmittedEvent;
 use sdk::*;
+use std::panic::UnwindSafe;
 
 pub type Result<T, E = TransactResult> = core::result::Result<T, E>;
 
+#[track_caller]
 pub fn transact_assert_success<F, T>(f: F) -> T
 where
     F: Fn() -> Result<T>,
 {
-    f().unwrap_or_else(|r| {
-        r.assert_success();
-        unreachable!();
-    })
+    // (Protect track_caller by avoiding a closure)
+    match f() {
+        Ok(v) => v,
+        Err(r) => {
+            r.assert_success();
+            unreachable!();
+        }
+    }
 }
 
+/// Run `f` as a single auto-committed transaction at `addr`. On success the
+/// closure's return value is decoded from the frame's return buffer; on
+/// failure the full `TransactResult` is returned for inspection.
 pub fn exec_tx<F, T>(
     env: &TestEnvironmentHandle,
     addr: &ContractAddress,
     f: F,
 ) -> Result<T, TransactResult>
 where
-    F: Fn() -> T + std::panic::RefUnwindSafe,
+    F: FnOnce() -> T + UnwindSafe,
+    T: WriteXDR + ReadXDROwned,
 {
-    let (r, v) = _exec_tx(env, addr, f);
-
+    let r = env.transact(|tx| tx.call(addr).run(f));
     if r.is_success() {
-        Ok(v.unwrap())
+        Ok(r.assert_return_as())
     } else {
         Err(r)
     }
 }
 
+/// Like `exec_tx`, but additionally feeds every emitted event of a
+/// successful transaction to `event_handler`.
 pub fn exec_tx2<F, T, E>(
     env: &TestEnvironmentHandle,
     addr: &ContractAddress,
@@ -39,48 +50,17 @@ pub fn exec_tx2<F, T, E>(
     event_handler: E,
 ) -> Result<T, TransactResult>
 where
-    F: Fn() -> T + std::panic::RefUnwindSafe,
+    F: FnOnce() -> T + UnwindSafe,
+    T: WriteXDR + ReadXDROwned,
     E: Fn(&TxEmittedEvent),
 {
-    let (r, v) = _exec_tx(env, addr, f);
-
+    let r = env.transact(|tx| tx.call(addr).run(f));
     if r.is_success() {
         for e in r.events() {
             event_handler(e);
         }
-    }
-
-    if r.is_success() {
-        Ok(v.unwrap())
+        Ok(r.assert_return_as())
     } else {
         Err(r)
     }
-}
-
-pub fn _exec_tx<F, T>(
-    env: &TestEnvironmentHandle,
-    addr: &ContractAddress,
-    f: F,
-) -> (TransactResult, Option<T>)
-where
-    F: Fn() -> T + std::panic::RefUnwindSafe,
-{
-    use std::sync::Arc;
-    use std::sync::Mutex;
-
-    let ret: Arc<Mutex<Option<T>>> = Arc::new(Mutex::new(None));
-
-    let r = env.transact(|tx| {
-        tx.call(addr).run(|| {
-            let ret = Arc::clone(&ret);
-            let mut ret = ret.lock().unwrap();
-            *ret = Some(f());
-        })
-    });
-
-    let ret: Mutex<Option<T>> = Arc::into_inner(ret).unwrap();
-    let mut ret: Option<T> = Mutex::into_inner(ret).unwrap();
-    let v = ret.take();
-
-    (r, v)
 }

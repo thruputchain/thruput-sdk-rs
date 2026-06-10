@@ -1,6 +1,7 @@
 // General debugging utilities
 
 use sdk::*;
+use std::panic::UnwindSafe;
 
 pub type Result<T, E = TransactResult> = core::result::Result<T, E>;
 
@@ -19,31 +20,21 @@ where
     }
 }
 
+/// Run `f` as a single auto-committed transaction at `addr`. On success the
+/// closure's return value is decoded from the frame's return buffer; on
+/// failure the full `TransactResult` is returned for inspection.
 pub fn exec_tx<F, T>(
     env: &TestEnvironmentHandle,
     addr: &ContractAddress,
     f: F,
 ) -> Result<T, TransactResult>
 where
-    F: Fn() -> T + std::panic::RefUnwindSafe,
+    F: FnOnce() -> T + UnwindSafe,
+    T: WriteXDR + ReadXDROwned,
 {
-    use std::sync::Arc;
-    use std::sync::Mutex;
-
-    let ret: Arc<Mutex<Option<T>>> = Arc::new(Mutex::new(None));
-
-    let r = env.transact(|tx| {
-        tx.call(addr).run(|| {
-            let ret = Arc::clone(&ret);
-            let mut ret = ret.lock().unwrap();
-            *ret = Some(f());
-        })
-    });
-
+    let r = env.transact(|tx| tx.call(addr).run(f));
     if r.is_success() {
-        let ret: Mutex<Option<T>> = Arc::into_inner(ret).unwrap();
-        let mut ret: Option<T> = Mutex::into_inner(ret).unwrap();
-        Ok(ret.take().unwrap())
+        Ok(r.assert_return_as())
     } else {
         Err(r)
     }
