@@ -1,6 +1,7 @@
 //! Test one contract calling the other, both running in wasm
 mod common;
 use common::*;
+use sdk::Named;
 
 // These paths only work for the example-contracts directory
 // that is hosted in the SDK package.
@@ -18,8 +19,10 @@ fn caller_test_wasm() {
     let erc20_hash = env.setup_create_contract(&erc20_contract);
     let caller_hash = env.setup_create_contract(&caller_contract);
 
-    sdk::contract_exec(env, move || -> () {
-        caller_test_inner(&erc20_hash, &caller_hash);
+    env.transact(|tx| {
+        tx.call(&sdk::ContractAddress::named("test")).run(move || {
+            caller_test_inner(&erc20_hash, &caller_hash);
+        })
     })
-    .unwrap_or_else(|e| panic!("Caller test failed: {}", e));
+    .assert_success();
 }

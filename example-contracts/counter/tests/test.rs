@@ -14,77 +14,84 @@ fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
 fn test_counter_basic() {
     let (env, contract_hash) = setup();
 
-    contract_exec(env, move || {
-        let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        let client = CounterClient::new(&addr);
+            let client = CounterClient::new(&addr);
 
-        // Initialize with value 10
-        client.initialize(10);
+            // Initialize with value 10
+            client.initialize(10);
 
-        // Check initial value
-        assert_eq!(client.get(), 10);
+            // Check initial value
+            assert_eq!(client.get(), 10);
 
-        // Increment by 5
-        client.increment(5);
-        assert_eq!(client.get(), 15);
+            // Increment by 5
+            client.increment(5);
+            assert_eq!(client.get(), 15);
 
-        // Decrement by 3
-        client.decrement(3);
-        assert_eq!(client.get(), 12);
+            // Decrement by 3
+            client.decrement(3);
+            assert_eq!(client.get(), 12);
+        })
     })
-    .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
+    .assert_success();
 }
 
 #[test]
 fn test_counter_underflow() {
     let (env, contract_hash) = setup();
 
-    contract_exec(env, move || {
-        let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        let client = CounterClient::new(&addr);
+            let client = CounterClient::new(&addr);
 
-        // Initialize with 5
-        client.initialize(5);
+            // Initialize with 5
+            client.initialize(5);
 
-        // Try to decrement by 10 (should abort - would go negative)
-        match client.try_decrement(10) {
-            Err(CounterClientError::Library(ref lib_exn)) => {
-                assert!(
-                    matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
-                    "Expected NonNegativeIntUnderflow, got: {:?}",
-                    lib_exn
-                );
+            // Try to decrement by 10 (should abort - would go negative)
+            match client.try_decrement(10) {
+                Err(CounterClientError::Library(ref lib_exn)) => {
+                    assert!(
+                        matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
+                        "Expected NonNegativeIntUnderflow, got: {:?}",
+                        lib_exn
+                    );
+                }
+                Err(e) => panic!("Unexpected error: {:?}", e),
+                Ok(()) => panic!("Decrement should have failed"),
             }
-            Err(e) => panic!("Unexpected error: {:?}", e),
-            Ok(()) => panic!("Decrement should have failed"),
-        }
+        })
     })
-    .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
+    .assert_success();
 }
 
 #[test]
 fn test_gas_limit_does_not_propagate() {
     let (env, contract_hash) = setup();
 
-    contract_exec(env, move || {
-        let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
 
-        let client = CounterClient::new(&addr);
-        client.initialize(10);
+            let client = CounterClient::new(&addr);
+            client.initialize(10);
 
-        // Call with tiny gas limit — should fail with OOG
-        let result = client.with_gas_limit(1).try_get();
-        assert!(
-            matches!(result, Err(CounterClientError::Fault(_))),
-            "Expected OOG fault with gas_limit=1, got: {:?}",
-            result
-        );
+            // Call with tiny gas limit — should fail with OOG
+            let result = client.with_gas_limit(1).try_get();
+            assert!(
+                matches!(result, Err(CounterClientError::Fault(_))),
+                "Expected OOG fault with gas_limit=1, got: {:?}",
+                result
+            );
 
-        // Subsequent call without explicit gas limit should use default (unlimited).
-        // This verifies with_gas_limit does NOT mutate the original client.
-        assert_eq!(client.get(), 10);
+            // Subsequent call without explicit gas limit should use default
+            // (unlimited). This verifies with_gas_limit does NOT mutate the
+            // original client.
+            assert_eq!(client.get(), 10);
+        })
     })
-    .unwrap_or_else(|e| panic!("Test failed: {e:?}"));
+    .assert_success();
 }

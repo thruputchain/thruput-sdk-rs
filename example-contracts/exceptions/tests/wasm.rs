@@ -11,10 +11,12 @@ fn wasm_ok() {
     let env = TestEnvironment::default();
     let _ = env.setup_create_contract(&contract);
 
-    contract_exec(env, || {
-        // Do nothing
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(|| {
+            // Do nothing
+        })
     })
-    .unwrap_or_else(|e| panic!("Ok test failed: {e:?}"));
+    .assert_success();
 }
 
 #[test]
@@ -23,10 +25,12 @@ fn wasm_deploy() {
     let env = sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
-    contract_exec(env, move || {
-        let _addr = sdk::deploy_contract(&TEST_NONCE, &contract_hash);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let _addr = sdk::deploy_contract(&TEST_NONCE, &contract_hash);
+        })
     })
-    .unwrap_or_else(|e| panic!("Deploy test failed: {e:?}"));
+    .assert_success();
 }
 
 #[test]
@@ -35,8 +39,11 @@ fn wasm_exceptions() {
     let env = sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
-    contract_exec(env, move || exceptions_test(&contract_hash))
-        .unwrap_or_else(|e| panic!("Exceptions test failed: {e:?}"));
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test"))
+            .run(move || exceptions_test(&contract_hash))
+    })
+    .assert_success();
 }
 
 #[test]
@@ -45,6 +52,9 @@ fn wasm_panic() {
     let env = sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
-    contract_exec(env, move || panic_test(&contract_hash))
-        .unwrap_or_else(|e| panic!("Panic test failed: {e:?}"));
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test"))
+            .run(move || panic_test(&contract_hash))
+    })
+    .assert_success();
 }
