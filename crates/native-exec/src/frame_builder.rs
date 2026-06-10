@@ -65,10 +65,16 @@ impl<'a> FrameBuilder<'a> {
             let value = f();
             let encoded = xdrs::cxs::encode(&value)
                 .expect("run(): failed to XDR-encode closure return value");
-            if !encoded.is_empty() {
-                groundhog_xdr::syscalls::raw_Return(&encoded, false, &[]);
+            if encoded.is_empty() {
+                // Zero-byte encodings (e.g. `()`): an empty buffer is
+                // already the valid encoding, so close normally with no
+                // explicit return.
+                FrameAction::Close
+            } else {
+                // Sets the return buffer and diverges; the frame closes
+                // via the unwind path, equivalently to FrameAction::Close.
+                groundhog_xdr::syscalls::raw_Return(&encoded, false, &[])
             }
-            FrameAction::Close
         });
         frame.result()
     }
@@ -76,6 +82,20 @@ impl<'a> FrameBuilder<'a> {
     /// Execute the frame with a closure that receives a FrameHandle
     /// and returns a FrameAction. If FrameAction::Continue, returns
     /// a ContinuableFrame for further chaining.
+    ///
+    /// To return a typed value from a continuable frame, end the closing
+    /// step with an explicit `raw_Return` — it sets the buffer and
+    /// diverges (closing the frame), and `!` coerces to `FrameAction`:
+    ///
+    /// ```rust,ignore
+    /// let result = tx.call(&addr)
+    ///     .run_continuable(|frame| {
+    ///         // ... child calls, multi-step work ...
+    ///         raw_Return(&xdrs::cxs::encode(&value).unwrap(), false, &[])
+    ///     })
+    ///     .finish();
+    /// let v: T = result.assert_return_as();
+    /// ```
     pub fn run_continuable(
         self,
         f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,
