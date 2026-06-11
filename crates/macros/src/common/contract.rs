@@ -100,6 +100,44 @@ where
     }
 }
 
+/// Contract method arguments must be plain identifiers: the generated
+/// client and entrypoint code needs a name for every parameter. Reject
+/// `_`, tuples, and other patterns with a spanned error instead of
+/// letting `method_args` panic mid-expansion.
+pub fn validate_method_arg_patterns<M>(
+    methods: impl IntoIterator<Item = M>,
+) -> Result<()>
+where
+    M: Method,
+{
+    let mut combined: Option<syn::Error> = None;
+
+    for method in methods {
+        for arg in &method.sig().inputs {
+            let syn::FnArg::Typed(pat_type) = arg else {
+                continue;
+            };
+            if !matches!(pat_type.pat.as_ref(), syn::Pat::Ident(_)) {
+                let err = error(
+                    pat_type,
+                    "contract method arguments must be plain identifiers; \
+                     patterns like `_`, tuples, or destructuring are not \
+                     supported",
+                );
+                match combined.as_mut() {
+                    Some(existing) => existing.combine(err),
+                    None => combined = Some(err),
+                }
+            }
+        }
+    }
+
+    match combined {
+        Some(err) => Err(err),
+        None => Ok(()),
+    }
+}
+
 use core::cmp::Ordering;
 pub fn cmp_method_by_name(a: &impl Method, b: &impl Method) -> Ordering {
     cmp_sig_by_name(a.sig(), b.sig())

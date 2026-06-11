@@ -52,8 +52,8 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     #[cfg(not(feature = "metadata"))]
     client.initialize(&owner);
 
-    // Mint
-    let amt = 100;
+    // Mint (an amount != 100, so a hardcoded event amount can't hide)
+    let amt = 101;
     client.mint(&owner, amt);
     m.mint(&owner, amt);
 
@@ -68,8 +68,8 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
         let amt = 60;
         assert!(m.balances[&owner] < amt);
         assert!(matches!(
-            client.burn(&owner, amt),
-            Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
+            client.try_burn(&owner, amt),
+            Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
         ));
     }
 
@@ -83,8 +83,8 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
         // Transfer too much
         assert!(m.balances[&owner] < 1000);
         assert!(matches!(
-            client.transfer(other, 1000),
-            Err(ClientError::Aborted(_ /* ERC20Error::TooLarge */))
+            client.try_transfer(other, 1000),
+            Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
         ));
     }
 
@@ -101,8 +101,8 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     #[cfg(not(feature = "no_check_aborts"))]
     // Withdraw too much approval
     assert!(matches!(
-        client.adjust_allowance(other, -20),
-        Err(ClientError::Aborted(_)),
+        client.try_adjust_allowance(other, -20),
+        Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
     ));
 
     // Withdraw some approval

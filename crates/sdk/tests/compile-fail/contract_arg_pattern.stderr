@@ -1,0 +1,5 @@
+error: contract method arguments must be plain identifiers; patterns like `_`, tuples, or destructuring are not supported
+  --> tests/compile-fail/contract_arg_pattern.rs:10:24
+   |
+10 |     pub fn ping(&self, _: u32) -> u32 {
+   |                        ^^^^^^

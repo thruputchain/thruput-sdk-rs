@@ -3,7 +3,7 @@ use crate::xdr::*;
 use crate::types::AuthTokenNode;
 
 #[cfg(feature = "alloc")]
-use crate::types::{AuthTokenPayload, ContractAddress};
+use crate::types::AuthTokenPayload;
 
 /// Marker trait for types that have a pre-signing (preimage) representation.
 ///
@@ -50,17 +50,20 @@ where
     ) -> Self;
 }
 
+/// Build the [`AuthTokenNode`] tree for `preimage`: the payload is the
+/// encoded `T` (nested `Signed` fields become child nodes), and the node's
+/// consumer is `preimage.consumer`.
 #[cfg(feature = "alloc")]
 pub fn build_auth_token_node<T: Mintable>(
-    preimage: T::Preimage,
+    preimage: AuthTokenPreimage<T::Preimage>,
 ) -> AuthTokenNode
 where
     T::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
 {
     let mut children = ChildNodeBuf::new();
-    let payload_value = T::mint_into_parent(preimage, &mut children);
+    let payload_value = T::mint_into_parent(preimage.data, &mut children);
     AuthTokenNode {
-        consumer_address: ContractAddress::default(),
+        consumer_address: preimage.consumer,
         payload: encode_payload(&payload_value),
         child_nodes: children_to_vecm(children),
     }
@@ -331,8 +334,21 @@ mod tests {
 
     #[test]
     fn primitive_mintable_builds_leaf_node() {
-        let node = build_auth_token_node::<u64>(42u64);
+        let node = build_auth_token_node::<u64>(AuthTokenPreimage {
+            consumer: crate::types::ContractAddress::default(),
+            data: 42u64,
+        });
         assert!(node.child_nodes.is_empty());
+    }
+
+    #[test]
+    fn build_node_sets_consumer_from_preimage() {
+        let consumer = crate::types::ContractAddress::from([0xAB; 32]);
+        let node = build_auth_token_node::<u64>(AuthTokenPreimage {
+            consumer,
+            data: 42u64,
+        });
+        assert_eq!(node.consumer_address, consumer);
     }
 
     #[test]
@@ -343,14 +359,6 @@ mod tests {
         assert!(children.is_empty());
     }
 
-    #[test]
-    fn signed_mintable_sets_consumer() {
-        let consumer = crate::types::ContractAddress::default();
-        let mut node = build_auth_token_node::<u64>(42u64);
-        node.consumer_address = consumer;
-        assert_eq!(node.consumer_address, consumer);
-        assert!(node.child_nodes.is_empty());
-    }
 
     #[test]
     fn signed_mint_into_parent_pushes_child() {

@@ -16,6 +16,23 @@ pub fn receive_auth_handles_from_slice<T: ReceiveAuthHandles>(
     }
 }
 
+/// Re-attach auth-token handles to every [`Signed`](crate::signer::Signed)
+/// value nested in `self`, drawing them from `handles` in **declaration
+/// order**. `Signed` decodes from zero XDR bytes with a sentinel handle;
+/// this trait fills in the real handles delivered out-of-band.
+///
+/// This is the read half of an order-matching pair with
+/// [`CollectAuthHandles`](crate::collect_auth_handles::CollectAuthHandles):
+/// implementations of the two traits for a type MUST visit `Signed` fields
+/// in the identical order — a mismatch silently assigns auth tokens to the
+/// wrong fields. Derived implementations (via `#[contract_type]`) visit
+/// struct fields in declaration order.
+///
+/// Errors if `handles` runs out before every `Signed` field is filled.
+/// Callers that own the full handle list (the entrypoint path via
+/// [`receive_auth_handles_from_slice`], and
+/// [`Signed::consume`](crate::signer::Signed::consume)) additionally reject
+/// leftover handles after the walk.
 pub trait ReceiveAuthHandles {
     fn receive_auth_handles(
         &mut self,
@@ -61,8 +78,11 @@ impl<T: ReceiveAuthHandles, const N: usize> ReceiveAuthHandles for [T; N] {
     #[inline(always)]
     fn receive_auth_handles(
         &mut self,
-        _handles: &mut impl Iterator<Item = u32>,
+        handles: &mut impl Iterator<Item = u32>,
     ) -> Result<(), AuthTokenError> {
+        for item in self {
+            item.receive_auth_handles(handles)?;
+        }
         Ok(())
     }
 }
@@ -276,6 +296,32 @@ mod tests {
         args.receive_auth_handles(&mut iter).unwrap();
         assert_eq!(args.1.handle(), 10);
         assert_eq!(args.3.handle(), 20);
+    }
+
+    #[test]
+    fn array_receives_handles_in_order() {
+        let mut arr: [Signed<u32>; 2] =
+            [Signed::from_handle(u32::MAX), Signed::from_handle(u32::MAX)];
+        let mut iter = [7u32, 8u32].into_iter();
+        arr.receive_auth_handles(&mut iter).unwrap();
+        assert_eq!(arr[0].handle(), 7);
+        assert_eq!(arr[1].handle(), 8);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn struct_field_after_array_gets_correct_handle() {
+        // Regression: the old [T; N] impl was a no-op, so a Signed field
+        // declared after an array field received the array's handles.
+        let mut args: ([Signed<u32>; 2], Signed<bool>) = (
+            [Signed::from_handle(u32::MAX), Signed::from_handle(u32::MAX)],
+            Signed::from_handle(u32::MAX),
+        );
+        let mut iter = [1u32, 2u32, 3u32].into_iter();
+        args.receive_auth_handles(&mut iter).unwrap();
+        assert_eq!(args.0[0].handle(), 1);
+        assert_eq!(args.0[1].handle(), 2);
+        assert_eq!(args.1.handle(), 3);
     }
 
     #[test]

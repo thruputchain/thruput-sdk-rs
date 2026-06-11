@@ -7,6 +7,18 @@ pub type AuthHandleBuf = heapless::Vec<u32, AUTH_HANDLES_MAX>;
 #[cfg(feature = "alloc")]
 pub type AuthHandleBuf = alloc::vec::Vec<u32>;
 
+/// Extract the auth-token handles of every [`Signed`](crate::signer::Signed)
+/// value nested in `self`, in **declaration order**, so they can travel
+/// alongside the XDR payload of a contract call (`Signed` encodes to zero
+/// bytes; the handles are passed out-of-band).
+///
+/// This is the write half of an order-matching pair with
+/// [`ReceiveAuthHandles`](crate::receive_auth_handles::ReceiveAuthHandles):
+/// the callee re-attaches handles to its decoded `Signed` fields by walking
+/// the same structure in the same order. Implementations of the two traits
+/// for a type MUST visit `Signed` fields in the identical order — a mismatch
+/// silently assigns auth tokens to the wrong fields. Derived implementations
+/// (via `#[contract_type]`) visit struct fields in declaration order.
 pub trait CollectAuthHandles {
     fn collect_auth_handles(
         &self,

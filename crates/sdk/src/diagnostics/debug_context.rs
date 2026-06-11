@@ -99,8 +99,14 @@ impl Display for Frame {
     }
 }
 
-#[derive(Copy, Clone)]
-pub struct Backtrace {
+/// A snapshot of the `with_debug_context` frame stack.
+///
+/// The frames live on the stacks of the `with_debug_context` callers, so a
+/// `Backtrace` is only valid to display while all of those calls are still
+/// in progress. It is deliberately crate-private, non-`Copy`/`Clone`, and
+/// only constructible via the unsafe [`Backtrace::capture`] so it cannot
+/// escape the abort paths that uphold that invariant.
+pub(crate) struct Backtrace {
     top: Option<NonNull<Frame>>,
 }
 
@@ -110,8 +116,9 @@ impl Display for Backtrace {
         let mut depth = 1; // depth 0 is the abort call itself
 
         while let Some(frame) = frames {
-            // Safety: After a backtrace is captured, we are in the non-returning context of
-            // `abort`, so all reachable frames will be valid until the end of execution.
+            // Safety: upheld by the caller of `Backtrace::capture`, which
+            // promises the backtrace is only displayed while every captured
+            // `with_debug_context` frame is still on the stack.
             let frame = unsafe { frame.as_ref() };
 
             writeln!(f, "  {}: {}", depth, frame)?;
@@ -125,7 +132,16 @@ impl Display for Backtrace {
 }
 
 impl Backtrace {
-    pub fn capture() -> Self {
+    /// Capture the current debug-context frame stack.
+    ///
+    /// # Safety
+    ///
+    /// The returned value borrows the stack frames of every
+    /// `with_debug_context` call in progress, but carries no lifetime.
+    /// The caller must not let it outlive those calls: capture and display
+    /// it within a context that never returns into them (i.e. an abort
+    /// path), and do not store it.
+    pub(crate) unsafe fn capture() -> Self {
         Backtrace { top: FRAMES.get() }
     }
 }

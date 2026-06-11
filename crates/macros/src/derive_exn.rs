@@ -21,11 +21,17 @@ pub fn parse_args(attr_args: TokenStream) -> Result<ExnArgs, TokenStream> {
         .map_err(|e| TokenStream::from(e.write_errors()))
 }
 
-/// `#[exn]` or `#[exn(version = "1")]` attribute macro.
+/// `#[exn]` or `#[exn(version = "1.0.0")]` attribute macro.
 ///
 /// Emits `impl Exn for Type { const SELECTOR: u64 = ...; }`.
 /// Version defaults to CARGO_PKG_VERSION if not specified.
 pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
+    if let Some(version) = &args.version
+        && let Err(err) = crate::common::util::validate_version_string(version)
+    {
+        return err.into_compile_error().into();
+    }
+
     let (ident, generics) = match &item {
         Item::Enum(e) => (&e.ident, &e.generics),
         Item::Struct(s) => (&s.ident, &s.generics),

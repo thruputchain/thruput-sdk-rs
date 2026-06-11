@@ -15,6 +15,12 @@ pub struct ContractExceptionArgs {
 /// Supported on enums and structs. All user-supplied attributes (including
 /// `#[error("...")]` from thiserror) are passed through unchanged.
 pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
+    if let Some(version) = &args.version
+        && let Err(err) = crate::common::util::validate_version_string(version)
+    {
+        return err.into_compile_error();
+    }
+
     match item {
         Item::Enum(e) => expand_enum(args, e),
         Item::Struct(s) => expand_struct(args, s),

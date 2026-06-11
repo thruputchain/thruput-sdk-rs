@@ -1,0 +1,22 @@
+error[E0603]: struct `Backtrace` is private
+ --> tests/compile-fail/backtrace_not_public.rs:7:19
+  |
+7 |     let bt = sdk::Backtrace::capture();
+  |                   ^^^^^^^^^ private struct
+  |
+note: the struct `Backtrace` is defined here
+ --> src/lib.rs
+  |
+  | pub use diagnostics::*;
+  |         ^^^^^^^^^^^
+
+error[E0624]: associated function `capture` is private
+ --> tests/compile-fail/backtrace_not_public.rs:7:30
+  |
+7 |     let bt = sdk::Backtrace::capture();
+  |                              ^^^^^^^ private associated function
+  |
+ ::: src/diagnostics/debug_context.rs
+  |
+  |     pub(crate) unsafe fn capture() -> Self {
+  |     -------------------------------------- private associated function defined here

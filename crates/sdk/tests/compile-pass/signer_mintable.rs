@@ -19,11 +19,14 @@ type PaymentPreimage = <Payment as MintableType>::Preimage;
 type TransferAuthPreimage = <TransferAuth as MintableType>::Preimage;
 
 fn main() {
-    let preimage = PaymentPreimage {
-        memo: 42,
-        auth: AuthTokenPreimage {
-            consumer: ContractAddress::default(),
-            data: TransferAuthPreimage { amount: 100 },
+    let preimage = AuthTokenPreimage {
+        consumer: ContractAddress::default(),
+        data: PaymentPreimage {
+            memo: 42,
+            auth: AuthTokenPreimage {
+                consumer: ContractAddress::default(),
+                data: TransferAuthPreimage { amount: 100 },
+            },
         },
     };
 

@@ -34,8 +34,7 @@ fn tuple_struct_auth_token_tree() {
         },
     };
 
-    let mut root_node = build_auth_token_node::<TupleAuth>(preimage.data);
-    root_node.consumer_address = preimage.consumer;
+    let root_node = build_auth_token_node::<TupleAuth>(preimage);
 
     assert_eq!(root_node.consumer_address, addr_consumer);
     // The nested Signed<u32> produces one child node
@@ -59,8 +58,7 @@ fn tuple_struct_payload_roundtrip() {
         },
     };
 
-    let mut root_node = build_auth_token_node::<TupleAuth>(preimage.data);
-    root_node.consumer_address = preimage.consumer;
+    let root_node = build_auth_token_node::<TupleAuth>(preimage);
 
     let payload_bytes: &[u8] = root_node.payload.as_ref();
     let mut decoded: TupleAuth =

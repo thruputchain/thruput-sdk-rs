@@ -57,6 +57,13 @@ mod deletable;
 #[cfg(feature = "storage")]
 mod storage;
 
+/// Compute a `StorageKey` at compile time: sha256 of the string literal's
+/// **value** (quotes stripped, escapes resolved).
+///
+/// `static_key!("counter")` hashes the 7 bytes `counter`, so the key can be
+/// reproduced off-chain (indexer, client, another language) as
+/// `sha256("counter")`. Source spelling does not matter:
+/// `static_key!(r"a")` == `static_key!("a")`.
 #[proc_macro]
 pub fn static_key(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::LitStr);
@@ -64,6 +71,12 @@ pub fn static_key(item: TokenStream) -> TokenStream {
     static_hash::storage_key_static(input)
 }
 
+/// Compute a `SHA256Hash` at compile time: sha256 of the string literal's
+/// **value** (quotes stripped, escapes resolved).
+///
+/// `sha256_static!("foo")` hashes the 3 bytes `foo` and agrees with
+/// `sdk::crypto::sha256(b"foo")` at runtime and with
+/// [`hash_to_array!`](macro@hash_to_array).
 #[proc_macro]
 pub fn sha256_static(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::LitStr);
@@ -71,6 +84,8 @@ pub fn sha256_static(item: TokenStream) -> TokenStream {
     static_hash::sha256_static(input)
 }
 
+/// Compute a `SHA256Hash` at compile time: sha256 of the bare identifier's
+/// text (no quotes — `sha256_ident!(foo)` hashes the 3 bytes `foo`).
 #[proc_macro]
 pub fn sha256_ident(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::Ident);
@@ -78,6 +93,9 @@ pub fn sha256_ident(item: TokenStream) -> TokenStream {
     static_hash::sha256_ident(input)
 }
 
+/// Like [`sha256_ident!`](macro@sha256_ident) (sha256 of the bare
+/// identifier's text), but expands to a `[u8; 32]` array instead of a
+/// `SHA256Hash`.
 #[proc_macro]
 pub fn sha256_array_ident(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::Ident);
@@ -85,6 +103,12 @@ pub fn sha256_array_ident(item: TokenStream) -> TokenStream {
     static_hash::sha256_array_ident(input)
 }
 
+/// Compute a `[u8; 32]` at compile time: sha256 of the literal's **value**
+/// (quotes stripped, escapes resolved). Accepts string and byte-string
+/// literals: `hash_to_array!("foo")` == sha256 of the 3 bytes `foo` and
+/// agrees with `sdk::crypto::sha256(b"foo")` at runtime and with
+/// [`sha256_static!`](macro@sha256_static)/[`static_key!`](macro@static_key)
+/// for the same string.
 #[proc_macro]
 pub fn hash_to_array(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::Lit);
@@ -144,7 +168,7 @@ pub fn derive_deletable(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// `#[exn]` or `#[exn(version = "1")]` — emits `impl Exn` with a
+/// `#[exn]` or `#[exn(version = "1.0.0")]` — emits `impl Exn` with a
 /// computed selector. Use this when you handle your own derives.
 /// For the full convenience macro, use `#[contract_exception]` instead.
 #[proc_macro_attribute]
@@ -156,7 +180,7 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
     }
 }
 
-/// `#[contract_exception]` or `#[contract_exception(version = "1", name = "...")]` —
+/// `#[contract_exception]` or `#[contract_exception(version = "1.0.0", name = "...")]` —
 /// full convenience macro: derives + `#[repr(i32)]` + `impl Exn` +
 /// `impl ContractTypeName`.
 #[proc_macro_attribute]

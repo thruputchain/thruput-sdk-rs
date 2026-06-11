@@ -34,7 +34,7 @@ source-build = ["groundhog-sys/source-build"]
 groundhog-event = { workspace = true }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs", "syscalls_mock"]}
 xdr-common = { workspace = true, features = ["std"]}
-hogexec-internal = { workspace = true }
+hogexec-internal = { workspace = true, features = ["std"] }
 xdrs = { workspace = true }
 sha2 = { version = "0.11.0" }
 groundhog-sys = { workspace = true }

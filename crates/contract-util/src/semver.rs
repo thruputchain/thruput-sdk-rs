@@ -2,11 +2,18 @@
 ///
 /// Accepts `MAJOR.MINOR.PATCH` with optional `-PRERELEASE` and `+BUILD`
 /// suffixes, with the same numeric-field strictness as the `semver` crate
-/// (digits only, no leading zeros). Panics on malformed input.
+/// (digits only, no leading zeros). Panics on malformed input; use
+/// [`try_major_version_from_string`] to validate first.
 pub fn major_version_from_string(version_str: &str) -> String {
-    let (major, minor, patch) = parse_triplet(version_str)
-        .unwrap_or_else(|| panic!("invalid semver string: {version_str:?}"));
-    major_version(version_str, major, minor, patch)
+    try_major_version_from_string(version_str)
+        .unwrap_or_else(|| panic!("invalid semver string: {version_str:?}"))
+}
+
+/// Fallible form of [`major_version_from_string`]: returns `None` instead
+/// of panicking on malformed input.
+pub fn try_major_version_from_string(version_str: &str) -> Option<String> {
+    let (major, minor, patch) = parse_triplet(version_str)?;
+    Some(major_version(version_str, major, minor, patch))
 }
 
 /// The major version is the leftmost non-zero component:

@@ -27,6 +27,8 @@ pub fn apply(
         Config::from_list(&meta_list)
     }?;
 
+    config.validate()?;
+
     apply_with_config(&contract, &config)
 }
 
@@ -38,6 +40,9 @@ fn apply_with_config(
         syn::Item::Trait(item) => {
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
+                contract.methods_sorted(),
+            )?;
+            contract::validate_method_arg_patterns(
                 contract.methods_sorted(),
             )?;
             let throws_tokens = contract::throws_spec_tokens(&contract)?;
@@ -139,6 +144,9 @@ fn apply_with_config(
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
+            contract::validate_method_arg_patterns(
+                contract.methods_sorted(),
+            )?;
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -206,6 +214,9 @@ fn apply_with_config(
         syn::Item::Fn(item) => {
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
+                contract.methods_sorted(),
+            )?;
+            contract::validate_method_arg_patterns(
                 contract.methods_sorted(),
             )?;
 

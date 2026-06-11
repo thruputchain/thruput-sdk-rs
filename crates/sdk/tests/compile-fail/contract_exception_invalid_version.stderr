@@ -1,0 +1,7 @@
+error: invalid version "1.2": expected a full semver triplet like "1.0.0" (optionally with -PRERELEASE and +BUILD suffixes)
+ --> tests/compile-fail/contract_exception_invalid_version.rs:3:1
+  |
+3 | #[sdk::contract_exception(version = "1.2")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `sdk::contract_exception` (in Nightly builds, run with -Z macro-backtrace for more info)

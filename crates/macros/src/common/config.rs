@@ -188,6 +188,24 @@ pub struct Config {
 }
 
 impl Config {
+    /// Validate user-supplied string attributes up front, so malformed
+    /// input produces a compile error instead of a proc-macro panic
+    /// deeper in code generation.
+    pub fn validate(&self) -> syn::Result<()> {
+        use super::util::{validate_ident_string, validate_version_string};
+
+        if let Some(version) = &self.version {
+            validate_version_string(version)?;
+        }
+        if let Some(exports) = &self.exports {
+            validate_ident_string(exports, "exports")?;
+        }
+        if let Some(interface) = &self.interface {
+            validate_ident_string(interface, "interface")?;
+        }
+        Ok(())
+    }
+
     pub fn client_ident(&self) -> Option<syn::Ident> {
         self.client.clone()
     }
