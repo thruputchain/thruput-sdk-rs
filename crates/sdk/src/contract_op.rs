@@ -214,27 +214,24 @@ pub fn try_get_calldata_with_auth_tokens()
     // `GetCalldata` copies at most the destination span's length but reports
     // the *full* source length, which can exceed the fixed buffers here
     // (protocol calldata is unbounded). Applying an oversized length via
-    // `set_len` would let `as_ref` read past the initialized region.
-    //
-    // These panic deliberately rather than returning Err despite the `try_`
-    // name: oversized calldata cannot be handled by the caller (the data
-    // does not fit the SDK's buffers), so a loud fault with a clear message
-    // beats a recoverable-looking error. The 500-byte cap itself is a
-    // pending design decision; revisit these together with it.
+    // `set_len` would let `as_ref` read past the initialized region, so an
+    // oversized report is surfaced as InvalidSyscallInput: the spans this
+    // wrapper supplied were too small for the data. (The non-try wrapper
+    // turns this into a thrown LibraryExn::Syscall for kGetCalldata.)
     let written = unsafe { written.assume_init() } as usize;
-    assert!(
-        written <= CALLDATA_MAX,
-        "calldata length {written} exceeds the SDK calldata buffer \
-         capacity {CALLDATA_MAX}"
-    );
+    if written > CALLDATA_MAX {
+        return Err(
+            sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
+        );
+    }
     unsafe { calldata.set_len(written) };
 
     let auth_written = unsafe { auth_token_written.assume_init() } as usize;
-    assert!(
-        auth_written <= AUTH_TOKEN_IDS_MAX,
-        "auth token id list length {auth_written} exceeds the SDK auth \
-         token buffer capacity {AUTH_TOKEN_IDS_MAX}"
-    );
+    if auth_written > AUTH_TOKEN_IDS_MAX {
+        return Err(
+            sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
+        );
+    }
     unsafe { auth_token_buf.set_len(auth_written) };
 
     // Convert bytes to u32s using native byte order (wasm is little-endian)
