@@ -6,7 +6,7 @@ use groundhog_contract_spec::{
     SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
-    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME, SpecToolError,
     rewrite::rewrite_wasm,
 };
 use serde_json::Value;
@@ -210,10 +210,10 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
     let methods = &parsed["interfaces"][0]["methods"];
     assert_eq!(methods[0]["name"], "echo_blob");
     assert_eq!(
-        methods[0]["args"][0]["ty"],
+        methods[0]["args"][0]["type"],
         serde_json::json!({
             "kind": "vec",
-            "inner": { "kind": "u8" },
+            "element": { "kind": "u8" },
             "max_len": 4294967295u32
         })
     );
@@ -221,13 +221,13 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
         methods[0]["return_type"],
         serde_json::json!({
             "kind": "vec",
-            "inner": { "kind": "u8" },
+            "element": { "kind": "u8" },
             "max_len": 4294967295u32
         })
     );
     assert_eq!(methods[1]["name"], "echo_hash");
     assert_eq!(
-        methods[1]["args"][0]["ty"],
+        methods[1]["args"][0]["type"],
         serde_json::json!({
             "kind": "array",
             "len": 32,
@@ -548,7 +548,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
 }
 
 #[test]
-fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
+fn rewrite_rejects_raw_sections_with_only_typedefs() {
     let raw_blob = encode_fragments(&[SpecFragment::SpecTypeDef {
         type_def: groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
             struct_def: groundhog_contract_spec::ContractStructDef {
@@ -573,7 +573,10 @@ fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
         data: raw_blob.as_slice().into(),
     });
 
-    let rewritten = rewrite_wasm(&module.finish()).unwrap();
+    // Raw fragments exist but define no interface: silently emitting a wasm
+    // with no spec (and stripping any pre-existing final section) would hide
+    // an authoring mistake, so this must be an error.
+    let err = rewrite_wasm(&module.finish()).unwrap_err();
 
-    assert!(custom_sections(&rewritten).is_empty());
+    assert!(matches!(err, SpecToolError::NoSpecFragments));
 }

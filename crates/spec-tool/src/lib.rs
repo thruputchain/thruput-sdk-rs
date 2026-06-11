@@ -16,8 +16,23 @@ pub use raw::{
     parse_raw_fragments,
 };
 
-fn spec_str(s: &ContractSpecString) -> &str {
-    std::str::from_utf8(s).expect("contract spec strings must be valid UTF-8")
+/// Decode a spec string, rejecting non-UTF-8 bytes.
+///
+/// `ContractSpecString` is raw bytes on the wire (XDR decode performs no
+/// UTF-8 validation), so malformed wasm can carry arbitrary bytes here.
+fn spec_str(s: &ContractSpecString) -> Result<&str, SpecToolError> {
+    std::str::from_utf8(s).map_err(|_| {
+        SpecToolError::InvalidRawFragment(format!(
+            "spec string is not valid UTF-8: {:?}",
+            String::from_utf8_lossy(s)
+        ))
+    })
+}
+
+/// Lossy spec-string decoding for error messages and debug rendering, where
+/// failing on malformed bytes would hide the more useful diagnostic.
+fn spec_str_lossy(s: &ContractSpecString) -> std::borrow::Cow<'_, str> {
+    String::from_utf8_lossy(s)
 }
 
 /// Errors that can occur during spec canonicalization or rendering.
@@ -33,6 +48,9 @@ pub enum SpecToolError {
     MissingTypeDef(String),
     /// Multiple conflicting definitions exist for the same type name.
     ConflictingTypeDef(String),
+    /// Two `throws` entries share a selector but have different payload
+    /// types, making selector-based exception decoding ambiguous.
+    ConflictingExceptionSelector(String),
     /// Multiple interface fragments declare different `throws` for the same interface.
     ConflictingInterfaceThrows(String),
     /// Multiple conflicting method definitions share the same name in an interface.
@@ -58,6 +76,9 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::ConflictingTypeDef(msg) => {
                 write!(f, "conflicting contract type definitions for {msg}")
+            }
+            Self::ConflictingExceptionSelector(msg) => {
+                write!(f, "conflicting exception selector: {msg}")
             }
             Self::ConflictingInterfaceThrows(msg) => {
                 write!(f, "conflicting throws metadata for interface {msg}")
@@ -109,25 +130,29 @@ pub fn canonicalize_spec(
                 interface_fragment: fragment,
             } => {
                 validate_interface_key(
-                    spec_str(&fragment.interface_name),
-                    spec_str(&fragment.interface_version),
+                    spec_str(&fragment.interface_name)?,
+                    spec_str(&fragment.interface_version)?,
                 )?;
 
                 let key = (
                     fragment.interface_name.clone(),
                     fragment.interface_version.clone(),
                 );
-                let throws = canonicalize_exception_list(&fragment.throws);
-                let bucket = interfaces.entry(key.clone()).or_default();
+                let interface_key = interface_key_string(
+                    &spec_str_lossy(&key.0),
+                    &spec_str_lossy(&key.1),
+                );
+                let throws = canonicalize_exception_list(
+                    &interface_key,
+                    &fragment.throws,
+                )?;
+                let bucket = interfaces.entry(key).or_default();
 
                 match &bucket.throws {
                     Some(existing) if *existing != throws => {
                         return Err(
                             SpecToolError::ConflictingInterfaceThrows(
-                                interface_key_string(
-                                    spec_str(&key.0),
-                                    spec_str(&key.1),
-                                ),
+                                interface_key,
                             ),
                         );
                     }
@@ -139,8 +164,8 @@ pub fn canonicalize_spec(
                 method_fragment: fragment,
             } => {
                 validate_interface_key(
-                    spec_str(&fragment.interface_name),
-                    spec_str(&fragment.interface_version),
+                    spec_str(&fragment.interface_name)?,
+                    spec_str(&fragment.interface_version)?,
                 )?;
                 validate_method(&fragment.method)?;
 
@@ -156,6 +181,7 @@ pub fn canonicalize_spec(
             }
             SpecFragment::SpecTypeDef { type_def } => {
                 let symbol = type_def_symbol(type_def).clone();
+                spec_str(&symbol)?;
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
                     defs.push(type_def.clone());
@@ -163,6 +189,7 @@ pub fn canonicalize_spec(
             }
             SpecFragment::ExportedSpecTypeDef { type_def } => {
                 let symbol = type_def_symbol(type_def).clone();
+                spec_str(&symbol)?;
                 exported_roots.insert(symbol.clone());
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
@@ -193,7 +220,7 @@ pub fn canonicalize_spec(
     for (symbol, defs) in &type_defs {
         if defs.len() > 1 {
             return Err(SpecToolError::ConflictingTypeDef(
-                spec_str(symbol).to_owned(),
+                spec_str_lossy(symbol).into_owned(),
             ));
         }
     }
@@ -203,7 +230,7 @@ pub fn canonicalize_spec(
         .map(|(name, defs)| {
             if defs.len() > 1 {
                 return Err(SpecToolError::ConflictingEventDef(
-                    spec_str(&name).to_owned(),
+                    spec_str_lossy(&name).into_owned(),
                 ));
             }
             Ok(defs.into_iter().next().unwrap())
@@ -230,9 +257,9 @@ pub fn canonicalize_spec(
                     }
                     return Err(SpecToolError::ConflictingMethod(format!(
                         "{}@{}::{}",
-                        spec_str(&name),
-                        spec_str(&vers),
-                        spec_str(&method.name),
+                        spec_str_lossy(&name),
+                        spec_str_lossy(&vers),
+                        spec_str_lossy(&method.name),
                     )));
                 }
                 deduped_methods.push(method);
@@ -240,8 +267,8 @@ pub fn canonicalize_spec(
 
             let throws = bucket.throws.ok_or_else(|| {
                 SpecToolError::MissingInterfaceFragment(interface_key_string(
-                    spec_str(&name),
-                    spec_str(&vers),
+                    &spec_str_lossy(&name),
+                    &spec_str_lossy(&vers),
                 ))
             })?;
 
@@ -334,6 +361,10 @@ fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
             "method fragments must include a method name".to_string(),
         ));
     }
+    spec_str(&method.name)?;
+    for arg in method.args.iter() {
+        spec_str(&arg.name)?;
+    }
     Ok(())
 }
 
@@ -343,12 +374,13 @@ fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
             "event fragments must include an event name".to_string(),
         ));
     }
+    spec_str(&event.name)?;
     // Topic 0 is reserved for the event signature.
     let max_user_topics = (sdk::EVENT_MAX_TOPICS - 1) as usize;
     if event.topics.len() > max_user_topics {
         return Err(SpecToolError::InvalidRawFragment(format!(
             "event {} declares {} topics, but at most {max_user_topics} are allowed",
-            spec_str(&event.name),
+            spec_str_lossy(&event.name),
             event.topics.len(),
         )));
     }
@@ -356,16 +388,32 @@ fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
 }
 
 fn canonicalize_exception_list(
+    interface_key: &str,
     types: &[ContractExceptionType],
-) -> Vec<ContractExceptionType> {
+) -> Result<Vec<ContractExceptionType>, SpecToolError> {
     let mut types = types.to_vec();
+    // Canonical order is by selector, since the selector is the key clients
+    // decode exceptions by.
     types.sort_by(|left, right| {
-        canonical_type_key(&left.ty)
-            .cmp(&canonical_type_key(&right.ty))
-            .then_with(|| left.selector.cmp(&right.selector))
+        left.selector.cmp(&right.selector).then_with(|| {
+            canonical_type_key(&left.ty).cmp(&canonical_type_key(&right.ty))
+        })
     });
     types.dedup();
-    types
+
+    // After dedup, adjacent entries sharing a selector must differ in payload
+    // type — that makes selector-based exception decoding ambiguous.
+    for pair in types.windows(2) {
+        if pair[0].selector == pair[1].selector {
+            return Err(SpecToolError::ConflictingExceptionSelector(format!(
+                "{interface_key}: selector 0x{:016x} maps to multiple \
+                 exception types",
+                pair[0].selector
+            )));
+        }
+    }
+
+    Ok(types)
 }
 
 fn resolve_reachable_type_defs(
@@ -442,7 +490,7 @@ fn resolve_reachable_type_defs(
             Some(_) => panic!("unknown ContractTypeDef variant"),
             None => {
                 return Err(SpecToolError::MissingTypeDef(
-                    spec_str(&symbol).to_owned(),
+                    spec_str_lossy(&symbol).into_owned(),
                 ));
             }
         }
@@ -475,14 +523,15 @@ fn collect_named_types(
             }
         }
         ContractType::Named { named } => {
+            spec_str(named)?;
             let Some(candidates) = defs.get(named) else {
                 return Err(SpecToolError::MissingTypeDef(
-                    spec_str(named).to_owned(),
+                    spec_str_lossy(named).into_owned(),
                 ));
             };
             if candidates.len() > 1 {
                 return Err(SpecToolError::ConflictingTypeDef(
-                    spec_str(named).to_owned(),
+                    spec_str_lossy(named).into_owned(),
                 ));
             }
             if !resolved.contains_key(named) {
@@ -502,7 +551,10 @@ fn collect_named_types(
         | ContractType::String
         | ContractType::Bytes
         | ContractType::Address => {}
-        _ => {}
+        // Same policy as canonical_type_key/type_to_json: a variant this
+        // tool doesn't know about must fail loudly, not silently drop its
+        // typedefs from the spec.
+        _ => panic!("unknown ContractType variant"),
     }
 
     Ok(())
@@ -526,16 +578,16 @@ fn collect_union_case_named_types(
                 collect_named_types(&field.ty, defs, resolved, pending)?;
             }
         }
-        _ => {}
+        _ => panic!("unknown ContractUnionCaseType variant"),
     }
     Ok(())
 }
 
 fn canonical_method_key(method: &ContractSpecMethod) -> String {
-    let mut key = spec_str(&method.name).to_owned();
+    let mut key = spec_str_lossy(&method.name).into_owned();
     key.push('|');
     for arg in method.args.iter() {
-        key.push_str(spec_str(&arg.name));
+        key.push_str(&spec_str_lossy(&arg.name));
         key.push(':');
         key.push_str(&canonical_type_key(&arg.ty));
         key.push('|');
@@ -586,7 +638,7 @@ fn canonical_type_key(ty: &ContractType) -> String {
             format!("array({}, {})", canonical_type_key(element), array.len)
         }
         ContractType::Named { named } => {
-            format!("named({})", spec_str(named))
+            format!("named({})", spec_str_lossy(named))
         }
         _ => panic!("unknown ContractType variant"),
     }
@@ -607,8 +659,8 @@ fn interface_key_string(name: &str, version: &str) -> String {
 
 fn interface_to_json(interface: &ContractSpecInterface) -> serde_json::Value {
     serde_json::json!({
-        "name": spec_str(&interface.name),
-        "version": spec_str(&interface.vers),
+        "name": spec_str_lossy(&interface.name),
+        "version": spec_str_lossy(&interface.vers),
         "throws": interface.throws.iter().map(exception_type_to_json).collect::<Vec<_>>(),
         "methods": interface.methods.iter().map(method_to_json).collect::<Vec<_>>(),
     })
@@ -623,7 +675,7 @@ fn exception_type_to_json(exn: &ContractExceptionType) -> serde_json::Value {
 
 fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
     serde_json::json!({
-        "name": spec_str(&method.name),
+        "name": spec_str_lossy(&method.name),
         "args": method.args.iter().map(field_to_json).collect::<Vec<_>>(),
         "return_type": type_to_json(&method.return_type),
     })
@@ -631,8 +683,8 @@ fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
 
 fn field_to_json(field: &ContractField) -> serde_json::Value {
     serde_json::json!({
-        "name": spec_str(&field.name),
-        "ty": type_to_json(&field.ty),
+        "name": spec_str_lossy(&field.name),
+        "type": type_to_json(&field.ty),
     })
 }
 
@@ -640,7 +692,7 @@ pub fn event_def_to_json(event: &ContractEventDef) -> serde_json::Value {
     let signature: String =
         event.signature.iter().map(|b| format!("{b:02x}")).collect();
     serde_json::json!({
-        "name": spec_str(&event.name),
+        "name": spec_str_lossy(&event.name),
         "signature": signature,
         "topics": event.topics.iter().map(field_to_json).collect::<Vec<_>>(),
         "fields": event.fields.iter().map(field_to_json).collect::<Vec<_>>(),
@@ -667,13 +719,13 @@ pub fn type_to_json(ty: &ContractType) -> serde_json::Value {
         }
         ContractType::Vector { vector } => {
             let element = &vector.element;
-            json!({"kind": "vec", "inner": type_to_json(element), "max_len": vector.max_len})
+            json!({"kind": "vec", "element": type_to_json(element), "max_len": vector.max_len})
         }
         ContractType::Tuple { tuple } => {
             json!({"kind": "tuple", "items": tuple.iter().map(type_to_json).collect::<Vec<_>>()})
         }
         ContractType::Named { named } => {
-            json!({"kind": "named", "name": spec_str(named)})
+            json!({"kind": "named", "name": spec_str_lossy(named)})
         }
         ContractType::Array { array } => {
             let element = &array.element;
@@ -688,19 +740,19 @@ pub fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
     match type_def {
         ContractTypeDef::TypeDefStruct { struct_def } => json!({
             "kind": "struct",
-            "name": spec_str(&struct_def.name),
+            "name": spec_str_lossy(&struct_def.name),
             "fields": struct_def.fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
         ContractTypeDef::TypeDefEnum { enum_def } => json!({
             "kind": "enum",
-            "name": spec_str(&enum_def.name),
-            "variants": enum_def.variants.iter().map(|v| json!({"name": spec_str(&v.name), "value": v.value})).collect::<Vec<_>>(),
+            "name": spec_str_lossy(&enum_def.name),
+            "variants": enum_def.variants.iter().map(|v| json!({"name": spec_str_lossy(&v.name), "value": v.value})).collect::<Vec<_>>(),
         }),
         ContractTypeDef::TypeDefUnion { union_def } => json!({
             "kind": "union",
-            "name": spec_str(&union_def.name),
+            "name": spec_str_lossy(&union_def.name),
             "cases": union_def.cases.iter().map(|c| json!({
-                "name": spec_str(&c.name),
+                "name": spec_str_lossy(&c.name),
                 "discriminant": c.discriminant,
                 "case_type": union_case_type_to_json(&c.case_type),
             })).collect::<Vec<_>>(),

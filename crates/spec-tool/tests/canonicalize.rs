@@ -1107,3 +1107,122 @@ fn canonicalize_spec_rejects_event_without_name() {
         Err(SpecToolError::InvalidRawFragment(_))
     ));
 }
+
+#[test]
+fn non_utf8_interface_name_is_rejected_not_panicked() {
+    let result = canonicalize_spec(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: ContractSpecString::try_from(vec![0xFFu8, 0xFE, 0xFD]).unwrap(),
+            interface_version: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    }]);
+
+    assert!(matches!(result, Err(SpecToolError::InvalidRawFragment(_))));
+}
+
+#[test]
+fn non_utf8_type_name_is_rejected_not_panicked() {
+    let result = canonicalize_spec(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Named {
+                        named: ContractSpecString::try_from(vec![0xC0u8, 0x80]).unwrap(),
+                    },
+                },
+            },
+        },
+    ]);
+
+    assert!(matches!(result, Err(SpecToolError::InvalidRawFragment(_))));
+}
+
+#[test]
+fn duplicate_exception_selector_with_different_types_is_rejected() {
+    let result = canonicalize_spec(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                throws: vec![
+                    ContractExceptionType {
+                        selector: 7,
+                        ty: ContractType::Named { named: s("ErrA") },
+                    },
+                    ContractExceptionType {
+                        selector: 7,
+                        ty: ContractType::Named { named: s("ErrB") },
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ]);
+
+    assert!(matches!(
+        result,
+        Err(SpecToolError::ConflictingExceptionSelector(_))
+    ));
+}
+
+#[test]
+fn identical_duplicate_exception_entries_are_deduped() {
+    let spec = canonicalize_spec(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                throws: vec![
+                    ContractExceptionType {
+                        selector: 7,
+                        ty: ContractType::U32,
+                    },
+                    ContractExceptionType {
+                        selector: 7,
+                        ty: ContractType::U32,
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ])
+    .unwrap();
+
+    assert_eq!(spec.interfaces[0].throws.len(), 1);
+}

@@ -66,7 +66,9 @@ pub struct ContractTypeInfo<'a> {
 /// Trait for types that can appear in contract spec signatures.
 /// Implemented for primitives, collections, and `#[contract_type]` types.
 pub trait ContractTypeRefSpec {
-    /// The type reference and its transitive type definitions.
+    /// The type reference. Transitive type definitions are not carried here;
+    /// they are retained via the linker-anchor mechanism
+    /// (`__GROUNDHOG_SPEC_ANCHOR_ROOT`) and resolved by spec-tool.
     const INFO: ContractTypeInfo<'static>;
 
     /// Hidden root symbol used to retain imported raw typedef fragments.
@@ -147,6 +149,11 @@ impl ContractTypeRefSpec for str {
     };
 }
 
+// Byte payloads deliberately lower to `Vector(U8, ...)`, never to
+// `ContractType::Bytes`, so the spec has a single canonical spelling for
+// byte sequences (the macro tests assert `Bytes` never appears). The
+// `Bytes` wire variant still exists; other-language SDKs must also avoid
+// emitting it, or identical interfaces will hash/compare unequal.
 impl ContractTypeRefSpec for [u8] {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
@@ -174,8 +181,12 @@ impl<const MAX: usize> ContractTypeRefSpec for heapless::String<MAX> {
 }
 
 impl<const MAX: u32> ContractTypeRefSpec for xdr_common::BytesM<MAX> {
-    const INFO: ContractTypeInfo<'static> =
-        <&[u8] as ContractTypeRefSpec>::INFO;
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
+            element: &view::ContractTypeView::U8,
+            max_len: MAX,
+        }),
+    };
 }
 
 impl<T, const N: usize> ContractTypeRefSpec for [T; N]
