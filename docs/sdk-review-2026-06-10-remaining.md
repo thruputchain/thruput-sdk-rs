@@ -51,13 +51,17 @@ directory other than the repo root iterates zero packages (relative
 
 **Addressed in the 2026-06-11 fix pass** (sections removed below):
 
-- *Calldata hardening:* `try_get_calldata_with_auth_tokens` now validates
-  the host-reported calldata and auth-token lengths against buffer
-  capacity before `set_len`, returning `Err(InvalidSyscallInput)` (the
-  non-try wrapper throws `LibraryExn::Syscall`) instead of reading past
-  the initialized region and dying on a slice-index panic. The wider
-  ReturnBuf/CALLDATA_MAX 500-vs-1024 buffer-cap question is deliberately
-  **not** resolved yet.
+- *Calldata hardening + arbitrary-length calldata:* with the `alloc`
+  feature, `try_get_calldata_with_auth_tokens` now sizes its buffers
+  exactly via `GetCalldataLen` (heap `Vec`s on the guest bump
+  allocator), so calldata of any length and any auth-token count are
+  supported; host-reported lengths are still validated before
+  `set_len`. Without `alloc`, the fixed 500-byte stack buffer remains
+  and oversized inputs return `Err(InvalidSyscallInput)` (thrown as
+  `LibraryExn::Syscall` by the non-try wrapper) instead of reading past
+  the initialized region. The *return/encode*-side buffer caps
+  (ReturnBuf/AbortBuf, EncodeBuf, ENCODE_MAX vs the protocol's
+  1024-byte return cap) are deliberately **not** resolved yet.
 - *Dead-code sweep:* deleted `internal/track.rs`, `allocator_panic.rs`,
   `internal/static_buf.rs` (`static_mu_buf!`/`static_vec!`),
   `Keypath::from_key`, `storage_load_error`, `contract_exit` (the `Exit`
