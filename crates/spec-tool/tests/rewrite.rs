@@ -6,8 +6,8 @@ use groundhog_contract_spec::{
     SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
-    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME, SpecToolError,
-    rewrite::rewrite_wasm,
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+    rewrite::{rewrite_wasm, rewrite_wasm_with_spec},
 };
 use serde_json::Value;
 use tempfile::tempdir;
@@ -548,7 +548,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
 }
 
 #[test]
-fn rewrite_rejects_raw_sections_with_only_typedefs() {
+fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
     let raw_blob = encode_fragments(&[SpecFragment::SpecTypeDef {
         type_def: groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
             struct_def: groundhog_contract_spec::ContractStructDef {
@@ -573,10 +573,14 @@ fn rewrite_rejects_raw_sections_with_only_typedefs() {
         data: raw_blob.as_slice().into(),
     });
 
-    // Raw fragments exist but define no interface: silently emitting a wasm
-    // with no spec (and stripping any pre-existing final section) would hide
-    // an authoring mistake, so this must be an error.
-    let err = rewrite_wasm(&module.finish()).unwrap_err();
+    // Raw contracts (no #[contract] interface) legitimately carry
+    // typedef-only raw fragments from linked SDK code (e.g.
+    // genesis_deployer), so this strips the fragments and emits no spec —
+    // but the condition is reported so build tooling can warn, since it is
+    // also what a missing interface looks like.
+    let rewritten = rewrite_wasm_with_spec(&module.finish()).unwrap();
 
-    assert!(matches!(err, SpecToolError::NoSpecFragments));
+    assert!(custom_sections(&rewritten.wasm).is_empty());
+    assert!(rewritten.spec.is_none());
+    assert!(rewritten.stripped_typedef_only_fragments);
 }

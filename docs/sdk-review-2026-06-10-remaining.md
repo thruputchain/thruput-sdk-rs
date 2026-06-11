@@ -72,8 +72,11 @@ directory other than the repo root iterates zero packages (relative
   spec strings return `SpecToolError::InvalidRawFragment` instead of
   panicking; duplicate exception selectors with different payload types are
   rejected (new `ConflictingExceptionSelector`; canonical throws order is
-  now by selector); typedef-only raw fragments are a hard error instead of
-  silently stripping the final spec; rendered JSON keys unified
+  now by selector); typedef-only raw fragments still yield a spec-less
+  wasm (raw contracts like `genesis_deployer` link exported SDK typedefs
+  with no interface, so a hard error is wrong) but the condition is now
+  reported on `RewrittenWasm` and surfaced as a CLI warning instead of
+  passing silently; rendered JSON keys unified
   (`"type"`, `"element"`); the lossless JSON is reachable via
   `--json-format round-trip`; the CLI gained `--out`, atomic writes, and
   `--help` (in-place rewrite and stale-sidecar deletion are kept but now

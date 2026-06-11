@@ -21,8 +21,15 @@ pub struct RewrittenWasm {
     /// single final spec section appended (when a spec was found).
     pub wasm: Vec<u8>,
     /// The canonicalized spec embedded in `wasm`, or `None` when the input
-    /// contained no spec sections at all.
+    /// yielded no spec (no spec sections at all, or typedef-only raw
+    /// fragments).
     pub spec: Option<ContractSpec>,
+    /// True when raw fragments were present but contained no interface, so
+    /// they were stripped without producing a spec. Legitimate for raw
+    /// contracts (no `#[contract]` interface) that link SDK code carrying
+    /// exported typedefs, but worth a warning in build tooling since it is
+    /// also what a forgotten interface looks like.
+    pub stripped_typedef_only_fragments: bool,
 }
 
 /// Canonicalize a wasm binary's contract-spec sections.
@@ -35,9 +42,11 @@ pub struct RewrittenWasm {
 ///   spec is decoded and re-encoded (idempotent re-runs).
 /// - If the input has no spec sections at all, the output carries none and
 ///   `spec` is `None`.
-/// - Raw fragments that define types but no interface are rejected with
-///   [`SpecToolError::NoSpecFragments`] rather than silently producing a
-///   spec-less binary.
+/// - Raw fragments that define types but no interface also yield
+///   `spec: None` (with `stripped_typedef_only_fragments` set): raw
+///   contracts that link SDK code carrying exported typedefs hit this
+///   legitimately. Callers should surface a warning, since it is equally
+///   what an accidentally-unexported interface looks like.
 /// - Errors with "raw spec bytes leaked into linear memory" if any raw
 ///   fragment's encoding appears in a data segment — raw fragments must live
 ///   only in custom sections, never in the contract's linear memory image.
@@ -45,10 +54,18 @@ pub fn rewrite_wasm_with_spec(
     bytes: &[u8],
 ) -> Result<RewrittenWasm, SpecToolError> {
     let raw_fragments = collect_raw_fragments(bytes)?;
+    let mut stripped_typedef_only_fragments = false;
     let spec = if raw_fragments.is_empty() {
         collect_final_spec(bytes)?
     } else {
-        Some(canonicalize_spec(&raw_fragments)?)
+        match canonicalize_spec(&raw_fragments) {
+            Ok(spec) => Some(spec),
+            Err(SpecToolError::NoSpecFragments) => {
+                stripped_typedef_only_fragments = true;
+                None
+            }
+            Err(err) => return Err(err),
+        }
     };
     ensure_raw_fragments_stay_out_of_linear_memory(&raw_fragments, bytes)?;
     let mut module = Module::new();
@@ -81,6 +98,7 @@ pub fn rewrite_wasm_with_spec(
     Ok(RewrittenWasm {
         wasm: module.finish(),
         spec,
+        stripped_typedef_only_fragments,
     })
 }
 

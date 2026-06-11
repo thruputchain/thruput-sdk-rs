@@ -132,6 +132,15 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     let bytes = fs::read(&wasm_path)?;
     let rewritten = rewrite_wasm_with_spec(&bytes)?;
     write_atomically(&out_path, &rewritten.wasm)?;
+    if rewritten.stripped_typedef_only_fragments {
+        eprintln!(
+            "warning: {} carried raw spec fragments with no interface; \
+             they were stripped and no spec was emitted. This is expected \
+             for raw contracts linking SDK typedefs, but also what a \
+             missing #[contract] interface looks like.",
+            wasm_path.display()
+        );
+    }
     if let Some(spec) = rewritten.spec {
         let json = match json_format {
             JsonFormat::Debug => render_spec_json(&spec),
