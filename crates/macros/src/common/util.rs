@@ -76,10 +76,8 @@ pub fn validate_version_string(
     span: proc_macro2::Span,
     version: &str,
 ) -> Result<(), Error> {
-    if groundhog_contract_util::semver::try_major_version_from_string(
-        version,
-    )
-    .is_none()
+    if groundhog_contract_util::semver::try_major_version_from_string(version)
+        .is_none()
     {
         return Err(Error::new(
             span,

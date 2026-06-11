@@ -42,9 +42,7 @@ fn apply_with_config(
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            contract::validate_method_arg_patterns(
-                contract.methods_sorted(),
-            )?;
+            contract::validate_method_arg_patterns(contract.methods_sorted())?;
             let throws_tokens = contract::throws_spec_tokens(&contract)?;
             let throw_anchor_tokens =
                 contract::throws_anchor_tokens(&contract)?;
@@ -143,9 +141,7 @@ fn apply_with_config(
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            contract::validate_method_arg_patterns(
-                contract.methods_sorted(),
-            )?;
+            contract::validate_method_arg_patterns(contract.methods_sorted())?;
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -215,9 +211,7 @@ fn apply_with_config(
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
-            contract::validate_method_arg_patterns(
-                contract.methods_sorted(),
-            )?;
+            contract::validate_method_arg_patterns(contract.methods_sorted())?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();

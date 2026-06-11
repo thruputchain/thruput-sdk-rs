@@ -54,11 +54,10 @@ fn consume_succeeds_with_exact_child_handles() {
     let env = TestEnvironment::no_cost();
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| {
-            let node =
-                build_auth_token_node::<LeafAuth>(AuthTokenPreimage {
-                    consumer: sdk::get_current_address(),
-                    data: LeafAuthPreimage { data: 7 },
-                });
+            let node = build_auth_token_node::<LeafAuth>(AuthTokenPreimage {
+                consumer: sdk::get_current_address(),
+                data: LeafAuthPreimage { data: 7 },
+            });
 
             let encoded = encode_auth_token_node(&node);
             let expiry = sdk::block::get_block_height();

@@ -359,7 +359,6 @@ mod tests {
         assert!(children.is_empty());
     }
 
-
     #[test]
     fn signed_mint_into_parent_pushes_child() {
         let mut children = ChildNodeBuf::new();

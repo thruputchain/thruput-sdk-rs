@@ -4,7 +4,10 @@ mod tests {
 
     #[test]
     fn try_major_version_accepts_triplets_and_rejects_the_rest() {
-        assert_eq!(try_major_version_from_string("1.2.3").as_deref(), Some("1"));
+        assert_eq!(
+            try_major_version_from_string("1.2.3").as_deref(),
+            Some("1")
+        );
         assert_eq!(
             try_major_version_from_string("0.9.2").as_deref(),
             Some("0.9")

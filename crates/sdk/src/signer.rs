@@ -355,7 +355,9 @@ where
         if iter.next().is_some() {
             crate::exn::library_throw(
                 crate::AuthTokenError::ReceiveAuthHandlesFailure(
-                    FaultString::from_display("unexpected auth handle remaining"),
+                    FaultString::from_display(
+                        "unexpected auth handle remaining",
+                    ),
                 ),
             )
         }
