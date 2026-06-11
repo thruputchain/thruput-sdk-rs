@@ -198,9 +198,7 @@ where
         preimage: AuthTokenPreimage<<T as MintableType>::Preimage>,
         children: &mut crate::mintable::ChildNodeBuf,
     ) -> Self {
-        let mut node =
-            crate::mintable::build_auth_token_node::<T>(preimage.data);
-        node.consumer_address = preimage.consumer;
+        let node = crate::mintable::build_auth_token_node::<T>(preimage);
         children.push(node).expect("too many auth token children");
         Signed::default()
     }
@@ -228,9 +226,7 @@ where
 {
     use crate::sys::SyscallNo;
 
-    let mut root_node =
-        crate::mintable::build_auth_token_node::<T>(preimage.data);
-    root_node.consumer_address = preimage.consumer;
+    let root_node = crate::mintable::build_auth_token_node::<T>(preimage);
     let buf = crate::mintable::encode_auth_token_node(&root_node);
 
     let mut token_id: core::mem::MaybeUninit<u32> =
@@ -279,6 +275,26 @@ impl<T> Signed<T>
 where
     T: for<'a> ReadXDR<'a> + crate::ReceiveAuthHandles,
 {
+    /// Consume the auth token, returning its decoded payload and the
+    /// address of the contract that **minted** it.
+    ///
+    /// # Security
+    ///
+    /// Any contract can mint a token whose payload decodes as `T`.
+    /// Consuming proves only that the token was (a) minted by the returned
+    /// address and (b) destined for this contract. **You must check the
+    /// returned minter address against an address you trust** before acting
+    /// on the payload — skipping that check is an authorization bypass.
+    ///
+    /// # Aborts
+    ///
+    /// Aborts the transaction (rather than returning an error) if the
+    /// `ConsumeAuthToken` syscall fails — e.g. this contract is not the
+    /// token's consumer, the token is expired, or the handle was already
+    /// consumed — and throws [`AuthTokenError`] if
+    /// the payload fails to decode as `T` or the token's child-token count
+    /// does not match the `Signed` fields of `T`. Child handles are
+    /// assigned to `T`'s `Signed` fields in declaration order.
     pub fn consume(self) -> (T, ContractAddress) {
         debug_assert_ne!(
             self.handle,
@@ -335,6 +351,16 @@ where
         value
             .receive_auth_handles(&mut iter)
             .unwrap_or_else(|e| crate::exn::library_throw(e));
+
+        if iter.next().is_some() {
+            crate::exn::library_throw(
+                crate::AuthTokenError::ReceiveAuthHandlesFailure(
+                    FaultString::from_display(
+                        "unexpected auth handle remaining",
+                    ),
+                ),
+            )
+        }
 
         (value, minter_address)
     }

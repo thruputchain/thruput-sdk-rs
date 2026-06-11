@@ -1,5 +1,23 @@
 mod tests {
     use crate::semver::major_version_from_string;
+    use crate::semver::try_major_version_from_string;
+
+    #[test]
+    fn try_major_version_accepts_triplets_and_rejects_the_rest() {
+        assert_eq!(
+            try_major_version_from_string("1.2.3").as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            try_major_version_from_string("0.9.2").as_deref(),
+            Some("0.9")
+        );
+        assert_eq!(try_major_version_from_string("1"), None);
+        assert_eq!(try_major_version_from_string("1.2"), None);
+        assert_eq!(try_major_version_from_string("bogus"), None);
+        assert_eq!(try_major_version_from_string(""), None);
+        assert_eq!(try_major_version_from_string("1.2.3.4"), None);
+    }
 
     #[test]
     fn test_cargo_major_version_major_nonzero() {

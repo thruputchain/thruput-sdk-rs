@@ -13,7 +13,7 @@ pub struct InvokeError {
 
 impl fmt::Display for InvokeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "InvokeError {}", self.clone())
+        write!(f, "InvokeError {}", self.error_type)
     }
 }
 
@@ -134,6 +134,15 @@ pub fn deactivate_panic_hook() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn display_terminates_and_names_the_error_code() {
+        // Regression: Display used to format `self.clone()` with `{}`,
+        // recursing infinitely and crashing on any to_string().
+        let msg = deterministic_error().to_string();
+        assert!(msg.contains("InvokeError"), "got: {msg}");
+        assert!(msg.contains("Deterministic"), "got: {msg}");
+    }
 
     #[test]
     fn panic_hook_converts_panics_when_active() {

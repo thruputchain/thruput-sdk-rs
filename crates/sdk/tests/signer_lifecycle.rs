@@ -17,18 +17,6 @@ use sdk::receive_auth_handles::ReceiveAuthHandles;
 use sdk::signer::Signed;
 use sdk::*;
 
-fn build_signer_node<T: sdk::Mintable>(
-    preimage: AuthTokenPreimage<<T as MintableType>::Preimage>,
-) -> sdk::AuthTokenNode
-where
-    T::Preimage: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
-    AuthTokenPreimage<T::Preimage>: sdk::WriteXDR + for<'r> sdk::ReadXDR<'r>,
-{
-    let mut node = build_auth_token_node::<T>(preimage.data);
-    node.consumer_address = preimage.consumer;
-    node
-}
-
 // ── Contract C's auth data (leaf, no nested signers) ──
 
 #[contract_type]
@@ -84,7 +72,7 @@ fn build_nested_auth_token_tree() {
         },
     };
 
-    let root_node = build_signer_node::<MiddleAuth>(preimage);
+    let root_node = build_auth_token_node::<MiddleAuth>(preimage);
 
     assert_eq!(root_node.consumer_address, addr_b);
     assert_eq!(root_node.child_nodes.len(), 3);
@@ -126,7 +114,7 @@ fn payload_roundtrip_with_receive_handles() {
         },
     };
 
-    let root_node = build_signer_node::<MiddleAuth>(preimage);
+    let root_node = build_auth_token_node::<MiddleAuth>(preimage);
 
     let payload_bytes: &[u8] = root_node.payload.as_ref();
     let mut decoded: MiddleAuth =
@@ -179,7 +167,7 @@ fn leaf_payload_roundtrip() {
         data: LeafAuthPreimage { data: 99 },
     };
 
-    let node = build_signer_node::<LeafAuth>(leaf_preimage);
+    let node = build_auth_token_node::<LeafAuth>(leaf_preimage);
 
     assert_eq!(node.consumer_address, addr(0xCC));
     assert!(node.child_nodes.is_empty());
@@ -198,7 +186,7 @@ fn encode_auth_token_node_roundtrip() {
         data: LeafAuthPreimage { data: 77 },
     };
 
-    let node = build_signer_node::<LeafAuth>(preimage);
+    let node = build_auth_token_node::<LeafAuth>(preimage);
 
     let encoded = sdk::mintable::encode_auth_token_node(&node);
     assert!(!encoded.is_empty());

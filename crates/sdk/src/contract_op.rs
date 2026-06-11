@@ -61,7 +61,12 @@ where
         std::println!();
         std::println!("  Throwing exception {:?}", exn);
         std::println!("  Location: {}", core::panic::Location::caller());
-        std::println!("  Backtrace:\n{}", crate::Backtrace::capture());
+        // Safety: captured and displayed in one expression on an abort path
+        // (`_contract_abort_encoded` below never returns), so every
+        // with_debug_context frame is still on the stack.
+        std::println!("  Backtrace:\n{}", unsafe {
+            crate::Backtrace::capture()
+        });
     }
 
     _contract_abort_encoded(exn)
@@ -83,7 +88,12 @@ where
             "  Interface location: {}",
             core::panic::Location::caller()
         );
-        std::println!("  Backtrace:\n{}", crate::Backtrace::capture());
+        // Safety: captured and displayed in one expression on an abort path
+        // (`_contract_abort_encoded` below never returns), so every
+        // with_debug_context frame is still on the stack.
+        std::println!("  Backtrace:\n{}", unsafe {
+            crate::Backtrace::capture()
+        });
     }
 
     _contract_abort_encoded(exn)

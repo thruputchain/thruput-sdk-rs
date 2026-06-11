@@ -1,5 +1,5 @@
 use super::keypath::Keypath;
-use crate::exn::{nnint_overflow, nnint_underflow};
+use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
 use core::fmt::Debug;
@@ -56,18 +56,38 @@ impl NNInt {
         nnint::set_add(key, s, add_value, self.flags());
     }
 
-    /// Increment by an amount, aborting in case of a negative result.
+    /// Increment by an amount, throwing in case of a negative result.
     pub fn strict_inc(&mut self, increment: i128) {
+        use crate::re_throw::OrReThrow;
+        self.try_strict_inc(increment).or_re_throw()
+    }
+
+    /// Increment by an amount, like [`NNInt::strict_inc`], but report
+    /// overflow/underflow to the caller instead of aborting, so a contract
+    /// can raise a domain-specific exception. On `Err` the stored value is
+    /// unmodified; no extra storage roundtrip over [`NNInt::inc`].
+    pub fn try_strict_inc(
+        &mut self,
+        increment: i128,
+    ) -> Result<(), crate::exn::LibraryExn> {
+        use crate::exn::LibraryExn;
+
         let key = &self.keypath.generate_key();
         let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
-        let add_value =
-            a.checked_add(increment).unwrap_or_else(|| nnint_overflow());
-        let total =
-            s.checked_add(add_value).unwrap_or_else(|| nnint_overflow());
+
+        let add_value = a
+            .checked_add(increment)
+            .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+        let total = s
+            .checked_add(add_value)
+            .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+
         if total < 0 {
-            nnint_underflow();
+            return Err(LibraryExn::NonNegativeIntUnderflow);
         }
+
         nnint::set_add(key, Some(s), add_value, self.flags());
+        Ok(())
     }
 }
 

@@ -15,6 +15,5 @@ thiserror = { workspace = true }
 
 [features]
 metadata = ["dep:groundhog-erc20-metadata-if"]
-default = ["no_check_aborts"]
 # don't check operations expected to cause erc20 abort
 no_check_aborts = []

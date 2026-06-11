@@ -39,7 +39,7 @@ impl Model {
 
         *balance = (*balance).checked_add(amount).unwrap();
 
-        self.log_transfer_event(CONTRACT_ADDR_ZERO, receiver, 100);
+        self.log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
     }
 
     pub fn burn(&mut self, owner: &ContractAddress, amount: Amount) {

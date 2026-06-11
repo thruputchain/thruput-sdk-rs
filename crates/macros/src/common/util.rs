@@ -31,7 +31,12 @@ pub fn method_args(
         let ident = if let syn::Pat::Ident(pat_ident) = pat_type.pat.as_ref() {
             &pat_ident.ident
         } else {
-            panic!("Can't handle non-ident arg pattern");
+            // validate_method_arg_patterns rejects these with a spanned
+            // error before any codegen path reaches here.
+            panic!(
+                "internal error: non-ident arg pattern should have been \
+                 rejected by validate_method_arg_patterns"
+            );
         };
         let ty = pat_type.ty.as_ref();
         (ident, ty)
@@ -61,4 +66,48 @@ where
     M: AsRef<str>,
 {
     Error::new(spanned.span(), msg.as_ref())
+}
+
+/// Validate a user-supplied `version = "..."` attribute value before it
+/// reaches the panicking semver parser inside the selector/entrypoint
+/// hash derivation. `span` should be the span of the attribute value so
+/// the error points at it.
+pub fn validate_version_string(
+    span: proc_macro2::Span,
+    version: &str,
+) -> Result<(), Error> {
+    if groundhog_contract_util::semver::try_major_version_from_string(version)
+        .is_none()
+    {
+        return Err(Error::new(
+            span,
+            format!(
+                "invalid version {version:?}: expected a full semver \
+                 triplet like \"1.0.0\" (optionally with -PRERELEASE \
+                 and +BUILD suffixes)"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// Validate that a user-supplied attribute string is a legal Rust
+/// identifier before it reaches a panicking `Ident::new`/`format_ident!`.
+/// `span` should be the span of the attribute value so the error points
+/// at it.
+pub fn validate_ident_string(
+    span: proc_macro2::Span,
+    value: &str,
+    attr: &str,
+) -> Result<(), Error> {
+    if syn::parse_str::<syn::Ident>(value).is_err() {
+        return Err(Error::new(
+            span,
+            format!(
+                "{attr} = {value:?} must be a valid Rust identifier \
+                 (it is used to name generated items)"
+            ),
+        ));
+    }
+    Ok(())
 }

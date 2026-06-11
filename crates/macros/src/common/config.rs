@@ -1,6 +1,7 @@
 //! Parse attributes for the contract macro
 
 use darling::FromMeta;
+use darling::util::SpannedValue;
 use proc_macro2::Span;
 use quote::ToTokens;
 use std::collections::BTreeMap;
@@ -176,11 +177,11 @@ impl FromMeta for EmitsList {
 
 #[derive(Clone, Debug, FromMeta)]
 pub struct Config {
-    pub exports: Option<String>,
+    pub exports: Option<SpannedValue<String>>,
     pub test_setup: Option<String>,
     pub storage: Option<bool>,
-    pub interface: Option<String>,
-    pub version: Option<String>,
+    pub interface: Option<SpannedValue<String>>,
+    pub version: Option<SpannedValue<String>>,
 
     client: Option<syn::Ident>,
     throws: Option<ThrowsList>,
@@ -188,12 +189,34 @@ pub struct Config {
 }
 
 impl Config {
+    /// Validate user-supplied string attributes up front, so malformed
+    /// input produces a compile error instead of a proc-macro panic
+    /// deeper in code generation.
+    pub fn validate(&self) -> syn::Result<()> {
+        use super::util::{validate_ident_string, validate_version_string};
+
+        if let Some(version) = &self.version {
+            validate_version_string(version.span(), version)?;
+        }
+        if let Some(exports) = &self.exports {
+            validate_ident_string(exports.span(), exports, "exports")?;
+        }
+        if let Some(interface) = &self.interface {
+            validate_ident_string(interface.span(), interface, "interface")?;
+        }
+        Ok(())
+    }
+
     pub fn client_ident(&self) -> Option<syn::Ident> {
         self.client.clone()
     }
 
     pub fn interface_name(&self) -> Option<String> {
-        self.interface.clone()
+        self.interface.as_ref().map(|s| s.as_str().to_string())
+    }
+
+    pub fn version_string(&self) -> Option<String> {
+        self.version.as_ref().map(|v| v.as_str().to_string())
     }
 
     pub fn internal_exports_mod_ident(
@@ -201,7 +224,7 @@ impl Config {
         effective_interface_name: &str,
     ) -> syn::Ident {
         if let Some(name) = &self.exports {
-            return syn::Ident::new(name, Span::call_site());
+            return syn::Ident::new(name, name.span());
         }
 
         syn::Ident::new(

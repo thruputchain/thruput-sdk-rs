@@ -48,7 +48,11 @@ fn add_to_total_supply(diff: Difference) {
 }
 
 fn add_to_balance(addr: &ContractAddress, diff: Difference) {
-    non_negative_int_strict_inc(&get_balance_key(addr), diff)
+    // The standard error contract: a balance outside the non-negative
+    // range throws ERC20Error::TooLarge. try_strict_inc reports the
+    // failure instead of aborting, with no extra pre-check roundtrip.
+    non_negative_int_try_strict_inc(&get_balance_key(addr), diff)
+        .unwrap_or_else(|_| throw(ERC20Error::TooLarge))
 }
 
 fn add_to_allowance(
@@ -56,7 +60,8 @@ fn add_to_allowance(
     spender: &ContractAddress,
     diff: Difference,
 ) {
-    non_negative_int_strict_inc(&get_allowance_key(owner, spender), diff);
+    non_negative_int_try_strict_inc(&get_allowance_key(owner, spender), diff)
+        .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
     log_approval_event(owner, spender, diff);
 }

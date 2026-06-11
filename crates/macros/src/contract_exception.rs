@@ -1,11 +1,12 @@
 use darling::FromMeta;
+use darling::util::SpannedValue;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Item;
 
 #[derive(Debug, Default, FromMeta)]
 pub struct ContractExceptionArgs {
-    pub version: Option<String>,
+    pub version: Option<SpannedValue<String>>,
     pub name: Option<String>,
 }
 
@@ -15,6 +16,15 @@ pub struct ContractExceptionArgs {
 /// Supported on enums and structs. All user-supplied attributes (including
 /// `#[error("...")]` from thiserror) are passed through unchanged.
 pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
+    if let Some(version) = &args.version
+        && let Err(err) = crate::common::util::validate_version_string(
+            version.span(),
+            version,
+        )
+    {
+        return err.into_compile_error();
+    }
+
     match item {
         Item::Enum(e) => expand_enum(args, e),
         Item::Struct(s) => expand_struct(args, s),
@@ -146,10 +156,14 @@ fn enum_variant_field_types(
 }
 
 fn compute_selector(args: &ContractExceptionArgs, type_name: &str) -> u64 {
-    let version = args.version.clone().unwrap_or_else(|| {
-        std::env::var("CARGO_PKG_VERSION")
-            .unwrap_or_else(|_| "0.0.0".to_string())
-    });
+    let version = args
+        .version
+        .as_ref()
+        .map(|v| v.as_str().to_string())
+        .unwrap_or_else(|| {
+            std::env::var("CARGO_PKG_VERSION")
+                .unwrap_or_else(|_| "0.0.0".to_string())
+        });
     let crate_name = std::env::var("CARGO_PKG_NAME")
         .unwrap_or_else(|_| "_unknown_".to_string());
     groundhog_contract_util::exception_selector(

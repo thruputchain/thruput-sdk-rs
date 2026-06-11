@@ -10,10 +10,15 @@ Contract crates using the native test harness typically need:
 
 ```toml
 [features]
+# Required: the #[contract] macro gates guest entrypoint codegen on this.
+entrypoints = []
 dev = ["sdk/dev"]
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-sdk = { path = "../sdk_rs" }
+sdk = { path = "../sdk_rs/crates/sdk" }
 # Add `features = ["storage"]` if the contract uses sdk::storage types.
 
 [dev-dependencies]

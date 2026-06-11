@@ -32,10 +32,12 @@ impl ERC1271 for Wallet {
                 payload_bytes[..chunk.len()].copy_from_slice(chunk);
                 let value = u64::from_le_bytes(payload_bytes);
 
-                let consumer = sdk::get_caller();
-                let mut node =
-                    sdk::mintable::build_auth_token_node::<u64>(value);
-                node.consumer_address = consumer;
+                let node = sdk::mintable::build_auth_token_node::<u64>(
+                    sdk::mintable::AuthTokenPreimage {
+                        consumer: sdk::get_caller(),
+                        data: value,
+                    },
+                );
                 let encoded = sdk::mintable::encode_auth_token_node(&node);
 
                 let expiry = sdk::block::get_block_height();

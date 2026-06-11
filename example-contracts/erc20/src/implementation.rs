@@ -55,12 +55,15 @@ impl TokenContract {
         self.balances.at(owner).try_get().unwrap_or(0) as Amount
     }
 
-    // Adjust balance at given owner address, from zero if empty
+    // Adjust balance at given owner address, from zero if empty.
+    // For never-stored-to addresses, this acts as if the value was zero.
     fn _adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
-        // For never-stored-to addresses, this acts as
-        // if the value was zero.  If the resulting balance
-        // would be negative, this aborts.
-        self.balances.at_mut(owner).strict_inc(diff);
+        // The standard error contract: a result outside the non-negative
+        // range throws ERC20Error::TooLarge.
+        self.balances
+            .at_mut(owner)
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
     fn _allowance(
@@ -79,11 +82,12 @@ impl TokenContract {
         spender: &ContractAddress,
         diff: Difference,
     ) {
-        // This fails if the result would be negative
+        // Standard error contract: a negative result throws TooLarge.
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
-            .strict_inc(diff);
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
         log_approval_event(owner, spender, diff);
     }

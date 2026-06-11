@@ -133,11 +133,18 @@ impl TransactionHandler {
     /// Tries to commit the transaction to the database.
     /// This must be called after root_invoke, and only once per transaction.
     ///
-    /// Returns true if the transaction commits, false otherwise.
+    /// Returns the [`ExecResult`](groundhog_xdr::exec_result::ExecResult)
+    /// reported by the executor; check it to see whether the commit
+    /// succeeded.
     ///
     /// This will abort the transaction if the root invocation failed.
     /// So it is safe to call either try_commit_transaction or abort_transaction
     /// after root_invoke, regardless of whether the root invocation succeeded or failed.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called before `root_invoke`, or if the transaction was
+    /// already committed or aborted.
     pub fn try_commit_transaction(
         &mut self,
     ) -> groundhog_xdr::exec_result::ExecResult {
