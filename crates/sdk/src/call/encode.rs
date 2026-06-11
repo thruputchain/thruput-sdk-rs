@@ -1,5 +1,5 @@
-use crate::call::{RawCallError, ReturnBuf};
-use crate::exn::{FaultString, HandlingError, library_throw};
+use crate::call::RawCallError;
+use crate::exn::FaultString;
 use crate::{ReceiveAuthHandles, receive_auth_handles_from_slice, xdr::*};
 
 pub fn contract_call_decode<'b, T>(
@@ -46,17 +46,6 @@ where
     }
 
     Ok(buf)
-}
-
-pub fn encode_success<T>(v: &T) -> ReturnBuf
-where
-    T: WriteXDR + ?Sized,
-{
-    contract_call_encode(v).unwrap_or_else(|e| {
-        library_throw(HandlingError::EncodingSuccess(
-            FaultString::from_display(e),
-        ))
-    })
 }
 
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};

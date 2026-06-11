@@ -9,16 +9,14 @@ use core::fmt::{self, Debug};
 /// to attempt decoding as a known exception type.
 pub struct RawException {
     selector: u64,
-    payload: heapless::Vec<u8, 500>,
+    payload: crate::call::Buf,
 }
 
 impl RawException {
     pub fn new(selector: u64, payload: &[u8]) -> Self {
-        let mut buf = heapless::Vec::new();
-        buf.extend_from_slice(payload).ok();
         Self {
             selector,
-            payload: buf,
+            payload: crate::call::buf_from_slice(payload),
         }
     }
 
