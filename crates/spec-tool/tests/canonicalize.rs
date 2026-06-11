@@ -1112,7 +1112,10 @@ fn canonicalize_spec_rejects_event_without_name() {
 fn non_utf8_interface_name_is_rejected_not_panicked() {
     let result = canonicalize_spec(&[SpecFragment::SpecInterface {
         interface_fragment: SpecInterfaceFragment {
-            interface_name: ContractSpecString::try_from(vec![0xFFu8, 0xFE, 0xFD]).unwrap(),
+            interface_name: ContractSpecString::try_from(vec![
+                0xFFu8, 0xFE, 0xFD,
+            ])
+            .unwrap(),
             interface_version: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
         },
@@ -1139,7 +1142,10 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
-                        named: ContractSpecString::try_from(vec![0xC0u8, 0x80]).unwrap(),
+                        named: ContractSpecString::try_from(vec![
+                            0xC0u8, 0x80,
+                        ])
+                        .unwrap(),
                     },
                 },
             },

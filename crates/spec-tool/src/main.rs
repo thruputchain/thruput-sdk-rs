@@ -63,9 +63,7 @@ fn run() -> Result<(), CliError> {
             println!("{USAGE}");
             Ok(())
         }
-        Some(other) => {
-            Err(usage(format!("unexpected subcommand '{other}'")))
-        }
+        Some(other) => Err(usage(format!("unexpected subcommand '{other}'"))),
         None => Err(usage("expected subcommand 'rewrite' or 'describe'")),
     }
 }
@@ -245,8 +243,7 @@ fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
         return Ok(());
     }
 
-    let type_name =
-        type_name.ok_or(usage("expected type name or --list"))?;
+    let type_name = type_name.ok_or(usage("expected type name or --list"))?;
     let ty = lookup(&type_name)
         .ok_or_else(|| usage(format!("unknown type name '{type_name}'")))?;
     let spec = build_describe(ty);

@@ -196,7 +196,7 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"Choice"' &&
     assert_file_contains "$spec_named_json" '"Envelope"' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
-    assert_file_contains "$spec_named_json" '"kind":"vec","inner":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"kind":"vec","element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
     assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
@@ -206,7 +206,7 @@ check_contract_spec_artifacts() {
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
     assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
-    assert_file_contains "$erc20_json" '"name":"from","ty":{"kind":"address"}' &&
+    assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
 
     assert_file_contains "$swap_json" '"name":"MintEvent"' &&
     assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
