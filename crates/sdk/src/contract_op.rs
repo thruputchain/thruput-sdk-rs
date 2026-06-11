@@ -186,7 +186,7 @@ pub fn get_calldata_len() -> RuntimeMemoryLength {
 /// The calldata buffer.
 ///
 /// With the `alloc` feature this is a heap `Vec` sized exactly to the
-/// calldata (any length); without it, a fixed [`CALLDATA_MAX`]-byte stack
+/// calldata (any length); without it, a fixed 500-byte (`CALLDATA_MAX`) stack
 /// buffer.
 #[cfg(feature = "alloc")]
 pub type Calldata = alloc::vec::Vec<u8>;
@@ -271,7 +271,7 @@ pub fn try_get_calldata_with_auth_tokens()
 
 /// Fetch the current frame's calldata and auth-token ids.
 ///
-/// Without `alloc`, calldata lands in a fixed [`CALLDATA_MAX`]-byte stack
+/// Without `alloc`, calldata lands in a fixed 500-byte (`CALLDATA_MAX`) stack
 /// buffer and the token list holds at most 32 entries; larger inputs return
 /// `InvalidSyscallInput` (the non-try wrapper throws it as a
 /// `LibraryExn::Syscall` for `kGetCalldata`).
