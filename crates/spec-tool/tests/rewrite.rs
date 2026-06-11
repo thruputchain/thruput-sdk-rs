@@ -6,13 +6,15 @@ use groundhog_contract_spec::{
     SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
-    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
-    rewrite::{rewrite_wasm, rewrite_wasm_with_spec},
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME, SpecToolError,
+    rewrite::rewrite_wasm,
 };
 use serde_json::Value;
 use tempfile::tempdir;
 use wasm_encoder::{
-    ConstExpr, CustomSection, DataSection, MemorySection, MemoryType, Module,
+    CodeSection, ConstExpr, CustomSection, DataSection, ExportKind,
+    ExportSection, Function, FunctionSection, Instruction, MemorySection,
+    MemoryType, Module, TypeSection,
 };
 use wasmparser::{DataKind, Parser, Payload};
 use xdrs::txs::{decode, encode};
@@ -547,8 +549,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
     assert_eq!(err.to_string(), "raw spec bytes leaked into linear memory");
 }
 
-#[test]
-fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
+fn typedef_only_module(with_function_export: bool) -> Vec<u8> {
     let raw_blob = encode_fragments(&[SpecFragment::SpecTypeDef {
         type_def: groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
             struct_def: groundhog_contract_spec::ContractStructDef {
@@ -559,6 +560,14 @@ fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
     }]);
 
     let mut module = Module::new();
+    if with_function_export {
+        let mut types = TypeSection::new();
+        types.ty().function([], []);
+        module.section(&types);
+        let mut functions = FunctionSection::new();
+        functions.function(0);
+        module.section(&functions);
+    }
     let mut memory = MemorySection::new();
     memory.memory(MemoryType {
         minimum: 1,
@@ -568,19 +577,42 @@ fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
         page_size_log2: None,
     });
     module.section(&memory);
+    if with_function_export {
+        let mut exports = ExportSection::new();
+        exports.export("0", ExportKind::Func, 0);
+        module.section(&exports);
+        let mut code = CodeSection::new();
+        let mut body = Function::new([]);
+        body.instruction(&Instruction::End);
+        code.function(&body);
+        module.section(&code);
+    }
     module.section(&CustomSection {
         name: RAW_SECTION_NAME.into(),
         data: raw_blob.as_slice().into(),
     });
+    module.finish()
+}
 
-    // Raw contracts (no #[contract] interface) can legitimately carry
-    // typedef-only raw fragments from linked SDK code, so this strips the
-    // fragments and emits no spec — but the condition is reported so build
-    // tooling can warn, since it is also what a missing interface looks
-    // like (it caught exactly that in genesis_deployer).
-    let rewritten = rewrite_wasm_with_spec(&module.finish()).unwrap();
+#[test]
+fn rewrite_strips_typedef_only_raw_sections_from_raw_contracts() {
+    // A raw contract (hand-written export_name entrypoints, no #[contract])
+    // that links SDK typedefs: the fragments are stripped and no spec is
+    // emitted.
+    let rewritten = typedef_only_module(true);
+    let rewritten = rewrite_wasm(&rewritten).unwrap();
 
-    assert!(custom_sections(&rewritten.wasm).is_empty());
-    assert!(rewritten.spec.is_none());
-    assert!(rewritten.stripped_typedef_only_fragments);
+    assert!(custom_sections(&rewritten).is_empty());
+}
+
+#[test]
+fn rewrite_rejects_typedef_only_modules_with_no_entrypoints() {
+    // Typedefs, no interface, and no exported functions is what a contract
+    // missing its #[contract] macro looks like (this caught exactly that
+    // bug in genesis_deployer) — an uninvokable contract must not pass the
+    // build.
+    let err = rewrite_wasm(&typedef_only_module(false)).unwrap_err();
+
+    assert!(matches!(err, SpecToolError::InvalidRawFragment(_)));
+    assert!(err.to_string().contains("#[contract]"));
 }

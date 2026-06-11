@@ -21,15 +21,8 @@ pub struct RewrittenWasm {
     /// single final spec section appended (when a spec was found).
     pub wasm: Vec<u8>,
     /// The canonicalized spec embedded in `wasm`, or `None` when the input
-    /// yielded no spec (no spec sections at all, or typedef-only raw
-    /// fragments).
+    /// contained no spec sections at all.
     pub spec: Option<ContractSpec>,
-    /// True when raw fragments were present but contained no interface, so
-    /// they were stripped without producing a spec. Legitimate for raw
-    /// contracts (no `#[contract]` interface) that link SDK code carrying
-    /// exported typedefs, but worth a warning in build tooling since it is
-    /// also what a forgotten interface looks like.
-    pub stripped_typedef_only_fragments: bool,
 }
 
 /// Canonicalize a wasm binary's contract-spec sections.
@@ -42,11 +35,14 @@ pub struct RewrittenWasm {
 ///   spec is decoded and re-encoded (idempotent re-runs).
 /// - If the input has no spec sections at all, the output carries none and
 ///   `spec` is `None`.
-/// - Raw fragments that define types but no interface also yield
-///   `spec: None` (with `stripped_typedef_only_fragments` set): raw
-///   contracts that link SDK code carrying exported typedefs hit this
-///   legitimately. Callers should surface a warning, since it is equally
-///   what an accidentally-unexported interface looks like.
+/// - Raw fragments that define types but no interface occur for raw
+///   contracts (hand-written `export_name` entrypoints, no `#[contract]`)
+///   that link SDK code carrying typedefs — e.g. `test_bytestring`,
+///   `calldata_raw`. The fragments are stripped and `spec` is `None`,
+///   **provided the module exports at least one function**. If it exports
+///   none, this is a hard error: an entrypoint-less contract cannot be
+///   invoked and is almost certainly missing its `#[contract]` macro (this
+///   caught exactly that bug in `genesis_deployer`).
 /// - Errors with "raw spec bytes leaked into linear memory" if any raw
 ///   fragment's encoding appears in a data segment — raw fragments must live
 ///   only in custom sections, never in the contract's linear memory image.
@@ -54,14 +50,16 @@ pub fn rewrite_wasm_with_spec(
     bytes: &[u8],
 ) -> Result<RewrittenWasm, SpecToolError> {
     let raw_fragments = collect_raw_fragments(bytes)?;
-    let mut stripped_typedef_only_fragments = false;
     let spec = if raw_fragments.is_empty() {
         collect_final_spec(bytes)?
     } else {
         match canonicalize_spec(&raw_fragments) {
             Ok(spec) => Some(spec),
             Err(SpecToolError::NoSpecFragments) => {
-                stripped_typedef_only_fragments = true;
+                // Typedefs but no interface: benign for raw contracts,
+                // fatal for a contract that forgot #[contract] — the
+                // distinguishing signal is whether anything is exported.
+                ensure_module_has_function_exports(bytes)?;
                 None
             }
             Err(err) => return Err(err),
@@ -98,7 +96,6 @@ pub fn rewrite_wasm_with_spec(
     Ok(RewrittenWasm {
         wasm: module.finish(),
         spec,
-        stripped_typedef_only_fragments,
     })
 }
 
@@ -142,6 +139,32 @@ fn collect_final_spec(
     }
 
     Ok(None)
+}
+
+fn ensure_module_has_function_exports(
+    bytes: &[u8],
+) -> Result<(), SpecToolError> {
+    for payload in Parser::new(0).parse_all(bytes) {
+        let payload =
+            payload.map_err(|err| SpecToolError::Wasm(err.to_string()))?;
+
+        if let wasmparser::Payload::ExportSection(reader) = payload {
+            for export in reader {
+                let export = export
+                    .map_err(|err| SpecToolError::Wasm(err.to_string()))?;
+                if export.kind == wasmparser::ExternalKind::Func {
+                    return Ok(());
+                }
+            }
+        }
+    }
+    Err(SpecToolError::InvalidRawFragment(
+        "raw spec sections contain type definitions but no interface, and \
+         the module exports no functions: the contract is likely missing \
+         its #[contract] macro (a contract with no entrypoints cannot be \
+         invoked)"
+            .to_string(),
+    ))
 }
 
 fn ensure_raw_fragments_stay_out_of_linear_memory(
