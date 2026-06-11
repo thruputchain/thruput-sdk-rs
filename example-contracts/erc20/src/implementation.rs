@@ -55,20 +55,15 @@ impl TokenContract {
         self.balances.at(owner).try_get().unwrap_or(0) as Amount
     }
 
-    // Adjust balance at given owner address, from zero if empty
+    // Adjust balance at given owner address, from zero if empty.
+    // For never-stored-to addresses, this acts as if the value was zero.
     fn _adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
-        // The standard error contract: decrementing below zero throws
-        // ERC20Error::TooLarge (storage-layer underflow stays a backstop).
-        if diff < 0 {
-            ensure(
-                self._balance_amount_of(owner) >= diff.unsigned_abs(),
-                ERC20Error::TooLarge,
-            );
-        }
-
-        // For never-stored-to addresses, this acts as
-        // if the value was zero.
-        self.balances.at_mut(owner).strict_inc(diff);
+        // The standard error contract: a result outside the non-negative
+        // range throws ERC20Error::TooLarge.
+        self.balances
+            .at_mut(owner)
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
     fn _allowance(
@@ -88,17 +83,11 @@ impl TokenContract {
         diff: Difference,
     ) {
         // Standard error contract: a negative result throws TooLarge.
-        if diff < 0 {
-            ensure(
-                self._allowance(owner, spender) >= diff.unsigned_abs(),
-                ERC20Error::TooLarge,
-            );
-        }
-
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
-            .strict_inc(diff);
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
         log_approval_event(owner, spender, diff);
     }

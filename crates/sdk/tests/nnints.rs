@@ -239,3 +239,50 @@ fn delete_actually_deletes() {
         SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
     );
 }
+
+// or_re_throw() on a Result<_, LibraryExn> must abort with the typed
+// library exception (decodable by selector), not a generic fault.
+#[test]
+fn try_strict_inc_or_re_throw_throws_library_exn() {
+    use sdk::sys_exn::nnint::*;
+
+    let res = run_tx_result(|| {
+        let key = StorageKey::default();
+        non_negative_int_try_strict_inc(&key, -1).or_re_throw();
+    });
+
+    match &res {
+        Err(RawCallError::Exception(exn))
+            if exn.selector() == LibraryExn::SELECTOR =>
+        {
+            assert_eq!(
+                decode_library_exn(exn.payload()),
+                LibraryExn::NonNegativeIntUnderflow
+            );
+        }
+        other => panic!("expected LibraryExn exception, got {:?}", other),
+    }
+}
+
+contract_test!(test_try_strict_inc {
+    use sdk::sys_exn::nnint::*;
+
+    static KEY: StorageKey = static_key!("try strict inc");
+    let key = &KEY;
+
+    // Success: behaves like non_negative_int_strict_inc.
+    assert_eq!(non_negative_int_try_strict_inc(key, 10), Ok(()));
+    assert_eq!(non_negative_int_get(key), 10);
+
+    // Underflow: reports the error instead of throwing, and leaves the
+    // stored value unmodified.
+    assert_eq!(
+        non_negative_int_try_strict_inc(key, -11),
+        Err(LibraryExn::NonNegativeIntUnderflow)
+    );
+    assert_eq!(non_negative_int_get(key), 10);
+
+    // A valid decrement still succeeds afterwards.
+    assert_eq!(non_negative_int_try_strict_inc(key, -10), Ok(()));
+    assert_eq!(non_negative_int_get(key), 0);
+});

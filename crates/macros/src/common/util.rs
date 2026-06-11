@@ -70,15 +70,19 @@ where
 
 /// Validate a user-supplied `version = "..."` attribute value before it
 /// reaches the panicking semver parser inside the selector/entrypoint
-/// hash derivation.
-pub fn validate_version_string(version: &str) -> Result<(), Error> {
+/// hash derivation. `span` should be the span of the attribute value so
+/// the error points at it.
+pub fn validate_version_string(
+    span: proc_macro2::Span,
+    version: &str,
+) -> Result<(), Error> {
     if groundhog_contract_util::semver::try_major_version_from_string(
         version,
     )
     .is_none()
     {
         return Err(Error::new(
-            proc_macro2::Span::call_site(),
+            span,
             format!(
                 "invalid version {version:?}: expected a full semver \
                  triplet like \"1.0.0\" (optionally with -PRERELEASE \
@@ -91,10 +95,16 @@ pub fn validate_version_string(version: &str) -> Result<(), Error> {
 
 /// Validate that a user-supplied attribute string is a legal Rust
 /// identifier before it reaches a panicking `Ident::new`/`format_ident!`.
-pub fn validate_ident_string(value: &str, attr: &str) -> Result<(), Error> {
+/// `span` should be the span of the attribute value so the error points
+/// at it.
+pub fn validate_ident_string(
+    span: proc_macro2::Span,
+    value: &str,
+    attr: &str,
+) -> Result<(), Error> {
     if syn::parse_str::<syn::Ident>(value).is_err() {
         return Err(Error::new(
-            proc_macro2::Span::call_site(),
+            span,
             format!(
                 "{attr} = {value:?} must be a valid Rust identifier \
                  (it is used to name generated items)"

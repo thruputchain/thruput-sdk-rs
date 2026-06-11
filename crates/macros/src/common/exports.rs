@@ -257,8 +257,7 @@ pub fn generate_method(
         contract.defaulted_interface_vers()
     } else {
         config
-            .version
-            .clone()
+            .version_string()
             .unwrap_or_else(super::contract::interface_vers_default)
     };
 

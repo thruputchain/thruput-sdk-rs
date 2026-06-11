@@ -317,7 +317,8 @@ where
     fn interface_vers(&self) -> Option<String> {
         self.config
             .version
-            .clone()
+            .as_ref()
+            .map(|v| v.as_str().to_string())
             .or_else(|| self.contract.interface_vers())
     }
 

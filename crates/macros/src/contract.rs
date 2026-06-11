@@ -75,8 +75,7 @@ fn apply_with_config(
                 .interface_name()
                 .unwrap_or_else(|| item.ident.to_string());
             let iface_vers = config
-                .version
-                .clone()
+                .version_string()
                 .unwrap_or_else(contract::interface_vers_default);
             let iface_major =
                 groundhog_contract_util::semver::major_version_from_string(

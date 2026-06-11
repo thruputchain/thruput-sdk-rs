@@ -77,6 +77,15 @@ impl From<StorageError> for LibraryExn {
     }
 }
 
+/// `Result<T, LibraryExn>::or_re_throw()` aborts with the contained
+/// library exception (typed, decodable by selector) rather than a fault.
+impl crate::re_throw::ReThrow for LibraryExn {
+    #[cfg_attr(feature = "debugging", track_caller)]
+    fn re_throw(self) -> ! {
+        library_throw(self)
+    }
+}
+
 impl LibraryExn {
     pub fn as_syscall_exn(&self) -> Option<&SyscallExn> {
         if let LibraryExn::Syscall(se) = self {

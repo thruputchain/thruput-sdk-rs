@@ -14,7 +14,7 @@
 //! incremented, or retrieved (by `non_negative_int_get`).
 //!
 
-use crate::exn::{nnint_overflow, nnint_underflow};
+use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint_internal as nnint;
 use crate::types::StorageKey;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -107,15 +107,37 @@ pub fn non_negative_int_inc(key: &StorageKey, amount: i128) {
 /// would overflow, or if it is negative.
 ///
 pub fn non_negative_int_strict_inc(key: &StorageKey, amount: i128) {
+    use crate::re_throw::OrReThrow;
+    non_negative_int_try_strict_inc(key, amount).or_re_throw()
+}
+
+/// Increment the value, like [`non_negative_int_strict_inc`], but report
+/// overflow/underflow to the caller instead of throwing, so a contract can
+/// raise a domain-specific exception (e.g. an ERC20 "amount too large").
+///
+/// On `Err` (`LibraryExn::NonNegativeIntUnderflow` or
+/// `LibraryExn::NonNegativeIntOverflow`) the stored value is unmodified.
+/// Uses a single read-write pair, so checking before decrementing costs no
+/// extra storage roundtrip over `non_negative_int_inc`.
+pub fn non_negative_int_try_strict_inc(
+    key: &StorageKey,
+    amount: i128,
+) -> Result<(), crate::exn::LibraryExn> {
+    use crate::exn::LibraryExn;
+
     let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
 
-    let add_value = a.checked_add(amount).unwrap_or_else(|| nnint_overflow());
-
-    let total = s.checked_add(add_value).unwrap_or_else(|| nnint_overflow());
+    let add_value = a
+        .checked_add(amount)
+        .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+    let total = s
+        .checked_add(add_value)
+        .ok_or(LibraryExn::NonNegativeIntOverflow)?;
 
     if total < 0 {
-        nnint_underflow();
+        return Err(LibraryExn::NonNegativeIntUnderflow);
     }
 
     nnint::set_add(key, Some(s), add_value, NONE);
+    Ok(())
 }

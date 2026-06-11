@@ -1,7 +1,5 @@
 error: invalid version "1": expected a full semver triplet like "1.0.0" (optionally with -PRERELEASE and +BUILD suffixes)
- --> tests/compile-fail/exn_invalid_version.rs:5:1
+ --> tests/compile-fail/exn_invalid_version.rs:5:22
   |
 5 | #[sdk::exn(version = "1")]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: this error originates in the attribute macro `sdk::exn` (in Nightly builds, run with -Z macro-backtrace for more info)
+  |                      ^^^

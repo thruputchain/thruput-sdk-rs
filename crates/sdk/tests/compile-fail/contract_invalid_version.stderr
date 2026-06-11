@@ -1,7 +1,5 @@
 error: invalid version "two": expected a full semver triplet like "1.0.0" (optionally with -PRERELEASE and +BUILD suffixes)
- --> tests/compile-fail/contract_invalid_version.rs:8:1
+ --> tests/compile-fail/contract_invalid_version.rs:8:39
   |
 8 | #[contract(storage = false, version = "two")]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
+  |                                       ^^^^^

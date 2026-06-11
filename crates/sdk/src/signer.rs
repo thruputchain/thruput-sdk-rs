@@ -291,7 +291,7 @@ where
     /// Aborts the transaction (rather than returning an error) if the
     /// `ConsumeAuthToken` syscall fails — e.g. this contract is not the
     /// token's consumer, the token is expired, or the handle was already
-    /// consumed — and throws [`AuthTokenError`](crate::AuthTokenError) if
+    /// consumed — and throws [`AuthTokenError`] if
     /// the payload fails to decode as `T` or the token's child-token count
     /// does not match the `Signed` fields of `T`. Child handles are
     /// assigned to `T`'s `Signed` fields in declaration order.
