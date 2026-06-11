@@ -51,9 +51,11 @@ directory other than the repo root iterates zero packages (relative
 
 **Addressed in the 2026-06-11 fix pass** (sections removed below):
 
-- *Calldata hardening:* `try_get_calldata_with_auth_tokens` now asserts the
-  host-reported calldata and auth-token lengths fit their buffers before
-  `set_len` (clear panic instead of a slice-index error). The wider
+- *Calldata hardening:* `try_get_calldata_with_auth_tokens` now validates
+  the host-reported calldata and auth-token lengths against buffer
+  capacity before `set_len`, returning `Err(InvalidSyscallInput)` (the
+  non-try wrapper throws `LibraryExn::Syscall`) instead of reading past
+  the initialized region and dying on a slice-index panic. The wider
   ReturnBuf/CALLDATA_MAX 500-vs-1024 buffer-cap question is deliberately
   **not** resolved yet.
 - *Dead-code sweep:* deleted `internal/track.rs`, `allocator_panic.rs`,
