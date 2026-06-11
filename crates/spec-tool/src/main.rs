@@ -41,6 +41,8 @@ enum CliError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Tool(#[from] SpecToolError),
+    #[error("failed to serialize spec JSON: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 fn usage(msg: impl Into<String>) -> CliError {
@@ -133,11 +135,7 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     if let Some(spec) = rewritten.spec {
         let json = match json_format {
             JsonFormat::Debug => render_spec_json(&spec),
-            JsonFormat::RoundTrip => spec_to_json(&spec).map_err(|err| {
-                SpecToolError::Wasm(format!(
-                    "failed to serialize spec JSON: {err}"
-                ))
-            })?,
+            JsonFormat::RoundTrip => spec_to_json(&spec)?,
         };
         fs::write(&json_out, json)?;
     } else {
@@ -154,10 +152,12 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
 
 /// Write via a temporary sibling file + rename, so an interrupted write
 /// cannot leave a truncated/corrupt binary at the destination (which may be
-/// the input itself when rewriting in place).
+/// the input itself when rewriting in place). The temp name includes the
+/// process id so concurrent invocations targeting the same output cannot
+/// clobber each other's staging file.
 fn write_atomically(path: &Path, bytes: &[u8]) -> Result<(), io::Error> {
     let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".tmp");
+    tmp.push(format!(".{}.tmp", std::process::id()));
     let tmp = PathBuf::from(tmp);
     fs::write(&tmp, bytes)?;
     fs::rename(&tmp, path)

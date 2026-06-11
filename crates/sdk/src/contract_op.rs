@@ -215,6 +215,12 @@ pub fn try_get_calldata_with_auth_tokens()
     // the *full* source length, which can exceed the fixed buffers here
     // (protocol calldata is unbounded). Applying an oversized length via
     // `set_len` would let `as_ref` read past the initialized region.
+    //
+    // These panic deliberately rather than returning Err despite the `try_`
+    // name: oversized calldata cannot be handled by the caller (the data
+    // does not fit the SDK's buffers), so a loud fault with a clear message
+    // beats a recoverable-looking error. The 500-byte cap itself is a
+    // pending design decision; revisit these together with it.
     let written = unsafe { written.assume_init() } as usize;
     assert!(
         written <= CALLDATA_MAX,
