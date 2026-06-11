@@ -11,6 +11,9 @@ impl<T> Context for T where T: Any + Display {}
 struct Frame {
     context: NonNull<dyn Context>,
     location: LocString,
+    // Read only when rendering a Backtrace, which only the std-gated
+    // abort paths construct.
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     next: Option<NonNull<Frame>>,
 }
 
@@ -106,6 +109,8 @@ impl Display for Frame {
 /// in progress. It is deliberately crate-private, non-`Copy`/`Clone`, and
 /// only constructible via the unsafe [`Backtrace::capture`] so it cannot
 /// escape the abort paths that uphold that invariant.
+// Only the std-gated abort paths in contract_op.rs construct this.
+#[cfg_attr(not(feature = "std"), allow(dead_code))]
 pub(crate) struct Backtrace {
     top: Option<NonNull<Frame>>,
 }
@@ -131,6 +136,7 @@ impl Display for Backtrace {
     }
 }
 
+#[cfg_attr(not(feature = "std"), allow(dead_code))]
 impl Backtrace {
     /// Capture the current debug-context frame stack.
     ///
