@@ -54,10 +54,6 @@ fn expand_enum(
     let ident_string = ident.to_string();
     let type_name = args.name.as_deref().unwrap_or(&ident_string);
     let selector = compute_selector(&args, type_name);
-    let alloc_marker_impl = match enum_alloc_enabled_impl_tokens(&item) {
-        Ok(tokens) => tokens,
-        Err(err) => return err.into_compile_error(),
-    };
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
@@ -70,7 +66,6 @@ fn expand_enum(
             const SELECTOR: u64 = #selector;
         }
 
-        #alloc_marker_impl
         #name_impl
     }
 }
@@ -83,10 +78,6 @@ fn expand_struct(
     let ident_string = ident.to_string();
     let type_name = args.name.as_deref().unwrap_or(&ident_string);
     let selector = compute_selector(&args, type_name);
-    let alloc_marker_impl = match struct_alloc_enabled_impl_tokens(&item) {
-        Ok(tokens) => tokens,
-        Err(err) => return err.into_compile_error(),
-    };
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
@@ -98,61 +89,8 @@ fn expand_struct(
             const SELECTOR: u64 = #selector;
         }
 
-        #alloc_marker_impl
         #name_impl
     }
-}
-
-fn struct_alloc_enabled_impl_tokens(
-    item: &syn::ItemStruct,
-) -> syn::Result<TokenStream> {
-    alloc_enabled_impl_tokens(&item.ident, field_types(&item.fields)?)
-}
-
-fn enum_alloc_enabled_impl_tokens(
-    item: &syn::ItemEnum,
-) -> syn::Result<TokenStream> {
-    let mut tys = Vec::new();
-    for variant in &item.variants {
-        tys.extend(enum_variant_field_types(variant)?);
-    }
-    alloc_enabled_impl_tokens(&item.ident, tys)
-}
-
-fn alloc_enabled_impl_tokens(
-    _ident: &syn::Ident,
-    tys: Vec<&syn::Type>,
-) -> syn::Result<TokenStream> {
-    if tys.is_empty() {
-        return Ok(quote! {
-            //impl ::sdk::internal::ContractAbiAllocEnabled for #ident {}
-        });
-    }
-
-    Ok(quote! {
-       //impl ::sdk::internal::ContractAbiAllocEnabled for #ident
-       // where
-       //     #(#tys: ::sdk::internal::ContractAbiAllocEnabled),*
-       // {}
-    })
-}
-
-fn field_types(fields: &syn::Fields) -> syn::Result<Vec<&syn::Type>> {
-    match fields {
-        syn::Fields::Named(named) => {
-            Ok(named.named.iter().map(|field| &field.ty).collect())
-        }
-        syn::Fields::Unnamed(unnamed) => {
-            Ok(unnamed.unnamed.iter().map(|field| &field.ty).collect())
-        }
-        syn::Fields::Unit => Ok(vec![]),
-    }
-}
-
-fn enum_variant_field_types(
-    variant: &syn::Variant,
-) -> syn::Result<Vec<&syn::Type>> {
-    field_types(&variant.fields)
 }
 
 fn compute_selector(args: &ContractExceptionArgs, type_name: &str) -> u64 {

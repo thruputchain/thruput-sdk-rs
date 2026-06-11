@@ -11,7 +11,7 @@ use syn::parse::Result;
 pub fn generate_trait_method(
     item: &syn::ItemImpl,
     config: &Config,
-) -> Result<Option<syn::ImplItem>> {
+) -> Result<syn::ImplItem> {
     // Error if user specified test_setup on any impl
     if config.test_setup.is_some() {
         return Err(syn::Error::new_spanned(
@@ -24,12 +24,12 @@ pub fn generate_trait_method(
 
     let registrations = build_registrations(item, config)?;
 
-    Ok(Some(syn::parse_quote! {
+    Ok(syn::parse_quote! {
         #[doc(hidden)]
         fn __mock(contract: &mut ::sdk::MockContract) where Self: Sized {
             #registrations
         }
-    }))
+    })
 }
 
 /// For bare impls: returns a standalone impl block with __mock.

@@ -370,14 +370,13 @@ pub fn generate_method(
             // Fetch the calldata and auth token IDs from the VM
             let (calldata, auth_token_ids) = ::sdk::contract_op::get_calldata_with_auth_tokens();
 
-            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle)
+            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
+            // contract_call_decode then fills in Signer handles from the auth
+            // token ID list)
             let mut __args =
                 ::sdk::call::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
                     .unwrap_or_else(|e|
                         ::sdk::exn::decoding_args_throw(&e));
-
-            // Fill in Signer handles from the auth token ID list
-        // ::sdk::receive_auth_handles_from_slice(&mut __args, auth_token_ids.as_slice());
 
             // Destructure into named args
             let (#arg_names) = __args;

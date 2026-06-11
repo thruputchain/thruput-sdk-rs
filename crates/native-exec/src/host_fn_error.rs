@@ -27,11 +27,10 @@ pub fn perform_mocked_syscall(
         x if x == HostFnErrorCode::Unrecoverable.0 => {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
-        x if x == HostFnErrorCode::Return.0 => {
-            panic_any(crate::invoke_error::return_error());
-        }
-        x if x == HostFnErrorCode::Exit.0 => {
-            panic_any(crate::invoke_error::exit_error());
+        x if x == HostFnErrorCode::Return.0
+            || x == HostFnErrorCode::Exit.0 =>
+        {
+            panic_any(crate::invoke_error::control_flow_unwind());
         }
         x if x == HostFnErrorCode::ValidationFailure.0 => {
             panic_any(crate::invoke_error::validation_error());

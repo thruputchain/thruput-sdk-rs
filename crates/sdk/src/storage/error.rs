@@ -49,10 +49,6 @@ pub fn throw_store_exn(_: WriteError) -> ! {
     library_throw(StorageError::Serialization)
 }
 
-pub fn storage_load_error(_r: ReadError) -> StorageError {
-    StorageError::Serialization
-}
-
 pub fn storage_syserr(e: SysErr) -> StorageError {
     StorageError::Sys {
         exn: SyscallExn::new(SyscallNo::kBytestringGet, e),

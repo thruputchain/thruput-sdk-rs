@@ -18,14 +18,6 @@ pub type AbortBuf = Buf;
 
 pub type ContractResult = Result<(ReturnBuf, AuthHandleBuf), ContractError>;
 
-pub fn contract_result_should_commit(cr: &ContractResult) -> bool {
-    cr.is_ok()
-}
-
-pub fn contract_result_should_revert(cr: &ContractResult) -> bool {
-    cr.is_err()
-}
-
 #[derive(Debug, PartialEq, ReadXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ContractError {

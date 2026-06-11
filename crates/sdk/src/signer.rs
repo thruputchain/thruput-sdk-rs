@@ -224,21 +224,10 @@ where
     AuthTokenPreimage<T::Preimage>:
         crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
 {
-    use crate::sys::SyscallNo;
-
     let root_node = crate::mintable::build_auth_token_node::<T>(preimage);
     let buf = crate::mintable::encode_auth_token_node(&root_node);
 
-    let mut token_id: core::mem::MaybeUninit<u32> =
-        core::mem::MaybeUninit::uninit();
-
-    crate::sys::uninit_MintAuthToken(&expiry, buf.as_ref(), &mut token_id)
-        .unwrap_or_else(|e| {
-            crate::exn::syscall_throw(SyscallNo::kMintAuthToken, e)
-        });
-
-    let handle = unsafe { token_id.assume_init() };
-    Signed::from_handle(handle)
+    mint_encoded_node(expiry, buf.as_ref())
 }
 
 /// Mint an auth token from an already-encoded [`AuthTokenNode`], returning a
@@ -257,6 +246,15 @@ pub fn mint_opaque_auth_token(
     expiry: groundhog_xdr::types::BlockHeight,
     encoded_node: &[u8],
 ) -> Signed<Opaque> {
+    mint_encoded_node(expiry, encoded_node)
+}
+
+/// Shared `MintAuthToken` syscall path for the typed and opaque mint fns.
+#[cfg(feature = "alloc")]
+fn mint_encoded_node<T>(
+    expiry: groundhog_xdr::types::BlockHeight,
+    encoded_node: &[u8],
+) -> Signed<T> {
     use crate::sys::SyscallNo;
 
     let mut token_id: core::mem::MaybeUninit<u32> =

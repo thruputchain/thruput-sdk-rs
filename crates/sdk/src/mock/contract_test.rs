@@ -271,32 +271,6 @@ where
     }
 }
 
-#[allow(unused)]
-fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
-    let gas_start = crate::stats::gas_remaining();
-    let result = f();
-    let gas_end = crate::stats::gas_remaining();
-
-    if gas_end > gas_start {
-        panic!("consumed negative {} gas", gas_end - gas_start);
-    }
-
-    let gas_consumed = gas_start.checked_sub(gas_end).unwrap_or_else(|| {
-        panic!("consumed negative {} gas", gas_end - gas_start)
-    });
-
-    std::println!(
-        "Gas start ({}) - end ({}) = consumed ({})",
-        gas_start,
-        gas_end,
-        gas_consumed
-    );
-
-    let stats = Stats { gas_consumed };
-
-    (stats, result)
-}
-
 pub fn deploy_address(
     deployer_address: &ContractAddress,
     nonce: &Hash256,

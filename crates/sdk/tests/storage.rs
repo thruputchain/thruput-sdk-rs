@@ -147,33 +147,19 @@ contract_test!(test_vector_push_with_nested_node {
     assert_eq!(vec.at(0).second.get(), 11);
 });
 
-contract_test!(test_map_at {
-    let data_keypath = Keypath::root();
-    let slot: u32 = 3;
-    {
-        let mut data: Data = data_keypath.clone().into();
-        data.map.at_mut(&slot).strict_inc(7);
-    }
-
-    {
-        let data: Data = data_keypath.into();
-        let v = data.map.at(&slot).get();
-        assert_eq!(v, 7);
-    }
-});
-
 contract_test!(test_map_at_nested {
-    let data_keypath = Keypath::root();
+    let mut map: Map<u32, Node<InnerValuePair>> = Keypath::root().into();
     let slot: u32 = 5;
     {
-        let mut data: Data = data_keypath.clone().into();
-        data.map.at_mut(&slot).strict_inc(42);
+        let mut entry = map.at_mut(&slot);
+        entry.first.set(&7);
+        entry.second.set(&11);
     }
 
     {
-        let data: Data = data_keypath.into();
-        let val = data.map.at(&slot).try_get().unwrap_or(0);
-        assert_eq!(val, 42);
+        let entry = map.at(&slot);
+        assert_eq!(entry.first.get(), 7);
+        assert_eq!(entry.second.get(), 11);
     }
 });
 

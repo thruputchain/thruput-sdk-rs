@@ -1,6 +1,7 @@
 //! Construct and manipulate contract entrypoint IDs
 
 use groundhog_contract_util::EntrypointSignature;
+pub use groundhog_contract_util::entrypoint_export_name;
 use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
@@ -12,10 +13,6 @@ pub fn contract_entrypoint_id(
     method: &syn::Signature,
 ) -> ContractEntrypointID {
     EntrypointSignature::new(interface_name, version_str, method).id()
-}
-
-pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
-    format!("{:016X}", u64::from_be_bytes(*id))
 }
 
 pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {

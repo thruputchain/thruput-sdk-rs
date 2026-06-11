@@ -38,16 +38,13 @@ pub fn contract_abort(buf: &[u8]) -> ! {
     sys::raw_Return(buf, revert, &[])
 }
 
-pub fn contract_exit(_code: i32) -> ! {
-    sys::raw_Exit()
-}
-
+/// Terminate the current call frame immediately, reverting it.
+///
+/// The caller observes a deterministic error with no return buffer,
+/// equivalent to the wasm `unreachable` instruction. To abort with a
+/// serialized exception payload instead, use [`contract_abort`].
 pub fn contract_revert() -> ! {
     sys::raw_Exit()
-}
-
-pub fn contract_return_empty() -> ! {
-    contract_return(&[], &[])
 }
 
 #[inline]
@@ -197,9 +194,11 @@ pub fn get_calldata_with_auth_tokens() -> (Calldata, AuthTokenIdBuf) {
 
 pub fn try_get_calldata_with_auth_tokens()
 -> SysResult<(Calldata, AuthTokenIdBuf)> {
-    let mut calldata: Calldata = MUBuf::new();
     // 32 u32s * 4 bytes each
-    let mut auth_token_buf: MUBuf<{ 32 * 4 }> = MUBuf::new();
+    const AUTH_TOKEN_IDS_MAX: usize = 32 * 4;
+
+    let mut calldata: Calldata = MUBuf::new();
+    let mut auth_token_buf: MUBuf<AUTH_TOKEN_IDS_MAX> = MUBuf::new();
 
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
     let mut auth_token_written: MaybeUninit<RuntimeMemoryLength> =
@@ -212,11 +211,25 @@ pub fn try_get_calldata_with_auth_tokens()
         &mut auth_token_written,
     )?;
 
-    let written = unsafe { written.assume_init() };
-    unsafe { calldata.set_len(written as usize) };
+    // `GetCalldata` copies at most the destination span's length but reports
+    // the *full* source length, which can exceed the fixed buffers here
+    // (protocol calldata is unbounded). Applying an oversized length via
+    // `set_len` would let `as_ref` read past the initialized region.
+    let written = unsafe { written.assume_init() } as usize;
+    assert!(
+        written <= CALLDATA_MAX,
+        "calldata length {written} exceeds the SDK calldata buffer \
+         capacity {CALLDATA_MAX}"
+    );
+    unsafe { calldata.set_len(written) };
 
-    let auth_written = unsafe { auth_token_written.assume_init() };
-    unsafe { auth_token_buf.set_len(auth_written as usize) };
+    let auth_written = unsafe { auth_token_written.assume_init() } as usize;
+    assert!(
+        auth_written <= AUTH_TOKEN_IDS_MAX,
+        "auth token id list length {auth_written} exceeds the SDK auth \
+         token buffer capacity {AUTH_TOKEN_IDS_MAX}"
+    );
+    unsafe { auth_token_buf.set_len(auth_written) };
 
     // Convert bytes to u32s using native byte order (wasm is little-endian)
     let mut auth_ids = AuthTokenIdBuf::new();
