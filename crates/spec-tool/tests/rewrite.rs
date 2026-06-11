@@ -573,11 +573,11 @@ fn rewrite_omits_final_section_when_raw_has_only_typedefs() {
         data: raw_blob.as_slice().into(),
     });
 
-    // Raw contracts (no #[contract] interface) legitimately carry
-    // typedef-only raw fragments from linked SDK code (e.g.
-    // genesis_deployer), so this strips the fragments and emits no spec —
-    // but the condition is reported so build tooling can warn, since it is
-    // also what a missing interface looks like.
+    // Raw contracts (no #[contract] interface) can legitimately carry
+    // typedef-only raw fragments from linked SDK code, so this strips the
+    // fragments and emits no spec — but the condition is reported so build
+    // tooling can warn, since it is also what a missing interface looks
+    // like (it caught exactly that in genesis_deployer).
     let rewritten = rewrite_wasm_with_spec(&module.finish()).unwrap();
 
     assert!(custom_sections(&rewritten.wasm).is_empty());
