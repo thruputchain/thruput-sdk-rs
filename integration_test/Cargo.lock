@@ -297,6 +297,7 @@ version = "0.15.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
+ "groundhog-xdr",
  "sdk",
  "thiserror",
 ]

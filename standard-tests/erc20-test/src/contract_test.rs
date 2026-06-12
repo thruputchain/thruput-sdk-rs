@@ -120,8 +120,9 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 /// that is already initialized and cannot mint or burn (such as the native
 /// token precompile).
 ///
-/// The caller must already hold exactly `balance` tokens, and the contract
-/// must report a total supply of `total_supply`.
+/// The caller must already hold exactly `balance` tokens (at least 25, as
+/// the test transfers a hardcoded 25 away), and the contract must report a
+/// total supply of `total_supply`.
 pub fn erc20_funded_test(
     deployed_addr: &ContractAddress,
     balance: Amount,

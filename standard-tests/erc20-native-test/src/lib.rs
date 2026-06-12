@@ -69,9 +69,10 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     let token = &ADDRESS_PRECOMPILED_HOG_TOKEN;
 
     const BALANCE: Amount = 101;
-    let total_supply: Amount =
-        u128::from(groundhog_xdr::types::kTotalHogSupply)
-            * u128::from(groundhog_xdr::types::kHogDivisibility);
+    // Const-evaluated, so an overflow would be a compile error.
+    const TOTAL_SUPPLY: Amount = groundhog_xdr::types::kTotalHogSupply
+        as Amount
+        * groundhog_xdr::types::kHogDivisibility as Amount;
 
     // Fund the test caller from the genesis allocation, which is held by
     // the initial-token-claim precompile.
@@ -87,7 +88,7 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     // without mint/burn, and check the emitted events against the model.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
-            let model = erc20_funded_test(token, BALANCE, total_supply);
+            let model = erc20_funded_test(token, BALANCE, TOTAL_SUPPLY);
             model.events
         })
     });
