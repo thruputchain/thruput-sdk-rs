@@ -53,8 +53,8 @@ fn generate_from_struct(
 
     Ok(quote! {
         const _: () = {
-            use sdk::storage::Deletable;
-            use sdk::StorageDeltaFlags;
+            use ::sdk::storage::Deletable;
+            use ::sdk::StorageDeltaFlags;
 
             impl #impl_generics Deletable for #ident #ty_generics
                 #where_clause

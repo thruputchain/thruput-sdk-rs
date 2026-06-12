@@ -64,7 +64,7 @@ fn impl_from_keypath(
                 generics.split_for_impl();
             return Ok(quote! {
                 const _: () = {
-                    use sdk::storage::*;
+                    use ::sdk::storage::*;
 
                     impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
                         fn from(_keypath: Keypath) -> Self {
@@ -109,7 +109,7 @@ fn impl_from_keypath(
 
     Ok(quote! {
         const _: () = {
-            use sdk::storage::*;
+            use ::sdk::storage::*;
 
             impl #impl_generics From<Keypath> for #ident #ty_generics
                 #where_clause

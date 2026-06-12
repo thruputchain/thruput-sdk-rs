@@ -8,7 +8,6 @@ use alloc::vec::Vec;
 use groundhog_erc1271_if::{ERC1271, ERC1271Error};
 use sdk::contract;
 use sdk::signer::{Opaque, Signed};
-use sdk::Storage;
 
 #[sdk::storage]
 pub struct Wallet;

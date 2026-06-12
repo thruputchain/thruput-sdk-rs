@@ -1,0 +1,5 @@
+error: #[storage] takes no arguments
+ --> tests/compile-fail-storage/storage_attr_args.rs:3:16
+  |
+3 | #[sdk::storage(anything = "here")]
+  |                ^^^^^^^^^^^^^^^^^

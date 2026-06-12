@@ -143,16 +143,23 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
 #[cfg(feature = "storage")]
 #[proc_macro_attribute]
 pub fn storage(
-    _attr_args: TokenStream,
+    attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
-    let item = {
-        let item_tokens = item_tokens.clone();
-        syn::parse_macro_input!(item_tokens as syn::Item)
-    };
+    let attr_args: proc_macro2::TokenStream = attr_args.into();
+    if !attr_args.is_empty() {
+        return syn::Error::new_spanned(
+            &attr_args,
+            "#[storage] takes no arguments",
+        )
+        .into_compile_error()
+        .into();
+    }
+
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
 
     quote::quote! {
-        #[derive(Storage)]
+        #[derive(::sdk::Storage)]
         #item
     }
     .into()
