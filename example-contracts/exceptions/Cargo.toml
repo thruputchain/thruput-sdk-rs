@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["debugging"] }
+sdk = { workspace = true, features = ["debugging", "alloc"] }
 
 [dev-dependencies]
 exceptions = { path = ".", features = ["dev"] }

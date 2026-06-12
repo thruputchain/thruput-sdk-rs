@@ -3,7 +3,6 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-use crate::call::contract_call_encode;
 #[cfg(not(feature = "alloc"))]
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
@@ -103,7 +102,7 @@ fn _contract_abort_encoded<T>(exn: &T) -> !
 where
     T: WriteXDR + ?Sized + core::fmt::Debug,
 {
-    let buf = contract_call_encode(exn)
+    let buf = crate::call::encode_terminal(exn)
         .unwrap_or_else(|e| exception_encoding_error(e));
 
     contract_abort(buf.as_ref());
@@ -117,7 +116,8 @@ fn exception_encoding_error(err: WriteError) -> ! {
     let exn = ContractExn::new(LibraryExn::from(
         HandlingError::EncodingException(FaultString::via_display(&err)),
     ));
-    let buf = contract_call_encode(&exn).unwrap_or_else(|_| crate::trap());
+    let buf =
+        crate::call::encode_terminal(&exn).unwrap_or_else(|_| crate::trap());
 
     contract_abort(buf.as_ref());
 }
@@ -128,12 +128,11 @@ pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized + CollectAuthHandles,
 {
-    let return_buf =
-        crate::call::contract_call_encode(ret).unwrap_or_else(|e| {
-            library_throw(HandlingError::EncodingException(
-                FaultString::via_display(&e),
-            ))
-        });
+    let return_buf = crate::call::encode_terminal(ret).unwrap_or_else(|e| {
+        library_throw(HandlingError::EncodingException(
+            FaultString::via_display(&e),
+        ))
+    });
     let auth_handles = crate::call::collect_auth_handle_bytes(ret)
         .unwrap_or_else(|e| {
             library_throw(HandlingError::EncodingException(

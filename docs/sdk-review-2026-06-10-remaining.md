@@ -69,9 +69,20 @@ directory other than the repo root iterates zero packages (relative
   allocator never frees, so per-call allocations would leak; the
   untyped `contract_call` (now documented as the forwarder/proxy API,
   e.g. dev_wallet) returns owned exact-size buffers. `RawException`'s
-  payload no longer silently truncates at 500 bytes. The *encode*-side
-  caps (EncodeBuf, ENCODE_MAX — what a contract can send/return itself)
-  are deliberately **not** resolved yet.
+  payload no longer silently truncates at 500 bytes.
+- *Encode side via the same scratch:* the one scratch buffer also does
+  double duty within each `try_call_raw` (encoded args while `Invoke`
+  copies them out, then the returned data), so outgoing calldata has no
+  SDK cap (grow-to-peak; protocol calldata is unbounded). A contract's
+  own returns/aborts encode through `encode_terminal`, which takes the
+  scratch without returning it (the instance dies immediately) and caps
+  at `kMaxReturnBufferLen`, erroring with a typed `EncodingException`
+  past it instead of an opaque host fault. The 600-byte `BigExn` in the
+  exceptions example now propagates intact (the example gained
+  `sdk/alloc`; its test previously pinned the encode failure). Without
+  `alloc`, all paths keep the fixed 500-byte stack buffers
+  (`EncodeBuf`). `ENCODE_MAX` (`internal::encode_xdr`, used by events
+  and the blanket `Hash`) was already 1024 and is unchanged.
 - *Dead-code sweep:* deleted `internal/track.rs`, `allocator_panic.rs`,
   `internal/static_buf.rs` (`static_mu_buf!`/`static_vec!`),
   `Keypath::from_key`, `storage_load_error`, `contract_exit` (the `Exit`
@@ -107,13 +118,7 @@ directory other than the repo root iterates zero packages (relative
   duplicated entrypoint_export_name, always-Some Option" finding, only the
   four near-identical walkers remain (see amended finding below).
 
-## medium severity (14 remaining)
-
-### [sdk-core/footgun] EncodeBuf/ENCODE_MAX still cap encoded calldata and self-returns at 500 bytes
-
-**File:** `crates/sdk/src/call/encode.rs:31`
-
-Remainder of the original ReturnBuf/AbortBuf finding (the receive side was fixed 2026-06-11). The *encode* side still uses fixed 500-byte stack buffers: `EncodeBuf` (call/encode.rs) caps the calldata a contract can send via `try_call_raw`/clients and the return value a contract can produce via `contract_return_encoded`, and `ENCODE_MAX` (internal/serialize.rs:19, max(kMaxEventLength, 500)) caps `internal::encode_xdr` (also behind the blanket `Hash for T: WriteXDR` panic finding below). So although a contract can now *receive* 1024-byte returns, it cannot *emit* a return or calldata that encodes past 500 bytes. Undocumented to contract authors.
+## medium severity (13 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
 

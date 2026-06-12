@@ -48,6 +48,36 @@ where
     Ok(buf)
 }
 
+/// CXS-encode a value for a terminal `Return`/abort: the instance dies
+/// right after, so under `alloc` this takes the call scratch buffer (never
+/// returning it) and grows up to the protocol's return-size cap
+/// (`kMaxReturnBufferLen`); larger encodings error with `SpaceExhausted`
+/// (a typed `EncodingException` at the call sites) rather than letting the
+/// host reject the oversized `Return` as an opaque fault. Without `alloc`
+/// it is a fixed 500-byte stack buffer.
+pub(crate) fn encode_terminal<T>(x: &T) -> WriteResult<crate::call::Buf>
+where
+    T: WriteXDR + ?Sized,
+{
+    #[cfg(feature = "alloc")]
+    {
+        use crate::types::transaction::kMaxReturnBufferLen;
+
+        let mut writer = cxs::buf_writer::BufWriter::from(
+            super::calls::take_terminal_encode_buf(),
+        );
+        x.write_xdr(&mut writer)?;
+        if writer.len() > kMaxReturnBufferLen as usize {
+            return Err(WriteError::SpaceExhausted);
+        }
+        Ok(writer.into())
+    }
+    #[cfg(not(feature = "alloc"))]
+    {
+        contract_call_encode(x)
+    }
+}
+
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 
 pub fn collect_auth_handle_bytes<T: CollectAuthHandles + ?Sized>(

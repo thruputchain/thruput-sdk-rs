@@ -69,11 +69,13 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
         r => panic!("Unexpected result: {:?}", r),
     }
 
+    // A 600-byte exception payload exceeds the SDK's legacy 500-byte encode
+    // buffer but fits the protocol's 1024-byte return cap — it must arrive
+    // intact at the caller, not die at encode time.
     match client.try_throw_big_exn() {
-        Err(ClientError::Library(LibraryExn::Handling(
-            HandlingError::EncodingException(_),
-        ))) => {
-            println!("OK: oversized exception failed with EncodingException");
+        Err(ClientError::BigExn(ref big)) => {
+            assert_eq!(big.payload, [0xAB; 600]);
+            println!("OK: 600-byte exception propagated intact");
         }
         r => panic!("Unexpected result: {:?}", r),
     }

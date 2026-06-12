@@ -15,10 +15,12 @@ use crate::{AuthHandleBuf, sys};
 /// Typed cross-contract call: encode `args`, invoke, decode the return
 /// value (or surface the abort as a [`RawCallError`]).
 ///
-/// This is what generated clients use. The returned-data buffers are a
-/// lazily-allocated per-instance scratch reused across calls (under
-/// `alloc`), so repeated calls perform no per-call allocations even though
-/// the guest bump allocator never frees.
+/// This is what generated clients use. Both the encoded-args and
+/// returned-data bytes live in a lazily-allocated per-instance scratch
+/// reused across calls (under `alloc`), so repeated calls perform no
+/// per-call allocations even though the guest bump allocator never frees,
+/// and neither outgoing calldata nor received returns have an SDK-imposed
+/// size cap.
 // Used by the contract macro in method wrappers
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn try_call_raw<ARGS, RET>(
@@ -32,53 +34,42 @@ where
     ARGS: WriteXDR + crate::CollectAuthHandles,
     RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
-    let args_buf = match contract_call_encode(args) {
-        Ok(buf) => buf,
-        Err(e) => {
-            return Err(RawCallError::EncodingArgs(
-                FaultString::from_display(e),
-            ));
-        }
-    };
+    // The scratch data buffer does double duty within one call: it holds
+    // the encoded args while `Invoke` copies them out, then is cleared and
+    // refilled with the returned data. Likewise the auth buffer holds the
+    // outgoing handle list during `Invoke`, then the returned one. Both
+    // payloads are fully consumed in here (the decoded RET is owned;
+    // RawException copies its payload), so the scratch borrow never
+    // escapes.
+    with_call_scratch(|buf, auth_buf| {
+        encode_args_into(buf, args)?;
+        auth_buf.clear();
+        args.collect_auth_handles(auth_buf)
+            .map_err(RawCallError::EncodingArgs)?;
 
-    let auth_handles = match collect_auth_handle_bytes(args) {
-        Ok(handles) => handles,
-        Err(e) => {
-            return Err(RawCallError::EncodingArgs(
-                FaultString::from_display(e),
-            ));
-        }
-    };
+        let (is_ok, outputs) = invoke_frame(
+            address,
+            entrypoint,
+            gas_limit,
+            buf.as_slice(),
+            auth_buf,
+            flags,
+        )?;
 
-    let (is_ok, outputs) = invoke_frame(
-        address,
-        entrypoint,
-        gas_limit,
-        &args_buf,
-        &auth_handles,
-        flags,
-    )?;
-
-    // Both the success and abort payloads are fully consumed in here (the
-    // decoded RET is owned; RawException copies its payload), so the
-    // scratch borrow never escapes.
-    with_return_scratch(|return_buf, auth_token_id_list_buf| {
-        resize_auth_handles(auth_token_id_list_buf, &outputs)?;
+        buf.clear();
+        resize_auth_handles(auth_buf, &outputs)?;
         fill_return_buf(
             outputs.return_buffer_len,
             outputs.returned_auth_token_len,
-            return_buf,
-            auth_token_id_list_buf,
+            buf,
+            auth_buf,
         )
         .map_err(|fault| unparseable(is_ok, fault))?;
 
         if is_ok {
-            contract_call_decode(
-                return_buf.as_slice(),
-                auth_token_id_list_buf.as_slice(),
-            )
+            contract_call_decode(buf.as_slice(), auth_buf.as_slice())
         } else {
-            match RawException::from_abort_buf(return_buf.as_slice()) {
+            match RawException::from_abort_buf(buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),
@@ -86,6 +77,39 @@ where
             }
         }
     })
+}
+
+/// CXS-encode `value` into the (cleared) scratch data buffer.
+///
+/// Under `alloc` the buffer grows organically to the encoding's size (no
+/// fixed cap — protocol calldata is unbounded) and the grown capacity is
+/// retained by the scratch for subsequent calls. Without `alloc` the
+/// fixed-capacity buffer rejects encodings larger than 500 bytes.
+fn encode_args_into<T: WriteXDR + ?Sized>(
+    buf: &mut Buf,
+    value: &T,
+) -> Result<(), RawCallError> {
+    buf.clear();
+    #[cfg(feature = "alloc")]
+    {
+        let mut writer =
+            cxs::buf_writer::BufWriter::from(core::mem::take(buf));
+        let result = value.write_xdr(&mut writer);
+        *buf = writer.into();
+        result.map_err(|e| {
+            RawCallError::EncodingArgs(FaultString::from_display(e))
+        })
+    }
+    #[cfg(not(feature = "alloc"))]
+    {
+        let written = cxs::encode_into(value, buf.spare_capacity_mut())
+            .map_err(|e| {
+                RawCallError::EncodingArgs(FaultString::from_display(e))
+            })?;
+        // Safety: `encode_into` initialized exactly `written` bytes.
+        unsafe { buf.set_len(written) };
+        Ok(())
+    }
 }
 
 /// Untyped cross-contract call: pass pre-encoded calldata, receive the raw
@@ -247,45 +271,63 @@ fn resize_auth_handles(
     }
 }
 
-/// Run `f` with the per-instance returned-data scratch buffers.
-///
-/// The scratch is allocated once, at the protocol's return-size cap, and
-/// reused by every subsequent call: the guest bump allocator never frees,
-/// so per-call allocations (or growth) would permanently leak heap. No
-/// user code runs while the scratch is checked out, so calls cannot
-/// overlap; if the slot is somehow unavailable, a fresh buffer is used.
 #[cfg(feature = "alloc")]
-fn with_return_scratch<R>(
-    f: impl FnOnce(&mut ReturnBuf, &mut AuthHandleBuf) -> R,
-) -> R {
+mod call_scratch {
+    use super::{AuthHandleBuf, Buf};
     use crate::cell::ContractCell;
 
     crate::contract_local! {
-        static RETURN_SCRATCH: ContractCell<Option<(ReturnBuf, AuthHandleBuf)>> =
+        pub(super) static CALL_SCRATCH: ContractCell<Option<(Buf, AuthHandleBuf)>> =
             const { ContractCell::new(None) };
     }
+}
 
-    let (mut return_buf, mut auth_buf) =
-        RETURN_SCRATCH.take().unwrap_or_default();
-    return_buf.clear();
+/// Run `f` with the per-instance call scratch buffers (encoded-args /
+/// returned-data, and the auth-token-id list).
+///
+/// The scratch is allocated lazily and reused by every subsequent call:
+/// the guest bump allocator never frees, so per-call allocations would
+/// permanently leak heap. Capacity grows to the high-water mark of the
+/// payloads seen (at least the protocol's return-size cap). No user code
+/// runs while the scratch is checked out, so calls cannot overlap; if the
+/// slot is somehow unavailable, a fresh buffer is used.
+#[cfg(feature = "alloc")]
+fn with_call_scratch<R>(
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
+) -> R {
+    let (mut buf, mut auth_buf) =
+        call_scratch::CALL_SCRATCH.take().unwrap_or_default();
+    buf.clear();
     auth_buf.clear();
-    if return_buf.capacity() < kMaxReturnBufferLen as usize {
-        return_buf.reserve(kMaxReturnBufferLen as usize);
+    if buf.capacity() < kMaxReturnBufferLen as usize {
+        buf.reserve(kMaxReturnBufferLen as usize);
     }
 
-    let result = f(&mut return_buf, &mut auth_buf);
+    let result = f(&mut buf, &mut auth_buf);
 
-    RETURN_SCRATCH.set(Some((return_buf, auth_buf)));
+    call_scratch::CALL_SCRATCH.set(Some((buf, auth_buf)));
     result
 }
 
 #[cfg(not(feature = "alloc"))]
-fn with_return_scratch<R>(
-    f: impl FnOnce(&mut ReturnBuf, &mut AuthHandleBuf) -> R,
+fn with_call_scratch<R>(
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    let mut return_buf = ReturnBuf::new();
+    let mut buf = Buf::new();
     let mut auth_buf = AuthHandleBuf::new();
-    f(&mut return_buf, &mut auth_buf)
+    f(&mut buf, &mut auth_buf)
+}
+
+/// Take the scratch data buffer for a terminal encode (a contract's own
+/// return or abort): the instance terminates immediately after, so the
+/// buffer is never returned to the slot. Falls back to a fresh buffer if
+/// the slot is empty.
+#[cfg(feature = "alloc")]
+pub(crate) fn take_terminal_encode_buf() -> Buf {
+    let (mut buf, _auth) =
+        call_scratch::CALL_SCRATCH.take().unwrap_or_default();
+    buf.clear();
+    buf
 }
 
 #[inline]
