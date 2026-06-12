@@ -59,9 +59,19 @@ directory other than the repo root iterates zero packages (relative
   `set_len`. Without `alloc`, the fixed 500-byte stack buffer remains
   and oversized inputs return `Err(InvalidSyscallInput)` (thrown as
   `LibraryExn::Syscall` by the non-try wrapper) instead of reading past
-  the initialized region. The *return/encode*-side buffer caps
-  (ReturnBuf/AbortBuf, EncodeBuf, ENCODE_MAX vs the protocol's
-  1024-byte return cap) are deliberately **not** resolved yet.
+  the initialized region.
+- *Full-size returns + buffer reuse:* `ReturnBuf`/`AbortBuf` are
+  alloc-switched, so cross-contract calls can receive returns/aborts up
+  to the protocol's 1024-byte cap (the old 500-byte cap made any
+  501–1024-byte return fail as `UnparseableReturn`). The typed path
+  (`try_call_raw`) reuses a per-instance scratch (`contract_local!` +
+  `ContractCell`), allocated once at the protocol cap — the bump
+  allocator never frees, so per-call allocations would leak; the
+  untyped `contract_call` (now documented as the forwarder/proxy API,
+  e.g. dev_wallet) returns owned exact-size buffers. `RawException`'s
+  payload no longer silently truncates at 500 bytes. The *encode*-side
+  caps (EncodeBuf, ENCODE_MAX — what a contract can send/return itself)
+  are deliberately **not** resolved yet.
 - *Dead-code sweep:* deleted `internal/track.rs`, `allocator_panic.rs`,
   `internal/static_buf.rs` (`static_mu_buf!`/`static_vec!`),
   `Keypath::from_key`, `storage_load_error`, `contract_exit` (the `Exit`
@@ -99,11 +109,11 @@ directory other than the repo root iterates zero packages (relative
 
 ## medium severity (14 remaining)
 
-### [sdk-core/footgun] ReturnBuf/AbortBuf hard-capped at 500 bytes while the protocol allows 1024-byte returns
+### [sdk-core/footgun] EncodeBuf/ENCODE_MAX still cap encoded calldata and self-returns at 500 bytes
 
-**File:** `crates/sdk/src/call/contract_result.rs:15`
+**File:** `crates/sdk/src/call/encode.rs:31`
 
-`pub type Buf = heapless::Vec<u8, 500>; pub type ReturnBuf = Buf;` while the SDK's own test comment in calls.rs:260 states 'A child can return up to the protocol's 1024-byte cap. When it returns 600 bytes, both Invoke and GetReturnedBuffer report 600 even though only CAPACITY bytes fit'. So calling any (protocol-valid) contract whose return encodes to 501-1024 bytes always fails at runtime, and with the misleading error `RawCallError::UnparseableReturn` / `CallingError::DecodingSuccess` rather than anything indicating a size limit. The same magic 500 appears independently as `CALLDATA_MAX` (contract_op.rs:17), `EncodeBuf` (call/encode.rs:31), `RawException` payload (exn/raw.rs:12), and `ENCODE_MAX` (internal/serialize.rs:19) — none documented to contract authors.
+Remainder of the original ReturnBuf/AbortBuf finding (the receive side was fixed 2026-06-11). The *encode* side still uses fixed 500-byte stack buffers: `EncodeBuf` (call/encode.rs) caps the calldata a contract can send via `try_call_raw`/clients and the return value a contract can produce via `contract_return_encoded`, and `ENCODE_MAX` (internal/serialize.rs:19, max(kMaxEventLength, 500)) caps `internal::encode_xdr` (also behind the blanket `Hash for T: WriteXDR` panic finding below). So although a contract can now *receive* 1024-byte returns, it cannot *emit* a return or calldata that encodes past 500 bytes. Undocumented to contract authors.
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
 
