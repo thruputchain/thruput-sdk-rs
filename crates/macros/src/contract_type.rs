@@ -31,26 +31,19 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             } else {
                 quote! {}
             };
-            let mintable_enum = quote! {
-                impl ::sdk::mintable::MintableType for #ident {
-                    type Preimage = #ident;
-                }
-
-                impl ::sdk::Mintable for #ident {
-                    fn mint_into_parent(
-                        preimage: Self::Preimage,
-                        _children: &mut ::sdk::mintable::ChildNodeBuf,
-                    ) -> Self {
-                        preimage
-                    }
-                }
-            };
+            let (preimage_mod, mintable_enum) =
+                match generate_preimage_and_mintable_enum(&item) {
+                    Ok(pair) => pair,
+                    Err(err) => return err.into_compile_error(),
+                };
             quote! {
                 #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #[repr(i32)]
                 #export_attr
                 #item
+
+                #preimage_mod
 
                 #name
 
@@ -462,6 +455,166 @@ fn generate_preimage_and_mintable(
             Ok((preimage_mod, mintable_impl))
         }
     }
+}
+
+/// Enum counterpart of [`generate_preimage_and_mintable`]: a mirrored
+/// `Preimage` enum (same variants, same explicit discriminants, every
+/// field type `T` replaced by `<T as MintableType>::Preimage`) plus
+/// `MintableType`/`Mintable` impls whose `mint_into_parent` recurses
+/// into each variant's fields, so `Signed` fields in enum payloads mint
+/// child auth-token nodes exactly like struct fields do.
+fn generate_preimage_and_mintable_enum(
+    item: &syn::ItemEnum,
+) -> syn::Result<(TokenStream, TokenStream)> {
+    let ident = &item.ident;
+    let vis = &item.vis;
+    let mod_name = format_ident!("__preimage_{}", ident);
+
+    let mut preimage_variants: Vec<TokenStream> = Vec::new();
+    let mut mint_arms: Vec<TokenStream> = Vec::new();
+
+    for variant in &item.variants {
+        let vident = &variant.ident;
+        let Some((_, disc)) = variant.discriminant.as_ref() else {
+            return Err(syn::Error::new_spanned(
+                variant,
+                "enum variants must use explicit discriminants for contract specs",
+            ));
+        };
+
+        match &variant.fields {
+            syn::Fields::Named(fields) => {
+                let pre_fields: Vec<TokenStream> = fields
+                    .named
+                    .iter()
+                    .map(|f| {
+                        let name = &f.ident;
+                        let ty = &f.ty;
+                        quote! {
+                            #name: <#ty as ::sdk::mintable::MintableType>::Preimage
+                        }
+                    })
+                    .collect();
+                preimage_variants.push(quote! {
+                    #vident { #(#pre_fields),* } = #disc
+                });
+
+                let bindings: Vec<syn::Ident> = fields
+                    .named
+                    .iter()
+                    .map(|f| {
+                        format_ident!(
+                            "__field_{}",
+                            f.ident.as_ref().expect("named field has ident")
+                        )
+                    })
+                    .collect();
+                let pattern_fields: Vec<TokenStream> = fields
+                    .named
+                    .iter()
+                    .zip(&bindings)
+                    .map(|(f, b)| {
+                        let name = &f.ident;
+                        quote! { #name: #b }
+                    })
+                    .collect();
+                let mints: Vec<TokenStream> = fields
+                    .named
+                    .iter()
+                    .zip(&bindings)
+                    .map(|(f, b)| {
+                        let name = &f.ident;
+                        let ty = &f.ty;
+                        quote! {
+                            #name: <#ty as ::sdk::Mintable>::mint_into_parent(
+                                #b, children,
+                            )
+                        }
+                    })
+                    .collect();
+                mint_arms.push(quote! {
+                    #mod_name::Preimage::#vident { #(#pattern_fields),* } =>
+                        Self::#vident { #(#mints),* }
+                });
+            }
+            syn::Fields::Unnamed(fields) => {
+                let pre_fields: Vec<TokenStream> = fields
+                    .unnamed
+                    .iter()
+                    .map(|f| {
+                        let ty = &f.ty;
+                        quote! {
+                            <#ty as ::sdk::mintable::MintableType>::Preimage
+                        }
+                    })
+                    .collect();
+                preimage_variants.push(quote! {
+                    #vident(#(#pre_fields),*) = #disc
+                });
+
+                let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
+                    .map(|i| format_ident!("f{}", i))
+                    .collect();
+                let mints: Vec<TokenStream> = fields
+                    .unnamed
+                    .iter()
+                    .zip(&bindings)
+                    .map(|(f, b)| {
+                        let ty = &f.ty;
+                        quote! {
+                            <#ty as ::sdk::Mintable>::mint_into_parent(
+                                #b, children,
+                            )
+                        }
+                    })
+                    .collect();
+                mint_arms.push(quote! {
+                    #mod_name::Preimage::#vident(#(#bindings),*) =>
+                        Self::#vident(#(#mints),*)
+                });
+            }
+            syn::Fields::Unit => {
+                preimage_variants.push(quote! { #vident = #disc });
+                mint_arms.push(quote! {
+                    #mod_name::Preimage::#vident => Self::#vident
+                });
+            }
+        }
+    }
+
+    let preimage_mod = quote! {
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        #vis mod #mod_name {
+            use super::*;
+
+            #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
+            #[xdrs(crate = "::sdk::__xdrs")]
+            #[repr(i32)]
+            pub enum Preimage {
+                #(#preimage_variants,)*
+            }
+        }
+    };
+
+    let mintable_impl = quote! {
+        impl ::sdk::mintable::MintableType for #ident {
+            type Preimage = #mod_name::Preimage;
+        }
+
+        impl ::sdk::Mintable for #ident {
+            fn mint_into_parent(
+                preimage: Self::Preimage,
+                children: &mut ::sdk::mintable::ChildNodeBuf,
+            ) -> Self {
+                match preimage {
+                    #(#mint_arms,)*
+                }
+            }
+        }
+    };
+
+    Ok((preimage_mod, mintable_impl))
 }
 
 fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
