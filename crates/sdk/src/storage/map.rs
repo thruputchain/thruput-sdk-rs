@@ -115,9 +115,7 @@ impl<K, V> Map<K, V> {
     where
         K: WriteXDR,
     {
-        let mut keypath = self.keypath.clone();
-        keypath.push_item(entry_key);
-        keypath
+        self.keypath.child_item(entry_key)
     }
 }
 

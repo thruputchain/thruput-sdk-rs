@@ -7,6 +7,11 @@ use syn::spanned::Spanned;
 /// Generate trait implementations allowing a struct
 /// containing various `storage` types (e.g. `Map`)
 /// to be loaded.
+///
+/// Storage slots are positional: field `i` maps to `child_index(i)` by
+/// declaration order. **Reordering struct fields remaps their storage slots** —
+/// existing on-chain state stored under the old field order will not follow
+/// the renamed positions.
 pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     let item = &input.data;
     let storage_impls = generate_from_data(input, item)?;
@@ -82,21 +87,15 @@ fn impl_from_keypath(
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
-    let n_fields = named_fields.len();
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         let field_type = &field.ty;
         field_names.extend(quote! { #field_name, });
 
+        let idx = i as u64;
         field_initializers.extend(quote! {
-            let #field_name = keypath.clone().into();
+            let #field_name = keypath.child_index(#idx).into();
         });
-
-        if (i + 1) < n_fields {
-            field_initializers.extend(quote! {
-                keypath.seq_next();
-            });
-        }
 
         // Add `FieldType: From<Keypath>` bound
         generics
@@ -115,11 +114,7 @@ fn impl_from_keypath(
                 #where_clause
             {
                 fn from(keypath: Keypath) -> Self {
-                    let mut keypath = keypath;
-
-                    keypath.seq_begin();
                     #field_initializers
-                    // keypath.seq_end(); // unneeded
 
                     Self {
                         #field_names
