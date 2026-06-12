@@ -158,3 +158,39 @@ fn field_named_children_does_not_shadow_buffer() {
     assert_eq!(node.child_nodes.len(), 1);
     assert_eq!(node.child_nodes[0].consumer_address, addr(0xCE));
 }
+
+#[contract_type]
+pub enum WalkerShadow {
+    Both {
+        out: Signed<PermitData>,
+        handles: Signed<PermitData>,
+    } = 0,
+}
+
+type WalkerShadowPreimage = <WalkerShadow as MintableType>::Preimage;
+
+#[test]
+fn fields_named_out_and_handles_walk_correctly() {
+    let node = build_auth_token_node::<WalkerShadow>(AuthTokenPreimage {
+        consumer: addr(0xBB),
+        data: WalkerShadowPreimage::Both {
+            out: AuthTokenPreimage {
+                consumer: addr(0xD1),
+                data: PermitPreimage { amount: 1 },
+            },
+            handles: AuthTokenPreimage {
+                consumer: addr(0xD2),
+                data: PermitPreimage { amount: 2 },
+            },
+        },
+    });
+    assert_eq!(node.child_nodes.len(), 2);
+
+    let mut decoded: WalkerShadow =
+        xdrs::cxs::decode(node.payload.as_ref()).expect("payload decode failed");
+    let mut iter = [31u32, 32u32].into_iter();
+    decoded.receive_auth_handles(&mut iter).unwrap();
+    let WalkerShadow::Both { out, handles } = decoded;
+    assert_eq!(out.handle(), 31);
+    assert_eq!(handles.handle(), 32);
+}
