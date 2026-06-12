@@ -35,31 +35,42 @@ where
     /// Aborts if the key does not exist.
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn get(&self) -> T {
-        // Using match here instead of a closure allows call-tracking through
-        // to library_throw.
-        match self.load_value() {
+        use crate::exn::{LibraryExn, SyscallExn, library_throw};
+        use crate::sys::SyscallNo;
+        use crate::sys_result::bytestring::bytestring_get;
+
+        // Using match instead of a closure keeps call-tracking (track_caller)
+        // intact through to library_throw.
+        let buf = match bytestring_get(self.key.get()) {
             Ok(v) => v,
-            Err(e) => crate::exn::library_throw(e),
+            Err(e) => library_throw(LibraryExn::Syscall(
+                SyscallExn::new(SyscallNo::kBytestringGet, e),
+            )),
+        };
+        match xdrs::cxs::decode(&buf) {
+            Ok(v) => v,
+            Err(_) => library_throw(LibraryExn::StorageSerialization),
         }
     }
 
     /// Deserialize and return the stored value, or None if the key doesn't exist.
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn try_get(&self) -> Option<T> {
-        match self.load_value() {
-            Ok(v) => Some(v),
-            Err(e) if e.is_storage_key_not_exist() => None,
-            Err(e) => crate::exn::library_throw(e),
-        }
-    }
-
-    fn load_value(&self) -> Result<T, super::error::StorageError> {
-        use super::error::{StorageError, storage_syserr};
+        use crate::exn::{LibraryExn, SyscallExn, library_throw};
+        use crate::sys::SyscallNo;
         use crate::sys_result::bytestring::bytestring_get;
 
-        let key = &self.key.keypath().generate_key();
-        let buf = bytestring_get(key).map_err(storage_syserr)?;
-        xdrs::cxs::decode(&buf).map_err(|_| StorageError::Serialization)
+        let buf = match bytestring_get(self.key.get()) {
+            Ok(v) => v,
+            Err(e) if e.is_storage_key_not_exist() => return None,
+            Err(e) => library_throw(LibraryExn::Syscall(
+                SyscallExn::new(SyscallNo::kBytestringGet, e),
+            )),
+        };
+        match xdrs::cxs::decode(&buf) {
+            Ok(v) => Some(v),
+            Err(_) => library_throw(LibraryExn::StorageSerialization),
+        }
     }
 }
 

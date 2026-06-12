@@ -18,7 +18,6 @@ const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
     sdk::exn::__groundhog_spec_fragment_HandlingError,
     sdk::exn::__groundhog_spec_fragment_AuthTokenError,
     sdk::exn::__groundhog_spec_fragment_FaultString,
-    sdk::storage::error::__groundhog_spec_fragment_StorageError,
 ];
 
 pub const REGISTRY: &[DescribableType] = &[DescribableType {
