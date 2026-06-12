@@ -4,7 +4,6 @@ sdk::declare_mock_contract!();
 
 use sdk::*;
 
-#[derive(Default)]
 pub struct BareImplCaller;
 
 #[contract]

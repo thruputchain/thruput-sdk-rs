@@ -16,10 +16,9 @@ pub struct MiddleAuth {
     pub extra_children: Vec<Signed<LeafAuth>>,
 }
 
-#[derive(Default)]
 pub struct SignerMiddle;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerMiddle {
     pub fn consume_and_forward(
         auth: Signed<MiddleAuth>,

@@ -9,10 +9,9 @@ use sdk::*;
 #[contract_type]
 pub struct TupleAuth(pub u64, pub Signed<u32>);
 
-#[derive(Default)]
 pub struct SignerTupleTest;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerTupleTest {
     pub fn consume_tuple(auth: Signed<TupleAuth>) -> u64 {
         let inner: TupleAuth = auth.consume().0;
