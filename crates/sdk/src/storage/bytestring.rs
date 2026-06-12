@@ -1,6 +1,5 @@
 use super::keypath::{KeyCache, Keypath};
 use crate::sys_exn::bytestring::*;
-use alloc::boxed::Box;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
@@ -38,11 +37,13 @@ impl Bytestring {
         bytestring_get_sized(&self.key)
     }
 
-    pub fn get(&self) -> Box<[u8]> {
+    #[cfg(feature = "alloc")]
+    pub fn get(&self) -> alloc::boxed::Box<[u8]> {
         bytestring_get(&self.key)
     }
 
-    pub fn try_get(&self) -> Option<Box<[u8]>> {
+    #[cfg(feature = "alloc")]
+    pub fn try_get(&self) -> Option<alloc::boxed::Box<[u8]>> {
         bytestring_try_get(&self.key)
     }
 }

@@ -20,4 +20,4 @@ path = "src/main.rs"
 
 [dependencies]
 counter = { path = "../counter" }
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }

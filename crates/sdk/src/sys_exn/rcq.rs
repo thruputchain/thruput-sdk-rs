@@ -1,3 +1,4 @@
+use crate::internal::EncodeBuf;
 use crate::sys::SyscallNo;
 use crate::sys_result::rcq as rcq_result;
 use crate::syscall_throw;
@@ -42,6 +43,32 @@ pub fn retrocausal_queue_try_peek_sized<const N: usize>(
     key: &StorageKey,
 ) -> Option<[u8; N]> {
     rcq_result::retrocausal_queue_try_get_sized(key, true).unwrap_or_else(
+        |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
+    )
+}
+
+/// Reads the next queue entry into a fixed `EncodeBuf`. Throws on syscall error.
+/// Returns `None` if the entry is larger than `EncodeBuf` capacity (typed callers
+/// should treat this as a serialization failure).
+pub(crate) fn retrocausal_queue_get_encode_buf(
+    key: &StorageKey,
+    peek: bool,
+) -> Option<EncodeBuf> {
+    rcq_result::retrocausal_queue_get_encode_buf(key, peek).unwrap_or_else(
+        |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
+    )
+}
+
+/// Like `retrocausal_queue_get_encode_buf`, but returns the outer `None` when
+/// the queue is empty. Returns `Option<Option<EncodeBuf>>`:
+///   outer None  = queue empty
+///   Some(None)  = entry too large for EncodeBuf
+///   Some(Some)  = entry successfully read into buf
+pub(crate) fn retrocausal_queue_try_get_encode_buf(
+    key: &StorageKey,
+    peek: bool,
+) -> Option<Option<EncodeBuf>> {
+    rcq_result::retrocausal_queue_try_get_encode_buf(key, peek).unwrap_or_else(
         |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
     )
 }

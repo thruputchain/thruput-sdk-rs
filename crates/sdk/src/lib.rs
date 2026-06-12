@@ -171,16 +171,12 @@ pub use groundhog_contract_spec::ContractTypeName;
 
 // "Storage" facility
 
-#[cfg(feature = "storage")]
 pub mod storage;
 
-#[cfg(feature = "storage")]
 pub use groundhog_macros::Deletable;
 
-#[cfg(feature = "storage")]
 pub use groundhog_macros::Storage;
 
-#[cfg(feature = "storage")]
 #[doc = include_str!("../doc/macro-storage.md")]
 pub use groundhog_macros::storage;
 

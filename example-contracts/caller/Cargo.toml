@@ -21,9 +21,9 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
 erc20 = { path = "../erc20" }
-groundhog-erc20-if = { workspace = true, features = ["storage"] }
+groundhog-erc20-if = { workspace = true }
 
 [dev-dependencies]
 caller = { path = ".", features = ["dev"] }

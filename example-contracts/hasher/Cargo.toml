@@ -14,7 +14,7 @@ edition.workspace = true
 [features]
 entrypoints = []
 dev = ["sdk/dev"]
-bottle-test = ["dep:bottle-test-if", "sdk/storage"]
+bottle-test = ["dep:bottle-test-if"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

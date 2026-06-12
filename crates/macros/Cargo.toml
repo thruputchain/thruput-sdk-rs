@@ -25,7 +25,6 @@ groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 
 [features]
 logging = []
-storage = []
 
 # Don't inline `*_internal` methods directly into their exported entrypoints.
 # (Not recommended except when decompiling, where method names are inscrutable.)

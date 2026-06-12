@@ -52,9 +52,7 @@ fn contract_type_name_impl(
     }
 }
 
-#[cfg(feature = "storage")]
 mod deletable;
-#[cfg(feature = "storage")]
 mod storage;
 
 /// Compute a `StorageKey` at compile time: sha256 of the string literal's
@@ -154,7 +152,6 @@ pub fn contract(
         .into()
 }
 
-#[cfg(feature = "storage")]
 #[proc_macro_derive(Storage)]
 pub fn derive_storage(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -171,7 +168,6 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
 /// types like `NNInt`, `Map`, `Value`, or nested storage structs) and
 /// on unit structs (`struct Token;`) for contracts that keep all state
 /// behind raw storage keys. Takes no arguments.
-#[cfg(feature = "storage")]
 #[proc_macro_attribute]
 pub fn storage(
     attr_args: TokenStream,
@@ -196,7 +192,6 @@ pub fn storage(
     .into()
 }
 
-#[cfg(feature = "storage")]
 #[proc_macro_derive(Deletable)]
 pub fn derive_deletable(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);

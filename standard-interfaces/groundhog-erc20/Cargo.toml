@@ -10,8 +10,6 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
 dev = ["sdk/dev", "dep:thiserror"]
-# Needs storage feature for error conversion from StorageError
-storage = ["sdk/storage"]
 
 [dependencies]
 sdk = { workspace = true }

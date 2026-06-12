@@ -263,7 +263,7 @@ lint_contract() {
 
 test_package() {
     cargo test &&
-    cargo test -p sdk -Fstorage,std --tests &&
+    cargo test -p sdk -Fstd --tests &&
     cargo test -p groundhog-erc20-metadata-if --all-targets &&
     cargo test -p groundhog-spec-tool --all-targets &&
     cargo test -p groundhog-test-vectors &&
@@ -404,7 +404,7 @@ itc_bottle_test_all() {
 
 build_docs() {
     RUSTDOCFLAGS="--deny warnings --cfg docsrs" \
-        cargo doc --features=dev,storage "$@"
+        cargo doc --features=dev "$@"
 }
 
 skip() {

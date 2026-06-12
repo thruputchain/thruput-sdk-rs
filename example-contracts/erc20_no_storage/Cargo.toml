@@ -22,7 +22,7 @@ dev = ["sdk/dev", "groundhog-erc20-if/dev"]
 bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }
 
 # Optional testing dependencies

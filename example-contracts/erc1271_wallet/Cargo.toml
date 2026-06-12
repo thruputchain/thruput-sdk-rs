@@ -23,7 +23,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
 groundhog-erc1271-if = { workspace = true }
 
 [dev-dependencies]

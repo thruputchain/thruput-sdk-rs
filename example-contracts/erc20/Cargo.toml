@@ -29,8 +29,8 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
-groundhog-erc20-if = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
+groundhog-erc20-if = { workspace = true }
 groundhog-erc20-metadata-if = { workspace = true, optional = true }
 
 # Optional testing dependencies
