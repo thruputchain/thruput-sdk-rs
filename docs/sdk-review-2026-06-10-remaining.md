@@ -18,7 +18,7 @@ rustdoc, and erc20-test abort checks (re-enabled by default and repaired)
 Additionally, the ERC20 error contract was standardized: the trait in
 `standard-interfaces/groundhog-erc20` now documents exactly which
 `ERC20Error` each method throws, all four implementations (`erc20`,
-`erc20_low_level`, `erc20_no_storage`, `itc_erc20`) throw
+`erc20_low_level`, `erc20_raw_storage`, `itc_erc20`) throw
 `ERC20Error::TooLarge` on balance/allowance overdraft instead of leaking
 storage-layer `NonNegativeIntUnderflow`, and erc20-test pins the exact
 error in its abort checks. (This partially addresses the

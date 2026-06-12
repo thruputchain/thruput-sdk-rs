@@ -1,4 +1,5 @@
-//! An implementation of ERC20 without the storage layer.
+//! An ERC20 implementation that manages balances via raw storage keys and syscalls
+//! instead of the typed storage layer.
 
 // If the interface's `Amount` type changes away from `i128`, our casts
 // below will be necessary

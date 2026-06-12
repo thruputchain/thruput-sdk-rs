@@ -7,7 +7,7 @@ members = [
     "complex-storage",
     "counter",
     "erc20",
-    "erc20_no_storage",
+    "erc20_raw_storage",
     "erc20_low_level",
     "exceptions",
     "genesis_deployer",

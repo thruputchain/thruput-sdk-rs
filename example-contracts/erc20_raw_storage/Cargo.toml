@@ -1,5 +1,5 @@
 [package]
-name = "erc20_no_storage"
+name = "erc20_raw_storage"
 description = "Example ERC20 contract for the Groundhog blockchain"
 version.workspace = true
 authors.workspace = true
@@ -29,5 +29,5 @@ groundhog-erc20-if = { workspace = true }
 erc20-bottle-test = { workspace = true, optional = true }
 
 [dev-dependencies]
-erc20_no_storage = { path = ".", features = ["dev"] }
+erc20_raw_storage = { path = ".", features = ["dev"] }
 erc20-native-test.workspace = true
