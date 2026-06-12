@@ -30,6 +30,8 @@ mod raw_call_error;
 
 pub use calls::*;
 pub use contract_client::*;
+pub(crate) use contract_result::buf_from_slice;
 pub use contract_result::*;
+pub(crate) use encode::encode_terminal;
 pub use encode::*;
 pub use raw_call_error::*;

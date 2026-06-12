@@ -49,13 +49,76 @@ verification: `./scripts/dev.sh test` dispatches to a nonexistent
 directory other than the repo root iterates zero packages (relative
 `example-contracts` path) and also exits 0.
 
-## medium severity (22 remaining)
+**Addressed in the 2026-06-11 fix pass** (sections removed below):
 
-### [sdk-core/footgun] ReturnBuf/AbortBuf hard-capped at 500 bytes while the protocol allows 1024-byte returns
+- *Calldata hardening + arbitrary-length calldata:* with the `alloc`
+  feature, `try_get_calldata_with_auth_tokens` now sizes its buffers
+  exactly via `GetCalldataLen` (heap `Vec`s on the guest bump
+  allocator), so calldata of any length and any auth-token count are
+  supported; host-reported lengths are still validated before
+  `set_len`. Without `alloc`, the fixed 500-byte stack buffer remains
+  and oversized inputs return `Err(InvalidSyscallInput)` (thrown as
+  `LibraryExn::Syscall` by the non-try wrapper) instead of reading past
+  the initialized region.
+- *Full-size returns + buffer reuse:* `ReturnBuf`/`AbortBuf` are
+  alloc-switched, so cross-contract calls can receive returns/aborts up
+  to the protocol's 1024-byte cap (the old 500-byte cap made any
+  501–1024-byte return fail as `UnparseableReturn`). The typed path
+  (`try_call_raw`) reuses a per-instance scratch (`contract_local!` +
+  `ContractCell`), allocated once at the protocol cap — the bump
+  allocator never frees, so per-call allocations would leak; the
+  untyped `contract_call` (now documented as the forwarder/proxy API,
+  e.g. dev_wallet) returns owned exact-size buffers. `RawException`'s
+  payload no longer silently truncates at 500 bytes.
+- *Encode side via the same scratch:* the one scratch buffer also does
+  double duty within each `try_call_raw` (encoded args while `Invoke`
+  copies them out, then the returned data), so outgoing calldata has no
+  SDK cap (grow-to-peak; protocol calldata is unbounded). A contract's
+  own returns/aborts encode through `encode_terminal`, which takes the
+  scratch without returning it (the instance dies immediately) and caps
+  at `kMaxReturnBufferLen`, erroring with a typed `EncodingException`
+  past it instead of an opaque host fault. The 600-byte `BigExn` in the
+  exceptions example now propagates intact (the example gained
+  `sdk/alloc`; its test previously pinned the encode failure). Without
+  `alloc`, all paths keep the fixed 500-byte stack buffers
+  (`EncodeBuf`). `ENCODE_MAX` (`internal::encode_xdr`, used by events
+  and the blanket `Hash`) was already 1024 and is unchanged.
+- *Dead-code sweep:* deleted `internal/track.rs`, `allocator_panic.rs`,
+  `internal/static_buf.rs` (`static_mu_buf!`/`static_vec!`),
+  `Keypath::from_key`, `storage_load_error`, `contract_exit` (the `Exit`
+  syscall reverts, so `contract_revert` kept the name and gained rustdoc),
+  `contract_return_empty`, `contract_result_should_commit/revert`, the
+  macro alloc-marker machinery, the stale commented
+  `receive_auth_handles_from_slice` line, dead `timed()`, and bottle-test
+  residue. `exit_error()`/`return_error()` collapsed into a documented
+  `control_flow_unwind()`. The duplicate `MintAuthToken` syscall block,
+  `entrypoint_export_name` copy, and always-`Some` `Option` were deduped.
+  Duplicate `test_map_at` deleted; `test_map_at_nested` now actually tests
+  a nested `Map<u32, Node<...>>`.
+- *Spec tooling:* `BytesM<MAX>` preserves its bound in specs; non-UTF-8
+  spec strings return `SpecToolError::InvalidRawFragment` instead of
+  panicking; duplicate exception selectors with different payload types are
+  rejected (new `ConflictingExceptionSelector`; canonical throws order is
+  now by selector); typedef-only raw fragments are still stripped for
+  raw contracts with hand-written entrypoints (`test_bytestring`,
+  `calldata_raw`), but if the module additionally exports no functions
+  it is a hard error with a "likely missing #[contract]" diagnosis —
+  surfacing this shape immediately caught `genesis_deployer` missing
+  its `#[contract]` macro entirely (zero wasm exports, uninvokable); it
+  now publishes a real interface and dev.sh asserts the spec instead of
+  asserting spec-lessness; rendered JSON keys unified
+  (`"type"`, `"element"`); the lossless JSON is reachable via
+  `--json-format round-trip`; the CLI gained `--out`, atomic writes, and
+  `--help` (in-place rewrite and stale-sidecar deletion are kept but now
+  documented); unknown-variant handling panics consistently; the leak check
+  encodes fragments once; `ContractTypeInfo`/`rewrite_wasm`/`RewrittenWasm`/
+  `parse_raw_fragments`/`describe::write_output` got docs; the unreachable
+  `ContractType::Bytes` policy is documented at the `[u8]` impl.
+- *Partial:* of the "[macros/redundancy] copy-pasted auth-handle walkers,
+  duplicated entrypoint_export_name, always-Some Option" finding, only the
+  four near-identical walkers remain (see amended finding below).
 
-**File:** `crates/sdk/src/call/contract_result.rs:15`
-
-`pub type Buf = heapless::Vec<u8, 500>; pub type ReturnBuf = Buf;` while the SDK's own test comment in calls.rs:260 states 'A child can return up to the protocol's 1024-byte cap. When it returns 600 bytes, both Invoke and GetReturnedBuffer report 600 even though only CAPACITY bytes fit'. So calling any (protocol-valid) contract whose return encodes to 501-1024 bytes always fails at runtime, and with the misleading error `RawCallError::UnparseableReturn` / `CallingError::DecodingSuccess` rather than anything indicating a size limit. The same magic 500 appears independently as `CALLDATA_MAX` (contract_op.rs:17), `EncodeBuf` (call/encode.rs:31), `RawException` payload (exn/raw.rs:12), and `ENCODE_MAX` (internal/serialize.rs:19) — none documented to contract authors.
+## medium severity (13 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
 
@@ -63,41 +126,17 @@ directory other than the repo root iterates zero packages (relative
 
 With `debugging`, `FaultString` serializes as `Option<&str>` (`struct FaultString(Option<heapless::String<500>>)`, write_xdr at line 24-29); without it, `pub struct FaultString;` serializes to zero bytes (line 133-138). `LibraryExn` (exn/library.rs) embeds `FaultString` in most variants and is a cross-contract exception with a fixed selector derived only from version "1.0.0" + "LibraryExn" — the selector does not change when the payload layout changes. Two contracts (or a contract and an off-chain decoder) built with different `debugging` settings will mis-decode each other's library exceptions with no versioning signal. Same pattern in `Panic` (panic.rs) and the `#[cfg(feature = "storage")] Storage(StorageError) = 8` variant of LibraryExn, whose existence is also feature-dependent.
 
-### [sdk-core/footgun] contract_exit silently ignores its exit code and is identical to contract_revert
-
-**File:** `crates/sdk/src/contract_op.rs:41-47`
-
-`pub fn contract_exit(_code: i32) -> ! { sys::raw_Exit() }` and `pub fn contract_revert() -> ! { sys::raw_Exit() }` are byte-identical; the `code` parameter is discarded. The names imply opposite semantics (clean exit vs. revert), but both abort the frame the same way, and a caller passing `contract_exit(0)` expecting a successful return gets a revert. Neither has rustdoc, and a repo-wide grep shows neither is used anywhere (nor are `contract_return_empty`, `contract_result_should_commit`, `contract_result_should_revert`).
-
 ### [sdk-core/footgun] Blanket `Hash for T: WriteXDR` panics via unwrap() on values larger than ~500 bytes
 
 **File:** `crates/sdk/src/hash.rs:14-23`
 
 `impl<T: WriteXDR> Hash for T { fn hash(&self) -> Hash256 { let buf = crate::internal::encode_xdr(self).unwrap(); ... } }` — `internal::encode_xdr` writes into a fixed `MUBuf<ENCODE_MAX>` (ENCODE_MAX = max(kMaxEventLength, 500), internal/serialize.rs:19-24), so hashing any value whose XDR encoding exceeds that buffer panics with a bare unwrap. The trait applies to *every* WriteXDR type, the limit is invisible in the API, and neither the trait nor the impl documents the panic.
 
-### [sdk-core/footgun] try_get_calldata_with_auth_tokens trusts host-reported lengths with no capacity check, unlike the return-path
-
-**File:** `crates/sdk/src/contract_op.rs:205-209`
-
-`let written = unsafe { written.assume_init() }; unsafe { calldata.set_len(written as usize) };` — the calldata path applies the host-reported length directly to a `MUBuf<500>`. The sibling return path was hardened precisely because the host 'reports the *full* source length, which can exceed capacity' (see `checked_returned_len`, call/calls.rs:205-236, added with tests). If calldata exceeds 500 bytes, `set_len` exceeds SIZE and the next `as_ref()` panics on a confusing slice-index error instead of producing a clean decode fault; there is also no `written <= SIZE` proof backing the subsequent `assume_init_ref`. Same for the auth-token buffer at line 209.
-
-### [sdk-core/redundancy] static_mu_buf!/static_vec! are #[macro_export]ed, completely unused, and expand to `static mut` that is unsound off-guest
-
-**File:** `crates/sdk/src/internal/static_buf.rs:4-114`
-
-A repo-wide grep finds zero invocations of either macro. Because they are `#[macro_export]`, they are public API at the crate root (`sdk::static_mu_buf!`), yet they expand to `static mut BUF: RefCell<...>` with `#[allow(static_mut_refs)]` and the comment 'SAFETY: We're single-threaded' — if a contract author invokes one in host-side test code (cargo test runs threads in parallel), two threads borrow the same `static mut` RefCell: a data race / UB the RefCell cannot prevent. Dead, exported, and unsound when used as exported — should be deleted or made guest-gated/doc(hidden) internals.
-
 ### [sdk-storage/footgun] NNInt is named 'Non-negative integer' but set() stores negatives and inc() defers underflow to commit time
 
 **File:** `crates/sdk/src/storage/nnint.rs:8-57`
 
 The type's entire rustdoc is `/// Non-negative integer`, yet `set(-5)` succeeds and `get()` then returns -5 (proven by tests/nnints.rs `negative_set_succeeds` and `set_negative_then_increment_succeeds`: "We can explicitly set a negative value, and the transaction succeeds"). Meanwhile `inc()` (doc: "Increment by an amount (without querying the current value)") can drive the committed value negative without any call-site error — the transaction only reverts at commit (tests/internal_nnints.rs `negative_increment_reverts`: "The frame succeeds but the commit must fail"). The nuanced rules (negative set is allowed and disables the non-negativity check; inc after a non-negative set throws immediately; otherwise underflow is a deferred commit failure; concurrency constraints of set vs add) are documented only on the free functions in src/sys_exn/nnint.rs, not on the NNInt methods a contract author actually calls. NNInt is the obvious balance/counter primitive, so an author relying on the type name to guarantee non-negativity at call time, or expecting set(-x) to throw, is badly misled.
-
-### [sdk-storage/footgun] Keypath::from_key does not produce a keypath that maps to the given key, and is unused
-
-**File:** `crates/sdk/src/storage/keypath.rs:27-31`
-
-`pub fn from_key(key: &StorageKey) -> Self` pushes the XDR-encoded StorageKey as a path component, so `Keypath::from_key(k).generate_key()` returns `sha256(encode(k))` — a completely different key from `k`. The name strongly suggests round-tripping a known StorageKey (e.g., one from `static_key!`) into the Keypath world; anyone using it to address an existing raw-syscall location will silently read/write a different slot. There is no rustdoc to dispel this, and a workspace-wide grep shows zero callers (not even tests), so it is also dead public API.
 
 ### [sdk-storage/missing-docs] Vector push/pop take an exclusive lock on len; concurrent transactions conflict — undocumented
 
@@ -135,24 +174,6 @@ For structs, `generate_preimage_and_mintable` builds a `Preimage` whose every fi
 
 Both methods reimplement the same sequence: compute `topics_len = 32 * event.num_topics`, bounds-check, slice payload, `cxs::decode::<E>`, `topic0_matches`. They have drifted on the malformed-event case: `filter_events` silently skips an event whose `topics_len > serialized_event.len()` (`return None;`, line 250-252) while `assert_emitted` panics on the identical condition (`assert!(topics_len <= event.serialized_event.len(), ...)`, lines 319-324). So the same corrupt event makes one API quietly return an empty vec and the other abort the test. Also, in `topic0_matches` the `assert!(raw.num_topics == 0)` in the else branch (line 32) is unreachable: the function already returned false when `decoded.num_topics() != raw.num_topics`.
 
-### [spec-tooling/footgun] BytesM<MAX> silently discards its length bound in generated specs (asymmetric with VecM)
-
-**File:** `crates/contract-spec/src/lib.rs:176`
-
-`impl<const MAX: u32> ContractTypeRefSpec for xdr_common::BytesM<MAX> { const INFO: ContractTypeInfo<'static> = <&[u8] as ContractTypeRefSpec>::INFO; }` maps every BytesM<MAX> to `Vector(U8, max_len: u32::MAX)`, throwing away MAX. Directly below, `VecM<T, N>` (lib.rs:228-237) correctly preserves its bound as `max_len: N`. The spec model can express the bound (ContractVectorTypeView.max_len exists), so a contract taking `BytesM<256>` publishes a spec claiming it accepts unbounded bytes; clients/codegen built from the spec will produce inputs the contract rejects at runtime. Same silent bound loss for `StringM<MAX>` and `heapless::String<MAX>` (lib.rs:168-174), though there the spec String type has no bound field to preserve. This is exactly the kind of lossy spec/code drift a contract author would never notice.
-
-### [spec-tooling/footgun] spec-tool panics (instead of returning SpecToolError) on non-UTF-8 spec strings from malformed wasm
-
-**File:** `crates/spec-tool/src/lib.rs:19`
-
-`fn spec_str(s: &ContractSpecString) -> &str { std::str::from_utf8(s).expect("contract spec strings must be valid UTF-8") }`. ContractSpecString is `StringM`, which is `pub struct StringM<...>(pub Vec<u8>)` (xdr-common/src/stringm.rs:70) — XDR decode performs no UTF-8 validation. So `parse_raw_fragments` happily decodes a wasm custom section containing non-UTF-8 names, and `canonicalize_spec` then panics in `validate_interface_key`/error-formatting paths instead of returning `SpecToolError::InvalidRawFragment`, which exists precisely for this case. Any tool embedding `rewrite_wasm` on third-party or corrupted wasm gets a process abort rather than an error.
-
-### [spec-tooling/missing-docs] Primary entry points rewrite_wasm / rewrite_wasm_with_spec / RewrittenWasm have zero rustdoc
-
-**File:** `crates/spec-tool/src/rewrite.rs:12`
-
-`pub fn rewrite_wasm`, `pub fn rewrite_wasm_with_spec`, and `pub struct RewrittenWasm` carry no documentation at all, despite non-obvious semantics a caller must know: (a) both `groundhogspecrawv0` and `groundhogspecv0` custom sections are stripped and a single final section re-emitted; (b) if no raw fragments exist, an existing final section is decoded and re-encoded instead; (c) typedef-only raw fragments yield `spec: None` with ALL spec sections (including a pre-existing final one) silently removed; (d) the call errors if encoded raw-fragment bytes appear in any data segment ("raw spec bytes leaked into linear memory") — an invariant callers can't guess. Similarly `parse_raw_fragments` (raw.rs:10) doesn't document the concatenated-XDR stream format, and `describe::write_output` (describe.rs:71) doesn't document its XDR output as `encode(exception) ++ encode(Vec<ContractTypeDef>)`, a non-self-describing concatenation a consumer must know how to split.
-
 ### [small-crates/footgun] TypedEvent::new decodes without verifying the event-type discriminant (topic 0)
 
 **File:** `crates/event/src/emitted_event.rs:69-78`
@@ -177,25 +198,13 @@ The published ERC20 standard interface documents nothing a wallet/token integrat
 
 Three stateless caller examples use three different spellings: erc1271_caller writes `#[derive(Default)] pub struct Caller;` + `#[contract(storage = false)]`; bare_impl_caller writes `#[derive(Default)]` + bare `#[contract]`; versioned_caller writes neither Default nor storage flag. Since all their methods are associated functions (no `self`), the storage flag and Default derive are dead weight in all three — the macro only consults `config.storage()`/`Default` for `self` methods (crates/macros/src/common/exports.rs:291-321, with the TODO at line 316 noting the Default requirement is not even asserted). A user copying erc1271_caller will cargo-cult `storage = false` + Default; a user copying versioned_caller learns they're unnecessary. Nothing documents which is right, and `storage = false` with a `&mut self` method silently constructs a throwaway Default object whose mutations are discarded — a trap only a macro-source reader would discover.
 
-## low severity (58 remaining)
-
-### [sdk-core/redundancy] src/internal/track.rs is dead code and a drifted duplicate of call_tracking_contexts.rs
-
-**File:** `crates/sdk/src/internal/track.rs`
-
-internal/mod.rs declares `mod mu_buf; mod serialize; mod static_buf;` and (feature-gated) `mod call_tracking_contexts;` — there is no `mod track;` anywhere, so track.rs is not compiled. Its contents (`CallMethod`, `HandlingMethod`, both `with_call_tracking!` arms) are near-verbatim copies of internal/call_tracking_contexts.rs:5-67 and diagnostics/mod.rs:27-42. The duplicate `with_call_tracking!` definition would actually be a `#[macro_export]` name collision if the file were ever wired back in.
+## low severity (41 remaining)
 
 ### [sdk-core/missing-docs] Public syscall wrappers and InvokeConfig lack rustdoc on throwing behavior, limits, and default semantics
 
 **File:** `crates/sdk/src/deploy.rs:8-51`
 
 Whole public modules expose undocumented functions whose failure mode is a thrown `LibraryExn` (a non-returning abort): `get_deploy_address`, `get_deploy_address_for_other`, `deploy_contract` (deploy.rs), `get_caller`/`get_current_address`/`get_source_transaction_hash` (contract_op.rs:139-164), `log` (log.rs:5), `sha256` (crypto.rs:9). None state that they throw rather than return errors, and none document size limits (e.g. `log_event`'s 500-byte data cap via `encode_xdr`). `InvokeConfig` (invoke_config.rs:4-17) documents neither field: `gas_limit: u64::MAX` as the default 'forward everything' sentinel and the units of `gas_limit` are exactly what a contract author needs to know before making cross-contract calls.
-
-### [sdk-core/redundancy] src/allocator_panic.rs is dead, and would define a conflicting #[global_allocator] if ever re-included
-
-**File:** `crates/sdk/src/allocator_panic.rs`
-
-lib.rs declares no `mod allocator_panic;` and nothing references the file; its own header says '(This was briefly useful when having difficulty excluding liballoc from builds.)'. It still contains `#[global_allocator] static GLOBAL_ALLOCATOR: Allocator = Allocator;`, which would collide with the allocators force-linked from groundhog-wasm-runtime / groundhog-rv32-runtime (lib.rs:50-54) if anyone wired it back in. Should be deleted.
 
 ### [sdk-core/weird] get_block_height and gas_remaining bypass the SDK's syscall_throw convention with bare unwrap/panic
 
@@ -227,12 +236,6 @@ Value stores `key: KeyCache` precisely to memoize the sha256 of the keypath, and
 
 `Vector<S>` has field `values: Map<u32, S>`, but the only use is `self.values.keypath().clone()` inside `make_elem_keypath`, which then does `kp.push_item(&index)` — a copy of the private `Map::make_entry_keypath` (map.rs:114-121). Vector never calls Map::at/at_mut; if Map's key derivation ever changes (e.g., domain separation added), Vector's parallel copy silently diverges and existing vectors' element keys stop matching. Either store the values Keypath directly or route element access through the Map.
 
-### [sdk-storage/redundancy] Dead helper storage_load_error; duplicated test test_map vs test_map_at
-
-**File:** `crates/sdk/src/storage/error.rs:52-54`
-
-`pub fn storage_load_error(_r: ReadError) -> StorageError` has zero callers in the workspace (rcq.rs uses throw_load_exn/throw_store_exn; value.rs maps to StorageError::Serialization inline). Separately, crates/sdk/tests/storage.rs lines 30-43 (`test_map`) and lines 150-163 (`test_map_at`) are byte-identical test bodies (same slot 3, strict_inc(7), same asserts), and `test_map_at_nested` (165-178) tests nothing nested — it is the same single-level `Map<u32, NNInt>` with a different slot number, so the name promises coverage (nested maps) that does not exist.
-
 ### [sdk-storage/weird] seq_end panic message names a nonexistent method 'leave_seq()'
 
 **File:** `crates/sdk/src/storage/keypath.rs:79-85`
@@ -263,18 +266,6 @@ Value stores `key: KeyCache` precisely to memoize the sha256 of the keypath, and
 
 `impl_assume_tokens!` is instantiated for 0..=8 elements (signer.rs:104-120), but `impl_receive_tuple!` and `impl_collect_tuple!` both cover arities 1..=20 (receive_auth_handles.rs:207, collect_auth_handles.rs:189). A caller destructuring 9+ opaque tokens gets a confusing 'trait not implemented' error in an API family that otherwise handles 20. Also note `AssumeTokens::assume_tokens` panics on length mismatch (assert_eq) rather than returning Result — consistent with tests but worth a doc line since the rest of the receive surface returns AuthTokenError.
 
-### [sdk-auth/redundancy] Stale commented-out receive_auth_handles_from_slice call with misleading live comment in entrypoint codegen
-
-**File:** `crates/macros/src/common/exports.rs:380`
-
-The generated entrypoint body contains `// Fill in Signer handles from the auth token ID list` immediately followed by the dead line `// ::sdk::receive_auth_handles_from_slice(&mut __args, auth_token_ids.as_slice());`. The fill actually happens inside `contract_call_decode` (crates/sdk/src/call/encode.rs:16), which is already called three lines earlier. Anyone auditing the auth path through the macro output reads a comment claiming a step happens at a point where the code is commented out — it took cross-referencing encode.rs to confirm handles are received at all. The pair of lines should be deleted.
-
-### [sdk-auth/redundancy] mint_auth_token / mint_opaque_auth_token duplicate the syscall block; dead timed() helper in contract_test.rs
-
-**File:** `crates/sdk/src/signer.rs:218`
-
-Both mint functions repeat the identical MaybeUninit + uninit_MintAuthToken + syscall_throw + assume_init + Signed::from_handle sequence (signer.rs:236-245 vs 266-275); mint_auth_token could be `mint_opaque_auth_token(expiry, &buf).assume()`-style over a shared private fn, so the two copies can't drift. Separately, `#[allow(unused)] fn timed` in crates/sdk/src/mock/contract_test.rs:275 is dead code (nothing references it; the gas println at line 222 it presumably fed is also commented out) and contains a self-contradictory unreachable panic path ('consumed negative gas' computed with unsigned subtraction after the guard).
-
 ### [macros/footgun] `#[contract(storage = false)]` silently discards all state mutations from `&mut self` methods
 
 **File:** `crates/macros/src/common/exports.rs:316-321`
@@ -287,17 +278,11 @@ When `config.storage()` is false, the generated entrypoint creates a throwaway v
 
 `ContractSrc for syn::ItemImpl::methods()` filters with `is_visible(&impl_fn.vis) || is_trait_impl`, and `is_visible` is `matches!(vis, syn::Visibility::Public(_))` (line 360-362). On a bare `impl` block, a method declared `pub(crate)` or private is silently excluded from exports, the client, the spec, and the mock registry — no warning, no error. Trait impls include everything, so moving a method between a trait impl and a bare impl changes whether it is exported based only on visibility. A contract author who writes `pub(crate) fn admin_reset(...)` thinking 'crate-visible is fine, the macro exports it anyway' ships a contract missing that entrypoint. The rule is undocumented.
 
-### [macros/redundancy] Dead alloc-marker machinery in contract_exception.rs emits only comments (which vanish from token streams)
-
-**File:** `crates/macros/src/contract_exception.rs:96-146`
-
-`alloc_enabled_impl_tokens` returns `quote! { //impl ::sdk::internal::ContractAbiAllocEnabled ... }` in both branches — comments inside `quote!` produce no tokens, so the function always returns an empty TokenStream. That makes `struct_alloc_enabled_impl_tokens`, `enum_alloc_enabled_impl_tokens`, `field_types`, and `enum_variant_field_types` (plus the Result plumbing and the `match ... { Err(err) => return err.into_compile_error() }` at call sites, lines 47-50 and 76-79) entirely dead code that still walks every field of every exception type on each expansion. Either the `ContractAbiAllocEnabled` feature should be revived or this whole chain deleted.
-
-### [macros/redundancy] Copy-pasted auth-handle walkers, a duplicated entrypoint_export_name, and an always-Some Option
+### [macros/redundancy] Copy-pasted auth-handle walkers
 
 **File:** `crates/macros/src/contract_type.rs:174-297,467-518`
 
-(1) `expand_collect_auth_handles_struct`/`expand_receive_auth_handles_struct` and `expand_collect_auth_handles_enum`/`expand_receive_auth_handles_enum` are four near-identical field walkers differing only in the method name and one argument — a single parameterized generator would prevent the drift this pattern invites. (2) `common/entrypoint.rs:17-19` redefines `entrypoint_export_name` byte-for-byte identical to `groundhog_contract_util::entrypoint_export_name` (crates/contract-util/src/lib.rs:119-121), which the crate already depends on. (3) `test_reg::generate_trait_method` (common/test_reg.rs:11-33) returns `Result<Option<syn::ImplItem>>` but every success path is `Ok(Some(...))`; the caller in contract.rs:146-152 then needs an `if let Some(...)` for a case that cannot occur.
+`expand_collect_auth_handles_struct`/`expand_receive_auth_handles_struct` and `expand_collect_auth_handles_enum`/`expand_receive_auth_handles_enum` are four near-identical field walkers differing only in the method name and one argument — a single parameterized generator would prevent the drift this pattern invites. (The other two parts of the original finding — the duplicated `entrypoint_export_name` and `generate_trait_method`'s always-`Some` `Option` — were fixed in the 2026-06-11 pass.)
 
 ### [macros/weird] #[storage] silently swallows attribute arguments and emits an unhygienic unqualified `#[derive(Storage)]`
 
@@ -323,12 +308,6 @@ When `config.storage()` is false, the generated entrypoint creates a throwaway v
 
 The rustdoc says "The closure ... is responsible for calling tx.try_commit_transaction() or tx.abort_transaction()", but nothing enforces it. If the author forgets, `MockTransactionHandler::drop` (mock_transaction_handler.rs:463-471) auto-aborts with only an `eprintln!("Cleanup: Aborting mock transaction that was not committed")` — captured and hidden by the test harness — so the test passes while none of its state changes were committed; later `advance_block()`/snapshot reads see nothing and the author debugs the wrong layer. Conversely, calling `tx.try_commit_transaction()` yourself inside the auto-commit `transact()` closure panics on the second commit via `assert_eq!(self.state, MockTransactionState::Running)`; neither doc mentions these interactions.
 
-### [native-exec/weird] exit_error() and return_error() are identical, and the *_error naming lies about non-errors
-
-**File:** `crates/native-exec/src/invoke_error.rs:40-62`
-
-`exit_error()` and `return_error()` both return `InvokeError { error_type: InvokeErrorCode::None }` — two public functions, zero difference, no rustdoc on either. They represent control-flow unwinds (raw_Return / Exit terminating an invocation successfully), so a function named `*_error` carrying code `None` is doubly misleading. `abort_transaction_error()` maps to `InvokeErrorCode::Abandon`, inviting confusion with the entirely different frame `Abort` status that `FrameResult::is_abort()` checks. None of the seven public constructors documents which are real failures vs. unwind markers; host_fn_error.rs:30-41 is the only place the distinction is visible.
-
 ### [native-exec/footgun] Harness misuse errors surface as opaque `Box<dyn Any>` panics (eprintln + panic_any pattern)
 
 **File:** `crates/native-exec/src/mock_transaction_handler.rs:270-284`
@@ -346,60 +325,6 @@ The rustdoc says "The closure ... is responsible for calling tx.try_commit_trans
 **File:** `crates/native-exec/src/mock_transaction_handler.rs:360-381`
 
 `MockTransactionHandler::new` always opens the syscall handler with `AuthClaim::kSourceAddressAuthData { allowed_keys: 0, required_weight: 0 }`, `source_tx_hash = [0; 32]`, and `enable_tracing = 1`, flagged with `// TODO(geoff): ways to mock this out`. There is no constructor parameter or builder to override any of these, so auth-dependent contract code paths and tx-hash-dependent logic cannot be exercised through the fluent mock API; the real `TransactionHandler` derives all of this from the SignedTransaction, so behavior diverges between the two harness paths precisely where contracts are most security-sensitive. Worth either exposing a configurable constructor or documenting the limitation on the type.
-
-### [spec-tooling/footgun] `spec-tool rewrite` destructively overwrites the input wasm in place and silently deletes the --json-out file
-
-**File:** `crates/spec-tool/src/main.rs:65`
-
-`run_rewrite` does `let bytes = fs::read(&wasm_path)?; ... fs::write(&wasm_path, rewritten.wasm)?;` — the flag is just `--wasm`, with no `--out`/`--in-place` option and no help text, so users won't expect their input artifact to be mutated (and a failed/interrupted write corrupts it). Additionally, when no spec is found the tool deletes the user-supplied `--json-out` path (main.rs:71-75 `fs::remove_file(&json_out)`); pointing `--json-out` at an existing unrelated file destroys it. Neither behavior is documented anywhere (there is no usage/--help output at all; errors are terse strings like "unexpected argument" without naming the offending argument).
-
-### [spec-tooling/footgun] canonicalize_spec never rejects duplicate exception selectors with different payload types
-
-**File:** `crates/spec-tool/src/lib.rs:358`
-
-`canonicalize_exception_list` sorts by `canonical_type_key(ty)` then `selector`, then calls `types.dedup()`, which only removes fully-identical adjacent entries. Two `throws` entries with the same `selector` but different `ty` (e.g. selector 7 -> Named("A") and selector 7 -> Named("B")) pass validation silently, even though selector-based exception decoding is then ambiguous for any client. The tool carefully rejects conflicting methods, typedefs, events, and whole throws-lists (ConflictingInterfaceThrows), but not the one collision that actually breaks runtime error decoding. Note also the canonical order is by type-name rather than selector, which is surprising.
-
-### [spec-tooling/weird] The CLI's only JSON output is the explicitly non-round-trippable debug format; the round-trippable format is unreachable
-
-**File:** `crates/spec-tool/src/lib.rs:283`
-
-`render_spec_json` is documented as "**not** guaranteed to be parseable back into a ContractSpec", yet it is what `rewrite --json-out` writes (main.rs:69). The lossless pair `spec_to_json`/`parse_spec_json` (lib.rs:273-281, tested in tests/json_roundtrip.rs) is exported from the lib but not exposed by any CLI flag. Downstream tooling consuming the sidecar JSON is forced onto the ad-hoc hand-rolled format (interface_to_json/type_to_json), and the two JSON renderers duplicate the entire type-tree walk and have already drifted in key naming.
-
-### [spec-tooling/weird] Inconsistent JSON keys in the rendered spec: "ty" vs "type", "inner"/"max_len" vs "element"/"len"
-
-**File:** `crates/spec-tool/src/lib.rs:632`
-
-`field_to_json` emits the field type under key `"ty"` (lib.rs:632-637) while `exception_type_to_json` emits it under `"type"` (lib.rs:617-622). In `type_to_json`, vectors nest the element under `"inner"` with bound `"max_len"` (lib.rs:670) but arrays use `"element"` with `"len"` (lib.rs:680), and options use `"inner"`. Since this JSON is the published sidecar artifact of `spec-tool rewrite`, every cross-language consumer must special-case these spellings; once external tooling depends on them they are frozen, so worth unifying now.
-
-### [spec-tooling/footgun] Typedef-only raw fragments are silently swallowed, and can erase a pre-existing final spec section
-
-**File:** `crates/spec-tool/src/rewrite.rs:25`
-
-In `rewrite_wasm_with_spec`, when raw fragments exist but contain no interface (`canonicalize_spec` -> `NoSpecFragments` because `interfaces.is_empty()`, lib.rs:189-191), the error is mapped to `spec = None` (rewrite.rs:30) and every spec section — including any valid pre-existing `groundhogspecv0` final section — is stripped without being re-emitted (the `RAW_SECTION_NAME | FINAL_SECTION_NAME => continue` arm at rewrite.rs:44). A contract author who exported types but forgot the interface gets a wasm with no spec and no warning (the CLI even deletes the json sidecar), and rerunning the tool over an already-finalized wasm that picked up a stray typedef-only raw section silently destroys the previous spec. Pinned by test `rewrite_omits_final_section_when_raw_has_only_typedefs` (tests/rewrite.rs:551), so it's intentional but trap-shaped.
-
-### [spec-tooling/redundancy] ContractTypeInfo is a one-field wrapper whose docs describe data that no longer exists
-
-**File:** `crates/contract-spec/src/lib.rs:59`
-
-`pub struct ContractTypeInfo<'a> { pub ty: view::ContractTypeView<'a> }` wraps a single field, and `ContractTypeRefSpec::INFO` is documented as "The type reference and its transitive type definitions" (lib.rs:69-70) — but the struct carries no type definitions; that role evidently moved to the hidden `__GROUNDHOG_SPEC_ANCHOR_ROOT` linker-anchor mechanism. The doc is stale/misleading, and the wrapper buys nothing over `const INFO: ContractTypeView<'static>` (the `type_ref::<T>()` helper at lib.rs:324 just unwraps it). It is used verbatim by macros and sdk impls, so removal is breaking, but the doc should at least be fixed.
-
-### [spec-tooling/weird] Unknown-variant handling is inconsistent: silent skip in type collection vs panic in canonical keys
-
-**File:** `crates/spec-tool/src/lib.rs:505`
-
-`collect_named_types` ends with a silent `_ => {}` after exhaustively listing primitives (lib.rs:493-505), while `canonical_type_key` (lib.rs:591), `type_def_symbol` (lib.rs:600), `type_to_json` (lib.rs:682), and `resolve_reachable_type_defs` (lib.rs:442) all `panic!("unknown ContractType variant")` in the same situation. If groundhog-spec adds a ContractType variant that can embed a Named reference, `collect_named_types` silently fails to resolve its typedefs (producing a spec that passes validation but omits definitions), whereas the sibling functions would crash. One policy should win — either error consistently or skip consistently.
-
-### [spec-tooling/weird] ContractType::Bytes (XDR tag 9) exists in the spec model but no Rust SDK type can ever produce it
-
-**File:** `crates/contract-spec/src/lib.rs:150`
-
-`[u8]`, `&[u8]`, and `BytesM` all lower to `Vector(U8, u32::MAX)` (lib.rs:150-179), never to `ContractTypeView::Bytes` (view.rs:64); the macro tests even assert the absence of `ContractTypeView :: Bytes` (crates/macros/src/common/contract.rs:547,566,591). So the variant is deliberately unreachable from the Rust SDK, yet it remains in the wire enum, round-trip tests, JSON rendering, and the type-collection switch. Nothing documents whether `bytes` and `vec<u8>` are wire-equivalent or which one other-language SDKs should emit — two spellings for the same payload is a cross-language spec-comparison hazard (identical interfaces hashing/comparing unequal). At minimum the intent deserves a comment on the variant.
-
-### [spec-tooling/redundancy] Leak check re-encodes every raw fragment once per data segment
-
-**File:** `crates/spec-tool/src/rewrite.rs:126`
-
-`ensure_raw_fragments_stay_out_of_linear_memory` calls `encode(fragment).expect(...)` inside the inner `for fragment in raw_fragments` loop, which itself sits inside the per-segment loop — every fragment is XDR-encoded segments×fragments times, then scanned with a naive `windows()` substring search over the full data segment. The encodings are invariant and should be computed once before the loops; for large contracts (many fragments, multi-MB data segments) this makes `rewrite_wasm` needlessly quadratic.
 
 ### [small-crates/footgun] contract_entrypoint_id hashes fields with no domain separators, unlike its sibling selectors
 
@@ -436,12 +361,6 @@ The wasm-target rejection reads `"native_exec does not build for wasm32-unknown-
 **File:** `crates/hogd-sys/build.rs:655-668`
 
 `add_auth_to_curl` does `cmd.arg("-u").arg(format!("{user}:{pass}"))`, putting the secret from `HOGD_FFI_PASSWORD` into curl's argv where it is visible to every local process via `ps` for the duration of the (retried, possibly minutes-long) download — curl supports `--netrc`/stdin config to avoid this. Also, the auth is added only `if !user.is_empty()`: if a user exports `HOGD_FFI_USER=""` (or a CI template leaves it blank) while the password is set, the build silently downloads unauthenticated — the "password not set" warning is in the other branch, so no diagnostic fires. Related: if the `.sha256` checksum download fails, verification is skipped with only a cargo:warning (lines 769-774, 844-854), so an authentication or CDN failure degrades to unverified binaries linked into the test harness.
-
-### [small-crates/redundancy] bottle-test main.rs carries dead residue: commented-out grants, unused address, duplicate nonce constants
-
-**File:** `crates/bottle-test/src/main.rs:15-37`
-
-`TARGET_NONCE` and `TESTER_NONCE` are two constants with the identical value `SHA256Hash::new([7; 32])` (lines 15-16) — they only avoid producing colliding deploy addresses because the deployers differ, and nothing notes that. Both `setup_grant_storage_tokens` calls are commented out (lines 31, 37: `// env.setup_grant_storage_tokens(&tester_addr, 1_000_000_000);`) and `_target_addr` (line 35-36) is computed via `deploy_address` and never used, suggesting an unfinished migration to the new fluent harness (consistent with recent commit "Standardize tests on the fluent native-exec pattern"). If storage grants are genuinely unneeded under `TestEnvironment::no_cost()`, the comments and the dead address computation should be deleted rather than left as zombie code.
 
 ### [small-crates/weird] bottle-test-if breaks every workspace inheritance convention used by its sibling crates
 
@@ -496,12 +415,6 @@ The sdk deliberately ships two parallel primitive-storage APIs: `sys_result` (re
 **File:** `crates/sdk/src/mock/contract_test.rs:300`
 
 `sdk::deploy::get_deploy_address(nonce, hash)` / `get_deploy_address_for_other(addr, nonce, hash)` ask hogd via syscall (crates/sdk/src/deploy.rs:8-38), while `sdk::mock::contract_test::deploy_address(deployer, nonce, hash)` re-implements the scheme host-side by XDR-encoding ContractDeploymentHashPreimage and sha256-ing it. Three problems: (1) the host copy silently drifts if hogd's scheme changes — nothing ties them together (no shared test comparing the two); (2) under the `mock` feature both `deploy_address` and `get_deploy_address_for_other` are exported at the sdk root with no naming pattern distinguishing 'computed locally' from 'asked the VM'; (3) `deploy_address` (pure computation) sits one keystroke from `deploy_contract` (crates/sdk/src/deploy.rs:40, actually performs a deployment) — neither has rustdoc warning about the difference. crates/bottle-test/src/main.rs already mixes both (`deploy_address(&OWNER, ...)` then `deploy_contract(...)`) and relies on a comment to keep them consistent.
-
-### [cross-crate/redundancy] exit_error() and return_error() are identical, and both construct an 'error' whose code means success
-
-**File:** `crates/native-exec/src/invoke_error.rs:43-50`
-
-Both functions return `InvokeError { error_type: InvokeErrorCode::None }` — byte-for-byte duplicates with different names. They are used as panic payloads for the Return/Exit host-fn codes (crates/native-exec/src/host_fn_error.rs:31-36), i.e. non-error control flow: `invoke_wrapper` later downcasts and reports `panic: None.0`, which the FFI layer treats as a normal return. Naming things `*_error` with `InvokeErrorCode::None` is doubly misleading for anyone extending the mock-syscall layer — a third party matching on `error_type` to detect failure will treat a successful Exit as an error (or vice versa). Either collapse the two into one honestly-named constructor (e.g. `control_flow_unwind()`) or document why two names exist.
 
 ### [cross-crate/weird] Hasher panics on syscall failure while every sibling syscall wrapper throws; Drop can panic
 

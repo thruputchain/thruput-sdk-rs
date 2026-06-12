@@ -10,9 +10,7 @@
 //! `test_wasm` is the harness for running real wasm blobs through the full
 //! SignedTransaction path (the only place gas_consumed is observable).
 
-use crate::call::{
-    AbortBuf, ContractError, ContractResult, RawCallError, ReturnBuf,
-};
+use crate::call::{ContractError, ContractResult, RawCallError};
 use crate::exn::FaultString;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
@@ -49,25 +47,12 @@ where
                 r => panic!("Transaction failed: {:?}", r),
             }
             Ok((
-                ReturnBuf::from_slice(return_buffer.as_slice())
-                    .unwrap_or_else(|_| {
-                        panic!(
-                            "return buffer ({} bytes) exceeds ReturnBuf capacity",
-                            return_buffer.len()
-                        )
-                    }),
+                crate::call::buf_from_slice(return_buffer.as_slice()),
                 AuthHandleBuf::new(),
             ))
         }
         Abort { abort_buffer } => Err(ContractError::Abort(
-            AbortBuf::from_slice(abort_buffer.as_slice()).unwrap_or_else(
-                |_| {
-                    panic!(
-                        "abort buffer ({} bytes) exceeds AbortBuf capacity",
-                        abort_buffer.len()
-                    )
-                },
-            ),
+            crate::call::buf_from_slice(abort_buffer.as_slice()),
         )),
         Fault => Err(ContractError::Fault(FaultString::empty())),
         other => {
@@ -269,32 +254,6 @@ where
     Contract::kWasmi {
         wasmi_contract: contract,
     }
-}
-
-#[allow(unused)]
-fn timed<R, F: FnOnce() -> R>(f: F) -> (Stats, R) {
-    let gas_start = crate::stats::gas_remaining();
-    let result = f();
-    let gas_end = crate::stats::gas_remaining();
-
-    if gas_end > gas_start {
-        panic!("consumed negative {} gas", gas_end - gas_start);
-    }
-
-    let gas_consumed = gas_start.checked_sub(gas_end).unwrap_or_else(|| {
-        panic!("consumed negative {} gas", gas_end - gas_start)
-    });
-
-    std::println!(
-        "Gas start ({}) - end ({}) = consumed ({})",
-        gas_start,
-        gas_end,
-        gas_consumed
-    );
-
-    let stats = Stats { gas_consumed };
-
-    (stats, result)
 }
 
 pub fn deploy_address(

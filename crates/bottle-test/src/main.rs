@@ -1,6 +1,5 @@
 use bottle_test_if::*;
 
-use sdk::deploy_address;
 use sdk::load_wasm_contract;
 use sdk::*;
 
@@ -12,7 +11,6 @@ pub fn main() {
     bottle_test(&package);
 }
 
-pub const TARGET_NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const TESTER_NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
 
@@ -25,23 +23,14 @@ fn bottle_test(package: &str) {
 
     let env = TestEnvironment::no_cost();
 
-    // Create and deploy the tester contract
+    // Create the tester and target contracts
     let tester_hash = env.setup_create_contract(&tester_contract);
-    let tester_addr = deploy_address(&OWNER, &TESTER_NONCE, &tester_hash);
-    // env.setup_grant_storage_tokens(&tester_addr, 1_000_000_000);
-
-    // Create the target contract
     let target_hash = env.setup_create_contract(&target_contract);
-    let _target_addr =
-        deploy_address(&tester_addr, &TARGET_NONCE, &target_hash);
-    // env.setup_grant_storage_tokens(&target_addr, 1_000_000_000);
 
     // Something we can move into the test closure
     let package = package.to_string();
 
     let result = env.transact(|tx| {
-        // OWNER is the address the legacy harness invoked at; keep it so
-        // deploy_address(&OWNER, ...) computed above stays consistent.
         tx.call(&OWNER).run(move || {
             let tester_addr = deploy_contract(&TESTER_NONCE, &tester_hash);
 

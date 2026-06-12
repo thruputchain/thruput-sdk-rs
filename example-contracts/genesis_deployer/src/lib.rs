@@ -1,20 +1,22 @@
-#![no_std]
+#![cfg_attr(not(feature = "dev"), no_std)]
+
+sdk::declare_mock_contract!();
 
 extern crate alloc;
 
 use alloc::vec::Vec;
 use sdk::transaction::InvocationFrameStatusCode;
-use sdk::{SHA256Hash, sys};
+use sdk::{SHA256Hash, sys, *};
 
 pub struct GenesisDeployer;
 
+#[contract(client = GenesisDeployerClient)]
 impl GenesisDeployer {
-    pub fn deploy(self, nonce: &SHA256Hash, contract_hash: &SHA256Hash) {
+    pub fn deploy(nonce: &SHA256Hash, contract_hash: &SHA256Hash) {
         let _ = sdk::deploy_contract(nonce, contract_hash);
     }
 
     pub fn deploy_and_invoke(
-        self,
         nonce: &SHA256Hash,
         contract_hash: &SHA256Hash,
         method: u64,

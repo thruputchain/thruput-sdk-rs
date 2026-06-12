@@ -68,6 +68,12 @@ pub enum OutputFormat {
     Xdr,
 }
 
+/// Write a describe result to `sink`.
+///
+/// The `Xdr` format is a bare concatenation with no framing:
+/// `encode(exception) ++ encode(type_defs)`. It is not self-describing — a
+/// consumer must decode a `ContractExceptionType` first and then a
+/// `Vec<ContractTypeDef>` from the remaining bytes.
 pub fn write_output<W: Write>(
     output: &DescribeOutput,
     format: OutputFormat,

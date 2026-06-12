@@ -146,12 +146,10 @@ fn apply_with_config(
 
             // For trait impls, inject __mock into the impl block
             // BEFORE tokenizing.
-            if cfg!(feature = "mock")
-                && item.trait_.is_some()
-                && let Some(method) =
-                    test_reg::generate_trait_method(item, config)?
-            {
-                stripped.items.push(method);
+            if cfg!(feature = "mock") && item.trait_.is_some() {
+                stripped
+                    .items
+                    .push(test_reg::generate_trait_method(item, config)?);
             }
 
             // Reject `throws` on trait impls early, before generating

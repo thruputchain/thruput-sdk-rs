@@ -4,12 +4,23 @@ use super::contract_result::*;
 use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
-use crate::exn::FaultString;
-use crate::types::transaction::InvocationFrameStatusCode;
+use crate::exn::{FaultString, RawException};
+use crate::types::transaction::{
+    InvocationFrameStatusCode, kMaxReturnBufferLen,
+};
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
 
+/// Typed cross-contract call: encode `args`, invoke, decode the return
+/// value (or surface the abort as a [`RawCallError`]).
+///
+/// This is what generated clients use. Both the encoded-args and
+/// returned-data bytes live in a lazily-allocated per-instance scratch
+/// reused across calls (under `alloc`), so repeated calls perform no
+/// per-call allocations even though the guest bump allocator never frees,
+/// and neither outgoing calldata nor received returns have an SDK-imposed
+/// size cap.
 // Used by the contract macro in method wrappers
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn try_call_raw<ARGS, RET>(
@@ -23,36 +34,93 @@ where
     ARGS: WriteXDR + crate::CollectAuthHandles,
     RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
-    let args_buf = match contract_call_encode(args) {
-        Ok(buf) => buf,
-        Err(e) => {
-            return Err(RawCallError::EncodingArgs(
-                FaultString::from_display(e),
-            ));
+    // The scratch data buffer does double duty within one call: it holds
+    // the encoded args while `Invoke` copies them out, then is cleared and
+    // refilled with the returned data. Likewise the auth buffer holds the
+    // outgoing handle list during `Invoke`, then the returned one. Both
+    // payloads are fully consumed in here (the decoded RET is owned;
+    // RawException copies its payload), so the scratch borrow never
+    // escapes.
+    with_call_scratch(|buf, auth_buf| {
+        encode_args_into(buf, args)?;
+        auth_buf.clear();
+        args.collect_auth_handles(auth_buf)
+            .map_err(RawCallError::EncodingArgs)?;
+
+        let (is_ok, outputs) = invoke_frame(
+            address,
+            entrypoint,
+            gas_limit,
+            buf.as_slice(),
+            auth_buf,
+            flags,
+        )?;
+
+        buf.clear();
+        resize_auth_handles(auth_buf, &outputs)?;
+        fill_return_buf(
+            outputs.return_buffer_len,
+            outputs.returned_auth_token_len,
+            buf,
+            auth_buf,
+        )
+        .map_err(|fault| unparseable(is_ok, fault))?;
+
+        if is_ok {
+            contract_call_decode(buf.as_slice(), auth_buf.as_slice())
+        } else {
+            match RawException::from_abort_buf(buf.as_slice()) {
+                Ok(exn) => Err(RawCallError::Exception(exn)),
+                Err(e) => Err(RawCallError::UnparseableAbort(
+                    FaultString::from_display(e),
+                )),
+            }
         }
-    };
-
-    let auth_handles = match collect_auth_handle_bytes(args) {
-        Ok(handles) => handles,
-        Err(e) => {
-            return Err(RawCallError::EncodingArgs(
-                FaultString::from_display(e),
-            ));
-        }
-    };
-
-    let contract_result = contract_call(
-        address,
-        entrypoint,
-        gas_limit,
-        &args_buf,
-        &auth_handles,
-        flags,
-    )?;
-
-    into_raw_call_result(contract_result)
+    })
 }
 
+/// CXS-encode `value` into the (cleared) scratch data buffer.
+///
+/// Under `alloc` the buffer grows organically to the encoding's size (no
+/// fixed cap — protocol calldata is unbounded) and the grown capacity is
+/// retained by the scratch for subsequent calls. Without `alloc` the
+/// fixed-capacity buffer rejects encodings larger than 500 bytes.
+fn encode_args_into<T: WriteXDR + ?Sized>(
+    buf: &mut Buf,
+    value: &T,
+) -> Result<(), RawCallError> {
+    buf.clear();
+    #[cfg(feature = "alloc")]
+    {
+        let mut writer =
+            cxs::buf_writer::BufWriter::from(core::mem::take(buf));
+        let result = value.write_xdr(&mut writer);
+        *buf = writer.into();
+        result.map_err(|e| {
+            RawCallError::EncodingArgs(FaultString::from_display(e))
+        })
+    }
+    #[cfg(not(feature = "alloc"))]
+    {
+        let written = cxs::encode_into(value, buf.spare_capacity_mut())
+            .map_err(|e| {
+                RawCallError::EncodingArgs(FaultString::from_display(e))
+            })?;
+        // Safety: `encode_into` initialized exactly `written` bytes.
+        unsafe { buf.set_len(written) };
+        Ok(())
+    }
+}
+
+/// Untyped cross-contract call: pass pre-encoded calldata, receive the raw
+/// return (or abort) bytes.
+///
+/// Prefer [`try_call_raw`] (or a generated client) for ordinary typed
+/// calls. This entry point exists for forwarders and proxies — e.g. wallet
+/// contracts that relay opaque calldata to a target and pass the raw
+/// return/abort buffer back verbatim — which cannot name the argument or
+/// return types. The returned buffers are owned, exact-size allocations
+/// (under `alloc`); a fixed 500-byte buffer otherwise.
 #[inline(never)]
 #[allow(clippy::result_large_err)]
 pub fn contract_call<A>(
@@ -66,6 +134,61 @@ pub fn contract_call<A>(
 where
     A: AsRef<[u8]> + ?Sized,
 {
+    let (is_ok, outputs) = invoke_frame(
+        address,
+        entrypoint,
+        gas_limit,
+        args.as_ref(),
+        auth_token_ids,
+        flags,
+    )?;
+
+    #[cfg(feature = "alloc")]
+    let mut return_buf =
+        ReturnBuf::with_capacity(outputs.return_buffer_len as usize);
+    #[cfg(not(feature = "alloc"))]
+    let mut return_buf = ReturnBuf::new();
+
+    let mut auth_token_id_list_buf = AuthHandleBuf::new();
+    resize_auth_handles(&mut auth_token_id_list_buf, &outputs)?;
+    fill_return_buf(
+        outputs.return_buffer_len,
+        outputs.returned_auth_token_len,
+        &mut return_buf,
+        &mut auth_token_id_list_buf,
+    )
+    .map_err(|fault| unparseable(is_ok, fault))?;
+
+    let contract_result = if is_ok {
+        Ok((return_buf, auth_token_id_list_buf))
+    } else {
+        Err(ContractError::Abort(return_buf))
+    };
+
+    Ok(contract_result)
+}
+
+/// Map a returned-data parse fault to the error variant matching the
+/// frame's outcome (success vs abort).
+fn unparseable(is_ok: bool, fault: FaultString) -> RawCallError {
+    if is_ok {
+        RawCallError::UnparseableReturn(fault)
+    } else {
+        RawCallError::UnparseableAbort(fault)
+    }
+}
+
+/// Perform the `Invoke` syscall and interpret the frame status, returning
+/// whether the child returned (vs aborted) alongside the syscall outputs
+/// (which carry the sizes of the data waiting in the VM's return buffer).
+fn invoke_frame(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &[u8],
+    auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
+    flags: crate::invoke_config::InvokeFlagSet,
+) -> Result<(bool, sys::CopyableInvokeOutputs), RawCallError> {
     // Perform the cross-contract call
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
     let auth_bytes = auth_handles_as_bytes(auth_token_ids.as_slice());
@@ -81,13 +204,8 @@ where
         // (i.e. when `raw_Invoke` returns `Ok`). Never read on the error path.
         frame_status: InvocationFrameStatusCode::Fault,
     };
-    let result = sys::raw_Invoke(
-        address,
-        args.as_ref(),
-        auth_bytes,
-        &inputs,
-        &mut outputs,
-    );
+    let result =
+        sys::raw_Invoke(address, args, auth_bytes, &inputs, &mut outputs);
 
     let is_ok = match result {
         // A child frame ran; its outcome is reported in `frame_status`.
@@ -115,45 +233,101 @@ where
         }
     };
 
-    // Ok or exception: get the return data from the VM ...
+    // The protocol caps returns at kMaxReturnBufferLen; a larger reported
+    // length means the host broke the syscall contract.
+    if outputs.return_buffer_len > kMaxReturnBufferLen {
+        return Err(unparseable(
+            is_ok,
+            FaultString::from_display(format_args!(
+                "reported return length {} exceeds the protocol cap {}",
+                outputs.return_buffer_len, kMaxReturnBufferLen
+            )),
+        ));
+    }
 
-    let return_len = outputs.return_buffer_len;
-    let auth_token_id_list_return_len = outputs.returned_auth_token_len;
+    Ok((is_ok, outputs))
+}
 
-    let mut return_buf = ReturnBuf::new();
-    let mut auth_token_id_list_buf = AuthHandleBuf::new();
-    let auth_handle_count =
-        auth_token_id_list_return_len as usize / core::mem::size_of::<u32>();
+/// Size the auth-handle buffer to hold the token-id list the syscall
+/// outputs report.
+fn resize_auth_handles(
+    buf: &mut AuthHandleBuf,
+    outputs: &sys::CopyableInvokeOutputs,
+) -> Result<(), RawCallError> {
+    let count =
+        outputs.returned_auth_token_len as usize / core::mem::size_of::<u32>();
+    #[cfg(feature = "alloc")]
+    {
+        buf.resize(count, 0);
+        Ok(())
+    }
     #[cfg(not(feature = "alloc"))]
-    auth_token_id_list_buf
-        .resize(auth_handle_count, 0)
-        .map_err(|_| {
+    {
+        buf.resize(count, 0).map_err(|_| {
             RawCallError::UnparseableAuthHandles(FaultString::from_display(
                 "auth handle buffer capacity exceeded",
             ))
-        })?;
-    #[cfg(feature = "alloc")]
-    auth_token_id_list_buf.resize(auth_handle_count, 0);
-    if let Err(fault) = fill_return_buf(
-        return_len,
-        auth_token_id_list_return_len,
-        &mut return_buf,
-        &mut auth_token_id_list_buf,
-    ) {
-        return Err(if is_ok {
-            RawCallError::UnparseableReturn(fault)
-        } else {
-            RawCallError::UnparseableAbort(fault)
-        });
+        })
+    }
+}
+
+#[cfg(feature = "alloc")]
+mod call_scratch {
+    use super::{AuthHandleBuf, Buf};
+    use crate::cell::ContractCell;
+
+    crate::contract_local! {
+        pub(super) static CALL_SCRATCH: ContractCell<Option<(Buf, AuthHandleBuf)>> =
+            const { ContractCell::new(None) };
+    }
+}
+
+/// Run `f` with the per-instance call scratch buffers (encoded-args /
+/// returned-data, and the auth-token-id list).
+///
+/// The scratch is allocated lazily and reused by every subsequent call:
+/// the guest bump allocator never frees, so per-call allocations would
+/// permanently leak heap. Capacity grows to the high-water mark of the
+/// payloads seen (at least the protocol's return-size cap). No user code
+/// runs while the scratch is checked out, so calls cannot overlap; if the
+/// slot is somehow unavailable, a fresh buffer is used.
+#[cfg(feature = "alloc")]
+fn with_call_scratch<R>(
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
+) -> R {
+    let (mut buf, mut auth_buf) =
+        call_scratch::CALL_SCRATCH.take().unwrap_or_default();
+    buf.clear();
+    auth_buf.clear();
+    if buf.capacity() < kMaxReturnBufferLen as usize {
+        buf.reserve(kMaxReturnBufferLen as usize);
     }
 
-    let contract_result = if is_ok {
-        Ok((return_buf, auth_token_id_list_buf))
-    } else {
-        Err(ContractError::Abort(return_buf))
-    };
+    let result = f(&mut buf, &mut auth_buf);
 
-    Ok(contract_result)
+    call_scratch::CALL_SCRATCH.set(Some((buf, auth_buf)));
+    result
+}
+
+#[cfg(not(feature = "alloc"))]
+fn with_call_scratch<R>(
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
+) -> R {
+    let mut buf = Buf::new();
+    let mut auth_buf = AuthHandleBuf::new();
+    f(&mut buf, &mut auth_buf)
+}
+
+/// Take the scratch data buffer for a terminal encode (a contract's own
+/// return or abort): the instance terminates immediately after, so the
+/// buffer is never returned to the slot. Falls back to a fresh buffer if
+/// the slot is empty.
+#[cfg(feature = "alloc")]
+pub(crate) fn take_terminal_encode_buf() -> Buf {
+    let (mut buf, _auth) =
+        call_scratch::CALL_SCRATCH.take().unwrap_or_default();
+    buf.clear();
+    buf
 }
 
 #[inline]

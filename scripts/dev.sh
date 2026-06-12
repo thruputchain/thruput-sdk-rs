@@ -121,16 +121,6 @@ assert_file_contains() {
     }
 }
 
-assert_file_not_exists() {
-    local path
-    path="$1"; shift
-
-    [ ! -e "$path" ] || {
-        fail "Expected $path to be absent"
-        return 1
-    }
-}
-
 assert_wasm_has_final_spec_only() {
     local path
     path="$1"; shift
@@ -143,18 +133,6 @@ assert_wasm_has_final_spec_only() {
     }
     if printf '%s\n' "$dump" | rg -F --quiet "groundhogspecrawv0"; then
         fail "Expected $path to omit groundhogspecrawv0"
-        return 1
-    fi
-}
-
-assert_wasm_has_no_spec_sections() {
-    local path
-    path="$1"; shift
-    local dump
-    dump="$(wasm-objdump -x "$path")" || return 1
-
-    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspec"; then
-        fail "Expected $path to omit groundhogspec sections"
         return 1
     fi
 }
@@ -196,7 +174,7 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"Choice"' &&
     assert_file_contains "$spec_named_json" '"Envelope"' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
-    assert_file_contains "$spec_named_json" '"kind":"vec","inner":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"kind":"vec","element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
     assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
@@ -206,15 +184,17 @@ check_contract_spec_artifacts() {
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
     assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
-    assert_file_contains "$erc20_json" '"name":"from","ty":{"kind":"address"}' &&
+    assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
 
     assert_file_contains "$swap_json" '"name":"MintEvent"' &&
     assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
     assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
     assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
 
-    assert_file_not_exists "$genesis_json" &&
-    assert_wasm_has_no_spec_sections "$genesis_wasm"
+    assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
+    assert_file_contains "$genesis_json" '"name":"deploy"' &&
+    assert_file_contains "$genesis_json" '"name":"deploy_and_invoke"' &&
+    assert_wasm_has_final_spec_only "$genesis_wasm"
 }
 
 itc_build() {

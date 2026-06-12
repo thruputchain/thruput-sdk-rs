@@ -24,12 +24,6 @@ impl Keypath {
         }
     }
 
-    pub fn from_key(key: &StorageKey) -> Self {
-        let mut keypath = Keypath::root();
-        keypath.push_item(key);
-        keypath
-    }
-
     pub fn flattened(&self) -> Vec<u8> {
         let mut out = vec![];
         for item in self.path.iter() {

@@ -7,6 +7,13 @@ pub const RAW_SECTION_NAME: &str = "groundhogspecrawv0";
 pub const FINAL_SECTION_NAME: &str = "groundhogspecv0";
 pub const FINAL_FORMAT_TAG: &str = "gh_contract_spec_v1";
 
+/// Parse the contents of a raw spec custom section.
+///
+/// The section body is a bare concatenation of XDR-encoded [`SpecFragment`]
+/// values with no count prefix or framing: fragments are decoded one after
+/// another until the input is exhausted. Note that string fields are not
+/// UTF-8 validated here; [`crate::canonicalize_spec`] rejects non-UTF-8
+/// names.
 pub fn parse_raw_fragments(
     bytes: &[u8],
 ) -> Result<Vec<SpecFragment>, SpecToolError> {
