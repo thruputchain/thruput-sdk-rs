@@ -138,6 +138,7 @@ fn apply_with_config(
         }
         syn::Item::Impl(item) => {
             let contract = ConfiguredContract::new(config.clone(), item);
+            contract::validate_bare_impl_method_visibility(item)?;
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;

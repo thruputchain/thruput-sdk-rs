@@ -1,0 +1,11 @@
+error: ambiguous visibility for contract method: use `pub` to export it as an entrypoint, or remove the visibility qualifier to keep it internal
+  --> tests/compile-fail/bare_impl_pub_crate_method.rs:14:5
+   |
+14 |     pub(crate) fn admin_reset(&self) {}
+   |     ^^^^^^^^^^
+
+error: ambiguous visibility for contract method: use `pub` to export it as an entrypoint, or remove the visibility qualifier to keep it internal
+  --> tests/compile-fail/bare_impl_pub_crate_method.rs:16:5
+   |
+16 |     pub(super) fn admin_promote(&self) {}
+   |     ^^^^^^^^^^
