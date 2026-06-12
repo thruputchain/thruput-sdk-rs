@@ -18,10 +18,7 @@ pub struct PermitData {
 pub enum Action {
     Noop = 0,
     Delegated(Signed<PermitData>) = 1,
-    Pair {
-        id: u32,
-        permit: Signed<PermitData>,
-    } = 2,
+    Pair { id: u32, permit: Signed<PermitData> } = 2,
 }
 
 type ActionPreimage = <Action as MintableType>::Preimage;
@@ -126,8 +123,8 @@ fn two_signed_fields_mint_in_declaration_order() {
     assert_eq!(node.child_nodes[0].consumer_address, addr(0xC1));
     assert_eq!(node.child_nodes[1].consumer_address, addr(0xC2));
 
-    let mut decoded: Multi =
-        xdrs::cxs::decode(node.payload.as_ref()).expect("payload decode failed");
+    let mut decoded: Multi = xdrs::cxs::decode(node.payload.as_ref())
+        .expect("payload decode failed");
     let mut iter = [21u32, 22u32].into_iter();
     decoded.receive_auth_handles(&mut iter).unwrap();
     let Multi::Two { first, second } = decoded;
@@ -137,9 +134,7 @@ fn two_signed_fields_mint_in_declaration_order() {
 
 #[contract_type]
 pub enum Shadow {
-    Holder {
-        children: Signed<PermitData>,
-    } = 0,
+    Holder { children: Signed<PermitData> } = 0,
 }
 
 type ShadowPreimage = <Shadow as MintableType>::Preimage;
@@ -186,8 +181,8 @@ fn fields_named_out_and_handles_walk_correctly() {
     });
     assert_eq!(node.child_nodes.len(), 2);
 
-    let mut decoded: WalkerShadow =
-        xdrs::cxs::decode(node.payload.as_ref()).expect("payload decode failed");
+    let mut decoded: WalkerShadow = xdrs::cxs::decode(node.payload.as_ref())
+        .expect("payload decode failed");
     let mut iter = [31u32, 32u32].into_iter();
     decoded.receive_auth_handles(&mut iter).unwrap();
     let WalkerShadow::Both { out, handles } = decoded;

@@ -412,18 +412,18 @@ pub fn validate_bare_impl_method_visibility(
     }
     let mut combined: Option<syn::Error> = None;
     for impl_item in &item.items {
-        if let syn::ImplItem::Fn(f) = impl_item {
-            if matches!(f.vis, syn::Visibility::Restricted(_)) {
-                let err = syn::Error::new_spanned(
-                    &f.vis,
-                    "ambiguous visibility for contract method: use `pub` \
-                     to export it as an entrypoint, or remove the visibility \
-                     qualifier to keep it internal",
-                );
-                match combined.as_mut() {
-                    Some(existing) => existing.combine(err),
-                    None => combined = Some(err),
-                }
+        if let syn::ImplItem::Fn(f) = impl_item
+            && matches!(f.vis, syn::Visibility::Restricted(_))
+        {
+            let err = syn::Error::new_spanned(
+                &f.vis,
+                "ambiguous visibility for contract method: use `pub` \
+                 to export it as an entrypoint, or remove the visibility \
+                 qualifier to keep it internal",
+            );
+            match combined.as_mut() {
+                Some(existing) => existing.combine(err),
+                None => combined = Some(err),
             }
         }
     }

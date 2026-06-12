@@ -24,8 +24,10 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
-            let collect_auth = expand_auth_handles_enum(&item, AuthWalk::Collect);
-            let receive_auth = expand_auth_handles_enum(&item, AuthWalk::Receive);
+            let collect_auth =
+                expand_auth_handles_enum(&item, AuthWalk::Collect);
+            let receive_auth =
+                expand_auth_handles_enum(&item, AuthWalk::Receive);
             let export_attr = if args.export == Some(true) {
                 quote! { #[contract_type_spec(export)] }
             } else {
@@ -64,8 +66,10 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
-            let collect_auth = expand_auth_handles_struct(&item, AuthWalk::Collect);
-            let receive_auth = expand_auth_handles_struct(&item, AuthWalk::Receive);
+            let collect_auth =
+                expand_auth_handles_struct(&item, AuthWalk::Collect);
+            let receive_auth =
+                expand_auth_handles_struct(&item, AuthWalk::Receive);
             let (preimage_mod, mintable) =
                 match generate_preimage_and_mintable(&item) {
                     Ok(pair) => pair,
@@ -177,7 +181,9 @@ enum AuthWalk {
 impl AuthWalk {
     fn call_on(self, target: TokenStream) -> TokenStream {
         match self {
-            AuthWalk::Collect => quote! { #target.collect_auth_handles(out)?; },
+            AuthWalk::Collect => {
+                quote! { #target.collect_auth_handles(out)?; }
+            }
             AuthWalk::Receive => {
                 quote! { #target.receive_auth_handles(handles)?; }
             }
@@ -635,4 +641,3 @@ fn generate_preimage_and_mintable_enum(
 
     Ok((preimage_mod, mintable_impl))
 }
-
