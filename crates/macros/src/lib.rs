@@ -116,6 +116,30 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
     static_hash::sha256_array(input)
 }
 
+/// Turn a trait, impl block, or free function into contract entrypoints,
+/// generating exports, a typed client, and spec registration.
+///
+/// # State
+///
+/// Methods taking `&self`/`&mut self` load the contract's state from
+/// storage: the self type must be a storage struct (annotate it with
+/// `#[storage]`; a unit struct like `struct Token;` works for contracts
+/// that keep no state in the struct). Contracts with only associated
+/// functions need no storage annotation.
+///
+/// # Method visibility (bare impl blocks)
+///
+/// In a bare (non-trait) impl block, `pub` methods become entrypoints
+/// and private methods are skipped (use them for helpers). Restricted
+/// visibility (`pub(crate)`, `pub(super)`, `pub(in ...)`) is a compile
+/// error because the intent is ambiguous. Trait impls export every
+/// trait method regardless of visibility.
+///
+/// # Arguments
+///
+/// `version = "x.y.z"`, `interface = "Name"`, `exports = "mod_name"`,
+/// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
+/// `emits(Event1, Event2)`, `test_setup = "fn_name"`.
 #[proc_macro_attribute]
 pub fn contract(
     attr_args: TokenStream,
@@ -140,6 +164,13 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Mark a struct as contract storage: generates `From<Keypath>` so each
+/// field is bound to a storage slot derived from the struct's keypath.
+///
+/// Works on named-field structs (fields must themselves be storage
+/// types like `NNInt`, `Map`, `Value`, or nested storage structs) and
+/// on unit structs (`struct Token;`) for contracts that keep all state
+/// behind raw storage keys. Takes no arguments.
 #[cfg(feature = "storage")]
 #[proc_macro_attribute]
 pub fn storage(
@@ -227,6 +258,16 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Make a struct or enum usable as a contract argument, return value, or
+/// auth-token payload: derives XDR codecs, spec registration,
+/// auth-handle walkers, and the `Mintable` preimage machinery.
+///
+/// Both structs and enums recurse when minting auth tokens: a
+/// `Signed<T>` field — including one inside an enum variant — becomes a
+/// child auth-token node, and its preimage type in the generated
+/// `Preimage` mirror is `AuthTokenPreimage<T::Preimage>`.
+///
+/// Enum variants must carry explicit discriminants.
 #[proc_macro_attribute]
 pub fn contract_type(
     attr_args: TokenStream,
