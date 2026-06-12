@@ -179,7 +179,6 @@ impl FromMeta for EmitsList {
 pub struct Config {
     pub exports: Option<SpannedValue<String>>,
     pub test_setup: Option<String>,
-    pub storage: Option<bool>,
     pub interface: Option<SpannedValue<String>>,
     pub version: Option<SpannedValue<String>>,
 
@@ -231,10 +230,6 @@ impl Config {
             &format!("__groundhog_exports_{}", effective_interface_name),
             Span::call_site(),
         )
-    }
-
-    pub fn storage(&self) -> bool {
-        self.storage.unwrap_or(true)
     }
 
     /// Returns the list of thrown error types (empty if none declared).
@@ -306,23 +301,6 @@ mod tests {
             config.internal_exports_mod_ident("Adder").to_string(),
             "custom"
         );
-    }
-
-    // -- storage --
-
-    #[test]
-    fn storage_defaults_to_true() {
-        assert!(empty_config().storage());
-    }
-
-    #[test]
-    fn storage_explicit_true() {
-        assert!(parse_config(r#"storage = true"#).storage());
-    }
-
-    #[test]
-    fn storage_explicit_false() {
-        assert!(!parse_config(r#"storage = false"#).storage());
     }
 
     // -- throws --

@@ -3,10 +3,10 @@
 mod inner {
     use sdk::*;
 
-    #[derive(Default)]
+    #[sdk::storage]
     pub struct BareContract;
 
-    #[contract(storage = false)]
+    #[contract]
     impl BareContract {
         pub fn ping(&self) -> u32 {
             7

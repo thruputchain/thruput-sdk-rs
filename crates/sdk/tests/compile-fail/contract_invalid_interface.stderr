@@ -1,5 +1,5 @@
 error: interface = "My-Interface" must be a valid Rust identifier (it is used to name generated items)
- --> tests/compile-fail/contract_invalid_interface.rs:8:41
+ --> tests/compile-fail/contract_invalid_interface.rs:8:24
   |
-8 | #[contract(storage = false, interface = "My-Interface")]
-  |                                         ^^^^^^^^^^^^^^
+8 | #[contract(interface = "My-Interface")]
+  |                        ^^^^^^^^^^^^^^

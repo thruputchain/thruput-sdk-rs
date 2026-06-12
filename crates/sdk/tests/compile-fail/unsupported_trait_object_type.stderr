@@ -1,5 +1,5 @@
 error: unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types
-  --> tests/compile-fail/unsupported_trait_object_type.rs:10:25
-   |
-10 |     pub fn bad(_value: &dyn core::fmt::Debug) {}
-   |                         ^^^^^^^^^^^^^^^^^^^^
+ --> tests/compile-fail/unsupported_trait_object_type.rs:9:25
+  |
+9 |     pub fn bad(_value: &dyn core::fmt::Debug) {}
+  |                         ^^^^^^^^^^^^^^^^^^^^

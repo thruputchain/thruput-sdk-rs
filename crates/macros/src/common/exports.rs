@@ -301,22 +301,11 @@ pub fn generate_method(
             quote! { state_node.deref() }
         };
 
-        if config.storage() {
-            // Construct contract state from keypaths
-            quote! {
-                use ::sdk::storage::{Keypath, Node};
-                use core::ops::{Deref, DerefMut};
-                let keypath = Keypath::root();
-                let #mutability state_node: Node<#self_ty> = keypath.into();
-                let #mutability state :&#mutability #self_ty = #deref;
-            }
-        } else {
-            // If not using storage, we just create a default object to call the method on
-            // TODO: if !config.storage(), assert presence of Default impl
-            quote! {
-                let #mutability state_default = <#self_ty as Default>::default();
-                let #mutability state :&#mutability #self_ty = &#mutability state_default;
-            }
+        quote! {
+            use core::ops::{Deref, DerefMut};
+            let #mutability state_node: ::sdk::storage::Node<#self_ty> =
+                ::sdk::storage::contract_state_root::<#self_ty>();
+            let #mutability state :&#mutability #self_ty = #deref;
         }
     } else {
         // Free function: no state variable at all

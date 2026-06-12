@@ -3,10 +3,10 @@
 use sdk::*;
 use sdk::signer::Signed;
 
-#[derive(Default)]
+#[sdk::storage]
 pub struct SignerTestContract;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerTestContract {
     pub fn with_signer(&self, amount: u64, auth: Signed<u32>) -> u32 {
         let _ = (amount, auth);

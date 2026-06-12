@@ -2,10 +2,10 @@
 
 use sdk::*;
 
-#[derive(Default)]
+#[sdk::storage]
 pub struct BareContract;
 
-#[contract(storage = false, interface = "My-Interface")]
+#[contract(interface = "My-Interface")]
 impl BareContract {
     pub fn ping(&self) -> u32 {
         7
