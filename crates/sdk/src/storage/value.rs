@@ -56,9 +56,10 @@ where
             // was written by something other than Value<T>::set (which encodes
             // through the same fixed buffer).
             Ok(None) => library_throw(LibraryExn::StorageSerialization),
-            Err(e) => library_throw(LibraryExn::Syscall(
-                SyscallExn::new(SyscallNo::kBytestringGet, e),
-            )),
+            Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
+                SyscallNo::kBytestringGet,
+                e,
+            ))),
         };
         match xdrs::cxs::decode(buf.as_ref()) {
             Ok(v) => v,
@@ -77,9 +78,10 @@ where
             Ok(Some(v)) => v,
             Ok(None) => library_throw(LibraryExn::StorageSerialization),
             Err(e) if e.is_storage_key_not_exist() => return None,
-            Err(e) => library_throw(LibraryExn::Syscall(
-                SyscallExn::new(SyscallNo::kBytestringGet, e),
-            )),
+            Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
+                SyscallNo::kBytestringGet,
+                e,
+            ))),
         };
         match xdrs::cxs::decode(buf.as_ref()) {
             Ok(v) => Some(v),

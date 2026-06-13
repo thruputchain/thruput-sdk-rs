@@ -114,12 +114,11 @@ impl Keypath {
     /// size (~1 KiB) in both modes (with and without `alloc`); oversized
     /// items throw `LibraryExn::StorageKeypathOverflow`.
     pub fn child_item<I: WriteXDR + ?Sized>(&self, item: &I) -> Keypath {
-        let encoded =
-            crate::internal::encode_xdr(item).unwrap_or_else(|_| {
-                crate::exn::library_throw(
-                    crate::exn::LibraryExn::StorageSerialization,
-                )
-            });
+        let encoded = crate::internal::encode_xdr(item).unwrap_or_else(|_| {
+            crate::exn::library_throw(
+                crate::exn::LibraryExn::StorageSerialization,
+            )
+        });
         let bytes = encoded.as_ref();
         let len: u16 = bytes.len().try_into().unwrap_or_else(|_| {
             crate::exn::library_throw(
@@ -206,7 +205,10 @@ mod test_keypath {
             0x00, 0x01, // len=1 u16 BE (CXS encodes 0u32 as 1 byte)
             0x00, // 0u32 CXS-encoded
         ];
-        assert_eq!(preimage, expected_preimage, "preimage framing changed — update the golden key too");
+        assert_eq!(
+            preimage, expected_preimage,
+            "preimage framing changed — update the golden key too"
+        );
         // Compute sha256 directly (avoids the syscall mock setup requirement).
         // sha256([01 00 00 00 00 00 00 00 01  00  00 01  00])
         use sha2::Digest;

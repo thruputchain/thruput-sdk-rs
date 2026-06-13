@@ -100,7 +100,9 @@ pub fn bytestring_get_sized<const N: usize>(
 /// Value::set encodes through the same fixed buffer, so any value written
 /// via the typed `Value<T>` API is guaranteed to fit here.
 ///
-pub(crate) fn bytestring_get_encode_buf(key: &StorageKey) -> Result<Option<EncodeBuf>> {
+pub(crate) fn bytestring_get_encode_buf(
+    key: &StorageKey,
+) -> Result<Option<EncodeBuf>> {
     // Check length first to avoid unsafe initialization of a too-small buffer.
     let len = bytestring_get_len(key)?;
     let mut buf = EncodeBuf::new();
@@ -108,7 +110,11 @@ pub(crate) fn bytestring_get_encode_buf(key: &StorageKey) -> Result<Option<Encod
         return Ok(None);
     }
     let mut written_len = MaybeUninit::uninit();
-    sys::uninit_BytestringGet(key, buf.spare_capacity_mut(), &mut written_len)?;
+    sys::uninit_BytestringGet(
+        key,
+        buf.spare_capacity_mut(),
+        &mut written_len,
+    )?;
 
     // Safety: The syscall returned with success, and we validated len <= capacity,
     // so the first `len` bytes of `buf` are initialized.

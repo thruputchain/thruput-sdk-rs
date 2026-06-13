@@ -63,8 +63,10 @@ pub enum LibraryExn {
 
     #[cfg_attr(
         feature = "debugging",
-        error("storage keypath exceeds the no-alloc budget; enable the \
-               `alloc` feature or pre-hash oversized keys")
+        error(
+            "storage keypath exceeds the no-alloc budget; enable the \
+               `alloc` feature or pre-hash oversized keys"
+        )
     )]
     StorageKeypathOverflow = 10,
 }
