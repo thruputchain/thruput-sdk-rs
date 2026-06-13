@@ -6,7 +6,7 @@
 //! [`SysErr`](crate::sys::SysErr) containing an error code in the case of a
 //! syscall failure.
 
-use crate::internal::{ScratchBuf, new_scratch};
+use crate::internal::ScratchBuf;
 use crate::sys;
 use crate::sys::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
@@ -94,19 +94,21 @@ pub fn bytestring_get_sized<const N: usize>(
     Ok(Some(bytes))
 }
 
-/// Returns the bytestring contents in an `ScratchBuf` (stack-allocated, no alloc).
-///
-/// Returns `None` if the bytestring exceeds `ScratchBuf`'s capacity.
-/// Value::set encodes through the same fixed buffer, so any value written
-/// via the typed `Value<T>` API is guaranteed to fit here.
-///
-pub(crate) fn bytestring_get_scratch(
+/// Read the bytestring at `key` into `buf` (cleared first). Returns
+/// `Ok(None)` if the value is larger than `buf`'s capacity (only possible in
+/// the no-alloc guest; values written via the typed API always fit). Filling
+/// a caller-provided buffer lets the typed read paths use the reused in-place
+/// scratch — no buffer of their own.
+pub(crate) fn bytestring_read_into(
     key: &StorageKey,
-) -> Result<Option<ScratchBuf>> {
+    buf: &mut ScratchBuf,
+) -> Result<Option<()>> {
     // Check length first to avoid unsafe initialization of a too-small buffer.
-    let len = bytestring_get_len(key)?;
-    let mut buf = new_scratch();
-    if len as usize > buf.spare_capacity_mut().len() {
+    let len = bytestring_get_len(key)? as usize;
+    buf.clear();
+    #[cfg(feature = "alloc")]
+    buf.reserve(len);
+    if len > buf.spare_capacity_mut().len() {
         return Ok(None);
     }
     let mut written_len = MaybeUninit::uninit();
@@ -116,11 +118,11 @@ pub(crate) fn bytestring_get_scratch(
         &mut written_len,
     )?;
 
-    // Safety: The syscall returned with success, and we validated len <= capacity,
-    // so the first `len` bytes of `buf` are initialized.
-    debug_assert!(unsafe { written_len.assume_init() } == len);
-    unsafe { buf.set_len(len as usize) };
-    Ok(Some(buf))
+    // Safety: The syscall returned with success, and we validated len <=
+    // capacity, so the first `len` bytes of `buf` are initialized.
+    debug_assert!(unsafe { written_len.assume_init() } as usize == len);
+    unsafe { buf.set_len(len) };
+    Ok(Some(()))
 }
 
 #[cfg(feature = "alloc")]

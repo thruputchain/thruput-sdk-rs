@@ -37,25 +37,26 @@ where
     pub fn get(&self) -> T {
         use crate::exn::{LibraryExn, SyscallExn, library_throw};
         use crate::sys::SyscallNo;
-        use crate::sys_result::bytestring::bytestring_get_scratch;
+        use crate::sys_result::bytestring::bytestring_read_into;
 
-        // Using match instead of a closure keeps call-tracking (track_caller)
-        // intact through to library_throw.
-        let buf = match bytestring_get_scratch(self.key.get()) {
-            Ok(Some(v)) => v,
-            // Stored value exceeds the encode buffer: can only happen if the slot
-            // was written by something other than Value<T>::set (which encodes
-            // through the same fixed buffer).
-            Ok(None) => library_throw(LibraryExn::StorageSerialization),
-            Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
-                SyscallNo::kBytestringGet,
-                e,
-            ))),
-        };
-        match xdrs::cxs::decode(buf.as_ref()) {
-            Ok(v) => v,
-            Err(_) => library_throw(LibraryExn::StorageSerialization),
-        }
+        // Read into the reused in-place scratch and decode an owned value out
+        // of it before the borrow ends — no buffer of our own.
+        crate::call::with_scratch(|buf| {
+            match bytestring_read_into(self.key.get(), buf) {
+                Ok(Some(())) => {}
+                // Stored value exceeds the buffer: only possible if the slot
+                // was written by something other than Value<T>::set.
+                Ok(None) => library_throw(LibraryExn::StorageSerialization),
+                Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
+                    SyscallNo::kBytestringGet,
+                    e,
+                ))),
+            }
+            match xdrs::cxs::decode(buf.as_slice()) {
+                Ok(v) => v,
+                Err(_) => library_throw(LibraryExn::StorageSerialization),
+            }
+        })
     }
 
     /// Deserialize and return the stored value, or None if the key doesn't exist.
@@ -63,21 +64,23 @@ where
     pub fn try_get(&self) -> Option<T> {
         use crate::exn::{LibraryExn, SyscallExn, library_throw};
         use crate::sys::SyscallNo;
-        use crate::sys_result::bytestring::bytestring_get_scratch;
+        use crate::sys_result::bytestring::bytestring_read_into;
 
-        let buf = match bytestring_get_scratch(self.key.get()) {
-            Ok(Some(v)) => v,
-            Ok(None) => library_throw(LibraryExn::StorageSerialization),
-            Err(e) if e.is_storage_key_not_exist() => return None,
-            Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
-                SyscallNo::kBytestringGet,
-                e,
-            ))),
-        };
-        match xdrs::cxs::decode(buf.as_ref()) {
-            Ok(v) => Some(v),
-            Err(_) => library_throw(LibraryExn::StorageSerialization),
-        }
+        crate::call::with_scratch(|buf| {
+            match bytestring_read_into(self.key.get(), buf) {
+                Ok(Some(())) => {}
+                Ok(None) => library_throw(LibraryExn::StorageSerialization),
+                Err(e) if e.is_storage_key_not_exist() => return None,
+                Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
+                    SyscallNo::kBytestringGet,
+                    e,
+                ))),
+            }
+            match xdrs::cxs::decode(buf.as_slice()) {
+                Ok(v) => Some(v),
+                Err(_) => library_throw(LibraryExn::StorageSerialization),
+            }
+        })
     }
 }
 

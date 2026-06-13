@@ -1,6 +1,6 @@
 //! System functions: retro-causal queues
 
-use crate::internal::{ScratchBuf, new_scratch};
+use crate::internal::ScratchBuf;
 use crate::sys;
 use crate::sys::SysResult as Result;
 use crate::sys::SyscallErrorCode;
@@ -80,18 +80,22 @@ pub(crate) fn retrocausal_queue_try_get_sized<const N: usize>(
     }
 }
 
-/// Get the next queue entry into an `ScratchBuf` (stack-allocated, no alloc).
+/// Read the next queue entry into `buf` (cleared first).
 ///
-/// Returns `Ok(None)` if the entry exceeds `ScratchBuf`'s capacity.
-/// Entries written via the typed `RCQ<T>` insert path are guaranteed to fit.
-///
-pub(crate) fn retrocausal_queue_get_scratch(
+/// Returns `Ok(None)` if the entry exceeds `buf`'s capacity (only possible in
+/// the no-alloc guest; entries written via the typed `RCQ<T>` insert path
+/// always fit). Filling a caller-provided buffer lets the typed read paths
+/// use the reused in-place scratch.
+pub(crate) fn retrocausal_queue_read_into(
     key: &StorageKey,
     peek: bool,
-) -> Result<Option<ScratchBuf>> {
-    let len = retrocausal_queue_peek_len(key)?;
-    let mut buf = new_scratch();
-    if len as usize > buf.spare_capacity_mut().len() {
+    buf: &mut ScratchBuf,
+) -> Result<Option<()>> {
+    let len = retrocausal_queue_peek_len(key)? as usize;
+    buf.clear();
+    #[cfg(feature = "alloc")]
+    buf.reserve(len);
+    if len > buf.spare_capacity_mut().len() {
         return Ok(None);
     }
     let mut written_len = MaybeUninit::uninit();
@@ -101,22 +105,21 @@ pub(crate) fn retrocausal_queue_get_scratch(
         buf.spare_capacity_mut(),
         &mut written_len,
     )?;
-    debug_assert!(unsafe { written_len.assume_init() } == len);
-    unsafe { buf.set_len(len as usize) };
-    Ok(Some(buf))
+    debug_assert!(unsafe { written_len.assume_init() } as usize == len);
+    unsafe { buf.set_len(len) };
+    Ok(Some(()))
 }
 
-/// Try to get the next queue entry into an `ScratchBuf`.
+/// Like [`retrocausal_queue_read_into`] but distinguishes an empty queue.
 ///
-/// Returns `Ok(None)` if the queue is empty.
-/// Returns `Ok(Some(None))` if the entry exceeds `ScratchBuf`'s capacity.
-/// Returns `Ok(Some(Some(buf)))` on success.
-///
-pub(crate) fn retrocausal_queue_try_get_scratch(
+/// `Ok(None)` = queue empty; `Ok(Some(None))` = entry too large for `buf`;
+/// `Ok(Some(Some(())))` = read into `buf`.
+pub(crate) fn retrocausal_queue_try_read_into(
     key: &StorageKey,
     peek: bool,
-) -> Result<Option<Option<ScratchBuf>>> {
-    match retrocausal_queue_get_scratch(key, peek) {
+    buf: &mut ScratchBuf,
+) -> Result<Option<Option<()>>> {
+    match retrocausal_queue_read_into(key, peek, buf) {
         Ok(v) => Ok(Some(v)),
         Err(e)
             if e.is_code(
