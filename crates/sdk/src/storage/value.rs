@@ -70,23 +70,25 @@ where
     /// Serialize and store the value immediately.
     pub fn set(&mut self, value: &T) {
         use crate::sys_exn::bytestring::*;
-        use xdrs::cxs::encode;
 
-        let buf = encode(value).unwrap();
-        if self.key.keypath().is_exclusive() {
-            bytestring_set_exclusive(&self.key, buf.as_slice());
-        } else {
-            bytestring_set(&self.key, buf.as_slice());
-        }
+        crate::call::with_scratch(|buf| {
+            crate::internal::encode_scratch(buf, value).unwrap();
+            if self.key.keypath().is_exclusive() {
+                bytestring_set_exclusive(&self.key, buf.as_slice());
+            } else {
+                bytestring_set(&self.key, buf.as_slice());
+            }
+        });
     }
 
     /// Serialize and store the value with an exclusive lock.
     pub fn set_exclusive(&mut self, value: &T) {
         use crate::sys_exn::bytestring::*;
-        use xdrs::cxs::encode;
 
-        let buf = encode(value).unwrap();
-        bytestring_set_exclusive(&self.key, buf.as_slice());
+        crate::call::with_scratch(|buf| {
+            crate::internal::encode_scratch(buf, value).unwrap();
+            bytestring_set_exclusive(&self.key, buf.as_slice());
+        });
     }
 }
 

@@ -14,8 +14,6 @@ use crate::{
 };
 use core::mem::MaybeUninit;
 
-pub(crate) const CALLDATA_MAX: usize = 500;
-
 pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
     let revert = false;
 
@@ -102,7 +100,7 @@ fn _contract_abort_encoded<T>(exn: &T) -> !
 where
     T: WriteXDR + ?Sized + core::fmt::Debug,
 {
-    let buf = crate::call::encode_terminal(exn)
+    let buf = crate::internal::encode_xdr(exn)
         .unwrap_or_else(|e| exception_encoding_error(e));
 
     contract_abort(buf.as_ref());
@@ -117,7 +115,7 @@ fn exception_encoding_error(err: WriteError) -> ! {
         HandlingError::EncodingException(FaultString::via_display(&err)),
     ));
     let buf =
-        crate::call::encode_terminal(&exn).unwrap_or_else(|_| crate::trap());
+        crate::internal::encode_xdr(&exn).unwrap_or_else(|_| crate::trap());
 
     contract_abort(buf.as_ref());
 }
@@ -128,7 +126,7 @@ pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized + CollectAuthHandles,
 {
-    let return_buf = crate::call::encode_terminal(ret).unwrap_or_else(|e| {
+    let return_buf = crate::internal::encode_xdr(ret).unwrap_or_else(|e| {
         library_throw(HandlingError::EncodingException(
             FaultString::via_display(&e),
         ))
@@ -182,15 +180,15 @@ pub fn get_calldata_len() -> RuntimeMemoryLength {
         .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetCalldataLen, e))
 }
 
-/// The calldata buffer.
+/// The calldata buffer — the SDK's single
+/// [`ScratchBuf`](crate::internal::ScratchBuf). With the `alloc` feature this
+/// is a heap `Vec` sized exactly to the calldata (any length); without it, a
+/// fixed [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer.
 ///
-/// With the `alloc` feature this is a heap `Vec` sized exactly to the
-/// calldata (any length); without it, a fixed 500-byte (`CALLDATA_MAX`) stack
-/// buffer.
-#[cfg(feature = "alloc")]
-pub type Calldata = alloc::vec::Vec<u8>;
-#[cfg(not(feature = "alloc"))]
-pub type Calldata = MUBuf<CALLDATA_MAX>;
+/// Distinct from the write scratch: the decoded args borrow from this buffer
+/// (`ReadXDR<'b>`) for the whole frame, so it stays pinned and cannot be
+/// reused for outbound encoding.
+pub type Calldata = crate::internal::ScratchBuf;
 
 /// The auth-token-id list supplied with the invocation.
 ///
@@ -270,8 +268,9 @@ pub fn try_get_calldata_with_auth_tokens()
 
 /// Fetch the current frame's calldata and auth-token ids.
 ///
-/// Without `alloc`, calldata lands in a fixed 500-byte (`CALLDATA_MAX`) stack
-/// buffer and the token list holds at most 32 entries; larger inputs return
+/// Without `alloc`, calldata lands in a fixed
+/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte stack buffer and the
+/// token list holds at most 32 entries; larger inputs return
 /// `InvalidSyscallInput` (the non-try wrapper throws it as a
 /// `LibraryExn::Syscall` for `kGetCalldata`).
 #[cfg(not(feature = "alloc"))]
@@ -280,7 +279,7 @@ pub fn try_get_calldata_with_auth_tokens()
     // 32 u32s * 4 bytes each
     const AUTH_TOKEN_IDS_MAX: usize = 32 * 4;
 
-    let mut calldata: Calldata = MUBuf::new();
+    let mut calldata: Calldata = crate::internal::new_scratch();
     let mut auth_token_buf: MUBuf<AUTH_TOKEN_IDS_MAX> = MUBuf::new();
 
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
@@ -301,7 +300,7 @@ pub fn try_get_calldata_with_auth_tokens()
     // oversized report is surfaced as InvalidSyscallInput: the spans this
     // wrapper supplied were too small for the data.
     let written = unsafe { written.assume_init() } as usize;
-    if written > CALLDATA_MAX {
+    if written > calldata.capacity() {
         return Err(
             sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
         );

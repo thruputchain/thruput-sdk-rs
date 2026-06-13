@@ -1,5 +1,6 @@
+use crate::call::with_scratch;
 use crate::exn::*;
-use crate::internal::encode_xdr;
+use crate::internal::encode_scratch;
 use crate::sys::{self, SyscallNo};
 
 // Re-export core event types from groundhog-event
@@ -29,9 +30,10 @@ pub const EVENT_MAX_DATA: u32 = groundhog_xdr::event::kMaxEventLength;
 
 /// Convert any `WriteXDR` value into a topic by XDR-encoding and hashing.
 pub fn hash_to_topic<T: crate::WriteXDR>(val: &T) -> Topic {
-    let buf = crate::internal::encode_xdr(val)
-        .unwrap_or_else(|e| encoding_event_throw(e));
-    crate::crypto::sha256(buf.as_ref()).into_inner()
+    with_scratch(|buf| {
+        encode_scratch(buf, val).unwrap_or_else(|e| encoding_event_throw(e));
+        crate::crypto::sha256(buf.as_slice()).into_inner()
+    })
 }
 
 // --- IntoTopic impls for common types ---
@@ -93,15 +95,16 @@ pub fn log_event(event: &impl Event) {
     let topic1: Option<Topic> = topic(1);
     let topic2: Option<Topic> = topic(2);
 
-    let data = encode_xdr(event).unwrap_or_else(|e| encoding_event_throw(e));
-
-    sys::uninit_LogEvent(
-        topic0.as_ref(),
-        topic1.as_ref(),
-        topic2.as_ref(),
-        data.as_ref(),
-    )
-    .unwrap_or_else(|errno| {
-        syscall_throw(SyscallNo::kLogEvent, errno);
+    with_scratch(|buf| {
+        encode_scratch(buf, event).unwrap_or_else(|e| encoding_event_throw(e));
+        sys::uninit_LogEvent(
+            topic0.as_ref(),
+            topic1.as_ref(),
+            topic2.as_ref(),
+            buf.as_slice(),
+        )
+        .unwrap_or_else(|errno| {
+            syscall_throw(SyscallNo::kLogEvent, errno);
+        });
     });
 }

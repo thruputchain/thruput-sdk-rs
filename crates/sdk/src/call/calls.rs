@@ -285,13 +285,16 @@ mod call_scratch {
 /// Run `f` with the per-instance call scratch buffers (encoded-args /
 /// returned-data, and the auth-token-id list).
 ///
-/// The scratch is allocated lazily and reused by every subsequent call:
-/// the guest bump allocator never frees, so per-call allocations would
-/// permanently leak heap. Capacity grows to the high-water mark of the
-/// payloads seen (at least the protocol's return-size cap). No user code
-/// runs while the scratch is checked out, so calls cannot overlap; if the
-/// slot is somehow unavailable, a fresh buffer is used.
-#[cfg(feature = "alloc")]
+/// The scratch is the SDK's single shared write buffer: cross-contract
+/// calls, event emission, storage writes, and terminal returns all encode
+/// through it (calldata is the one separate buffer, since decoded args
+/// borrow from it for the whole frame). It is allocated lazily and reused by
+/// every subsequent use: the guest bump allocator never frees, so per-use
+/// allocations would permanently leak heap. Under `alloc` capacity grows to
+/// the high-water mark (at least `SCRATCH_MAX`). No user code runs while the
+/// scratch is checked out, so uses cannot overlap; if the slot is somehow
+/// unavailable (re-entrancy), a fresh default buffer is used and the result
+/// is correct, just momentarily un-cached.
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
@@ -299,8 +302,9 @@ fn with_call_scratch<R>(
         call_scratch::CALL_SCRATCH.take().unwrap_or_default();
     buf.clear();
     auth_buf.clear();
-    if buf.capacity() < kMaxReturnBufferLen as usize {
-        buf.reserve(kMaxReturnBufferLen as usize);
+    #[cfg(feature = "alloc")]
+    if buf.capacity() < crate::internal::SCRATCH_MAX {
+        buf.reserve(crate::internal::SCRATCH_MAX);
     }
 
     let result = f(&mut buf, &mut auth_buf);
@@ -309,13 +313,11 @@ fn with_call_scratch<R>(
     result
 }
 
-#[cfg(not(feature = "alloc"))]
-fn with_call_scratch<R>(
-    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
-) -> R {
-    let mut buf = Buf::new();
-    let mut auth_buf = AuthHandleBuf::new();
-    f(&mut buf, &mut auth_buf)
+/// Run `f` with just the per-instance data scratch buffer. For
+/// encode-then-syscall sites (events, storage values, terminal returns) that
+/// don't touch the auth-handle list. Shares the cell with [`with_call_scratch`].
+pub(crate) fn with_scratch<R>(f: impl FnOnce(&mut Buf) -> R) -> R {
+    with_call_scratch(|buf, _auth| f(buf))
 }
 
 #[inline]

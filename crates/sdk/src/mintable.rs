@@ -77,7 +77,7 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
         ))
     });
     let bytes: xdrs::BytesM<{ groundhog_xdr::auth_token::kAuthTokenMaxLen }> =
-        buf.as_ref().try_into().unwrap_or_else(|_| {
+        buf.as_slice().try_into().unwrap_or_else(|_| {
             crate::exn::library_throw(
                 crate::AuthTokenError::MintEncodeFailure(
                     crate::exn::FaultString::from_display(
