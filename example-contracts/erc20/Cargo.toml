@@ -20,7 +20,7 @@ dev = [
     "groundhog-erc20-metadata-if/dev",
     "erc20-native-test/metadata"
     ]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
+bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/alloc"]
 metadata = ["dep:groundhog-erc20-metadata-if"]
 
 [lib]
