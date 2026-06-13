@@ -318,18 +318,6 @@ fn with_call_scratch<R>(
     f(&mut buf, &mut auth_buf)
 }
 
-/// Take the scratch data buffer for a terminal encode (a contract's own
-/// return or abort): the instance terminates immediately after, so the
-/// buffer is never returned to the slot. Falls back to a fresh buffer if
-/// the slot is empty.
-#[cfg(feature = "alloc")]
-pub(crate) fn take_terminal_encode_buf() -> Buf {
-    let (mut buf, _auth) =
-        call_scratch::CALL_SCRATCH.take().unwrap_or_default();
-    buf.clear();
-    buf
-}
-
 #[inline]
 fn fill_return_buf(
     return_len: u32,

@@ -28,40 +28,41 @@ where
     ReadXDR::read_xdr(&mut reader)
 }
 
-/// CXS-encode a value for a terminal `Return`/abort: the instance dies
-/// right after, so under `alloc` this takes the call scratch buffer (never
-/// returning it) and grows up to the protocol's return-size cap
-/// (`kMaxReturnBufferLen`); larger encodings error with `SpaceExhausted`
-/// (a typed `EncodingException` at the call sites) rather than letting the
-/// host reject the oversized `Return` as an opaque fault. Without `alloc`
-/// it is a fixed 500-byte stack buffer.
+/// CXS-encode a value for a terminal `Return`/abort. Every caller diverges
+/// into `contract_abort` / `contract_return`, so the instance dies right
+/// after and the buffer is used exactly once.
+///
+/// Encodings larger than the protocol's return-size cap
+/// (`kMaxReturnBufferLen`) error with `SpaceExhausted` — surfaced as a typed
+/// `EncodingException` at the call sites rather than letting the host reject
+/// the oversized `Return` as an opaque fault. Without `alloc`, `Buf` is a
+/// fixed 500-byte stack buffer, which caps it below that.
 pub(crate) fn encode_terminal<T>(x: &T) -> WriteResult<crate::call::Buf>
 where
     T: WriteXDR + ?Sized,
 {
-    #[cfg(feature = "alloc")]
-    {
-        use crate::types::transaction::kMaxReturnBufferLen;
+    use crate::types::transaction::kMaxReturnBufferLen;
 
-        let mut writer = cxs::buf_writer::BufWriter::from(
-            super::calls::take_terminal_encode_buf(),
-        );
-        x.write_xdr(&mut writer)?;
-        if writer.len() > kMaxReturnBufferLen as usize {
-            return Err(WriteError::SpaceExhausted);
-        }
-        Ok(writer.into())
-    }
+    // The only build-dependent step: `Buf` is a heap `Vec` under `alloc` and
+    // needs capacity reserved up front (the instance terminates right after,
+    // so this lone allocation never recurs), whereas the no-alloc `Buf` is a
+    // fixed inline buffer that already has its capacity.
+    #[cfg(feature = "alloc")]
+    let mut buf =
+        crate::call::Buf::with_capacity(kMaxReturnBufferLen as usize);
     #[cfg(not(feature = "alloc"))]
-    {
-        let mut buf = crate::call::Buf::new();
-        let written = cxs::encode_into(x, buf.spare_capacity_mut())?;
-        // Safety: `written` bytes were just initialized by `encode_into`.
-        unsafe {
-            buf.set_len(written);
-        }
-        Ok(buf)
+    let mut buf = crate::call::Buf::new();
+
+    let written = cxs::encode_into(x, buf.spare_capacity_mut())?;
+    // Safety: `encode_into` initialized exactly `written` bytes.
+    unsafe {
+        buf.set_len(written);
     }
+    // A heap `Buf` may over-reserve past the cap; enforce it explicitly.
+    if buf.len() > kMaxReturnBufferLen as usize {
+        return Err(WriteError::SpaceExhausted);
+    }
+    Ok(buf)
 }
 
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
