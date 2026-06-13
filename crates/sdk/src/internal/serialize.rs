@@ -26,7 +26,8 @@ use crate::internal::mu_buf::MUBuf;
 pub const SCRATCH_MAX: usize = 4096;
 
 /// The SDK's one byte-buffer type: a heap `Vec` under `alloc`, a fixed
-/// [`MUBuf`] in the no-alloc guest. Used for calldata, cross-call args,
+/// [`MUBuf`](crate::internal::MUBuf) in the no-alloc guest. Used for calldata,
+/// cross-call args,
 /// returns/aborts, events, storage values — everything the SDK encodes or
 /// receives as bytes.
 #[cfg(feature = "alloc")]
