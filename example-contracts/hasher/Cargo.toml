@@ -17,7 +17,7 @@ dev = ["sdk/dev"]
 # The bottle harness deploys, stores, and makes cross-contract calls, whose
 # buffers are large in the no-alloc guest; build it with alloc so they land on
 # the heap instead of the guest stack.
-bottle-test = ["dep:bottle-test-if", "sdk/alloc"]
+bottle-test = ["dep:bottle-test-if"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
