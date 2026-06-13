@@ -16,9 +16,21 @@ pub use xdrs::{
 
 use crate::internal::mu_buf::*;
 
+/// Large enough to hold any value the SDK encodes into a fixed stack buffer:
+/// events, storage bytestrings, and cross-contract return/abort payloads (plus
+/// a 500-byte floor).
 const ENCODE_MAX: usize = {
     let event_max = groundhog_xdr::event::kMaxEventLength as usize;
-    if event_max > 500 { event_max } else { 500 }
+    let bytestring_max =
+        groundhog_xdr::storage_item::kBytestringMaxLen as usize;
+    let mut max = 500;
+    if event_max > max {
+        max = event_max;
+    }
+    if bytestring_max > max {
+        max = bytestring_max;
+    }
+    max
 };
 
 pub type EncodeBuf = MUBuf<ENCODE_MAX>;

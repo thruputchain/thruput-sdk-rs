@@ -28,26 +28,6 @@ where
     ReadXDR::read_xdr(&mut reader)
 }
 
-pub type EncodeBuf = heapless::Vec<u8, 500>;
-
-/// CXS-encode a value into a stack-allocated buffer
-///
-pub fn contract_call_encode<T>(x: &T) -> WriteResult<EncodeBuf>
-where
-    T: WriteXDR + ?Sized,
-{
-    let mut buf = EncodeBuf::new();
-
-    let written = cxs::encode_into(x, buf.spare_capacity_mut())?;
-
-    // Safety: The written bytes are valid.
-    unsafe {
-        buf.set_len(written);
-    }
-
-    Ok(buf)
-}
-
 /// CXS-encode a value for a terminal `Return`/abort: the instance dies
 /// right after, so under `alloc` this takes the call scratch buffer (never
 /// returning it) and grows up to the protocol's return-size cap
@@ -74,7 +54,13 @@ where
     }
     #[cfg(not(feature = "alloc"))]
     {
-        contract_call_encode(x)
+        let mut buf = crate::call::Buf::new();
+        let written = cxs::encode_into(x, buf.spare_capacity_mut())?;
+        // Safety: `written` bytes were just initialized by `encode_into`.
+        unsafe {
+            buf.set_len(written);
+        }
+        Ok(buf)
     }
 }
 
