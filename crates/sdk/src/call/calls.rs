@@ -273,12 +273,43 @@ fn resize_auth_handles(
 
 mod call_scratch {
     use super::{AuthHandleBuf, Buf};
-    use crate::cell::ContractCell;
+    use core::cell::RefCell;
+
+    /// A `RefCell` made `Sync` so it can live in a guest `static`. The guest is
+    /// single-threaded; in the test env the macro places this in thread-local
+    /// storage. In neither case is it shared across threads.
+    pub(super) struct SyncRefCell<T>(RefCell<T>);
+    // SAFETY: single-threaded guest; thread-local in tests; never shared across
+    // threads.
+    unsafe impl<T> Sync for SyncRefCell<T> {}
+    impl<T> SyncRefCell<T> {
+        pub(super) const fn new(v: T) -> Self {
+            Self(RefCell::new(v))
+        }
+        pub(super) fn cell(&self) -> &RefCell<T> {
+            &self.0
+        }
+    }
 
     crate::contract_local! {
-        pub(super) static CALL_SCRATCH: ContractCell<Option<(Buf, AuthHandleBuf)>> =
-            const { ContractCell::new(None) };
+        pub(super) static CALL_SCRATCH: SyncRefCell<(Buf, AuthHandleBuf)> =
+            const { SyncRefCell::new((Buf::new(), AuthHandleBuf::new())) };
     }
+}
+
+/// Access the scratch cell, abstracting over plain-static (guest) vs
+/// thread-local (test) storage.
+#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
+fn with_scratch_cell<R>(
+    f: impl FnOnce(&core::cell::RefCell<(Buf, AuthHandleBuf)>) -> R,
+) -> R {
+    f(call_scratch::CALL_SCRATCH.cell())
+}
+#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
+fn with_scratch_cell<R>(
+    f: impl FnOnce(&core::cell::RefCell<(Buf, AuthHandleBuf)>) -> R,
+) -> R {
+    call_scratch::CALL_SCRATCH.with(|s| f(s.cell()))
 }
 
 /// Run `f` with the per-instance call scratch buffers (encoded-args /
@@ -297,19 +328,35 @@ mod call_scratch {
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    let (mut buf, mut auth_buf) =
-        call_scratch::CALL_SCRATCH.take().unwrap_or_default();
-    buf.clear();
-    auth_buf.clear();
-    #[cfg(feature = "alloc")]
-    if buf.capacity() < crate::internal::SCRATCH_MAX {
-        buf.reserve(crate::internal::SCRATCH_MAX);
-    }
-
-    let result = f(&mut buf, &mut auth_buf);
-
-    call_scratch::CALL_SCRATCH.set(Some((buf, auth_buf)));
-    result
+    with_scratch_cell(|cell| {
+        match cell.try_borrow_mut() {
+            Ok(mut guard) => {
+                // Borrow the reused buffers in place — no copy, and for the
+                // no-alloc guest the fixed buffer stays in static memory
+                // instead of being moved onto the (small) guest stack.
+                let (buf, auth_buf) = &mut *guard;
+                buf.clear();
+                auth_buf.clear();
+                #[cfg(feature = "alloc")]
+                if buf.capacity() < crate::internal::SCRATCH_MAX {
+                    buf.reserve(crate::internal::SCRATCH_MAX);
+                }
+                f(buf, auth_buf)
+            }
+            Err(_) => {
+                // Re-entrant use: the scratch is already borrowed up-stack —
+                // a cross-call nested in-process (native mock), or an
+                // exception thrown while the scratch is borrowed (the abort
+                // encode re-enters). Use fresh buffers so the borrow can't
+                // alias; correct, just momentarily un-cached. (The real guest
+                // doesn't nest cross-calls, but the throw-mid-encode case can
+                // happen there, so this is not mock-only.)
+                let mut buf = crate::internal::new_scratch();
+                let mut auth_buf = AuthHandleBuf::new();
+                f(&mut buf, &mut auth_buf)
+            }
+        }
+    })
 }
 
 /// Run `f` with just the per-instance data scratch buffer. For
