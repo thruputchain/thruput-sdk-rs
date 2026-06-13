@@ -82,6 +82,23 @@ impl<const SIZE: usize> Default for MUBuf<SIZE> {
     }
 }
 
+// Compare/format by the initialized region only, so `MUBuf` is a drop-in for
+// the heap `Vec` that backs `ScratchBuf` under `alloc` (needed by the derives
+// on `ContractError` and the `PartialEq`/`Debug` impls on `RawException`).
+impl<const SIZE: usize> PartialEq for MUBuf<SIZE> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref() == other.as_ref()
+    }
+}
+
+impl<const SIZE: usize> Eq for MUBuf<SIZE> {}
+
+impl<const SIZE: usize> core::fmt::Debug for MUBuf<SIZE> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(self.as_ref(), f)
+    }
+}
+
 impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
     // Get a reference to the filled/initialized portion of the buffer
     fn as_ref(&self) -> &[u8] {

@@ -271,7 +271,6 @@ fn resize_auth_handles(
     }
 }
 
-#[cfg(feature = "alloc")]
 mod call_scratch {
     use super::{AuthHandleBuf, Buf};
     use crate::cell::ContractCell;

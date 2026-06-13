@@ -34,13 +34,13 @@ impl RawException {
     }
 
     pub fn payload(&self) -> &[u8] {
-        &self.payload
+        self.payload.as_slice()
     }
 
     pub fn try_as<T: Exn>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
             // no auth handles on exception handling path
-            contract_call_decode_exn_prefix(&self.payload).ok()
+            contract_call_decode_exn_prefix(self.payload.as_slice()).ok()
         } else {
             None
         }
@@ -59,7 +59,7 @@ impl RawException {
 impl WriteXDR for RawException {
     fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         self.selector.write_xdr(w)?;
-        w.write_opaque_fixed(&self.payload)
+        w.write_opaque_fixed(self.payload.as_slice())
     }
 }
 
