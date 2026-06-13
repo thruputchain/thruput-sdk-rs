@@ -1,6 +1,6 @@
 //! System functions: retro-causal queues
 
-use crate::internal::EncodeBuf;
+use crate::internal::{ScratchBuf, new_scratch};
 use crate::sys;
 use crate::sys::SysResult as Result;
 use crate::sys::SyscallErrorCode;
@@ -80,17 +80,17 @@ pub(crate) fn retrocausal_queue_try_get_sized<const N: usize>(
     }
 }
 
-/// Get the next queue entry into an `EncodeBuf` (stack-allocated, no alloc).
+/// Get the next queue entry into an `ScratchBuf` (stack-allocated, no alloc).
 ///
-/// Returns `Ok(None)` if the entry exceeds `EncodeBuf`'s capacity.
+/// Returns `Ok(None)` if the entry exceeds `ScratchBuf`'s capacity.
 /// Entries written via the typed `RCQ<T>` insert path are guaranteed to fit.
 ///
-pub(crate) fn retrocausal_queue_get_encode_buf(
+pub(crate) fn retrocausal_queue_get_scratch(
     key: &StorageKey,
     peek: bool,
-) -> Result<Option<EncodeBuf>> {
+) -> Result<Option<ScratchBuf>> {
     let len = retrocausal_queue_peek_len(key)?;
-    let mut buf = EncodeBuf::new();
+    let mut buf = new_scratch();
     if len as usize > buf.spare_capacity_mut().len() {
         return Ok(None);
     }
@@ -106,17 +106,17 @@ pub(crate) fn retrocausal_queue_get_encode_buf(
     Ok(Some(buf))
 }
 
-/// Try to get the next queue entry into an `EncodeBuf`.
+/// Try to get the next queue entry into an `ScratchBuf`.
 ///
 /// Returns `Ok(None)` if the queue is empty.
-/// Returns `Ok(Some(None))` if the entry exceeds `EncodeBuf`'s capacity.
+/// Returns `Ok(Some(None))` if the entry exceeds `ScratchBuf`'s capacity.
 /// Returns `Ok(Some(Some(buf)))` on success.
 ///
-pub(crate) fn retrocausal_queue_try_get_encode_buf(
+pub(crate) fn retrocausal_queue_try_get_scratch(
     key: &StorageKey,
     peek: bool,
-) -> Result<Option<Option<EncodeBuf>>> {
-    match retrocausal_queue_get_encode_buf(key, peek) {
+) -> Result<Option<Option<ScratchBuf>>> {
+    match retrocausal_queue_get_scratch(key, peek) {
         Ok(v) => Ok(Some(v)),
         Err(e)
             if e.is_code(

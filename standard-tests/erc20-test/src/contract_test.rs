@@ -115,3 +115,54 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 
     m
 }
+
+/// Test the transfer/allowance subset of the ERC20 logic, for a contract
+/// that is already initialized and cannot mint or burn (such as the native
+/// token precompile).
+///
+/// The caller must already hold exactly `balance` tokens (at least 25, as
+/// the test transfers a hardcoded 25 away), and the contract must report a
+/// total supply of `total_supply`.
+pub fn erc20_funded_test(
+    deployed_addr: &ContractAddress,
+    balance: Amount,
+    total_supply: Amount,
+) -> Model {
+    let owner = get_current_address();
+    let other = &OTHER;
+
+    let mut m = Model::default();
+    m.initialize(&owner);
+    m.total_supply = total_supply;
+    m.balances.insert(owner, balance);
+
+    let client = ERC20Client::new(deployed_addr);
+
+    // Transfer
+    let amt = 25;
+    assert!(m.balances[&owner] >= amt);
+    client.transfer(other, amt);
+    m.transfer(other, amt);
+
+    // Approve spending by "other"
+    let amt = 17;
+    client.adjust_allowance(other, amt);
+    m.adjust_allowance(other, amt);
+
+    #[cfg(not(feature = "no_check_aborts"))]
+    // Withdraw too much approval
+    assert!(matches!(
+        client.try_adjust_allowance(other, -20),
+        Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
+    ));
+
+    // Withdraw some approval
+    let amt = 10;
+    client.adjust_allowance(other, -amt);
+    m.adjust_allowance(other, -amt);
+
+    // Check client state against the model
+    m.check(&client);
+
+    m
+}

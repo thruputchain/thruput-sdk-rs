@@ -5,23 +5,15 @@
 //! - contract exception (with serialized return-value)
 //! - contract fault (with debugging message when `cfg(feature = "debugging")`)
 
-use crate::xdr::*;
 use crate::{AuthHandleBuf, exn::FaultString};
 use core::fmt::{Debug, Display};
 
-const ARGS_MAX: usize = crate::contract_op::CALLDATA_MAX;
-pub type ArgsBuf = heapless::Vec<u8, ARGS_MAX>;
-
-/// Buffer for cross-contract return/abort payloads.
-///
-/// With the `alloc` feature this is a heap `Vec` sized to the actual
-/// payload, so any return up to the protocol's cap
-/// (`kMaxReturnBufferLen` = 1024) is supported. Without `alloc` it is a
-/// fixed 500-byte buffer and larger payloads fail to parse.
-#[cfg(feature = "alloc")]
-pub type Buf = alloc::vec::Vec<u8>;
-#[cfg(not(feature = "alloc"))]
-pub type Buf = heapless::Vec<u8, 500>;
+/// Buffer for cross-contract return/abort payloads — the SDK's single
+/// [`ScratchBuf`](crate::internal::ScratchBuf). With `alloc` it is a heap
+/// `Vec` sized to the actual payload; in the no-alloc guest it is the fixed
+/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer, and larger
+/// payloads fail to parse.
+pub type Buf = crate::internal::ScratchBuf;
 pub type ReturnBuf = Buf;
 pub type AbortBuf = Buf;
 
@@ -43,7 +35,10 @@ pub(crate) fn buf_from_slice(bytes: &[u8]) -> Buf {
 
 pub type ContractResult = Result<(ReturnBuf, AuthHandleBuf), ContractError>;
 
-#[derive(Debug, PartialEq, ReadXDR, WriteXDR)]
+// Note: `ContractError` is an in-memory Rust `Result` variant only — it is
+// never XDR-serialized (aborts cross the boundary as raw bytes), so it
+// carries no `ReadXDR`/`WriteXDR` derive.
+#[derive(Debug, PartialEq)]
 #[repr(i32)]
 pub enum ContractError {
     /// Requested abort, providing a serialized return value

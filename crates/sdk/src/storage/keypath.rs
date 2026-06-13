@@ -119,7 +119,7 @@ impl Keypath {
                 crate::exn::LibraryExn::StorageSerialization,
             )
         });
-        let bytes = encoded.as_ref();
+        let bytes: &[u8] = encoded.as_ref();
         let len: u16 = bytes.len().try_into().unwrap_or_else(|_| {
             crate::exn::library_throw(
                 crate::exn::LibraryExn::StorageKeypathOverflow,

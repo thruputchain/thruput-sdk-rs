@@ -129,7 +129,7 @@ where
 {
     /// Consume a queue entry and return the decoded item.
     pub fn consume(&mut self) -> T {
-        let encoded = retrocausal_queue_get_encode_buf(self.key(), false)
+        let encoded = retrocausal_queue_get_scratch(self.key(), false)
             .unwrap_or_else(|| super::error::throw_load_exn_oversized());
         cxs::decode(encoded.as_ref()).unwrap_or_else(|e| throw_load_exn(e))
     }
@@ -137,7 +137,7 @@ where
     /// Try to consume a queue entry and return the decoded item.
     pub fn try_consume(&mut self) -> Option<T> {
         // outer None = empty queue; Some(None) = too large; Some(Some) = got entry
-        let entry = retrocausal_queue_try_get_encode_buf(self.key(), false)?;
+        let entry = retrocausal_queue_try_get_scratch(self.key(), false)?;
         let encoded =
             entry.unwrap_or_else(|| super::error::throw_load_exn_oversized());
         let item = cxs::decode(encoded.as_ref())
@@ -147,7 +147,7 @@ where
 
     /// Retrieve a queue entry and return the decoded item, without consuming the entry.
     pub fn peek(&self) -> T {
-        let encoded = retrocausal_queue_get_encode_buf(self.key(), true)
+        let encoded = retrocausal_queue_get_scratch(self.key(), true)
             .unwrap_or_else(|| super::error::throw_load_exn_oversized());
         cxs::decode(encoded.as_ref()).unwrap_or_else(|e| throw_load_exn(e))
     }
@@ -155,7 +155,7 @@ where
     /// Try to retrieve a queue entry and return the decoded item, without consuming the entry.
     pub fn try_peek(&self) -> Option<T> {
         // outer None = empty queue; Some(None) = too large; Some(Some) = got entry
-        let entry = retrocausal_queue_try_get_encode_buf(self.key(), true)?;
+        let entry = retrocausal_queue_try_get_scratch(self.key(), true)?;
         let encoded =
             entry.unwrap_or_else(|| super::error::throw_load_exn_oversized());
         let item = cxs::decode(encoded.as_ref())

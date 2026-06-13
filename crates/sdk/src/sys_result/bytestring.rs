@@ -6,7 +6,7 @@
 //! [`SysErr`](crate::sys::SysErr) containing an error code in the case of a
 //! syscall failure.
 
-use crate::internal::EncodeBuf;
+use crate::internal::{ScratchBuf, new_scratch};
 use crate::sys;
 use crate::sys::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
@@ -94,18 +94,18 @@ pub fn bytestring_get_sized<const N: usize>(
     Ok(Some(bytes))
 }
 
-/// Returns the bytestring contents in an `EncodeBuf` (stack-allocated, no alloc).
+/// Returns the bytestring contents in an `ScratchBuf` (stack-allocated, no alloc).
 ///
-/// Returns `None` if the bytestring exceeds `EncodeBuf`'s capacity.
+/// Returns `None` if the bytestring exceeds `ScratchBuf`'s capacity.
 /// Value::set encodes through the same fixed buffer, so any value written
 /// via the typed `Value<T>` API is guaranteed to fit here.
 ///
-pub(crate) fn bytestring_get_encode_buf(
+pub(crate) fn bytestring_get_scratch(
     key: &StorageKey,
-) -> Result<Option<EncodeBuf>> {
+) -> Result<Option<ScratchBuf>> {
     // Check length first to avoid unsafe initialization of a too-small buffer.
     let len = bytestring_get_len(key)?;
-    let mut buf = EncodeBuf::new();
+    let mut buf = new_scratch();
     if len as usize > buf.spare_capacity_mut().len() {
         return Ok(None);
     }
