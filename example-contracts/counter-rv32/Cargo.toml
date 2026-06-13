@@ -21,4 +21,4 @@ required-features = ["entrypoints"]
 
 [dependencies]
 counter = { path = "../counter" }
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["alloc"] }

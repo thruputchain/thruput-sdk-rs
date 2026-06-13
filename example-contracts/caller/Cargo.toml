@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["alloc"] }
 erc20 = { path = "../erc20" }
 groundhog-erc20-if = { workspace = true }
 

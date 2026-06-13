@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 complex-storage = { path = ".", features = ["dev"] }
