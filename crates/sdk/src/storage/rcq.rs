@@ -1,7 +1,6 @@
 use super::keypath::{KeyCache, Keypath};
 use super::throw_load_exn;
 use crate::StorageKey;
-use crate::internal::encode_xdr;
 use crate::sys_exn::rcq::*;
 use crate::xdr::*;
 use core::fmt::Debug;
@@ -117,9 +116,11 @@ where
 {
     /// Insert a queue entry containing the encoded item.
     pub fn insert(&mut self, entry: &T) {
-        let encoded = encode_xdr(entry)
-            .unwrap_or_else(|e| super::error::throw_store_exn(e));
-        self.insert_raw(encoded.as_ref());
+        crate::call::with_scratch(|buf| {
+            crate::internal::encode_scratch(buf, entry)
+                .unwrap_or_else(|e| super::error::throw_store_exn(e));
+            self.insert_raw(buf.as_slice());
+        });
     }
 }
 

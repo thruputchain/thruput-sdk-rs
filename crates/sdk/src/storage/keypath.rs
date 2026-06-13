@@ -114,21 +114,25 @@ impl Keypath {
     /// size (~1 KiB) in both modes (with and without `alloc`); oversized
     /// items throw `LibraryExn::StorageKeypathOverflow`.
     pub fn child_item<I: WriteXDR + ?Sized>(&self, item: &I) -> Keypath {
-        let encoded = crate::internal::encode_xdr(item).unwrap_or_else(|_| {
-            crate::exn::library_throw(
-                crate::exn::LibraryExn::StorageSerialization,
-            )
-        });
-        let bytes: &[u8] = encoded.as_ref();
-        let len: u16 = bytes.len().try_into().unwrap_or_else(|_| {
-            crate::exn::library_throw(
-                crate::exn::LibraryExn::StorageKeypathOverflow,
-            )
-        });
         let mut child = self.clone();
-        child.buf.append_bytes(&[TAG_ITEM]);
-        child.buf.append_bytes(&len.to_be_bytes());
-        child.buf.append_bytes(bytes);
+        // Encode the component into the reused scratch in place (no fresh
+        // stack buffer), then frame it into the keypath's own buffer.
+        crate::call::with_scratch(|buf| {
+            crate::internal::encode_scratch(buf, item).unwrap_or_else(|_| {
+                crate::exn::library_throw(
+                    crate::exn::LibraryExn::StorageSerialization,
+                )
+            });
+            let bytes: &[u8] = buf.as_slice();
+            let len: u16 = bytes.len().try_into().unwrap_or_else(|_| {
+                crate::exn::library_throw(
+                    crate::exn::LibraryExn::StorageKeypathOverflow,
+                )
+            });
+            child.buf.append_bytes(&[TAG_ITEM]);
+            child.buf.append_bytes(&len.to_be_bytes());
+            child.buf.append_bytes(bytes);
+        });
         child
     }
 
