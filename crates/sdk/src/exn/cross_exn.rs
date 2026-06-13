@@ -24,8 +24,8 @@ impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::call::contract_call_encode;
     use crate::exn::{Exn, LibraryExn};
+    use crate::internal::encode_xdr;
 
     // A contract-level exception type for testing
     #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, thiserror::Error)]
@@ -45,10 +45,10 @@ mod tests {
     #[test]
     fn contract_exn_writes_selector_then_payload() {
         let exn = ContractExn::new(TestExn::Boom);
-        let buf = contract_call_encode(&exn).unwrap();
+        let buf = encode_xdr(&exn).unwrap();
 
         // Decode selector then payload using a reader
-        let mut reader = cxs::buf_reader::BufReader::new(&buf[..]);
+        let mut reader = cxs::buf_reader::BufReader::new(buf.as_ref());
         let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
         let decoded: TestExn = ReadXDR::read_xdr(&mut reader).unwrap();
 
@@ -59,10 +59,10 @@ mod tests {
     #[test]
     fn contract_exn_writes_library_selector_then_payload() {
         let exn = ContractExn::new(LibraryExn::NonNegativeIntOverflow);
-        let buf = contract_call_encode(&exn).unwrap();
+        let buf = encode_xdr(&exn).unwrap();
 
         // Decode selector then payload using a reader
-        let mut reader = cxs::buf_reader::BufReader::new(&buf[..]);
+        let mut reader = cxs::buf_reader::BufReader::new(buf.as_ref());
         let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
         let decoded: LibraryExn = ReadXDR::read_xdr(&mut reader).unwrap();
 
@@ -75,11 +75,11 @@ mod tests {
     #[test]
     fn selector_can_be_decoded_without_knowing_payload_type() {
         let exn = ContractExn::new(TestExn::Boom);
-        let buf = contract_call_encode(&exn).unwrap();
+        let buf = encode_xdr(&exn).unwrap();
 
         // A receiver that doesn't know the error type can still read the
         // selector to figure out what type to decode next.
-        let mut reader = cxs::buf_reader::BufReader::new(&buf[..]);
+        let mut reader = cxs::buf_reader::BufReader::new(buf.as_ref());
         let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
 
         assert_eq!(selector, TestExn::SELECTOR);

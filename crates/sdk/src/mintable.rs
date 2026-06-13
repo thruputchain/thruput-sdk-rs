@@ -71,7 +71,7 @@ where
 
 #[cfg(feature = "alloc")]
 pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
-    let buf = crate::call::contract_call_encode(value).unwrap_or_else(|e| {
+    let buf = crate::internal::encode_xdr(value).unwrap_or_else(|e| {
         crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
             crate::exn::FaultString::from_display(e),
         ))

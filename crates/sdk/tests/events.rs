@@ -314,12 +314,38 @@ fn test_manual_event_with_too_many_topics_is_rejected() {
     }));
 }
 
+/// An oversized event is no longer pre-rejected by the SDK (the shared scratch
+/// is larger than `EVENT_MAX_DATA`, so the encode succeeds); the host rejects
+/// it at the `LogEvent` syscall instead. Assert that runtime rejection path.
+fn assert_logevent_runtime_rejection(result: TransactResult) {
+    let res: Result<(), RawCallError> = into_root_call_result(&result);
+    match res {
+        Err(RawCallError::Exception(exn))
+            if exn.selector() == LibraryExn::SELECTOR =>
+        {
+            match exn.try_as::<LibraryExn>() {
+                Some(le)
+                    if le.as_syscall_exn().map(|se| se.callno())
+                        == Some(sdk::sys::SyscallNo::kLogEvent) => {}
+                other => panic!(
+                    "expected LibraryExn::Syscall(kLogEvent), got {:?}",
+                    other
+                ),
+            }
+        }
+        other => panic!(
+            "expected LibraryExn syscall exception for oversized event, got {:?}",
+            other
+        ),
+    }
+}
+
 #[test]
 fn test_event_payload_exceeding_runtime_limit_is_rejected() {
     let env = TestEnvironment::no_cost();
     let payload = [0u8; EVENT_MAX_DATA as usize + 1];
 
-    assert_encoding_event_exception(env.transact(move |tx| {
+    assert_logevent_runtime_rejection(env.transact(move |tx| {
         tx.call(&TEST_ADDR).run(move || {
             log_event(&LargePayloadEvent { data: &payload });
         })
@@ -508,11 +534,11 @@ fn test_hashed_topic_event() {
     use sha2::{Digest, Sha256};
     let expected_category: [u8; 32] = {
         let xdr = sdk::internal::encode_xdr(&"transfer").unwrap();
-        Sha256::digest(xdr.as_ref()).into()
+        Sha256::digest(xdr.as_slice()).into()
     };
     let expected_amount: [u8; 32] = {
         let xdr = sdk::internal::encode_xdr(&1000u128).unwrap();
-        Sha256::digest(xdr.as_ref()).into()
+        Sha256::digest(xdr.as_slice()).into()
     };
 
     result.assert_event::<HashedTopicEvent>(0, |e| {
