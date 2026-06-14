@@ -1,4 +1,6 @@
 /target/
+/integration_test/target/
+/example-contracts/target/
 /tmp/
 /hogd/
 .DS_Store
