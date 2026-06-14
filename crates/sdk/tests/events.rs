@@ -213,6 +213,13 @@ struct SimpleEvent {
     value: u128,
 }
 
+// Same payload shape as SimpleEvent, but a distinct type — so a distinct
+// topic-0 signature. Used to prove TypedEvent rejects a mistyped decode.
+#[derive(Event)]
+struct LookalikeEvent {
+    value: u128,
+}
+
 single_event_test! {
     fn test_derived_event_no_topics() {
         let event = SimpleEvent { value: 99 };
@@ -496,6 +503,27 @@ fn test_simple_event_payload_decoding() {
         assert_eq!(e.topic(0).unwrap(), SimpleEvent::SIGNATURE);
         assert_eq!(e.payload().value, 99);
     });
+}
+
+#[test]
+#[should_panic(expected = "event type mismatch")]
+fn test_typed_event_rejects_mismatched_discriminant() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&SimpleEvent { value: 99 });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(1);
+
+    // The raw event is a SimpleEvent, but LookalikeEvent has an identical
+    // payload shape (`u128`), so the payload decodes cleanly. Topic 0 still
+    // belongs to SimpleEvent, so viewing it as LookalikeEvent must be
+    // rejected rather than producing a silently mistyped view.
+    result.assert_event::<LookalikeEvent>(0, |_| {});
 }
 
 //-------------------------------------------------------------------------

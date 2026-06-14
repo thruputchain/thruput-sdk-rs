@@ -359,6 +359,10 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
                 #num_topics
             }
 
+            fn signature() -> ::core::option::Option<&'static ::sdk::Topic> {
+                ::core::option::Option::Some(Self::SIGNATURE)
+            }
+
             fn topic<'__event>(
                 &'__event self,
                 index: u32,

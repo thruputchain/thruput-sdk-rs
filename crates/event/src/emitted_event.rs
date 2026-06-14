@@ -67,9 +67,27 @@ pub struct TypedEvent<'a, E: Event> {
 }
 
 impl<'a, E: Event> TypedEvent<'a, E> {
-    /// Decode a raw event into a typed view. Panics on decode failure.
+    /// Decode a raw event into a typed view.
+    ///
+    /// When `E` declares a static topic-0 discriminant (via
+    /// [`Event::signature`]), the raw event's topic 0 is verified against it
+    /// first, so a payload that merely *shares a shape* with `E` cannot be
+    /// silently mistyped as `E`. Panics on a discriminant mismatch or on
+    /// payload decode failure.
     pub fn new(raw: &'a TxEmittedEvent) -> Self {
         let emitted = EmittedEvent::from(raw);
+        if let Some(expected) = E::signature() {
+            match emitted.topic(0) {
+                Some(actual) if actual == expected => {}
+                other => panic!(
+                    "TypedEvent::new: event type mismatch — topic 0 {:?} does \
+                     not match the expected discriminant {:?} for {}",
+                    other,
+                    expected,
+                    core::any::type_name::<E>(),
+                ),
+            }
+        }
         let payload_bytes = emitted.payload();
         let payload = E::decode_payload(payload_bytes).unwrap_or_else(|e| {
             panic!("failed to decode event payload: {}", e)

@@ -1082,6 +1082,39 @@ fn test_assert_emitted_rejects_wrong_topic() {
     result.assert_emitted::<EventB>(&TEST_ADDR, |_| true);
 }
 
+#[test]
+fn test_assert_emitted_skips_unrelated_malformed_event() {
+    use groundhog_xdr::event::TxEmittedEvent;
+
+    // A valid TestValue(20) event sits alongside an unrelated, internally
+    // malformed event from the same address: the malformed one claims 2
+    // topics (64 bytes) but its buffer holds only ~4. assert_emitted must
+    // skip the malformed event — exactly as filter_events does — and still
+    // find the one genuine match, not abort on the corrupt sibling.
+    let valid = TxEmittedEvent {
+        contract_address: TEST_ADDR,
+        num_topics: 0,
+        serialized_event: xdrs::cxs::encode(&20u32)
+            .unwrap()
+            .try_into()
+            .unwrap(),
+    };
+    let malformed = TxEmittedEvent {
+        contract_address: TEST_ADDR,
+        num_topics: 2,
+        serialized_event: xdrs::cxs::encode(&99u32)
+            .unwrap()
+            .try_into()
+            .unwrap(),
+    };
+    let output = InvocationFrameOutput::Return {
+        return_buffer: Vec::new().try_into().unwrap(),
+    };
+    let result = FrameResult::new(output, None, vec![valid, malformed]);
+
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
+}
+
 //-------------------------------------------------------------------------
 // Generic run(): closure return values travel through the return buffer.
 
