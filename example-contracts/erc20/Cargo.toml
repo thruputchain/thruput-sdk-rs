@@ -20,7 +20,7 @@ dev = [
     "groundhog-erc20-metadata-if/dev",
     "erc20-native-test/metadata"
     ]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints"]
+bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/alloc"]
 metadata = ["dep:groundhog-erc20-metadata-if"]
 
 [lib]
@@ -29,8 +29,8 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
-groundhog-erc20-if = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
+groundhog-erc20-if = { workspace = true }
 groundhog-erc20-metadata-if = { workspace = true, optional = true }
 
 # Optional testing dependencies

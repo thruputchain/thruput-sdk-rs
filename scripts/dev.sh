@@ -152,7 +152,7 @@ check_contract_spec_artifacts() {
     spec_named_json="${optimized}/spec_named_types.spec.json"
     genesis_json="${optimized}/genesis_deployer.spec.json"
     genesis_wasm="${optimized}/genesis_deployer.wasm"
-    erc20_json="${optimized}/erc20_no_storage.spec.json"
+    erc20_json="${optimized}/erc20_raw_storage.spec.json"
     swap_json="${optimized}/swap.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
@@ -263,7 +263,7 @@ lint_contract() {
 
 test_package() {
     cargo test &&
-    cargo test -p sdk -Fstorage,std --tests &&
+    cargo test -p sdk -Fstd --tests &&
     cargo test -p groundhog-erc20-metadata-if --all-targets &&
     cargo test -p groundhog-spec-tool --all-targets &&
     cargo test -p groundhog-test-vectors &&
@@ -404,7 +404,7 @@ itc_bottle_test_all() {
 
 build_docs() {
     RUSTDOCFLAGS="--deny warnings --cfg docsrs" \
-        cargo doc --features=dev,storage "$@"
+        cargo doc --features=dev "$@"
 }
 
 skip() {

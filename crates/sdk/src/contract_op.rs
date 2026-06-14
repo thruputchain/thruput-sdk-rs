@@ -100,10 +100,11 @@ fn _contract_abort_encoded<T>(exn: &T) -> !
 where
     T: WriteXDR + ?Sized + core::fmt::Debug,
 {
-    let buf = crate::internal::encode_xdr(exn)
-        .unwrap_or_else(|e| exception_encoding_error(e));
-
-    contract_abort(buf.as_ref());
+    crate::call::with_scratch(|buf| {
+        crate::internal::encode_scratch(buf, exn)
+            .unwrap_or_else(|e| exception_encoding_error(e));
+        contract_abort(buf.as_ref());
+    })
 }
 
 // Try once more to encode an exception before just trapping
@@ -126,11 +127,9 @@ pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized + CollectAuthHandles,
 {
-    let return_buf = crate::internal::encode_xdr(ret).unwrap_or_else(|e| {
-        library_throw(HandlingError::EncodingException(
-            FaultString::via_display(&e),
-        ))
-    });
+    // Collect auth handles first (own them), then encode the return value
+    // into the reused scratch in place and hand it straight to the syscall —
+    // no fresh 4 KiB buffer on the (small) guest stack.
     let auth_handles = crate::call::collect_auth_handle_bytes(ret)
         .unwrap_or_else(|e| {
             library_throw(HandlingError::EncodingException(
@@ -138,7 +137,14 @@ where
             ));
         });
 
-    contract_return(return_buf.as_ref(), auth_handles.as_slice());
+    crate::call::with_scratch(|buf| {
+        crate::internal::encode_scratch(buf, ret).unwrap_or_else(|e| {
+            library_throw(HandlingError::EncodingException(
+                FaultString::via_display(&e),
+            ))
+        });
+        contract_return(buf.as_ref(), auth_handles.as_slice());
+    })
 }
 
 pub fn get_caller() -> ContractAddress {

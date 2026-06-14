@@ -1,3 +1,4 @@
+use crate::internal::ScratchBuf;
 use crate::sys::SyscallNo;
 use crate::sys_result::rcq as rcq_result;
 use crate::syscall_throw;
@@ -42,6 +43,32 @@ pub fn retrocausal_queue_try_peek_sized<const N: usize>(
     key: &StorageKey,
 ) -> Option<[u8; N]> {
     rcq_result::retrocausal_queue_try_get_sized(key, true).unwrap_or_else(
+        |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
+    )
+}
+
+/// Read the next queue entry into `buf`. Throws on syscall error.
+/// Returns `None` if the entry is larger than `buf`'s capacity (typed callers
+/// should treat this as a serialization failure).
+pub(crate) fn retrocausal_queue_read_into(
+    key: &StorageKey,
+    peek: bool,
+    buf: &mut ScratchBuf,
+) -> Option<()> {
+    rcq_result::retrocausal_queue_read_into(key, peek, buf).unwrap_or_else(
+        |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
+    )
+}
+
+/// Like `retrocausal_queue_read_into`, but returns the outer `None` when the
+/// queue is empty. `Option<Option<()>>`: outer None = queue empty; Some(None)
+/// = entry too large for `buf`; Some(Some(())) = read into `buf`.
+pub(crate) fn retrocausal_queue_try_read_into(
+    key: &StorageKey,
+    peek: bool,
+    buf: &mut ScratchBuf,
+) -> Option<Option<()>> {
+    rcq_result::retrocausal_queue_try_read_into(key, peek, buf).unwrap_or_else(
         |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
     )
 }

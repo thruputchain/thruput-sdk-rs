@@ -10,10 +10,9 @@ pub struct LeafAuth {
     pub data: u32,
 }
 
-#[derive(Default)]
 pub struct SignerLeaf;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerLeaf {
     pub fn consume_leaf(auth: Signed<LeafAuth>) -> u32 {
         let leaf: LeafAuth = auth.consume().0;

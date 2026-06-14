@@ -24,33 +24,28 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
-            let collect_auth = expand_collect_auth_handles_enum(&item);
-            let receive_auth = expand_receive_auth_handles_enum(&item);
+            let collect_auth =
+                expand_auth_handles_enum(&item, AuthWalk::Collect);
+            let receive_auth =
+                expand_auth_handles_enum(&item, AuthWalk::Receive);
             let export_attr = if args.export == Some(true) {
                 quote! { #[contract_type_spec(export)] }
             } else {
                 quote! {}
             };
-            let mintable_enum = quote! {
-                impl ::sdk::mintable::MintableType for #ident {
-                    type Preimage = #ident;
-                }
-
-                impl ::sdk::Mintable for #ident {
-                    fn mint_into_parent(
-                        preimage: Self::Preimage,
-                        _children: &mut ::sdk::mintable::ChildNodeBuf,
-                    ) -> Self {
-                        preimage
-                    }
-                }
-            };
+            let (preimage_mod, mintable_enum) =
+                match generate_preimage_and_mintable_enum(&item) {
+                    Ok(pair) => pair,
+                    Err(err) => return err.into_compile_error(),
+                };
             quote! {
                 #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
                 #[xdrs(crate = "::sdk::__xdrs")]
                 #[repr(i32)]
                 #export_attr
                 #item
+
+                #preimage_mod
 
                 #name
 
@@ -71,8 +66,10 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             }
             let ident = &item.ident;
             let name = expand_contract_type_name(ident, &args);
-            let collect_auth = expand_collect_auth_handles_struct(&item);
-            let receive_auth = expand_receive_auth_handles_struct(&item);
+            let collect_auth =
+                expand_auth_handles_struct(&item, AuthWalk::Collect);
+            let receive_auth =
+                expand_auth_handles_struct(&item, AuthWalk::Receive);
             let (preimage_mod, mintable) =
                 match generate_preimage_and_mintable(&item) {
                     Ok(pair) => pair,
@@ -171,15 +168,67 @@ fn expand_contract_type_name(
     crate::contract_type_name_impl(ident, args.name.as_deref())
 }
 
-fn expand_collect_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
-    let ident = &item.ident;
+/// Which auth-handle walker trait to generate. Collect and Receive
+/// differ only in trait path, method signature, and per-field call —
+/// parameterized here so the struct/enum field-walking logic exists
+/// once.
+#[derive(Clone, Copy)]
+enum AuthWalk {
+    Collect,
+    Receive,
+}
+
+impl AuthWalk {
+    fn call_on(self, target: TokenStream) -> TokenStream {
+        match self {
+            AuthWalk::Collect => {
+                quote! { #target.collect_auth_handles(out)?; }
+            }
+            AuthWalk::Receive => {
+                quote! { #target.receive_auth_handles(handles)?; }
+            }
+        }
+    }
+
+    fn impl_block(self, ident: &syn::Ident, body: TokenStream) -> TokenStream {
+        match self {
+            AuthWalk::Collect => quote! {
+                impl ::sdk::CollectAuthHandles for #ident {
+                    fn collect_auth_handles(
+                        &self,
+                        out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
+                    ) -> Result<(), ::sdk::FaultString> {
+                        #body
+                        Ok(())
+                    }
+                }
+            },
+            AuthWalk::Receive => quote! {
+                impl ::sdk::ReceiveAuthHandles for #ident {
+                    fn receive_auth_handles(
+                        &mut self,
+                        handles: &mut impl ::core::iter::Iterator<Item = u32>,
+                    ) -> Result<(), ::sdk::AuthTokenError> {
+                        #body
+                        Ok(())
+                    }
+                }
+            },
+        }
+    }
+}
+
+fn expand_auth_handles_struct(
+    item: &syn::ItemStruct,
+    walk: AuthWalk,
+) -> TokenStream {
     let field_calls: Vec<TokenStream> = match &item.fields {
         syn::Fields::Named(fields) => fields
             .named
             .iter()
             .map(|f| {
                 let name = &f.ident;
-                quote! { self.#name.collect_auth_handles(out)?; }
+                walk.call_on(quote! { self.#name })
             })
             .collect(),
         syn::Fields::Unnamed(fields) => fields
@@ -188,63 +237,19 @@ fn expand_collect_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
             .enumerate()
             .map(|(i, _)| {
                 let idx = syn::Index::from(i);
-                quote! { self.#idx.collect_auth_handles(out)?; }
+                walk.call_on(quote! { self.#idx })
             })
             .collect(),
         syn::Fields::Unit => vec![],
     };
 
-    quote! {
-        impl ::sdk::CollectAuthHandles for #ident {
-            fn collect_auth_handles(
-                &self,
-                out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
-            ) -> Result<(), ::sdk::FaultString> {
-                #(#field_calls)*
-                Ok(())
-            }
-        }
-    }
+    walk.impl_block(&item.ident, quote! { #(#field_calls)* })
 }
 
-fn expand_receive_auth_handles_struct(item: &syn::ItemStruct) -> TokenStream {
-    let ident = &item.ident;
-    let field_calls: Vec<TokenStream> = match &item.fields {
-        syn::Fields::Named(fields) => fields
-            .named
-            .iter()
-            .map(|f| {
-                let name = &f.ident;
-                quote! { self.#name.receive_auth_handles(handles)?; }
-            })
-            .collect(),
-        syn::Fields::Unnamed(fields) => fields
-            .unnamed
-            .iter()
-            .enumerate()
-            .map(|(i, _)| {
-                let idx = syn::Index::from(i);
-                quote! { self.#idx.receive_auth_handles(handles)?; }
-            })
-            .collect(),
-        syn::Fields::Unit => vec![],
-    };
-
-    quote! {
-        impl ::sdk::ReceiveAuthHandles for #ident {
-            fn receive_auth_handles(
-                &mut self,
-                handles: &mut impl ::core::iter::Iterator<Item = u32>,
-            ) -> Result<(), ::sdk::AuthTokenError> {
-                #(#field_calls)*
-                Ok(())
-            }
-        }
-    }
-}
-
-fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
-    let ident = &item.ident;
+fn expand_auth_handles_enum(
+    item: &syn::ItemEnum,
+    walk: AuthWalk,
+) -> TokenStream {
     let arms: Vec<TokenStream> = item
         .variants
         .iter()
@@ -252,14 +257,31 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
             let vident = &variant.ident;
             match &variant.fields {
                 syn::Fields::Named(fields) => {
-                    let names: Vec<_> =
-                        fields.named.iter().map(|f| &f.ident).collect();
-                    let calls: Vec<TokenStream> = names
+                    let bindings: Vec<syn::Ident> = fields
+                        .named
                         .iter()
-                        .map(|n| quote! { #n.receive_auth_handles(handles)?; })
+                        .map(|f| {
+                            format_ident!(
+                                "__field_{}",
+                                f.ident.as_ref().expect("named field has ident")
+                            )
+                        })
+                        .collect();
+                    let pattern_fields: Vec<TokenStream> = fields
+                        .named
+                        .iter()
+                        .zip(&bindings)
+                        .map(|(f, b)| {
+                            let name = &f.ident;
+                            quote! { #name: #b }
+                        })
+                        .collect();
+                    let calls: Vec<TokenStream> = bindings
+                        .iter()
+                        .map(|b| walk.call_on(quote! { #b }))
                         .collect();
                     quote! {
-                        Self::#vident { #(#names),* } => { #(#calls)* }
+                        Self::#vident { #(#pattern_fields),* } => { #(#calls)* }
                     }
                 }
                 syn::Fields::Unnamed(fields) => {
@@ -268,7 +290,7 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
                         .collect();
                     let calls: Vec<TokenStream> = bindings
                         .iter()
-                        .map(|b| quote! { #b.receive_auth_handles(handles)?; })
+                        .map(|b| walk.call_on(quote! { #b }))
                         .collect();
                     quote! {
                         Self::#vident(#(#bindings),*) => { #(#calls)* }
@@ -281,19 +303,15 @@ fn expand_receive_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
         })
         .collect();
 
-    quote! {
-        impl ::sdk::ReceiveAuthHandles for #ident {
-            fn receive_auth_handles(
-                &mut self,
-                handles: &mut impl ::core::iter::Iterator<Item = u32>,
-            ) -> Result<(), ::sdk::AuthTokenError> {
-                match self {
-                    #(#arms,)*
-                }
-                Ok(())
+    let ident = &item.ident;
+    walk.impl_block(
+        ident,
+        quote! {
+            match self {
+                #(#arms,)*
             }
-        }
-    }
+        },
+    )
 }
 
 /// Generate a `#[doc(hidden)]` companion module containing a `Preimage`
@@ -464,55 +482,162 @@ fn generate_preimage_and_mintable(
     }
 }
 
-fn expand_collect_auth_handles_enum(item: &syn::ItemEnum) -> TokenStream {
+/// Enum counterpart of [`generate_preimage_and_mintable`]: a mirrored
+/// `Preimage` enum (same variants, same explicit discriminants, every
+/// field type `T` replaced by `<T as MintableType>::Preimage`) plus
+/// `MintableType`/`Mintable` impls whose `mint_into_parent` recurses
+/// into each variant's fields, so `Signed` fields in enum payloads mint
+/// child auth-token nodes exactly like struct fields do.
+fn generate_preimage_and_mintable_enum(
+    item: &syn::ItemEnum,
+) -> syn::Result<(TokenStream, TokenStream)> {
     let ident = &item.ident;
-    let arms: Vec<TokenStream> = item
-        .variants
-        .iter()
-        .map(|variant| {
-            let vident = &variant.ident;
-            match &variant.fields {
-                syn::Fields::Named(fields) => {
-                    let names: Vec<_> =
-                        fields.named.iter().map(|f| &f.ident).collect();
-                    let calls: Vec<TokenStream> = names
-                        .iter()
-                        .map(|n| quote! { #n.collect_auth_handles(out)?; })
-                        .collect();
-                    quote! {
-                        Self::#vident { #(#names),* } => { #(#calls)* }
-                    }
-                }
-                syn::Fields::Unnamed(fields) => {
-                    let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
-                        .map(|i| quote::format_ident!("f{}", i))
-                        .collect();
-                    let calls: Vec<TokenStream> = bindings
-                        .iter()
-                        .map(|b| quote! { #b.collect_auth_handles(out)?; })
-                        .collect();
-                    quote! {
-                        Self::#vident(#(#bindings),*) => { #(#calls)* }
-                    }
-                }
-                syn::Fields::Unit => {
-                    quote! { Self::#vident => {} }
-                }
-            }
-        })
-        .collect();
+    let vis = &item.vis;
+    let mod_name = format_ident!("__preimage_{}", ident);
 
-    quote! {
-        impl ::sdk::CollectAuthHandles for #ident {
-            fn collect_auth_handles(
-                &self,
-                out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
-            ) -> Result<(), ::sdk::FaultString> {
-                match self {
-                    #(#arms,)*
-                }
-                Ok(())
+    let mut preimage_variants: Vec<TokenStream> = Vec::new();
+    let mut mint_arms: Vec<TokenStream> = Vec::new();
+
+    for variant in &item.variants {
+        let vident = &variant.ident;
+        let Some((_, disc)) = variant.discriminant.as_ref() else {
+            return Err(syn::Error::new_spanned(
+                variant,
+                "enum variants must use explicit discriminants for contract specs",
+            ));
+        };
+
+        match &variant.fields {
+            syn::Fields::Named(fields) => {
+                let pre_fields: Vec<TokenStream> = fields
+                    .named
+                    .iter()
+                    .map(|f| {
+                        let name = &f.ident;
+                        let ty = &f.ty;
+                        quote! {
+                            #name: <#ty as ::sdk::mintable::MintableType>::Preimage
+                        }
+                    })
+                    .collect();
+                preimage_variants.push(quote! {
+                    #vident { #(#pre_fields),* } = #disc
+                });
+
+                let bindings: Vec<syn::Ident> = fields
+                    .named
+                    .iter()
+                    .map(|f| {
+                        format_ident!(
+                            "__field_{}",
+                            f.ident.as_ref().expect("named field has ident")
+                        )
+                    })
+                    .collect();
+                let pattern_fields: Vec<TokenStream> = fields
+                    .named
+                    .iter()
+                    .zip(&bindings)
+                    .map(|(f, b)| {
+                        let name = &f.ident;
+                        quote! { #name: #b }
+                    })
+                    .collect();
+                let mints: Vec<TokenStream> = fields
+                    .named
+                    .iter()
+                    .zip(&bindings)
+                    .map(|(f, b)| {
+                        let name = &f.ident;
+                        let ty = &f.ty;
+                        quote! {
+                            #name: <#ty as ::sdk::Mintable>::mint_into_parent(
+                                #b, children,
+                            )
+                        }
+                    })
+                    .collect();
+                mint_arms.push(quote! {
+                    #mod_name::Preimage::#vident { #(#pattern_fields),* } =>
+                        Self::#vident { #(#mints),* }
+                });
+            }
+            syn::Fields::Unnamed(fields) => {
+                let pre_fields: Vec<TokenStream> = fields
+                    .unnamed
+                    .iter()
+                    .map(|f| {
+                        let ty = &f.ty;
+                        quote! {
+                            <#ty as ::sdk::mintable::MintableType>::Preimage
+                        }
+                    })
+                    .collect();
+                preimage_variants.push(quote! {
+                    #vident(#(#pre_fields),*) = #disc
+                });
+
+                let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
+                    .map(|i| format_ident!("f{}", i))
+                    .collect();
+                let mints: Vec<TokenStream> = fields
+                    .unnamed
+                    .iter()
+                    .zip(&bindings)
+                    .map(|(f, b)| {
+                        let ty = &f.ty;
+                        quote! {
+                            <#ty as ::sdk::Mintable>::mint_into_parent(
+                                #b, children,
+                            )
+                        }
+                    })
+                    .collect();
+                mint_arms.push(quote! {
+                    #mod_name::Preimage::#vident(#(#bindings),*) =>
+                        Self::#vident(#(#mints),*)
+                });
+            }
+            syn::Fields::Unit => {
+                preimage_variants.push(quote! { #vident = #disc });
+                mint_arms.push(quote! {
+                    #mod_name::Preimage::#vident => Self::#vident
+                });
             }
         }
     }
+
+    let preimage_mod = quote! {
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        #vis mod #mod_name {
+            use super::*;
+
+            #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
+            #[xdrs(crate = "::sdk::__xdrs")]
+            #[repr(i32)]
+            pub enum Preimage {
+                #(#preimage_variants,)*
+            }
+        }
+    };
+
+    let mintable_impl = quote! {
+        impl ::sdk::mintable::MintableType for #ident {
+            type Preimage = #mod_name::Preimage;
+        }
+
+        impl ::sdk::Mintable for #ident {
+            fn mint_into_parent(
+                preimage: Self::Preimage,
+                children: &mut ::sdk::mintable::ChildNodeBuf,
+            ) -> Self {
+                match preimage {
+                    #(#mint_arms,)*
+                }
+            }
+        }
+    };
+
+    Ok((preimage_mod, mintable_impl))
 }

@@ -2,10 +2,10 @@
 
 use sdk::*;
 
-#[derive(Default)]
+#[sdk::storage]
 pub struct BareContract;
 
-#[contract(storage = false, exports = "123 not an ident")]
+#[contract(exports = "123 not an ident")]
 impl BareContract {
     pub fn ping(&self) -> u32 {
         7

@@ -9,10 +9,10 @@ pub struct TransferRequest {
     pub auth: Signed<u32>,
 }
 
-#[derive(Default)]
+#[sdk::storage]
 pub struct SignerStructContract;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerStructContract {
     pub fn transfer(&self, req: TransferRequest) -> u32 {
         let _ = req;

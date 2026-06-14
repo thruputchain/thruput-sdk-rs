@@ -12,7 +12,6 @@ categories.workspace = true
 description = "SDK"
 metadata.docs.rs.features = [
     "std",
-    "storage",
 ]
 
 [lib]
@@ -59,9 +58,6 @@ alloc = [
     "groundhog-rv32-runtime/alloc",
 ]
 
-# Include the structured-storage module
-storage = ["alloc", "groundhog-macros/storage"]
-
 # Include interfaces requiring std
 std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
 
@@ -99,18 +95,6 @@ panic_logging = ["groundhog-wasm-runtime/panic_logging"] # send panic messages t
 [[test]]
 name = "int128"
 required-features = ["std"]
-
-[[test]]
-name = "storage"
-required-features = ["storage"]
-
-[[test]]
-name = "rcq_storage"
-required-features = ["storage"]
-
-[[test]]
-name = "compile_fail_storage"
-required-features = ["storage"]
 
 # RV32 and WASM contracts use real syscalls into hogd. Host-native builds use
 # the mock syscall implementation linked through native-exec.

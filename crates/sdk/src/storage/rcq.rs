@@ -1,5 +1,5 @@
 use super::keypath::{KeyCache, Keypath};
-use super::{throw_load_exn, throw_store_exn};
+use super::throw_load_exn;
 use crate::StorageKey;
 use crate::sys_exn::rcq::*;
 use crate::xdr::*;
@@ -15,6 +15,14 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// Methods named `*_raw` and `*_sized` are provided to manipulate raw entry
 /// contents, which may be arbitrary bytestrings.  However, `insert_raw` may
 /// create entries that the typed methods cannot successfully decode.
+///
+/// # Size cap
+///
+/// Each queue entry's encoding is capped at the SDK's fixed encode-buffer size
+/// (~1 KiB). `insert` throws a typed exception if the entry exceeds that
+/// limit. `consume`, `try_consume`, `peek`, and `try_peek` throw
+/// `StorageSerialization` if an entry in the queue is larger — which can only
+/// happen if something other than the typed `insert` wrote the entry.
 ///
 #[derive(Debug)]
 pub struct RCQ<T> {
@@ -64,12 +72,14 @@ impl<T> RCQ<T> {
     }
 
     /// Consume a raw queue entry into a boxed slice.
-    pub fn consume_raw(&mut self) -> Box<[u8]> {
+    #[cfg(feature = "alloc")]
+    pub fn consume_raw(&mut self) -> alloc::boxed::Box<[u8]> {
         retrocausal_queue_get(self.key(), false)
     }
 
     /// Try to consume a raw queue entry into a boxed slice.
-    pub fn try_consume_raw(&mut self) -> Option<Box<[u8]>> {
+    #[cfg(feature = "alloc")]
+    pub fn try_consume_raw(&mut self) -> Option<alloc::boxed::Box<[u8]>> {
         retrocausal_queue_try_get(self.key(), false)
     }
 
@@ -88,12 +98,14 @@ impl<T> RCQ<T> {
     }
 
     /// Retrieve a raw queue entry into a boxed slice without consuming it.
-    pub fn peek_raw(&self) -> Box<[u8]> {
+    #[cfg(feature = "alloc")]
+    pub fn peek_raw(&self) -> alloc::boxed::Box<[u8]> {
         retrocausal_queue_get(self.key(), true)
     }
 
     /// Try to retrieve a raw queue entry into a boxed slice without consuming it.
-    pub fn try_peek_raw(&self) -> Option<Box<[u8]>> {
+    #[cfg(feature = "alloc")]
+    pub fn try_peek_raw(&self) -> Option<alloc::boxed::Box<[u8]>> {
         retrocausal_queue_try_get(self.key(), true)
     }
 }
@@ -104,9 +116,11 @@ where
 {
     /// Insert a queue entry containing the encoded item.
     pub fn insert(&mut self, entry: &T) {
-        let encoded =
-            cxs::encode(entry).unwrap_or_else(|e| throw_store_exn(e));
-        self.insert_raw(encoded.as_ref());
+        crate::call::with_scratch(|buf| {
+            crate::internal::encode_scratch(buf, entry)
+                .unwrap_or_else(|e| super::error::throw_store_exn(e));
+            self.insert_raw(buf.as_slice());
+        });
     }
 }
 
@@ -116,30 +130,54 @@ where
 {
     /// Consume a queue entry and return the decoded item.
     pub fn consume(&mut self) -> T {
-        let encoded = self.consume_raw();
-        cxs::decode(encoded.as_ref()).unwrap_or_else(|e| throw_load_exn(e))
+        crate::call::with_scratch(|buf| {
+            match retrocausal_queue_read_into(self.key(), false, buf) {
+                Some(()) => {}
+                None => super::error::throw_load_exn_oversized(),
+            }
+            cxs::decode(buf.as_slice()).unwrap_or_else(|e| throw_load_exn(e))
+        })
     }
 
     /// Try to consume a queue entry and return the decoded item.
     pub fn try_consume(&mut self) -> Option<T> {
-        let encoded = self.try_consume_raw()?;
-        let item = cxs::decode(encoded.as_ref())
-            .unwrap_or_else(|e| throw_load_exn(e));
-        Some(item)
+        crate::call::with_scratch(|buf| {
+            // outer None = empty queue; Some(None) = too large.
+            match retrocausal_queue_try_read_into(self.key(), false, buf)? {
+                Some(()) => {}
+                None => super::error::throw_load_exn_oversized(),
+            }
+            Some(
+                cxs::decode(buf.as_slice())
+                    .unwrap_or_else(|e| throw_load_exn(e)),
+            )
+        })
     }
 
     /// Retrieve a queue entry and return the decoded item, without consuming the entry.
     pub fn peek(&self) -> T {
-        let encoded = self.peek_raw();
-        cxs::decode(encoded.as_ref()).unwrap_or_else(|e| throw_load_exn(e))
+        crate::call::with_scratch(|buf| {
+            match retrocausal_queue_read_into(self.key(), true, buf) {
+                Some(()) => {}
+                None => super::error::throw_load_exn_oversized(),
+            }
+            cxs::decode(buf.as_slice()).unwrap_or_else(|e| throw_load_exn(e))
+        })
     }
 
     /// Try to retrieve a queue entry and return the decoded item, without consuming the entry.
     pub fn try_peek(&self) -> Option<T> {
-        let encoded = self.try_peek_raw()?;
-        let item = cxs::decode(encoded.as_ref())
-            .unwrap_or_else(|e| throw_load_exn(e));
-        Some(item)
+        crate::call::with_scratch(|buf| {
+            // outer None = empty queue; Some(None) = too large.
+            match retrocausal_queue_try_read_into(self.key(), true, buf)? {
+                Some(()) => {}
+                None => super::error::throw_load_exn_oversized(),
+            }
+            Some(
+                cxs::decode(buf.as_slice())
+                    .unwrap_or_else(|e| throw_load_exn(e)),
+            )
+        })
     }
 }
 

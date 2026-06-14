@@ -52,9 +52,7 @@ fn contract_type_name_impl(
     }
 }
 
-#[cfg(feature = "storage")]
 mod deletable;
-#[cfg(feature = "storage")]
 mod storage;
 
 /// Compute a `StorageKey` at compile time: sha256 of the string literal's
@@ -116,6 +114,30 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
     static_hash::sha256_array(input)
 }
 
+/// Turn a trait, impl block, or free function into contract entrypoints,
+/// generating exports, a typed client, and spec registration.
+///
+/// # State
+///
+/// Methods taking `&self`/`&mut self` load the contract's state from
+/// storage: the self type must be a storage struct (annotate it with
+/// `#[storage]`; a unit struct like `struct Token;` works for contracts
+/// that keep no state in the struct). Contracts with only associated
+/// functions need no storage annotation.
+///
+/// # Method visibility (bare impl blocks)
+///
+/// In a bare (non-trait) impl block, `pub` methods become entrypoints
+/// and private methods are skipped (use them for helpers). Restricted
+/// visibility (`pub(crate)`, `pub(super)`, `pub(in ...)`) is a compile
+/// error because the intent is ambiguous. Trait impls export every
+/// trait method regardless of visibility.
+///
+/// # Arguments
+///
+/// `version = "x.y.z"`, `interface = "Name"`, `exports = "mod_name"`,
+/// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
+/// `emits(Event1, Event2)`, `test_setup = "fn_name"`.
 #[proc_macro_attribute]
 pub fn contract(
     attr_args: TokenStream,
@@ -130,7 +152,6 @@ pub fn contract(
         .into()
 }
 
-#[cfg(feature = "storage")]
 #[proc_macro_derive(Storage)]
 pub fn derive_storage(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -140,25 +161,37 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[cfg(feature = "storage")]
+/// Mark a struct as contract storage: generates `From<Keypath>` so each
+/// field is bound to a storage slot derived from the struct's keypath.
+///
+/// Works on named-field structs (fields must themselves be storage
+/// types like `NNInt`, `Map`, `Value`, or nested storage structs) and
+/// on unit structs (`struct Token;`) for contracts that keep all state
+/// behind raw storage keys. Takes no arguments.
 #[proc_macro_attribute]
 pub fn storage(
-    _attr_args: TokenStream,
+    attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
-    let item = {
-        let item_tokens = item_tokens.clone();
-        syn::parse_macro_input!(item_tokens as syn::Item)
-    };
+    let attr_args: proc_macro2::TokenStream = attr_args.into();
+    if !attr_args.is_empty() {
+        return syn::Error::new_spanned(
+            &attr_args,
+            "#[storage] takes no arguments",
+        )
+        .into_compile_error()
+        .into();
+    }
+
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
 
     quote::quote! {
-        #[derive(Storage)]
+        #[derive(::sdk::Storage)]
         #item
     }
     .into()
 }
 
-#[cfg(feature = "storage")]
 #[proc_macro_derive(Deletable)]
 pub fn derive_deletable(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -220,6 +253,16 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Make a struct or enum usable as a contract argument, return value, or
+/// auth-token payload: derives XDR codecs, spec registration,
+/// auth-handle walkers, and the `Mintable` preimage machinery.
+///
+/// Both structs and enums recurse when minting auth tokens: a
+/// `Signed<T>` field — including one inside an enum variant — becomes a
+/// child auth-token node, and its preimage type in the generated
+/// `Preimage` mirror is `AuthTokenPreimage<T::Preimage>`.
+///
+/// Enum variants must carry explicit discriminants.
 #[proc_macro_attribute]
 pub fn contract_type(
     attr_args: TokenStream,

@@ -22,7 +22,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
 xdrs = { workspace = true, features = ["int128", "heapless"] }
 
 [dev-dependencies]

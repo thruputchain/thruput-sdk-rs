@@ -51,3 +51,45 @@ impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
         self.fields.delete_internal(flags);
     }
 }
+
+/// Marker for types usable as a contract's root state by `#[contract]`.
+///
+/// Automatically implemented for every type that implements
+/// `From<Keypath>` — i.e. anything annotated with `#[storage]`, including
+/// unit structs like `struct Token;`. Contract methods taking
+/// `&self`/`&mut self` require the state type to implement this trait;
+/// contracts with only associated functions never construct state and do
+/// not need it.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used as contract state",
+    note = "methods taking `&self`/`&mut self` require the state type to be a storage struct: add `#[storage]` to the definition of `{Self}`",
+    note = "contracts with only associated functions (no `self` methods) do not need `#[storage]`"
+)]
+pub trait ContractState: From<Keypath> {}
+
+impl<T: From<Keypath>> ContractState for T {}
+
+/// Construct the root state node for a contract entrypoint.
+///
+/// Called by `#[contract]`-generated code; not intended for direct use.
+#[doc(hidden)]
+pub fn contract_state_root<T: ContractState>() -> Node<T> {
+    Node::from(Keypath::root())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct UnitState;
+    impl From<Keypath> for UnitState {
+        fn from(_: Keypath) -> Self {
+            Self
+        }
+    }
+
+    #[test]
+    fn contract_state_root_creates_node() {
+        let _node: Node<UnitState> = contract_state_root::<UnitState>();
+    }
+}

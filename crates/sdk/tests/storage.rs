@@ -276,17 +276,13 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
 
     // Verify values are there via manually-constructed keypaths.
     // Vector layout:
-    //   len   = root + seq_begin (index 0)
-    //   values map = root + seq_begin + seq_next (index 1)
-    //   element i  = values_kp + push_item(&i)
-    let mut values_kp = root.clone();
-    values_kp.seq_begin();
-    values_kp.seq_next();
+    //   len       = root.child_index(0)
+    //   values map = root.child_index(1)
+    //   element i  = values_kp.child_item(&i)
+    let values_kp = root.child_index(1);
 
     let elem = |kp: &Keypath, idx: u32| -> Value<u32> {
-        let mut ekp = kp.clone();
-        ekp.push_item(&idx);
-        ekp.into()
+        kp.child_item(&idx).into()
     };
 
     // Before delete: elements are readable
@@ -303,8 +299,7 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     assert_eq!(elem(&values_kp, 2).try_get(), None);
 
     // Length storage is also gone
-    let mut len_kp = root;
-    len_kp.seq_begin();
+    let len_kp = root.child_index(0);
     let len_val: Value<u32> = len_kp.into();
     assert_eq!(len_val.try_get(), None);
 });
@@ -422,6 +417,29 @@ contract_test!(test_vector_iter_empty {
     let vec: Vector<Value<u32>> = Keypath::root().into();
     assert_eq!(vec.iter().count(), 0);
 });
+
+#[test]
+fn test_value_oversized_read_aborts() {
+    // Write a raw bytestring larger than ENCODE_MAX (~1 KiB) directly at
+    // the storage key used by a Value<u32>.  The typed try_get must abort
+    // with StorageSerialization because bytestring_get_encode_buf returns
+    // None when the stored length exceeds EncodeBuf's capacity.
+    let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_value_oversized_read_aborts",
+    );
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let keypath = Keypath::root();
+            let key = keypath.generate_key();
+            // Write 1100 bytes — well above the ~1 KiB encode-buffer cap.
+            sdk::bytestring_set(&key, &[0u8; 1100]);
+            let val: Value<u32> = keypath.into();
+            val.try_get();
+        })
+    });
+    assert!(!result.is_success());
+}
 
 contract_test!(test_map_at_disjoint_mut {
     let mut map: Map<u32, NNInt> = Keypath::root().into();

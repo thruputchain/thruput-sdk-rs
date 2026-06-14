@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["storage"] }
+sdk = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 sdk = { workspace = true, features = ["std"] }

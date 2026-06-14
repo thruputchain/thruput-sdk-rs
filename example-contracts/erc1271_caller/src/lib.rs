@@ -7,10 +7,9 @@ use sdk::ContractAddress;
 use sdk::contract;
 use sdk::signer::{AssumeTokens, Signed};
 
-#[derive(Default)]
 pub struct Caller;
 
-#[contract(storage = false)]
+#[contract]
 impl Caller {
     /// Call the wallet to authorize, expect exactly one u64-typed token back.
     pub fn authorize_single(

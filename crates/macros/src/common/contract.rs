@@ -400,6 +400,39 @@ fn is_visible(vis: &syn::Visibility) -> bool {
     matches!(vis, syn::Visibility::Public(_))
 }
 
+/// Bare-impl contract methods must be either `pub` (exported as an
+/// entrypoint) or fully private (an internal helper, skipped). Restricted
+/// visibility is ambiguous — the author plausibly expected export — so
+/// reject it. Trait impls export every method regardless of visibility.
+pub fn validate_bare_impl_method_visibility(
+    item: &syn::ItemImpl,
+) -> Result<()> {
+    if item.trait_.is_some() {
+        return Ok(());
+    }
+    let mut combined: Option<syn::Error> = None;
+    for impl_item in &item.items {
+        if let syn::ImplItem::Fn(f) = impl_item
+            && matches!(f.vis, syn::Visibility::Restricted(_))
+        {
+            let err = syn::Error::new_spanned(
+                &f.vis,
+                "ambiguous visibility for contract method: use `pub` \
+                 to export it as an entrypoint, or remove the visibility \
+                 qualifier to keep it internal",
+            );
+            match combined.as_mut() {
+                Some(existing) => existing.combine(err),
+                None => combined = Some(err),
+            }
+        }
+    }
+    match combined {
+        Some(err) => Err(err),
+        None => Ok(()),
+    }
+}
+
 pub fn method_arg_spec_tokens(
     method: &impl Method,
 ) -> Result<Vec<proc_macro2::TokenStream>> {

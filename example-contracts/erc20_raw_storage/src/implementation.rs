@@ -1,4 +1,5 @@
-//! An implementation of ERC20 without the storage layer.
+//! An ERC20 implementation that manages balances via raw storage keys and syscalls
+//! instead of the typed storage layer.
 
 // If the interface's `Amount` type changes away from `i128`, our casts
 // below will be necessary
@@ -66,10 +67,10 @@ fn add_to_allowance(
     log_approval_event(owner, spender, diff);
 }
 
-#[derive(Default)]
+#[storage]
 pub struct Token;
 
-#[contract(storage = false, version = "0.1.0")]
+#[contract(version = "0.1.0")]
 impl ERC20 for Token {
     fn initialize(&mut self, contract_owner: &ContractAddress) {
         let key = get_owner_key();

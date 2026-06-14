@@ -15,10 +15,9 @@ use signer_middle::{MiddleAuth, SignerMiddleClient};
 type MiddleAuthPreimage = <MiddleAuth as MintableType>::Preimage;
 type LeafAuthPreimage = <LeafAuth as MintableType>::Preimage;
 
-#[derive(Default)]
 pub struct SignerMinter;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerMinter {
     pub fn mint_and_call(
         middle_contract: &ContractAddress,

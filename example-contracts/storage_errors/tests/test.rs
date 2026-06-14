@@ -59,7 +59,7 @@ fn map_try_get_missing_returns_zero() {
     result.assert_success();
 }
 
-// -- Error paths: storage errors must propagate as LibraryExn::Storage --
+// -- Error paths: storage errors must propagate as flat LibraryExn variants --
 
 #[test]
 fn vector_get_out_of_bounds_is_library_storage_error() {
@@ -75,14 +75,9 @@ fn vector_get_out_of_bounds_is_library_storage_error() {
                 other => panic!("Expected Library, got: {:?}", other),
             };
             match lib {
-                LibraryExn::Storage(
-                    sdk::storage::StorageError::IndexOutOfBounds {
-                        len: 3,
-                        access: 5,
-                    },
-                ) => {}
+                LibraryExn::StorageIndexOutOfBounds { len: 3, access: 5 } => {}
                 other => panic!(
-                    "Expected Storage(IndexOutOfBounds {{ len: 3, access: 5 }}), got: {:?}",
+                    "Expected StorageIndexOutOfBounds {{ len: 3, access: 5 }}, got: {:?}",
                     other
                 ),
             }
@@ -105,14 +100,9 @@ fn vector_set_out_of_bounds_is_library_storage_error() {
                 other => panic!("Expected Library, got: {:?}", other),
             };
             match lib {
-                LibraryExn::Storage(
-                    sdk::storage::StorageError::IndexOutOfBounds {
-                        len: 3,
-                        access: 10,
-                    },
-                ) => {}
+                LibraryExn::StorageIndexOutOfBounds { len: 3, access: 10 } => {}
                 other => panic!(
-                    "Expected Storage(IndexOutOfBounds {{ len: 3, access: 10 }}), got: {:?}",
+                    "Expected StorageIndexOutOfBounds {{ len: 3, access: 10 }}, got: {:?}",
                     other
                 ),
             }
@@ -127,19 +117,12 @@ fn vector_get_on_uninitialized_contract_is_fault() {
     let result = env.transact(|tx| {
         tx.call(&CALLER_ADDR).run(|| {
             let client = StorageErrorClient::new(&CONTRACT_ADDR);
-            // Contract not initialized — generated export panics
-            // when storage isn't present, producing a Fault.
+            // Contract not initialized — vector len is 0, so index 0 is OOB.
             let err = client.try_vector_get(0).unwrap_err();
             match err {
-                StorageErrorClientError::Library(LibraryExn::Storage(e)) => {
-                    assert!(matches!(
-                        e,
-                        sdk::storage::StorageError::IndexOutOfBounds {
-                            len: 0,
-                            access: 0
-                        }
-                    ));
-                }
+                StorageErrorClientError::Library(
+                    LibraryExn::StorageIndexOutOfBounds { len: 0, access: 0 },
+                ) => {}
                 other => panic!("Expected Library OOB, got: {:?}", other),
             }
         })
@@ -160,17 +143,21 @@ fn map_get_missing_key_is_library_storage_error() {
                 StorageErrorClientError::Library(lib) => lib,
                 other => panic!("Expected Library, got: {:?}", other),
             };
+            // get() on a missing key throws LibraryExn::Syscall with
+            // kSyscallErrorCodeStorageKeyNotExist (key-not-exist is only
+            // swallowed to None in try_get, not get).
             match lib {
-                LibraryExn::Storage(e) => {
+                LibraryExn::Syscall(exn) => {
                     assert!(
-                        matches!(e, sdk::storage::StorageError::Sys { exn }
-                            if exn.has_code(sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist)),
-                        "Expected StorageError::Sys(StorageKeyNotExist), got: {:?}",
-                        e
+                        exn.has_code(
+                            sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist
+                        ),
+                        "Expected StorageKeyNotExist error code, got: {:?}",
+                        exn
                     );
                 }
                 other => panic!(
-                    "Expected LibraryExn::Storage, got: {:?}",
+                    "Expected LibraryExn::Syscall(StorageKeyNotExist), got: {:?}",
                     other
                 ),
             }

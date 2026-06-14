@@ -13,10 +13,9 @@ pub struct TransferAuth {
     pub amount: u64,
 }
 
-#[derive(Default)]
 pub struct SignerCallee;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerCallee {
     pub fn accept_signer(auth: Signed<TransferAuth>) -> u32 {
         auth.handle()

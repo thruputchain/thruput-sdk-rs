@@ -9,10 +9,10 @@ use groundhog_erc1271_if::{ERC1271, ERC1271Error};
 use sdk::contract;
 use sdk::signer::{Opaque, Signed};
 
-#[derive(Default)]
+#[sdk::storage]
 pub struct Wallet;
 
-#[contract(storage = false, version = "0.1.0")]
+#[contract(version = "0.1.0")]
 impl ERC1271 for Wallet {
     fn is_valid_signature(
         &self,

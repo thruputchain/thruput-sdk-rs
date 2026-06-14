@@ -35,31 +35,52 @@ where
     /// Aborts if the key does not exist.
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn get(&self) -> T {
-        // Using match here instead of a closure allows call-tracking through
-        // to library_throw.
-        match self.load_value() {
-            Ok(v) => v,
-            Err(e) => crate::exn::library_throw(e),
-        }
+        use crate::exn::{LibraryExn, SyscallExn, library_throw};
+        use crate::sys::SyscallNo;
+        use crate::sys_result::bytestring::bytestring_read_into;
+
+        // Read into the reused in-place scratch and decode an owned value out
+        // of it before the borrow ends — no buffer of our own.
+        crate::call::with_scratch(|buf| {
+            match bytestring_read_into(self.key.get(), buf) {
+                Ok(Some(())) => {}
+                // Stored value exceeds the buffer: only possible if the slot
+                // was written by something other than Value<T>::set.
+                Ok(None) => library_throw(LibraryExn::StorageSerialization),
+                Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
+                    SyscallNo::kBytestringGet,
+                    e,
+                ))),
+            }
+            match xdrs::cxs::decode(buf.as_slice()) {
+                Ok(v) => v,
+                Err(_) => library_throw(LibraryExn::StorageSerialization),
+            }
+        })
     }
 
     /// Deserialize and return the stored value, or None if the key doesn't exist.
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn try_get(&self) -> Option<T> {
-        match self.load_value() {
-            Ok(v) => Some(v),
-            Err(e) if e.is_storage_key_not_exist() => None,
-            Err(e) => crate::exn::library_throw(e),
-        }
-    }
+        use crate::exn::{LibraryExn, SyscallExn, library_throw};
+        use crate::sys::SyscallNo;
+        use crate::sys_result::bytestring::bytestring_read_into;
 
-    fn load_value(&self) -> Result<T, super::error::StorageError> {
-        use super::error::{StorageError, storage_syserr};
-        use crate::sys_result::bytestring::bytestring_get;
-
-        let key = &self.key.keypath().generate_key();
-        let buf = bytestring_get(key).map_err(storage_syserr)?;
-        xdrs::cxs::decode(&buf).map_err(|_| StorageError::Serialization)
+        crate::call::with_scratch(|buf| {
+            match bytestring_read_into(self.key.get(), buf) {
+                Ok(Some(())) => {}
+                Ok(None) => library_throw(LibraryExn::StorageSerialization),
+                Err(e) if e.is_storage_key_not_exist() => return None,
+                Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
+                    SyscallNo::kBytestringGet,
+                    e,
+                ))),
+            }
+            match xdrs::cxs::decode(buf.as_slice()) {
+                Ok(v) => Some(v),
+                Err(_) => library_throw(LibraryExn::StorageSerialization),
+            }
+        })
     }
 }
 

@@ -6,6 +6,7 @@
 //! [`SysErr`](crate::sys::SysErr) containing an error code in the case of a
 //! syscall failure.
 
+use crate::internal::ScratchBuf;
 use crate::sys;
 use crate::sys::SysResult as Result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
@@ -91,6 +92,37 @@ pub fn bytestring_get_sized<const N: usize>(
     let bytes: [u8; N] =
         unsafe { bytes_mu.map(|elt| MaybeUninit::assume_init(elt)) };
     Ok(Some(bytes))
+}
+
+/// Read the bytestring at `key` into `buf` (cleared first). Returns
+/// `Ok(None)` if the value is larger than `buf`'s capacity (only possible in
+/// the no-alloc guest; values written via the typed API always fit). Filling
+/// a caller-provided buffer lets the typed read paths use the reused in-place
+/// scratch — no buffer of their own.
+pub(crate) fn bytestring_read_into(
+    key: &StorageKey,
+    buf: &mut ScratchBuf,
+) -> Result<Option<()>> {
+    // Check length first to avoid unsafe initialization of a too-small buffer.
+    let len = bytestring_get_len(key)? as usize;
+    buf.clear();
+    #[cfg(feature = "alloc")]
+    buf.reserve(len);
+    if len > buf.spare_capacity_mut().len() {
+        return Ok(None);
+    }
+    let mut written_len = MaybeUninit::uninit();
+    sys::uninit_BytestringGet(
+        key,
+        buf.spare_capacity_mut(),
+        &mut written_len,
+    )?;
+
+    // Safety: The syscall returned with success, and we validated len <=
+    // capacity, so the first `len` bytes of `buf` are initialized.
+    debug_assert!(unsafe { written_len.assume_init() } as usize == len);
+    unsafe { buf.set_len(len) };
+    Ok(Some(()))
 }
 
 #[cfg(feature = "alloc")]

@@ -2,10 +2,9 @@
 
 use sdk::*;
 
-#[derive(Default)]
 pub struct BadContract;
 
-#[contract(storage = false)]
+#[contract]
 impl BadContract {
     pub fn bad(_value: fn(u32) -> u32) {}
 }

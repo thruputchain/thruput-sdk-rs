@@ -24,12 +24,8 @@ impl<S> Debug for Vector<S> {
 
 impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
-        let mut len_kp = keypath.clone();
-        len_kp.seq_begin();
-
-        let mut values_kp = keypath.clone();
-        values_kp.seq_begin();
-        values_kp.seq_next();
+        let len_kp = keypath.child_index(0);
+        let values_kp = keypath.child_index(1);
 
         Self {
             keypath,
@@ -140,9 +136,7 @@ impl<S: StorageType> Vector<S> {
     }
 
     fn make_elem_keypath(&self, index: u32) -> Keypath {
-        let mut kp = self.values.keypath().clone();
-        kp.push_item(&index);
-        kp
+        self.values.keypath().child_item(&index)
     }
 }
 

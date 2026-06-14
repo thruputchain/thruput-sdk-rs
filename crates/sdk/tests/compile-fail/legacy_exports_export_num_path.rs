@@ -1,10 +1,10 @@
 #![allow(unexpected_cfgs)]
 use sdk::*;
 
-#[derive(Default)]
+#[sdk::storage]
 pub struct LegacyPathContract;
 
-#[contract(storage = false)]
+#[contract]
 impl LegacyPathContract {
     pub fn ping(&self) -> u32 {
         7

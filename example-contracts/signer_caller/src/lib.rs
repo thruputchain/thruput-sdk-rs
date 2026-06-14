@@ -6,10 +6,9 @@ use sdk::signer::Signed;
 use sdk::*;
 use signer_callee::{SignerCalleeClient, TransferAuth};
 
-#[derive(Default)]
 pub struct SignerCaller;
 
-#[contract(storage = false)]
+#[contract]
 impl SignerCaller {
     pub fn forward_signer(
         target: &ContractAddress,

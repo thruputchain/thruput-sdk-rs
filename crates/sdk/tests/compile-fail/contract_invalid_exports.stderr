@@ -1,5 +1,5 @@
 error: exports = "123 not an ident" must be a valid Rust identifier (it is used to name generated items)
- --> tests/compile-fail/contract_invalid_exports.rs:8:39
+ --> tests/compile-fail/contract_invalid_exports.rs:8:22
   |
-8 | #[contract(storage = false, exports = "123 not an ident")]
-  |                                       ^^^^^^^^^^^^^^^^^^
+8 | #[contract(exports = "123 not an ident")]
+  |                      ^^^^^^^^^^^^^^^^^^
