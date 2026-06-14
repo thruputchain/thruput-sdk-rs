@@ -73,6 +73,10 @@ impl Event for OwnedEvent {
         }
     }
 
+    fn signature() -> Option<&'static Topic> {
+        None // topic 0 is a hash of payload fields — data-dependent
+    }
+
     fn decode_payload(bytes: &[u8]) -> Result<OwnedEvent, ReadError> {
         decode_xdr(bytes)
     }
@@ -119,6 +123,10 @@ impl<'a> Event for BorrowedEvent<'a> {
             2 => Some(TopicSrc::Owned(self.currency.hash().into_inner())),
             _ => None,
         }
+    }
+
+    fn signature() -> Option<&'static Topic> {
+        None // topic 0 borrows from the payload — data-dependent
     }
 
     fn decode_payload<'p>(
@@ -260,6 +268,10 @@ impl Event for ManualTooManyTopicsEvent {
             0..=3 => Some(TopicSrc::Owned([index as u8; 32])),
             _ => None,
         }
+    }
+
+    fn signature() -> Option<&'static Topic> {
+        None // fixture exercises the too-many-topics encode path only
     }
 
     fn decode_payload(

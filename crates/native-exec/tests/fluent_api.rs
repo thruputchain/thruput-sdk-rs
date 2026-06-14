@@ -19,6 +19,9 @@ impl Event for TestValue {
     fn num_topics(&self) -> u32 {
         0
     }
+    fn signature() -> Option<&'static [u8; 32]> {
+        None // no topics, so no discriminant
+    }
     fn decode_payload(bytes: &[u8]) -> Result<TestValue, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
@@ -42,6 +45,9 @@ impl Event for EventA {
             _ => None,
         }
     }
+    fn signature() -> Option<&'static [u8; 32]> {
+        Some(&EVENT_A_SIG)
+    }
     fn decode_payload(bytes: &[u8]) -> Result<EventA, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
@@ -61,6 +67,9 @@ impl Event for EventB {
             0 => Some(TopicSrc::Owned(EVENT_B_SIG)),
             _ => None,
         }
+    }
+    fn signature() -> Option<&'static [u8; 32]> {
+        Some(&EVENT_B_SIG)
     }
     fn decode_payload(bytes: &[u8]) -> Result<EventB, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)

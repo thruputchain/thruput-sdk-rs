@@ -74,6 +74,7 @@ impl<'a, E: Event> TypedEvent<'a, E> {
     /// first, so a payload that merely *shares a shape* with `E` cannot be
     /// silently mistyped as `E`. Panics on a discriminant mismatch or on
     /// payload decode failure.
+    #[track_caller]
     pub fn new(raw: &'a TxEmittedEvent) -> Self {
         let emitted = EmittedEvent::from(raw);
         if let Some(expected) = E::signature() {
