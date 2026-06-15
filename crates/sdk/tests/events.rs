@@ -73,6 +73,10 @@ impl Event for OwnedEvent {
         }
     }
 
+    fn signature() -> Option<&'static Topic> {
+        None // topic 0 is a hash of payload fields — data-dependent
+    }
+
     fn decode_payload(bytes: &[u8]) -> Result<OwnedEvent, ReadError> {
         decode_xdr(bytes)
     }
@@ -119,6 +123,10 @@ impl<'a> Event for BorrowedEvent<'a> {
             2 => Some(TopicSrc::Owned(self.currency.hash().into_inner())),
             _ => None,
         }
+    }
+
+    fn signature() -> Option<&'static Topic> {
+        None // topic 0 borrows from the payload — data-dependent
     }
 
     fn decode_payload<'p>(
@@ -213,6 +221,13 @@ struct SimpleEvent {
     value: u128,
 }
 
+// Same payload shape as SimpleEvent, but a distinct type — so a distinct
+// topic-0 signature. Used to prove TypedEvent rejects a mistyped decode.
+#[derive(Event)]
+struct LookalikeEvent {
+    value: u128,
+}
+
 single_event_test! {
     fn test_derived_event_no_topics() {
         let event = SimpleEvent { value: 99 };
@@ -253,6 +268,10 @@ impl Event for ManualTooManyTopicsEvent {
             0..=3 => Some(TopicSrc::Owned([index as u8; 32])),
             _ => None,
         }
+    }
+
+    fn signature() -> Option<&'static Topic> {
+        None // fixture exercises the too-many-topics encode path only
     }
 
     fn decode_payload(
@@ -496,6 +515,27 @@ fn test_simple_event_payload_decoding() {
         assert_eq!(e.topic(0).unwrap(), SimpleEvent::SIGNATURE);
         assert_eq!(e.payload().value, 99);
     });
+}
+
+#[test]
+#[should_panic(expected = "event type mismatch")]
+fn test_typed_event_rejects_mismatched_discriminant() {
+    let env = TestEnvironment::no_cost();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&SimpleEvent { value: 99 });
+        })
+    });
+
+    result.assert_success();
+    result.assert_event_count(1);
+
+    // The raw event is a SimpleEvent, but LookalikeEvent has an identical
+    // payload shape (`u128`), so the payload decodes cleanly. Topic 0 still
+    // belongs to SimpleEvent, so viewing it as LookalikeEvent must be
+    // rejected rather than producing a silently mistyped view.
+    result.assert_event::<LookalikeEvent>(0, |_| {});
 }
 
 //-------------------------------------------------------------------------

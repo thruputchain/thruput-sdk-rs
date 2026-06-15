@@ -39,6 +39,22 @@ pub trait Event: xdrs::WriteXDR {
     /// Number of topics this event carries (0..=3).
     fn num_topics(&self) -> u32;
 
+    /// The static topic-0 discriminant for this event type, if it has one.
+    ///
+    /// Topic 0 is conventionally the event-type discriminant (see the trait
+    /// docs). Return `Some(sig)` when topic 0 is a fixed per-type constant:
+    /// [`TypedEvent::new`](crate::TypedEvent::new) then rejects a raw event
+    /// whose topic 0 belongs to a different type before trusting the decoded
+    /// payload. Return `None` only when topic 0 is data-dependent (computed
+    /// from payload fields, or absent), which opts out of that check.
+    ///
+    /// This is deliberately not defaulted: a silent `None` would let an impl
+    /// with a fixed discriminant skip the check by omission. `#[derive(Event)]`
+    /// implements it as `Some(Self::SIGNATURE)`.
+    fn signature() -> Option<&'static Topic>
+    where
+        Self: Sized;
+
     /// Retrieve the topic at the given index.
     fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
         let _ = index;

@@ -28,10 +28,29 @@ fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
             "invalid event implementation: claimed to have topics but did not provide topic 0"
         );
     } else {
-        // Event type has no topics — only match raw events with no topics
-        assert!(raw.num_topics == 0);
+        // Event type has no topics. `decoded.num_topics() == raw.num_topics`
+        // already holds (checked above), so the raw event has none either.
         true
     }
+}
+
+/// Decode a single raw event as `E`, returning `Some` only if the event is
+/// well-formed (its claimed topic bytes fit the buffer), its payload decodes
+/// cleanly, and its topic 0 matches `E`'s declared topic 0. Returns `None`
+/// for malformed, non-`E`, or topic-mismatched events — never panics, so an
+/// unrelated corrupt event can't abort a `filter_events`/`assert_emitted`
+/// sweep.
+fn decode_as<E>(event: &TxEmittedEvent) -> Option<E>
+where
+    E: xdrs::ReadXDROwned + groundhog_event::Event,
+{
+    let topics_len = 32 * event.num_topics as usize;
+    if topics_len > event.serialized_event.len() {
+        return None;
+    }
+    let payload = &event.serialized_event[topics_len..];
+    let decoded = xdrs::cxs::decode::<E>(payload).ok()?;
+    topic0_matches(&decoded, event).then_some(decoded)
 }
 
 /// Result of executing a single invocation frame.
@@ -245,18 +264,7 @@ impl FrameResult {
         self.events
             .iter()
             .filter(|e| &e.contract_address == address)
-            .filter_map(|event| {
-                let topics_len = 32 * event.num_topics as usize;
-                if topics_len > event.serialized_event.len() {
-                    return None;
-                }
-                let payload = &event.serialized_event[topics_len..];
-                let decoded = xdrs::cxs::decode::<E>(payload).ok()?;
-                if !topic0_matches(&decoded, event) {
-                    return None;
-                }
-                Some(decoded)
-            })
+            .filter_map(decode_as::<E>)
             .collect()
     }
 
@@ -310,26 +318,13 @@ impl FrameResult {
     ) where
         E: xdrs::ReadXDROwned + groundhog_event::Event,
     {
-        let mut match_count = 0usize;
-        for event in &self.events {
-            if &event.contract_address != address {
-                continue;
-            }
-            let topics_len = 32 * event.num_topics as usize;
-            assert!(
-                topics_len <= event.serialized_event.len(),
-                "assert_emitted: event has topics_len {} but serialized_event is only {} bytes",
-                topics_len,
-                event.serialized_event.len()
-            );
-            let payload = &event.serialized_event[topics_len..];
-            if let Ok(decoded) = xdrs::cxs::decode::<E>(payload)
-                && topic0_matches(&decoded, event)
-                && predicate(&decoded)
-            {
-                match_count += 1;
-            }
-        }
+        let match_count = self
+            .events
+            .iter()
+            .filter(|e| &e.contract_address == address)
+            .filter_map(decode_as::<E>)
+            .filter(|decoded| predicate(decoded))
+            .count();
         assert!(
             match_count == 1,
             "expected exactly 1 matching event, got {}",

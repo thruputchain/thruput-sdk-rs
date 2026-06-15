@@ -118,13 +118,69 @@ directory other than the repo root iterates zero packages (relative
   duplicated entrypoint_export_name, always-Some Option" finding, only the
   four near-identical walkers remain (see amended finding below).
 
-## medium severity (13 remaining)
+**Addressed in the 2026-06-12/13 passes** (macros cluster #240 + drop-storage/keypath
+rewrite + buffer unification #241; sections removed below):
+
+- *Enum `#[contract_type]` auth-token minting (medium):* enums now route
+  through `generate_preimage_and_mintable_enum`, emitting a mirrored
+  `Preimage` enum (each field type → `<T as MintableType>::Preimage`) and a
+  per-variant-recursing `mint_into_parent`. Auth-token children in enum
+  payloads (`Signed<T>`, etc.) are now minted exactly like struct fields.
+- *Examples disagree on storage/Default boilerplate (medium):* the
+  `#[contract(storage = false)]` flag was removed entirely (zero occurrences
+  repo-wide). All three caller examples now use bare `pub struct X;` + plain
+  `#[contract]`; the three-way divergence is gone.
+- *`storage = false` discards `&mut self` mutations (low):* gone with the flag —
+  `exports.rs` unconditionally roots state via `Node<#self_ty>`; no
+  `state_default`/`config.storage()` remains.
+- *Bare-impl `#[contract]` skips non-`pub` methods (low):*
+  `validate_bare_impl_method_visibility` now rejects `Restricted` visibility
+  with a spanned error instead of silently dropping the method.
+- *Copy-pasted auth-handle walkers (low):* the four near-identical `expand_*`
+  fns collapsed into two parameterized generators (`expand_auth_handles_struct`/
+  `_enum`) driven by an `AuthWalk`.
+- *`#[storage]` swallows attribute args + unhygienic derive (low):* now errors
+  on non-empty args and emits a fully-qualified `#[derive(::sdk::Storage)]`.
+- *Keypath undocumented + collision-prone flattening (medium) and `seq_end`
+  "leave_seq()" message (low):* the `flattened`/`push_item`/`push_index`/`seq_*`
+  mutation API was replaced by immutable `child_index`/`child_item` builders on
+  a framed `KeyBuf`. Components carry explicit `TAG_ITEM`/`TAG_INDEX` framing
+  bytes (the cited `Index(i)` vs `push_item(i as u64)` collision is now
+  regression-tested as distinct), the whole public API is documented, and
+  `derive(Storage)` uses `child_index`. Findings no longer map.
+- *`Value::load_value` re-hashes (low, Value half):* the Value read path now
+  uses the cached key (`bytestring_read_into(self.key.get(), buf)`). The NNInt
+  half remains open (see amended finding below).
+- *`StorageError` feature-gated `LibraryExn` variant (FaultString sub-claim):*
+  flattened into a non-gated `StorageSerialization = 8` variant, so that one
+  layout-changing axis is gone; the core debugging-feature wire divergence
+  remains (see finding below).
+
+**Addressed in the 2026-06-13 event-layer pass** (sections removed below):
+
+- *Event decode/topic-match drift (medium):* `filter_events` and
+  `assert_emitted` now share one private `decode_as::<E>` helper in
+  `frame_result.rs`, so the malformed-event policy can't diverge — both
+  *skip* an internally-inconsistent event (`topics_len > serialized_event
+  .len()`) rather than one skipping and the other aborting. `assert_emitted`
+  no longer fails on an unrelated corrupt sibling event. The unreachable
+  `assert!(raw.num_topics == 0)` else-branch in `topic0_matches` was removed.
+- *`TypedEvent::new` no discriminant check (medium):* the `Event` trait
+  gained `fn signature() -> Option<&'static Topic>` (default `None`;
+  `#[derive(Event)]` returns `Some(Self::SIGNATURE)`). `TypedEvent::new` now
+  verifies the raw event's topic 0 against `E::signature()` before trusting
+  the decoded payload, panicking with an "event type mismatch" diagnostic
+  instead of producing a silently mistyped view when two events share a
+  payload shape. Hand-written impls with data-dependent topic 0 keep the
+  default and opt out.
+
+## medium severity (8 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
 
 **File:** `crates/sdk/src/exn/fault.rs:6-10,21,131`
 
-With `debugging`, `FaultString` serializes as `Option<&str>` (`struct FaultString(Option<heapless::String<500>>)`, write_xdr at line 24-29); without it, `pub struct FaultString;` serializes to zero bytes (line 133-138). `LibraryExn` (exn/library.rs) embeds `FaultString` in most variants and is a cross-contract exception with a fixed selector derived only from version "1.0.0" + "LibraryExn" — the selector does not change when the payload layout changes. Two contracts (or a contract and an off-chain decoder) built with different `debugging` settings will mis-decode each other's library exceptions with no versioning signal. Same pattern in `Panic` (panic.rs) and the `#[cfg(feature = "storage")] Storage(StorageError) = 8` variant of LibraryExn, whose existence is also feature-dependent.
+With `debugging`, `FaultString` serializes as `Option<&str>` (`struct FaultString(Option<heapless::String<500>>)`, write_xdr at line 24-29); without it, `pub struct FaultString;` serializes to zero bytes (line 133-138). `LibraryExn` (exn/library.rs) embeds `FaultString` in most variants and is a cross-contract exception with a fixed selector derived only from version "1.0.0" + "LibraryExn" — the selector does not change when the payload layout changes. Two contracts (or a contract and an off-chain decoder) built with different `debugging` settings will mis-decode each other's library exceptions with no versioning signal. Same pattern in `Panic` (panic.rs). (The former `#[cfg(feature = "storage")] Storage(StorageError) = 8` variant has since been flattened into a non-gated `StorageSerialization = 8`, removing that one feature-dependent layout axis; the core `debugging`-feature divergence remains.)
 
 ### [sdk-core/footgun] Blanket `Hash for T: WriteXDR` panics via unwrap() on values larger than ~500 bytes
 
@@ -150,35 +206,11 @@ The type's entire rustdoc is `/// Non-negative integer`, yet `set(-5)` succeeds 
 
 `Bytestring::len()` calls `bytestring_get_len(&self.key)`, which (per src/sys_exn/bytestring.rs) "Throws a syscall exception if nothing is there". So `is_empty()` on a fresh Bytestring aborts the whole transaction instead of returning true, while `Vector::is_empty()` (vector.rs:62, via `len.try_get().unwrap_or(0)`) returns true for never-set storage. The Bytestring type has zero rustdoc on any method — nothing warns that `len`/`is_empty`/`get`/`get_sized` abort on a missing key while `try_get` returns None, and there is no `exists()` method even though `bytestring_exists` exists at the syscall layer. The look-alike methods across the two types behave oppositely on empty storage.
 
-### [sdk-storage/missing-docs] Keypath public API is entirely undocumented, including the collision-prone flattening scheme
-
-**File:** `crates/sdk/src/storage/keypath.rs:33-63`
-
-Keypath and all its methods (root, flattened, generate_key, push_item, push_index, seq_begin/seq_next/seq_end, set_exclusive) have no rustdoc, yet it is the public escape hatch for manual storage layout (tests do `Keypath::root().into()` routinely). Two things a user must know are unstated: (1) `flattened()` concatenates component encodings with no framing or type tags, and `KeypathComponent::Index(i)` flattens to exactly the same bytes as `push_item(&(i as u64))` (both are `encode(u64)`); since `derive(Storage)` assigns field i the component Index(i) (crates/macros/src/storage.rs:120, seq_begin/seq_next) and Vector puts its len at Index(0) and values at Index(1), a user who manually does `root.push_item(&0u64)` silently collides with field 0 of a struct or a Vector's len slot at the same root. (2) `push_item` only guarantees injective keys when each component's XDR encoding is prefix-free in sequence; pushing fixed-size opaques of varying lengths can collide. Also `seq_next`/`seq_end` panic when the last component is not an index — undocumented, and exercised by the derive on hand-rolled From<Keypath> impls.
-
-### [macros/footgun] #[contract_type] enums get identity Mintable while structs recursively mint fields — auth-token children in enum payloads are never minted
-
-**File:** `crates/macros/src/contract_type.rs:34-47`
-
-For structs, `generate_preimage_and_mintable` builds a `Preimage` whose every field is `<T as MintableType>::Preimage` and `mint_into_parent` recurses field-by-field (lines 306-465), so a field like `Signed<T>` (whose Preimage is `AuthTokenPreimage<...>`, see crates/sdk/src/signer.rs:185-187) is properly minted into child auth-token nodes. For enums the macro instead emits `impl MintableType for #ident { type Preimage = #ident; }` and an identity `mint_into_parent` (lines 34-47). An enum variant containing a mintable type therefore never recurses: its preimage *is* the final type and no children are produced. Contrast with `CollectAuthHandles`/`ReceiveAuthHandles`, which DO recurse into enum variant fields (lines 246-297, 467-518) — the asymmetry is invisible to the user and undocumented.
-
 ### [native-exec/footgun] Panicking Drop impls turn a failing test into a SIGABRT that hides the original failure
 
 **File:** `crates/native-exec/src/mock_transaction_handler.rs:287-295, 401-413, 463-471`
 
 `MockInvocationFrame::drop` panics if state == Started ("Should be impossible to drop an invocation frame while it is running"), and `MockTransactionHandler::drop` calls `abort_transaction()` whose `assert!(self.root_frame_closed.get(), "cannot abort: root frame is still open")` panics if the root frame was opened but never closed. If a test panics (e.g. an ordinary `assert!` failure) while a root frame has been opened/built but not executed to Close, these Drops run during unwinding, double-panic, and abort the whole test process — the user sees SIGABRT instead of their assertion message. `DBWrapper::drop` and `RuntimeContextWrapper::drop` (test_environment.rs:163-171, 191-199) also panic on FFI error and have the same unwind hazard.
-
-### [native-exec/redundancy] Event decode/topic-match logic duplicated between filter_events and assert_emitted, and already drifted
-
-**File:** `crates/native-exec/src/frame_result.rs:241-261, 306-338`
-
-Both methods reimplement the same sequence: compute `topics_len = 32 * event.num_topics`, bounds-check, slice payload, `cxs::decode::<E>`, `topic0_matches`. They have drifted on the malformed-event case: `filter_events` silently skips an event whose `topics_len > serialized_event.len()` (`return None;`, line 250-252) while `assert_emitted` panics on the identical condition (`assert!(topics_len <= event.serialized_event.len(), ...)`, lines 319-324). So the same corrupt event makes one API quietly return an empty vec and the other abort the test. Also, in `topic0_matches` the `assert!(raw.num_topics == 0)` in the else branch (line 32) is unreachable: the function already returned false when `decoded.num_topics() != raw.num_topics`.
-
-### [small-crates/footgun] TypedEvent::new decodes without verifying the event-type discriminant (topic 0)
-
-**File:** `crates/event/src/emitted_event.rs:69-78`
-
-`TypedEvent::<E>::new(raw)` takes any `TxEmittedEvent`, decodes the payload bytes as `E::Payload`, and panics on decode failure — but never checks that topic 0 (documented in `crates/event/src/lib.rs:30-32` as "conventionally the event-type discriminant") matches `E`'s signature. XDR payloads with compatible shapes (e.g. two events that are both `(address, address, amount)`) will decode cleanly as the wrong type, producing a silently mistyped view. The workspace itself proves the check matters: `crates/native-exec/src/frame_result.rs:12` defines `fn topic0_matches<E: Event>(...)` as a separate guard, and the ERC20 interface implements `TryFrom<EmittedEvent>` with explicit signature checks. But `TypedEvent::new` is re-exported from `sdk::event` (crates/sdk/src/event.rs:6) as a public constructor with no such guard and no doc warning beyond "Panics on decode failure".
 
 ### [consumer-experience/redundancy] Five competing spellings for deterministic test nonces/addresses across README and examples
 
@@ -192,13 +224,7 @@ For the same task ('make a deterministic test id'), the corpus a new author read
 
 The published ERC20 standard interface documents nothing a wallet/token integrator needs: `initialize` has no doc at all (it throws `AlreadyInitialized`; who becomes administrator?); `mint`/`burn` don't say they are owner-restricted (`MustBeContractOwner`) or which `ERC20Error` variants each method can throw; `adjust_allowance` deviates from ERC-20 `approve` semantics (signed delta, not absolute) but that is documented only on the ApprovalEvent type (events.rs:135-138), not the trait method clients call. Also, `Amount` is `u128`, but `From<&TransferEvent> for stdevt::TransferEvent` does `TryInto::<i128>::try_into(val.amount).unwrap()` (events.rs:90) — converting an event for a supply above i128::MAX panics, an undocumented invariant, despite `amount_to_diff` in error.rs:20-22 showing the throwing alternative.
 
-### [consumer-experience/weird] Examples disagree on #[contract] storage/Default boilerplate for stateless contracts
-
-**File:** `example-contracts/erc1271_caller/src/lib.rs:10-13 (vs bare_impl_caller/src/lib.rs:7-10, versioned_caller/src/lib.rs:7-9)`
-
-Three stateless caller examples use three different spellings: erc1271_caller writes `#[derive(Default)] pub struct Caller;` + `#[contract(storage = false)]`; bare_impl_caller writes `#[derive(Default)]` + bare `#[contract]`; versioned_caller writes neither Default nor storage flag. Since all their methods are associated functions (no `self`), the storage flag and Default derive are dead weight in all three — the macro only consults `config.storage()`/`Default` for `self` methods (crates/macros/src/common/exports.rs:291-321, with the TODO at line 316 noting the Default requirement is not even asserted). A user copying erc1271_caller will cargo-cult `storage = false` + Default; a user copying versioned_caller learns they're unnecessary. Nothing documents which is right, and `storage = false` with a `&mut self` method silently constructs a throwaway Default object whose mutations are discarded — a trap only a macro-source reader would discover.
-
-## low severity (41 remaining)
+## low severity (36 remaining)
 
 ### [sdk-core/missing-docs] Public syscall wrappers and InvokeConfig lack rustdoc on throwing behavior, limits, and default semantics
 
@@ -224,23 +250,17 @@ The safe `at_disjoint_mut` guards against aliasing with `assert!(keys[i] != keys
 
 `NNInt::inc` (get_values → checked_add → nnint_overflow → set_add) and `NNInt::strict_inc` (try_get_values_force.unwrap_or((0,0)) → two checked_adds → total<0 underflow → set_add) are copies of `non_negative_int_inc` (src/sys_exn/nnint.rs:94-101) and `non_negative_int_strict_inc` (109-121), differing only in passing `self.flags()` instead of `NONE`; same for set/set_exclusive. The free functions carry all the semantic documentation but have no non-test callers in the workspace (grep confirms only tests use them), while the NNInt copies carry one-line docs. Two public spellings of the same operations, with the logic already maintained in two places — a flags parameter on the free functions (or NNInt delegating to them) would collapse this and keep the docs attached to the code people use.
 
-### [sdk-storage/redundancy] Value::load_value bypasses its own KeyCache and re-hashes on every read; NNInt has no key cache at all
+### [sdk-storage/redundancy] NNInt has no key cache and re-hashes its keypath on every method call
 
-**File:** `crates/sdk/src/storage/value.rs:60`
+**File:** `crates/sdk/src/storage/nnint.rs:12`
 
-Value stores `key: KeyCache` precisely to memoize the sha256 of the keypath, and `set()` uses it (`bytestring_set(&self.key, ...)` deref-coerces to the cached StorageKey). But the read path does `let key = &self.key.keypath().generate_key();`, recomputing the hash on every `get`/`try_get`/`load_mut` and never populating the cache — `self.key.get()` was sitting right there. Similarly, NNInt (nnint.rs:23-83) stores a bare `Keypath` and calls `self.keypath.generate_key()` in every method, unlike Bytestring/RCQ/Value which all use KeyCache. Both are metered sha256 syscost paid repeatedly for no reason, and the inconsistency suggests the cache discipline has drifted.
+NNInt stores a bare `Keypath` and calls `self.keypath.generate_key()` in every method (e.g. nnint.rs:24), unlike Bytestring/RCQ/Value which all use `KeyCache`. This is metered sha256 syscost paid repeatedly for no reason, and the inconsistency suggests the cache discipline has drifted. (The Value half of this finding — `load_value` bypassing its own KeyCache on the read path — has since been fixed: the read path now uses `bytestring_read_into(self.key.get(), buf)` against the cached key.)
 
 ### [sdk-storage/redundancy] Vector embeds a Map<u32, S> only for its keypath, then reimplements Map's entry-key derivation
 
 **File:** `crates/sdk/src/storage/vector.rs:13,142-146`
 
 `Vector<S>` has field `values: Map<u32, S>`, but the only use is `self.values.keypath().clone()` inside `make_elem_keypath`, which then does `kp.push_item(&index)` — a copy of the private `Map::make_entry_keypath` (map.rs:114-121). Vector never calls Map::at/at_mut; if Map's key derivation ever changes (e.g., domain separation added), Vector's parallel copy silently diverges and existing vectors' element keys stop matching. Either store the values Keypath directly or route element access through the Map.
-
-### [sdk-storage/weird] seq_end panic message names a nonexistent method 'leave_seq()'
-
-**File:** `crates/sdk/src/storage/keypath.rs:79-85`
-
-`seq_end` panics with `"Keypath: leave_seq() called when last path component is not an index"` — there is no `leave_seq` anywhere in the workspace; the method was evidently renamed and the message not updated. A contract author hitting this abort will grep for a function that doesn't exist. Related small oddities in the same area: crates/macros/src/storage.rs:122 has the commented-out `// keypath.seq_end(); // unneeded`, and crates/sdk/tests/internal_nnints.rs:98 carries `// TODO: test with \`delete\`` — the nnint set/add interaction with delete is indeed untested.
 
 ### [sdk-storage/missing-docs] RCQ consume_sized/peek_sized omit the wrong-size exception that their try_ twins document
 
@@ -265,30 +285,6 @@ Value stores `key: KeyCache` precisely to memoize the sha256 of the keypath, and
 **File:** `crates/sdk/src/signer.rs:104`
 
 `impl_assume_tokens!` is instantiated for 0..=8 elements (signer.rs:104-120), but `impl_receive_tuple!` and `impl_collect_tuple!` both cover arities 1..=20 (receive_auth_handles.rs:207, collect_auth_handles.rs:189). A caller destructuring 9+ opaque tokens gets a confusing 'trait not implemented' error in an API family that otherwise handles 20. Also note `AssumeTokens::assume_tokens` panics on length mismatch (assert_eq) rather than returning Result — consistent with tests but worth a doc line since the rest of the receive surface returns AuthTokenError.
-
-### [macros/footgun] `#[contract(storage = false)]` silently discards all state mutations from `&mut self` methods
-
-**File:** `crates/macros/src/common/exports.rs:316-321`
-
-When `config.storage()` is false, the generated entrypoint creates a throwaway value: `let #mutability state_default = <#self_ty as Default>::default(); let #mutability state ... = &#mutability state_default;`, invokes the method, and drops it. A `&mut self` method compiles and runs but every write to `self` vanishes — no error, no warning. The code itself flags the gap (`// TODO: if !config.storage(), assert presence of Default impl`) but nothing rejects `&mut self` methods or documents that `storage = false` means 'stateless, Default-constructed each call'. Nothing in the `#[contract]` macro rustdoc (there is none) warns about this.
-
-### [macros/footgun] Bare-impl #[contract] silently skips non-`pub` methods (including `pub(crate)`)
-
-**File:** `crates/macros/src/common/contract.rs:226-238`
-
-`ContractSrc for syn::ItemImpl::methods()` filters with `is_visible(&impl_fn.vis) || is_trait_impl`, and `is_visible` is `matches!(vis, syn::Visibility::Public(_))` (line 360-362). On a bare `impl` block, a method declared `pub(crate)` or private is silently excluded from exports, the client, the spec, and the mock registry — no warning, no error. Trait impls include everything, so moving a method between a trait impl and a bare impl changes whether it is exported based only on visibility. A contract author who writes `pub(crate) fn admin_reset(...)` thinking 'crate-visible is fine, the macro exports it anyway' ships a contract missing that entrypoint. The rule is undocumented.
-
-### [macros/redundancy] Copy-pasted auth-handle walkers
-
-**File:** `crates/macros/src/contract_type.rs:174-297,467-518`
-
-`expand_collect_auth_handles_struct`/`expand_receive_auth_handles_struct` and `expand_collect_auth_handles_enum`/`expand_receive_auth_handles_enum` are four near-identical field walkers differing only in the method name and one argument — a single parameterized generator would prevent the drift this pattern invites. (The other two parts of the original finding — the duplicated `entrypoint_export_name` and `generate_trait_method`'s always-`Some` `Option` — were fixed in the 2026-06-11 pass.)
-
-### [macros/weird] #[storage] silently swallows attribute arguments and emits an unhygienic unqualified `#[derive(Storage)]`
-
-**File:** `crates/macros/src/lib.rs:119-135`
-
-`pub fn storage(_attr_args: TokenStream, ...)` ignores its arguments entirely, so `#[storage(anything = "here")]` compiles cleanly with the args dropped — no error like the sibling macros produce via darling. It also parses the item only to discard the result, then emits `#[derive(Storage)] #item` with an unqualified `Storage` path: unlike every other generated reference in this crate (which uses `::sdk::...`, e.g. `#[derive(::sdk::ReadXDR, ...)]` in contract_type.rs:49), this only resolves if the user happens to have the `Storage` derive imported, yielding a confusing 'cannot find derive macro `Storage`' error pointing at code the user never wrote.
 
 ### [native-exec/footgun] tx.call() may only be invoked once per transaction; second call panics — undocumented
 
@@ -457,7 +453,7 @@ Additional observations (areas no finding touched):
 
 3. **Stale allowlist in the wasm-size guard** (`scripts/check-wasm-size.sh:30`): `ALLOW_LIST="exceptions swap_router"` — no `swap_router` package exists anywhere (example-contracts has `swap`, `swap_driver`, `swap_request`), so the entry is dead and either a renamed debugging-built contract now fails the check or was quietly dropped.
 
-4. **Embedded-workspace hygiene drift** — `integration_test/Cargo.toml:40-41` declares `repository`/`homepage` as `github.com/groundhogchain/example-contracts.git` (copy-paste, wrong repo); root `.gitignore` ignores only `/target/`, and integration_test/ and logging-test/ have no `.gitignore` (example-contracts does), so `integration_test/target/` is already polluting `git status`. The root Cargo.toml comment admits version pins in these embedded workspaces "must unfortunately be updated manually" — the root cause behind the consumer-experience xdrs-pin-mismatch finding, but no one named the structural problem.
+4. **Embedded-workspace hygiene drift** — `integration_test/Cargo.toml:40-41` declares `repository`/`homepage` as `github.com/groundhogchain/example-contracts.git` (copy-paste, wrong repo); integration_test/ and logging-test/ still have no `.gitignore` of their own (example-contracts does). The root Cargo.toml comment admits version pins in these embedded workspaces "must unfortunately be updated manually" — the root cause behind the consumer-experience xdrs-pin-mismatch finding, but no one named the structural problem. (The `target/`-pollution sub-claim is since fixed: root `.gitignore` now lists `/integration_test/target/` and `/example-contracts/target/`.)
 
 5. **The committed root `TODO` file already confesses the sweep's biggest themes** (`TODO:1-8`): "tests to fix: test_bytestring disabled, tests/aborts disabled in Cargo.toml, itc: several are disabled?", and "finish converting syscalls to abort-on-err" — direct corroboration of the cross-crate sys_exn/sys_result drift finding and the erc20-test disabled-abort-checks finding. Known debt is tracked only in a flat TODO with no issue links, so reviewers rediscovered it independently.
 

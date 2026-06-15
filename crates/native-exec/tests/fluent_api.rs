@@ -19,6 +19,9 @@ impl Event for TestValue {
     fn num_topics(&self) -> u32 {
         0
     }
+    fn signature() -> Option<&'static [u8; 32]> {
+        None // no topics, so no discriminant
+    }
     fn decode_payload(bytes: &[u8]) -> Result<TestValue, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
@@ -42,6 +45,9 @@ impl Event for EventA {
             _ => None,
         }
     }
+    fn signature() -> Option<&'static [u8; 32]> {
+        Some(&EVENT_A_SIG)
+    }
     fn decode_payload(bytes: &[u8]) -> Result<EventA, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
     }
@@ -61,6 +67,9 @@ impl Event for EventB {
             0 => Some(TopicSrc::Owned(EVENT_B_SIG)),
             _ => None,
         }
+    }
+    fn signature() -> Option<&'static [u8; 32]> {
+        Some(&EVENT_B_SIG)
     }
     fn decode_payload(bytes: &[u8]) -> Result<EventB, xdrs::ReadError> {
         xdrs::cxs::decode(bytes)
@@ -1080,6 +1089,39 @@ fn test_assert_emitted_rejects_wrong_topic() {
 
     // EventB should NOT match — topic 0 differs despite compatible payload
     result.assert_emitted::<EventB>(&TEST_ADDR, |_| true);
+}
+
+#[test]
+fn test_assert_emitted_skips_unrelated_malformed_event() {
+    use groundhog_xdr::event::TxEmittedEvent;
+
+    // A valid TestValue(20) event sits alongside an unrelated, internally
+    // malformed event from the same address: the malformed one claims 2
+    // topics (64 bytes) but its buffer holds only ~4. assert_emitted must
+    // skip the malformed event — exactly as filter_events does — and still
+    // find the one genuine match, not abort on the corrupt sibling.
+    let valid = TxEmittedEvent {
+        contract_address: TEST_ADDR,
+        num_topics: 0,
+        serialized_event: xdrs::cxs::encode(&20u32)
+            .unwrap()
+            .try_into()
+            .unwrap(),
+    };
+    let malformed = TxEmittedEvent {
+        contract_address: TEST_ADDR,
+        num_topics: 2,
+        serialized_event: xdrs::cxs::encode(&99u32)
+            .unwrap()
+            .try_into()
+            .unwrap(),
+    };
+    let output = InvocationFrameOutput::Return {
+        return_buffer: Vec::new().try_into().unwrap(),
+    };
+    let result = FrameResult::new(output, None, vec![valid, malformed]);
+
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
 }
 
 //-------------------------------------------------------------------------
