@@ -19,6 +19,10 @@ jobs:
     runs-on: namespace-profile-hogd-linux
     env:
       HOGD_FFI_BUILD: "1"
+      # hogd's C++ is a clang codebase; the runner defaults to gcc, which
+      # rejects it (-fpermissive template errors). Build C/C++ with clang.
+      CC: clang
+      CXX: clang++
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
@@ -61,6 +65,13 @@ jobs:
       # SDK's own toolchains, so install it explicitly.
       - name: Install hogd's pinned Rust toolchain
         run: rustup toolchain install 1.93.0 --profile minimal --no-self-update
+
+      - name: Install clang
+        run: |
+          if ! command -v clang >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y clang
+          fi
+          clang --version
 
       - name: Build FFI from source
         run: cargo build -p groundhog-sys --features source-build
