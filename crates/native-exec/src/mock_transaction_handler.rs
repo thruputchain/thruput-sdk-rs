@@ -520,10 +520,10 @@ impl Drop for MockTransactionHandler {
             let err: FFIErrorCode =
                 unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
             if err != FFIErrorCode::None {
-                eprintln!(
+                crate::drop_failure(format_args!(
                     "failed to abort uncommitted transaction during cleanup: {:?}",
                     err
-                );
+                ));
             }
         }
 
@@ -531,7 +531,10 @@ impl Drop for MockTransactionHandler {
             unsafe { groundhog_sys::close_syscall_handler(self.handler) }
                 .into();
         if err != FFIErrorCode::None {
-            eprintln!("failed to close syscall handler: {:?}", err);
+            crate::drop_failure(format_args!(
+                "failed to close syscall handler: {:?}",
+                err
+            ));
         }
     }
 }
