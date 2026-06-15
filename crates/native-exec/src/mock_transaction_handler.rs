@@ -313,7 +313,8 @@ impl Drop for MockInvocationFrame {
             // abandoned frame with the Unrecoverable code; it still completes
             // the coroutine. Log only so an unexpected status isn't silent.
             let err: FFIErrorCode = res.ffi_error_code.into();
-            if err != FFIErrorCode::None && err != FFIErrorCode::UnrecoverableError
+            if err != FFIErrorCode::None
+                && err != FFIErrorCode::UnrecoverableError
             {
                 eprintln!(
                     "unexpected status finishing an abandoned invocation frame \
@@ -518,7 +519,8 @@ impl Drop for MockTransactionHandler {
             // SIGABRT that hides the original message.
             self.state = MockTransactionState::Aborted;
             let err: FFIErrorCode =
-                unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
+                unsafe { groundhog_sys::abort_transaction(self.handler) }
+                    .into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
                     "failed to abort uncommitted transaction during cleanup: {:?}",
@@ -594,16 +596,15 @@ mod tests {
         // and hanging the process at exit in `CoroPoll::~CoroPoll`. The Drops
         // now finish the open frame first and never panic, so the original
         // panic propagates cleanly and the process exits.
-        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-            || {
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let env = TestEnvironment::new(None);
                 let mut handler = MockTransactionHandler::new(env);
                 // Transaction -> Running, root frame -> Started, but never
                 // closed or committed.
                 handler.open_root_frame().with_invoke_flags(0).build();
                 panic!("original failure message");
-            },
-        ));
+            }));
 
         let payload = caught.expect_err("the panic must propagate, not abort");
         let msg = payload
