@@ -56,5 +56,11 @@ jobs:
         with:
           cache: rust
 
+      # The hogd C++ source build drives Rust via corrosion, which requires the
+      # exact toolchain hogd pins (1.93.0). The Namespace profile only ships the
+      # SDK's own toolchains, so install it explicitly.
+      - name: Install hogd's pinned Rust toolchain
+        run: rustup toolchain install 1.93.0 --profile minimal --no-self-update
+
       - name: Build FFI from source
         run: cargo build -p groundhog-sys --features source-build
