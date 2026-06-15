@@ -174,19 +174,51 @@ rewrite + buffer unification #241; sections removed below):
   payload shape. Hand-written impls with data-dependent topic 0 keep the
   default and opt out.
 
-## medium severity (8 remaining)
+**Addressed in the 2026-06-15 pass** (sections removed below):
+
+- *Blanket `Hash for T: WriteXDR` panics via `unwrap()` above ~500 bytes
+  (medium):* the buffer-unification work (#241) already routed the blanket
+  impl through the shared scratch (`with_scratch` + `encode_scratch`), so it
+  is **unbounded under `alloc`** and bounded at `SCRATCH_MAX` (4 KiB, up from
+  the old ~500) in the no-alloc guest. The residual bare `.unwrap()` is now
+  replaced: a no-alloc encoding that exceeds 4 KiB throws
+  `HandlingError::EncodingException` (a typed, catchable library exception)
+  instead of an opaque trap, matching `contract_return_encoded` /
+  `contract_abort_encoded`. The `Hash` trait and blanket impl now document the
+  feature-dependent size limit and the throw.
+- *`Bytestring::len()`/`is_empty()` abort on a never-set key (medium):*
+  resolved by adding a non-aborting `exists()` probe (built on the previously
+  dead `sys_exn::bytestring_exists`) and documenting the contract, rather than
+  by changing `is_empty`. By deliberate design `is_empty() ⟺ len() == 0`, so
+  both keep aborting on a never-set key — an empty bytestring and a missing key
+  are distinct states, and `exists()` is the way to tell them apart without
+  aborting (this differs from `Vector::is_empty`, and the rustdoc now says so).
+  Every `Bytestring` accessor now documents which abort on a missing key
+  (`len`/`is_empty`/`get`/`get_sized`) versus which are safe (`exists`/`try_get`).
+- *Panicking `Drop` impls turn a failing test into SIGABRT (medium):* the Drop
+  impls no longer panic. `MockInvocationFrame::drop` now *finishes* a still-open
+  FFI frame (`finish_mock_invocation_frame`) instead of `panic!`-ing, and
+  `MockTransactionHandler::drop` tears down in the FFI-required order — finish
+  the open frame, then abort, then close the handler — rather than calling its
+  asserting `abort_transaction`. A shared `drop_failure` helper (native-exec
+  `lib.rs`) downgrades the remaining FFI-error panics in `DBWrapper::drop`,
+  `RuntimeContextWrapper::drop`, and `ThreadlocalContextPushcount::drop` to an
+  `eprintln!` while `std::thread::panicking()`, so they can't double-panic
+  either. (Fixing the panic surfaced a latent second bug: the original
+  field-drop order freed the handler/db before the open frame's coroutine was
+  finished, orphaning it and hanging the process at exit in libtest_ffi's
+  `CoroPoll::~CoroPoll` -> `DestroyInhibit::destroy_wait()`; the reordering
+  fixes that too. The FFI's unbounded `destroy_wait()` is noted as a separate
+  hogd-side robustness gap.) Regression test
+  `panic_with_open_transaction_is_not_masked_by_drop` pins the behavior.
+
+## medium severity (5 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
 
 **File:** `crates/sdk/src/exn/fault.rs:6-10,21,131`
 
 With `debugging`, `FaultString` serializes as `Option<&str>` (`struct FaultString(Option<heapless::String<500>>)`, write_xdr at line 24-29); without it, `pub struct FaultString;` serializes to zero bytes (line 133-138). `LibraryExn` (exn/library.rs) embeds `FaultString` in most variants and is a cross-contract exception with a fixed selector derived only from version "1.0.0" + "LibraryExn" — the selector does not change when the payload layout changes. Two contracts (or a contract and an off-chain decoder) built with different `debugging` settings will mis-decode each other's library exceptions with no versioning signal. Same pattern in `Panic` (panic.rs). (The former `#[cfg(feature = "storage")] Storage(StorageError) = 8` variant has since been flattened into a non-gated `StorageSerialization = 8`, removing that one feature-dependent layout axis; the core `debugging`-feature divergence remains.)
-
-### [sdk-core/footgun] Blanket `Hash for T: WriteXDR` panics via unwrap() on values larger than ~500 bytes
-
-**File:** `crates/sdk/src/hash.rs:14-23`
-
-`impl<T: WriteXDR> Hash for T { fn hash(&self) -> Hash256 { let buf = crate::internal::encode_xdr(self).unwrap(); ... } }` — `internal::encode_xdr` writes into a fixed `MUBuf<ENCODE_MAX>` (ENCODE_MAX = max(kMaxEventLength, 500), internal/serialize.rs:19-24), so hashing any value whose XDR encoding exceeds that buffer panics with a bare unwrap. The trait applies to *every* WriteXDR type, the limit is invisible in the API, and neither the trait nor the impl documents the panic.
 
 ### [sdk-storage/footgun] NNInt is named 'Non-negative integer' but set() stores negatives and inc() defers underflow to commit time
 
@@ -199,18 +231,6 @@ The type's entire rustdoc is `/// Non-negative integer`, yet `set(-5)` succeeds 
 **File:** `crates/sdk/src/storage/vector.rs:87-109`
 
 `push_empty_slot`, `push_with`, and `pop` all call `self.len.set_exclusive(&new_len)`, meaning any two transactions that push to (or pop from) the same vector in the same block conflict and one fails at commit. The SDK's own test relies on this: crates/sdk/tests/vector-tests/tests/test.rs:60-61 — "// vector push acquires exclusive lock on the vector size" followed by `assert_commit_failed_nondeterministically()`. None of the rustdoc on push_with/push_empty_slot/pop mentions this; an author building a shared log/queue with Vector will discover the serialization bottleneck (and nondeterministic commit failures) only in production. Given the runtime's whole design is around concurrency-friendly storage deltas, this is the single most important fact about Vector's write path.
-
-### [sdk-storage/footgun] Bytestring::len()/is_empty() abort on a never-set key, asymmetric with Vector::is_empty
-
-**File:** `crates/sdk/src/storage/bytestring.rs:21-27`
-
-`Bytestring::len()` calls `bytestring_get_len(&self.key)`, which (per src/sys_exn/bytestring.rs) "Throws a syscall exception if nothing is there". So `is_empty()` on a fresh Bytestring aborts the whole transaction instead of returning true, while `Vector::is_empty()` (vector.rs:62, via `len.try_get().unwrap_or(0)`) returns true for never-set storage. The Bytestring type has zero rustdoc on any method — nothing warns that `len`/`is_empty`/`get`/`get_sized` abort on a missing key while `try_get` returns None, and there is no `exists()` method even though `bytestring_exists` exists at the syscall layer. The look-alike methods across the two types behave oppositely on empty storage.
-
-### [native-exec/footgun] Panicking Drop impls turn a failing test into a SIGABRT that hides the original failure
-
-**File:** `crates/native-exec/src/mock_transaction_handler.rs:287-295, 401-413, 463-471`
-
-`MockInvocationFrame::drop` panics if state == Started ("Should be impossible to drop an invocation frame while it is running"), and `MockTransactionHandler::drop` calls `abort_transaction()` whose `assert!(self.root_frame_closed.get(), "cannot abort: root frame is still open")` panics if the root frame was opened but never closed. If a test panics (e.g. an ordinary `assert!` failure) while a root frame has been opened/built but not executed to Close, these Drops run during unwinding, double-panic, and abort the whole test process — the user sees SIGABRT instead of their assertion message. `DBWrapper::drop` and `RuntimeContextWrapper::drop` (test_environment.rs:163-171, 191-199) also panic on FFI error and have the same unwind hazard.
 
 ### [consumer-experience/redundancy] Five competing spellings for deterministic test nonces/addresses across README and examples
 
