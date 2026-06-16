@@ -7,8 +7,9 @@ fi
 
 set -e
 
-# Get current branch name
-if [[ -z ${GIT_BRANCH} ]]; then
+# Get current branch name. (POSIX test: this runs under /bin/sh, which is dash
+# on Ubuntu/CI where `[[` is unavailable.)
+if [ -z "${GIT_BRANCH}" ]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
 else
   branch=${GIT_BRANCH}
@@ -36,7 +37,9 @@ echo "Commit Timestamp: $commit_time"
 # Check if metrics_history/ is a git repo; if not, clone it
 if [ ! -d "metrics_history/.git" ]; then
   echo "Cloning groundhogchain/metrics_history.git into metrics_history/"
-  git clone https://github.com/groundhogchain/metrics_history.git metrics_history/ -q
+  # SSH remote so the later `git push` authenticates via the CI ssh-agent
+  # (SDK_TO_METRICS_HISTORY key); an HTTPS remote has no write credentials.
+  git clone git@github.com:groundhogchain/metrics_history.git metrics_history/ -q
 else
   echo "metrics_history/ already exists and is a git repository."
 fi
