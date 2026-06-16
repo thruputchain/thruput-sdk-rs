@@ -58,12 +58,21 @@ jobs:
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
+      # NB: deliberately NOT caching ./target. The Namespace cross-invocation
+      # cache is a network/overlay-backed mount; cargo's many-small-file churn
+      # in target/ stalls on it (the runner sits at ~0-5% CPU on 32 cores —
+      # I/O-wait, not compute). Building target/ on the runner's local disk and
+      # eating a cold compile is faster than an I/O-starved "incremental" build.
+      # We still cache the dependency *sources* (read-mostly, few large files)
+      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
+      # FFI download.
       - name: Configure Namespace Cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
-          cache: rust
-          # Persist the shared FFI download cache across runs.
-          path: ${{ github.workspace }}/.hogd-ffi-cache
+          path: |
+            /home/runner/.cargo/registry
+            /home/runner/.cargo/git
+            ${{ github.workspace }}/.hogd-ffi-cache
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
       # features like --ignore-file); the runner image doesn't ship it.
