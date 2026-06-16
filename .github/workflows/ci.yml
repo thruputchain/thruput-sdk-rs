@@ -70,8 +70,8 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@v1
         with:
           path: |
-            /home/runner/.cargo/registry
-            /home/runner/.cargo/git
+            ~/.cargo/registry
+            ~/.cargo/git
             ${{ github.workspace }}/.hogd-ffi-cache
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific

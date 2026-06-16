@@ -70,8 +70,8 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@v1
         with:
           path: |
-            /home/runner/.cargo/registry
-            /home/runner/.cargo/git
+            ~/.cargo/registry
+            ~/.cargo/git
             ${{ github.workspace }}/.ccache
 
       # The hogd C++ source build drives Rust via corrosion, which requires the
