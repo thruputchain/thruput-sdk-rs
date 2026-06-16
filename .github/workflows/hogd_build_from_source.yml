@@ -1,11 +1,12 @@
 name: Build FFI from Source check
 
+# Expensive (full C++ FFI build from source) and the from-source path rarely
+# changes, so run it on merges to main (and on demand) rather than on every PR
+# commit. The prebuilt FFI is what every other job uses; this just guards the
+# from-source path against bitrot.
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-    types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
 env:
@@ -15,7 +16,6 @@ env:
 
 jobs:
   build:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux
     env:
       HOGD_FFI_BUILD: "1"
@@ -23,6 +23,11 @@ jobs:
       # rejects it (-fpermissive template errors). Build C/C++ with clang.
       CC: clang
       CXX: clang++
+      # Persisted compiler cache (see the cache step). build.rs already sets
+      # CMAKE_{C,CXX}_COMPILER_LAUNCHER=ccache, so the C++ recompile is cached
+      # across runs by content — without caching ./target, which would let the
+      # build reuse a stale .so and make this check vacuous.
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
@@ -55,10 +60,19 @@ jobs:
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
+      # Deliberately NOT caching ./target: a cached target lets cargo reuse the
+      # previously-built hogd .so and skip the cmake build entirely, so the
+      # check goes green in seconds without actually rebuilding from source
+      # (and the cross-invocation cache could even reuse another branch's
+      # artifact). Cache only the dependency sources and the ccache compiler
+      # cache, so every run does a real from-source build that stays fast.
       - name: Configure Namespace Cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
-          cache: rust
+          path: |
+            /home/runner/.cargo/registry
+            /home/runner/.cargo/git
+            ${{ github.workspace }}/.ccache
 
       # The hogd C++ source build drives Rust via corrosion, which requires the
       # exact toolchain hogd pins (1.93.0). The Namespace profile only ships the
@@ -73,5 +87,19 @@ jobs:
           fi
           clang --version
 
+      # build.rs drives the C++ compile through ccache; make sure it's present
+      # and report cache stats before/after so the cross-run hit rate is visible.
+      - name: Prepare ccache
+        run: |
+          if ! command -v ccache >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y ccache
+          fi
+          ccache --version | head -1
+          ccache --zero-stats
+
       - name: Build FFI from source
         run: cargo build -p groundhog-sys --features source-build
+
+      - name: ccache stats
+        if: always()
+        run: ccache --show-stats
