@@ -70,8 +70,8 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@v1
         with:
           path: |
-            /home/runner/.cargo/registry
-            /home/runner/.cargo/git
+            ~/.cargo/registry
+            ~/.cargo/git
             ${{ github.workspace }}/.hogd-ffi-cache
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
@@ -88,4 +88,8 @@ jobs:
 
       - name: Log metrics
         if: github.ref == 'refs/heads/main'
+        env:
+          # Detached HEAD on CI checkout would make metrics.sh derive "HEAD";
+          # pass the real branch (matches the old hog `git_branch`).
+          GIT_BRANCH: ${{ github.ref_name }}
         run: ./scripts/metrics.sh
