@@ -8,59 +8,70 @@ on:
     types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
 jobs:
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: self-hosted
+    runs-on: namespace-profile-hogd-linux
     env:
-      CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-      CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
-      # hog ci overwrites the .cargo directory
-      CARGO_REGISTRIES_GROUNDHOG_INDEX: sparse+https://groundhog.dev/crates/api/v1/crates/
-      CARGO_REGISTRIES_GROUNDHOG_SOURCE: sparse+https://groundhog.dev/crates/api/v1/crates/
+      HOGD_FFI_BUILD: "1"
+      # hogd's C++ is a clang codebase; the runner defaults to gcc, which
+      # rejects it (-fpermissive template errors). Build C/C++ with clang.
+      CC: clang
+      CXX: clang++
 
     steps:
-    - name: Clean up .gitconfig
-      run: |
-        echo "Cleaning up .gitconfig"
-        rm -f /home/hogci/.gitconfig
-    - uses: webfactory/ssh-agent@v0.10.0
-      with:
-        ssh-private-key: |
-          ${{ secrets.HOGD_ACCESS_KEY }}
-          ${{ secrets.SDK_TO_PROTOCOL_RS }}
-          ${{ secrets.SDK_TO_BCS_KEY }}
-          ${{ secrets.SDK_TO_ITC }}
-          ${{ secrets.SDK_TO_PROTOCOL_KEY }}
-          ${{ secrets.SDK_TO_BCS_CPP_KEY }}
-          ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
-          ${{ secrets.SDK_TO_XDRS_KEY }}
-          ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
-          ${{ secrets.SDK_TO_CHUCKD_KEY }}
-          ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
-          ${{ secrets.SDK_TO_METRICS_HISTORY }}
-          ${{ secrets.SDK_TO_GROUNDHOG_GO}}
-          ${{ secrets.SDK_TO_LIBGO }}
-          ${{ secrets.SDK_TO_SELF }}
-          ${{ secrets.SDK_TO_ABORT_RS }}
-          ${{ secrets.SDK_TO_HOGX_KEY }}
-          ${{ secrets.SDK_TO_SCP_KEY }}
+      # Loaded before checkout so the recursive submodule fetch (which uses
+      # SSH remotes) and the source-build's git dependencies can authenticate.
+      - uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.HOGD_ACCESS_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_RS }}
+            ${{ secrets.SDK_TO_BCS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
+            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+            ${{ secrets.SDK_TO_XDRS_KEY }}
+            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+            ${{ secrets.SDK_TO_CHUCKD_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+            ${{ secrets.SDK_TO_METRICS_HISTORY }}
+            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
+            ${{ secrets.SDK_TO_LIBGO }}
+            ${{ secrets.SDK_TO_SELF }}
+            ${{ secrets.SDK_TO_ABORT_RS }}
+            ${{ secrets.SDK_TO_HOGX_KEY }}
+            ${{ secrets.SDK_TO_SCP_KEY }}
 
-    - uses: actions/checkout@v6
-    - name: Run hog schedule
-      run: |
-        BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
-        echo "Branch name: $BRANCH_NAME"
-        hog_sched \
-        --i="${{ github.event.repository.name }}-${{ github.run_id }}" \
-        --key=github_repo --value=${{ github.repository }} \
-        --key=git_commit --value=${{ github.sha }} \
-        --key=git_branch --value=$BRANCH_NAME \
-        --key=cargo_registry_global_credential_providers --value=${{ env.CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS }} \
-        --key=cargo_registry_token --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_TOKEN }} \
-        --key=cargo_registry_index --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_INDEX }} \
-        --key=cargo_registry_source --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_SOURCE }} \
-        --timeout-sec=1800 \
-        ./scripts/schedules/hogd_build_from_source.toml
-  
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
 
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: rust
+
+      # The hogd C++ source build drives Rust via corrosion, which requires the
+      # exact toolchain hogd pins (1.93.0). The Namespace profile only ships the
+      # SDK's own toolchains, so install it explicitly.
+      - name: Install hogd's pinned Rust toolchain
+        run: rustup toolchain install 1.93.0 --profile minimal --no-self-update
+
+      - name: Install clang
+        run: |
+          if ! command -v clang >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y clang
+          fi
+          clang --version
+
+      - name: Build FFI from source
+        run: cargo build -p groundhog-sys --features source-build

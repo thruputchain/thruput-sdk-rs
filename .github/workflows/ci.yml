@@ -8,60 +8,84 @@ on:
     types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
 jobs:
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: self-hosted
+    runs-on: namespace-profile-hogd-linux
     env:
-      CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-      CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
-      # hog ci overwrites the .cargo directory
-      CARGO_REGISTRIES_GROUNDHOG_INDEX: sparse+https://groundhog.dev/crates/api/v1/crates/
-      CARGO_REGISTRIES_GROUNDHOG_SOURCE: sparse+https://groundhog.dev/crates/api/v1/crates/
+      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
+      # SDK unit tests run in the separate `sdk-tests` job (sdk_tests.yml).
+      SKIP_SDK_TESTS: "1"
+      # Share one FFI download cache across every groundhog-sys build instance
+      # (and across runs, via the Namespace cache below). Without this the cache
+      # defaults to each instance's OUT_DIR, so every workspace/feature variant
+      # re-downloads the prebuilt FFI tarball.
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
-    - name: Clean up .gitconfig
-      run: |
-        echo "Cleaning up .gitconfig"
-        rm -f /home/hogci/.gitconfig
-    - uses: webfactory/ssh-agent@v0.10.0
-      with:
-        ssh-private-key: |
-          ${{ secrets.HOGD_ACCESS_KEY }}
-          ${{ secrets.SDK_TO_PROTOCOL_RS }}
-          ${{ secrets.SDK_TO_BCS_KEY }}
-          ${{ secrets.SDK_TO_ITC }}
-          ${{ secrets.SDK_TO_PROTOCOL_KEY }}
-          ${{ secrets.SDK_TO_BCS_CPP_KEY }}
-          ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
-          ${{ secrets.SDK_TO_XDRS_KEY }}
-          ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
-          ${{ secrets.SDK_TO_CHUCKD_KEY }}
-          ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
-          ${{ secrets.SDK_TO_METRICS_HISTORY }}
-          ${{ secrets.SDK_TO_GROUNDHOG_GO}}
-          ${{ secrets.SDK_TO_LIBGO }}
-          ${{ secrets.SDK_TO_SELF }}
-          ${{ secrets.SDK_TO_ABORT_RS }}
-          ${{ secrets.SDK_TO_HOGX_KEY }}
-          ${{ secrets.SDK_TO_SCP_KEY }}
+      # Loaded before checkout so the recursive submodule fetch (which uses
+      # SSH remotes) can authenticate.
+      - uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.HOGD_ACCESS_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_RS }}
+            ${{ secrets.SDK_TO_BCS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
+            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+            ${{ secrets.SDK_TO_XDRS_KEY }}
+            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+            ${{ secrets.SDK_TO_CHUCKD_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+            ${{ secrets.SDK_TO_METRICS_HISTORY }}
+            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
+            ${{ secrets.SDK_TO_LIBGO }}
+            ${{ secrets.SDK_TO_SELF }}
+            ${{ secrets.SDK_TO_ABORT_RS }}
+            ${{ secrets.SDK_TO_HOGX_KEY }}
+            ${{ secrets.SDK_TO_SCP_KEY }}
 
-    - uses: actions/checkout@v6
-    - name: Run hog schedule
-      run: |
-        BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
-        echo "Branch name: $BRANCH_NAME"
-        hog_sched \
-        --i="${{ github.event.repository.name }}-${{ github.run_id }}" \
-        --key=github_repo --value=${{ github.repository }} \
-        --key=git_commit --value=${{ github.sha }} \
-        --key=git_branch --value=$BRANCH_NAME \
-        --key=cargo_registry_global_credential_providers --value=${{ env.CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS }} \
-        --key=cargo_registry_token --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_TOKEN }} \
-        --key=cargo_registry_index --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_INDEX }} \
-        --key=cargo_registry_source --value=${{ env.CARGO_REGISTRIES_GROUNDHOG_SOURCE }} \
-        --key=hogd_ffi_password --value=${{ secrets.HOGD_FFI_PASSWORD }} \
-        --timeout-sec=1800 \
-        ./scripts/schedules/ci.toml
-  
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
 
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      # NB: deliberately NOT caching ./target. The Namespace cross-invocation
+      # cache is a network/overlay-backed mount; cargo's many-small-file churn
+      # in target/ stalls on it (the runner sits at ~0-5% CPU on 32 cores —
+      # I/O-wait, not compute). Building target/ on the runner's local disk and
+      # eating a cold compile is faster than an I/O-starved "incremental" build.
+      # We still cache the dependency *sources* (read-mostly, few large files)
+      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
+      # FFI download.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: |
+            /home/runner/.cargo/registry
+            /home/runner/.cargo/git
+            ${{ github.workspace }}/.hogd-ffi-cache
+
+      # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
+      # features like --ignore-file); the runner image doesn't ship it.
+      - name: Install ripgrep
+        run: |
+          if ! command -v rg >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y ripgrep
+          fi
+          rg --version
+
+      - name: Run CI
+        run: ./scripts/ci.sh
+
+      - name: Log metrics
+        if: github.ref == 'refs/heads/main'
+        run: ./scripts/metrics.sh

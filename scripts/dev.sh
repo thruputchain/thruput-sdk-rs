@@ -17,6 +17,12 @@ cargo() {
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/release"
 OPTIMIZED="${TARGET_DIR}/optimized"
 
+# Wasm features the pinned nightly emits, enabled explicitly for every wasm-opt
+# invocation. Older binaryen builds don't auto-detect them from the
+# target_features section and reject e.g. i32.extend8_s; all of these are
+# ABI-neutral, stable, and already accepted by the runtime.
+WASM_OPT_FEATURES="--enable-bulk-memory --enable-sign-ext --enable-mutable-globals --enable-nontrapping-float-to-int"
+
 build_contracts() {
     local workspace_dir
     workspace_dir="$1"; shift
@@ -75,7 +81,13 @@ make_optimized() {
 
     # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
     # very slightly better)
-    wasm-opt -O3 $debugging --enable-bulk-memory -o "${optimized}" "${contract}"
+    #
+    # Enable the wasm features the pinned nightly emits explicitly, rather than
+    # relying on wasm-opt's binaryen version auto-detecting them from the
+    # target_features section (older binaryen builds don't, and reject e.g.
+    # i32.extend8_s). All are ABI-neutral, stable, and already accepted by the
+    # runtime.
+    wasm-opt -O3 $debugging $WASM_OPT_FEATURES -o "${optimized}" "${contract}"
 }
 
 finalize_contract_spec() {
@@ -343,7 +355,7 @@ bottle_test_contract() {
 
     local wasm_name="${package//-/_}" &&
     mkdir -p "$BOTTLE_TEST" &&
-    wasm-opt -O3 --enable-bulk-memory \
+    wasm-opt -O3 $WASM_OPT_FEATURES \
         -o "$BOTTLE_TEST/${wasm_name}.wasm" \
         "$BOTTLE_TEST_RAW/${wasm_name}.wasm" &&
 

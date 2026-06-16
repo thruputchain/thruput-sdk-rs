@@ -286,10 +286,45 @@ impl MockInvocationFrame {
 
 impl Drop for MockInvocationFrame {
     fn drop(&mut self) {
+        // Close any open child frame first — the FFI requires inner frames be
+        // finished before their parent. (The `child_frame` field would
+        // otherwise drop after this body.)
+        self.child_frame = None;
+
         if self.state == MockInvocationFrameState::Started {
-            panic!(
-                "Should be impossible to drop an invocation frame while it is running"
-            );
+            // The frame's FFI handle is still open: a test almost certainly
+            // panicked (or returned early) before driving it to Close. Finish
+            // it at the FFI level so the frame's coroutine completes and the
+            // handler can be torn down cleanly. Leaving it open orphans the
+            // coroutine, which later wedges the libtest_ffi global
+            // `CoroPoll::~CoroPoll` -> `DestroyInhibit::destroy_wait()` and
+            // hangs the process at exit. We must NOT panic here: we may already
+            // be unwinding from the original failure, and a second panic would
+            // abort with a SIGABRT that hides it. Force-finishing is the
+            // recoverable cleanup the old `panic!` never performed.
+            let res = unsafe {
+                groundhog_sys::finish_mock_invocation_frame(
+                    self.root_handler,
+                    hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
+                        .0,
+                )
+            };
+            // An `UnrecoverableError` status is expected here — we finished an
+            // abandoned frame with the Unrecoverable code; it still completes
+            // the coroutine. Log only so an unexpected status isn't silent.
+            let err: FFIErrorCode = res.ffi_error_code.into();
+            if err != FFIErrorCode::None
+                && err != FFIErrorCode::UnrecoverableError
+            {
+                eprintln!(
+                    "unexpected status finishing an abandoned invocation frame \
+                     during cleanup: {:?}",
+                    err
+                );
+            }
+            if let Some(flag) = &self.root_frame_closed {
+                flag.set(true);
+            }
         }
     }
 }
@@ -339,7 +374,10 @@ impl Drop for ThreadlocalContextPushcount {
             let pop_res = unsafe { groundhog_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
-                panic!("failed to pop context: {:?}", err);
+                crate::drop_failure(format_args!(
+                    "failed to pop context: {:?}",
+                    err
+                ));
             }
         }
     }
@@ -462,19 +500,43 @@ impl MockTransactionHandler {
 
 impl Drop for MockTransactionHandler {
     fn drop(&mut self) {
-        if self.state == MockTransactionState::Running {
-            eprintln!(
-                "Cleanup: Aborting mock transaction that was not committed"
-            );
+        // Tear down in the order the FFI requires: finish any still-open
+        // invocation frame BEFORE aborting the transaction and closing the
+        // handler. Field-drop order would otherwise run the frame's
+        // `finish_mock_invocation_frame` dead-last — after `close_syscall_handler`
+        // (handler body) and after `_env` drops `free_db`/`close_runtime_context`
+        // — so every FFI call returns `UnrecoverableError` and the frame's
+        // coroutine is left in-flight, wedging the libtest_ffi global
+        // `CoroPoll::~CoroPoll` -> `DestroyInhibit::destroy_wait()` at process
+        // exit. Dropping `root_frame` here finishes the frame while the handler
+        // is still live.
+        self.root_frame = None;
 
-            self.abort_transaction();
+        if self.state == MockTransactionState::Running {
+            // Abort the uncommitted transaction. Inlined rather than calling
+            // `abort_transaction` to avoid its asserts: we may be unwinding from
+            // a test failure, and a panic in `drop` would double-panic into a
+            // SIGABRT that hides the original message.
+            self.state = MockTransactionState::Aborted;
+            let err: FFIErrorCode =
+                unsafe { groundhog_sys::abort_transaction(self.handler) }
+                    .into();
+            if err != FFIErrorCode::None {
+                crate::drop_failure(format_args!(
+                    "failed to abort uncommitted transaction during cleanup: {:?}",
+                    err
+                ));
+            }
         }
 
         let err: FFIErrorCode =
             unsafe { groundhog_sys::close_syscall_handler(self.handler) }
                 .into();
         if err != FFIErrorCode::None {
-            eprintln!("failed to close syscall handler: {:?}", err);
+            crate::drop_failure(format_args!(
+                "failed to close syscall handler: {:?}",
+                err
+            ));
         }
     }
 }
@@ -518,6 +580,41 @@ mod tests {
         assert_eq!(
             result.output().status_code(),
             InvocationFrameStatusCode::Return
+        );
+    }
+
+    #[test]
+    fn panic_with_open_transaction_is_not_masked_by_drop() {
+        // Regression: a test that panics while a root frame is still open used
+        // to abort the whole process. Originally the Drop impls double-panicked
+        // (`MockInvocationFrame::drop` asserted the frame wasn't `Started`;
+        // `MockTransactionHandler::drop`->`abort_transaction` asserted the root
+        // frame was closed), turning a clean test failure into a SIGABRT that
+        // hid the message. Once those panics were removed, a second bug showed:
+        // the Drops tore the FFI down in the wrong order (handler/db freed
+        // before the open frame was finished), orphaning the frame's coroutine
+        // and hanging the process at exit in `CoroPoll::~CoroPoll`. The Drops
+        // now finish the open frame first and never panic, so the original
+        // panic propagates cleanly and the process exits.
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let env = TestEnvironment::new(None);
+                let mut handler = MockTransactionHandler::new(env);
+                // Transaction -> Running, root frame -> Started, but never
+                // closed or committed.
+                handler.open_root_frame().with_invoke_flags(0).build();
+                panic!("original failure message");
+            }));
+
+        let payload = caught.expect_err("the panic must propagate, not abort");
+        let msg = payload
+            .downcast_ref::<&'static str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str));
+        assert_eq!(
+            msg,
+            Some("original failure message"),
+            "the original panic message must survive Drop cleanup"
         );
     }
 

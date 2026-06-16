@@ -165,7 +165,7 @@ impl Drop for DBWrapper {
         let r = unsafe { groundhog_sys::free_db(self.db) };
         let err: FFIErrorCode = r.into();
         if err != FFIErrorCode::None {
-            panic!("failed to free db: {:?}", err);
+            crate::drop_failure(format_args!("failed to free db: {:?}", err));
         }
     }
 }
@@ -193,7 +193,10 @@ impl Drop for RuntimeContextWrapper {
         let r = unsafe { groundhog_sys::close_runtime_context(self.context) };
         let err: FFIErrorCode = r.into();
         if err != FFIErrorCode::None {
-            panic!("failed to close runtime context: {:?}", err);
+            crate::drop_failure(format_args!(
+                "failed to close runtime context: {:?}",
+                err
+            ));
         }
     }
 }
