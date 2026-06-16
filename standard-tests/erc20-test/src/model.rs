@@ -91,6 +91,7 @@ impl Model {
         to: &ContractAddress,
         amount: u128,
     ) {
+        let amount = i128::try_from(amount).expect("model amount fits i128");
         let event = ERC20Event::Transfer(TransferEvent::new(from, to, amount));
 
         self.events.push((&event).into());

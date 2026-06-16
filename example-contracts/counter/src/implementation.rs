@@ -26,7 +26,7 @@ impl Counter {
         self.value.strict_inc(-(amount as i128));
     }
 
-    pub fn get(&self) -> u64 {
-        self.value.try_get().unwrap_or(0) as u64
+    pub fn get(&self) -> i128 {
+        self.value.try_get().unwrap_or(0)
     }
 }

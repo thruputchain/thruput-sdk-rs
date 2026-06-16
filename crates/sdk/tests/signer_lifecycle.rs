@@ -142,8 +142,8 @@ fn payload_roundtrip_with_receive_handles() {
 fn collect_handles_for_forwarding() {
     let mut middle = MiddleAuth {
         label: 42,
-        single_child: Signed::default(),
-        multi_children: vec![Signed::default(), Signed::default()],
+        single_child: Signed::uninitialized(),
+        multi_children: vec![Signed::uninitialized(), Signed::uninitialized()],
     };
     let mut iter = [10u32, 20u32, 30u32].into_iter();
     middle.receive_auth_handles(&mut iter).unwrap();

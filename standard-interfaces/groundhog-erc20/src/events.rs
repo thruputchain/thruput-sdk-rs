@@ -31,7 +31,12 @@ pub fn log_transfer_event(
     to: &ContractAddress,
     amount: u128,
 ) {
-    let event = TransferEvent::new(from, to, amount);
+    // The event carries `amount` as i128 (matching the standard
+    // `stdevt::TransferEvent`). `amount_to_diff` rejects values above
+    // `i128::MAX` with `ERC20Error::TooLarge` — the same bound a transfer
+    // already enforces — so the conversion to the standard form is infallible.
+    let event =
+        TransferEvent::new(from, to, crate::error::amount_to_diff(amount));
 
     log_event(&event);
 }
@@ -45,14 +50,18 @@ pub struct TransferEvent<'a> {
     pub from: &'a ContractAddress,
     #[topic]
     pub to: &'a ContractAddress,
-    pub amount: u128,
+    /// The transferred amount. Always non-negative; typed `i128` to match the
+    /// standard [`stdevt::TransferEvent`], and bounded to `i128::MAX` on-chain
+    /// (see [`log_transfer_event`]). For in-range values the CXS encoding is
+    /// identical to the previous `u128`.
+    pub amount: i128,
 }
 
 impl<'a> TransferEvent<'a> {
     pub fn new(
         from: &'a ContractAddress,
         to: &'a ContractAddress,
-        amount: u128,
+        amount: i128,
     ) -> Self {
         Self { from, to, amount }
     }
@@ -75,7 +84,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
         let to: &ContractAddress =
             event.topic(2).ok_or("Missing topic")?.into();
 
-        let amount: u128 = sdk::internal::decode_xdr(event.payload())
+        let payload =
+            event.payload().ok_or("Malformed event: topics overrun body")?;
+        let amount: i128 = sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(TransferEvent::new(from, to, amount))
@@ -87,7 +98,8 @@ impl<'a> From<&TransferEvent<'a>> for stdevt::TransferEvent {
         stdevt::TransferEvent {
             from_address: *val.from,
             to_address: *val.to,
-            amount: TryInto::<i128>::try_into(val.amount).unwrap().into(),
+            // Both carry `amount` as i128 now, so this is infallible.
+            amount: val.amount.into(),
         }
     }
 }
@@ -176,7 +188,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
         let spender: &ContractAddress =
             event.topic(2).ok_or("Missing topic")?.into();
 
-        let difference: i128 = sdk::internal::decode_xdr(event.payload())
+        let payload =
+            event.payload().ok_or("Malformed event: topics overrun body")?;
+        let difference: i128 = sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(ApprovalEvent::new(owner, spender, difference))

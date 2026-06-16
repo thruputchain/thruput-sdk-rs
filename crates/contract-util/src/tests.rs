@@ -155,4 +155,28 @@ mod tests {
         let s2 = crate::event_signature("1.0.0", "mycrate", "BetaEvent");
         assert_ne!(s1, s2);
     }
+
+    #[test]
+    fn entrypoint_id_separators_prevent_field_boundary_collision() {
+        use crate::{NormalizedMethodSignature, contract_entrypoint_id};
+        // Without the `::` separators these two triples would both hash the
+        // bytes "Foo12x" and collide to the same id (silent misrouting):
+        //   interface "Foo1" + major "2"  + method "x"
+        //   interface "Foo"  + major "12" + method "x"
+        let a = contract_entrypoint_id(
+            Some("Foo1"),
+            "2.0.0",
+            &NormalizedMethodSignature::new("x"),
+        );
+        let b = contract_entrypoint_id(
+            Some("Foo"),
+            "12.0.0",
+            &NormalizedMethodSignature::new("x"),
+        );
+        assert_ne!(
+            a, b,
+            "distinct (interface, version, method) triples must produce \
+             distinct entrypoint ids"
+        );
+    }
 }

@@ -5,8 +5,27 @@ use crate::sys_exn::nnint_internal as nnint;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-/// Non-negative integer
+/// A stored integer with a **commit-time floor**, not a call-time
+/// non-negativity invariant.
 ///
+/// The value is `set + add`: `set` is the last explicit [`set`](Self::set) (or
+/// the value carried from the previous transaction) and `add` is what
+/// [`inc`](Self::inc) has accumulated this transaction. The storage layer
+/// enforces, at commit, that `set + add >= min(set, 0)`:
+///
+/// - With a non-negative (or never-)`set`, the floor is `0`: the value can't be
+///   driven below zero, and a transaction that would commit a negative value
+///   reverts.
+/// - You may [`set`](Self::set) a *negative* value; the floor becomes that
+///   value. The counter can hold it, but increments still can't take it any
+///   lower than the value you set.
+///
+/// Crucially, for [`inc`](Self::inc) this is a *commit-time* constraint, not a
+/// call-time error. For a hard, call-time "never negative" check with a clear
+/// error (e.g. an ERC20 debit), use [`strict_inc`](Self::strict_inc) /
+/// [`try_strict_inc`](Self::try_strict_inc). The exact rules (and concurrency
+/// constraints) are on the `non_negative_int_*` free functions in
+/// `sys_exn::nnint`.
 #[derive(Debug)]
 pub struct NNInt {
     keypath: Keypath,
@@ -37,7 +56,12 @@ impl NNInt {
         }
     }
 
-    /// Set the value
+    /// Set the value, clearing accumulated [`inc`](Self::inc)s this transaction.
+    ///
+    /// A negative `set_value` is allowed: the commit-time floor becomes that
+    /// value, so the counter can hold it but increments still can't take it any
+    /// lower. A non-negative `set_value` keeps the floor at `0`. (At commit,
+    /// `value >= min(set_value, 0)` must hold.) See the [type docs](NNInt).
     pub fn set(&mut self, set_value: i128) {
         nnint::set_add(
             &self.keypath.generate_key(),
@@ -48,6 +72,11 @@ impl NNInt {
     }
 
     /// Increment by an amount (without querying the current value).
+    ///
+    /// The floor is enforced at *commit*, not here: the transaction reverts if
+    /// the committed value would fall below `min(set, 0)` (see the
+    /// [type docs](NNInt)). For a call-time non-negativity check, use
+    /// [`strict_inc`](Self::strict_inc). Throws on overflow.
     pub fn inc(&mut self, increment: i128) {
         let key = &self.keypath.generate_key();
         let (s, a) = nnint::get_values(key);

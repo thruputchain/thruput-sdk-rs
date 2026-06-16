@@ -499,7 +499,7 @@ fn test_frame_events_single() {
     assert_eq!(result.events().len(), 1);
     result.assert_raw_event(0, |e| {
         assert_eq!(e.num_topics(), 0);
-        assert_eq!(e.payload(), b"hello");
+        assert_eq!(e.payload().unwrap(), b"hello");
     });
 }
 
@@ -519,10 +519,10 @@ fn test_frame_events_multiple() {
     result.assert_success();
     assert_eq!(result.events().len(), 2);
     result.assert_raw_event(0, |e| {
-        assert_eq!(e.payload(), b"first");
+        assert_eq!(e.payload().unwrap(), b"first");
     });
     result.assert_raw_event(1, |e| {
-        assert_eq!(e.payload(), b"second");
+        assert_eq!(e.payload().unwrap(), b"second");
     });
 }
 
@@ -549,7 +549,7 @@ fn test_frame_events_with_topics() {
     result.assert_raw_event(0, |e| {
         assert_eq!(e.num_topics(), 1);
         assert_eq!(e.topic(0).unwrap().as_ref(), topic.as_ref());
-        assert_eq!(e.payload(), b"data");
+        assert_eq!(e.payload().unwrap(), b"data");
     });
 }
 
@@ -631,7 +631,7 @@ fn test_frame_events_via_transact_manual() {
     frame_result.assert_success();
     assert_eq!(frame_result.events().len(), 1);
     frame_result.assert_raw_event(0, |e| {
-        assert_eq!(e.payload(), b"manual");
+        assert_eq!(e.payload().unwrap(), b"manual");
     });
 }
 

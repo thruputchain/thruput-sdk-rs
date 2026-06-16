@@ -106,10 +106,18 @@ pub fn contract_entrypoint_id(
     let major_version = semver::major_version_from_string(version_str);
     let method_sig = method.get_signature_string();
 
-    // Entrypoint ID = sha256(INTERFACE_NAME || MAJOR_VERSION || METHOD_SIGNATURE)[0..8]
+    // Entrypoint ID = sha256(INTERFACE_NAME :: MAJOR_VERSION :: METHOD_SIGNATURE)[0..8]
+    //
+    // The `::` separators are required for the same reason as in
+    // `exception_selector`/`event_signature`: without them, distinct field
+    // triples can concatenate to identical bytes (e.g. interface "Foo1" +
+    // major "2" + method "x" vs "Foo" + "12" + "x", both "Foo12x"), colliding
+    // to the same id and silently misrouting a call.
     let mut hasher = sha2::Sha256::new();
     hasher.update(interface_name.unwrap_or("_unnamed_interface").as_bytes());
+    hasher.update(b"::");
     hasher.update(major_version.as_bytes());
+    hasher.update(b"::");
     hasher.update(method_sig.as_bytes());
     let result = hasher.finalize();
 
