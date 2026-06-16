@@ -49,12 +49,14 @@ pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
 /// This call always succeeds, but it puts constraints on the transaction,
 /// described below.
 ///
-/// A negative value is allowed, as this explicitly changes the absolute value.
-/// If subsequent increments result in a negative sum again, that will not lead
-/// to an exception.
+/// A negative value is allowed: it sets the commit-time floor to that value.
+/// Subsequent increments may keep the value negative (down to the value set)
+/// without an exception, but they cannot decrement below it — the storage layer
+/// enforces `set + add >= min(set, 0)` at commit.
 ///
-/// If a non-negative value is set, and subsequent increments added to that
-/// value would be negative at the end of the transaction, it will revert.
+/// If a non-negative value is set, the floor is `0`: increments that would make
+/// the committed value negative at the end of the transaction cause it to
+/// revert.
 ///
 /// A set of concurrent transactions with the same explicitly-set value may
 /// included in the same block.

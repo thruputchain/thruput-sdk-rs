@@ -43,6 +43,25 @@ impl<T> Signed<T> {
         }
     }
 
+    /// An uninitialized `Signed` carrying the sentinel handle (`u32::MAX`).
+    ///
+    /// The handle must be filled via [`ReceiveAuthHandles`] before the value is
+    /// used; collecting or consuming it while uninitialized aborts. This is the
+    /// same value a freshly-decoded `Signed` holds before its handle arrives
+    /// out-of-band.
+    ///
+    /// Intentionally an explicit, `#[doc(hidden)]` constructor rather than a
+    /// `Default` impl: a sentinel must not be reachable via `#[derive(Default)]`
+    /// on a containing struct, which would silently leave an auth field
+    /// uninitialized.
+    #[doc(hidden)]
+    pub fn uninitialized() -> Self {
+        Self {
+            handle: u32::MAX,
+            _phantom: PhantomData,
+        }
+    }
+
     pub fn handle(&self) -> u32 {
         self.handle
     }
@@ -119,17 +138,6 @@ impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G);
 #[cfg(feature = "alloc")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H);
 
-/// Returns a Signed with sentinel handle (u32::MAX). Used internally
-/// by Mintable to construct payload values — not for direct use.
-impl<T> Default for Signed<T> {
-    fn default() -> Self {
-        Self {
-            handle: u32::MAX,
-            _phantom: PhantomData,
-        }
-    }
-}
-
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 use crate::receive_auth_handles::ReceiveAuthHandles;
 
@@ -200,7 +208,8 @@ where
     ) -> Self {
         let node = crate::mintable::build_auth_token_node::<T>(preimage);
         children.push(node).expect("too many auth token children");
-        Signed::default()
+        // Placeholder handle; filled by ReceiveAuthHandles after minting.
+        Signed::uninitialized()
     }
 }
 

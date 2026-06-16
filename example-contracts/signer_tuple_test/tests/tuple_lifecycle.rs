@@ -78,7 +78,7 @@ fn tuple_struct_payload_roundtrip() {
 
 #[test]
 fn tuple_struct_collect_handles() {
-    let mut auth = TupleAuth(42, Signed::default());
+    let mut auth = TupleAuth(42, Signed::uninitialized());
     let mut iter = [5u32].into_iter();
     auth.receive_auth_handles(&mut iter).unwrap();
 

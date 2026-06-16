@@ -47,7 +47,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.15.0" }
+sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.15.1" }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.3" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.3" }

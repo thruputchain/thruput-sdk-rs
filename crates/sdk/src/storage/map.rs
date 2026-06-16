@@ -6,6 +6,23 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use xdrs::WriteXDR;
 
+/// A persistent map from keys of type `K` to storage values of type `V`.
+///
+/// # Key identity is the XDR encoding
+///
+/// An entry's storage slot is addressed by `sha256(XDR-encode(key))` — the
+/// key's [`WriteXDR`] encoding *is* its identity. Two keys address the same
+/// entry if and only if they encode to the same bytes; the in-memory `K` value
+/// (and any `PartialEq`/`Eq`/`Hash` it has) is never consulted by the storage
+/// layer.
+///
+/// **Invariant for key types:** any `PartialEq`/`Eq` you rely on for `K` must
+/// agree with its `WriteXDR` encoding (`a == b` ⟺ `encode(a) == encode(b)`).
+/// Every `#[derive(PartialEq)]` type alongside the XDR derive satisfies this. A
+/// hand-written `PartialEq` that is finer than the encoding (e.g. it compares a
+/// field that isn't encoded) will disagree with which entries are actually the
+/// same slot — see [`at_disjoint_mut`](Self::at_disjoint_mut), whose
+/// duplicate-key check relies on this invariant.
 #[derive(Debug)]
 pub struct Map<K, V> {
     keypath: Keypath,
@@ -64,6 +81,12 @@ impl<K, V> Map<K, V> {
     /// and provides `DerefMut` access to the `[V; N]` array.
     ///
     /// Mirrors `HashMap::get_disjoint_mut`.
+    ///
+    /// The duplicate-key check uses `K: PartialEq` as a proxy for storage-slot
+    /// identity. This is sound only under the key-encoding invariant documented
+    /// on [`Map`]: `PartialEq` must agree with the `WriteXDR` encoding. A key
+    /// type that violates it can pass this check while aliasing one slot — the
+    /// same hazard as [`at_disjoint_unchecked_mut`](Self::at_disjoint_unchecked_mut).
     pub fn at_disjoint_mut<const N: usize>(
         &mut self,
         keys: [&K; N],
