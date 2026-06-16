@@ -21,6 +21,11 @@ jobs:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
       # SDK unit tests run in the separate `sdk-tests` job (sdk_tests.yml).
       SKIP_SDK_TESTS: "1"
+      # Share one FFI download cache across every groundhog-sys build instance
+      # (and across runs, via the Namespace cache below). Without this the cache
+      # defaults to each instance's OUT_DIR, so every workspace/feature variant
+      # re-downloads the prebuilt FFI tarball.
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
@@ -57,6 +62,8 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@v1
         with:
           cache: rust
+          # Persist the shared FFI download cache across runs.
+          path: ${{ github.workspace }}/.hogd-ffi-cache
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
       # features like --ignore-file); the runner image doesn't ship it.
