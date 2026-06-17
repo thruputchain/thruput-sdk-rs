@@ -19,6 +19,11 @@ jobs:
     runs-on: namespace-profile-hogd-linux
     env:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
+      # Share one FFI download cache across every groundhog-sys build instance
+      # (and across runs, via the Namespace cache below). Without this the cache
+      # defaults to each instance's OUT_DIR, so every workspace/feature variant
+      # re-downloads the prebuilt FFI tarball.
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
       - name: Checkout
@@ -28,6 +33,8 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@v1
         with:
           cache: rust
+          path: |
+            ${{ github.workspace }}/.hogd-ffi-cache
 
       - name: Run SDK tests
         env:
