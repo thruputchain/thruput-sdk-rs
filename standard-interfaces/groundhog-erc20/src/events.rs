@@ -84,8 +84,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
         let to: &ContractAddress =
             event.topic(2).ok_or("Missing topic")?.into();
 
-        let payload =
-            event.payload().ok_or("Malformed event: topics overrun body")?;
+        let payload = event
+            .payload()
+            .ok_or("Malformed event: topics overrun body")?;
         let amount: i128 = sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
@@ -188,8 +189,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
         let spender: &ContractAddress =
             event.topic(2).ok_or("Missing topic")?.into();
 
-        let payload =
-            event.payload().ok_or("Malformed event: topics overrun body")?;
+        let payload = event
+            .payload()
+            .ok_or("Malformed event: topics overrun body")?;
         let difference: i128 = sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 

@@ -27,7 +27,8 @@ impl<'a> EmittedEvent<'a> {
     }
 
     /// The XDR-encoded payload (everything after the topics region), or `None`
-    /// if the event is malformed (see [`topics_byte_len`](Self::topics_byte_len)).
+    /// if the event is malformed (claims more topics than the protocol allows,
+    /// or the claimed topics don't fit in `serialized_event`).
     ///
     /// Returning `None` rather than silently clamping to an empty slice keeps a
     /// corrupt event from decoding as a valid zero-field payload, and matches
