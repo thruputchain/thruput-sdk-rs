@@ -54,8 +54,21 @@ impl Hasher {
     }
 
     /// Consume the hasher and return the SHA256 hash of the prior input.
-    pub fn finish(self) -> SHA256Hash {
+    pub fn finish(mut self) -> SHA256Hash {
         let index = self.index as u32;
+
+        // If the hasher was never updated, the VM has not created a buffer for
+        // this slot (and any buffer left over from a previously dropped hasher
+        // on the reused slot would be stale). Issue an empty reset update so
+        // that SHA256Finalize sees a fresh, empty buffer and returns the hash
+        // of the empty input. Mirrors how `update()` invokes the syscall.
+        if self.needs_reset {
+            self.needs_reset = false;
+            crate::sys::raw_SHA256Update(index, &[], true).unwrap_or_else(
+                |e| panic!("SHA256Update: syscall failed: {:?}", e),
+            );
+        }
+
         let mut output = core::mem::MaybeUninit::uninit();
 
         crate::sys::uninit_SHA256Finalize(index, &mut output).unwrap_or_else(
