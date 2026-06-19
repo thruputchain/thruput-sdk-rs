@@ -186,6 +186,29 @@ mod test_keypath {
     }
 
     #[test]
+    fn addresses_same_slot_matches_preimage_equality() {
+        let root = Keypath::root();
+        let a = root.child_index(3).child_item(&42u64);
+        let same = root.child_index(3).child_item(&42u64);
+        let different = root.child_index(3).child_item(&43u64);
+        assert!(a.addresses_same_slot(&same));
+        assert!(!a.addresses_same_slot(&different));
+    }
+
+    #[test]
+    fn addresses_same_slot_ignores_exclusive_flag() {
+        // The exclusive flag is an access mode, not part of slot identity:
+        // two otherwise-identical keypaths still address the same slot.
+        let base = Keypath::root().child_item(&7u32);
+        let mut exclusive = base.clone();
+        exclusive.set_exclusive();
+        assert!(exclusive.is_exclusive());
+        assert!(!base.is_exclusive());
+        assert!(base.addresses_same_slot(&exclusive));
+        assert!(exclusive.addresses_same_slot(&base));
+    }
+
+    #[test]
     fn derivation_is_deterministic() {
         let k1 = Keypath::root().child_index(3).child_item(&42u64);
         let k2 = Keypath::root().child_index(3).child_item(&42u64);
