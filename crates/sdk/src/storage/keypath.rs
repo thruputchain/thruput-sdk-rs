@@ -140,6 +140,17 @@ impl Keypath {
         sha256(self.buf.as_slice()).into()
     }
 
+    /// Whether `self` and `other` address the same storage slot.
+    ///
+    /// Slot identity is the keypath preimage: two keypaths address the same
+    /// slot iff their framed byte buffers are equal (and therefore hash to
+    /// the same [`generate_key`](Self::generate_key)). The `exclusive`
+    /// access-mode flag is not part of slot identity. Compares the preimages
+    /// directly, so it needs no syscall and no `sha256`.
+    pub fn addresses_same_slot(&self, other: &Keypath) -> bool {
+        self.buf.as_slice() == other.buf.as_slice()
+    }
+
     pub fn is_exclusive(&self) -> bool {
         self.exclusive
     }
@@ -172,6 +183,29 @@ mod test_keypath {
         let c = root.child_index(0);
         let d = root.child_item(&0u64);
         assert_ne!(c.buf.as_slice(), d.buf.as_slice());
+    }
+
+    #[test]
+    fn addresses_same_slot_matches_preimage_equality() {
+        let root = Keypath::root();
+        let a = root.child_index(3).child_item(&42u64);
+        let same = root.child_index(3).child_item(&42u64);
+        let different = root.child_index(3).child_item(&43u64);
+        assert!(a.addresses_same_slot(&same));
+        assert!(!a.addresses_same_slot(&different));
+    }
+
+    #[test]
+    fn addresses_same_slot_ignores_exclusive_flag() {
+        // The exclusive flag is an access mode, not part of slot identity:
+        // two otherwise-identical keypaths still address the same slot.
+        let base = Keypath::root().child_item(&7u32);
+        let mut exclusive = base.clone();
+        exclusive.set_exclusive();
+        assert!(exclusive.is_exclusive());
+        assert!(!base.is_exclusive());
+        assert!(base.addresses_same_slot(&exclusive));
+        assert!(exclusive.addresses_same_slot(&base));
     }
 
     #[test]
