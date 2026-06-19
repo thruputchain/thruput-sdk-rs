@@ -163,4 +163,19 @@ mod tests {
         assert_eq!(raw.selector(), FakeError::SELECTOR);
         assert_eq!(raw.try_as::<FakeError>(), Some(FakeError::Fake));
     }
+
+    /// Under `alloc` the payload buffer grows to fit, so a payload far larger
+    /// than the no-alloc `SCRATCH_MAX` cap round-trips intact (no truncation).
+    ///
+    /// The complementary no-alloc behavior — a payload exceeding `SCRATCH_MAX`
+    /// returning `Err` instead of a truncated value — is only reachable on the
+    /// guest target; the host test harness is always built with `alloc`, so it
+    /// cannot exercise that branch here.
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn new_holds_oversized_payload_without_truncation_under_alloc() {
+        let big = [0xABu8; crate::internal::SCRATCH_MAX + 1];
+        let raw = RawException::new(0x1234, &big).unwrap();
+        assert_eq!(raw.payload(), &big[..]);
+    }
 }
