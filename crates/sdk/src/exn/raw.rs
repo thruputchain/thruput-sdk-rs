@@ -1,5 +1,5 @@
 use crate::call::contract_call_decode_exn_prefix;
-use crate::exn::Exn;
+use crate::exn::{CallingError, Exn, FaultString, LibraryExn};
 use crate::xdr::*;
 use core::fmt::{self, Debug};
 
@@ -13,20 +13,43 @@ pub struct RawException {
 }
 
 impl RawException {
-    pub fn new(selector: u64, payload: &[u8]) -> Self {
-        Self {
+    /// Build a `RawException` from a selector and payload bytes.
+    ///
+    /// With `alloc` this is infallible. Without `alloc` the payload is held in
+    /// a fixed [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer; a
+    /// payload larger than that returns `Err` (a typed
+    /// [`CallingError::DecodingException`]) rather than being silently
+    /// truncated, which would yield a mis-decoded exception. Use
+    /// [`or_re_throw`](crate::re_throw::OrReThrow::or_re_throw) to turn the
+    /// error into an abort at the call site.
+    pub fn new(selector: u64, payload: &[u8]) -> Result<Self, LibraryExn> {
+        let buf = crate::call::buf_from_slice(payload).map_err(|()| {
+            LibraryExn::Calling(CallingError::DecodingException(
+                FaultString::from_display(format_args!(
+                    "exception payload ({} bytes) exceeds the no-alloc \
+                     buffer capacity ({})",
+                    payload.len(),
+                    crate::internal::SCRATCH_MAX,
+                )),
+            ))
+        })?;
+        Ok(Self {
             selector,
-            payload: crate::call::buf_from_slice(payload),
-        }
+            payload: buf,
+        })
     }
 
     /// Decode a RawException from an abort buffer.
     /// The buffer is CXS-encoded: [u64 selector][payload bytes...].
-    pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, ReadError> {
+    pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, LibraryExn> {
         let mut reader = cxs::buf_reader::BufReader::new(bytes);
-        let selector: u64 = ReadXDR::read_xdr(&mut reader)?;
+        let selector: u64 = ReadXDR::read_xdr(&mut reader).map_err(|e| {
+            LibraryExn::Calling(CallingError::DecodingException(
+                FaultString::from_display(e),
+            ))
+        })?;
         let payload_bytes = reader.remaining_slice();
-        Ok(Self::new(selector, payload_bytes))
+        Self::new(selector, payload_bytes)
     }
 
     pub fn selector(&self) -> u64 {
@@ -106,20 +129,22 @@ mod tests {
     #[test]
     fn try_as_matching_selector_decodes() {
         let encoded = encode_xdr(&FakeError::Fake).unwrap();
-        let raw = RawException::new(FakeError::SELECTOR, encoded.as_ref());
+        let raw =
+            RawException::new(FakeError::SELECTOR, encoded.as_ref()).unwrap();
         assert_eq!(raw.try_as::<FakeError>(), Some(FakeError::Fake));
     }
 
     #[test]
     fn try_as_wrong_selector_returns_none() {
         let encoded = encode_xdr(&FakeError::Fake).unwrap();
-        let raw = RawException::new(0xFFFF, encoded.as_ref());
+        let raw = RawException::new(0xFFFF, encoded.as_ref()).unwrap();
         assert_eq!(raw.try_as::<FakeError>(), None);
     }
 
     #[test]
     fn try_as_corrupt_payload_returns_none() {
-        let raw = RawException::new(FakeError::SELECTOR, &[0xFF, 0xFF, 0xFF]);
+        let raw = RawException::new(FakeError::SELECTOR, &[0xFF, 0xFF, 0xFF])
+            .unwrap();
         assert_eq!(raw.try_as::<FakeError>(), None);
     }
 

@@ -17,19 +17,22 @@ pub type Buf = crate::internal::ScratchBuf;
 pub type ReturnBuf = Buf;
 pub type AbortBuf = Buf;
 
-/// Copy `bytes` into a fresh [`Buf`]. Without `alloc`, input beyond the
-/// fixed capacity is truncated.
-pub(crate) fn buf_from_slice(bytes: &[u8]) -> Buf {
+/// Copy `bytes` into a fresh [`Buf`]. With `alloc` the buffer grows to fit and
+/// this always succeeds. Without `alloc` the buffer is the fixed
+/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX) capacity; a payload that
+/// exceeds it returns `Err(())` rather than silently truncating (which would
+/// yield a mis-decoded exception/result). Callers map the error to a typed
+/// exception of their choosing.
+pub(crate) fn buf_from_slice(bytes: &[u8]) -> Result<Buf, ()> {
     #[cfg(feature = "alloc")]
     {
-        bytes.to_vec()
+        Ok(bytes.to_vec())
     }
     #[cfg(not(feature = "alloc"))]
     {
         let mut buf = Buf::new();
-        let take = bytes.len().min(buf.capacity());
-        buf.extend_from_slice(&bytes[..take]).ok();
-        buf
+        buf.extend_from_slice(bytes).map_err(|_| ())?;
+        Ok(buf)
     }
 }
 
