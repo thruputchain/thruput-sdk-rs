@@ -140,6 +140,17 @@ impl Keypath {
         sha256(self.buf.as_slice()).into()
     }
 
+    /// Whether `self` and `other` address the same storage slot.
+    ///
+    /// Slot identity is the keypath preimage: two keypaths address the same
+    /// slot iff their framed byte buffers are equal (and therefore hash to
+    /// the same [`generate_key`](Self::generate_key)). The `exclusive`
+    /// access-mode flag is not part of slot identity. Compares the preimages
+    /// directly, so it needs no syscall and no `sha256`.
+    pub fn addresses_same_slot(&self, other: &Keypath) -> bool {
+        self.buf.as_slice() == other.buf.as_slice()
+    }
+
     pub fn is_exclusive(&self) -> bool {
         self.exclusive
     }

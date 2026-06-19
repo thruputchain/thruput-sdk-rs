@@ -14,15 +14,9 @@ use xdrs::WriteXDR;
 /// key's [`WriteXDR`] encoding *is* its identity. Two keys address the same
 /// entry if and only if they encode to the same bytes; the in-memory `K` value
 /// (and any `PartialEq`/`Eq`/`Hash` it has) is never consulted by the storage
-/// layer.
-///
-/// **Invariant for key types:** any `PartialEq`/`Eq` you rely on for `K` must
-/// agree with its `WriteXDR` encoding (`a == b` ⟺ `encode(a) == encode(b)`).
-/// Every `#[derive(PartialEq)]` type alongside the XDR derive satisfies this. A
-/// hand-written `PartialEq` that is finer than the encoding (e.g. it compares a
-/// field that isn't encoded) will disagree with which entries are actually the
-/// same slot — see [`at_disjoint_mut`](Self::at_disjoint_mut), whose
-/// duplicate-key check relies on this invariant.
+/// layer. In particular, no `Map` operation consults `K`'s `PartialEq`/`Eq`:
+/// even the duplicate-key check in [`at_disjoint_mut`](Self::at_disjoint_mut)
+/// compares the derived storage keypaths, not the keys themselves.
 #[derive(Debug)]
 pub struct Map<K, V> {
     keypath: Keypath,
@@ -82,30 +76,30 @@ impl<K, V> Map<K, V> {
     ///
     /// Mirrors `HashMap::get_disjoint_mut`.
     ///
-    /// The duplicate-key check uses `K: PartialEq` as a proxy for storage-slot
-    /// identity. This is sound only under the key-encoding invariant documented
-    /// on [`Map`]: `PartialEq` must agree with the `WriteXDR` encoding. A key
-    /// type that violates it can pass this check while aliasing one slot — the
-    /// same hazard as [`at_disjoint_unchecked_mut`](Self::at_disjoint_unchecked_mut).
+    /// The duplicate-key check compares the derived storage keypaths — the
+    /// actual slot identity — so it does not consult `K`'s `PartialEq` and is
+    /// exact regardless of how (or whether) `K` implements it.
     pub fn at_disjoint_mut<const N: usize>(
         &mut self,
         keys: [&K; N],
     ) -> DisjointMut<'_, Self, V, N>
     where
-        K: WriteXDR + PartialEq,
+        K: WriteXDR,
         V: StorageType,
     {
-        // O(n^2) deduplication check
+        let keypaths = keys.map(|k| self.make_entry_keypath(k));
+
+        // O(n^2) check for keys that resolve to the same storage slot.
         for i in 0..N {
             for j in (i + 1)..N {
                 assert!(
-                    keys[i] != keys[j],
+                    !keypaths[i].addresses_same_slot(&keypaths[j]),
                     "at_disjoint_mut: duplicate keys at indices {i} and {j}"
                 );
             }
         }
 
-        let slots = keys.map(|k| V::from(self.make_entry_keypath(k)));
+        let slots = keypaths.map(V::from);
         DisjointMut {
             slots,
             _borrow: PhantomData,
