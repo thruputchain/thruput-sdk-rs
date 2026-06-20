@@ -47,12 +47,14 @@ where
                 r => panic!("Transaction failed: {:?}", r),
             }
             Ok((
-                crate::call::buf_from_slice(return_buffer.as_slice()),
+                crate::call::buf_from_slice(return_buffer.as_slice())
+                    .expect("host return buffer is heap-allocated"),
                 AuthHandleBuf::new(),
             ))
         }
         Abort { abort_buffer } => Err(ContractError::Abort(
-            crate::call::buf_from_slice(abort_buffer.as_slice()),
+            crate::call::buf_from_slice(abort_buffer.as_slice())
+                .expect("host abort buffer is heap-allocated"),
         )),
         Fault => Err(ContractError::Fault(FaultString::empty())),
         other => {

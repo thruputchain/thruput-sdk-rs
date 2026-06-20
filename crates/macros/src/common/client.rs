@@ -395,7 +395,7 @@ fn generate_selector_dispatch(
                     let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
                     if err.is_err() {
                         return Err(#error_enum_ident::BadDecode(
-                            ::sdk::exn::RawException::new(selector, payload)));
+                            ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))));
                     }
                     Err(#error_enum_ident::#variant(err.unwrap()))
                 }
@@ -410,13 +410,13 @@ fn generate_selector_dispatch(
                 let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
                 if err.is_err() {
                     return Err(#error_enum_ident::BadDecode(
-                        ::sdk::exn::RawException::new(selector, payload)));
+                        ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))));
                 }
                 Err(#error_enum_ident::Library(err.unwrap()))
             }
             _ => {
                 Err(#error_enum_ident::Unknown(
-                    ::sdk::exn::RawException::new(selector, payload)))
+                    ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))))
             }
         }
     }
