@@ -132,17 +132,17 @@ where
     // no fresh 4 KiB buffer on the (small) guest stack.
     let auth_handles = crate::call::collect_auth_handle_bytes(ret)
         .unwrap_or_else(|e| {
-            library_throw(HandlingError::EncodingException(
+            // This is the successful-return path, so a failure here is an
+            // `EncodingSuccess` condition — not `EncodingException`, which is
+            // reserved for a failed *abort* encode.
+            library_throw(HandlingError::EncodingSuccess(
                 FaultString::from_display(e),
             ));
         });
 
     crate::call::with_scratch(|buf| {
-        crate::internal::encode_scratch(buf, ret).unwrap_or_else(|e| {
-            library_throw(HandlingError::EncodingException(
-                FaultString::via_display(&e),
-            ))
-        });
+        crate::internal::encode_scratch(buf, ret)
+            .unwrap_or_else(|e| crate::exn::encoding_success_throw(e));
         contract_return(buf.as_ref(), auth_handles.as_slice());
     })
 }
