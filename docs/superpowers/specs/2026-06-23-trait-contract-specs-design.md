@@ -3,6 +3,17 @@
 **Date:** 2026-06-23
 **Status:** Approved design, pending implementation plan
 
+> **Revision (2026-06-23, rv32-native):** the artifact is built as an rv32
+> `[[bin]]` (the proven `extern crate <lib>;` wrapper, e.g. `itc_erc20`), **not**
+> a wasm `cdylib` — rv32 is the target and the wasm path is being deprecated.
+> Spec extraction does **not** reuse the wasm-only `spec-tool rewrite`; instead a
+> new `spec-tool` ELF reader (`elf::elf_to_spec`) pulls the `groundhogspecrawv0`
+> section from the riscv32 ELF and feeds the existing
+> `parse_raw_fragments` → `canonicalize_spec` → `spec_to_json` pipeline. This
+> also fills a real pre-existing gap: rv32 emits spec fragments but nothing
+> in-repo extracted them (the wasm path was the only reader). See the
+> implementation plan for the authoritative task list.
+
 ## Problem
 
 Today the `#[contract]` macro only emits spec fragments (the XDR-encoded
