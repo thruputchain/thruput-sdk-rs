@@ -9,6 +9,10 @@ description = "ERC20 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
+# Empty per-crate switch read by the #[contract] macro via
+# cfg!(feature = "entrypoints"). Mirrors example-contracts/erc20. Must NOT be
+# enabled by dependents' entrypoints features.
+entrypoints = []
 dev = ["sdk/dev", "dep:thiserror"]
 
 [dependencies]
@@ -26,4 +30,9 @@ sdk = { workspace = true, features = ["std"] }
 crate-type = ["rlib"]
 doctest = false
 test = false
+
+[[bin]]
+name = "groundhog-erc20-if"
+path = "src/main.rs"
+required-features = ["entrypoints"]
 

@@ -1,6 +1,28 @@
 [build]
 rustflags = [ "--deny", "warnings" ]
 
+[target.riscv32im-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    # CODE and DATA live in two MEMORY regions whose VMAs intentionally overlap
+    # (the VM's Harvard split keeps them in separate address spaces). LLD's
+    # default overlap check would abort the link, so disable it.
+    "-C", "link-arg=--no-check-sections",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-dynamic-linker",
+    "-C", "link-arg=--gc-sections",
+    "-C", "panic=abort",
+    "-C", "relocation-model=static",
+    # llvm pads unreachable code (after Return/Exit/Abort -> ! syscalls)
+    # with `unimp` (= csrrw x0, cycle, x0 = 0xc0001073), a CSR op the hogd
+    # RV32IM profile rejects, so Program::validate would reject every
+    # Return-call-site. Disable the safety pad. NOTE: the vm now accepts
+    # `ebreak`, but the pad LLVM emits is `unimp`/CSR (not `ebreak`), so
+    # this flag is still required.
+    "-Z", "trap-unreachable=false",
+    "--deny", "warnings",
+    ]
+
 [target.'cfg(all(target_os = "macos", not(target_family = "wasm")))']
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-lSystem", "-C", "link-arg=-Wl,-rpath,@loader_path" ]
 
