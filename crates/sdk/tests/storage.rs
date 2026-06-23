@@ -475,6 +475,23 @@ fn test_map_at_disjoint_mut_duplicate_panics() {
     assert!(!result.is_success());
 }
 
+#[derive(sdk::Storage)]
+struct StorageDomainPlain {
+    _v: sdk::storage::Value<u64>,
+}
+
+#[sdk::storage(domain = "custom")]
+struct StorageDomainRenamed {
+    _v: sdk::storage::Value<u64>,
+}
+
+#[test]
+fn storage_domain_defaults_to_ident_and_overrides() {
+    use sdk::storage::StorageDomain;
+    assert_eq!(<StorageDomainPlain as StorageDomain>::DOMAIN, "StorageDomainPlain");
+    assert_eq!(<StorageDomainRenamed as StorageDomain>::DOMAIN, "custom");
+}
+
 #[test]
 fn test_data_fully_consumed() {
     let env = sdk::TestEnvironment::no_cost();

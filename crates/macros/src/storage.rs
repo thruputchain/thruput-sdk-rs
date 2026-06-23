@@ -12,9 +12,58 @@ use syn::spanned::Spanned;
 /// declaration order. **Reordering struct fields remaps their storage slots** —
 /// existing on-chain state stored under the old field order will not follow
 /// the renamed positions.
+fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
+    let ident = &input.ident;
+    let (impl_generics, ty_generics, where_clause) =
+        input.generics.split_for_impl();
+
+    // Override via #[storage_domain = "..."], else the bare ident.
+    let mut domain: Option<syn::LitStr> = None;
+    for attr in &input.attrs {
+        if attr.path().is_ident("storage_domain") {
+            let lit = match &attr.meta {
+                syn::Meta::NameValue(syn::MetaNameValue {
+                    value:
+                        syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Str(s),
+                            ..
+                        }),
+                    ..
+                }) => s.clone(),
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        "#[storage_domain] must be `storage_domain = \"...\"`",
+                    ));
+                }
+            };
+            domain = Some(lit);
+        }
+    }
+    let domain_lit = match domain {
+        Some(s) => quote! { #s },
+        None => {
+            let name = ident.to_string();
+            quote! { #name }
+        }
+    };
+
+    Ok(quote! {
+        const _: () = {
+            use ::sdk::storage::StorageDomain;
+            impl #impl_generics StorageDomain for #ident #ty_generics
+                #where_clause
+            {
+                const DOMAIN: &'static str = #domain_lit;
+            }
+        };
+    })
+}
+
 pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     let item = &input.data;
     let storage_impls = generate_from_data(input, item)?;
+    let domain_impl = storage_domain_impl(input)?;
 
     let ident = &input.ident;
     let ident_lower =
@@ -27,6 +76,7 @@ pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
             use super::*;
 
             #storage_impls
+            #domain_impl
         }
 
     })

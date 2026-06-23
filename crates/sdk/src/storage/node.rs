@@ -69,6 +69,16 @@ pub trait ContractState: From<Keypath> {}
 
 impl<T: From<Keypath>> ContractState for T {}
 
+/// Carries a storage struct's root domain separator.
+///
+/// Derived by `#[storage]` / `#[derive(Storage)]`. `DOMAIN` defaults to the
+/// struct's bare identifier and is overridable with `#[storage(domain = "…")]`.
+/// Only consulted when the type is used as a contract-state root
+/// (see [`contract_state_root`]); nested usage ignores it.
+pub trait StorageDomain {
+    const DOMAIN: &'static str;
+}
+
 /// Construct the root state node for a contract entrypoint.
 ///
 /// Called by `#[contract]`-generated code; not intended for direct use.

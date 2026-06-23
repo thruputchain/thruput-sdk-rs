@@ -1,0 +1,5 @@
+error: #[storage_domain] must be `storage_domain = "..."`
+ --> tests/compile-fail-storage/storage_domain_malformed.rs:4:1
+  |
+4 | #[storage_domain(foo)]
+  | ^^^^^^^^^^^^^^^^^^^^^^
