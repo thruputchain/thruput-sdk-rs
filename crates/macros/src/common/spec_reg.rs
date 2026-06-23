@@ -120,6 +120,58 @@ pub fn generate_free_function_raw_spec_fragments(
     })
 }
 
+/// Emit the `groundhogspecrawv0` fragments for a `#[contract]` trait
+/// (interface) definition: one Interface fragment, one Method fragment per
+/// trait method, event fragments, plus throws/event/signature anchor roots.
+/// Mirrors the bare-impl path of `generate_impl_raw_spec_fragments`, but
+/// methods come from the trait and there is no `self_ty`. Name/version match
+/// the trait branch's `__GROUNDHOG_IFACE_*` consts, so a trait-derived spec is
+/// byte-identical in format to the spec a concrete impl would carry.
+pub fn generate_trait_raw_spec_fragments(
+    item: &syn::ItemTrait,
+    config: &Config,
+) -> Result<TokenStream> {
+    let contract = ConfiguredContract::new(config.clone(), item);
+    let methods = contract.methods_sorted().into_iter().collect::<Vec<_>>();
+
+    let iface_name = effective_interface_name(&contract);
+    let iface_vers = contract.defaulted_interface_vers();
+    let throws = throws_spec_tokens(&contract)?;
+
+    let interface_fragment = generate_interface_fragment_tokens(
+        quote! { #iface_name },
+        quote! { #iface_vers },
+        quote! { &[#(#throws),*] },
+    );
+    let event_fragments = generate_config_event_fragments_tokens(config);
+
+    let mut anchor_roots = throws_anchor_tokens(&contract)?;
+    anchor_roots.extend(config_event_anchor_tokens(config));
+
+    let method_fragments = methods
+        .iter()
+        .map(|method| {
+            generate_method_fragment_tokens(
+                quote! { #iface_name },
+                quote! { #iface_vers },
+                method,
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    for method in &methods {
+        anchor_roots.extend(method_anchor_tokens(method)?);
+    }
+    let anchor_root =
+        emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
+
+    Ok(quote! {
+        #interface_fragment
+        #(#method_fragments)*
+        #event_fragments
+        #anchor_root
+    })
+}
+
 /// Emits `SpecEvent` fragments for the events declared on a contract trait
 /// via `emits(...)`. The declared defs live in the trait's
 /// `__GROUNDHOG_IFACE_EVENTS` const (possibly in another crate), so the
@@ -490,6 +542,43 @@ mod tests {
 
         assert!(
             tokens.contains("__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn trait_fragments_include_interface_and_method_records() {
+        let item: syn::ItemTrait = syn::parse_quote! {
+            pub trait ERC20 {
+                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn total_supply(&self) -> u128;
+            }
+        };
+        let tokens = generate_trait_raw_spec_fragments(
+            &item, &Config::from_list(&[]).unwrap(),
+        ).unwrap().to_string();
+
+        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
+        assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"), "{tokens}");
+        assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
+        assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
+        assert!(tokens.contains("\"total_supply\""), "{tokens}");
+        assert!(tokens.contains("\"transfer\""), "{tokens}");
+        assert!(tokens.contains("\"receiver\""), "{tokens}");
+    }
+
+    #[test]
+    fn trait_fragments_carry_config_throws_and_emits() {
+        let item: syn::ItemTrait = syn::parse_quote! {
+            pub trait Token { fn transfer(&mut self); }
+        };
+        let config = parse_config(r#"throws(err::TokenError), emits(events::TransferEvent)"#);
+        let tokens = generate_trait_raw_spec_fragments(&item, &config).unwrap().to_string();
+
+        assert!(tokens.contains("ContractExceptionTypeView"), "{tokens}");
+        assert!(
+            tokens.contains("events :: TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
             "{tokens}"
         );
     }

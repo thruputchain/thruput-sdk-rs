@@ -133,6 +133,9 @@ fn apply_with_config(
             // Generate client interface
             out.extend(client::generate(item, config)?);
             out.extend(exports::generate_entrypoints(item, config)?);
+            out.extend(spec_reg::generate_trait_raw_spec_fragments(
+                item, config,
+            )?);
 
             Ok(out)
         }
@@ -248,6 +251,22 @@ mod tests {
         let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
         let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
         Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn trait_contract_emits_raw_spec_fragments() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait ERC20 {
+                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn total_supply(&self) -> u128;
+            }
+        };
+        let tokens = apply_with_config(&item, &parse_config("")).unwrap().to_string();
+        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
+        assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
+        assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
+        assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
     }
 
     #[test]
