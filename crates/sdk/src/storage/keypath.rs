@@ -72,17 +72,19 @@ type KeyBufImpl = StaticKeyBuf<STATIC_KEYPATH_CAPACITY>;
 
 const TAG_ITEM: u8 = 0x00;
 const TAG_INDEX: u8 = 0x01;
+const TAG_DOMAIN: u8 = 0x02;
 
 /// Path identifying a storage slot.
 ///
 /// A keypath is a sequence of framed components appended to a byte buffer:
 /// [`child_index`](Self::child_index) appends `[0x01] ‖ i.to_be_bytes()`
 /// (SDK-assigned structural positions: struct fields, Vector len/values
-/// regions) and [`child_item`](Self::child_item) appends
-/// `[0x00] ‖ u16-len ‖ encode(t)` (user keys, e.g. Map entries). The
-/// storage key is `sha256` of the buffer, computed once and memoized by
-/// [`KeyCache`]. Framing makes distinct component sequences produce
-/// distinct preimages.
+/// regions), [`child_item`](Self::child_item) appends
+/// `[0x00] ‖ u16-len ‖ encode(t)` (user keys, e.g. Map entries), and
+/// [`child_domain`](Self::child_domain) appends `[0x02] ‖ u16-len ‖ name`
+/// (a root-level type domain). The storage key is `sha256` of the buffer,
+/// computed once and memoized by [`KeyCache`]. Framing makes distinct
+/// component sequences produce distinct preimages.
 ///
 /// Without the `alloc` feature, the preimage shares a fixed
 /// [`STATIC_KEYPATH_CAPACITY`]-byte budget; exceeding it throws
@@ -133,6 +135,27 @@ impl Keypath {
             child.buf.append_bytes(&len.to_be_bytes());
             child.buf.append_bytes(bytes);
         });
+        child
+    }
+
+    /// Root-level domain separator. Appends `[0x02] ‖ u16-len ‖ name bytes`.
+    ///
+    /// Used by [`contract_state_root`](crate::storage::contract_state_root) to
+    /// give each contract-state root type a distinct subtree, so multiple state
+    /// roots linked into one artifact cannot alias. The name is a compile-time
+    /// identifier; an over-long name (>= 64 KiB) throws
+    /// `LibraryExn::StorageKeypathOverflow`.
+    pub fn child_domain(&self, name: &str) -> Keypath {
+        let mut child = self.clone();
+        let bytes = name.as_bytes();
+        let len: u16 = bytes.len().try_into().unwrap_or_else(|_| {
+            crate::exn::library_throw(
+                crate::exn::LibraryExn::StorageKeypathOverflow,
+            )
+        });
+        child.buf.append_bytes(&[TAG_DOMAIN]);
+        child.buf.append_bytes(&len.to_be_bytes());
+        child.buf.append_bytes(bytes);
         child
     }
 
@@ -255,6 +278,21 @@ mod test_keypath {
             "992ef5938f42a0a604538ac271e506422da30b1469f3a480f92c02c2705440e8"
         );
         assert_eq!(digest, expected, "golden key changed");
+    }
+
+    #[test]
+    fn domain_frame_is_distinct_and_tagged() {
+        let root = Keypath::root();
+        // Two roots with different domains diverge.
+        let a = root.child_domain("Token").child_index(0);
+        let b = root.child_domain("Vault").child_index(0);
+        assert_ne!(a.buf.as_slice(), b.buf.as_slice());
+        // A domain frame is distinguishable from an item frame of the same bytes.
+        let dom = root.child_domain("AB");
+        let item = root.child_item(&"AB");
+        assert_ne!(dom.buf.as_slice(), item.buf.as_slice());
+        // Exact framing: TAG_DOMAIN ‖ len(2) BE ‖ "AB"
+        assert_eq!(dom.buf.as_slice(), &[0x02, 0x00, 0x02, b'A', b'B']);
     }
 
     #[cfg(feature = "alloc")]
