@@ -22,6 +22,8 @@ groundhog-xdr = { workspace = true }
 
 [dev-dependencies]
 groundhog-erc20-if = { path = ".", features = ["dev"] }
+tempfile = "3"
+groundhog-spec-tool = { workspace = true }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
 sdk = { workspace = true, features = ["std"] }
