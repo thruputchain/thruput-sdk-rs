@@ -444,8 +444,10 @@ name = "groundhog-erc20-if"
 version = "0.1.3"
 dependencies = [
  "groundhog-erc20-if",
+ "groundhog-spec-tool",
  "groundhog-xdr",
  "sdk",
+ "tempfile",
  "thiserror",
 ]
 
