@@ -213,11 +213,8 @@ fn run_spec(args: impl Iterator<Item = String>) -> Result<(), CliError> {
     let json_out = json_out.ok_or(usage("missing --json-out"))?;
 
     let bytes = fs::read(&elf_path)?;
-    let spec = elf_to_spec(&bytes)?.ok_or_else(|| {
-        CliError::Tool(groundhog_spec_tool::SpecToolError::InvalidRawFragment(
-            "no spec fragments found in ELF".to_string(),
-        ))
-    })?;
+    let spec = elf_to_spec(&bytes)?
+        .ok_or(CliError::Tool(groundhog_spec_tool::SpecToolError::NoSpecFragments))?;
     let json = match json_format {
         JsonFormat::Debug => render_spec_json(&spec),
         JsonFormat::RoundTrip => spec_to_json(&spec)?,

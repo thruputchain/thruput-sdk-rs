@@ -64,7 +64,18 @@ fn elf_to_spec_extracts_interface_and_methods() {
 }
 
 #[test]
-fn elf_without_spec_section_returns_none() {
+fn elf_with_empty_spec_section_returns_none() {
     let elf = elf_with_spec_section(&[]);
+    assert!(elf_to_spec(&elf).unwrap().is_none());
+}
+
+fn elf_without_any_spec_section() -> Vec<u8> {
+    let obj = Object::new(BinaryFormat::Elf, Architecture::Riscv32, Endianness::Little);
+    obj.write().unwrap()
+}
+
+#[test]
+fn elf_without_spec_section_returns_none() {
+    let elf = elf_without_any_spec_section();
     assert!(elf_to_spec(&elf).unwrap().is_none());
 }
