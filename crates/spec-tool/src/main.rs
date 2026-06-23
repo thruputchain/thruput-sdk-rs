@@ -29,6 +29,16 @@ Subcommands:
                                'round-trip' (lossless; parseable with
                                groundhog_spec_tool::parse_spec_json)
 
+  spec --elf <PATH> --json-out <PATH> [OPTIONS]
+      Extract the contract spec from a riscv32 (or any) ELF binary's
+      groundhogspecrawv0 section and write the JSON spec sidecar.
+
+      Options:
+        --json-format <FMT>    sidecar format: 'debug' (default;
+                               human-friendly, not parseable back) or
+                               'round-trip' (lossless; parseable with
+                               groundhog_spec_tool::parse_spec_json)
+
   describe [--list | <TYPE> [--json | --xdr] [-o <PATH>]]
       Describe a registered describable type, or list them all.
 ";
@@ -60,13 +70,16 @@ fn run() -> Result<(), CliError> {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
         Some("rewrite") => run_rewrite(args),
+        Some("spec") => run_spec(args),
         Some("describe") => run_describe(args),
         Some("--help") | Some("-h") | Some("help") => {
             println!("{USAGE}");
             Ok(())
         }
         Some(other) => Err(usage(format!("unexpected subcommand '{other}'"))),
-        None => Err(usage("expected subcommand 'rewrite' or 'describe'")),
+        None => Err(usage(
+            "expected subcommand 'rewrite', 'spec', or 'describe'",
+        )),
     }
 }
 
@@ -147,6 +160,69 @@ fn run_rewrite(args: impl Iterator<Item = String>) -> Result<(), CliError> {
             Err(err) => return Err(err.into()),
         }
     }
+    Ok(())
+}
+
+fn run_spec(args: impl Iterator<Item = String>) -> Result<(), CliError> {
+    use groundhog_spec_tool::elf::elf_to_spec;
+
+    let mut elf_path: Option<PathBuf> = None;
+    let mut json_out: Option<PathBuf> = None;
+    let mut json_format = JsonFormat::Debug;
+
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--elf" => {
+                let value =
+                    args.next().ok_or(usage("missing value for --elf"))?;
+                elf_path = Some(PathBuf::from(value));
+            }
+            "--json-out" => {
+                let value = args
+                    .next()
+                    .ok_or(usage("missing value for --json-out"))?;
+                json_out = Some(PathBuf::from(value));
+            }
+            "--json-format" => {
+                let value = args
+                    .next()
+                    .ok_or(usage("missing value for --json-format"))?;
+                json_format = match value.as_str() {
+                    "debug" => JsonFormat::Debug,
+                    "round-trip" => JsonFormat::RoundTrip,
+                    other => {
+                        return Err(usage(format!(
+                            "--json-format must be 'debug' or \
+                             'round-trip', got '{other}'"
+                        )));
+                    }
+                };
+            }
+            "--help" | "-h" => {
+                println!("{USAGE}");
+                return Ok(());
+            }
+            other => {
+                return Err(usage(format!("unexpected argument '{other}'")));
+            }
+        }
+    }
+
+    let elf_path = elf_path.ok_or(usage("missing --elf"))?;
+    let json_out = json_out.ok_or(usage("missing --json-out"))?;
+
+    let bytes = fs::read(&elf_path)?;
+    let spec = elf_to_spec(&bytes)?.ok_or_else(|| {
+        CliError::Tool(groundhog_spec_tool::SpecToolError::InvalidRawFragment(
+            "no spec fragments found in ELF".to_string(),
+        ))
+    })?;
+    let json = match json_format {
+        JsonFormat::Debug => render_spec_json(&spec),
+        JsonFormat::RoundTrip => spec_to_json(&spec)?,
+    };
+    fs::write(&json_out, json)?;
     Ok(())
 }
 

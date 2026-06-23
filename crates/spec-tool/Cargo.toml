@@ -22,6 +22,8 @@ xdrs = { workspace = true, features = ["alloc"] }
 wasm-encoder = "0.246.2"
 wasmparser = "0.246.2"
 sdk = { workspace = true, features = ["std"] }
+object = { version = "0.37", default-features = false, features = ["read_core", "elf", "std"] }
 
 [dev-dependencies]
 tempfile = "3"
+object = { version = "0.37", default-features = false, features = ["read_core", "elf", "std", "write"] }
