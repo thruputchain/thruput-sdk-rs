@@ -129,6 +129,47 @@ To generate and open the SDK documentation:
 
 ## Development
 
+### Dependencies
+
+Notes on dependencies in this repo:
+
+These crates are all versioned the same (via workspace.version) and are
+published to the registry at the same time, so their repo-local dependencies
+(via workspace.dependencies) use exact versioning:
+
+- `crates/sdk`
+- `crates/spec-tool`
+- `crates/contract-spec`
+- `crates/contract-util`
+- `crates/event`
+- `crates/macros`
+- `crates/native-exec`
+- `crates/test-vectors`
+
+These are also versioned the same as the above, but don't depend on
+repo-local crates:
+
+- `crates/hogd-sys`
+- `crates/storage-cost`
+- `crates/wasm-runtime`
+- `crates/rv32-runtime`
+
+These crates are published to the registry with their own versions, and each
+has a caret-versioned dependency on the registered SDK package:
+
+- `standard-interfaces/*`
+
+These crates are not published (just used in this repo, or, for
+integration_test, used under a different Cargo.toml elsewhere), so dependencies
+to repo-local crates are specified simply as paths (no registry/version):
+
+- `crates/bottle-test`
+- `crates/bottle-test-if`
+- `crates/sdk/tests/vector-tests`
+- `standard-tests/*`
+- `integration_test/*`
+- `example-contracts/*`
+
 ### Testing
 
 The script `scripts/dev.sh` offers various commands useful in development,

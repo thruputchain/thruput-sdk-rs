@@ -8,14 +8,14 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { path = "../../crates/sdk" }
 groundhog-erc20-if = { workspace = true }
 groundhog-xdr = { workspace = true }
 thiserror = { workspace = true }
 erc20-test = { workspace = true }
 
 [dev-dependencies]
-sdk = { workspace = true, features = ["dev"] }
+sdk = { path = "../../crates/sdk", features = ["dev"] }
 
 [features]
 metadata = ["erc20-test/metadata"]

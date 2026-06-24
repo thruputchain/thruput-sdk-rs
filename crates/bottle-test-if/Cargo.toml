@@ -9,10 +9,10 @@ description = "Bottle-test interface"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { path = "../sdk" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { workspace = true, features = ["std"] }
+sdk = { path = "../sdk", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

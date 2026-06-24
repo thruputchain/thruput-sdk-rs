@@ -21,10 +21,10 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { path = "../../" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { workspace = true, features = ["std"] }
+sdk = { path = "../../", features = ["std"] }
 
 [dev-dependencies]
 vector-tests = { path = ".", features = ["dev"] }
