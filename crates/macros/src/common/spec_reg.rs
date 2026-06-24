@@ -36,8 +36,8 @@ pub fn generate_impl_raw_spec_fragments(
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT },
         ];
-        let anchor_root =
-            emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
+        let anchor_root = emit_root_anchor_tokens(&anchor_roots)
+            .unwrap_or_else(|| quote! {});
         return Ok(quote! {
             #interface_fragment
             #method_fragments
@@ -626,12 +626,18 @@ mod tests {
             }
         };
         let tokens = generate_trait_raw_spec_fragments(
-            &item, &Config::from_list(&[]).unwrap(),
-        ).unwrap().to_string();
+            &item,
+            &Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
 
         assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
-        assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"), "{tokens}");
+        assert!(
+            tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"),
+            "{tokens}"
+        );
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
         assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
         assert!(tokens.contains("\"total_supply\""), "{tokens}");
@@ -644,8 +650,12 @@ mod tests {
         let item: syn::ItemTrait = syn::parse_quote! {
             pub trait Token { fn transfer(&mut self); }
         };
-        let config = parse_config(r#"throws(err::TokenError), emits(events::TransferEvent)"#);
-        let tokens = generate_trait_raw_spec_fragments(&item, &config).unwrap().to_string();
+        let config = parse_config(
+            r#"throws(err::TokenError), emits(events::TransferEvent)"#,
+        );
+        let tokens = generate_trait_raw_spec_fragments(&item, &config)
+            .unwrap()
+            .to_string();
 
         assert!(tokens.contains("ContractExceptionTypeView"), "{tokens}");
         assert!(

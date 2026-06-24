@@ -296,7 +296,9 @@ mod tests {
                 fn total_supply(&self) -> u128;
             }
         };
-        let tokens = apply_with_config(&item, &parse_config("")).unwrap().to_string();
+        let tokens = apply_with_config(&item, &parse_config(""))
+            .unwrap()
+            .to_string();
         assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
@@ -313,8 +315,9 @@ mod tests {
                 fn initialize(&mut self, factory: &sdk::ContractAddress);
             }
         };
-        let tokens =
-            apply_with_config(&item, &parse_config("")).unwrap().to_string();
+        let tokens = apply_with_config(&item, &parse_config(""))
+            .unwrap()
+            .to_string();
         assert!(tokens.contains("__GROUNDHOG_IFACE_METHODS"), "{tokens}");
         assert!(
             tokens.contains("__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT"),
