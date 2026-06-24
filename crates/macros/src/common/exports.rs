@@ -169,6 +169,10 @@ pub fn generate(
                     type_path: concat!(module_path!(), "::", stringify!(#self_ty)),
                 };
         };
+        // NOTE: this is a `#[cfg(test)]` LIB test. A contract crate whose [lib]
+        // sets `test = false` will silently NOT compile or run it, so that crate
+        // gets no storage-domain collision detection (and no warning). Keep lib
+        // tests enabled for the guarantee to hold.
         let test = quote! {
             #[cfg(all(test, not(any(target_family = "wasm", target_arch = "riscv32"))))]
             #[test]
