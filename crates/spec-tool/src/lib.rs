@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 pub mod describe;
-pub mod elf;
 pub mod raw;
 pub mod rewrite;
 
@@ -60,8 +59,6 @@ pub enum SpecToolError {
     ConflictingEventDef(String),
     /// An error occurred while parsing or writing the wasm binary.
     Wasm(String),
-    /// An error occurred while parsing the ELF binary.
-    Elf(String),
 }
 
 impl core::fmt::Display for SpecToolError {
@@ -93,7 +90,6 @@ impl core::fmt::Display for SpecToolError {
                 write!(f, "conflicting event definitions for {msg}")
             }
             Self::Wasm(msg) => f.write_str(msg),
-            Self::Elf(msg) => f.write_str(msg),
         }
     }
 }

@@ -1,5 +1,15 @@
 # Trait Contract Specs Implementation Plan (rv32-native)
 
+> **Revision (2026-06-24): Tasks 2 & 4 dropped as redundant.** groundhog-rpc
+> already extracts rv32 specs from the ELF (`groundhog build --target rv32` →
+> `build_rv32_project` → `finalize_rv32_spec` → `load_rv32_contract_spec_from_bytes`,
+> using `groundhog_rv32_lower::elf::parse_elf` + `groundhog_spec_tool::{parse_raw_fragments,
+> canonicalize_spec}`). So the `object`-based ELF reader / `spec --elf` (Task 2)
+> and the sdk_rs e2e test (Task 4) were removed — no unneeded `object` dependency,
+> and rv32 integration tests live in groundhog-rpc. The essential sdk_rs work is
+> **Task 1** (macro emits trait fragments) + **Task 3** (erc20-if rv32 carrier bin).
+> See `docs/superpowers/specs/2026-06-23-trait-contract-specs-cli-note.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a canonical contract spec from a `#[contract]` trait (ERC20 first) with no concrete impl, generated and extracted on the **rv32 path** with no dependency on the wasm target.
