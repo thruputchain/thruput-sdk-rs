@@ -9,6 +9,8 @@ description = "ERC20 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
+# Per-crate switch read by the #[contract] macro via cfg!(feature = "entrypoints").
+entrypoints = []
 alloc = ["groundhog-xdr/alloc", "heapless/alloc"]
 dev = ["sdk/dev", "dep:thiserror"]
 
