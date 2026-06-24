@@ -27,6 +27,13 @@ impl<T> From<Keypath> for Value<T> {
 impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 
+impl<T> Value<T> {
+    /// Return the underlying [`KeyCache`], which exposes the keypath.
+    pub fn keycache(&self) -> &KeyCache {
+        &self.key
+    }
+}
+
 impl<T> Value<T>
 where
     T: for<'a> xdrs::ReadXDR<'a>,

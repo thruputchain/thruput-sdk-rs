@@ -86,14 +86,10 @@ fn generate_from_data(
     input: &syn::DeriveInput,
     item: &syn::Data,
 ) -> Result<TokenStream> {
-    let mut output = TokenStream::new();
-
-    output.extend(match item {
+    match item {
         syn::Data::Struct(item) => generate_from_struct(input, item),
         _ => err(input, "Can only derive Storage for structs")?,
-    });
-
-    Ok(output)
+    }
 }
 
 fn generate_from_struct(
@@ -137,12 +133,35 @@ fn impl_from_keypath(
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
+    let mut resolved: Vec<(u64, proc_macro2::Span)> = Vec::new();
+
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         let field_type = &field.ty;
         field_names.extend(quote! { #field_name, });
 
-        let idx = i as u64;
+        // #[slot(N)] override, else declaration position.
+        let mut idx: u64 = i as u64;
+        for attr in &field.attrs {
+            if attr.path().is_ident("slot") {
+                let lit: syn::LitInt = attr.parse_args().map_err(|e| {
+                    syn::Error::new(attr.span(), format!("#[slot(N)] expects an integer: {e}"))
+                })?;
+                idx = lit.base10_parse::<u64>()?;
+            }
+        }
+
+        // Duplicate-index detection.
+        if let Some((_, prev)) = resolved.iter().find(|(r, _)| *r == idx) {
+            let mut err = syn::Error::new(
+                field.span(),
+                format!("storage slot {idx} is assigned to more than one field"),
+            );
+            err.combine(syn::Error::new(*prev, "previously assigned here"));
+            return Err(err);
+        }
+        resolved.push((idx, field.span()));
+
         field_initializers.extend(quote! {
             let #field_name = keypath.child_index(#idx).into();
         });

@@ -525,3 +525,23 @@ fn test_data_fully_consumed() {
     });
     assert!(!result.is_success());
 }
+
+#[derive(sdk::Storage)]
+#[allow(dead_code)]
+struct Pinned {
+    a: Value<u64>,            // positional 0
+    #[slot(7)] b: Value<u64>, // pinned 7
+}
+
+#[test]
+fn slot_override_remaps_field_keypath() {
+    let root = Keypath::root();
+    let p = Pinned::from(root.clone());
+    // b lives at child_index(7), provably distinct from child_index(1).
+    let expect_b = Value::<u64>::from(root.child_index(7));
+    let other = Value::<u64>::from(root.child_index(1));
+    assert!(p.b.keycache().keypath().addresses_same_slot(
+        expect_b.keycache().keypath()));
+    assert!(!p.b.keycache().keypath().addresses_same_slot(
+        other.keycache().keypath()));
+}
