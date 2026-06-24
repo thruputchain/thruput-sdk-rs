@@ -146,12 +146,22 @@ fn impl_from_keypath(
 
         // #[slot(N)] override, else declaration position.
         let mut idx: u64 = i as u64;
+        let mut slot_attr_span: Option<proc_macro2::Span> = None;
         for attr in &field.attrs {
             if attr.path().is_ident("slot") {
+                if let Some(prev) = slot_attr_span {
+                    let mut err = syn::Error::new(
+                        attr.span(),
+                        "duplicate #[slot] attribute on the same field",
+                    );
+                    err.combine(syn::Error::new(prev, "first #[slot] here"));
+                    return Err(err);
+                }
                 let lit: syn::LitInt = attr.parse_args().map_err(|e| {
                     syn::Error::new(attr.span(), format!("#[slot(N)] expects an integer: {e}"))
                 })?;
                 idx = lit.base10_parse::<u64>()?;
+                slot_attr_span = Some(attr.span());
             }
         }
 

@@ -543,3 +543,23 @@ fn slot_override_remaps_field_keypath() {
     assert!(p.b.keypath().addresses_same_slot(expect_b.keypath()));
     assert!(!p.b.keypath().addresses_same_slot(other.keypath()));
 }
+
+#[derive(sdk::Storage)]
+#[allow(dead_code)]
+struct PositionalAbsoluteIndex {
+    #[slot(5)] a: Value<u64>, // pinned 5
+    b: Value<u64>,            // positional: declaration index 1
+    c: Value<u64>,            // positional: declaration index 2
+}
+
+#[test]
+fn positional_fields_use_absolute_declaration_index() {
+    let root = Keypath::root();
+    let s = PositionalAbsoluteIndex::from(root.clone());
+    // c is the 3rd field -> child_index(2), NOT child_index(1).
+    assert!(s.c.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(2)).keypath()));
+    assert!(!s.c.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(1)).keypath()));
+    // b -> child_index(1); a -> child_index(5).
+    assert!(s.b.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(1)).keypath()));
+    assert!(s.a.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(5)).keypath()));
+}

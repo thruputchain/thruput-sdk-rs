@@ -138,6 +138,14 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// `version = "x.y.z"`, `interface = "Name"`, `exports = "mod_name"`,
 /// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
 /// `emits(Event1, Event2)`, `test_setup = "fn_name"`.
+///
+/// # Storage-domain collision detection
+///
+/// When a contract uses multiple storage structs, `#[contract]` generates a
+/// lib test that verifies their domain strings are all distinct. This check
+/// runs as a `#[cfg(test)]` lib test; a crate that sets `[lib] test = false`
+/// in its `Cargo.toml`, or that only runs an external test harness without
+/// compiling lib tests, will silently skip this collision check at build time.
 #[proc_macro_attribute]
 pub fn contract(
     attr_args: TokenStream,

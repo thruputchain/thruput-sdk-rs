@@ -293,6 +293,11 @@ mod test_keypath {
         assert_ne!(dom.buf.as_slice(), item.buf.as_slice());
         // Exact framing: TAG_DOMAIN ‖ len(2) BE ‖ "AB"
         assert_eq!(dom.buf.as_slice(), &[0x02, 0x00, 0x02, b'A', b'B']);
+        // Golden sha256 of the domain-frame preimage — locks the on-chain layout.
+        use sha2::Digest;
+        let digest: [u8; 32] = sha2::Sha256::digest(dom.buf.as_slice()).into();
+        let expected = hex_literal::hex!("169491ddac93dd103ebde4f296f34083bfe135273062d90921098b42071ca042");
+        assert_eq!(digest, expected, "golden domain key changed");
     }
 
     #[cfg(feature = "alloc")]
