@@ -49,6 +49,11 @@ members = [
     "erc1271_caller",
     "invoke_flags_test",
     "counter-rv32",
+    "multi_root_storage",
+]
+
+exclude = [
+    "multi_root_collision",
 ]
 
 [workspace.package]
