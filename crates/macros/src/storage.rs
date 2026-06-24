@@ -8,10 +8,14 @@ use syn::spanned::Spanned;
 /// containing various `storage` types (e.g. `Map`)
 /// to be loaded.
 ///
-/// Storage slots are positional: field `i` maps to `child_index(i)` by
-/// declaration order. **Reordering struct fields remaps their storage slots** —
-/// existing on-chain state stored under the old field order will not follow
-/// the renamed positions.
+/// A field's storage slot defaults to its zero-based declaration position
+/// (field `i` maps to `child_index(i)`), but can be pinned explicitly with
+/// `#[slot(N)]`. **Reordering struct fields remaps any positionally-assigned
+/// slots** — existing on-chain state stored under the old field order will not
+/// follow the renamed positions; pin slots with `#[slot(N)]` to keep them
+/// stable across reorderings. Two fields resolving to the same index (whether
+/// via duplicate `#[slot(N)]` or a `#[slot(N)]` landing on a positional index)
+/// is a compile error.
 fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) =

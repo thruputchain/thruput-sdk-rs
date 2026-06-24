@@ -28,9 +28,9 @@ impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 
 impl<T> Value<T> {
-    /// Return the underlying [`KeyCache`], which exposes the keypath.
-    pub fn keycache(&self) -> &KeyCache {
-        &self.key
+    /// Return this value's storage keypath.
+    pub fn keypath(&self) -> &Keypath {
+        self.key.keypath()
     }
 }
 
