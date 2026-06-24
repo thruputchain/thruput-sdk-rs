@@ -1,0 +1,27 @@
+[package]
+name = "slot_collision_fail"
+description = "Workspace-excluded fixture: two fields pinned to the same slot to exercise collision detection"
+version = "0.4.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+publish = ["groundhog"]
+repository = "https://github.com/groundhogchain/example-contracts.git"
+homepage = "https://github.com/groundhogchain/example-contracts.git"
+keywords = ["groundhog"]
+categories = ["blockchain"]
+edition = "2024"
+
+# Stand-alone workspace root so `cargo build` inside this directory (or via
+# the detection script) resolves without being pulled into the parent workspace.
+[workspace]
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.15.2" }

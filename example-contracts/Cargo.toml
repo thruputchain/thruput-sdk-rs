@@ -50,10 +50,12 @@ members = [
     "invoke_flags_test",
     "counter-rv32",
     "multi_root_storage",
+    "slot_reorder",
 ]
 
 exclude = [
     "multi_root_collision",
+    "slot_collision_fail",
 ]
 
 [workspace.package]

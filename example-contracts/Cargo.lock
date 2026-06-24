@@ -1000,6 +1000,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "slot_reorder"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "slot_reorder",
+]
+
+[[package]]
 name = "spec_named_types"
 version = "0.4.0"
 dependencies = [
