@@ -1,6 +1,7 @@
-// Two roots forced to the same domain must make the generated uniqueness
-// test panic. We assert that by calling the checker directly against a
-// hand-built record set (the generated #[test] uses the same function).
+// Unit-level check of the dedup logic the generated uniqueness test relies on:
+// `check_duplicate` flags two roots that share a domain. The real link-level
+// proof (a generated #[test] panicking on a genuine collision) lives in the
+// workspace-excluded `multi_root_collision` crate plus its detection script.
 use sdk::storage::{check_duplicate, DomainRecord};
 
 #[test]
