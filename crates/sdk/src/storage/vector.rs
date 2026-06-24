@@ -7,6 +7,8 @@ use super::value::Value;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
+/// Element slots are keyed by the element index (`u32`); see [`Map`] for the
+/// key-encoding injectivity invariant that governs the underlying derivation.
 pub struct Vector<S> {
     keypath: Keypath,
     len: Value<u32>,
