@@ -432,7 +432,10 @@ check_all() {
         { skip BUILD_EXAMPLES || eg_build_all; } &&
         check_contract_spec_artifacts &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
-        eg_bottle_test_all
+        eg_bottle_test_all &&
+        { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
+        { skip SLOT_COLLISION || bash "${SDK_DIR}/scripts/check-slot-collision-detected.sh"; } &&
+        { skip REGISTRY_STRIPPED || bash "${SDK_DIR}/scripts/check-storage-registry-stripped.sh"; }
     }; } &&
 
     { skip INTEGRATION || {
