@@ -5,15 +5,3 @@ error: Adding an explicit client attribute to an impl of a trait is not allowed.
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
    = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: the trait bound `MyContract: StorageDomain` is not satisfied
-  --> tests/compile-fail/client_on_trait_impl.rs:13:18
-   |
-13 | impl MyTrait for MyContract {
-   |                  ^^^^^^^^^^ unsatisfied trait bound
-   |
-help: the trait `StorageDomain` is not implemented for `MyContract`
-  --> tests/compile-fail/client_on_trait_impl.rs:5:1
-   |
- 5 | pub struct MyContract;
-   | ^^^^^^^^^^^^^^^^^^^^^

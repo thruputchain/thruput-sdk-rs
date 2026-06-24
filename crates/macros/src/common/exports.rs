@@ -143,7 +143,18 @@ pub fn generate(
     //
     // Also emits a host-only #[test] (one per contract block) that calls
     // assert_unique_storage_domains() so any domain collision is caught by `cargo test`.
-    let (domain_registration, domain_test) = if let Some(self_ty) = contract.self_ty() {
+    //
+    // Only emitted when the contract block actually roots state — i.e. at least
+    // one method takes `self` (`&self`/`&mut self`). That is exactly the
+    // condition under which `contract_state_root::<self_ty>()` (which carries
+    // the `StorageDomain` bound) is invoked, so gating on it keeps the
+    // registration's `StorageDomain` requirement always satisfiable. A
+    // storageless contract (only associated functions, no `#[storage]`) roots
+    // no state and so needs no registration.
+    let has_state = methods.iter().any(|m| m.sig().receiver().is_some());
+    let (domain_registration, domain_test) = if let (true, Some(self_ty)) =
+        (has_state, contract.self_ty())
+    {
         // Unique suffix per contract block: self_ty + trait path (or "inherent").
         // Used for both the registration static name and the test function name.
         let self_ty_str = quote!(#self_ty)

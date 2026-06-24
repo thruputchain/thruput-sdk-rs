@@ -3,15 +3,3 @@ error[E0080]: evaluation panicked: Interface name mismatch: impl-side name is 'R
   |
 7 | #[contract(version = "1.0.0")]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here
-
-error[E0277]: the trait bound `MyContract: StorageDomain` is not satisfied
- --> tests/compile-fail/name_mismatch_cross_crate_alias.rs:8:23
-  |
-8 | impl RenamedTrait for MyContract {
-  |                       ^^^^^^^^^^ unsatisfied trait bound
-  |
-help: the trait `StorageDomain` is not implemented for `MyContract`
- --> tests/compile-fail/name_mismatch_cross_crate_alias.rs:5:1
-  |
-5 | pub struct MyContract;
-  | ^^^^^^^^^^^^^^^^^^^^^

@@ -3,15 +3,3 @@ error[E0080]: evaluation panicked: Interface name mismatch: impl-side name is 'M
    |
 11 | #[contract]
    | ^^^^^^^^^^^ evaluation of `_` failed here
-
-error[E0277]: the trait bound `MyContract: StorageDomain` is not satisfied
-  --> tests/compile-fail/trait_explicit_interface_impl_default_mismatch.rs:12:18
-   |
-12 | impl MyTrait for MyContract {
-   |                  ^^^^^^^^^^ unsatisfied trait bound
-   |
-help: the trait `StorageDomain` is not implemented for `MyContract`
-  --> tests/compile-fail/trait_explicit_interface_impl_default_mismatch.rs:4:1
-   |
- 4 | pub struct MyContract;
-   | ^^^^^^^^^^^^^^^^^^^^^
