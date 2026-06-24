@@ -158,7 +158,10 @@ fn impl_from_keypath(
                     return Err(err);
                 }
                 let lit: syn::LitInt = attr.parse_args().map_err(|e| {
-                    syn::Error::new(attr.span(), format!("#[slot(N)] expects an integer: {e}"))
+                    syn::Error::new(
+                        attr.span(),
+                        format!("#[slot(N)] expects an integer: {e}"),
+                    )
                 })?;
                 idx = lit.base10_parse::<u64>()?;
                 slot_attr_span = Some(attr.span());
@@ -169,7 +172,9 @@ fn impl_from_keypath(
         if let Some((_, prev)) = resolved.iter().find(|(r, _)| *r == idx) {
             let mut err = syn::Error::new(
                 field.span(),
-                format!("storage slot {idx} is assigned to more than one field"),
+                format!(
+                    "storage slot {idx} is assigned to more than one field"
+                ),
             );
             err.combine(syn::Error::new(*prev, "previously assigned here"));
             return Err(err);

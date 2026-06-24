@@ -47,7 +47,10 @@ mod tests {
     use super::*;
 
     fn rec(d: &'static str, t: &'static str) -> DomainRecord {
-        DomainRecord { domain: d, type_path: t }
+        DomainRecord {
+            domain: d,
+            type_path: t,
+        }
     }
 
     #[test]

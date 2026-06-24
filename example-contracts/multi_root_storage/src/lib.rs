@@ -6,19 +6,25 @@ pub use sdk::storage::*;
 pub use sdk::*;
 
 #[derive(Storage)]
-pub struct Ledger {            // domain defaults to "Ledger"
+pub struct Ledger {
+    // domain defaults to "Ledger"
     balance: Value<u64>,
 }
 
 #[derive(Storage)]
-pub struct Registry {         // domain defaults to "Registry"
+pub struct Registry {
+    // domain defaults to "Registry"
     count: Value<u64>,
 }
 
 #[contract]
 impl Ledger {
-    pub fn set_balance(&mut self, v: u64) { self.balance.set(&v); }
-    pub fn balance(&self) -> u64 { self.balance.get() }
+    pub fn set_balance(&mut self, v: u64) {
+        self.balance.set(&v);
+    }
+    pub fn balance(&self) -> u64 {
+        self.balance.get()
+    }
 }
 
 #[contract]
@@ -27,5 +33,7 @@ impl Registry {
         let n = self.count.get();
         self.count.set(&(n + 1));
     }
-    pub fn count(&self) -> u64 { self.count.get() }
+    pub fn count(&self) -> u64 {
+        self.count.get()
+    }
 }

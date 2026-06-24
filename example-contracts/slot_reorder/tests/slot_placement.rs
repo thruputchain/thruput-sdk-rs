@@ -76,31 +76,30 @@ fn slot_pins_control_storage_placement() {
     // `third` is declared third with no pin → positional slot 2:
     //   data written as 33 must be found at child_index(2).
     let verify = env.transact(|tx| {
-        tx.call(&addr.get())
-            .run(AssertUnwindSafe(|| {
-                let root = Keypath::root().child_domain("SlotReorder");
+        tx.call(&addr.get()).run(AssertUnwindSafe(|| {
+            let root = Keypath::root().child_domain("SlotReorder");
 
-                let val_at_slot1: Value<u64> = root.child_index(1).into();
-                assert_eq!(
-                    val_at_slot1.get(),
-                    11,
-                    "`first` (slot 1) should hold 11"
-                );
+            let val_at_slot1: Value<u64> = root.child_index(1).into();
+            assert_eq!(
+                val_at_slot1.get(),
+                11,
+                "`first` (slot 1) should hold 11"
+            );
 
-                let val_at_slot0: Value<u64> = root.child_index(0).into();
-                assert_eq!(
-                    val_at_slot0.get(),
-                    22,
-                    "`second` (slot 0) should hold 22"
-                );
+            let val_at_slot0: Value<u64> = root.child_index(0).into();
+            assert_eq!(
+                val_at_slot0.get(),
+                22,
+                "`second` (slot 0) should hold 22"
+            );
 
-                let val_at_slot2: Value<u64> = root.child_index(2).into();
-                assert_eq!(
-                    val_at_slot2.get(),
-                    33,
-                    "`third` (slot 2) should hold 33"
-                );
-            }))
+            let val_at_slot2: Value<u64> = root.child_index(2).into();
+            assert_eq!(
+                val_at_slot2.get(),
+                33,
+                "`third` (slot 2) should hold 33"
+            );
+        }))
     });
     verify.assert_success();
 }
@@ -121,27 +120,42 @@ fn keypath_identity_matches_pinned_slot() {
 
     // `first` is at declaration position 0 but pinned to slot 1.
     assert!(
-        state.first.keypath().addresses_same_slot(&root.child_index(1)),
+        state
+            .first
+            .keypath()
+            .addresses_same_slot(&root.child_index(1)),
         "`first` should address slot 1 (its pinned index)"
     );
     assert!(
-        !state.first.keypath().addresses_same_slot(&root.child_index(0)),
+        !state
+            .first
+            .keypath()
+            .addresses_same_slot(&root.child_index(0)),
         "`first` must NOT address slot 0 (its declaration position)"
     );
 
     // `second` is at declaration position 1 but pinned to slot 0.
     assert!(
-        state.second.keypath().addresses_same_slot(&root.child_index(0)),
+        state
+            .second
+            .keypath()
+            .addresses_same_slot(&root.child_index(0)),
         "`second` should address slot 0 (its pinned index)"
     );
     assert!(
-        !state.second.keypath().addresses_same_slot(&root.child_index(1)),
+        !state
+            .second
+            .keypath()
+            .addresses_same_slot(&root.child_index(1)),
         "`second` must NOT address slot 1 (its declaration position)"
     );
 
     // `third` is at declaration position 2 with no pin → positional slot 2.
     assert!(
-        state.third.keypath().addresses_same_slot(&root.child_index(2)),
+        state
+            .third
+            .keypath()
+            .addresses_same_slot(&root.child_index(2)),
         "`third` should address slot 2 (positional)"
     );
 }

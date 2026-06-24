@@ -488,7 +488,10 @@ struct StorageDomainRenamed {
 #[test]
 fn storage_domain_defaults_to_ident_and_overrides() {
     use sdk::storage::StorageDomain;
-    assert_eq!(<StorageDomainPlain as StorageDomain>::DOMAIN, "StorageDomainPlain");
+    assert_eq!(
+        <StorageDomainPlain as StorageDomain>::DOMAIN,
+        "StorageDomainPlain"
+    );
     assert_eq!(<StorageDomainRenamed as StorageDomain>::DOMAIN, "custom");
 }
 
@@ -529,8 +532,9 @@ fn test_data_fully_consumed() {
 #[derive(sdk::Storage)]
 #[allow(dead_code)]
 struct Pinned {
-    a: Value<u64>,            // positional 0
-    #[slot(7)] b: Value<u64>, // pinned 7
+    a: Value<u64>, // positional 0
+    #[slot(7)]
+    b: Value<u64>, // pinned 7
 }
 
 #[test]
@@ -547,9 +551,10 @@ fn slot_override_remaps_field_keypath() {
 #[derive(sdk::Storage)]
 #[allow(dead_code)]
 struct PositionalAbsoluteIndex {
-    #[slot(5)] a: Value<u64>, // pinned 5
-    b: Value<u64>,            // positional: declaration index 1
-    c: Value<u64>,            // positional: declaration index 2
+    #[slot(5)]
+    a: Value<u64>, // pinned 5
+    b: Value<u64>, // positional: declaration index 1
+    c: Value<u64>, // positional: declaration index 2
 }
 
 #[test]
@@ -557,9 +562,17 @@ fn positional_fields_use_absolute_declaration_index() {
     let root = Keypath::root();
     let s = PositionalAbsoluteIndex::from(root.clone());
     // c is the 3rd field -> child_index(2), NOT child_index(1).
-    assert!(s.c.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(2)).keypath()));
-    assert!(!s.c.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(1)).keypath()));
+    assert!(s.c.keypath().addresses_same_slot(
+        Value::<u64>::from(root.child_index(2)).keypath()
+    ));
+    assert!(!s.c.keypath().addresses_same_slot(
+        Value::<u64>::from(root.child_index(1)).keypath()
+    ));
     // b -> child_index(1); a -> child_index(5).
-    assert!(s.b.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(1)).keypath()));
-    assert!(s.a.keypath().addresses_same_slot(Value::<u64>::from(root.child_index(5)).keypath()));
+    assert!(s.b.keypath().addresses_same_slot(
+        Value::<u64>::from(root.child_index(1)).keypath()
+    ));
+    assert!(s.a.keypath().addresses_same_slot(
+        Value::<u64>::from(root.child_index(5)).keypath()
+    ));
 }

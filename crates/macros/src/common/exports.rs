@@ -168,7 +168,10 @@ pub fn generate(
         };
         let reg_ident = format_ident!("__GH_DOMAIN_{}_{}", self_ty_str, disc);
         let test_ident = format_ident!(
-            "__gh_storage_domains_unique_{}_{}", self_ty_str, disc);
+            "__gh_storage_domains_unique_{}_{}",
+            self_ty_str,
+            disc
+        );
         let registration = quote! {
             #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
             #[::sdk::__linkme::distributed_slice(::sdk::storage::STORAGE_DOMAINS)]

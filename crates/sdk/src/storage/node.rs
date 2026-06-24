@@ -96,7 +96,9 @@ mod tests {
 
     struct UnitState;
     impl From<Keypath> for UnitState {
-        fn from(_: Keypath) -> Self { Self }
+        fn from(_: Keypath) -> Self {
+            Self
+        }
     }
     impl StorageDomain for UnitState {
         const DOMAIN: &'static str = "UnitState";

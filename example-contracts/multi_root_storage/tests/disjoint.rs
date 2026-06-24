@@ -1,8 +1,8 @@
-use sdk::storage::{
-    check_duplicate, contract_state_root, DomainRecord, StorageDomain,
-    STORAGE_DOMAINS,
-};
 use multi_root_storage::{Ledger, Registry};
+use sdk::storage::{
+    DomainRecord, STORAGE_DOMAINS, StorageDomain, check_duplicate,
+    contract_state_root,
+};
 
 #[test]
 fn both_roots_register_and_do_not_collide() {
