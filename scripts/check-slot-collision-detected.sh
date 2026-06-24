@@ -2,13 +2,14 @@
 # Asserts that a duplicate #[slot(N)] assignment fails to compile with the
 # expected error message. The crate is workspace-excluded, so it is only
 # ever built here.
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../example-contracts/slot_collision_fail"
 
-OUT=$(cd "$CRATE_DIR" && cargo build --features dev 2>&1)
-STATUS=$?
+# The build is EXPECTED to fail; capture its status without letting `set -e`
+# abort the script on the (intended) non-zero exit.
+OUT=$(cd "$CRATE_DIR" && cargo build --features dev 2>&1) && STATUS=0 || STATUS=$?
 
 if [ "$STATUS" -eq 0 ]; then
     echo "FAIL: expected a storage slot collision compile error, but build succeeded" >&2

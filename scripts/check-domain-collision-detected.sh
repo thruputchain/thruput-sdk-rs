@@ -4,7 +4,8 @@
 # ever built here.
 set -uo pipefail
 
-CRATE_DIR="example-contracts/multi_root_collision"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CRATE_DIR="${SCRIPT_DIR}/../example-contracts/multi_root_collision"
 
 OUT=$(cd "$CRATE_DIR" && cargo test --features dev 2>&1)
 STATUS=$?
