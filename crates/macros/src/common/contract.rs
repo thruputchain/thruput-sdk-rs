@@ -476,6 +476,28 @@ pub fn method_return_spec_token(
     }
 }
 
+/// Build a `ContractSpecMethodView` literal (name, args, return) for a method.
+///
+/// A `#[contract]` trait emits these into a `__GROUNDHOG_IFACE_METHODS` const
+/// so that a trait impl pulls the *trait's* method signatures into its spec
+/// (mirroring how events flow through `__GROUNDHOG_IFACE_EVENTS`). This keeps
+/// the trait authoritative: an impl that renames a parameter (e.g. `_factory`)
+/// cannot diverge the canonical interface spec.
+pub fn method_spec_view_tokens(
+    method: &impl Method,
+) -> Result<proc_macro2::TokenStream> {
+    let name = method.sig().ident.to_string();
+    let args = method_arg_spec_tokens(method)?;
+    let return_type = method_return_spec_token(method)?;
+    Ok(quote! {
+        ::sdk::__contract_spec::ContractSpecMethodView {
+            name: #name,
+            args: &[#(#args),*],
+            return_type: #return_type,
+        }
+    })
+}
+
 pub fn method_anchor_tokens(
     method: &impl Method,
 ) -> Result<Vec<proc_macro2::TokenStream>> {

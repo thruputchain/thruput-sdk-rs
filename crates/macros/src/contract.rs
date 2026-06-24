@@ -119,6 +119,41 @@ fn apply_with_config(
                 }
             });
 
+            // The trait is the authority for method signatures (names and
+            // types). Emit them as a const that a trait impl pulls into its
+            // artifact (mirroring __GROUNDHOG_IFACE_EVENTS), so an impl that
+            // renames a parameter (e.g. `_factory`) cannot diverge the
+            // canonical interface spec, and so impls of an external interface
+            // crate still emit a complete spec.
+            let method_views = contract
+                .methods_sorted()
+                .into_iter()
+                .map(|m| contract::method_spec_view_tokens(&m))
+                .collect::<Result<Vec<_>>>()?;
+            let method_anchor_lists = contract
+                .methods_sorted()
+                .into_iter()
+                .map(|m| contract::method_anchor_tokens(&m))
+                .collect::<Result<Vec<_>>>()?;
+            let method_anchor_stmts =
+                method_anchor_lists.into_iter().flatten().map(|anchor| {
+                    quote::quote! {
+                        acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                    }
+                });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_METHODS: &'static [::sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    let mut acc = 0usize;
+                    #(#method_anchor_stmts)*
+                    acc
+                }
+            });
+
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
                     #[doc(hidden)]
@@ -267,6 +302,25 @@ mod tests {
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
         assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
+    }
+
+    #[test]
+    fn trait_contract_emits_authoritative_methods_const() {
+        // The trait exposes its method signatures as a const so trait impls
+        // pull the *trait's* names/types (not the impl's) into their spec.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Pair {
+                fn initialize(&mut self, factory: &sdk::ContractAddress);
+            }
+        };
+        let tokens =
+            apply_with_config(&item, &parse_config("")).unwrap().to_string();
+        assert!(tokens.contains("__GROUNDHOG_IFACE_METHODS"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("\"factory\""), "{tokens}");
     }
 
     #[test]

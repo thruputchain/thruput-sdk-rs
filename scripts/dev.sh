@@ -203,6 +203,14 @@ check_contract_spec_artifacts() {
     assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
     assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
 
+    # Regression guard: method specs are sourced from the ISwapV2Pair *trait*,
+    # not the impl. The impl names the first `initialize` arg `_factory` (unused
+    # marker); the trait names it `factory`. If method specs ever revert to
+    # being impl-sourced, the same-crate trait+impl build fails with
+    # `conflicting method definitions`, or this assertion catches `_factory`
+    # leaking into the published interface spec.
+    assert_file_contains "$swap_json" '"name":"initialize","args":[{"name":"factory"' &&
+
     assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
     assert_file_contains "$genesis_json" '"name":"deploy"' &&
     assert_file_contains "$genesis_json" '"name":"deploy_and_invoke"' &&

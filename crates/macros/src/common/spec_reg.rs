@@ -12,62 +12,61 @@ pub fn generate_impl_raw_spec_fragments(
     item: &syn::ItemImpl,
     config: &Config,
 ) -> Result<TokenStream> {
-    let contract = ConfiguredContract::new(config.clone(), item);
     let self_ty = &item.self_ty;
-    let methods = contract.methods_sorted().into_iter().collect::<Vec<_>>();
 
-    let (iface_name, iface_vers, iface_throws) = if let Some((
-        _,
-        trait_path,
-        _,
-    )) = &item.trait_
-    {
-        (
+    // Trait impl: the trait is authoritative for the interface, its methods,
+    // throws, and events. Pull every part from the trait's consts — including
+    // `__GROUNDHOG_IFACE_METHODS` — rather than the impl's own signatures, so
+    // an impl that renames a parameter (e.g. `_factory`) cannot diverge the
+    // canonical spec. The trait consts are plain associated data, available
+    // cross-crate without the interface crate being built with `entrypoints`,
+    // so impls of an external interface still emit a complete spec.
+    if let Some((_, trait_path, _)) = &item.trait_ {
+        let interface_fragment = generate_interface_fragment_tokens(
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROWS },
-        )
-    } else {
-        let iface_name = effective_interface_name(&contract);
-        let iface_vers = contract.defaulted_interface_vers();
-        let throws = throws_spec_tokens(&contract)?;
-        (
-            quote! { #iface_name },
-            quote! { #iface_vers },
-            quote! { &[#(#throws),*] },
-        )
-    };
+        );
+        let method_fragments =
+            generate_trait_method_fragments_tokens(self_ty, trait_path);
+        let event_fragments =
+            generate_trait_event_fragments_tokens(self_ty, trait_path);
+        let anchor_roots = vec![
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT },
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT },
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT },
+        ];
+        let anchor_root =
+            emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
+        return Ok(quote! {
+            #interface_fragment
+            #method_fragments
+            #event_fragments
+            #anchor_root
+        });
+    }
+
+    // Bare impl: emit from the impl's own signatures.
+    let contract = ConfiguredContract::new(config.clone(), item);
+    let methods = contract.methods_sorted().into_iter().collect::<Vec<_>>();
+    let iface_name = effective_interface_name(&contract);
+    let iface_vers = contract.defaulted_interface_vers();
+    let throws = throws_spec_tokens(&contract)?;
 
     let interface_fragment = generate_interface_fragment_tokens(
-        iface_name.clone(),
-        iface_vers.clone(),
-        iface_throws,
+        quote! { #iface_name },
+        quote! { #iface_vers },
+        quote! { &[#(#throws),*] },
     );
-    let event_fragments = if let Some((_, trait_path, _)) = &item.trait_ {
-        generate_trait_event_fragments_tokens(self_ty, trait_path)
-    } else {
-        generate_config_event_fragments_tokens(config)
-    };
-    let mut anchor_roots = if let Some((_, trait_path, _)) = &item.trait_ {
-        vec![
-            quote! {
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT
-            },
-            quote! {
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT
-            },
-        ]
-    } else {
-        let mut roots = throws_anchor_tokens(&contract)?;
-        roots.extend(config_event_anchor_tokens(config));
-        roots
-    };
+    let event_fragments = generate_config_event_fragments_tokens(config);
+    let mut anchor_roots = throws_anchor_tokens(&contract)?;
+    anchor_roots.extend(config_event_anchor_tokens(config));
     let method_fragments = methods
         .iter()
         .map(|method| {
             generate_method_fragment_tokens(
-                iface_name.clone(),
-                iface_vers.clone(),
+                quote! { #iface_name },
+                quote! { #iface_vers },
                 method,
             )
         })
@@ -170,6 +169,78 @@ pub fn generate_trait_raw_spec_fragments(
         #event_fragments
         #anchor_root
     })
+}
+
+/// Emits `SpecMethod` fragments for a trait impl from the trait's
+/// authoritative `__GROUNDHOG_IFACE_METHODS` const (possibly in another
+/// crate), wrapped with the trait's name/version. Mirrors
+/// `generate_trait_event_fragments_tokens`: the fragments are concatenated
+/// into a single raw byte array in const eval. Because the method specs come
+/// from the trait — not the impl's signatures — an impl that renames a
+/// parameter cannot diverge the spec, and the trait-side and impl-side
+/// fragments are identical (so they dedupe when both land in one artifact).
+fn generate_trait_method_fragments_tokens(
+    self_ty: &syn::Type,
+    trait_path: &syn::Path,
+) -> TokenStream {
+    // `link_section` requires a string literal. Keep this in sync with
+    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    quote! {
+        #[cfg(all(
+            any(target_family = "wasm", target_arch = "riscv32"),
+            feature = "entrypoints"
+        ))]
+        const _: () = {
+            const METHODS: &[::sdk::__contract_spec::ContractSpecMethodView<'static>] =
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHODS;
+            const NAME: &str = <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
+            const VERS: &str =
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
+            const RAW_LEN: usize = {
+                let mut total = 0usize;
+                let mut i = 0;
+                while i < METHODS.len() {
+                    total += ::sdk::__contract_spec::SpecFragmentView::Method(
+                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                            interface_name: NAME,
+                            interface_version: VERS,
+                            method: METHODS[i],
+                        },
+                    )
+                    .const_txs_size();
+                    i += 1;
+                }
+                total
+            };
+
+            #[cfg_attr(
+                any(target_family = "wasm", target_arch = "riscv32"),
+                unsafe(link_section = "groundhogspecrawv0")
+            )]
+            // RV32 only: `#[used]` keeps the section live through ELF linking
+            // for CLI extraction. On wasm the custom section is retained
+            // without it, and `#[used]` there would force the fragment bytes
+            // into linear memory (tripping the spec-tool leak guard).
+            #[cfg_attr(target_arch = "riscv32", used)]
+            pub static RAW_SPEC_METHOD_FRAGMENTS: [u8; RAW_LEN] = {
+                let mut w =
+                    ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                let mut i = 0;
+                while i < METHODS.len() {
+                    ::sdk::__contract_spec::SpecFragmentView::Method(
+                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                            interface_name: NAME,
+                            interface_version: VERS,
+                            method: METHODS[i],
+                        },
+                    )
+                    .const_write_txs(&mut w);
+                    i += 1;
+                }
+                w.into_bytes()
+            };
+        };
+    }
 }
 
 /// Emits `SpecEvent` fragments for the events declared on a contract trait
@@ -581,6 +652,36 @@ mod tests {
             tokens.contains("events :: TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
             "{tokens}"
         );
+    }
+
+    #[test]
+    fn trait_impl_methods_come_from_trait_const_not_impl_signatures() {
+        // The impl renames the trait's `factory` param to `_factory`. Method
+        // specs must be pulled from the trait's authoritative
+        // `__GROUNDHOG_IFACE_METHODS` const, so the impl's `_factory` must not
+        // leak into the emitted spec (otherwise a same-crate trait+impl would
+        // emit conflicting method definitions).
+        let item: syn::ItemImpl = syn::parse_quote! {
+            impl pair_if::Pair for Demo {
+                fn initialize(&mut self, _factory: u32) {}
+            }
+        };
+
+        let tokens = generate_impl_raw_spec_fragments(
+            &item,
+            &Config::from_list(&[]).unwrap(),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(tokens.contains("__GROUNDHOG_IFACE_METHODS"), "{tokens}");
+        assert!(tokens.contains("RAW_SPEC_METHOD_FRAGMENTS"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        // Methods are trait-sourced, so the impl's param name never appears.
+        assert!(!tokens.contains("_factory"), "{tokens}");
     }
 }
 
