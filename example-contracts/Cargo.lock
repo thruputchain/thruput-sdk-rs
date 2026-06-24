@@ -714,6 +714,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi_root_storage"
+version = "0.4.0"
+dependencies = [
+ "multi_root_storage",
+ "sdk",
+]
+
+[[package]]
 name = "multi_throws"
 version = "0.4.0"
 dependencies = [
