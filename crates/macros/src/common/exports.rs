@@ -140,8 +140,12 @@ pub fn generate(
     // Gated cfg(not(any(target_family = "wasm", target_arch = "riscv32"))) to match the
     // registry's own gate. Each contract block gets a unique static name derived from the
     // self_ty + trait (or "inherent") to avoid symbol collisions across multiple impl blocks.
-    let domain_registration = if let Some(self_ty) = contract.self_ty() {
-        // Unique static name per contract block: self_ty + trait path (or "inherent").
+    //
+    // Also emits a host-only #[test] (one per contract block) that calls
+    // assert_unique_storage_domains() so any domain collision is caught by `cargo test`.
+    let (domain_registration, domain_test) = if let Some(self_ty) = contract.self_ty() {
+        // Unique suffix per contract block: self_ty + trait path (or "inherent").
+        // Used for both the registration static name and the test function name.
         let self_ty_str = quote!(#self_ty)
             .to_string()
             .replace(|c: char| !c.is_alphanumeric(), "_");
@@ -152,7 +156,9 @@ pub fn generate(
             None => "inherent".to_string(),
         };
         let reg_ident = format_ident!("__GH_DOMAIN_{}_{}", self_ty_str, disc);
-        quote! {
+        let test_ident = format_ident!(
+            "__gh_storage_domains_unique_{}_{}", self_ty_str, disc);
+        let registration = quote! {
             #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
             #[::sdk::__linkme::distributed_slice(::sdk::storage::STORAGE_DOMAINS)]
             #[linkme(crate = ::sdk::__linkme)]
@@ -162,9 +168,18 @@ pub fn generate(
                     domain: <#self_ty as ::sdk::storage::StorageDomain>::DOMAIN,
                     type_path: concat!(module_path!(), "::", stringify!(#self_ty)),
                 };
-        }
+        };
+        let test = quote! {
+            #[cfg(all(test, not(any(target_family = "wasm", target_arch = "riscv32"))))]
+            #[test]
+            #[allow(non_snake_case)]
+            fn #test_ident() {
+                ::sdk::storage::assert_unique_storage_domains();
+            }
+        };
+        (registration, test)
     } else {
-        quote! {}
+        (quote! {}, quote! {})
     };
 
     // The assertions go outside the module so the associated consts resolve
@@ -182,6 +197,8 @@ pub fn generate(
         #trait_metadata_assertions
 
         #domain_registration
+
+        #domain_test
     })
 }
 
