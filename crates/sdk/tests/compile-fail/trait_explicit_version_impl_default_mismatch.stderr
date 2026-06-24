@@ -3,3 +3,15 @@ error[E0080]: evaluation panicked: Major version mismatch: the major version spe
    |
 12 | #[contract]
    | ^^^^^^^^^^^ evaluation of `_` failed here
+
+error[E0277]: the trait bound `MyContract: StorageDomain` is not satisfied
+  --> tests/compile-fail/trait_explicit_version_impl_default_mismatch.rs:13:18
+   |
+13 | impl MyTrait for MyContract {
+   |                  ^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `StorageDomain` is not implemented for `MyContract`
+  --> tests/compile-fail/trait_explicit_version_impl_default_mismatch.rs:5:1
+   |
+ 5 | pub struct MyContract;
+   | ^^^^^^^^^^^^^^^^^^^^^
