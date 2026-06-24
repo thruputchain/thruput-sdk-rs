@@ -135,6 +135,38 @@ pub fn generate(
         quote! {}
     };
 
+    // Emit a host-gated static that registers (self_ty::DOMAIN, "<module>::<self_ty>")
+    // into STORAGE_DOMAINS so the collision-checker can detect two roots sharing a domain.
+    // Gated cfg(not(any(target_family = "wasm", target_arch = "riscv32"))) to match the
+    // registry's own gate. Each contract block gets a unique static name derived from the
+    // self_ty + trait (or "inherent") to avoid symbol collisions across multiple impl blocks.
+    let domain_registration = if let Some(self_ty) = contract.self_ty() {
+        // Unique static name per contract block: self_ty + trait path (or "inherent").
+        let self_ty_str = quote!(#self_ty)
+            .to_string()
+            .replace(|c: char| !c.is_alphanumeric(), "_");
+        let disc = match contract.trait_path() {
+            Some(tp) => quote!(#tp)
+                .to_string()
+                .replace(|c: char| !c.is_alphanumeric(), "_"),
+            None => "inherent".to_string(),
+        };
+        let reg_ident = format_ident!("__GH_DOMAIN_{}_{}", self_ty_str, disc);
+        quote! {
+            #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+            #[::sdk::__linkme::distributed_slice(::sdk::storage::STORAGE_DOMAINS)]
+            #[linkme(crate = ::sdk::__linkme)]
+            #[allow(non_upper_case_globals)]
+            static #reg_ident: ::sdk::storage::DomainRecord =
+                ::sdk::storage::DomainRecord {
+                    domain: <#self_ty as ::sdk::storage::StorageDomain>::DOMAIN,
+                    type_path: concat!(module_path!(), "::", stringify!(#self_ty)),
+                };
+        }
+    } else {
+        quote! {}
+    };
+
     // The assertions go outside the module so the associated consts resolve
     // through the trait.
     Ok(quote! {
@@ -148,6 +180,8 @@ pub fn generate(
         }
 
         #trait_metadata_assertions
+
+        #domain_registration
     })
 }
 
