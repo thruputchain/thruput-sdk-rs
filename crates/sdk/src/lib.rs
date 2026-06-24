@@ -60,6 +60,10 @@ extern crate groundhog_rv32_runtime as _;
 #[doc(hidden)]
 pub extern crate linkme as __rv32_linkme;
 
+#[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+#[doc(hidden)]
+pub extern crate linkme as __linkme;
+
 #[cfg(target_arch = "riscv32")]
 #[doc(hidden)]
 pub mod __rv32 {

@@ -38,3 +38,8 @@ pub use map::*;
 
 pub mod vector;
 pub use vector::*;
+
+#[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+pub mod domain_registry;
+#[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+pub use domain_registry::*;

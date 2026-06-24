@@ -114,3 +114,6 @@ groundhog-wasm-runtime = { workspace = true }
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 groundhog-rv32-runtime = { workspace = true }
 linkme = { workspace = true }
+
+[target.'cfg(not(any(target_family = "wasm", target_arch = "riscv32")))'.dependencies]
+linkme = { workspace = true }
