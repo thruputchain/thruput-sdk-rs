@@ -1,15 +1,18 @@
-//! RV32 spec-carrier binary for the ERC20 standard interface.
+//! rv32 spec-carrier binary for the ERC20 standard interface.
 //!
-//! This is a degenerate, zero-entrypoint "contract": a trait registers no
-//! dispatch methods, so the only thing this artifact carries is the ERC20
-//! interface's `groundhogspecrawv0` fragments. It exists so the interface can
-//! be built into an rv32 ELF and have its spec extracted with
-//! `groundhog-spec-tool spec --elf`.
+//! A trait's interface spec is a *candidate*: post-processing keeps it only if
+//! something anchors it. `export_interface_spec!` emits that anchor; the
+//! interface/method fragments come from the linked `groundhog-erc20-if` lib
+//! (retained via `#[used]` on rv32). Building this crate for rv32 yields the
+//! ERC20 interface's full spec. `_start`/panic handler/allocator come via
+//! sdk → groundhog-rv32-runtime.
+//!
+//! Gated behind the `carrier` feature (see Cargo.toml) so a plain
+//! `cargo build`/`test` skips this rv32-only, entry-point-less binary.
 #![no_std]
 #![no_main]
 
-// Link the interface library so its macro-emitted `#[used]` spec section is
-// retained in the final ELF for extraction. `_start`, panic handler,
-// allocator, and linker script come transitively via sdk → groundhog-rv32-runtime
-// (sdk force-links it with `extern crate groundhog_rv32_runtime as _`).
 extern crate groundhog_erc20_if;
+
+// Anchor the ERC20 interface so its candidate spec survives shaking.
+sdk::export_interface_spec!(groundhog_erc20_if::ERC20);

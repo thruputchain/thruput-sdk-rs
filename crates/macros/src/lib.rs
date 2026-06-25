@@ -82,6 +82,20 @@ pub fn sha256_static(item: TokenStream) -> TokenStream {
     static_hash::sha256_static(input)
 }
 
+/// Anchor a `#[contract]` trait's spec for inclusion. Spec shaking drops a
+/// trait's (candidate) interface spec unless something anchors it — normally a
+/// `#[contract] impl`. Use this in an interface crate's spec-carrier `main.rs`
+/// so building that crate on its own emits the interface's full spec:
+///
+/// ```ignore
+/// sdk::export_interface_spec!(groundhog_erc20_if::ERC20);
+/// ```
+#[proc_macro]
+pub fn export_interface_spec(item: TokenStream) -> TokenStream {
+    let path = syn::parse_macro_input!(item as syn::Path);
+    common::spec_reg::generate_interface_anchor_for_trait(&path).into()
+}
+
 /// Compute a `SHA256Hash` at compile time: sha256 of the bare identifier's
 /// text (no quotes — `sha256_ident!(foo)` hashes the 3 bytes `foo`).
 #[proc_macro]

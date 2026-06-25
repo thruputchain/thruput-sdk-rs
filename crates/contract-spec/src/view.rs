@@ -9,7 +9,8 @@ use crate::{
     ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
     ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
     ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractUnionDef, SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
+    SpecMethodFragment,
 };
 #[cfg(feature = "owned-model")]
 use alloc::{boxed::Box, vec::Vec};
@@ -170,6 +171,7 @@ pub enum SpecFragmentView<'a> {
     ExportedTypeDef(ContractTypeDefView<'a>) = 3,
     Event(ContractEventDefView<'a>) = 4,
     ExportedEvent(ContractEventDefView<'a>) = 5,
+    InterfaceAnchor(SpecInterfaceAnchorView<'a>) = 6,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -184,6 +186,15 @@ pub struct SpecMethodFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
     pub method: ContractSpecMethodView<'a>,
+}
+
+/// The "include this interface" marker an impl emits so the post-processor
+/// retains a trait's (otherwise candidate) interface spec. Mirrors
+/// `groundhog_spec::SpecInterfaceAnchor`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+pub struct SpecInterfaceAnchorView<'a> {
+    pub interface_name: &'a str,
+    pub interface_version: &'a str,
 }
 
 #[cfg(feature = "owned-model")]
@@ -521,6 +532,21 @@ impl From<SpecFragmentView<'_>> for SpecFragment {
                     event_def: def.into(),
                 }
             }
+            SpecFragmentView::InterfaceAnchor(anchor) => {
+                SpecFragment::InterfaceAnchor {
+                    interface_anchor: anchor.into(),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "owned-model")]
+impl From<SpecInterfaceAnchorView<'_>> for SpecInterfaceAnchor {
+    fn from(value: SpecInterfaceAnchorView<'_>) -> Self {
+        Self {
+            interface_name: to_spec_string(value.interface_name),
+            interface_version: to_spec_string(value.interface_version),
         }
     }
 }

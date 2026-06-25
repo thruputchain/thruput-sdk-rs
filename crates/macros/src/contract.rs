@@ -165,6 +165,25 @@ fn apply_with_config(
 
             let mut out = stripped.into_token_stream();
 
+            // A module-level anchor const (the trait isn't dyn-compatible, so
+            // its associated `__GROUNDHOG_IFACE_*` consts aren't reachable as
+            // `<dyn Trait>::…`). `export_interface_spec!` references this by
+            // name to emit an InterfaceAnchor for a standalone interface carrier.
+            let anchor_const_ident = quote::format_ident!(
+                "__GROUNDHOG_IFACE_ANCHOR_{}",
+                item.ident
+            );
+            out.extend(quote::quote! {
+                #[doc(hidden)]
+                #[allow(non_upper_case_globals)]
+                pub const #anchor_const_ident:
+                    ::sdk::__contract_spec::SpecInterfaceAnchorView<'static> =
+                    ::sdk::__contract_spec::SpecInterfaceAnchorView {
+                        interface_name: #iface_name,
+                        interface_version: #iface_vers,
+                    };
+            });
+
             // Generate client interface
             out.extend(client::generate(item, config)?);
             out.extend(exports::generate_entrypoints(item, config)?);

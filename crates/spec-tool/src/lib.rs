@@ -121,6 +121,13 @@ pub fn canonicalize_spec(
         BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
     let mut exported_roots =
         std::collections::BTreeSet::<ContractSpecString>::new();
+    // Interfaces an impl (or a `spec`-built carrier) anchored for inclusion.
+    // A trait's interface spec is a *candidate*: it lands in the output only
+    // if anchored. Empty set => legacy contract with no anchors => include all.
+    let mut anchored_interfaces = std::collections::BTreeSet::<(
+        ContractSpecString,
+        ContractSpecString,
+    )>::new();
     let mut events =
         BTreeMap::<ContractSpecString, Vec<ContractEventDef>>::new();
 
@@ -209,6 +216,16 @@ pub fn canonicalize_spec(
                     defs.push(event_def.clone());
                 }
             }
+            SpecFragment::InterfaceAnchor { interface_anchor } => {
+                validate_interface_key(
+                    spec_str(&interface_anchor.interface_name)?,
+                    spec_str(&interface_anchor.interface_version)?,
+                )?;
+                anchored_interfaces.insert((
+                    interface_anchor.interface_name.clone(),
+                    interface_anchor.interface_version.clone(),
+                ));
+            }
             _ => {}
         }
     }
@@ -237,8 +254,14 @@ pub fn canonicalize_spec(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    // Spec shaking: keep only interfaces that were anchored (by an impl, or by
+    // `export_interface_spec!` in an interface carrier). A trait's interface
+    // candidates that nothing in this artifact anchors are dropped.
     let interfaces = interfaces
         .into_iter()
+        .filter(|((name, vers), _)| {
+            anchored_interfaces.contains(&(name.clone(), vers.clone()))
+        })
         .map(|((name, vers), mut bucket)| {
             bucket.methods.sort_by(|left, right| {
                 left.name.cmp(&right.name).then_with(|| {

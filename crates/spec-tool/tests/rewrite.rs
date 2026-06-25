@@ -3,7 +3,7 @@ use std::{fs, process::Command};
 use groundhog_contract_spec::{
     ContractArrayType, ContractField, ContractSpec, ContractSpecMethod,
     ContractSpecString, ContractType, ContractVectorType, SpecFragment,
-    SpecInterfaceFragment, SpecMethodFragment,
+    SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME, SpecToolError,
@@ -57,6 +57,37 @@ fn encode_fragments(fragments: &[SpecFragment]) -> Vec<u8> {
     let mut bytes = Vec::new();
     for fragment in fragments {
         bytes.extend(encode(fragment).unwrap());
+    }
+    // Anchor every interface the fragments mention — what a real `#[contract]
+    // impl` emits, and what spec shaking requires for the interface to survive.
+    let mut keys = std::collections::BTreeSet::new();
+    for fragment in fragments {
+        match fragment {
+            SpecFragment::SpecInterface { interface_fragment: i } => {
+                keys.insert((
+                    i.interface_name.clone(),
+                    i.interface_version.clone(),
+                ));
+            }
+            SpecFragment::SpecMethod { method_fragment: m } => {
+                keys.insert((
+                    m.interface_name.clone(),
+                    m.interface_version.clone(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    for (interface_name, interface_version) in keys {
+        bytes.extend(
+            encode(&SpecFragment::InterfaceAnchor {
+                interface_anchor: SpecInterfaceAnchor {
+                    interface_name,
+                    interface_version,
+                },
+            })
+            .unwrap(),
+        );
     }
     bytes
 }

@@ -23,6 +23,7 @@ pub fn generate_impl_raw_spec_fragments(
     // so impls of an external interface still emit a complete spec.
     if let Some((_, trait_path, _)) = &item.trait_ {
         let interface_fragment = generate_interface_fragment_tokens(
+            &entrypoints_cfg(),
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROWS },
@@ -31,17 +32,26 @@ pub fn generate_impl_raw_spec_fragments(
             generate_trait_method_fragments_tokens(self_ty, trait_path);
         let event_fragments =
             generate_trait_event_fragments_tokens(self_ty, trait_path);
+        // This impl anchors the interface, so the trait's candidate spec
+        // (pulled in from the interface crate) survives post-processing.
+        let interface_anchor = generate_interface_anchor_tokens(
+            entrypoints_cfg(),
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
+        );
         let anchor_roots = vec![
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT },
         ];
-        let anchor_root = emit_root_anchor_tokens(&anchor_roots)
-            .unwrap_or_else(|| quote! {});
+        let anchor_root =
+            emit_root_anchor_tokens(&entrypoints_cfg(), &anchor_roots)
+                .unwrap_or_else(|| quote! {});
         return Ok(quote! {
             #interface_fragment
             #method_fragments
             #event_fragments
+            #interface_anchor
             #anchor_root
         });
     }
@@ -54,17 +64,26 @@ pub fn generate_impl_raw_spec_fragments(
     let throws = throws_spec_tokens(&contract)?;
 
     let interface_fragment = generate_interface_fragment_tokens(
+        &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
     );
-    let event_fragments = generate_config_event_fragments_tokens(config);
+    let event_fragments =
+        generate_config_event_fragments_tokens(&entrypoints_cfg(), config);
+    // A bare impl is its own interface; anchor it so it survives shaking.
+    let interface_anchor = generate_interface_anchor_tokens(
+        entrypoints_cfg(),
+        quote! { #iface_name },
+        quote! { #iface_vers },
+    );
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(config_event_anchor_tokens(config));
     let method_fragments = methods
         .iter()
         .map(|method| {
             generate_method_fragment_tokens(
+                &entrypoints_cfg(),
                 quote! { #iface_name },
                 quote! { #iface_vers },
                 method,
@@ -75,12 +94,14 @@ pub fn generate_impl_raw_spec_fragments(
         anchor_roots.extend(method_anchor_tokens(method)?);
     }
     let anchor_root =
-        emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
+        emit_root_anchor_tokens(&entrypoints_cfg(), &anchor_roots)
+            .unwrap_or_else(|| quote! {});
 
     Ok(quote! {
         #interface_fragment
         #(#method_fragments)*
         #event_fragments
+        #interface_anchor
         #anchor_root
     })
 }
@@ -95,26 +116,36 @@ pub fn generate_free_function_raw_spec_fragments(
     let throws = throws_spec_tokens(&contract)?;
 
     let interface_fragment = generate_interface_fragment_tokens(
+        &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
     );
     let method_fragment = generate_method_fragment_tokens(
+        &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         item,
     )?;
-    let event_fragments = generate_config_event_fragments_tokens(config);
+    let event_fragments =
+        generate_config_event_fragments_tokens(&entrypoints_cfg(), config);
+    let interface_anchor = generate_interface_anchor_tokens(
+        entrypoints_cfg(),
+        quote! { #iface_name },
+        quote! { #iface_vers },
+    );
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(method_anchor_tokens(item)?);
     anchor_roots.extend(config_event_anchor_tokens(config));
     let anchor_root =
-        emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
+        emit_root_anchor_tokens(&entrypoints_cfg(), &anchor_roots)
+            .unwrap_or_else(|| quote! {});
 
     Ok(quote! {
         #interface_fragment
         #method_fragment
         #event_fragments
+        #interface_anchor
         #anchor_root
     })
 }
@@ -137,12 +168,21 @@ pub fn generate_trait_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
 
+    // A trait emits its interface/method/event fragments as *candidates*,
+    // target-gated (not `entrypoints`): present whenever the interface crate
+    // compiles for a contract target, with no feature required. Post-
+    // processing drops them unless an impl anchors the interface. An interface
+    // crate built on its own has no anchors at all, so the canonicalizer's
+    // legacy "include everything" fallback yields the full interface spec —
+    // i.e. the standalone interface carrier needs no extra wiring.
     let interface_fragment = generate_interface_fragment_tokens(
+        &target_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
     );
-    let event_fragments = generate_config_event_fragments_tokens(config);
+    let event_fragments =
+        generate_config_event_fragments_tokens(&target_cfg(), config);
 
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(config_event_anchor_tokens(config));
@@ -151,6 +191,7 @@ pub fn generate_trait_raw_spec_fragments(
         .iter()
         .map(|method| {
             generate_method_fragment_tokens(
+                &target_cfg(),
                 quote! { #iface_name },
                 quote! { #iface_vers },
                 method,
@@ -160,8 +201,8 @@ pub fn generate_trait_raw_spec_fragments(
     for method in &methods {
         anchor_roots.extend(method_anchor_tokens(method)?);
     }
-    let anchor_root =
-        emit_root_anchor_tokens(&anchor_roots).unwrap_or_else(|| quote! {});
+    let anchor_root = emit_root_anchor_tokens(&target_cfg(), &anchor_roots)
+        .unwrap_or_else(|| quote! {});
 
     Ok(quote! {
         #interface_fragment
@@ -298,11 +339,78 @@ fn generate_trait_event_fragments_tokens(
     }
 }
 
+/// The cfg gate for an interface's *candidate* spec fragments (interface,
+/// methods, events). These are emitted whenever the defining crate compiles
+/// for a contract target — independent of `entrypoints` — and are shaken out
+/// in post-processing unless an impl anchors the interface.
+fn target_cfg() -> TokenStream {
+    quote! { any(target_family = "wasm", target_arch = "riscv32") }
+}
+
+/// The cfg gate for an *anchor*: emitted only at the site that wants the
+/// interface in its own artifact's spec (a contract built with `entrypoints`,
+/// or an interface carrier built with `spec`).
+fn entrypoints_cfg() -> TokenStream {
+    quote! {
+        all(
+            any(target_family = "wasm", target_arch = "riscv32"),
+            feature = "entrypoints"
+        )
+    }
+}
+
+/// Emit an `InterfaceAnchor` for a trait, target-gated. Used by the
+/// `export_interface_spec!` macro in an interface carrier (the trait's
+/// `main.rs`) so building the interface crate on its own yields its spec.
+///
+/// Resolves the module-level `__GROUNDHOG_IFACE_ANCHOR_<Trait>` const the
+/// `#[contract]` trait emits (the trait itself isn't dyn-compatible, so its
+/// associated consts aren't reachable without an implementor).
+pub fn generate_interface_anchor_for_trait(path: &syn::Path) -> TokenStream {
+    let mut const_path = path.clone();
+    if let Some(last) = const_path.segments.last_mut() {
+        last.ident = quote::format_ident!(
+            "__GROUNDHOG_IFACE_ANCHOR_{}",
+            last.ident
+        );
+        last.arguments = syn::PathArguments::None;
+    }
+    emit_raw_fragment_tokens_with_cfg(
+        target_cfg(),
+        quote! {
+            ::sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(#const_path)
+        },
+    )
+}
+
+/// Emit an `InterfaceAnchor` fragment for `(name, version)` under `cfg`. The
+/// post-processor keeps an interface's candidate spec only if it is anchored.
+fn generate_interface_anchor_tokens(
+    cfg: TokenStream,
+    interface_name: TokenStream,
+    interface_version: TokenStream,
+) -> TokenStream {
+    emit_raw_fragment_tokens_with_cfg(
+        cfg,
+        quote! {
+            ::sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(
+                ::sdk::__contract_spec::SpecInterfaceAnchorView {
+                    interface_name: #interface_name,
+                    interface_version: #interface_version,
+                }
+            )
+        },
+    )
+}
+
 /// Emits one `SpecEvent` fragment per event declared via `emits(...)` on a
 /// bare impl or free-function contract.
-fn generate_config_event_fragments_tokens(config: &Config) -> TokenStream {
+fn generate_config_event_fragments_tokens(
+    cfg: &TokenStream,
+    config: &Config,
+) -> TokenStream {
     let fragments = config.emits_list().into_iter().map(|path| {
-        emit_raw_fragment_tokens(quote! {
+        emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {
             ::sdk::__contract_spec::SpecFragmentView::Event(
                 <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
             )
@@ -326,11 +434,12 @@ fn config_event_anchor_tokens(config: &Config) -> Vec<TokenStream> {
 }
 
 fn generate_interface_fragment_tokens(
+    cfg: &TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
     throws: TokenStream,
 ) -> TokenStream {
-    emit_raw_fragment_tokens(quote! {
+    emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {
         ::sdk::__contract_spec::SpecFragmentView::Interface(
             ::sdk::__contract_spec::SpecInterfaceFragmentView {
                 interface_name: #interface_name,
@@ -342,6 +451,7 @@ fn generate_interface_fragment_tokens(
 }
 
 fn generate_method_fragment_tokens(
+    cfg: &TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
     method: &impl Method,
@@ -350,7 +460,7 @@ fn generate_method_fragment_tokens(
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
 
-    Ok(emit_raw_fragment_tokens(quote! {{
+    Ok(emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {{
         const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
             &[#(#args),*];
         ::sdk::__contract_spec::SpecFragmentView::Method(
@@ -365,18 +475,6 @@ fn generate_method_fragment_tokens(
             }
         )
     }}))
-}
-
-pub fn emit_raw_fragment_tokens(fragment: TokenStream) -> TokenStream {
-    emit_raw_fragment_tokens_with_cfg(
-        quote! {
-            all(
-                any(target_family = "wasm", target_arch = "riscv32"),
-                feature = "entrypoints"
-            )
-        },
-        fragment,
-    )
 }
 
 pub fn emit_raw_fragment_tokens_with_cfg(
@@ -414,6 +512,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
 }
 
 fn emit_root_anchor_tokens(
+    cfg: &TokenStream,
     anchor_roots: &[TokenStream],
 ) -> Option<TokenStream> {
     if anchor_roots.is_empty() {
@@ -422,7 +521,7 @@ fn emit_root_anchor_tokens(
 
     let count = anchor_roots.len();
     Some(quote! {
-        #[cfg(all(any(target_family = "wasm", target_arch = "riscv32"), feature = "entrypoints"))]
+        #[cfg(#cfg)]
         const _: () = {
             #[used]
             static ROOT_SPEC_ANCHORS: [fn() -> usize; #count] = [

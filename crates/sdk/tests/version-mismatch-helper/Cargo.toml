@@ -11,6 +11,4 @@ sdk = { package = "sdk", path = "../.." }
 sdk = { package = "sdk", path = "../..", features = ["std"] }
 
 [features]
-# Per-crate switch read by the #[contract] macro via cfg!(feature = "entrypoints").
-entrypoints = []
 dev = ["sdk/dev"]

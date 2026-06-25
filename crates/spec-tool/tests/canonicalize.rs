@@ -1,8 +1,9 @@
 use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractExceptionType,
-    ContractField, ContractSpecMethod, ContractSpecString, ContractStructDef,
-    ContractType, ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractField, ContractSpec, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     SpecToolError, canonicalize_spec, parse_raw_fragments,
@@ -11,6 +12,41 @@ use xdrs::txs::encode;
 
 fn s(value: &str) -> ContractSpecString {
     ContractSpecString::try_from(value).unwrap()
+}
+
+/// Canonicalize, first anchoring every interface the fragments mention — which
+/// is what a real `#[contract] impl` emits (an `InterfaceAnchor`) and what spec
+/// shaking requires. These fixtures hand-build fragments and bypass the macro,
+/// so we add the anchors here to mirror a real artifact.
+fn canon(fragments: &[SpecFragment]) -> Result<ContractSpec, SpecToolError> {
+    let mut v: Vec<SpecFragment> = fragments.to_vec();
+    let mut keys = std::collections::BTreeSet::new();
+    for f in fragments {
+        match f {
+            SpecFragment::SpecInterface { interface_fragment: i } => {
+                keys.insert((
+                    i.interface_name.clone(),
+                    i.interface_version.clone(),
+                ));
+            }
+            SpecFragment::SpecMethod { method_fragment: m } => {
+                keys.insert((
+                    m.interface_name.clone(),
+                    m.interface_version.clone(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    for (interface_name, interface_version) in keys {
+        v.push(SpecFragment::InterfaceAnchor {
+            interface_anchor: SpecInterfaceAnchor {
+                interface_name,
+                interface_version,
+            },
+        });
+    }
+    canonicalize_spec(&v)
 }
 
 fn exn(ty: ContractType) -> ContractExceptionType {
@@ -23,7 +59,7 @@ fn spec_str(value: &ContractSpecString) -> &str {
 
 #[test]
 fn canonicalize_spec_groups_methods_and_type_defs() {
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecMethod {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
@@ -138,7 +174,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
 
 #[test]
 fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -218,7 +254,7 @@ fn canonicalize_spec_dedups_identical_methods() {
         return_type: ContractType::Void,
     };
 
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -250,7 +286,7 @@ fn canonicalize_spec_dedups_identical_methods() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
-    let err = canonicalize_spec(&[
+    let err = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -325,7 +361,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
         },
     };
 
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -373,7 +409,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_missing_named_type_defs() {
-    let err = canonicalize_spec(&[
+    let err = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -406,7 +442,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_method_only_interface_buckets() {
-    let err = canonicalize_spec(&[SpecFragment::SpecMethod {
+    let err = canon(&[SpecFragment::SpecMethod {
         method_fragment: SpecMethodFragment {
             interface_name: s("Named"),
             interface_version: s("0.1.0"),
@@ -426,7 +462,7 @@ fn canonicalize_spec_rejects_method_only_interface_buckets() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_type_defs() {
-    let err = canonicalize_spec(&[
+    let err = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -480,7 +516,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
-    let err = canonicalize_spec(&[
+    let err = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -530,7 +566,7 @@ fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_interface_throws() {
-    let err = canonicalize_spec(&[
+    let err = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -643,7 +679,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
 
 #[test]
 fn canonicalize_spec_rejects_non_semver_interface_versions() {
-    let err = canonicalize_spec(&[SpecFragment::SpecInterface {
+    let err = canon(&[SpecFragment::SpecInterface {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s("Named"),
             interface_version: s("v1"),
@@ -662,7 +698,7 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
 
 #[test]
 fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -776,7 +812,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
     // ExportedTypeDef should be included regardless of reachability.
     // A plain SpecTypeDef that is unreachable from method signatures should
     // NOT be included.
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -853,7 +889,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
 fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
     // When an exported type references another named type, that dependency
     // must also be resolved and included in the output.
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -1110,7 +1146,7 @@ fn canonicalize_spec_rejects_event_without_name() {
 
 #[test]
 fn non_utf8_interface_name_is_rejected_not_panicked() {
-    let result = canonicalize_spec(&[SpecFragment::SpecInterface {
+    let result = canon(&[SpecFragment::SpecInterface {
         interface_fragment: SpecInterfaceFragment {
             interface_name: ContractSpecString::try_from(vec![
                 0xFFu8, 0xFE, 0xFD,
@@ -1126,7 +1162,7 @@ fn non_utf8_interface_name_is_rejected_not_panicked() {
 
 #[test]
 fn non_utf8_type_name_is_rejected_not_panicked() {
-    let result = canonicalize_spec(&[
+    let result = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
@@ -1157,7 +1193,7 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
 
 #[test]
 fn duplicate_exception_selector_with_different_types_is_rejected() {
-    let result = canonicalize_spec(&[
+    let result = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
@@ -1197,7 +1233,7 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
 
 #[test]
 fn identical_duplicate_exception_entries_are_deduped() {
-    let spec = canonicalize_spec(&[
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),

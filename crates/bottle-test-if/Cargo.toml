@@ -19,6 +19,4 @@ crate-type = ["rlib"]
 doctest = false
 
 [features]
-# Per-crate switch read by the #[contract] macro via cfg!(feature = "entrypoints").
-entrypoints = []
 dev = ["sdk/dev"]

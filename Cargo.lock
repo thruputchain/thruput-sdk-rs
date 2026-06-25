@@ -312,7 +312,7 @@ version = "0.15.2"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "sdk",
  "thiserror",
 ]
@@ -407,7 +407,7 @@ name = "groundhog-contract-spec"
 version = "0.15.2"
 dependencies = [
  "groundhog-spec",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "heapless",
  "xdr-common",
  "xdrs",
@@ -417,7 +417,7 @@ dependencies = [
 name = "groundhog-contract-util"
 version = "0.15.2"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "sha2",
  "syn",
 ]
@@ -435,7 +435,7 @@ name = "groundhog-erc20-if"
 version = "0.1.3"
 dependencies = [
  "groundhog-erc20-if",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "sdk",
  "thiserror",
 ]
@@ -445,7 +445,7 @@ name = "groundhog-erc20-metadata-if"
 version = "0.1.3"
 dependencies = [
  "groundhog-erc20-metadata-if",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "heapless",
  "sdk",
  "thiserror",
@@ -455,7 +455,7 @@ dependencies = [
 name = "groundhog-event"
 version = "0.15.2"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "xdrs",
 ]
 
@@ -465,7 +465,7 @@ version = "0.15.2"
 dependencies = [
  "darling 0.20.11",
  "groundhog-contract-util",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "proc-macro2",
  "quote",
  "sha2",
@@ -480,7 +480,7 @@ dependencies = [
  "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-trace",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "hogexec-internal",
  "sha2",
  "xdr-common",
@@ -505,12 +505,12 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.17.2"
+version = "0.18.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "36dc2174d8605c17c9c9c4718cd12574acf7a5356416c116313086cc93b7e58f"
+checksum = "37a405afb449d1b8dad31e8c33cc95c3e7a9a0ae3114fd0ce62b5885400e9d6c"
 dependencies = [
  "groundhog-serde_arrays",
- "groundhog-xdr",
+ "groundhog-xdr 0.18.0",
  "serde",
  "serde_with",
  "xdrs",
@@ -534,7 +534,7 @@ dependencies = [
 name = "groundhog-storage-cost"
 version = "0.15.2"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "xdrs",
 ]
 
@@ -560,7 +560,7 @@ name = "groundhog-test-vectors"
 version = "0.15.2"
 dependencies = [
  "groundhog-contract-util",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "serde_json",
  "xdrs",
 ]
@@ -571,7 +571,7 @@ version = "0.17.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "f201794b23871b7044aef615f1fdd4176ce9ea7aeb6eb32499aa92e789756dbe"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "hogexec-internal",
  "schemars 1.2.1",
  "xdr-common",
@@ -592,7 +592,7 @@ dependencies = [
 name = "groundhog-wasm-runtime"
 version = "0.15.2"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "heapless",
 ]
 
@@ -604,11 +604,24 @@ checksum = "bd3d876f5fcbe7979b9abd709ead33352f43d3aa7790bd6bb56762893f09cce4"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
- "groundhog-xdr-macros",
+ "groundhog-xdr-macros 0.17.2",
  "schemars 1.2.1",
  "serde",
- "serde_with",
  "thiserror",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "groundhog-xdr"
+version = "0.18.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "ac809a35ad5a90f4a3ca5587cdf2f88d1f7c0281aa06a9caba8ee3f79c52cf18"
+dependencies = [
+ "groundhog-serde_arrays",
+ "groundhog-xdr-macros 0.18.0",
+ "serde",
+ "serde_with",
  "xdr-common",
  "xdrs",
 ]
@@ -618,6 +631,21 @@ name = "groundhog-xdr-macros"
 version = "0.17.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "83a120031e2e5c09a7ae3049573624ad2a8c8376eac705183f47e42345c3f5bd"
+dependencies = [
+ "darling 0.20.11",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "syn",
+]
+
+[[package]]
+name = "groundhog-xdr-macros"
+version = "0.18.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "4a94b39f23b748ceab342ee8b3f000667aa79f08841672abeead7a0bb0d2348c"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
@@ -1066,7 +1094,7 @@ dependencies = [
  "groundhog-storage-cost",
  "groundhog-wasm-meter",
  "groundhog-wasm-runtime",
- "groundhog-xdr",
+ "groundhog-xdr 0.17.2",
  "heapless",
  "hex-literal",
  "hogexec-internal",
