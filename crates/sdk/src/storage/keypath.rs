@@ -112,6 +112,15 @@ impl Keypath {
     /// A single value's encoding is capped at the SDK's fixed encode-buffer
     /// size in both modes (with and without `alloc`); oversized values throw
     /// `LibraryExn::StorageKeypathOverflow`.
+    ///
+    /// Slot identity is the sequence of `child` values from the root: there is
+    /// no per-component "structural vs. user-key" tag, so two children of the
+    /// *same* node built from the same value address the same slot regardless
+    /// of intent. SDK-generated code never mixes schemes under one node (a
+    /// struct keys children by field position, a `Map` by user key, a `Vector`
+    /// by region index then element index one level down), so distinct slots
+    /// stay distinct. A hand-written `From<Keypath>` must uphold the same rule:
+    /// give each child of a node a distinct `value`.
     pub fn child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
         let mut child = self.clone();
         // Encode the component into the reused scratch in place (no fresh
