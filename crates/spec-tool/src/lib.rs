@@ -121,9 +121,11 @@ pub fn canonicalize_spec(
         BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
     let mut exported_roots =
         std::collections::BTreeSet::<ContractSpecString>::new();
-    // Interfaces an impl (or a `spec`-built carrier) anchored for inclusion.
-    // A trait's interface spec is a *candidate*: it lands in the output only
-    // if anchored. Empty set => legacy contract with no anchors => include all.
+    // Interfaces an impl (or `export_interface_spec!` carrier) anchored for
+    // inclusion. A trait's interface spec is a *candidate*: it lands in the
+    // output only if anchored. Shaking is strict — an empty set drops every
+    // interface (there is intentionally no "include all when unanchored"
+    // fallback; a real contract always anchors its own interface).
     let mut anchored_interfaces = std::collections::BTreeSet::<(
         ContractSpecString,
         ContractSpecString,

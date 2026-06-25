@@ -60,6 +60,26 @@ fn spec_str(value: &ContractSpecString) -> &str {
 }
 
 #[test]
+fn canonicalize_spec_drops_unanchored_interfaces() {
+    // Strict shaking: an interface candidate with no `InterfaceAnchor` (this
+    // calls `canonicalize_spec` directly, not the auto-anchoring `canon`
+    // helper) is dropped — there is intentionally no "include all" fallback.
+    let spec = canonicalize_spec(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("Named"),
+            interface_version: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+        },
+    }])
+    .unwrap();
+    assert!(
+        spec.interfaces.is_empty(),
+        "an unanchored interface must be shaken out, got {:?}",
+        spec.interfaces
+    );
+}
+
+#[test]
 fn canonicalize_spec_groups_methods_and_type_defs() {
     let spec = canon(&[
         SpecFragment::SpecMethod {
