@@ -23,7 +23,9 @@ fn canon(fragments: &[SpecFragment]) -> Result<ContractSpec, SpecToolError> {
     let mut keys = std::collections::BTreeSet::new();
     for f in fragments {
         match f {
-            SpecFragment::SpecInterface { interface_fragment: i } => {
+            SpecFragment::SpecInterface {
+                interface_fragment: i,
+            } => {
                 keys.insert((
                     i.interface_name.clone(),
                     i.interface_version.clone(),

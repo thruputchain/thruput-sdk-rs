@@ -63,7 +63,9 @@ fn encode_fragments(fragments: &[SpecFragment]) -> Vec<u8> {
     let mut keys = std::collections::BTreeSet::new();
     for fragment in fragments {
         match fragment {
-            SpecFragment::SpecInterface { interface_fragment: i } => {
+            SpecFragment::SpecInterface {
+                interface_fragment: i,
+            } => {
                 keys.insert((
                     i.interface_name.clone(),
                     i.interface_version.clone(),

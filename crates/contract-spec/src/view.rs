@@ -9,8 +9,8 @@ use crate::{
     ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
     ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
     ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
-    SpecMethodFragment,
+    ContractUnionDef, SpecFragment, SpecInterfaceAnchor,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 #[cfg(feature = "owned-model")]
 use alloc::{boxed::Box, vec::Vec};

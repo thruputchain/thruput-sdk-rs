@@ -369,10 +369,8 @@ fn entrypoints_cfg() -> TokenStream {
 pub fn generate_interface_anchor_for_trait(path: &syn::Path) -> TokenStream {
     let mut const_path = path.clone();
     if let Some(last) = const_path.segments.last_mut() {
-        last.ident = quote::format_ident!(
-            "__GROUNDHOG_IFACE_ANCHOR_{}",
-            last.ident
-        );
+        last.ident =
+            quote::format_ident!("__GROUNDHOG_IFACE_ANCHOR_{}", last.ident);
         last.arguments = syn::PathArguments::None;
     }
     emit_raw_fragment_tokens_with_cfg(
@@ -439,15 +437,18 @@ fn generate_interface_fragment_tokens(
     interface_version: TokenStream,
     throws: TokenStream,
 ) -> TokenStream {
-    emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {
-        ::sdk::__contract_spec::SpecFragmentView::Interface(
-            ::sdk::__contract_spec::SpecInterfaceFragmentView {
-                interface_name: #interface_name,
-                interface_version: #interface_version,
-                throws: #throws,
-            }
-        )
-    })
+    emit_raw_fragment_tokens_with_cfg(
+        cfg.clone(),
+        quote! {
+            ::sdk::__contract_spec::SpecFragmentView::Interface(
+                ::sdk::__contract_spec::SpecInterfaceFragmentView {
+                    interface_name: #interface_name,
+                    interface_version: #interface_version,
+                    throws: #throws,
+                }
+            )
+        },
+    )
 }
 
 fn generate_method_fragment_tokens(
@@ -460,21 +461,24 @@ fn generate_method_fragment_tokens(
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
 
-    Ok(emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {{
-        const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
-            &[#(#args),*];
-        ::sdk::__contract_spec::SpecFragmentView::Method(
-            ::sdk::__contract_spec::SpecMethodFragmentView {
-                interface_name: #interface_name,
-                interface_version: #interface_version,
-                method: ::sdk::__contract_spec::ContractSpecMethodView {
-                    name: #method_name,
-                    args: METHOD_ARGS,
-                    return_type: #return_type,
-                },
-            }
-        )
-    }}))
+    Ok(emit_raw_fragment_tokens_with_cfg(
+        cfg.clone(),
+        quote! {{
+            const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
+                &[#(#args),*];
+            ::sdk::__contract_spec::SpecFragmentView::Method(
+                ::sdk::__contract_spec::SpecMethodFragmentView {
+                    interface_name: #interface_name,
+                    interface_version: #interface_version,
+                    method: ::sdk::__contract_spec::ContractSpecMethodView {
+                        name: #method_name,
+                        args: METHOD_ARGS,
+                        return_type: #return_type,
+                    },
+                }
+            )
+        }},
+    ))
 }
 
 pub fn emit_raw_fragment_tokens_with_cfg(
