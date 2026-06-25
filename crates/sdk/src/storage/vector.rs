@@ -26,8 +26,8 @@ impl<S> Debug for Vector<S> {
 
 impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
-        let len_kp = keypath.child_index(0);
-        let values_kp = keypath.child_index(1);
+        let len_kp = keypath.child(&0u32);
+        let values_kp = keypath.child(&1u32);
 
         Self {
             keypath,
@@ -138,7 +138,7 @@ impl<S: StorageType> Vector<S> {
     }
 
     fn make_elem_keypath(&self, index: u32) -> Keypath {
-        self.values.keypath().child_item(&index)
+        self.values.keypath().child(&index)
     }
 }
 

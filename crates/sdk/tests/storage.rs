@@ -276,13 +276,13 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
 
     // Verify values are there via manually-constructed keypaths.
     // Vector layout:
-    //   len       = root.child_index(0)
-    //   values map = root.child_index(1)
-    //   element i  = values_kp.child_item(&i)
-    let values_kp = root.child_index(1);
+    //   len       = root.child(&0u32)
+    //   values map = root.child(&1u32)
+    //   element i  = values_kp.child(&i)
+    let values_kp = root.child(&1u32);
 
     let elem = |kp: &Keypath, idx: u32| -> Value<u32> {
-        kp.child_item(&idx).into()
+        kp.child(&idx).into()
     };
 
     // Before delete: elements are readable
@@ -299,7 +299,7 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     assert_eq!(elem(&values_kp, 2).try_get(), None);
 
     // Length storage is also gone
-    let len_kp = root.child_index(0);
+    let len_kp = root.child(&0u32);
     let len_val: Value<u32> = len_kp.into();
     assert_eq!(len_val.try_get(), None);
 });
@@ -541,9 +541,9 @@ struct Pinned {
 fn slot_override_remaps_field_keypath() {
     let root = Keypath::root();
     let p = Pinned::from(root.clone());
-    // b lives at child_index(7), provably distinct from child_index(1).
-    let expect_b = Value::<u64>::from(root.child_index(7));
-    let other = Value::<u64>::from(root.child_index(1));
+    // b lives at child(&7u32), provably distinct from child(&1u32).
+    let expect_b = Value::<u64>::from(root.child(&7u32));
+    let other = Value::<u64>::from(root.child(&1u32));
     assert!(p.b.keypath().addresses_same_slot(expect_b.keypath()));
     assert!(!p.b.keypath().addresses_same_slot(other.keypath()));
 }
@@ -561,18 +561,26 @@ struct PositionalAbsoluteIndex {
 fn positional_fields_use_absolute_declaration_index() {
     let root = Keypath::root();
     let s = PositionalAbsoluteIndex::from(root.clone());
-    // c is the 3rd field -> child_index(2), NOT child_index(1).
-    assert!(s.c.keypath().addresses_same_slot(
-        Value::<u64>::from(root.child_index(2)).keypath()
-    ));
-    assert!(!s.c.keypath().addresses_same_slot(
-        Value::<u64>::from(root.child_index(1)).keypath()
-    ));
-    // b -> child_index(1); a -> child_index(5).
-    assert!(s.b.keypath().addresses_same_slot(
-        Value::<u64>::from(root.child_index(1)).keypath()
-    ));
-    assert!(s.a.keypath().addresses_same_slot(
-        Value::<u64>::from(root.child_index(5)).keypath()
-    ));
+    // c is the 3rd field -> child(&2u32), NOT child(&1u32).
+    assert!(
+        s.c.keypath().addresses_same_slot(
+            Value::<u64>::from(root.child(&2u32)).keypath()
+        )
+    );
+    assert!(
+        !s.c.keypath().addresses_same_slot(
+            Value::<u64>::from(root.child(&1u32)).keypath()
+        )
+    );
+    // b -> child(&1u32); a -> child(&5u32).
+    assert!(
+        s.b.keypath().addresses_same_slot(
+            Value::<u64>::from(root.child(&1u32)).keypath()
+        )
+    );
+    assert!(
+        s.a.keypath().addresses_same_slot(
+            Value::<u64>::from(root.child(&5u32)).keypath()
+        )
+    );
 }

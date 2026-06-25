@@ -141,7 +141,7 @@ impl<K, V> Map<K, V> {
     where
         K: WriteXDR,
     {
-        self.keypath.child_item(entry_key)
+        self.keypath.child(entry_key)
     }
 }
 

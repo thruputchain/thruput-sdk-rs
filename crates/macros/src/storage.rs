@@ -9,7 +9,7 @@ use syn::spanned::Spanned;
 /// to be loaded.
 ///
 /// A field's storage slot defaults to its zero-based declaration position
-/// (field `i` maps to `child_index(i)`), but can be pinned explicitly with
+/// (field `i` maps to `child(&(i as u32))`), but can be pinned explicitly with
 /// `#[slot(N)]`. **Reordering struct fields remaps any positionally-assigned
 /// slots** — existing on-chain state stored under the old field order will not
 /// follow the renamed positions; pin slots with `#[slot(N)]` to keep them
@@ -182,7 +182,7 @@ fn impl_from_keypath(
         resolved.push((idx, field.span()));
 
         field_initializers.extend(quote! {
-            let #field_name = keypath.child_index(#idx).into();
+            let #field_name = keypath.child(&(#idx as u32)).into();
         });
 
         // Add `FieldType: From<Keypath>` bound

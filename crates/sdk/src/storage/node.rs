@@ -86,7 +86,7 @@ pub trait StorageDomain {
 /// Called by `#[contract]`-generated code; not intended for direct use.
 #[doc(hidden)]
 pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
-    Node::from(Keypath::root().child_domain(T::DOMAIN))
+    Node::from(Keypath::root().child(T::DOMAIN))
 }
 
 #[cfg(test)]
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn contract_state_root_seeds_domain() {
         let node: Node<UnitState> = contract_state_root::<UnitState>();
-        let expected = Keypath::root().child_domain("UnitState");
+        let expected = Keypath::root().child("UnitState");
         assert!(node.keypath().addresses_same_slot(&expected));
         // And it is NOT the bare empty root anymore.
         assert!(!node.keypath().addresses_same_slot(&Keypath::root()));
