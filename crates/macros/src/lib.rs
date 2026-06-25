@@ -138,6 +138,14 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// `version = "x.y.z"`, `interface = "Name"`, `exports = "mod_name"`,
 /// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
 /// `emits(Event1, Event2)`, `test_setup = "fn_name"`.
+///
+/// # Storage-domain collision detection
+///
+/// When a contract uses multiple storage structs, `#[contract]` generates a
+/// lib test that verifies their domain strings are all distinct. This check
+/// runs as a `#[cfg(test)]` lib test; a crate that sets `[lib] test = false`
+/// in its `Cargo.toml`, or that only runs an external test harness without
+/// compiling lib tests, will silently skip this collision check at build time.
 #[proc_macro_attribute]
 pub fn contract(
     attr_args: TokenStream,
@@ -152,7 +160,7 @@ pub fn contract(
         .into()
 }
 
-#[proc_macro_derive(Storage)]
+#[proc_macro_derive(Storage, attributes(slot, storage_domain))]
 pub fn derive_storage(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
@@ -167,26 +175,42 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
 /// Works on named-field structs (fields must themselves be storage
 /// types like `NNInt`, `Map`, `Value`, or nested storage structs) and
 /// on unit structs (`struct Token;`) for contracts that keep all state
-/// behind raw storage keys. Takes no arguments.
+/// behind raw storage keys.
+///
+/// Accepts an optional `domain = "..."` argument to override the default
+/// domain (the struct's bare identifier name).
 #[proc_macro_attribute]
 pub fn storage(
     attr_args: TokenStream,
     item_tokens: TokenStream,
 ) -> TokenStream {
     let attr_args: proc_macro2::TokenStream = attr_args.into();
+    let item = syn::parse_macro_input!(item_tokens as syn::Item);
+
+    // Accept only `domain = "..."`; reject anything else.
+    let mut domain: Option<syn::LitStr> = None;
     if !attr_args.is_empty() {
-        return syn::Error::new_spanned(
-            &attr_args,
-            "#[storage] takes no arguments",
-        )
-        .into_compile_error()
-        .into();
+        let parser = syn::meta::parser(|meta| {
+            if meta.path.is_ident("domain") {
+                domain = Some(meta.value()?.parse()?);
+                Ok(())
+            } else {
+                Err(meta.error("#[storage] only accepts `domain = \"...\"`"))
+            }
+        });
+        if let Err(e) = syn::parse::Parser::parse2(parser, attr_args) {
+            return e.into_compile_error().into();
+        }
     }
 
-    let item = syn::parse_macro_input!(item_tokens as syn::Item);
+    let domain_attr = match domain {
+        Some(lit) => quote::quote! { #[storage_domain = #lit] },
+        None => quote::quote! {},
+    };
 
     quote::quote! {
         #[derive(::sdk::Storage)]
+        #domain_attr
         #item
     }
     .into()

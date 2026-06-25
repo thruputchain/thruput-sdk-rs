@@ -3,6 +3,17 @@ use std::panic::AssertUnwindSafe;
 
 use complex_storage::*;
 
+#[test]
+fn contract_root_registers_its_domain() {
+    use sdk::storage::{DomainRecord, STORAGE_DOMAINS};
+
+    // The test binary links this crate's #[contract] impls; at least one
+    // root domain must be registered, and none may collide.
+    let records: &[DomainRecord] = &STORAGE_DOMAINS;
+    assert!(!records.is_empty(), "no storage domains registered");
+    assert_eq!(sdk::storage::check_duplicate(records), None);
+}
+
 static NONCE: SHA256Hash = sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
 
 /// Helper: set up the fibonacci contract in a test environment.

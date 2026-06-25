@@ -1,0 +1,26 @@
+[package]
+name = "slot_reorder"
+description = "Regression fixture: slot pins control placement when declaration order differs from slot order"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+sdk = { workspace = true }
+
+[dev-dependencies]
+slot_reorder = { path = ".", features = ["dev"] }

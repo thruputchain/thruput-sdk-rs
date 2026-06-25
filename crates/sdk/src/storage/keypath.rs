@@ -70,25 +70,25 @@ type KeyBufImpl = alloc::vec::Vec<u8>;
 #[cfg(not(feature = "alloc"))]
 type KeyBufImpl = StaticKeyBuf<STATIC_KEYPATH_CAPACITY>;
 
-const TAG_ITEM: u8 = 0x00;
-const TAG_INDEX: u8 = 0x01;
-
 /// Path identifying a storage slot.
 ///
-/// A keypath is a sequence of framed components appended to a byte buffer:
-/// [`child_index`](Self::child_index) appends `[0x01] ‖ i.to_be_bytes()`
-/// (SDK-assigned structural positions: struct fields, Vector len/values
-/// regions) and [`child_item`](Self::child_item) appends
-/// `[0x00] ‖ u16-len ‖ encode(t)` (user keys, e.g. Map entries). The
-/// storage key is `sha256` of the buffer, computed once and memoized by
-/// [`KeyCache`]. Framing makes distinct component sequences produce
-/// distinct preimages.
+/// A keypath is a sequence of length-framed components appended to a byte
+/// buffer. Each call to [`child`](Self::child) appends
+/// `CXS(byte_len) ‖ CXS(value)`: the component value CXS-encoded, prefixed by
+/// the CXS-encoded byte length of that encoding. The storage key is `sha256`
+/// of the buffer, computed once and memoized by [`KeyCache`].
+///
+/// The self-delimiting `CXS(len)` prefix makes the preimage
+/// `child(v1) ‖ child(v2) ‖ …` uniquely decodable: read the length, then read
+/// exactly that many value bytes. This holds for *any* value encoding —
+/// including fixed opaque `[u8; N]` keys that do not self-delimit — so
+/// distinct component sequences can never share a preimage.
 ///
 /// Without the `alloc` feature, the preimage shares a fixed
 /// [`STATIC_KEYPATH_CAPACITY`]-byte budget; exceeding it throws
 /// `LibraryExn::StorageKeypathOverflow` (enable `alloc`, or pre-hash
-/// oversized keys). A single `child_item` encoding is additionally capped
-/// at the SDK's fixed encode-buffer size in both modes.
+/// oversized keys). A single component's encoding is additionally capped at
+/// the SDK's fixed encode-buffer size in both modes.
 #[derive(Clone, Debug, Default)]
 pub struct Keypath {
     buf: KeyBufImpl,
@@ -96,41 +96,63 @@ pub struct Keypath {
 }
 
 impl Keypath {
+    #[doc(hidden)]
     pub fn root() -> Self {
         Self::default()
     }
 
-    /// Child at an SDK-assigned structural position.
-    pub fn child_index(&self, i: u64) -> Keypath {
-        let mut child = self.clone();
-        child.buf.append_bytes(&[TAG_INDEX]);
-        child.buf.append_bytes(&i.to_be_bytes());
-        child
-    }
-
-    /// Child keyed by an encodable value (e.g. a Map key).
+    /// Child keyed by an encodable value.
     ///
-    /// A single item's encoding is capped at the SDK's fixed encode-buffer
-    /// size (~1 KiB) in both modes (with and without `alloc`); oversized
-    /// items throw `LibraryExn::StorageKeypathOverflow`.
-    pub fn child_item<I: WriteXDR + ?Sized>(&self, item: &I) -> Keypath {
+    /// Appends `CXS(byte_len) ‖ CXS(value)`, where `CXS(value)` is the value's
+    /// CXS encoding and `byte_len` is its byte length, also CXS-encoded (the
+    /// same compact codec, so small lengths cost a single byte). The
+    /// self-delimiting length prefix keeps the preimage uniquely decodable for
+    /// any value bytes.
+    ///
+    /// A single value's encoding is capped at the SDK's fixed encode-buffer
+    /// size in both modes (with and without `alloc`); oversized values throw
+    /// `LibraryExn::StorageKeypathOverflow`.
+    ///
+    /// Slot identity is the sequence of `child` values from the root: there is
+    /// no per-component "structural vs. user-key" tag, so two children of the
+    /// *same* node built from the same value address the same slot regardless
+    /// of intent. SDK-generated code never mixes schemes under one node (a
+    /// struct keys children by field position, a `Map` by user key, a `Vector`
+    /// by region index then element index one level down), so distinct slots
+    /// stay distinct. A hand-written `From<Keypath>` must uphold the same rule:
+    /// give each child of a node a distinct `value`.
+    pub fn child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
         let mut child = self.clone();
         // Encode the component into the reused scratch in place (no fresh
         // stack buffer), then frame it into the keypath's own buffer.
         crate::call::with_scratch(|buf| {
-            crate::internal::encode_scratch(buf, item).unwrap_or_else(|_| {
+            crate::internal::encode_scratch(buf, value).unwrap_or_else(|_| {
                 crate::exn::library_throw(
                     crate::exn::LibraryExn::StorageSerialization,
                 )
             });
             let bytes: &[u8] = buf.as_slice();
-            let len: u16 = bytes.len().try_into().unwrap_or_else(|_| {
+            // CXS-encode the byte length through the SAME compact codec the
+            // value uses (small lengths cost a single byte). Encode it into a
+            // separate stack buffer so we don't disturb `buf`, which still
+            // holds the value bytes we're about to append. A `u32` CXS encoding
+            // is at most 5 bytes.
+            let len: u32 = bytes.len().try_into().unwrap_or_else(|_| {
                 crate::exn::library_throw(
                     crate::exn::LibraryExn::StorageKeypathOverflow,
                 )
             });
-            child.buf.append_bytes(&[TAG_ITEM]);
-            child.buf.append_bytes(&len.to_be_bytes());
+            let mut len_buf = [core::mem::MaybeUninit::<u8>::uninit(); 5];
+            let written = xdrs::cxs::encode_into(&len, &mut len_buf)
+                .unwrap_or_else(|_| {
+                    crate::exn::library_throw(
+                        crate::exn::LibraryExn::StorageSerialization,
+                    )
+                });
+            // Safety: `encode_into` initialized exactly `written` bytes.
+            let len_bytes: &[u8] =
+                unsafe { xdrs::mu::assume_init_ref(&len_buf[..written]) };
+            child.buf.append_bytes(len_bytes);
             child.buf.append_bytes(bytes);
         });
         child
@@ -166,7 +188,7 @@ mod test_keypath {
 
     #[test]
     fn exclusive_flag_propagates_through_clone() {
-        let mut kp = Keypath::root().child_item("some bytes");
+        let mut kp = Keypath::root().child("some bytes");
         kp.set_exclusive();
         assert!(kp.clone().is_exclusive());
     }
@@ -174,23 +196,25 @@ mod test_keypath {
     #[test]
     fn distinct_paths_distinct_keys() {
         let root = Keypath::root();
-        // boundary-shift case: [AA BB]+[CC] vs [AA]+[BB CC]
-        // Framing (tag + length prefix) makes these distinct preimages.
-        let a = root.child_item(&[0xAAu8, 0xBB]).child_item(&[0xCCu8]);
-        let b = root.child_item(&[0xAAu8]).child_item(&[0xBBu8, 0xCC]);
+        // boundary-shift case: [AA BB]+[CC] vs [AA]+[BB CC].
+        // Fixed opaque [u8; N] keys do NOT self-delimit, so without the
+        // CXS(len) prefix these two sequences would share the preimage
+        // AA BB CC. The length prefix keeps them distinct.
+        let a = root.child(&[0xAAu8, 0xBB]).child(&[0xCCu8]);
+        let b = root.child(&[0xAAu8]).child(&[0xBBu8, 0xCC]);
         assert_ne!(a.buf.as_slice(), b.buf.as_slice());
-        // index vs same-value u64 item: different tags (0x01 vs 0x00)
-        let c = root.child_index(0);
-        let d = root.child_item(&0u64);
-        assert_ne!(c.buf.as_slice(), d.buf.as_slice());
+        // Concretely: child(&[AA,BB]) = [02 AA BB], child(&[CC]) = [01 CC];
+        // child(&[AA]) = [01 AA], child(&[BB,CC]) = [02 BB CC].
+        assert_eq!(a.buf.as_slice(), &[0x02, 0xAA, 0xBB, 0x01, 0xCC]);
+        assert_eq!(b.buf.as_slice(), &[0x01, 0xAA, 0x02, 0xBB, 0xCC]);
     }
 
     #[test]
     fn addresses_same_slot_matches_preimage_equality() {
         let root = Keypath::root();
-        let a = root.child_index(3).child_item(&42u64);
-        let same = root.child_index(3).child_item(&42u64);
-        let different = root.child_index(3).child_item(&43u64);
+        let a = root.child(&3u32).child(&42u64);
+        let same = root.child(&3u32).child(&42u64);
+        let different = root.child(&3u32).child(&43u64);
         assert!(a.addresses_same_slot(&same));
         assert!(!a.addresses_same_slot(&different));
     }
@@ -199,7 +223,7 @@ mod test_keypath {
     fn addresses_same_slot_ignores_exclusive_flag() {
         // The exclusive flag is an access mode, not part of slot identity:
         // two otherwise-identical keypaths still address the same slot.
-        let base = Keypath::root().child_item(&7u32);
+        let base = Keypath::root().child(&7u32);
         let mut exclusive = base.clone();
         exclusive.set_exclusive();
         assert!(exclusive.is_exclusive());
@@ -210,8 +234,8 @@ mod test_keypath {
 
     #[test]
     fn derivation_is_deterministic() {
-        let k1 = Keypath::root().child_index(3).child_item(&42u64);
-        let k2 = Keypath::root().child_index(3).child_item(&42u64);
+        let k1 = Keypath::root().child(&3u32).child(&42u64);
+        let k2 = Keypath::root().child(&3u32).child(&42u64);
         assert_eq!(k1.buf.as_slice(), k2.buf.as_slice());
     }
 
@@ -232,29 +256,50 @@ mod test_keypath {
 
     #[test]
     fn golden_key_vector() {
-        // Preimage: TAG_INDEX(0x01) ‖ 1u64 BE ‖ TAG_ITEM(0x00) ‖ 0001 u16 BE ‖ 00 (0u32 CXS)
-        // Note: item encoding uses CXS (Compact XDR Serialization), so 0u32 encodes to 1 byte.
-        let kp = Keypath::root().child_index(1).child_item(&0u32);
+        // Preimage: child(&1u32) ‖ child(&0u32), each = CXS(len) ‖ CXS(value).
+        // CXS encodes small uints in 1 byte, so 1u32 -> [01], 0u32 -> [00],
+        // each with byte-length 1 -> CXS(1) = [01].
+        let kp = Keypath::root().child(&1u32).child(&0u32);
         let preimage = kp.buf.as_slice();
         let expected_preimage: &[u8] = &[
-            0x01, // TAG_INDEX
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // 1u64 BE
-            0x00, // TAG_ITEM
-            0x00, 0x01, // len=1 u16 BE (CXS encodes 0u32 as 1 byte)
-            0x00, // 0u32 CXS-encoded
+            0x01, // CXS(len=1) for the first component
+            0x01, // CXS(1u32)
+            0x01, // CXS(len=1) for the second component
+            0x00, // CXS(0u32)
         ];
         assert_eq!(
             preimage, expected_preimage,
             "preimage framing changed — update the golden key too"
         );
         // Compute sha256 directly (avoids the syscall mock setup requirement).
-        // sha256([01 00 00 00 00 00 00 00 01  00  00 01  00])
+        // sha256([01 01 01 00])
         use sha2::Digest;
         let digest: [u8; 32] = sha2::Sha256::digest(preimage).into();
         let expected = hex_literal::hex!(
-            "992ef5938f42a0a604538ac271e506422da30b1469f3a480f92c02c2705440e8"
+            "f896c3a5f9841b6e1f0a22bd35a6a1bc5efb28aaa23b66301ec8098ce57cf99a"
         );
         assert_eq!(digest, expected, "golden key changed");
+    }
+
+    #[test]
+    fn domain_frame_is_distinct_and_length_framed() {
+        let root = Keypath::root();
+        // Two roots with different domains diverge.
+        let a = root.child("Token").child(&0u32);
+        let b = root.child("Vault").child(&0u32);
+        assert_ne!(a.buf.as_slice(), b.buf.as_slice());
+        // The domain is now just the root's first `child` — no special framing.
+        // CXS("AB") = [02 41 42] (opaque-variable: CXS(len=2) ‖ "AB"); the
+        // outer child wraps it with CXS(len=3) = [03].
+        let dom = root.child("AB");
+        assert_eq!(dom.buf.as_slice(), &[0x03, 0x02, b'A', b'B']);
+        // Golden sha256 of the domain preimage — locks the on-chain layout.
+        use sha2::Digest;
+        let digest: [u8; 32] = sha2::Sha256::digest(dom.buf.as_slice()).into();
+        let expected = hex_literal::hex!(
+            "801d3bfb551c298e3b7a2dfef59a178ce0c8d3f41fec0f3d8c308035c678e516"
+        );
+        assert_eq!(digest, expected, "golden domain key changed");
     }
 
     #[cfg(feature = "alloc")]

@@ -69,17 +69,30 @@ pub trait ContractState: From<Keypath> {}
 
 impl<T: From<Keypath>> ContractState for T {}
 
+/// Carries a storage struct's root domain separator.
+///
+/// Derived by `#[storage]` / `#[derive(Storage)]`. `DOMAIN` defaults to the
+/// struct's bare identifier and is overridable with `#[storage(domain = "…")]`.
+/// Only consulted when the type is used as a contract-state root
+/// (see [`contract_state_root`]); nested usage ignores it.
+pub trait StorageDomain {
+    const DOMAIN: &'static str;
+}
+
 /// Construct the root state node for a contract entrypoint.
 ///
+/// Seeds the keypath with the type's [`StorageDomain::DOMAIN`] so distinct
+/// state roots linked into one artifact occupy disjoint subtrees.
 /// Called by `#[contract]`-generated code; not intended for direct use.
 #[doc(hidden)]
-pub fn contract_state_root<T: ContractState>() -> Node<T> {
-    Node::from(Keypath::root())
+pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
+    Node::from(Keypath::root().child(T::DOMAIN))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::StorageDomain;
 
     struct UnitState;
     impl From<Keypath> for UnitState {
@@ -87,9 +100,16 @@ mod tests {
             Self
         }
     }
+    impl StorageDomain for UnitState {
+        const DOMAIN: &'static str = "UnitState";
+    }
 
     #[test]
-    fn contract_state_root_creates_node() {
-        let _node: Node<UnitState> = contract_state_root::<UnitState>();
+    fn contract_state_root_seeds_domain() {
+        let node: Node<UnitState> = contract_state_root::<UnitState>();
+        let expected = Keypath::root().child("UnitState");
+        assert!(node.keypath().addresses_same_slot(&expected));
+        // And it is NOT the bare empty root anymore.
+        assert!(!node.keypath().addresses_same_slot(&Keypath::root()));
     }
 }

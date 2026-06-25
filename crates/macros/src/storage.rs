@@ -8,13 +8,66 @@ use syn::spanned::Spanned;
 /// containing various `storage` types (e.g. `Map`)
 /// to be loaded.
 ///
-/// Storage slots are positional: field `i` maps to `child_index(i)` by
-/// declaration order. **Reordering struct fields remaps their storage slots** —
-/// existing on-chain state stored under the old field order will not follow
-/// the renamed positions.
+/// A field's storage slot defaults to its zero-based declaration position
+/// (field `i` maps to `child(&(i as u32))`), but can be pinned explicitly with
+/// `#[slot(N)]`. **Reordering struct fields remaps any positionally-assigned
+/// slots** — existing on-chain state stored under the old field order will not
+/// follow the renamed positions; pin slots with `#[slot(N)]` to keep them
+/// stable across reorderings. Two fields resolving to the same index (whether
+/// via duplicate `#[slot(N)]` or a `#[slot(N)]` landing on a positional index)
+/// is a compile error.
+fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
+    let ident = &input.ident;
+    let (impl_generics, ty_generics, where_clause) =
+        input.generics.split_for_impl();
+
+    // Override via #[storage_domain = "..."], else the bare ident.
+    let mut domain: Option<syn::LitStr> = None;
+    for attr in &input.attrs {
+        if attr.path().is_ident("storage_domain") {
+            let lit = match &attr.meta {
+                syn::Meta::NameValue(syn::MetaNameValue {
+                    value:
+                        syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Str(s),
+                            ..
+                        }),
+                    ..
+                }) => s.clone(),
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        "#[storage_domain] must be `storage_domain = \"...\"`",
+                    ));
+                }
+            };
+            domain = Some(lit);
+        }
+    }
+    let domain_lit = match domain {
+        Some(s) => quote! { #s },
+        None => {
+            let name = ident.to_string();
+            quote! { #name }
+        }
+    };
+
+    Ok(quote! {
+        const _: () = {
+            use ::sdk::storage::StorageDomain;
+            impl #impl_generics StorageDomain for #ident #ty_generics
+                #where_clause
+            {
+                const DOMAIN: &'static str = #domain_lit;
+            }
+        };
+    })
+}
+
 pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     let item = &input.data;
     let storage_impls = generate_from_data(input, item)?;
+    let domain_impl = storage_domain_impl(input)?;
 
     let ident = &input.ident;
     let ident_lower =
@@ -27,6 +80,7 @@ pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
             use super::*;
 
             #storage_impls
+            #domain_impl
         }
 
     })
@@ -36,14 +90,10 @@ fn generate_from_data(
     input: &syn::DeriveInput,
     item: &syn::Data,
 ) -> Result<TokenStream> {
-    let mut output = TokenStream::new();
-
-    output.extend(match item {
+    match item {
         syn::Data::Struct(item) => generate_from_struct(input, item),
         _ => err(input, "Can only derive Storage for structs")?,
-    });
-
-    Ok(output)
+    }
 }
 
 fn generate_from_struct(
@@ -87,14 +137,64 @@ fn impl_from_keypath(
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
+    let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
+
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         let field_type = &field.ty;
         field_names.extend(quote! { #field_name, });
 
-        let idx = i as u64;
+        // #[slot(N)] override, else declaration position. The index is a
+        // `u32` so the dedup domain matches the emit domain
+        // (`keypath.child(&#idx)` with `#idx: u32`); otherwise two slots that
+        // are distinct as u64 but congruent mod 2^32 would pass the dedup yet
+        // emit the same key. Field count is safely << 2^32 (host-side macro).
+        let mut idx: u32 = i as u32;
+        let mut slot_attr_span: Option<proc_macro2::Span> = None;
+        for attr in &field.attrs {
+            if attr.path().is_ident("slot") {
+                if let Some(prev) = slot_attr_span {
+                    let mut err = syn::Error::new(
+                        attr.span(),
+                        "duplicate #[slot] attribute on the same field",
+                    );
+                    err.combine(syn::Error::new(prev, "first #[slot] here"));
+                    return Err(err);
+                }
+                let lit: syn::LitInt = attr.parse_args().map_err(|e| {
+                    syn::Error::new(
+                        attr.span(),
+                        format!("#[slot(N)] expects an integer: {e}"),
+                    )
+                })?;
+                // Parse as u32: a `#[slot(N)]` with N >= 2^32 is a compile
+                // error at the literal span, so the truncation-collision case
+                // is inexpressible.
+                idx = lit.base10_parse::<u32>().map_err(|_| {
+                    syn::Error::new(
+                        lit.span(),
+                        "#[slot(N)] index must fit in a u32",
+                    )
+                })?;
+                slot_attr_span = Some(attr.span());
+            }
+        }
+
+        // Duplicate-index detection.
+        if let Some((_, prev)) = resolved.iter().find(|(r, _)| *r == idx) {
+            let mut err = syn::Error::new(
+                field.span(),
+                format!(
+                    "storage slot {idx} is assigned to more than one field"
+                ),
+            );
+            err.combine(syn::Error::new(*prev, "previously assigned here"));
+            return Err(err);
+        }
+        resolved.push((idx, field.span()));
+
         field_initializers.extend(quote! {
-            let #field_name = keypath.child_index(#idx).into();
+            let #field_name = keypath.child(&#idx).into();
         });
 
         // Add `FieldType: From<Keypath>` bound
