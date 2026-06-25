@@ -14,8 +14,8 @@ pub use groundhog_spec::{
     ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
     ContractTypeDef, ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
     ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
-    ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceFragment,
-    SpecMethodFragment,
+    ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceAnchor,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use view::*;
 #[cfg(feature = "alloc")]

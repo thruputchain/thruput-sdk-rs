@@ -119,6 +119,41 @@ fn apply_with_config(
                 }
             });
 
+            // The trait is the authority for method signatures (names and
+            // types). Emit them as a const that a trait impl pulls into its
+            // artifact (mirroring __GROUNDHOG_IFACE_EVENTS), so an impl that
+            // renames a parameter (e.g. `_factory`) cannot diverge the
+            // canonical interface spec, and so impls of an external interface
+            // crate still emit a complete spec.
+            let method_views = contract
+                .methods_sorted()
+                .into_iter()
+                .map(|m| contract::method_spec_view_tokens(&m))
+                .collect::<Result<Vec<_>>>()?;
+            let method_anchor_lists = contract
+                .methods_sorted()
+                .into_iter()
+                .map(|m| contract::method_anchor_tokens(&m))
+                .collect::<Result<Vec<_>>>()?;
+            let method_anchor_stmts =
+                method_anchor_lists.into_iter().flatten().map(|anchor| {
+                    quote::quote! {
+                        acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                    }
+                });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_METHODS: &'static [::sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    let mut acc = 0usize;
+                    #(#method_anchor_stmts)*
+                    acc
+                }
+            });
+
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
                     #[doc(hidden)]
@@ -130,9 +165,31 @@ fn apply_with_config(
 
             let mut out = stripped.into_token_stream();
 
+            // A module-level anchor const (the trait isn't dyn-compatible, so
+            // its associated `__GROUNDHOG_IFACE_*` consts aren't reachable as
+            // `<dyn Trait>::…`). `export_interface_spec!` references this by
+            // name to emit an InterfaceAnchor for a standalone interface carrier.
+            let anchor_const_ident = quote::format_ident!(
+                "__GROUNDHOG_IFACE_ANCHOR_{}",
+                item.ident
+            );
+            out.extend(quote::quote! {
+                #[doc(hidden)]
+                #[allow(non_upper_case_globals)]
+                pub const #anchor_const_ident:
+                    ::sdk::__contract_spec::SpecInterfaceAnchorView<'static> =
+                    ::sdk::__contract_spec::SpecInterfaceAnchorView {
+                        interface_name: #iface_name,
+                        interface_version: #iface_vers,
+                    };
+            });
+
             // Generate client interface
             out.extend(client::generate(item, config)?);
             out.extend(exports::generate_entrypoints(item, config)?);
+            out.extend(spec_reg::generate_trait_raw_spec_fragments(
+                item, config,
+            )?);
 
             Ok(out)
         }
@@ -248,6 +305,44 @@ mod tests {
         let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
         let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
         Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn trait_contract_emits_raw_spec_fragments() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait ERC20 {
+                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn total_supply(&self) -> u128;
+            }
+        };
+        let tokens = apply_with_config(&item, &parse_config(""))
+            .unwrap()
+            .to_string();
+        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
+        assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
+        assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
+        assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
+    }
+
+    #[test]
+    fn trait_contract_emits_authoritative_methods_const() {
+        // The trait exposes its method signatures as a const so trait impls
+        // pull the *trait's* names/types (not the impl's) into their spec.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Pair {
+                fn initialize(&mut self, factory: &sdk::ContractAddress);
+            }
+        };
+        let tokens = apply_with_config(&item, &parse_config(""))
+            .unwrap()
+            .to_string();
+        assert!(tokens.contains("__GROUNDHOG_IFACE_METHODS"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+        assert!(tokens.contains("\"factory\""), "{tokens}");
     }
 
     #[test]
