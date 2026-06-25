@@ -56,7 +56,7 @@ categories = ["blockchain"]
 # Additionally, these configs for embedded workspaces need updating for the new
 # SDK and interface versions:
 #    example-contracts/Cargo.toml
-#    integration_test/contracts/Cargo.toml
+#    integration_test/Cargo.toml
 #
 sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.3" }
 groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.15.3" }
