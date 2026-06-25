@@ -742,6 +742,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi_root_storage"
+version = "0.4.0"
+dependencies = [
+ "multi_root_storage",
+ "sdk",
+]
+
+[[package]]
 name = "multi_throws"
 version = "0.4.0"
 dependencies = [
@@ -1017,6 +1025,14 @@ dependencies = [
  "groundhog-erc20-if",
  "sdk",
  "simple_wallet_old",
+]
+
+[[package]]
+name = "slot_reorder"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "slot_reorder",
 ]
 
 [[package]]

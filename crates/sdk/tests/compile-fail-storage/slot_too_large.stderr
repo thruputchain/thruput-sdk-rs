@@ -1,0 +1,5 @@
+error: #[slot(N)] index must fit in a u32
+ --> tests/compile-fail-storage/slot_too_large.rs:6:12
+  |
+6 |     #[slot(4294967296)] a: sdk::storage::Value<u64>,
+  |            ^^^^^^^^^^

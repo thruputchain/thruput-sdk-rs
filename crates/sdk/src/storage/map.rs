@@ -17,6 +17,15 @@ use xdrs::WriteXDR;
 /// layer. In particular, no `Map` operation consults `K`'s `PartialEq`/`Eq`:
 /// even the duplicate-key check in [`at_disjoint_mut`](Self::at_disjoint_mut)
 /// compares the derived storage keypaths, not the keys themselves.
+///
+/// # Key encoding invariant
+///
+/// A key's storage slot is `sha256` of its framed `WriteXDR` encoding, so the
+/// encoding **is** the key's identity. Key types MUST encode injectively:
+/// distinct keys must produce distinct bytes. All SDK-provided and
+/// `#[derive(XDR)]` types satisfy this. A hand-written, non-canonical
+/// `WriteXDR` where `a != b` but `encode(a) == encode(b)` will silently alias
+/// the two keys onto one slot.
 #[derive(Debug)]
 pub struct Map<K, V> {
     keypath: Keypath,
@@ -132,7 +141,7 @@ impl<K, V> Map<K, V> {
     where
         K: WriteXDR,
     {
-        self.keypath.child_item(entry_key)
+        self.keypath.child(entry_key)
     }
 }
 

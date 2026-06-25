@@ -1,0 +1,11 @@
+error: duplicate #[slot] attribute on the same field
+ --> tests/compile-fail-storage/slot_double.rs:3:16
+  |
+3 |     #[slot(1)] #[slot(0)] a: sdk::storage::Value<u64>,
+  |                ^^^^^^^^^^
+
+error: first #[slot] here
+ --> tests/compile-fail-storage/slot_double.rs:3:5
+  |
+3 |     #[slot(1)] #[slot(0)] a: sdk::storage::Value<u64>,
+  |     ^^^^^^^^^^

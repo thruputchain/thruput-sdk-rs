@@ -135,6 +135,71 @@ pub fn generate(
         quote! {}
     };
 
+    // Emit a host-gated static that registers (self_ty::DOMAIN, "<module>::<self_ty>")
+    // into STORAGE_DOMAINS so the collision-checker can detect two roots sharing a domain.
+    // Gated cfg(not(any(target_family = "wasm", target_arch = "riscv32"))) to match the
+    // registry's own gate. Each contract block gets a unique static name derived from the
+    // self_ty + trait (or "inherent") to avoid symbol collisions across multiple impl blocks.
+    //
+    // Also emits a host-only #[test] (one per contract block) that calls
+    // assert_unique_storage_domains() so any domain collision is caught by `cargo test`.
+    //
+    // Only emitted when the contract block actually roots state — i.e. at least
+    // one method takes `self` (`&self`/`&mut self`). That is exactly the
+    // condition under which `contract_state_root::<self_ty>()` (which carries
+    // the `StorageDomain` bound) is invoked, so gating on it keeps the
+    // registration's `StorageDomain` requirement always satisfiable. A
+    // storageless contract (only associated functions, no `#[storage]`) roots
+    // no state and so needs no registration.
+    let has_state = methods.iter().any(|m| m.sig().receiver().is_some());
+    let (domain_registration, domain_test) = if let (true, Some(self_ty)) =
+        (has_state, contract.self_ty())
+    {
+        // Unique suffix per contract block: self_ty + trait path (or "inherent").
+        // Used for both the registration static name and the test function name.
+        let self_ty_str = quote!(#self_ty)
+            .to_string()
+            .replace(|c: char| !c.is_alphanumeric(), "_");
+        let disc = match contract.trait_path() {
+            Some(tp) => quote!(#tp)
+                .to_string()
+                .replace(|c: char| !c.is_alphanumeric(), "_"),
+            None => "inherent".to_string(),
+        };
+        let reg_ident = format_ident!("__GH_DOMAIN_{}_{}", self_ty_str, disc);
+        let test_ident = format_ident!(
+            "__gh_storage_domains_unique_{}_{}",
+            self_ty_str,
+            disc
+        );
+        let registration = quote! {
+            #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+            #[::sdk::__linkme::distributed_slice(::sdk::storage::STORAGE_DOMAINS)]
+            #[linkme(crate = ::sdk::__linkme)]
+            #[allow(non_upper_case_globals)]
+            static #reg_ident: ::sdk::storage::DomainRecord =
+                ::sdk::storage::DomainRecord {
+                    domain: <#self_ty as ::sdk::storage::StorageDomain>::DOMAIN,
+                    type_path: concat!(module_path!(), "::", stringify!(#self_ty)),
+                };
+        };
+        // NOTE: this is a `#[cfg(test)]` LIB test. A contract crate whose [lib]
+        // sets `test = false` will silently NOT compile or run it, so that crate
+        // gets no storage-domain collision detection (and no warning). Keep lib
+        // tests enabled for the guarantee to hold.
+        let test = quote! {
+            #[cfg(all(test, not(any(target_family = "wasm", target_arch = "riscv32"))))]
+            #[test]
+            #[allow(non_snake_case)]
+            fn #test_ident() {
+                ::sdk::storage::assert_unique_storage_domains();
+            }
+        };
+        (registration, test)
+    } else {
+        (quote! {}, quote! {})
+    };
+
     // The assertions go outside the module so the associated consts resolve
     // through the trait.
     Ok(quote! {
@@ -148,6 +213,10 @@ pub fn generate(
         }
 
         #trait_metadata_assertions
+
+        #domain_registration
+
+        #domain_test
     })
 }
 

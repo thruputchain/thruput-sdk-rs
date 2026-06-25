@@ -1,0 +1,26 @@
+[package]
+name = "multi_root_storage"
+description = "Example multi-root storage contract (disjoint domains) for the Groundhog blockchain"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+sdk = { workspace = true }
+
+[dev-dependencies]
+multi_root_storage = { path = ".", features = ["dev"] }

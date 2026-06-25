@@ -7,6 +7,8 @@ use super::value::Value;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
+/// Element slots are keyed by the element index (`u32`); see [`Map`] for the
+/// key-encoding injectivity invariant that governs the underlying derivation.
 pub struct Vector<S> {
     keypath: Keypath,
     len: Value<u32>,
@@ -24,8 +26,8 @@ impl<S> Debug for Vector<S> {
 
 impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
-        let len_kp = keypath.child_index(0);
-        let values_kp = keypath.child_index(1);
+        let len_kp = keypath.child(&0u32);
+        let values_kp = keypath.child(&1u32);
 
         Self {
             keypath,
@@ -136,7 +138,7 @@ impl<S: StorageType> Vector<S> {
     }
 
     fn make_elem_keypath(&self, index: u32) -> Keypath {
-        self.values.keypath().child_item(&index)
+        self.values.keypath().child(&index)
     }
 }
 
