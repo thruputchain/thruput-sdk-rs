@@ -34,7 +34,7 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.15.3"
+version = "0.15.4"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -58,18 +58,18 @@ categories = ["blockchain"]
 #    example-contracts/Cargo.toml
 #    integration_test/Cargo.toml
 #
-sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.3" }
-groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.15.3" }
-groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.15.3" }
-groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.15.3", default-features = false }
-groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.15.3" }
-groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.15.3" }
-groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.15.3" }
-groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.15.3" }
-groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.15.3" }
-groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.15.3" }
-groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.15.3" }
-groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.15.3" }
+sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.4" }
+groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.15.4" }
+groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.15.4" }
+groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.15.4", default-features = false }
+groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.15.4" }
+groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.15.4" }
+groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.15.4" }
+groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.15.4" }
+groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.15.4" }
+groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.15.4" }
+groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.15.4" }
+groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.15.4" }
 
 # Standard interfaces
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.3" }
@@ -83,10 +83,10 @@ bottle-test-if = { path = "crates/bottle-test-if" }
 
 # Deps from protocol-rs repo:
 groundhog-spec = { registry = "groundhog", version = "=0.18.0", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "=0.17.2" }
-groundhog-xdr = { registry = "groundhog", version = "=0.17.2", features = ["xdrs"] }
-groundhog-syscall = { registry = "groundhog", version = "=0.17.2" }
-hogexec-internal = { registry = "groundhog", version = "=0.17.2" }
+groundhog-trace = { registry = "groundhog", version = "=0.18.0" }
+groundhog-xdr = { registry = "groundhog", version = "=0.18.0", features = ["xdrs"] }
+groundhog-syscall = { registry = "groundhog", version = "=0.18.0" }
+hogexec-internal = { registry = "groundhog", version = "=0.18.0" }
 
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }
