@@ -170,11 +170,10 @@ pub fn generate_trait_raw_spec_fragments(
 
     // A trait emits its interface/method/event fragments as *candidates*,
     // target-gated (not `entrypoints`): present whenever the interface crate
-    // compiles for a contract target, with no feature required. Post-
-    // processing drops them unless an impl anchors the interface. An interface
-    // crate built on its own has no anchors at all, so the canonicalizer's
-    // legacy "include everything" fallback yields the full interface spec —
-    // i.e. the standalone interface carrier needs no extra wiring.
+    // compiles for a contract target, with no feature required, and retained
+    // via `#[used]`. Post-processing drops them unless something anchors the
+    // interface — a `#[contract] impl` does this, and a standalone interface
+    // carrier does it explicitly via `export_interface_spec!`.
     let interface_fragment = generate_interface_fragment_tokens(
         &target_cfg(),
         quote! { #iface_name },
