@@ -137,15 +137,19 @@ fn impl_from_keypath(
 
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
-    let mut resolved: Vec<(u64, proc_macro2::Span)> = Vec::new();
+    let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
 
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         let field_type = &field.ty;
         field_names.extend(quote! { #field_name, });
 
-        // #[slot(N)] override, else declaration position.
-        let mut idx: u64 = i as u64;
+        // #[slot(N)] override, else declaration position. The index is a
+        // `u32` so the dedup domain matches the emit domain
+        // (`keypath.child(&#idx)` with `#idx: u32`); otherwise two slots that
+        // are distinct as u64 but congruent mod 2^32 would pass the dedup yet
+        // emit the same key. Field count is safely << 2^32 (host-side macro).
+        let mut idx: u32 = i as u32;
         let mut slot_attr_span: Option<proc_macro2::Span> = None;
         for attr in &field.attrs {
             if attr.path().is_ident("slot") {
@@ -163,7 +167,15 @@ fn impl_from_keypath(
                         format!("#[slot(N)] expects an integer: {e}"),
                     )
                 })?;
-                idx = lit.base10_parse::<u64>()?;
+                // Parse as u32: a `#[slot(N)]` with N >= 2^32 is a compile
+                // error at the literal span, so the truncation-collision case
+                // is inexpressible.
+                idx = lit.base10_parse::<u32>().map_err(|_| {
+                    syn::Error::new(
+                        lit.span(),
+                        "#[slot(N)] index must fit in a u32",
+                    )
+                })?;
                 slot_attr_span = Some(attr.span());
             }
         }
@@ -182,7 +194,7 @@ fn impl_from_keypath(
         resolved.push((idx, field.span()));
 
         field_initializers.extend(quote! {
-            let #field_name = keypath.child(&(#idx as u32)).into();
+            let #field_name = keypath.child(&#idx).into();
         });
 
         // Add `FieldType: From<Keypath>` bound
