@@ -21,7 +21,7 @@ thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }
 wasm-encoder = "0.246.2"
 wasmparser = "0.246.2"
-sdk = { path = "../sdk", registry = "groundhog", version = "=0.15.3", features = ["std"] }
+sdk = { path = "../sdk", registry = "groundhog", version = "=0.15.5", features = ["std"] }
 
 [dev-dependencies]
 tempfile = "3"

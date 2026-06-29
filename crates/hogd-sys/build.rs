@@ -14,7 +14,7 @@ const TEST_FFI_VERSION: &str = "0.18.2";
 
 /// Must match the version expected by hogd/built_contracts/build_wasm.sh.
 #[cfg(feature = "source-build")]
-const GROUNDHOG_CLI_VERSION: &str = "0.5.7";
+const GROUNDHOG_CLI_VERSION: &str = "0.5.11";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
