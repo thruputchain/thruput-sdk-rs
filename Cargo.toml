@@ -59,7 +59,7 @@ categories = ["blockchain"]
 #       multi_root_collision/ # <- exception, must update sdk version on breaking change
 #    integration_test/
 #
-# sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.5" }
+sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.5" }
 groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.15.5" }
 groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.15.5" }
 groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.15.5", default-features = false }
