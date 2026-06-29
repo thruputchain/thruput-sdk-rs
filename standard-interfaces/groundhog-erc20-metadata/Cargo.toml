@@ -22,7 +22,7 @@ heapless = { workspace = true }
 groundhog-erc20-metadata-if = { path = ".", features = ["alloc"] }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
-sdk = { workspace = true, features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.15.5", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
