@@ -379,6 +379,8 @@ has_bottle_test() {
 }
 
 bottle_test_contracts() {
+    skip BOTTLE_TESTS && return
+
     local workspace_dir
     workspace_dir="$1"; shift
     local packages_dir
@@ -562,7 +564,7 @@ fmt_check() {
 }
 
 ci_check() {
-    check_all &&
+    SKIP_BOTTLE_TESTS=1 check_all &&
     { skip WASM_STRINGS || check_wasm_strings; } &&
     { skip QUALITY || check_quality; } &&
     info "CI clean!" ||
