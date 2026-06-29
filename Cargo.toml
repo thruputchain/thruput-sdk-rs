@@ -34,7 +34,7 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.15.4"
+version = "0.15.5"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -50,31 +50,31 @@ categories = ["blockchain"]
 # version, and must unfortunately be updated manually whenever the
 # workspace package version is updated prior to a new release.
 #
-# When the SDK version changes, the interface crates should be version-bumped
-# and released so that SDK+interface clients can get compatible libraries.
-#
 # Additionally, these configs for embedded workspaces need updating for the new
 # SDK and interface versions:
 #    example-contracts/Cargo.toml
 #    integration_test/Cargo.toml
 #
-sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.4" }
-groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.15.4" }
-groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.15.4" }
-groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.15.4", default-features = false }
-groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.15.4" }
-groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.15.4" }
-groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.15.4" }
-groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.15.4" }
-groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.15.4" }
-groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.15.4" }
-groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.15.4" }
-groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.15.4" }
+# Lastly, this independent workspace needs its sdk version updated:
+#    example_contracts/multi_root_collision
+#
+sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.15.5" }
+groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.15.5" }
+groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.15.5" }
+groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.15.5", default-features = false }
+groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.15.5" }
+groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.15.5" }
+groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.15.5" }
+groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.15.5" }
+groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.15.5" }
+groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.15.5" }
+groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.15.5" }
+groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.15.5" }
 
 # Standard interfaces
-groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.3" }
-groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.3" }
-groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.3" }
+groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.4" }
+groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.4" }
+groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.4" }
 
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
