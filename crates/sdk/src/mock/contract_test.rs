@@ -258,6 +258,29 @@ where
     }
 }
 
+pub fn load_rv32_contract<P>(path: P) -> Contract
+where
+    P: AsRef<std::path::Path>,
+{
+    use crate::contract::ContractBlob;
+
+    let raw_rv32 = std::fs::read(path.as_ref()).unwrap_or_else(|e| {
+        panic!(
+            "{}: couldn't load rv32 contract: {}",
+            path.as_ref().to_str().unwrap_or("?"),
+            e
+        )
+    });
+
+    let contract: ContractBlob = ContractBlob {
+        data: BytesM(raw_rv32),
+    };
+
+    Contract::kRv32 {
+        rv32_contract: contract,
+    }
+}
+
 pub fn deploy_address(
     deployer_address: &ContractAddress,
     nonce: &Hash256,
@@ -280,4 +303,31 @@ pub fn deploy_address(
     hasher.finalize_into((&mut addr).into());
 
     addr.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::load_rv32_contract;
+    use std::format;
+    use std::fs;
+
+    #[test]
+    fn load_rv32_contract_wraps_artifact_bytes() {
+        let bytes = b"fake-rv32-artifact";
+        let path = std::env::temp_dir().join(format!(
+            "groundhog-sdk-load-rv32-contract-{}.rv32a",
+            std::process::id()
+        ));
+        fs::write(&path, bytes).unwrap();
+
+        let contract = load_rv32_contract(&path);
+
+        fs::remove_file(&path).unwrap();
+        match contract {
+            groundhog_xdr::contract::Contract::kRv32 { rv32_contract } => {
+                assert_eq!(rv32_contract.data.0, bytes);
+            }
+            other => panic!("expected rv32 contract, got {other:?}"),
+        }
+    }
 }

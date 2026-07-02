@@ -289,14 +289,7 @@ impl TestEnvironmentInner {
         let res: [u8; 32] = hasher.finalize().into();
         let contract_hash: SHA256Hash = res.into();
 
-        let contract_size = match contract {
-            Contract::kNative { .. } => 0,
-            Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
-            Contract::kWasmi { wasmi_contract } => {
-                wasmi_contract.data.len() as u32
-            }
-            other => panic!("unsupported contract variant: {:?}", other),
-        };
+        let contract_size = deployment_contract_size(contract);
 
         let res = unsafe {
             groundhog_sys::setup_deploy_contract(
@@ -621,12 +614,36 @@ impl TestEnvironment {
     }
 }
 
+fn deployment_contract_size(contract: &Contract) -> u32 {
+    match contract {
+        Contract::kNative { .. } => 0,
+        Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
+        Contract::kWasmi { wasmi_contract } => {
+            wasmi_contract.data.len() as u32
+        }
+        Contract::kRv32 { rv32_contract } => rv32_contract.data.len() as u32,
+        other => panic!("unsupported contract variant: {:?}", other),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use groundhog_xdr::storage_item::StorageDeltaFlags;
+    use xdrs::BytesM;
 
     const TEST_ADDR: ContractAddress = ContractAddress::new([0x11; 32]);
+
+    #[test]
+    fn deployment_contract_size_uses_rv32_blob_length() {
+        let contract = Contract::kRv32 {
+            rv32_contract: ContractBlob {
+                data: BytesM(vec![1, 2, 3, 4, 5]),
+            },
+        };
+
+        assert_eq!(deployment_contract_size(&contract), 5);
+    }
 
     #[test]
     fn get_snapshot_storage_item_reads_committed_bytestring() {
