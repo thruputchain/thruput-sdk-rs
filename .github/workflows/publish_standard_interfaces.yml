@@ -70,7 +70,9 @@ jobs:
             groundhog-rv32-runtime
             groundhog-wasm-runtime
             sdk
-          cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features
+          # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
+          # cannot link on the host (no `main`); it is verified by the rv32 step below.
+          cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features --skip entrypoints
           cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev
           cargo-hack-wasm32-packages: groundhog-wasm-runtime ${{ matrix.crate }}
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
