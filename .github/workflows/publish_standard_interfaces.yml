@@ -104,3 +104,7 @@ jobs:
           tag-prefix: '${{ matrix.crate }}-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          # Verification is done by the dry-run step above; the publish-time
+          # verify build runs with --all-features, which enables `entrypoints`
+          # and tries to link the rv32-only spec-carrier bin on the host.
+          no-verify: 'true'
