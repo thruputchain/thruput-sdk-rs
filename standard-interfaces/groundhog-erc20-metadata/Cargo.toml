@@ -13,7 +13,7 @@ alloc = ["groundhog-xdr/alloc", "heapless/alloc"]
 dev = ["sdk/dev", "dep:thiserror"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.15.5" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.15.6" }
 thiserror = { workspace = true, optional = true }
 groundhog-xdr = { workspace = true }
 heapless = { workspace = true }
@@ -22,7 +22,7 @@ heapless = { workspace = true }
 groundhog-erc20-metadata-if = { path = ".", features = ["alloc"] }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.15.5", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.15.6", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
