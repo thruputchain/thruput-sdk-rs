@@ -10,11 +10,11 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 /// When updating, also update the version in README.md.
-const TEST_FFI_VERSION: &str = "0.18.3";
+const TEST_FFI_VERSION: &str = "0.18.4";
 
 /// Must match the version expected by hogd/built_contracts/build_wasm.sh.
 #[cfg(feature = "source-build")]
-const GROUNDHOG_CLI_VERSION: &str = "0.5.7";
+const GROUNDHOG_CLI_VERSION: &str = "0.5.11";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
