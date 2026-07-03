@@ -406,6 +406,10 @@ mod test_keypath {
         check!("AB");
         check!("ERC20State");
         check!("a_rather_long_storage_domain_name_for_framing");
+        // > 62 bytes: both CXS length prefixes take the 2-byte header form.
+        check!(
+            "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header"
+        );
         check!("日本語ドメイン");
 
         // Golden bytes for "AB" (same vector as
