@@ -76,13 +76,10 @@ impl<T: From<Keypath>> ContractState for T {}
 /// Only consulted when the type is used as a contract-state root
 /// (see [`contract_state_root`]); nested usage ignores it.
 pub trait StorageDomain {
-    const DOMAIN: &'static str;
-    /// [`Self::DOMAIN`] pre-framed at compile time (see
+    /// The type's storage domain, pre-framed at compile time (see
     /// [`frame_domain`](crate::storage::frame_domain)); consumed by
-    /// [`contract_state_root`]. Emitted by `derive(Storage)`; a hand-written
-    /// impl must keep the two consts consistent.
-    #[doc(hidden)]
-    const DOMAIN_FRAMED: crate::storage::FramedDomain;
+    /// [`contract_state_root`]. Emitted by `derive(Storage)`.
+    const DOMAIN: crate::storage::FramedDomain;
 }
 
 /// Construct the root state node for a contract entrypoint.
@@ -97,7 +94,7 @@ pub trait StorageDomain {
 #[doc(hidden)]
 #[inline(never)]
 pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
-    Node::from(Keypath::root(T::DOMAIN_FRAMED))
+    Node::from(Keypath::root(T::DOMAIN))
 }
 
 #[cfg(test)]
@@ -113,8 +110,7 @@ mod tests {
         }
     }
     impl StorageDomain for UnitState {
-        const DOMAIN: &'static str = "UnitState";
-        const DOMAIN_FRAMED: FramedDomain = {
+        const DOMAIN: FramedDomain = {
             const N: usize = framed_domain_len("UnitState");
             const BYTES: [u8; N] = frame_domain::<N>("UnitState");
             FramedDomain::new(&BYTES)

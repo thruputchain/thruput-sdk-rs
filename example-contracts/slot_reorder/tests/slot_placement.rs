@@ -108,12 +108,7 @@ fn slot_pins_control_storage_placement() {
 /// matches its *pinned* slot index, not its declaration index.
 #[test]
 fn keypath_identity_matches_pinned_slot() {
-    use sdk::storage::StorageDomain;
-
-    let domain = <SlotReorder as StorageDomain>::DOMAIN;
-    assert_eq!(domain, "SlotReorder");
-
-    let root = Keypath::default().child(domain);
+    let root = Keypath::default().child("SlotReorder");
 
     // Build SlotReorder directly from its root keypath.
     let state = SlotReorder::from(root.clone());

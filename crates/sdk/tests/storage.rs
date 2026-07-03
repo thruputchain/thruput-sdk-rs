@@ -487,12 +487,20 @@ struct StorageDomainRenamed {
 
 #[test]
 fn storage_domain_defaults_to_ident_and_overrides() {
-    use sdk::storage::StorageDomain;
-    assert_eq!(
-        <StorageDomainPlain as StorageDomain>::DOMAIN,
-        "StorageDomainPlain"
+    // Behavioral: the domain seeds the root keypath as its first child
+    // frame. Default is the bare ident; #[storage(domain = "...")] overrides.
+    let plain = contract_state_root::<StorageDomainPlain>();
+    assert!(
+        plain.keypath().addresses_same_slot(
+            &Keypath::default().child("StorageDomainPlain")
+        )
     );
-    assert_eq!(<StorageDomainRenamed as StorageDomain>::DOMAIN, "custom");
+    let renamed = contract_state_root::<StorageDomainRenamed>();
+    assert!(
+        renamed
+            .keypath()
+            .addresses_same_slot(&Keypath::default().child("custom"))
+    );
 }
 
 #[test]

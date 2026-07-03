@@ -2,7 +2,7 @@ error[E0080]: evaluation panicked: storage domain too long; shorten it with #[st
  --> tests/compile-fail-storage/storage_domain_too_long.rs:5:10
   |
 5 | #[derive(sdk::Storage)]
-  |          ^^^^^^^^^^^^ evaluation of `_s_storage_impls::_::<impl sdk::storage::StorageDomain for S>::DOMAIN_FRAMED::N` failed inside this call
+  |          ^^^^^^^^^^^^ evaluation of `_s_storage_impls::_::<impl sdk::storage::StorageDomain for S>::DOMAIN::N` failed inside this call
   |
 note: inside `framed_domain_len`
  --> $RUST/core/src/panic.rs

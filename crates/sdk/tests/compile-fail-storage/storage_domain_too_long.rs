@@ -10,5 +10,5 @@ pub struct S {
 
 fn main() {
     // Associated consts are lazy; force const-eval of the framed domain.
-    let _ = <S as sdk::storage::StorageDomain>::DOMAIN_FRAMED;
+    let _ = <S as sdk::storage::StorageDomain>::DOMAIN;
 }

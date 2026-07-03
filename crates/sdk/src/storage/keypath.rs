@@ -233,17 +233,19 @@ pub const fn frame_domain<const N: usize>(domain: &str) -> [u8; N] {
 ///
 /// Newtype so a domain-seeded [`Keypath`] root cannot be handed raw,
 /// unframed bytes. Constructed only by `derive(Storage)`-generated code
-/// (via [`frame_domain`]); not intended for direct use.
+/// (via [`frame_domain`]); not intended for direct use. The domain's name
+/// string is not carried — host collision diagnostics identify colliding
+/// roots by type path.
 #[derive(Clone, Copy, Debug)]
 pub struct FramedDomain(&'static [u8]);
 
 impl FramedDomain {
     #[doc(hidden)]
-    pub const fn new(bytes: &'static [u8]) -> Self {
-        Self(bytes)
+    pub const fn new(framed: &'static [u8]) -> Self {
+        Self(framed)
     }
 
-    pub(crate) const fn as_bytes(self) -> &'static [u8] {
+    pub(crate) const fn as_bytes(&self) -> &'static [u8] {
         self.0
     }
 }
