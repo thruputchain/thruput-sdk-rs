@@ -66,7 +66,7 @@ fn slot_pins_control_storage_placement() {
     // same contract address that stored the data.
     //
     // The storage root for SlotReorder is:
-    //   Keypath::root().child("SlotReorder")
+    //   Keypath::default().child("SlotReorder")
     // Each field is a child of that root keyed by its u32 slot index.
     //
     // `first` is declared first (position 0) but pinned to slot 1:
@@ -77,7 +77,7 @@ fn slot_pins_control_storage_placement() {
     //   data written as 33 must be found at child(&2u32).
     let verify = env.transact(|tx| {
         tx.call(&addr.get()).run(AssertUnwindSafe(|| {
-            let root = Keypath::root().child("SlotReorder");
+            let root = Keypath::default().child("SlotReorder");
 
             let val_at_slot1: Value<u64> = root.child(&1u32).into();
             assert_eq!(
@@ -113,7 +113,7 @@ fn keypath_identity_matches_pinned_slot() {
     let domain = <SlotReorder as StorageDomain>::DOMAIN;
     assert_eq!(domain, "SlotReorder");
 
-    let root = Keypath::root().child(domain);
+    let root = Keypath::default().child(domain);
 
     // Build SlotReorder directly from its root keypath.
     let state = SlotReorder::from(root.clone());

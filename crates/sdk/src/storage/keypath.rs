@@ -96,9 +96,18 @@ pub struct Keypath {
 }
 
 impl Keypath {
+    /// Root keypath for a contract state tree, seeded with the state type's
+    /// compile-time-framed storage domain. The seed bytes are exactly what
+    /// [`child`](Self::child) would append for the domain string, so the
+    /// domain remains "the root's first child frame". Called by
+    /// [`contract_state_root`](crate::storage::contract_state_root); not
+    /// intended for direct use. For a bare, undomained keypath (tests,
+    /// hand-rolled raw storage) use `Keypath::default()`.
     #[doc(hidden)]
-    pub fn root() -> Self {
-        Self::default()
+    pub fn root(domain: FramedDomain) -> Self {
+        let mut kp = Self::default();
+        kp.buf.append_bytes(domain.as_bytes());
+        kp
     }
 
     /// Child keyed by an encodable value.
@@ -234,7 +243,6 @@ impl FramedDomain {
         Self(bytes)
     }
 
-    #[allow(dead_code)]
     pub(crate) const fn as_bytes(self) -> &'static [u8] {
         self.0
     }
@@ -246,14 +254,14 @@ mod test_keypath {
 
     #[test]
     fn exclusive_flag_propagates_through_clone() {
-        let mut kp = Keypath::root().child("some bytes");
+        let mut kp = Keypath::default().child("some bytes");
         kp.set_exclusive();
         assert!(kp.clone().is_exclusive());
     }
 
     #[test]
     fn distinct_paths_distinct_keys() {
-        let root = Keypath::root();
+        let root = Keypath::default();
         // boundary-shift case: [AA BB]+[CC] vs [AA]+[BB CC].
         // Fixed opaque [u8; N] keys do NOT self-delimit, so without the
         // CXS(len) prefix these two sequences would share the preimage
@@ -269,7 +277,7 @@ mod test_keypath {
 
     #[test]
     fn addresses_same_slot_matches_preimage_equality() {
-        let root = Keypath::root();
+        let root = Keypath::default();
         let a = root.child(&3u32).child(&42u64);
         let same = root.child(&3u32).child(&42u64);
         let different = root.child(&3u32).child(&43u64);
@@ -281,7 +289,7 @@ mod test_keypath {
     fn addresses_same_slot_ignores_exclusive_flag() {
         // The exclusive flag is an access mode, not part of slot identity:
         // two otherwise-identical keypaths still address the same slot.
-        let base = Keypath::root().child(&7u32);
+        let base = Keypath::default().child(&7u32);
         let mut exclusive = base.clone();
         exclusive.set_exclusive();
         assert!(exclusive.is_exclusive());
@@ -292,8 +300,8 @@ mod test_keypath {
 
     #[test]
     fn derivation_is_deterministic() {
-        let k1 = Keypath::root().child(&3u32).child(&42u64);
-        let k2 = Keypath::root().child(&3u32).child(&42u64);
+        let k1 = Keypath::default().child(&3u32).child(&42u64);
+        let k2 = Keypath::default().child(&3u32).child(&42u64);
         assert_eq!(k1.buf.as_slice(), k2.buf.as_slice());
     }
 
@@ -317,7 +325,7 @@ mod test_keypath {
         // Preimage: child(&1u32) ‖ child(&0u32), each = CXS(len) ‖ CXS(value).
         // CXS encodes small uints in 1 byte, so 1u32 -> [01], 0u32 -> [00],
         // each with byte-length 1 -> CXS(1) = [01].
-        let kp = Keypath::root().child(&1u32).child(&0u32);
+        let kp = Keypath::default().child(&1u32).child(&0u32);
         let preimage = kp.buf.as_slice();
         let expected_preimage: &[u8] = &[
             0x01, // CXS(len=1) for the first component
@@ -341,7 +349,7 @@ mod test_keypath {
 
     #[test]
     fn domain_frame_is_distinct_and_length_framed() {
-        let root = Keypath::root();
+        let root = Keypath::default();
         // Two roots with different domains diverge.
         let a = root.child("Token").child(&0u32);
         let b = root.child("Vault").child(&0u32);

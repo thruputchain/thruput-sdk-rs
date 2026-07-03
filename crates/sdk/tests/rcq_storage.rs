@@ -64,7 +64,7 @@ fn run_rcq<T>(
     f: impl FnOnce(RCQ<T>) + UnwindSafe,
 ) -> TransactResult {
     run(env, || {
-        let keypath = Keypath::root();
+        let keypath = Keypath::default();
         let rcq: RCQ<T> = keypath.into();
         f(rcq)
     })
