@@ -1,0 +1,27 @@
+error[E0080]: evaluation panicked: storage domain too long; shorten it with #[storage_domain = "..."]
+ --> tests/compile-fail-storage/storage_domain_too_long.rs:5:10
+  |
+5 | #[derive(sdk::Storage)]
+  |          ^^^^^^^^^^^^ evaluation of `_s_storage_impls::_::<impl sdk::storage::StorageDomain for S>::DOMAIN_FRAMED::N` failed inside this call
+  |
+note: inside `framed_domain_len`
+ --> $RUST/core/src/panic.rs
+  |
+  |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
+  |
+ ::: src/storage/keypath.rs
+  |
+  | /     assert!(
+  | |         domain.len() + 10 <= STATIC_KEYPATH_CAPACITY,
+  | |         "storage domain too long; shorten it with #[storage_domain = \"...\"]"
+  | |     );
+  | |_____- in this macro invocation
+
+note: erroneous constant encountered
+ --> tests/compile-fail-storage/storage_domain_too_long.rs:5:10
+  |
+5 | #[derive(sdk::Storage)]
+  |          ^^^^^^^^^^^^
+  |
+  = note: this note originates in the derive macro `sdk::Storage` (in Nightly builds, run with -Z macro-backtrace for more info)
