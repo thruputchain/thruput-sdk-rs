@@ -87,10 +87,12 @@ pub trait StorageDomain {
 /// Seeds the keypath with the type's [`StorageDomain::DOMAIN`] so distinct
 /// state roots linked into one artifact occupy disjoint subtrees.
 /// Called by `#[contract]`-generated code; not intended for direct use.
-// Root construction zeroes a STATIC_KEYPATH_CAPACITY-byte buffer (via
-// `Keypath::root`); the body is now small enough that LLVM inlines it into
-// every entrypoint, duplicating that zeroing/copy at each call site
-// (measured +1.2KB code size on erc20's 10 entrypoints). Keep it out of line.
+// Still measurably worth keeping out of line even after `StaticKeyBuf`
+// dropped its zero-fill: the body is small enough that LLVM inlines it into
+// every entrypoint, duplicating the CXS-framing/copy work at each call site.
+// Measured on erc20 (10 entrypoints, wasm-opt -O3, Code section size):
+// inline(never) = 14583 bytes, inlined = 16118 bytes (+1535 bytes). Keep out
+// of line.
 #[doc(hidden)]
 #[inline(never)]
 pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {

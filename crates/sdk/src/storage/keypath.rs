@@ -17,18 +17,42 @@ pub trait KeyBuf: Default + Clone + Debug {
 }
 
 /// Fixed-capacity [`KeyBuf`] used when the `alloc` feature is disabled.
-#[derive(Clone, Debug)]
+///
+/// Invariant (everything unsafe here relies on it): bytes `buf[..len]` are
+/// initialized. `append_bytes` only ever writes contiguously starting at
+/// `len` and then extends `len`, so the initialized region is always a
+/// prefix. The tail `buf[len..]` is uninitialized and must never be read —
+/// which is also why `Default` need not (and does not) zero the buffer.
 pub struct StaticKeyBuf<const N: usize> {
-    buf: [u8; N],
+    buf: [core::mem::MaybeUninit<u8>; N],
     len: u16,
 }
 
 impl<const N: usize> Default for StaticKeyBuf<N> {
     fn default() -> Self {
         Self {
-            buf: [0; N],
+            buf: [core::mem::MaybeUninit::uninit(); N],
             len: 0,
         }
+    }
+}
+
+impl<const N: usize> Clone for StaticKeyBuf<N> {
+    fn clone(&self) -> Self {
+        // Copy only the initialized prefix (every `child()` clones the
+        // parent buffer, so this also drops a full-width copy per level).
+        let mut new = Self::default();
+        new.append_bytes(self.as_slice());
+        new
+    }
+}
+
+impl<const N: usize> core::fmt::Debug for StaticKeyBuf<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("StaticKeyBuf")
+            .field("bytes", &self.as_slice())
+            .field("len", &self.len)
+            .finish()
     }
 }
 
@@ -42,12 +66,16 @@ impl<const N: usize> KeyBuf for StaticKeyBuf<N> {
                 crate::exn::LibraryExn::StorageKeypathOverflow,
             );
         }
-        self.buf[start..end].copy_from_slice(bytes);
+        for (dst, src) in self.buf[start..end].iter_mut().zip(bytes) {
+            dst.write(*src);
+        }
         self.len = end as u16;
     }
 
     fn as_slice(&self) -> &[u8] {
-        &self.buf[..self.len as usize]
+        // Safety: init-prefix invariant (see type docs) — `buf[..len]` was
+        // written by `append_bytes` before `len` was extended to cover it.
+        unsafe { xdrs::mu::assume_init_ref(&self.buf[..self.len as usize]) }
     }
 }
 
@@ -382,6 +410,48 @@ mod test_keypath {
         fill(&mut s);
         fill(&mut v);
         assert_eq!(s.as_slice(), v.as_slice());
+
+        // Clone mid-sequence, then keep appending to the clones — static and
+        // Vec must still agree at every step.
+        let mut s2 = s.clone();
+        let mut v2 = v.clone();
+        assert_eq!(s2.as_slice(), v2.as_slice());
+        s2.append_bytes(&[5, 6]);
+        v2.append_bytes(&[5, 6]);
+        assert_eq!(s2.as_slice(), v2.as_slice());
+        s2.append_bytes(&[7]);
+        v2.append_bytes(&[7]);
+        assert_eq!(s2.as_slice(), v2.as_slice());
+        // Originals must be untouched by the clones' further appends.
+        assert_eq!(s.as_slice(), v.as_slice());
+        assert_eq!(s.as_slice(), &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn clone_copies_only_initialized_prefix_and_diverges() {
+        let mut s = StaticKeyBuf::<8>::default();
+        s.append_bytes(&[1, 2, 3]);
+        let mut clone = s.clone();
+        // Diverge: append DIFFERENT bytes to original and clone.
+        s.append_bytes(&[0xAA, 0xBB]);
+        clone.append_bytes(&[0xCC]);
+        assert_eq!(s.as_slice(), &[1, 2, 3, 0xAA, 0xBB]);
+        assert_eq!(clone.as_slice(), &[1, 2, 3, 0xCC]);
+    }
+
+    #[test]
+    fn clone_of_full_buffer_roundtrips() {
+        let mut s = StaticKeyBuf::<4>::default();
+        s.append_bytes(&[1, 2, 3, 4]);
+        let clone = s.clone();
+        assert_eq!(clone.as_slice(), s.as_slice());
+        assert_eq!(clone.as_slice(), &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn default_as_slice_is_empty() {
+        let s = StaticKeyBuf::<8>::default();
+        assert_eq!(s.as_slice(), &[] as &[u8]);
     }
 
     #[test]
