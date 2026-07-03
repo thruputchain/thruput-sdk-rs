@@ -58,7 +58,17 @@ fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
             impl #impl_generics StorageDomain for #ident #ty_generics
                 #where_clause
             {
-                const DOMAIN: &'static str = #domain_lit;
+                const DOMAIN: ::sdk::storage::FramedDomain = {
+                    // Sizes are concrete at expansion time (the domain is a
+                    // literal), so no generic_const_exprs is needed, and the
+                    // inner consts are legal even under generic impls
+                    // because they capture no generic params.
+                    const N: usize =
+                        ::sdk::storage::framed_domain_len(#domain_lit);
+                    const BYTES: [u8; N] =
+                        ::sdk::storage::frame_domain::<N>(#domain_lit);
+                    ::sdk::storage::FramedDomain::new(&BYTES)
+                };
             }
         };
     })

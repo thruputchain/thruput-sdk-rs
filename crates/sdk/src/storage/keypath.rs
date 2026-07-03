@@ -1,7 +1,7 @@
 use crate::crypto::sha256;
 use crate::types::StorageKey;
 use core::fmt::Debug;
-use xdrs::WriteXDR;
+use xdrs::{WriteXDR, cxs::ConstWriter};
 
 /// Append-only byte buffer backing a [`Keypath`] preimage.
 ///
@@ -17,18 +17,42 @@ pub trait KeyBuf: Default + Clone + Debug {
 }
 
 /// Fixed-capacity [`KeyBuf`] used when the `alloc` feature is disabled.
-#[derive(Clone, Debug)]
+///
+/// Invariant (everything unsafe here relies on it): bytes `buf[..len]` are
+/// initialized. `append_bytes` only ever writes contiguously starting at
+/// `len` and then extends `len`, so the initialized region is always a
+/// prefix. The tail `buf[len..]` is uninitialized and must never be read —
+/// which is also why `Default` need not (and does not) zero the buffer.
 pub struct StaticKeyBuf<const N: usize> {
-    buf: [u8; N],
+    buf: [core::mem::MaybeUninit<u8>; N],
     len: u16,
 }
 
 impl<const N: usize> Default for StaticKeyBuf<N> {
     fn default() -> Self {
         Self {
-            buf: [0; N],
+            buf: [core::mem::MaybeUninit::uninit(); N],
             len: 0,
         }
+    }
+}
+
+impl<const N: usize> Clone for StaticKeyBuf<N> {
+    fn clone(&self) -> Self {
+        // Copy only the initialized prefix (every `child()` clones the
+        // parent buffer, so this also drops a full-width copy per level).
+        let mut new = Self::default();
+        new.append_bytes(self.as_slice());
+        new
+    }
+}
+
+impl<const N: usize> core::fmt::Debug for StaticKeyBuf<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("StaticKeyBuf")
+            .field("bytes", &self.as_slice())
+            .field("len", &self.len)
+            .finish()
     }
 }
 
@@ -42,12 +66,16 @@ impl<const N: usize> KeyBuf for StaticKeyBuf<N> {
                 crate::exn::LibraryExn::StorageKeypathOverflow,
             );
         }
-        self.buf[start..end].copy_from_slice(bytes);
+        for (dst, src) in self.buf[start..end].iter_mut().zip(bytes) {
+            dst.write(*src);
+        }
         self.len = end as u16;
     }
 
     fn as_slice(&self) -> &[u8] {
-        &self.buf[..self.len as usize]
+        // Safety: init-prefix invariant (see type docs) — `buf[..len]` was
+        // written by `append_bytes` before `len` was extended to cover it.
+        unsafe { xdrs::mu::assume_init_ref(&self.buf[..self.len as usize]) }
     }
 }
 
@@ -96,9 +124,18 @@ pub struct Keypath {
 }
 
 impl Keypath {
+    /// Root keypath for a contract state tree, seeded with the state type's
+    /// compile-time-framed storage domain. The seed bytes are exactly what
+    /// [`child`](Self::child) would append for the domain string, so the
+    /// domain remains "the root's first child frame". Called by
+    /// [`contract_state_root`](crate::storage::contract_state_root); not
+    /// intended for direct use. For a bare, undomained keypath (tests,
+    /// hand-rolled raw storage) use `Keypath::default()`.
     #[doc(hidden)]
-    pub fn root() -> Self {
-        Self::default()
+    pub fn root(domain: FramedDomain) -> Self {
+        let mut kp = Self::default();
+        kp.buf.append_bytes(domain.as_bytes());
+        kp
     }
 
     /// Child keyed by an encodable value.
@@ -182,20 +219,79 @@ impl Keypath {
     }
 }
 
+/// Byte length of [`frame_domain`]'s output for `domain`.
+///
+/// Const mirror of the framing [`Keypath::child`] applies to a `&str`
+/// component: `CXS(byte_len) ‖ CXS(domain)`. Kept honest by the
+/// `const_frame_matches_runtime_child` test and by [`frame_domain`]'s
+/// exact-fill assertion.
+pub const fn framed_domain_len(domain: &str) -> usize {
+    // 10 = two CXS(u32) length prefixes at their 5-byte maximum. Framed
+    // domains share the keypath preimage budget; a domain anywhere near
+    // this cap is a bug, so fail const-eval with a readable message.
+    assert!(
+        domain.len() + 10 <= STATIC_KEYPATH_CAPACITY,
+        "storage domain too long; shorten it with #[storage_domain = \"...\"]"
+    );
+    let mut inner = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    inner.write_opaque_variable(domain.as_bytes());
+    let inner_len = inner.pos();
+    let mut outer = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    outer.write_u32(inner_len as u32);
+    outer.pos() + inner_len
+}
+
+/// Compile-time framing of a storage-domain string: the exact bytes
+/// [`Keypath::child`] would append for `domain` at runtime.
+///
+/// `N` must equal [`framed_domain_len`]`(domain)`; `into_bytes` asserts the
+/// exact fill at const-eval time, so any mismatch is a compile error rather
+/// than a wrong storage key.
+pub const fn frame_domain<const N: usize>(domain: &str) -> [u8; N] {
+    let mut probe = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    probe.write_opaque_variable(domain.as_bytes());
+    let inner_len = probe.pos();
+    let mut w = ConstWriter::<N>::new();
+    w.write_u32(inner_len as u32);
+    w.write_opaque_variable(domain.as_bytes());
+    w.into_bytes()
+}
+
+/// A storage domain pre-framed at compile time (see [`frame_domain`]).
+///
+/// Newtype so a domain-seeded [`Keypath`] root cannot be handed raw,
+/// unframed bytes. Constructed only by `derive(Storage)`-generated code
+/// (via [`frame_domain`]); not intended for direct use. The domain's name
+/// string is not carried — host collision diagnostics identify colliding
+/// roots by type path.
+#[derive(Clone, Copy, Debug)]
+pub struct FramedDomain(&'static [u8]);
+
+impl FramedDomain {
+    #[doc(hidden)]
+    pub const fn new(framed: &'static [u8]) -> Self {
+        Self(framed)
+    }
+
+    pub(crate) const fn as_bytes(&self) -> &'static [u8] {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod test_keypath {
     use super::*;
 
     #[test]
     fn exclusive_flag_propagates_through_clone() {
-        let mut kp = Keypath::root().child("some bytes");
+        let mut kp = Keypath::default().child("some bytes");
         kp.set_exclusive();
         assert!(kp.clone().is_exclusive());
     }
 
     #[test]
     fn distinct_paths_distinct_keys() {
-        let root = Keypath::root();
+        let root = Keypath::default();
         // boundary-shift case: [AA BB]+[CC] vs [AA]+[BB CC].
         // Fixed opaque [u8; N] keys do NOT self-delimit, so without the
         // CXS(len) prefix these two sequences would share the preimage
@@ -211,7 +307,7 @@ mod test_keypath {
 
     #[test]
     fn addresses_same_slot_matches_preimage_equality() {
-        let root = Keypath::root();
+        let root = Keypath::default();
         let a = root.child(&3u32).child(&42u64);
         let same = root.child(&3u32).child(&42u64);
         let different = root.child(&3u32).child(&43u64);
@@ -223,7 +319,7 @@ mod test_keypath {
     fn addresses_same_slot_ignores_exclusive_flag() {
         // The exclusive flag is an access mode, not part of slot identity:
         // two otherwise-identical keypaths still address the same slot.
-        let base = Keypath::root().child(&7u32);
+        let base = Keypath::default().child(&7u32);
         let mut exclusive = base.clone();
         exclusive.set_exclusive();
         assert!(exclusive.is_exclusive());
@@ -234,8 +330,8 @@ mod test_keypath {
 
     #[test]
     fn derivation_is_deterministic() {
-        let k1 = Keypath::root().child(&3u32).child(&42u64);
-        let k2 = Keypath::root().child(&3u32).child(&42u64);
+        let k1 = Keypath::default().child(&3u32).child(&42u64);
+        let k2 = Keypath::default().child(&3u32).child(&42u64);
         assert_eq!(k1.buf.as_slice(), k2.buf.as_slice());
     }
 
@@ -259,7 +355,7 @@ mod test_keypath {
         // Preimage: child(&1u32) ‖ child(&0u32), each = CXS(len) ‖ CXS(value).
         // CXS encodes small uints in 1 byte, so 1u32 -> [01], 0u32 -> [00],
         // each with byte-length 1 -> CXS(1) = [01].
-        let kp = Keypath::root().child(&1u32).child(&0u32);
+        let kp = Keypath::default().child(&1u32).child(&0u32);
         let preimage = kp.buf.as_slice();
         let expected_preimage: &[u8] = &[
             0x01, // CXS(len=1) for the first component
@@ -283,7 +379,7 @@ mod test_keypath {
 
     #[test]
     fn domain_frame_is_distinct_and_length_framed() {
-        let root = Keypath::root();
+        let root = Keypath::default();
         // Two roots with different domains diverge.
         let a = root.child("Token").child(&0u32);
         let b = root.child("Vault").child(&0u32);
@@ -314,6 +410,83 @@ mod test_keypath {
         fill(&mut s);
         fill(&mut v);
         assert_eq!(s.as_slice(), v.as_slice());
+
+        // Clone mid-sequence, then keep appending to the clones — static and
+        // Vec must still agree at every step.
+        let mut s2 = s.clone();
+        let mut v2 = v.clone();
+        assert_eq!(s2.as_slice(), v2.as_slice());
+        s2.append_bytes(&[5, 6]);
+        v2.append_bytes(&[5, 6]);
+        assert_eq!(s2.as_slice(), v2.as_slice());
+        s2.append_bytes(&[7]);
+        v2.append_bytes(&[7]);
+        assert_eq!(s2.as_slice(), v2.as_slice());
+        // Originals must be untouched by the clones' further appends.
+        assert_eq!(s.as_slice(), v.as_slice());
+        assert_eq!(s.as_slice(), &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn clone_copies_only_initialized_prefix_and_diverges() {
+        let mut s = StaticKeyBuf::<8>::default();
+        s.append_bytes(&[1, 2, 3]);
+        let mut clone = s.clone();
+        // Diverge: append DIFFERENT bytes to original and clone.
+        s.append_bytes(&[0xAA, 0xBB]);
+        clone.append_bytes(&[0xCC]);
+        assert_eq!(s.as_slice(), &[1, 2, 3, 0xAA, 0xBB]);
+        assert_eq!(clone.as_slice(), &[1, 2, 3, 0xCC]);
+    }
+
+    #[test]
+    fn clone_of_full_buffer_roundtrips() {
+        let mut s = StaticKeyBuf::<4>::default();
+        s.append_bytes(&[1, 2, 3, 4]);
+        let clone = s.clone();
+        assert_eq!(clone.as_slice(), s.as_slice());
+        assert_eq!(clone.as_slice(), &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn default_as_slice_is_empty() {
+        let s = StaticKeyBuf::<8>::default();
+        assert_eq!(s.as_slice(), &[] as &[u8]);
+    }
+
+    #[test]
+    fn const_frame_matches_runtime_child() {
+        // THE load-bearing test: const framing must equal the runtime CXS
+        // codec byte-for-byte, or const-derived storage keys diverge from
+        // runtime-derived ones.
+        macro_rules! check {
+            ($domain:literal) => {{
+                const N: usize = framed_domain_len($domain);
+                const FRAMED: [u8; N] = frame_domain::<N>($domain);
+                let runtime = Keypath::default().child($domain);
+                assert_eq!(
+                    &FRAMED[..],
+                    runtime.buf.as_slice(),
+                    "const framing drifted from runtime child() for {:?}",
+                    $domain
+                );
+            }};
+        }
+        check!("A");
+        check!("AB");
+        check!("ERC20State");
+        check!("a_rather_long_storage_domain_name_for_framing");
+        // > 62 bytes: both CXS length prefixes take the 2-byte header form.
+        check!(
+            "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header"
+        );
+        check!("日本語ドメイン");
+
+        // Golden bytes for "AB" (same vector as
+        // domain_frame_is_distinct_and_length_framed).
+        const N_AB: usize = framed_domain_len("AB");
+        const AB: [u8; N_AB] = frame_domain::<N_AB>("AB");
+        assert_eq!(&AB[..], &[0x03, 0x02, b'A', b'B']);
     }
 }
 

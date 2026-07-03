@@ -179,6 +179,9 @@ pub fn generate(
             #[allow(non_upper_case_globals)]
             static #reg_ident: ::sdk::storage::DomainRecord =
                 ::sdk::storage::DomainRecord {
+                    // The framed domain bytes themselves: the registry
+                    // compares them for byte equality, which is exactly
+                    // on-chain root collision (the framing is injective).
                     domain: <#self_ty as ::sdk::storage::StorageDomain>::DOMAIN,
                     type_path: concat!(module_path!(), "::", stringify!(#self_ty)),
                 };
