@@ -1,7 +1,7 @@
 use crate::crypto::sha256;
 use crate::types::StorageKey;
 use core::fmt::Debug;
-use xdrs::WriteXDR;
+use xdrs::{WriteXDR, cxs::ConstWriter};
 
 /// Append-only byte buffer backing a [`Keypath`] preimage.
 ///
@@ -182,6 +182,64 @@ impl Keypath {
     }
 }
 
+/// Byte length of [`frame_domain`]'s output for `domain`.
+///
+/// Const mirror of the framing [`Keypath::child`] applies to a `&str`
+/// component: `CXS(byte_len) ‖ CXS(domain)`. Kept honest by the
+/// `const_frame_matches_runtime_child` test and by [`frame_domain`]'s
+/// exact-fill assertion.
+pub const fn framed_domain_len(domain: &str) -> usize {
+    // 10 = two CXS(u32) length prefixes at their 5-byte maximum. Framed
+    // domains share the keypath preimage budget; a domain anywhere near
+    // this cap is a bug, so fail const-eval with a readable message.
+    assert!(
+        domain.len() + 10 <= STATIC_KEYPATH_CAPACITY,
+        "storage domain too long; shorten it with #[storage_domain = \"...\"]"
+    );
+    let mut inner = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    inner.write_opaque_variable(domain.as_bytes());
+    let inner_len = inner.pos();
+    let mut outer = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    outer.write_u32(inner_len as u32);
+    outer.pos() + inner_len
+}
+
+/// Compile-time framing of a storage-domain string: the exact bytes
+/// [`Keypath::child`] would append for `domain` at runtime.
+///
+/// `N` must equal [`framed_domain_len`]`(domain)`; `into_bytes` asserts the
+/// exact fill at const-eval time, so any mismatch is a compile error rather
+/// than a wrong storage key.
+pub const fn frame_domain<const N: usize>(domain: &str) -> [u8; N] {
+    let mut probe = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    probe.write_opaque_variable(domain.as_bytes());
+    let inner_len = probe.pos();
+    let mut w = ConstWriter::<N>::new();
+    w.write_u32(inner_len as u32);
+    w.write_opaque_variable(domain.as_bytes());
+    w.into_bytes()
+}
+
+/// A storage domain pre-framed at compile time (see [`frame_domain`]).
+///
+/// Newtype so a domain-seeded [`Keypath`] root cannot be handed raw,
+/// unframed bytes. Constructed only by `derive(Storage)`-generated code
+/// (via [`frame_domain`]); not intended for direct use.
+#[derive(Clone, Copy, Debug)]
+pub struct FramedDomain(&'static [u8]);
+
+impl FramedDomain {
+    #[doc(hidden)]
+    pub const fn new(bytes: &'static [u8]) -> Self {
+        Self(bytes)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) const fn as_bytes(self) -> &'static [u8] {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod test_keypath {
     use super::*;
@@ -314,6 +372,37 @@ mod test_keypath {
         fill(&mut s);
         fill(&mut v);
         assert_eq!(s.as_slice(), v.as_slice());
+    }
+
+    #[test]
+    fn const_frame_matches_runtime_child() {
+        // THE load-bearing test: const framing must equal the runtime CXS
+        // codec byte-for-byte, or const-derived storage keys diverge from
+        // runtime-derived ones.
+        macro_rules! check {
+            ($domain:literal) => {{
+                const N: usize = framed_domain_len($domain);
+                const FRAMED: [u8; N] = frame_domain::<N>($domain);
+                let runtime = Keypath::default().child($domain);
+                assert_eq!(
+                    &FRAMED[..],
+                    runtime.buf.as_slice(),
+                    "const framing drifted from runtime child() for {:?}",
+                    $domain
+                );
+            }};
+        }
+        check!("A");
+        check!("AB");
+        check!("ERC20State");
+        check!("a_rather_long_storage_domain_name_for_framing");
+        check!("日本語ドメイン");
+
+        // Golden bytes for "AB" (same vector as
+        // domain_frame_is_distinct_and_length_framed).
+        const N_AB: usize = framed_domain_len("AB");
+        const AB: [u8; N_AB] = frame_domain::<N_AB>("AB");
+        assert_eq!(&AB[..], &[0x03, 0x02, b'A', b'B']);
     }
 }
 
