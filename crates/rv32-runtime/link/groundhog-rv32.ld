@@ -161,3 +161,8 @@ ASSERT(__heap_base <= __heap_end, "rv32 data sections leave no room for heap");
 /* _start loads sp from __stack_top with no rounding; the RISC-V ABI
  * requires sp to be 16-byte aligned. */
 ASSERT(__stack_top % 16 == 0, "__stack_top must be 16-byte aligned");
+/* Fail a bogus __stack_size override here with a clear message. This is
+ * DX, not a safety boundary: the lowerer already rejects any data section
+ * inside its [0, 8) null guard, so statics at address 0 can never reach a
+ * deployable artifact. */
+ASSERT(__stack_size >= 16, "__stack_size must be at least one 16-byte slot");
