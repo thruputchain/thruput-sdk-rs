@@ -24,6 +24,28 @@
 //! The target-specific runtime pieces only compile on rv32. The pure dispatch
 //! primitives are also compiled for docs/tests so host unit tests can exercise
 //! lookup behavior; production dependencies should remain target-gated.
+//!
+//! ## Stack size
+//!
+//! The linker script lays guest data memory out stack-first: the stack
+//! occupies `[0, __stack_size)` growing down (overflow wraps below zero and
+//! traps as an OOB access), statics sit above it, and the heap grows from the
+//! top of statics to the end of the 64K data space. `__stack_size` defaults
+//! to 24K and is a hard limit. It costs no artifact bytes (the lowerer trims
+//! the stack region from the stored image), only address space shared with
+//! the heap.
+//!
+//! To override it per contract, add a `--defsym` to the contract's rv32
+//! rustflags (value must be a multiple of 16; the link fails otherwise):
+//!
+//! ```toml
+//! # .cargo/config.toml
+//! [target.riscv32im-unknown-none-elf]
+//! rustflags = [
+//!     # ... the standard flags ...
+//!     "-C", "link-arg=--defsym=__stack_size=0x8000",  # 32K stack
+//! ]
+//! ```
 
 #![cfg_attr(not(test), no_std)]
 
