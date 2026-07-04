@@ -18,15 +18,17 @@
  *
  *   0x0 .. __stack_top    stack, growing DOWN from __stack_top
  *   __stack_top ..        .rodata / .data / .bss
- *   __heap_base .. 64K    heap, growing UP toward the end of DATA
+ *   __heap_base ..        heap, growing UP toward __memory_size
  *
  * With the stack at the bottom, the regions that grow (stack down, heap up)
  * both grow toward a hard boundary instead of toward each other: a stack
- * overflow wraps sp below zero to ~0xFFFFFFxx, far outside the 64K DATA
- * mapping — an immediate OOB trap — rather than silently corrupting heap or
- * statics as the previous stack-at-top layout allowed. The heap gets a hard
- * bound at the true end of DATA (__heap_end = 64K), reclaiming the old
- * top-of-memory stack reserve.
+ * overflow wraps sp below zero to ~0xFFFFFFxx, far outside the guest
+ * memory the VM provisions — an immediate OOB trap — rather than silently
+ * corrupting heap or statics as the previous stack-at-top layout allowed.
+ * The heap gets a hard bound at the true guest memory size (__heap_end =
+ * __memory_size), reclaiming the old top-of-memory stack reserve. Note
+ * that __memory_size is intentionally smaller than the DATA region: the
+ * region lengths are relaxed sanity bounds, not the real limits.
  *
  * The stored image stays compact: artifact format v5 records
  * `initial_memory_start` (the guest VA where the image is loaded — the
@@ -70,10 +72,22 @@ ENTRY(_start)
  */
 PROVIDE(__stack_size = 24K);
 
+/* True guest data-memory size. The VM provisions exactly this much
+ * (memory_bytes in the artifact header). MUST stay in lockstep with
+ * MAX_MEMORY_BYTES in groundhog-rpc crates/rv32/artifact/src/format.rs
+ * and hogd/hogexec/runtime/rv32/artifact.h. */
+__memory_size = 64K;
+
+/* Relaxed sanity bounds only — deliberately never-binding. The real
+ * 64 KiB code/memory limits are enforced by the CLI lowerer / artifact
+ * writer, which produces proper error messages instead of a cryptic
+ * "section '.text' will not fit in region 'CODE'". Keep these <= 1M so
+ * all direct `jal` calls stay in range and relocation errors remain
+ * impossible. */
 MEMORY
 {
-  CODE (rx) : ORIGIN = 0, LENGTH = 64K
-  DATA (rw) : ORIGIN = 0, LENGTH = 64K
+  CODE (rx) : ORIGIN = 0, LENGTH = 1M
+  DATA (rw) : ORIGIN = 0, LENGTH = 1M
 }
 
 /* Stack reserve at the bottom of DATA. _start loads sp from __stack_top
@@ -134,13 +148,17 @@ SECTIONS
     __bss_end = .;
   } > DATA
 
-  /* Heap grows from __heap_base toward the true end of DATA. The allocator
-   * checks __heap_end as the bound; with the stack parked at the bottom of
-   * DATA nothing lives above the heap, so the bound is the end of memory.
+  /* Heap grows from __heap_base toward __memory_size, the true guest
+   * memory size. The allocator checks __heap_end as the bound; with the
+   * stack parked at the bottom of DATA nothing lives above the heap, so
+   * the bound is the end of guest memory. Deliberately NOT derived from
+   * LENGTH(DATA): the DATA region is a relaxed sanity bound, and a heap
+   * bound above the real memory size would turn heap exhaustion from a
+   * clean alloc failure into a VM OOB trap.
    */
   . = ALIGN(8);
   __heap_base = .;
-  __heap_end = ORIGIN(DATA) + LENGTH(DATA);
+  __heap_end = __memory_size;
 
   /DISCARD/ :
   {
