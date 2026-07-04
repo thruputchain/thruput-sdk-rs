@@ -39,14 +39,16 @@ extern "C" fn rv32_dispatch(method_id: u64) -> ! {
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
 pub extern "C" fn _start() -> ! {
-    // Set sp to the linker-script stack top (16-byte aligned) and tail-call the
-    // dispatcher. hogd also seeds sp from artifact `memory_bytes`; those values
-    // must stay aligned with the SDK linker RAM size. We set it defensively so a
-    // real ELF entry is safe to call from a stale stack.
+    // Set sp to the linker-script stack top and tail-call the dispatcher.
+    // The guest owns stack placement: the VM (entry ABI v3) seeds sp = 0, a
+    // deliberate trap value — any stack touch before this load wraps below
+    // zero and faults OOB. The linker script parks the stack at the BOTTOM
+    // of DATA (stack-first layout, so overflow traps instead of corrupting
+    // the heap) and ASSERTs __stack_top is 16-byte aligned (the RISC-V ABI
+    // sp alignment), so no rounding here.
     // `naked` guarantees no prologue clobbers a0/a1.
     naked_asm!(
         "la sp, __stack_top",
-        "andi sp, sp, -16",
         "tail {dispatch}",
         dispatch = sym rv32_dispatch,
     );
