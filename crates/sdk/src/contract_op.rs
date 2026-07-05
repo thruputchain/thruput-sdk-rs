@@ -351,22 +351,13 @@ crate::contract_local! {
         };
 }
 
-/// Fetch this frame's calldata and auth-token ids into `calldata`/`auth_ids`
-/// (cleared first by [`fetch_calldata_and_auth_tokens_into`]), throwing a
-/// `LibraryExn::Syscall` (`kGetCalldata`) on fetch failure.
-fn fetch_calldata_or_throw(
-    calldata: &mut Calldata,
-    auth_ids: &mut AuthTokenIdBuf,
-) {
-    fetch_calldata_and_auth_tokens_into(calldata, auth_ids).unwrap_or_else(
-        |syserr| syscall_throw(SyscallNo::kGetCalldata, syserr),
-    );
-}
-
 /// Fetch this frame's calldata and auth-token ids and run `f` on them,
-/// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
-/// API: generated entrypoint wrappers and raw-calldata contracts both use
-/// it.
+/// reporting a fetch failure as `Err` instead of aborting. Same buffer
+/// plumbing as [`with_calldata_and_auth_tokens`] — the `try_` law (see
+/// [`crate::exn`] module docs) applies: the only way this aborts the VM is
+/// through `f` itself. The `Err` arm is guest-reachable only via a
+/// `kGetCalldata` syscall failure, which cannot happen from ordinary
+/// (non-adversarial-host) operation.
 ///
 /// The buffers live in the per-instance calldata cell — a guest `static` —
 /// so the (SCRATCH_MAX-byte, no-alloc) calldata buffer costs no stack and
@@ -375,16 +366,34 @@ fn fetch_calldata_or_throw(
 /// the write scratch. A re-entrant fetch (a nested in-process frame in the
 /// native mock) falls back to fresh buffers via
 /// [`ContractLocalRef::with_mut_or_fresh`], so the borrow can't alias.
-pub fn with_calldata_and_auth_tokens<R>(
+pub fn try_with_calldata_and_auth_tokens<R>(
     f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
-) -> R {
+) -> Result<R, crate::exn::LibraryExn> {
     CALLDATA_SCRATCH.with_mut_or_fresh(
         fresh_calldata,
         |(calldata, auth_ids)| {
-            fetch_calldata_or_throw(calldata, auth_ids);
-            f(calldata, auth_ids)
+            fetch_calldata_and_auth_tokens_into(calldata, auth_ids).map_err(
+                |syserr| {
+                    crate::exn::syscall_exn(SyscallNo::kGetCalldata, syserr)
+                },
+            )?;
+            Ok(f(calldata, auth_ids))
         },
     )
+}
+
+/// Fetch this frame's calldata and auth-token ids and run `f` on them,
+/// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
+/// API: generated entrypoint wrappers and raw-calldata contracts both use
+/// it.
+///
+/// A thin throwing wrapper over [`try_with_calldata_and_auth_tokens`] so the
+/// two spellings can't drift: whatever `LibraryExn` the `try_` form would
+/// return on fetch failure is exactly what this throws.
+pub fn with_calldata_and_auth_tokens<R>(
+    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
+) -> R {
+    try_with_calldata_and_auth_tokens(f).unwrap_or_else(|e| library_throw(e))
 }
 
 fn fresh_calldata() -> (Calldata, AuthTokenIdBuf) {
