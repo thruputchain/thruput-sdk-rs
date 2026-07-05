@@ -64,6 +64,7 @@ where
 
         if is_ok {
             contract_call_decode(buf.as_slice(), auth_buf.as_slice())
+                .map_err(widen_uninhabited_exn)
         } else {
             match RawException::parse(buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(on_exn(exn))),
@@ -216,6 +217,27 @@ where
     } else {
         CallOutcome::Abort
     })
+}
+
+/// Widen a `RawCallError` whose `Exception` variant is uninhabited
+/// ([`core::convert::Infallible`]) to any `X`: the `Exception` arm can
+/// never actually be constructed, so this just relabels the type.
+fn widen_uninhabited_exn<X>(
+    e: RawCallError<core::convert::Infallible>,
+) -> RawCallError<X> {
+    match e {
+        RawCallError::Invalid => RawCallError::Invalid,
+        RawCallError::Exception(x) => match x {},
+        RawCallError::Fault(f) => RawCallError::Fault(f),
+        RawCallError::UnparseableReturn(f) => {
+            RawCallError::UnparseableReturn(f)
+        }
+        RawCallError::UnparseableAbort(f) => RawCallError::UnparseableAbort(f),
+        RawCallError::UnparseableAuthHandles(f) => {
+            RawCallError::UnparseableAuthHandles(f)
+        }
+        RawCallError::EncodingArgs(f) => RawCallError::EncodingArgs(f),
+    }
 }
 
 /// Map a returned-data parse fault to the error variant matching the

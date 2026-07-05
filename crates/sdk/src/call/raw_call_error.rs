@@ -104,7 +104,7 @@ where
     T: ReadXDROwned + ReceiveAuthHandles,
 {
     match contract_result {
-        Ok(return_val) => contract_call_decode::<T, CaughtException>(
+        Ok(return_val) => contract_call_decode::<T>(
             return_val.0.as_slice(),
             return_val.1.as_slice(),
         )

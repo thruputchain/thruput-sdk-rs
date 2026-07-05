@@ -148,7 +148,7 @@ pub fn nnint_underflow() -> ! {
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn decoding_args_throw(e: &RawCallError) -> ! {
+pub fn decoding_args_throw(e: &RawCallError<core::convert::Infallible>) -> ! {
     library_throw(HandlingError::DecodingArgs(FaultString::from_display(e)))
 }
 

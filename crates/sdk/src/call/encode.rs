@@ -2,10 +2,10 @@ use crate::call::RawCallError;
 use crate::exn::FaultString;
 use crate::{ReceiveAuthHandles, receive_auth_handles_from_slice, xdr::*};
 
-pub fn contract_call_decode<'b, T, X>(
+pub fn contract_call_decode<'b, T>(
     bytes: &'b [u8],
     handles: &[u32],
-) -> Result<T, RawCallError<X>>
+) -> Result<T, RawCallError<core::convert::Infallible>>
 where
     T: ReadXDR<'b> + ReceiveAuthHandles,
 {
