@@ -149,7 +149,9 @@ pub enum CallOutcome {
 
 /// Untyped cross-contract call: pass pre-encoded calldata, receive the raw
 /// return (or abort) bytes in `return_buf` and the returned auth-token ids
-/// in `returned_auth_token_ids` (both cleared first).
+/// in `returned_auth_token_ids`. Both buffers are cleared before the call is
+/// attempted, so they are left empty (not stale from a previous call) even
+/// if this returns `Err`.
 ///
 /// Prefer [`try_call_raw`] (or a generated client) for ordinary typed
 /// calls. This entry point exists for forwarders and proxies — e.g. wallet
@@ -175,6 +177,9 @@ pub fn contract_call<A>(
 where
     A: AsRef<[u8]> + ?Sized,
 {
+    return_buf.clear();
+    returned_auth_token_ids.clear();
+
     let (is_ok, outputs) = invoke_frame(
         address,
         entrypoint,
@@ -184,7 +189,6 @@ where
         flags,
     )?;
 
-    return_buf.clear();
     #[cfg(feature = "alloc")]
     return_buf.reserve(outputs.return_buffer_len as usize);
 

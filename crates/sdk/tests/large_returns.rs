@@ -122,3 +122,38 @@ fn try_call_raw_preserves_abort_payloads_larger_than_500_bytes() {
     })
     .assert_success();
 }
+
+#[test]
+fn contract_call_clears_buffers_even_when_the_call_fails() {
+    // Fresh env: CHILD_ADDR is never registered, so `invoke_frame` rejects
+    // the call before any child frame runs (`RawCallError::Invalid`).
+    let env = TestEnvironment::no_cost();
+    env.transact(|tx| {
+        tx.call(&PARENT_ADDR).run(|| {
+            let mut return_buf = sdk::call::ReturnBuf::new();
+            return_buf.extend_from_slice(b"stale-from-previous-call");
+            let mut returned_auth = AuthHandleBuf::new();
+            returned_auth.push(7);
+            let result = sdk::call::contract_call(
+                &CHILD_ADDR,
+                entrypoint(),
+                u64::MAX,
+                &[] as &[u8],
+                &AuthHandleBuf::new(),
+                0,
+                &mut return_buf,
+                &mut returned_auth,
+            );
+            assert!(matches!(result, Err(RawCallError::Invalid)));
+            assert!(
+                return_buf.is_empty(),
+                "return_buf must be cleared on Err"
+            );
+            assert!(
+                returned_auth.is_empty(),
+                "auth buf must be cleared on Err"
+            );
+        })
+    })
+    .assert_success();
+}
