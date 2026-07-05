@@ -69,4 +69,21 @@ impl MultiThrows for Contract {
             extra_payload: 42,
         });
     }
+
+    fn relay_undecodable(target: ContractAddress) {
+        let client = MultiClient::new(&target);
+        match client.try_throw_undecodable() {
+            Err(MultiClientError::BadDecode(caught)) => {
+                // Unrelated SDK op between catch and re-throw: this reuses
+                // the call scratch that produced `caught`.
+                log(b"caught, doing other work before re-throw");
+                caught.re_throw()
+            }
+            other => client_library_throw(LibraryExn::Called(
+                FaultString::from_display(format_args!(
+                    "expected BadDecode, got {other:?}"
+                )),
+            )),
+        }
+    }
 }

@@ -39,4 +39,11 @@ pub trait MultiThrows {
 
     /// Throws malicious library error
     fn throw_malicious_library_error();
+
+    /// Calls `throw_undecodable()` on `target` via the generated client,
+    /// catches the resulting `BadDecode`, performs an unrelated SDK op
+    /// (log emit — this reuses the call scratch), then re-throws.
+    /// Pins the guarantee that a `CaughtException` survives arbitrary
+    /// scratch reuse and re-throws verbatim.
+    fn relay_undecodable(target: ContractAddress);
 }
