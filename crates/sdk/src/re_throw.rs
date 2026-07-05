@@ -20,3 +20,9 @@ impl<T, E: ReThrow> OrReThrow<T> for Result<T, E> {
         }
     }
 }
+
+impl ReThrow for core::convert::Infallible {
+    fn re_throw(self) -> ! {
+        match self {}
+    }
+}

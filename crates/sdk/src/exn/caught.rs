@@ -51,9 +51,7 @@ impl CaughtException {
     /// unavailable (another `CaughtException` is live, or we are inside its
     /// `with_payload`), aborts with `wire` verbatim — propagate over clobber.
     ///
-    /// Not yet called: `RawException::caught()` (Task 2) is its first
-    /// consumer.
-    #[allow(dead_code)]
+    /// Called by [`RawException::caught`](crate::exn::RawException::caught).
     pub(crate) fn catch_wire(
         wire: &[u8],
         selector: u64,

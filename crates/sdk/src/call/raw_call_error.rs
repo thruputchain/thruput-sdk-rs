@@ -5,19 +5,25 @@ use super::ContractError;
 #[cfg(feature = "alloc")]
 use super::contract_call_decode;
 use crate::exn::{
-    CallingError, FaultString, RawException,
+    CallingError, CaughtException, FaultString,
     client_library_throw as library_throw,
 };
 #[cfg(feature = "alloc")]
 use crate::{ReceiveAuthHandles, xdr::*};
 
 /// The raw, untyped error from a contract call.
+///
+/// Generic over the exception representation `X`: [`try_call_raw`](super::try_call_raw)
+/// fixes it at the default [`CaughtException`], while
+/// [`try_call_raw_with`](super::try_call_raw_with) lets the caller's `on_exn`
+/// closure choose (e.g. a typed error enum, or `Infallible` if the closure
+/// re-throws unconditionally).
 #[derive(Debug, PartialEq)]
-pub enum RawCallError {
+pub enum RawCallError<X = CaughtException> {
     /// The invoke syscall reported invalid parameters
     Invalid,
     /// The called contract threw an exception with a selector-tagged error.
-    Exception(RawException),
+    Exception(X),
     /// The called contract terminated without providing a return value.
     Fault(FaultString),
     /// Decode error: the called contract returned some unparseable return result
@@ -32,20 +38,13 @@ pub enum RawCallError {
 }
 
 #[cfg(feature = "debugging")]
-impl core::fmt::Display for RawCallError {
+impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             RawCallError::Invalid => {
                 write!(f, "contract not found (or invalid auth tokens)")
             }
-            RawCallError::Exception(exn) => exn.with_payload(|payload| {
-                write!(
-                    f,
-                    "exception (selector=0x{:016x}, payload={})",
-                    exn.selector(),
-                    crate::hex::hex_encode(&payload)
-                )
-            }),
+            RawCallError::Exception(exn) => write!(f, "exception: {exn:?}"),
             RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
             RawCallError::UnparseableReturn(error) => {
                 write!(f, "unparseable return: {error}")
@@ -63,7 +62,9 @@ impl core::fmt::Display for RawCallError {
     }
 }
 
-impl crate::re_throw::ReThrow for RawCallError {
+impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
+    for RawCallError<X>
+{
     #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> ! {
         match self {
@@ -93,7 +94,7 @@ impl crate::re_throw::ReThrow for RawCallError {
 ///
 /// Decoding failure on the success path results in an exception.
 ///
-/// `alloc`-only mock-side plumbing (builds a `RawException` from an owned
+/// `alloc`-only mock-side plumbing (builds a `CaughtException` from an owned
 /// abort buffer, which the no-alloc guest never does).
 #[cfg(feature = "alloc")]
 pub fn into_raw_call_result<T>(
@@ -103,7 +104,7 @@ where
     T: ReadXDROwned + ReceiveAuthHandles,
 {
     match contract_result {
-        Ok(return_val) => contract_call_decode(
+        Ok(return_val) => contract_call_decode::<T, CaughtException>(
             return_val.0.as_slice(),
             return_val.1.as_slice(),
         )
@@ -114,7 +115,7 @@ where
             )))
         }),
         Err(ContractError::Abort(abort_buf)) => {
-            match RawException::from_abort_buf(abort_buf.as_slice()) {
+            match CaughtException::from_abort_buf(abort_buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),

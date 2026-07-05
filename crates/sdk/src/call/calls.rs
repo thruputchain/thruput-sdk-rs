@@ -12,36 +12,27 @@ use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
 
-/// Typed cross-contract call: encode `args`, invoke, decode the return
-/// value (or surface the abort as a [`RawCallError`]).
+/// Typed cross-contract call with caller-supplied exception dispatch.
 ///
-/// This is what generated clients use. Both the encoded-args and
-/// returned-data bytes live in a lazily-allocated per-instance scratch
-/// reused across calls (under `alloc`), so repeated calls perform no
-/// per-call allocations even though the guest bump allocator never frees,
-/// and neither outgoing calldata nor received returns have an SDK-imposed
-/// size cap.
-// Used by the contract macro in method wrappers
+/// `on_exn` runs while the abort bytes are still borrowed from the call
+/// scratch: [`RawException::payload`] is a plain slice, valid exactly for
+/// the closure. Decode it into owned typed errors (zero-copy),
+/// [`RawException::re_throw`] it (zero-copy), or [`RawException::caught`]
+/// it (one copy) — whatever `X` the closure returns is what escapes.
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn try_call_raw<ARGS, RET>(
+pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &ARGS,
     flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<RET, RawCallError>
+    on_exn: impl for<'s> FnOnce(RawException<'s>) -> X,
+) -> Result<RET, RawCallError<X>>
 where
     ARGS: WriteXDR + crate::CollectAuthHandles,
     RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
-    // The scratch data buffer does double duty within one call: it holds
-    // the encoded args while `Invoke` copies them out, then is cleared and
-    // refilled with the returned data. Likewise the auth buffer holds the
-    // outgoing handle list during `Invoke`, then the returned one. The
-    // decoded RET is owned; a no-alloc RawException's payload stays behind
-    // in the scratch (referenced by generation), which is fine because the
-    // borrow ends with this closure and the next checkout invalidates it.
-    with_call_scratch(|buf, auth_buf, scratch_generation| {
+    with_call_scratch(|buf, auth_buf| {
         encode_args_into(buf, args)?;
         auth_buf.clear();
         args.collect_auth_handles(auth_buf)
@@ -69,16 +60,45 @@ where
         if is_ok {
             contract_call_decode(buf.as_slice(), auth_buf.as_slice())
         } else {
-            match RawException::from_scratch_abort(
-                buf.as_slice(),
-                scratch_generation,
-            ) {
-                Ok(exn) => Err(RawCallError::Exception(exn)),
+            match RawException::parse(buf.as_slice()) {
+                Ok(exn) => Err(RawCallError::Exception(on_exn(exn))),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),
                 )),
             }
         }
+    })
+}
+
+/// Typed cross-contract call: encode `args`, invoke, decode the return
+/// value (or surface the abort as a [`RawCallError`]).
+///
+/// This is what generated clients use. Both the encoded-args and
+/// returned-data bytes live in a lazily-allocated per-instance scratch
+/// reused across calls (under `alloc`), so repeated calls perform no
+/// per-call allocations even though the guest bump allocator never frees,
+/// and neither outgoing calldata nor received returns have an SDK-imposed
+/// size cap.
+///
+/// Convenience form: undecoded exceptions escape as owned
+/// [`CaughtException`](crate::exn::CaughtException)s (one copy on the
+/// exception path). Generated clients use [`try_call_raw_with`] directly to
+/// control the copy.
+// Used by the contract macro in method wrappers
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn try_call_raw<ARGS, RET>(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &ARGS,
+    flags: crate::invoke_config::InvokeFlagSet,
+) -> Result<RET, RawCallError>
+where
+    ARGS: WriteXDR + crate::CollectAuthHandles,
+    RET: ReadXDROwned + crate::ReceiveAuthHandles,
+{
+    try_call_raw_with(address, entrypoint, gas_limit, args, flags, |exn| {
+        exn.caught()
     })
 }
 
@@ -88,10 +108,10 @@ where
 /// fixed cap — protocol calldata is unbounded) and the grown capacity is
 /// retained by the scratch for subsequent calls. Without `alloc` the
 /// fixed-capacity buffer rejects encodings larger than 500 bytes.
-fn encode_args_into<T: WriteXDR + ?Sized>(
+fn encode_args_into<T: WriteXDR + ?Sized, X>(
     buf: &mut Buf,
     value: &T,
-) -> Result<(), RawCallError> {
+) -> Result<(), RawCallError<X>> {
     buf.clear();
     #[cfg(feature = "alloc")]
     {
@@ -186,7 +206,7 @@ where
 
 /// Map a returned-data parse fault to the error variant matching the
 /// frame's outcome (success vs abort).
-fn unparseable(is_ok: bool, fault: FaultString) -> RawCallError {
+fn unparseable<X>(is_ok: bool, fault: FaultString) -> RawCallError<X> {
     if is_ok {
         RawCallError::UnparseableReturn(fault)
     } else {
@@ -197,14 +217,14 @@ fn unparseable(is_ok: bool, fault: FaultString) -> RawCallError {
 /// Perform the `Invoke` syscall and interpret the frame status, returning
 /// whether the child returned (vs aborted) alongside the syscall outputs
 /// (which carry the sizes of the data waiting in the VM's return buffer).
-fn invoke_frame(
+fn invoke_frame<X>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &[u8],
     auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
     flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<(bool, sys::CopyableInvokeOutputs), RawCallError> {
+) -> Result<(bool, sys::CopyableInvokeOutputs), RawCallError<X>> {
     // Perform the cross-contract call
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
     let auth_bytes = auth_handles_as_bytes(auth_token_ids.as_slice());
@@ -266,10 +286,10 @@ fn invoke_frame(
 
 /// Size the auth-handle buffer to hold the token-id list the syscall
 /// outputs report.
-fn resize_auth_handles(
+fn resize_auth_handles<X>(
     buf: &mut AuthHandleBuf,
     outputs: &sys::CopyableInvokeOutputs,
-) -> Result<(), RawCallError> {
+) -> Result<(), RawCallError<X>> {
     let count =
         outputs.returned_auth_token_len as usize / core::mem::size_of::<u32>();
     #[cfg(feature = "alloc")]
@@ -289,28 +309,17 @@ fn resize_auth_handles(
 
 use crate::cell::{ContractLocalRef, ContractRefCell};
 
-/// The per-instance call scratch: the shared write buffer, the auth-handle
-/// list, and a checkout generation. The generation increments on every
-/// checkout; a no-alloc [`RawException`] records it so its payload (left
-/// sitting in `buf` by the aborting call) can be read back zero-copy and a
-/// stale read — after a later scratch use overwrote the payload — traps
-/// instead of returning the wrong bytes.
+/// The per-instance call scratch: the shared write buffer and the
+/// auth-handle list.
 struct CallScratch {
-    generation: u64,
     buf: Buf,
     auth: AuthHandleBuf,
 }
-
-/// The generation passed to fallback (fresh-buffer) checkouts. Never equals
-/// a cell generation (those start at 1), so a `RawException` minted against
-/// a fallback buffer is always-stale by construction.
-const SCRATCH_GENERATION_INVALID: u64 = 0;
 
 crate::contract_local! {
     static CALL_SCRATCH: ContractRefCell<CallScratch> =
         const {
             ContractRefCell::new(CallScratch {
-                generation: SCRATCH_GENERATION_INVALID,
                 buf: Buf::new(),
                 auth: AuthHandleBuf::new(),
             })
@@ -331,7 +340,7 @@ crate::contract_local! {
 /// unavailable (re-entrancy), a fresh default buffer is used and the result
 /// is correct, just momentarily un-cached.
 fn with_call_scratch<R>(
-    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf, u64) -> R,
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
     CALL_SCRATCH.with_ref(|cell| {
         match cell.try_borrow_mut() {
@@ -340,54 +349,15 @@ fn with_call_scratch<R>(
                 // no-alloc guest the fixed buffer stays in static memory
                 // instead of being moved onto the (small) guest stack.
                 let scratch = &mut *guard;
-                // Invalidate any RawException still referencing the
-                // previous contents.
-                scratch.generation += 1;
                 scratch.buf.clear();
                 scratch.auth.clear();
                 #[cfg(feature = "alloc")]
                 if scratch.buf.capacity() < crate::internal::SCRATCH_MAX {
                     scratch.buf.reserve(crate::internal::SCRATCH_MAX);
                 }
-                f(&mut scratch.buf, &mut scratch.auth, scratch.generation)
+                f(&mut scratch.buf, &mut scratch.auth)
             }
             Err(_) => call_scratch_fallback(f),
-        }
-    })
-}
-
-/// Run `f` on the call-scratch buffer contents if `generation` is still the
-/// cell's current checkout and `range` is in bounds; `None` if the scratch
-/// has been reused since (or is currently checked out mutably). Zero-copy
-/// read-back path for the no-alloc [`RawException`], whose payload the
-/// aborting call left sitting in the scratch.
-#[cfg(not(feature = "alloc"))]
-pub(crate) fn with_scratch_payload_if_current<R>(
-    generation: u64,
-    range: core::ops::Range<usize>,
-    f: impl FnOnce(&[u8]) -> R,
-) -> Option<R> {
-    CALL_SCRATCH.with_ref(|cell| match cell.try_borrow() {
-        Ok(guard) if guard.generation == generation => {
-            guard.buf.as_slice().get(range).map(f)
-        }
-        _ => None,
-    })
-}
-
-/// Abort with the verbatim scratch contents `[..end]` — the original abort
-/// wire bytes — if `generation` is still current. Returns (rather than
-/// diverging) when the payload is stale, so the caller can trap with its
-/// own diagnosis. The no-alloc re-throw path: no re-encode, no copy.
-#[cfg(not(feature = "alloc"))]
-pub(crate) fn reabort_scratch_if_current(generation: u64, end: usize) {
-    CALL_SCRATCH.with_ref(|cell| {
-        if let Ok(guard) = cell.try_borrow() {
-            if guard.generation == generation {
-                if let Some(bytes) = guard.buf.as_slice().get(..end) {
-                    crate::contract_op::contract_abort(bytes);
-                }
-            }
         }
     })
 }
@@ -403,18 +373,18 @@ pub(crate) fn reabort_scratch_if_current(generation: u64, end: usize) {
 #[cold]
 #[inline(never)]
 fn call_scratch_fallback<R>(
-    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf, u64) -> R,
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
     let mut buf = crate::internal::new_scratch();
     let mut auth_buf = AuthHandleBuf::new();
-    f(&mut buf, &mut auth_buf, SCRATCH_GENERATION_INVALID)
+    f(&mut buf, &mut auth_buf)
 }
 
 /// Run `f` with just the per-instance data scratch buffer. For
 /// encode-then-syscall sites (events, storage values, terminal returns) that
 /// don't touch the auth-handle list. Shares the cell with [`with_call_scratch`].
 pub(crate) fn with_scratch<R>(f: impl FnOnce(&mut Buf) -> R) -> R {
-    with_call_scratch(|buf, _auth, _generation| f(buf))
+    with_call_scratch(|buf, _auth| f(buf))
 }
 
 #[inline]
