@@ -119,12 +119,10 @@ impl MultiThrows for Contract {
         // Scratch-reusing op, interleaved while BOTH exceptions are held.
         let _ = 42u32.hash();
 
-        let decoded1: u32 = caught1
-            .with_payload(|p| sdk::xdr::cxs::decode(p))
-            .unwrap_or(0);
-        let decoded2: u32 = caught2
-            .with_payload(|p| sdk::xdr::cxs::decode(p))
-            .unwrap_or(0);
+        let decoded1: u32 =
+            sdk::xdr::cxs::decode(caught1.payload()).unwrap_or(0);
+        let decoded2: u32 =
+            sdk::xdr::cxs::decode(caught2.payload()).unwrap_or(0);
         if caught1.selector() != AlphaError::SELECTOR
             || caught2.selector() != AlphaError::SELECTOR
             || decoded1 != 42

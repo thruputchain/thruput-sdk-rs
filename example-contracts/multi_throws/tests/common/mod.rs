@@ -108,7 +108,7 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
                 raw.selector()
             );
             let decoded: u32 =
-                raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();
+                sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             println!("OK: try_as decoded UndecodableError successfully");
@@ -132,7 +132,7 @@ pub fn multi_throws_test_relay_preserves_payload(contract_hash: &SHA256Hash) {
             // future regression where the detach copy is skipped.
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             let decoded: u32 =
-                raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();
+                sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: relay preserved selector and payload verbatim");
         }
@@ -152,15 +152,15 @@ pub fn multi_throws_test_relay_payload_readable_after_interleave(
     // after the interleaved scratch-reusing op inside the contract.
     match client.try_relay_undecodable(addr2) {
         Err(MultiClientError::BadDecode(raw)) => {
-            let payload_len = raw.with_payload(|p| p.len());
+            let payload_len = raw.payload().len();
             assert!(payload_len > 0, "payload must be non-empty");
             let decoded: u32 =
-                raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();
+                sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             // Read it again to confirm the slot wasn't consumed/cleared by
             // the first read.
             let decoded_again: u32 =
-                raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();
+                sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded_again, 42);
             println!(
                 "OK: caught exception payload readable after interleaved op"
@@ -185,7 +185,7 @@ pub fn multi_throws_test_relay_undecodable_twice(contract_hash: &SHA256Hash) {
         Err(MultiClientError::BadDecode(raw)) => {
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             let decoded: u32 =
-                raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();
+                sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!(
                 "OK: two concurrently-held caught exceptions both survived interleave; outer re-throw verbatim"
@@ -207,7 +207,7 @@ pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
             );
             assert_eq!(raw.selector(), LibraryExn::SELECTOR);
             let decoded: u32 =
-                raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();
+                sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: try_as decoded UndecodableError successfully");
         }

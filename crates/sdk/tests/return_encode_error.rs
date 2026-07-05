@@ -69,7 +69,7 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
                 RawCallError::Exception(exn)
                     if exn.selector() == LibraryExn::SELECTOR =>
                 {
-                    match exn.with_payload(decode_library_exn) {
+                    match decode_library_exn(exn.payload()) {
                         LibraryExn::Handling(
                             HandlingError::EncodingSuccess(_),
                         ) => {}

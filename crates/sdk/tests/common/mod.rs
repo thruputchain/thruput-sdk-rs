@@ -24,7 +24,7 @@ pub fn assert_syscall_exception(
         Err(RawCallError::Exception(exn))
             if exn.selector() == LibraryExn::SELECTOR =>
         {
-            let lib = exn.with_payload(decode_library_exn);
+            let lib = decode_library_exn(exn.payload());
             match &lib {
                 LibraryExn::Syscall(se) if se.is(callno, errno) => {
                     println!("OK: {:?}", lib)
