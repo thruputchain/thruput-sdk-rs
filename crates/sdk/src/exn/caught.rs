@@ -105,17 +105,7 @@ impl CaughtException {
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
         #[cfg(all(feature = "debugging", feature = "std"))]
-        {
-            std::println!();
-            std::println!("  Re-throwing exception {:?}", self);
-            std::println!("  Location: {}", core::panic::Location::caller());
-            // Safety: captured and displayed in one expression on an abort
-            // path (`contract_abort` below never returns), so every
-            // with_debug_context frame is still on the stack.
-            std::println!("  Backtrace:\n{}", unsafe {
-                crate::Backtrace::capture()
-            });
-        }
+        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
 
         #[cfg(feature = "alloc")]
         {

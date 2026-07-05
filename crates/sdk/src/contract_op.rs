@@ -46,6 +46,31 @@ pub fn contract_revert() -> ! {
     sys::raw_Exit()
 }
 
+/// Print a debugging breadcrumb before an abort/re-throw: the verb (e.g.
+/// "Throwing"/"Re-throwing"), the exception's `Debug` form, the caller's
+/// location (labeled `location_label`, since call sites vary — plain
+/// "Location" vs. "Interface location"), and a backtrace.
+///
+/// `#[track_caller]` here reports whichever site called into *this*
+/// function; every call site above it in the chain also carries
+/// `#[cfg_attr(feature = "debugging", track_caller)]` so that location is
+/// the original user call, not an intermediate SDK frame.
+#[cfg(all(feature = "debugging", feature = "std"))]
+#[track_caller]
+pub(crate) fn abort_breadcrumb(
+    verb: &str,
+    location_label: &str,
+    exn: &dyn core::fmt::Debug,
+) {
+    std::println!();
+    std::println!("  {verb} exception {:?}", exn);
+    std::println!("  {location_label}: {}", core::panic::Location::caller());
+    // Safety: captured and displayed in one expression on an abort path
+    // (every caller of this helper never returns), so every
+    // with_debug_context frame is still on the stack.
+    std::println!("  Backtrace:\n{}", unsafe { crate::Backtrace::capture() });
+}
+
 #[inline]
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn contract_abort_encoded<T>(exn: &T) -> !
@@ -53,17 +78,7 @@ where
     T: WriteXDR + ?Sized + core::fmt::Debug,
 {
     #[cfg(all(feature = "debugging", feature = "std"))]
-    {
-        std::println!();
-        std::println!("  Throwing exception {:?}", exn);
-        std::println!("  Location: {}", core::panic::Location::caller());
-        // Safety: captured and displayed in one expression on an abort path
-        // (`_contract_abort_encoded` below never returns), so every
-        // with_debug_context frame is still on the stack.
-        std::println!("  Backtrace:\n{}", unsafe {
-            crate::Backtrace::capture()
-        });
-    }
+    abort_breadcrumb("Throwing", "Location", &exn);
 
     _contract_abort_encoded(exn)
 }
@@ -77,20 +92,7 @@ where
     T: WriteXDR + ?Sized + core::fmt::Debug,
 {
     #[cfg(all(feature = "debugging", feature = "std"))]
-    {
-        std::println!();
-        std::println!("  Throwing exception {:?}", exn);
-        std::println!(
-            "  Interface location: {}",
-            core::panic::Location::caller()
-        );
-        // Safety: captured and displayed in one expression on an abort path
-        // (`_contract_abort_encoded` below never returns), so every
-        // with_debug_context frame is still on the stack.
-        std::println!("  Backtrace:\n{}", unsafe {
-            crate::Backtrace::capture()
-        });
-    }
+    abort_breadcrumb("Throwing", "Interface location", &exn);
 
     _contract_abort_encoded(exn)
 }
