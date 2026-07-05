@@ -203,14 +203,29 @@ where
     #[cfg(feature = "alloc")]
     return_buf.reserve(outputs.return_buffer_len as usize);
 
-    resize_auth_handles(returned_auth_token_ids, &outputs)?;
-    fill_return_buf(
-        outputs.return_buffer_len,
-        outputs.returned_auth_token_len,
-        return_buf,
-        returned_auth_token_ids,
-    )
-    .map_err(|fault| unparseable(is_ok, fault))?;
+    // `resize_auth_handles` grows `returned_auth_token_ids` to its final
+    // length (zero-filled placeholders for `fill_return_buf`'s syscall to
+    // overwrite) before any of the actual parsing/validation below can
+    // fail — and `fill_return_buf` itself sets `return_buf`'s length before
+    // its own trailing auth-handle-length check can fail. Every early
+    // return through here would otherwise leave one or both out-buffers
+    // non-empty despite the documented "cleared on Err" contract, so any
+    // failure in this section clears both before propagating.
+    if let Err(e) = resize_auth_handles(returned_auth_token_ids, &outputs)
+        .and_then(|()| {
+            fill_return_buf(
+                outputs.return_buffer_len,
+                outputs.returned_auth_token_len,
+                return_buf,
+                returned_auth_token_ids,
+            )
+            .map_err(|fault| unparseable(is_ok, fault))
+        })
+    {
+        return_buf.clear();
+        returned_auth_token_ids.clear();
+        return Err(e);
+    }
 
     Ok(if is_ok {
         CallOutcome::Return

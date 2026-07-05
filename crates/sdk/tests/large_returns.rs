@@ -123,6 +123,25 @@ fn try_call_raw_preserves_abort_payloads_larger_than_500_bytes() {
     .assert_success();
 }
 
+// `contract_call` also clears both out-buffers when a *parse* failure
+// happens after `invoke_frame` succeeds: `resize_auth_handles` grows
+// `returned_auth_token_ids` to its final length before `fill_return_buf`
+// gets a chance to fail, and `fill_return_buf` itself sets `return_buf`'s
+// length before its own trailing auth-handle-length check can fail (see
+// the `contract_call` doc comment in `calls.rs`). Both were left dirty on
+// those paths; the fix wraps the fallible section with an explicit clear
+// on any `Err`.
+//
+// That path isn't exercised here: `Invoke`'s reported return/auth-token
+// lengths and `GetReturnedBuffer`'s reported lengths are read from the
+// same underlying per-frame state on the host side (only a subsequent
+// `Return` can overwrite it), so no mock contract behavior can make them
+// diverge and reach `checked_returned_len`'s or
+// `validate_auth_token_id_list_len`'s error arms through a real call. Only
+// the `RawCallError::Invalid` path below is mock-constructible; the fix's
+// other two error arms are covered by code inspection and by
+// `crate::call::calls::tests` unit-testing `checked_returned_len` as a
+// pure function.
 #[test]
 fn contract_call_clears_buffers_even_when_the_call_fails() {
     // Fresh env: CHILD_ADDR is never registered, so `invoke_frame` rejects
