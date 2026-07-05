@@ -388,6 +388,7 @@ fn generate_error_enum(
         }
 
         impl ::sdk::ReThrow for #error_enum_ident {
+            #[track_caller]
             fn re_throw(self) -> ! {
                 use sdk::CallingError;
                 use sdk::client_library_throw as cthrow;
