@@ -36,7 +36,9 @@ pub struct RawException {
 
 /// Parse `[CXS(selector)][payload bytes...]`, returning the selector and
 /// the payload's start offset.
-fn parse_abort_prefix(bytes: &[u8]) -> Result<(u64, usize), LibraryExn> {
+pub(super) fn parse_abort_prefix(
+    bytes: &[u8],
+) -> Result<(u64, usize), LibraryExn> {
     let mut reader = cxs::buf_reader::BufReader::new(bytes);
     let selector: u64 = ReadXDR::read_xdr(&mut reader).map_err(|e| {
         LibraryExn::Calling(CallingError::DecodingException(

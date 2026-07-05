@@ -26,6 +26,9 @@ impl Exn for core::convert::Infallible {
 mod raw;
 pub use raw::*;
 
+mod caught;
+pub use caught::CaughtException;
+
 pub use fault::*;
 pub use library::*;
 pub use wrapper::*;
