@@ -42,8 +42,11 @@ pub trait MultiThrows {
 
     /// Calls `throw_undecodable()` on `target` via the generated client,
     /// catches the resulting `BadDecode`, performs an unrelated SDK op
-    /// (log emit — this reuses the call scratch), then re-throws.
-    /// Pins the guarantee that a `CaughtException` survives arbitrary
-    /// scratch reuse and re-throws verbatim.
+    /// that provably reuses the call scratch (`Hash::hash`, which goes
+    /// through `with_scratch`), then re-throws. Pins the guarantee that a
+    /// `CaughtException` survives arbitrary scratch reuse and re-throws
+    /// verbatim. Natively this exercises the alloc/Vec `CaughtException`;
+    /// the no-alloc `EXN_SLOT` path is compiled (not executed) by the CI
+    /// guest builds.
     fn relay_undecodable(target: ContractAddress);
 }

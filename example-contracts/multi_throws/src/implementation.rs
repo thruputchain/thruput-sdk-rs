@@ -74,8 +74,14 @@ impl MultiThrows for Contract {
         let client = MultiClient::new(&target);
         match client.try_throw_undecodable() {
             Err(MultiClientError::BadDecode(caught)) => {
-                // Unrelated SDK op between catch and re-throw: this reuses
-                // the call scratch that produced `caught`.
+                // Unrelated SDK op between catch and re-throw: `Hash::hash`
+                // (crates/sdk/src/hash.rs) encodes into and reads back the
+                // shared call scratch via `with_scratch`, so this genuinely
+                // reuses the buffer that produced `caught`. Natively this
+                // exercises the alloc/Vec `CaughtException`; the no-alloc
+                // `EXN_SLOT` path is compiled (not executed) by the CI guest
+                // builds.
+                let _ = 42u32.hash();
                 log(b"caught, doing other work before re-throw");
                 caught.re_throw()
             }
