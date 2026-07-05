@@ -138,6 +138,10 @@ pub enum CallOutcome {
 /// return types. The payload lands in the caller's buffers rather than
 /// being returned by value: the no-alloc buffer is `SCRATCH_MAX` bytes,
 /// and a by-value return would copy it once per call layer.
+// The two trailing out-params are the point of the API (no by-value buffer
+// returns); folding the six real inputs into a struct would be churn, not
+// clarity.
+#[allow(clippy::too_many_arguments)]
 pub fn contract_call<A>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
