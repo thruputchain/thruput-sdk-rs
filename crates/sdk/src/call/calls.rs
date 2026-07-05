@@ -78,18 +78,17 @@ where
 /// Typed cross-contract call: encode `args`, invoke, decode the return
 /// value (or surface the abort as a [`RawCallError`]).
 ///
-/// This is what generated clients use. Both the encoded-args and
+/// Convenience form of [`try_call_raw_with`]: both the encoded-args and
 /// returned-data bytes live in a lazily-allocated per-instance scratch
 /// reused across calls (under `alloc`), so repeated calls perform no
 /// per-call allocations even though the guest bump allocator never frees,
 /// and neither outgoing calldata nor received returns have an SDK-imposed
-/// size cap.
-///
-/// Convenience form: undecoded exceptions escape as owned
+/// size cap. Undecoded exceptions escape as owned
 /// [`CaughtException`](crate::exn::CaughtException)s (one copy on the
-/// exception path). Generated clients use [`try_call_raw_with`] directly to
-/// control the copy.
-// Used by the contract macro in method wrappers
+/// exception path).
+///
+/// The [`contract`](macro@crate::contract) macro emits calls to
+/// [`try_call_raw_with`] directly instead, to control that copy.
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn try_call_raw<ARGS, RET>(
     address: &ContractAddress,

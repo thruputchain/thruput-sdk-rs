@@ -75,7 +75,21 @@ impl<'s> RawException<'s> {
     /// Re-throw to our caller: abort with the original wire bytes, verbatim.
     /// Zero-copy — this is what plain (non-`try_`) generated methods do.
     #[inline]
+    #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
+        #[cfg(all(feature = "debugging", feature = "std"))]
+        {
+            std::println!();
+            std::println!("  Re-throwing exception {:?}", self);
+            std::println!("  Location: {}", core::panic::Location::caller());
+            // Safety: captured and displayed in one expression on an abort
+            // path (`contract_abort` below never returns), so every
+            // with_debug_context frame is still on the stack.
+            std::println!("  Backtrace:\n{}", unsafe {
+                crate::Backtrace::capture()
+            });
+        }
+
         crate::contract_op::contract_abort(self.wire)
     }
 
@@ -95,9 +109,35 @@ impl core::fmt::Debug for RawException<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(
             f,
-            "RawException {{ selector: 0x{:016X}, payload: {} bytes }}",
+            "RawException {{ selector: 0x{:016X}, payload: {} bytes",
             self.selector,
-            self.wire.len() - self.payload_start,
-        )
+            self.payload().len(),
+        )?;
+        #[cfg(feature = "debugging")]
+        write!(f, ", hex: {}", crate::hex::hex_encode(&self.payload()))?;
+        write!(f, " }}")
+    }
+}
+
+#[cfg(all(test, feature = "alloc"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_extracts_selector_and_payload() {
+        // wire = [CXS(u64 selector)][payload]
+        let mut wire = crate::internal::encode_xdr(&0xABCDu64).unwrap();
+        wire.extend_from_slice(b"payload-bytes");
+
+        let exn = RawException::parse(&wire).unwrap();
+
+        assert_eq!(exn.selector(), 0xABCD);
+        assert_eq!(exn.payload(), b"payload-bytes");
+    }
+
+    #[test]
+    fn parse_rejects_garbage() {
+        // Empty bytes cannot possibly contain a CXS-encoded u64 selector.
+        assert!(RawException::parse(&[]).is_err());
     }
 }

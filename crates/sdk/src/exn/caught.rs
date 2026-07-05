@@ -102,7 +102,21 @@ impl CaughtException {
     }
 
     /// Re-throw to our caller with the original wire bytes, verbatim.
+    #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
+        #[cfg(all(feature = "debugging", feature = "std"))]
+        {
+            std::println!();
+            std::println!("  Re-throwing exception {:?}", self);
+            std::println!("  Location: {}", core::panic::Location::caller());
+            // Safety: captured and displayed in one expression on an abort
+            // path (`contract_abort` below never returns), so every
+            // with_debug_context frame is still on the stack.
+            std::println!("  Backtrace:\n{}", unsafe {
+                crate::Backtrace::capture()
+            });
+        }
+
         #[cfg(feature = "alloc")]
         {
             crate::contract_op::contract_abort(&self.wire)
@@ -152,9 +166,14 @@ impl core::fmt::Debug for CaughtException {
         let payload_len = self.with_payload(|p| p.len());
         write!(
             f,
-            "CaughtException {{ selector: 0x{:016X}, payload: {} bytes }}",
+            "CaughtException {{ selector: 0x{:016X}, payload: {} bytes",
             self.selector, payload_len,
-        )
+        )?;
+        #[cfg(feature = "debugging")]
+        self.with_payload(|p| {
+            write!(f, ", hex: {}", crate::hex::hex_encode(&p))
+        })?;
+        write!(f, " }}")
     }
 }
 
@@ -206,5 +225,41 @@ mod tests {
             CaughtException::new(1, b"x"),
             CaughtException::new(1, b"y")
         );
+    }
+
+    #[test]
+    fn try_as_decodes_matching_selector_and_payload() {
+        let payload =
+            crate::internal::encode_xdr(&LibraryExn::NonNegativeIntOverflow)
+                .unwrap();
+        let c = CaughtException::new(LibraryExn::SELECTOR, &payload);
+
+        assert_eq!(
+            c.try_as::<LibraryExn>(),
+            Some(LibraryExn::NonNegativeIntOverflow)
+        );
+    }
+
+    #[test]
+    fn try_as_returns_none_for_mismatched_selector() {
+        let payload =
+            crate::internal::encode_xdr(&LibraryExn::NonNegativeIntOverflow)
+                .unwrap();
+        // A valid payload for LibraryExn, but tagged with the wrong selector.
+        let c = CaughtException::new(!LibraryExn::SELECTOR, &payload);
+
+        assert_eq!(c.try_as::<LibraryExn>(), None);
+    }
+
+    #[test]
+    fn try_as_returns_none_for_undecodable_payload() {
+        let payload =
+            crate::internal::encode_xdr(&LibraryExn::NonNegativeIntOverflow)
+                .unwrap();
+        // Truncate so the discriminant itself can't be read back.
+        let truncated = &payload[..payload.len().saturating_sub(1)];
+        let c = CaughtException::new(LibraryExn::SELECTOR, truncated);
+
+        assert_eq!(c.try_as::<LibraryExn>(), None);
     }
 }
