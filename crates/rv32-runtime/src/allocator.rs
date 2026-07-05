@@ -2,9 +2,11 @@
 //!
 //! Mirrors `sdk::allocator::SlabAllocator` (the WASM version) but bounds
 //! against `__heap_end` from the linker script instead of the WASM page
-//! size constant. `__heap_end` is the true end of guest memory: the stack
-//! is parked at the bottom of DATA (stack-first layout), so the heap is the
-//! topmost region. The 64 KiB guest memory cap means a bump allocator
+//! size constant. `__heap_end` is pinned to `__memory_size`, the true end
+//! of guest memory (intentionally smaller than the linker script's relaxed
+//! DATA region): the stack is parked at the bottom of memory (stack-first
+//! layout), so the heap is the topmost region. The 64 KiB guest memory cap
+//! means a bump allocator
 //! is the right choice: contracts allocate small, transient values during a
 //! single invocation, and the VM resets memory between invocations anyway.
 
