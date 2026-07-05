@@ -178,6 +178,7 @@ impl core::fmt::Debug for CaughtException {
 }
 
 impl crate::re_throw::ReThrow for CaughtException {
+    #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> ! {
         CaughtException::re_throw(&self)
     }
