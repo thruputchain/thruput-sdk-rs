@@ -79,8 +79,9 @@ impl<'s> RawException<'s> {
         crate::contract_op::contract_abort(self.wire)
     }
 
-    /// Detach into an owned [`CaughtException`] (one copy). No-alloc: at
-    /// most one may be live; if another is, this propagates instead.
+    /// Detach into an owned [`CaughtException`] (one copy). Any number may
+    /// be live at once; without `alloc` each value carries its own fixed
+    /// SCRATCH_MAX-capacity buffer.
     pub fn caught(&self) -> CaughtException {
         CaughtException::catch_wire(
             self.wire,
