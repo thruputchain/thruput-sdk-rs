@@ -38,17 +38,21 @@ fn contract_call_receives_returns_larger_than_500_bytes() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let result = sdk::call::contract_call(
+            let mut return_buf = sdk::call::ReturnBuf::new();
+            let mut returned_auth = AuthHandleBuf::new();
+            let outcome = sdk::call::contract_call(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
                 &[] as &[u8],
                 &AuthHandleBuf::new(),
                 0,
+                &mut return_buf,
+                &mut returned_auth,
             )
-            .expect("invoke failed")
-            .expect("child aborted");
-            assert_eq!(result.0.as_slice(), &[0xAB_u8; 700][..]);
+            .expect("invoke failed");
+            assert_eq!(outcome, sdk::call::CallOutcome::Return);
+            assert_eq!(return_buf.as_slice(), &[0xAB_u8; 700][..]);
         })
     })
     .assert_success();

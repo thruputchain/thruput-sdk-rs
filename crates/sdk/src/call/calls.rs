@@ -112,17 +112,29 @@ fn encode_args_into<T: WriteXDR + ?Sized>(
     }
 }
 
+/// How a child frame that ran to completion ended. Produced by
+/// [`contract_call`]; the payload for both variants lives in the
+/// caller-provided return buffer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallOutcome {
+    /// The child returned: `return_buf` holds the returned bytes and the
+    /// auth-handle buffer the returned token ids.
+    Return,
+    /// The child aborted: `return_buf` holds the abort payload.
+    Abort,
+}
+
 /// Untyped cross-contract call: pass pre-encoded calldata, receive the raw
-/// return (or abort) bytes.
+/// return (or abort) bytes in `return_buf` and the returned auth-token ids
+/// in `returned_auth_token_ids` (both cleared first).
 ///
 /// Prefer [`try_call_raw`] (or a generated client) for ordinary typed
 /// calls. This entry point exists for forwarders and proxies — e.g. wallet
 /// contracts that relay opaque calldata to a target and pass the raw
 /// return/abort buffer back verbatim — which cannot name the argument or
-/// return types. The returned buffers are owned, exact-size allocations
-/// (under `alloc`); a fixed 500-byte buffer otherwise.
-#[inline(never)]
-#[allow(clippy::result_large_err)]
+/// return types. The payload lands in the caller's buffers rather than
+/// being returned by value: the no-alloc buffer is `SCRATCH_MAX` bytes,
+/// and a by-value return would copy it once per call layer.
 pub fn contract_call<A>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
@@ -130,7 +142,9 @@ pub fn contract_call<A>(
     args: &A,
     auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
     flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<ContractResult, RawCallError>
+    return_buf: &mut ReturnBuf,
+    returned_auth_token_ids: &mut AuthHandleBuf,
+) -> Result<CallOutcome, RawCallError>
 where
     A: AsRef<[u8]> + ?Sized,
 {
@@ -143,29 +157,24 @@ where
         flags,
     )?;
 
+    return_buf.clear();
     #[cfg(feature = "alloc")]
-    let mut return_buf =
-        ReturnBuf::with_capacity(outputs.return_buffer_len as usize);
-    #[cfg(not(feature = "alloc"))]
-    let mut return_buf = ReturnBuf::new();
+    return_buf.reserve(outputs.return_buffer_len as usize);
 
-    let mut auth_token_id_list_buf = AuthHandleBuf::new();
-    resize_auth_handles(&mut auth_token_id_list_buf, &outputs)?;
+    resize_auth_handles(returned_auth_token_ids, &outputs)?;
     fill_return_buf(
         outputs.return_buffer_len,
         outputs.returned_auth_token_len,
-        &mut return_buf,
-        &mut auth_token_id_list_buf,
+        return_buf,
+        returned_auth_token_ids,
     )
     .map_err(|fault| unparseable(is_ok, fault))?;
 
-    let contract_result = if is_ok {
-        Ok((return_buf, auth_token_id_list_buf))
+    Ok(if is_ok {
+        CallOutcome::Return
     } else {
-        Err(ContractError::Abort(return_buf))
-    };
-
-    Ok(contract_result)
+        CallOutcome::Abort
+    })
 }
 
 /// Map a returned-data parse fault to the error variant matching the
@@ -271,45 +280,11 @@ fn resize_auth_handles(
     }
 }
 
-mod call_scratch {
-    use super::{AuthHandleBuf, Buf};
-    use core::cell::RefCell;
+use crate::cell::{ContractLocalRef, ContractRefCell};
 
-    /// A `RefCell` made `Sync` so it can live in a guest `static`. The guest is
-    /// single-threaded; in the test env the macro places this in thread-local
-    /// storage. In neither case is it shared across threads.
-    pub(super) struct SyncRefCell<T>(RefCell<T>);
-    // SAFETY: single-threaded guest; thread-local in tests; never shared across
-    // threads.
-    unsafe impl<T> Sync for SyncRefCell<T> {}
-    impl<T> SyncRefCell<T> {
-        pub(super) const fn new(v: T) -> Self {
-            Self(RefCell::new(v))
-        }
-        pub(super) fn cell(&self) -> &RefCell<T> {
-            &self.0
-        }
-    }
-
-    crate::contract_local! {
-        pub(super) static CALL_SCRATCH: SyncRefCell<(Buf, AuthHandleBuf)> =
-            const { SyncRefCell::new((Buf::new(), AuthHandleBuf::new())) };
-    }
-}
-
-/// Access the scratch cell, abstracting over plain-static (guest) vs
-/// thread-local (test) storage.
-#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
-fn with_scratch_cell<R>(
-    f: impl FnOnce(&core::cell::RefCell<(Buf, AuthHandleBuf)>) -> R,
-) -> R {
-    f(call_scratch::CALL_SCRATCH.cell())
-}
-#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
-fn with_scratch_cell<R>(
-    f: impl FnOnce(&core::cell::RefCell<(Buf, AuthHandleBuf)>) -> R,
-) -> R {
-    call_scratch::CALL_SCRATCH.with(|s| f(s.cell()))
+crate::contract_local! {
+    static CALL_SCRATCH: ContractRefCell<(Buf, AuthHandleBuf)> =
+        const { ContractRefCell::new((Buf::new(), AuthHandleBuf::new())) };
 }
 
 /// Run `f` with the per-instance call scratch buffers (encoded-args /
@@ -328,7 +303,7 @@ fn with_scratch_cell<R>(
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    with_scratch_cell(|cell| {
+    CALL_SCRATCH.with_ref(|cell| {
         match cell.try_borrow_mut() {
             Ok(mut guard) => {
                 // Borrow the reused buffers in place — no copy, and for the
@@ -343,20 +318,27 @@ fn with_call_scratch<R>(
                 }
                 f(buf, auth_buf)
             }
-            Err(_) => {
-                // Re-entrant use: the scratch is already borrowed up-stack —
-                // a cross-call nested in-process (native mock), or an
-                // exception thrown while the scratch is borrowed (the abort
-                // encode re-enters). Use fresh buffers so the borrow can't
-                // alias; correct, just momentarily un-cached. (The real guest
-                // doesn't nest cross-calls, but the throw-mid-encode case can
-                // happen there, so this is not mock-only.)
-                let mut buf = crate::internal::new_scratch();
-                let mut auth_buf = AuthHandleBuf::new();
-                f(&mut buf, &mut auth_buf)
-            }
+            Err(_) => call_scratch_fallback(f),
         }
     })
+}
+
+/// Re-entrant use: the scratch is already borrowed up-stack — a cross-call
+/// nested in-process (native mock), or an exception thrown while the
+/// scratch is borrowed (the abort encode re-enters). Use fresh buffers so
+/// the borrow can't alias; correct, just momentarily un-cached. (The real
+/// guest doesn't nest cross-calls, but the throw-mid-encode case can happen
+/// there, so this is not mock-only.) Out of line and `cold` so the fresh
+/// (no-alloc: SCRATCH_MAX-byte) buffers don't get pre-allocated in every
+/// caller's prologue when the happy path is inlined.
+#[cold]
+#[inline(never)]
+fn call_scratch_fallback<R>(
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
+) -> R {
+    let mut buf = crate::internal::new_scratch();
+    let mut auth_buf = AuthHandleBuf::new();
+    f(&mut buf, &mut auth_buf)
 }
 
 /// Run `f` with just the per-instance data scratch buffer. For

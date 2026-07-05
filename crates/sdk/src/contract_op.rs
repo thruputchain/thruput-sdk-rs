@@ -3,6 +3,7 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
+use crate::cell::{ContractLocalRef, ContractRefCell};
 #[cfg(not(feature = "alloc"))]
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
@@ -115,8 +116,12 @@ fn exception_encoding_error(err: WriteError) -> ! {
     let exn = ContractExn::new(LibraryExn::from(
         HandlingError::EncodingException(FaultString::via_display(&err)),
     ));
-    let buf =
-        crate::internal::encode_xdr(&exn).unwrap_or_else(|_| crate::trap());
+    // Encode in place: the shared scratch is borrowed up-stack (that's how
+    // we got here), so this pays one fresh buffer — but not a second one
+    // for a by-value return.
+    let mut buf = crate::internal::new_scratch();
+    crate::internal::encode_scratch(&mut buf, &exn)
+        .unwrap_or_else(|_| crate::trap());
 
     contract_abort(buf.as_ref());
 }
@@ -205,22 +210,18 @@ pub type AuthTokenIdBuf = alloc::vec::Vec<u32>;
 #[cfg(not(feature = "alloc"))]
 pub type AuthTokenIdBuf = heapless::Vec<u32, 32>;
 
-/// Fetch the current frame's calldata and auth-token ids, throwing a
-/// `LibraryExn::Syscall` on failure. See
-/// [`try_get_calldata_with_auth_tokens`].
-pub fn get_calldata_with_auth_tokens() -> (Calldata, AuthTokenIdBuf) {
-    try_get_calldata_with_auth_tokens().unwrap_or_else(|syserr| {
-        syscall_throw(SyscallNo::kGetCalldata, syserr)
-    })
-}
-
-/// Fetch the current frame's calldata and auth-token ids.
+/// Fetch the current frame's calldata and auth-token ids into
+/// caller-provided buffers (cleared first).
 ///
-/// Buffers are heap-allocated with their exact sizes, queried up front via
+/// This is the primitive behind [`with_calldata_and_auth_tokens`]: the
+/// buffers are filled in place, never moved by value. Buffers are
+/// heap-allocated with their exact sizes, queried up front via
 /// `GetCalldataLen`, so calldata of any length is supported.
 #[cfg(feature = "alloc")]
-pub fn try_get_calldata_with_auth_tokens()
--> SysResult<(Calldata, AuthTokenIdBuf)> {
+fn fetch_calldata_and_auth_tokens_into(
+    calldata: &mut Calldata,
+    auth_ids: &mut AuthTokenIdBuf,
+) -> SysResult<()> {
     let mut len: RuntimeMemoryLength = 0;
     let mut auth_token_count: u32 = 0;
     sys::raw_GetCalldataLen(&mut len, &mut auth_token_count)?;
@@ -228,8 +229,8 @@ pub fn try_get_calldata_with_auth_tokens()
     let len = len as usize;
     let auth_len = auth_token_count as usize * 4;
 
-    let mut calldata: alloc::vec::Vec<u8> =
-        alloc::vec::Vec::with_capacity(len);
+    calldata.clear();
+    calldata.reserve(len);
     let mut auth_token_buf: alloc::vec::Vec<u8> =
         alloc::vec::Vec::with_capacity(auth_len);
 
@@ -261,31 +262,36 @@ pub fn try_get_calldata_with_auth_tokens()
     unsafe { auth_token_buf.set_len(auth_written) };
 
     // Convert bytes to u32s using native byte order (wasm is little-endian)
-    let mut auth_ids =
-        AuthTokenIdBuf::with_capacity(auth_token_count as usize);
+    auth_ids.clear();
+    auth_ids.reserve(auth_token_count as usize);
     for chunk in auth_token_buf.chunks_exact(4) {
         auth_ids.push(u32::from_ne_bytes([
             chunk[0], chunk[1], chunk[2], chunk[3],
         ]));
     }
 
-    Ok((calldata, auth_ids))
+    Ok(())
 }
 
-/// Fetch the current frame's calldata and auth-token ids.
+/// Fetch the current frame's calldata and auth-token ids into
+/// caller-provided buffers (cleared first).
 ///
-/// Without `alloc`, calldata lands in a fixed
-/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte stack buffer and the
+/// This is the primitive behind [`with_calldata_and_auth_tokens`]: the
+/// buffers are filled in place, never moved by value. Without `alloc`,
+/// calldata lands in the fixed
+/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer and the
 /// token list holds at most 32 entries; larger inputs return
-/// `InvalidSyscallInput` (the non-try wrapper throws it as a
-/// `LibraryExn::Syscall` for `kGetCalldata`).
+/// `InvalidSyscallInput` (thrown as a `LibraryExn::Syscall` for
+/// `kGetCalldata`).
 #[cfg(not(feature = "alloc"))]
-pub fn try_get_calldata_with_auth_tokens()
--> SysResult<(Calldata, AuthTokenIdBuf)> {
+fn fetch_calldata_and_auth_tokens_into(
+    calldata: &mut Calldata,
+    auth_ids: &mut AuthTokenIdBuf,
+) -> SysResult<()> {
     // 32 u32s * 4 bytes each
     const AUTH_TOKEN_IDS_MAX: usize = 32 * 4;
 
-    let mut calldata: Calldata = crate::internal::new_scratch();
+    calldata.clear();
     let mut auth_token_buf: MUBuf<AUTH_TOKEN_IDS_MAX> = MUBuf::new();
 
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
@@ -322,11 +328,63 @@ pub fn try_get_calldata_with_auth_tokens()
     unsafe { auth_token_buf.set_len(auth_written) };
 
     // Convert bytes to u32s using native byte order (wasm is little-endian)
-    let mut auth_ids = AuthTokenIdBuf::new();
+    auth_ids.clear();
     for chunk in auth_token_buf.as_ref().chunks_exact(4) {
         let id = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
         auth_ids.push(id).expect("too many auth token IDs");
     }
 
-    Ok((calldata, auth_ids))
+    Ok(())
+}
+
+crate::contract_local! {
+    static CALLDATA_SCRATCH: ContractRefCell<(Calldata, AuthTokenIdBuf)> =
+        const {
+            ContractRefCell::new((Calldata::new(), AuthTokenIdBuf::new()))
+        };
+}
+
+/// Fetch this frame's calldata and auth-token ids and run `f` on them,
+/// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
+/// API: generated entrypoint wrappers and raw-calldata contracts both use
+/// it.
+///
+/// The buffers live in the per-instance calldata cell — a guest `static` —
+/// so the (SCRATCH_MAX-byte, no-alloc) calldata buffer costs no stack and
+/// is never copied. The cell stays borrowed while `f` runs; decoded args
+/// borrow from it for the whole frame, which is why it is distinct from
+/// the write scratch. A re-entrant fetch (a nested in-process frame in the
+/// native mock) falls back to fresh buffers, so the borrow can't alias.
+pub fn with_calldata_and_auth_tokens<R>(
+    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
+) -> R {
+    CALLDATA_SCRATCH.with_ref(|cell| match cell.try_borrow_mut() {
+        Ok(mut guard) => {
+            let (calldata, auth_ids) = &mut *guard;
+            fetch_calldata_and_auth_tokens_into(calldata, auth_ids)
+                .unwrap_or_else(|syserr| {
+                    syscall_throw(SyscallNo::kGetCalldata, syserr)
+                });
+            f(calldata, auth_ids)
+        }
+        Err(_) => with_fresh_calldata_and_auth_tokens(f),
+    })
+}
+
+/// Re-entrant-fetch fallback (a nested in-process frame in the native
+/// mock). Out of line and `cold` so its fresh (no-alloc: SCRATCH_MAX-byte)
+/// buffers don't get pre-allocated in every wrapper's prologue when the
+/// happy path is inlined.
+#[cold]
+#[inline(never)]
+fn with_fresh_calldata_and_auth_tokens<R>(
+    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
+) -> R {
+    let mut calldata: Calldata = crate::internal::new_scratch();
+    let mut auth_ids = AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens_into(&mut calldata, &mut auth_ids)
+        .unwrap_or_else(|syserr| {
+            syscall_throw(SyscallNo::kGetCalldata, syserr)
+        });
+    f(&calldata, &auth_ids)
 }

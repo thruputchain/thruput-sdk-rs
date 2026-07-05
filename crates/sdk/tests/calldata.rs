@@ -14,10 +14,12 @@ fn fetch_roundtrips(payload: Vec<u8>) {
         tx.call(&addr)
             .with_calldata(BytesM::try_from(payload.clone()).unwrap())
             .run(move || {
-                let (calldata, auth_ids) =
-                    sdk::contract_op::get_calldata_with_auth_tokens();
-                assert_eq!(calldata.as_slice(), expected.as_slice());
-                assert!(auth_ids.is_empty());
+                sdk::contract_op::with_calldata_and_auth_tokens(
+                    |calldata, auth_ids| {
+                        assert_eq!(calldata.as_slice(), expected.as_slice());
+                        assert!(auth_ids.is_empty());
+                    },
+                )
             })
     })
     .assert_success();
