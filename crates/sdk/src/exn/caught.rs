@@ -19,6 +19,17 @@ use super::Exn;
 #[cfg(feature = "alloc")]
 use super::LibraryExn;
 
+/// The protocol caps a child frame's return/abort payload at
+/// `kMaxReturnBufferLen`; the no-alloc call scratch (and `CaughtException`'s
+/// inline no-alloc copy) is a fixed `SCRATCH_MAX`-capacity buffer. This is
+/// what makes the `extend_from_slice` overflow branch in
+/// [`catch_wire`](CaughtException::catch_wire) below unreachable in
+/// practice: `wire` can never exceed `SCRATCH_MAX` bytes.
+const _: () = assert!(
+    crate::types::transaction::kMaxReturnBufferLen as usize
+        <= crate::internal::SCRATCH_MAX
+);
+
 #[cfg(feature = "alloc")]
 pub struct CaughtException {
     selector: u64,

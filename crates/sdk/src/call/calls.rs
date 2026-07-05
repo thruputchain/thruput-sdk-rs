@@ -112,7 +112,8 @@ where
 /// Under `alloc` the buffer grows organically to the encoding's size (no
 /// fixed cap — protocol calldata is unbounded) and the grown capacity is
 /// retained by the scratch for subsequent calls. Without `alloc` the
-/// fixed-capacity buffer rejects encodings larger than 500 bytes.
+/// fixed-capacity buffer rejects encodings larger than `SCRATCH_MAX`
+/// (4096) bytes.
 fn encode_args_into<T: WriteXDR + ?Sized, X>(
     buf: &mut Buf,
     value: &T,
