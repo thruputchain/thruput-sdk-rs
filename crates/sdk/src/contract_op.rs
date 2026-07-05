@@ -353,9 +353,9 @@ crate::contract_local! {
 
 /// Fetch this frame's calldata and auth-token ids and run `f` on them,
 /// reporting a fetch failure as `Err` instead of aborting. Same buffer
-/// plumbing as [`with_calldata_and_auth_tokens`] — the `try_` law (see
-/// [`crate::exn`] module docs) applies: the only way this aborts the VM is
-/// through `f` itself. The `Err` arm is guest-reachable only via a
+/// plumbing as [`with_calldata_and_auth_tokens`] — the `try_` law (see the
+/// [`exn`](mod@crate::exn) module docs) applies: the only way this aborts
+/// the VM is through `f` itself. The `Err` arm is guest-reachable only via a
 /// `kGetCalldata` syscall failure, which cannot happen from ordinary
 /// (non-adversarial-host) operation.
 ///
