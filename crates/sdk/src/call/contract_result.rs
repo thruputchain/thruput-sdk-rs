@@ -17,15 +17,6 @@ pub type Buf = crate::internal::ScratchBuf;
 pub type ReturnBuf = Buf;
 pub type AbortBuf = Buf;
 
-/// Copy `bytes` into a fresh [`Buf`], growing to fit (always succeeds; the
-/// `Result` shape is kept for call-site uniformity). `alloc`-only mock-side
-/// plumbing: the no-alloc guest never copies payload bytes into a fresh
-/// buffer.
-#[cfg(feature = "mock")]
-pub(crate) fn buf_from_slice(bytes: &[u8]) -> Result<Buf, ()> {
-    Ok(bytes.to_vec())
-}
-
 pub type ContractResult = Result<(ReturnBuf, AuthHandleBuf), ContractError>;
 
 // Note: `ContractError` is an in-memory Rust `Result` variant only — it is

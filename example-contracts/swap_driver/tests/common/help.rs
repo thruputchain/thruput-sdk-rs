@@ -51,7 +51,8 @@ pub fn amounts_decimalized(amts: Amounts) -> (f64, f64) {
 
 #[allow(dead_code)]
 pub fn show_exn(r: &TransactResult) {
-    let exn = RawException::from_abort_buf(r.frame().abort_buffer()).unwrap();
+    let exn =
+        CaughtException::from_abort_buf(r.frame().abort_buffer()).unwrap();
 
     if let Some(exn) = exn.try_as::<ERC20Error>() {
         println!("\tERC20: {:?}", exn);
