@@ -45,8 +45,16 @@ pub trait MultiThrows {
     /// that provably reuses the call scratch (`Hash::hash`, which goes
     /// through `with_scratch`), then re-throws. Pins the guarantee that a
     /// `CaughtException` survives arbitrary scratch reuse and re-throws
-    /// verbatim. Natively this exercises the alloc/Vec `CaughtException`;
-    /// the no-alloc `EXN_SLOT` path is compiled (not executed) by the CI
-    /// guest builds.
+    /// verbatim, in both builds (each owns an independent copy of the wire
+    /// bytes — heap under `alloc`, an inline `SCRATCH_MAX` buffer in the
+    /// no-alloc guest).
     fn relay_undecodable(target: ContractAddress);
+
+    /// Calls `throw_undecodable()` on `target` twice, holding both
+    /// resulting `BadDecode` catches alive at the same time (with a
+    /// scratch-reusing op interleaved between them), then re-throws the
+    /// first. Pins that catching is unlimited and concurrent in the
+    /// no-alloc guest too: no shared per-instance slot, no "at most one
+    /// live" restriction — identical semantics to `alloc`.
+    fn relay_undecodable_twice(target: ContractAddress);
 }

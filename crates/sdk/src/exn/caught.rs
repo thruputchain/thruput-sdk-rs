@@ -1,20 +1,23 @@
 //! An exception caught and detached from the call scratch: the payload is
-//! copied once so the value survives arbitrary later SDK operations.
+//! copied once, into storage owned by the value itself, so it survives
+//! arbitrary later SDK operations (including re-use of the call scratch).
 //!
-//! No-alloc: the copy lives in a dedicated per-instance static slot
-//! (`EXN_SLOT`), guarded by an occupancy flag released on `Drop`. While a
-//! `CaughtException` is alive nothing may overwrite the slot, so payload
-//! access is infallible. At most one may be live at a time: catching a
-//! second one propagates it (re-aborts verbatim) instead of clobbering.
-//! Under `alloc` the copy is an owned exact-size buffer (many may be live;
-//! the native mock nests frames).
+//! Under `alloc` the copy is an owned exact-size heap buffer. In the
+//! no-alloc guest the copy is an inline fixed [`SCRATCH_MAX`]-capacity
+//! buffer embedded in the value (the same buffer type backing the call
+//! scratch), so `CaughtException` — and any error enum containing one — is
+//! roughly 4 KiB. That size is a deliberate trade of stack for uniformity:
+//! catch semantics are identical in both builds, with no shared/occupancy
+//! state — any number of `CaughtException`s may be live concurrently, the
+//! same as under `alloc`. The cost is paid per live value (stack, not a
+//! static), and the memcpy that fills it only runs when an undecodable
+//! exception is actually caught.
+//!
+//! [`SCRATCH_MAX`]: crate::internal::SCRATCH_MAX
 
 use super::Exn;
 #[cfg(feature = "alloc")]
 use super::LibraryExn;
-
-#[cfg(not(feature = "alloc"))]
-use crate::cell::{ContractLocalRef, ContractRefCell};
 
 #[cfg(feature = "alloc")]
 pub struct CaughtException {
@@ -29,27 +32,15 @@ pub struct CaughtException {
 pub struct CaughtException {
     selector: u64,
     payload_start: u32,
-    wire_end: u32,
-}
-
-#[cfg(not(feature = "alloc"))]
-struct ExnSlot {
-    occupied: bool,
-    buf: crate::call::Buf,
-}
-
-#[cfg(not(feature = "alloc"))]
-crate::contract_local! {
-    static EXN_SLOT: ContractRefCell<ExnSlot> = const {
-        ContractRefCell::new(ExnSlot { occupied: false, buf: crate::call::Buf::new() })
-    };
+    /// Full abort wire bytes: `[CXS(selector)][payload]`, copied inline
+    /// (fixed `SCRATCH_MAX` capacity) so the value owns its data outright —
+    /// no shared slot, no occupancy tracking.
+    wire: crate::call::Buf,
 }
 
 impl CaughtException {
     /// Copy `wire` (already parsed: `selector`, `payload_start`) out of the
-    /// caller's borrow into owned storage. No-alloc: if the slot is
-    /// unavailable (another `CaughtException` is live, or we are inside its
-    /// `with_payload`), aborts with `wire` verbatim — propagate over clobber.
+    /// caller's borrow into owned storage.
     ///
     /// Called by [`RawException::caught`](crate::exn::RawException::caught).
     pub(crate) fn catch_wire(
@@ -67,23 +58,20 @@ impl CaughtException {
         }
         #[cfg(not(feature = "alloc"))]
         {
-            EXN_SLOT.with_ref(|cell| match cell.try_borrow_mut() {
-                Ok(mut slot) if !slot.occupied => {
-                    slot.buf.clear();
-                    if slot.buf.extend_from_slice(wire).is_err() {
-                        // Wire bytes exceed the slot (cannot happen: both are
-                        // SCRATCH_MAX-sized) — propagate rather than truncate.
-                        crate::contract_op::contract_abort(wire);
-                    }
-                    slot.occupied = true;
-                    Self {
-                        selector,
-                        payload_start: payload_start as u32,
-                        wire_end: wire.len() as u32,
-                    }
-                }
-                _ => crate::contract_op::contract_abort(wire),
-            })
+            let mut buf = crate::call::Buf::new();
+            if buf.extend_from_slice(wire).is_err() {
+                // Cannot happen in practice: `wire` is abort bytes drawn
+                // from the call scratch, which is the same `SCRATCH_MAX`
+                // capacity as `buf`. If it somehow did, propagate the
+                // original borrowed `wire` verbatim rather than catch a
+                // truncated copy.
+                crate::contract_op::contract_abort(wire);
+            }
+            Self {
+                selector,
+                payload_start: payload_start as u32,
+                wire: buf,
+            }
         }
     }
 
@@ -91,8 +79,7 @@ impl CaughtException {
         self.selector
     }
 
-    /// Run `f` on the payload bytes. Infallible: while `self` is alive the
-    /// slot cannot be overwritten.
+    /// Run `f` on the payload bytes.
     pub fn with_payload<R>(&self, f: impl FnOnce(&[u8]) -> R) -> R {
         #[cfg(feature = "alloc")]
         {
@@ -100,11 +87,7 @@ impl CaughtException {
         }
         #[cfg(not(feature = "alloc"))]
         {
-            EXN_SLOT.with_ref(|cell| {
-                let slot = cell.borrow();
-                f(&slot.buf.as_slice()
-                    [self.payload_start as usize..self.wire_end as usize])
-            })
+            f(&self.wire.as_slice()[self.payload_start as usize..])
         }
     }
 
@@ -126,12 +109,7 @@ impl CaughtException {
         }
         #[cfg(not(feature = "alloc"))]
         {
-            EXN_SLOT.with_ref(|cell| {
-                let slot = cell.borrow();
-                crate::contract_op::contract_abort(
-                    &slot.buf.as_slice()[..self.wire_end as usize],
-                )
-            })
+            crate::contract_op::contract_abort(self.wire.as_slice())
         }
     }
 
@@ -159,20 +137,6 @@ impl CaughtException {
             wire: bytes.to_vec(),
             payload_start,
         })
-    }
-}
-
-// No-alloc: `mem::forget`-ing a `CaughtException` instead of dropping it
-// leaves the slot marked occupied forever, so every later catch propagates
-// (re-aborts verbatim) instead of being caught. Safe, but surprising.
-#[cfg(not(feature = "alloc"))]
-impl Drop for CaughtException {
-    fn drop(&mut self) {
-        EXN_SLOT.with_ref(|cell| {
-            if let Ok(mut slot) = cell.try_borrow_mut() {
-                slot.occupied = false;
-            }
-        });
     }
 }
 

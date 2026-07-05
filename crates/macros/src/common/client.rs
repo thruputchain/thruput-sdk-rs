@@ -267,10 +267,12 @@ fn generate_client_fn(
         // This method-wrapper returns a Result with the per-client error enum
         // so that exceptions may be inspected.
         ///
-        /// No-alloc guest: an `Err` may hold a caught exception (the
-        /// `Unknown` / `BadDecode` variants); at most one caught exception
-        /// may be live at a time, so drop this one before another `try_`
-        /// call that may also catch.
+        /// An `Err` may hold a caught exception (the `Unknown` / `BadDecode`
+        /// variants): an owned copy of the wire bytes, independent of any
+        /// later SDK call. No-alloc guest: that copy is an inline
+        /// `SCRATCH_MAX`-capacity buffer, so this `Result`'s `Err` variant is
+        /// roughly 4 KiB on the stack; catch semantics (including holding
+        /// more than one at once) are identical to the `alloc` build.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
         pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
@@ -339,24 +341,24 @@ fn generate_error_enum(
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
             /// An exception whose selector doesn't match any declared throw
-            /// type. Holds an owned [`CaughtException`](::sdk::exn::CaughtException).
-            /// No-alloc guest: at most one caught exception may be live at a
-            /// time — drop (or re-throw/decode) it before a later `try_`
-            /// call that may also catch, or that later catch propagates
-            /// (aborts) instead of being caught. Under `alloc` (native test
-            /// env) many may be live at once, so native tests cannot
-            /// exercise this limit.
+            /// type. Holds an owned [`CaughtException`](::sdk::exn::CaughtException)
+            /// — the wire bytes copied out of the call scratch, so it
+            /// survives arbitrary later SDK operations. No-alloc guest: the
+            /// copy is an inline `SCRATCH_MAX`-capacity buffer, so this
+            /// variant (and the enum as a whole) is roughly 4 KiB; any
+            /// number of caught exceptions may be live at once, same as
+            /// under `alloc`.
             Unknown(::sdk::exn::CaughtException),
             Invalid,
             /// An exception matching a declared selector whose payload
             /// failed to decode. Holds an owned
-            /// [`CaughtException`](::sdk::exn::CaughtException). No-alloc
-            /// guest: at most one caught exception may be live at a time —
-            /// drop (or re-throw/decode) it before a later `try_` call that
-            /// may also catch, or that later catch propagates (aborts)
-            /// instead of being caught. Under `alloc` (native test env)
-            /// many may be live at once, so native tests cannot exercise
-            /// this limit.
+            /// [`CaughtException`](::sdk::exn::CaughtException) — the wire
+            /// bytes copied out of the call scratch, so it survives
+            /// arbitrary later SDK operations. No-alloc guest: the copy is
+            /// an inline `SCRATCH_MAX`-capacity buffer, so this variant
+            /// (and the enum as a whole) is roughly 4 KiB; any number of
+            /// caught exceptions may be live at once, same as under
+            /// `alloc`.
             BadDecode(::sdk::exn::CaughtException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
