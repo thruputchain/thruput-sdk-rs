@@ -164,6 +164,12 @@ pub enum CallOutcome {
 /// return types. The payload lands in the caller's buffers rather than
 /// being returned by value: the no-alloc buffer is `SCRATCH_MAX` bytes,
 /// and a by-value return would copy it once per call layer.
+///
+/// The error type is `RawCallError<Infallible>`: aborts surface as
+/// [`CallOutcome::Abort`] with the payload in `return_buf`, so the
+/// `Exception` variant is uninhabited here — which also keeps the `Result`
+/// slot small (a `CaughtException` payload would cost the no-alloc caller
+/// a `SCRATCH_MAX`-sized stack slot for a variant this call never builds).
 // The two trailing out-params are the point of the API (no by-value buffer
 // returns); folding the six real inputs into a struct would be churn, not
 // clarity.
@@ -177,7 +183,7 @@ pub fn contract_call<A>(
     flags: crate::invoke_config::InvokeFlagSet,
     return_buf: &mut ReturnBuf,
     returned_auth_token_ids: &mut AuthHandleBuf,
-) -> Result<CallOutcome, RawCallError>
+) -> Result<CallOutcome, RawCallError<core::convert::Infallible>>
 where
     A: AsRef<[u8]> + ?Sized,
 {
