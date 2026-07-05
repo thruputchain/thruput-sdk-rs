@@ -5,7 +5,7 @@ use super::ContractError;
 #[cfg(feature = "alloc")]
 use super::contract_call_decode;
 use crate::exn::{
-    CallingError, CaughtException, FaultString,
+    CallingError, FaultString, RawException,
     client_library_throw as library_throw,
 };
 #[cfg(feature = "alloc")]
@@ -14,12 +14,12 @@ use crate::{ReceiveAuthHandles, xdr::*};
 /// The raw, untyped error from a contract call.
 ///
 /// Generic over the exception representation `X`: [`try_call_raw`](super::try_call_raw)
-/// fixes it at the default [`CaughtException`], while
+/// fixes it at the default [`RawException`], while
 /// [`try_call_raw_with`](super::try_call_raw_with) lets the caller's `on_exn`
 /// closure choose (e.g. a typed error enum, or `Infallible` if the closure
 /// re-throws unconditionally).
 #[derive(Debug, PartialEq)]
-pub enum RawCallError<X = CaughtException> {
+pub enum RawCallError<X = RawException> {
     /// The invoke syscall reported invalid parameters
     Invalid,
     /// The called contract threw an exception with a selector-tagged error.
@@ -94,7 +94,7 @@ impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
 ///
 /// Decoding failure on the success path results in an exception.
 ///
-/// `alloc`-only mock-side plumbing (builds a `CaughtException` from an owned
+/// `alloc`-only mock-side plumbing (builds a `RawException` from an owned
 /// abort buffer, which the no-alloc guest never does).
 #[cfg(feature = "alloc")]
 pub fn into_raw_call_result<T>(
@@ -115,7 +115,7 @@ where
             )))
         }),
         Err(ContractError::Abort(abort_buf)) => {
-            match CaughtException::from_abort_buf(abort_buf.as_slice()) {
+            match RawException::from_abort_buf(abort_buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),

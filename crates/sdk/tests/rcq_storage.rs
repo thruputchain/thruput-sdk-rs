@@ -80,6 +80,6 @@ fn run(
 #[allow(dead_code)]
 fn tx_result_try_as<E: Exn>(txr: &TransactResult) -> Option<E> {
     let caught =
-        CaughtException::from_abort_buf(txr.frame().abort_buffer()).unwrap();
+        RawException::from_abort_buf(txr.frame().abort_buffer()).unwrap();
     caught.try_as::<E>()
 }

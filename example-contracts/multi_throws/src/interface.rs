@@ -44,7 +44,7 @@ pub trait MultiThrows {
     /// catches the resulting `BadDecode`, performs an unrelated SDK op
     /// that provably reuses the call scratch (`Hash::hash`, which goes
     /// through `with_scratch`), then re-throws. Pins the guarantee that a
-    /// `CaughtException` survives arbitrary scratch reuse and re-throws
+    /// `RawException` survives arbitrary scratch reuse and re-throws
     /// verbatim, in both builds (each owns an independent copy of the wire
     /// bytes — heap under `alloc`, an inline `SCRATCH_MAX` buffer in the
     /// no-alloc guest).

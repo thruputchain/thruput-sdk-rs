@@ -4,7 +4,7 @@ use super::contract_result::*;
 use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{FaultString, RawException};
+use crate::exn::{FaultString, RawExceptionRef};
 use crate::types::transaction::{
     InvocationFrameStatusCode, kMaxReturnBufferLen,
 };
@@ -15,10 +15,11 @@ use crate::{AuthHandleBuf, sys};
 /// Typed cross-contract call with caller-supplied exception dispatch.
 ///
 /// `on_exn` runs while the abort bytes are still borrowed from the call
-/// scratch: [`RawException::payload`] is a plain slice, valid exactly for
+/// scratch: [`RawExceptionRef::payload`] is a plain slice, valid exactly for
 /// the closure. Decode it into owned typed errors (zero-copy),
-/// [`RawException::re_throw`] it (zero-copy), or [`RawException::caught`]
-/// it (one copy) — whatever `X` the closure returns is what escapes.
+/// [`RawExceptionRef::re_throw`] it (zero-copy), or
+/// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
+/// returns is what escapes.
 ///
 /// Any SDK op performed inside `on_exn` (a nested call, hashing, emitting an
 /// event) hits the cold fresh-buffer fallback, since the scratch is already
@@ -31,7 +32,7 @@ pub fn try_call_raw_with<ARGS, RET, X>(
     gas_limit: u64,
     args: &ARGS,
     flags: crate::invoke_config::InvokeFlagSet,
-    on_exn: impl for<'s> FnOnce(RawException<'s>) -> X,
+    on_exn: impl for<'s> FnOnce(RawExceptionRef<'s>) -> X,
 ) -> Result<RET, RawCallError<X>>
 where
     ARGS: WriteXDR + crate::CollectAuthHandles,
@@ -66,7 +67,7 @@ where
             contract_call_decode(buf.as_slice(), auth_buf.as_slice())
                 .map_err(widen_uninhabited_exn)
         } else {
-            match RawException::parse(buf.as_slice()) {
+            match RawExceptionRef::parse(buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(on_exn(exn))),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),
@@ -85,7 +86,7 @@ where
 /// per-call allocations even though the guest bump allocator never frees,
 /// and neither outgoing calldata nor received returns have an SDK-imposed
 /// size cap. Undecoded exceptions escape as owned
-/// [`CaughtException`](crate::exn::CaughtException)s (one copy on the
+/// [`RawException`](crate::exn::RawException)s (one copy on the
 /// exception path).
 ///
 /// The [`contract`](macro@crate::contract) macro emits calls to
@@ -103,7 +104,7 @@ where
     RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
     try_call_raw_with(address, entrypoint, gas_limit, args, flags, |exn| {
-        exn.caught()
+        exn.to_owned()
     })
 }
 
@@ -170,7 +171,7 @@ pub enum CallOutcome {
 /// The error type is `RawCallError<Infallible>`: aborts surface as
 /// [`CallOutcome::Abort`] with the payload in `return_buf`, so the
 /// `Exception` variant is uninhabited here — which also keeps the `Result`
-/// slot small (a `CaughtException` payload would cost the no-alloc caller
+/// slot small (a `RawException` payload would cost the no-alloc caller
 /// a `SCRATCH_MAX`-sized stack slot for a variant this call never builds).
 // The two trailing out-params are the point of the API (no by-value buffer
 // returns); folding the six real inputs into a struct would be churn, not

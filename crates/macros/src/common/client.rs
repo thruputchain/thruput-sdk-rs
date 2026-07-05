@@ -343,25 +343,25 @@ fn generate_error_enum(
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
             /// An exception whose selector doesn't match any declared throw
-            /// type. Holds an owned [`CaughtException`](::sdk::exn::CaughtException)
+            /// type. Holds an owned [`RawException`](::sdk::exn::RawException)
             /// — the wire bytes copied out of the call scratch, so it
             /// survives arbitrary later SDK operations. No-alloc guest: the
             /// copy is an inline `SCRATCH_MAX`-capacity buffer, so this
             /// variant (and the enum as a whole) is roughly 4 KiB; any
             /// number of caught exceptions may be live at once, same as
             /// under `alloc`.
-            Unknown(::sdk::exn::CaughtException),
+            Unknown(::sdk::exn::RawException),
             Invalid,
             /// An exception matching a declared selector whose payload
             /// failed to decode. Holds an owned
-            /// [`CaughtException`](::sdk::exn::CaughtException) — the wire
+            /// [`RawException`](::sdk::exn::RawException) — the wire
             /// bytes copied out of the call scratch, so it survives
             /// arbitrary later SDK operations. No-alloc guest: the copy is
             /// an inline `SCRATCH_MAX`-capacity buffer, so this variant
             /// (and the enum as a whole) is roughly 4 KiB; any number of
             /// caught exceptions may be live at once, same as under
             /// `alloc`.
-            BadDecode(::sdk::exn::CaughtException),
+            BadDecode(::sdk::exn::RawException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
             UnparseableAuthHandles(::sdk::exn::FaultString),
@@ -476,7 +476,7 @@ fn generate_selector_dispatch(
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
                     match ::sdk::call::contract_call_decode_exn_prefix(exn.payload()) {
                         Ok(err) => #error_enum_ident::#variant(err),
-                        Err(_) => #error_enum_ident::BadDecode(exn.caught()),
+                        Err(_) => #error_enum_ident::BadDecode(exn.to_owned()),
                     }
                 }
             }
@@ -486,7 +486,7 @@ fn generate_selector_dispatch(
     quote! {
         match exn.selector() {
             #(#arms)*
-            _ => #error_enum_ident::Unknown(exn.caught()),
+            _ => #error_enum_ident::Unknown(exn.to_owned()),
         }
     }
 }
