@@ -345,48 +345,34 @@ crate::contract_local! {
 /// every subsequent use: the guest bump allocator never frees, so per-use
 /// allocations would permanently leak heap. Under `alloc` capacity grows to
 /// the high-water mark (at least `SCRATCH_MAX`). No user code runs while the
-/// scratch is checked out, so uses cannot overlap; if the slot is somehow
-/// unavailable (re-entrancy), a fresh default buffer is used and the result
-/// is correct, just momentarily un-cached.
+/// scratch is checked out, so uses cannot overlap; the re-entrant case (a
+/// cross-call nested in-process in the native mock, or an exception thrown
+/// while the scratch is borrowed — the abort encode re-enters) is handled by
+/// [`ContractLocalRef::with_mut_or_fresh`]'s fresh-buffer fallback. (The real
+/// guest doesn't nest cross-calls, but the throw-mid-encode case can happen
+/// there, so this is not mock-only.)
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    CALL_SCRATCH.with_ref(|cell| {
-        match cell.try_borrow_mut() {
-            Ok(mut guard) => {
-                // Borrow the reused buffers in place — no copy, and for the
-                // no-alloc guest the fixed buffer stays in static memory
-                // instead of being moved onto the (small) guest stack.
-                let scratch = &mut *guard;
-                scratch.buf.clear();
-                scratch.auth.clear();
-                #[cfg(feature = "alloc")]
-                if scratch.buf.capacity() < crate::internal::SCRATCH_MAX {
-                    scratch.buf.reserve(crate::internal::SCRATCH_MAX);
-                }
-                f(&mut scratch.buf, &mut scratch.auth)
-            }
-            Err(_) => call_scratch_fallback(f),
+    CALL_SCRATCH.with_mut_or_fresh(fresh_call_scratch, |scratch| {
+        // Borrow the reused buffers in place — no copy, and for the
+        // no-alloc guest the fixed buffer stays in static memory instead of
+        // being moved onto the (small) guest stack.
+        scratch.buf.clear();
+        scratch.auth.clear();
+        #[cfg(feature = "alloc")]
+        if scratch.buf.capacity() < crate::internal::SCRATCH_MAX {
+            scratch.buf.reserve(crate::internal::SCRATCH_MAX);
         }
+        f(&mut scratch.buf, &mut scratch.auth)
     })
 }
 
-/// Re-entrant use: the scratch is already borrowed up-stack — a cross-call
-/// nested in-process (native mock), or an exception thrown while the
-/// scratch is borrowed (the abort encode re-enters). Use fresh buffers so
-/// the borrow can't alias; correct, just momentarily un-cached. (The real
-/// guest doesn't nest cross-calls, but the throw-mid-encode case can happen
-/// there, so this is not mock-only.) Out of line and `cold` so the fresh
-/// (no-alloc: SCRATCH_MAX-byte) buffers don't get pre-allocated in every
-/// caller's prologue when the happy path is inlined.
-#[cold]
-#[inline(never)]
-fn call_scratch_fallback<R>(
-    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
-) -> R {
-    let mut buf = crate::internal::new_scratch();
-    let mut auth_buf = AuthHandleBuf::new();
-    f(&mut buf, &mut auth_buf)
+fn fresh_call_scratch() -> CallScratch {
+    CallScratch {
+        buf: crate::internal::new_scratch(),
+        auth: AuthHandleBuf::new(),
+    }
 }
 
 /// Run `f` with just the per-instance data scratch buffer. For

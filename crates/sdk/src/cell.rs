@@ -72,6 +72,42 @@ pub trait ContractLocalRef<T> {
         &'static self,
         f: impl FnOnce(&core::cell::RefCell<T>) -> R,
     ) -> R;
+
+    /// Run `f` with exclusive access to the cell's contents.
+    ///
+    /// This is the checkout-or-fresh pattern behind the SDK's per-instance
+    /// scratch buffers. Normally the cell is free, so `f` runs in place
+    /// against the cached value — no copy, and for a no-alloc fixed buffer,
+    /// no stack move either. If the cell is already borrowed up-stack
+    /// (re-entrancy: a nested in-process frame in the native mock, or SDK
+    /// re-entry while the cell is checked out — e.g. throwing an exception
+    /// while the write scratch is borrowed for encoding), `f` instead runs
+    /// against a fresh `T` built by `fresh` — correct, just momentarily
+    /// un-cached. The fallback is out of line and `cold` so the fresh
+    /// (no-alloc: `SCRATCH_MAX`-byte) value doesn't get pre-allocated in
+    /// every caller's prologue when the happy path is inlined.
+    #[inline]
+    fn with_mut_or_fresh<R>(
+        &'static self,
+        fresh: fn() -> T,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> R {
+        self.with_ref(|cell| match cell.try_borrow_mut() {
+            Ok(mut guard) => f(&mut *guard),
+            Err(_) => fresh_fallback(fresh, f),
+        })
+    }
+}
+
+/// Re-entrant-checkout fallback shared by every
+/// [`ContractLocalRef::with_mut_or_fresh`] call site. Out of line and `cold`
+/// so a fresh `T`'s construction isn't duplicated into every caller's
+/// inlined happy path.
+#[cold]
+#[inline(never)]
+fn fresh_fallback<T, R>(fresh: fn() -> T, f: impl FnOnce(&mut T) -> R) -> R {
+    let mut value = fresh();
+    f(&mut value)
 }
 
 // Guest environment: wrap

@@ -349,6 +349,18 @@ crate::contract_local! {
         };
 }
 
+/// Fetch this frame's calldata and auth-token ids into `calldata`/`auth_ids`
+/// (cleared first by [`fetch_calldata_and_auth_tokens_into`]), throwing a
+/// `LibraryExn::Syscall` (`kGetCalldata`) on fetch failure.
+fn fetch_calldata_or_throw(
+    calldata: &mut Calldata,
+    auth_ids: &mut AuthTokenIdBuf,
+) {
+    fetch_calldata_and_auth_tokens_into(calldata, auth_ids).unwrap_or_else(
+        |syserr| syscall_throw(SyscallNo::kGetCalldata, syserr),
+    );
+}
+
 /// Fetch this frame's calldata and auth-token ids and run `f` on them,
 /// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
 /// API: generated entrypoint wrappers and raw-calldata contracts both use
@@ -359,37 +371,20 @@ crate::contract_local! {
 /// is never copied. The cell stays borrowed while `f` runs; decoded args
 /// borrow from it for the whole frame, which is why it is distinct from
 /// the write scratch. A re-entrant fetch (a nested in-process frame in the
-/// native mock) falls back to fresh buffers, so the borrow can't alias.
+/// native mock) falls back to fresh buffers via
+/// [`ContractLocalRef::with_mut_or_fresh`], so the borrow can't alias.
 pub fn with_calldata_and_auth_tokens<R>(
     f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
 ) -> R {
-    CALLDATA_SCRATCH.with_ref(|cell| match cell.try_borrow_mut() {
-        Ok(mut guard) => {
-            let (calldata, auth_ids) = &mut *guard;
-            fetch_calldata_and_auth_tokens_into(calldata, auth_ids)
-                .unwrap_or_else(|syserr| {
-                    syscall_throw(SyscallNo::kGetCalldata, syserr)
-                });
+    CALLDATA_SCRATCH.with_mut_or_fresh(
+        fresh_calldata,
+        |(calldata, auth_ids)| {
+            fetch_calldata_or_throw(calldata, auth_ids);
             f(calldata, auth_ids)
-        }
-        Err(_) => with_fresh_calldata_and_auth_tokens(f),
-    })
+        },
+    )
 }
 
-/// Re-entrant-fetch fallback (a nested in-process frame in the native
-/// mock). Out of line and `cold` so its fresh (no-alloc: SCRATCH_MAX-byte)
-/// buffers don't get pre-allocated in every wrapper's prologue when the
-/// happy path is inlined.
-#[cold]
-#[inline(never)]
-fn with_fresh_calldata_and_auth_tokens<R>(
-    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
-) -> R {
-    let mut calldata: Calldata = crate::internal::new_scratch();
-    let mut auth_ids = AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens_into(&mut calldata, &mut auth_ids)
-        .unwrap_or_else(|syserr| {
-            syscall_throw(SyscallNo::kGetCalldata, syserr)
-        });
-    f(&calldata, &auth_ids)
+fn fresh_calldata() -> (Calldata, AuthTokenIdBuf) {
+    (crate::internal::new_scratch(), AuthTokenIdBuf::new())
 }
