@@ -266,6 +266,11 @@ fn generate_client_fn(
 
         // This method-wrapper returns a Result with the per-client error enum
         // so that exceptions may be inspected.
+        ///
+        /// No-alloc guest: an `Err` may hold a caught exception (the
+        /// `Unknown` / `BadDecode` variants); at most one caught exception
+        /// may be live at a time, so drop this one before another `try_`
+        /// call that may also catch.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
         pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
@@ -333,8 +338,25 @@ fn generate_error_enum(
             #(#declared_variants,)*
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
+            /// An exception whose selector doesn't match any declared throw
+            /// type. Holds an owned [`CaughtException`](::sdk::exn::CaughtException).
+            /// No-alloc guest: at most one caught exception may be live at a
+            /// time — drop (or re-throw/decode) it before a later `try_`
+            /// call that may also catch, or that later catch propagates
+            /// (aborts) instead of being caught. Under `alloc` (native test
+            /// env) many may be live at once, so native tests cannot
+            /// exercise this limit.
             Unknown(::sdk::exn::CaughtException),
             Invalid,
+            /// An exception matching a declared selector whose payload
+            /// failed to decode. Holds an owned
+            /// [`CaughtException`](::sdk::exn::CaughtException). No-alloc
+            /// guest: at most one caught exception may be live at a time —
+            /// drop (or re-throw/decode) it before a later `try_` call that
+            /// may also catch, or that later catch propagates (aborts)
+            /// instead of being caught. Under `alloc` (native test env)
+            /// many may be live at once, so native tests cannot exercise
+            /// this limit.
             BadDecode(::sdk::exn::CaughtException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),

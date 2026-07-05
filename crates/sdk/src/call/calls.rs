@@ -19,6 +19,11 @@ use crate::{AuthHandleBuf, sys};
 /// the closure. Decode it into owned typed errors (zero-copy),
 /// [`RawException::re_throw`] it (zero-copy), or [`RawException::caught`]
 /// it (one copy) — whatever `X` the closure returns is what escapes.
+///
+/// Any SDK op performed inside `on_exn` (a nested call, hashing, emitting an
+/// event) hits the cold fresh-buffer fallback, since the scratch is already
+/// borrowed here (no-alloc: a 4 KiB stack buffer) — keep the closure small:
+/// decode, `re_throw`, or `caught` only.
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,

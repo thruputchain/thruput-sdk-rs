@@ -108,7 +108,12 @@ where
     })
 }
 
-// Try once more to encode an exception before just trapping
+// Try once more to encode an exception before just trapping. Reachable from
+// every `_contract_abort_encoded` throw path; out of line and `cold` so its
+// fresh (no-alloc: SCRATCH_MAX-byte) buffer doesn't get pre-allocated in
+// every abort-capable caller's prologue when the happy path is inlined.
+#[cold]
+#[inline(never)]
 fn exception_encoding_error(err: WriteError) -> ! {
     use crate::exn::LibraryExn;
     use crate::exn::cross_exn::ContractExn;

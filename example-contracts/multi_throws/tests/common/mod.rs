@@ -127,8 +127,9 @@ pub fn multi_throws_test_relay_preserves_payload(contract_hash: &SHA256Hash) {
             // The re-thrown wire bytes must be verbatim: same selector,
             // same undecodable payload (42u32) as calling
             // `throw_undecodable` directly, even though the contract
-            // performed a log emit (scratch reuse) between catching the
-            // exception and re-throwing it.
+            // performed a scratch-reusing op (`42u32.hash()`) between
+            // catching the exception and re-throwing it. Guards against a
+            // future regression where the detach copy is skipped.
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             let decoded: u32 =
                 raw.with_payload(|p| sdk::xdr::cxs::decode(p)).unwrap();

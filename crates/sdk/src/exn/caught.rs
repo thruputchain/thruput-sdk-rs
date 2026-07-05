@@ -162,6 +162,9 @@ impl CaughtException {
     }
 }
 
+// No-alloc: `mem::forget`-ing a `CaughtException` instead of dropping it
+// leaves the slot marked occupied forever, so every later catch propagates
+// (re-aborts verbatim) instead of being caught. Safe, but surprising.
 #[cfg(not(feature = "alloc"))]
 impl Drop for CaughtException {
     fn drop(&mut self) {
