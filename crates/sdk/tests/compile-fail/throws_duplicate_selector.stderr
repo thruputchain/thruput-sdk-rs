@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: duplicate exception selector in throws(...) list
+ --> tests/compile-fail/throws_duplicate_selector.rs:9:1
+  |
+9 | #[contract(throws(sdk::exn::LibraryExn))]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

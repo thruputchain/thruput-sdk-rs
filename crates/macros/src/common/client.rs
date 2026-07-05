@@ -307,6 +307,8 @@ fn generate_error_enum(
     throws_list: &[ThrownType],
 ) -> TokenStream {
     let error_enum_ident = format_ident!("{}Error", client_ident);
+    let selector_uniqueness_asserts =
+        generate_selector_uniqueness_asserts(throws_list);
 
     let declared_variants: Vec<TokenStream> = throws_list
         .iter()
@@ -404,7 +406,52 @@ fn generate_error_enum(
                 }
             }
         }
+
+        #selector_uniqueness_asserts
     }
+}
+
+/// Emit a compile-time `assert!` for every unordered pair drawn from the
+/// declared `throws(...)` list plus the implicit `LibraryExn` arm, checking
+/// that no two have the same [`Exn::SELECTOR`](::sdk::exn::Exn). Selectors
+/// are derived from the exception type's own crate/name (not the path the
+/// caller wrote), so two differently-spelled `throws(...)` entries (or a
+/// user re-declaring `throws(sdk::exn::LibraryExn)`, aliasing the implicit
+/// `Library` arm) can name the same underlying type without tripping the
+/// name-based duplicate-variant check in [`ThrowsList::new`]. Left
+/// unchecked, `generate_selector_dispatch` would emit two match arms with
+/// the same constant selector pattern — silently dead code (or an
+/// `unreachable_patterns` warning) rather than a clear build error.
+/// `const _: () = assert!(...)` is evaluated at build time, so this catches
+/// it up front. O(n^2) is fine: throws lists are tiny.
+fn generate_selector_uniqueness_asserts(
+    throws_list: &[ThrownType],
+) -> TokenStream {
+    let mut tys: Vec<TokenStream> = throws_list
+        .iter()
+        .map(|thrown| {
+            let ty = thrown.ty();
+            quote! { #ty }
+        })
+        .collect();
+    tys.push(quote! { ::sdk::exn::LibraryExn });
+
+    let mut asserts = Vec::with_capacity(tys.len() * tys.len() / 2);
+    for i in 0..tys.len() {
+        for j in (i + 1)..tys.len() {
+            let ty_a = &tys[i];
+            let ty_b = &tys[j];
+            asserts.push(quote! {
+                const _: () = ::core::assert!(
+                    <#ty_a as ::sdk::exn::Exn>::SELECTOR
+                        != <#ty_b as ::sdk::exn::Exn>::SELECTOR,
+                    "duplicate exception selector in throws(...) list",
+                );
+            });
+        }
+    }
+
+    quote! { #(#asserts)* }
 }
 
 fn generate_selector_dispatch(
