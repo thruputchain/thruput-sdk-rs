@@ -5,23 +5,77 @@ use core::fmt::{self, Debug};
 
 /// A raw exception received from a contract call.
 ///
-/// Contains the selector and remaining payload bytes. Use `try_as::<T>()`
-/// to attempt decoding as a known exception type.
+/// Contains the selector and payload bytes. Use `try_as::<T>()` to attempt
+/// decoding as a known exception type, [`with_payload`](Self::with_payload)
+/// to inspect the raw bytes, or [`re_throw`](Self::re_throw) to propagate
+/// it to the caller.
+///
+/// In the no-alloc guest this holds no buffer at all: the payload is the
+/// abort bytes the child left in the per-instance call scratch, referenced
+/// by checkout generation. Exceptions terminate the frame or are inspected
+/// immediately, so only the most recent one is live; if the scratch has
+/// been reused (another call, an event, a storage write) before this
+/// exception is read, the access traps rather than returning stale bytes.
+/// Under `alloc` (native test env, where in-process frames nest) the
+/// payload is an owned, exact-size copy and never goes stale.
 pub struct RawException {
     selector: u64,
+    #[cfg(feature = "alloc")]
     payload: crate::call::Buf,
+    /// Scratch checkout generation this payload belongs to.
+    #[cfg(not(feature = "alloc"))]
+    generation: u64,
+    /// Payload byte range within the scratch: `payload_start..abort_end`.
+    /// `..abort_end` (from 0) is the verbatim abort wire buffer, reused by
+    /// `re_throw`.
+    #[cfg(not(feature = "alloc"))]
+    payload_start: u32,
+    #[cfg(not(feature = "alloc"))]
+    abort_end: u32,
+}
+
+/// Parse `[CXS(selector)][payload bytes...]`, returning the selector and
+/// the payload's start offset.
+fn parse_abort_prefix(bytes: &[u8]) -> Result<(u64, usize), LibraryExn> {
+    let mut reader = cxs::buf_reader::BufReader::new(bytes);
+    let selector: u64 = ReadXDR::read_xdr(&mut reader).map_err(|e| {
+        LibraryExn::Calling(CallingError::DecodingException(
+            FaultString::from_display(e),
+        ))
+    })?;
+    Ok((selector, bytes.len() - reader.remaining_slice().len()))
 }
 
 impl RawException {
+    /// Build a `RawException` from the abort bytes an aborting call left in
+    /// the call scratch at checkout `generation`. Zero-copy in the no-alloc
+    /// guest (records the location); an owned copy under `alloc`.
+    pub(crate) fn from_scratch_abort(
+        bytes: &[u8],
+        generation: u64,
+    ) -> Result<Self, LibraryExn> {
+        let (selector, payload_start) = parse_abort_prefix(bytes)?;
+        #[cfg(feature = "alloc")]
+        {
+            let _ = generation;
+            Self::new(selector, &bytes[payload_start..])
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            Ok(Self {
+                selector,
+                generation,
+                payload_start: payload_start as u32,
+                abort_end: bytes.len() as u32,
+            })
+        }
+    }
+
     /// Build a `RawException` from a selector and payload bytes.
     ///
-    /// With `alloc` this is infallible. Without `alloc` the payload is held in
-    /// a fixed [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer; a
-    /// payload larger than that returns `Err` (a typed
-    /// [`CallingError::DecodingException`]) rather than being silently
-    /// truncated, which would yield a mis-decoded exception. Use
-    /// [`or_re_throw`](crate::re_throw::OrReThrow::or_re_throw) to turn the
-    /// error into an abort at the call site.
+    /// `alloc`-only: the guest never builds exceptions from loose bytes —
+    /// they come from an aborting call, already in the scratch.
+    #[cfg(feature = "alloc")]
     pub fn new(selector: u64, payload: &[u8]) -> Result<Self, LibraryExn> {
         let buf = crate::call::buf_from_slice(payload).map_err(|()| {
             LibraryExn::Calling(CallingError::DecodingException(
@@ -41,44 +95,91 @@ impl RawException {
 
     /// Decode a RawException from an abort buffer.
     /// The buffer is CXS-encoded: [u64 selector][payload bytes...].
+    ///
+    /// `alloc`-only (host tests and the mock env inspect abort buffers);
+    /// guest exceptions are built by the SDK from the call scratch.
+    #[cfg(feature = "alloc")]
     pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, LibraryExn> {
-        let mut reader = cxs::buf_reader::BufReader::new(bytes);
-        let selector: u64 = ReadXDR::read_xdr(&mut reader).map_err(|e| {
-            LibraryExn::Calling(CallingError::DecodingException(
-                FaultString::from_display(e),
-            ))
-        })?;
-        let payload_bytes = reader.remaining_slice();
-        Self::new(selector, payload_bytes)
+        let (selector, payload_start) = parse_abort_prefix(bytes)?;
+        Self::new(selector, &bytes[payload_start..])
     }
 
     pub fn selector(&self) -> u64 {
         self.selector
     }
 
-    pub fn payload(&self) -> &[u8] {
-        self.payload.as_slice()
+    /// Run `f` on the payload bytes.
+    ///
+    /// No-alloc guest: traps if the call scratch has been reused since this
+    /// exception was received — inspect or re-throw an exception before
+    /// making further calls, emitting events, or writing storage.
+    pub fn with_payload<R>(&self, f: impl FnOnce(&[u8]) -> R) -> R {
+        #[cfg(feature = "alloc")]
+        {
+            f(self.payload.as_slice())
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            crate::call::with_scratch_payload_if_current(
+                self.generation,
+                self.payload_start as usize..self.abort_end as usize,
+                f,
+            )
+            .unwrap_or_else(|| stale_exception_trap())
+        }
     }
 
     pub fn try_as<T: Exn>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
             // no auth handles on exception handling path
-            contract_call_decode_exn_prefix(self.payload.as_slice()).ok()
+            self.with_payload(|payload| {
+                contract_call_decode_exn_prefix(payload).ok()
+            })
         } else {
             None
         }
     }
 
-    /// Re-throw this exception to our caller, reconstructing the wire format.
+    /// Re-throw this exception to our caller.
+    ///
+    /// The no-alloc guest aborts with the original wire bytes verbatim (no
+    /// re-encode, no copy); it traps if the scratch has been reused since,
+    /// like [`with_payload`](Self::with_payload).
     #[inline]
     pub fn re_throw(&self) -> ! {
-        crate::contract_abort_encoded(self)
+        #[cfg(feature = "alloc")]
+        {
+            crate::contract_abort_encoded(self)
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            crate::call::reabort_scratch_if_current(
+                self.generation,
+                self.abort_end as usize,
+            );
+            stale_exception_trap()
+        }
     }
+}
+
+/// The call scratch was reused after this exception was received, so its
+/// payload is gone. Trapping loudly beats decoding whatever the scratch
+/// holds now.
+#[cfg(not(feature = "alloc"))]
+#[cold]
+#[inline(never)]
+fn stale_exception_trap() -> ! {
+    crate::trap()
 }
 
 /// Serializes as [CXS(selector)][raw payload bytes] — the same wire format
 /// produced by `ContractExn<E>`. The payload is already CXS-encoded, so it's
 /// written directly without a length prefix.
+///
+/// `alloc`-only: the no-alloc guest re-throws the original wire bytes
+/// verbatim instead of re-encoding (and encoding into the scratch would
+/// alias the payload it reads from).
+#[cfg(feature = "alloc")]
 impl WriteXDR for RawException {
     fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         self.selector.write_xdr(w)?;
@@ -88,18 +189,35 @@ impl WriteXDR for RawException {
 
 impl Debug for RawException {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        #[cfg(feature = "alloc")]
+        let payload_len = self.payload.len();
+        #[cfg(not(feature = "alloc"))]
+        let payload_len = (self.abort_end - self.payload_start) as usize;
         write!(
             f,
             "RawException {{ selector: 0x{:016X}, payload: {} bytes }}",
-            self.selector,
-            self.payload.len()
+            self.selector, payload_len,
         )
     }
 }
 
+#[cfg(feature = "alloc")]
 impl PartialEq for RawException {
     fn eq(&self, other: &Self) -> bool {
         self.selector == other.selector && self.payload == other.payload
+    }
+}
+
+/// No-alloc: equal iff both reference the same scratch snapshot (same
+/// selector, generation, and range) — payload-byte comparison without a
+/// second buffer to compare against.
+#[cfg(not(feature = "alloc"))]
+impl PartialEq for RawException {
+    fn eq(&self, other: &Self) -> bool {
+        self.selector == other.selector
+            && self.generation == other.generation
+            && self.payload_start == other.payload_start
+            && self.abort_end == other.abort_end
     }
 }
 
@@ -176,6 +294,6 @@ mod tests {
     fn new_holds_oversized_payload_without_truncation_under_alloc() {
         let big = [0xABu8; crate::internal::SCRATCH_MAX + 1];
         let raw = RawException::new(0x1234, &big).unwrap();
-        assert_eq!(raw.payload(), &big[..]);
+        raw.with_payload(|payload| assert_eq!(payload, &big[..]));
     }
 }

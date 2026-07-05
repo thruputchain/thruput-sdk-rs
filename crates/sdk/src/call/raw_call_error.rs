@@ -1,11 +1,14 @@
 //! The raw, untyped error from a contract call.
 
+#[cfg(feature = "alloc")]
 use super::ContractError;
+#[cfg(feature = "alloc")]
 use super::contract_call_decode;
 use crate::exn::{
     CallingError, FaultString, RawException,
     client_library_throw as library_throw,
 };
+#[cfg(feature = "alloc")]
 use crate::{ReceiveAuthHandles, xdr::*};
 
 /// The raw, untyped error from a contract call.
@@ -35,15 +38,14 @@ impl core::fmt::Display for RawCallError {
             RawCallError::Invalid => {
                 write!(f, "contract not found (or invalid auth tokens)")
             }
-            RawCallError::Exception(exn) => {
-                let payload = exn.payload();
+            RawCallError::Exception(exn) => exn.with_payload(|payload| {
                 write!(
                     f,
                     "exception (selector=0x{:016x}, payload={})",
                     exn.selector(),
                     crate::hex::hex_encode(&payload)
                 )
-            }
+            }),
             RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
             RawCallError::UnparseableReturn(error) => {
                 write!(f, "unparseable return: {error}")
@@ -91,6 +93,9 @@ impl crate::re_throw::ReThrow for RawCallError {
 ///
 /// Decoding failure on the success path results in an exception.
 ///
+/// `alloc`-only mock-side plumbing (builds a `RawException` from an owned
+/// abort buffer, which the no-alloc guest never does).
+#[cfg(feature = "alloc")]
 pub fn into_raw_call_result<T>(
     contract_result: crate::call::ContractResult,
 ) -> Result<T, RawCallError>

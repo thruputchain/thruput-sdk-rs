@@ -277,9 +277,8 @@ fn generate_client_fn(
                 match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags) {
                     Ok(val) => Ok(val),
                     Err(RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(RawCallError::Exception(ref exn)) => {
+                    Err(RawCallError::Exception(exn)) => {
                         let selector = exn.selector();
-                        let payload = exn.payload();
                         #selector_dispatch
                     }
                     Err(RawCallError::Invalid) => Err(#error_enum_ident::Invalid),
@@ -392,12 +391,12 @@ fn generate_selector_dispatch(
             let ty = thrown.ty();
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
-                    let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
-                    if err.is_err() {
-                        return Err(#error_enum_ident::BadDecode(
-                            ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))));
+                    match exn.with_payload(|payload|
+                        ::sdk::call::contract_call_decode_exn_prefix(payload))
+                    {
+                        Ok(err) => Err(#error_enum_ident::#variant(err)),
+                        Err(_) => Err(#error_enum_ident::BadDecode(exn)),
                     }
-                    Err(#error_enum_ident::#variant(err.unwrap()))
                 }
             }
         })
@@ -407,16 +406,15 @@ fn generate_selector_dispatch(
         match selector {
             #(#declared_arms)*
             <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
-                if err.is_err() {
-                    return Err(#error_enum_ident::BadDecode(
-                        ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))));
+                match exn.with_payload(|payload|
+                    ::sdk::call::contract_call_decode_exn_prefix(payload))
+                {
+                    Ok(err) => Err(#error_enum_ident::Library(err)),
+                    Err(_) => Err(#error_enum_ident::BadDecode(exn)),
                 }
-                Err(#error_enum_ident::Library(err.unwrap()))
             }
             _ => {
-                Err(#error_enum_ident::Unknown(
-                    ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))))
+                Err(#error_enum_ident::Unknown(exn))
             }
         }
     }

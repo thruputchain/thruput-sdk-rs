@@ -37,11 +37,11 @@ where
     // The scratch data buffer does double duty within one call: it holds
     // the encoded args while `Invoke` copies them out, then is cleared and
     // refilled with the returned data. Likewise the auth buffer holds the
-    // outgoing handle list during `Invoke`, then the returned one. Both
-    // payloads are fully consumed in here (the decoded RET is owned;
-    // RawException copies its payload), so the scratch borrow never
-    // escapes.
-    with_call_scratch(|buf, auth_buf| {
+    // outgoing handle list during `Invoke`, then the returned one. The
+    // decoded RET is owned; a no-alloc RawException's payload stays behind
+    // in the scratch (referenced by generation), which is fine because the
+    // borrow ends with this closure and the next checkout invalidates it.
+    with_call_scratch(|buf, auth_buf, scratch_generation| {
         encode_args_into(buf, args)?;
         auth_buf.clear();
         args.collect_auth_handles(auth_buf)
@@ -69,7 +69,10 @@ where
         if is_ok {
             contract_call_decode(buf.as_slice(), auth_buf.as_slice())
         } else {
-            match RawException::from_abort_buf(buf.as_slice()) {
+            match RawException::from_scratch_abort(
+                buf.as_slice(),
+                scratch_generation,
+            ) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),
@@ -282,9 +285,32 @@ fn resize_auth_handles(
 
 use crate::cell::{ContractLocalRef, ContractRefCell};
 
+/// The per-instance call scratch: the shared write buffer, the auth-handle
+/// list, and a checkout generation. The generation increments on every
+/// checkout; a no-alloc [`RawException`] records it so its payload (left
+/// sitting in `buf` by the aborting call) can be read back zero-copy and a
+/// stale read — after a later scratch use overwrote the payload — traps
+/// instead of returning the wrong bytes.
+struct CallScratch {
+    generation: u64,
+    buf: Buf,
+    auth: AuthHandleBuf,
+}
+
+/// The generation passed to fallback (fresh-buffer) checkouts. Never equals
+/// a cell generation (those start at 1), so a `RawException` minted against
+/// a fallback buffer is always-stale by construction.
+const SCRATCH_GENERATION_INVALID: u64 = 0;
+
 crate::contract_local! {
-    static CALL_SCRATCH: ContractRefCell<(Buf, AuthHandleBuf)> =
-        const { ContractRefCell::new((Buf::new(), AuthHandleBuf::new())) };
+    static CALL_SCRATCH: ContractRefCell<CallScratch> =
+        const {
+            ContractRefCell::new(CallScratch {
+                generation: SCRATCH_GENERATION_INVALID,
+                buf: Buf::new(),
+                auth: AuthHandleBuf::new(),
+            })
+        };
 }
 
 /// Run `f` with the per-instance call scratch buffers (encoded-args /
@@ -301,7 +327,7 @@ crate::contract_local! {
 /// unavailable (re-entrancy), a fresh default buffer is used and the result
 /// is correct, just momentarily un-cached.
 fn with_call_scratch<R>(
-    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf, u64) -> R,
 ) -> R {
     CALL_SCRATCH.with_ref(|cell| {
         match cell.try_borrow_mut() {
@@ -309,16 +335,55 @@ fn with_call_scratch<R>(
                 // Borrow the reused buffers in place — no copy, and for the
                 // no-alloc guest the fixed buffer stays in static memory
                 // instead of being moved onto the (small) guest stack.
-                let (buf, auth_buf) = &mut *guard;
-                buf.clear();
-                auth_buf.clear();
+                let scratch = &mut *guard;
+                // Invalidate any RawException still referencing the
+                // previous contents.
+                scratch.generation += 1;
+                scratch.buf.clear();
+                scratch.auth.clear();
                 #[cfg(feature = "alloc")]
-                if buf.capacity() < crate::internal::SCRATCH_MAX {
-                    buf.reserve(crate::internal::SCRATCH_MAX);
+                if scratch.buf.capacity() < crate::internal::SCRATCH_MAX {
+                    scratch.buf.reserve(crate::internal::SCRATCH_MAX);
                 }
-                f(buf, auth_buf)
+                f(&mut scratch.buf, &mut scratch.auth, scratch.generation)
             }
             Err(_) => call_scratch_fallback(f),
+        }
+    })
+}
+
+/// Run `f` on the call-scratch buffer contents if `generation` is still the
+/// cell's current checkout and `range` is in bounds; `None` if the scratch
+/// has been reused since (or is currently checked out mutably). Zero-copy
+/// read-back path for the no-alloc [`RawException`], whose payload the
+/// aborting call left sitting in the scratch.
+#[cfg(not(feature = "alloc"))]
+pub(crate) fn with_scratch_payload_if_current<R>(
+    generation: u64,
+    range: core::ops::Range<usize>,
+    f: impl FnOnce(&[u8]) -> R,
+) -> Option<R> {
+    CALL_SCRATCH.with_ref(|cell| match cell.try_borrow() {
+        Ok(guard) if guard.generation == generation => {
+            guard.buf.as_slice().get(range).map(f)
+        }
+        _ => None,
+    })
+}
+
+/// Abort with the verbatim scratch contents `[..end]` — the original abort
+/// wire bytes — if `generation` is still current. Returns (rather than
+/// diverging) when the payload is stale, so the caller can trap with its
+/// own diagnosis. The no-alloc re-throw path: no re-encode, no copy.
+#[cfg(not(feature = "alloc"))]
+pub(crate) fn reabort_scratch_if_current(generation: u64, end: usize) {
+    CALL_SCRATCH.with_ref(|cell| {
+        if let Ok(guard) = cell.try_borrow() {
+            if guard.generation == generation {
+                if let Some(bytes) = guard.buf.as_slice().get(..end) {
+                    crate::contract_op::contract_abort(bytes);
+                }
+            }
         }
     })
 }
@@ -334,18 +399,18 @@ fn with_call_scratch<R>(
 #[cold]
 #[inline(never)]
 fn call_scratch_fallback<R>(
-    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
+    f: impl FnOnce(&mut Buf, &mut AuthHandleBuf, u64) -> R,
 ) -> R {
     let mut buf = crate::internal::new_scratch();
     let mut auth_buf = AuthHandleBuf::new();
-    f(&mut buf, &mut auth_buf)
+    f(&mut buf, &mut auth_buf, SCRATCH_GENERATION_INVALID)
 }
 
 /// Run `f` with just the per-instance data scratch buffer. For
 /// encode-then-syscall sites (events, storage values, terminal returns) that
 /// don't touch the auth-handle list. Shares the cell with [`with_call_scratch`].
 pub(crate) fn with_scratch<R>(f: impl FnOnce(&mut Buf) -> R) -> R {
-    with_call_scratch(|buf, _auth| f(buf))
+    with_call_scratch(|buf, _auth, _generation| f(buf))
 }
 
 #[inline]

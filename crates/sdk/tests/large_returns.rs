@@ -112,7 +112,9 @@ fn try_call_raw_preserves_abort_payloads_larger_than_500_bytes() {
                     assert_eq!(exn.selector(), selector);
                     // The payload must arrive complete, not truncated to
                     // RawException's legacy 500-byte cap.
-                    assert_eq!(exn.payload(), &[0xEF_u8; 700][..]);
+                    exn.with_payload(|payload| {
+                        assert_eq!(payload, &[0xEF_u8; 700][..])
+                    });
                 }
                 other => panic!("expected Exception, got {other:?}"),
             }

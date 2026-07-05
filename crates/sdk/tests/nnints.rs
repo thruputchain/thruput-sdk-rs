@@ -256,7 +256,7 @@ fn try_strict_inc_or_re_throw_throws_library_exn() {
             if exn.selector() == LibraryExn::SELECTOR =>
         {
             assert_eq!(
-                decode_library_exn(exn.payload()),
+                exn.with_payload(decode_library_exn),
                 LibraryExn::NonNegativeIntUnderflow
             );
         }
