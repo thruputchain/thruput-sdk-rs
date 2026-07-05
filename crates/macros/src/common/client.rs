@@ -256,8 +256,11 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags)
-                    .or_re_throw()
+                ::sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
+                    &self.address, entrypoint, self.config.gas_limit, &args, self.config.flags,
+                    |exn| exn.re_throw(),
+                )
+                .or_re_throw()
             })
         }
 
@@ -274,13 +277,13 @@ fn generate_client_fn(
 
             with_call_tracking!(#call_info, {
                 use ::sdk::call::RawCallError;
-                match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags) {
+                match ::sdk::call::try_call_raw_with::<_, #return_type, #error_enum_ident>(
+                    &self.address, entrypoint, self.config.gas_limit, &args, self.config.flags,
+                    |exn| { #selector_dispatch },
+                ) {
                     Ok(val) => Ok(val),
+                    Err(RawCallError::Exception(e)) => Err(e),
                     Err(RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(RawCallError::Exception(exn)) => {
-                        let selector = exn.selector();
-                        #selector_dispatch
-                    }
                     Err(RawCallError::Invalid) => Err(#error_enum_ident::Invalid),
                     Err(RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
                     Err(RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
@@ -330,9 +333,9 @@ fn generate_error_enum(
             #(#declared_variants,)*
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
-            Unknown(::sdk::exn::RawException),
+            Unknown(::sdk::exn::CaughtException),
             Invalid,
-            BadDecode(::sdk::exn::RawException),
+            BadDecode(::sdk::exn::CaughtException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
             UnparseableAuthHandles(::sdk::exn::FaultString),
@@ -384,18 +387,24 @@ fn generate_selector_dispatch(
     error_enum_ident: &syn::Ident,
     throws_list: &[ThrownType],
 ) -> TokenStream {
-    let declared_arms: Vec<TokenStream> = throws_list
+    let mut pairs: Vec<(TokenStream, TokenStream)> = throws_list
         .iter()
         .map(|thrown| {
             let variant = thrown.variant();
             let ty = thrown.ty();
+            (quote! { #ty }, quote! { #variant })
+        })
+        .collect();
+    pairs.push((quote! { ::sdk::exn::LibraryExn }, quote! { Library }));
+
+    let arms: Vec<TokenStream> = pairs
+        .iter()
+        .map(|(ty, variant)| {
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
-                    match exn.with_payload(|payload|
-                        ::sdk::call::contract_call_decode_exn_prefix(payload))
-                    {
-                        Ok(err) => Err(#error_enum_ident::#variant(err)),
-                        Err(_) => Err(#error_enum_ident::BadDecode(exn)),
+                    match ::sdk::call::contract_call_decode_exn_prefix(exn.payload()) {
+                        Ok(err) => #error_enum_ident::#variant(err),
+                        Err(_) => #error_enum_ident::BadDecode(exn.caught()),
                     }
                 }
             }
@@ -403,19 +412,9 @@ fn generate_selector_dispatch(
         .collect();
 
     quote! {
-        match selector {
-            #(#declared_arms)*
-            <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                match exn.with_payload(|payload|
-                    ::sdk::call::contract_call_decode_exn_prefix(payload))
-                {
-                    Ok(err) => Err(#error_enum_ident::Library(err)),
-                    Err(_) => Err(#error_enum_ident::BadDecode(exn)),
-                }
-            }
-            _ => {
-                Err(#error_enum_ident::Unknown(exn))
-            }
+        match exn.selector() {
+            #(#arms)*
+            _ => #error_enum_ident::Unknown(exn.caught()),
         }
     }
 }
