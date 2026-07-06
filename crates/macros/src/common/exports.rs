@@ -418,16 +418,22 @@ pub fn generate_method(
     };
 
     // Decode the args, run the body, encode the result. The whole body runs
-    // inside `with_calldata_and_auth_tokens`: the calldata lives in the
-    // per-instance calldata cell (a guest static — zero stack, no by-value
-    // copy of the no-alloc SCRATCH_MAX buffer), and the decoded args borrow
+    // inside `with_calldata_and_auth_tokens`: the calldata buffer is a local
+    // of that (per-contract, shared) frame, filled in place — no by-value
+    // copy of the no-alloc SCRATCH_MAX buffer — and the decoded args borrow
     // it for the whole frame.
+    //
+    // The `as fn(..)` cast is load-bearing for codesize: the handler closure
+    // captures nothing, and erasing its unique closure type makes every
+    // entrypoint hit the same `fn`-pointer instantiation of the
+    // (`#[inline(never)]`) calldata machinery, instead of monomorphizing a
+    // byte-identical ~440-byte copy of it per export.
     let wrapped_call = quote! {{
         //
         // If debug mode: log the method-call
         #log_guest_call
 
-        ::sdk::contract_op::with_calldata_and_auth_tokens(|calldata, auth_token_ids| {
+        ::sdk::contract_op::with_calldata_and_auth_tokens((|calldata, auth_token_ids| {
             let res = {
 
                 // Load contract state
@@ -454,7 +460,7 @@ pub fn generate_method(
 
             // Return the result to the VM
             ::sdk::contract_return_encoded(&res);
-        })
+        }) as fn(&::sdk::contract_op::Calldata, &::sdk::contract_op::AuthTokenIdBuf))
     }};
 
     // Include method info in debugging context (when enabled)
@@ -608,6 +614,30 @@ mod tests {
             .to_string();
 
         assert!(generated.contains("mod custom"));
+    }
+
+    #[test]
+    fn export_wrappers_use_outlined_calldata_shim() {
+        let config = parse_config(r#"interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        // The handler must reach the SDK as a plain `fn` pointer so all
+        // entrypoints share one instantiation of the calldata machinery. A
+        // closure passed uncast monomorphizes the whole fetch/borrow/throw
+        // machinery once per entrypoint (~440 B each in the optimized wasm).
+        assert!(
+            generated.contains(
+                "as fn (& :: sdk :: contract_op :: Calldata , \
+                 & :: sdk :: contract_op :: AuthTokenIdBuf)"
+            ),
+            "generated: {generated}"
+        );
     }
 
     #[test]

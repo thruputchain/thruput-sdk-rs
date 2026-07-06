@@ -33,12 +33,12 @@ mod _ref_impl {
     /// be used in statics — the by-reference companion to [`ContractCell`]
     /// for state that must be borrowed in place (e.g. the SDK's fixed
     /// buffers, which would cost a stack copy if moved through `Cell`).
-    /// Declare via [`contract_local!`](crate::contract_local) and access
-    /// with [`ContractLocalRef::with_ref`], which works identically against
-    /// the guest static and the test env's thread-local.
+    /// Declare via [`contract_local!`](crate::contract_local); the SDK
+    /// accesses it through a crate-private checkout trait that works
+    /// identically against the guest static and the test env's
+    /// thread-local.
     ///
     /// [`ContractCell`]: super::ContractCell
-    /// [`ContractLocalRef::with_ref`]: super::ContractLocalRef::with_ref
     pub struct ContractRefCell<T>(core::cell::RefCell<T>);
 
     // SAFETY: single-threaded guest, no interrupts; the test environment
@@ -67,7 +67,11 @@ pub use _ref_impl::*;
 /// Uniform access to a [`contract_local!`](crate::contract_local)
 /// [`ContractRefCell`] static: implemented by the guest static itself and by
 /// the test env's `LocalKey`, so `CELL.with_ref(|c| ...)` works in both.
-pub trait ContractLocalRef<T> {
+///
+/// Crate-private on purpose: the checkout-or-fresh policy encodes
+/// SDK-internal invariants about the scratch cells, and contracts should
+/// not build on it.
+pub(crate) trait ContractLocalRef<T> {
     fn with_ref<R>(
         &'static self,
         f: impl FnOnce(&core::cell::RefCell<T>) -> R,
@@ -108,6 +112,38 @@ pub trait ContractLocalRef<T> {
 fn fresh_fallback<T, R>(fresh: fn() -> T, f: impl FnOnce(&mut T) -> R) -> R {
     let mut value = fresh();
     f(&mut value)
+}
+
+#[cfg(all(
+    test,
+    not(any(target_family = "wasm", target_arch = "riscv32")),
+    feature = "std"
+))]
+mod tests {
+    use super::*;
+
+    crate::contract_local! {
+        static CELL: ContractRefCell<u32> = const { ContractRefCell::new(1) };
+    }
+
+    /// A re-entrant checkout (e.g. a throw while the write scratch is
+    /// borrowed for encoding, or the native mock's nested in-process
+    /// frames) must get a fresh transient value, and the cached value must
+    /// survive it.
+    #[test]
+    fn reentrant_checkout_falls_back_to_fresh() {
+        let inner_saw = CELL.with_mut_or_fresh(
+            || 42,
+            |outer| {
+                *outer = 7;
+                CELL.with_mut_or_fresh(|| 42, |inner| *inner)
+            },
+        );
+        assert_eq!(inner_saw, 42);
+
+        // The cached value survives; the fresh one was transient.
+        CELL.with_mut_or_fresh(|| 42, |v| assert_eq!(*v, 7));
+    }
 }
 
 // Guest environment: wrap
