@@ -74,17 +74,26 @@ impl Bytestring {
     /// Reads the stored bytestring.
     ///
     /// **Aborts** if the key is missing or holds a value of another type. Use
-    /// [`try_get`](Self::try_get) for an optional read.
+    /// [`try_get`](Self::try_get) to handle those cases gracefully.
     #[cfg(feature = "alloc")]
     pub fn get(&self) -> alloc::boxed::Box<[u8]> {
         bytestring_get(&self.key)
     }
 
-    /// Reads the stored bytestring, or returns `None` if the key is missing.
+    /// Reads the stored bytestring, reporting failure as `Err` instead of
+    /// aborting (the `try_` law; see the [`exn`](mod@crate::exn) module
+    /// docs).
     ///
-    /// (Aborts only if a value of another type occupies the key.)
+    /// A missing key is an `Err` for which
+    /// [`is_storage_missing`](crate::exn::LibraryExn::is_storage_missing)
+    /// is true — use
+    /// [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing) to
+    /// treat just that case as an ordinary `None`. A value of another
+    /// storage type or any other syscall failure is a `LibraryExn::Syscall`.
     #[cfg(feature = "alloc")]
-    pub fn try_get(&self) -> Option<alloc::boxed::Box<[u8]>> {
+    pub fn try_get(
+        &self,
+    ) -> Result<alloc::boxed::Box<[u8]>, crate::exn::LibraryExn> {
         bytestring_try_get(&self.key)
     }
 }

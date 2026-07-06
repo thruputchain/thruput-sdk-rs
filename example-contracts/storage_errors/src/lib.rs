@@ -52,6 +52,6 @@ impl StorageErrorContract {
 
     /// Try to get a map entry. Returns 0 if not found.
     pub fn map_try_get(&self, key: u64) -> u64 {
-        self.names.at(&key).try_get().unwrap_or(0)
+        self.names.at(&key).try_get().none_if_missing().unwrap_or(0)
     }
 }

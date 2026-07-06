@@ -1,6 +1,7 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
 use sdk::contract_test;
+use sdk::exn::NoneIfMissing;
 use sdk::storage::*;
 use sdk::{Deletable, Storage};
 
@@ -49,7 +50,7 @@ contract_test!(test_map_entry {
 
     // Check that the entry starts empty
     {
-        let v = map.at(&slot).try_get();
+        let v = map.at(&slot).try_get().none_if_missing();
         assert_eq!(v, None);
     }
 
@@ -62,7 +63,7 @@ contract_test!(test_map_entry {
 
     // Check that the entry has the value
     {
-        let v = map.at(&slot).try_get();
+        let v = map.at(&slot).try_get().none_if_missing();
         assert_eq!(v, Some(value));
     }
 
@@ -75,7 +76,7 @@ contract_test!(test_map_entry {
 
     // Check
     {
-        let v = map.at(&slot).try_get();
+        let v = map.at(&slot).try_get().none_if_missing();
         assert_eq!(v, Some(value));
     }
 
@@ -90,7 +91,7 @@ contract_test!(test_map_entry {
 
     // Check
     {
-        let v = map.at(&slot).try_get();
+        let v = map.at(&slot).try_get().none_if_missing();
         assert_eq!(v, Some(value));
     }
 });
@@ -167,7 +168,7 @@ contract_test!(test_value_basic {
     let mut val: Value<i32> = Keypath::default().into();
 
     // Initially empty
-    assert_eq!(val.try_get(), None);
+    assert_eq!(val.try_get().none_if_missing(), None);
 
     // Set a value
     val.set(&42);
@@ -179,7 +180,7 @@ contract_test!(test_value_basic {
 
     // Delete
     val.delete();
-    assert_eq!(val.try_get(), None);
+    assert_eq!(val.try_get().none_if_missing(), None);
 });
 
 contract_test!(test_value_load_mut {
@@ -204,7 +205,7 @@ contract_test!(test_map_at_value {
     map.at_mut(&1u32).set(&100);
 
     // Read via at
-    let v = map.at(&1u32).try_get();
+    let v = map.at(&1u32).try_get().none_if_missing();
     assert_eq!(v, Some(100));
 
     // Modify via load_mut through at_mut
@@ -286,22 +287,22 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     };
 
     // Before delete: elements are readable
-    assert_eq!(elem(&values_kp, 0).try_get(), Some(100));
-    assert_eq!(elem(&values_kp, 1).try_get(), Some(200));
-    assert_eq!(elem(&values_kp, 2).try_get(), Some(300));
+    assert_eq!(elem(&values_kp, 0).try_get().none_if_missing(), Some(100));
+    assert_eq!(elem(&values_kp, 1).try_get().none_if_missing(), Some(200));
+    assert_eq!(elem(&values_kp, 2).try_get().none_if_missing(), Some(300));
 
     // Delete the whole vector
     vec.delete();
 
     // After delete: all element storage is gone
-    assert_eq!(elem(&values_kp, 0).try_get(), None);
-    assert_eq!(elem(&values_kp, 1).try_get(), None);
-    assert_eq!(elem(&values_kp, 2).try_get(), None);
+    assert_eq!(elem(&values_kp, 0).try_get().none_if_missing(), None);
+    assert_eq!(elem(&values_kp, 1).try_get().none_if_missing(), None);
+    assert_eq!(elem(&values_kp, 2).try_get().none_if_missing(), None);
 
     // Length storage is also gone
     let len_kp = root.child(&0u32);
     let len_val: Value<u32> = len_kp.into();
-    assert_eq!(len_val.try_get(), None);
+    assert_eq!(len_val.try_get().none_if_missing(), None);
 });
 
 contract_test!(test_generic_storage_struct {
@@ -327,8 +328,8 @@ contract_test!(test_generic_storage_struct_delete {
 
     pair.delete();
 
-    assert_eq!(pair.first.try_get(), None);
-    assert_eq!(pair.second.try_get(), None);
+    assert_eq!(pair.first.try_get().none_if_missing(), None);
+    assert_eq!(pair.second.try_get().none_if_missing(), None);
 });
 
 contract_test!(test_nnint_delete {
@@ -337,7 +338,7 @@ contract_test!(test_nnint_delete {
     n.set(42);
     assert_eq!(n.get(), 42);
     n.delete();
-    assert_eq!(n.try_get(), None);
+    assert_eq!(n.try_get().none_if_missing(), None);
 });
 
 contract_test!(test_vector_pop_nnint {
@@ -418,24 +419,49 @@ contract_test!(test_vector_iter_empty {
     assert_eq!(vec.iter().count(), 0);
 });
 
+// (The protocol caps bytestring writes at kBytestringMaxLen = 1024, below
+// the SDK's read scratch, so a stored value too large for the read buffer
+// can't actually be constructed here — the undecodable-value tests below
+// cover the StorageSerialization surface instead.)
+
 #[test]
-fn test_value_oversized_read_aborts() {
-    // Write a raw bytestring larger than ENCODE_MAX (~1 KiB) directly at
-    // the storage key used by a Value<u32>.  The typed try_get must abort
-    // with StorageSerialization because bytestring_get_encode_buf returns
-    // None when the stored length exceeds EncodeBuf's capacity.
+fn test_value_undecodable_read_reports_err() {
+    // Write a raw bytestring that is not a valid encoding of u32 directly
+    // at the storage key used by a Value<u32>. try_get reports
+    // StorageSerialization as an Err — not a storage-missing error.
     let env = sdk::TestEnvironment::no_cost();
     let addr = <sdk::ContractAddress as sdk::Named>::named(
-        "test_value_oversized_read_aborts",
+        "test_value_undecodable_read_reports_err",
     );
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
             let keypath = Keypath::default();
             let key = keypath.generate_key();
-            // Write 1100 bytes — well above the ~1 KiB encode-buffer cap.
-            sdk::bytestring_set(&key, &[0u8; 1100]);
+            sdk::bytestring_set(&key, &[0u8; 900]);
             let val: Value<u32> = keypath.into();
-            val.try_get();
+            let err = val.try_get().unwrap_err();
+            assert!(!err.is_storage_missing());
+            assert_eq!(err, sdk::exn::LibraryExn::StorageSerialization);
+        })
+    });
+    assert!(result.is_success());
+}
+
+#[test]
+fn test_value_undecodable_get_aborts() {
+    // The plain get() on the same undecodable slot aborts with exactly the
+    // exception try_get reports.
+    let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_value_undecodable_get_aborts",
+    );
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let keypath = Keypath::default();
+            let key = keypath.generate_key();
+            sdk::bytestring_set(&key, &[0u8; 900]);
+            let val: Value<u32> = keypath.into();
+            let _ = val.get();
         })
     });
     assert!(!result.is_success());
@@ -528,13 +554,17 @@ fn test_data_fully_consumed() {
 
             {
                 // Decoding (i32, i32) data as i32 leaves bytes unconsumed,
-                // so try_get must abort; the outer assert checks failure.
+                // so try_get reports StorageSerialization (and get() would
+                // abort with the same exception).
                 let value: Value<i32> = keypath.clone().into();
-                value.try_get();
+                assert_eq!(
+                    value.try_get(),
+                    Err(sdk::exn::LibraryExn::StorageSerialization)
+                );
             }
         })
     });
-    assert!(!result.is_success());
+    assert!(result.is_success());
 }
 
 #[derive(sdk::Storage)]

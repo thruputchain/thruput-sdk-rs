@@ -21,7 +21,11 @@ impl VectorTestContract {
     }
 
     pub fn get_value_or_zero(&self, index: u32) -> u64 {
-        self.values.at(index).try_get().unwrap_or(0)
+        self.values
+            .at(index)
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0)
     }
 
     pub fn values_len(&self) -> u32 {

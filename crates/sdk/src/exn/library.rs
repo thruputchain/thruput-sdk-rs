@@ -69,6 +69,15 @@ pub enum LibraryExn {
         )
     )]
     StorageKeypathOverflow = 10,
+
+    #[cfg_attr(
+        feature = "debugging",
+        error(
+            "retrocausal queue entry: expected {expected} bytes, \
+               found {found}"
+        )
+    )]
+    RetrocausalQueueEntryWrongSize { expected: u32, found: u32 } = 11,
 }
 
 impl From<HandlingError> for LibraryExn {
@@ -104,6 +113,49 @@ impl LibraryExn {
             Some(se)
         } else {
             None
+        }
+    }
+
+    /// True if this is a syscall error saying nothing is stored where a
+    /// storage read looked: a missing key
+    /// ([`kSyscallErrorCodeStorageKeyNotExist`](SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist))
+    /// or an empty retro-causal queue
+    /// ([`kSyscallErrorCodeNoRetrocausalQueueEntry`](SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry)).
+    ///
+    /// This is the "graceful" arm of the storage `try_` getters: a `try_get`
+    /// / `try_consume` `Err` for which this returns `false` means the read
+    /// failed for a reason other than absence (wrong storage type at the
+    /// key, a corrupt encoding, a host fault).
+    pub fn is_storage_missing(&self) -> bool {
+        match self.as_syscall_exn() {
+            Some(se) => {
+                se.has_code(
+                    SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
+                ) || se.has_code(
+                    SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
+                )
+            }
+            None => false,
+        }
+    }
+}
+
+/// Recover the pre-`Result` storage-getter semantics from a `try_` read:
+/// "absent is an ordinary outcome, anything else is not my problem".
+pub trait NoneIfMissing<T> {
+    /// `Ok(v)` → `Some(v)`; an [`is_storage_missing`](LibraryExn::is_storage_missing)
+    /// error → `None`; any other error re-throws (aborts, typed).
+    fn none_if_missing(self) -> Option<T>;
+}
+
+impl<T> NoneIfMissing<T> for Result<T, LibraryExn> {
+    #[cfg_attr(feature = "debugging", track_caller)]
+    fn none_if_missing(self) -> Option<T> {
+        use crate::re_throw::ReThrow;
+        match self {
+            Ok(v) => Some(v),
+            Err(e) if e.is_storage_missing() => None,
+            Err(e) => e.re_throw(),
         }
     }
 }
