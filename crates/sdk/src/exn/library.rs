@@ -1,7 +1,7 @@
 use super::fault::*;
 use super::{AuthTokenError, CallingError, HandlingError};
 use crate::ContractTypeSpec;
-use crate::call::RawCallError;
+use crate::call::CallFault;
 use crate::sys::{SysErr, SyscallErrorCode, SyscallNo};
 use crate::xdr::*;
 use core::error::Error;
@@ -148,7 +148,7 @@ pub fn nnint_underflow() -> ! {
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn decoding_args_throw(e: &RawCallError<core::convert::Infallible>) -> ! {
+pub fn decoding_args_throw(e: &CallFault) -> ! {
     library_throw(HandlingError::DecodingArgs(FaultString::from_display(e)))
 }
 

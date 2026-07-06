@@ -37,6 +37,16 @@ pub enum RawCallError<X = RawException> {
     EncodingArgs(FaultString),
 }
 
+/// A call failure with no exception payload: the target never ran
+/// ([`Invalid`](RawCallError::Invalid)), faulted, or the host's returned
+/// data failed validation. The `Exception` variant is statically
+/// uninhabited ([`Infallible`](core::convert::Infallible)) — on these
+/// paths an abort is not an error; it surfaces as
+/// [`CallOutcome::Abort`](crate::call::CallOutcome::Abort) with the
+/// payload in the caller's buffer. (Crate-internal code widens into a
+/// `RawCallError<X>` with `widen_uninhabited_exn`.)
+pub type CallFault = RawCallError<core::convert::Infallible>;
+
 #[cfg(feature = "debugging")]
 impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

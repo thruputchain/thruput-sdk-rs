@@ -186,7 +186,7 @@ pub fn contract_call<A>(
     flags: crate::invoke_config::InvokeFlagSet,
     return_buf: &mut ReturnBuf,
     returned_auth_token_ids: &mut AuthHandleBuf,
-) -> Result<CallOutcome, RawCallError<core::convert::Infallible>>
+) -> Result<CallOutcome, CallFault>
 where
     A: AsRef<[u8]> + ?Sized,
 {
@@ -239,9 +239,7 @@ where
 /// Widen a `RawCallError` whose `Exception` variant is uninhabited
 /// ([`core::convert::Infallible`]) to any `X`: the `Exception` arm can
 /// never actually be constructed, so this just relabels the type.
-pub(crate) fn widen_uninhabited_exn<X>(
-    e: RawCallError<core::convert::Infallible>,
-) -> RawCallError<X> {
+pub(crate) fn widen_uninhabited_exn<X>(e: CallFault) -> RawCallError<X> {
     match e {
         RawCallError::Invalid => RawCallError::Invalid,
         RawCallError::Exception(x) => match x {},
