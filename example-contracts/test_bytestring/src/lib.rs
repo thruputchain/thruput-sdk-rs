@@ -4,52 +4,55 @@ use sdk::*;
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "0"))]
 pub extern "C" fn write_bytestring() -> i32 {
-    with_calldata_and_auth_tokens(|calldata, _| {
-        let calldata: &[u8] = calldata.as_ref();
-        let key_array: [u8; 32] = calldata.try_into().unwrap();
-        let key = key_array.into();
+    let mut __calldata_buf = sdk::internal::new_scratch();
+    let mut __auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens(&mut __calldata_buf, &mut __auth_ids);
+    let calldata: &[u8] = __calldata_buf.as_ref();
+    let key_array: [u8; 32] = calldata.try_into().unwrap();
+    let key = key_array.into();
 
-        let string = &calldata[32..];
+    let string = &calldata[32..];
 
-        bytestring_set(&key, string);
-    });
+    bytestring_set(&key, string);
 
     0
 }
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "1"))]
 pub extern "C" fn log_bytestring() -> i32 {
-    with_calldata_and_auth_tokens(|calldata, _| {
-        let calldata: &[u8] = calldata.as_ref();
-        let key_array: [u8; 32] = calldata.try_into().unwrap();
-        let key = key_array.into();
+    let mut __calldata_buf = sdk::internal::new_scratch();
+    let mut __auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens(&mut __calldata_buf, &mut __auth_ids);
+    let calldata: &[u8] = __calldata_buf.as_ref();
+    let key_array: [u8; 32] = calldata.try_into().unwrap();
+    let key = key_array.into();
 
-        if calldata.len() != 32 {
-            panic!("bad calldata len");
-        }
+    if calldata.len() != 32 {
+        panic!("bad calldata len");
+    }
 
-        let bstring = bytestring_get(&key);
+    let bstring = bytestring_get(&key);
 
-        log(&bstring);
-    });
+    log(&bstring);
 
     0
 }
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "2"))]
 pub extern "C" fn expect_bytestring() -> i32 {
-    with_calldata_and_auth_tokens(|calldata, _| {
-        let calldata: &[u8] = calldata.as_ref();
-        let key_array: [u8; 32] = calldata.try_into().unwrap();
-        let key = key_array.into();
+    let mut __calldata_buf = sdk::internal::new_scratch();
+    let mut __auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens(&mut __calldata_buf, &mut __auth_ids);
+    let calldata: &[u8] = __calldata_buf.as_ref();
+    let key_array: [u8; 32] = calldata.try_into().unwrap();
+    let key = key_array.into();
 
-        let bstring = bytestring_get(&key);
-        let expected_bstring = &calldata[32..];
+    let bstring = bytestring_get(&key);
+    let expected_bstring = &calldata[32..];
 
-        if bstring.as_ref() != expected_bstring {
-            panic!("unexpected bytestring");
-        }
-    });
+    if bstring.as_ref() != expected_bstring {
+        panic!("unexpected bytestring");
+    }
 
     0
 }
