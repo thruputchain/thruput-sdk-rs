@@ -356,11 +356,13 @@ crate::contract_local! {
 /// plumbing as [`with_calldata_and_auth_tokens`] — the `try_` law (see the
 /// [`exn`](mod@crate::exn) module docs) applies: the only way this aborts
 /// the VM is through `f` itself. The `Err` arm is guest-reachable via a
-/// `kGetCalldata` syscall failure, which is not limited to an adversarial
-/// host: in the no-alloc guest it is exactly what an ordinary transaction
-/// gets if its calldata exceeds `SCRATCH_MAX` (4096) bytes or carries more
-/// than 32 auth tokens — the primary case this API exists to report through
-/// `Err` rather than aborting on.
+/// `kGetCalldata` fetch failure (surfaced as a `LibraryExn::Syscall` value;
+/// the syscall itself may succeed while the SDK wrapper rejects the data),
+/// which is not limited to an adversarial host: in the no-alloc guest it is
+/// exactly what an ordinary transaction gets if its calldata exceeds
+/// `SCRATCH_MAX` (4096) bytes or carries more than 32 auth tokens — the
+/// primary case this API exists to report through `Err` rather than
+/// aborting on.
 ///
 /// The buffers live in the per-instance calldata cell — a guest `static` —
 /// so the (SCRATCH_MAX-byte, no-alloc) calldata buffer costs no stack and

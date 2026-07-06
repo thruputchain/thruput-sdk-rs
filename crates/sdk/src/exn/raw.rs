@@ -156,11 +156,15 @@ fn fmt_exn(
 /// An exception caught and detached from the call scratch: the payload is
 /// copied once, into storage owned by the value itself, so it survives
 /// arbitrary later SDK operations (including re-use of the call scratch).
+/// Without `alloc` that storage is a fixed `SCRATCH_MAX`-capacity inline
+/// buffer, so the value (and any error enum holding it) is roughly 4 KiB;
+/// under `alloc` it is an exact-size heap allocation.
 ///
-/// Deliberately not encodable: there is no `WriteXDR` impl. [`re_throw`](Self::re_throw)
-/// aborts with the verbatim wire bytes, and [`selector`](Self::selector) /
-/// [`payload`](Self::payload) cover inspection — that is the type's whole
-/// surface.
+/// Deliberately not encodable: there is no `WriteXDR` impl.
+/// [`re_throw`](Self::re_throw) aborts with the verbatim wire bytes;
+/// [`try_as`](Self::try_as) decodes to a typed exception, with
+/// [`selector`](Self::selector) / [`payload`](Self::payload) for raw
+/// inspection.
 pub struct RawException {
     selector: u64,
     /// Full abort wire bytes: `[CXS(selector)][payload]` — kept verbatim so
