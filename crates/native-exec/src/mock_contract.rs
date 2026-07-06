@@ -64,11 +64,11 @@ impl MockContract {
     where
         F: Fn() + UnwindSafe + Clone + 'static,
     {
-        let index = unsafe { (*self.contract).index };
+        let contract = self.as_contract();
         unsafe {
             (*self.contract)
                 .funcs
-                .insert(id, invoke_wrapper(index, id, func))
+                .insert(id, invoke_wrapper(contract, id, func))
         };
     }
 

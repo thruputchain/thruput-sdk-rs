@@ -135,7 +135,11 @@ fn cross_call_frames_produce_labeled_alloc_records() {
         "one cross-call frame must produce one record, got {records:?}"
     );
     assert_eq!(records[0].entrypoint, entrypoint);
-    assert_eq!(records[0].mock_contract_index, 0);
+    assert_eq!(
+        *records[0].contract(),
+        mock.as_contract(),
+        "the record identifies the invoked mock via its Contract"
+    );
     assert!(
         records[0].stats.bytes_total >= MOCK_ALLOC as u64,
         "callee frame must be charged its 32 KiB Vec, got {:?}",

@@ -43,7 +43,7 @@
 //!   boundaries is not charged; the real guest keeps one heap across
 //!   the whole frame.
 
-use groundhog_xdr::contract::ContractEntrypointID;
+use groundhog_xdr::contract::{Contract, ContractEntrypointID};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::{Cell, RefCell};
 
@@ -78,12 +78,31 @@ impl AllocStats {
 /// contract method, i.e. one `client.foo()` frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameAllocRecord {
-    /// Index of the mock contract (`Contract::kMockTest { mock_contract_id }`).
-    pub mock_contract_index: i32,
+    contract: Contract,
     /// Entrypoint that was invoked.
     pub entrypoint: ContractEntrypointID,
     /// Exclusive allocation stats for the frame.
     pub stats: AllocStats,
+}
+
+impl FrameAllocRecord {
+    pub(crate) fn new(
+        contract: Contract,
+        entrypoint: ContractEntrypointID,
+        stats: AllocStats,
+    ) -> Self {
+        Self {
+            contract,
+            entrypoint,
+            stats,
+        }
+    }
+
+    /// The mock contract whose method this frame invoked; compare
+    /// against [`crate::mock_contract::MockContract::as_contract`].
+    pub fn contract(&self) -> &Contract {
+        &self.contract
+    }
 }
 
 // The thread's measurement context: the counters of the *innermost
@@ -406,12 +425,18 @@ mod tests {
         assert_eq!(parent_stats.allocs, 1);
     }
 
-    fn record(index: i32) -> FrameAllocRecord {
-        FrameAllocRecord {
-            mock_contract_index: index,
-            entrypoint: ContractEntrypointID::from_u64(0x1122_3344),
-            stats: AllocStats::ZERO,
+    fn kmock(index: i32) -> Contract {
+        Contract::kMockTest {
+            mock_contract_id: index,
         }
+    }
+
+    fn record(index: i32) -> FrameAllocRecord {
+        FrameAllocRecord::new(
+            kmock(index),
+            ContractEntrypointID::from_u64(0x1122_3344),
+            AllocStats::ZERO,
+        )
     }
 
     #[test]
@@ -472,12 +497,12 @@ mod tests {
         push_frame_record(record(3));
         let inner = take_records_from(inner_start);
         assert_eq!(inner.len(), 1);
-        assert_eq!(inner[0].mock_contract_index, 3);
+        assert_eq!(*inner[0].contract(), kmock(3));
 
         let outer = take_records_from(outer_start);
         assert_eq!(outer.len(), 2);
-        assert_eq!(outer[0].mock_contract_index, 1);
-        assert_eq!(outer[1].mock_contract_index, 2);
+        assert_eq!(*outer[0].contract(), kmock(1));
+        assert_eq!(*outer[1].contract(), kmock(2));
 
         assert_eq!(records_len(), outer_start);
         window.close();

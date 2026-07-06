@@ -79,9 +79,9 @@ access.)
 
 1. **`invoke_wrapper`** (cross-call frames — the primary target): the
    existing wrap-a-contract-fn-for-FFI chokepoint takes the
-   `(mock_contract_index, entrypoint)` label, opens a scope around its
+   `(Contract, entrypoint)` label, opens a scope around its
    `catch_unwind` (so abort paths measure too), and pushes a
-   `FrameAllocRecord { mock_contract_index, entrypoint, stats }` into a
+   `FrameAllocRecord { contract, entrypoint, stats }` into a
    thread-local log. The log is internal: each enclosing frame window
    claims the records pushed during it (an index snapshot at window
    start + `split_off` at close — inner windows claim their tail first,

@@ -227,10 +227,10 @@ mod tests {
 // Each call of the returned closure is one cross-call invocation frame
 // (its own guest instance in the real system), so it is also measured
 // as its own allocation scope and logged as a frame record labeled
-// with the mock contract index and entrypoint. The scope closes after
+// with the invoked contract and entrypoint. The scope closes after
 // the catch_unwind, so abort/panic paths are measured too.
 pub fn invoke_wrapper<'a, F>(
-    mock_contract_index: i32,
+    contract: groundhog_xdr::contract::Contract,
     entrypoint: groundhog_xdr::contract::ContractEntrypointID,
     wrapped: F,
 ) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
@@ -242,11 +242,11 @@ where
         let scope = crate::alloc_stats::FrameMeasureScope::open();
         let result = panic::catch_unwind(w);
         crate::alloc_stats::push_frame_record(
-            crate::alloc_stats::FrameAllocRecord {
-                mock_contract_index,
+            crate::alloc_stats::FrameAllocRecord::new(
+                contract.clone(),
                 entrypoint,
-                stats: scope.close(),
-            },
+                scope.close(),
+            ),
         );
 
         match result {

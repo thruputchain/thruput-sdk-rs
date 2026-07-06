@@ -7,7 +7,9 @@ use std::panic::panic_any;
 /// with a throwaway contract-index/entrypoint label.
 fn wrap(f: fn()) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
     invoke_wrapper(
-        0,
+        groundhog_xdr::contract::Contract::kMockTest {
+            mock_contract_id: 0,
+        },
         groundhog_xdr::contract::ContractEntrypointID::from_u64(0),
         f,
     )
