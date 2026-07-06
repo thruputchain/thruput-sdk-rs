@@ -14,11 +14,11 @@
 //! buffer embedded in the value (the same buffer type backing the call
 //! scratch), so `RawException` — and any error enum containing one — is
 //! roughly 4 KiB. That size is a deliberate trade of stack for uniformity:
-//! catch semantics are identical in both builds, with no shared/occupancy
-//! state — any number of `RawException`s may be live concurrently, the
-//! same as under `alloc`. The cost is paid per live value (stack, not a
-//! static), and the memcpy that fills it only runs when an undecodable
-//! exception is actually caught.
+//! catch semantics are identical in both builds — each `RawException` owns
+//! its buffer, so any number may be live concurrently, the same as under
+//! `alloc`. The cost is paid per live value (stack, not a static), and the
+//! memcpy that fills it only runs when an undecodable exception is actually
+//! caught.
 //!
 //! Zero-copy operations — [`RawExceptionRef::try_as`], [`RawExceptionRef::payload`],
 //! [`RawExceptionRef::re_throw`] — never allocate or copy; only
@@ -99,8 +99,23 @@ impl<'s> RawExceptionRef<'s> {
     #[inline]
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
+        self.re_throw_shown(self)
+    }
+
+    /// Shared re-throw body: aborts with `self`'s wire bytes, but prints
+    /// `shown`'s `Debug` form in the breadcrumb rather than `self`'s. Lets
+    /// [`RawException::re_throw`] delegate here (via [`as_ref_exn`](RawException::as_ref_exn))
+    /// while still breadcrumbing as "RawException {...}" rather than
+    /// "RawExceptionRef {...}" — the type the caller actually held.
+    #[inline]
+    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(
+        not(all(feature = "debugging", feature = "std")),
+        allow(unused_variables)
+    )]
+    fn re_throw_shown(&self, shown: &dyn core::fmt::Debug) -> ! {
         #[cfg(all(feature = "debugging", feature = "std"))]
-        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
+        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", shown);
 
         crate::contract_op::contract_abort(self.wire)
     }
@@ -109,7 +124,7 @@ impl<'s> RawExceptionRef<'s> {
     /// be live at once; without `alloc` each value carries its own fixed
     /// SCRATCH_MAX-capacity buffer.
     pub fn to_owned(&self) -> RawException {
-        RawException::own_wire(self.wire, self.selector, self.payload_start)
+        RawException::own_wire(self)
     }
 }
 
@@ -141,6 +156,11 @@ fn fmt_exn(
 /// An exception caught and detached from the call scratch: the payload is
 /// copied once, into storage owned by the value itself, so it survives
 /// arbitrary later SDK operations (including re-use of the call scratch).
+///
+/// Deliberately not encodable: there is no `WriteXDR` impl. [`re_throw`](Self::re_throw)
+/// aborts with the verbatim wire bytes, and [`selector`](Self::selector) /
+/// [`payload`](Self::payload) cover inspection — that is the type's whole
+/// surface.
 pub struct RawException {
     selector: u64,
     /// Full abort wire bytes: `[CXS(selector)][payload]` — kept verbatim so
@@ -150,15 +170,15 @@ pub struct RawException {
 }
 
 impl RawException {
-    /// Copy `wire` (already parsed: `selector`, `payload_start`) out of the
-    /// caller's borrow into owned storage.
+    /// Copy `exn`'s wire bytes out of the caller's borrow into owned
+    /// storage, carrying over its already-parsed `selector`/`payload_start`
+    /// so the two stay consistent by construction.
     ///
     /// Called by [`RawExceptionRef::to_owned`].
-    pub(crate) fn own_wire(
-        wire: &[u8],
-        selector: u64,
-        payload_start: usize,
-    ) -> Self {
+    pub(crate) fn own_wire(exn: &RawExceptionRef<'_>) -> Self {
+        let selector = exn.selector;
+        let payload_start = exn.payload_start;
+        let wire = exn.wire;
         #[cfg(feature = "alloc")]
         let wire = wire.to_vec();
         #[cfg(not(feature = "alloc"))]
@@ -181,11 +201,13 @@ impl RawException {
         }
     }
 
+    #[inline]
     pub fn selector(&self) -> u64 {
         self.selector
     }
 
     /// The exception payload (everything after the selector prefix).
+    #[inline]
     pub fn payload(&self) -> &[u8] {
         &self.wire.as_slice()[self.payload_start..]
     }
@@ -206,13 +228,17 @@ impl RawException {
     }
 
     /// Re-throw to our caller with the original wire bytes, verbatim.
+    #[inline]
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
         // The breadcrumb print (and the abort itself) live in
-        // `RawExceptionRef::re_throw`; both functions are `track_caller`, so
-        // the reported location is still the original call site here, not
-        // this delegation.
-        self.as_ref_exn().re_throw()
+        // `RawExceptionRef::re_throw_shown`; every function in the chain is
+        // `track_caller`, so the reported location is still the original
+        // call site here, not this delegation. Passing `self` (rather than
+        // `self.as_ref_exn().re_throw()`) keeps the breadcrumb's `Debug`
+        // output labeled "RawException {...}", matching the type this
+        // caller actually holds.
+        self.as_ref_exn().re_throw_shown(self)
     }
 
     /// Build from a selector and payload. Test/mock construction.

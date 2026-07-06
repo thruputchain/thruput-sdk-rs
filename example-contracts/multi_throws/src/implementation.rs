@@ -98,7 +98,8 @@ impl MultiThrows for Contract {
 
         // Catch two BadDecode exceptions and hold BOTH alive at once —
         // pins that no-alloc catching is unlimited/concurrent, exactly
-        // like `alloc` (no shared per-instance slot to contend over).
+        // like `alloc` (each caught exception owns its buffer, so any
+        // number may be live concurrently).
         let caught1 = match client.try_throw_undecodable() {
             Err(MultiClientError::BadDecode(c)) => c,
             other => client_library_throw(LibraryExn::Called(

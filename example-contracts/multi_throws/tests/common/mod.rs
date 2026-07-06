@@ -107,8 +107,7 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
                 "OK: bad decode error with selector 0x{:016X}",
                 raw.selector()
             );
-            let decoded: u32 =
-                sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
             println!("OK: try_as decoded UndecodableError successfully");
@@ -131,8 +130,7 @@ pub fn multi_throws_test_relay_preserves_payload(contract_hash: &SHA256Hash) {
             // catching the exception and re-throwing it. Guards against a
             // future regression where the detach copy is skipped.
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
-            let decoded: u32 =
-                sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: relay preserved selector and payload verbatim");
         }
@@ -154,8 +152,7 @@ pub fn multi_throws_test_relay_payload_readable_after_interleave(
         Err(MultiClientError::BadDecode(raw)) => {
             let payload_len = raw.payload().len();
             assert!(payload_len > 0, "payload must be non-empty");
-            let decoded: u32 =
-                sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             // Read it again to confirm the slot wasn't consumed/cleared by
             // the first read.
@@ -179,13 +176,12 @@ pub fn multi_throws_test_relay_undecodable_twice(contract_hash: &SHA256Hash) {
     // simultaneously (asserting both decode correctly across an
     // interleaved scratch-reusing op), then re-throws the first. Pins the
     // owner-directed guarantee: no-alloc catching is unlimited/concurrent,
-    // identical to `alloc` — no shared per-instance slot, no "at most one
-    // live" restriction.
+    // identical to `alloc` — each caught exception owns its buffer, so any
+    // number may be live concurrently.
     match client.try_relay_undecodable_twice(addr2) {
         Err(MultiClientError::BadDecode(raw)) => {
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
-            let decoded: u32 =
-                sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!(
                 "OK: two concurrently-held caught exceptions both survived interleave; outer re-throw verbatim"
@@ -206,8 +202,7 @@ pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
                 raw.selector()
             );
             assert_eq!(raw.selector(), LibraryExn::SELECTOR);
-            let decoded: u32 =
-                sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: try_as decoded UndecodableError successfully");
         }

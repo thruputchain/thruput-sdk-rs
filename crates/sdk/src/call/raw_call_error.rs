@@ -108,12 +108,7 @@ where
             return_val.0.as_slice(),
             return_val.1.as_slice(),
         )
-        .map(Ok)
-        .unwrap_or_else(|e| {
-            Err(RawCallError::UnparseableReturn(FaultString::from_display(
-                e,
-            )))
-        }),
+        .map_err(crate::call::widen_uninhabited_exn),
         Err(ContractError::Abort(abort_buf)) => {
             match RawException::from_abort_buf(abort_buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),

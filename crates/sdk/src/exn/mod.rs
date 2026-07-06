@@ -11,12 +11,12 @@
 //! surprise them with an abort that their own closure didn't cause.
 //! [`RawExceptionRef::try_as`], [`RawException::try_as`],
 //! [`crate::call::try_call_raw_with`], and
-//! [`crate::contract_op::try_with_calldata_and_auth_tokens`] hold this law;
-//! see the branch's audit report for the full accounting. (Some
-//! longer-established `try_` storage getters predate this law and instead
-//! follow an older, narrower contract — "`None` on a missing key, but still
-//! aborts on other storage/decode invariant violations" — documented at
-//! each such call site.)
+//! [`crate::contract_op::try_with_calldata_and_auth_tokens`] hold this law
+//! (the list above is illustrative, not exhaustive). Some longer-established
+//! `try_` storage getters are the one exception class: they predate this law
+//! and instead follow an older, narrower contract — "`None` on a missing
+//! key, but still aborts on other storage/decode invariant violations" —
+//! documented at each such call site.
 
 pub(crate) mod cross_exn;
 mod fault;

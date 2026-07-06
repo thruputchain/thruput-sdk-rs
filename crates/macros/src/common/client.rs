@@ -268,11 +268,8 @@ fn generate_client_fn(
         // so that exceptions may be inspected.
         ///
         /// An `Err` may hold a caught exception (the `Unknown` / `BadDecode`
-        /// variants): an owned copy of the wire bytes, independent of any
-        /// later SDK call. No-alloc guest: that copy is an inline
-        /// `SCRATCH_MAX`-capacity buffer, so this `Result`'s `Err` variant is
-        /// roughly 4 KiB on the stack; catch semantics (including holding
-        /// more than one at once) are identical to the `alloc` build.
+        /// variants, each an owned [`RawException`](::sdk::exn::RawException)) —
+        /// see that type's docs for size/ownership.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
         pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
@@ -344,23 +341,13 @@ fn generate_error_enum(
             Fault(::sdk::exn::FaultString),
             /// An exception whose selector doesn't match any declared throw
             /// type. Holds an owned [`RawException`](::sdk::exn::RawException)
-            /// — the wire bytes copied out of the call scratch, so it
-            /// survives arbitrary later SDK operations. No-alloc guest: the
-            /// copy is an inline `SCRATCH_MAX`-capacity buffer, so this
-            /// variant (and the enum as a whole) is roughly 4 KiB; any
-            /// number of caught exceptions may be live at once, same as
-            /// under `alloc`.
+            /// — see that type's docs for size/ownership.
             Unknown(::sdk::exn::RawException),
             Invalid,
             /// An exception matching a declared selector whose payload
             /// failed to decode. Holds an owned
-            /// [`RawException`](::sdk::exn::RawException) — the wire
-            /// bytes copied out of the call scratch, so it survives
-            /// arbitrary later SDK operations. No-alloc guest: the copy is
-            /// an inline `SCRATCH_MAX`-capacity buffer, so this variant
-            /// (and the enum as a whole) is roughly 4 KiB; any number of
-            /// caught exceptions may be live at once, same as under
-            /// `alloc`.
+            /// [`RawException`](::sdk::exn::RawException) — see that
+            /// type's docs for size/ownership.
             BadDecode(::sdk::exn::RawException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
@@ -388,6 +375,11 @@ fn generate_error_enum(
         }
 
         impl ::sdk::ReThrow for #error_enum_ident {
+            // Unconditional on purpose: user crates don't declare a
+            // `debugging` feature, so a cfg_attr would never fire there —
+            // and the unread Location plumbing is fully eliminated in
+            // optimized guest builds (measured: ±0 bytes across all
+            // example contracts).
             #[track_caller]
             fn re_throw(self) -> ! {
                 use sdk::CallingError;

@@ -24,7 +24,7 @@ use crate::{AuthHandleBuf, sys};
 /// Any SDK op performed inside `on_exn` (a nested call, hashing, emitting an
 /// event) hits the cold fresh-buffer fallback, since the scratch is already
 /// borrowed here (no-alloc: a 4 KiB stack buffer) — keep the closure small:
-/// decode, `re_throw`, or `caught` only.
+/// decode, `re_throw`, or `to_owned` only.
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,
@@ -239,7 +239,7 @@ where
 /// Widen a `RawCallError` whose `Exception` variant is uninhabited
 /// ([`core::convert::Infallible`]) to any `X`: the `Exception` arm can
 /// never actually be constructed, so this just relabels the type.
-fn widen_uninhabited_exn<X>(
+pub(crate) fn widen_uninhabited_exn<X>(
     e: RawCallError<core::convert::Infallible>,
 ) -> RawCallError<X> {
     match e {
