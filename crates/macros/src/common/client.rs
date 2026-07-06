@@ -256,13 +256,20 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                ::sdk::call::try_call_raw::<_, #return_type>(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags)
-                    .or_re_throw()
+                ::sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
+                    &self.address, entrypoint, self.config.gas_limit, &args, self.config.flags,
+                    |exn| exn.re_throw(),
+                )
+                .or_re_throw()
             })
         }
 
         // This method-wrapper returns a Result with the per-client error enum
         // so that exceptions may be inspected.
+        ///
+        /// An `Err` may hold a caught exception (the `Unknown` / `BadDecode`
+        /// variants, each an owned [`RawException`](::sdk::exn::RawException)) —
+        /// see that type's docs for size/ownership.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
         pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
@@ -274,14 +281,13 @@ fn generate_client_fn(
 
             with_call_tracking!(#call_info, {
                 use ::sdk::call::RawCallError;
-                match ::sdk::call::try_call_raw(&self.address, entrypoint, self.config.gas_limit, &args, self.config.flags) {
+                match ::sdk::call::try_call_raw_with::<_, #return_type, #error_enum_ident>(
+                    &self.address, entrypoint, self.config.gas_limit, &args, self.config.flags,
+                    |exn| { #selector_dispatch },
+                ) {
                     Ok(val) => Ok(val),
+                    Err(RawCallError::Exception(e)) => Err(e),
                     Err(RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(RawCallError::Exception(ref exn)) => {
-                        let selector = exn.selector();
-                        let payload = exn.payload();
-                        #selector_dispatch
-                    }
                     Err(RawCallError::Invalid) => Err(#error_enum_ident::Invalid),
                     Err(RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
                     Err(RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
@@ -298,6 +304,8 @@ fn generate_error_enum(
     throws_list: &[ThrownType],
 ) -> TokenStream {
     let error_enum_ident = format_ident!("{}Error", client_ident);
+    let selector_uniqueness_asserts =
+        generate_selector_uniqueness_asserts(throws_list);
 
     let declared_variants: Vec<TokenStream> = throws_list
         .iter()
@@ -331,8 +339,15 @@ fn generate_error_enum(
             #(#declared_variants,)*
             Library(::sdk::exn::LibraryExn),
             Fault(::sdk::exn::FaultString),
+            /// An exception whose selector doesn't match any declared throw
+            /// type. Holds an owned [`RawException`](::sdk::exn::RawException)
+            /// — see that type's docs for size/ownership.
             Unknown(::sdk::exn::RawException),
             Invalid,
+            /// An exception matching a declared selector whose payload
+            /// failed to decode. Holds an owned
+            /// [`RawException`](::sdk::exn::RawException) — see that
+            /// type's docs for size/ownership.
             BadDecode(::sdk::exn::RawException),
             UnparseableReturn(::sdk::exn::FaultString),
             UnparseableAbort(::sdk::exn::FaultString),
@@ -360,6 +375,12 @@ fn generate_error_enum(
         }
 
         impl ::sdk::ReThrow for #error_enum_ident {
+            // Unconditional on purpose: user crates don't declare a
+            // `debugging` feature, so a cfg_attr would never fire there —
+            // and the unread Location plumbing is fully eliminated in
+            // optimized guest builds (measured: ±0 bytes across all
+            // example contracts).
+            #[track_caller]
             fn re_throw(self) -> ! {
                 use sdk::CallingError;
                 use sdk::client_library_throw as cthrow;
@@ -378,46 +399,94 @@ fn generate_error_enum(
                 }
             }
         }
+
+        #selector_uniqueness_asserts
     }
+}
+
+/// Emit a compile-time `assert!` for every unordered pair drawn from the
+/// declared `throws(...)` list plus the implicit `LibraryExn` arm, checking
+/// that no two have the same [`Exn::SELECTOR`](::sdk::exn::Exn). Selectors
+/// are derived from the exception type's own crate/name (not the path the
+/// caller wrote), so two differently-spelled `throws(...)` entries (or a
+/// user re-declaring `throws(sdk::exn::LibraryExn)`, aliasing the implicit
+/// `Library` arm) can name the same underlying type without tripping the
+/// name-based duplicate-variant check in [`ThrowsList::new`]. Left
+/// unchecked, `generate_selector_dispatch` would emit two match arms with
+/// the same constant selector pattern — silently dead code (or an
+/// `unreachable_patterns` warning) rather than a clear build error.
+/// `const _: () = assert!(...)` is evaluated at build time, so this catches
+/// it up front. O(n^2) is fine: throws lists are tiny.
+fn generate_selector_uniqueness_asserts(
+    throws_list: &[ThrownType],
+) -> TokenStream {
+    let mut tys: Vec<TokenStream> = throws_list
+        .iter()
+        .map(|thrown| {
+            let ty = thrown.ty();
+            quote! { #ty }
+        })
+        .collect();
+    tys.push(quote! { ::sdk::exn::LibraryExn });
+
+    let mut asserts = Vec::with_capacity(tys.len() * tys.len() / 2);
+    for i in 0..tys.len() {
+        for j in (i + 1)..tys.len() {
+            let ty_a = &tys[i];
+            let ty_b = &tys[j];
+            // The message literal is assembled at macro-expansion time, so
+            // the const assert can name the colliding pair without any
+            // const-context formatting.
+            let msg = format!(
+                "duplicate exception selector in throws(...) list: `{}` collides with `{}`",
+                ty_a.to_string().replace(' ', ""),
+                ty_b.to_string().replace(' ', ""),
+            );
+            asserts.push(quote! {
+                const _: () = ::core::assert!(
+                    <#ty_a as ::sdk::exn::Exn>::SELECTOR
+                        != <#ty_b as ::sdk::exn::Exn>::SELECTOR,
+                    #msg,
+                );
+            });
+        }
+    }
+
+    quote! { #(#asserts)* }
 }
 
 fn generate_selector_dispatch(
     error_enum_ident: &syn::Ident,
     throws_list: &[ThrownType],
 ) -> TokenStream {
-    let declared_arms: Vec<TokenStream> = throws_list
+    let mut pairs: Vec<(TokenStream, TokenStream)> = throws_list
         .iter()
         .map(|thrown| {
             let variant = thrown.variant();
             let ty = thrown.ty();
+            (quote! { #ty }, quote! { #variant })
+        })
+        .collect();
+    pairs.push((quote! { ::sdk::exn::LibraryExn }, quote! { Library }));
+
+    let arms: Vec<TokenStream> = pairs
+        .iter()
+        .map(|(ty, variant)| {
             quote! {
                 <#ty as ::sdk::exn::Exn>::SELECTOR => {
-                    let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
-                    if err.is_err() {
-                        return Err(#error_enum_ident::BadDecode(
-                            ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))));
+                    match ::sdk::call::contract_call_decode_exn_prefix(exn.payload()) {
+                        Ok(err) => #error_enum_ident::#variant(err),
+                        Err(_) => #error_enum_ident::BadDecode(exn.to_owned()),
                     }
-                    Err(#error_enum_ident::#variant(err.unwrap()))
                 }
             }
         })
         .collect();
 
     quote! {
-        match selector {
-            #(#declared_arms)*
-            <::sdk::exn::LibraryExn as ::sdk::exn::Exn>::SELECTOR => {
-                let err = ::sdk::call::contract_call_decode_exn_prefix(payload);
-                if err.is_err() {
-                    return Err(#error_enum_ident::BadDecode(
-                        ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))));
-                }
-                Err(#error_enum_ident::Library(err.unwrap()))
-            }
-            _ => {
-                Err(#error_enum_ident::Unknown(
-                    ::sdk::OrReThrow::or_re_throw(::sdk::exn::RawException::new(selector, payload))))
-            }
+        match exn.selector() {
+            #(#arms)*
+            _ => #error_enum_ident::Unknown(exn.to_owned()),
         }
     }
 }

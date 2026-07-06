@@ -1,20 +1,29 @@
 //! The raw, untyped error from a contract call.
 
+#[cfg(feature = "alloc")]
 use super::ContractError;
+#[cfg(feature = "alloc")]
 use super::contract_call_decode;
 use crate::exn::{
     CallingError, FaultString, RawException,
     client_library_throw as library_throw,
 };
+#[cfg(feature = "alloc")]
 use crate::{ReceiveAuthHandles, xdr::*};
 
 /// The raw, untyped error from a contract call.
+///
+/// Generic over the exception representation `X`: [`try_call_raw`](super::try_call_raw)
+/// fixes it at the default [`RawException`], while
+/// [`try_call_raw_with`](super::try_call_raw_with) lets the caller's `on_exn`
+/// closure choose (e.g. a typed error enum, or `Infallible` if the closure
+/// re-throws unconditionally).
 #[derive(Debug, PartialEq)]
-pub enum RawCallError {
+pub enum RawCallError<X = RawException> {
     /// The invoke syscall reported invalid parameters
     Invalid,
     /// The called contract threw an exception with a selector-tagged error.
-    Exception(RawException),
+    Exception(X),
     /// The called contract terminated without providing a return value.
     Fault(FaultString),
     /// Decode error: the called contract returned some unparseable return result
@@ -28,22 +37,24 @@ pub enum RawCallError {
     EncodingArgs(FaultString),
 }
 
+/// A call failure with no exception payload: the target never ran
+/// ([`Invalid`](RawCallError::Invalid)), faulted, or the host's returned
+/// data failed validation. The `Exception` variant is statically
+/// uninhabited ([`Infallible`](core::convert::Infallible)) — on these
+/// paths an abort is not an error; it surfaces as
+/// [`CallOutcome::Abort`](crate::call::CallOutcome::Abort) with the
+/// payload in the caller's buffer. (Crate-internal code widens into a
+/// `RawCallError<X>` with `widen_uninhabited_exn`.)
+pub type CallFault = RawCallError<core::convert::Infallible>;
+
 #[cfg(feature = "debugging")]
-impl core::fmt::Display for RawCallError {
+impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             RawCallError::Invalid => {
                 write!(f, "contract not found (or invalid auth tokens)")
             }
-            RawCallError::Exception(exn) => {
-                let payload = exn.payload();
-                write!(
-                    f,
-                    "exception (selector=0x{:016x}, payload={})",
-                    exn.selector(),
-                    crate::hex::hex_encode(&payload)
-                )
-            }
+            RawCallError::Exception(exn) => write!(f, "exception: {exn:?}"),
             RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
             RawCallError::UnparseableReturn(error) => {
                 write!(f, "unparseable return: {error}")
@@ -61,7 +72,9 @@ impl core::fmt::Display for RawCallError {
     }
 }
 
-impl crate::re_throw::ReThrow for RawCallError {
+impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
+    for RawCallError<X>
+{
     #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> ! {
         match self {
@@ -91,6 +104,9 @@ impl crate::re_throw::ReThrow for RawCallError {
 ///
 /// Decoding failure on the success path results in an exception.
 ///
+/// `alloc`-only mock-side plumbing (builds a `RawException` from an owned
+/// abort buffer, which the no-alloc guest never does).
+#[cfg(feature = "alloc")]
 pub fn into_raw_call_result<T>(
     contract_result: crate::call::ContractResult,
 ) -> Result<T, RawCallError>
@@ -98,16 +114,11 @@ where
     T: ReadXDROwned + ReceiveAuthHandles,
 {
     match contract_result {
-        Ok(return_val) => contract_call_decode(
+        Ok(return_val) => contract_call_decode::<T>(
             return_val.0.as_slice(),
             return_val.1.as_slice(),
         )
-        .map(Ok)
-        .unwrap_or_else(|e| {
-            Err(RawCallError::UnparseableReturn(FaultString::from_display(
-                e,
-            )))
-        }),
+        .map_err(crate::call::widen_uninhabited_exn),
         Err(ContractError::Abort(abort_buf)) => {
             match RawException::from_abort_buf(abort_buf.as_slice()) {
                 Ok(exn) => Err(RawCallError::Exception(exn)),

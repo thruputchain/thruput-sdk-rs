@@ -17,25 +17,6 @@ pub type Buf = crate::internal::ScratchBuf;
 pub type ReturnBuf = Buf;
 pub type AbortBuf = Buf;
 
-/// Copy `bytes` into a fresh [`Buf`]. With `alloc` the buffer grows to fit and
-/// this always succeeds. Without `alloc` the buffer is the fixed
-/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX) capacity; a payload that
-/// exceeds it returns `Err(())` rather than silently truncating (which would
-/// yield a mis-decoded exception/result). Callers map the error to a typed
-/// exception of their choosing.
-pub(crate) fn buf_from_slice(bytes: &[u8]) -> Result<Buf, ()> {
-    #[cfg(feature = "alloc")]
-    {
-        Ok(bytes.to_vec())
-    }
-    #[cfg(not(feature = "alloc"))]
-    {
-        let mut buf = Buf::new();
-        buf.extend_from_slice(bytes).map_err(|_| ())?;
-        Ok(buf)
-    }
-}
-
 pub type ContractResult = Result<(ReturnBuf, AuthHandleBuf), ContractError>;
 
 // Note: `ContractError` is an in-memory Rust `Result` variant only — it is

@@ -1,11 +1,11 @@
-use crate::call::RawCallError;
+use crate::call::{CallFault, RawCallError};
 use crate::exn::FaultString;
 use crate::{ReceiveAuthHandles, receive_auth_handles_from_slice, xdr::*};
 
 pub fn contract_call_decode<'b, T>(
     bytes: &'b [u8],
     handles: &[u32],
-) -> Result<T, RawCallError>
+) -> Result<T, CallFault>
 where
     T: ReadXDR<'b> + ReceiveAuthHandles,
 {

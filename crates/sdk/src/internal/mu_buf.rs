@@ -83,8 +83,10 @@ impl<const SIZE: usize> Default for MUBuf<SIZE> {
 }
 
 // Compare/format by the initialized region only, so `MUBuf` is a drop-in for
-// the heap `Vec` that backs `ScratchBuf` under `alloc` (needed by the derives
-// on `ContractError` and the `PartialEq`/`Debug` impls on `RawException`).
+// the heap `Vec` that backs `ScratchBuf` under `alloc` (needed by the
+// `#[derive(Debug, PartialEq)]` on `ContractError` in
+// `crate::call::contract_result`, whose `Abort` variant holds an `AbortBuf`
+// — a `ScratchBuf`, i.e. this `MUBuf` in the no-alloc guest).
 impl<const SIZE: usize> PartialEq for MUBuf<SIZE> {
     fn eq(&self, other: &Self) -> bool {
         self.as_ref() == other.as_ref()

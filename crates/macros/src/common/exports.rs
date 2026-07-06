@@ -417,43 +417,44 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Decode the args, run the body, encode the result
+    // Decode the args, run the body, encode the result. The whole body runs
+    // inside `with_calldata_and_auth_tokens`: the calldata lives in the
+    // per-instance calldata cell (a guest static — zero stack, no by-value
+    // copy of the no-alloc SCRATCH_MAX buffer), and the decoded args borrow
+    // it for the whole frame.
     let wrapped_call = quote! {{
         //
         // If debug mode: log the method-call
         #log_guest_call
 
-        let res ={
+        ::sdk::contract_op::with_calldata_and_auth_tokens(|calldata, auth_token_ids| {
+            let res = {
 
-            // Load contract state
-            #load_state
+                // Load contract state
+                #load_state
 
-            // Fetch the calldata and auth token IDs from the VM
-            let (calldata, auth_token_ids) = ::sdk::contract_op::get_calldata_with_auth_tokens();
+                // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
+                // contract_call_decode then fills in Signer handles from the auth
+                // token ID list)
+                let mut __args =
+                    ::sdk::call::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
+                        .unwrap_or_else(|e|
+                            ::sdk::exn::decoding_args_throw(&e));
 
-            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
-            // contract_call_decode then fills in Signer handles from the auth
-            // token ID list)
-            let mut __args =
-                ::sdk::call::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
-                    .unwrap_or_else(|e|
-                        ::sdk::exn::decoding_args_throw(&e));
+                // Destructure into named args
+                let (#arg_names) = __args;
 
-            // Destructure into named args
-            let (#arg_names) = __args;
+                // Call the method implementation (passing the contract state, if any,
+                // and the args)
+                #invoke
 
-            // TODO: can we get the fetch-and-decode into one internal function?
+                // Make sure any storage nodes are fully dropped (and written to environment).
+                // Not technically necessary, given that the storage is wrapped in a Node<T>.
+            };
 
-            // Call the method implementation (passing the contract state, if any,
-            // and the args)
-            #invoke
-
-            // Make sure any storage nodes are fully dropped (and written to environment).
-            // Not technically necessary, given that the storage is wrapped in a Node<T>.
-        };
-
-        // Return the result to the VM
-        ::sdk::contract_return_encoded(&res);
+            // Return the result to the VM
+            ::sdk::contract_return_encoded(&res);
+        })
     }};
 
     // Include method info in debugging context (when enabled)

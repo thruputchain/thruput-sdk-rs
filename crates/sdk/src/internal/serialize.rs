@@ -75,9 +75,13 @@ where
     }
 }
 
-/// Owned-buffer convenience for cold paths (hashing, auth-token build, tests):
+/// Owned-buffer convenience for cold paths (auth-token build, tests):
 /// encode into a fresh scratch and return it. Hot paths should encode into a
-/// reused scratch via [`encode_scratch`].
+/// reused scratch via [`encode_scratch`]. `alloc`-only on purpose: without
+/// `alloc` the returned buffer is the fixed `SCRATCH_MAX` bytes, and a
+/// by-value return is a stack copy the compiler does not reliably elide —
+/// no-alloc guest code must encode in place instead.
+#[cfg(feature = "alloc")]
 pub fn encode_xdr<T>(x: &T) -> WriteResult<ScratchBuf>
 where
     T: WriteXDR + ?Sized,

@@ -4,7 +4,7 @@ use super::contract_result::*;
 use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{FaultString, RawException};
+use crate::exn::{FaultString, RawExceptionRef};
 use crate::types::transaction::{
     InvocationFrameStatusCode, kMaxReturnBufferLen,
 };
@@ -12,35 +12,32 @@ use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
 
-/// Typed cross-contract call: encode `args`, invoke, decode the return
-/// value (or surface the abort as a [`RawCallError`]).
+/// Typed cross-contract call with caller-supplied exception dispatch.
 ///
-/// This is what generated clients use. Both the encoded-args and
-/// returned-data bytes live in a lazily-allocated per-instance scratch
-/// reused across calls (under `alloc`), so repeated calls perform no
-/// per-call allocations even though the guest bump allocator never frees,
-/// and neither outgoing calldata nor received returns have an SDK-imposed
-/// size cap.
-// Used by the contract macro in method wrappers
+/// `on_exn` runs while the abort bytes are still borrowed from the call
+/// scratch: [`RawExceptionRef::payload`] is a plain slice, valid exactly for
+/// the closure. Decode it into owned typed errors (zero-copy),
+/// [`RawExceptionRef::re_throw`] it (zero-copy), or
+/// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
+/// returns is what escapes.
+///
+/// Any SDK op performed inside `on_exn` (a nested call, hashing, emitting an
+/// event) hits the cold fresh-buffer fallback, since the scratch is already
+/// borrowed here (no-alloc: a 4 KiB stack buffer) — keep the closure small:
+/// decode, `re_throw`, or `to_owned` only.
 #[cfg_attr(feature = "debugging", track_caller)]
-pub fn try_call_raw<ARGS, RET>(
+pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &ARGS,
     flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<RET, RawCallError>
+    on_exn: impl for<'s> FnOnce(RawExceptionRef<'s>) -> X,
+) -> Result<RET, RawCallError<X>>
 where
     ARGS: WriteXDR + crate::CollectAuthHandles,
     RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
-    // The scratch data buffer does double duty within one call: it holds
-    // the encoded args while `Invoke` copies them out, then is cleared and
-    // refilled with the returned data. Likewise the auth buffer holds the
-    // outgoing handle list during `Invoke`, then the returned one. Both
-    // payloads are fully consumed in here (the decoded RET is owned;
-    // RawException copies its payload), so the scratch borrow never
-    // escapes.
     with_call_scratch(|buf, auth_buf| {
         encode_args_into(buf, args)?;
         auth_buf.clear();
@@ -68,9 +65,10 @@ where
 
         if is_ok {
             contract_call_decode(buf.as_slice(), auth_buf.as_slice())
+                .map_err(widen_uninhabited_exn)
         } else {
-            match RawException::from_abort_buf(buf.as_slice()) {
-                Ok(exn) => Err(RawCallError::Exception(exn)),
+            match RawExceptionRef::parse(buf.as_slice()) {
+                Ok(exn) => Err(RawCallError::Exception(on_exn(exn))),
                 Err(e) => Err(RawCallError::UnparseableAbort(
                     FaultString::from_display(e),
                 )),
@@ -79,16 +77,48 @@ where
     })
 }
 
+/// Typed cross-contract call: encode `args`, invoke, decode the return
+/// value (or surface the abort as a [`RawCallError`]).
+///
+/// Convenience form of [`try_call_raw_with`]: both the encoded-args and
+/// returned-data bytes live in a lazily-allocated per-instance scratch
+/// reused across calls (under `alloc`), so repeated calls perform no
+/// per-call allocations even though the guest bump allocator never frees,
+/// and neither outgoing calldata nor received returns have an SDK-imposed
+/// size cap. Undecoded exceptions escape as owned
+/// [`RawException`](crate::exn::RawException)s (one copy on the
+/// exception path).
+///
+/// The [`contract`](macro@crate::contract) macro emits calls to
+/// [`try_call_raw_with`] directly instead, to control that copy.
+#[cfg_attr(feature = "debugging", track_caller)]
+pub fn try_call_raw<ARGS, RET>(
+    address: &ContractAddress,
+    entrypoint: ContractEntrypointID,
+    gas_limit: u64,
+    args: &ARGS,
+    flags: crate::invoke_config::InvokeFlagSet,
+) -> Result<RET, RawCallError>
+where
+    ARGS: WriteXDR + crate::CollectAuthHandles,
+    RET: ReadXDROwned + crate::ReceiveAuthHandles,
+{
+    try_call_raw_with(address, entrypoint, gas_limit, args, flags, |exn| {
+        exn.to_owned()
+    })
+}
+
 /// CXS-encode `value` into the (cleared) scratch data buffer.
 ///
 /// Under `alloc` the buffer grows organically to the encoding's size (no
 /// fixed cap — protocol calldata is unbounded) and the grown capacity is
 /// retained by the scratch for subsequent calls. Without `alloc` the
-/// fixed-capacity buffer rejects encodings larger than 500 bytes.
-fn encode_args_into<T: WriteXDR + ?Sized>(
+/// fixed-capacity buffer rejects encodings larger than `SCRATCH_MAX`
+/// (4096) bytes.
+fn encode_args_into<T: WriteXDR + ?Sized, X>(
     buf: &mut Buf,
     value: &T,
-) -> Result<(), RawCallError> {
+) -> Result<(), RawCallError<X>> {
     buf.clear();
     #[cfg(feature = "alloc")]
     {
@@ -112,17 +142,41 @@ fn encode_args_into<T: WriteXDR + ?Sized>(
     }
 }
 
+/// How a child frame that ran to completion ended. Produced by
+/// [`contract_call`]; the payload for both variants lives in the
+/// caller-provided return buffer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallOutcome {
+    /// The child returned: `return_buf` holds the returned bytes and the
+    /// auth-handle buffer the returned token ids.
+    Return,
+    /// The child aborted: `return_buf` holds the abort payload.
+    Abort,
+}
+
 /// Untyped cross-contract call: pass pre-encoded calldata, receive the raw
-/// return (or abort) bytes.
+/// return (or abort) bytes in `return_buf` and the returned auth-token ids
+/// in `returned_auth_token_ids`. Both buffers are cleared before the call is
+/// attempted, so they are left empty (not stale from a previous call) even
+/// if this returns `Err`.
 ///
 /// Prefer [`try_call_raw`] (or a generated client) for ordinary typed
 /// calls. This entry point exists for forwarders and proxies — e.g. wallet
 /// contracts that relay opaque calldata to a target and pass the raw
 /// return/abort buffer back verbatim — which cannot name the argument or
-/// return types. The returned buffers are owned, exact-size allocations
-/// (under `alloc`); a fixed 500-byte buffer otherwise.
-#[inline(never)]
-#[allow(clippy::result_large_err)]
+/// return types. The payload lands in the caller's buffers rather than
+/// being returned by value: the no-alloc buffer is `SCRATCH_MAX` bytes,
+/// and a by-value return would copy it once per call layer.
+///
+/// The error type is `RawCallError<Infallible>`: aborts surface as
+/// [`CallOutcome::Abort`] with the payload in `return_buf`, so the
+/// `Exception` variant is uninhabited here — which also keeps the `Result`
+/// slot small (a `RawException` payload would cost the no-alloc caller
+/// a `SCRATCH_MAX`-sized stack slot for a variant this call never builds).
+// The two trailing out-params are the point of the API (no by-value buffer
+// returns); folding the six real inputs into a struct would be churn, not
+// clarity.
+#[allow(clippy::too_many_arguments)]
 pub fn contract_call<A>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
@@ -130,10 +184,15 @@ pub fn contract_call<A>(
     args: &A,
     auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
     flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<ContractResult, RawCallError>
+    return_buf: &mut ReturnBuf,
+    returned_auth_token_ids: &mut AuthHandleBuf,
+) -> Result<CallOutcome, CallFault>
 where
     A: AsRef<[u8]> + ?Sized,
 {
+    return_buf.clear();
+    returned_auth_token_ids.clear();
+
     let (is_ok, outputs) = invoke_frame(
         address,
         entrypoint,
@@ -144,33 +203,61 @@ where
     )?;
 
     #[cfg(feature = "alloc")]
-    let mut return_buf =
-        ReturnBuf::with_capacity(outputs.return_buffer_len as usize);
-    #[cfg(not(feature = "alloc"))]
-    let mut return_buf = ReturnBuf::new();
+    return_buf.reserve(outputs.return_buffer_len as usize);
 
-    let mut auth_token_id_list_buf = AuthHandleBuf::new();
-    resize_auth_handles(&mut auth_token_id_list_buf, &outputs)?;
-    fill_return_buf(
-        outputs.return_buffer_len,
-        outputs.returned_auth_token_len,
-        &mut return_buf,
-        &mut auth_token_id_list_buf,
-    )
-    .map_err(|fault| unparseable(is_ok, fault))?;
+    // `resize_auth_handles` grows `returned_auth_token_ids` to its final
+    // length (zero-filled placeholders for `fill_return_buf`'s syscall to
+    // overwrite) before any of the actual parsing/validation below can
+    // fail — and `fill_return_buf` itself sets `return_buf`'s length before
+    // its own trailing auth-handle-length check can fail. Every early
+    // return through here would otherwise leave one or both out-buffers
+    // non-empty despite the documented "cleared on Err" contract, so any
+    // failure in this section clears both before propagating.
+    if let Err(e) = resize_auth_handles(returned_auth_token_ids, &outputs)
+        .and_then(|()| {
+            fill_return_buf(
+                outputs.return_buffer_len,
+                outputs.returned_auth_token_len,
+                return_buf,
+                returned_auth_token_ids,
+            )
+            .map_err(|fault| unparseable(is_ok, fault))
+        })
+    {
+        return_buf.clear();
+        returned_auth_token_ids.clear();
+        return Err(e);
+    }
 
-    let contract_result = if is_ok {
-        Ok((return_buf, auth_token_id_list_buf))
+    Ok(if is_ok {
+        CallOutcome::Return
     } else {
-        Err(ContractError::Abort(return_buf))
-    };
+        CallOutcome::Abort
+    })
+}
 
-    Ok(contract_result)
+/// Widen a `RawCallError` whose `Exception` variant is uninhabited
+/// ([`core::convert::Infallible`]) to any `X`: the `Exception` arm can
+/// never actually be constructed, so this just relabels the type.
+pub(crate) fn widen_uninhabited_exn<X>(e: CallFault) -> RawCallError<X> {
+    match e {
+        RawCallError::Invalid => RawCallError::Invalid,
+        RawCallError::Exception(x) => match x {},
+        RawCallError::Fault(f) => RawCallError::Fault(f),
+        RawCallError::UnparseableReturn(f) => {
+            RawCallError::UnparseableReturn(f)
+        }
+        RawCallError::UnparseableAbort(f) => RawCallError::UnparseableAbort(f),
+        RawCallError::UnparseableAuthHandles(f) => {
+            RawCallError::UnparseableAuthHandles(f)
+        }
+        RawCallError::EncodingArgs(f) => RawCallError::EncodingArgs(f),
+    }
 }
 
 /// Map a returned-data parse fault to the error variant matching the
 /// frame's outcome (success vs abort).
-fn unparseable(is_ok: bool, fault: FaultString) -> RawCallError {
+fn unparseable<X>(is_ok: bool, fault: FaultString) -> RawCallError<X> {
     if is_ok {
         RawCallError::UnparseableReturn(fault)
     } else {
@@ -181,14 +268,14 @@ fn unparseable(is_ok: bool, fault: FaultString) -> RawCallError {
 /// Perform the `Invoke` syscall and interpret the frame status, returning
 /// whether the child returned (vs aborted) alongside the syscall outputs
 /// (which carry the sizes of the data waiting in the VM's return buffer).
-fn invoke_frame(
+fn invoke_frame<X>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
     gas_limit: u64,
     args: &[u8],
     auth_token_ids: &crate::collect_auth_handles::AuthHandleBuf,
     flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<(bool, sys::CopyableInvokeOutputs), RawCallError> {
+) -> Result<(bool, sys::CopyableInvokeOutputs), RawCallError<X>> {
     // Perform the cross-contract call
     let entrypoint = u64::from_be_bytes(entrypoint.into_inner());
     let auth_bytes = auth_handles_as_bytes(auth_token_ids.as_slice());
@@ -250,10 +337,10 @@ fn invoke_frame(
 
 /// Size the auth-handle buffer to hold the token-id list the syscall
 /// outputs report.
-fn resize_auth_handles(
+fn resize_auth_handles<X>(
     buf: &mut AuthHandleBuf,
     outputs: &sys::CopyableInvokeOutputs,
-) -> Result<(), RawCallError> {
+) -> Result<(), RawCallError<X>> {
     let count =
         outputs.returned_auth_token_len as usize / core::mem::size_of::<u32>();
     #[cfg(feature = "alloc")]
@@ -271,45 +358,23 @@ fn resize_auth_handles(
     }
 }
 
-mod call_scratch {
-    use super::{AuthHandleBuf, Buf};
-    use core::cell::RefCell;
+use crate::cell::{ContractLocalRef, ContractRefCell};
 
-    /// A `RefCell` made `Sync` so it can live in a guest `static`. The guest is
-    /// single-threaded; in the test env the macro places this in thread-local
-    /// storage. In neither case is it shared across threads.
-    pub(super) struct SyncRefCell<T>(RefCell<T>);
-    // SAFETY: single-threaded guest; thread-local in tests; never shared across
-    // threads.
-    unsafe impl<T> Sync for SyncRefCell<T> {}
-    impl<T> SyncRefCell<T> {
-        pub(super) const fn new(v: T) -> Self {
-            Self(RefCell::new(v))
-        }
-        pub(super) fn cell(&self) -> &RefCell<T> {
-            &self.0
-        }
-    }
-
-    crate::contract_local! {
-        pub(super) static CALL_SCRATCH: SyncRefCell<(Buf, AuthHandleBuf)> =
-            const { SyncRefCell::new((Buf::new(), AuthHandleBuf::new())) };
-    }
+/// The per-instance call scratch: the shared write buffer and the
+/// auth-handle list.
+struct CallScratch {
+    buf: Buf,
+    auth: AuthHandleBuf,
 }
 
-/// Access the scratch cell, abstracting over plain-static (guest) vs
-/// thread-local (test) storage.
-#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
-fn with_scratch_cell<R>(
-    f: impl FnOnce(&core::cell::RefCell<(Buf, AuthHandleBuf)>) -> R,
-) -> R {
-    f(call_scratch::CALL_SCRATCH.cell())
-}
-#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
-fn with_scratch_cell<R>(
-    f: impl FnOnce(&core::cell::RefCell<(Buf, AuthHandleBuf)>) -> R,
-) -> R {
-    call_scratch::CALL_SCRATCH.with(|s| f(s.cell()))
+crate::contract_local! {
+    static CALL_SCRATCH: ContractRefCell<CallScratch> =
+        const {
+            ContractRefCell::new(CallScratch {
+                buf: Buf::new(),
+                auth: AuthHandleBuf::new(),
+            })
+        };
 }
 
 /// Run `f` with the per-instance call scratch buffers (encoded-args /
@@ -322,41 +387,34 @@ fn with_scratch_cell<R>(
 /// every subsequent use: the guest bump allocator never frees, so per-use
 /// allocations would permanently leak heap. Under `alloc` capacity grows to
 /// the high-water mark (at least `SCRATCH_MAX`). No user code runs while the
-/// scratch is checked out, so uses cannot overlap; if the slot is somehow
-/// unavailable (re-entrancy), a fresh default buffer is used and the result
-/// is correct, just momentarily un-cached.
+/// scratch is checked out, so uses cannot overlap; the re-entrant case (a
+/// cross-call nested in-process in the native mock, or an exception thrown
+/// while the scratch is borrowed — the abort encode re-enters) is handled by
+/// [`ContractLocalRef::with_mut_or_fresh`]'s fresh-buffer fallback. (The real
+/// guest doesn't nest cross-calls, but the throw-mid-encode case can happen
+/// there, so this is not mock-only.)
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    with_scratch_cell(|cell| {
-        match cell.try_borrow_mut() {
-            Ok(mut guard) => {
-                // Borrow the reused buffers in place — no copy, and for the
-                // no-alloc guest the fixed buffer stays in static memory
-                // instead of being moved onto the (small) guest stack.
-                let (buf, auth_buf) = &mut *guard;
-                buf.clear();
-                auth_buf.clear();
-                #[cfg(feature = "alloc")]
-                if buf.capacity() < crate::internal::SCRATCH_MAX {
-                    buf.reserve(crate::internal::SCRATCH_MAX);
-                }
-                f(buf, auth_buf)
-            }
-            Err(_) => {
-                // Re-entrant use: the scratch is already borrowed up-stack —
-                // a cross-call nested in-process (native mock), or an
-                // exception thrown while the scratch is borrowed (the abort
-                // encode re-enters). Use fresh buffers so the borrow can't
-                // alias; correct, just momentarily un-cached. (The real guest
-                // doesn't nest cross-calls, but the throw-mid-encode case can
-                // happen there, so this is not mock-only.)
-                let mut buf = crate::internal::new_scratch();
-                let mut auth_buf = AuthHandleBuf::new();
-                f(&mut buf, &mut auth_buf)
-            }
+    CALL_SCRATCH.with_mut_or_fresh(fresh_call_scratch, |scratch| {
+        // Borrow the reused buffers in place — no copy, and for the
+        // no-alloc guest the fixed buffer stays in static memory instead of
+        // being moved onto the (small) guest stack.
+        scratch.buf.clear();
+        scratch.auth.clear();
+        #[cfg(feature = "alloc")]
+        if scratch.buf.capacity() < crate::internal::SCRATCH_MAX {
+            scratch.buf.reserve(crate::internal::SCRATCH_MAX);
         }
+        f(&mut scratch.buf, &mut scratch.auth)
     })
+}
+
+fn fresh_call_scratch() -> CallScratch {
+    CallScratch {
+        buf: crate::internal::new_scratch(),
+        auth: AuthHandleBuf::new(),
+    }
 }
 
 /// Run `f` with just the per-instance data scratch buffer. For

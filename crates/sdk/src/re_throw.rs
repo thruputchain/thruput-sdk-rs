@@ -2,6 +2,7 @@
 pub trait ReThrow {
     /// Re-throw this error. Exceptions are propagated as exceptions;
     /// faults panic (a fault stays a fault).
+    #[cfg_attr(feature = "debugging", track_caller)]
     fn re_throw(self) -> !;
 }
 
@@ -18,5 +19,12 @@ impl<T, E: ReThrow> OrReThrow<T> for Result<T, E> {
             Ok(v) => v,
             Err(e) => e.re_throw(),
         }
+    }
+}
+
+impl ReThrow for core::convert::Infallible {
+    #[cfg_attr(feature = "debugging", track_caller)]
+    fn re_throw(self) -> ! {
+        match self {}
     }
 }
