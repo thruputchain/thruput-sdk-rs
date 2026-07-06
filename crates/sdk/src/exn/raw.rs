@@ -99,23 +99,8 @@ impl<'s> RawExceptionRef<'s> {
     #[inline]
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
-        self.re_throw_shown(self)
-    }
-
-    /// Shared re-throw body: aborts with `self`'s wire bytes, but prints
-    /// `shown`'s `Debug` form in the breadcrumb rather than `self`'s. Lets
-    /// [`RawException::re_throw`] delegate here (via [`as_ref_exn`](RawException::as_ref_exn))
-    /// while still breadcrumbing as "RawException {...}" rather than
-    /// "RawExceptionRef {...}" — the type the caller actually held.
-    #[inline]
-    #[cfg_attr(feature = "debugging", track_caller)]
-    #[cfg_attr(
-        not(all(feature = "debugging", feature = "std")),
-        allow(unused_variables)
-    )]
-    fn re_throw_shown(&self, shown: &dyn core::fmt::Debug) -> ! {
         #[cfg(all(feature = "debugging", feature = "std"))]
-        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", shown);
+        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
 
         crate::contract_op::contract_abort(self.wire)
     }
@@ -235,14 +220,10 @@ impl RawException {
     #[inline]
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn re_throw(&self) -> ! {
-        // The breadcrumb print (and the abort itself) live in
-        // `RawExceptionRef::re_throw_shown`; every function in the chain is
-        // `track_caller`, so the reported location is still the original
-        // call site here, not this delegation. Passing `self` (rather than
-        // `self.as_ref_exn().re_throw()`) keeps the breadcrumb's `Debug`
-        // output labeled "RawException {...}", matching the type this
-        // caller actually holds.
-        self.as_ref_exn().re_throw_shown(self)
+        #[cfg(all(feature = "debugging", feature = "std"))]
+        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
+
+        crate::contract_op::contract_abort(self.wire.as_ref())
     }
 
     /// Build from a selector and payload. Test/mock construction.

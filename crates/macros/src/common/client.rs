@@ -434,11 +434,19 @@ fn generate_selector_uniqueness_asserts(
         for j in (i + 1)..tys.len() {
             let ty_a = &tys[i];
             let ty_b = &tys[j];
+            // The message literal is assembled at macro-expansion time, so
+            // the const assert can name the colliding pair without any
+            // const-context formatting.
+            let msg = format!(
+                "duplicate exception selector in throws(...) list: `{}` collides with `{}`",
+                ty_a.to_string().replace(' ', ""),
+                ty_b.to_string().replace(' ', ""),
+            );
             asserts.push(quote! {
                 const _: () = ::core::assert!(
                     <#ty_a as ::sdk::exn::Exn>::SELECTOR
                         != <#ty_b as ::sdk::exn::Exn>::SELECTOR,
-                    "duplicate exception selector in throws(...) list",
+                    #msg,
                 );
             });
         }

@@ -1,4 +1,4 @@
-error[E0080]: evaluation panicked: duplicate exception selector in throws(...) list
+error[E0080]: evaluation panicked: duplicate exception selector in throws(...) list: `sdk::exn::LibraryExn` collides with `::sdk::exn::LibraryExn`
  --> tests/compile-fail/throws_duplicate_selector.rs:9:1
   |
 9 | #[contract(throws(sdk::exn::LibraryExn))]
