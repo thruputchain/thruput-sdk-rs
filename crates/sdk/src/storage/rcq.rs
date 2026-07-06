@@ -72,7 +72,7 @@ impl<T> RCQ<T> {
 
     /// Consume a fixed-size queue entry, reporting failure as `Err`.
     ///
-    /// An entry of a different size is `LibraryExn::BytestringWrongSize`
+    /// An entry of a different size is `LibraryExn::RetrocausalQueueEntryWrongSize`
     /// and is left in the queue.
     pub fn try_consume_sized<const N: usize>(
         &mut self,
@@ -103,7 +103,7 @@ impl<T> RCQ<T> {
     /// Retrieve a fixed-size queue entry without consuming it, reporting
     /// failure as `Err`.
     ///
-    /// An entry of a different size is `LibraryExn::BytestringWrongSize`.
+    /// An entry of a different size is `LibraryExn::RetrocausalQueueEntryWrongSize`.
     pub fn try_peek_sized<const N: usize>(
         &self,
     ) -> Result<[u8; N], LibraryExn> {

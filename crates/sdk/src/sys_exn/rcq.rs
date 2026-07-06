@@ -33,7 +33,7 @@ pub fn retrocausal_queue_consume_sized<const N: usize>(
 ///
 /// An empty queue is a `LibraryExn::Syscall` for which
 /// [`is_storage_missing`](LibraryExn::is_storage_missing) is true; an entry
-/// of a different size is `LibraryExn::BytestringWrongSize` and is left in
+/// of a different size is `LibraryExn::RetrocausalQueueEntryWrongSize` and is left in
 /// the queue (the size is checked by peeking before consuming).
 pub fn retrocausal_queue_try_consume_sized<const N: usize>(
     key: &StorageKey,
@@ -68,7 +68,7 @@ fn retrocausal_queue_try_sized<const N: usize>(
     let found = rcq_result::retrocausal_queue_peek_len(key)
         .map_err(|e| syscall_exn(SyscallNo::kRetrocausalQueueConsume, e))?;
     if found != N as u32 {
-        return Err(LibraryExn::BytestringWrongSize {
+        return Err(LibraryExn::RetrocausalQueueEntryWrongSize {
             expected: N as u32,
             found,
         });

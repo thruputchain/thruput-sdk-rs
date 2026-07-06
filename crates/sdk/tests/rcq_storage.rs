@@ -40,7 +40,7 @@ fn test_rcq_raw() {
     .assert_success();
 }
 
-// A wrong-size entry is reported as BytestringWrongSize by the sized try_
+// A wrong-size entry is reported as RetrocausalQueueEntryWrongSize by the sized try_
 // forms — and stays in the queue (checked by peeking before consuming).
 #[test]
 fn test_rcq_sized_wrong_size() {
@@ -51,14 +51,14 @@ fn test_rcq_sized_wrong_size() {
 
         assert_eq!(
             rcq.try_consume_sized::<2>(),
-            Err(LibraryExn::BytestringWrongSize {
+            Err(LibraryExn::RetrocausalQueueEntryWrongSize {
                 expected: 2,
                 found: 3
             })
         );
         assert_eq!(
             rcq.try_peek_sized::<2>(),
-            Err(LibraryExn::BytestringWrongSize {
+            Err(LibraryExn::RetrocausalQueueEntryWrongSize {
                 expected: 2,
                 found: 3
             })

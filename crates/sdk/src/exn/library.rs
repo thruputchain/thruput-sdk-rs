@@ -69,6 +69,15 @@ pub enum LibraryExn {
         )
     )]
     StorageKeypathOverflow = 10,
+
+    #[cfg_attr(
+        feature = "debugging",
+        error(
+            "retrocausal queue entry: expected {expected} bytes, \
+               found {found}"
+        )
+    )]
+    RetrocausalQueueEntryWrongSize { expected: u32, found: u32 } = 11,
 }
 
 impl From<HandlingError> for LibraryExn {
