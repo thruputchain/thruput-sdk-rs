@@ -25,7 +25,8 @@
 
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-use crate::exn::syscall_throw;
+use crate::exn::{LibraryExn, syscall_exn, syscall_throw};
+use crate::re_throw::OrReThrow;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
@@ -41,13 +42,21 @@ pub fn set_add(
     add_value: i128,
     flags: StorageDeltaFlags,
 ) {
-    sys::raw_NonnegativeIntSetAdd(
-        key,
-        set_value.as_ref(),
-        &add_value,
-        flags.0,
-    )
-    .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntSetAdd, e));
+    try_set_add(key, set_value, add_value, flags).or_re_throw()
+}
+
+/// Like [`set_add`], but report a syscall failure as `Err` instead of
+/// aborting. Callers that pre-check the negativity constraint (so the
+/// remaining error paths are invalid flags or host faults) use this to keep
+/// the `try_` law.
+pub(crate) fn try_set_add(
+    key: &StorageKey,
+    set_value: Option<i128>,
+    add_value: i128,
+    flags: StorageDeltaFlags,
+) -> Result<(), LibraryExn> {
+    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value, flags.0)
+        .map_err(|e| syscall_exn(SyscallNo::kNonnegativeIntSetAdd, e))
 }
 
 /// Get the pending "set" and "add" values.
@@ -81,23 +90,30 @@ pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
     }
 }
 
-/// Optionally get the pending "set" and "add" values, loading if necessary.
+/// Get the pending "set" and "add" values, loading if necessary, and
+/// reporting failure as `Err` instead of aborting (the `try_` law; see the
+/// [`exn`](mod@crate::exn) module docs).
 ///
-/// This behaves like `get_values_force`, except it returns `None` if the
-/// storage location has never been written.  (If a value of another storage
-/// type is there, it aborts.)
+/// This behaves like `get_values_force`, except every failure — a
+/// never-written location
+/// (`Err(e)` with [`e.is_storage_missing()`](LibraryExn::is_storage_missing)),
+/// a value of another storage type
+/// ([`kSyscallErrorCodeInvalidSyscallInput`](crate::sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput)),
+/// or any other syscall error — is returned as the `LibraryExn::Syscall`
+/// value the non-`try_` form would have thrown.
 ///
-pub fn try_get_values_force(key: &StorageKey) -> Option<(i128, i128)> {
+pub fn try_get_values_force(
+    key: &StorageKey,
+) -> Result<(i128, i128), LibraryExn> {
     match _get_values(key, true) {
         Ok((s_opt, a)) => {
             // The "set" value is guaranteed to be present now because we
             // specified "force"
             let s = s_opt.unwrap();
 
-            Some((s, a))
+            Ok((s, a))
         }
-        Err(e) if e.is_storage_key_not_exist() => None,
-        Err(e) => syscall_throw(SyscallNo::kNonnegativeIntGet, e),
+        Err(e) => Err(syscall_exn(SyscallNo::kNonnegativeIntGet, e)),
     }
 }
 

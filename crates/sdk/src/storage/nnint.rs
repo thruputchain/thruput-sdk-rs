@@ -43,8 +43,15 @@ impl NNInt {
         non_negative_int_get(&self.keypath.generate_key())
     }
 
-    /// Get the current value, or none if not yet set
-    pub fn try_get(&self) -> Option<i128> {
+    /// Get the current value, reporting failure as `Err` instead of
+    /// aborting (the `try_` law; see the [`exn`](mod@crate::exn) module
+    /// docs). A not-yet-set location is an `Err` for which
+    /// [`is_storage_missing`](crate::exn::LibraryExn::is_storage_missing)
+    /// is true — use
+    /// [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing) to
+    /// treat just that case as an ordinary `None`. See
+    /// [`non_negative_int_try_get`] for the full error contract.
+    pub fn try_get(&self) -> Result<i128, crate::exn::LibraryExn> {
         non_negative_int_try_get(&self.keypath.generate_key())
     }
 
@@ -92,9 +99,13 @@ impl NNInt {
     }
 
     /// Increment by an amount, like [`NNInt::strict_inc`], but report
-    /// overflow/underflow to the caller instead of aborting, so a contract
-    /// can raise a domain-specific exception. On `Err` the stored value is
-    /// unmodified; no extra storage roundtrip over [`NNInt::inc`].
+    /// failure to the caller instead of aborting (the `try_` law; see the
+    /// [`exn`](mod@crate::exn) module docs), so a contract can raise a
+    /// domain-specific exception. On `Err` the stored value is unmodified;
+    /// no extra storage roundtrip over [`NNInt::inc`]. The domain errors
+    /// are `NonNegativeIntOverflow`/`NonNegativeIntUnderflow`; a wrong
+    /// storage type at the key or any other syscall failure surfaces as
+    /// `LibraryExn::Syscall`.
     pub fn try_strict_inc(
         &mut self,
         increment: i128,
@@ -102,7 +113,12 @@ impl NNInt {
         use crate::exn::LibraryExn;
 
         let key = &self.keypath.generate_key();
-        let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
+        let (s, a) = match nnint::try_get_values_force(key) {
+            Ok(values) => values,
+            // A never-written location increments as if from zero.
+            Err(e) if e.is_storage_missing() => (0, 0),
+            Err(e) => return Err(e),
+        };
 
         let add_value = a
             .checked_add(increment)
@@ -115,8 +131,7 @@ impl NNInt {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
 
-        nnint::set_add(key, Some(s), add_value, self.flags());
-        Ok(())
+        nnint::try_set_add(key, Some(s), add_value, self.flags())
     }
 }
 

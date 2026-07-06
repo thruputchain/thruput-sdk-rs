@@ -42,7 +42,26 @@ where
     /// Aborts if the key does not exist.
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn get(&self) -> T {
-        use crate::exn::{LibraryExn, SyscallExn, library_throw};
+        use crate::re_throw::OrReThrow;
+        self.try_get().or_re_throw()
+    }
+
+    /// Deserialize and return the stored value, reporting failure as `Err`
+    /// instead of aborting (the `try_` law; see the [`exn`](mod@crate::exn)
+    /// module docs).
+    ///
+    /// The `Err` is exactly the exception [`get`](Self::get) would have
+    /// thrown: a missing key is a `LibraryExn::Syscall` for which
+    /// [`is_storage_missing`](crate::exn::LibraryExn::is_storage_missing)
+    /// is true — use
+    /// [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing) to
+    /// treat just that case as an ordinary `None`. A value that fails to
+    /// decode as `T` (or exceeds the no-alloc read buffer — either way, the
+    /// slot was written by something other than `Value<T>::set`) is
+    /// `LibraryExn::StorageSerialization`; a value of another storage type
+    /// or any other syscall failure is a `LibraryExn::Syscall`.
+    pub fn try_get(&self) -> Result<T, crate::exn::LibraryExn> {
+        use crate::exn::{LibraryExn, syscall_exn};
         use crate::sys::SyscallNo;
         use crate::sys_result::bytestring::bytestring_read_into;
 
@@ -53,40 +72,13 @@ where
                 Ok(Some(())) => {}
                 // Stored value exceeds the buffer: only possible if the slot
                 // was written by something other than Value<T>::set.
-                Ok(None) => library_throw(LibraryExn::StorageSerialization),
-                Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
-                    SyscallNo::kBytestringGet,
-                    e,
-                ))),
+                Ok(None) => return Err(LibraryExn::StorageSerialization),
+                Err(e) => {
+                    return Err(syscall_exn(SyscallNo::kBytestringGet, e));
+                }
             }
-            match xdrs::cxs::decode(buf.as_slice()) {
-                Ok(v) => v,
-                Err(_) => library_throw(LibraryExn::StorageSerialization),
-            }
-        })
-    }
-
-    /// Deserialize and return the stored value, or None if the key doesn't exist.
-    #[cfg_attr(feature = "debugging", track_caller)]
-    pub fn try_get(&self) -> Option<T> {
-        use crate::exn::{LibraryExn, SyscallExn, library_throw};
-        use crate::sys::SyscallNo;
-        use crate::sys_result::bytestring::bytestring_read_into;
-
-        crate::call::with_scratch(|buf| {
-            match bytestring_read_into(self.key.get(), buf) {
-                Ok(Some(())) => {}
-                Ok(None) => library_throw(LibraryExn::StorageSerialization),
-                Err(e) if e.is_storage_key_not_exist() => return None,
-                Err(e) => library_throw(LibraryExn::Syscall(SyscallExn::new(
-                    SyscallNo::kBytestringGet,
-                    e,
-                ))),
-            }
-            match xdrs::cxs::decode(buf.as_slice()) {
-                Ok(v) => Some(v),
-                Err(_) => library_throw(LibraryExn::StorageSerialization),
-            }
+            xdrs::cxs::decode(buf.as_slice())
+                .map_err(|_| LibraryExn::StorageSerialization)
         })
     }
 }

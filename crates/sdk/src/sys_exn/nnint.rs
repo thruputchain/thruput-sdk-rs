@@ -27,19 +27,27 @@ const EXCLUSIVE: StorageDeltaFlags = StorageDeltaFlags::ExclusiveLock;
 /// Throws an exception if the location does not contain a non-negative-int value.
 ///
 pub fn non_negative_int_get(key: &StorageKey) -> i128 {
-    let (s, a) = nnint::get_values_force(key);
-
-    s.checked_add(a).unwrap_or_else(|| nnint_overflow())
+    use crate::re_throw::OrReThrow;
+    non_negative_int_try_get(key).or_re_throw()
 }
 
-/// Get the current value, or `None` if empty.
+/// Get the current value, reporting failure as `Err` instead of aborting
+/// (the `try_` law; see the [`exn`](mod@crate::exn) module docs).
 ///
-/// This behaves like `non_negative_int_get`, but returns `None` if the storage
-/// location is empty.  It throws an exception if a value of the wrong type is there.
+/// The `Err` is exactly the exception [`non_negative_int_get`] would have
+/// thrown. An empty location is a `LibraryExn::Syscall` for which
+/// [`is_storage_missing`](crate::exn::LibraryExn::is_storage_missing) is
+/// true — use [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing)
+/// to treat just that case as an ordinary `None`. A value of the wrong
+/// storage type or any other syscall failure is a `LibraryExn::Syscall` as
+/// well; an overflowing `set + add` is `LibraryExn::NonNegativeIntOverflow`.
 ///
-pub fn non_negative_int_try_get(key: &StorageKey) -> Option<i128> {
-    nnint::try_get_values_force(key)
-        .map(|(s, a)| s.checked_add(a).unwrap_or_else(|| nnint_overflow()))
+pub fn non_negative_int_try_get(
+    key: &StorageKey,
+) -> Result<i128, crate::exn::LibraryExn> {
+    let (s, a) = nnint::try_get_values_force(key)?;
+    s.checked_add(a)
+        .ok_or(crate::exn::LibraryExn::NonNegativeIntOverflow)
 }
 
 /// Set the value.
@@ -114,20 +122,28 @@ pub fn non_negative_int_strict_inc(key: &StorageKey, amount: i128) {
 }
 
 /// Increment the value, like [`non_negative_int_strict_inc`], but report
-/// overflow/underflow to the caller instead of throwing, so a contract can
-/// raise a domain-specific exception (e.g. an ERC20 "amount too large").
+/// failure to the caller instead of throwing (the `try_` law; see the
+/// [`exn`](mod@crate::exn) module docs), so a contract can raise a
+/// domain-specific exception (e.g. an ERC20 "amount too large").
 ///
-/// On `Err` (`LibraryExn::NonNegativeIntUnderflow` or
-/// `LibraryExn::NonNegativeIntOverflow`) the stored value is unmodified.
-/// Uses a single read-write pair, so checking before decrementing costs no
-/// extra storage roundtrip over `non_negative_int_inc`.
+/// On `Err` the stored value is unmodified. The domain errors are
+/// `LibraryExn::NonNegativeIntUnderflow` and
+/// `LibraryExn::NonNegativeIntOverflow`; a wrong storage type at the key or
+/// any other syscall failure surfaces as `LibraryExn::Syscall`. Uses a
+/// single read-write pair, so checking before decrementing costs no extra
+/// storage roundtrip over `non_negative_int_inc`.
 pub fn non_negative_int_try_strict_inc(
     key: &StorageKey,
     amount: i128,
 ) -> Result<(), crate::exn::LibraryExn> {
     use crate::exn::LibraryExn;
 
-    let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
+    let (s, a) = match nnint::try_get_values_force(key) {
+        Ok(values) => values,
+        // A never-written location increments as if from zero.
+        Err(e) if e.is_storage_missing() => (0, 0),
+        Err(e) => return Err(e),
+    };
 
     let add_value = a
         .checked_add(amount)
@@ -140,6 +156,5 @@ pub fn non_negative_int_try_strict_inc(
         return Err(LibraryExn::NonNegativeIntUnderflow);
     }
 
-    nnint::set_add(key, Some(s), add_value, NONE);
-    Ok(())
+    nnint::try_set_add(key, Some(s), add_value, NONE)
 }

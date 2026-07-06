@@ -3,7 +3,6 @@
 use crate::internal::ScratchBuf;
 use crate::sys;
 use crate::sys::SysResult as Result;
-use crate::sys::SyscallErrorCode;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 
 use core::mem::MaybeUninit;
@@ -63,23 +62,6 @@ pub(crate) fn retrocausal_queue_get_sized<const N: usize>(
     Ok(bytes)
 }
 
-pub(crate) fn retrocausal_queue_try_get_sized<const N: usize>(
-    key: &StorageKey,
-    peek: bool,
-) -> Result<Option<[u8; N]>> {
-    match retrocausal_queue_get_sized(key, peek) {
-        Ok(v) => Ok(Some(v)),
-        Err(e)
-            if e.is_code(
-                SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
-            ) =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(e),
-    }
-}
-
 /// Read the next queue entry into `buf` (cleared first).
 ///
 /// Returns `Ok(None)` if the entry exceeds `buf`'s capacity (only possible in
@@ -110,28 +92,6 @@ pub(crate) fn retrocausal_queue_read_into(
     Ok(Some(()))
 }
 
-/// Like [`retrocausal_queue_read_into`] but distinguishes an empty queue.
-///
-/// `Ok(None)` = queue empty; `Ok(Some(None))` = entry too large for `buf`;
-/// `Ok(Some(Some(())))` = read into `buf`.
-pub(crate) fn retrocausal_queue_try_read_into(
-    key: &StorageKey,
-    peek: bool,
-    buf: &mut ScratchBuf,
-) -> Result<Option<Option<()>>> {
-    match retrocausal_queue_read_into(key, peek, buf) {
-        Ok(v) => Ok(Some(v)),
-        Err(e)
-            if e.is_code(
-                SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
-            ) =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(e),
-    }
-}
-
 /// Get the next queue entry into a boxed slice.
 ///
 #[cfg(feature = "alloc")]
@@ -156,24 +116,4 @@ pub(crate) fn retrocausal_queue_get(
     );
 
     Ok(unsafe { data.assume_init() })
-}
-
-/// Get the next queue entry into a boxed slice.
-///
-#[cfg(feature = "alloc")]
-pub(crate) fn retrocausal_queue_try_get(
-    key: &StorageKey,
-    peek: bool,
-) -> Result<Option<alloc::boxed::Box<[u8]>>> {
-    match retrocausal_queue_get(key, peek) {
-        Ok(v) => Ok(Some(v)),
-        Err(e)
-            if e.is_code(
-                SyscallErrorCode::kSyscallErrorCodeNoRetrocausalQueueEntry,
-            ) =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(e),
-    }
 }
