@@ -395,6 +395,14 @@ pub fn try_with_calldata_and_auth_tokens<R>(
 /// A thin throwing wrapper over [`try_with_calldata_and_auth_tokens`] so the
 /// two spellings can't drift: whatever `LibraryExn` the `try_` form would
 /// return on fetch failure is exactly what this throws.
+///
+/// `#[inline(never)]`: generated entrypoint wrappers pass their handler as a
+/// plain `fn` pointer, so all of a contract's entrypoints share one
+/// instantiation of this machinery (~440 bytes in the optimized wasm)
+/// instead of monomorphizing a byte-identical copy per closure type. Without
+/// the attribute, LTO inlines that shared instantiation back into each
+/// export and constant-folds the pointer, recreating the per-export copies.
+#[inline(never)]
 pub fn with_calldata_and_auth_tokens<R>(
     f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
 ) -> R {
