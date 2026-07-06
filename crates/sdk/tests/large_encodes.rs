@@ -52,9 +52,13 @@ fn outgoing_calldata_larger_than_500_bytes_encodes() {
     let env: TestEnvironmentHandle = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
-            let calldata_len = sdk::contract_op::with_calldata_and_auth_tokens(
-                |calldata, _| calldata.len(),
+            let mut calldata = sdk::internal::new_scratch();
+            let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+            sdk::contract_op::fetch_calldata_and_auth_tokens(
+                &mut calldata,
+                &mut auth_ids,
             );
+            let calldata_len = calldata.len();
             let encoded = sdk::xdr::cxs::encode(&(calldata_len as u64))
                 .expect("encode failed");
             sdk::sys::raw_Return(&encoded, false, &[]);

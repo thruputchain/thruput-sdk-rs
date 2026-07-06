@@ -417,50 +417,63 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Decode the args, run the body, encode the result. The whole body runs
-    // inside `with_calldata_and_auth_tokens`: the calldata buffer is a local
-    // of that (per-contract, shared) frame, filled in place — no by-value
-    // copy of the no-alloc SCRATCH_MAX buffer — and the decoded args borrow
-    // it for the whole frame.
+    // Decode the args, run the body, encode the result. The calldata and
+    // auth-token buffers are locals of this (per-entrypoint) wrapper frame,
+    // filled in place by the shared, non-generic
+    // `fetch_calldata_and_auth_tokens` — no by-value copy of the no-alloc
+    // SCRATCH_MAX buffer — and the decoded args borrow the calldata buffer
+    // for the whole frame.
     //
-    // The `as fn(..)` cast is load-bearing for codesize: the handler closure
-    // captures nothing, and erasing its unique closure type makes every
-    // entrypoint hit the same `fn`-pointer instantiation of the
-    // (`#[inline(never)]`) calldata machinery, instead of monomorphizing a
-    // byte-identical ~440-byte copy of it per export.
+    // Both calls here (wrapper -> fetch, and the handler body itself) are
+    // direct. That is load-bearing for the chain's funcref-table cap (64
+    // initial elements): passing the handler to the SDK as a closure or
+    // `fn` pointer reifies one table slot per entrypoint, which pushed
+    // many-entrypoint contracts past the cap. The shared machinery stays
+    // one copy per contract because the fetch fn is non-generic and
+    // `#[inline(never)]`.
     let wrapped_call = quote! {{
         //
         // If debug mode: log the method-call
         #log_guest_call
 
-        ::sdk::contract_op::with_calldata_and_auth_tokens((|calldata, auth_token_ids| {
-            let res = {
+        let mut __gh_calldata: ::sdk::contract_op::Calldata =
+            ::sdk::internal::new_scratch();
+        let mut __gh_auth_token_ids: ::sdk::contract_op::AuthTokenIdBuf =
+            ::sdk::contract_op::AuthTokenIdBuf::new();
+        ::sdk::contract_op::fetch_calldata_and_auth_tokens(
+            &mut __gh_calldata,
+            &mut __gh_auth_token_ids,
+        );
 
-                // Load contract state
-                #load_state
+        let res = {
 
-                // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
-                // contract_call_decode then fills in Signer handles from the auth
-                // token ID list)
-                let mut __args =
-                    ::sdk::call::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
-                        .unwrap_or_else(|e|
-                            ::sdk::exn::decoding_args_throw(&e));
+            // Load contract state
+            #load_state
 
-                // Destructure into named args
-                let (#arg_names) = __args;
+            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
+            // contract_call_decode then fills in Signer handles from the auth
+            // token ID list)
+            let mut __args =
+                ::sdk::call::contract_call_decode(
+                    __gh_calldata.as_ref(),
+                    __gh_auth_token_ids.as_slice(),
+                )
+                    .unwrap_or_else(|e|
+                        ::sdk::exn::decoding_args_throw(&e));
 
-                // Call the method implementation (passing the contract state, if any,
-                // and the args)
-                #invoke
+            // Destructure into named args
+            let (#arg_names) = __args;
 
-                // Make sure any storage nodes are fully dropped (and written to environment).
-                // Not technically necessary, given that the storage is wrapped in a Node<T>.
-            };
+            // Call the method implementation (passing the contract state, if any,
+            // and the args)
+            #invoke
 
-            // Return the result to the VM
-            ::sdk::contract_return_encoded(&res);
-        }) as fn(&::sdk::contract_op::Calldata, &::sdk::contract_op::AuthTokenIdBuf))
+            // Make sure any storage nodes are fully dropped (and written to environment).
+            // Not technically necessary, given that the storage is wrapped in a Node<T>.
+        };
+
+        // Return the result to the VM
+        ::sdk::contract_return_encoded(&res);
     }};
 
     // Include method info in debugging context (when enabled)
@@ -617,7 +630,7 @@ mod tests {
     }
 
     #[test]
-    fn export_wrappers_use_outlined_calldata_shim() {
+    fn export_wrappers_use_outlined_calldata_fetch() {
         let config = parse_config(r#"interface = "Iface""#);
         let item: syn::ItemFn = syn::parse_quote! {
             fn ping() {}
@@ -627,17 +640,18 @@ mod tests {
             .unwrap()
             .to_string();
 
-        // The handler must reach the SDK as a plain `fn` pointer so all
-        // entrypoints share one instantiation of the calldata machinery. A
-        // closure passed uncast monomorphizes the whole fetch/borrow/throw
-        // machinery once per entrypoint (~440 B each in the optimized wasm).
+        // The wrapper must own the buffers and reach the shared,
+        // non-generic fetch primitive by direct call.
         assert!(
-            generated.contains(
-                "as fn (& :: sdk :: contract_op :: Calldata , \
-                 & :: sdk :: contract_op :: AuthTokenIdBuf)"
-            ),
+            generated.contains("fetch_calldata_and_auth_tokens"),
             "generated: {generated}"
         );
+
+        // Nothing in the wrapper may take a function's address: every
+        // escaped address is a funcref table slot, and the chain caps the
+        // table at 64 initial elements. The old `as fn(...)` handler cast
+        // cost ~1 slot per entrypoint.
+        assert!(!generated.contains("as fn"), "generated: {generated}");
     }
 
     #[test]
