@@ -4,10 +4,10 @@ use sdk::*;
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "0"))]
 pub extern "C" fn write_bytestring() -> i32 {
-    let mut __calldata_buf = sdk::internal::new_scratch();
-    let mut __auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut __calldata_buf, &mut __auth_ids);
-    let calldata: &[u8] = __calldata_buf.as_ref();
+    let mut calldata_buf = sdk::internal::new_scratch();
+    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+    let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
 
@@ -20,10 +20,10 @@ pub extern "C" fn write_bytestring() -> i32 {
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "1"))]
 pub extern "C" fn log_bytestring() -> i32 {
-    let mut __calldata_buf = sdk::internal::new_scratch();
-    let mut __auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut __calldata_buf, &mut __auth_ids);
-    let calldata: &[u8] = __calldata_buf.as_ref();
+    let mut calldata_buf = sdk::internal::new_scratch();
+    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+    let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
 
@@ -40,10 +40,10 @@ pub extern "C" fn log_bytestring() -> i32 {
 
 #[cfg_attr(target_family = "wasm", unsafe(export_name = "2"))]
 pub extern "C" fn expect_bytestring() -> i32 {
-    let mut __calldata_buf = sdk::internal::new_scratch();
-    let mut __auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut __calldata_buf, &mut __auth_ids);
-    let calldata: &[u8] = __calldata_buf.as_ref();
+    let mut calldata_buf = sdk::internal::new_scratch();
+    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+    let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
 
