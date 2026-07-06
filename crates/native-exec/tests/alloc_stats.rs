@@ -197,6 +197,46 @@ fn cross_call_records_land_on_the_enclosing_frame() {
 }
 
 #[test]
+fn harness_bookkeeping_is_never_charged_to_frames() {
+    // Contract code that allocates nothing must report exactly zero,
+    // even though the harness itself allocates plenty around it: frame
+    // open (Box + invocation encode), cross-call record bookkeeping,
+    // syscall implementations, frame close (output/trace/event decode),
+    // and FrameResult construction all happen inside the enclosing
+    // frame's measurement window.
+    const MOCK_ADDR: ContractAddress = ContractAddress::new([0x44; 32]);
+    let entrypoint = ContractEntrypointID::from_u64(0x9999_AAAA_BBBB_CCCC);
+
+    let env = TestEnvironment::no_cost();
+    let mock = env.register_mock(|c| {
+        c.register_method(entrypoint, || {});
+    });
+    mock.deploy_contract_to(&MOCK_ADDR);
+
+    let result = env.transact(|tx| {
+        tx.call(&PARENT_ADDR)
+            .run_continuable(|frame| {
+                frame
+                    .child_call(&CHILD_ADDR)
+                    .run(|| {
+                        invoke_mock(&MOCK_ADDR, entrypoint);
+                    })
+                    .assert_success();
+                FrameAction::Close
+            })
+            .finish()
+    });
+    result.assert_success();
+
+    let stats = result.frame().alloc_stats();
+    assert_eq!(
+        stats,
+        groundhog_native_exec::alloc_stats::AllocStats::ZERO,
+        "no contract code allocated, so the frame must report zero"
+    );
+}
+
+#[test]
 fn stats_accumulate_across_continue_steps() {
     let env = TestEnvironment::no_cost();
     let result = env.transact(|tx| {

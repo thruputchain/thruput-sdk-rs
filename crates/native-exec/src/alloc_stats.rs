@@ -26,14 +26,18 @@
 //! # Approximations
 //!
 //! Native numbers are a proxy for guest heap consumption, good for
-//! relative comparisons and regression bounds — not exact budget math:
+//! relative comparisons and regression bounds — not exact budget math.
+//! Harness bookkeeping (frame open/close, syscall implementations,
+//! result construction) is excluded via [`PauseGuard`], but:
 //!
 //! - Native `usize`/pointers are 8 bytes; rv32's are 4.
-//! - The measured window includes small harness allocations (e.g.
-//!   `FrameBuilder::run`'s XDR-encode of the return value, which on the
-//!   guest uses the no-alloc scratch buffer instead).
-//! - Panic unwinding (abort paths, `raw_Return`'s control-flow unwind)
-//!   allocates its payload box natively.
+//! - The measured window still includes allocations made by harness
+//!   code running *as* the frame's closure (e.g. `FrameBuilder::run`'s
+//!   XDR-encode of the return value, which on the guest uses the
+//!   no-alloc scratch buffer instead).
+//! - A `panic!` raised directly in contract code allocates its payload
+//!   box natively inside the measured window (panics raised by syscalls
+//!   are excluded along with the syscall).
 
 use groundhog_xdr::contract::ContractEntrypointID;
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -90,12 +94,42 @@ thread_local! {
     static CHILD_CHARGED: Cell<AllocStats> = const { Cell::new(AllocStats::ZERO) };
     static FRAME_RECORDS: RefCell<Vec<FrameAllocRecord>> =
         const { RefCell::new(Vec::new()) };
+    // While set, allocations are harness bookkeeping and not counted
+    // (see `PauseGuard`). Measurement scopes clear it for contract code.
+    static PAUSED: Cell<bool> = const { Cell::new(false) };
+}
+
+/// RAII guard marking a harness-bookkeeping region: allocations made
+/// while it lives are excluded from frame stats (frame open/close, the
+/// mock syscall implementations, record bookkeeping, result
+/// construction). [`FrameMeasureScope::open`] re-enables counting, so
+/// contract code re-entered *through* a paused region — e.g. the
+/// `Invoke` syscall trampolining into a mock method — still measures.
+pub(crate) struct PauseGuard {
+    prev: bool,
+}
+
+impl PauseGuard {
+    pub(crate) fn new() -> Self {
+        Self {
+            prev: PAUSED.with(|c| c.replace(true)),
+        }
+    }
+}
+
+impl Drop for PauseGuard {
+    fn drop(&mut self) {
+        PAUSED.with(|c| c.set(self.prev));
+    }
 }
 
 /// Record one allocation of `size` bytes with `align` alignment into the
 /// current thread's counters. Called by the counting allocator; exposed
 /// to unit tests for deterministic sequences.
 pub(crate) fn record_alloc(size: usize, align: usize) {
+    if PAUSED.with(Cell::get) {
+        return;
+    }
     ALLOCS.with(|c| c.set(c.get() + 1));
     BYTES_TOTAL.with(|c| c.set(c.get() + size as u64));
     SIM_CURSOR.with(|c| {
@@ -144,6 +178,7 @@ impl core::ops::Add for AllocStats {
 pub(crate) struct FrameMeasureScope {
     start: AllocStats,
     child_start: AllocStats,
+    prev_paused: bool,
 }
 
 impl FrameMeasureScope {
@@ -151,10 +186,14 @@ impl FrameMeasureScope {
         Self {
             start: totals(),
             child_start: CHILD_CHARGED.with(Cell::get),
+            // Contract code counts, even when the frame was entered
+            // through a paused harness region (Invoke -> trampoline).
+            prev_paused: PAUSED.with(|c| c.replace(false)),
         }
     }
 
     pub(crate) fn close(self) -> AllocStats {
+        PAUSED.with(|c| c.set(self.prev_paused));
         let inclusive = totals() - self.start;
         let children = CHILD_CHARGED.with(Cell::get) - self.child_start;
         // Report this whole window (not just our exclusive share) as
@@ -170,6 +209,7 @@ impl FrameMeasureScope {
 /// enclosing frame's `execute` window claims it via `take_records_from`
 /// and surfaces it on that frame's `FrameResult`.
 pub(crate) fn push_frame_record(record: FrameAllocRecord) {
+    let _pause = PauseGuard::new();
     FRAME_RECORDS.with(|r| r.borrow_mut().push(record));
 }
 
@@ -184,6 +224,7 @@ pub(crate) fn records_len() -> usize {
 /// thread and inner windows claim their tail first, so `start` is
 /// always within bounds for the enclosing window.
 pub(crate) fn take_records_from(start: usize) -> Vec<FrameAllocRecord> {
+    let _pause = PauseGuard::new();
     FRAME_RECORDS.with(|r| {
         let mut records = r.borrow_mut();
         let start = start.min(records.len());

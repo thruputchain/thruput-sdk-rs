@@ -13,6 +13,13 @@ pub fn perform_mocked_syscall(
     arg6: u64,
     arg7: u64,
 ) -> i32 {
+    // Syscall implementations are host-side work — on the real target
+    // they never touch the guest heap — so their (Rust-side)
+    // allocations are excluded from frame stats. Contract code
+    // re-entered through here (Invoke -> trampoline) re-enables
+    // counting via its own measurement scope, and the guard's Drop
+    // restores the flag even on the panic_any unwind paths below.
+    let _alloc_pause = crate::alloc_stats::PauseGuard::new();
     let result: groundhog_sys::ForeignHostFnResult = unsafe {
         groundhog_sys::mock_syscall_entrypoint(
             syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,

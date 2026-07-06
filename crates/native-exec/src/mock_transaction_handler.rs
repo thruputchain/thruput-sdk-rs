@@ -93,6 +93,10 @@ impl<'a> MockInvocationFrameConfig<'a> {
     }
 
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
+        // Frame-open bookkeeping (invocation encode, frame Box, FFI
+        // open) is harness work, not the enclosing frame's contract
+        // code.
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
         let frame = Box::new(MockInvocationFrame::new(
@@ -261,6 +265,11 @@ impl MockInvocationFrame {
         // this window are claimed onto this frame; explicit child
         // frames claimed theirs before this window closes.
         let step_stats = alloc_scope.close();
+        // The rest of execute is frame-teardown bookkeeping (record
+        // claiming, context pop, FFI frame close + output/trace/event
+        // decode); pause so nested frames don't charge it to their
+        // parent's still-open window.
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         self.alloc_stats = self.alloc_stats + step_stats;
         self.cross_call_alloc_records
             .extend(crate::alloc_stats::take_records_from(records_start));
@@ -288,6 +297,9 @@ impl MockInvocationFrame {
     }
 
     pub fn result(&mut self) -> FrameResult {
+        // FrameResult construction clones output/trace/events — harness
+        // bookkeeping, possibly inside a parent frame's open window.
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())

@@ -98,15 +98,33 @@ deltas, at any nesting depth.
    on `FrameResult` instead; correlating records to trace nodes by
    completion order is possible later if wanted.
 
-### Known approximations (documented on the API)
+#### Excluding harness bookkeeping
+
+Harness allocations must not be charged to frames (found in review:
+record-`Vec` growth and child-frame teardown were leaking into the
+enclosing frame's numbers). A thread-local `PAUSED` flag gates
+`record_alloc`; `PauseGuard` (RAII, restores on drop, unwind-safe)
+marks harness regions: `perform_mocked_syscall` (syscalls are host-side
+work — they never touch the guest heap), frame open
+(`MockInvocationFrameConfig::build`), frame teardown after the
+measurement window closes, `FrameResult` construction, and record
+bookkeeping. `FrameMeasureScope::open` clears the flag (restoring it on
+close), so contract code re-entered *through* a paused region — the
+`Invoke` syscall trampolining into a mock method — still measures. A
+frame whose contract code allocates nothing reports exactly zero, even
+with child frames and cross-calls (asserted by test).
+
+## Known approximations (documented on the API)
 
 - Native sizes ≠ rv32 sizes (8-byte pointers/`usize` vs 4). Good for
   relative comparisons and regression bounds, not exact budget math.
-- The measured `execute` window includes small harness allocations
-  (e.g. `FrameBuilder::run`'s XDR-encode `Vec`; on the guest the same
-  encode uses the no-alloc scratch buffer, `contract_op.rs`).
-- Panic unwinding (abort paths, `raw_Return`'s control-flow unwind)
-  allocates its payload box natively; the guest equivalent does not.
+- The measured window includes allocations by harness code running *as*
+  the frame's closure (e.g. `FrameBuilder::run`'s XDR-encode `Vec`; on
+  the guest the same encode uses the no-alloc scratch buffer,
+  `contract_op.rs`).
+- A `panic!` raised directly in contract code allocates its payload box
+  natively inside the measured window; panics raised by syscalls are
+  excluded along with the syscall.
 - `sim_cursor` is a single global replay, so a frame's first-allocation
   padding depends on prior history (bounded by max align, ~16 bytes).
 
