@@ -60,6 +60,7 @@ pub struct FrameResult {
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
+    alloc_stats: crate::alloc_stats::AllocStats,
 }
 
 impl FrameResult {
@@ -72,7 +73,16 @@ impl FrameResult {
             output,
             trace,
             events,
+            alloc_stats: crate::alloc_stats::AllocStats::ZERO,
         }
+    }
+
+    pub(crate) fn with_alloc_stats(
+        mut self,
+        alloc_stats: crate::alloc_stats::AllocStats,
+    ) -> Self {
+        self.alloc_stats = alloc_stats;
+        self
     }
 
     // -- Status checks (using pattern matching for safety) --
@@ -217,6 +227,20 @@ impl FrameResult {
 
     pub fn trace(&self) -> Option<&InvocationFrameTrace> {
         self.trace.as_ref()
+    }
+
+    /// Allocation stats for this frame's native execution, exclusive of
+    /// child frames. Reads zero unless the test binary installs the
+    /// counting allocator via
+    /// `groundhog_native_exec::install_counting_allocator!()`.
+    ///
+    /// A proxy for rv32 guest heap consumption (the guest bump allocator
+    /// never frees, so cumulative allocation is the budget metric) —
+    /// good for relative comparisons and regression bounds, not exact
+    /// budget math. See the `alloc_stats` module docs for the known
+    /// native-vs-guest divergences.
+    pub fn alloc_stats(&self) -> crate::alloc_stats::AllocStats {
+        self.alloc_stats
     }
 
     // -- Per-frame events --

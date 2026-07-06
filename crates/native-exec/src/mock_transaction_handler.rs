@@ -113,6 +113,9 @@ pub struct MockInvocationFrame {
     state: MockInvocationFrameState,
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     root_frame_closed: Option<Rc<Cell<bool>>>,
+    // Exclusive allocation stats accumulated across this frame's
+    // `execute` steps (a frame spans several via FrameAction::Continue).
+    alloc_stats: crate::alloc_stats::AllocStats,
 }
 
 impl MockInvocationFrame {
@@ -150,6 +153,7 @@ impl MockInvocationFrame {
             state: MockInvocationFrameState::Started,
             context_pushcount,
             root_frame_closed,
+            alloc_stats: crate::alloc_stats::AllocStats::ZERO,
         }
     }
 
@@ -240,10 +244,18 @@ impl MockInvocationFrame {
         self.push_context();
         crate::invoke_error::activate_panic_hook();
 
+        let alloc_scope = crate::alloc_stats::FrameMeasureScope::open();
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 lambda(self)
             }));
+        // Closing after catch_unwind covers panic/abort paths too. The
+        // scope reports stats exclusive of nested frames (child mock
+        // frames and trampoline cross-calls both open their own scopes),
+        // matching the real system where each frame is a separate guest
+        // instance with its own heap.
+        let step_stats = alloc_scope.close();
+        self.alloc_stats = self.alloc_stats + step_stats;
 
         crate::invoke_error::deactivate_panic_hook();
         self.pop_context();
@@ -271,6 +283,7 @@ impl MockInvocationFrame {
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
+                    .with_alloc_stats(self.alloc_stats)
             }
             _ => {
                 eprintln!(

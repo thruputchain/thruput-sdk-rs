@@ -17,6 +17,7 @@ pub(crate) fn drop_failure(args: core::fmt::Arguments<'_>) {
     }
 }
 
+pub mod alloc_stats;
 pub mod frame_builder;
 pub mod frame_result;
 pub mod host_fn_error;

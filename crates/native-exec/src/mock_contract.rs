@@ -64,7 +64,28 @@ impl MockContract {
     where
         F: Fn() + UnwindSafe + Clone + 'static,
     {
-        unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
+        // Each trampoline invocation of this method is one cross-call
+        // frame (its own guest instance in the real system), so measure
+        // it as its own allocation scope and log a per-invocation
+        // record. The scope closes after invoke_wrapper's internal
+        // catch_unwind, so abort/panic paths are measured too.
+        let index = unsafe { (*self.contract).index };
+        let entrypoint = id;
+        let wrapped = invoke_wrapper(func);
+        let measured = Box::new(move || {
+            let scope = crate::alloc_stats::FrameMeasureScope::open();
+            let res = wrapped();
+            let stats = scope.close();
+            crate::alloc_stats::push_frame_record(
+                crate::alloc_stats::FrameAllocRecord {
+                    mock_contract_index: index,
+                    entrypoint,
+                    stats,
+                },
+            );
+            res
+        });
+        unsafe { (*self.contract).funcs.insert(id, measured) };
     }
 
     pub fn register<F: FnOnce(&mut Self)>(&mut self, f: F) -> &mut Self {

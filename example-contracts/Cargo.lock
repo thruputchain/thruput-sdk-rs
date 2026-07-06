@@ -575,6 +575,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "heap_usage"
+version = "0.4.0"
+dependencies = [
+ "heap_usage",
+ "sdk",
+]
+
+[[package]]
 name = "heapless"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

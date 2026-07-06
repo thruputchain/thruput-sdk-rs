@@ -8,10 +8,12 @@ mod mock_public {
     pub use super::contract_test::*;
 
     pub use groundhog_native_exec::{
+        alloc_stats,
         frame_builder::{
             ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,
         },
         frame_result::FrameResult,
+        install_counting_allocator,
         mock_contract::MockContract,
         mock_transaction_handler::MockTransactionHandler,
         test_environment::{TestEnvironment, TestEnvironmentHandle},
