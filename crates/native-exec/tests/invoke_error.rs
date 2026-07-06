@@ -3,6 +3,16 @@ use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::panic;
 use std::panic::panic_any;
 
+/// These tests exercise panic conversion, not frame accounting; wrap
+/// with a throwaway contract-index/entrypoint label.
+fn wrap(f: fn()) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
+    invoke_wrapper(
+        0,
+        groundhog_xdr::contract::ContractEntrypointID::from_u64(0),
+        f,
+    )
+}
+
 // There's a race condition on the panic handler,
 // which changes how tests behave. This is an integration test
 // (separate binary) so it won't conflict with other test binaries.
@@ -24,7 +34,7 @@ fn test_error_wrap() {
         return;
     };
 
-    let boxed = invoke_wrapper(f);
+    let boxed = wrap(f);
 
     assert_eq!((*boxed)().panic, InvokeErrorCode::None.0);
 }
@@ -33,7 +43,7 @@ fn test_panic() {
     let _ = panic::take_hook();
     let f: fn() -> () = || panic!("unknown");
 
-    let boxed = invoke_wrapper(f);
+    let boxed = wrap(f);
 
     assert_eq!((*boxed)().panic, InvokeErrorCode::Unrecoverable.0);
 }
@@ -42,7 +52,7 @@ fn test_panic_ok() {
     let _ = panic::take_hook();
     let f: fn() -> () = || panic_any(validation_error());
 
-    let boxed = invoke_wrapper(f);
+    let boxed = wrap(f);
 
     assert_eq!((*boxed)().panic, InvokeErrorCode::ValidationFailure.0);
 }
@@ -53,7 +63,7 @@ fn test_sdk_panic() {
         panic!("something");
     };
 
-    let boxed = invoke_wrapper(f);
+    let boxed = wrap(f);
 
     assert_eq!((*boxed)().panic, InvokeErrorCode::Deterministic.0);
 }
@@ -65,7 +75,7 @@ fn test_option_panic() {
         x.unwrap();
     };
 
-    let boxed = invoke_wrapper(f);
+    let boxed = wrap(f);
 
     assert_eq!((*boxed)().panic, InvokeErrorCode::Deterministic.0);
 }
@@ -74,7 +84,7 @@ fn test_pass_invoke_error_through_panic_hook() {
     activate_panic_hook();
     let f: fn() -> () = || panic_any(validation_error());
 
-    let boxed = invoke_wrapper(f);
+    let boxed = wrap(f);
 
     assert_eq!((*boxed)().panic, InvokeErrorCode::ValidationFailure.0);
 }

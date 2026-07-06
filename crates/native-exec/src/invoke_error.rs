@@ -223,7 +223,15 @@ mod tests {
 
 // Wrap a function (i.e. part of a contract) within a try-catch block
 // that appropriately handles groundhog error codes.
+//
+// Each call of the returned closure is one cross-call invocation frame
+// (its own guest instance in the real system), so it is also measured
+// as its own allocation scope and logged as a frame record labeled
+// with the mock contract index and entrypoint. The scope closes after
+// the catch_unwind, so abort/panic paths are measured too.
 pub fn invoke_wrapper<'a, F>(
+    mock_contract_index: i32,
+    entrypoint: groundhog_xdr::contract::ContractEntrypointID,
     wrapped: F,
 ) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
 where
@@ -231,7 +239,15 @@ where
 {
     Box::new(move || {
         let w = wrapped.clone();
+        let scope = crate::alloc_stats::FrameMeasureScope::open();
         let result = panic::catch_unwind(w);
+        crate::alloc_stats::push_frame_record(
+            crate::alloc_stats::FrameAllocRecord {
+                mock_contract_index,
+                entrypoint,
+                stats: scope.close(),
+            },
+        );
 
         match result {
             Ok(_) => groundhog_sys::ForeignInvokeResult {
