@@ -17,6 +17,12 @@
 //!
 //! Without it, everything runs normally and all stats read zero.
 //!
+//! Results ride on [`crate::frame_result::FrameResult`], next to the
+//! frame's trace and events: `alloc_stats()` is the frame's own
+//! (exclusive) usage, and `cross_call_alloc_records()` lists one
+//! [`FrameAllocRecord`] per cross-call (`client.foo()`-style) invocation
+//! that completed during the frame's execution, in completion order.
+//!
 //! # Approximations
 //!
 //! Native numbers are a proxy for guest heap consumption, good for
@@ -160,16 +166,29 @@ impl FrameMeasureScope {
     }
 }
 
-/// Append a cross-call frame record to the current thread's log.
+/// Append a cross-call frame record to the current thread's log. The
+/// enclosing frame's `execute` window claims it via `take_records_from`
+/// and surfaces it on that frame's `FrameResult`.
 pub(crate) fn push_frame_record(record: FrameAllocRecord) {
     FRAME_RECORDS.with(|r| r.borrow_mut().push(record));
 }
 
-/// Take (and clear) the cross-call frame records collected on this
-/// thread, in invocation-completion order. Each record covers one
-/// trampoline invocation of a registered mock method.
-pub fn drain_frame_records() -> Vec<FrameAllocRecord> {
-    FRAME_RECORDS.with(|r| std::mem::take(&mut *r.borrow_mut()))
+/// Current length of the thread's record log; snapshot at the start of
+/// a frame window to bound the window's claim.
+pub(crate) fn records_len() -> usize {
+    FRAME_RECORDS.with(|r| r.borrow().len())
+}
+
+/// Claim (remove and return) the records pushed since `start`, in
+/// invocation-completion order. Frame windows nest strictly on one
+/// thread and inner windows claim their tail first, so `start` is
+/// always within bounds for the enclosing window.
+pub(crate) fn take_records_from(start: usize) -> Vec<FrameAllocRecord> {
+    FRAME_RECORDS.with(|r| {
+        let mut records = r.borrow_mut();
+        let start = start.min(records.len());
+        records.split_off(start)
+    })
 }
 
 /// Counting wrapper around the system allocator. Install it in a test
@@ -304,28 +323,33 @@ mod tests {
         assert_eq!(parent_stats.allocs, 1);
     }
 
+    fn record(index: i32) -> FrameAllocRecord {
+        FrameAllocRecord {
+            mock_contract_index: index,
+            entrypoint: ContractEntrypointID::from_u64(0x1122_3344),
+            stats: AllocStats::ZERO,
+        }
+    }
+
     #[test]
-    fn drain_frame_records_returns_and_clears() {
-        // Drain anything earlier tests on this thread left behind.
-        drain_frame_records();
+    fn take_records_from_claims_only_the_tail_window() {
+        // Nested frame windows claim their own tail of the log; the
+        // enclosing window then claims what remains.
+        let outer_start = records_len();
+        push_frame_record(record(1));
+        push_frame_record(record(2));
 
-        let entrypoint = ContractEntrypointID::from_u64(0x1122_3344);
-        push_frame_record(FrameAllocRecord {
-            mock_contract_index: 7,
-            entrypoint,
-            stats: AllocStats {
-                allocs: 1,
-                bytes_total: 2,
-                heap_used: 3,
-            },
-        });
+        let inner_start = records_len();
+        push_frame_record(record(3));
+        let inner = take_records_from(inner_start);
+        assert_eq!(inner.len(), 1);
+        assert_eq!(inner[0].mock_contract_index, 3);
 
-        let records = drain_frame_records();
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].mock_contract_index, 7);
-        assert_eq!(records[0].entrypoint, entrypoint);
-        assert_eq!(records[0].stats.bytes_total, 2);
+        let outer = take_records_from(outer_start);
+        assert_eq!(outer.len(), 2);
+        assert_eq!(outer[0].mock_contract_index, 1);
+        assert_eq!(outer[1].mock_contract_index, 2);
 
-        assert!(drain_frame_records().is_empty());
+        assert_eq!(records_len(), outer_start);
     }
 }

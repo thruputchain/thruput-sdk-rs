@@ -61,6 +61,7 @@ pub struct FrameResult {
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
     alloc_stats: crate::alloc_stats::AllocStats,
+    cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
 }
 
 impl FrameResult {
@@ -74,14 +75,17 @@ impl FrameResult {
             trace,
             events,
             alloc_stats: crate::alloc_stats::AllocStats::ZERO,
+            cross_call_alloc_records: Vec::new(),
         }
     }
 
-    pub(crate) fn with_alloc_stats(
+    pub(crate) fn with_alloc_measurements(
         mut self,
         alloc_stats: crate::alloc_stats::AllocStats,
+        cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
     ) -> Self {
         self.alloc_stats = alloc_stats;
+        self.cross_call_alloc_records = cross_call_alloc_records;
         self
     }
 
@@ -241,6 +245,21 @@ impl FrameResult {
     /// native-vs-guest divergences.
     pub fn alloc_stats(&self) -> crate::alloc_stats::AllocStats {
         self.alloc_stats
+    }
+
+    /// Allocation records for the cross-call frames (`client.foo()`
+    /// invocations) that completed during this frame's execution, in
+    /// completion order. Each record's stats are exclusive of the
+    /// callee's own nested calls; nested cross-calls appear as their
+    /// own records. Cross-calls made inside an explicitly opened child
+    /// frame appear on that child's `FrameResult`, not here.
+    ///
+    /// Requires the counting allocator (see [`Self::alloc_stats`]);
+    /// without it the records still appear but their stats read zero.
+    pub fn cross_call_alloc_records(
+        &self,
+    ) -> &[crate::alloc_stats::FrameAllocRecord] {
+        &self.cross_call_alloc_records
     }
 
     // -- Per-frame events --

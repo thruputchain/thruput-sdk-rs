@@ -6,7 +6,6 @@
 
 groundhog_native_exec::install_counting_allocator!();
 
-use groundhog_native_exec::alloc_stats::drain_frame_records;
 use groundhog_native_exec::frame_builder::FrameAction;
 use groundhog_native_exec::test_environment::TestEnvironment;
 use groundhog_xdr::contract::ContractEntrypointID;
@@ -122,9 +121,6 @@ fn cross_call_frames_produce_labeled_alloc_records() {
     });
     mock.deploy_contract_to(&CHILD_ADDR);
 
-    // Clear anything earlier activity on this thread left behind.
-    drain_frame_records();
-
     let result = env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
             invoke_mock(&CHILD_ADDR, entrypoint);
@@ -132,7 +128,7 @@ fn cross_call_frames_produce_labeled_alloc_records() {
     });
     result.assert_success();
 
-    let records = drain_frame_records();
+    let records = result.frame().cross_call_alloc_records();
     assert_eq!(
         records.len(),
         1,
@@ -151,6 +147,52 @@ fn cross_call_frames_produce_labeled_alloc_records() {
         caller.bytes_total < MOCK_ALLOC as u64 / 2,
         "caller frame must NOT be charged the callee's allocation, \
          got {caller:?}"
+    );
+}
+
+#[test]
+fn cross_call_records_land_on_the_enclosing_frame() {
+    // A cross-call made inside an explicit child frame must be recorded
+    // on the child frame's result, not the parent's.
+    const MOCK_ADDR: ContractAddress = ContractAddress::new([0x33; 32]);
+    let entrypoint = ContractEntrypointID::from_u64(0x5555_6666_7777_8888);
+    static CHILD_RECORDS: AtomicU64 = AtomicU64::new(0);
+
+    let env = TestEnvironment::no_cost();
+    let mock = env.register_mock(|c| {
+        c.register_method(entrypoint, || {
+            let v = vec![0u8; 1024];
+            std::hint::black_box(&v);
+        });
+    });
+    mock.deploy_contract_to(&MOCK_ADDR);
+
+    let result = env.transact(|tx| {
+        tx.call(&PARENT_ADDR)
+            .run_continuable(|frame| {
+                let child_result = frame.child_call(&CHILD_ADDR).run(|| {
+                    invoke_mock(&MOCK_ADDR, entrypoint);
+                });
+                child_result.assert_success();
+                CHILD_RECORDS.store(
+                    child_result.cross_call_alloc_records().len() as u64,
+                    Ordering::Relaxed,
+                );
+                FrameAction::Close
+            })
+            .finish()
+    });
+    result.assert_success();
+
+    assert_eq!(
+        CHILD_RECORDS.load(Ordering::Relaxed),
+        1,
+        "the cross-call happened inside the child frame's window"
+    );
+    assert!(
+        result.frame().cross_call_alloc_records().is_empty(),
+        "the parent frame made no cross-calls of its own, got {:?}",
+        result.frame().cross_call_alloc_records()
     );
 }
 

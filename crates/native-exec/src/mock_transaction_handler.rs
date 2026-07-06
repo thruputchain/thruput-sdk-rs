@@ -114,8 +114,10 @@ pub struct MockInvocationFrame {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     root_frame_closed: Option<Rc<Cell<bool>>>,
     // Exclusive allocation stats accumulated across this frame's
-    // `execute` steps (a frame spans several via FrameAction::Continue).
+    // `execute` steps (a frame spans several via FrameAction::Continue),
+    // plus the cross-call records claimed from those windows.
     alloc_stats: crate::alloc_stats::AllocStats,
+    cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
 }
 
 impl MockInvocationFrame {
@@ -154,6 +156,7 @@ impl MockInvocationFrame {
             context_pushcount,
             root_frame_closed,
             alloc_stats: crate::alloc_stats::AllocStats::ZERO,
+            cross_call_alloc_records: Vec::new(),
         }
     }
 
@@ -244,6 +247,7 @@ impl MockInvocationFrame {
         self.push_context();
         crate::invoke_error::activate_panic_hook();
 
+        let records_start = crate::alloc_stats::records_len();
         let alloc_scope = crate::alloc_stats::FrameMeasureScope::open();
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -253,9 +257,13 @@ impl MockInvocationFrame {
         // scope reports stats exclusive of nested frames (child mock
         // frames and trampoline cross-calls both open their own scopes),
         // matching the real system where each frame is a separate guest
-        // instance with its own heap.
+        // instance with its own heap. Cross-call records logged during
+        // this window are claimed onto this frame; explicit child
+        // frames claimed theirs before this window closes.
         let step_stats = alloc_scope.close();
         self.alloc_stats = self.alloc_stats + step_stats;
+        self.cross_call_alloc_records
+            .extend(crate::alloc_stats::take_records_from(records_start));
 
         crate::invoke_error::deactivate_panic_hook();
         self.pop_context();
@@ -283,7 +291,10 @@ impl MockInvocationFrame {
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
-                    .with_alloc_stats(self.alloc_stats)
+                    .with_alloc_measurements(
+                        self.alloc_stats,
+                        self.cross_call_alloc_records.clone(),
+                    )
             }
             _ => {
                 eprintln!(

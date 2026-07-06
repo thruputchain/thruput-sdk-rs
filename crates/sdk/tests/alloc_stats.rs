@@ -23,8 +23,6 @@ fn client_style_cross_call_produces_labeled_alloc_record() {
     });
     mock.deploy_contract_to(&CHILD_ADDR);
 
-    sdk::alloc_stats::drain_frame_records();
-
     let result = env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
             let () = sdk::call::try_call_raw(
@@ -39,7 +37,7 @@ fn client_style_cross_call_produces_labeled_alloc_record() {
     });
     result.assert_success();
 
-    let records = sdk::alloc_stats::drain_frame_records();
+    let records = result.frame().cross_call_alloc_records();
     assert_eq!(
         records.len(),
         1,

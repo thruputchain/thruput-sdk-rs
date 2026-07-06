@@ -71,21 +71,32 @@ deltas, at any nesting depth.
 
 ### Hook points
 
-1. **`MockContract::register_method`** (cross-call frames — the primary
-   target): wrap the registered method so each trampoline invocation
-   opens a scope, runs the `invoke_wrapper`ed closure (measurement
-   closes after its internal `catch_unwind`, so abort paths measure
-   too), and pushes a `FrameAllocRecord { mock_contract_index,
-   entrypoint, stats }` into a thread-local log. Tests read it via
-   `alloc_stats::drain_frame_records()`.
+1. **`invoke_wrapper`** (cross-call frames — the primary target): the
+   existing wrap-a-contract-fn-for-FFI chokepoint takes the
+   `(mock_contract_index, entrypoint)` label, opens a scope around its
+   `catch_unwind` (so abort paths measure too), and pushes a
+   `FrameAllocRecord { mock_contract_index, entrypoint, stats }` into a
+   thread-local log. The log is internal: each enclosing frame window
+   claims the records pushed during it (an index snapshot at window
+   start + `split_off` at close — inner windows claim their tail first,
+   so nesting works without a tree structure), and surfaces them as
+   `FrameResult::cross_call_alloc_records()`, in completion order,
+   right next to the frame's trace and events. There is no global
+   drain/reset API for tests to manage.
 
 2. **`MockInvocationFrame::execute`** (harness-driven frames): open a
    scope around the `catch_unwind`, accumulate exclusive stats onto the
    frame across multiple `execute` calls (`FrameAction::Continue`), and
    surface them as `FrameResult::alloc_stats()`. `FrameResult::new`
    keeps its signature (stats default to zero) to avoid churn in
-   existing callers; the frame machinery attaches stats via a
-   `with_alloc_stats` constructor helper.
+   existing callers; the frame machinery attaches measurements via a
+   `with_alloc_measurements` constructor helper.
+
+   Embedding into `InvocationFrameTrace` itself was considered but that
+   type is generated in the registry `groundhog-trace` crate (it
+   arrives serialized from hogd), so the records live beside `trace()`
+   on `FrameResult` instead; correlating records to trace nodes by
+   completion order is possible later if wanted.
 
 ### Known approximations (documented on the API)
 
