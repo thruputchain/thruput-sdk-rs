@@ -219,7 +219,7 @@ pub type AuthTokenIdBuf = heapless::Vec<u32, 32>;
 /// Fetch the current frame's calldata and auth-token ids into
 /// caller-provided buffers (cleared first).
 ///
-/// This is the primitive behind [`with_calldata_and_auth_tokens`]: the
+/// This is the fallible core of [`fetch_calldata_and_auth_tokens`]: the
 /// buffers are filled in place, never moved by value. Buffers are
 /// heap-allocated with their exact sizes, queried up front via
 /// `GetCalldataLen`, so calldata of any length is supported.
@@ -282,7 +282,7 @@ fn fetch_calldata_and_auth_tokens_into(
 /// Fetch the current frame's calldata and auth-token ids into
 /// caller-provided buffers (cleared first).
 ///
-/// This is the primitive behind [`with_calldata_and_auth_tokens`]: the
+/// This is the fallible core of [`fetch_calldata_and_auth_tokens`]: the
 /// buffers are filled in place, never moved by value. Without `alloc`,
 /// calldata lands in the fixed
 /// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer and the
@@ -343,43 +343,41 @@ fn fetch_calldata_and_auth_tokens_into(
     Ok(())
 }
 
-/// Fetch this frame's calldata and auth-token ids and run `f` on them,
-/// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
-/// API: generated entrypoint wrappers and raw-calldata contracts both use
-/// it. The throw is guest-reachable and not limited to an adversarial
-/// host: in the no-alloc guest it is exactly what an ordinary transaction
-/// gets if its calldata exceeds `SCRATCH_MAX` (4096) bytes or carries more
-/// than 32 auth tokens.
+/// Fetch this frame's calldata and auth-token ids into the caller's
+/// buffers (cleared first), throwing a `LibraryExn::Syscall` on fetch
+/// failure. The single calldata API: generated entrypoint wrappers and
+/// raw-calldata contracts both use it. The throw is guest-reachable and
+/// not limited to an adversarial host: in the no-alloc guest it is
+/// exactly what an ordinary transaction gets if its calldata exceeds
+/// `SCRATCH_MAX` (4096) bytes or carries more than 32 auth tokens.
 ///
-/// The buffers are locals in this frame, filled in place — never moved by
-/// value — and `f` borrows them for its whole run (decoded args in
-/// generated wrappers borrow the calldata buffer for the entire handler
-/// frame). In the no-alloc guest that costs `SCRATCH_MAX` (4096) bytes of
-/// stack per live fetch; generated entrypoints call this exactly once, at
-/// the root of the frame. There is no shared cell, so nested fetches (the
-/// native mock's in-process frames, or a hand-written re-fetch) each get
-/// their own buffers and cannot alias.
+/// The buffers live in the caller's frame and are filled in place —
+/// never moved by value. Generated entrypoint wrappers declare them as
+/// locals and fetch exactly once, at the root of the frame; the decoded
+/// args borrow the calldata buffer for the entire handler frame. In the
+/// no-alloc guest that costs `SCRATCH_MAX` (4096) bytes of stack per
+/// live fetch. There is no shared cell, so nested fetches (the native
+/// mock's in-process frames, or a hand-written re-fetch) each get their
+/// own buffers and cannot alias.
 ///
-/// `#[inline(never)]`: generated entrypoint wrappers pass their handler as a
-/// plain `fn` pointer, so all of a contract's entrypoints share one
-/// instantiation of this machinery (~440 bytes in the optimized wasm)
-/// instead of monomorphizing a byte-identical copy per closure type. Without
-/// the attribute, LTO inlines that shared instantiation back into each
-/// export and constant-folds the pointer, recreating the per-export copies.
+/// Non-generic and `#[inline(never)]`, both load-bearing for codesize:
+/// every entrypoint reaches this single copy of the fetch machinery
+/// (~440 bytes in the optimized wasm) by direct call — nothing
+/// monomorphizes per entrypoint, and no handler's address is ever taken,
+/// so the funcref table (capped at 64 initial elements on-chain) does
+/// not grow with entrypoint count. Without the attribute, LTO inlines
+/// the body back into each export, recreating the per-export copies.
 ///
 /// `doc(hidden)`: raw calldata access is plumbing for the generated
-/// entrypoint wrappers, not a surface contracts should discover and build
-/// on.
+/// entrypoint wrappers, not a surface contracts should discover and
+/// build on.
 #[doc(hidden)]
 #[inline(never)]
-pub fn with_calldata_and_auth_tokens<R>(
-    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
-) -> R {
-    let mut calldata: Calldata = crate::internal::new_scratch();
-    let mut auth_ids = AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens_into(&mut calldata, &mut auth_ids)
-        .unwrap_or_else(|syserr| {
-            syscall_throw(SyscallNo::kGetCalldata, syserr)
-        });
-    f(&calldata, &auth_ids)
+pub fn fetch_calldata_and_auth_tokens(
+    calldata: &mut Calldata,
+    auth_ids: &mut AuthTokenIdBuf,
+) {
+    fetch_calldata_and_auth_tokens_into(calldata, auth_ids).unwrap_or_else(
+        |syserr| syscall_throw(SyscallNo::kGetCalldata, syserr),
+    );
 }
