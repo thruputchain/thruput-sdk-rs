@@ -38,6 +38,10 @@
 //! - A `panic!` raised directly in contract code allocates its payload
 //!   box natively inside the measured window (panics raised by syscalls
 //!   are excluded along with the syscall).
+//! - A frame spanning several `execute` steps (`FrameAction::Continue`)
+//!   replays each step from a fresh cursor, so padding at step
+//!   boundaries is not charged; the real guest keeps one heap across
+//!   the whole frame.
 
 use groundhog_xdr::contract::ContractEntrypointID;
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -48,14 +52,17 @@ use std::cell::{Cell, RefCell};
 pub struct AllocStats {
     /// Number of allocation calls (including the alloc half of reallocs).
     pub allocs: u64,
-    /// Cumulative bytes requested. Never decremented: the rv32 bump
-    /// allocator never reuses freed memory, so cumulative is the
-    /// budget-relevant metric.
+    /// Cumulative bytes requested. Never decremented — the rv32 bump
+    /// allocator never reuses freed memory, so cumulative (not live) is
+    /// what the guest pays. Padding-free, so it maps exactly to known
+    /// request sizes; use [`Self::heap_used`] for the guest-faithful
+    /// consumption figure.
     pub bytes_total: u64,
-    /// Simulated rv32 bump-allocator consumption: replays the guest
-    /// allocator's cursor arithmetic (align-up, then advance by size)
-    /// for the same allocation sequence, so alignment padding is
-    /// included.
+    /// Simulated rv32 bump-allocator consumption: the frame's own
+    /// allocation sequence replayed through the guest allocator's
+    /// cursor arithmetic (align-up, then advance by size) on a fresh
+    /// heap, so alignment padding is included. This is the field to
+    /// bound when checking a heap budget.
     pub heap_used: u64,
 }
 
@@ -79,24 +86,44 @@ pub struct FrameAllocRecord {
     pub stats: AllocStats,
 }
 
-// Monotonic per-thread counters. Const-initialized `Cell`s: lazy TLS
-// initialization can allocate, which would recurse into the counting
-// allocator, and `Cell<u64>` has no destructor so nothing is registered
-// at first touch either.
+// The thread's measurement context: the counters of the *innermost
+// open frame window* (or of a root pseudo-window when none is open).
+// `FrameMeasureScope::open` saves this struct and zeroes it; `close`
+// reads it as the frame's exclusive stats and restores the save — the
+// window "stack" lives implicitly in the nested scope values on the
+// Rust call stack, so a frame never observes its callees' allocations
+// at all.
+//
+// Const-initialized `Cell`s: lazy TLS initialization can allocate,
+// which would recurse into the counting allocator, and none of these
+// have destructors so nothing is registered at first touch either.
+struct MeasureState {
+    allocs: Cell<u64>,
+    bytes_total: Cell<u64>,
+    // Bump-cursor replay of the guest allocator for the current window,
+    // starting from 0 at window open — a fresh guest heap, exactly like
+    // each frame's own instance on the real target.
+    heap_cursor: Cell<u64>,
+    // Number of open FrameMeasureScopes on this thread. Zero means a
+    // cross-call record pushed now would have no owning frame.
+    depth: Cell<u32>,
+    // While set, allocations are harness bookkeeping and not counted
+    // (see `PauseGuard`). Window opens clear it for contract code.
+    paused: Cell<bool>,
+}
+
 thread_local! {
-    static ALLOCS: Cell<u64> = const { Cell::new(0) };
-    static BYTES_TOTAL: Cell<u64> = const { Cell::new(0) };
-    // Simulated rv32 bump cursor (see `AllocStats::heap_used`).
-    static SIM_CURSOR: Cell<u64> = const { Cell::new(0) };
-    // Sum of the inclusive stats of completed frame scopes; lets an
-    // enclosing scope subtract its direct children (see
-    // `FrameMeasureScope::close`).
-    static CHILD_CHARGED: Cell<AllocStats> = const { Cell::new(AllocStats::ZERO) };
+    static STATE: MeasureState = const {
+        MeasureState {
+            allocs: Cell::new(0),
+            bytes_total: Cell::new(0),
+            heap_cursor: Cell::new(0),
+            depth: Cell::new(0),
+            paused: Cell::new(false),
+        }
+    };
     static FRAME_RECORDS: RefCell<Vec<FrameAllocRecord>> =
         const { RefCell::new(Vec::new()) };
-    // While set, allocations are harness bookkeeping and not counted
-    // (see `PauseGuard`). Measurement scopes clear it for contract code.
-    static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
 
 /// RAII guard marking a harness-bookkeeping region: allocations made
@@ -112,42 +139,44 @@ pub(crate) struct PauseGuard {
 impl PauseGuard {
     pub(crate) fn new() -> Self {
         Self {
-            prev: PAUSED.with(|c| c.replace(true)),
+            prev: STATE.with(|s| s.paused.replace(true)),
         }
     }
 }
 
 impl Drop for PauseGuard {
     fn drop(&mut self) {
-        PAUSED.with(|c| c.set(self.prev));
+        STATE.with(|s| s.paused.set(self.prev));
     }
 }
 
-/// Record one allocation of `size` bytes with `align` alignment into the
-/// current thread's counters. Called by the counting allocator; exposed
-/// to unit tests for deterministic sequences.
+/// Record one allocation of `size` bytes with `align` alignment into
+/// the innermost open window's counters. Called by the counting
+/// allocator; exposed to unit tests for deterministic sequences.
 pub(crate) fn record_alloc(size: usize, align: usize) {
-    if PAUSED.with(Cell::get) {
-        return;
-    }
-    ALLOCS.with(|c| c.set(c.get() + 1));
-    BYTES_TOTAL.with(|c| c.set(c.get() + size as u64));
-    SIM_CURSOR.with(|c| {
+    STATE.with(|s| {
+        if s.paused.get() {
+            return;
+        }
+        s.allocs.set(s.allocs.get() + 1);
+        s.bytes_total.set(s.bytes_total.get() + size as u64);
         // The rv32 bump allocator's arithmetic: align the cursor up,
         // then advance by the request size.
-        let align = align as u64;
-        let aligned = (c.get() + (align - 1)) & !(align - 1);
-        c.set(aligned + size as u64);
+        let aligned = s.heap_cursor.get().next_multiple_of(align as u64);
+        s.heap_cursor.set(aligned + size as u64);
     });
 }
 
-/// Snapshot of the thread's monotonic totals since thread start.
-pub(crate) fn totals() -> AllocStats {
-    AllocStats {
-        allocs: ALLOCS.with(Cell::get),
-        bytes_total: BYTES_TOTAL.with(Cell::get),
-        heap_used: SIM_CURSOR.with(Cell::get),
-    }
+/// Snapshot of the innermost open window's counters (or the root
+/// pseudo-window's, when no scope is open). Production code reads
+/// counters only through `FrameMeasureScope`; this is for unit tests.
+#[cfg(test)]
+fn current_counters() -> AllocStats {
+    STATE.with(|s| AllocStats {
+        allocs: s.allocs.get(),
+        bytes_total: s.bytes_total.get(),
+        heap_used: s.heap_cursor.get(),
+    })
 }
 
 impl core::ops::Sub for AllocStats {
@@ -173,42 +202,63 @@ impl core::ops::Add for AllocStats {
 }
 
 /// Measurement scope for one frame window. `open` before running frame
-/// code, `close` after; `close` returns the frame's *exclusive* stats
-/// (nested scopes' allocations are subtracted).
+/// code, `close` after; `close` returns the frame's *exclusive* stats.
+///
+/// `open` saves the enclosing window's counters and zeroes them; `close`
+/// reads the zeroed-then-accumulated counters as this frame's stats and
+/// restores the save. A frame therefore never observes its callees'
+/// allocations at all, and its `heap_used` is an exact replay of its own
+/// allocation sequence on a fresh guest heap — matching the real system,
+/// where each frame is a separate guest instance.
 pub(crate) struct FrameMeasureScope {
-    start: AllocStats,
-    child_start: AllocStats,
+    saved: AllocStats,
     prev_paused: bool,
 }
 
 impl FrameMeasureScope {
     pub(crate) fn open() -> Self {
-        Self {
-            start: totals(),
-            child_start: CHILD_CHARGED.with(Cell::get),
+        STATE.with(|s| Self {
+            saved: AllocStats {
+                allocs: s.allocs.replace(0),
+                bytes_total: s.bytes_total.replace(0),
+                heap_used: s.heap_cursor.replace(0),
+            },
             // Contract code counts, even when the frame was entered
             // through a paused harness region (Invoke -> trampoline).
-            prev_paused: PAUSED.with(|c| c.replace(false)),
-        }
+            prev_paused: {
+                s.depth.set(s.depth.get() + 1);
+                s.paused.replace(false)
+            },
+        })
     }
 
     pub(crate) fn close(self) -> AllocStats {
-        PAUSED.with(|c| c.set(self.prev_paused));
-        let inclusive = totals() - self.start;
-        let children = CHILD_CHARGED.with(Cell::get) - self.child_start;
-        // Report this whole window (not just our exclusive share) as
-        // charged, *replacing* any grandchild contributions: the
-        // enclosing scope must subtract exactly the inclusive stats of
-        // its direct children, no more.
-        CHILD_CHARGED.with(|c| c.set(self.child_start + inclusive));
-        inclusive - children
+        STATE.with(|s| {
+            let exclusive = AllocStats {
+                allocs: s.allocs.replace(self.saved.allocs),
+                bytes_total: s.bytes_total.replace(self.saved.bytes_total),
+                heap_used: s.heap_cursor.replace(self.saved.heap_used),
+            };
+            s.paused.set(self.prev_paused);
+            s.depth.set(s.depth.get() - 1);
+            exclusive
+        })
     }
 }
 
 /// Append a cross-call frame record to the current thread's log. The
 /// enclosing frame's `execute` window claims it via `take_records_from`
 /// and surfaces it on that frame's `FrameResult`.
+///
+/// With no window open — a mock method dispatched outside the mock-frame
+/// harness (e.g. `TransactionHandler::root_invoke`, or a wrapped closure
+/// invoked directly) — the record has no owning frame: drop it rather
+/// than strand it in the log, where it would leak and could later be
+/// claimed by an unrelated frame's window.
 pub(crate) fn push_frame_record(record: FrameAllocRecord) {
+    if STATE.with(|s| s.depth.get()) == 0 {
+        return;
+    }
     let _pause = PauseGuard::new();
     FRAME_RECORDS.with(|r| r.borrow_mut().push(record));
 }
@@ -270,17 +320,9 @@ mod tests {
     use super::*;
 
     fn delta<R>(f: impl FnOnce() -> R) -> (R, AllocStats) {
-        let start = totals();
+        let start = current_counters();
         let r = f();
-        let end = totals();
-        (
-            r,
-            AllocStats {
-                allocs: end.allocs - start.allocs,
-                bytes_total: end.bytes_total - start.bytes_total,
-                heap_used: end.heap_used - start.heap_used,
-            },
-        )
+        (r, current_counters() - start)
     }
 
     #[test]
@@ -373,9 +415,55 @@ mod tests {
     }
 
     #[test]
+    fn scope_heap_used_replays_a_fresh_guest_heap() {
+        // Leave the thread cursor misaligned before any window opens.
+        record_alloc(3, 1);
+
+        let outer = FrameMeasureScope::open();
+        record_alloc(8, 8); // fresh cursor: no padding
+
+        let inner = FrameMeasureScope::open();
+        record_alloc(10, 1);
+        record_alloc(8, 8); // 10 -> pad to 16 -> 24
+        let inner_stats = inner.close();
+
+        record_alloc(4, 4); // outer resumes at 8: aligned -> 12
+        let outer_stats = outer.close();
+
+        assert_eq!(
+            inner_stats.heap_used, 24,
+            "child replays its own sequence from a fresh heap"
+        );
+        assert_eq!(
+            outer_stats.heap_used, 12,
+            "parent's replay is unaffected by the child window \
+             and by pre-window cursor state"
+        );
+    }
+
+    #[test]
+    fn records_without_an_open_frame_window_are_dropped() {
+        let base = records_len();
+        push_frame_record(record(1));
+        assert_eq!(
+            records_len(),
+            base,
+            "no frame window is open, so the record has no owner and \
+             must be dropped instead of stranded"
+        );
+
+        let scope = FrameMeasureScope::open();
+        push_frame_record(record(2));
+        assert_eq!(records_len(), base + 1);
+        scope.close();
+    }
+
+    #[test]
     fn take_records_from_claims_only_the_tail_window() {
         // Nested frame windows claim their own tail of the log; the
-        // enclosing window then claims what remains.
+        // enclosing window then claims what remains. (A window must be
+        // open for pushes to be accepted at all.)
+        let window = FrameMeasureScope::open();
         let outer_start = records_len();
         push_frame_record(record(1));
         push_frame_record(record(2));
@@ -392,5 +480,6 @@ mod tests {
         assert_eq!(outer[1].mock_contract_index, 2);
 
         assert_eq!(records_len(), outer_start);
+        window.close();
     }
 }
