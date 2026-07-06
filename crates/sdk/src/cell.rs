@@ -68,9 +68,9 @@ pub use _ref_impl::*;
 /// [`ContractRefCell`] static: implemented by the guest static itself and by
 /// the test env's `LocalKey`, so `CELL.with_ref(|c| ...)` works in both.
 ///
-/// Crate-private on purpose: the checkout-or-fresh/checkout-or-trap policies
-/// encode SDK-internal invariants about the scratch cells, and contracts
-/// should not build on them.
+/// Crate-private on purpose: the checkout-or-fresh policy encodes
+/// SDK-internal invariants about the scratch cells, and contracts should
+/// not build on it.
 pub(crate) trait ContractLocalRef<T> {
     fn with_ref<R>(
         &'static self,
@@ -101,7 +101,6 @@ pub(crate) trait ContractLocalRef<T> {
             Err(_) => fresh_fallback(fresh, f),
         })
     }
-
 }
 
 /// Re-entrant-checkout fallback shared by every
