@@ -28,7 +28,7 @@
 //! Native numbers are a proxy for guest heap consumption, good for
 //! relative comparisons and regression bounds — not exact budget math.
 //! Harness bookkeeping (frame open/close, syscall implementations,
-//! result construction) is excluded via [`PauseGuard`], but:
+//! result construction) is excluded via the internal `PauseGuard`, but:
 //!
 //! - Native `usize`/pointers are 8 bytes; rv32's are 4.
 //! - The measured window still includes allocations made by harness
