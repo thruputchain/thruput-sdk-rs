@@ -92,15 +92,21 @@ mod bytestring_get_alloc {
     use alloc::boxed::Box;
 
     pub fn bytestring_get(key: &StorageKey) -> Box<[u8]> {
-        result::bytestring_get(key).unwrap_or_else(|errno| {
-            syscall_throw(SyscallNo::kBytestringGet, errno);
-        })
+        use crate::re_throw::OrReThrow;
+        bytestring_try_get(key).or_re_throw()
     }
 
-    pub fn bytestring_try_get(key: &StorageKey) -> Option<Box<[u8]>> {
-        result::bytestring_try_get(key).unwrap_or_else(|errno| {
-            syscall_throw(SyscallNo::kBytestringGet, errno);
-        })
+    /// Read the bytestring at `key`, reporting failure as `Err` instead of
+    /// aborting (the `try_` law; see the [`exn`](mod@crate::exn) module
+    /// docs). A missing key is a `LibraryExn::Syscall` for which
+    /// [`is_storage_missing`](LibraryExn::is_storage_missing) is true; a
+    /// value of another storage type or any other syscall failure is a
+    /// `LibraryExn::Syscall` as well.
+    pub fn bytestring_try_get(
+        key: &StorageKey,
+    ) -> Result<Box<[u8]>, LibraryExn> {
+        result::bytestring_get(key)
+            .map_err(|errno| syscall_exn(SyscallNo::kBytestringGet, errno))
     }
 }
 #[cfg(feature = "alloc")]

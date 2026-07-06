@@ -121,13 +121,16 @@ pub fn allowance(
     owner: &ContractAddress,
     spender: &ContractAddress,
 ) -> Amount {
-    non_negative_int_try_get(&get_allowance_key(owner, spender)).unwrap_or(0)
-        as Amount
+    non_negative_int_try_get(&get_allowance_key(owner, spender))
+        .none_if_missing()
+        .unwrap_or(0) as Amount
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
 pub fn get_balance_of(addr: &ContractAddress) -> Amount {
-    non_negative_int_try_get(&get_balance_key(addr)).unwrap_or(0) as Amount
+    non_negative_int_try_get(&get_balance_key(addr))
+        .none_if_missing()
+        .unwrap_or(0) as Amount
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -159,5 +162,7 @@ pub fn burn(loser: &ContractAddress, amount: Amount) {
 
 #[contract(interface = "ERC20", version = "0.1.0")]
 pub fn total_supply() -> Amount {
-    non_negative_int_try_get(&get_total_supply_key()).unwrap_or(0) as Amount
+    non_negative_int_try_get(&get_total_supply_key())
+        .none_if_missing()
+        .unwrap_or(0) as Amount
 }

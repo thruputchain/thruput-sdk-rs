@@ -33,7 +33,7 @@ impl ISwapV2Pair for SwapV2Pair {
         token1: &Address,
         lp_token_hash: &SHA256Hash,
     ) {
-        if self.lp_addr.try_get().is_some() {
+        if self.lp_addr.try_get().none_if_missing().is_some() {
             throw(ISwapV2PairError::AlreadyInitialized);
         }
 

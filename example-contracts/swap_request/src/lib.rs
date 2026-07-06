@@ -40,9 +40,13 @@ impl Swap {
 
         let mut n_processed = 0;
         let mut id_extent = 0;
-        let mut reserves = self.reserves.try_get().unwrap_or_default();
+        let mut reserves = self
+            .reserves
+            .try_get()
+            .none_if_missing()
+            .unwrap_or_default();
 
-        while let Some(req) = self.requests.try_consume() {
+        while let Some(req) = self.requests.try_consume().none_if_missing() {
             // Keep track of the highest request id
             id_extent = id_extent.max(req.id);
 

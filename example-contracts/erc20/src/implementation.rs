@@ -35,7 +35,7 @@ pub struct Config {
 
 impl TokenContract {
     fn _init(&mut self, config: &Config) {
-        if self.config.try_get().is_some() {
+        if self.config.try_get().none_if_missing().is_some() {
             throw(ERC20Error::AlreadyInitialized);
         }
 
@@ -52,7 +52,11 @@ impl TokenContract {
 
     // Balance stored at given owner address, or zero if empty
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Amount {
-        self.balances.at(owner).try_get().unwrap_or(0) as Amount
+        self.balances
+            .at(owner)
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0) as Amount
     }
 
     // Adjust balance at given owner address, from zero if empty.
@@ -71,7 +75,12 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
-        self.allowances.at(owner).at(spender).try_get().unwrap_or(0) as Amount
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0) as Amount
     }
 
     // Adjust allowance for owner and spender, from zero if empty.
@@ -97,7 +106,7 @@ impl TokenContract {
     }
 
     fn _total_supply(&self) -> Amount {
-        self.total_supply.try_get().unwrap_or(0) as Amount
+        self.total_supply.try_get().none_if_missing().unwrap_or(0) as Amount
     }
 }
 
