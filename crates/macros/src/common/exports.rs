@@ -418,9 +418,9 @@ pub fn generate_method(
     };
 
     // Decode the args, run the body, encode the result. The whole body runs
-    // inside `with_calldata_and_auth_tokens`: the calldata lives in the
-    // per-instance calldata cell (a guest static — zero stack, no by-value
-    // copy of the no-alloc SCRATCH_MAX buffer), and the decoded args borrow
+    // inside `with_calldata_and_auth_tokens`: the calldata buffer is a local
+    // of that (per-contract, shared) frame, filled in place — no by-value
+    // copy of the no-alloc SCRATCH_MAX buffer — and the decoded args borrow
     // it for the whole frame.
     //
     // The `as fn(..)` cast is load-bearing for codesize: the handler closure

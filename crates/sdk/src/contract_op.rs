@@ -3,7 +3,6 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-use crate::cell::{ContractLocalRef, ContractRefCell};
 #[cfg(not(feature = "alloc"))]
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
@@ -344,57 +343,22 @@ fn fetch_calldata_and_auth_tokens_into(
     Ok(())
 }
 
-crate::contract_local! {
-    static CALLDATA_SCRATCH: ContractRefCell<(Calldata, AuthTokenIdBuf)> =
-        const {
-            ContractRefCell::new((Calldata::new(), AuthTokenIdBuf::new()))
-        };
-}
-
-/// Fetch this frame's calldata and auth-token ids and run `f` on them,
-/// reporting a fetch failure as `Err` instead of aborting. Same buffer
-/// plumbing as [`with_calldata_and_auth_tokens`] — the `try_` law (see the
-/// [`exn`](mod@crate::exn) module docs) applies: the only way this aborts
-/// the VM is through `f` itself. The `Err` arm is guest-reachable via a
-/// `kGetCalldata` fetch failure (surfaced as a `LibraryExn::Syscall` value;
-/// the syscall itself may succeed while the SDK wrapper rejects the data),
-/// which is not limited to an adversarial host: in the no-alloc guest it is
-/// exactly what an ordinary transaction gets if its calldata exceeds
-/// `SCRATCH_MAX` (4096) bytes or carries more than 32 auth tokens — the
-/// primary case this API exists to report through `Err` rather than
-/// aborting on.
-///
-/// The buffers live in the per-instance calldata cell — a guest `static` —
-/// so the (SCRATCH_MAX-byte, no-alloc) calldata buffer costs no stack and
-/// is never copied. The cell stays borrowed while `f` runs; decoded args
-/// borrow from it for the whole frame, which is why it is distinct from
-/// the write scratch. A re-entrant fetch (a nested in-process frame in the
-/// native mock) falls back to fresh buffers via
-/// [`ContractLocalRef::with_mut_or_fresh`], so the borrow can't alias.
-pub fn try_with_calldata_and_auth_tokens<R>(
-    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
-) -> Result<R, crate::exn::LibraryExn> {
-    CALLDATA_SCRATCH.with_mut_or_fresh(
-        fresh_calldata,
-        |(calldata, auth_ids)| {
-            fetch_calldata_and_auth_tokens_into(calldata, auth_ids).map_err(
-                |syserr| {
-                    crate::exn::syscall_exn(SyscallNo::kGetCalldata, syserr)
-                },
-            )?;
-            Ok(f(calldata, auth_ids))
-        },
-    )
-}
-
 /// Fetch this frame's calldata and auth-token ids and run `f` on them,
 /// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
 /// API: generated entrypoint wrappers and raw-calldata contracts both use
-/// it.
+/// it. The throw is guest-reachable and not limited to an adversarial
+/// host: in the no-alloc guest it is exactly what an ordinary transaction
+/// gets if its calldata exceeds `SCRATCH_MAX` (4096) bytes or carries more
+/// than 32 auth tokens.
 ///
-/// A thin throwing wrapper over [`try_with_calldata_and_auth_tokens`] so the
-/// two spellings can't drift: whatever `LibraryExn` the `try_` form would
-/// return on fetch failure is exactly what this throws.
+/// The buffers are locals in this frame, filled in place — never moved by
+/// value — and `f` borrows them for its whole run (decoded args in
+/// generated wrappers borrow the calldata buffer for the entire handler
+/// frame). In the no-alloc guest that costs `SCRATCH_MAX` (4096) bytes of
+/// stack per live fetch; generated entrypoints call this exactly once, at
+/// the root of the frame. There is no shared cell, so nested fetches (the
+/// native mock's in-process frames, or a hand-written re-fetch) each get
+/// their own buffers and cannot alias.
 ///
 /// `#[inline(never)]`: generated entrypoint wrappers pass their handler as a
 /// plain `fn` pointer, so all of a contract's entrypoints share one
@@ -402,13 +366,20 @@ pub fn try_with_calldata_and_auth_tokens<R>(
 /// instead of monomorphizing a byte-identical copy per closure type. Without
 /// the attribute, LTO inlines that shared instantiation back into each
 /// export and constant-folds the pointer, recreating the per-export copies.
+///
+/// `doc(hidden)`: raw calldata access is plumbing for the generated
+/// entrypoint wrappers, not a surface contracts should discover and build
+/// on.
+#[doc(hidden)]
 #[inline(never)]
 pub fn with_calldata_and_auth_tokens<R>(
     f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
 ) -> R {
-    try_with_calldata_and_auth_tokens(f).unwrap_or_else(|e| library_throw(e))
-}
-
-fn fresh_calldata() -> (Calldata, AuthTokenIdBuf) {
-    (crate::internal::new_scratch(), AuthTokenIdBuf::new())
+    let mut calldata: Calldata = crate::internal::new_scratch();
+    let mut auth_ids = AuthTokenIdBuf::new();
+    fetch_calldata_and_auth_tokens_into(&mut calldata, &mut auth_ids)
+        .unwrap_or_else(|syserr| {
+            syscall_throw(SyscallNo::kGetCalldata, syserr)
+        });
+    f(&calldata, &auth_ids)
 }

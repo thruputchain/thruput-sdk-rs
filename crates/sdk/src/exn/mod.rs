@@ -9,9 +9,8 @@
 //! running `f`. This is what makes `try_` a meaningful opt-out of the
 //! throwing convention: callers can rely on the `try_` spelling to never
 //! surprise them with an abort that their own closure didn't cause.
-//! [`RawExceptionRef::try_as`], [`RawException::try_as`],
-//! [`crate::call::try_call_raw_with`], and
-//! [`crate::contract_op::try_with_calldata_and_auth_tokens`] hold this law
+//! [`RawExceptionRef::try_as`], [`RawException::try_as`], and
+//! [`crate::call::try_call_raw_with`] hold this law
 //! (the list above is illustrative, not exhaustive). Some longer-established
 //! `try_` storage getters are the one exception class: they predate this law
 //! and instead follow an older, narrower contract — "`None` on a missing
