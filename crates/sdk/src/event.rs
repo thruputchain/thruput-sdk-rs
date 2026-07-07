@@ -84,8 +84,12 @@ pub fn log_event(event: &impl Event) {
 
     let topic = |i| {
         if i < n {
-            let t = event.topic(i)?;
-            Some(t.into())
+            let t = event.topic(i);
+            debug_assert!(
+                t.is_some(),
+                "event declared {n} topics, but topic({i}) returned None"
+            );
+            Some(t?.into())
         } else {
             None
         }
