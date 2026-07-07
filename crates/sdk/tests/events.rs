@@ -55,7 +55,7 @@ struct OwnedEvent {
 impl Event for OwnedEvent {
     type Payload<'a> = OwnedEvent;
 
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         2
     }
 
@@ -112,7 +112,7 @@ struct BorrowedEvent<'a> {
 impl<'a> Event for BorrowedEvent<'a> {
     type Payload<'p> = BorrowedEvent<'p>;
 
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         3
     }
 
@@ -259,7 +259,7 @@ struct ManualTooManyTopicsEvent {
 impl Event for ManualTooManyTopicsEvent {
     type Payload<'a> = ManualTooManyTopicsEvent;
 
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         4
     }
 
@@ -802,12 +802,12 @@ fn filter_events_skips_foreign_derived_events() {
 
 #[test]
 fn derived_events_declare_static_topic_counts() {
-    // #[derive(Event)] knows the topic count statically (signature + one
+    // #[derive(Event)] emits the topic count statically (signature + one
     // per #[topic] field); typed-event matching uses it to reject events
     // whose num_topics doesn't match the type's declaration.
-    assert_eq!(<OwnedTopicEvent as Event>::static_num_topics(), Some(2));
-    assert_eq!(<OtherAmountEvent as Event>::static_num_topics(), Some(1));
-    assert_eq!(<RefTopicEvent<'_> as Event>::static_num_topics(), Some(3));
+    assert_eq!(<OwnedTopicEvent as Event>::num_topics(), 2);
+    assert_eq!(<OtherAmountEvent as Event>::num_topics(), 1);
+    assert_eq!(<RefTopicEvent<'_> as Event>::num_topics(), 3);
 }
 
 #[test]

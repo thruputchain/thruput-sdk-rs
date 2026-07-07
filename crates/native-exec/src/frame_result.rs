@@ -209,13 +209,8 @@ impl FrameResult {
     /// Collect events from `address` that decode as `E` via
     /// [`TypedEvent::try_new`]: well-formed, topic 0 matching `E`'s declared
     /// discriminant (when [`Event::signature`] returns one), topic count
-    /// matching [`Event::static_num_topics`] (when `Some`), payload decoding
-    /// as `E::Payload`. Foreign and malformed events are skipped, never
-    /// panicked on.
-    ///
-    /// For hand-written impls that leave both `Event::signature()` and
-    /// `Event::static_num_topics()` at `None`, matching is
-    /// payload-decode-only.
+    /// matching [`Event::num_topics`], and payload decoding as `E::Payload`.
+    /// Foreign and malformed events are skipped, never panicked on.
     pub fn filter_events<E>(
         &self,
         address: &ContractAddress,

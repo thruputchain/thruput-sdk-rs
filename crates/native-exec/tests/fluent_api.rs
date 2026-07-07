@@ -16,7 +16,7 @@ struct TestValue(u32);
 
 impl Event for TestValue {
     type Payload<'a> = TestValue;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         0
     }
     fn signature() -> Option<&'static [u8; 32]> {
@@ -36,7 +36,7 @@ struct EventA(u32);
 
 impl Event for EventA {
     type Payload<'a> = EventA;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         1
     }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
@@ -59,7 +59,7 @@ struct EventB(u32);
 
 impl Event for EventB {
     type Payload<'a> = EventB;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         1
     }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
@@ -1013,12 +1013,12 @@ fn test_filter_events_by_topic() {
         b_events.iter().map(|t| t.payload()).collect();
     assert_eq!(b_payloads, vec![&EventB(20)]);
 
-    // TestValue declares no signature, so matching is payload-decode-only:
-    // it matches all three single-topic events whose payloads decode as u32.
-    // Pins the documented semantics — the old ReadXDROwned path would have
-    // rejected these on the instance num_topics cross-check.
+    // TestValue declares no signature but does declare 0 topics, so the
+    // topic-count check rejects all three single-topic events even though
+    // their payloads decode as u32. Pins the count check for
+    // signature-less types.
     let untyped = result.filter_events::<TestValue>(&TEST_ADDR);
-    assert_eq!(untyped.len(), 3);
+    assert_eq!(untyped.len(), 0);
 }
 
 #[test]
@@ -1040,7 +1040,8 @@ fn test_filter_events_topic_mismatch_skips() {
     let events = result.filter_events::<EventA>(&TEST_ADDR);
     assert!(events.is_empty());
 
-    // TestValue has no signature: payload decode alone decides → match
+    // TestValue declares 0 topics and the raw event has 0 → count matches,
+    // and the payload decodes → match
     let events = result.filter_events::<TestValue>(&TEST_ADDR);
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].payload(), &TestValue(42));

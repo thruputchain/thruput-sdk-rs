@@ -173,12 +173,10 @@ impl<'a, E: Event> TypedEvent<'a, E> {
         }
         // After the signature check, so a different-type event still reports
         // "type mismatch" rather than a count difference.
-        if let Some(expected) = E::static_num_topics()
-            && raw.num_topics != expected
-        {
+        if raw.num_topics != E::num_topics() {
             return Err(BuildError::TopicCountMismatch {
                 actual: raw.num_topics,
-                expected,
+                expected: E::num_topics(),
                 type_name: core::any::type_name::<E>(),
             });
         }
@@ -192,8 +190,9 @@ impl<'a, E: Event> TypedEvent<'a, E> {
     /// When `E` declares a static topic-0 discriminant (via
     /// [`Event::signature`]), the raw event's topic 0 is verified against it
     /// first, so a payload that merely *shares a shape* with `E` cannot be
-    /// silently mistyped as `E`. Panics on a discriminant mismatch or on
-    /// payload decode failure.
+    /// silently mistyped as `E`. Panics on a discriminant mismatch, a topic
+    /// count differing from [`Event::num_topics`], or payload decode
+    /// failure.
     #[track_caller]
     pub fn new(raw: &'a TxEmittedEvent) -> Self {
         match Self::build(raw) {
@@ -204,13 +203,9 @@ impl<'a, E: Event> TypedEvent<'a, E> {
 
     /// Non-panicking twin of [`new`](Self::new): `Some` only if the event is
     /// well-formed, its topic 0 matches `E`'s declared discriminant (when
-    /// one exists), its topic count matches [`Event::static_num_topics`]
-    /// (when `Some`), and its payload decodes as `E::Payload`. The probe for
-    /// scanning event streams that contain foreign events.
-    ///
-    /// For impls that leave both [`Event::signature`] and
-    /// [`Event::static_num_topics`] at `None`, matching is
-    /// payload-decode-only.
+    /// one exists), its topic count matches [`Event::num_topics`], and its
+    /// payload decodes as `E::Payload`. The probe for scanning event streams
+    /// that contain foreign events.
     pub fn try_new(raw: &'a TxEmittedEvent) -> Option<Self> {
         Self::build(raw).ok()
     }
@@ -309,16 +304,12 @@ mod tests {
     impl Event for SigEvent {
         type Payload<'a> = u32;
 
-        fn num_topics(&self) -> u32 {
+        fn num_topics() -> u32 {
             1
         }
 
         fn signature() -> Option<&'static Topic> {
             Some(&SIG)
-        }
-
-        fn static_num_topics() -> Option<u32> {
-            Some(1)
         }
 
         fn decode_payload(bytes: &[u8]) -> Result<u32, xdrs::ReadError> {
@@ -349,16 +340,12 @@ mod tests {
     impl Event for LenientEvent {
         type Payload<'a> = usize;
 
-        fn num_topics(&self) -> u32 {
+        fn num_topics() -> u32 {
             1
         }
 
         fn signature() -> Option<&'static Topic> {
             Some(&SIG)
-        }
-
-        fn static_num_topics() -> Option<u32> {
-            Some(1)
         }
 
         fn decode_payload(bytes: &[u8]) -> Result<usize, xdrs::ReadError> {
