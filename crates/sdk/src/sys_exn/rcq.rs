@@ -81,9 +81,13 @@ fn retrocausal_queue_try_sized<const N: usize>(
 /// failure as `Err`
 /// (the `try_` law): an empty queue is the
 /// [`is_storage_missing`](LibraryExn::is_storage_missing) syscall exn, an
-/// entry larger than `buf` is `StorageSerialization` (only possible if raw
-/// bytes were inserted around the typed path, which encodes through the same
-/// buffer), and any other syscall failure its syscall exn.
+/// entry larger than `buf` is `StorageSerialization` (unreachable for the
+/// SDK scratch, which is larger than the protocol's entry cap), and any
+/// other syscall failure its syscall exn. With `peek == false` the
+/// entry-larger-than-`buf` error is destructive (see
+/// [`rcq_result::retrocausal_queue_read_into`]); `try_` callers that must
+/// leave a bad entry in the queue read with `peek == true` and pop via
+/// [`retrocausal_queue_try_discard`].
 pub(crate) fn retrocausal_queue_try_read_into(
     key: &StorageKey,
     peek: bool,
@@ -94,6 +98,16 @@ pub(crate) fn retrocausal_queue_try_read_into(
         Ok(None) => Err(LibraryExn::StorageSerialization),
         Err(e) => Err(syscall_exn(SyscallNo::kRetrocausalQueueConsume, e)),
     }
+}
+
+/// Pop the next queue entry without copying its contents, reporting failure
+/// as `Err`. Completes a typed `try_consume` after the entry has been peeked
+/// and decoded, so the pop can no longer fail on the entry's contents.
+pub(crate) fn retrocausal_queue_try_discard(
+    key: &StorageKey,
+) -> Result<(), LibraryExn> {
+    rcq_result::retrocausal_queue_consume_discard(key)
+        .map_err(|e| syscall_exn(SyscallNo::kRetrocausalQueueConsume, e))
 }
 
 #[cfg(feature = "alloc")]
