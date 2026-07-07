@@ -1252,3 +1252,45 @@ fn test_run_zero_byte_encoding_roundtrips() {
     let v: Empty = result.assert_return_as();
     assert_eq!(v, Empty);
 }
+
+// ── Interleaving suspended subframes across transactions ──────────────
+
+/// A subframe can be suspended (`FrameAction::Continue`) while another
+/// transaction runs to completion, then resumed and closed — as long as it
+/// is opened from the suspended parent's handle at top level
+/// (`ContinuableFrame::child_call`), not from inside an `execute` closure.
+/// The borrow checker enforces the frame-nesting discipline: while the
+/// child's `ContinuableFrame` is alive, the parent cannot be executed,
+/// closed, or given another child.
+#[test]
+fn test_subframe_suspends_across_interleaved_transactions() {
+    let env = TestEnvironment::new(None);
+    let mut tx1 = MockTransactionHandler::new(env.clone());
+    let mut tx2 = MockTransactionHandler::new(env);
+
+    let addr1 = ContractAddress::new([1u8; 32]);
+    let addr2 = ContractAddress::new([2u8; 32]);
+    let addr3 = ContractAddress::new([3u8; 32]);
+
+    // tx1: root frame, suspended.
+    let mut root = tx1.call(&addr1).run_continuable(|_| FrameAction::Continue);
+
+    // tx1: subframe opened from the suspended parent, then suspended itself.
+    let mut child = root
+        .child_call(&addr2)
+        .run_continuable(|_| FrameAction::Continue);
+
+    // tx2 runs to completion while tx1's subframe is suspended.
+    let r2 = tx2.call(&addr3).run(|| ());
+    r2.assert_success();
+
+    // Resume and close tx1 inner-first: the subframe, then the root.
+    child.run_continuable(|_| FrameAction::Close);
+    child.finish().assert_success();
+
+    root.run_continuable(|_| FrameAction::Close);
+    root.finish().assert_success();
+
+    assert_eq!(tx1.try_commit_transaction(), ExecResult::ExecResultOK);
+    assert_eq!(tx2.try_commit_transaction(), ExecResult::ExecResultOK);
+}
