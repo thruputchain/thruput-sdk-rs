@@ -139,9 +139,12 @@ impl TransactResult {
         self.frame.events_from(address)
     }
 
-    pub fn filter_events<E>(&self, address: &ContractAddress) -> Vec<E>
+    pub fn filter_events<E>(
+        &self,
+        address: &ContractAddress,
+    ) -> Vec<TypedEvent<'_, E>>
     where
-        E: xdrs::ReadXDROwned + groundhog_event::Event,
+        E: Event,
     {
         self.frame.filter_events(address)
     }
@@ -170,9 +173,9 @@ impl TransactResult {
     pub fn assert_emitted<E>(
         &self,
         address: &ContractAddress,
-        predicate: impl Fn(&E) -> bool,
+        predicate: impl Fn(&TypedEvent<'_, E>) -> bool,
     ) where
-        E: xdrs::ReadXDROwned + groundhog_event::Event,
+        E: Event,
     {
         self.frame.assert_emitted(address, predicate);
     }

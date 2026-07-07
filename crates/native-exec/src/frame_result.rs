@@ -4,55 +4,6 @@ use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::ContractAddress;
 
-/// Check whether a decoded event's topic 0 matches the raw emitted event's
-/// topic 0. Returns true if the topics are consistent:
-/// - Both have 0 topics -> match
-/// - Decoded declares topics and topic 0 matches raw -> match
-/// - Mismatch in topic count or topic 0 value -> no match
-fn topic0_matches<E: Event>(decoded: &E, raw: &TxEmittedEvent) -> bool {
-    if decoded.num_topics() != raw.num_topics {
-        return false;
-    }
-    if decoded.num_topics() > 0 {
-        if let Some(expected) = decoded.topic(0) {
-            let expected_bytes: [u8; 32] = expected.into();
-            if raw.serialized_event.len() < 32 {
-                return false;
-            }
-            if raw.serialized_event[..32] != expected_bytes {
-                return false;
-            }
-            return true;
-        }
-        panic!(
-            "invalid event implementation: claimed to have topics but did not provide topic 0"
-        );
-    } else {
-        // Event type has no topics. `decoded.num_topics() == raw.num_topics`
-        // already holds (checked above), so the raw event has none either.
-        true
-    }
-}
-
-/// Decode a single raw event as `E`, returning `Some` only if the event is
-/// well-formed (its claimed topic bytes fit the buffer), its payload decodes
-/// cleanly, and its topic 0 matches `E`'s declared topic 0. Returns `None`
-/// for malformed, non-`E`, or topic-mismatched events — never panics, so an
-/// unrelated corrupt event can't abort a `filter_events`/`assert_emitted`
-/// sweep.
-fn decode_as<E>(event: &TxEmittedEvent) -> Option<E>
-where
-    E: xdrs::ReadXDROwned + groundhog_event::Event,
-{
-    let topics_len = 32 * event.num_topics as usize;
-    if topics_len > event.serialized_event.len() {
-        return None;
-    }
-    let payload = &event.serialized_event[topics_len..];
-    let decoded = xdrs::cxs::decode::<E>(payload).ok()?;
-    topic0_matches(&decoded, event).then_some(decoded)
-}
-
 /// Result of executing a single invocation frame.
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
 #[derive(Debug, Clone)]
@@ -255,16 +206,26 @@ impl FrameResult {
             .collect()
     }
 
-    /// Collect events from `address` whose payload decodes as `E` and whose
-    /// topic 0 matches the `Event` trait's declared topic 0.
-    pub fn filter_events<E>(&self, address: &ContractAddress) -> Vec<E>
+    /// Collect events from `address` that decode as `E` via
+    /// [`TypedEvent::try_new`]: well-formed, topic 0 matching `E`'s declared
+    /// discriminant (when [`Event::signature`] returns one), payload decoding
+    /// as `E::Payload`. Foreign and malformed events are skipped, never
+    /// panicked on.
+    ///
+    /// For events whose `Event::signature()` is `None`, matching is
+    /// payload-decode-only — there is no decoded `E` instance to cross-check
+    /// topic counts against.
+    pub fn filter_events<E>(
+        &self,
+        address: &ContractAddress,
+    ) -> Vec<TypedEvent<'_, E>>
     where
-        E: xdrs::ReadXDROwned + groundhog_event::Event,
+        E: Event,
     {
         self.events
             .iter()
             .filter(|e| &e.contract_address == address)
-            .filter_map(decode_as::<E>)
+            .filter_map(|e| TypedEvent::try_new(e))
             .collect()
     }
 
@@ -307,23 +268,24 @@ impl FrameResult {
         check(&typed);
     }
 
-    /// Assert that exactly one event from `address` matches `predicate`
-    /// when decoded as `E` (with topic 0 check). Panics if zero or more
-    /// than one event matches.
+    /// Assert that exactly one event from `address` decodes as `E` (per
+    /// [`TypedEvent::try_new`] — see [`filter_events`](Self::filter_events)
+    /// for the matching rules) and satisfies `predicate`. Panics if zero or
+    /// more than one event matches.
     #[track_caller]
     pub fn assert_emitted<E>(
         &self,
         address: &ContractAddress,
-        predicate: impl Fn(&E) -> bool,
+        predicate: impl Fn(&TypedEvent<'_, E>) -> bool,
     ) where
-        E: xdrs::ReadXDROwned + groundhog_event::Event,
+        E: Event,
     {
         let match_count = self
             .events
             .iter()
             .filter(|e| &e.contract_address == address)
-            .filter_map(decode_as::<E>)
-            .filter(|decoded| predicate(decoded))
+            .filter_map(|e| TypedEvent::try_new(e))
+            .filter(|typed| predicate(typed))
             .count();
         assert!(
             match_count == 1,
