@@ -55,7 +55,7 @@ struct OwnedEvent {
 impl Event for OwnedEvent {
     type Payload<'a> = OwnedEvent;
 
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         2
     }
 
@@ -112,7 +112,7 @@ struct BorrowedEvent<'a> {
 impl<'a> Event for BorrowedEvent<'a> {
     type Payload<'p> = BorrowedEvent<'p>;
 
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         3
     }
 
@@ -259,7 +259,7 @@ struct ManualTooManyTopicsEvent {
 impl Event for ManualTooManyTopicsEvent {
     type Payload<'a> = ManualTooManyTopicsEvent;
 
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         4
     }
 
@@ -692,4 +692,143 @@ fn event_payload(event: &TxEmittedEvent) -> &[u8] {
     let topics_len = 32 * event.num_topics as usize;
 
     &event.serialized_event[topics_len..]
+}
+
+//-------------------------------------------------------------------------
+// Regression: filter_events/assert_emitted work with #[derive(Event)]
+// events, whose #[topic] fields are excluded from the payload bytes.
+// Previously these APIs required whole-struct ReadXDR and either failed to
+// compile (reference topics) or silently matched nothing (owned topics).
+// See docs/superpowers/specs/2026-07-06-typed-event-queries-design.md.
+
+#[derive(Event)]
+struct OwnedTopicEvent {
+    #[topic]
+    bidder: ContractAddress,
+    amount: u128,
+}
+
+// Same payload shape as OwnedTopicEvent (a lone u128) but a distinct type,
+// so a distinct topic-0 signature.
+#[derive(Event)]
+struct OtherAmountEvent {
+    amount: u128,
+}
+
+#[derive(Event)]
+struct RefTopicEvent<'a> {
+    #[topic]
+    from: &'a ContractAddress,
+    #[topic]
+    to: &'a ContractAddress,
+    amount: u128,
+    memo: &'a [u8],
+}
+
+#[test]
+fn filter_events_finds_derived_event_with_owned_topic() {
+    let env = TestEnvironment::no_cost();
+    let bidder = ContractAddress::new([7u8; 32]);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&OwnedTopicEvent { bidder, amount: 5 });
+        })
+    });
+    result.assert_success();
+
+    let events = result.filter_events::<OwnedTopicEvent>(&TEST_ADDR);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].payload().amount, 5);
+    assert_eq!(events[0].topic(0).unwrap(), OwnedTopicEvent::SIGNATURE);
+    assert_eq!(events[0].topic(1).unwrap(), &*bidder);
+
+    result.assert_emitted::<OwnedTopicEvent>(&TEST_ADDR, |t| {
+        t.payload().amount == 5 && t.topic(1).unwrap() == &*bidder
+    });
+}
+
+#[test]
+fn filter_events_finds_derived_event_with_ref_topics() {
+    let env = TestEnvironment::no_cost();
+    let from = ContractAddress::new([1u8; 32]);
+    let to = ContractAddress::new([2u8; 32]);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&RefTopicEvent {
+                from: &from,
+                to: &to,
+                amount: 42,
+                memo: b"hi",
+            });
+        })
+    });
+    result.assert_success();
+
+    let events = result.filter_events::<RefTopicEvent<'_>>(&TEST_ADDR);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].payload().amount, 42);
+    assert_eq!(events[0].payload().memo, b"hi");
+    assert_eq!(events[0].topic(1).unwrap(), &*from);
+    assert_eq!(events[0].topic(2).unwrap(), &*to);
+
+    result.assert_emitted::<RefTopicEvent<'_>>(&TEST_ADDR, |t| {
+        t.payload().amount == 42
+    });
+}
+
+#[test]
+fn filter_events_skips_foreign_derived_events() {
+    let env = TestEnvironment::no_cost();
+    let bidder = ContractAddress::new([7u8; 32]);
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&OwnedTopicEvent { bidder, amount: 5 });
+            log_event(&OtherAmountEvent { amount: 5 });
+        })
+    });
+    result.assert_success();
+    result.assert_event_count(2);
+
+    // Payload-compatible but differently-signed events are not confused.
+    let bids = result.filter_events::<OwnedTopicEvent>(&TEST_ADDR);
+    assert_eq!(bids.len(), 1);
+    let others = result.filter_events::<OtherAmountEvent>(&TEST_ADDR);
+    assert_eq!(others.len(), 1);
+    assert_eq!(others[0].payload().amount, 5);
+
+    // Exactly one OwnedTopicEvent despite the payload-compatible sibling.
+    result.assert_emitted::<OwnedTopicEvent>(&TEST_ADDR, |_| true);
+}
+
+#[test]
+fn derived_events_declare_static_topic_counts() {
+    // #[derive(Event)] emits the topic count statically (signature + one
+    // per #[topic] field); typed-event matching uses it to reject events
+    // whose num_topics doesn't match the type's declaration.
+    assert_eq!(<OwnedTopicEvent as Event>::num_topics(), 2);
+    assert_eq!(<OtherAmountEvent as Event>::num_topics(), 1);
+    assert_eq!(<RefTopicEvent<'_> as Event>::num_topics(), 3);
+}
+
+#[test]
+fn typed_event_rejects_forged_topic_count() {
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&OwnedTopicEvent {
+                bidder: ContractAddress::new([7u8; 32]),
+                amount: 5,
+            });
+        })
+    });
+    result.assert_success();
+
+    // The genuine event matches...
+    assert_eq!(result.filter_events::<OwnedTopicEvent>(&TEST_ADDR).len(), 1);
+
+    // ...but a forged copy claiming a different topic count is rejected,
+    // even though its topic 0 still carries OwnedTopicEvent's signature.
+    let mut forged = result.events()[0].clone();
+    forged.num_topics = 1;
+    assert!(TypedEvent::<OwnedTopicEvent>::try_new(&forged).is_none());
 }

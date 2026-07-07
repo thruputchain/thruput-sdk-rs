@@ -355,7 +355,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         impl #impl_generics ::sdk::Event for #ident #ty_generics #where_clause {
             type Payload<'__payload> = #payload_ty_in_gat;
 
-            fn num_topics(&self) -> u32 {
+            fn num_topics() -> u32 {
                 #num_topics
             }
 

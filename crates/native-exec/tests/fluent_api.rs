@@ -16,7 +16,7 @@ struct TestValue(u32);
 
 impl Event for TestValue {
     type Payload<'a> = TestValue;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         0
     }
     fn signature() -> Option<&'static [u8; 32]> {
@@ -36,7 +36,7 @@ struct EventA(u32);
 
 impl Event for EventA {
     type Payload<'a> = EventA;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         1
     }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
@@ -59,7 +59,7 @@ struct EventB(u32);
 
 impl Event for EventB {
     type Payload<'a> = EventB;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         1
     }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
@@ -707,12 +707,12 @@ fn test_assert_emitted_finds_matching_event() {
     assert_eq!(result.events().len(), 3);
 
     // Find the event with value 20
-    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 20);
 
     // Also works on the frame directly
     result
         .frame()
-        .assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 30);
+        .assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 30);
 }
 
 #[test]
@@ -729,7 +729,7 @@ fn test_assert_emitted_panics_when_no_match() {
     });
 
     result.assert_success();
-    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 999);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 999);
 }
 
 #[test]
@@ -859,8 +859,13 @@ fn test_filter_events() {
     });
 
     result.assert_success();
-    let values: Vec<TestValue> = result.filter_events(&TEST_ADDR);
-    assert_eq!(values, vec![TestValue(10), TestValue(20), TestValue(30)]);
+    let values = result.filter_events::<TestValue>(&TEST_ADDR);
+    let payloads: Vec<&TestValue> =
+        values.iter().map(|t| t.payload()).collect();
+    assert_eq!(
+        payloads,
+        vec![&TestValue(10), &TestValue(20), &TestValue(30)]
+    );
 }
 
 // ── Continuable frame tests ──────────────────────────────────────────────
@@ -997,12 +1002,23 @@ fn test_filter_events_by_topic() {
     assert_eq!(result.events().len(), 3);
 
     // filter_events<EventA> should only return the two EventA instances
-    let a_events: Vec<EventA> = result.filter_events(&TEST_ADDR);
-    assert_eq!(a_events, vec![EventA(10), EventA(30)]);
+    let a_events = result.filter_events::<EventA>(&TEST_ADDR);
+    let a_payloads: Vec<&EventA> =
+        a_events.iter().map(|t| t.payload()).collect();
+    assert_eq!(a_payloads, vec![&EventA(10), &EventA(30)]);
 
     // filter_events<EventB> should only return the one EventB instance
-    let b_events: Vec<EventB> = result.filter_events(&TEST_ADDR);
-    assert_eq!(b_events, vec![EventB(20)]);
+    let b_events = result.filter_events::<EventB>(&TEST_ADDR);
+    let b_payloads: Vec<&EventB> =
+        b_events.iter().map(|t| t.payload()).collect();
+    assert_eq!(b_payloads, vec![&EventB(20)]);
+
+    // TestValue declares no signature but does declare 0 topics, so the
+    // topic-count check rejects all three single-topic events even though
+    // their payloads decode as u32. Pins the count check for
+    // signature-less types.
+    let untyped = result.filter_events::<TestValue>(&TEST_ADDR);
+    assert_eq!(untyped.len(), 0);
 }
 
 #[test]
@@ -1020,13 +1036,15 @@ fn test_filter_events_topic_mismatch_skips() {
 
     result.assert_success();
 
-    // EventA expects topic 0, but the raw event has no topics → no match
-    let events: Vec<EventA> = result.filter_events(&TEST_ADDR);
+    // EventA declares a signature, but the raw event has no topics → no match
+    let events = result.filter_events::<EventA>(&TEST_ADDR);
     assert!(events.is_empty());
 
-    // TestValue expects 0 topics, raw event has 0 topics → match
-    let events: Vec<TestValue> = result.filter_events(&TEST_ADDR);
-    assert_eq!(events, vec![TestValue(42)]);
+    // TestValue declares 0 topics and the raw event has 0 → count matches,
+    // and the payload decodes → match
+    let events = result.filter_events::<TestValue>(&TEST_ADDR);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].payload(), &TestValue(42));
 }
 
 #[test]
@@ -1060,10 +1078,10 @@ fn test_assert_emitted_distinguishes_by_topic() {
     result.assert_success();
 
     // assert_emitted for EventA should find EventA(10) but not EventB(20)
-    result.assert_emitted::<EventA>(&TEST_ADDR, |v| v.0 == 10);
+    result.assert_emitted::<EventA>(&TEST_ADDR, |t| t.payload().0 == 10);
 
     // assert_emitted for EventB should find EventB(20) but not EventA(10)
-    result.assert_emitted::<EventB>(&TEST_ADDR, |v| v.0 == 20);
+    result.assert_emitted::<EventB>(&TEST_ADDR, |t| t.payload().0 == 20);
 }
 
 #[test]
@@ -1121,7 +1139,7 @@ fn test_assert_emitted_skips_unrelated_malformed_event() {
     };
     let result = FrameResult::new(output, None, vec![valid, malformed]);
 
-    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 20);
 }
 
 //-------------------------------------------------------------------------

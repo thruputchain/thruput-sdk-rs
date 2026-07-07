@@ -73,8 +73,8 @@ impl IntoTopic for [u8] {
 ///
 /// Topic values that are not already 32 bytes wide are XDR-encoded and hashed
 /// before being emitted.
-pub fn log_event(event: &impl Event) {
-    let n = event.num_topics();
+pub fn log_event<E: Event>(event: &E) {
+    let n = E::num_topics();
 
     if n > EVENT_MAX_TOPICS {
         encoding_event_throw(format_args!(
