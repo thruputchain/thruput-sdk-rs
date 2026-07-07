@@ -73,6 +73,31 @@ fn test_rcq_sized_wrong_size() {
 #[derive(Debug, PartialEq, ReadXDR, WriteXDR)]
 struct Foo(u32);
 
+// An entry that fails to decode is reported as StorageSerialization by the
+// typed try_ forms — and stays in the queue, so error handling can inspect
+// or skip it instead of silently operating on the next entry.
+#[test]
+fn test_rcq_decode_failure_preserves_entry() {
+    let env = TestEnvironment::no_cost();
+
+    run_rcq(&env, |mut rcq: RCQ<Foo>| {
+        // Foo's encoding is exactly 4 bytes; 3 raw bytes cannot decode.
+        rcq.insert_raw(&[9; 3]);
+        rcq.insert(&Foo(1));
+
+        assert_eq!(rcq.try_consume(), Err(LibraryExn::StorageSerialization));
+        assert_eq!(rcq.try_peek(), Err(LibraryExn::StorageSerialization));
+
+        // The malformed entry survived the failed reads: still at the head,
+        // with the valid entry behind it not skipped.
+        assert_eq!(rcq.consume_raw().as_ref(), &[9; 3]);
+        assert_eq!(rcq.try_consume(), Ok(Foo(1)));
+        // ... and a successful try_consume did pop its entry.
+        assert!(rcq.try_consume().unwrap_err().is_storage_missing());
+    })
+    .assert_success();
+}
+
 #[test]
 fn test_rcq() {
     let env = TestEnvironment::no_cost();

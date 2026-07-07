@@ -144,14 +144,21 @@ where
 {
     /// Consume a queue entry and return the decoded item.
     pub fn consume(&mut self) -> T {
-        self.try_consume().or_re_throw()
+        // A single consuming read: a decode failure throws, and the trap
+        // rolls the consume back, so the destructive read is unobservable.
+        self.try_decode_entry(false).or_re_throw()
     }
 
     /// Consume a queue entry and return the decoded item, reporting failure
-    /// as `Err`. An entry that fails to decode as `T` (or exceeds the
-    /// no-alloc read buffer) is `LibraryExn::StorageSerialization`.
+    /// as `Err`. An entry that fails to decode as `T` is
+    /// `LibraryExn::StorageSerialization` and is left in the queue.
     pub fn try_consume(&mut self) -> Result<T, LibraryExn> {
-        self.try_decode_entry(false)
+        // Decode from a peek so a bad entry is reported without being
+        // destroyed (matching try_consume_sized), then pop the validated
+        // entry without copying it out again.
+        let value = self.try_decode_entry(true)?;
+        retrocausal_queue_try_discard(self.key())?;
+        Ok(value)
     }
 
     /// Retrieve a queue entry and return the decoded item, without consuming the entry.
