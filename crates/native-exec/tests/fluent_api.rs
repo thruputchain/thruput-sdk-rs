@@ -1012,6 +1012,13 @@ fn test_filter_events_by_topic() {
     let b_payloads: Vec<&EventB> =
         b_events.iter().map(|t| t.payload()).collect();
     assert_eq!(b_payloads, vec![&EventB(20)]);
+
+    // TestValue declares no signature, so matching is payload-decode-only:
+    // it matches all three single-topic events whose payloads decode as u32.
+    // Pins the documented semantics — the old ReadXDROwned path would have
+    // rejected these on the instance num_topics cross-check.
+    let untyped = result.filter_events::<TestValue>(&TEST_ADDR);
+    assert_eq!(untyped.len(), 3);
 }
 
 #[test]

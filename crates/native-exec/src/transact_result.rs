@@ -139,6 +139,7 @@ impl TransactResult {
         self.frame.events_from(address)
     }
 
+    /// See [`FrameResult::filter_events`] for the matching rules.
     pub fn filter_events<E>(
         &self,
         address: &ContractAddress,
@@ -169,6 +170,7 @@ impl TransactResult {
         self.frame.assert_event::<E>(index, check);
     }
 
+    /// See [`FrameResult::assert_emitted`] for the matching rules.
     #[track_caller]
     pub fn assert_emitted<E>(
         &self,
