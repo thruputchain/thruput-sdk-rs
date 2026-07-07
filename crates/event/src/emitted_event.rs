@@ -89,6 +89,12 @@ enum BuildError {
         expected: &'static Topic,
         type_name: &'static str,
     },
+    /// The event's topic count doesn't match `E`'s declared static count.
+    TopicCountMismatch {
+        actual: u32,
+        expected: u32,
+        type_name: &'static str,
+    },
     /// The payload bytes don't decode as `E::Payload`.
     Decode(xdrs::ReadError),
 }
@@ -114,6 +120,16 @@ impl core::fmt::Display for BuildError {
                 "TypedEvent::new: event type mismatch — topic 0 {:?} does \
                  not match the expected discriminant {:?} for {}",
                 actual, expected, type_name,
+            ),
+            BuildError::TopicCountMismatch {
+                actual,
+                expected,
+                type_name,
+            } => write!(
+                f,
+                "TypedEvent::new: topic count mismatch — event has {} \
+                 topics but {} declares {}",
+                actual, type_name, expected,
             ),
             BuildError::Decode(e) => {
                 write!(f, "failed to decode event payload: {}", e)
@@ -155,6 +171,17 @@ impl<'a, E: Event> TypedEvent<'a, E> {
                 }
             }
         }
+        // After the signature check, so a different-type event still reports
+        // "type mismatch" rather than a count difference.
+        if let Some(expected) = E::static_num_topics()
+            && raw.num_topics != expected
+        {
+            return Err(BuildError::TopicCountMismatch {
+                actual: raw.num_topics,
+                expected,
+                type_name: core::any::type_name::<E>(),
+            });
+        }
         let payload =
             E::decode_payload(payload_bytes).map_err(BuildError::Decode)?;
         Ok(Self { emitted, payload })
@@ -177,12 +204,13 @@ impl<'a, E: Event> TypedEvent<'a, E> {
 
     /// Non-panicking twin of [`new`](Self::new): `Some` only if the event is
     /// well-formed, its topic 0 matches `E`'s declared discriminant (when
-    /// one exists), and its payload decodes as `E::Payload`. The probe for
+    /// one exists), its topic count matches [`Event::static_num_topics`]
+    /// (when `Some`), and its payload decodes as `E::Payload`. The probe for
     /// scanning event streams that contain foreign events.
     ///
-    /// When [`Event::signature`] is `None`, matching is payload-decode-only:
-    /// with no decoded `E` instance there is nothing to cross-check topic
-    /// counts against.
+    /// For impls that leave both [`Event::signature`] and
+    /// [`Event::static_num_topics`] at `None`, matching is
+    /// payload-decode-only.
     pub fn try_new(raw: &'a TxEmittedEvent) -> Option<Self> {
         Self::build(raw).ok()
     }
@@ -289,6 +317,10 @@ mod tests {
             Some(&SIG)
         }
 
+        fn static_num_topics() -> Option<u32> {
+            Some(1)
+        }
+
         fn decode_payload(bytes: &[u8]) -> Result<u32, xdrs::ReadError> {
             match <[u8; 4]>::try_from(bytes) {
                 Ok(b) => Ok(u32::from_be_bytes(b)),
@@ -297,6 +329,40 @@ mod tests {
                     remaining: bytes.len(),
                 }),
             }
+        }
+    }
+
+    /// Event whose payload decode accepts any bytes — isolates the
+    /// topic-count check: without it, a wrong-count event with a matching
+    /// signature would still decode successfully and match.
+    struct LenientEvent;
+
+    impl xdrs::WriteXDR for LenientEvent {
+        fn write_xdr<F, W: xdrs::Writer<F>>(
+            &self,
+            _w: &mut W,
+        ) -> xdrs::WriteResult<()> {
+            Ok(())
+        }
+    }
+
+    impl Event for LenientEvent {
+        type Payload<'a> = usize;
+
+        fn num_topics(&self) -> u32 {
+            1
+        }
+
+        fn signature() -> Option<&'static Topic> {
+            Some(&SIG)
+        }
+
+        fn static_num_topics() -> Option<u32> {
+            Some(1)
+        }
+
+        fn decode_payload(bytes: &[u8]) -> Result<usize, xdrs::ReadError> {
+            Ok(bytes.len())
         }
     }
 
@@ -348,5 +414,28 @@ mod tests {
         static BODY: [u8; 36] = [0xCD; 36];
         let raw = raw_event(1, &BODY);
         let _ = TypedEvent::<SigEvent>::new(&raw);
+    }
+
+    #[test]
+    fn try_new_rejects_topic_count_mismatch() {
+        // Two topics (both 0xAB, so topic 0 = SIG) + 4 payload bytes, but
+        // LenientEvent declares exactly 1 topic. Its payload decode accepts
+        // anything, so only the count check can reject this.
+        static BODY: [u8; 68] = [0xAB; 68];
+        let raw = raw_event(2, &BODY);
+        assert!(TypedEvent::<LenientEvent>::try_new(&raw).is_none());
+
+        // Sanity: with the declared count the same body prefix matches.
+        static OK_BODY: [u8; 36] = [0xAB; 36];
+        let ok = raw_event(1, &OK_BODY);
+        assert!(TypedEvent::<LenientEvent>::try_new(&ok).is_some());
+    }
+
+    #[test]
+    #[should_panic(expected = "topic count mismatch")]
+    fn new_panics_on_topic_count_mismatch() {
+        static BODY: [u8; 68] = [0xAB; 68];
+        let raw = raw_event(2, &BODY);
+        let _ = TypedEvent::<LenientEvent>::new(&raw);
     }
 }

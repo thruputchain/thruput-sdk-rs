@@ -799,3 +799,36 @@ fn filter_events_skips_foreign_derived_events() {
     // Exactly one OwnedTopicEvent despite the payload-compatible sibling.
     result.assert_emitted::<OwnedTopicEvent>(&TEST_ADDR, |_| true);
 }
+
+#[test]
+fn derived_events_declare_static_topic_counts() {
+    // #[derive(Event)] knows the topic count statically (signature + one
+    // per #[topic] field); typed-event matching uses it to reject events
+    // whose num_topics doesn't match the type's declaration.
+    assert_eq!(<OwnedTopicEvent as Event>::static_num_topics(), Some(2));
+    assert_eq!(<OtherAmountEvent as Event>::static_num_topics(), Some(1));
+    assert_eq!(<RefTopicEvent<'_> as Event>::static_num_topics(), Some(3));
+}
+
+#[test]
+fn typed_event_rejects_forged_topic_count() {
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&OwnedTopicEvent {
+                bidder: ContractAddress::new([7u8; 32]),
+                amount: 5,
+            });
+        })
+    });
+    result.assert_success();
+
+    // The genuine event matches...
+    assert_eq!(result.filter_events::<OwnedTopicEvent>(&TEST_ADDR).len(), 1);
+
+    // ...but a forged copy claiming a different topic count is rejected,
+    // even though its topic 0 still carries OwnedTopicEvent's signature.
+    let mut forged = result.events()[0].clone();
+    forged.num_topics = 1;
+    assert!(TypedEvent::<OwnedTopicEvent>::try_new(&forged).is_none());
+}

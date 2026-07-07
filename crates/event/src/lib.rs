@@ -55,6 +55,25 @@ pub trait Event: xdrs::WriteXDR {
     where
         Self: Sized;
 
+    /// The total topic count for this event type, if it is a fixed per-type
+    /// constant (including the signature topic, when present). When `Some`,
+    /// typed-event matching ([`TypedEvent::try_new`] / [`TypedEvent::new`])
+    /// rejects a raw event whose `num_topics` differs — closing the gap
+    /// where a matching topic 0 plus a coincidentally decodable payload
+    /// would pass for an `E` emitted with a different topic count.
+    ///
+    /// Defaults to `None` (no count check) because hand-written impls may
+    /// have a data-dependent count; unlike [`signature`](Self::signature),
+    /// this is a defense-in-depth check rather than the primary type
+    /// discriminant, so opting out by omission is acceptable.
+    /// `#[derive(Event)]` implements it with the derived count.
+    fn static_num_topics() -> Option<u32>
+    where
+        Self: Sized,
+    {
+        None
+    }
+
     /// Retrieve the topic at the given index.
     fn topic<'a>(&'a self, index: u32) -> Option<TopicSrc<'a>> {
         let _ = index;
