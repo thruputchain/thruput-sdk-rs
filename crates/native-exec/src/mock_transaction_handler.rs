@@ -153,7 +153,28 @@ impl MockInvocationFrame {
         }
     }
 
+    /// True if this frame's child frame exists and is still open at the FFI
+    /// level. A frame may hold at most one open child at a time, and must
+    /// not be closed before its child is.
+    fn has_open_child(&self) -> bool {
+        matches!(
+            &self.child_frame,
+            Some(child) if child.state == MockInvocationFrameState::Started
+        )
+    }
+
     pub fn open_child_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+        // One open child at a time: `FrameAction::Continue` exists to
+        // interleave frames across separate transactions, not to nest
+        // multiple open frames inside one parent. (The test FFI lib guards
+        // this too, but replacing the open child Box would first Drop it,
+        // force-finishing the wrong FFI frame before the lib could object.)
+        if self.has_open_child() {
+            eprintln!(
+                "cannot open a child frame while another child frame is still open"
+            );
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
         let config = MockInvocationFrameConfig::new(
             self.root_handler,
             &mut self.child_frame,
@@ -167,6 +188,19 @@ impl MockInvocationFrame {
         &mut self,
         error_code: hogexec_internal::ffi_enums::InvokeErrorCode,
     ) {
+        // Closing a frame while its child is still open is a user error.
+        // It cannot be honored: `finish_mock_invocation_frame` takes no
+        // frame identifier — it finishes the handler's innermost open frame
+        // — so proceeding would silently finish the CHILD instead, and the
+        // abandoned child's Drop would later finish what is at FFI level
+        // THIS frame, poisoning the transaction.
+        if self.has_open_child() {
+            eprintln!(
+                "cannot close a frame while its child frame is still open"
+            );
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
+
         let handler_res = unsafe {
             groundhog_sys::finish_mock_invocation_frame(
                 self.root_handler,
@@ -233,6 +267,20 @@ impl MockInvocationFrame {
         if self.state != MockInvocationFrameState::Started {
             eprintln!(
                 "Should be impossible to execute a frame while it is not started"
+            );
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
+
+        // Executing a frame while its child frame is still open would run
+        // this frame's code over the CHILD's FFI frame (the innermost open
+        // frame), misattributing syscalls, gas, and trace to the child. The
+        // child must be closed first. (Holding the child's handle already
+        // borrows this frame mutably, so this state is only reachable by
+        // losing the handle: opening a child inside an `execute` lambda and
+        // returning Continue with the child left open.)
+        if self.has_open_child() {
+            eprintln!(
+                "cannot execute a frame while its child frame is still open"
             );
             panic_any(crate::invoke_error::unrecoverable_error());
         }
@@ -887,6 +935,141 @@ mod tests {
             result2.output().status_code(),
             InvocationFrameStatusCode::Return
         );
+    }
+
+    /// Assert a caught panic payload is the unrecoverable [`InvokeError`]
+    /// raised by the frame-nesting guards.
+    #[track_caller]
+    fn assert_unrecoverable_payload(payload: Box<dyn std::any::Any + Send>) {
+        let err = payload
+            .downcast_ref::<InvokeError>()
+            .expect("panic payload must be an InvokeError");
+        assert_eq!(
+            err.error_type,
+            hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
+        );
+    }
+
+    #[test]
+    fn closing_parent_with_open_child_panics_unrecoverably() {
+        // Closing a frame while its child frame is still open is a clear
+        // user error: `finish_mock_invocation_frame` takes no frame
+        // identifier — it finishes the handler's innermost open frame — so
+        // the close would silently finish the CHILD instead, and the
+        // abandoned child's Drop would later finish what is at FFI level the
+        // PARENT frame, poisoning the transaction. Guard it loudly.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.execute(|frame| {
+                    // Leave the child frame open (Continue, never Close)...
+                    frame
+                        .open_child_frame()
+                        .with_invoke_flags(0)
+                        .build()
+                        .execute(|_| FrameAction::Continue);
+                    // ...and close the parent anyway.
+                    FrameAction::Close
+                });
+            }));
+
+        assert_unrecoverable_payload(
+            caught.expect_err("closing with an open child must panic"),
+        );
+    }
+
+    #[test]
+    fn parent_panic_with_open_child_panics_unrecoverably() {
+        // Same guard via `execute()`'s Err arm: the lambda fails while a
+        // child frame is still open. The frame cannot be closed out of
+        // order, so the propagated panic is the unrecoverable guard error.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.execute(|frame| -> FrameAction {
+                    frame
+                        .open_child_frame()
+                        .with_invoke_flags(0)
+                        .build()
+                        .execute(|_| FrameAction::Continue);
+                    panic!("original contract failure");
+                });
+            }));
+
+        assert_unrecoverable_payload(
+            caught.expect_err("failing with an open child must panic"),
+        );
+    }
+
+    #[test]
+    fn executing_frame_with_open_child_panics_unrecoverably() {
+        // Executing a frame while its child frame is still open would run
+        // the parent's code over the CHILD's FFI frame (the innermost open
+        // frame), misattributing syscalls, gas, and trace to the child.
+        // This state is only reachable by opening a child inside an
+        // `execute` lambda and returning Continue with the child left open
+        // — losing the child handle. Guard it loudly.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+
+        frame.execute(|frame| {
+            frame
+                .open_child_frame()
+                .with_invoke_flags(0)
+                .build()
+                .execute(|_| FrameAction::Continue);
+            // Child handle is lost here, child still open.
+            FrameAction::Continue
+        });
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                // Continue, not Close: the guard must fire on entry, before
+                // any parent code runs over the child's FFI frame — not
+                // merely when a close path happens to be reached.
+                frame.execute(|_| FrameAction::Continue);
+            }));
+
+        assert_unrecoverable_payload(
+            caught
+                .expect_err("executing a frame with an open child must panic"),
+        );
+    }
+
+    #[test]
+    fn opening_second_child_while_first_open_panics_unrecoverably() {
+        // A frame holds at most ONE open child frame at a time. `Continue`
+        // exists to interleave frames across separate transactions, not to
+        // nest multiple open frames inside one parent.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+
+        frame.execute(|frame| {
+            // First child stays open.
+            frame
+                .open_child_frame()
+                .with_invoke_flags(0)
+                .build()
+                .execute(|_| FrameAction::Continue);
+            FrameAction::Continue
+        });
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.open_child_frame();
+            }));
+
+        assert_unrecoverable_payload(caught.expect_err(
+            "opening a second child while one is open must panic",
+        ));
     }
 
     #[test]
