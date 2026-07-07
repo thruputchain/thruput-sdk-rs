@@ -195,14 +195,30 @@ impl TransactionHandler {
 impl Drop for TransactionHandler {
     fn drop(&mut self) {
         if self.invoked && !self.committed && !self.aborted {
-            self.abort_transaction();
+            // Abort the uncommitted transaction. Inlined rather than calling
+            // `abort_transaction` to avoid its panic on FFI error: we may be
+            // unwinding from a test failure, and a panic in `drop` would
+            // double-panic into a SIGABRT that hides the original message.
+            self.aborted = true;
+            let res =
+                unsafe { groundhog_sys::abort_transaction(self.handler) };
+            let err: FFIErrorCode = res.into();
+            if err != FFIErrorCode::None {
+                crate::drop_failure(format_args!(
+                    "failed to abort uncommitted transaction during cleanup: {:?}",
+                    err
+                ));
+            }
         }
 
         let res =
             unsafe { groundhog_sys::close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
-            panic!("failed to close syscall handler: {:?}", err);
+            crate::drop_failure(format_args!(
+                "failed to close syscall handler: {:?}",
+                err
+            ));
         }
     }
 }

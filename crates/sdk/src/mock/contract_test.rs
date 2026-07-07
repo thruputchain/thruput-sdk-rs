@@ -303,8 +303,49 @@ pub fn deploy_address(
 #[cfg(test)]
 mod tests {
     use super::load_rv32_contract;
+    use super::wasm_test_handler;
+    use crate::TestEnvironment;
     use std::format;
     use std::fs;
+    use std::string::String;
+
+    #[test]
+    fn panic_with_live_transaction_handler_survives_drop() {
+        // Parity with native-exec's
+        // `panic_with_open_transaction_is_not_masked_by_drop`, but for the real
+        // `TransactionHandler` (full SignedTransaction) path: a test that
+        // panics while a handler is live (invoked but not yet committed) must
+        // let the original panic propagate, not have it masked by a second
+        // panic from `Drop`'s FFI teardown.
+        //
+        // This drives the clean-abort path — the FFI abort/close succeed, so
+        // the only way `Drop` could double-panic here is if it panicked
+        // unconditionally (as it did before the teardown errors were routed
+        // through `drop_failure`). We can't inject an FFI teardown *failure*
+        // from a unit test, so this guards against reintroducing an
+        // unconditional Drop panic rather than reproducing the conditional
+        // double-failure that the fix ultimately hardens against.
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let env = TestEnvironment::new(None);
+                let mut handler = wasm_test_handler(&env, || {});
+                // Transaction invoked but never committed or aborted: Drop must
+                // abort it during unwind.
+                let _ = handler.root_invoke();
+                panic!("original failure message");
+            }));
+
+        let payload = caught.expect_err("the panic must propagate, not abort");
+        let msg = payload
+            .downcast_ref::<&'static str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str));
+        assert_eq!(
+            msg,
+            Some("original failure message"),
+            "the original panic message must survive Drop cleanup"
+        );
+    }
 
     #[test]
     fn load_rv32_contract_wraps_artifact_bytes() {
