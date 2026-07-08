@@ -133,9 +133,10 @@ impl TransactionHandler {
     /// Tries to commit the transaction to the database.
     /// This must be called after root_invoke, and only once per transaction.
     ///
-    /// Returns the [`ExecResult`](groundhog_xdr::exec_result::ExecResult)
-    /// reported by the executor; check it to see whether the commit
-    /// succeeded.
+    /// Returns the [`TryCommitResult`](crate::TryCommitResult) reported by the
+    /// executor; check it to see whether the commit succeeded. On a
+    /// nondeterministic (two-phase commit) failure it carries the
+    /// storage-conflict diagnostic.
     ///
     /// This will abort the transaction if the root invocation failed.
     /// So it is safe to call either try_commit_transaction or abort_transaction
@@ -145,9 +146,7 @@ impl TransactionHandler {
     ///
     /// Panics if called before `root_invoke`, or if the transaction was
     /// already committed or aborted.
-    pub fn try_commit_transaction(
-        &mut self,
-    ) -> groundhog_xdr::exec_result::ExecResult {
+    pub fn try_commit_transaction(&mut self) -> crate::TryCommitResult {
         if !self.invoked {
             panic!(
                 "cannot try to commit a transaction that has not been invoked"
@@ -166,9 +165,10 @@ impl TransactionHandler {
             panic!("failed to try to commit transaction: {err}");
         }
 
-        let exec_result: groundhog_xdr::exec_result::ExecResult =
-            res.result_code.into();
-        exec_result
+        crate::TryCommitResult::from_ffi(
+            res.result_code,
+            &res.serialized_conflict,
+        )
     }
 
     /// Aborts the transaction.

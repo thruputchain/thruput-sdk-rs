@@ -498,9 +498,7 @@ impl MockTransactionHandler {
         }
     }
 
-    pub fn try_commit_transaction(
-        &mut self,
-    ) -> groundhog_xdr::exec_result::ExecResult {
+    pub fn try_commit_transaction(&mut self) -> crate::TryCommitResult {
         assert_eq!(self.state, MockTransactionState::Running);
         assert!(
             self.root_frame_closed.get(),
@@ -514,9 +512,10 @@ impl MockTransactionHandler {
             panic!("ffi error: failed to commit transaction: {:?}", err);
         }
 
-        let exec_result: groundhog_xdr::exec_result::ExecResult =
-            result.result_code.into();
-        exec_result
+        crate::TryCommitResult::from_ffi(
+            result.result_code,
+            &result.serialized_conflict,
+        )
     }
 
     /// Convenience: open a root frame targeting the given contract address.
