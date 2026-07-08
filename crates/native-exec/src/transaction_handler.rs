@@ -133,9 +133,10 @@ impl TransactionHandler {
     /// Tries to commit the transaction to the database.
     /// This must be called after root_invoke, and only once per transaction.
     ///
-    /// Returns the [`TryCommitResult`] reported by the executor; check it to
-    /// see whether the commit succeeded. On a nondeterministic (two-phase
-    /// commit) failure it carries the storage-conflict diagnostic.
+    /// Returns the [`TryCommitResult`](crate::TryCommitResult) reported by the
+    /// executor; check it to see whether the commit succeeded. On a
+    /// nondeterministic (two-phase commit) failure it carries the
+    /// storage-conflict diagnostic.
     ///
     /// This will abort the transaction if the root invocation failed.
     /// So it is safe to call either try_commit_transaction or abort_transaction

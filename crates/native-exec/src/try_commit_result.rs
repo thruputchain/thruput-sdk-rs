@@ -107,6 +107,13 @@ impl TryCommitResult {
 
 /// Decode the XDR-serialized [`DbConflictResult`] attached to a
 /// nondeterministic commit failure.
+///
+/// Per the test_ffi contract (`ForeignTryCommitResult::serialized_conflict`),
+/// the buffer is *always* populated with the whole union — the
+/// `kDbDiagnosticNone` arm when the execution mode reports no per-slot detail —
+/// and is null *only* when the host's own serialization failed. So a null
+/// buffer is a genuine FFI fault, not the no-detail case, and we panic rather
+/// than silently substituting an empty diagnostic.
 fn decode_conflict(serialized_conflict: &FFIDataBuffer) -> DbConflictResult {
     match serialized_conflict.as_slice() {
         Some(bytes) => xdrs::txs::decode(bytes).unwrap_or_else(|e| {
@@ -117,7 +124,7 @@ fn decode_conflict(serialized_conflict: &FFIDataBuffer) -> DbConflictResult {
         }),
         None => panic!(
             "try_commit_transaction reported a nondeterministic error but the \
-             serialized conflict buffer was null (serialization failed)"
+             serialized conflict buffer was null (host-side serialization failed)"
         ),
     }
 }
