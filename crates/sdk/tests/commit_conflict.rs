@@ -20,10 +20,10 @@ fn conflicts_of(result: TryCommitResult) -> Vec<DbConflictDiagnostic> {
         TryCommitResult::TxNonDeterministicError(conflict) => match conflict {
             DbConflictResult::kDbDiagnosticAll { conflicts } => {
                 conflicts.into()
-            },
+            }
             other => {
                 panic!("expected kDbDiagnosticAll diagnostics, got {other:?}")
-            },
+            }
         },
         other => panic!("expected a nondeterministic conflict, got {other:?}"),
     }
@@ -74,7 +74,11 @@ fn bytestring_two_conflicts_returns_all() {
     });
 
     let conflicts = conflicts_of(result);
-    assert_eq!(conflicts.len(), 2, "expected both conflicting slots reported");
+    assert_eq!(
+        conflicts.len(),
+        2,
+        "expected both conflicting slots reported"
+    );
     assert!(
         conflicts
             .iter()
@@ -86,8 +90,10 @@ fn bytestring_two_conflicts_returns_all() {
         "all conflicts should be for the written contract",
     );
     // Both writes hit distinct keys, so the two diagnostics must be distinct.
-    let mut slots: Vec<String> =
-        conflicts.iter().map(|c| format!("{:?}", c.addrkey.key)).collect();
+    let mut slots: Vec<String> = conflicts
+        .iter()
+        .map(|c| format!("{:?}", c.addrkey.key))
+        .collect();
     slots.sort();
     slots.dedup();
     assert_eq!(slots.len(), 2, "the two conflicting slots must be distinct");

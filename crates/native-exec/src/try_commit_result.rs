@@ -54,25 +54,25 @@ impl TryCommitResult {
             x if x == ExecResult::ExecResultOK.0 => Self::Ok,
             x if x == ExecResult::ExecResultTxDeterministicError.0 => {
                 Self::TxDeterministicError
-            },
+            }
             x if x == ExecResult::ExecResultTxRootFrameReverted.0 => {
                 Self::TxRootFrameReverted
-            },
+            }
             x if x == ExecResult::ExecResultTxNonDeterministicError.0 => {
                 Self::TxNonDeterministicError(decode_conflict(
                     serialized_conflict,
                 ))
-            },
+            }
             x if x == ExecResult::ExecResultFailedGasSponsorship.0 => {
                 Self::FailedGasSponsorship
-            },
+            }
             x if x == ExecResult::ExecResultTxValidationFailure.0 => {
                 Self::TxValidationFailure
-            },
+            }
             x if x == ExecResult::ExecResultSystemError.0 => Self::SystemError,
             x if x == ExecResult::ExecResultUnrecoverable.0 => {
                 Self::Unrecoverable
-            },
+            }
             other => panic!(
                 "try_commit_transaction returned unknown ExecResult code: {other}"
             ),
@@ -86,19 +86,19 @@ impl TryCommitResult {
             Self::Ok => ExecResult::ExecResultOK,
             Self::TxDeterministicError => {
                 ExecResult::ExecResultTxDeterministicError
-            },
+            }
             Self::TxRootFrameReverted => {
                 ExecResult::ExecResultTxRootFrameReverted
-            },
+            }
             Self::TxNonDeterministicError(_) => {
                 ExecResult::ExecResultTxNonDeterministicError
-            },
+            }
             Self::FailedGasSponsorship => {
                 ExecResult::ExecResultFailedGasSponsorship
-            },
+            }
             Self::TxValidationFailure => {
                 ExecResult::ExecResultTxValidationFailure
-            },
+            }
             Self::SystemError => ExecResult::ExecResultSystemError,
             Self::Unrecoverable => ExecResult::ExecResultUnrecoverable,
         }
