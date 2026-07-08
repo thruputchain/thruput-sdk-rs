@@ -1,5 +1,6 @@
 use groundhog_native_exec::frame_result::FrameResult;
 use groundhog_native_exec::transact_result::TransactResult;
+use groundhog_native_exec::TryCommitResult;
 use groundhog_xdr::exec_result::ExecResult;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::ContractAddress;
@@ -198,7 +199,7 @@ fn test_mock_handler_commit() {
         .result();
 
     let exec_result = handler.try_commit_transaction();
-    assert_eq!(exec_result, ExecResult::ExecResultOK);
+    assert_eq!(exec_result, TryCommitResult::Ok);
 }
 
 #[test]
@@ -272,7 +273,7 @@ fn test_mock_handler_panic_then_commit() {
     result.assert_fault();
 
     let exec_result = handler.try_commit_transaction();
-    assert_eq!(exec_result, ExecResult::ExecResultTxDeterministicError);
+    assert_eq!(exec_result, TryCommitResult::TxDeterministicError);
 }
 
 #[test]
@@ -331,7 +332,7 @@ fn test_transact_manual_commit() {
         frame_result.assert_success();
         tx.try_commit_transaction()
     });
-    assert_eq!(exec_result, ExecResult::ExecResultOK);
+    assert_eq!(exec_result, TryCommitResult::Ok);
 }
 
 #[test]
@@ -367,13 +368,13 @@ fn test_transact_manual_inspect_before_commit() {
             tx.try_commit_transaction()
         } else {
             tx.abort_transaction();
-            ExecResult::ExecResultTxRootFrameReverted
+            TryCommitResult::TxRootFrameReverted
         };
         (frame_result, exec_result)
     });
 
     frame_result.assert_success();
-    assert_eq!(exec_result, ExecResult::ExecResultOK);
+    assert_eq!(exec_result, TryCommitResult::Ok);
 }
 
 #[test]
@@ -1309,6 +1310,6 @@ fn test_subframe_suspends_across_interleaved_transactions() {
     root.run_continuable(|_| FrameAction::Close);
     root.finish().assert_success();
 
-    assert_eq!(tx1.try_commit_transaction(), ExecResult::ExecResultOK);
-    assert_eq!(tx2.try_commit_transaction(), ExecResult::ExecResultOK);
+    assert_eq!(tx1.try_commit_transaction(), TryCommitResult::Ok);
+    assert_eq!(tx2.try_commit_transaction(), TryCommitResult::Ok);
 }

@@ -82,11 +82,11 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 bottle-test-if = { path = "crates/bottle-test-if" }
 
 # Deps from protocol-rs repo:
-groundhog-spec = { registry = "groundhog", version = "=0.18.0", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "=0.18.0" }
-groundhog-xdr = { registry = "groundhog", version = "=0.18.0", features = ["xdrs"] }
-groundhog-syscall = { registry = "groundhog", version = "=0.18.0" }
-hogexec-internal = { registry = "groundhog", version = "=0.18.0" }
+groundhog-spec = { registry = "groundhog", version = "=0.19.3", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "=0.19.3" }
+groundhog-xdr = { registry = "groundhog", version = "=0.19.3", features = ["xdrs"] }
+groundhog-syscall = { registry = "groundhog", version = "=0.19.3" }
+hogexec-internal = { registry = "groundhog", version = "=0.19.3" }
 
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.7.1", features = ["int128", "heapless"] }

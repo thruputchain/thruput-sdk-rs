@@ -17,6 +17,10 @@ mod mock_public {
         test_environment::{TestEnvironment, TestEnvironmentHandle},
         test_helpers::Named,
         transact_result::TransactResult,
+        try_commit_result::{
+            DbConflictCode, DbConflictDiagnostic, DbConflictResult,
+            TryCommitResult,
+        },
     };
     pub use hogexec_internal::ffi_enums::*;
 

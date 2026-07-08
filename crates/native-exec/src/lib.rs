@@ -28,6 +28,8 @@ pub mod test_environment;
 pub mod test_helpers;
 pub mod transact_result;
 pub mod transaction_handler;
+pub mod try_commit_result;
+pub use try_commit_result::TryCommitResult;
 
 #[cfg(target_family = "wasm")]
 compile_error!("The `native_exec` crate cannot be compiled for wasm.");

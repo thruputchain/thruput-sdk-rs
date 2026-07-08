@@ -204,10 +204,10 @@ where
     // std::println!("gas consumed: {}", gas_consumed);
 
     match handler.try_commit_transaction() {
-        ExecResult::ExecResultOK => {}
+        native_exec::TryCommitResult::Ok => {}
         // Note: these results are also deterministic:
-        //     ExecResultTxDeterministicError
-        //     ExecResultTxRootFrameReverted
+        //     TxDeterministicError
+        //     TxRootFrameReverted
         r => panic!("Transaction failed: {:?}", r),
     }
 
