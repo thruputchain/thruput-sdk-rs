@@ -16,6 +16,8 @@ cargo() {
 
 CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/release"
 OPTIMIZED="${TARGET_DIR}/optimized"
+RV32_TARGET="riscv32im-unknown-none-elf"
+RV32_RELEASE="${TARGET_DIR}/${RV32_TARGET}/release"
 
 # Wasm features the pinned nightly emits, enabled explicitly for every wasm-opt
 # invocation. Older binaryen builds don't auto-detect them from the
@@ -88,6 +90,84 @@ make_optimized() {
     # i32.extend8_s). All are ABI-neutral, stable, and already accepted by the
     # runtime.
     wasm-opt -O3 $debugging $WASM_OPT_FEATURES -o "${optimized}" "${contract}"
+}
+
+# rv32 bin-wrapper packages carry a `disabled` marker so the wasm build loop
+# (ls_contract_packages) skips them; they are discovered here by the *-rv32
+# directory-name convention instead.
+ls_rv32_packages() {
+    local contracts_dir
+    contracts_dir="$1"; shift
+
+    local contract
+    for contract in "$contracts_dir"/*-rv32 ; do
+        [ -d "$contract" ] || continue;
+        [ -f "$contract"/Cargo.toml ] || continue;
+
+        basename "$contract"
+    done
+}
+
+build_rv32() {
+    local workspace_dir
+    workspace_dir="$1"; shift
+    local package
+    package="$1"; shift
+
+    info "BUILD(rv32) $package"
+
+    (
+        cd "$workspace_dir" &&
+        # build-std on the command line, exactly like hogd's build_risc.sh:
+        # the rv32 rustflags (example-contracts/.cargo/config.toml) use
+        # panic=immediate-abort + target features the prebuilt core lacks.
+        # NOT in [unstable] config — that would break host `cargo test`
+        # runs from this cwd (build-std requires --target).
+        cargo build -Zbuild-std=core,alloc \
+            -p "$package" -F entrypoints --release --target "$RV32_TARGET"
+    )
+}
+
+check_rv32_dispatch() {
+    local elf
+    elf="$1"; shift
+
+    bash "${SDK_DIR}/scripts/check-rv32-dispatch.sh" "$elf"
+}
+
+check_rv32_strings() {
+    # Same invariant check-wasm-size.sh enforces for wasm: production rv32
+    # builds (panic=immediate-abort, strip=symbols) must embed no .rs file
+    # paths. No allow-list — no rv32 contract builds with `debugging` today;
+    # if one ever does, promote this to a script sharing check-wasm-size.sh's
+    # allow-list logic rather than forking it here.
+    info "Checking rv32 binaries for embedded path strings"
+
+    local elf rs_paths
+    for elf in "${RV32_RELEASE}"/*; do
+        [ -f "$elf" ] && [ -x "$elf" ] || continue
+        rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
+        if [ -n "$rs_paths" ]; then
+            printf '%s\n' "$rs_paths" | sed 's/^/  /'
+            fail "$(basename "$elf") contains embedded .rs path strings"
+            return 1
+        fi
+        echo "OK:   $(basename "$elf")"
+    done
+}
+
+eg_build_rv32_all() {
+    local package elf
+    for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
+        build_rv32 "${SDK_DIR}/example-contracts" "$package" || {
+            fail "Failed building rv32 contract $package"
+            return 1
+        }
+        # Cargo converts hyphens to underscores in output filenames
+        elf="${RV32_RELEASE}/${package//-/_}"
+        check_rv32_dispatch "$elf" || return 1
+    done
+    check_rv32_strings
 }
 
 finalize_contract_spec() {
@@ -438,6 +518,7 @@ check_all() {
 
     { skip EXAMPLES || {
         { skip BUILD_EXAMPLES || eg_build_all; } &&
+        { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
         check_contract_spec_artifacts &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
         eg_bottle_test_all &&
@@ -637,6 +718,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             ;;
         build-examples)
             eg_build_all
+            ;;
+        build-examples-rv32)
+            eg_build_rv32_all
             ;;
         build-itc)
             itc_build_all
