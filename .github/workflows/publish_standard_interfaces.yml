@@ -57,6 +57,25 @@ jobs:
 
       - name: Publish dry run
         uses: ./actions/cargo-publish-dry-run
+        env:
+          # The workspace no longer carries rv32 target rustflags (the single
+          # rv32 config lives in example-contracts/.cargo/config.toml; see
+          # docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
+          # The rv32-only spec-carrier bin built by the rv32 powerset below
+          # only needs to LINK, so it gets the minimal link flags here. Env
+          # rustflags REPLACE config rustflags (no array-join), so this is
+          # the single flag source for this build. No immediate-abort here:
+          # this build uses the prebuilt core (no build-std).
+          CARGO_TARGET_RISCV32IM_UNKNOWN_NONE_ELF_RUSTFLAGS: >-
+            -C link-arg=-Tgroundhog-rv32.ld
+            -C link-arg=--no-check-sections
+            -C link-arg=-static
+            -C link-arg=--no-dynamic-linker
+            -C link-arg=--gc-sections
+            -C panic=abort
+            -C relocation-model=static
+            -Z trap-unreachable=false
+            --deny warnings
         with:
           packages: ${{ matrix.crate }}
           vendor-workspace-deps:
