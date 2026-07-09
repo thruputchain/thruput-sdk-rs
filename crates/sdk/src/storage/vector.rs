@@ -1,5 +1,5 @@
 use super::deletable::Deletable;
-use super::keypath::{FramedComponent, Keypath, frame_u32, framed_u32_len};
+use super::keypath::{FramedComponent, Keypath};
 use super::map::Map;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
@@ -30,14 +30,10 @@ impl<S> From<Keypath> for Vector<S> {
         // time: state-load appends constant bytes instead of runtime-CXS-
         // encoding through the scratch buffer. Element slots stay runtime-
         // derived (indices are dynamic).
-        const LEN_SLOT_LEN: usize = framed_u32_len(0);
-        const LEN_SLOT: [u8; LEN_SLOT_LEN] = frame_u32::<LEN_SLOT_LEN>(0);
-        const VALUES_SLOT_LEN: usize = framed_u32_len(1);
-        const VALUES_SLOT: [u8; VALUES_SLOT_LEN] =
-            frame_u32::<VALUES_SLOT_LEN>(1);
-        let len_kp = keypath.child_framed(FramedComponent::new(&LEN_SLOT));
-        let values_kp =
-            keypath.child_framed(FramedComponent::new(&VALUES_SLOT));
+        const LEN_SLOT: FramedComponent = FramedComponent::from_u32(0);
+        const VALUES_SLOT: FramedComponent = FramedComponent::from_u32(1);
+        let len_kp = keypath.child_framed(&LEN_SLOT);
+        let values_kp = keypath.child_framed(&VALUES_SLOT);
 
         Self {
             keypath,

@@ -206,17 +206,11 @@ fn impl_from_keypath(
         field_initializers.extend(quote! {
             let #field_name = {
                 // The frame bytes are concrete at expansion time (the index
-                // is a literal), so the inner consts are legal even under
-                // generic impls — they capture no generic params.
-                const __SLOT_FRAME_LEN: usize =
-                    ::sdk::storage::framed_u32_len(#idx);
-                const __SLOT_FRAME: [u8; __SLOT_FRAME_LEN] =
-                    ::sdk::storage::frame_u32::<__SLOT_FRAME_LEN>(#idx);
-                keypath
-                    .child_framed(::sdk::storage::FramedComponent::new(
-                        &__SLOT_FRAME,
-                    ))
-                    .into()
+                // is a literal), so the inner const is legal even under
+                // generic impls — it captures no generic params.
+                const __SLOT_FRAME: ::sdk::storage::FramedComponent =
+                    ::sdk::storage::FramedComponent::from_u32(#idx);
+                keypath.child_framed(&__SLOT_FRAME).into()
             };
         });
 
