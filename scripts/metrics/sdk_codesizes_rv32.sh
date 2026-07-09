@@ -43,7 +43,11 @@ section_size() {
 }
 
 found=0
-for elf in "$TARGET_DIR"/*; do
+# The rv32 release dir is shared with root-workspace rv32 builds (e.g. the
+# erc20-if spec carrier). Record only contract wrapper bins — by repo
+# convention named *_rv32 — so a stray non-contract ELF can't append
+# bogus contract-looking rows to the append-only metric history.
+for elf in "$TARGET_DIR"/*_rv32; do
     [ -f "$elf" ] && [ -x "$elf" ] || continue
     found=1
     name=$(basename "$elf")
@@ -56,6 +60,6 @@ for elf in "$TARGET_DIR"/*; do
 done
 
 if [ "$found" -eq 0 ]; then
-    echo "No rv32 ELFs found in $TARGET_DIR" >&2
+    echo "No rv32 contract ELFs (*_rv32) found in $TARGET_DIR" >&2
     exit 1
 fi

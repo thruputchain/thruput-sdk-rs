@@ -144,11 +144,11 @@ check_rv32_strings() {
     info "Checking rv32 binaries for embedded path strings"
 
     local elf rs_paths
-    # NOTE: root workspace and example-contracts share target/, so a manual
+    # Root workspace and example-contracts share target/, so a manual
     # release-profile rv32 build of a non-contract bin (e.g. the erc20-if
-    # spec carrier) would land here and be scanned too. CI never does that;
-    # locally, cargo clean the rv32 target dir if this flags a stray ELF.
-    for elf in "${RV32_RELEASE}"/*; do
+    # spec carrier) can land in this dir too. Scan only contract wrapper
+    # bins, which by convention are named *_rv32 (see eg_build_rv32_all).
+    for elf in "${RV32_RELEASE}"/*_rv32; do
         [ -f "$elf" ] && [ -x "$elf" ] || continue
         rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
         if [ -n "$rs_paths" ]; then
