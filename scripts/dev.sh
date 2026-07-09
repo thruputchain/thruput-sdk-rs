@@ -144,6 +144,10 @@ check_rv32_strings() {
     info "Checking rv32 binaries for embedded path strings"
 
     local elf rs_paths
+    # NOTE: root workspace and example-contracts share target/, so a manual
+    # release-profile rv32 build of a non-contract bin (e.g. the erc20-if
+    # spec carrier) would land here and be scanned too. CI never does that;
+    # locally, cargo clean the rv32 target dir if this flags a stray ELF.
     for elf in "${RV32_RELEASE}"/*; do
         [ -f "$elf" ] && [ -x "$elf" ] || continue
         rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
@@ -163,7 +167,9 @@ eg_build_rv32_all() {
             fail "Failed building rv32 contract $package"
             return 1
         }
-        # Cargo converts hyphens to underscores in output filenames
+        # Bin names are NOT auto-converted by cargo: *-rv32 wrapper packages
+        # must declare `[[bin]] name` as the underscored package name (see
+        # counter-rv32/Cargo.toml), which is what this path derivation assumes.
         elf="${RV32_RELEASE}/${package//-/_}"
         check_rv32_dispatch "$elf" || return 1
     done
