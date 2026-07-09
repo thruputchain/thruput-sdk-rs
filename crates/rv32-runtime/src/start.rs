@@ -38,7 +38,10 @@ fn entrypoints() -> &'static [Entrypoint] {
     // so the section is a well-formed array: size_of::<Entrypoint>() == 16
     // includes the tail padding, matching the section stride). An empty table
     // gives start == end -> len 0, valid for `from_raw_parts` with any
-    // aligned non-null pointer.
+    // aligned non-null pointer. The pointer is non-null: the section lives in
+    // `.rodata`, which the linker script places at `__stack_top`
+    // (= `ORIGIN(DATA) + __stack_size`, ASSERTed >= 16), so both bracket
+    // symbols are always > 0.
     unsafe {
         let start = &raw const __groundhog_rv32_entrypoints_start;
         let end = &raw const __groundhog_rv32_entrypoints_end;

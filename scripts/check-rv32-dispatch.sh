@@ -40,7 +40,7 @@ esac
 #    macro/linker-script section-name mismatch), which would route every call
 #    to the ebreak backstop with no link error.
 #
-#    Preferred check: assert __groundhog_rv32_entrypoints_end > _start via the
+#    Preferred check: assert __groundhog_rv32_entrypoints_end > __groundhog_rv32_entrypoints_start via the
 #    symbol table. These bracket symbols are resolved to link-time constants,
 #    so a *stripped* release ELF no longer carries them — there we fall back to
 #    a .rodata presence check, and the authoritative per-method population
