@@ -195,6 +195,20 @@ impl Keypath {
         child
     }
 
+    /// Child keyed by a component pre-framed at compile time.
+    ///
+    /// Appends `frame`'s bytes verbatim — byte-identical to what
+    /// [`child`](Self::child) would append for the same component value,
+    /// with no runtime encoding and no scratch-buffer checkout. Called by
+    /// `derive(Storage)`-generated field derivation and fixed-slot SDK
+    /// containers; not intended for direct use.
+    #[doc(hidden)]
+    pub fn child_framed(&self, frame: FramedComponent) -> Keypath {
+        let mut child = self.clone();
+        child.buf.append_bytes(frame.0);
+        child
+    }
+
     pub fn generate_key(&self) -> StorageKey {
         sha256(self.buf.as_slice()).into()
     }
@@ -255,6 +269,55 @@ pub const fn frame_domain<const N: usize>(domain: &str) -> [u8; N] {
     w.write_u32(inner_len as u32);
     w.write_opaque_variable(domain.as_bytes());
     w.into_bytes()
+}
+
+/// Byte length of [`frame_u32`]'s output for `v`.
+///
+/// Const mirror of the framing [`Keypath::child`] applies to a `u32`
+/// component: `CXS(byte_len) ‖ CXS(v)`. Kept honest by the
+/// `const_u32_frame_matches_runtime_child` test and by [`frame_u32`]'s
+/// exact-fill assertion.
+pub const fn framed_u32_len(v: u32) -> usize {
+    // A CXS u32 is at most 5 bytes, so its length prefix always encodes in
+    // one byte — but compute both honestly through the codec.
+    let mut inner = ConstWriter::<5>::new();
+    inner.write_u32(v);
+    let inner_len = inner.pos();
+    let mut outer = ConstWriter::<5>::new();
+    outer.write_u32(inner_len as u32);
+    outer.pos() + inner_len
+}
+
+/// Compile-time framing of a `u32` keypath component: the exact bytes
+/// [`Keypath::child`] would append for `v` at runtime.
+///
+/// `N` must equal [`framed_u32_len`]`(v)`; `into_bytes` asserts the exact
+/// fill at const-eval time, so any mismatch is a compile error rather than
+/// a wrong storage key.
+pub const fn frame_u32<const N: usize>(v: u32) -> [u8; N] {
+    let mut probe = ConstWriter::<5>::new();
+    probe.write_u32(v);
+    let inner_len = probe.pos();
+    let mut w = ConstWriter::<N>::new();
+    w.write_u32(inner_len as u32);
+    w.write_u32(v);
+    w.into_bytes()
+}
+
+/// A keypath child component pre-framed at compile time (see [`frame_u32`]).
+///
+/// Newtype so [`Keypath::child_framed`] cannot be handed raw, unframed
+/// bytes. Constructed only by `derive(Storage)`-generated code and
+/// fixed-slot SDK containers (via [`frame_u32`]); not intended for direct
+/// use.
+#[derive(Clone, Copy, Debug)]
+pub struct FramedComponent(&'static [u8]);
+
+impl FramedComponent {
+    #[doc(hidden)]
+    pub const fn new(framed: &'static [u8]) -> Self {
+        Self(framed)
+    }
 }
 
 /// A storage domain pre-framed at compile time (see [`frame_domain`]).
@@ -452,6 +515,73 @@ mod test_keypath {
     fn default_as_slice_is_empty() {
         let s = StaticKeyBuf::<8>::default();
         assert_eq!(s.as_slice(), &[] as &[u8]);
+    }
+
+    #[test]
+    fn const_u32_frame_matches_runtime_child() {
+        // Load-bearing drift guard, same contract as
+        // const_frame_matches_runtime_child: const u32 framing must equal
+        // the runtime CXS codec byte-for-byte, or const-derived field keys
+        // diverge from runtime-derived ones.
+        macro_rules! check {
+            ($v:expr) => {{
+                const N: usize = framed_u32_len($v);
+                const FRAMED: [u8; N] = frame_u32::<N>($v);
+                let runtime = Keypath::default().child(&$v);
+                assert_eq!(
+                    &FRAMED[..],
+                    runtime.buf.as_slice(),
+                    "const u32 framing drifted from runtime child() for {}",
+                    $v
+                );
+            }};
+        }
+        // Every CXS u32 width boundary: 1-byte header (0..=62), 2-byte
+        // (63..=255), 3-byte (256..=65535), 5-byte (65536..).
+        check!(0u32);
+        check!(1u32);
+        check!(62u32);
+        check!(63u32);
+        check!(255u32);
+        check!(256u32);
+        check!(65535u32);
+        check!(65536u32);
+        check!(u32::MAX);
+
+        // Golden bytes: child(&1u32) appends CXS(len=1) ‖ CXS(1) = [01 01]
+        // (the same layout golden_key_vector locks for the runtime path).
+        const N1: usize = framed_u32_len(1u32);
+        const F1: [u8; N1] = frame_u32::<N1>(1u32);
+        assert_eq!(&F1[..], &[0x01, 0x01]);
+    }
+
+    #[test]
+    fn child_framed_matches_child() {
+        const N: usize = framed_u32_len(7u32);
+        const FRAME: [u8; N] = frame_u32::<N>(7u32);
+        // A non-empty parent (domain + one level) so the append lands on a
+        // realistic preimage.
+        let parent = Keypath::default().child("Domain").child(&3u32);
+        let via_const = parent.child_framed(FramedComponent::new(&FRAME));
+        let via_runtime = parent.child(&7u32);
+        assert!(via_const.addresses_same_slot(&via_runtime));
+        // It is a child, not the parent.
+        assert!(!via_const.addresses_same_slot(&parent));
+    }
+
+    #[test]
+    fn child_framed_preserves_exclusive_flag() {
+        const N: usize = framed_u32_len(0u32);
+        const FRAME: [u8; N] = frame_u32::<N>(0u32);
+        let mut parent = Keypath::default().child("Domain");
+        parent.set_exclusive();
+        // child_framed clones the parent, so access mode propagates exactly
+        // like child() (which also clones).
+        assert!(
+            parent
+                .child_framed(FramedComponent::new(&FRAME))
+                .is_exclusive()
+        );
     }
 
     #[test]
