@@ -109,27 +109,20 @@ where
     })
 }
 
-// Try once more to encode an exception before just trapping. Reachable from
-// every `_contract_abort_encoded` throw path; out of line and `cold` so its
-// fresh (no-alloc: SCRATCH_MAX-byte) buffer doesn't get pre-allocated in
-// every abort-capable caller's prologue when the happy path is inlined.
+// A user exception failed to encode in `_contract_abort_encoded`:
+// report it as a typed library exception instead of trapping. Reachable
+// only from the generic `throw<E>` path — library exceptions go through
+// the hand-rolled `abort_encode` encoder, which is infallible (fixed
+// buffer sized to the worst-case variant) and does not touch the shared
+// scratch, so no second-failure fallback is needed here anymore.
 #[cold]
 #[inline(never)]
 fn exception_encoding_error(err: WriteError) -> ! {
     use crate::exn::LibraryExn;
-    use crate::exn::cross_exn::ContractExn;
 
-    let exn = ContractExn::new(LibraryExn::from(
+    crate::exn::abort_encode::library_abort(&LibraryExn::from(
         HandlingError::EncodingException(FaultString::via_display(&err)),
-    ));
-    // Encode in place: the shared scratch is borrowed up-stack (that's how
-    // we got here), so this pays one fresh buffer — but not a second one
-    // for a by-value return.
-    let mut buf = crate::internal::new_scratch();
-    crate::internal::encode_scratch(&mut buf, &exn)
-        .unwrap_or_else(|_| crate::trap());
-
-    contract_abort(buf.as_ref());
+    ))
 }
 
 #[inline]

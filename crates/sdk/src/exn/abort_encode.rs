@@ -28,17 +28,14 @@ use core::mem::MaybeUninit;
 /// bool (1) + length (≤ 3) + 500 bytes — so the worst case is
 /// 9 + 1 + 1 + 504 = 515. The `max_width_variants_fit` test pins this.
 #[cfg(not(feature = "debugging"))]
-#[allow(dead_code)]
 pub(crate) const ABORT_MAX: usize = 32;
 #[cfg(feature = "debugging")]
-#[allow(dead_code)]
 pub(crate) const ABORT_MAX: usize = 544;
 
 /// Encode one field at offset `*n` through the shared `encode_into`
 /// primitives. Statically infallible: `ABORT_MAX` covers the worst-case
 /// encoding of every variant (see the sizing test), so the trap arm is
 /// unreachable.
-#[allow(dead_code)]
 fn put<T: WriteXDR + ?Sized>(
     buf: &mut MUBuf<ABORT_MAX>,
     n: &mut usize,
@@ -54,7 +51,6 @@ fn put<T: WriteXDR + ?Sized>(
 /// single CXS header byte (6-bit value field, sign/size bits clear).
 /// This is the only piece of CXS format knowledge this module owns;
 /// the wire-compat tests pin it against the derived encoder.
-#[allow(dead_code)]
 fn put_disc(buf: &mut MUBuf<ABORT_MAX>, n: &mut usize, d: u8) {
     debug_assert!(d <= 30);
     buf.spare_capacity_mut()[*n] = MaybeUninit::new(d);
@@ -63,7 +59,6 @@ fn put_disc(buf: &mut MUBuf<ABORT_MAX>, n: &mut usize, d: u8) {
 
 /// CXS-encode `ContractExn<LibraryExn>` — `[selector][discriminant]
 /// [payload]` — into `buf`, replacing its contents.
-#[allow(dead_code)]
 pub(crate) fn encode_library_abort(
     exn: &LibraryExn,
     buf: &mut MUBuf<ABORT_MAX>,
@@ -163,6 +158,38 @@ pub(crate) fn encode_library_abort(
     // `encode_into` (which fills its slice from index 0) at offset `n`,
     // `put_disc` by direct store.
     unsafe { buf.set_len(n) };
+}
+
+/// Abort the frame with a library exception, via the hand-rolled
+/// encoder. This is the terminal step of `library_throw` (and therefore
+/// of `re_throw`, `none_if_missing`, and every `syscall_throw`-family
+/// helper): no contract monomorphizes the generic encode machinery for
+/// the SDK's own abort path.
+#[cfg_attr(feature = "debugging", track_caller)]
+pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
+    #[cfg(all(feature = "debugging", feature = "std"))]
+    crate::contract_op::abort_breadcrumb("Throwing", "Location", exn);
+
+    let mut buf = MUBuf::<ABORT_MAX>::new();
+    encode_library_abort(exn, &mut buf);
+    crate::contract_op::contract_abort(buf.as_ref())
+}
+
+/// `library_abort` for client-side codegen; differs only in the
+/// breadcrumb's location label (mirrors the old
+/// `client_contract_abort_encoded` split).
+#[cfg_attr(feature = "debugging", track_caller)]
+pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
+    #[cfg(all(feature = "debugging", feature = "std"))]
+    crate::contract_op::abort_breadcrumb(
+        "Throwing",
+        "Interface location",
+        exn,
+    );
+
+    let mut buf = MUBuf::<ABORT_MAX>::new();
+    encode_library_abort(exn, &mut buf);
+    crate::contract_op::contract_abort(buf.as_ref())
 }
 
 #[cfg(test)]

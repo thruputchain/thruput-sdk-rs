@@ -166,16 +166,14 @@ impl crate::__contract_spec::ContractTypeName for LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
-    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
-    crate::contract_abort_encoded(&exn)
+    super::abort_encode::library_abort(&e.into())
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(
     e: E,
 ) -> ! {
-    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
-    crate::client_contract_abort_encoded(&exn)
+    super::abort_encode::client_library_abort(&e.into())
 }
 
 /// Throw an exception because a syscall produced an error.
@@ -238,7 +236,6 @@ impl SyscallExn {
         self.callno
     }
 
-    #[allow(dead_code)]
     pub(crate) fn errno(&self) -> SysErr {
         self.errno
     }
