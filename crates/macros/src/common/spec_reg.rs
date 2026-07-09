@@ -527,9 +527,8 @@ fn emit_root_anchor_tokens(
         #[cfg(#cfg)]
         const _: () = {
             // This table is a link-time GC root only; contract code never
-            // reads it.  Keep the RV32 copy in the linker script's INFO
-            // section so its relocations retain the transitive spec-anchor
-            // graph without staging the function pointers in guest memory.
+            // reads it. On RV32 the linker follows its relocations to pull in
+            // the transitive raw-spec graph, then discards the table itself.
             #[cfg_attr(
                 target_arch = "riscv32",
                 unsafe(link_section = "groundhogspecanchorsv0")

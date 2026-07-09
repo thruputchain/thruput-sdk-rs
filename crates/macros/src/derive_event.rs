@@ -137,6 +137,10 @@ fn emit_event_spec(
 
         #[doc(hidden)]
         #[inline(never)]
+        #[cfg_attr(
+            target_arch = "riscv32",
+            unsafe(link_section = "groundhogspecanchortextv0")
+        )]
         pub fn #anchor_fn_ident() -> usize {
             #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
             {
@@ -214,9 +218,9 @@ fn emit_exported_event_fragment(
         // `Named` references in the exported def resolve during spec assembly.
         #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
         const _: () = {
-            // Link-time retention metadata only. The RV32 linker keeps the
-            // relocation but emits the table as non-ALLOC INFO metadata, so
-            // it never becomes part of guest memory.
+            // Link-time retention metadata only. The RV32 linker follows the
+            // relocation to pull in the raw-spec graph, then discards the
+            // table before producing the final ELF.
             #[cfg_attr(
                 target_arch = "riscv32",
                 unsafe(link_section = "groundhogspecanchorsv0")
@@ -431,6 +435,7 @@ mod tests {
             tokens.contains("ContractEventSpec for TransferEvent"),
             "{tokens}"
         );
+        assert!(tokens.contains("groundhogspecanchortextv0"), "{tokens}");
         assert!(
             tokens.contains("__groundhog_spec_event_anchor_fn_TransferEvent"),
             "{tokens}"
