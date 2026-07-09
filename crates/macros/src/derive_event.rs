@@ -214,6 +214,13 @@ fn emit_exported_event_fragment(
         // `Named` references in the exported def resolve during spec assembly.
         #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
         const _: () = {
+            // Link-time retention metadata only. The RV32 linker keeps the
+            // relocation but emits the table as non-ALLOC INFO metadata, so
+            // it never becomes part of guest memory.
+            #[cfg_attr(
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecanchorsv0")
+            )]
             #[used]
             static __GROUNDHOG_EVENT_SPEC_ANCHORS: [fn() -> usize; 1] =
                 [#anchor_fn_ident];
@@ -463,6 +470,7 @@ mod tests {
             tokens.contains("__GROUNDHOG_EVENT_SPEC_ANCHORS"),
             "{tokens}"
         );
+        assert!(tokens.contains("groundhogspecanchorsv0"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
     }
 

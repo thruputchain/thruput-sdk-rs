@@ -100,6 +100,19 @@ __stack_top = __stack_bottom + __stack_size;
 
 SECTIONS
 {
+  /* Link-time-only roots for the raw contract-spec retention graph.
+   * KEEP makes their relocations participate in --gc-sections, pulling the
+   * referenced anchor functions (and therefore their raw spec fragments)
+   * into the linked ELF. INFO clears SHF_ALLOC: the table remains available
+   * to the build pipeline but occupies no guest address and is never staged
+   * into the deployed artifact. Keep the input name in sync with the SDK
+   * macros' `link_section` attributes.
+   */
+  groundhogspecanchorsv0 0 (INFO) :
+  {
+    KEEP(*(groundhogspecanchorsv0))
+  }
+
   .text 0 : ALIGN(4)
   {
     /* _start is the linker entry and the sole dispatch surface: the VM
