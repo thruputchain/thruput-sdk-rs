@@ -109,6 +109,7 @@ mod with_strings {
         const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize =
             Self::__groundhog_spec_anchor;
 
+        #[cfg_attr(target_arch = "riscv32", inline(never))]
         #[cfg_attr(
             target_arch = "riscv32",
             unsafe(link_section = "groundhogspecanchortextv0")

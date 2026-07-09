@@ -100,6 +100,7 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
                     unsafe(link_section = "groundhogspecanchortextv0")
@@ -116,6 +117,7 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
                     unsafe(link_section = "groundhogspecanchortextv0")
@@ -155,6 +157,7 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
                     unsafe(link_section = "groundhogspecanchortextv0")

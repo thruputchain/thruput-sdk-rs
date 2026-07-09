@@ -45,6 +45,7 @@ pub trait ContractEventSpec {
 
     /// Hidden linker-anchor hook used to retain raw typedef fragments.
     #[doc(hidden)]
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -82,6 +83,7 @@ pub trait ContractTypeRefSpec {
 
     /// Hidden linker-anchor hook used to retain raw typedef fragments.
     #[doc(hidden)]
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -208,6 +210,7 @@ where
         }),
     };
 
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -239,6 +242,7 @@ where
         }),
     };
 
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -263,6 +267,7 @@ where
         }),
     };
 
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -283,6 +288,7 @@ where
         ty: view::ContractTypeView::Option(&type_ref::<T>()),
     };
 
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -302,6 +308,7 @@ where
 {
     const INFO: ContractTypeInfo<'static> = T::INFO;
 
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
         unsafe(link_section = "groundhogspecanchortextv0")
@@ -325,6 +332,7 @@ macro_rules! impl_tuple_type_ref_spec {
                     ty: view::ContractTypeView::Tuple(&[$(type_ref::<$name>()),+]),
                 };
 
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
                     unsafe(link_section = "groundhogspecanchortextv0")
