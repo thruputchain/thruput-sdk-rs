@@ -10,12 +10,18 @@ set -euo pipefail
 # do not reorder or rename fields):
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
 
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <elf directory>"
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+  echo "Usage: $0 <elf directory> [contracts dir]"
   exit 1
 fi
 
 TARGET_DIR=$1
+# The metric input set is derived from the source tree's *-rv32 wrapper
+# packages, NOT from globbing the ELF dir: the release dir is shared with
+# root-workspace rv32 builds and can hold stale ELFs from renamed/removed
+# wrappers — neither may emit a row into the append-only history, and a
+# missing build for a current wrapper must fail loudly.
+CONTRACTS_DIR=${2:-example-contracts}
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default
 # GNU output style matches. Trailing path is the macOS/homebrew fallback.
@@ -43,14 +49,18 @@ section_size() {
 }
 
 found=0
-# The rv32 release dir is shared with root-workspace rv32 builds (e.g. the
-# erc20-if spec carrier). Record only contract wrapper bins — by repo
-# convention named *_rv32 — so a stray non-contract ELF can't append
-# bogus contract-looking rows to the append-only metric history.
-for elf in "$TARGET_DIR"/*_rv32; do
-    [ -f "$elf" ] && [ -x "$elf" ] || continue
+for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
+    [ -d "$pkg_dir" ] && [ -f "$pkg_dir/Cargo.toml" ] || continue
     found=1
-    name=$(basename "$elf")
+    # Bin name = underscored package name by convention (the wrapper's
+    # [[bin]] declares it; see dev.sh eg_build_rv32_all).
+    name=$(basename "$pkg_dir")
+    name=${name//-/_}
+    elf="$TARGET_DIR/$name"
+    if [ ! -f "$elf" ] || [ ! -x "$elf" ]; then
+        echo "Expected rv32 contract ELF missing: $elf (build with scripts/dev.sh build-examples-rv32)" >&2
+        exit 1
+    fi
     text=$(section_size "$elf" .text)
     rodata=$(section_size "$elf" .rodata)
     data=$(section_size "$elf" .data)
@@ -60,6 +70,6 @@ for elf in "$TARGET_DIR"/*_rv32; do
 done
 
 if [ "$found" -eq 0 ]; then
-    echo "No rv32 contract ELFs (*_rv32) found in $TARGET_DIR" >&2
+    echo "No *-rv32 wrapper packages found under $CONTRACTS_DIR" >&2
     exit 1
 fi

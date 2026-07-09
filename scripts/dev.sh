@@ -143,13 +143,16 @@ check_rv32_strings() {
     # allow-list logic rather than forking it here.
     info "Checking rv32 binaries for embedded path strings"
 
-    local elf rs_paths
-    # Root workspace and example-contracts share target/, so a manual
-    # release-profile rv32 build of a non-contract bin (e.g. the erc20-if
-    # spec carrier) can land in this dir too. Scan only contract wrapper
-    # bins, which by convention are named *_rv32 (see eg_build_rv32_all).
-    for elf in "${RV32_RELEASE}"/*_rv32; do
-        [ -f "$elf" ] && [ -x "$elf" ] || continue
+    local package elf rs_paths
+    # Scan exactly the current *-rv32 package set's ELFs, not a directory
+    # glob: the release dir is shared with root-workspace rv32 builds and
+    # can hold stale ELFs from renamed or removed wrapper packages.
+    for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
+        elf="${RV32_RELEASE}/${package//-/_}"
+        [ -f "$elf" ] || {
+            fail "missing rv32 ELF $elf (run build-examples-rv32 first)"
+            return 1
+        }
         rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
         if [ -n "$rs_paths" ]; then
             printf '%s\n' "$rs_paths" | sed 's/^/  /'
