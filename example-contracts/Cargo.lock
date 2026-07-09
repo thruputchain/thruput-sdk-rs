@@ -431,9 +431,6 @@ dependencies = [
 [[package]]
 name = "groundhog-rv32-runtime"
 version = "0.17.0"
-dependencies = [
- "linkme",
-]
 
 [[package]]
 name = "groundhog-serde_arrays"

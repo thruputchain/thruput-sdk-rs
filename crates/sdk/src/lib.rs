@@ -53,22 +53,18 @@ extern crate groundhog_wasm_runtime as _;
 #[cfg(target_arch = "riscv32")]
 extern crate groundhog_rv32_runtime as _;
 
-// Guest-dispatch plumbing for the `#[contract]` macro on rv32. The macro emits
-// `#[::sdk::__rv32_linkme::distributed_slice(::sdk::__rv32::GROUNDHOG_RV32_ENTRYPOINTS)]`
-// registrations; these re-exports give that generated code a stable path.
+// Guest-dispatch plumbing for the `#[contract]` macro on rv32. The macro
+// emits `#[link_section = "groundhog_rv32_entrypoints"]` Entrypoint statics;
+// this re-export gives that generated code a stable path.
 #[cfg(target_arch = "riscv32")]
 #[doc(hidden)]
-pub extern crate linkme as __rv32_linkme;
+pub mod __rv32 {
+    pub use groundhog_rv32_runtime::Entrypoint;
+}
 
 #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
 #[doc(hidden)]
 pub extern crate linkme as __linkme;
-
-#[cfg(target_arch = "riscv32")]
-#[doc(hidden)]
-pub mod __rv32 {
-    pub use groundhog_rv32_runtime::{Entrypoint, GROUNDHOG_RV32_ENTRYPOINTS};
-}
 
 #[doc(hidden)]
 pub mod internal;

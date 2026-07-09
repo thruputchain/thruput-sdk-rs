@@ -113,19 +113,20 @@ SECTIONS
 
   .rodata __stack_top : ALIGN(8)
   {
-    /* Guest dispatch registry (linkme distributed_slice). Placed inside
-     * .rodata with explicit __start_/__stop_ encapsulation symbols so the
-     * table rides the lowerer's existing .rodata -> initial-memory copy,
-     * instead of an orphan section the PROGBITS allowlist would skip.
-     * Section names are produced by linkme from the slice name
-     * GROUNDHOG_RV32_ENTRYPOINTS. */
+    /* Guest dispatch table: one `Entrypoint` record per #[contract] method,
+     * emitted by the groundhog-macros expansion via
+     * #[link_section = "groundhog_rv32_entrypoints"]. Placed inside .rodata
+     * with explicit bracket symbols so the table rides the lowerer's
+     * existing .rodata -> initial-memory copy, instead of an orphan section
+     * the PROGBITS allowlist would skip. Section and symbol names are owned
+     * by this repo end-to-end (macro emits, this script brackets,
+     * rv32-runtime/src/start.rs reads) — deliberately NOT the linker's
+     * __start_<section> auto-encapsulation convention, so this script is
+     * unambiguously the single definer. */
     . = ALIGN(8);
-    __start_linkme_GROUNDHOG_RV32_ENTRYPOINTS = .;
-    KEEP(*(linkme_GROUNDHOG_RV32_ENTRYPOINTS))
-    __stop_linkme_GROUNDHOG_RV32_ENTRYPOINTS = .;
-    __start_linkm2_GROUNDHOG_RV32_ENTRYPOINTS = .;
-    KEEP(*(linkm2_GROUNDHOG_RV32_ENTRYPOINTS))
-    __stop_linkm2_GROUNDHOG_RV32_ENTRYPOINTS = .;
+    __groundhog_rv32_entrypoints_start = .;
+    KEEP(*(groundhog_rv32_entrypoints))
+    __groundhog_rv32_entrypoints_end = .;
 
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
