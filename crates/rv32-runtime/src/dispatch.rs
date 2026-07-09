@@ -1,8 +1,9 @@
 //! Guest dispatch primitives, shared by the rv32 `_start` dispatcher.
 //!
-//! `Entrypoint` is the registry element each `#[contract]` method emits via a
-//! `linkme::distributed_slice`. `lookup` is the pure scan used by the
-//! dispatcher; it is target-independent so it can be unit-tested on the host.
+//! `Entrypoint` is the registry element each `#[contract]` method emits into
+//! the `groundhog_rv32_entrypoints` section via `#[used] #[link_section]`.
+//! `lookup` is the pure scan used by the dispatcher; it is target-independent
+//! so it can be unit-tested on the host.
 
 /// One method's dispatch record: its selector and the wrapper to invoke.
 ///
