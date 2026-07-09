@@ -1,5 +1,5 @@
 use super::deletable::Deletable;
-use super::keypath::Keypath;
+use super::keypath::{FramedComponent, Keypath, frame_u32, framed_u32_len};
 use super::map::Map;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
@@ -26,8 +26,18 @@ impl<S> Debug for Vector<S> {
 
 impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
-        let len_kp = keypath.child(&0u32);
-        let values_kp = keypath.child(&1u32);
+        // Fixed layout slots (0 = len, 1 = values), pre-framed at const
+        // time: state-load appends constant bytes instead of runtime-CXS-
+        // encoding through the scratch buffer. Element slots stay runtime-
+        // derived (indices are dynamic).
+        const LEN_SLOT_LEN: usize = framed_u32_len(0);
+        const LEN_SLOT: [u8; LEN_SLOT_LEN] = frame_u32::<LEN_SLOT_LEN>(0);
+        const VALUES_SLOT_LEN: usize = framed_u32_len(1);
+        const VALUES_SLOT: [u8; VALUES_SLOT_LEN] =
+            frame_u32::<VALUES_SLOT_LEN>(1);
+        let len_kp = keypath.child_framed(FramedComponent::new(&LEN_SLOT));
+        let values_kp =
+            keypath.child_framed(FramedComponent::new(&VALUES_SLOT));
 
         Self {
             keypath,
@@ -261,5 +271,22 @@ impl<'a, S: StorageType> IntoIterator for &'a mut Vector<S> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+#[cfg(test)]
+mod test_vector_slots {
+    use super::*;
+    use crate::storage::Value;
+
+    /// Drift guard: the const-framed fixed slots (0 = len, 1 = values)
+    /// must address exactly what runtime child() derives.
+    #[test]
+    fn fixed_slots_match_runtime_child() {
+        let root = Keypath::default().child("V");
+        let v: Vector<Value<u32>> = Vector::from(root.clone());
+        assert!(v.len.keypath().addresses_same_slot(&root.child(&0u32)));
+        assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
+        assert!(v.keypath().addresses_same_slot(&root));
     }
 }
