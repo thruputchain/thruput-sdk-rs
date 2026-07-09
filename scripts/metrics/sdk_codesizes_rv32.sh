@@ -24,12 +24,12 @@ TARGET_DIR=$1
 CONTRACTS_DIR=${2:-example-contracts}
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default
-# GNU output style matches. Trailing path is the macOS/homebrew fallback.
-READELF="${READELF:-$(command -v llvm-readelf || command -v readelf || echo /opt/homebrew/opt/llvm/bin/llvm-readelf)}"
+# GNU output style matches. READELF env overrides.
+READELF="${READELF:-$(command -v llvm-readelf || command -v readelf || true)}"
 
 # Fail loudly rather than emit zero-valued lines into append-only history.
-command -v "$READELF" > /dev/null || {
-    echo "readelf not found (tried llvm-readelf, readelf, homebrew llvm)" >&2
+[ -n "$READELF" ] && command -v "$READELF" > /dev/null || {
+    echo "no llvm-readelf or readelf on PATH (or set READELF)" >&2
     exit 1
 }
 

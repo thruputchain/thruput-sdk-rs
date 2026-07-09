@@ -12,10 +12,12 @@
 set -euo pipefail
 
 ELF="${1:?usage: check-rv32-dispatch.sh <elf>}"
-READELF="${READELF:-$(command -v llvm-readelf || command -v readelf || echo /opt/homebrew/opt/llvm/bin/llvm-readelf)}"
+READELF="${READELF:-$(command -v llvm-readelf || command -v readelf || true)}"
 NM="${NM:-$(command -v llvm-nm || command -v rust-nm || command -v nm)}"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+[ -n "$READELF" ] || fail "no llvm-readelf or readelf on PATH (or set READELF)"
 
 # 1. No legacy per-method export sections.
 if "$READELF" -SW "$ELF" | grep -E '\.text\.gh_' > /dev/null; then
