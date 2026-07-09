@@ -238,6 +238,11 @@ impl SyscallExn {
         self.callno
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn errno(&self) -> SysErr {
+        self.errno
+    }
+
     pub fn has_code(&self, err_code: SyscallErrorCode) -> bool {
         self.errno.is_code(err_code)
     }

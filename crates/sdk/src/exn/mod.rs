@@ -21,6 +21,7 @@
 //! while re-throwing everything else (wrong storage type at the key,
 //! corrupt encodings, host faults).
 
+pub(crate) mod abort_encode;
 pub(crate) mod cross_exn;
 mod fault;
 mod library;
