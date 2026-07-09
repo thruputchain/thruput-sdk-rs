@@ -17,9 +17,11 @@
 //! target-agnostic library crate. A thin per-contract bin crate depends
 //! on the contract library AND on this runtime. The VM enters at `_start`
 //! (PC 0) with the invoked method id in `a0`/`a1`; `_start` tail-calls
-//! `rv32_dispatch`, which scans the `GROUNDHOG_RV32_ENTRYPOINTS` registry
-//! (populated by the `#[contract]` macro, one entry per method) and invokes
-//! the matching wrapper. No per-method export symbols are emitted on rv32.
+//! `rv32_dispatch`, which scans the dispatch table (one `Entrypoint` record
+//! per method, emitted by the `#[contract]` macro into the
+//! `groundhog_rv32_entrypoints` section that the linker script brackets) and
+//! invokes the matching wrapper. No per-method export symbols are emitted on
+//! rv32.
 //!
 //! The target-specific runtime pieces only compile on rv32. The pure dispatch
 //! primitives are also compiled for docs/tests so host unit tests can exercise
@@ -63,8 +65,8 @@ pub use dispatch::{Entrypoint, lookup};
 #[cfg(all(feature = "alloc", target_arch = "riscv32"))]
 mod allocator;
 
-// rv32-only: these define `#[panic_handler]`, naked asm, and the linkme slice,
-// none of which can compile on the host.
+// rv32-only: these define `#[panic_handler]`, naked asm, and linker-script
+// extern statics, none of which can compile on the host.
 #[cfg(target_arch = "riscv32")]
 mod panic;
 
@@ -72,4 +74,4 @@ mod panic;
 mod start;
 
 #[cfg(target_arch = "riscv32")]
-pub use start::{_start, GROUNDHOG_RV32_ENTRYPOINTS};
+pub use start::_start;
