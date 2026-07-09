@@ -12,6 +12,30 @@ rustflags = [
     "--deny", "warnings",
     ]
 
+# SYNCED COPY of the canonical rv32 stanza in
+# example-contracts/.cargo/config.toml — edit both together; see that file
+# for the full flag rationale. Present here because integration_test/ is a
+# separate cargo config-discovery chain (sibling of example-contracts, and
+# the workspace root deliberately carries no rv32 stanza), so rv32 contract
+# builds from this directory would otherwise get no link flags. Requires
+# -Zbuild-std=core,alloc on the command line ([unstable] build-std must NOT
+# go in this file: it would break host `cargo test` runs from this cwd).
+[target.riscv32im-unknown-none-elf]
+rustflags = [
+    "-C", "target-feature=+unaligned-scalar-mem,+relax",
+    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-dynamic-linker",
+    "-C", "link-arg=--gc-sections",
+    "-C", "link-arg=--no-check-sections",
+    "-C", "link-arg=--icf=all",
+    "-Z", "unstable-options",
+    "-C", "panic=immediate-abort",
+    "-C", "relocation-model=static",
+    "-Z", "trap-unreachable=false",
+    "--deny", "warnings",
+    ]
+
 [profile.release]
 opt-level = 3
 overflow-checks = false

@@ -12,11 +12,15 @@ rustflags = [
     "--deny", "warnings",
     ]
 
-# The ONLY [target.riscv32im-unknown-none-elf] rustflags in this repo.
-# Do NOT add this section to any other .cargo/config.toml: cargo JOINS
-# target-rustflags arrays across the config-discovery chain, and a duplicated
+# The CANONICAL [target.riscv32im-unknown-none-elf] rustflags.
+# integration_test/.cargo/config.toml carries a synced copy (edit both).
+# NEVER add this section to the workspace-root .cargo/config.toml or any
+# other config on the same discovery chain: cargo JOINS target-rustflags
+# arrays across the chain (cwd upward), and a duplicated
 # -Tgroundhog-rv32.ld redefines the linker script's MEMORY regions
-# ("region 'CODE' already defined").
+# ("region 'CODE' already defined"). Sibling leaf workspaces like
+# integration_test/ are separate chains, so their copy can never join
+# with this one.
 #
 # Flag set matches hogd/built_contracts/.cargo/config.toml (the production
 # rv32 build) plus `+relax` and `--icf=all` (measured wins; see
