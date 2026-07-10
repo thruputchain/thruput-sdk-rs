@@ -22,11 +22,16 @@ use crate::xdr::WriteXDR;
 use xdrs::cxs::unchecked_buf_writer::UncheckedBufWriter;
 
 /// Fixed encode-buffer size: the `ContractExn` wrapper's u64 selector
-/// at worst-case width plus [`LibraryExn::MAX_CXS_SIZE`] (the type owns
-/// its bound). `max_width_variants_fit` pins that every real encoding
-/// fits.
-pub(crate) const ABORT_MAX: usize =
-    xdrs::cxs::const_writer::size_u64(u64::MAX) + LibraryExn::MAX_CXS_SIZE;
+/// at worst-case width plus `LibraryExn`'s derived worst case
+/// (`#[derive(ConstXDRSize)]`). `max_width_variants_fit` pins that
+/// every real encoding fits.
+pub(crate) const ABORT_MAX: usize = {
+    let payload = match <LibraryExn as xdrs::cxs::ConstMaxSize>::MAX_SIZE {
+        Some(n) => n,
+        None => panic!("LibraryExn wire encoding must be bounded"),
+    };
+    xdrs::cxs::const_writer::size_u64(u64::MAX) + payload
+};
 
 /// CXS-encode `ContractExn<LibraryExn>` — `[selector][discriminant]
 /// [payload]` — into `buf`, replacing its contents.
