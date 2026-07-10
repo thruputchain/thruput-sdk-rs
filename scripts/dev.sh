@@ -188,16 +188,36 @@ check_rv32_mem_symbols() {
     }
 
     local syms
-    syms=$("$readelf" -sW "$elf")
-    printf '%s\n' "$syms" | grep -qE ' FUNC .* memcpy$' || {
-        fail "$(basename "$elf"): strong memcpy override missing from symbol table"
+    syms=$("$readelf" -sW "$elf") || {
+        fail "readelf failed reading symbols from $elf"
         return 1
     }
+
+    # A WEAK mem* definition means a compiler_builtins fallback won the link
+    # for that symbol (ours are GLOBAL). Mangling-independent, so it holds
+    # across compiler_builtins refactors, and it covers memmove/memset too.
+    if printf '%s\n' "$syms" | grep -qE ' FUNC +WEAK .* (memcpy|memmove|memset)$'; then
+        fail "$(basename "$elf"): WEAK mem symbol linked (compiler_builtins fallback won)"
+        return 1
+    fi
+    # Belt-and-braces for the current mangling: no compiler_builtins mem
+    # helpers may survive alongside the overrides.
     if printf '%s\n' "$syms" | grep -q "compiler_builtins3mem"; then
         fail "$(basename "$elf"): compiler_builtins mem symbols present (override not applied)"
         return 1
     fi
-    echo "OK:   $(basename "$elf") mem override held"
+
+    if printf '%s\n' "$syms" | grep -qE ' FUNC +GLOBAL .* memcpy$'; then
+        echo "OK:   $(basename "$elf") mem override held"
+    elif printf '%s\n' "$syms" | grep -qE ' (memcpy|memmove|memset)$'; then
+        fail "$(basename "$elf"): mem symbols present but strong GLOBAL memcpy missing"
+        return 1
+    else
+        # No mem symbols at all: the contract's code graph never references a
+        # mem intrinsic, so --gc-sections dropped our (unreferenced) overrides
+        # along with any fallback. Nothing linked, nothing to assert.
+        echo "OK:   $(basename "$elf") links no mem intrinsics (gc'd)"
+    fi
 }
 
 eg_build_rv32_all() {
