@@ -52,11 +52,15 @@ emit_row() {
         echo "Expected lowered rv32 sidecar missing: $sidecar (build with scripts/dev.sh build-examples-rv32 / build-integration-rv32)" >&2
         exit 1
     fi
-    echo "$name" \
-        "code=$(json_int "$sidecar" code_bytes)" \
-        "initial_memory=$(json_int "$sidecar" initial_memory_bytes)" \
-        "memory=$(json_int "$sidecar" memory_bytes)" \
-        "artifact=$(json_int "$sidecar" artifact_bytes)"
+    # Plain assignments (not $() inline in echo args): set -e aborts on a
+    # failed substitution here, so a missing field can never emit a
+    # partial line into append-only history.
+    local code initial_memory memory artifact
+    code=$(json_int "$sidecar" code_bytes)
+    initial_memory=$(json_int "$sidecar" initial_memory_bytes)
+    memory=$(json_int "$sidecar" memory_bytes)
+    artifact=$(json_int "$sidecar" artifact_bytes)
+    echo "$name code=$code initial_memory=$initial_memory memory=$memory artifact=$artifact"
 }
 
 names=""
