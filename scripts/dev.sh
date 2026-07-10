@@ -130,6 +130,9 @@ build_rv32() {
         # The groundhog CLI compiles the ELF (honoring this workspace's
         # .cargo/config.toml rv32 rustflags) and lowers it in-process,
         # writing target/groundhog/<snake>.{rv32a,rv32.json,spec.json,spec.xdr}.
+        # No -F here: the CLI itself passes --no-default-features and the
+        # package's entrypoints (or rv32-entrypoints) feature — see the
+        # build_flags it records in the .rv32.json sidecar.
         #
         # build-std passes through as trailing cargo args, exactly like
         # hogd's build_risc.sh: the rv32 rustflags use panic=immediate-abort
