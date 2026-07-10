@@ -26,6 +26,12 @@
 //! this landed and no_builtins keeps it that way.
 
 /// Forward copy, word-granular, any alignment. Hot loop: lw/sw/addi/addi/bltu.
+///
+/// INVARIANT: this body copies in strictly ascending address order —
+/// `memmove`'s forward branch delegates overlapping `dst <= src` copies here
+/// and is only correct because of it. Any rewrite that reorders writes
+/// (unrolling with reordering, a host-memcpy syscall with unspecified
+/// overlap semantics) must split `memmove` off first.
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memcpy(
     dst: *mut u8,
