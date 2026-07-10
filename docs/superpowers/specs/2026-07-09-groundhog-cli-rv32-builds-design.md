@@ -25,7 +25,8 @@ detail metric. The CLI version is pinned in the CI shell scripts.
   `artifact_bytes`, hashes, build flags), and `<snake>.spec.{json,xdr}`.
   The unstripped ELF stays at the usual cargo path, so the existing
   dispatch/mem-symbol/string checks keep working unchanged.
-- Validated 2026-07-09 with CLI 0.5.7 against the dev SDK: `counter-rv32`
+- Validated 2026-07-09 with CLI 0.5.7 against the dev SDK (pin since bumped
+  to 0.5.14): `counter-rv32`
   (example-contracts) and `itc_erc20` (integration_test) both build and lower
   end-to-end with `CARGO_PROFILE_RELEASE_STRIP=false` and
   `-- -Zbuild-std=core,alloc`.
@@ -116,7 +117,7 @@ rv32 set, deriving those names from the same list file.
 ### 4. CLI version pin in CI shell scripts
 
 - `scripts/groundhog-cli-version.sh` holds the single pin:
-  `GROUNDHOG_CLI_VERSION=0.5.7`.
+  `GROUNDHOG_CLI_VERSION=0.5.14`.
 - `scripts/ci.sh` sources it and, before `dev.sh ci`, runs:
 
   ```sh

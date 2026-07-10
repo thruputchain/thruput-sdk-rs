@@ -6,19 +6,19 @@
 
 **Architecture:** `scripts/dev.sh`'s `build_rv32()` swaps its raw cargo invocation for `groundhog build --target rv32`; the CLI leaves the unstripped ELF at the existing path (all ELF checks unchanged) and additionally writes `target/groundhog/<snake>.rv32a` + `<snake>.rv32.json`. A new list file `integration_test/rv32-contracts` names the integration_test rv32 set. A new metric script reads the `.rv32.json` sidecars; the existing readelf metric grows to cover the integration_test set. The CLI version is pinned in one sourced shell file; `ci.sh` installs it, local runs only warn.
 
-**Tech Stack:** bash/sh scripts, cargo, groundhog CLI 0.5.7 (groundhog registry), GNU/llvm readelf.
+**Tech Stack:** bash/sh scripts, cargo, groundhog CLI 0.5.14 (groundhog registry), GNU/llvm readelf.
 
 **Spec:** `docs/superpowers/specs/2026-07-09-groundhog-cli-rv32-builds-design.md`
 
 ## Global Constraints
 
-- CLI pin: `GROUNDHOG_CLI_VERSION=0.5.7`, defined ONLY in `scripts/groundhog-cli-version.sh`.
+- CLI pin: `GROUNDHOG_CLI_VERSION=0.5.14`, defined ONLY in `scripts/groundhog-cli-version.sh`.
 - Metric outputs are append-only history: never reorder or rename fields of an existing metric; new metric line format is exactly `<snake> code=<B> initial_memory=<B> memory=<B> artifact=<B>`.
 - Metric input sets derive from the source tree (example-contracts `*-rv32` glob + `integration_test/rv32-contracts` list), never from globbing artifact dirs; a missing artifact/sidecar for a current contract must exit 1.
 - rv32 ELF checks (`check_rv32_dispatch`, `check_rv32_mem_symbols`, string scan) must keep running on the unstripped ELF at `target/riscv32im-unknown-none-elf/release/<snake>`.
 - `groundhog build --target rv32` must be invoked with env `CARGO_PROFILE_RELEASE_STRIP=false` and trailing cargo args `-Zbuild-std=core,alloc` (plus `--locked` unless `CARGO_UNLOCK` is set).
 - All work on branch `geoff/groundhog-cli-rv32-builds` (repo hook rejects commits elsewhere).
-- Executing this plan requires `groundhog` 0.5.7 on PATH (already installed locally).
+- Executing this plan requires `groundhog` 0.5.14 on PATH (already installed locally).
 
 ---
 
@@ -43,7 +43,7 @@ Write `scripts/groundhog-cli-version.sh`:
 # this version before dev.sh ci) and by scripts/dev.sh (which warns when the
 # local CLI differs — CI is authoritative for metrics/artifacts). Bump this
 # one line when a new groundhog-cli release is published.
-GROUNDHOG_CLI_VERSION=0.5.7
+GROUNDHOG_CLI_VERSION=0.5.14
 ```
 
 - [ ] **Step 2: Add the install step to ci.sh**
@@ -103,7 +103,7 @@ bash -c 'source scripts/dev.sh; groundhog() { echo "groundhog 0.0.1"; }; require
 bash -c 'source scripts/dev.sh; PATH=/usr/bin:/bin require_groundhog_cli || echo OK-MISSING'
 ```
 
-Expected: first prints `OK-MATCH` (no warning, local CLI is 0.5.7); second prints the `>>` mismatch warning then `OK-WARN`; third prints the `!!` install-hint failure then `OK-MISSING`.
+Expected: first prints `OK-MATCH` (no warning, local CLI is 0.5.14); second prints the `>>` mismatch warning then `OK-WARN`; third prints the `!!` install-hint failure then `OK-MISSING`.
 
 Also syntax-check ci.sh without running it: `bash -n scripts/ci.sh` → no output.
 
