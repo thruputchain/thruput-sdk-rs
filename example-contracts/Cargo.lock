@@ -745,18 +745,18 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.106"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
+checksum = "535d180e0ecab6268a3e718bb9fd44db66bbbc256257165fc699dadf70d16fe7"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "quote"
-version = "1.0.45"
+version = "1.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
+checksum = "dc74d9a594b72ae6656596548f56f667211f8a97b3d4c3d467150794690dc40a"
 dependencies = [
  "proc-macro2",
 ]
@@ -805,9 +805,9 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "schemars"
-version = "1.2.1"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2b42f36aa1cd011945615b92222f6bf73c599a102a300334cd7f8dbeec726cc"
+checksum = "54e910108742c57a770f492731f99be216a52fadd361b06c8fb59d74ccc267d2"
 dependencies = [
  "dyn-clone",
  "ref-cast",
@@ -818,9 +818,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "1.2.1"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d115b50f4aaeea07e79c1912f645c7513d81715d0420f8bc77a18c6260b307f"
+checksum = "4908ad288c5035a8eb12cfdf0d49270def0a268ee162b75eeee0f85d155a7c45"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1084,9 +1084,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.117"
+version = "2.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+checksum = "d4d107df263a3013ef9b1879b0df87d706ff80f65a86ea879bd9c31f9b307c2a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1215,20 +1215,19 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "xdr-common"
-version = "0.7.1"
+version = "0.7.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "ad19541a18f7cf28a9d2e57e0b555ceedf6d84ae918b2d7a16aa31d06ec0cbeb"
+checksum = "49d6bd45de08ddd76fcc5572926c204243b5613be55c4525e5f1f2f659161934"
 dependencies = [
  "escape-bytes",
- "hex",
  "schemars",
 ]
 
 [[package]]
 name = "xdr-derive"
-version = "0.7.1"
+version = "0.7.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "cfc793fa2df6d9135b00d7d8b0a898bdd30304c43fb0bf92f037303dc2dd3c40"
+checksum = "393f332d357f9187838d86de8d072c7716c71f65288ae9f863cdb9273795db0d"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1238,9 +1237,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-repr"
-version = "0.7.1"
+version = "0.7.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "65aeb1d650aee231597350b9934e20aed403be5d47bf05f426bb8cb2018cacfa"
+checksum = "a548e5372df4c233b86d2ec04705a07b1f30db10ac808d4f8210389fe8bb783c"
 dependencies = [
  "heapless",
  "xdr-common",
@@ -1248,12 +1247,11 @@ dependencies = [
 
 [[package]]
 name = "xdrs"
-version = "0.7.1"
+version = "0.7.2"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "2935855dcf7476750fb2d2010ca8b4d8661fea62b15f5788f1f104006013cad3"
+checksum = "2752c1d25170f09d0ac8296d11cb7846c585ef3eebc8f079addea8fd09e3904d"
 dependencies = [
  "heapless",
- "thiserror",
  "xdr-common",
  "xdr-derive",
  "xdr-repr",
