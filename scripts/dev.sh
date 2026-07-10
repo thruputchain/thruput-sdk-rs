@@ -263,7 +263,10 @@ ls_itc_rv32_packages() {
         fail "missing integration_test rv32 contract list: $list"
         return 1
     }
-    grep -Ev '^[[:space:]]*(#|$)' "$list"
+    # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
+    # not an error (matches the metric scripts' handling of grep's
+    # exit-1-on-no-match).
+    grep -Ev '^[[:space:]]*(#|$)' "$list" || true
 }
 
 itc_build_rv32_all() {
