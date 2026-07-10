@@ -58,6 +58,7 @@ fn put_bytes(buf: &mut MUBuf<ABORT_MAX>, n: usize, bytes: &[u8]) -> usize {
 
 /// CXS unsigned integer. Also used for `u32` fields: the CXS encoding
 /// depends only on the value, so widening is lossless.
+#[inline(never)]
 fn put_u64(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: u64) -> usize {
     if v <= 62 {
         put_bytes(buf, n, &[v as u8])
@@ -91,6 +92,7 @@ fn put_u64(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: u64) -> usize {
 
 /// CXS signed integer (`SysErr` is the only signed abort field). Small
 /// values use the 6-bit one's-complement header-byte form.
+#[inline(never)]
 fn put_i32(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: i32) -> usize {
     if (-31..=31).contains(&v) {
         let nu = v.unsigned_abs() as u8;
