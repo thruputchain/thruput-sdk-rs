@@ -70,7 +70,10 @@ for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
     names="$names ${name//-/_}"
 done
 if [ -f "$ITC_RV32_LIST" ]; then
-    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST"); do
+    # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
+    # not an error — grep's exit-1-on-no-match would otherwise silently
+    # kill the script under set -e.
+    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST" || true); do
         names="$names ${name//-/_}"
     done
 fi

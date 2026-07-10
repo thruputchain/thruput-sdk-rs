@@ -88,13 +88,16 @@ for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
 done
 
 if [ -f "$ITC_RV32_LIST" ]; then
-    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST"); do
+    # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
+    # not an error — grep's exit-1-on-no-match would otherwise silently
+    # kill the script under set -e.
+    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST" || true); do
         found=1
         emit_row "${name//-/_}"
     done
 fi
 
 if [ "$found" -eq 0 ]; then
-    echo "No *-rv32 wrapper packages found under $CONTRACTS_DIR" >&2
+    echo "No *-rv32 wrapper packages under $CONTRACTS_DIR and no packages listed in $ITC_RV32_LIST" >&2
     exit 1
 fi
