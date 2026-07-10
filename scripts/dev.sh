@@ -161,16 +161,17 @@ check_rv32_strings() {
     # paths. No allow-list — no rv32 contract builds with `debugging` today;
     # if one ever does, promote this to a script sharing check-wasm-size.sh's
     # allow-list logic rather than forking it here.
+    #
+    # Takes package names as args; scans exactly those ELFs, not a directory
+    # glob: the release dir is shared with root-workspace rv32 builds and
+    # can hold stale ELFs from renamed or removed packages.
     info "Checking rv32 binaries for embedded path strings"
 
     local package elf rs_paths
-    # Scan exactly the current *-rv32 package set's ELFs, not a directory
-    # glob: the release dir is shared with root-workspace rv32 builds and
-    # can hold stale ELFs from renamed or removed wrapper packages.
-    for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
+    for package in "$@"; do
         elf="${RV32_RELEASE}/${package//-/_}"
         [ -f "$elf" ] || {
-            fail "missing rv32 ELF $elf (run build-examples-rv32 first)"
+            fail "missing rv32 ELF $elf (run build-examples-rv32 / build-integration-rv32 first)"
             return 1
         }
         rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
@@ -250,7 +251,30 @@ eg_build_rv32_all() {
         check_rv32_dispatch "$elf" || return 1
         check_rv32_mem_symbols "$elf" || return 1
     done
-    check_rv32_strings
+    check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts")
+}
+
+# integration_test rv32 contracts are NOT *-rv32 wrapper packages (the rv32
+# bin wrapper is each contract's own src/main.rs, and nearly every contract
+# has one) — the enabled set is the explicit list file, one package per line.
+ls_itc_rv32_packages() {
+    grep -Ev '^[[:space:]]*(#|$)' "${SDK_DIR}/integration_test/rv32-contracts"
+}
+
+itc_build_rv32_all() {
+    require_groundhog_cli || return 1
+
+    local package elf
+    for package in $(ls_itc_rv32_packages); do
+        build_rv32 "${SDK_DIR}/integration_test" "$package" || {
+            fail "Failed building rv32 contract $package"
+            return 1
+        }
+        elf="${RV32_RELEASE}/${package//-/_}"
+        check_rv32_dispatch "$elf" || return 1
+        check_rv32_mem_symbols "$elf" || return 1
+    done
+    check_rv32_strings $(ls_itc_rv32_packages)
 }
 
 finalize_contract_spec() {
@@ -611,6 +635,7 @@ check_all() {
 
     { skip INTEGRATION || {
         itc_build_all &&
+        { skip RV32_INTEGRATION || itc_build_rv32_all; } &&
         itc_test_all &&
         itc_bottle_test_all
     }; } &&
@@ -825,6 +850,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             ;;
         build-itc)
             itc_build_all
+            ;;
+        build-integration-rv32)
+            itc_build_rv32_all
             ;;
         test)
             if [ $# -gt 0 ]; then

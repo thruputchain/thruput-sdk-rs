@@ -880,6 +880,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rv32_smoke_counter"
+version = "0.2.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
