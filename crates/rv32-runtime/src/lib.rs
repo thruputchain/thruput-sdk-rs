@@ -70,8 +70,11 @@ pub use dispatch::{Entrypoint, lookup};
 #[cfg(all(feature = "alloc", target_arch = "riscv32"))]
 mod allocator;
 
-// rv32-only: strong mem-intrinsic overrides (see mem.rs header).
-#[cfg(target_arch = "riscv32")]
+// Strong mem-intrinsic overrides (rv32) + their pure copy/fill cores, which
+// also compile for host unit tests (same pattern as dispatch.rs). Not
+// compiled for `doc` builds — the cores are internal and would trip
+// dead-code lints there.
+#[cfg(any(target_arch = "riscv32", test))]
 mod mem;
 
 // rv32-only: these define `#[panic_handler]`, naked asm, and linker-script
