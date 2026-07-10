@@ -9,10 +9,6 @@ pub use with_strings::*;
 #[cfg(not(feature = "debugging"))]
 pub use without_strings::*;
 
-// This is the type serialized by the `with_strings` implementation
-#[cfg(any(test, feature = "debugging"))]
-type StrOpt<'a> = Option<&'a str>;
-
 #[cfg(any(test, feature = "debugging"))]
 mod with_strings {
     use super::*;
@@ -20,41 +16,11 @@ mod with_strings {
     /// Capacity of the carried message.
     const CAP: usize = 500;
 
-    // `ConstXDRSize` folds over the field type (`Option<String<CAP>>`),
-    // which is also exactly what the hand-written `WriteXDR` encodes.
-    #[derive(Debug, Clone, PartialEq, ConstXDRSize)]
+    // Everything about the wire is derived from the field type
+    // (`Option<String<CAP>>`): encode, decode, unchecked encode, and
+    // the size bounds. `heapless::String` encodes exactly like `&str`.
+    #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
     pub struct FaultString(Option<heapless::String<CAP>>);
-
-    impl WriteXDR for FaultString {
-        fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
-            let str_opt: StrOpt = self.0.as_ref().map(|s| s.as_str());
-
-            str_opt.write_xdr(w)
-        }
-
-        unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(
-            &self,
-            w: &mut W,
-        ) {
-            let str_opt: StrOpt = self.0.as_ref().map(|s| s.as_str());
-
-            unsafe { str_opt.write_xdr_unchecked(w) }
-        }
-    }
-
-    impl<'r> ReadXDR<'r> for FaultString {
-        fn read_xdr<R: Reader<'r>>(r: &mut R) -> ReadResult<Self> {
-            let str_opt: StrOpt = read_xdr(r)?;
-
-            if let Some(s) = str_opt {
-                s.try_into()
-                    .map(|s| Self(Some(s)))
-                    .map_err(|_| ReadError::MaxLengthExceeded)
-            } else {
-                Ok(Self(None))
-            }
-        }
-    }
 
     impl FaultString {
         pub fn as_str(&self) -> &str {
@@ -148,30 +114,15 @@ mod without_strings {
     use super::*;
 
     #[derive(
-        Debug, Clone, PartialEq, crate::ContractTypeSpec, ConstXDRSize,
+        Debug,
+        Clone,
+        PartialEq,
+        ReadXDR,
+        WriteXDR,
+        crate::ContractTypeSpec,
+        ConstXDRSize,
     )]
     pub struct FaultString;
-
-    impl WriteXDR for FaultString {
-        #[inline(always)]
-        fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
-            Ok(())
-        }
-
-        #[inline(always)]
-        unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(
-            &self,
-            _w: &mut W,
-        ) {
-        }
-    }
-
-    impl<'r> ReadXDR<'r> for FaultString {
-        #[inline(always)]
-        fn read_xdr<R: Reader<'r>>(_r: &mut R) -> ReadResult<Self> {
-            Ok(Self)
-        }
-    }
 
     impl FaultString {
         pub fn as_str(&self) -> &str {
