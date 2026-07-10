@@ -10,12 +10,16 @@ set -euo pipefail
 # upper bound, not an on-chain number; comparisons across that boundary see
 # a one-time step. The section-based fields are unaffected by stripping.
 #
-# Output format (one line per contract ELF, append-only metric history —
-# do not reorder or rename fields):
+# Input rows come from two sources (output format unchanged — append-only
+# metric history, do not reorder or rename fields):
+#   1. example-contracts *-rv32 glob (wrapper packages)
+#   2. integration_test/rv32-contracts list file (explicit list, '#' comments)
+#
+# Output format (one line per contract ELF):
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
 
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-  echo "Usage: $0 <elf directory> [contracts dir]"
+if [ $# -lt 1 ] || [ $# -gt 3 ]; then
+  echo "Usage: $0 <elf directory> [contracts dir] [itc rv32 list]"
   exit 1
 fi
 
@@ -26,6 +30,10 @@ TARGET_DIR=$1
 # wrappers — neither may emit a row into the append-only history, and a
 # missing build for a current wrapper must fail loudly.
 CONTRACTS_DIR=${2:-example-contracts}
+# integration_test rv32 contracts are not *-rv32 wrapper packages; the
+# enabled set is the explicit list file (one package name per line, '#'
+# comments allowed). Same source-tree-derived input rationale as above.
+ITC_RV32_LIST=${3:-integration_test/rv32-contracts}
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default
 # GNU output style matches. READELF env overrides.
@@ -52,17 +60,13 @@ section_size() {
     fi
 }
 
-found=0
-for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
-    [ -d "$pkg_dir" ] && [ -f "$pkg_dir/Cargo.toml" ] || continue
-    found=1
-    # Bin name = underscored package name by convention (the wrapper's
-    # [[bin]] declares it; see dev.sh eg_build_rv32_all).
-    name=$(basename "$pkg_dir")
-    name=${name//-/_}
+emit_row() {
+    # $1 = snake-case contract/bin name; ELF must exist in $TARGET_DIR.
+    local name elf text rodata data bss file
+    name=$1
     elf="$TARGET_DIR/$name"
     if [ ! -f "$elf" ] || [ ! -x "$elf" ]; then
-        echo "Expected rv32 contract ELF missing: $elf (build with scripts/dev.sh build-examples-rv32)" >&2
+        echo "Expected rv32 contract ELF missing: $elf (build with scripts/dev.sh build-examples-rv32 / build-integration-rv32)" >&2
         exit 1
     fi
     text=$(section_size "$elf" .text)
@@ -71,7 +75,24 @@ for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
     bss=$(section_size "$elf" .bss)
     file=$(wc -c < "$elf" | tr -d ' ')
     echo "$name text=$text rodata=$rodata data=$data bss=$bss data_image=$((rodata + data)) file=$file"
+}
+
+found=0
+for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
+    [ -d "$pkg_dir" ] && [ -f "$pkg_dir/Cargo.toml" ] || continue
+    found=1
+    # Bin name = underscored package name by convention (the wrapper's
+    # [[bin]] declares it; see dev.sh eg_build_rv32_all).
+    name=$(basename "$pkg_dir")
+    emit_row "${name//-/_}"
 done
+
+if [ -f "$ITC_RV32_LIST" ]; then
+    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST"); do
+        found=1
+        emit_row "${name//-/_}"
+    done
+fi
 
 if [ "$found" -eq 0 ]; then
     echo "No *-rv32 wrapper packages found under $CONTRACTS_DIR" >&2
