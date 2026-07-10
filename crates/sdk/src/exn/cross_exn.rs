@@ -70,6 +70,16 @@ mod tests {
         assert_eq!(decoded, LibraryExn::NonNegativeIntOverflow);
     }
 
+    /// A reference throws as its referent: same selector, byte-identical
+    /// wire encoding, no clone required.
+    #[test]
+    fn contract_exn_by_reference_encodes_identically_to_owned() {
+        let exn = LibraryExn::NonNegativeIntOverflow;
+        let by_ref = encode_xdr(&ContractExn::new(&exn)).unwrap();
+        let owned = encode_xdr(&ContractExn::new(exn)).unwrap();
+        assert_eq!(by_ref, owned);
+    }
+
     /// Verify that the selector can be decoded independently from
     /// the payload -- important for dispatching on the receiver side.
     #[test]
