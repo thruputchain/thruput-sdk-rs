@@ -24,6 +24,13 @@ impl<T: WriteXDR> WriteXDR for AuthTokenPreimage<T> {
         self.consumer.write_xdr(w)?;
         self.data.write_xdr(w)
     }
+
+    unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(&self, w: &mut W) {
+        unsafe {
+            self.consumer.write_xdr_unchecked(w);
+            self.data.write_xdr_unchecked(w);
+        }
+    }
 }
 
 impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for AuthTokenPreimage<T> {

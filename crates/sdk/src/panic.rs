@@ -103,6 +103,13 @@ mod without_message {
         fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
             Ok(())
         }
+
+        #[inline(always)]
+        unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(
+            &self,
+            _w: &mut W,
+        ) {
+        }
     }
 
     impl<'r> ReadXDR<'r> for Panic {

@@ -26,6 +26,15 @@ mod with_strings {
 
             str_opt.write_xdr(w)
         }
+
+        unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(
+            &self,
+            w: &mut W,
+        ) {
+            let str_opt: StrOpt = self.0.as_ref().map(|s| s.as_str());
+
+            unsafe { str_opt.write_xdr_unchecked(w) }
+        }
     }
 
     impl<'r> ReadXDR<'r> for FaultString {
@@ -140,6 +149,13 @@ mod without_strings {
         #[inline(always)]
         fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
             Ok(())
+        }
+
+        #[inline(always)]
+        unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(
+            &self,
+            _w: &mut W,
+        ) {
         }
     }
 
