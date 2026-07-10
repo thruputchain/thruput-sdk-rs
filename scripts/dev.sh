@@ -742,6 +742,24 @@ fail() {
     return 1
 }
 
+require_groundhog_cli() {
+    # rv32 contract builds run through the groundhog CLI. CI installs the
+    # exact pin (scripts/ci.sh); locally a mismatch only warns — the pin is
+    # authoritative for CI metrics, not a local build requirement.
+    . "${SDK_DIR}/scripts/groundhog-cli-version.sh"
+
+    command -v groundhog > /dev/null || {
+        fail "groundhog CLI not found; install with: cargo install groundhog-cli --version \"=${GROUNDHOG_CLI_VERSION}\" --registry groundhog --locked"
+        return 1
+    }
+
+    local installed
+    installed=$(groundhog --version | awk '{print $2}')
+    if [ "$installed" != "$GROUNDHOG_CLI_VERSION" ]; then
+        warn "groundhog CLI ${installed} != pinned ${GROUNDHOG_CLI_VERSION} (CI uses the pin; continuing with the local CLI)"
+    fi
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     set -u
 
