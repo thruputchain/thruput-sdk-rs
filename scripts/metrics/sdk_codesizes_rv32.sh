@@ -4,7 +4,11 @@ set -euo pipefail
 # Per-contract rv32 codesize metrics: the on-chain-relevant numbers.
 # .text is the stored code image; .rodata + .data form the stored initial
 # data image (data_image); .bss is VM-zeroed (not stored) and reported for
-# context; file is the raw ELF size for continuity with sdk_codesizes.
+# context. file is the raw size of the ELF as CI builds it — UNSTRIPPED
+# since 2026-07-09 (dev.sh build_rv32 sets CARGO_PROFILE_RELEASE_STRIP=false
+# so the symbol checks can run), so it includes the symtab and is a loose
+# upper bound, not an on-chain number; comparisons across that boundary see
+# a one-time step. The section-based fields are unaffected by stripping.
 #
 # Output format (one line per contract ELF, append-only metric history —
 # do not reorder or rename fields):
