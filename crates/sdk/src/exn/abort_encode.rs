@@ -7,8 +7,14 @@
 //! single largest function in a minimal contract (~2.2 KB of rv32
 //! `.text`). `LibraryExn`'s encoding is small and statically bounded, so
 //! this module encodes it directly into a fixed stack buffer instead:
-//! `[u64 selector][discriminant][payload]`, with every variable-width
-//! field delegated to the shared `xdrs::cxs::encode_into` primitives.
+//! `[u64 selector][discriminant][payload]`.
+//!
+//! Integer fields use the local `put_u64`/`put_i32` helpers, which own
+//! a direct copy of the CXS integer rule for the abort path; per-field
+//! `encode_into` measured at ~1.2 KB per contract (writer setup +
+//! bounds/Result plumbing per call site) — the very cost this module
+//! exists to remove. `FaultString` still delegates to `encode_into` so
+//! both cfg modes stay wire-correct by construction.
 //!
 //! Byte-for-byte wire compatibility with the derived encoder is pinned
 //! by the exhaustive tests below; the derived `WriteXDR` impl remains
@@ -32,17 +38,91 @@ pub(crate) const ABORT_MAX: usize = 32;
 #[cfg(feature = "debugging")]
 pub(crate) const ABORT_MAX: usize = 544;
 
-/// Encode one field at offset `*n` through the shared `encode_into`
-/// primitives. Statically infallible: `ABORT_MAX` covers the worst-case
-/// encoding of every variant (see the sizing test), so the trap arm is
-/// unreachable.
+// CXS integer encoding constants (mirrors xdrs/src/cxs/put.rs and limits.rs).
+// Values ≤ UH_MAX (62) encode as a single header byte; 63 is the multibyte
+// marker. Bits 6-7 of the marker encode the payload width (S_* below).
+const V_MULTIBYTE: u8 = 63;
+const S_1BYTE: u8 = 0 << 6;
+const S_2BYTE: u8 = 1 << 6;
+const S_4BYTE: u8 = 2 << 6;
+const S_8BYTE: u8 = 3 << 6;
+
+/// Write `bytes` into `buf` at offset `n`, returning the new offset.
+fn put_bytes(buf: &mut MUBuf<ABORT_MAX>, n: usize, bytes: &[u8]) -> usize {
+    let spare = &mut buf.spare_capacity_mut()[n..n + bytes.len()];
+    for (dst, &src) in spare.iter_mut().zip(bytes) {
+        *dst = MaybeUninit::new(src);
+    }
+    n + bytes.len()
+}
+
+/// CXS unsigned integer. Also used for `u32` fields: the CXS encoding
+/// depends only on the value, so widening is lossless.
+fn put_u64(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: u64) -> usize {
+    if v <= 62 {
+        put_bytes(buf, n, &[v as u8])
+    } else if v <= u8::MAX as u64 {
+        put_bytes(buf, n, &[V_MULTIBYTE | S_1BYTE, v as u8])
+    } else if v <= u16::MAX as u64 {
+        let b = (v as u16).to_le_bytes();
+        put_bytes(buf, n, &[V_MULTIBYTE | S_2BYTE, b[0], b[1]])
+    } else if v <= u32::MAX as u64 {
+        let b = (v as u32).to_le_bytes();
+        put_bytes(buf, n, &[V_MULTIBYTE | S_4BYTE, b[0], b[1], b[2], b[3]])
+    } else {
+        let b = v.to_le_bytes();
+        put_bytes(
+            buf,
+            n,
+            &[
+                V_MULTIBYTE | S_8BYTE,
+                b[0],
+                b[1],
+                b[2],
+                b[3],
+                b[4],
+                b[5],
+                b[6],
+                b[7],
+            ],
+        )
+    }
+}
+
+/// CXS signed integer (`SysErr` is the only signed abort field). Small
+/// values use the 6-bit one's-complement header-byte form.
+fn put_i32(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: i32) -> usize {
+    if (-31..=31).contains(&v) {
+        let nu = v.unsigned_abs() as u8;
+        let h = if v >= 0 {
+            nu
+        } else {
+            (!nu & 0b01_1111) | 0b0010_0000
+        };
+        put_bytes(buf, n, &[h])
+    } else if (i8::MIN as i32..=i8::MAX as i32).contains(&v) {
+        put_bytes(buf, n, &[V_MULTIBYTE | S_1BYTE, v as u8])
+    } else if (i16::MIN as i32..=i16::MAX as i32).contains(&v) {
+        let b = (v as i16).to_le_bytes();
+        put_bytes(buf, n, &[V_MULTIBYTE | S_2BYTE, b[0], b[1]])
+    } else {
+        let b = v.to_le_bytes();
+        put_bytes(buf, n, &[V_MULTIBYTE | S_4BYTE, b[0], b[1], b[2], b[3]])
+    }
+}
+
+/// Encode one `FaultString` field at offset `n` through `encode_into`.
+/// Used only for `FaultString`, whose encoding is cfg-dependent; both
+/// cfg modes stay wire-correct by construction via the shared primitive.
+/// Statically infallible: `ABORT_MAX` covers the worst-case encoding of
+/// every variant (see the sizing test), so the trap arm is unreachable.
 fn put<T: WriteXDR + ?Sized>(
     buf: &mut MUBuf<ABORT_MAX>,
-    n: &mut usize,
+    n: usize,
     x: &T,
-) {
-    match xdrs::cxs::encode_into(x, &mut buf.spare_capacity_mut()[*n..]) {
-        Ok(written) => *n += written,
+) -> usize {
+    match xdrs::cxs::encode_into(x, &mut buf.spare_capacity_mut()[n..]) {
+        Ok(written) => n + written,
         Err(_) => crate::trap(),
     }
 }
@@ -51,10 +131,10 @@ fn put<T: WriteXDR + ?Sized>(
 /// single CXS header byte (6-bit value field, sign/size bits clear).
 /// This is the only piece of CXS format knowledge this module owns;
 /// the wire-compat tests pin it against the derived encoder.
-fn put_disc(buf: &mut MUBuf<ABORT_MAX>, n: &mut usize, d: u8) {
+fn put_disc(buf: &mut MUBuf<ABORT_MAX>, n: usize, d: u8) -> usize {
     debug_assert!(d <= 30);
-    buf.spare_capacity_mut()[*n] = MaybeUninit::new(d);
-    *n += 1;
+    buf.spare_capacity_mut()[n] = MaybeUninit::new(d);
+    n + 1
 }
 
 /// CXS-encode `ContractExn<LibraryExn>` — `[selector][discriminant]
@@ -66,97 +146,106 @@ pub(crate) fn encode_library_abort(
     use crate::exn::Exn;
 
     buf.clear();
-    let mut n = 0;
-    put(buf, &mut n, &LibraryExn::SELECTOR);
+    let mut n = put_u64(buf, 0, LibraryExn::SELECTOR);
     match exn {
         LibraryExn::Syscall(se) => {
-            put_disc(buf, &mut n, 0);
-            put(buf, &mut n, &se.callno());
-            put(buf, &mut n, &se.errno());
+            n = put_disc(buf, n, 0);
+            n = put_u64(buf, n, se.callno().0 as u64);
+            n = put_i32(buf, n, se.errno().0);
         }
         LibraryExn::Handling(h) => {
-            put_disc(buf, &mut n, 1);
+            n = put_disc(buf, n, 1);
             match h {
                 HandlingError::DecodingArgs(fs) => {
-                    put_disc(buf, &mut n, 0);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 0);
+                    n = put(buf, n, fs);
                 }
                 HandlingError::EncodingSuccess(fs) => {
-                    put_disc(buf, &mut n, 1);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 1);
+                    n = put(buf, n, fs);
                 }
                 HandlingError::EncodingException(fs) => {
-                    put_disc(buf, &mut n, 2);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 2);
+                    n = put(buf, n, fs);
                 }
                 HandlingError::EncodingEvent(fs) => {
-                    put_disc(buf, &mut n, 3);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 3);
+                    n = put(buf, n, fs);
                 }
             }
         }
         LibraryExn::Calling(c) => {
-            put_disc(buf, &mut n, 2);
+            n = put_disc(buf, n, 2);
             match c {
-                CallingError::Invalid => put_disc(buf, &mut n, 0),
+                CallingError::Invalid => {
+                    n = put_disc(buf, n, 0);
+                }
                 CallingError::DecodingSuccess(fs) => {
-                    put_disc(buf, &mut n, 1);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 1);
+                    n = put(buf, n, fs);
                 }
                 CallingError::DecodingException(fs) => {
-                    put_disc(buf, &mut n, 2);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 2);
+                    n = put(buf, n, fs);
                 }
                 CallingError::EncodingArgs(fs) => {
-                    put_disc(buf, &mut n, 3);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 3);
+                    n = put(buf, n, fs);
                 }
             }
         }
         LibraryExn::Called(fs) => {
-            put_disc(buf, &mut n, 3);
-            put(buf, &mut n, fs);
+            n = put_disc(buf, n, 3);
+            n = put(buf, n, fs);
         }
         LibraryExn::AuthToken(a) => {
-            put_disc(buf, &mut n, 4);
+            n = put_disc(buf, n, 4);
             match a {
                 AuthTokenError::MintEncodeFailure(fs) => {
-                    put_disc(buf, &mut n, 0);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 0);
+                    n = put(buf, n, fs);
                 }
                 AuthTokenError::ConsumeDecodeFailure(fs) => {
-                    put_disc(buf, &mut n, 1);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 1);
+                    n = put(buf, n, fs);
                 }
                 AuthTokenError::ReceiveAuthHandlesFailure(fs) => {
-                    put_disc(buf, &mut n, 2);
-                    put(buf, &mut n, fs);
+                    n = put_disc(buf, n, 2);
+                    n = put(buf, n, fs);
                 }
             }
         }
         LibraryExn::BytestringWrongSize { expected, found } => {
-            put_disc(buf, &mut n, 5);
-            put(buf, &mut n, expected);
-            put(buf, &mut n, found);
+            n = put_disc(buf, n, 5);
+            n = put_u64(buf, n, *expected as u64);
+            n = put_u64(buf, n, *found as u64);
         }
-        LibraryExn::NonNegativeIntUnderflow => put_disc(buf, &mut n, 6),
-        LibraryExn::NonNegativeIntOverflow => put_disc(buf, &mut n, 7),
-        LibraryExn::StorageSerialization => put_disc(buf, &mut n, 8),
+        LibraryExn::NonNegativeIntUnderflow => {
+            n = put_disc(buf, n, 6);
+        }
+        LibraryExn::NonNegativeIntOverflow => {
+            n = put_disc(buf, n, 7);
+        }
+        LibraryExn::StorageSerialization => {
+            n = put_disc(buf, n, 8);
+        }
         LibraryExn::StorageIndexOutOfBounds { len, access } => {
-            put_disc(buf, &mut n, 9);
-            put(buf, &mut n, len);
-            put(buf, &mut n, access);
+            n = put_disc(buf, n, 9);
+            n = put_u64(buf, n, *len);
+            n = put_u64(buf, n, *access);
         }
-        LibraryExn::StorageKeypathOverflow => put_disc(buf, &mut n, 10),
+        LibraryExn::StorageKeypathOverflow => {
+            n = put_disc(buf, n, 10);
+        }
         LibraryExn::RetrocausalQueueEntryWrongSize { expected, found } => {
-            put_disc(buf, &mut n, 11);
-            put(buf, &mut n, expected);
-            put(buf, &mut n, found);
+            n = put_disc(buf, n, 11);
+            n = put_u64(buf, n, *expected as u64);
+            n = put_u64(buf, n, *found as u64);
         }
     }
     // Safety: bytes 0..n were initialized contiguously — `put` via
     // `encode_into` (which fills its slice from index 0) at offset `n`,
-    // `put_disc` by direct store.
+    // `put_disc` and `put_u64`/`put_i32` by direct store.
     unsafe { buf.set_len(n) };
 }
 
