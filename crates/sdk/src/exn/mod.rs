@@ -34,8 +34,19 @@ use core::fmt::Debug;
 /// Each implementing type gets a unique u64 selector derived from its
 /// canonical type signature (via `#[exn]`). The selector is used
 /// for dispatch when deserializing exceptions on the client side.
-pub trait Exn: Debug + PartialEq + WriteXDR + ReadXDROwned {
+///
+/// Throwing only needs `WriteXDR`, so decoding is not a supertrait; the
+/// generic decode sites ([`RawExceptionRef::try_as`] /
+/// [`RawException::try_as`]) require `ReadXDROwned` explicitly.
+pub trait Exn: Debug + PartialEq + WriteXDR {
     const SELECTOR: u64;
+}
+
+/// A reference throws as its referent: same selector, same wire encoding
+/// (`WriteXDR for &T` writes `T`). Lets throw paths borrow an exception
+/// instead of cloning it.
+impl<T: Exn> Exn for &T {
+    const SELECTOR: u64 = T::SELECTOR;
 }
 
 /// Exn impl for Infallible — this type can never be instantiated,

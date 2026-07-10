@@ -86,7 +86,7 @@ impl<'s> RawExceptionRef<'s> {
         &self.wire[self.payload_start..]
     }
 
-    pub fn try_as<T: Exn>(&self) -> Option<T> {
+    pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
             contract_call_decode_exn_prefix(self.payload()).ok()
         } else {
@@ -212,7 +212,7 @@ impl RawException {
         }
     }
 
-    pub fn try_as<T: Exn>(&self) -> Option<T> {
+    pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
         self.as_ref_exn().try_as()
     }
 
