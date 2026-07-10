@@ -1,9 +1,0 @@
-# integration_test contracts built as rv32 (via `groundhog build --target
-# rv32`, driven by scripts/dev.sh build-integration-rv32). One package name
-# per line. Read by dev.sh and by scripts/metrics/sdk_codesizes_rv32*.sh —
-# unlike example-contracts, integration_test rv32 contracts are not *-rv32
-# wrapper packages (the rv32 bin wrapper is the contract's own src/main.rs),
-# so the enabled set is this explicit list.
-rv32_smoke_counter
-itc_erc20
-fibonacci

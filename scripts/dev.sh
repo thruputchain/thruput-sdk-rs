@@ -225,11 +225,12 @@ check_rv32_mem_symbols() {
         return 1
     fi
 
-    if printf '%s\n' "$syms" | grep -qE ' FUNC +GLOBAL .* memcpy$'; then
+    if printf '%s\n' "$syms" | grep -qE ' FUNC +(GLOBAL|LOCAL) .* (memcpy|memmove|memset)$'; then
+        # Strong (non-WEAK) definitions won. GLOBAL is the common case;
+        # LOCAL HIDDEN appears when LTO internalizes our #[no_mangle] defs
+        # (seen with read_only_test) — still ours, since a fallback winning
+        # would trip the WEAK or compiler_builtins checks above.
         echo "OK:   $(basename "$elf") mem override held"
-    elif printf '%s\n' "$syms" | grep -qE ' (memcpy|memmove|memset)$'; then
-        fail "$(basename "$elf"): mem symbols present but strong GLOBAL memcpy missing"
-        return 1
     else
         # No mem symbols at all: the contract's code graph never references a
         # mem intrinsic, so --gc-sections dropped our (unreferenced) overrides
@@ -257,24 +258,32 @@ eg_build_rv32_all() {
     check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts")
 }
 
-# integration_test rv32 contracts are NOT *-rv32 wrapper packages (the rv32
-# bin wrapper is each contract's own src/main.rs, and nearly every contract
-# has one) — the enabled set is the explicit list file, one package per line.
+# integration_test rv32 contracts are NOT *-rv32 wrapper packages — the rv32
+# bin wrapper is each contract's own src/main.rs. Auto-discovered: the wasm
+# contract set (dirs with Cargo.toml minus `disabled`, same as the wasm build
+# loop) narrowed to packages that declare a [[bin]]. Declaring the wrapper
+# bin IS the rv32 enablement; raw wasm-ABI contracts (hand-written
+# export_name entrypoints, no bin — e.g. sha256_raw) are excluded by
+# construction until someone ports them. The metric scripts
+# (scripts/metrics/sdk_codesizes_rv32*.sh) derive the same set — keep the
+# rules in sync.
 ls_itc_rv32_packages() {
-    local list="${SDK_DIR}/integration_test/rv32-contracts"
-    [ -f "$list" ] || {
-        fail "missing integration_test rv32 contract list: $list"
-        return 1
-    }
-    # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
-    # not an error (matches the metric scripts' handling of grep's
-    # exit-1-on-no-match).
-    grep -Ev '^[[:space:]]*(#|$)' "$list" || true
+    local contracts_dir="${SDK_DIR}/integration_test/contracts"
+    local package
+    for package in $(ls_contract_packages "$contracts_dir"); do
+        grep -q '^\[\[bin\]\]' "$contracts_dir/$package/Cargo.toml" || continue
+        echo "$package"
+    done
 }
 
 itc_build_rv32_all() {
     require_groundhog_cli || return 1
-    ls_itc_rv32_packages > /dev/null || return 1
+    # Discovery yielding nothing means the tree moved under us (dir renamed,
+    # bins dropped) — fail rather than silently build zero contracts.
+    [ -n "$(ls_itc_rv32_packages)" ] || {
+        fail "no rv32-capable integration_test contracts discovered"
+        return 1
+    }
 
     local package elf
     for package in $(ls_itc_rv32_packages); do
@@ -423,7 +432,8 @@ itc_build() {
 }
 
 itc_build_all() {
-    itc_build fibonacci &&
+    # fibonacci is in the loop (alphabetically before fibonacci_call, whose
+    # tests consume its wasm); it no longer needs an explicit first build.
     build_contracts "${SDK_DIR}/integration_test" "${SDK_DIR}/integration_test/contracts"
 }
 

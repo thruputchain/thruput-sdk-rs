@@ -19,7 +19,7 @@ set -euo pipefail
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <elf directory> [contracts dir] [itc rv32 list]" >&2
+  echo "Usage: $0 <elf directory> [contracts dir] [itc contracts dir]" >&2
   exit 1
 fi
 
@@ -30,10 +30,9 @@ TARGET_DIR=$1
 # wrappers — neither may emit a row into the append-only history, and a
 # missing build for a current wrapper must fail loudly.
 CONTRACTS_DIR=${2:-example-contracts}
-# integration_test rv32 contracts are not *-rv32 wrapper packages; the
-# enabled set is the explicit list file (one package name per line, '#'
-# comments allowed). Same source-tree-derived input rationale as above.
-ITC_RV32_LIST=${3:-integration_test/rv32-contracts}
+# integration_test rv32 contracts are not *-rv32 wrapper packages; they are
+# auto-discovered (same source-tree-derived input rationale as above).
+ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default
 # GNU output style matches. READELF env overrides.
@@ -88,17 +87,24 @@ for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
 done
 
 # No duplicate-name guard here: a cross-workspace name collision reads the same ELF twice (identical rows); sdk_codesizes_rv32_lowered.sh is the collision tripwire (it exits 1).
-if [ -f "$ITC_RV32_LIST" ]; then
-    # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
-    # not an error — grep's exit-1-on-no-match would otherwise silently
-    # kill the script under set -e.
-    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST" || true); do
-        found=1
-        emit_row "${name//-/_}"
-    done
-fi
+#
+# integration_test rv32 discovery, mirroring dev.sh ls_itc_rv32_packages
+# (keep the rules in sync): contract dirs minus the `disabled` marker,
+# narrowed to packages declaring a [[bin]] (the rv32 wrapper bin is the
+# enablement signal; raw wasm-ABI contracts have no bin and are excluded
+# by construction).
+for pkg_dir in "$ITC_CONTRACTS_DIR"/*/; do
+    pkg_dir=${pkg_dir%/}
+    [ -f "$pkg_dir/Cargo.toml" ] || continue
+    [ -f "$pkg_dir/disabled" ] && continue
+    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
+    name=$(basename "$pkg_dir")
+    [ "$name" != "target" ] || continue
+    found=1
+    emit_row "${name//-/_}"
+done
 
 if [ "$found" -eq 0 ]; then
-    echo "No *-rv32 wrapper packages under $CONTRACTS_DIR and no packages listed in $ITC_RV32_LIST" >&2
+    echo "No *-rv32 wrapper packages under $CONTRACTS_DIR and no rv32-capable contracts under $ITC_CONTRACTS_DIR" >&2
     exit 1
 fi

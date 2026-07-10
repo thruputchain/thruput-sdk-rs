@@ -17,19 +17,19 @@ set -euo pipefail
 #   artifact       = full .rv32a artifact size        (artifact_bytes)
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <groundhog artifact dir> [example contracts dir] [itc rv32 list]" >&2
+  echo "Usage: $0 <groundhog artifact dir> [example contracts dir] [itc contracts dir]" >&2
   exit 1
 fi
 
 ARTIFACT_DIR=$1
 # The metric input set is derived from the source tree (example-contracts
-# *-rv32 wrapper packages + the integration_test rv32-contracts list), NOT
+# *-rv32 wrapper packages + auto-discovered integration_test contracts), NOT
 # from globbing the artifact dir: target/groundhog/ is shared across both
 # contract workspaces and can hold stale artifacts from renamed or removed
 # contracts — none of those may emit a row into the append-only history,
 # and a missing sidecar for a current contract must fail loudly.
 CONTRACTS_DIR=${2:-example-contracts}
-ITC_RV32_LIST=${3:-integration_test/rv32-contracts}
+ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
 json_int() {
     # Integer field $2 from sidecar $1. The sidecar is generated with
@@ -69,17 +69,23 @@ for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
     name=$(basename "$pkg_dir")
     names="$names ${name//-/_}"
 done
-if [ -f "$ITC_RV32_LIST" ]; then
-    # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
-    # not an error — grep's exit-1-on-no-match would otherwise silently
-    # kill the script under set -e.
-    for name in $(grep -Ev '^[[:space:]]*(#|$)' "$ITC_RV32_LIST" || true); do
-        names="$names ${name//-/_}"
-    done
-fi
+# integration_test rv32 discovery, mirroring dev.sh ls_itc_rv32_packages
+# (keep the rules in sync): contract dirs minus the `disabled` marker,
+# narrowed to packages declaring a [[bin]] (the rv32 wrapper bin is the
+# enablement signal; raw wasm-ABI contracts have no bin and are excluded
+# by construction).
+for pkg_dir in "$ITC_CONTRACTS_DIR"/*/; do
+    pkg_dir=${pkg_dir%/}
+    [ -f "$pkg_dir/Cargo.toml" ] || continue
+    [ -f "$pkg_dir/disabled" ] && continue
+    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
+    name=$(basename "$pkg_dir")
+    [ "$name" != "target" ] || continue
+    names="$names ${name//-/_}"
+done
 
 if [ -z "$names" ]; then
-    echo "No rv32 contracts found ($CONTRACTS_DIR, $ITC_RV32_LIST)" >&2
+    echo "No rv32 contracts found ($CONTRACTS_DIR, $ITC_CONTRACTS_DIR)" >&2
     exit 1
 fi
 
