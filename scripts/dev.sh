@@ -116,21 +116,38 @@ build_rv32() {
 
     info "BUILD(rv32) $package"
 
+    # --locked matches the cargo() wrapper's default for the CLI's inner
+    # cargo invocation; CARGO_UNLOCK opts out, same as everywhere else.
+    # ${VAR:-} (not [ -v ]) so macOS bash 3.2 parses it; same semantics:
+    # opt out of --locked only when CARGO_UNLOCK is set non-empty.
+    local locked="--locked"
+    if [ -n "${CARGO_UNLOCK:-}" ]; then
+        locked=""
+    fi
+
     (
         cd "$workspace_dir" &&
-        # build-std on the command line, exactly like hogd's build_risc.sh:
-        # the rv32 rustflags (example-contracts/.cargo/config.toml) use
-        # panic=immediate-abort + target features the prebuilt core lacks.
-        # NOT in [unstable] config — that would break host `cargo test`
-        # runs from this cwd (build-std requires --target).
-        # Build unstripped (env overrides the config profile's strip="symbols"):
-        # the symtab does not change .text/.rodata/.data sizes, and it lets the
-        # dispatch check use its strong symbol path and check_rv32_mem_symbols
-        # assert the compiler_builtins mem-override held. The on-chain artifact
-        # is produced by hogd's own pipeline, not from this build.
+        # The groundhog CLI compiles the ELF (honoring this workspace's
+        # .cargo/config.toml rv32 rustflags) and lowers it in-process,
+        # writing target/groundhog/<snake>.{rv32a,rv32.json,spec.json,spec.xdr}.
+        # No -F here: the CLI itself passes --no-default-features and the
+        # package's entrypoints (or rv32-entrypoints) feature — see the
+        # build_flags it records in the .rv32.json sidecar.
+        #
+        # build-std passes through as trailing cargo args, exactly like
+        # hogd's build_risc.sh: the rv32 rustflags use panic=immediate-abort
+        # + target features the prebuilt core lacks. NOT in [unstable]
+        # config — that would break host `cargo test` runs from this cwd
+        # (build-std requires --target).
+        #
+        # Build unstripped (env overrides the config profile's
+        # strip="symbols"): the symtab does not change .text/.rodata/.data
+        # sizes, and it lets the dispatch check use its strong symbol path
+        # and check_rv32_mem_symbols assert the compiler_builtins
+        # mem-override held. The deployed artifact is the lowered .rv32a,
+        # which carries no symtab regardless.
         CARGO_PROFILE_RELEASE_STRIP=false \
-        cargo build -Zbuild-std=core,alloc \
-            -p "$package" -F entrypoints --release --target "$RV32_TARGET"
+        groundhog build --target rv32 -p "$package" -- $locked -Zbuild-std=core,alloc
     )
 }
 
@@ -147,16 +164,17 @@ check_rv32_strings() {
     # paths. No allow-list — no rv32 contract builds with `debugging` today;
     # if one ever does, promote this to a script sharing check-wasm-size.sh's
     # allow-list logic rather than forking it here.
+    #
+    # Takes package names as args; scans exactly those ELFs, not a directory
+    # glob: the release dir is shared with root-workspace rv32 builds and
+    # can hold stale ELFs from renamed or removed packages.
     info "Checking rv32 binaries for embedded path strings"
 
     local package elf rs_paths
-    # Scan exactly the current *-rv32 package set's ELFs, not a directory
-    # glob: the release dir is shared with root-workspace rv32 builds and
-    # can hold stale ELFs from renamed or removed wrapper packages.
-    for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
+    for package in "$@"; do
         elf="${RV32_RELEASE}/${package//-/_}"
         [ -f "$elf" ] || {
-            fail "missing rv32 ELF $elf (run build-examples-rv32 first)"
+            fail "missing rv32 ELF $elf (run build-examples-rv32 / build-integration-rv32 first)"
             return 1
         }
         rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
@@ -207,11 +225,12 @@ check_rv32_mem_symbols() {
         return 1
     fi
 
-    if printf '%s\n' "$syms" | grep -qE ' FUNC +GLOBAL .* memcpy$'; then
+    if printf '%s\n' "$syms" | grep -qE ' FUNC +(GLOBAL|LOCAL) .* (memcpy|memmove|memset)$'; then
+        # Strong (non-WEAK) definitions won. GLOBAL is the common case;
+        # LOCAL HIDDEN appears when LTO internalizes our #[no_mangle] defs
+        # (seen with read_only_test) — still ours, since a fallback winning
+        # would trip the WEAK or compiler_builtins checks above.
         echo "OK:   $(basename "$elf") mem override held"
-    elif printf '%s\n' "$syms" | grep -qE ' (memcpy|memmove|memset)$'; then
-        fail "$(basename "$elf"): mem symbols present but strong GLOBAL memcpy missing"
-        return 1
     else
         # No mem symbols at all: the contract's code graph never references a
         # mem intrinsic, so --gc-sections dropped our (unreferenced) overrides
@@ -221,6 +240,8 @@ check_rv32_mem_symbols() {
 }
 
 eg_build_rv32_all() {
+    require_groundhog_cli || return 1
+
     local package elf
     for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
         build_rv32 "${SDK_DIR}/example-contracts" "$package" || {
@@ -234,7 +255,47 @@ eg_build_rv32_all() {
         check_rv32_dispatch "$elf" || return 1
         check_rv32_mem_symbols "$elf" || return 1
     done
-    check_rv32_strings
+    check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts")
+}
+
+# integration_test rv32 contracts are NOT *-rv32 wrapper packages — the rv32
+# bin wrapper is each contract's own src/main.rs. Auto-discovered: the wasm
+# contract set (dirs with Cargo.toml minus `disabled`, same as the wasm build
+# loop) narrowed to packages that declare a [[bin]]. Declaring the wrapper
+# bin IS the rv32 enablement; raw wasm-ABI contracts (hand-written
+# export_name entrypoints, no bin — e.g. sha256_raw) are excluded by
+# construction until someone ports them. The metric scripts
+# (scripts/metrics/sdk_codesizes_rv32*.sh) derive the same set — keep the
+# rules in sync.
+ls_itc_rv32_packages() {
+    local contracts_dir="${SDK_DIR}/integration_test/contracts"
+    local package
+    for package in $(ls_contract_packages "$contracts_dir"); do
+        grep -q '^\[\[bin\]\]' "$contracts_dir/$package/Cargo.toml" || continue
+        echo "$package"
+    done
+}
+
+itc_build_rv32_all() {
+    require_groundhog_cli || return 1
+    # Discovery yielding nothing means the tree moved under us (dir renamed,
+    # bins dropped) — fail rather than silently build zero contracts.
+    [ -n "$(ls_itc_rv32_packages)" ] || {
+        fail "no rv32-capable integration_test contracts discovered"
+        return 1
+    }
+
+    local package elf
+    for package in $(ls_itc_rv32_packages); do
+        build_rv32 "${SDK_DIR}/integration_test" "$package" || {
+            fail "Failed building rv32 contract $package"
+            return 1
+        }
+        elf="${RV32_RELEASE}/${package//-/_}"
+        check_rv32_dispatch "$elf" || return 1
+        check_rv32_mem_symbols "$elf" || return 1
+    done
+    check_rv32_strings $(ls_itc_rv32_packages)
 }
 
 finalize_contract_spec() {
@@ -371,7 +432,8 @@ itc_build() {
 }
 
 itc_build_all() {
-    itc_build fibonacci &&
+    # fibonacci is in the loop (alphabetically before fibonacci_call, whose
+    # tests consume its wasm); it no longer needs an explicit first build.
     build_contracts "${SDK_DIR}/integration_test" "${SDK_DIR}/integration_test/contracts"
 }
 
@@ -595,6 +657,7 @@ check_all() {
 
     { skip INTEGRATION || {
         itc_build_all &&
+        { skip RV32_INTEGRATION || itc_build_rv32_all; } &&
         itc_test_all &&
         itc_bottle_test_all
     }; } &&
@@ -742,6 +805,24 @@ fail() {
     return 1
 }
 
+require_groundhog_cli() {
+    # rv32 contract builds run through the groundhog CLI. CI installs the
+    # exact pin (scripts/ci.sh); locally a mismatch only warns — the pin is
+    # authoritative for CI metrics, not a local build requirement.
+    . "${SDK_DIR}/scripts/groundhog-cli-version.sh"
+
+    command -v groundhog > /dev/null || {
+        fail "groundhog CLI not found; install with: cargo install groundhog-cli --version \"=${GROUNDHOG_CLI_VERSION}\" --registry groundhog --locked"
+        return 1
+    }
+
+    local installed
+    installed=$(groundhog --version | awk '{print $2}')
+    if [ "$installed" != "$GROUNDHOG_CLI_VERSION" ]; then
+        warn "groundhog CLI ${installed} != pinned ${GROUNDHOG_CLI_VERSION} (CI uses the pin; continuing with the local CLI)"
+    fi
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     set -u
 
@@ -791,6 +872,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             ;;
         build-itc)
             itc_build_all
+            ;;
+        build-integration-rv32)
+            itc_build_rv32_all
             ;;
         test)
             if [ $# -gt 0 ]; then
