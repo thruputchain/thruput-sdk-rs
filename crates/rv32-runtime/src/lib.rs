@@ -50,6 +50,11 @@
 //! ```
 
 #![cfg_attr(not(test), no_std)]
+// Forbid the compiler from introducing calls to builtin functions in this
+// crate: mem.rs DEFINES memcpy/memmove/memset, and LLVM's loop-idiom pass
+// would otherwise be allowed to lower their own loops into calls to
+// themselves (infinite recursion). Encoded per-function, survives fat LTO.
+#![no_builtins]
 
 #[cfg(not(any(target_arch = "riscv32", doc, test)))]
 compile_error!(
@@ -64,6 +69,10 @@ pub use dispatch::{Entrypoint, lookup};
 // it binds linker-script externs and installs a `#[global_allocator]`.
 #[cfg(all(feature = "alloc", target_arch = "riscv32"))]
 mod allocator;
+
+// rv32-only: strong mem-intrinsic overrides (see mem.rs header).
+#[cfg(target_arch = "riscv32")]
+mod mem;
 
 // rv32-only: these define `#[panic_handler]`, naked asm, and linker-script
 // extern statics, none of which can compile on the host.
