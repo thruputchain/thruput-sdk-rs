@@ -108,6 +108,28 @@ impl crate::re_throw::ReThrow for LibraryExn {
 }
 
 impl LibraryExn {
+    /// Upper bound on this enum's CXS encoding, computed from xdrs's
+    /// size functions next to the variant declarations it depends on:
+    /// two enum discriminants (own + nested, over-approximated at full
+    /// i32 width) plus the widest payload — either two `u64`s
+    /// (`StorageIndexOutOfBounds`) or a [`FaultString`]. Kept by hand
+    /// until the `ConstWriteXDR` derive can emit size bounds without
+    /// the const write half (blocked on `FaultString`'s runtime-only
+    /// string and `SysErr`/`SyscallNo` upstream).
+    pub(crate) const MAX_CXS_SIZE: usize = {
+        use xdrs::cxs::const_writer::{size_i32, size_u64};
+
+        let discs = 2 * size_i32(i32::MAX);
+        let ints_payload = 2 * size_u64(u64::MAX);
+        let fs_payload = FaultString::MAX_CXS_SIZE;
+        let payload = if ints_payload > fs_payload {
+            ints_payload
+        } else {
+            fs_payload
+        };
+        discs + payload
+    };
+
     pub fn as_syscall_exn(&self) -> Option<&SyscallExn> {
         if let LibraryExn::Syscall(se) = self {
             Some(se)

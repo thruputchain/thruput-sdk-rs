@@ -17,8 +17,21 @@ type StrOpt<'a> = Option<&'a str>;
 mod with_strings {
     use super::*;
 
+    /// Capacity of the carried message. Appears once; the wire bound
+    /// [`FaultString::MAX_CXS_SIZE`] is computed from it.
+    const CAP: usize = 500;
+
     #[derive(Debug, Clone, PartialEq)]
-    pub struct FaultString(Option<heapless::String<500>>);
+    pub struct FaultString(Option<heapless::String<CAP>>);
+
+    impl FaultString {
+        /// Worst-case CXS encoding: `Option<&str>` — bool tag, length
+        /// varint, then up to `CAP` bytes of UTF-8.
+        pub(crate) const MAX_CXS_SIZE: usize =
+            xdrs::cxs::const_writer::size_bool(true)
+                + xdrs::cxs::const_writer::size_u32(CAP as u32)
+                + CAP;
+    }
 
     impl WriteXDR for FaultString {
         fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
@@ -144,6 +157,12 @@ mod without_strings {
 
     #[derive(Debug, Clone, PartialEq, crate::ContractTypeSpec)]
     pub struct FaultString;
+
+    impl FaultString {
+        /// ZST: encodes to nothing.
+        #[allow(dead_code)] // mirror of the with_strings bound; test builds compile both modules
+        pub(crate) const MAX_CXS_SIZE: usize = 0;
+    }
 
     impl WriteXDR for FaultString {
         #[inline(always)]

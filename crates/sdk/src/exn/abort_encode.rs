@@ -21,17 +21,12 @@ use crate::internal::MUBuf;
 use crate::xdr::WriteXDR;
 use xdrs::cxs::unchecked_buf_writer::UncheckedBufWriter;
 
-/// Fixed encode-buffer size, covering the worst-case variant:
-/// selector (u64 varint, ≤ 9) + discriminant (1) + payload.
-/// Release worst case is `StorageIndexOutOfBounds { u64, u64 }`:
-/// 9 + 1 + 9 + 9 = 28 (`FaultString` is a ZST). With `debugging`,
-/// `FaultString` is `Option<heapless::String<500>>` on the wire —
-/// bool (1) + length (≤ 3) + 500 bytes — so the worst case is
-/// 9 + 1 + 1 + 504 = 515. The `max_width_variants_fit` test pins this.
-#[cfg(not(feature = "debugging"))]
-pub(crate) const ABORT_MAX: usize = 32;
-#[cfg(feature = "debugging")]
-pub(crate) const ABORT_MAX: usize = 544;
+/// Fixed encode-buffer size: the `ContractExn` wrapper's u64 selector
+/// at worst-case width plus [`LibraryExn::MAX_CXS_SIZE`] (the type owns
+/// its bound). `max_width_variants_fit` pins that every real encoding
+/// fits.
+pub(crate) const ABORT_MAX: usize =
+    xdrs::cxs::const_writer::size_u64(u64::MAX) + LibraryExn::MAX_CXS_SIZE;
 
 /// CXS-encode `ContractExn<LibraryExn>` — `[selector][discriminant]
 /// [payload]` — into `buf`, replacing its contents.
