@@ -130,9 +130,10 @@ fn put<T: WriteXDR + ?Sized>(
 }
 
 /// A non-negative XDR enum discriminant `<= 30` encodes as its own
-/// single CXS header byte (6-bit value field, sign/size bits clear).
-/// This is the only piece of CXS format knowledge this module owns;
-/// the wire-compat tests pin it against the derived encoder.
+/// single CXS header byte (6-bit value field, sign/size bits clear) —
+/// the special case of the integer rule in `put_i32` that every
+/// discriminant here hits; the wire-compat tests pin it against the
+/// derived encoder.
 fn put_disc(buf: &mut MUBuf<ABORT_MAX>, n: usize, d: u8) -> usize {
     debug_assert!(d <= 30);
     buf.spare_capacity_mut()[n] = MaybeUninit::new(d);
