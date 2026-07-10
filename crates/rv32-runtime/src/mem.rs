@@ -7,6 +7,11 @@
 //! set `-C target-feature=+unaligned-scalar-mem`), so word loops here use
 //! `read_unaligned`/`write_unaligned` and need no alignment handling at all:
 //! the hot loop is 5 instructions per 4 bytes at ANY alignment.
+//! (Without `+unaligned-scalar-mem` — e.g. the publish-workflow rlib builds
+//! that use prebuilt core and no contract rustflags — each unaligned word
+//! access byte-expands: still correct, just not the fast path. The flag is
+//! what makes these bodies a win; it is part of the canonical contract
+//! rustflags.)
 //!
 //! These are strong definitions overriding compiler_builtins' weak symbols
 //! at link time. Gas = 1 per executed instruction on this VM, so the loops
@@ -15,7 +20,10 @@
 //! RECURSION GUARD: LLVM's loop-idiom recognition can lower copy/fill loops
 //! back into `memcpy`/`memset` calls — inside these functions that would be
 //! infinite recursion. The crate is `#![no_builtins]` (lib.rs) to forbid
-//! that; the contract-CI disassembly check asserts it stayed true.
+//! that. CI asserts the override held per contract build (dev.sh
+//! check_rv32_mem_symbols: strong memcpy present, compiler_builtins mem
+//! symbols absent); recursion itself was ruled out by disassembly when
+//! this landed and no_builtins keeps it that way.
 
 /// Forward copy, word-granular, any alignment. Hot loop: lw/sw/addi/addi/bltu.
 #[unsafe(no_mangle)]

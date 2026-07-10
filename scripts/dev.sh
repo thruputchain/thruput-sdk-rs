@@ -123,6 +123,12 @@ build_rv32() {
         # panic=immediate-abort + target features the prebuilt core lacks.
         # NOT in [unstable] config — that would break host `cargo test`
         # runs from this cwd (build-std requires --target).
+        # Build unstripped (env overrides the config profile's strip="symbols"):
+        # the symtab does not change .text/.rodata/.data sizes, and it lets the
+        # dispatch check use its strong symbol path and check_rv32_mem_symbols
+        # assert the compiler_builtins mem-override held. The on-chain artifact
+        # is produced by hogd's own pipeline, not from this build.
+        CARGO_PROFILE_RELEASE_STRIP=false \
         cargo build -Zbuild-std=core,alloc \
             -p "$package" -F entrypoints --release --target "$RV32_TARGET"
     )
@@ -163,6 +169,37 @@ check_rv32_strings() {
     done
 }
 
+check_rv32_mem_symbols() {
+    # The rv32 runtime overrides compiler_builtins' weak memcpy/memmove/memset
+    # (crates/rv32-runtime/src/mem.rs). Assert per contract ELF that the
+    # override held: our strong memcpy is present and no compiler_builtins mem
+    # symbol survived. Catches a toolchain/compiler_builtins bump silently
+    # dropping the override (size regression) — and, worse, a build where
+    # #![no_builtins] stopped guarding the bodies against self-recursion
+    # (recursion would resurrect the compiler_builtins symbols' caller graph).
+    local elf
+    elf="$1"; shift
+
+    local readelf
+    readelf="${READELF:-$(command -v llvm-readelf || command -v readelf || true)}"
+    [ -n "$readelf" ] || {
+        fail "no llvm-readelf or readelf on PATH (or set READELF)"
+        return 1
+    }
+
+    local syms
+    syms=$("$readelf" -sW "$elf")
+    printf '%s\n' "$syms" | grep -qE ' FUNC .* memcpy$' || {
+        fail "$(basename "$elf"): strong memcpy override missing from symbol table"
+        return 1
+    }
+    if printf '%s\n' "$syms" | grep -q "compiler_builtins3mem"; then
+        fail "$(basename "$elf"): compiler_builtins mem symbols present (override not applied)"
+        return 1
+    fi
+    echo "OK:   $(basename "$elf") mem override held"
+}
+
 eg_build_rv32_all() {
     local package elf
     for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
@@ -175,6 +212,7 @@ eg_build_rv32_all() {
         # counter-rv32/Cargo.toml), which is what this path derivation assumes.
         elf="${RV32_RELEASE}/${package//-/_}"
         check_rv32_dispatch "$elf" || return 1
+        check_rv32_mem_symbols "$elf" || return 1
     done
     check_rv32_strings
 }
