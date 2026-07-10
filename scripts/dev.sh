@@ -118,8 +118,10 @@ build_rv32() {
 
     # --locked matches the cargo() wrapper's default for the CLI's inner
     # cargo invocation; CARGO_UNLOCK opts out, same as everywhere else.
+    # ${VAR:-} (not [ -v ]) so macOS bash 3.2 parses it; same semantics:
+    # opt out of --locked only when CARGO_UNLOCK is set non-empty.
     local locked="--locked"
-    if [ -v CARGO_UNLOCK ] && [ -n "$CARGO_UNLOCK" ]; then
+    if [ -n "${CARGO_UNLOCK:-}" ]; then
         locked=""
     fi
 
