@@ -116,21 +116,33 @@ build_rv32() {
 
     info "BUILD(rv32) $package"
 
+    # --locked matches the cargo() wrapper's default for the CLI's inner
+    # cargo invocation; CARGO_UNLOCK opts out, same as everywhere else.
+    local locked="--locked"
+    if [ -v CARGO_UNLOCK ] && [ -n "$CARGO_UNLOCK" ]; then
+        locked=""
+    fi
+
     (
         cd "$workspace_dir" &&
-        # build-std on the command line, exactly like hogd's build_risc.sh:
-        # the rv32 rustflags (example-contracts/.cargo/config.toml) use
-        # panic=immediate-abort + target features the prebuilt core lacks.
-        # NOT in [unstable] config — that would break host `cargo test`
-        # runs from this cwd (build-std requires --target).
-        # Build unstripped (env overrides the config profile's strip="symbols"):
-        # the symtab does not change .text/.rodata/.data sizes, and it lets the
-        # dispatch check use its strong symbol path and check_rv32_mem_symbols
-        # assert the compiler_builtins mem-override held. The on-chain artifact
-        # is produced by hogd's own pipeline, not from this build.
+        # The groundhog CLI compiles the ELF (honoring this workspace's
+        # .cargo/config.toml rv32 rustflags) and lowers it in-process,
+        # writing target/groundhog/<snake>.{rv32a,rv32.json,spec.json,spec.xdr}.
+        #
+        # build-std passes through as trailing cargo args, exactly like
+        # hogd's build_risc.sh: the rv32 rustflags use panic=immediate-abort
+        # + target features the prebuilt core lacks. NOT in [unstable]
+        # config — that would break host `cargo test` runs from this cwd
+        # (build-std requires --target).
+        #
+        # Build unstripped (env overrides the config profile's
+        # strip="symbols"): the symtab does not change .text/.rodata/.data
+        # sizes, and it lets the dispatch check use its strong symbol path
+        # and check_rv32_mem_symbols assert the compiler_builtins
+        # mem-override held. The deployed artifact is the lowered .rv32a,
+        # which carries no symtab regardless.
         CARGO_PROFILE_RELEASE_STRIP=false \
-        cargo build -Zbuild-std=core,alloc \
-            -p "$package" -F entrypoints --release --target "$RV32_TARGET"
+        groundhog build --target rv32 -p "$package" -- $locked -Zbuild-std=core,alloc
     )
 }
 
@@ -221,6 +233,8 @@ check_rv32_mem_symbols() {
 }
 
 eg_build_rv32_all() {
+    require_groundhog_cli || return 1
+
     local package elf
     for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
         build_rv32 "${SDK_DIR}/example-contracts" "$package" || {
