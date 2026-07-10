@@ -67,6 +67,9 @@ produce_metric sdk_codesizes "target/optimized"
 # METRIC: sdk_codesizes_rv32
 produce_metric sdk_codesizes_rv32 "target/riscv32im-unknown-none-elf/release"
 
+# METRIC: sdk_codesizes_rv32_lowered
+produce_metric sdk_codesizes_rv32_lowered "target/groundhog"
+
 # METRIC: sdk_perf_gas
 produce_metric sdk_perf_gas
 
@@ -89,4 +92,12 @@ git add metrics/
 GIT_COMMITTER_NAME="$committer_name" \
   GIT_COMMITTER_EMAIL="$committer_email" \
   git commit -m "Add metrics for sdk_rs $branch $commit" --author "$committer_name <$committer_email>"
-git push
+
+# Retry on push rejection: another repo's metrics job may have pushed
+# concurrently, so rebase onto the updated remote and try again.
+while ! git push; do
+  echo "Push failed, attempting pull --rebase and retry..."
+  GIT_COMMITTER_NAME="$committer_name" \
+    GIT_COMMITTER_EMAIL="$committer_email" \
+    git pull --rebase
+done

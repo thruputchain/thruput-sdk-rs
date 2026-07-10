@@ -33,6 +33,8 @@ mod tests {
     enum TestExn {
         #[error("boom")]
         Boom = 1,
+        #[error("data")]
+        Data(u32) = 2,
     }
 
     impl Exn for TestExn {
@@ -68,6 +70,24 @@ mod tests {
 
         assert_eq!(selector, LibraryExn::SELECTOR);
         assert_eq!(decoded, LibraryExn::NonNegativeIntOverflow);
+    }
+
+    /// A reference throws as its referent: same selector, byte-identical
+    /// wire encoding (including payload bytes), no clone required.
+    #[test]
+    fn contract_exn_by_reference_encodes_identically_to_owned() {
+        let exn = TestExn::Data(0xDEAD_BEEF);
+        let by_ref = encode_xdr(&ContractExn::new(&exn)).unwrap();
+        let owned = encode_xdr(&ContractExn::new(exn.clone())).unwrap();
+        assert_eq!(by_ref, owned);
+
+        // And a receiver can decode the by-ref encoding back to the
+        // owned payload.
+        let mut reader = cxs::buf_reader::BufReader::new(by_ref.as_ref());
+        let selector: u64 = ReadXDR::read_xdr(&mut reader).unwrap();
+        let decoded: TestExn = ReadXDR::read_xdr(&mut reader).unwrap();
+        assert_eq!(selector, TestExn::SELECTOR);
+        assert_eq!(decoded, exn);
     }
 
     /// Verify that the selector can be decoded independently from

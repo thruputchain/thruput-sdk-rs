@@ -503,9 +503,11 @@ pub fn generate_method(
     // enabled.  The build script passes --features entrypoints; deps
     // that don't enable the feature cannot inject entrypoints.
     //
-    // RV32 self-registers each method into the runtime's distributed_slice
-    // (GROUNDHOG_RV32_ENTRYPOINTS) which `_start` scans at runtime, instead of
-    // exporting a per-method symbol. WASM still uses host-side export dispatch.
+    // RV32 self-registers each method by emitting an `Entrypoint` record into
+    // the `groundhog_rv32_entrypoints` input section, which the rv32-runtime
+    // linker script brackets and `_start`'s dispatcher scans at runtime,
+    // instead of exporting a per-method symbol. WASM still uses host-side
+    // export dispatch.
     let method_id_u64 = u64::from_be_bytes(*entrypoint);
     let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
@@ -521,13 +523,15 @@ pub fn generate_method(
             #internal_name()
         }
 
-        // rv32 guest dispatch: register this method into the runtime's
-        // distributed_slice instead of exporting a per-method symbol.
+        // rv32 guest dispatch: place this method's Entrypoint record in the
+        // dispatch-table input section. Naming is owned by the SDK end-to-end:
+        // this macro emits the section, the rv32-runtime linker script
+        // (link/groundhog-rv32.ld) KEEPs and brackets it, and
+        // rv32-runtime/src/start.rs walks it. `#[used]` keeps the static
+        // through codegen/LTO; KEEP() covers --gc-sections.
         #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
-        #[::sdk::__rv32_linkme::distributed_slice(
-            ::sdk::__rv32::GROUNDHOG_RV32_ENTRYPOINTS
-        )]
-        #[linkme(crate = ::sdk::__rv32_linkme)]
+        #[used]
+        #[unsafe(link_section = "groundhog_rv32_entrypoints")]
         #[allow(non_upper_case_globals)]
         static #rv32_entry_static: ::sdk::__rv32::Entrypoint =
             ::sdk::__rv32::Entrypoint {
@@ -669,13 +673,15 @@ mod tests {
         assert!(generated.contains("target_family = \"wasm\""));
         assert!(generated.contains("export_name"));
 
-        // rv32 now self-registers into the distributed slice...
+        // rv32 now emits a #[used] static into the repo-owned
+        // groundhog_rv32_entrypoints section (no linkme, no distributed_slice).
         assert!(generated.contains("target_arch = \"riscv32\""));
-        assert!(generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
-        assert!(generated.contains("distributed_slice"));
+        assert!(generated.contains("groundhog_rv32_entrypoints"));
+        assert!(generated.contains("link_section"));
 
-        // ...and the old rv32 dispatch symbols are gone.
+        // The old rv32 dispatch symbols and linkme machinery are gone.
         assert!(!generated.contains(".text.gh_"));
-        assert!(!generated.contains("link_section"));
+        assert!(!generated.contains("distributed_slice"));
+        assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
     }
 }

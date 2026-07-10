@@ -17,9 +17,11 @@
 //! target-agnostic library crate. A thin per-contract bin crate depends
 //! on the contract library AND on this runtime. The VM enters at `_start`
 //! (PC 0) with the invoked method id in `a0`/`a1`; `_start` tail-calls
-//! `rv32_dispatch`, which scans the `GROUNDHOG_RV32_ENTRYPOINTS` registry
-//! (populated by the `#[contract]` macro, one entry per method) and invokes
-//! the matching wrapper. No per-method export symbols are emitted on rv32.
+//! `rv32_dispatch`, which scans the dispatch table (one `Entrypoint` record
+//! per method, emitted by the `#[contract]` macro into the
+//! `groundhog_rv32_entrypoints` section that the linker script brackets) and
+//! invokes the matching wrapper. No per-method export symbols are emitted on
+//! rv32.
 //!
 //! The target-specific runtime pieces only compile on rv32. The pure dispatch
 //! primitives are also compiled for docs/tests so host unit tests can exercise
@@ -48,6 +50,11 @@
 //! ```
 
 #![cfg_attr(not(test), no_std)]
+// Forbid the compiler from introducing calls to builtin functions in this
+// crate: mem.rs DEFINES memcpy/memmove/memset, and LLVM's loop-idiom pass
+// would otherwise be allowed to lower their own loops into calls to
+// themselves (infinite recursion). Encoded per-function, survives fat LTO.
+#![no_builtins]
 
 #[cfg(not(any(target_arch = "riscv32", doc, test)))]
 compile_error!(
@@ -63,8 +70,15 @@ pub use dispatch::{Entrypoint, lookup};
 #[cfg(all(feature = "alloc", target_arch = "riscv32"))]
 mod allocator;
 
-// rv32-only: these define `#[panic_handler]`, naked asm, and the linkme slice,
-// none of which can compile on the host.
+// Strong mem-intrinsic overrides (rv32) + their pure copy/fill cores, which
+// also compile for host unit tests (same pattern as dispatch.rs). Not
+// compiled for `doc` builds — the cores are internal and would trip
+// dead-code lints there.
+#[cfg(any(target_arch = "riscv32", test))]
+mod mem;
+
+// rv32-only: these define `#[panic_handler]`, naked asm, and linker-script
+// extern statics, none of which can compile on the host.
 #[cfg(target_arch = "riscv32")]
 mod panic;
 
@@ -72,4 +86,4 @@ mod panic;
 mod start;
 
 #[cfg(target_arch = "riscv32")]
-pub use start::{_start, GROUNDHOG_RV32_ENTRYPOINTS};
+pub use start::_start;

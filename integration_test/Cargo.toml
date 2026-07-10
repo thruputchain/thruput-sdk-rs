@@ -25,6 +25,7 @@ members = [
     "contracts/payment_channel",
     "contracts/read_only_test",
     "contracts/return_fault_test",
+    "contracts/rv32_smoke_counter",
     "contracts/sha256_raw",
     "contracts/sha256_wrapper",
     "contracts/simple_wallet",
