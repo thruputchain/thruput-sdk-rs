@@ -61,6 +61,10 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
     Ok(quote! {
         #[doc(hidden)]
         #[inline(never)]
+        #[cfg_attr(
+            target_arch = "riscv32",
+            unsafe(link_section = "groundhogspecanchortextv0")
+        )]
         pub fn #anchor_fn_ident() -> usize {
             #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
             {
@@ -378,6 +382,7 @@ mod tests {
 
         assert!(tokens.contains("__groundhog_spec_anchor"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
+        assert!(tokens.contains("groundhogspecanchortextv0"), "{tokens}");
         assert!(
             tokens.contains("Option < Vec < Payload > > as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
             "{tokens}"

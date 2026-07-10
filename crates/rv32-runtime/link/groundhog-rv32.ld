@@ -163,6 +163,14 @@ SECTIONS
 
   /DISCARD/ :
   {
+    /* Spec anchors are needed while the linker resolves archive members, but
+     * not in the final ELF: the retained raw fragments are independently
+     * marked `#[used]`. Discard the relocation graph after it has pulled those
+     * fragments in, leaving neither data nor executable metadata for the
+     * lowerer to handle. Keep these names in sync with the SDK macros.
+     */
+    *(groundhogspecanchorsv0)
+    *(groundhogspecanchortextv0)
     *(.got .got.*)
     *(.got.plt .got.plt.*)
     *(.plt .plt.*)
