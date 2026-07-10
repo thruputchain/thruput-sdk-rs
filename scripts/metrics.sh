@@ -89,4 +89,12 @@ git add metrics/
 GIT_COMMITTER_NAME="$committer_name" \
   GIT_COMMITTER_EMAIL="$committer_email" \
   git commit -m "Add metrics for sdk_rs $branch $commit" --author "$committer_name <$committer_email>"
-git push
+
+# Retry on push rejection: another repo's metrics job may have pushed
+# concurrently, so rebase onto the updated remote and try again.
+while ! git push; do
+  echo "Push failed, attempting pull --rebase and retry..."
+  GIT_COMMITTER_NAME="$committer_name" \
+    GIT_COMMITTER_EMAIL="$committer_email" \
+    git pull --rebase
+done
