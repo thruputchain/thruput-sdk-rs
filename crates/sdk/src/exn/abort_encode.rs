@@ -58,6 +58,11 @@ fn put_bytes(buf: &mut MUBuf<ABORT_MAX>, n: usize, bytes: &[u8]) -> usize {
 
 /// CXS unsigned integer. Also used for `u32` fields: the CXS encoding
 /// depends only on the value, so widening is lossless.
+///
+/// `inline(never)` is load-bearing for codesize on both varint helpers:
+/// inlined, LLVM duplicates the width cascade into every
+/// `encode_library_abort` match arm while still emitting the outlined
+/// copy (measured +176 B on the counter contract).
 #[inline(never)]
 fn put_u64(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: u64) -> usize {
     if v <= 62 {
@@ -92,6 +97,7 @@ fn put_u64(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: u64) -> usize {
 
 /// CXS signed integer (`SysErr` is the only signed abort field). Small
 /// values use the 6-bit one's-complement header-byte form.
+/// `inline(never)`: see `put_u64`.
 #[inline(never)]
 fn put_i32(buf: &mut MUBuf<ABORT_MAX>, n: usize, v: i32) -> usize {
     if (-31..=31).contains(&v) {
@@ -129,13 +135,13 @@ fn put<T: WriteXDR + ?Sized>(
     }
 }
 
-/// A non-negative XDR enum discriminant `<= 30` encodes as its own
-/// single CXS header byte (6-bit value field, sign/size bits clear) —
-/// the special case of the integer rule in `put_i32` that every
-/// discriminant here hits; the wire-compat tests pin it against the
-/// derived encoder.
+/// A non-negative XDR enum discriminant `<= 31` (`IH_MAX`) encodes as
+/// its own single CXS header byte (6-bit value field, sign/size bits
+/// clear) — the special case of the integer rule in `put_i32` that
+/// every discriminant here hits; the wire-compat tests pin it against
+/// the derived encoder.
 fn put_disc(buf: &mut MUBuf<ABORT_MAX>, n: usize, d: u8) -> usize {
-    debug_assert!(d <= 30);
+    debug_assert!(d <= 31);
     buf.spare_capacity_mut()[n] = MaybeUninit::new(d);
     n + 1
 }
@@ -257,6 +263,11 @@ pub(crate) fn encode_library_abort(
 /// of `re_throw`, `none_if_missing`, and every `syscall_throw`-family
 /// helper): no contract monomorphizes the generic encode machinery for
 /// the SDK's own abort path.
+///
+/// `inline(never)` pins the single-copy property against LTO, exactly
+/// like the old `_contract_abort_encoded`: every throw-helper call site
+/// must reach this one copy of the encoder by direct call.
+#[inline(never)]
 #[cfg_attr(feature = "debugging", track_caller)]
 pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
     #[cfg(all(feature = "debugging", feature = "std"))]
@@ -269,7 +280,10 @@ pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
 
 /// `library_abort` for client-side codegen; differs only in the
 /// breadcrumb's location label (mirrors the old
-/// `client_contract_abort_encoded` split).
+/// `client_contract_abort_encoded` split). `inline(never)`: see
+/// `library_abort` (in release the two are identical and the linker's
+/// ICF folds them).
+#[inline(never)]
 #[cfg_attr(feature = "debugging", track_caller)]
 pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
     #[cfg(all(feature = "debugging", feature = "std"))]
@@ -284,6 +298,14 @@ pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
     crate::contract_op::contract_abort(buf.as_ref())
 }
 
+// Coverage caveat: sdk's dev-dependency on itself forces the `dev`
+// features (and thus `debugging`) onto every test build, so these tests
+// only ever execute the with-strings `FaultString` arm and
+// `ABORT_MAX = 544`. Release-mode wire identity still holds by
+// construction rather than by an executed test: the integer and
+// discriminant rules are cfg-independent (exhaustively tested here),
+// and the release `FaultString` is the same ZST `WriteXDR` impl on both
+// sides of the byte-equality assertion.
 #[cfg(test)]
 mod tests {
     use super::*;
