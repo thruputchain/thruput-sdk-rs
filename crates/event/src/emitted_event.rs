@@ -299,6 +299,12 @@ mod tests {
         ) -> xdrs::WriteResult<()> {
             Ok(())
         }
+
+        unsafe fn write_xdr_unchecked<F, W: xdrs::WriterUnchecked<F>>(
+            &self,
+            _w: &mut W,
+        ) {
+        }
     }
 
     impl Event for SigEvent {
@@ -334,6 +340,12 @@ mod tests {
             _w: &mut W,
         ) -> xdrs::WriteResult<()> {
             Ok(())
+        }
+
+        unsafe fn write_xdr_unchecked<F, W: xdrs::WriterUnchecked<F>>(
+            &self,
+            _w: &mut W,
+        ) {
         }
     }
 
