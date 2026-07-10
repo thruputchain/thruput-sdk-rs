@@ -258,11 +258,17 @@ eg_build_rv32_all() {
 # bin wrapper is each contract's own src/main.rs, and nearly every contract
 # has one) — the enabled set is the explicit list file, one package per line.
 ls_itc_rv32_packages() {
-    grep -Ev '^[[:space:]]*(#|$)' "${SDK_DIR}/integration_test/rv32-contracts"
+    local list="${SDK_DIR}/integration_test/rv32-contracts"
+    [ -f "$list" ] || {
+        fail "missing integration_test rv32 contract list: $list"
+        return 1
+    }
+    grep -Ev '^[[:space:]]*(#|$)' "$list"
 }
 
 itc_build_rv32_all() {
     require_groundhog_cli || return 1
+    ls_itc_rv32_packages > /dev/null || return 1
 
     local package elf
     for package in $(ls_itc_rv32_packages); do

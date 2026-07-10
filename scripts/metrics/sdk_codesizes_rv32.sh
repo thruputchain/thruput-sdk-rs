@@ -19,7 +19,7 @@ set -euo pipefail
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <elf directory> [contracts dir] [itc rv32 list]"
+  echo "Usage: $0 <elf directory> [contracts dir] [itc rv32 list]" >&2
   exit 1
 fi
 
@@ -87,6 +87,7 @@ for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
     emit_row "${name//-/_}"
 done
 
+# No duplicate-name guard here: a cross-workspace name collision reads the same ELF twice (identical rows); sdk_codesizes_rv32_lowered.sh is the collision tripwire (it exits 1).
 if [ -f "$ITC_RV32_LIST" ]; then
     # `|| true`: an all-comments/empty list means "no itc rv32 contracts",
     # not an error — grep's exit-1-on-no-match would otherwise silently
