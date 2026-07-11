@@ -66,6 +66,15 @@ impl StorageErrorContract {
         self.names.at(&key).try_get().none_if_missing().unwrap_or(0)
     }
 
+    /// Early-exit AFTER dropping the guard: the flush lands and the return
+    /// is clean — the live-guard check must not fire.
+    pub fn early_return_after_drop(&mut self) {
+        let mut guard = self.plain.load_mut();
+        *guard += 7;
+        drop(guard);
+        sdk::internal::contract_return_encoded(&());
+    }
+
     /// Early-exit while a deferred-write guard is live: on a real guest the
     /// Return syscall skips Drop and the write to `plain` is silently lost.
     /// The native live-guard check must fail this loudly instead.

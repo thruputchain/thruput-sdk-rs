@@ -230,6 +230,22 @@ mod tests {
 /// Stash a live-guard failure message so that `MockInvocationFrame::execute`
 /// can re-raise it after the frame is closed. Called by the SDK's
 /// `assert_no_live_guards` (native-test-only path) before it panics.
+///
+/// # Known diagnostic limitations
+///
+/// **Stale stash:** The stash is cleared only at frame exit. If a test swallows
+/// the child-frame error (e.g. by calling the method via `try_*`) and the same
+/// root frame later panics for an unrelated reason, the stale stash message is
+/// re-raised as that panic's payload, which can produce a misleading diagnostic.
+/// The frame outcome itself is unaffected — the child frame still terminates as
+/// `Deterministic` failure.
+///
+/// **Nested Rust frame:** A stash raised inside a nested Rust-level frame (i.e.
+/// a frame where the outer panic hook is still active) is intercepted by that
+/// hook and converted to a `Deterministic` `InvokeError`; the human-readable
+/// stash message only reaches `stderr` via `_print_panic_info`, not the
+/// `catch_unwind` boundary. Again, the frame outcome (Deterministic failure) is
+/// correct in all cases — only the diagnostic surfacing differs.
 pub fn stash_live_guard_msg(msg: String) {
     LIVE_GUARD_STASH.with(|c| *c.borrow_mut() = Some(msg));
 }
@@ -238,6 +254,10 @@ pub fn stash_live_guard_msg(msg: String) {
 /// which is the common case. Called by `MockInvocationFrame::execute`; also
 /// called from `execute`'s success paths to discard any stale message left
 /// from a live-guard failure that was caught-and-continued by the test.
+///
+/// See [`stash_live_guard_msg`] for known diagnostic limitations: stale-stash
+/// mislabeling and nested-frame stderr-only surfacing. In both scenarios the
+/// contract execution outcome (Deterministic failure) remains correct.
 pub fn take_live_guard_stash() -> Option<String> {
     LIVE_GUARD_STASH.with(|c| c.borrow_mut().take())
 }

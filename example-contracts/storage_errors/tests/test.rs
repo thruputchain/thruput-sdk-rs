@@ -216,6 +216,22 @@ fn map_get_missing_key_is_library_storage_error() {
 // -- Live-guard checks --
 
 #[test]
+fn guard_dropped_before_early_return_succeeds() {
+    let (env, _) = setup();
+    let result = env.transact(|tx| {
+        tx.call(&CALLER_ADDR).run(|| {
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
+            client.initialize();
+            // Guard is dropped (and flushed) before the early return —
+            // the live-guard check must not fire, and the write must land.
+            client.early_return_after_drop();
+            assert_eq!(client.get_plain(), 7);
+        })
+    });
+    result.assert_success();
+}
+
+#[test]
 fn early_return_with_live_guard_fails_loudly() {
     let caught =
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

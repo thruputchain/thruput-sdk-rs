@@ -55,8 +55,10 @@ categories = ["blockchain"]
 #    example-contracts/Cargo.toml
 #    integration_test/Cargo.toml
 #
-# Lastly, this independent workspace needs its sdk version updated:
+# Lastly, these independent workspaces need their sdk version updated
+# (they are excluded from the root workspace and carry their own Cargo.lock):
 #    example_contracts/multi_root_collision
+#    example-contracts/cross_crate_collision  (3 manifests: alpha, beta, wrapper)
 #
 sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.17.1" }
 groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.17.1" }
