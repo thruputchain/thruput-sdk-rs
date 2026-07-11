@@ -115,7 +115,7 @@ impl<T> Node<T> {
     /// root skeleton without materializing any owned `Keypath` buffers.
     /// The `path` slice must be a `'static` preimage assembled at compile
     /// time (see `KeyCache::from_const`).
-    #[inline(always)]
+    #[inline]
     pub fn from_const_parts(path: &'static [u8], fields: T) -> Node<T> {
         Node {
             key: KeyCache::from_const(path),

@@ -321,7 +321,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                                     &__BYTES
                                 };
 
-                                #[inline(always)]
+                                #[inline]
                                 fn const_root() -> Self {
                                     Self
                                 }
@@ -330,7 +330,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                             impl #impl_generics ::sdk::storage::FromConstPath
                                 for #ident #ty_generics #where_clause
                             {
-                                #[inline(always)]
+                                #[inline]
                                 fn __sdk_from_const_path(
                                     _path: &'static [u8],
                                 ) -> Self {

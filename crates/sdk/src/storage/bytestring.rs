@@ -105,7 +105,7 @@ impl super::node::StorageType for Bytestring {}
 impl FromConstPath for Bytestring {
     /// Construct a `Bytestring` from a `'static` const preimage path.
     /// Uses the `Const` arm of `KeyCache` — no keypath copy.
-    #[inline(always)]
+    #[inline]
     fn __sdk_from_const_path(path: &'static [u8]) -> Self {
         Self {
             key: KeyCache::from_const(path),
