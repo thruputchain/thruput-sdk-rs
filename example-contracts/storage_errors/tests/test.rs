@@ -59,6 +59,48 @@ fn map_try_get_missing_returns_zero() {
     result.assert_success();
 }
 
+// -- Vector len slot corruption --
+
+#[test]
+fn corrupted_len_slot_aborts_instead_of_reading_zero() {
+    let env = setup();
+    let result = env.transact(|tx| {
+        tx.call(&CALLER_ADDR).run(|| {
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
+            client.initialize();
+            assert_eq!(client.vector_len(), 3);
+
+            client.corrupt_len_slot();
+
+            // A len slot that exists but does not decode as u32 must abort
+            // typed — NOT read as "empty vector" (which would let the next
+            // push clobber whatever lives at element 0).
+            match client.try_vector_len() {
+                Err(StorageErrorClientError::Library(
+                    LibraryExn::StorageSerialization,
+                )) => {}
+                other => panic!(
+                    "expected StorageSerialization abort, got {other:?}"
+                ),
+            }
+        })
+    });
+    result.assert_success();
+}
+
+#[test]
+fn missing_len_slot_still_reads_as_empty() {
+    let env = setup();
+    let result = env.transact(|tx| {
+        tx.call(&CALLER_ADDR).run(|| {
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
+            // No initialize: len slot never written -> empty vector.
+            assert_eq!(client.vector_len(), 0);
+        })
+    });
+    result.assert_success();
+}
+
 // -- Error paths: storage errors must propagate as flat LibraryExn variants --
 
 #[test]

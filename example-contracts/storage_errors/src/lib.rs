@@ -39,6 +39,15 @@ impl StorageErrorContract {
         self.numbers.len()
     }
 
+    /// Deliberately write an undecodable payload (zero bytes) at the
+    /// vector's len slot (fixed child 0 of the vector's keypath) to
+    /// simulate slot aliasing / type confusion.
+    pub fn corrupt_len_slot(&mut self) {
+        let mut bad: Value<()> =
+            Value::from(self.numbers.keypath().child(&0u32));
+        bad.set(&());
+    }
+
     /// Set a map entry.
     pub fn map_set(&mut self, key: u64, value: u64) {
         self.names.at_mut(&key).set(&value);
