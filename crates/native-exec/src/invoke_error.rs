@@ -66,7 +66,8 @@ thread_local! {
     /// `assert_no_live_guards` before it panics; consumed by
     /// `MockInvocationFrame::execute` to re-raise the diagnostic after
     /// closing the frame so it escapes to the test's `catch_unwind`.
-    static LIVE_GUARD_STASH: RefCell<Option<String>> = RefCell::new(None);
+    static LIVE_GUARD_STASH: RefCell<Option<String>> =
+        const { RefCell::new(None) };
 }
 
 static INSTALL_HOOK: Once = Once::new();
