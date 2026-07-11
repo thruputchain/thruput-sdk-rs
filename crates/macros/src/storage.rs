@@ -133,9 +133,9 @@ fn generate_from_struct(
 /// This is the single authoritative parser; both `impl_from_keypath` (runtime
 /// `From<Keypath>` emission) and `const_root_state_impl` (compile-time const
 /// path emission) delegate here so the two emitters can never diverge.
-fn resolve_field_slots<'a>(
-    named_fields: &'a syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
-) -> Result<Vec<(&'a syn::Field, u32)>> {
+fn resolve_field_slots(
+    named_fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
+) -> Result<Vec<(&syn::Field, u32)>> {
     let mut resolved: Vec<(&syn::Field, u32, proc_macro2::Span)> = Vec::new();
 
     for (i, field) in named_fields.iter().enumerate() {
