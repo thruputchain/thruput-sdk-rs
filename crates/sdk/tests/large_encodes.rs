@@ -20,7 +20,7 @@ fn self_return_larger_than_500_bytes_encodes() {
     let env = TestEnvironment::no_cost();
     let result = env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || -> () {
-            sdk::contract_return_encoded(&payload);
+            sdk::internal::contract_return_encoded(&payload);
         })
     });
     result.assert_success();

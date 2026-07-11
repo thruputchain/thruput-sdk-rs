@@ -473,7 +473,7 @@ pub fn generate_method(
         };
 
         // Return the result to the VM
-        ::sdk::contract_return_encoded(&res);
+        ::sdk::internal::contract_return_encoded(&res);
     }};
 
     // Include method info in debugging context (when enabled)

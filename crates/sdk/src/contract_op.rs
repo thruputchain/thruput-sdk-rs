@@ -8,27 +8,8 @@ use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::xdr::*;
-use crate::{
-    CollectAuthHandles, FaultString, HandlingError, library_throw,
-    syscall_throw,
-};
+use crate::{FaultString, HandlingError, syscall_throw};
 use core::mem::MaybeUninit;
-
-pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
-    let revert = false;
-
-    let auth_token_ids_bytes =
-        crate::call::auth_handles_as_bytes(auth_token_ids);
-
-    sys::raw_Return(buf, revert, auth_token_ids_bytes)
-}
-
-#[inline]
-pub fn contract_return_buf(buf: &[u8]) -> ! {
-    let auth_token_ids = &[];
-
-    contract_return(buf, auth_token_ids)
-}
 
 pub fn contract_abort(buf: &[u8]) -> ! {
     let revert = true;
@@ -123,32 +104,6 @@ fn exception_encoding_error(err: WriteError) -> ! {
     crate::exn::abort_encode::library_abort(&LibraryExn::from(
         HandlingError::EncodingException(FaultString::via_display(&err)),
     ))
-}
-
-#[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
-pub fn contract_return_encoded<RET>(ret: &RET) -> !
-where
-    RET: WriteXDR + ?Sized + CollectAuthHandles,
-{
-    // Collect auth handles first (own them), then encode the return value
-    // into the reused scratch in place and hand it straight to the syscall —
-    // no fresh 4 KiB buffer on the (small) guest stack.
-    let auth_handles = crate::call::collect_auth_handle_bytes(ret)
-        .unwrap_or_else(|e| {
-            // This is the successful-return path, so a failure here is an
-            // `EncodingSuccess` condition — not `EncodingException`, which is
-            // reserved for a failed *abort* encode.
-            library_throw(HandlingError::EncodingSuccess(
-                FaultString::from_display(e),
-            ));
-        });
-
-    crate::call::with_scratch(|buf| {
-        crate::internal::encode_scratch(buf, ret)
-            .unwrap_or_else(|e| crate::exn::encoding_success_throw(e));
-        contract_return(buf.as_ref(), auth_handles.as_slice());
-    })
 }
 
 pub fn get_caller() -> ContractAddress {
