@@ -12,7 +12,7 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// the `Keypath::from_bytes` fallback), so user-defined storage types can
 /// appear as direct fields of a contract root.
 ///
-/// Called by `derive(Storage)`-generated `ConstRootState::const_root()` for
+/// Called by `derive(Storage)`-generated `ContractState::const_root()` for
 /// each field of a contract root struct. Not intended for direct use.
 ///
 /// # Why this trait is not sealed
@@ -66,7 +66,7 @@ impl<T: From<Keypath>> FromConstPath for Node<T> {
     note = "contracts with only associated functions (no `self` methods) do \
             not need `#[storage]`"
 )]
-pub trait ConstRootState: StorageDomain {
+pub trait ContractState: StorageDomain {
     /// Static preimage bytes of this type's storage root (the domain frame).
     /// `sha256` of these bytes is the `Node`'s own storage key.
     const ROOT_PATH: &'static [u8];
@@ -161,7 +161,7 @@ pub trait StorageDomain {
 
 /// Construct the root state node for a contract entrypoint.
 ///
-/// Uses the type's compile-time const path (from [`ConstRootState`]) to build
+/// Uses the type's compile-time const path (from [`ContractState`]) to build
 /// the whole skeleton with zero keypath copies: the `Node`'s own path is the
 /// static domain frame; each direct leaf field is a `Const`-arm handle.
 /// Called by `#[contract]`-generated code; not intended for direct use.
@@ -175,7 +175,7 @@ pub trait StorageDomain {
 // per-call inlining benefit.
 #[doc(hidden)]
 #[inline(never)]
-pub fn contract_state_root<T: ConstRootState>() -> Node<T> {
+pub fn contract_state_root<T: ContractState>() -> Node<T> {
     Node::from_const_parts(T::ROOT_PATH, T::const_root())
 }
 
@@ -185,7 +185,7 @@ mod tests {
     use crate::storage::keypath::{FramedComponent, framed_domain_len};
     use crate::storage::{FramedDomain, frame_domain};
 
-    // Use derive(Storage) so UnitState gets ConstRootState.
+    // Use derive(Storage) so UnitState gets ContractState.
     #[derive(crate::Storage)]
     struct UnitState;
 
@@ -212,7 +212,7 @@ mod tests {
     /// a DIFFERENT storage slot than the runtime path — a data-access bug.
     #[test]
     fn const_root_leaf_matches_runtime_derivation() {
-        // Const path: built by contract_state_root via ConstRootState.
+        // Const path: built by contract_state_root via ContractState.
         let const_node: Node<LeafState> = contract_state_root::<LeafState>();
         let const_leaf_bytes = const_node.value.path_bytes();
 

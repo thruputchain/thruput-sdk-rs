@@ -4,7 +4,7 @@ error[E0277]: `Wallet` cannot be used as contract state
 10 | impl Wallet {
    |      ^^^^^^ unsatisfied trait bound
    |
-help: the trait `sdk::storage::ConstRootState` is not implemented for `Wallet`
+help: the trait `sdk::storage::ContractState` is not implemented for `Wallet`
   --> tests/compile-fail/contract_state_not_storage.rs:5:1
    |
  5 | pub struct Wallet {
@@ -14,8 +14,8 @@ help: the trait `sdk::storage::ConstRootState` is not implemented for `Wallet`
 note: required by a bound in `sdk::storage::contract_state_root`
   --> src/storage/node.rs
    |
-   | pub fn contract_state_root<T: ConstRootState>() -> Node<T> {
-   |                               ^^^^^^^^^^^^^^ required by this bound in `contract_state_root`
+   | pub fn contract_state_root<T: ContractState>() -> Node<T> {
+   |                               ^^^^^^^^^^^^^ required by this bound in `contract_state_root`
 
 error[E0277]: the trait bound `Wallet: StorageDomain` is not satisfied
   --> tests/compile-fail/contract_state_not_storage.rs:10:6

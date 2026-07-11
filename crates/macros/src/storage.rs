@@ -275,7 +275,7 @@ fn impl_from_keypath(
     })
 }
 
-/// Generate `ConstRootState` and `FromConstPath` impls for the storage struct.
+/// Generate `ContractState` and `FromConstPath` impls for the storage struct.
 ///
 /// For each named field at slot index `idx`, emits a compile-time
 /// `DOMAIN_FRAME ‖ FIELD_FRAME(idx)` path and constructs the field via
@@ -306,7 +306,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                         const _: () = {
                             use ::sdk::storage::*;
 
-                            impl #impl_generics ::sdk::storage::ConstRootState
+                            impl #impl_generics ::sdk::storage::ContractState
                                 for #ident #ty_generics #where_clause
                             {
                                 const ROOT_PATH: &'static [u8] = {
@@ -360,7 +360,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     let mut field_inits = TokenStream::new();
                     let mut field_names_ts = TokenStream::new();
 
-                    // ConstRootState where-clause bounds:
+                    // ContractState where-clause bounds:
                     // FieldType: FromConstPath for each field
                     let mut generics: syn::Generics = input.generics.clone();
                     // Also need StorageDomain supertrait satisfied —
@@ -457,7 +457,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                         const _: () = {
                             use ::sdk::storage::*;
 
-                            impl #impl_generics ::sdk::storage::ConstRootState
+                            impl #impl_generics ::sdk::storage::ContractState
                                 for #ident #ty_generics #where_clause
                             {
                                 const ROOT_PATH: &'static [u8] = {
@@ -543,10 +543,10 @@ mod tests {
             }
         };
         let tokens = generate_impls(&input).unwrap().to_string();
-        // ConstRootState impl present
+        // ContractState impl present
         assert!(
-            tokens.contains("ConstRootState"),
-            "missing ConstRootState: {tokens}"
+            tokens.contains("ContractState"),
+            "missing ContractState: {tokens}"
         );
         // const_root method
         assert!(
@@ -583,7 +583,7 @@ mod tests {
             struct UnitState;
         };
         let tokens = generate_impls(&input).unwrap().to_string();
-        assert!(tokens.contains("ConstRootState"), "{tokens}");
+        assert!(tokens.contains("ContractState"), "{tokens}");
         assert!(tokens.contains("const_root"), "{tokens}");
         assert!(tokens.contains("ROOT_PATH"), "{tokens}");
     }

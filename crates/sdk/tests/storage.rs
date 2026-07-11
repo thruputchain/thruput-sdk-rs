@@ -617,7 +617,7 @@ fn positional_fields_use_absolute_declaration_index() {
     );
 }
 
-// ── ConstRootState behavior tests ─────────────────────────────────────────────
+// ── ContractState behavior tests ─────────────────────────────────────────────
 
 // A contract-root-shaped struct: const-path leaf (NNInt) + Map direct field.
 #[derive(Storage)]
@@ -639,7 +639,7 @@ struct LongDomainState {
 
 // Get/set through a const-root leaf.
 //
-// Verifies that `contract_state_root` using `ConstRootState` produces a
+// Verifies that `contract_state_root` using `ContractState` produces a
 // handle that addresses the SAME storage slot as the runtime derivation path.
 contract_test!(test_const_root_leaf_get_set {
     // Build via const-root path (the new code path).
@@ -771,7 +771,7 @@ fn long_domain_const_root_matches_runtime() {
         "domain must be >62 bytes for this test"
     );
 
-    // Const-root path: built by contract_state_root via ConstRootState.
+    // Const-root path: built by contract_state_root via ContractState.
     let const_node: sdk::storage::Node<LongDomainState> =
         sdk::storage::contract_state_root::<LongDomainState>();
     let const_leaf_bytes = const_node.value.path_bytes();
