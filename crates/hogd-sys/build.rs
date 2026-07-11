@@ -546,9 +546,14 @@ fn fetch_hogd_rust_deps(
             cli_root.display()
         );
         let pkg = format!("groundhog-cli@{GROUNDHOG_CLI_VERSION}");
+        // --locked: build with the CLI's published Cargo.lock. Without it,
+        // cargo re-resolves transitive deps to the latest compatible versions,
+        // which can pair the CLI's pinned deps with newer registry crates they
+        // don't compile against.
         let output = Command::new("cargo")
             .args([
                 "install",
+                "--locked",
                 "--root",
                 cli_root.to_str().unwrap(),
                 "--registry",
