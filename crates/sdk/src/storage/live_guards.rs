@@ -39,6 +39,7 @@ pub(crate) fn assert_no_live_guards() {
              discarding their storage writes. Drop the guard(s) before \
              returning."
         );
+        #[cfg(feature = "mock")]
         groundhog_native_exec::invoke_error::stash_live_guard_msg(msg.clone());
         panic!("{msg}");
     }

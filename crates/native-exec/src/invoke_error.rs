@@ -5,7 +5,6 @@ use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
-use std::string::String;
 use std::sync::Once;
 
 #[derive(Debug, Clone, PartialEq)]
