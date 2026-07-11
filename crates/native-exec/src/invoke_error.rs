@@ -1,9 +1,11 @@
 use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
+use std::string::String;
 use std::sync::Once;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,6 +63,11 @@ pub fn abort_transaction_error() -> InvokeError {
 
 thread_local! {
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
+    /// Stash for live-guard failure messages. Set by the SDK's
+    /// `assert_no_live_guards` before it panics; consumed by
+    /// `MockInvocationFrame::execute` to re-raise the diagnostic after
+    /// closing the frame so it escapes to the test's `catch_unwind`.
+    static LIVE_GUARD_STASH: RefCell<Option<String>> = RefCell::new(None);
 }
 
 static INSTALL_HOOK: Once = Once::new();
@@ -219,6 +226,21 @@ mod tests {
         assert_eq!(panic_hook_depth(), 0);
         deactivate_panic_hook();
     }
+}
+
+/// Stash a live-guard failure message so that `MockInvocationFrame::execute`
+/// can re-raise it after the frame is closed. Called by the SDK's
+/// `assert_no_live_guards` (native-test-only path) before it panics.
+pub fn stash_live_guard_msg(msg: String) {
+    LIVE_GUARD_STASH.with(|c| *c.borrow_mut() = Some(msg));
+}
+
+/// Take the live-guard stash. Returns `None` if there is no stashed message,
+/// which is the common case. Called by `MockInvocationFrame::execute`; also
+/// called from `execute`'s success paths to discard any stale message left
+/// from a live-guard failure that was caught-and-continued by the test.
+pub fn take_live_guard_stash() -> Option<String> {
+    LIVE_GUARD_STASH.with(|c| c.borrow_mut().take())
 }
 
 // Wrap a function (i.e. part of a contract) within a try-catch block

@@ -15,6 +15,12 @@ use crate::{CollectAuthHandles, FaultString, HandlingError, library_throw};
 
 #[doc(hidden)]
 pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
+    #[cfg(all(
+        not(any(doc, target_family = "wasm", target_arch = "riscv32")),
+        feature = "std"
+    ))]
+    crate::storage::live_guards::assert_no_live_guards();
+
     let revert = false;
 
     let auth_token_ids_bytes =

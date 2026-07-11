@@ -43,3 +43,9 @@ pub use vector::*;
 pub mod domain_registry;
 #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
 pub use domain_registry::*;
+
+#[cfg(all(
+    not(any(doc, target_family = "wasm", target_arch = "riscv32")),
+    feature = "std"
+))]
+pub(crate) mod live_guards;

@@ -9,6 +9,7 @@ use sdk::*;
 pub struct StorageErrorContract {
     numbers: Vector<Value<u64>>,
     names: Map<u64, Value<u64>>,
+    plain: Value<u64>,
 }
 
 /// A contract that deliberately exercises storage error paths.
@@ -20,6 +21,7 @@ impl StorageErrorContract {
         self.numbers.push_with(|slot| slot.set(&10));
         self.numbers.push_with(|slot| slot.set(&20));
         self.numbers.push_with(|slot| slot.set(&30));
+        self.plain.set(&0);
     }
 
     /// Access a vector element by index. Will abort with
@@ -62,5 +64,29 @@ impl StorageErrorContract {
     /// Try to get a map entry. Returns 0 if not found.
     pub fn map_try_get(&self, key: u64) -> u64 {
         self.names.at(&key).try_get().none_if_missing().unwrap_or(0)
+    }
+
+    /// Early-exit while a deferred-write guard is live: on a real guest the
+    /// Return syscall skips Drop and the write to `plain` is silently lost.
+    /// The native live-guard check must fail this loudly instead.
+    pub fn early_return_with_live_guard(&mut self) {
+        let mut guard = self.plain.load_mut();
+        *guard += 1;
+        sdk::internal::contract_return_encoded(&());
+    }
+
+    /// Holding a guard across a nested call is legitimate (the callee frame
+    /// has its own state); must NOT false-positive the callee's return.
+    pub fn guard_across_call(&mut self, other: ContractAddress) -> u64 {
+        let mut guard = self.plain.load_mut();
+        *guard += 1;
+        let peer_len = StorageErrorClient::new(&other).vector_len();
+        *guard += peer_len as u64;
+        *guard
+        // guard drops here -> flush; wrapper then returns normally
+    }
+
+    pub fn get_plain(&self) -> u64 {
+        self.plain.try_get().none_if_missing().unwrap_or(0)
     }
 }

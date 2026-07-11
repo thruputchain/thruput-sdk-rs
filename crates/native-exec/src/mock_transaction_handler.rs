@@ -298,17 +298,30 @@ impl MockInvocationFrame {
 
         match result {
             Ok(FrameAction::Close) => {
+                // Discard any stale live-guard stash (e.g. the test caught a
+                // live-guard error and continued without panicking).
+                let _ = crate::invoke_error::take_live_guard_stash();
                 self.close_frame_internal(
                     hogexec_internal::ffi_enums::InvokeErrorCode::None,
                 );
             }
-            Ok(FrameAction::Continue) => {}
+            Ok(FrameAction::Continue) => {
+                let _ = crate::invoke_error::take_live_guard_stash();
+            }
             Err(err) => {
+                // If a live-guard failure was stashed while the lambda ran,
+                // close the frame for FFI consistency and then re-raise the
+                // original diagnostic so it propagates to the test's outer
+                // `catch_unwind` instead of being swallowed here.
+                let live_guard = crate::invoke_error::take_live_guard_stash();
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
                 } else {
                     eprintln!("unrecoverable error: {:?}", err);
                     self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable);
+                }
+                if let Some(msg) = live_guard {
+                    panic!("{msg}");
                 }
             }
         };

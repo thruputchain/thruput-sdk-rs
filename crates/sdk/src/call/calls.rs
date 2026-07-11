@@ -291,8 +291,19 @@ fn invoke_frame<X>(
         // (i.e. when `raw_Invoke` returns `Ok`). Never read on the error path.
         frame_status: InvocationFrameStatusCode::Fault,
     };
+    #[cfg(all(
+        not(any(doc, target_family = "wasm", target_arch = "riscv32")),
+        feature = "std"
+    ))]
+    let _frame_guard_reset =
+        crate::storage::live_guards::FrameGuardReset::new();
     let result =
         sys::raw_Invoke(address, args, auth_bytes, &inputs, &mut outputs);
+    #[cfg(all(
+        not(any(doc, target_family = "wasm", target_arch = "riscv32")),
+        feature = "std"
+    ))]
+    drop(_frame_guard_reset);
 
     let is_ok = match result {
         // A child frame ran; its outcome is reported in `frame_status`.
