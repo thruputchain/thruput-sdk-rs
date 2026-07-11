@@ -14,6 +14,15 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 /// Called by `derive(Storage)`-generated `ConstRootState::const_root()` for
 /// each field of a contract root struct. Not intended for direct use.
+///
+/// # Why this trait is not sealed
+///
+/// True sealing (via a private supertrait) is impossible because
+/// `derive(Storage)` emits an implementation of this trait inside the *user's*
+/// crate — a private supertrait defined in `sdk` would be unreachable there.
+/// `#[doc(hidden)]` hides the trait from documentation; hand-written
+/// implementations are technically allowed but receive no wire-compatibility
+/// guarantee from the SDK.
 #[doc(hidden)]
 pub trait FromConstPath {
     fn __sdk_from_const_path(path: &'static [u8]) -> Self;
@@ -40,6 +49,15 @@ impl<T: From<Keypath>> FromConstPath for Node<T> {
 /// `'static` slice for `Node::from_const_parts`.
 ///
 /// Not intended for direct use.
+///
+/// # Why this trait is not sealed
+///
+/// True sealing (via a private supertrait) is impossible because
+/// `derive(Storage)` emits an implementation of this trait inside the *user's*
+/// crate — a private supertrait defined in `sdk` would be unreachable there.
+/// `#[doc(hidden)]` hides the trait from documentation; hand-written
+/// implementations are technically allowed but receive no wire-compatibility
+/// guarantee from the SDK.
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be used as contract state",
@@ -127,23 +145,6 @@ impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
         self.fields.delete_internal(flags);
     }
 }
-
-/// Marker for types usable as a contract's root state by `#[contract]`.
-///
-/// Automatically implemented for every type that implements
-/// `From<Keypath>` — i.e. anything annotated with `#[storage]`, including
-/// unit structs like `struct Token;`. Contract methods taking
-/// `&self`/`&mut self` require the state type to implement this trait;
-/// contracts with only associated functions never construct state and do
-/// not need it.
-#[diagnostic::on_unimplemented(
-    message = "`{Self}` cannot be used as contract state",
-    note = "methods taking `&self`/`&mut self` require the state type to be a storage struct: add `#[storage]` to the definition of `{Self}`",
-    note = "contracts with only associated functions (no `self` methods) do not need `#[storage]`"
-)]
-pub trait ContractState: From<Keypath> {}
-
-impl<T: From<Keypath>> ContractState for T {}
 
 /// Carries a storage struct's root domain separator.
 ///

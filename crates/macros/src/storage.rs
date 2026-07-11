@@ -126,43 +126,19 @@ fn generate_from_struct(
     impl_from_keypath(ident, generics, fields)
 }
 
-fn impl_from_keypath(
-    ident: &syn::Ident,
-    generics: &syn::Generics,
-    fields: &syn::Fields,
-) -> Result<TokenStream> {
-    let named_fields = match fields {
-        syn::Fields::Named(fields_named) => &fields_named.named,
-        syn::Fields::Unit => {
-            let (impl_generics, ty_generics, where_clause) =
-                generics.split_for_impl();
-            return Ok(quote! {
-                const _: () = {
-                    use ::sdk::storage::*;
-
-                    impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
-                        fn from(_keypath: Keypath) -> Self {
-                            Self
-                        }
-                    }
-                };
-            });
-        }
-        _ => return err(fields, "Can only handle named or unit structs"),
-    };
-
-    // Clone generics so we can add field-type bounds
-    let mut generics = generics.clone();
-
-    let mut field_names = TokenStream::new();
-    let mut field_initializers = TokenStream::new();
-    let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
+/// Resolve storage slot indices for the named fields of a struct.
+///
+/// Returns `Vec<(&Field, u32)>` pairing each field with its resolved slot
+/// index. Errors hard on any malformed `#[slot]` attribute or duplicate index.
+/// This is the single authoritative parser; both `impl_from_keypath` (runtime
+/// `From<Keypath>` emission) and `const_root_state_impl` (compile-time const
+/// path emission) delegate here so the two emitters can never diverge.
+fn resolve_field_slots<'a>(
+    named_fields: &'a syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
+) -> Result<Vec<(&'a syn::Field, u32)>> {
+    let mut resolved: Vec<(&syn::Field, u32, proc_macro2::Span)> = Vec::new();
 
     for (i, field) in named_fields.iter().enumerate() {
-        let field_name = &field.ident;
-        let field_type = &field.ty;
-        field_names.extend(quote! { #field_name, });
-
         // #[slot(N)] override, else declaration position. The index is a
         // `u32` so the dedup domain matches the emit domain
         // (`keypath.child(&#idx)` with `#idx: u32`); otherwise two slots that
@@ -200,7 +176,8 @@ fn impl_from_keypath(
         }
 
         // Duplicate-index detection.
-        if let Some((_, prev)) = resolved.iter().find(|(r, _)| *r == idx) {
+        if let Some((_, _, prev)) = resolved.iter().find(|(_, r, _)| *r == idx)
+        {
             let mut err = syn::Error::new(
                 field.span(),
                 format!(
@@ -210,7 +187,54 @@ fn impl_from_keypath(
             err.combine(syn::Error::new(*prev, "previously assigned here"));
             return Err(err);
         }
-        resolved.push((idx, field.span()));
+        resolved.push((field, idx, field.span()));
+    }
+
+    Ok(resolved
+        .into_iter()
+        .map(|(field, idx, _)| (field, idx))
+        .collect())
+}
+
+fn impl_from_keypath(
+    ident: &syn::Ident,
+    generics: &syn::Generics,
+    fields: &syn::Fields,
+) -> Result<TokenStream> {
+    let named_fields = match fields {
+        syn::Fields::Named(fields_named) => &fields_named.named,
+        syn::Fields::Unit => {
+            let (impl_generics, ty_generics, where_clause) =
+                generics.split_for_impl();
+            return Ok(quote! {
+                const _: () = {
+                    use ::sdk::storage::*;
+
+                    impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
+                        fn from(_keypath: Keypath) -> Self {
+                            Self
+                        }
+                    }
+                };
+            });
+        }
+        _ => return err(fields, "Can only handle named or unit structs"),
+    };
+
+    // Resolve slot indices once, hard-erroring on any malformed #[slot] or
+    // duplicate. const_root_state_impl reuses the same resolved list.
+    let field_slots = resolve_field_slots(named_fields)?;
+
+    // Clone generics so we can add field-type bounds
+    let mut generics = generics.clone();
+
+    let mut field_names = TokenStream::new();
+    let mut field_initializers = TokenStream::new();
+
+    for (field, idx) in &field_slots {
+        let field_name = &field.ident;
+        let field_type = &field.ty;
+        field_names.extend(quote! { #field_name, });
 
         field_initializers.extend(quote! {
             let #field_name = {
@@ -257,6 +281,10 @@ fn impl_from_keypath(
 /// `DOMAIN_FRAME ‖ FIELD_FRAME(idx)` path and constructs the field via
 /// `<FieldType as FromConstPath>::__sdk_from_const_path(&PATH)`.
 ///
+/// Slot indices come from `resolve_field_slots` — the same hard-erroring
+/// parser used by `impl_from_keypath` — so const and runtime key derivation
+/// are always sourced from the same indices.
+///
 /// Wire-safety: the byte assembly mirrors `test_keycache::keycache_const_and_owned_agree`
 /// exactly — `frame_domain` for the domain frame, then the `ConstWriter`
 /// pattern for the field frame, concatenated via `ConstWriter::write_opaque_fixed`.
@@ -282,6 +310,10 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                                 for #ident #ty_generics #where_clause
                             {
                                 const ROOT_PATH: &'static [u8] = {
+                                    // Sizes are concrete at expansion time (the domain
+                                    // is a literal), so the inner consts are legal
+                                    // even under generic impls — they capture no
+                                    // generic params.
                                     const __N: usize =
                                         ::sdk::storage::framed_domain_len(#domain_lit);
                                     const __BYTES: [u8; __N] =
@@ -311,31 +343,10 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                 syn::Fields::Named(fields_named) => {
                     let named_fields = &fields_named.named;
 
-                    // Collect field names, types, and resolved slot indices
-                    // (duplicate detection already happened in impl_from_keypath;
-                    // we re-parse here for the slot indices only).
-                    let mut field_info: Vec<(
-                        &syn::Field,
-                        &syn::Type,
-                        u32, // slot index
-                    )> = Vec::new();
-
-                    for (i, field) in named_fields.iter().enumerate() {
-                        let field_type = &field.ty;
-                        let mut idx: u32 = i as u32;
-                        for attr in &field.attrs {
-                            if attr.path().is_ident("slot") {
-                                if let Ok(lit) =
-                                    attr.parse_args::<syn::LitInt>()
-                                {
-                                    if let Ok(v) = lit.base10_parse::<u32>() {
-                                        idx = v;
-                                    }
-                                }
-                            }
-                        }
-                        field_info.push((field, field_type, idx));
-                    }
+                    // Single authoritative slot resolution: same hard-erroring
+                    // parser as impl_from_keypath, so const and runtime indices
+                    // can never diverge.
+                    let field_slots = resolve_field_slots(named_fields)?;
 
                     // Build the per-field const declarations and the
                     // const_root() body.
@@ -343,7 +354,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     // Names like __N_F_0, __PATH_0 are indexed by field
                     // position `i` (not slot index) to guarantee uniqueness
                     // even when two fields share a slot index — which would
-                    // be caught as an error by impl_from_keypath before this
+                    // be caught as an error by resolve_field_slots before this
                     // runs.
                     let mut path_consts = TokenStream::new();
                     let mut field_inits = TokenStream::new();
@@ -356,9 +367,8 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     // the StorageDomain impl is generated separately; just
                     // add the FromConstPath bounds here.
 
-                    for (i, (field, field_type, idx)) in
-                        field_info.iter().enumerate()
-                    {
+                    for (i, (field, idx)) in field_slots.iter().enumerate() {
+                        let field_type = &field.ty;
                         let field_name = &field.ident;
                         let n_f_name = format_ident!("__N_F_{}", i);
                         let n_total_name = format_ident!("__N_TOTAL_{}", i);
@@ -367,7 +377,9 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                         // Emit per-field consts and static path inside
                         // the function body (where statics are allowed).
                         // __N_D is shared across all fields (declared once
-                        // before the loop output is assembled).
+                        // before the loop output is assembled), derived from
+                        // ROOT_PATH.len() so framed_domain_len is called only
+                        // once total (in storage_domain_impl).
                         //
                         // WIRE SPEC: the byte layout is
                         //   DOMAIN_FRAME ‖ FIELD_FRAME(idx)
@@ -423,7 +435,8 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     // From<Keypath> with Keypath::from_bytes — one prefix
                     // copy (the v1 depth-1 rule).
                     let mut from_const_path_generics = input.generics.clone();
-                    for (_, field_type, _) in &field_info {
+                    for (field, _) in &field_slots {
+                        let field_type = &field.ty;
                         from_const_path_generics
                             .make_where_clause()
                             .predicates
@@ -448,6 +461,10 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                                 for #ident #ty_generics #where_clause
                             {
                                 const ROOT_PATH: &'static [u8] = {
+                                    // Sizes are concrete at expansion time (the domain
+                                    // is a literal), so the inner consts are legal
+                                    // even under generic impls — they capture no
+                                    // generic params.
                                     const __N: usize =
                                         ::sdk::storage::framed_domain_len(#domain_lit);
                                     const __BYTES: [u8; __N] =
@@ -458,7 +475,10 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                                 #[inline(always)]
                                 fn const_root() -> Self {
                                     // Domain frame length — shared across all
-                                    // per-field path computations.
+                                    // per-field path computations. The domain literal
+                                    // is concrete at expansion time; the inner const
+                                    // captures no generic params so it is legal
+                                    // under generic impls.
                                     const __N_D: usize =
                                         ::sdk::storage::framed_domain_len(#domain_lit);
 

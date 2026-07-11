@@ -626,6 +626,17 @@ struct ConstRootTest {
     items: Map<u32, Value<u64>>,
 }
 
+// Storage struct with a domain longer than 62 bytes.
+// This exercises the CXS 1→2-byte length-header boundary in both the
+// domain frame and the outer length prefix (same boundary as
+// `const_frame_matches_runtime_child` in keypath.rs with the long-domain
+// case, now lifted to the full #[derive(Storage)] → const_root path).
+#[derive(Storage)]
+#[storage_domain = "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_two_byte_cxs_length_headers"]
+struct LongDomainState {
+    value: Value<u32>,
+}
+
 // Get/set through a const-root leaf.
 //
 // Verifies that `contract_state_root` using `ConstRootState` produces a
@@ -695,15 +706,83 @@ contract_test!(test_const_root_map_at_same_slot {
 
 // The SAME storage struct used under a Map still produces byte-identical
 // preimages to the runtime derivation path (dynamic regime unchanged).
-// This is the golden-vector pin: the From<Keypath> path must be byte-identical
-// to what it produced before this task.
-contract_test!(test_map_nested_struct_unchanged {
-    // Build via Map entry (dynamic regime, unchanged From<Keypath> path).
-    let mut map: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
-    map.at_mut(&0u32).first.set(&55u32);
+//
+// Golden-vector pin: asserts the EXACT wire bytes for
+// `Map<u32, Node<InnerValuePair>>` at key 0u32, field `first` (slot 0).
+//
+// Derivation (from the wire rules):
+//   base path = Keypath::default() = [] (empty)
+//   map.at(&0u32) = child(&0u32):
+//     0u32 CXS-encodes to [0x00] (1 byte).
+//     Outer length prefix CXS(1) = [0x01].
+//     Frame: [0x01, 0x00]
+//   InnerValuePair.first at slot 0 = child_framed(FramedComponent::from_u32(0)):
+//     FramedComponent::from_u32(0) = CXS(len=1) ‖ CXS(0) = [0x01, 0x00]
+//   Combined: [0x01, 0x00, 0x01, 0x00]
+#[test]
+fn test_map_nested_struct_unchanged() {
+    let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_map_nested_struct_unchanged",
+    );
 
-    // Read it back — the path must be correct.
-    let map2: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
-    let v = map2.at(&0u32).first.get();
-    assert_eq!(v, 55u32, "Map-nested struct path changed");
-});
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let mut map: Map<u32, Node<InnerValuePair>> =
+                Keypath::default().into();
+            map.at_mut(&0u32).first.set(&55u32);
+
+            // Golden bytes: map key 0u32 frame ‖ field-0 frame.
+            // See derivation comment above for how these bytes are computed.
+            const GOLDEN: &[u8] = &[0x01, 0x00, 0x01, 0x00];
+            let map2: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
+            let entry = map2.at(&0u32);
+            assert_eq!(
+                entry.first.path_bytes(),
+                GOLDEN,
+                "Map-nested struct wire bytes changed — From<Keypath> path drifted"
+            );
+
+            // Functional check: same path means same storage.
+            let v = entry.first.get();
+            assert_eq!(v, 55u32, "Map-nested struct path changed");
+        })
+    });
+    assert!(result.is_success());
+}
+
+// ── Long-domain drift guard (>62-byte domain, 2-byte CXS headers) ────────────
+//
+// Verifies that `derive(Storage)` with a domain >62 bytes produces a
+// const-root leaf handle with the SAME path_bytes as the runtime derivation.
+// Exercises the CXS 1→2-byte width boundary: both the opaque-variable inner
+// length prefix AND the outer frame length prefix take the 2-byte form when
+// the domain string is longer than 62 bytes.
+#[test]
+fn long_domain_const_root_matches_runtime() {
+    const LONG_DOMAIN: &str = "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_two_byte_cxs_length_headers";
+    // Sanity: confirm the domain is indeed >62 bytes so the test is
+    // exercising the CXS 2-byte path.
+    assert!(
+        LONG_DOMAIN.len() > 62,
+        "domain must be >62 bytes for this test"
+    );
+
+    // Const-root path: built by contract_state_root via ConstRootState.
+    let const_node: sdk::storage::Node<LongDomainState> =
+        sdk::storage::contract_state_root::<LongDomainState>();
+    let const_leaf_bytes = const_node.value.path_bytes();
+
+    // Runtime path: what From<Keypath> produces today.
+    const FIELD_0: sdk::storage::FramedComponent =
+        sdk::storage::FramedComponent::from_u32(0u32);
+    let runtime_kp = sdk::storage::Keypath::default()
+        .child(LONG_DOMAIN)
+        .child_framed(&FIELD_0);
+    let runtime_bytes = runtime_kp.path_bytes();
+
+    assert_eq!(
+        const_leaf_bytes, runtime_bytes,
+        ">62-byte domain: const-root leaf path differs from runtime — drift detected"
+    );
+}

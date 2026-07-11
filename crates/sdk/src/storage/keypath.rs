@@ -377,7 +377,13 @@ impl FramedDomain {
         Self(framed)
     }
 
-    pub(crate) const fn as_bytes(&self) -> &'static [u8] {
+    /// The pre-framed byte representation of this domain.
+    ///
+    /// Used by `derive(Storage)`-generated `ConstRootState::ROOT_PATH` to
+    /// expose the domain bytes as a `'static` slice; called from the user
+    /// crate so must be `pub`.
+    #[doc(hidden)]
+    pub const fn as_bytes(&self) -> &'static [u8] {
         self.0
     }
 }
