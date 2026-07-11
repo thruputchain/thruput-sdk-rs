@@ -105,6 +105,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "complex-storage-rv32"
+version = "0.4.0"
+dependencies = [
+ "complex-storage",
+ "sdk",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1034,6 +1042,14 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage_errors"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "storage_errors",
+]
+
+[[package]]
+name = "storage_errors-rv32"
 version = "0.4.0"
 dependencies = [
  "sdk",

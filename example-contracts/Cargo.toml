@@ -49,6 +49,8 @@ members = [
     "erc1271_caller",
     "invoke_flags_test",
     "counter-rv32",
+    "storage_errors-rv32",
+    "complex-storage-rv32",
     "multi_root_storage",
     "slot_reorder",
 ]
