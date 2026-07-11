@@ -210,7 +210,24 @@ impl Keypath {
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        sha256(self.buf.as_slice()).into()
+        generate_key_from_bytes(self.buf.as_slice())
+    }
+
+    /// Raw preimage bytes of this path (crate-visible; used by `KeyCache::path_bytes`
+    /// for the `Owned` arm).
+    pub(crate) fn path_bytes(&self) -> &[u8] {
+        self.buf.as_slice()
+    }
+
+    /// Seed a `Keypath` from raw framed preimage bytes.
+    ///
+    /// Used by `KeyCache::derive_child` for the `Const` arm: builds a fresh
+    /// `Keypath` containing the const bytes, then delegates to the existing
+    /// `child()` logic — no duplication of frame-encoding.
+    pub(crate) fn from_bytes(bytes: &[u8]) -> Self {
+        let mut kp = Self::default();
+        kp.buf.append_bytes(bytes);
+        kp
     }
 
     /// Whether `self` and `other` address the same storage slot.
@@ -231,6 +248,14 @@ impl Keypath {
     pub fn set_exclusive(&mut self) {
         self.exclusive = true;
     }
+}
+
+/// Hash raw preimage `bytes` to produce a [`StorageKey`].
+///
+/// Used by both arms of [`KeyCache::get`] to ensure byte-identical hashing
+/// regardless of whether the preimage is stored as `Const` or `Owned`.
+pub(crate) fn generate_key_from_bytes(bytes: &[u8]) -> StorageKey {
+    sha256(bytes).into()
 }
 
 /// Byte length of [`frame_domain`]'s output for `domain`.
@@ -318,6 +343,15 @@ impl FramedComponent {
 
     fn as_bytes(&self) -> &[u8] {
         &self.buf[..self.len as usize]
+    }
+
+    /// Number of bytes in this frame.
+    ///
+    /// `const fn` so the length is available at compile time for sizing static
+    /// const-path arrays (used by the Task-3 macro and by tests).
+    #[doc(hidden)]
+    pub const fn len_bytes(&self) -> usize {
+        self.len as usize
     }
 }
 
@@ -613,35 +647,363 @@ mod test_keypath {
     }
 }
 
+// ── KeyCache unit tests ──────────────────────────────────────────────────────
+//
+// These tests are the wire-safety anchor for the const-path feature.
+// `keycache_const_and_owned_agree` and its long-domain variant are the drift
+// guards: they specify exactly which bytes the Task-3 macro must emit and
+// confirm that `sha256` of those bytes equals `sha256` of the runtime-derived
+// bytes.  If either assertion fails, a const-path handle would address a
+// different storage slot than today — a silent data-access bug.
+#[cfg(test)]
+mod test_keycache {
+    use super::*;
+    use xdrs::cxs::ConstWriter;
+
+    // ── Shared compile-time path sizes ───────────────────────────────────────
+
+    // "DriftGuard" domain + field-index-0 frame.
+    const N_DG: usize = framed_domain_len("DriftGuard");
+    // `FramedComponent::from_u32(0)` encodes as CXS(1) ‖ CXS(0) = [0x01, 0x00] (2 bytes).
+    const N_F0: usize = FramedComponent::from_u32(0).len_bytes();
+    const N_DG_TOTAL: usize = N_DG + N_F0;
+
+    // Long domain (> 62 bytes) + field-index-0 frame.
+    const LONG_DOMAIN: &str = "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header";
+    const N_LD: usize = framed_domain_len(LONG_DOMAIN);
+    const N_LD_TOTAL: usize = N_LD + N_F0;
+
+    // ── Shared static paths ──────────────────────────────────────────────────
+
+    /// Const path for "DriftGuard" domain + field 0.
+    ///
+    /// SPECIFICATION: This byte sequence is what Task 3's macro MUST emit for a
+    /// leaf at field index 0 under a domain with this name. The byte assembly
+    /// is `DOMAIN_FRAME ‖ FIELD_FRAME` where both are produced by `ConstWriter`
+    /// calls that mirror the runtime `child()` / `child_framed()` codec exactly.
+    static DG_F0_PATH: [u8; N_DG_TOTAL] = {
+        // Domain frame: identical bytes to `frame_domain::<N_DG>("DriftGuard")`,
+        // which equals what `Keypath::child("DriftGuard")` appends at runtime.
+        let d: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
+        // Field-0 frame: CXS(inner_len) ‖ CXS(0u32), mirroring
+        // `FramedComponent::from_u32(0)` = `Keypath::child(&0u32)` bytes.
+        let f: [u8; N_F0] = {
+            let mut probe = ConstWriter::<5>::new();
+            probe.write_u32(0u32);               // probe how many bytes CXS(0) uses
+            let v_len = probe.pos() as u32;       // = 1
+            let mut fw = ConstWriter::<N_F0>::new();
+            fw.write_u32(v_len);                  // length prefix [0x01]
+            fw.write_u32(0u32);                   // value         [0x00]
+            fw.into_bytes()                        // = [0x01, 0x00]
+        };
+        let mut w = ConstWriter::<N_DG_TOTAL>::new();
+        w.write_opaque_fixed(&d);
+        w.write_opaque_fixed(&f);
+        w.into_bytes()
+    };
+
+    /// Const path for the >62-byte domain + field 0.
+    ///
+    /// Exercises the CXS 1→2-byte width boundary (the #260 test pattern from
+    /// the design spec §5): both the opaque-variable length prefix AND the outer
+    /// frame length prefix take the 2-byte CXS form when the domain is longer
+    /// than 62 bytes.
+    static LD_F0_PATH: [u8; N_LD_TOTAL] = {
+        let d: [u8; N_LD] = frame_domain::<N_LD>("this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header");
+        let f: [u8; N_F0] = {
+            let mut probe = ConstWriter::<5>::new();
+            probe.write_u32(0u32);
+            let v_len = probe.pos() as u32;
+            let mut fw = ConstWriter::<N_F0>::new();
+            fw.write_u32(v_len);
+            fw.write_u32(0u32);
+            fw.into_bytes()
+        };
+        let mut w = ConstWriter::<N_LD_TOTAL>::new();
+        w.write_opaque_fixed(&d);
+        w.write_opaque_fixed(&f);
+        w.into_bytes()
+    };
+
+    // ── Drift-guard tests ────────────────────────────────────────────────────
+
+    /// THE load-bearing drift guard for the const-path feature.
+    ///
+    /// Asserts that `KeyCache::from_const(&DG_F0_PATH)` addresses the same
+    /// storage slot as a `KeyCache` built by the runtime derivation path
+    /// (`Keypath::root` + `child_framed`). If either assertion fails, a
+    /// `Const`-arm handle would silently hash to a different storage key than
+    /// today — a hard wire-safety violation.
+    ///
+    /// Note: `sha256` in SDK tests is a syscall requiring the native-exec host;
+    /// we compute it here via the `sha2` crate directly (the same byte-for-byte
+    /// algorithm) so the test runs as a pure unit test.
+    #[test]
+    fn keycache_const_and_owned_agree() {
+        use sha2::Digest;
+        const D: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
+        const FIELD_0: FramedComponent = FramedComponent::from_u32(0);
+        // Runtime path: identical to what derive(Storage) currently emits.
+        let owned =
+            Keypath::root(FramedDomain::new(&D)).child_framed(&FIELD_0);
+        let owned_cache = KeyCache::from(owned);
+
+        let const_cache = KeyCache::from_const(&DG_F0_PATH);
+
+        // Primary wire-safety assertion: same preimage bytes → same slot.
+        assert_eq!(
+            const_cache.path_bytes(),
+            owned_cache.path_bytes(),
+            "Const path bytes differ from runtime-derived bytes — drift detected"
+        );
+        // Cross-check: sha256 of both preimages agree (same key on-chain).
+        let const_hash: [u8; 32] =
+            sha2::Sha256::digest(const_cache.path_bytes()).into();
+        let owned_hash: [u8; 32] =
+            sha2::Sha256::digest(owned_cache.path_bytes()).into();
+        assert_eq!(
+            const_hash, owned_hash,
+            "Const and Owned arms hash to different StorageKeys"
+        );
+    }
+
+    /// Drift guard for the >62-byte-domain case (CXS 1→2-byte boundary).
+    ///
+    /// Same contract as `keycache_const_and_owned_agree` but for a domain string
+    /// that exceeds 62 bytes, forcing both CXS length prefixes into their 2-byte
+    /// form. This pins the multi-byte CXS path that `const_frame_matches_runtime_child`
+    /// exercises, now extended to the full KeyCache interface.
+    #[test]
+    fn keycache_const_and_owned_agree_long_domain() {
+        use sha2::Digest;
+        const D_L: [u8; N_LD] = frame_domain::<N_LD>("this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header");
+        const FIELD_0: FramedComponent = FramedComponent::from_u32(0);
+        let owned =
+            Keypath::root(FramedDomain::new(&D_L)).child_framed(&FIELD_0);
+        let owned_cache = KeyCache::from(owned);
+
+        let const_cache = KeyCache::from_const(&LD_F0_PATH);
+
+        assert_eq!(
+            const_cache.path_bytes(),
+            owned_cache.path_bytes(),
+            ">62-byte domain: const path bytes differ from runtime (CXS boundary drift)"
+        );
+        let const_hash: [u8; 32] =
+            sha2::Sha256::digest(const_cache.path_bytes()).into();
+        let owned_hash: [u8; 32] =
+            sha2::Sha256::digest(owned_cache.path_bytes()).into();
+        assert_eq!(
+            const_hash, owned_hash,
+            ">62-byte domain: Const and Owned arms hash to different StorageKeys"
+        );
+    }
+
+    // ── Behavioral tests ─────────────────────────────────────────────────────
+
+    /// `path_bytes()` returns stable bytes on repeated calls (no mutation);
+    /// the `Const` arm additionally returns the same `'static` pointer.
+    ///
+    /// Full `get()` pointer-equality (OnceCell memoization) is verified in
+    /// integration tests that run with a native-exec host (syscalls_mock feature);
+    /// the `OnceCell::get_or_init` contract guarantees it by construction.
+    #[test]
+    fn keycache_const_hashes_once() {
+        use sha2::Digest;
+        // Const arm: path_bytes returns the same static slice pointer every time.
+        let cache = KeyCache::from_const(&DG_F0_PATH);
+        let b1 = cache.path_bytes();
+        let b2 = cache.path_bytes();
+        assert!(
+            core::ptr::eq(b1.as_ptr(), b2.as_ptr()),
+            "Const arm path_bytes() returned different pointers"
+        );
+        // Cross-check sha256 stability via sha2 (no syscall).
+        let h1: [u8; 32] = sha2::Sha256::digest(b1).into();
+        let h2: [u8; 32] = sha2::Sha256::digest(b2).into();
+        assert_eq!(h1, h2);
+
+        // Owned arm: path_bytes returns the same bytes every time.
+        const D: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
+        const F: FramedComponent = FramedComponent::from_u32(0);
+        let owned_cache =
+            KeyCache::from(Keypath::root(FramedDomain::new(&D)).child_framed(&F));
+        assert_eq!(owned_cache.path_bytes(), owned_cache.path_bytes());
+    }
+
+    /// `derive_child` from the `Const` arm produces the same child preimage as
+    /// from the `Owned` arm — no divergence in dynamic child derivation.
+    #[test]
+    fn keycache_derive_child_agrees_across_arms() {
+        const D: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
+        const F: FramedComponent = FramedComponent::from_u32(0);
+        let owned_kp =
+            Keypath::root(FramedDomain::new(&D)).child_framed(&F);
+        let owned_cache = KeyCache::from(owned_kp);
+        let const_cache = KeyCache::from_const(&DG_F0_PATH);
+
+        let const_child = const_cache.derive_child(&5u32);
+        let owned_child = owned_cache.derive_child(&5u32);
+        assert!(
+            const_child.addresses_same_slot(&owned_child),
+            "derive_child from Const arm differs from Owned arm for key 5u32"
+        );
+
+        // Multiple keys, including a large one.
+        let const_child_max = const_cache.derive_child(&u32::MAX);
+        let owned_child_max = owned_cache.derive_child(&u32::MAX);
+        assert!(const_child_max.addresses_same_slot(&owned_child_max));
+    }
+
+    /// `is_exclusive()` on the `Const` arm is always `false`; on `Owned` it
+    /// reflects the inner `Keypath`'s flag (set before construction by
+    /// `Map::at_mut_exclusive`).
+    #[test]
+    fn keycache_is_exclusive_semantics() {
+        // Const arm: never exclusive.
+        let const_cache = KeyCache::from_const(&DG_F0_PATH);
+        assert!(!const_cache.is_exclusive());
+
+        // Owned arm without flag: not exclusive.
+        let kp = Keypath::default().child(&1u32);
+        assert!(!KeyCache::from(kp).is_exclusive());
+
+        // Owned arm with flag set before construction.
+        let mut kp_excl = Keypath::default().child(&1u32);
+        kp_excl.set_exclusive();
+        assert!(KeyCache::from(kp_excl).is_exclusive());
+    }
+}
+
 pub use keycache::*;
 mod keycache {
-    use super::Keypath;
+    use super::{Keypath, generate_key_from_bytes};
     use crate::types::StorageKey;
     use core::cell::OnceCell;
     use core::ops::Deref;
+    use xdrs::WriteXDR;
 
+    /// Storage for the preimage bytes of a keypath handle.
+    ///
+    /// - `Const`: a `'static` byte slice assembled at compile time (root-skeleton
+    ///   regime). Constructing a `Const` leaf writes only the discriminant + pointer —
+    ///   no memcpy of a full-width buffer.
+    /// - `Owned`: an owned [`Keypath`] buffer, the current regime for dynamic paths
+    ///   (under `Map`/`Vector`, nested subtrees). Identical to today's behavior.
+    #[derive(Debug)]
+    pub(crate) enum PathRepr {
+        Const(&'static [u8]),
+        Owned(Keypath),
+    }
+
+    /// Per-handle lazy storage key cache.
+    ///
+    /// Holds the path preimage in either the `Const` (compile-time) or `Owned`
+    /// (runtime) representation, and memoizes the `sha256` hash on the first call
+    /// to [`get`](Self::get). Hash-on-first-touch behavior is identical for both
+    /// arms (preserved from today).
     #[derive(Debug)]
     pub struct KeyCache {
-        keypath: Keypath,
+        path: PathRepr,
         key: OnceCell<StorageKey>,
     }
 
     impl From<Keypath> for KeyCache {
         fn from(keypath: Keypath) -> Self {
             KeyCache {
-                keypath,
+                path: PathRepr::Owned(keypath),
                 key: OnceCell::new(),
             }
         }
     }
 
     impl KeyCache {
-        pub fn get(&self) -> &StorageKey {
-            self.key.get_or_init(|| self.keypath.generate_key())
+        /// Construct a `KeyCache` from a `'static` byte slice assembled at compile
+        /// time. The `sha256` hash is computed lazily on the first call to
+        /// [`get`](Self::get).
+        ///
+        /// `const fn` so this can appear in `const`/`static` initializers.
+        pub const fn from_const(path: &'static [u8]) -> Self {
+            KeyCache {
+                path: PathRepr::Const(path),
+                key: OnceCell::new(),
+            }
         }
 
+        /// The raw preimage bytes of this handle's storage path.
+        ///
+        /// - `Const` arm: the `'static` slice supplied to [`from_const`].
+        /// - `Owned` arm: the internal byte buffer of the wrapped [`Keypath`].
+        ///
+        /// `sha256` of this slice is the storage key (see [`get`](Self::get)).
+        pub fn path_bytes(&self) -> &[u8] {
+            match &self.path {
+                PathRepr::Const(bytes) => bytes,
+                PathRepr::Owned(kp) => kp.path_bytes(),
+            }
+        }
+
+        /// Whether this handle carries an exclusive access-mode flag.
+        ///
+        /// `Const` arm: always `false`. Root-skeleton handles constructed via
+        /// [`from_const`] are never map-entry exclusive handles —
+        /// `Map::at_mut_exclusive` calls `Keypath::set_exclusive` before
+        /// `V::from(keypath)`, so exclusivity only ever appears on `Owned` arms.
+        ///
+        /// `Owned` arm: propagates the flag from the inner [`Keypath`], preserving
+        /// today's observable behavior exactly.
+        pub fn is_exclusive(&self) -> bool {
+            match &self.path {
+                PathRepr::Const(_) => false,
+                PathRepr::Owned(kp) => kp.is_exclusive(),
+            }
+        }
+
+        /// Lazily compute and memoize the [`StorageKey`] (`sha256` of the preimage).
+        ///
+        /// Hashing behavior is identical to today for both arms: the hash is
+        /// computed at most once per handle instance.
+        pub fn get(&self) -> &StorageKey {
+            self.key
+                .get_or_init(|| generate_key_from_bytes(self.path_bytes()))
+        }
+
+        /// Derive a child [`Keypath`] for the given dynamic key `value`.
+        ///
+        /// - `Owned` arm: delegates directly to [`Keypath::child`], unchanged.
+        /// - `Const` arm: seeds a fresh [`Keypath`] from the const bytes via
+        ///   [`Keypath::from_bytes`], then calls [`Keypath::child`] — no
+        ///   duplication of frame-encoding logic.
+        ///
+        /// Used by `Vector` to derive element keypaths from its `values` map's path.
+        pub fn derive_child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
+            match &self.path {
+                PathRepr::Owned(kp) => kp.child(value),
+                PathRepr::Const(bytes) => Keypath::from_bytes(bytes).child(value),
+            }
+        }
+
+        /// Return the inner [`Keypath`].
+        ///
+        /// # Deprecation note (Task 2 shim)
+        ///
+        /// This method exists to allow the build to compile while callers in
+        /// Task 2 are migrated:
+        /// - Callers checking the exclusive flag → [`is_exclusive()`](Self::is_exclusive)
+        /// - Callers comparing paths → [`path_bytes()`](Self::path_bytes)
+        /// - Callers deriving dynamic children → [`derive_child()`](Self::derive_child)
+        ///
+        /// **Task 2 deletes this method.** Panics if called on the `Const` arm.
+        #[doc(hidden)]
         pub fn keypath(&self) -> &Keypath {
-            &self.keypath
+            match &self.path {
+                PathRepr::Owned(kp) => kp,
+                PathRepr::Const(_) => unimplemented!(
+                    "KeyCache::keypath() shim: const-arm handles carry no owned \
+                     Keypath; migrate callers to path_bytes()/is_exclusive()/\
+                     derive_child() — Task 2 deletes this shim"
+                ),
+            }
         }
     }
 
