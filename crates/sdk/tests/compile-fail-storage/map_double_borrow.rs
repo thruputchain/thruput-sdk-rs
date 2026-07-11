@@ -1,7 +1,7 @@
 use sdk::storage::*;
 
 fn main() {
-    let mut m: Map<u64, Value<u64>> = Map::from(Keypath::default());
+    let mut m: Map<u64, Value<u64>> = Map::from_keypath(&Keypath::default());
     let mut slot = m.at_mut(&10u64);
     slot.set(&10u64);
 

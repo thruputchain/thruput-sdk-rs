@@ -131,8 +131,8 @@ fn impl_from_keypath(
                 const _: () = {
                     use ::sdk::storage::*;
 
-                    impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
-                        fn from(_keypath: Keypath) -> Self {
+                    impl #impl_generics FromKeypath for #ident #ty_generics #where_clause {
+                        fn from_keypath(_keypath: &Keypath) -> Self {
                             Self
                         }
                     }
@@ -145,14 +145,12 @@ fn impl_from_keypath(
     // Clone generics so we can add field-type bounds
     let mut generics = generics.clone();
 
-    let mut field_names = TokenStream::new();
-    let mut field_initializers = TokenStream::new();
+    let mut field_inits = TokenStream::new();
     let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
 
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
         let field_type = &field.ty;
-        field_names.extend(quote! { #field_name, });
 
         // #[slot(N)] override, else declaration position. The index is a
         // `u32` so the dedup domain matches the emit domain
@@ -203,22 +201,27 @@ fn impl_from_keypath(
         }
         resolved.push((idx, field.span()));
 
-        field_initializers.extend(quote! {
-            let #field_name = {
+        // A struct-literal entry (not a `let` binding) so the field value
+        // is constructed in place — a binding would be moved into `Self`,
+        // and the whole point is that nothing keypath-sized moves in
+        // transit.
+        field_inits.extend(quote! {
+            #field_name: {
                 // The frame bytes are concrete at expansion time (the index
                 // is a literal), so the inner const is legal even under
                 // generic impls — it captures no generic params.
                 const __SLOT_FRAME: ::sdk::storage::FramedComponent =
                     ::sdk::storage::FramedComponent::from_u32(#idx);
-                keypath.child_framed(&__SLOT_FRAME).into()
-            };
+                FromKeypath::from_keypath(
+                    &keypath.child_framed(&__SLOT_FRAME))
+            },
         });
 
-        // Add `FieldType: From<Keypath>` bound
+        // Add `FieldType: FromKeypath` bound
         generics
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#field_type: From<Keypath>));
+            .push(syn::parse_quote!(#field_type: FromKeypath));
     }
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -227,14 +230,12 @@ fn impl_from_keypath(
         const _: () = {
             use ::sdk::storage::*;
 
-            impl #impl_generics From<Keypath> for #ident #ty_generics
+            impl #impl_generics FromKeypath for #ident #ty_generics
                 #where_clause
             {
-                fn from(keypath: Keypath) -> Self {
-                    #field_initializers
-
+                fn from_keypath(keypath: &Keypath) -> Self {
                     Self {
-                        #field_names
+                        #field_inits
                     }
                 }
             }

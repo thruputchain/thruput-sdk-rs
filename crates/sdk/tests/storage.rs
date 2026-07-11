@@ -32,19 +32,19 @@ contract_test!(test_map {
     let data_keypath = Keypath::default();
     let slot: u32 = 3;
     {
-        let mut data: Data = data_keypath.clone().into();
+        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
         data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
-        let data: Data = data_keypath.into();
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
 });
 
 contract_test!(test_map_entry {
-    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
+    let mut map: Map<u32, Value<i32>> = FromKeypath::from_keypath(&Keypath::default());
 
     let slot: u32 = 3;
 
@@ -98,12 +98,12 @@ contract_test!(test_map_entry {
 
 contract_test!(test_storable {
     let data_keypath = Keypath::default();
-    let mut data: Data = data_keypath.clone().into();
+    let mut data: Data = FromKeypath::from_keypath(&data_keypath);
     for i in 0..3u64 {
         data.nums.push_with(|slot| slot.set(&i));
     }
 
-    let data: Data = data_keypath.into();
+    let data: Data = FromKeypath::from_keypath(&data_keypath);
     for i in 0..3u32 {
         let n = data.nums.at(i).get();
         assert_eq!(n, i as u64);
@@ -111,7 +111,7 @@ contract_test!(test_storable {
 });
 
 contract_test!(test_vector {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     assert_eq!(0, vec.len());
     for i in 0..3u32 {
@@ -125,7 +125,7 @@ contract_test!(test_vector {
 });
 
 contract_test!(test_vector_push_with {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_with(|slot| slot.set(&10));
     vec.push_with(|slot| slot.set(&20));
@@ -136,7 +136,7 @@ contract_test!(test_vector_push_with {
 });
 
 contract_test!(test_vector_push_with_nested_node {
-    let mut vec: Vector<Node<InnerValuePair>> = Keypath::default().into();
+    let mut vec: Vector<Node<InnerValuePair>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_with(|elem| {
         elem.first.set(&7);
@@ -149,7 +149,7 @@ contract_test!(test_vector_push_with_nested_node {
 });
 
 contract_test!(test_map_at_nested {
-    let mut map: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
+    let mut map: Map<u32, Node<InnerValuePair>> = FromKeypath::from_keypath(&Keypath::default());
     let slot: u32 = 5;
     {
         let mut entry = map.at_mut(&slot);
@@ -165,7 +165,7 @@ contract_test!(test_map_at_nested {
 });
 
 contract_test!(test_value_basic {
-    let mut val: Value<i32> = Keypath::default().into();
+    let mut val: Value<i32> = FromKeypath::from_keypath(&Keypath::default());
 
     // Initially empty
     assert_eq!(val.try_get().none_if_missing(), None);
@@ -184,7 +184,7 @@ contract_test!(test_value_basic {
 });
 
 contract_test!(test_value_load_mut {
-    let mut val: Value<i32> = Keypath::default().into();
+    let mut val: Value<i32> = FromKeypath::from_keypath(&Keypath::default());
 
     // Set initial value
     val.set(&10);
@@ -199,7 +199,7 @@ contract_test!(test_value_load_mut {
 });
 
 contract_test!(test_map_at_value {
-    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
+    let mut map: Map<u32, Value<i32>> = FromKeypath::from_keypath(&Keypath::default());
 
     // Write via at_mut
     map.at_mut(&1u32).set(&100);
@@ -225,19 +225,19 @@ contract_test!(test_exclusive_propagation {
 
     // Use at_mut_exclusive -- exclusive flag reaches NNInt
     {
-        let mut data: Data = data_keypath.clone().into();
+        let mut data: Data = FromKeypath::from_keypath(&data_keypath);
         data.map.at_mut_exclusive(&slot).strict_inc(10);
     }
 
     {
-        let data: Data = data_keypath.into();
+        let data: Data = FromKeypath::from_keypath(&data_keypath);
         let v = data.map.at(&slot).get();
         assert_eq!(v, 10);
     }
 });
 
 contract_test!(test_vector_pop {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_empty_slot().set(&10);
     vec.push_empty_slot().set(&20);
@@ -257,7 +257,7 @@ contract_test!(test_vector_pop {
 });
 
 contract_test!(test_vector_delete {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_empty_slot().set(&1);
     vec.push_empty_slot().set(&2);
@@ -269,7 +269,7 @@ contract_test!(test_vector_delete {
 
 contract_test!(test_vector_delete_verifies_storage_cleared {
     let root = Keypath::default();
-    let mut vec: Vector<Value<u32>> = root.clone().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&root);
 
     vec.push_empty_slot().set(&100);
     vec.push_empty_slot().set(&200);
@@ -283,7 +283,7 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
     let values_kp = root.child(&1u32);
 
     let elem = |kp: &Keypath, idx: u32| -> Value<u32> {
-        kp.child(&idx).into()
+        FromKeypath::from_keypath(&kp.child(&idx))
     };
 
     // Before delete: elements are readable
@@ -301,13 +301,13 @@ contract_test!(test_vector_delete_verifies_storage_cleared {
 
     // Length storage is also gone
     let len_kp = root.child(&0u32);
-    let len_val: Value<u32> = len_kp.into();
+    let len_val: Value<u32> = FromKeypath::from_keypath(&len_kp);
     assert_eq!(len_val.try_get().none_if_missing(), None);
 });
 
 contract_test!(test_generic_storage_struct {
     let keypath = Keypath::default();
-    let pair: Pair<Value<u32>, Value<u64>> = keypath.into();
+    let pair: Pair<Value<u32>, Value<u64>> = FromKeypath::from_keypath(&keypath);
 
     let mut first = pair.first;
     let mut second = pair.second;
@@ -321,7 +321,7 @@ contract_test!(test_generic_storage_struct {
 
 contract_test!(test_generic_storage_struct_delete {
     let keypath = Keypath::default();
-    let mut pair: Pair<Value<u32>, Value<u64>> = keypath.into();
+    let mut pair: Pair<Value<u32>, Value<u64>> = FromKeypath::from_keypath(&keypath);
 
     pair.first.set(&42);
     pair.second.set(&100);
@@ -334,7 +334,7 @@ contract_test!(test_generic_storage_struct_delete {
 
 contract_test!(test_nnint_delete {
     let keypath = Keypath::default();
-    let mut n: NNInt = keypath.into();
+    let mut n: NNInt = FromKeypath::from_keypath(&keypath);
     n.set(42);
     assert_eq!(n.get(), 42);
     n.delete();
@@ -343,7 +343,7 @@ contract_test!(test_nnint_delete {
 
 contract_test!(test_vector_pop_nnint {
     let keypath = Keypath::default();
-    let mut vec: Vector<NNInt> = keypath.into();
+    let mut vec: Vector<NNInt> = FromKeypath::from_keypath(&keypath);
 
     vec.push_empty_slot().set(10);
     vec.push_empty_slot().set(20);
@@ -355,7 +355,7 @@ contract_test!(test_vector_pop_nnint {
 });
 
 contract_test!(test_vector_iter {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_empty_slot().set(&10);
     vec.push_empty_slot().set(&20);
@@ -366,7 +366,7 @@ contract_test!(test_vector_iter {
 });
 
 contract_test!(test_vector_iter_mut {
-    let mut vec: Vector<NNInt> = Keypath::default().into();
+    let mut vec: Vector<NNInt> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_empty_slot().set(10);
     vec.push_empty_slot().set(20);
@@ -381,7 +381,7 @@ contract_test!(test_vector_iter_mut {
 });
 
 contract_test!(test_vector_iter_rev {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_empty_slot().set(&10);
     vec.push_empty_slot().set(&20);
@@ -392,7 +392,7 @@ contract_test!(test_vector_iter_rev {
 });
 
 contract_test!(test_vector_into_iter {
-    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    let mut vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
 
     vec.push_empty_slot().set(&10);
     vec.push_empty_slot().set(&20);
@@ -415,7 +415,7 @@ contract_test!(test_vector_into_iter {
 });
 
 contract_test!(test_vector_iter_empty {
-    let vec: Vector<Value<u32>> = Keypath::default().into();
+    let vec: Vector<Value<u32>> = FromKeypath::from_keypath(&Keypath::default());
     assert_eq!(vec.iter().count(), 0);
 });
 
@@ -438,7 +438,7 @@ fn test_value_undecodable_read_reports_err() {
             let keypath = Keypath::default();
             let key = keypath.generate_key();
             sdk::bytestring_set(&key, &[0u8; 900]);
-            let val: Value<u32> = keypath.into();
+            let val: Value<u32> = FromKeypath::from_keypath(&keypath);
             let err = val.try_get().unwrap_err();
             assert!(!err.is_storage_missing());
             assert_eq!(err, sdk::exn::LibraryExn::StorageSerialization);
@@ -460,7 +460,7 @@ fn test_value_undecodable_get_aborts() {
             let keypath = Keypath::default();
             let key = keypath.generate_key();
             sdk::bytestring_set(&key, &[0u8; 900]);
-            let val: Value<u32> = keypath.into();
+            let val: Value<u32> = FromKeypath::from_keypath(&keypath);
             let _ = val.get();
         })
     });
@@ -468,7 +468,7 @@ fn test_value_undecodable_get_aborts() {
 }
 
 contract_test!(test_map_at_disjoint_mut {
-    let mut map: Map<u32, NNInt> = Keypath::default().into();
+    let mut map: Map<u32, NNInt> = FromKeypath::from_keypath(&Keypath::default());
 
     map.at_mut(&1u32).set(100);
     map.at_mut(&2u32).set(200);
@@ -494,7 +494,7 @@ fn test_map_at_disjoint_mut_duplicate_panics() {
     );
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
-            let mut map: Map<u32, NNInt> = Keypath::default().into();
+            let mut map: Map<u32, NNInt> = FromKeypath::from_keypath(&Keypath::default());
             map.at_disjoint_mut([&1u32, &1u32]);
         })
     });
@@ -540,13 +540,13 @@ fn test_data_fully_consumed() {
         tx.call(&addr).run(|| {
             let keypath = Keypath::default();
             {
-                let mut value: Value<(i32, i32)> = keypath.clone().into();
+                let mut value: Value<(i32, i32)> = FromKeypath::from_keypath(&keypath);
                 value.set(&(10, 20));
             }
 
             {
                 // check that the value is read correctly
-                let value: Value<(i32, i32)> = keypath.clone().into();
+                let value: Value<(i32, i32)> = FromKeypath::from_keypath(&keypath);
                 let (a, b) = value.get();
                 assert_eq!(a, 10);
                 assert_eq!(b, 20);
@@ -556,7 +556,7 @@ fn test_data_fully_consumed() {
                 // Decoding (i32, i32) data as i32 leaves bytes unconsumed,
                 // so try_get reports StorageSerialization (and get() would
                 // abort with the same exception).
-                let value: Value<i32> = keypath.clone().into();
+                let value: Value<i32> = FromKeypath::from_keypath(&keypath);
                 assert_eq!(
                     value.try_get(),
                     Err(sdk::exn::LibraryExn::StorageSerialization)
@@ -578,10 +578,10 @@ struct Pinned {
 #[test]
 fn slot_override_remaps_field_keypath() {
     let root = Keypath::default();
-    let p = Pinned::from(root.clone());
+    let p = Pinned::from_keypath(&root);
     // b lives at child(&7u32), provably distinct from child(&1u32).
-    let expect_b = Value::<u64>::from(root.child(&7u32));
-    let other = Value::<u64>::from(root.child(&1u32));
+    let expect_b = Value::<u64>::from_keypath(&root.child(&7u32));
+    let other = Value::<u64>::from_keypath(&root.child(&1u32));
     assert!(p.b.keypath().addresses_same_slot(expect_b.keypath()));
     assert!(!p.b.keypath().addresses_same_slot(other.keypath()));
 }
@@ -598,27 +598,27 @@ struct PositionalAbsoluteIndex {
 #[test]
 fn positional_fields_use_absolute_declaration_index() {
     let root = Keypath::default();
-    let s = PositionalAbsoluteIndex::from(root.clone());
+    let s = PositionalAbsoluteIndex::from_keypath(&root);
     // c is the 3rd field -> child(&2u32), NOT child(&1u32).
     assert!(
         s.c.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&2u32)).keypath()
+            Value::<u64>::from_keypath(&root.child(&2u32)).keypath()
         )
     );
     assert!(
         !s.c.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&1u32)).keypath()
+            Value::<u64>::from_keypath(&root.child(&1u32)).keypath()
         )
     );
     // b -> child(&1u32); a -> child(&5u32).
     assert!(
         s.b.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&1u32)).keypath()
+            Value::<u64>::from_keypath(&root.child(&1u32)).keypath()
         )
     );
     assert!(
         s.a.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&5u32)).keypath()
+            Value::<u64>::from_keypath(&root.child(&5u32)).keypath()
         )
     );
 }

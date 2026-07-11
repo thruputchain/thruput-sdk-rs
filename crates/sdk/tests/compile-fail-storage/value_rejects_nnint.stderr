@@ -1,7 +1,7 @@
 error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::NNInt>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_nnint.rs:5:7
   |
-5 |     v.set(&NNInt::from(Keypath::default()));
+5 |     v.set(&NNInt::from_keypath(&Keypath::default()));
   |       ^^^ method cannot be called on `sdk::storage::Value<sdk::storage::NNInt>` due to unsatisfied trait bounds
   |
  ::: src/storage/nnint.rs

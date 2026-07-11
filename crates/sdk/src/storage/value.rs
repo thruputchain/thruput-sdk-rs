@@ -15,10 +15,10 @@ pub struct Value<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> From<Keypath> for Value<T> {
-    fn from(keypath: Keypath) -> Self {
+impl<T> FromKeypath for Value<T> {
+    fn from_keypath(keypath: &Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: KeyCache::from_keypath(keypath),
             _marker: PhantomData,
         }
     }

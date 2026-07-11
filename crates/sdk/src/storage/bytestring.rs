@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{FromKeypath, KeyCache, Keypath};
 use crate::sys_exn::bytestring::*;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -8,10 +8,10 @@ pub struct Bytestring {
     key: KeyCache,
 }
 
-impl From<Keypath> for Bytestring {
-    fn from(keypath: Keypath) -> Self {
+impl FromKeypath for Bytestring {
+    fn from_keypath(keypath: &Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: KeyCache::from_keypath(keypath),
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{FromKeypath, KeyCache, Keypath};
 use crate::StorageKey;
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
@@ -38,10 +38,10 @@ pub struct RCQ<T> {
     phantom_entry: PhantomData<fn() -> T>,
 }
 
-impl<T> From<Keypath> for RCQ<T> {
-    fn from(keypath: Keypath) -> Self {
+impl<T> FromKeypath for RCQ<T> {
+    fn from_keypath(keypath: &Keypath) -> Self {
         Self {
-            key: keypath.into(),
+            key: KeyCache::from_keypath(keypath),
             phantom_entry: PhantomData,
         }
     }

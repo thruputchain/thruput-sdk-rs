@@ -156,7 +156,8 @@ impl Keypath {
     /// of intent. SDK-generated code never mixes schemes under one node (a
     /// struct keys children by field position, a `Map` by user key, a `Vector`
     /// by region index then element index one level down), so distinct slots
-    /// stay distinct. A hand-written `From<Keypath>` must uphold the same rule:
+    /// stay distinct. A hand-written [`FromKeypath`] impl must uphold the same
+    /// rule:
     /// give each child of a node a distinct `value`.
     pub fn child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
         let mut child = self.clone();
@@ -231,6 +232,22 @@ impl Keypath {
     pub fn set_exclusive(&mut self) {
         self.exclusive = true;
     }
+}
+
+/// Borrow-based constructor for storage handles.
+///
+/// The single way storage types are built at a derived [`Keypath`]. Takes
+/// the keypath by reference: an implementation that retains the path stores
+/// exactly one clone (which copies only the initialized prefix), written as
+/// a struct literal in return position, so no full-width `Keypath` is moved
+/// in transit. Implemented by `derive(Storage)`-generated code and SDK
+/// containers; not intended for direct use.
+///
+/// Slot-identity rule (same as [`Keypath::child`]): an implementation must
+/// give each child of a node a distinct component value.
+#[doc(hidden)]
+pub trait FromKeypath {
+    fn from_keypath(keypath: &Keypath) -> Self;
 }
 
 /// Byte length of [`frame_domain`]'s output for `domain`.
@@ -615,7 +632,7 @@ mod test_keypath {
 
 pub use keycache::*;
 mod keycache {
-    use super::Keypath;
+    use super::{FromKeypath, Keypath};
     use crate::types::StorageKey;
     use core::cell::OnceCell;
     use core::ops::Deref;
@@ -626,10 +643,10 @@ mod keycache {
         key: OnceCell<StorageKey>,
     }
 
-    impl From<Keypath> for KeyCache {
-        fn from(keypath: Keypath) -> Self {
+    impl FromKeypath for KeyCache {
+        fn from_keypath(keypath: &Keypath) -> Self {
             KeyCache {
-                keypath,
+                keypath: keypath.clone(),
                 key: OnceCell::new(),
             }
         }

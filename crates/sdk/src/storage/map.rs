@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{FromKeypath, Keypath};
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
@@ -35,10 +35,12 @@ pub struct Map<K, V> {
     _marker: PhantomData<fn() -> (K, V)>,
 }
 
-impl<K, V> From<Keypath> for Map<K, V> {
-    fn from(keypath: Keypath) -> Self {
-        let _marker = PhantomData;
-        Self { keypath, _marker }
+impl<K, V> FromKeypath for Map<K, V> {
+    fn from_keypath(keypath: &Keypath) -> Self {
+        Self {
+            keypath: keypath.clone(),
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -53,7 +55,7 @@ impl<K, V> Map<K, V> {
         V: StorageType,
     {
         let keypath = self.make_entry_keypath(entry_key);
-        let slot = V::from(keypath);
+        let slot = V::from_keypath(&keypath);
         SlotRef::new(self, slot)
     }
 
@@ -63,7 +65,7 @@ impl<K, V> Map<K, V> {
         V: StorageType,
     {
         let keypath = self.make_entry_keypath(entry_key);
-        let slot = V::from(keypath);
+        let slot = V::from_keypath(&keypath);
         SlotMut::new(self, slot)
     }
 
@@ -74,7 +76,7 @@ impl<K, V> Map<K, V> {
     {
         let mut keypath = self.make_entry_keypath(entry_key);
         keypath.set_exclusive();
-        let slot = V::from(keypath);
+        let slot = V::from_keypath(&keypath);
         SlotMut::new(self, slot)
     }
 
@@ -108,7 +110,7 @@ impl<K, V> Map<K, V> {
             }
         }
 
-        let slots = keypaths.map(V::from);
+        let slots = keypaths.each_ref().map(|kp| V::from_keypath(kp));
         DisjointMut {
             slots,
             _borrow: PhantomData,
@@ -130,7 +132,7 @@ impl<K, V> Map<K, V> {
         K: WriteXDR,
         V: StorageType,
     {
-        let slots = keys.map(|k| V::from(self.make_entry_keypath(k)));
+        let slots = keys.map(|k| V::from_keypath(&self.make_entry_keypath(k)));
         DisjointMut {
             slots,
             _borrow: PhantomData,

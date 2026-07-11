@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{FromKeypath, Keypath};
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -6,21 +6,23 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
 #[allow(private_bounds)]
-pub trait StorageType: Sealed + From<Keypath> {}
+pub trait StorageType: Sealed + FromKeypath {}
 
 /// A keypath-storing wrapper for compound storage field groups.
 ///
-/// Pairs a `T: From<Keypath>` with its root keypath.
+/// Pairs a `T: FromKeypath` with its root keypath.
 /// Derefs to T for field access.
 pub struct Node<T> {
     keypath: Keypath,
     fields: T,
 }
 
-impl<T: From<Keypath>> From<Keypath> for Node<T> {
-    fn from(keypath: Keypath) -> Self {
-        let fields = T::from(keypath.clone());
-        Self { keypath, fields }
+impl<T: FromKeypath> FromKeypath for Node<T> {
+    fn from_keypath(keypath: &Keypath) -> Self {
+        Self {
+            fields: T::from_keypath(keypath),
+            keypath: keypath.clone(),
+        }
     }
 }
 
@@ -44,7 +46,7 @@ impl<T> DerefMut for Node<T> {
 }
 
 impl<T> Sealed for Node<T> {}
-impl<T: From<Keypath>> StorageType for Node<T> {}
+impl<T: FromKeypath> StorageType for Node<T> {}
 
 impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
@@ -55,7 +57,7 @@ impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
 /// Marker for types usable as a contract's root state by `#[contract]`.
 ///
 /// Automatically implemented for every type that implements
-/// `From<Keypath>` — i.e. anything annotated with `#[storage]`, including
+/// `FromKeypath` — i.e. anything annotated with `#[storage]`, including
 /// unit structs like `struct Token;`. Contract methods taking
 /// `&self`/`&mut self` require the state type to implement this trait;
 /// contracts with only associated functions never construct state and do
@@ -65,9 +67,9 @@ impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
     note = "methods taking `&self`/`&mut self` require the state type to be a storage struct: add `#[storage]` to the definition of `{Self}`",
     note = "contracts with only associated functions (no `self` methods) do not need `#[storage]`"
 )]
-pub trait ContractState: From<Keypath> {}
+pub trait ContractState: FromKeypath {}
 
-impl<T: From<Keypath>> ContractState for T {}
+impl<T: FromKeypath> ContractState for T {}
 
 /// Carries a storage struct's root domain separator.
 ///
@@ -96,7 +98,7 @@ pub trait StorageDomain {
 #[doc(hidden)]
 #[inline(never)]
 pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
-    Node::from(Keypath::root(T::DOMAIN))
+    Node::from_keypath(&Keypath::root(T::DOMAIN))
 }
 
 #[cfg(test)]
@@ -106,8 +108,8 @@ mod tests {
     use crate::storage::{FramedDomain, frame_domain, framed_domain_len};
 
     struct UnitState;
-    impl From<Keypath> for UnitState {
-        fn from(_: Keypath) -> Self {
+    impl FromKeypath for UnitState {
+        fn from_keypath(_: &Keypath) -> Self {
             Self
         }
     }

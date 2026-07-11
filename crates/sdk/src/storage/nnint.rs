@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{FromKeypath, Keypath};
 use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
@@ -31,9 +31,11 @@ pub struct NNInt {
     keypath: Keypath,
 }
 
-impl From<Keypath> for NNInt {
-    fn from(keypath: Keypath) -> Self {
-        Self { keypath }
+impl FromKeypath for NNInt {
+    fn from_keypath(keypath: &Keypath) -> Self {
+        Self {
+            keypath: keypath.clone(),
+        }
     }
 }
 

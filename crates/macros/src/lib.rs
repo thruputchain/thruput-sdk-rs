@@ -183,7 +183,7 @@ pub fn derive_storage(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Mark a struct as contract storage: generates `From<Keypath>` so each
+/// Mark a struct as contract storage: generates `FromKeypath` so each
 /// field is bound to a storage slot derived from the struct's keypath.
 ///
 /// Works on named-field structs (fields must themselves be storage
