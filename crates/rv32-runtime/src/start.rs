@@ -80,8 +80,17 @@ pub extern "C" fn _start() -> ! {
     // of DATA (stack-first layout, so overflow traps instead of corrupting
     // the heap) and ASSERTs __stack_top is 16-byte aligned (the RISC-V ABI
     // sp alignment), so no rounding here.
+    // gp is loaded first so every subsequent static access is eligible for
+    // the linker's gp relaxation (see link/groundhog-rv32.ld).
     // `naked` guarantees no prologue clobbers a0/a1.
     naked_asm!(
+        // Load gp with the linker-script relaxation anchor BEFORE anything
+        // can touch a static. The norelax bracket keeps this la itself from
+        // being relaxed into a gp-relative move — gp isn't set yet.
+        ".option push",
+        ".option norelax",
+        "la gp, __global_pointer$",
+        ".option pop",
         "la sp, __stack_top",
         "tail {dispatch}",
         dispatch = sym rv32_dispatch,

@@ -29,6 +29,7 @@ rustflags = [
     "-C", "link-arg=--gc-sections",
     "-C", "link-arg=--no-check-sections",
     "-C", "link-arg=--icf=all",
+    "-C", "link-arg=--relax-gp",
     "-Z", "unstable-options",
     "-C", "panic=immediate-abort",
     "-C", "relocation-model=static",

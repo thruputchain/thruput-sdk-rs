@@ -98,6 +98,19 @@ MEMORY
 __stack_bottom = ORIGIN(DATA);
 __stack_top = __stack_bottom + __stack_size;
 
+/* gp-relaxation anchor. With --relax-gp (set in the contract rustflags),
+ * lld rewrites the lui+addi address materialization of any symbol whose
+ * final address lands in [gp - 0x800, gp + 0x7FF] into a single
+ * gp-relative instruction. Statics start exactly at __stack_top
+ * (stack-first layout), so anchoring 0x800 past it covers the first
+ * 4 KiB of .rodata/.data/.bss — for small contracts, the whole statics
+ * band. Purely opportunistic: out-of-window accesses keep the
+ * two-instruction form; correctness is never involved. _start loads gp
+ * from this symbol (rv32-runtime/src/start.rs). PROVIDE yields to a
+ * per-contract --defsym override, and the expression tracks any
+ * __stack_size override automatically. */
+PROVIDE(__global_pointer$ = __stack_top + 0x800);
+
 SECTIONS
 {
   .text 0 : ALIGN(4)

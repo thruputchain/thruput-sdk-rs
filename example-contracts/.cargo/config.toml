@@ -23,8 +23,8 @@ rustflags = [
 # with this one.
 #
 # Flag set matches hogd/built_contracts/.cargo/config.toml (the production
-# rv32 build) plus `+relax` and `--icf=all` (measured wins; see
-# docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
+# rv32 build) plus `+relax`, `--icf=all`, and `--relax-gp` (measured wins;
+# see docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
 #
 # Requires -Zbuild-std=core,alloc on the command line (scripts/dev.sh
 # passes it, like hogd's build_risc.sh): panic=immediate-abort and the
@@ -54,6 +54,12 @@ rustflags = [
     # Safe here — nothing compares function pointers for identity (the
     # dispatch-table wrappers are only ever called).
     "-C", "link-arg=--icf=all",
+    # gp relaxation: with the __global_pointer$ anchor in groundhog-rv32.ld
+    # and the gp init in rv32-runtime _start, lld folds static-address
+    # lui+addi pairs into single gp-relative accesses for statics within
+    # +/-2 KiB of the anchor. lld needs this explicit opt-in (GNU ld
+    # relaxes gp by default; lld deliberately doesn't).
+    "-C", "link-arg=--relax-gp",
     # The hogd rv32 VM admits the canonical `unimp` trap (0xc0001073), so use
     # immediate-abort: panic sites compile straight to the trap instruction
     # instead of routing through the SDK ebreak panic handler, stripping the
