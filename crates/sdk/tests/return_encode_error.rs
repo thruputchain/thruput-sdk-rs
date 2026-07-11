@@ -33,6 +33,14 @@ impl WriteXDR for FailToEncode {
     fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
         Err(WriteError::InvalidArrayLength)
     }
+
+    unsafe fn write_xdr_unchecked<F, W: sdk::xdr::WriterUnchecked<F>>(
+        &self,
+        _w: &mut W,
+    ) {
+        // Checked-encode failure has no unchecked analogue; this type only
+        // exercises the fallible return path.
+    }
 }
 
 impl CollectAuthHandles for FailToEncode {

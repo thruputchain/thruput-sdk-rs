@@ -86,7 +86,7 @@ mod without_message {
     /// to nothing — the heapless::String<300> and formatting code are
     /// not compiled in.
     ///
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, ReadXDR, WriteXDR)]
     pub struct Panic;
 
     impl Error for Panic {}
@@ -95,20 +95,6 @@ mod without_message {
         #[cfg(target_arch = "wasm32")]
         pub fn from_info(_info: &core::panic::PanicInfo) -> Self {
             Self
-        }
-    }
-
-    impl WriteXDR for Panic {
-        #[inline(always)]
-        fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
-            Ok(())
-        }
-    }
-
-    impl<'r> ReadXDR<'r> for Panic {
-        #[inline(always)]
-        fn read_xdr<R: Reader<'r>>(_r: &mut R) -> ReadResult<Self> {
-            Ok(Self)
         }
     }
 

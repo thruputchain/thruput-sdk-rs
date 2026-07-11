@@ -299,6 +299,14 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             ::sdk::WriteXDR::write_xdr(&self.#field_ident, w)?;
         }
     });
+    let payload_writes_unchecked = payload.iter().map(|field| {
+        let field_ident = field.ident.as_ref().unwrap();
+        quote! {
+            unsafe {
+                ::sdk::WriteXDR::write_xdr_unchecked(&self.#field_ident, w);
+            }
+        }
+    });
 
     // --- Payload struct ---
     let payload_ident = format_ident!("{}Payload", ident);
@@ -402,6 +410,17 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             ) -> ::sdk::WriteResult<()> {
                 #(#payload_writes)*
                 ::core::result::Result::Ok(())
+            }
+
+            #[allow(unused_variables)]
+            unsafe fn write_xdr_unchecked<
+                __F,
+                __W: ::sdk::__xdrs::WriterUnchecked<__F>,
+            >(
+                &self,
+                w: &mut __W,
+            ) {
+                #(#payload_writes_unchecked)*
             }
         }
     })

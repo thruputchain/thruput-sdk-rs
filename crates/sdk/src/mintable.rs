@@ -19,10 +19,20 @@ pub struct AuthTokenPreimage<T> {
     pub data: T,
 }
 
+// Hand-written because the `ReadXDR`/`WriteXDR` derives don't synthesize
+// bounds for generic type params (`T: WriteXDR` on the impl); switch to
+// derives if xdrs grows serde-style bound synthesis for them.
 impl<T: WriteXDR> WriteXDR for AuthTokenPreimage<T> {
     fn write_xdr<F, W: Writer<F>>(&self, w: &mut W) -> WriteResult<()> {
         self.consumer.write_xdr(w)?;
         self.data.write_xdr(w)
+    }
+
+    unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(&self, w: &mut W) {
+        unsafe {
+            self.consumer.write_xdr_unchecked(w);
+            self.data.write_xdr_unchecked(w);
+        }
     }
 }
 

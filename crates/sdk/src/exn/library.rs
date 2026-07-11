@@ -15,7 +15,7 @@ use thiserror::Error;
 /// note: discriminant 8 was once a feature-gated `Storage(StorageError)`
 /// nested enum; it is now the flat `StorageSerialization`, with the other
 /// storage conditions at 9 and 10.)
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[derive(ContractTypeSpec)]
 #[groundhog_macros::exn(version = "1.0.0")]
@@ -166,16 +166,14 @@ impl crate::__contract_spec::ContractTypeName for LibraryExn {
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
-    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
-    crate::contract_abort_encoded(&exn)
+    super::abort_encode::library_abort(&e.into())
 }
 
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(
     e: E,
 ) -> ! {
-    let exn = crate::exn::cross_exn::ContractExn::new(e.into());
-    crate::client_contract_abort_encoded(&exn)
+    super::abort_encode::client_library_abort(&e.into())
 }
 
 /// Throw an exception because a syscall produced an error.
@@ -221,7 +219,7 @@ pub fn encoding_event_throw<E: Display>(e: E) -> ! {
     library_throw(HandlingError::EncodingEvent(FaultString::from_display(e)))
 }
 
-#[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq)]
+#[derive(Debug, Clone, Copy, ReadXDR, WriteXDR, PartialEq, ConstXDRSize)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[derive(ContractTypeSpec)]
 pub struct SyscallExn {
