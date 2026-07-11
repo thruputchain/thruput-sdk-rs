@@ -22,6 +22,7 @@ members = [
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",
+    "codegen_hygiene",
     "codegen_impl_noclient",
     "codegen_impl_client",
     "storage_errors",

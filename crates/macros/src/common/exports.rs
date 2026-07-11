@@ -368,16 +368,16 @@ pub fn generate_method(
         };
 
         let deref = if is_mut {
-            quote! { state_node.deref_mut() }
+            quote! { __gh_state_node.deref_mut() }
         } else {
-            quote! { state_node.deref() }
+            quote! { __gh_state_node.deref() }
         };
 
         quote! {
             use core::ops::{Deref, DerefMut};
-            let #mutability state_node: ::sdk::storage::Node<#self_ty> =
+            let #mutability __gh_state_node: ::sdk::storage::Node<#self_ty> =
                 ::sdk::storage::contract_state_root::<#self_ty>();
-            let #mutability state :&#mutability #self_ty = #deref;
+            let #mutability __gh_state :&#mutability #self_ty = #deref;
         }
     } else {
         // Free function: no state variable at all
@@ -390,9 +390,9 @@ pub fn generate_method(
         if let Some(contract) = contract {
             if let Some(trait_path) = contract.trait_path() {
                 let self_ty = contract.self_ty();
-                quote! { <#self_ty as #trait_path>::#ident(state, #arg_names) }
+                quote! { <#self_ty as #trait_path>::#ident(__gh_state, #arg_names) }
             } else {
-                quote! { state.#ident(#arg_names) }
+                quote! { __gh_state.#ident(#arg_names) }
             }
         } else {
             unreachable!("is_method implies contract source")
