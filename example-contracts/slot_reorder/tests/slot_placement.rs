@@ -95,21 +95,24 @@ fn slot_pins_control_storage_placement() {
         tx.call(&addr.get()).run(AssertUnwindSafe(|| {
             let root = Keypath::default().child("SlotReorder");
 
-            let val_at_slot1: Value<u64> = FromKeypath::from_keypath(&root.child(&1u32));
+            let val_at_slot1: Value<u64> =
+                FromKeypath::from_keypath(&root.child(&1u32));
             assert_eq!(
                 val_at_slot1.get(),
                 11,
                 "`first` (slot 1) should hold 11"
             );
 
-            let val_at_slot0: Value<u64> = FromKeypath::from_keypath(&root.child(&0u32));
+            let val_at_slot0: Value<u64> =
+                FromKeypath::from_keypath(&root.child(&0u32));
             assert_eq!(
                 val_at_slot0.get(),
                 22,
                 "`second` (slot 0) should hold 22"
             );
 
-            let val_at_slot2: Value<u64> = FromKeypath::from_keypath(&root.child(&2u32));
+            let val_at_slot2: Value<u64> =
+                FromKeypath::from_keypath(&root.child(&2u32));
             assert_eq!(
                 val_at_slot2.get(),
                 33,
@@ -179,6 +182,16 @@ fn wide_slot_indices_match_runtime_child() {
     let state = WideSlots::from_keypath(&root);
     assert!(state.a.keypath().addresses_same_slot(&root.child(&63u32)));
     assert!(state.b.keypath().addresses_same_slot(&root.child(&300u32)));
-    assert!(state.c.keypath().addresses_same_slot(&root.child(&70_000u32)));
-    assert!(state.d.keypath().addresses_same_slot(&root.child(&u32::MAX)));
+    assert!(
+        state
+            .c
+            .keypath()
+            .addresses_same_slot(&root.child(&70_000u32))
+    );
+    assert!(
+        state
+            .d
+            .keypath()
+            .addresses_same_slot(&root.child(&u32::MAX))
+    );
 }

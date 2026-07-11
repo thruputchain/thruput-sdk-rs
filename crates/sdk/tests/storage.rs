@@ -494,7 +494,8 @@ fn test_map_at_disjoint_mut_duplicate_panics() {
     );
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
-            let mut map: Map<u32, NNInt> = FromKeypath::from_keypath(&Keypath::default());
+            let mut map: Map<u32, NNInt> =
+                FromKeypath::from_keypath(&Keypath::default());
             map.at_disjoint_mut([&1u32, &1u32]);
         })
     });
@@ -540,13 +541,15 @@ fn test_data_fully_consumed() {
         tx.call(&addr).run(|| {
             let keypath = Keypath::default();
             {
-                let mut value: Value<(i32, i32)> = FromKeypath::from_keypath(&keypath);
+                let mut value: Value<(i32, i32)> =
+                    FromKeypath::from_keypath(&keypath);
                 value.set(&(10, 20));
             }
 
             {
                 // check that the value is read correctly
-                let value: Value<(i32, i32)> = FromKeypath::from_keypath(&keypath);
+                let value: Value<(i32, i32)> =
+                    FromKeypath::from_keypath(&keypath);
                 let (a, b) = value.get();
                 assert_eq!(a, 10);
                 assert_eq!(b, 20);
@@ -600,25 +603,17 @@ fn positional_fields_use_absolute_declaration_index() {
     let root = Keypath::default();
     let s = PositionalAbsoluteIndex::from_keypath(&root);
     // c is the 3rd field -> child(&2u32), NOT child(&1u32).
-    assert!(
-        s.c.keypath().addresses_same_slot(
-            Value::<u64>::from_keypath(&root.child(&2u32)).keypath()
-        )
-    );
-    assert!(
-        !s.c.keypath().addresses_same_slot(
-            Value::<u64>::from_keypath(&root.child(&1u32)).keypath()
-        )
-    );
+    assert!(s.c.keypath().addresses_same_slot(
+        Value::<u64>::from_keypath(&root.child(&2u32)).keypath()
+    ));
+    assert!(!s.c.keypath().addresses_same_slot(
+        Value::<u64>::from_keypath(&root.child(&1u32)).keypath()
+    ));
     // b -> child(&1u32); a -> child(&5u32).
-    assert!(
-        s.b.keypath().addresses_same_slot(
-            Value::<u64>::from_keypath(&root.child(&1u32)).keypath()
-        )
-    );
-    assert!(
-        s.a.keypath().addresses_same_slot(
-            Value::<u64>::from_keypath(&root.child(&5u32)).keypath()
-        )
-    );
+    assert!(s.b.keypath().addresses_same_slot(
+        Value::<u64>::from_keypath(&root.child(&1u32)).keypath()
+    ));
+    assert!(s.a.keypath().addresses_same_slot(
+        Value::<u64>::from_keypath(&root.child(&5u32)).keypath()
+    ));
 }
