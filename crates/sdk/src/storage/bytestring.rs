@@ -54,7 +54,7 @@ impl Bytestring {
     /// of another type). Uses an exclusive store if this key's keypath is
     /// exclusive.
     pub fn set(&mut self, buf: &[u8]) {
-        if self.key.keypath().is_exclusive() {
+        if self.key.is_exclusive() {
             bytestring_set_exclusive(&self.key, buf);
         } else {
             bytestring_set(&self.key, buf);
@@ -103,7 +103,7 @@ impl super::node::StorageType for Bytestring {}
 
 impl super::deletable::Deletable for Bytestring {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.key.keypath().is_exclusive() {
+        let keypath_flags = if self.key.is_exclusive() {
             StorageDeltaFlags::ExclusiveLock
         } else {
             StorageDeltaFlags::None

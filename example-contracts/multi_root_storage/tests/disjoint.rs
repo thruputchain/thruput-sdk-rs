@@ -22,13 +22,13 @@ fn root_subtrees_are_disjoint() {
     let r = contract_state_root::<Registry>();
     // Behavioral: each root is seeded with its ident as the first child
     // frame, so the two subtrees are disjoint.
-    assert!(
-        l.keypath()
-            .addresses_same_slot(&Keypath::default().child("Ledger"))
+    assert_eq!(
+        l.path_bytes(),
+        Keypath::default().child("Ledger").path_bytes()
     );
-    assert!(
-        r.keypath()
-            .addresses_same_slot(&Keypath::default().child("Registry"))
+    assert_eq!(
+        r.path_bytes(),
+        Keypath::default().child("Registry").path_bytes()
     );
-    assert!(!l.keypath().addresses_same_slot(r.keypath()));
+    assert_ne!(l.path_bytes(), r.path_bytes());
 }

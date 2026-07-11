@@ -1,5 +1,5 @@
 use super::deletable::Deletable;
-use super::keypath::{FramedComponent, Keypath};
+use super::keypath::{FramedComponent, KeyCache, Keypath};
 use super::map::Map;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
@@ -10,7 +10,7 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// Element slots are keyed by the element index (`u32`); see [`Map`] for the
 /// key-encoding injectivity invariant that governs the underlying derivation.
 pub struct Vector<S> {
-    keypath: Keypath,
+    key: KeyCache,
     len: Value<u32>,
     values: Map<u32, S>,
 }
@@ -18,7 +18,7 @@ pub struct Vector<S> {
 impl<S> Debug for Vector<S> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Vector")
-            .field("keypath", &self.keypath)
+            .field("keypath", &self.key.path_bytes())
             .field("len", &self.len)
             .finish_non_exhaustive()
     }
@@ -36,7 +36,7 @@ impl<S> From<Keypath> for Vector<S> {
         let values_kp = keypath.child_framed(&VALUES_SLOT);
 
         Self {
-            keypath,
+            key: KeyCache::from(keypath),
             len: Value::from(len_kp),
             values: Map::from(values_kp),
         }
@@ -47,8 +47,11 @@ impl<S> super::sealed::Sealed for Vector<S> {}
 impl<S> super::node::StorageType for Vector<S> {}
 
 impl<S> Vector<S> {
-    pub fn keypath(&self) -> &Keypath {
-        &self.keypath
+    /// Raw preimage bytes of this vector's storage path.
+    ///
+    /// Useful for path-identity comparisons (e.g. drift-guard tests).
+    pub fn path_bytes(&self) -> &[u8] {
+        self.key.path_bytes()
     }
 }
 
@@ -144,7 +147,7 @@ impl<S: StorageType> Vector<S> {
     }
 
     fn make_elem_keypath(&self, index: u32) -> Keypath {
-        self.values.keypath().child(&index)
+        self.values.make_entry_keypath(&index)
     }
 }
 
@@ -281,8 +284,8 @@ mod test_vector_slots {
     fn fixed_slots_match_runtime_child() {
         let root = Keypath::default().child("V");
         let v: Vector<Value<u32>> = Vector::from(root.clone());
-        assert!(v.len.keypath().addresses_same_slot(&root.child(&0u32)));
-        assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
-        assert!(v.keypath().addresses_same_slot(&root));
+        assert_eq!(v.len.path_bytes(), root.child(&0u32).path_bytes());
+        assert_eq!(v.values.path_bytes(), root.child(&1u32).path_bytes());
+        assert_eq!(v.path_bytes(), root.path_bytes());
     }
 }

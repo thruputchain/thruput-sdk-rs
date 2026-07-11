@@ -28,9 +28,11 @@ impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 
 impl<T> Value<T> {
-    /// Return this value's storage keypath.
-    pub fn keypath(&self) -> &Keypath {
-        self.key.keypath()
+    /// Raw preimage bytes of this value's storage path.
+    ///
+    /// Useful for path-identity comparisons (e.g. drift-guard tests).
+    pub fn path_bytes(&self) -> &[u8] {
+        self.key.path_bytes()
     }
 }
 
@@ -93,7 +95,7 @@ where
 
         crate::call::with_scratch(|buf| {
             crate::internal::encode_scratch(buf, value).unwrap();
-            if self.key.keypath().is_exclusive() {
+            if self.key.is_exclusive() {
                 bytestring_set_exclusive(&self.key, buf.as_slice());
             } else {
                 bytestring_set(&self.key, buf.as_slice());
@@ -129,7 +131,7 @@ where
 
 impl<T> super::deletable::Deletable for Value<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.key.keypath().is_exclusive() {
+        let keypath_flags = if self.key.is_exclusive() {
             StorageDeltaFlags::ExclusiveLock
         } else {
             StorageDeltaFlags::None

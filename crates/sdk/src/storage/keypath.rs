@@ -213,9 +213,12 @@ impl Keypath {
         generate_key_from_bytes(self.buf.as_slice())
     }
 
-    /// Raw preimage bytes of this path (crate-visible; used by `KeyCache::path_bytes`
-    /// for the `Owned` arm).
-    pub(crate) fn path_bytes(&self) -> &[u8] {
+    /// Raw preimage bytes of this path.
+    ///
+    /// The sha256 of these bytes is the storage key (see [`generate_key`](Self::generate_key)).
+    /// Useful for path-identity comparisons and drift-guard tests; also returned
+    /// by [`KeyCache::path_bytes`] for the `Owned` arm.
+    pub fn path_bytes(&self) -> &[u8] {
         self.buf.as_slice()
     }
 
@@ -689,12 +692,12 @@ mod test_keycache {
         // `FramedComponent::from_u32(0)` = `Keypath::child(&0u32)` bytes.
         let f: [u8; N_F0] = {
             let mut probe = ConstWriter::<5>::new();
-            probe.write_u32(0u32);               // probe how many bytes CXS(0) uses
-            let v_len = probe.pos() as u32;       // = 1
+            probe.write_u32(0u32); // probe how many bytes CXS(0) uses
+            let v_len = probe.pos() as u32; // = 1
             let mut fw = ConstWriter::<N_F0>::new();
-            fw.write_u32(v_len);                  // length prefix [0x01]
-            fw.write_u32(0u32);                   // value         [0x00]
-            fw.into_bytes()                        // = [0x01, 0x00]
+            fw.write_u32(v_len); // length prefix [0x01]
+            fw.write_u32(0u32); // value         [0x00]
+            fw.into_bytes() // = [0x01, 0x00]
         };
         let mut w = ConstWriter::<N_DG_TOTAL>::new();
         w.write_opaque_fixed(&d);
@@ -709,7 +712,9 @@ mod test_keycache {
     /// frame length prefix take the 2-byte CXS form when the domain is longer
     /// than 62 bytes.
     static LD_F0_PATH: [u8; N_LD_TOTAL] = {
-        let d: [u8; N_LD] = frame_domain::<N_LD>("this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header");
+        let d: [u8; N_LD] = frame_domain::<N_LD>(
+            "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header",
+        );
         let f: [u8; N_F0] = {
             let mut probe = ConstWriter::<5>::new();
             probe.write_u32(0u32);
@@ -776,7 +781,9 @@ mod test_keycache {
     #[test]
     fn keycache_const_and_owned_agree_long_domain() {
         use sha2::Digest;
-        const D_L: [u8; N_LD] = frame_domain::<N_LD>("this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header");
+        const D_L: [u8; N_LD] = frame_domain::<N_LD>(
+            "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header",
+        );
         const FIELD_0: FramedComponent = FramedComponent::from_u32(0);
         let owned =
             Keypath::root(FramedDomain::new(&D_L)).child_framed(&FIELD_0);
@@ -826,8 +833,9 @@ mod test_keycache {
         // Owned arm: path_bytes returns the same bytes every time.
         const D: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
         const F: FramedComponent = FramedComponent::from_u32(0);
-        let owned_cache =
-            KeyCache::from(Keypath::root(FramedDomain::new(&D)).child_framed(&F));
+        let owned_cache = KeyCache::from(
+            Keypath::root(FramedDomain::new(&D)).child_framed(&F),
+        );
         assert_eq!(owned_cache.path_bytes(), owned_cache.path_bytes());
     }
 
@@ -837,8 +845,7 @@ mod test_keycache {
     fn keycache_derive_child_agrees_across_arms() {
         const D: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
         const F: FramedComponent = FramedComponent::from_u32(0);
-        let owned_kp =
-            Keypath::root(FramedDomain::new(&D)).child_framed(&F);
+        let owned_kp = Keypath::root(FramedDomain::new(&D)).child_framed(&F);
         let owned_cache = KeyCache::from(owned_kp);
         let const_cache = KeyCache::from_const(&DG_F0_PATH);
 
@@ -976,33 +983,15 @@ mod keycache {
         ///   duplication of frame-encoding logic.
         ///
         /// Used by `Vector` to derive element keypaths from its `values` map's path.
-        pub fn derive_child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
+        pub fn derive_child<I: WriteXDR + ?Sized>(
+            &self,
+            value: &I,
+        ) -> Keypath {
             match &self.path {
                 PathRepr::Owned(kp) => kp.child(value),
-                PathRepr::Const(bytes) => Keypath::from_bytes(bytes).child(value),
-            }
-        }
-
-        /// Return the inner [`Keypath`].
-        ///
-        /// # Deprecation note (Task 2 shim)
-        ///
-        /// This method exists to allow the build to compile while callers in
-        /// Task 2 are migrated:
-        /// - Callers checking the exclusive flag → [`is_exclusive()`](Self::is_exclusive)
-        /// - Callers comparing paths → [`path_bytes()`](Self::path_bytes)
-        /// - Callers deriving dynamic children → [`derive_child()`](Self::derive_child)
-        ///
-        /// **Task 2 deletes this method.** Panics if called on the `Const` arm.
-        #[doc(hidden)]
-        pub fn keypath(&self) -> &Keypath {
-            match &self.path {
-                PathRepr::Owned(kp) => kp,
-                PathRepr::Const(_) => unimplemented!(
-                    "KeyCache::keypath() shim: const-arm handles carry no owned \
-                     Keypath; migrate callers to path_bytes()/is_exclusive()/\
-                     derive_child() — Task 2 deletes this shim"
-                ),
+                PathRepr::Const(bytes) => {
+                    Keypath::from_bytes(bytes).child(value)
+                }
             }
         }
     }

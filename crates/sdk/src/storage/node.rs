@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{KeyCache, Keypath};
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -13,20 +13,40 @@ pub trait StorageType: Sealed + From<Keypath> {}
 /// Pairs a `T: From<Keypath>` with its root keypath.
 /// Derefs to T for field access.
 pub struct Node<T> {
-    keypath: Keypath,
+    key: KeyCache,
     fields: T,
 }
 
 impl<T: From<Keypath>> From<Keypath> for Node<T> {
     fn from(keypath: Keypath) -> Self {
         let fields = T::from(keypath.clone());
-        Self { keypath, fields }
+        Self {
+            key: KeyCache::from(keypath),
+            fields,
+        }
     }
 }
 
 impl<T> Node<T> {
-    pub fn keypath(&self) -> &Keypath {
-        &self.keypath
+    /// Raw preimage bytes of this node's storage path.
+    ///
+    /// Useful for path-identity comparisons (e.g. drift-guard tests).
+    pub fn path_bytes(&self) -> &[u8] {
+        self.key.path_bytes()
+    }
+
+    /// Construct a `Node<T>` from a const-path byte slice and a pre-built
+    /// fields value.
+    ///
+    /// Called by `#[contract]`-generated code in Task 3 to assemble the
+    /// root skeleton without materializing any owned `Keypath` buffers.
+    /// The `path` slice must be a `'static` preimage assembled at compile
+    /// time (see `KeyCache::from_const`).
+    pub fn from_const_parts(path: &'static [u8], fields: T) -> Node<T> {
+        Node {
+            key: KeyCache::from_const(path),
+            fields,
+        }
     }
 }
 
@@ -124,8 +144,8 @@ mod tests {
         let node: Node<UnitState> = contract_state_root::<UnitState>();
         // The const-framed seed equals the runtime child() frame exactly.
         let expected = Keypath::default().child("UnitState");
-        assert!(node.keypath().addresses_same_slot(&expected));
+        assert_eq!(node.path_bytes(), expected.path_bytes());
         // And it is NOT the bare empty root.
-        assert!(!node.keypath().addresses_same_slot(&Keypath::default()));
+        assert_ne!(node.path_bytes(), Keypath::default().path_bytes());
     }
 }

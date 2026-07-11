@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{KeyCache, Keypath};
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
@@ -28,7 +28,7 @@ use xdrs::WriteXDR;
 /// the two keys onto one slot.
 #[derive(Debug)]
 pub struct Map<K, V> {
-    keypath: Keypath,
+    key: KeyCache,
 
     // The type should be covariant in K and V, but (for drop
     // purposes) doesn't actually own values of either type
@@ -37,14 +37,19 @@ pub struct Map<K, V> {
 
 impl<K, V> From<Keypath> for Map<K, V> {
     fn from(keypath: Keypath) -> Self {
-        let _marker = PhantomData;
-        Self { keypath, _marker }
+        Self {
+            key: KeyCache::from(keypath),
+            _marker: PhantomData,
+        }
     }
 }
 
 impl<K, V> Map<K, V> {
-    pub fn keypath(&self) -> &Keypath {
-        &self.keypath
+    /// Raw preimage bytes of this map's storage path.
+    ///
+    /// Useful for path-identity comparisons (e.g. drift-guard tests).
+    pub fn path_bytes(&self) -> &[u8] {
+        self.key.path_bytes()
     }
 
     pub fn at(&self, entry_key: &K) -> SlotRef<'_, Self, V>
@@ -137,11 +142,11 @@ impl<K, V> Map<K, V> {
         }
     }
 
-    fn make_entry_keypath(&self, entry_key: &K) -> Keypath
+    pub(crate) fn make_entry_keypath(&self, entry_key: &K) -> Keypath
     where
         K: WriteXDR,
     {
-        self.keypath.child(entry_key)
+        self.key.derive_child(entry_key)
     }
 }
 

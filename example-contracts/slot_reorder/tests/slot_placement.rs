@@ -130,43 +130,33 @@ fn keypath_identity_matches_pinned_slot() {
     let state = SlotReorder::from(root.clone());
 
     // `first` is at declaration position 0 but pinned to slot 1.
-    assert!(
-        state
-            .first
-            .keypath()
-            .addresses_same_slot(&root.child(&1u32)),
+    assert_eq!(
+        state.first.path_bytes(),
+        root.child(&1u32).path_bytes(),
         "`first` should address slot 1 (its pinned index)"
     );
-    assert!(
-        !state
-            .first
-            .keypath()
-            .addresses_same_slot(&root.child(&0u32)),
+    assert_ne!(
+        state.first.path_bytes(),
+        root.child(&0u32).path_bytes(),
         "`first` must NOT address slot 0 (its declaration position)"
     );
 
     // `second` is at declaration position 1 but pinned to slot 0.
-    assert!(
-        state
-            .second
-            .keypath()
-            .addresses_same_slot(&root.child(&0u32)),
+    assert_eq!(
+        state.second.path_bytes(),
+        root.child(&0u32).path_bytes(),
         "`second` should address slot 0 (its pinned index)"
     );
-    assert!(
-        !state
-            .second
-            .keypath()
-            .addresses_same_slot(&root.child(&1u32)),
+    assert_ne!(
+        state.second.path_bytes(),
+        root.child(&1u32).path_bytes(),
         "`second` must NOT address slot 1 (its declaration position)"
     );
 
     // `third` is at declaration position 2 with no pin → positional slot 2.
-    assert!(
-        state
-            .third
-            .keypath()
-            .addresses_same_slot(&root.child(&2u32)),
+    assert_eq!(
+        state.third.path_bytes(),
+        root.child(&2u32).path_bytes(),
         "`third` should address slot 2 (positional)"
     );
 }
@@ -177,8 +167,8 @@ fn keypath_identity_matches_pinned_slot() {
 fn wide_slot_indices_match_runtime_child() {
     let root = Keypath::default().child("WideSlots");
     let state = WideSlots::from(root.clone());
-    assert!(state.a.keypath().addresses_same_slot(&root.child(&63u32)));
-    assert!(state.b.keypath().addresses_same_slot(&root.child(&300u32)));
-    assert!(state.c.keypath().addresses_same_slot(&root.child(&70_000u32)));
-    assert!(state.d.keypath().addresses_same_slot(&root.child(&u32::MAX)));
+    assert_eq!(state.a.path_bytes(), root.child(&63u32).path_bytes());
+    assert_eq!(state.b.path_bytes(), root.child(&300u32).path_bytes());
+    assert_eq!(state.c.path_bytes(), root.child(&70_000u32).path_bytes());
+    assert_eq!(state.d.path_bytes(), root.child(&u32::MAX).path_bytes());
 }

@@ -516,16 +516,14 @@ fn storage_domain_defaults_to_ident_and_overrides() {
     // Behavioral: the domain seeds the root keypath as its first child
     // frame. Default is the bare ident; #[storage(domain = "...")] overrides.
     let plain = contract_state_root::<StorageDomainPlain>();
-    assert!(
-        plain.keypath().addresses_same_slot(
-            &Keypath::default().child("StorageDomainPlain")
-        )
+    assert_eq!(
+        plain.path_bytes(),
+        Keypath::default().child("StorageDomainPlain").path_bytes()
     );
     let renamed = contract_state_root::<StorageDomainRenamed>();
-    assert!(
-        renamed
-            .keypath()
-            .addresses_same_slot(&Keypath::default().child("custom"))
+    assert_eq!(
+        renamed.path_bytes(),
+        Keypath::default().child("custom").path_bytes()
     );
 }
 
@@ -582,8 +580,8 @@ fn slot_override_remaps_field_keypath() {
     // b lives at child(&7u32), provably distinct from child(&1u32).
     let expect_b = Value::<u64>::from(root.child(&7u32));
     let other = Value::<u64>::from(root.child(&1u32));
-    assert!(p.b.keypath().addresses_same_slot(expect_b.keypath()));
-    assert!(!p.b.keypath().addresses_same_slot(other.keypath()));
+    assert_eq!(p.b.path_bytes(), expect_b.path_bytes());
+    assert_ne!(p.b.path_bytes(), other.path_bytes());
 }
 
 #[derive(sdk::Storage)]
@@ -600,25 +598,21 @@ fn positional_fields_use_absolute_declaration_index() {
     let root = Keypath::default();
     let s = PositionalAbsoluteIndex::from(root.clone());
     // c is the 3rd field -> child(&2u32), NOT child(&1u32).
-    assert!(
-        s.c.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&2u32)).keypath()
-        )
+    assert_eq!(
+        s.c.path_bytes(),
+        Value::<u64>::from(root.child(&2u32)).path_bytes()
     );
-    assert!(
-        !s.c.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&1u32)).keypath()
-        )
+    assert_ne!(
+        s.c.path_bytes(),
+        Value::<u64>::from(root.child(&1u32)).path_bytes()
     );
     // b -> child(&1u32); a -> child(&5u32).
-    assert!(
-        s.b.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&1u32)).keypath()
-        )
+    assert_eq!(
+        s.b.path_bytes(),
+        Value::<u64>::from(root.child(&1u32)).path_bytes()
     );
-    assert!(
-        s.a.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&5u32)).keypath()
-        )
+    assert_eq!(
+        s.a.path_bytes(),
+        Value::<u64>::from(root.child(&5u32)).path_bytes()
     );
 }

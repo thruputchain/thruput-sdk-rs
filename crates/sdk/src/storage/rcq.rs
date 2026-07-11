@@ -48,9 +48,11 @@ impl<T> From<Keypath> for RCQ<T> {
 }
 
 impl<T> RCQ<T> {
-    /// Retrieve the storage keypath of the RCQ item.
-    pub fn keypath(&self) -> &Keypath {
-        self.key.keypath()
+    /// Raw preimage bytes of this queue's storage path.
+    ///
+    /// Useful for path-identity comparisons (e.g. drift-guard tests).
+    pub fn path_bytes(&self) -> &[u8] {
+        self.key.path_bytes()
     }
 
     /// Retrieve the storage key of the RCQ item.
@@ -187,7 +189,7 @@ impl<S> super::node::StorageType for RCQ<S> {}
 
 impl<T> super::deletable::Deletable for RCQ<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.keypath().is_exclusive() {
+        let keypath_flags = if self.key.is_exclusive() {
             StorageDeltaFlags::ExclusiveLock
         } else {
             StorageDeltaFlags::None
