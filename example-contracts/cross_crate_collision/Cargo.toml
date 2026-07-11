@@ -1,0 +1,5 @@
+# Stand-alone workspace: deliberately-colliding fixture, only ever built by
+# scripts/check-domain-collision-detected.sh (which asserts its test FAILS).
+[workspace]
+members = ["alpha", "beta", "wrapper"]
+resolver = "2"

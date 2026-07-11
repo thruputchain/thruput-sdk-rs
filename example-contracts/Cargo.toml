@@ -56,6 +56,7 @@ members = [
 
 exclude = [
     "multi_root_collision",
+    "cross_crate_collision",
 ]
 
 [workspace.package]

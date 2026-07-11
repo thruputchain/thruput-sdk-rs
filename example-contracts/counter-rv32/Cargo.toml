@@ -22,3 +22,6 @@ required-features = ["entrypoints"]
 [dependencies]
 counter = { path = "../counter" }
 sdk = { workspace = true }
+
+[dev-dependencies]
+counter = { path = "../counter", features = ["dev"] }

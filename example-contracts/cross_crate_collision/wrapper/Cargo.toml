@@ -1,0 +1,26 @@
+[package]
+name = "wrapper"
+description = "Bin wrapper linking alpha+beta; its uniqueness test must FAIL"
+version = "0.4.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+publish = false
+edition = "2024"
+
+[features]
+entrypoints = ["alpha/entrypoints", "beta/entrypoints"]
+
+[[bin]]
+name = "wrapper"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+alpha = { path = "../alpha" }
+beta = { path = "../beta" }
+sdk = { path = "../../../crates/sdk", registry = "groundhog", version = "=0.17.1" }
+
+[dev-dependencies]
+alpha = { path = "../alpha", features = ["dev"] }
+beta = { path = "../beta", features = ["dev"] }
+sdk = { path = "../../../crates/sdk", registry = "groundhog", version = "=0.17.1", features = ["dev"] }
