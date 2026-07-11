@@ -472,7 +472,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                                     &__BYTES
                                 };
 
-                                #[inline(always)]
+                                #[inline(never)]
                                 fn const_root() -> Self {
                                     // Domain frame length — shared across all
                                     // per-field path computations. The domain literal

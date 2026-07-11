@@ -988,6 +988,10 @@ mod keycache {
         ///   duplication of frame-encoding logic.
         ///
         /// Used by `Vector` to derive element keypaths from its `values` map's path.
+        // Outlined: shares the two-arm (Const/Owned) body across all call
+        // sites instead of inlining it into every Map/Vector accessor
+        // (measured: material wasm codesize on storage-heavy contracts).
+        #[inline(never)]
         pub fn derive_child<I: WriteXDR + ?Sized>(
             &self,
             value: &I,
