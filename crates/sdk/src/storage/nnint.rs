@@ -1,4 +1,5 @@
 use super::keypath::{KeyCache, Keypath};
+use super::node::FromConstPath;
 use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
@@ -134,6 +135,16 @@ impl NNInt {
 
 impl super::sealed::Sealed for NNInt {}
 impl super::node::StorageType for NNInt {}
+
+impl FromConstPath for NNInt {
+    /// Construct a `NNInt` from a `'static` const preimage path.
+    /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    fn __sdk_from_const_path(path: &'static [u8]) -> Self {
+        Self {
+            key: KeyCache::from_const(path),
+        }
+    }
+}
 
 impl super::deletable::Deletable for NNInt {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {

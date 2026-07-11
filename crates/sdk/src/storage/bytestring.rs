@@ -1,4 +1,5 @@
 use super::keypath::{KeyCache, Keypath};
+use super::node::FromConstPath;
 use crate::sys_exn::bytestring::*;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -100,6 +101,16 @@ impl Bytestring {
 
 impl super::sealed::Sealed for Bytestring {}
 impl super::node::StorageType for Bytestring {}
+
+impl FromConstPath for Bytestring {
+    /// Construct a `Bytestring` from a `'static` const preimage path.
+    /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    fn __sdk_from_const_path(path: &'static [u8]) -> Self {
+        Self {
+            key: KeyCache::from_const(path),
+        }
+    }
+}
 
 impl super::deletable::Deletable for Bytestring {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {

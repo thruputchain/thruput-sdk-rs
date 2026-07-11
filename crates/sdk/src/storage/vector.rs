@@ -1,7 +1,7 @@
 use super::deletable::Deletable;
 use super::keypath::{FramedComponent, KeyCache, Keypath};
 use super::map::Map;
-use super::node::StorageType;
+use super::node::{FromConstPath, StorageType};
 use super::slot::{SlotMut, SlotRef};
 use super::value::Value;
 use core::fmt::Debug;
@@ -45,6 +45,18 @@ impl<S> From<Keypath> for Vector<S> {
 
 impl<S> super::sealed::Sealed for Vector<S> {}
 impl<S> super::node::StorageType for Vector<S> {}
+
+impl<S: StorageType> FromConstPath for Vector<S> {
+    /// Construct a `Vector<S>` from a `'static` const preimage path.
+    ///
+    /// `Vector` has internal sub-fields (`len`, `values`) that need
+    /// their own derived paths; this uses `Keypath::from_bytes` to seed
+    /// a runtime Keypath, then delegates to `From<Keypath>` — one copy
+    /// of the prefix bytes, then today's sub-field construction.
+    fn __sdk_from_const_path(path: &'static [u8]) -> Self {
+        Self::from(Keypath::from_bytes(path))
+    }
+}
 
 impl<S> Vector<S> {
     /// Raw preimage bytes of this vector's storage path.

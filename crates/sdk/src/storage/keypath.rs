@@ -224,10 +224,13 @@ impl Keypath {
 
     /// Seed a `Keypath` from raw framed preimage bytes.
     ///
-    /// Used by `KeyCache::derive_child` for the `Const` arm: builds a fresh
-    /// `Keypath` containing the const bytes, then delegates to the existing
-    /// `child()` logic — no duplication of frame-encoding.
-    pub(crate) fn from_bytes(bytes: &[u8]) -> Self {
+    /// Used by `KeyCache::derive_child` for the `Const` arm and by
+    /// `derive(Storage)`-generated `FromConstPath` fallback impls: builds a
+    /// fresh `Keypath` containing the const bytes, then delegates to the
+    /// existing `child()` logic — no duplication of frame-encoding. Not
+    /// intended for direct use.
+    #[doc(hidden)]
+    pub fn from_bytes(bytes: &[u8]) -> Self {
         let mut kp = Self::default();
         kp.buf.append_bytes(bytes);
         kp
@@ -939,7 +942,7 @@ mod keycache {
 
         /// The raw preimage bytes of this handle's storage path.
         ///
-        /// - `Const` arm: the `'static` slice supplied to [`from_const`].
+        /// - `Const` arm: the `'static` slice supplied to [`Self::from_const`].
         /// - `Owned` arm: the internal byte buffer of the wrapped [`Keypath`].
         ///
         /// `sha256` of this slice is the storage key (see [`get`](Self::get)).
@@ -953,7 +956,7 @@ mod keycache {
         /// Whether this handle carries an exclusive access-mode flag.
         ///
         /// `Const` arm: always `false`. Root-skeleton handles constructed via
-        /// [`from_const`] are never map-entry exclusive handles —
+        /// [`Self::from_const`] are never map-entry exclusive handles —
         /// `Map::at_mut_exclusive` calls `Keypath::set_exclusive` before
         /// `V::from(keypath)`, so exclusivity only ever appears on `Owned` arms.
         ///

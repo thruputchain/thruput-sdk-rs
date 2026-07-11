@@ -1,4 +1,5 @@
 use super::keypath::{KeyCache, Keypath};
+use super::node::FromConstPath;
 use crate::StorageKey;
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
@@ -186,6 +187,17 @@ where
 
 impl<S> super::sealed::Sealed for RCQ<S> {}
 impl<S> super::node::StorageType for RCQ<S> {}
+
+impl<T> FromConstPath for RCQ<T> {
+    /// Construct a `RCQ<T>` from a `'static` const preimage path.
+    /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    fn __sdk_from_const_path(path: &'static [u8]) -> Self {
+        Self {
+            key: KeyCache::from_const(path),
+            phantom_entry: core::marker::PhantomData,
+        }
+    }
+}
 
 impl<T> super::deletable::Deletable for RCQ<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {

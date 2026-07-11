@@ -20,37 +20,7 @@ fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
-
-    // Override via #[storage_domain = "..."], else the bare ident.
-    let mut domain: Option<syn::LitStr> = None;
-    for attr in &input.attrs {
-        if attr.path().is_ident("storage_domain") {
-            let lit = match &attr.meta {
-                syn::Meta::NameValue(syn::MetaNameValue {
-                    value:
-                        syn::Expr::Lit(syn::ExprLit {
-                            lit: syn::Lit::Str(s),
-                            ..
-                        }),
-                    ..
-                }) => s.clone(),
-                _ => {
-                    return Err(syn::Error::new_spanned(
-                        attr,
-                        "#[storage_domain] must be `storage_domain = \"...\"`",
-                    ));
-                }
-            };
-            domain = Some(lit);
-        }
-    }
-    let domain_lit = match domain {
-        Some(s) => quote! { #s },
-        None => {
-            let name = ident.to_string();
-            quote! { #name }
-        }
-    };
+    let domain_lit = extract_domain_lit(input)?;
 
     Ok(quote! {
         const _: () = {
@@ -74,10 +44,48 @@ fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
     })
 }
 
+/// Extract the domain string literal from `#[storage_domain = "..."]` or
+/// default to the struct's bare identifier name.
+fn extract_domain_lit(
+    input: &syn::DeriveInput,
+) -> Result<proc_macro2::TokenStream> {
+    let ident = &input.ident;
+    let mut domain: Option<syn::LitStr> = None;
+    for attr in &input.attrs {
+        if attr.path().is_ident("storage_domain") {
+            let lit = match &attr.meta {
+                syn::Meta::NameValue(syn::MetaNameValue {
+                    value:
+                        syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Str(s),
+                            ..
+                        }),
+                    ..
+                }) => s.clone(),
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        "#[storage_domain] must be `storage_domain = \"...\"`",
+                    ));
+                }
+            };
+            domain = Some(lit);
+        }
+    }
+    Ok(match domain {
+        Some(s) => quote! { #s },
+        None => {
+            let name = ident.to_string();
+            quote! { #name }
+        }
+    })
+}
+
 pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     let item = &input.data;
     let storage_impls = generate_from_data(input, item)?;
     let domain_impl = storage_domain_impl(input)?;
+    let const_root_impl = const_root_state_impl(input)?;
 
     let ident = &input.ident;
     let ident_lower =
@@ -91,6 +99,7 @@ pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
 
             #storage_impls
             #domain_impl
+            #const_root_impl
         }
 
     })
@@ -242,6 +251,254 @@ fn impl_from_keypath(
     })
 }
 
+/// Generate `ConstRootState` and `FromConstPath` impls for the storage struct.
+///
+/// For each named field at slot index `idx`, emits a compile-time
+/// `DOMAIN_FRAME ‖ FIELD_FRAME(idx)` path and constructs the field via
+/// `<FieldType as FromConstPath>::__sdk_from_const_path(&PATH)`.
+///
+/// Wire-safety: the byte assembly mirrors `test_keycache::keycache_const_and_owned_agree`
+/// exactly — `frame_domain` for the domain frame, then the `ConstWriter`
+/// pattern for the field frame, concatenated via `ConstWriter::write_opaque_fixed`.
+/// If the drift tests in `keypath.rs` pass, this output is wire-correct.
+fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
+    let ident = &input.ident;
+    let domain_lit = extract_domain_lit(input)?;
+
+    match &input.data {
+        syn::Data::Struct(item) => {
+            let fields = &item.fields;
+            match fields {
+                syn::Fields::Unit => {
+                    // Unit struct: const_root() is trivial.
+                    let generics = input.generics.clone();
+                    let (impl_generics, ty_generics, where_clause) =
+                        generics.split_for_impl();
+                    Ok(quote! {
+                        const _: () = {
+                            use ::sdk::storage::*;
+
+                            impl #impl_generics ::sdk::storage::ConstRootState
+                                for #ident #ty_generics #where_clause
+                            {
+                                const ROOT_PATH: &'static [u8] = {
+                                    const __N: usize =
+                                        ::sdk::storage::framed_domain_len(#domain_lit);
+                                    const __BYTES: [u8; __N] =
+                                        ::sdk::storage::frame_domain::<__N>(#domain_lit);
+                                    &__BYTES
+                                };
+
+                                fn const_root() -> Self {
+                                    Self
+                                }
+                            }
+
+                            impl #impl_generics ::sdk::storage::FromConstPath
+                                for #ident #ty_generics #where_clause
+                            {
+                                fn __sdk_from_const_path(
+                                    _path: &'static [u8],
+                                ) -> Self {
+                                    Self
+                                }
+                            }
+                        };
+                    })
+                }
+                syn::Fields::Named(fields_named) => {
+                    let named_fields = &fields_named.named;
+
+                    // Collect field names, types, and resolved slot indices
+                    // (duplicate detection already happened in impl_from_keypath;
+                    // we re-parse here for the slot indices only).
+                    let mut field_info: Vec<(
+                        &syn::Field,
+                        &syn::Type,
+                        u32, // slot index
+                    )> = Vec::new();
+
+                    for (i, field) in named_fields.iter().enumerate() {
+                        let field_type = &field.ty;
+                        let mut idx: u32 = i as u32;
+                        for attr in &field.attrs {
+                            if attr.path().is_ident("slot") {
+                                if let Ok(lit) =
+                                    attr.parse_args::<syn::LitInt>()
+                                {
+                                    if let Ok(v) = lit.base10_parse::<u32>() {
+                                        idx = v;
+                                    }
+                                }
+                            }
+                        }
+                        field_info.push((field, field_type, idx));
+                    }
+
+                    // Build the per-field const declarations and the
+                    // const_root() body.
+                    //
+                    // Names like __N_F_0, __PATH_0 are indexed by field
+                    // position `i` (not slot index) to guarantee uniqueness
+                    // even when two fields share a slot index — which would
+                    // be caught as an error by impl_from_keypath before this
+                    // runs.
+                    let mut path_consts = TokenStream::new();
+                    let mut field_inits = TokenStream::new();
+                    let mut field_names_ts = TokenStream::new();
+
+                    // ConstRootState where-clause bounds:
+                    // FieldType: FromConstPath for each field
+                    let mut generics: syn::Generics = input.generics.clone();
+                    // Also need StorageDomain supertrait satisfied —
+                    // the StorageDomain impl is generated separately; just
+                    // add the FromConstPath bounds here.
+
+                    for (i, (field, field_type, idx)) in
+                        field_info.iter().enumerate()
+                    {
+                        let field_name = &field.ident;
+                        let n_f_name = format_ident!("__N_F_{}", i);
+                        let n_total_name = format_ident!("__N_TOTAL_{}", i);
+                        let path_name = format_ident!("__PATH_{}", i);
+
+                        // Emit per-field consts and static path inside
+                        // the function body (where statics are allowed).
+                        // __N_D is shared across all fields (declared once
+                        // before the loop output is assembled).
+                        //
+                        // WIRE SPEC: the byte layout is
+                        //   DOMAIN_FRAME ‖ FIELD_FRAME(idx)
+                        // mirroring `DG_F0_PATH` in test_keycache exactly.
+                        path_consts.extend(quote! {
+                            const #n_f_name: usize =
+                                ::sdk::storage::FramedComponent::from_u32(#idx).len_bytes();
+                            const #n_total_name: usize = __N_D + #n_f_name;
+                            // WIRE SPEC: assemble DOMAIN_FRAME ‖ FIELD_FRAME(idx)
+                            // using the same ConstWriter codec as the drift test.
+                            static #path_name: [u8; #n_total_name] = {
+                                let d: [u8; __N_D] =
+                                    ::sdk::storage::frame_domain::<__N_D>(#domain_lit);
+                                let f: [u8; #n_f_name] = {
+                                    let mut probe =
+                                        ::sdk::__xdrs::cxs::ConstWriter::<5>::new();
+                                    probe.write_u32(#idx);
+                                    let v_len = probe.pos() as u32;
+                                    let mut fw =
+                                        ::sdk::__xdrs::cxs::ConstWriter::<#n_f_name>::new();
+                                    fw.write_u32(v_len);
+                                    fw.write_u32(#idx);
+                                    fw.into_bytes()
+                                };
+                                let mut w =
+                                    ::sdk::__xdrs::cxs::ConstWriter::<#n_total_name>::new();
+                                w.write_opaque_fixed(&d);
+                                w.write_opaque_fixed(&f);
+                                w.into_bytes()
+                            };
+                        });
+
+                        field_inits.extend(quote! {
+                            let #field_name = <#field_type as ::sdk::storage::FromConstPath>
+                                ::__sdk_from_const_path(&#path_name);
+                        });
+                        field_names_ts.extend(quote! { #field_name, });
+
+                        // Add FromConstPath bound for this field type
+                        generics.make_where_clause().predicates.push(
+                            syn::parse_quote!(#field_type: ::sdk::storage::FromConstPath),
+                        );
+                    }
+
+                    // We need StorageDomain as supertrait — it's generated
+                    // by storage_domain_impl for the same struct, so the
+                    // bound is always satisfied.
+                    let (impl_generics, ty_generics, where_clause) =
+                        generics.split_for_impl();
+
+                    // Also build the FromConstPath fallback impl (for when
+                    // this struct appears as a nested field): uses today's
+                    // From<Keypath> with Keypath::from_bytes — one prefix
+                    // copy (the v1 depth-1 rule).
+                    let mut from_const_path_generics = input.generics.clone();
+                    for (_, field_type, _) in &field_info {
+                        from_const_path_generics
+                            .make_where_clause()
+                            .predicates
+                            .push(syn::parse_quote!(
+                                #field_type: ::sdk::storage::FromConstPath
+                            ));
+                        from_const_path_generics
+                            .make_where_clause()
+                            .predicates
+                            .push(syn::parse_quote!(
+                                #field_type: From<::sdk::storage::Keypath>
+                            ));
+                    }
+                    let (fcp_impl_generics, _, fcp_where_clause) =
+                        from_const_path_generics.split_for_impl();
+
+                    Ok(quote! {
+                        const _: () = {
+                            use ::sdk::storage::*;
+
+                            impl #impl_generics ::sdk::storage::ConstRootState
+                                for #ident #ty_generics #where_clause
+                            {
+                                const ROOT_PATH: &'static [u8] = {
+                                    const __N: usize =
+                                        ::sdk::storage::framed_domain_len(#domain_lit);
+                                    const __BYTES: [u8; __N] =
+                                        ::sdk::storage::frame_domain::<__N>(#domain_lit);
+                                    &__BYTES
+                                };
+
+                                fn const_root() -> Self {
+                                    // Domain frame length — shared across all
+                                    // per-field path computations.
+                                    const __N_D: usize =
+                                        ::sdk::storage::framed_domain_len(#domain_lit);
+
+                                    // Per-field path consts and statics:
+                                    // each assembles DOMAIN_FRAME ‖ FIELD_FRAME(idx)
+                                    // in a function-scoped static so it is
+                                    // initialised once and reused.
+                                    #path_consts
+
+                                    // Construct every field from its const path.
+                                    #field_inits
+
+                                    Self {
+                                        #field_names_ts
+                                    }
+                                }
+                            }
+
+                            impl #fcp_impl_generics ::sdk::storage::FromConstPath
+                                for #ident #ty_generics #fcp_where_clause
+                            {
+                                /// v1 depth-1 rule: when this struct appears as
+                                /// a nested field of another storage struct,
+                                /// build ONE owned Keypath from the const prefix
+                                /// and delegate to today's `From<Keypath>`.
+                                fn __sdk_from_const_path(
+                                    path: &'static [u8],
+                                ) -> Self {
+                                    Self::from(
+                                        ::sdk::storage::Keypath::from_bytes(path),
+                                    )
+                                }
+                            }
+                        };
+                    })
+                }
+                _ => err(fields, "Can only handle named or unit structs"),
+            }
+        }
+        _ => err(input, "Can only derive Storage for structs"),
+    }
+}
+
 // Produce an error referencing a particular code span
 fn err<T, S, M>(spanned: &S, msg: M) -> Result<T>
 where
@@ -249,4 +506,91 @@ where
     M: AsRef<str>,
 {
     Err(syn::Error::new(spanned.span(), msg.as_ref()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::generate_impls;
+
+    #[test]
+    fn named_struct_contains_const_root_state_impl() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct Counter {
+                value: NNInt,
+            }
+        };
+        let tokens = generate_impls(&input).unwrap().to_string();
+        // ConstRootState impl present
+        assert!(
+            tokens.contains("ConstRootState"),
+            "missing ConstRootState: {tokens}"
+        );
+        // const_root method
+        assert!(
+            tokens.contains("const_root"),
+            "missing const_root: {tokens}"
+        );
+        // ROOT_PATH associated const
+        assert!(tokens.contains("ROOT_PATH"), "missing ROOT_PATH: {tokens}");
+        // calls __sdk_from_const_path for the leaf field
+        assert!(
+            tokens.contains("__sdk_from_const_path"),
+            "missing __sdk_from_const_path: {tokens}"
+        );
+        // static path array present (__PATH_0)
+        assert!(
+            tokens.contains("__PATH_0"),
+            "missing __PATH_0 static: {tokens}"
+        );
+        // FromConstPath fallback impl
+        assert!(
+            tokens.contains("FromConstPath"),
+            "missing FromConstPath: {tokens}"
+        );
+        // NO keypath.clone() in the const-root path
+        assert!(
+            !tokens.contains("keypath . clone"),
+            "unexpected keypath.clone() in const-root: {tokens}"
+        );
+    }
+
+    #[test]
+    fn unit_struct_gets_const_root_state() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct UnitState;
+        };
+        let tokens = generate_impls(&input).unwrap().to_string();
+        assert!(tokens.contains("ConstRootState"), "{tokens}");
+        assert!(tokens.contains("const_root"), "{tokens}");
+        assert!(tokens.contains("ROOT_PATH"), "{tokens}");
+    }
+
+    #[test]
+    fn multi_field_struct_emits_path_per_field() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct State {
+                a: Value<u32>,
+                b: NNInt,
+            }
+        };
+        let tokens = generate_impls(&input).unwrap().to_string();
+        // Expect __PATH_0 for field 'a' and __PATH_1 for field 'b'
+        assert!(tokens.contains("__PATH_0"), "{tokens}");
+        assert!(tokens.contains("__PATH_1"), "{tokens}");
+    }
+
+    #[test]
+    fn slot_override_uses_correct_index_in_path() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct State {
+                #[slot(5)]
+                first: Value<u32>,
+            }
+        };
+        let tokens = generate_impls(&input).unwrap().to_string();
+        // The path for field 0 (positional) with slot override 5 should use
+        // FramedComponent::from_u32(5u32) — i.e., the literal 5 appears in
+        // the path const assembly.
+        assert!(tokens.contains("5u32"), "{tokens}");
+    }
 }

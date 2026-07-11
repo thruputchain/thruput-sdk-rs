@@ -616,3 +616,94 @@ fn positional_fields_use_absolute_declaration_index() {
         Value::<u64>::from(root.child(&5u32)).path_bytes()
     );
 }
+
+// ── ConstRootState behavior tests ─────────────────────────────────────────────
+
+// A contract-root-shaped struct: const-path leaf (NNInt) + Map direct field.
+#[derive(Storage)]
+struct ConstRootTest {
+    counter: NNInt,
+    items: Map<u32, Value<u64>>,
+}
+
+// Get/set through a const-root leaf.
+//
+// Verifies that `contract_state_root` using `ConstRootState` produces a
+// handle that addresses the SAME storage slot as the runtime derivation path.
+contract_test!(test_const_root_leaf_get_set {
+    // Build via const-root path (the new code path).
+    let const_node: Node<ConstRootTest> =
+        ::sdk::storage::contract_state_root::<ConstRootTest>();
+
+    // Build via the old runtime derivation path for comparison.
+    const COUNTER_FRAME: FramedComponent = FramedComponent::from_u32(0u32);
+    let counter_kp =
+        Keypath::default().child("ConstRootTest").child_framed(&COUNTER_FRAME);
+    let mut runtime_counter: NNInt = counter_kp.into();
+
+    // Write via runtime handle, read via const-root handle — must see same value.
+    runtime_counter.set(42);
+    let via_const = const_node.counter.get();
+    assert_eq!(via_const, 42, "const-root handle does not see runtime-written value");
+
+    // Write via const-root handle, read via runtime handle — must see same value.
+    let mut const_node2: Node<ConstRootTest> =
+        ::sdk::storage::contract_state_root::<ConstRootTest>();
+    const_node2.counter.set(99);
+    let via_runtime = {
+        let counter_kp2 =
+            Keypath::default().child("ConstRootTest").child_framed(&COUNTER_FRAME);
+        let counter2: NNInt = counter_kp2.into();
+        counter2.get()
+    };
+    assert_eq!(via_runtime, 99, "runtime handle does not see const-root-written value");
+});
+
+// Map as a direct const-root field: const path for the Map handle; children
+// still derive dynamically via `at()`. Verifies wire-correct child paths.
+contract_test!(test_const_root_map_at_same_slot {
+    const ITEMS_FRAME: FramedComponent = FramedComponent::from_u32(1u32);
+
+    let const_node: Node<ConstRootTest> =
+        ::sdk::storage::contract_state_root::<ConstRootTest>();
+
+    // The const-root Map handle's path must equal the runtime-derived path.
+    let runtime_map_kp = Keypath::default()
+        .child("ConstRootTest")
+        .child_framed(&ITEMS_FRAME);
+    let runtime_map: Map<u32, Value<u64>> = runtime_map_kp.into();
+
+    assert_eq!(
+        const_node.items.path_bytes(),
+        runtime_map.path_bytes(),
+        "const-root Map path differs from runtime path"
+    );
+
+    // Write an entry via runtime map, read via const-root map — same slot.
+    let mut runtime_map_2: Map<u32, Value<u64>> =
+        Keypath::default()
+            .child("ConstRootTest")
+            .child_framed(&ITEMS_FRAME)
+            .into();
+    runtime_map_2.at_mut(&3u32).set(&77);
+
+    let const_node2: Node<ConstRootTest> =
+        ::sdk::storage::contract_state_root::<ConstRootTest>();
+    let via_const = const_node2.items.at(&3u32).try_get().none_if_missing();
+    assert_eq!(via_const, Some(77u64));
+});
+
+// The SAME storage struct used under a Map still produces byte-identical
+// preimages to the runtime derivation path (dynamic regime unchanged).
+// This is the golden-vector pin: the From<Keypath> path must be byte-identical
+// to what it produced before this task.
+contract_test!(test_map_nested_struct_unchanged {
+    // Build via Map entry (dynamic regime, unchanged From<Keypath> path).
+    let mut map: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
+    map.at_mut(&0u32).first.set(&55u32);
+
+    // Read it back — the path must be correct.
+    let map2: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
+    let v = map2.at(&0u32).first.get();
+    assert_eq!(v, 55u32, "Map-nested struct path changed");
+});

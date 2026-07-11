@@ -1,4 +1,5 @@
 use super::keypath::{KeyCache, Keypath};
+use super::node::FromConstPath;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use core::fmt::Debug;
@@ -173,3 +174,16 @@ impl<Owner, S, const N: usize> DerefMut for DisjointMut<'_, Owner, S, N> {
 
 impl<K, V> super::sealed::Sealed for Map<K, V> {}
 impl<K, V> super::node::StorageType for Map<K, V> {}
+
+impl<K, V> FromConstPath for Map<K, V> {
+    /// Construct a `Map<K, V>` from a `'static` const preimage path.
+    /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    /// Child paths are derived at `at()` / `at_mut()` call time via
+    /// `KeyCache::derive_child`, as Task 2 wired for the `Const` arm.
+    fn __sdk_from_const_path(path: &'static [u8]) -> Self {
+        Self {
+            key: KeyCache::from_const(path),
+            _marker: core::marker::PhantomData,
+        }
+    }
+}

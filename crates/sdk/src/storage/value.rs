@@ -1,5 +1,6 @@
 // src/storage/value.rs
 use super::keypath::*;
+use super::node::FromConstPath;
 use core::marker::PhantomData;
 pub use core::ops::{Deref, DerefMut};
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -26,6 +27,17 @@ impl<T> From<Keypath> for Value<T> {
 
 impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
+
+impl<T> FromConstPath for Value<T> {
+    /// Construct a `Value<T>` from a `'static` const preimage path.
+    /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    fn __sdk_from_const_path(path: &'static [u8]) -> Self {
+        Self {
+            key: KeyCache::from_const(path),
+            _marker: PhantomData,
+        }
+    }
+}
 
 impl<T> Value<T> {
     /// Raw preimage bytes of this value's storage path.
