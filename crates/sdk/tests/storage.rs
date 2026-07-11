@@ -708,17 +708,20 @@ contract_test!(test_const_root_map_at_same_slot {
 // preimages to the runtime derivation path (dynamic regime unchanged).
 //
 // Golden-vector pin: asserts the EXACT wire bytes for
-// `Map<u32, Node<InnerValuePair>>` at key 0u32, field `first` (slot 0).
+// `Map<u32, Node<InnerValuePair>>` at key 5u32, field `second` (slot 1).
+// Key 5 / slot 1 are deliberately DIFFERENT values so the golden is
+// order-sensitive: a frame-order swap or double-append bug cannot pass
+// (key 0 / slot 0 produced a palindromic golden).
 //
 // Derivation (from the wire rules):
 //   base path = Keypath::default() = [] (empty)
-//   map.at(&0u32) = child(&0u32):
-//     0u32 CXS-encodes to [0x00] (1 byte).
+//   map.at(&5u32) = child(&5u32):
+//     5u32 CXS-encodes to [0x05] (1 byte).
 //     Outer length prefix CXS(1) = [0x01].
-//     Frame: [0x01, 0x00]
-//   InnerValuePair.first at slot 0 = child_framed(FramedComponent::from_u32(0)):
-//     FramedComponent::from_u32(0) = CXS(len=1) ‖ CXS(0) = [0x01, 0x00]
-//   Combined: [0x01, 0x00, 0x01, 0x00]
+//     Frame: [0x01, 0x05]
+//   InnerValuePair.second at slot 1 = child_framed(FramedComponent::from_u32(1)):
+//     FramedComponent::from_u32(1) = CXS(len=1) ‖ CXS(1) = [0x01, 0x01]
+//   Combined: [0x01, 0x05, 0x01, 0x01]
 #[test]
 fn test_map_nested_struct_unchanged() {
     let env = sdk::TestEnvironment::no_cost();
@@ -730,22 +733,22 @@ fn test_map_nested_struct_unchanged() {
         tx.call(&addr).run(|| {
             let mut map: Map<u32, Node<InnerValuePair>> =
                 Keypath::default().into();
-            map.at_mut(&0u32).first.set(&55u32);
+            map.at_mut(&5u32).second.set(&55u64);
 
-            // Golden bytes: map key 0u32 frame ‖ field-0 frame.
+            // Golden bytes: map key 5u32 frame ‖ field-1 frame.
             // See derivation comment above for how these bytes are computed.
-            const GOLDEN: &[u8] = &[0x01, 0x00, 0x01, 0x00];
+            const GOLDEN: &[u8] = &[0x01, 0x05, 0x01, 0x01];
             let map2: Map<u32, Node<InnerValuePair>> = Keypath::default().into();
-            let entry = map2.at(&0u32);
+            let entry = map2.at(&5u32);
             assert_eq!(
-                entry.first.path_bytes(),
+                entry.second.path_bytes(),
                 GOLDEN,
                 "Map-nested struct wire bytes changed — From<Keypath> path drifted"
             );
 
             // Functional check: same path means same storage.
-            let v = entry.first.get();
-            assert_eq!(v, 55u32, "Map-nested struct path changed");
+            let v = entry.second.get();
+            assert_eq!(v, 55u64, "Map-nested struct path changed");
         })
     });
     assert!(result.is_success());
