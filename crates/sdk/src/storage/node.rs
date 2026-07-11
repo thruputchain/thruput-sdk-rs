@@ -165,12 +165,16 @@ pub trait StorageDomain {
 /// the whole skeleton with zero keypath copies: the `Node`'s own path is the
 /// static domain frame; each direct leaf field is a `Const`-arm handle.
 /// Called by `#[contract]`-generated code; not intended for direct use.
-// #[inline(always)]: guarantees the Const-arm struct-init stores are written
-// directly into the caller's frame — no sret round-trip, no PathRepr moves.
-// The body is ≤14 instructions for a single-leaf root; duplication per
-// entrypoint is negligible compared to the per-call savings.
+// #[inline(never)]: keep ONE shared skeleton builder per contract rather than
+// duplicating the assembly into every method entrypoint. sret already places
+// the returned Node directly in the caller's slot, so outlining adds no copy
+// (the Const-arm skeleton still builds with zero keypath memcpys — verified on
+// counter). Measured strictly smaller than #[inline(always)] across the fleet
+// (storage_errors +272→+144, erc20 −35→−329, htlc −1102→−1198, counter
+// −40→−56): the per-entrypoint duplication cost dominates the notional
+// per-call inlining benefit.
 #[doc(hidden)]
-#[inline(always)]
+#[inline(never)]
 pub fn contract_state_root<T: ConstRootState>() -> Node<T> {
     Node::from_const_parts(T::ROOT_PATH, T::const_root())
 }
