@@ -933,6 +933,7 @@ mod keycache {
         /// [`get`](Self::get).
         ///
         /// `const fn` so this can appear in `const`/`static` initializers.
+        #[inline(always)]
         pub const fn from_const(path: &'static [u8]) -> Self {
             KeyCache {
                 path: PathRepr::Const(path),

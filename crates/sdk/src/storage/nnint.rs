@@ -139,6 +139,7 @@ impl super::node::StorageType for NNInt {}
 impl FromConstPath for NNInt {
     /// Construct a `NNInt` from a `'static` const preimage path.
     /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    #[inline(always)]
     fn __sdk_from_const_path(path: &'static [u8]) -> Self {
         Self {
             key: KeyCache::from_const(path),

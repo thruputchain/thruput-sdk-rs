@@ -191,6 +191,7 @@ impl<S> super::node::StorageType for RCQ<S> {}
 impl<T> FromConstPath for RCQ<T> {
     /// Construct a `RCQ<T>` from a `'static` const preimage path.
     /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    #[inline(always)]
     fn __sdk_from_const_path(path: &'static [u8]) -> Self {
         Self {
             key: KeyCache::from_const(path),

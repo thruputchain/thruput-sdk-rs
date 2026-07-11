@@ -97,6 +97,7 @@ impl<T> Node<T> {
     /// root skeleton without materializing any owned `Keypath` buffers.
     /// The `path` slice must be a `'static` preimage assembled at compile
     /// time (see `KeyCache::from_const`).
+    #[inline(always)]
     pub fn from_const_parts(path: &'static [u8], fields: T) -> Node<T> {
         Node {
             key: KeyCache::from_const(path),
@@ -163,11 +164,12 @@ pub trait StorageDomain {
 /// the whole skeleton with zero keypath copies: the `Node`'s own path is the
 /// static domain frame; each direct leaf field is a `Const`-arm handle.
 /// Called by `#[contract]`-generated code; not intended for direct use.
-// Still measurably worth keeping out of line: see the inline(never) note on
-// the previous implementation.  The body is now smaller, but LLVM may still
-// choose to duplicate it per entrypoint.
+// #[inline(always)]: guarantees the Const-arm struct-init stores are written
+// directly into the caller's frame — no sret round-trip, no PathRepr moves.
+// The body is ≤14 instructions for a single-leaf root; duplication per
+// entrypoint is negligible compared to the per-call savings.
 #[doc(hidden)]
-#[inline(never)]
+#[inline(always)]
 pub fn contract_state_root<T: ConstRootState>() -> Node<T> {
     Node::from_const_parts(T::ROOT_PATH, T::const_root())
 }

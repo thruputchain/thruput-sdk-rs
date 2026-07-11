@@ -31,6 +31,7 @@ impl<T> super::node::StorageType for Value<T> {}
 impl<T> FromConstPath for Value<T> {
     /// Construct a `Value<T>` from a `'static` const preimage path.
     /// Uses the `Const` arm of `KeyCache` — no keypath copy.
+    #[inline(always)]
     fn __sdk_from_const_path(path: &'static [u8]) -> Self {
         Self {
             key: KeyCache::from_const(path),

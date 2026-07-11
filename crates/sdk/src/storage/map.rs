@@ -180,6 +180,7 @@ impl<K, V> FromConstPath for Map<K, V> {
     /// Uses the `Const` arm of `KeyCache` — no keypath copy.
     /// Child paths are derived at `at()` / `at_mut()` call time via
     /// `KeyCache::derive_child`, as Task 2 wired for the `Const` arm.
+    #[inline(always)]
     fn __sdk_from_const_path(path: &'static [u8]) -> Self {
         Self {
             key: KeyCache::from_const(path),
