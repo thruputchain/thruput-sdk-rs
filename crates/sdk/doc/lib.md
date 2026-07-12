@@ -33,6 +33,36 @@ Other useful modules and types:
 Static allocations are facilitated in contracts by [`ContractCell`] and
 [`contract_local!`].
 
+### Stack
+
+The SDK encodes through a `SCRATCH_MAX`-sized (4 KiB) scratch buffer: cross-call
+arguments and returns, event payloads, storage values, and terminal returns all
+pass through one. Without `alloc` that buffer is a plain stack local, so a
+function that encodes anything carries one in its frame, and they nest — an
+entrypoint holds the decoded-calldata buffer for its whole frame, and a chain
+like entrypoint → method → storage helper carries a scratch per encoding frame.
+The rv32 linker script reserves 30 KiB of stack for this (overridable per
+contract; see `groundhog-rv32.ld`). Overflow traps rather than corrupting.
+
+### Codesize: pin helpers that several methods call
+
+Because those scratch buffers are ordinary stack locals, the register allocator
+coalesces them, and LLVM's inliner does *not* see a scratch-using helper as
+expensive to inline. At `opt-level = "z"` it will then happily inline a
+mid-sized helper into every one of its callers — which costs far more `.text`
+than the calls it saves.
+
+If a helper that encodes (a storage read-modify-write, an event emit) is called
+from more than one method, consider pinning it:
+
+```ignore
+#[inline(never)]
+fn add_to_balance(addr: &ContractAddress, diff: Difference) { /* ... */ }
+```
+
+This is worth real bytes: on the reference ERC-20, one such helper being inlined
+into two methods cost ~3 KiB of `.text`.
+
 ### Heap
 
 If feature `alloc` is enabled:
