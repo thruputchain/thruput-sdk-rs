@@ -47,9 +47,12 @@ pub trait FromConstPath {
 }
 
 impl<T: From<Keypath>> FromConstPath for Node<T> {
-    /// v1 depth-1 rule: a `Node<T>` direct field of the contract root
-    /// gets ONE owned Keypath built from the const prefix, then delegates
-    /// to today's `From<Keypath>` machinery for the subtree.
+    /// Const paths cover only the contract root's DIRECT fields: a nested
+    /// subtree's paths cannot be assembled at compile time, because the
+    /// inner type's derive expansion does not know its mount point. A
+    /// `Node<T>` root field therefore pays ONE owned Keypath built from the
+    /// const mount-point prefix, then delegates to the eager
+    /// `From<Keypath>` machinery for the subtree below it.
     fn __sdk_from_const_path(path: &'static [u8]) -> Self {
         Node::from(Keypath::from_bytes(path))
     }

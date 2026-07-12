@@ -357,7 +357,8 @@ impl FramedComponent {
     /// Number of bytes in this frame.
     ///
     /// `const fn` so the length is available at compile time for sizing static
-    /// const-path arrays (used by the Task-3 macro and by tests).
+    /// const-path arrays (used by `derive(Storage)`'s const-path emission and
+    /// by tests).
     #[doc(hidden)]
     pub const fn len_bytes(&self) -> usize {
         self.len as usize
@@ -661,9 +662,9 @@ mod test_keypath {
 //
 // These tests are the wire-safety anchor for the const-path feature.
 // `keycache_const_and_owned_agree` and its long-domain variant are the drift
-// guards: they specify exactly which bytes the Task-3 macro must emit and
-// confirm that `sha256` of those bytes equals `sha256` of the runtime-derived
-// bytes.  If either assertion fails, a const-path handle would address a
+// guards: they specify exactly which bytes `derive(Storage)`'s const-path
+// emission must produce and confirm that `sha256` of those bytes equals
+// `sha256` of the runtime-derived bytes.  If either assertion fails, a const-path handle would address a
 // different storage slot than today — a silent data-access bug.
 #[cfg(test)]
 mod test_keycache {
@@ -687,8 +688,9 @@ mod test_keycache {
 
     /// Const path for "DriftGuard" domain + field 0.
     ///
-    /// SPECIFICATION: This byte sequence is what Task 3's macro MUST emit for a
-    /// leaf at field index 0 under a domain with this name. The byte assembly
+    /// SPECIFICATION: This byte sequence is what `derive(Storage)`'s const-path
+    /// emission MUST produce for a leaf at field index 0 under a domain with
+    /// this name. The byte assembly
     /// is `DOMAIN_FRAME ‖ FIELD_FRAME` where both are produced by `ConstWriter`
     /// calls that mirror the runtime `child()` / `child_framed()` codec exactly.
     static DG_F0_PATH: [u8; N_DG_TOTAL] = {

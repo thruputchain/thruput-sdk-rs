@@ -423,9 +423,11 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                         generics.split_for_impl();
 
                     // Also build the FromConstPath fallback impl (for when
-                    // this struct appears as a nested field): uses today's
-                    // From<Keypath> with Keypath::from_bytes — one prefix
-                    // copy (the v1 depth-1 rule). Its body only needs
+                    // this struct appears as a nested field): const paths
+                    // cover only the root's direct fields, so a nested
+                    // struct is built by the eager From<Keypath> machinery
+                    // from its const mount-point prefix — one prefix copy
+                    // via Keypath::from_bytes. Its body only needs
                     // `Self: From<Keypath>`, so bound each field on
                     // From<Keypath> alone — a FromConstPath bound here would
                     // be pure over-constraint and needlessly reject structs
@@ -478,10 +480,12 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                             impl #fcp_impl_generics ::sdk::storage::FromConstPath
                                 for #ident #ty_generics #fcp_where_clause
                             {
-                                /// v1 depth-1 rule: when this struct appears as
-                                /// a nested field of another storage struct,
-                                /// build ONE owned Keypath from the const prefix
-                                /// and delegate to today's `From<Keypath>`.
+                                /// When this struct appears as a nested field
+                                /// of another storage struct, its subtree paths
+                                /// cannot be const-assembled (this expansion
+                                /// does not know its mount point): build ONE
+                                /// owned Keypath from the const prefix and
+                                /// delegate to the eager `From<Keypath>`.
                                 fn __sdk_from_const_path(
                                     path: &'static [u8],
                                 ) -> Self {
