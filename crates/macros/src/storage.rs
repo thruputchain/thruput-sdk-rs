@@ -309,18 +309,6 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                             impl #impl_generics ::sdk::storage::ContractState
                                 for #ident #ty_generics #where_clause
                             {
-                                const ROOT_PATH: &'static [u8] = {
-                                    // Sizes are concrete at expansion time (the domain
-                                    // is a literal), so the inner consts are legal
-                                    // even under generic impls — they capture no
-                                    // generic params.
-                                    const __N: usize =
-                                        ::sdk::storage::framed_domain_len(#domain_lit);
-                                    const __BYTES: [u8; __N] =
-                                        ::sdk::storage::frame_domain::<__N>(#domain_lit);
-                                    &__BYTES
-                                };
-
                                 #[inline]
                                 fn const_root() -> Self {
                                     Self
@@ -376,10 +364,14 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
 
                         // Emit per-field consts and static path inside
                         // the function body (where statics are allowed).
-                        // __N_D is shared across all fields (declared once
-                        // before the loop output is assembled), derived from
-                        // ROOT_PATH.len() so framed_domain_len is called only
-                        // once total (in storage_domain_impl).
+                        // __N_D (the domain-frame length) is declared once
+                        // before the loop output is assembled and shared
+                        // across all fields. Each per-field static embeds its
+                        // own copy of the domain frame — measured tradeoff: a
+                        // two-slice (shared prefix + suffix) representation
+                        // costs ~+570 B/contract of hash-time assembly code,
+                        // far more than the duplication it saves at realistic
+                        // domain lengths. Rodata cost is fields × (domain+2).
                         //
                         // WIRE SPEC: the byte layout is
                         //   DOMAIN_FRAME ‖ FIELD_FRAME(idx)
@@ -458,18 +450,6 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                             impl #impl_generics ::sdk::storage::ContractState
                                 for #ident #ty_generics #where_clause
                             {
-                                const ROOT_PATH: &'static [u8] = {
-                                    // Sizes are concrete at expansion time (the domain
-                                    // is a literal), so the inner consts are legal
-                                    // even under generic impls — they capture no
-                                    // generic params.
-                                    const __N: usize =
-                                        ::sdk::storage::framed_domain_len(#domain_lit);
-                                    const __BYTES: [u8; __N] =
-                                        ::sdk::storage::frame_domain::<__N>(#domain_lit);
-                                    &__BYTES
-                                };
-
                                 #[inline(never)]
                                 fn const_root() -> Self {
                                     // Domain frame length — shared across all
@@ -551,8 +531,6 @@ mod tests {
             tokens.contains("const_root"),
             "missing const_root: {tokens}"
         );
-        // ROOT_PATH associated const
-        assert!(tokens.contains("ROOT_PATH"), "missing ROOT_PATH: {tokens}");
         // calls __sdk_from_const_path for the leaf field
         assert!(
             tokens.contains("__sdk_from_const_path"),
@@ -583,7 +561,6 @@ mod tests {
         let tokens = generate_impls(&input).unwrap().to_string();
         assert!(tokens.contains("ContractState"), "{tokens}");
         assert!(tokens.contains("const_root"), "{tokens}");
-        assert!(tokens.contains("ROOT_PATH"), "{tokens}");
     }
 
     #[test]

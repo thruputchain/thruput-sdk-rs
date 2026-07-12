@@ -81,10 +81,6 @@ impl<T: From<Keypath>> FromConstPath for Node<T> {
             not need `#[storage]`"
 )]
 pub trait ContractState: StorageDomain {
-    /// Static preimage bytes of this type's storage root (the domain frame).
-    /// `sha256` of these bytes is the `Node`'s own storage key.
-    const ROOT_PATH: &'static [u8];
-
     /// Build a `Self` where each direct leaf field is a `Const`-arm handle
     /// pointing at a `'static` preimage assembled at compile time.
     fn const_root() -> Self;
