@@ -241,11 +241,13 @@ fn early_return_with_live_guard_fails_loudly() {
                     let addr = deploy_contract(&NONCE, &contract_hash);
                     let client = StorageErrorClient::new(&addr);
                     client.initialize();
-                    // Must fail loudly. If the check surfaces as a call error
-                    // instead of a panic, re-panic with it so the outer
-                    // catch_unwind sees the message either way.
+                    // Deliberately `try_`: the check must be unswallowable. A
+                    // plain panic would be rewritten to a Deterministic error
+                    // and handed back here as an ordinary `Err`, which this
+                    // call would quietly absorb. Reaching the line below at
+                    // all means the check failed to fire hard enough.
                     let res = client.try_early_return_with_live_guard();
-                    panic!("surfaced as call result: {res:?}");
+                    panic!("swallowed as a call result: {res:?}");
                 })
             })
             .assert_success();
@@ -254,14 +256,21 @@ fn early_return_with_live_guard_fails_loudly() {
     let payload = caught.expect_err(
         "early return with a live ValueMut must fail, not silently succeed",
     );
-    let msg = payload
-        .downcast_ref::<String>()
-        .cloned()
-        .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
-        .unwrap_or_default();
-    assert!(
-        msg.contains("live ValueMut"),
-        "failure must name the live guard, got: {msg}"
+    // The live-guard check unwinds as Unrecoverable, so it blows past the
+    // `try_` call above rather than being caught by it. (The human-readable
+    // diagnostic naming the guard goes to stderr, not the payload.)
+    let err = payload.downcast_ref::<InvokeError>().unwrap_or_else(|| {
+        let msg = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+            .unwrap_or_else(|| "<opaque payload>".to_string());
+        panic!("expected an Unrecoverable InvokeError, got: {msg}");
+    });
+    assert_eq!(
+        err.error_type,
+        InvokeErrorCode::Unrecoverable,
+        "a dropped storage write is a contract bug, not a catchable abort"
     );
 }
 

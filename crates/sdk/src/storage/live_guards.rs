@@ -24,25 +24,26 @@ pub(crate) fn guard_dropped() {
 
 /// Called by `contract_return` before the Return syscall.
 ///
-/// Also stashes the error text via
-/// [`groundhog_native_exec::invoke_error::stash_live_guard_msg`] so that
-/// [`MockInvocationFrame::execute`] can re-raise the diagnostic after
-/// closing the frame — the panic itself is caught by `invoke_wrapper`'s
-/// `catch_unwind` and would otherwise be swallowed before reaching the
-/// test's outer `catch_unwind`.
+/// Fails the invocation as `Unrecoverable` rather than panicking plainly: a
+/// plain panic is rewritten by the mock's panic hook into a `Deterministic`
+/// error — indistinguishable from a legitimate contract abort, which a test
+/// calling the method via `try_*` would catch and carry on past. A dropped
+/// storage write is a contract bug, not an abort, so it must not be
+/// catchable.
 pub(crate) fn assert_no_live_guards() {
     let n = LIVE_VALUE_MUTS.with(|c| c.get());
-    if n != 0 {
-        let msg = std::format!(
-            "contract_return with {n} live ValueMut guard(s): on a real \
-             guest the terminal Return syscall skips Drop, silently \
-             discarding their storage writes. Drop the guard(s) before \
-             returning."
-        );
-        #[cfg(feature = "mock")]
-        groundhog_native_exec::invoke_error::stash_live_guard_msg(msg.clone());
-        panic!("{msg}");
+    if n == 0 {
+        return;
     }
+    let msg = std::format!(
+        "contract_return with {n} live ValueMut guard(s): on a real guest \
+         the terminal Return syscall skips Drop, silently discarding their \
+         storage writes. Drop the guard(s) before returning."
+    );
+    #[cfg(feature = "mock")]
+    groundhog_native_exec::invoke_error::unrecoverable_panic(&msg);
+    #[cfg(not(feature = "mock"))]
+    panic!("{msg}");
 }
 
 /// Zeroes the counter for the duration of a nested in-process mock frame

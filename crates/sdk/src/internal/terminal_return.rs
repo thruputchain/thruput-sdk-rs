@@ -31,14 +31,6 @@ pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
 
 #[doc(hidden)]
 #[inline]
-pub fn contract_return_buf(buf: &[u8]) -> ! {
-    let auth_token_ids = &[];
-
-    contract_return(buf, auth_token_ids)
-}
-
-#[doc(hidden)]
-#[inline]
 #[cfg_attr(feature = "debugging", track_caller)]
 pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where

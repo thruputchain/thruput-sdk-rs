@@ -1,6 +1,5 @@
 use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::cell::Cell;
-use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::panic;
@@ -62,12 +61,6 @@ pub fn abort_transaction_error() -> InvokeError {
 
 thread_local! {
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
-    /// Stash for live-guard failure messages. Set by the SDK's
-    /// `assert_no_live_guards` before it panics; consumed by
-    /// `MockInvocationFrame::execute` to re-raise the diagnostic after
-    /// closing the frame so it escapes to the test's `catch_unwind`.
-    static LIVE_GUARD_STASH: RefCell<Option<String>> =
-        const { RefCell::new(None) };
 }
 
 static INSTALL_HOOK: Once = Once::new();
@@ -134,6 +127,53 @@ pub fn deactivate_panic_hook() {
         );
         c.set(depth.saturating_sub(1));
     });
+}
+
+/// Print `msg` and fail the invocation as
+/// [`InvokeErrorCode::Unrecoverable`].
+///
+/// For harness-level contract bugs that must not be mistakable for an
+/// ordinary abort. A plain `panic!` here would be rewritten by the panic
+/// hook into a `Deterministic` error — the same code a legitimate abort
+/// unwinds as — so a test calling the method via `try_*` could catch it and
+/// carry on. `Unrecoverable` cannot be swallowed that way.
+///
+/// `resume_unwind` (not `panic_any`) deliberately bypasses the panic hook,
+/// keeping the `eprintln` here as the single place the message is printed.
+pub fn unrecoverable_panic(msg: &str) -> ! {
+    eprintln!("{msg}");
+    panic::resume_unwind(Box::new(unrecoverable_error()))
+}
+
+// Wrap a function (i.e. part of a contract) within a try-catch block
+// that appropriately handles groundhog error codes.
+pub fn invoke_wrapper<'a, F>(
+    wrapped: F,
+) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
+where
+    F: Fn() + UnwindSafe + Clone + 'a,
+{
+    Box::new(move || {
+        let w = wrapped.clone();
+        let result = panic::catch_unwind(w);
+
+        match result {
+            Ok(_) => groundhog_sys::ForeignInvokeResult {
+                panic: InvokeErrorCode::None.0,
+            },
+            Err(err) => {
+                if let Some(my_error) = err.downcast_ref::<InvokeError>() {
+                    return groundhog_sys::ForeignInvokeResult {
+                        panic: my_error.error_type.0,
+                    };
+                }
+                eprintln!("unrecoverable error: {:?}", err);
+                groundhog_sys::ForeignInvokeResult {
+                    panic: InvokeErrorCode::Unrecoverable.0,
+                }
+            }
+        }
+    })
 }
 
 #[cfg(test)]
@@ -226,70 +266,4 @@ mod tests {
         assert_eq!(panic_hook_depth(), 0);
         deactivate_panic_hook();
     }
-}
-
-/// Stash a live-guard failure message so that `MockInvocationFrame::execute`
-/// can re-raise it after the frame is closed. Called by the SDK's
-/// `assert_no_live_guards` (native-test-only path) before it panics.
-///
-/// # Known diagnostic limitations
-///
-/// **Stale stash:** The stash is cleared only at frame exit. If a test swallows
-/// the child-frame error (e.g. by calling the method via `try_*`) and the same
-/// root frame later panics for an unrelated reason, the stale stash message is
-/// re-raised as that panic's payload, which can produce a misleading diagnostic.
-/// The frame outcome itself is unaffected — the child frame still terminates as
-/// `Deterministic` failure.
-///
-/// **Nested Rust frame:** A stash raised inside a nested Rust-level frame (i.e.
-/// a frame where the outer panic hook is still active) is intercepted by that
-/// hook and converted to a `Deterministic` `InvokeError`; the human-readable
-/// stash message only reaches `stderr` via `_print_panic_info`, not the
-/// `catch_unwind` boundary. Again, the frame outcome (Deterministic failure) is
-/// correct in all cases — only the diagnostic surfacing differs.
-pub fn stash_live_guard_msg(msg: String) {
-    LIVE_GUARD_STASH.with(|c| *c.borrow_mut() = Some(msg));
-}
-
-/// Take the live-guard stash. Returns `None` if there is no stashed message,
-/// which is the common case. Called by `MockInvocationFrame::execute`; also
-/// called from `execute`'s success paths to discard any stale message left
-/// from a live-guard failure that was caught-and-continued by the test.
-///
-/// See [`stash_live_guard_msg`] for known diagnostic limitations: stale-stash
-/// mislabeling and nested-frame stderr-only surfacing. In both scenarios the
-/// contract execution outcome (Deterministic failure) remains correct.
-pub fn take_live_guard_stash() -> Option<String> {
-    LIVE_GUARD_STASH.with(|c| c.borrow_mut().take())
-}
-
-// Wrap a function (i.e. part of a contract) within a try-catch block
-// that appropriately handles groundhog error codes.
-pub fn invoke_wrapper<'a, F>(
-    wrapped: F,
-) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
-where
-    F: Fn() + UnwindSafe + Clone + 'a,
-{
-    Box::new(move || {
-        let w = wrapped.clone();
-        let result = panic::catch_unwind(w);
-
-        match result {
-            Ok(_) => groundhog_sys::ForeignInvokeResult {
-                panic: InvokeErrorCode::None.0,
-            },
-            Err(err) => {
-                if let Some(my_error) = err.downcast_ref::<InvokeError>() {
-                    return groundhog_sys::ForeignInvokeResult {
-                        panic: my_error.error_type.0,
-                    };
-                }
-                eprintln!("unrecoverable error: {:?}", err);
-                groundhog_sys::ForeignInvokeResult {
-                    panic: InvokeErrorCode::Unrecoverable.0,
-                }
-            }
-        }
-    })
 }
