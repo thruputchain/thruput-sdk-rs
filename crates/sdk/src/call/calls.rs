@@ -38,7 +38,7 @@ where
     ARGS: WriteXDR + crate::CollectAuthHandles,
     RET: ReadXDROwned + crate::ReceiveAuthHandles,
 {
-    with_call_scratch_shared(|buf, auth_buf| {
+    with_call_scratch(|buf, auth_buf| {
         encode_args_into(buf, args).map_err(widen_uninhabited_exn)?;
         args.collect_auth_handles(auth_buf)
             .map_err(RawCallError::EncodingArgs)?;
@@ -121,12 +121,17 @@ fn encode_args_into<T: WriteXDR + ?Sized>(
 /// this can't take the args as a separate `&[u8]`, as [`contract_call`]
 /// does — that would alias the same buffer).
 ///
-/// This exists to be *the* copy of this code. [`try_call_raw_with`] is
-/// generic over `(ARGS, RET, X)` and every generated client instantiates it
-/// afresh, so anything left inside its body is re-emitted per call form;
-/// only arg encoding, return decoding, and the caller's `on_exn` genuinely
-/// depend on those parameters. `inline(never)` pins the single copy against
-/// LTO inlining it back into each of them.
+/// [`try_call_raw_with`] is generic over `(ARGS, RET, X)` and every generated
+/// client instantiates it afresh, so anything left in its body is re-emitted
+/// per call form — yet only arg encoding, return decoding, and the caller's
+/// `on_exn` genuinely depend on those parameters. `inline(never)` keeps this
+/// to one copy.
+///
+/// On its own that is a *net loss* (measured: +116 bytes across the contract
+/// suite) — hoisting the orchestration out of the caller costs more than the
+/// sharing saves. It pays (-1452) only together with the single-call-site
+/// scratch checkout, which lets what remains of the closure inline into the
+/// contract method. Don't judge this function in isolation.
 #[inline(never)]
 fn call_core(
     address: &ContractAddress,
@@ -392,6 +397,7 @@ fn resize_auth_handles(
     }
 }
 
+#[cfg(feature = "alloc")]
 use crate::cell::{ContractLocalRef, ContractRefCell};
 
 /// The per-instance call scratch: the shared write buffer and the
@@ -401,65 +407,67 @@ struct CallScratch {
     auth: AuthHandleBuf,
 }
 
-crate::contract_local! {
-    static CALL_SCRATCH: ContractRefCell<CallScratch> =
-        const {
-            ContractRefCell::new(CallScratch {
-                buf: Buf::new(),
-                auth: AuthHandleBuf::new(),
-            })
-        };
-}
-
-/// Run `f` with the per-instance call scratch buffers (encoded-args /
-/// returned-data, and the auth-token-id list).
+/// Run `f` with a call scratch (encoded-args / returned-data, and the
+/// auth-token-id list).
 ///
-/// The scratch is the SDK's single shared write buffer: cross-contract
-/// calls, event emission, storage writes, and terminal returns all encode
-/// through it (calldata is the one separate buffer, since decoded args
-/// borrow from it for the whole frame). It is allocated lazily and reused by
-/// every subsequent use: the guest bump allocator never frees, so per-use
-/// allocations would permanently leak heap. Under `alloc` capacity grows to
-/// the high-water mark (at least `SCRATCH_MAX`). No user code runs while the
-/// scratch is checked out, so uses cannot overlap; the re-entrant case (a
-/// cross-call nested in-process in the native mock, or an exception thrown
-/// while the scratch is borrowed — the abort encode re-enters) is handled by
-/// [`ContractLocalRef::with_mut_or_fresh`]'s fresh-buffer fallback. (The real
-/// guest doesn't nest cross-calls, but the throw-mid-encode case can happen
-/// there, so this is not mock-only.)
+/// The scratch is the SDK's write buffer: cross-contract calls, event
+/// emission, storage writes, and terminal returns all encode through it
+/// (calldata is the one separate buffer, since decoded args borrow from it for
+/// the whole frame). Scratch uses nest — an exception thrown mid-encode
+/// re-enters to encode the abort, and the native mock runs child frames
+/// in-process — so each use needs its own buffer, not a shared one.
+///
+/// No-alloc: that buffer is just a local. `Buf` is a `MaybeUninit` array, so
+/// constructing one costs a length store and no `memset`; there is nothing to
+/// cache and nothing a static would save. Nesting is then correct by
+/// construction — no cell, no borrow flag, no re-entrancy fallback.
+#[cfg(not(feature = "alloc"))]
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    CALL_SCRATCH.with_mut_or_fresh(fresh_call_scratch, |scratch| {
-        reset_call_scratch(scratch);
-        f(&mut scratch.buf, &mut scratch.auth)
-    })
+    let mut scratch = fresh_call_scratch();
+    f(&mut scratch.buf, &mut scratch.auth)
 }
 
-/// [`with_call_scratch`] for the SDK's one closure big enough to be worth
-/// giving a single call site: the whole of [`try_call_raw_with`],
-/// re-instantiated per `(ARGS, RET, X)` call form. That is what lets the call
-/// body inline into the calling contract method, where the entrypoint, gas
-/// limit and flags const-fold away. See
-/// [`with_mut_or_fresh_shared`](ContractLocalRef::with_mut_or_fresh_shared)
-/// for the trade it makes (it costs a scratch-sized slot on the hot frame).
-fn with_call_scratch_shared<R>(
+/// Run `f` with a call scratch. See the no-alloc twin for what the scratch is.
+///
+/// Under `alloc` a local would mean a fresh `Vec` allocation per use, and the
+/// guest bump allocator never frees — so buffers are pooled instead and their
+/// capacity reused. A use *takes* its buffer out of the pool for the duration
+/// (the pool's `RefCell` is never held while `f` runs), so a nested use simply
+/// takes the next one, and the buffers come back on the way out. Moving a
+/// `CallScratch` here moves two `Vec` headers, not their contents.
+///
+/// A `f` that never returns (a terminal return, an abort) drops its buffer
+/// rather than returning it to the pool. That is fine: the frame is over.
+#[cfg(feature = "alloc")]
+fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
-    CALL_SCRATCH.with_mut_or_fresh_shared(fresh_call_scratch, |scratch| {
-        reset_call_scratch(scratch);
-        f(&mut scratch.buf, &mut scratch.auth)
-    })
+    let mut scratch = SCRATCH_POOL
+        .with_ref(|pool| pool.borrow_mut().pop())
+        .unwrap_or_else(fresh_call_scratch);
+
+    reset_call_scratch(&mut scratch);
+    let out = f(&mut scratch.buf, &mut scratch.auth);
+
+    SCRATCH_POOL.with_ref(|pool| pool.borrow_mut().push(scratch));
+    out
 }
 
-/// Ready a checked-out scratch for a fresh use: the buffers are reused in
-/// place — no copy, and for the no-alloc guest the fixed buffer stays in
-/// static memory instead of being moved onto the (small) guest stack.
+#[cfg(feature = "alloc")]
+crate::contract_local! {
+    static SCRATCH_POOL: ContractRefCell<alloc::vec::Vec<CallScratch>> =
+        const { ContractRefCell::new(alloc::vec::Vec::new()) };
+}
+
+/// Ready a pooled scratch for a fresh use: cleared, and grown to `SCRATCH_MAX`
+/// once so in-bounds payloads never reallocate.
+#[cfg(feature = "alloc")]
 #[inline]
 fn reset_call_scratch(scratch: &mut CallScratch) {
     scratch.buf.clear();
     scratch.auth.clear();
-    #[cfg(feature = "alloc")]
     if scratch.buf.capacity() < crate::internal::SCRATCH_MAX {
         scratch.buf.reserve(crate::internal::SCRATCH_MAX);
     }
@@ -472,11 +480,63 @@ fn fresh_call_scratch() -> CallScratch {
     }
 }
 
-/// Run `f` with just the per-instance data scratch buffer. For
-/// encode-then-syscall sites (events, storage values, terminal returns) that
-/// don't touch the auth-handle list. Shares the cell with [`with_call_scratch`].
+/// Run `f` with just the data scratch buffer. For encode-then-syscall sites
+/// (events, storage values, terminal returns) that don't touch the auth-handle
+/// list.
 pub(crate) fn with_scratch<R>(f: impl FnOnce(&mut Buf) -> R) -> R {
     with_call_scratch(|buf, _auth| f(buf))
+}
+
+#[cfg(all(
+    test,
+    not(any(target_family = "wasm", target_arch = "riscv32")),
+    feature = "std"
+))]
+mod scratch_tests {
+    use super::*;
+
+    /// A nested scratch use — a throw while the outer scratch is mid-encode,
+    /// or the native mock's in-process child frames — must get its *own*
+    /// buffer, or the inner encode would scribble over the outer one. Under
+    /// `alloc` that means the pool hands out a second buffer rather than
+    /// re-lending the first.
+    #[test]
+    fn nested_scratch_uses_get_distinct_buffers() {
+        with_scratch(|outer| {
+            outer.clear();
+            outer.extend_from_slice(&[0xAA; 8]);
+            let outer_ptr = outer.as_slice().as_ptr();
+
+            let inner_ptr = with_scratch(|inner| {
+                inner.clear();
+                inner.extend_from_slice(&[0xBB; 8]);
+                inner.as_slice().as_ptr()
+            });
+
+            assert_ne!(
+                outer_ptr, inner_ptr,
+                "nested scratch use aliased the outer buffer"
+            );
+            // The outer buffer survived the nested use untouched.
+            assert_eq!(outer.as_slice(), &[0xAA; 8]);
+        });
+    }
+
+    /// Buffers return to the pool, so sequential uses reuse one rather than
+    /// allocating per call (the guest bump allocator never frees).
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn sequential_scratch_uses_reuse_one_buffer() {
+        let first = with_scratch(|b| {
+            b.reserve(crate::internal::SCRATCH_MAX);
+            b.as_slice().as_ptr()
+        });
+        let second = with_scratch(|b| b.as_slice().as_ptr());
+        assert_eq!(
+            first, second,
+            "scratch buffer was not returned to the pool"
+        );
+    }
 }
 
 #[inline]
