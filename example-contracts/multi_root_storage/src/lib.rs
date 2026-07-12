@@ -8,13 +8,13 @@ pub use sdk::*;
 #[derive(Storage)]
 pub struct Ledger {
     // domain defaults to "Ledger"
-    balance: Value<u64>,
+    pub balance: Value<u64>,
 }
 
 #[derive(Storage)]
 pub struct Registry {
     // domain defaults to "Registry"
-    count: Value<u64>,
+    pub count: Value<u64>,
 }
 
 #[contract]

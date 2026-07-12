@@ -20,15 +20,16 @@ fn both_roots_register_and_do_not_collide() {
 fn root_subtrees_are_disjoint() {
     let l = contract_state_root::<Ledger>();
     let r = contract_state_root::<Registry>();
-    // Behavioral: each root is seeded with its ident as the first child
-    // frame, so the two subtrees are disjoint.
+    // Behavioral: each root seeds its ident as the first child frame, so
+    // the two subtrees are disjoint. Node no longer materializes its own
+    // path; the seeding is observable through each root's slot-0 leaf.
     assert_eq!(
-        l.path_bytes(),
-        Keypath::default().child("Ledger").path_bytes()
+        l.balance.path_bytes(),
+        Keypath::default().child("Ledger").child(&0u32).path_bytes()
     );
     assert_eq!(
-        r.path_bytes(),
-        Keypath::default().child("Registry").path_bytes()
+        r.count.path_bytes(),
+        Keypath::default().child("Registry").child(&0u32).path_bytes()
     );
-    assert_ne!(l.path_bytes(), r.path_bytes());
+    assert_ne!(l.balance.path_bytes(), r.count.path_bytes());
 }

@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::Keypath;
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -62,10 +62,6 @@ impl<T: From<Keypath>> FromConstPath for Node<T> {
 /// keypath copies: each direct leaf field gets a `Const`-arm handle carrying
 /// a `'static` preimage slice assembled at compile time.
 ///
-/// The const path bytes `ROOT_PATH` are the type's storage domain frame —
-/// identical to `StorageDomain::DOMAIN.as_bytes()` but exposed as a
-/// `'static` slice for `Node::from_const_parts`.
-///
 /// Not intended for direct use.
 ///
 /// # Why this trait is not sealed
@@ -99,45 +95,20 @@ pub trait ContractState: StorageDomain {
 #[allow(private_bounds)]
 pub trait StorageType: Sealed + From<Keypath> {}
 
-/// A keypath-storing wrapper for compound storage field groups.
+/// Wrapper marking a compound storage field group; derefs to `T` for field
+/// access.
 ///
-/// Pairs a `T: From<Keypath>` with its root keypath.
-/// Derefs to T for field access.
+/// The node materializes no path of its own — its field handles each carry
+/// their full path (`Const` arm at the contract root, `Owned` below) — so
+/// constructing a `Node` is free of keypath copies.
 pub struct Node<T> {
-    key: KeyCache,
     fields: T,
 }
 
 impl<T: From<Keypath>> From<Keypath> for Node<T> {
     fn from(keypath: Keypath) -> Self {
-        let fields = T::from(keypath.clone());
         Self {
-            key: KeyCache::from(keypath),
-            fields,
-        }
-    }
-}
-
-impl<T> Node<T> {
-    /// Raw preimage bytes of this node's storage path.
-    ///
-    /// Useful for path-identity comparisons (e.g. drift-guard tests).
-    pub fn path_bytes(&self) -> &[u8] {
-        self.key.path_bytes()
-    }
-
-    /// Construct a `Node<T>` from a const-path byte slice and a pre-built
-    /// fields value.
-    ///
-    /// Called by `#[contract]`-generated code in Task 3 to assemble the
-    /// root skeleton without materializing any owned `Keypath` buffers.
-    /// The `path` slice must be a `'static` preimage assembled at compile
-    /// time (see `KeyCache::from_const`).
-    #[inline]
-    pub fn from_const_parts(path: &'static [u8], fields: T) -> Node<T> {
-        Node {
-            key: KeyCache::from_const(path),
-            fields,
+            fields: T::from(keypath),
         }
     }
 }
@@ -194,7 +165,9 @@ pub trait StorageDomain {
 #[doc(hidden)]
 #[inline(never)]
 pub fn contract_state_root<T: ContractState>() -> Node<T> {
-    Node::from_const_parts(T::ROOT_PATH, T::const_root())
+    Node {
+        fields: T::const_root(),
+    }
 }
 
 #[cfg(test)]
@@ -207,20 +180,15 @@ mod tests {
     #[derive(crate::Storage)]
     struct UnitState;
 
+    #[test]
+    fn unit_struct_contract_state_root_constructs() {
+        let _node: Node<UnitState> = contract_state_root::<UnitState>();
+    }
+
     // A named-field storage struct for drift-guard tests.
     #[derive(crate::Storage)]
     struct LeafState {
         value: crate::storage::value::Value<u32>,
-    }
-
-    #[test]
-    fn contract_state_root_seeds_domain() {
-        let node: Node<UnitState> = contract_state_root::<UnitState>();
-        // The const-framed seed equals the runtime child() frame exactly.
-        let expected = Keypath::default().child("UnitState");
-        assert_eq!(node.path_bytes(), expected.path_bytes());
-        // And it is NOT the bare empty root.
-        assert_ne!(node.path_bytes(), Keypath::default().path_bytes());
     }
 
     /// Drift guard: the const-path `contract_state_root` produces the SAME
@@ -246,19 +214,6 @@ mod tests {
             const_leaf_bytes, runtime_bytes,
             "const-path leaf preimage differs from runtime path — drift detected"
         );
-    }
-
-    /// Drift guard (golden vector): the const-root path_bytes equal the
-    /// domain frame, same as the runtime Keypath::root path.
-    #[test]
-    fn const_root_node_path_matches_runtime_root() {
-        let const_node: Node<LeafState> = contract_state_root::<LeafState>();
-
-        const N_D: usize = framed_domain_len("LeafState");
-        const DOMAIN: [u8; N_D] = frame_domain::<N_D>("LeafState");
-        let runtime_root = Keypath::root(FramedDomain::new(&DOMAIN));
-
-        assert_eq!(const_node.path_bytes(), runtime_root.path_bytes());
     }
 
     // Slots >= 63 take multi-byte CXS index encodings (2-, 3-, and 5-byte

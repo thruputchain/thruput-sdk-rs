@@ -515,15 +515,20 @@ struct StorageDomainRenamed {
 fn storage_domain_defaults_to_ident_and_overrides() {
     // Behavioral: the domain seeds the root keypath as its first child
     // frame. Default is the bare ident; #[storage(domain = "...")] overrides.
+    // Node no longer materializes its own path; the seeding is observable
+    // through the slot-0 leaf.
     let plain = contract_state_root::<StorageDomainPlain>();
     assert_eq!(
-        plain.path_bytes(),
-        Keypath::default().child("StorageDomainPlain").path_bytes()
+        plain._v.path_bytes(),
+        Keypath::default()
+            .child("StorageDomainPlain")
+            .child(&0u32)
+            .path_bytes()
     );
     let renamed = contract_state_root::<StorageDomainRenamed>();
     assert_eq!(
-        renamed.path_bytes(),
-        Keypath::default().child("custom").path_bytes()
+        renamed._v.path_bytes(),
+        Keypath::default().child("custom").child(&0u32).path_bytes()
     );
 }
 
