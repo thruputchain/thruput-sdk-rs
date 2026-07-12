@@ -1,5 +1,5 @@
 use super::deletable::Deletable;
-use super::keypath::{FramedComponent, KeyCache, Keypath};
+use super::keypath::{FramedComponent, Keypath};
 use super::map::Map;
 use super::node::{FromConstPath, StorageType};
 use super::slot::{SlotMut, SlotRef};
@@ -11,7 +11,13 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// Element slots are keyed by the element index (`u32`); see [`Map`] for the
 /// key-encoding injectivity invariant that governs the underlying derivation.
 pub struct Vector<S> {
-    key: KeyCache,
+    // A bare Keypath, not a KeyCache: the vector's own slot is never read
+    // or written (elements live under `values`, the length under `len`),
+    // so there is no key hash to memoize — an OnceCell here would be dead
+    // weight in every instance. The path is retained only for
+    // path_bytes()/Debug. It is always an Owned-style path: the const-path
+    // constructor below seeds it from the const bytes.
+    keypath: Keypath,
     len: Value<u32>,
     values: Map<u32, S>,
 }
@@ -19,7 +25,7 @@ pub struct Vector<S> {
 impl<S> Debug for Vector<S> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Vector")
-            .field("keypath", &self.key.path_bytes())
+            .field("keypath", &self.keypath.path_bytes())
             .field("len", &self.len)
             .finish_non_exhaustive()
     }
@@ -37,7 +43,7 @@ impl<S> From<Keypath> for Vector<S> {
         let values_kp = keypath.child_framed(&VALUES_SLOT);
 
         Self {
-            key: KeyCache::from(keypath),
+            keypath,
             len: Value::from(len_kp),
             values: Map::from(values_kp),
         }
@@ -64,7 +70,7 @@ impl<S> Vector<S> {
     ///
     /// Useful for path-identity comparisons (e.g. drift-guard tests).
     pub fn path_bytes(&self) -> &[u8] {
-        self.key.path_bytes()
+        self.keypath.path_bytes()
     }
 }
 

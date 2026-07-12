@@ -363,6 +363,28 @@ impl FramedComponent {
     pub const fn len_bytes(&self) -> usize {
         self.len as usize
     }
+
+    /// The frame bytes as a sized array; `N` must equal
+    /// [`len_bytes`](Self::len_bytes) (compile-time assertion).
+    ///
+    /// `const fn` companion to [`frame_domain`]: lets `derive(Storage)`'s
+    /// const-path emission and the drift tests embed the frame in static
+    /// path arrays without re-implementing the codec — [`Self::from_u32`]
+    /// stays the single source of the field-frame encoding.
+    #[doc(hidden)]
+    pub const fn to_array<const N: usize>(&self) -> [u8; N] {
+        assert!(
+            N == self.len as usize,
+            "N must equal this frame's len_bytes()"
+        );
+        let mut out = [0u8; N];
+        let mut i = 0;
+        while i < N {
+            out[i] = self.buf[i];
+            i += 1;
+        }
+        out
+    }
 }
 
 /// A storage domain pre-framed at compile time (see [`frame_domain`]).
@@ -699,15 +721,8 @@ mod test_keycache {
         let d: [u8; N_DG] = frame_domain::<N_DG>("DriftGuard");
         // Field-0 frame: CXS(inner_len) ‖ CXS(0u32), mirroring
         // `FramedComponent::from_u32(0)` = `Keypath::child(&0u32)` bytes.
-        let f: [u8; N_F0] = {
-            let mut probe = ConstWriter::<5>::new();
-            probe.write_u32(0u32); // probe how many bytes CXS(0) uses
-            let v_len = probe.pos() as u32; // = 1
-            let mut fw = ConstWriter::<N_F0>::new();
-            fw.write_u32(v_len); // length prefix [0x01]
-            fw.write_u32(0u32); // value         [0x00]
-            fw.into_bytes() // = [0x01, 0x00]
-        };
+        // Field-0 frame from the single canonical codec (= [0x01, 0x00]).
+        let f: [u8; N_F0] = FramedComponent::from_u32(0).to_array();
         let mut w = ConstWriter::<N_DG_TOTAL>::new();
         w.write_opaque_fixed(&d);
         w.write_opaque_fixed(&f);
@@ -724,15 +739,7 @@ mod test_keycache {
         let d: [u8; N_LD] = frame_domain::<N_LD>(
             "this_domain_is_deliberately_longer_than_sixty_three_bytes_to_exercise_the_two_byte_cxs_length_header",
         );
-        let f: [u8; N_F0] = {
-            let mut probe = ConstWriter::<5>::new();
-            probe.write_u32(0u32);
-            let v_len = probe.pos() as u32;
-            let mut fw = ConstWriter::<N_F0>::new();
-            fw.write_u32(v_len);
-            fw.write_u32(0u32);
-            fw.into_bytes()
-        };
+        let f: [u8; N_F0] = FramedComponent::from_u32(0).to_array();
         let mut w = ConstWriter::<N_LD_TOTAL>::new();
         w.write_opaque_fixed(&d);
         w.write_opaque_fixed(&f);

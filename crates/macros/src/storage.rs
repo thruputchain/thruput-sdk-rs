@@ -83,9 +83,21 @@ fn extract_domain_lit(
 
 pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
     let item = &input.data;
-    let storage_impls = generate_from_data(input, item)?;
+    // Resolve slot indices ONCE (hard-erroring on malformed/duplicate
+    // #[slot]) and hand the same resolution to both emitters — the runtime
+    // From<Keypath> impl and the const-path emission can never disagree.
+    let field_slots: Option<Vec<(&syn::Field, u32)>> = match item {
+        syn::Data::Struct(ds) => match &ds.fields {
+            syn::Fields::Named(f) => Some(resolve_field_slots(&f.named)?),
+            _ => None,
+        },
+        _ => None,
+    };
+    let storage_impls =
+        generate_from_data(input, item, field_slots.as_deref())?;
     let domain_impl = storage_domain_impl(input)?;
-    let const_root_impl = const_root_state_impl(input)?;
+    let const_root_impl =
+        const_root_state_impl(input, field_slots.as_deref())?;
 
     let ident = &input.ident;
     let ident_lower =
@@ -108,9 +120,12 @@ pub fn generate_impls(input: &syn::DeriveInput) -> Result<TokenStream> {
 fn generate_from_data(
     input: &syn::DeriveInput,
     item: &syn::Data,
+    field_slots: Option<&[(&syn::Field, u32)]>,
 ) -> Result<TokenStream> {
     match item {
-        syn::Data::Struct(item) => generate_from_struct(input, item),
+        syn::Data::Struct(item) => {
+            generate_from_struct(input, item, field_slots)
+        }
         _ => err(input, "Can only derive Storage for structs")?,
     }
 }
@@ -118,12 +133,13 @@ fn generate_from_data(
 fn generate_from_struct(
     input: &syn::DeriveInput,
     item: &syn::DataStruct,
+    field_slots: Option<&[(&syn::Field, u32)]>,
 ) -> Result<TokenStream> {
     let ident = &input.ident;
     let generics = &input.generics;
     let fields = &item.fields;
 
-    impl_from_keypath(ident, generics, fields)
+    impl_from_keypath(ident, generics, fields, field_slots)
 }
 
 /// Resolve storage slot indices for the named fields of a struct.
@@ -200,9 +216,10 @@ fn impl_from_keypath(
     ident: &syn::Ident,
     generics: &syn::Generics,
     fields: &syn::Fields,
+    field_slots: Option<&[(&syn::Field, u32)]>,
 ) -> Result<TokenStream> {
-    let named_fields = match fields {
-        syn::Fields::Named(fields_named) => &fields_named.named,
+    match fields {
+        syn::Fields::Named(_) => {}
         syn::Fields::Unit => {
             let (impl_generics, ty_generics, where_clause) =
                 generics.split_for_impl();
@@ -219,11 +236,16 @@ fn impl_from_keypath(
             });
         }
         _ => return err(fields, "Can only handle named or unit structs"),
-    };
+    }
 
-    // Resolve slot indices once, hard-erroring on any malformed #[slot] or
-    // duplicate. const_root_state_impl reuses the same resolved list.
-    let field_slots = resolve_field_slots(named_fields)?;
+    // Slot indices were resolved once in generate_impls; both this emitter
+    // and const_root_state_impl receive the same list.
+    let field_slots = field_slots.ok_or_else(|| {
+        syn::Error::new(
+            fields.span(),
+            "internal error: field slots unresolved for named struct",
+        )
+    })?;
 
     // Clone generics so we can add field-type bounds
     let mut generics = generics.clone();
@@ -231,7 +253,7 @@ fn impl_from_keypath(
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
 
-    for (field, idx) in &field_slots {
+    for (field, idx) in field_slots {
         let field_name = &field.ident;
         let field_type = &field.ty;
         field_names.extend(quote! { #field_name, });
@@ -289,7 +311,10 @@ fn impl_from_keypath(
 /// exactly — `frame_domain` for the domain frame, then the `ConstWriter`
 /// pattern for the field frame, concatenated via `ConstWriter::write_opaque_fixed`.
 /// If the drift tests in `keypath.rs` pass, this output is wire-correct.
-fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
+fn const_root_state_impl(
+    input: &syn::DeriveInput,
+    field_slots: Option<&[(&syn::Field, u32)]>,
+) -> Result<TokenStream> {
     let ident = &input.ident;
     let domain_lit = extract_domain_lit(input)?;
 
@@ -329,12 +354,15 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     })
                 }
                 syn::Fields::Named(fields_named) => {
-                    let named_fields = &fields_named.named;
-
-                    // Single authoritative slot resolution: same hard-erroring
-                    // parser as impl_from_keypath, so const and runtime indices
-                    // can never diverge.
-                    let field_slots = resolve_field_slots(named_fields)?;
+                    // Slot indices were resolved once in generate_impls;
+                    // this emitter and impl_from_keypath receive the same
+                    // list, so const and runtime indices can never diverge.
+                    let field_slots = field_slots.ok_or_else(|| {
+                        syn::Error::new(
+                            fields_named.span(),
+                            "internal error: field slots unresolved for named struct",
+                        )
+                    })?;
 
                     // Build the per-field const declarations and the
                     // const_root() body.
@@ -385,17 +413,11 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                             static #path_name: [u8; #n_total_name] = {
                                 let d: [u8; __N_D] =
                                     ::sdk::storage::frame_domain::<__N_D>(#domain_lit);
-                                let f: [u8; #n_f_name] = {
-                                    let mut probe =
-                                        ::sdk::__xdrs::cxs::ConstWriter::<5>::new();
-                                    probe.write_u32(#idx);
-                                    let v_len = probe.pos() as u32;
-                                    let mut fw =
-                                        ::sdk::__xdrs::cxs::ConstWriter::<#n_f_name>::new();
-                                    fw.write_u32(v_len);
-                                    fw.write_u32(#idx);
-                                    fw.into_bytes()
-                                };
+                                // Field frame from the single canonical
+                                // codec — no re-implementation to drift.
+                                let f: [u8; #n_f_name] =
+                                    ::sdk::storage::FramedComponent::from_u32(#idx)
+                                        .to_array();
                                 let mut w =
                                     ::sdk::__xdrs::cxs::ConstWriter::<#n_total_name>::new();
                                 w.write_opaque_fixed(&d);
@@ -433,7 +455,7 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     // be pure over-constraint and needlessly reject structs
                     // with hand-written From<Keypath> field types.
                     let mut from_const_path_generics = input.generics.clone();
-                    for (field, _) in &field_slots {
+                    for (field, _) in field_slots {
                         let field_type = &field.ty;
                         from_const_path_generics
                             .make_where_clause()
