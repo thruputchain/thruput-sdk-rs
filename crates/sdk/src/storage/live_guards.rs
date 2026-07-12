@@ -3,10 +3,12 @@
 //! On a real guest a terminal Return syscall skips `Drop`, silently
 //! discarding a live guard's flush; the native mock unwinds, so `Drop`
 //! runs and tests can't see the loss. This counter inverts that: the
-//! terminal-return funnel panics on a live guard, so any native test
-//! exercising the path fails loudly. The entire module (and every call
-//! site) is compiled only for the native test environment — guest
-//! artifacts contain none of it.
+//! terminal-return funnel fails on a live guard, so any native test
+//! exercising the path fails loudly.
+//!
+//! The guest build gets the no-op stubs in `storage/mod.rs` instead of this
+//! module, so call sites need no `cfg` and guest artifacts contain none of
+//! this. (Same dual-impl convention as [`crate::rt::trap`].)
 
 use core::cell::Cell;
 
@@ -14,12 +16,28 @@ std::thread_local! {
     static LIVE_VALUE_MUTS: Cell<u32> = const { Cell::new(0) };
 }
 
-pub(crate) fn guard_created() {
-    LIVE_VALUE_MUTS.with(|c| c.set(c.get() + 1));
+/// RAII registration token, held as a field by every deferred-write storage
+/// guard (today only [`ValueMut`](super::ValueMut)).
+///
+/// Holding the field *is* the registration: the count is maintained by the
+/// type system rather than by paired `guard_created`/`guard_dropped` calls a
+/// future guard author has to remember to write. `mem::forget`ing a guard
+/// correctly leaves it counted as live.
+pub(crate) struct LiveGuard;
+
+impl LiveGuard {
+    pub(crate) fn new() -> Self {
+        LIVE_VALUE_MUTS.with(|c| c.set(c.get() + 1));
+        Self
+    }
 }
 
-pub(crate) fn guard_dropped() {
-    LIVE_VALUE_MUTS.with(|c| c.set(c.get().saturating_sub(1)));
+impl Drop for LiveGuard {
+    fn drop(&mut self) {
+        // Cannot underflow: the only way to obtain a `LiveGuard` is `new`,
+        // which incremented.
+        LIVE_VALUE_MUTS.with(|c| c.set(c.get() - 1));
+    }
 }
 
 /// Called by `contract_return` before the Return syscall.
@@ -35,15 +53,17 @@ pub(crate) fn assert_no_live_guards() {
     if n == 0 {
         return;
     }
-    let msg = std::format!(
+    std::eprintln!(
         "contract_return with {n} live ValueMut guard(s): on a real guest \
          the terminal Return syscall skips Drop, silently discarding their \
          storage writes. Drop the guard(s) before returning."
     );
     #[cfg(feature = "mock")]
-    groundhog_native_exec::invoke_error::unrecoverable_panic(&msg);
+    std::panic::panic_any(
+        groundhog_native_exec::invoke_error::unrecoverable_error(),
+    );
     #[cfg(not(feature = "mock"))]
-    panic!("{msg}");
+    panic!("contract_return with {n} live ValueMut guard(s)");
 }
 
 /// Zeroes the counter for the duration of a nested in-process mock frame

@@ -445,7 +445,7 @@ pub fn generate_method(
             &mut __gh_auth_token_ids,
         );
 
-        let res = {
+        let __gh_res = {
 
             // Load contract state
             #load_state
@@ -473,7 +473,7 @@ pub fn generate_method(
         };
 
         // Return the result to the VM
-        ::sdk::internal::contract_return_encoded(&res);
+        ::sdk::internal::contract_return_encoded(&__gh_res);
     }};
 
     // Include method info in debugging context (when enabled)

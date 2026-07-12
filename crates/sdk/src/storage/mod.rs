@@ -44,8 +44,32 @@ pub mod domain_registry;
 #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
 pub use domain_registry::*;
 
-#[cfg(all(
-    not(any(doc, target_family = "wasm", target_arch = "riscv32")),
-    feature = "std"
-))]
+#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
 pub(crate) mod live_guards;
+
+/// Guest builds have no live-guard tracker: `Drop` never runs past a
+/// terminal Return there, which is the very hazard the native tracker
+/// exists to catch. No-op stubs keep every call site free of `cfg`, and
+/// compile to nothing — `LiveGuard`/`FrameGuardReset` are `Drop`-less ZSTs.
+/// (Same dual-impl convention as [`crate::rt::trap`].)
+#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
+pub(crate) mod live_guards {
+    pub(crate) struct LiveGuard;
+    impl LiveGuard {
+        #[inline(always)]
+        pub(crate) fn new() -> Self {
+            Self
+        }
+    }
+
+    pub(crate) struct FrameGuardReset;
+    impl FrameGuardReset {
+        #[inline(always)]
+        pub(crate) fn new() -> Self {
+            Self
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn assert_no_live_guards() {}
+}

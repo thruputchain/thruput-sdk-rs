@@ -38,7 +38,8 @@ These are separate workspaces with their own pinned deps in `[workspace.dependen
 These directories are **not** members of any workspace and are excluded from the root `Cargo.toml`. Their sdk pins and `Cargo.lock` files must be updated by hand after bumping the workspace version:
 
 - `example_contracts/multi_root_collision` — one manifest + its own `Cargo.lock`
-- `example-contracts/cross_crate_collision` — three manifests (alpha, beta, wrapper) + its own `Cargo.lock`
+- `example-contracts/cross_crate_collision` — one pin in the workspace root's
+  `[workspace.dependencies]` (members inherit it) + its own `Cargo.lock`
 
 The repo-wide `grep` in the Verification step will catch stale `=X.Y.Z` pins inside these directories too; treat any match there as a required manual fix.
 

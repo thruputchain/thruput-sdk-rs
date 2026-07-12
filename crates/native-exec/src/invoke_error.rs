@@ -129,22 +129,6 @@ pub fn deactivate_panic_hook() {
     });
 }
 
-/// Print `msg` and fail the invocation as
-/// [`InvokeErrorCode::Unrecoverable`].
-///
-/// For harness-level contract bugs that must not be mistakable for an
-/// ordinary abort. A plain `panic!` here would be rewritten by the panic
-/// hook into a `Deterministic` error — the same code a legitimate abort
-/// unwinds as — so a test calling the method via `try_*` could catch it and
-/// carry on. `Unrecoverable` cannot be swallowed that way.
-///
-/// `resume_unwind` (not `panic_any`) deliberately bypasses the panic hook,
-/// keeping the `eprintln` here as the single place the message is printed.
-pub fn unrecoverable_panic(msg: &str) -> ! {
-    eprintln!("{msg}");
-    panic::resume_unwind(Box::new(unrecoverable_error()))
-}
-
 // Wrap a function (i.e. part of a contract) within a try-catch block
 // that appropriately handles groundhog error codes.
 pub fn invoke_wrapper<'a, F>(

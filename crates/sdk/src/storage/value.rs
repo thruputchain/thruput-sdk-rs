@@ -120,14 +120,10 @@ where
     #[cfg_attr(feature = "debugging", track_caller)]
     pub fn load_mut(&mut self) -> ValueMut<'_, T> {
         let value = self.get();
-        #[cfg(all(
-            not(any(doc, target_family = "wasm", target_arch = "riscv32")),
-            feature = "std"
-        ))]
-        crate::storage::live_guards::guard_created();
         ValueMut {
             value: self,
             data: value,
+            _live: crate::storage::live_guards::LiveGuard::new(),
         }
     }
 }
@@ -148,6 +144,11 @@ impl<T> super::deletable::Deletable for Value<T> {
 pub struct ValueMut<'a, T: __xdrs::WriteXDR> {
     value: &'a mut Value<T>,
     data: T,
+    /// Registers this guard as live for the terminal-return check. Holding
+    /// the field is the registration; on guest builds it is a `Drop`-less
+    /// ZST and compiles away. Any future deferred-write guard should carry
+    /// one too.
+    _live: crate::storage::live_guards::LiveGuard,
 }
 
 impl<T: __xdrs::WriteXDR> Deref for ValueMut<'_, T> {
@@ -166,11 +167,7 @@ impl<T: __xdrs::WriteXDR> DerefMut for ValueMut<'_, T> {
 
 impl<T: __xdrs::WriteXDR> Drop for ValueMut<'_, T> {
     fn drop(&mut self) {
-        #[cfg(all(
-            not(any(doc, target_family = "wasm", target_arch = "riscv32")),
-            feature = "std"
-        ))]
-        crate::storage::live_guards::guard_dropped();
         self.value.set(&self.data);
+        // `_live` drops here, decrementing the count.
     }
 }
