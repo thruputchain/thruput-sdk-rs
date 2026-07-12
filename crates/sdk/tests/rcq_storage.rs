@@ -24,8 +24,8 @@ fn test_rcq_raw() {
         assert_eq!(rcq.peek_raw().as_ref(), &[4]);
         assert_eq!(rcq.peek_raw().as_ref(), &[4]);
         assert_eq!(rcq.consume_raw().as_ref(), &[4]);
-        assert_eq!(rcq.try_peek_raw().map(|b| Vec::from(b)), Ok(vec![5]));
-        assert_eq!(rcq.try_consume_raw().map(|b| Vec::from(b)), Ok(vec![5]));
+        assert_eq!(rcq.try_peek_raw().map(Vec::from), Ok(vec![5]));
+        assert_eq!(rcq.try_consume_raw().map(Vec::from), Ok(vec![5]));
         // Empty queue: the try_ forms report a storage-missing error
         // instead of aborting.
         assert!(rcq.try_peek_raw().unwrap_err().is_storage_missing());

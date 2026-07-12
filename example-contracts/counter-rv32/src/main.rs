@@ -15,6 +15,11 @@
 //!      script in `groundhog-rv32-runtime` KEEPs `.text.gh_*`, but the
 //!      `extern crate counter;` line is what makes the macro-emitted rlib
 //!      actually link in the first place.
+//!   3. Host the cross-crate storage-domain uniqueness test
+//!      (`tests/storage_domains.rs`): per-crate lib tests can't see
+//!      sibling contract crates' storage roots, so the wrapper — the one
+//!      place everything links together — asserts no two roots share a
+//!      domain.
 //!
 //! The runtime itself (`_start`, `#[panic_handler]`, `#[global_allocator]`,
 //! linker script) is no longer named here: `sdk` depends on

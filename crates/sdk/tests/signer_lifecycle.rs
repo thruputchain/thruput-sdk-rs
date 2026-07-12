@@ -52,20 +52,20 @@ fn build_nested_auth_token_tree() {
     let addr_c3 = addr(0xC3);
 
     let preimage = AuthTokenPreimage {
-        consumer: addr_b.clone(),
+        consumer: addr_b,
         data: MiddleAuthPreimage {
             label: 42,
             single_child: AuthTokenPreimage {
-                consumer: addr_c1.clone(),
+                consumer: addr_c1,
                 data: LeafAuthPreimage { data: 100 },
             },
             multi_children: vec![
                 AuthTokenPreimage {
-                    consumer: addr_c2.clone(),
+                    consumer: addr_c2,
                     data: LeafAuthPreimage { data: 200 },
                 },
                 AuthTokenPreimage {
-                    consumer: addr_c3.clone(),
+                    consumer: addr_c3,
                     data: LeafAuthPreimage { data: 300 },
                 },
             ],

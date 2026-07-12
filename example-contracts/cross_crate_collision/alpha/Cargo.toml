@@ -1,0 +1,20 @@
+[package]
+name = "alpha"
+description = "Cross-crate collision fixture: root named Registry, default domain"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }

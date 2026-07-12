@@ -7,10 +7,12 @@
 #[allow(unused)]
 mod mu_buf;
 mod serialize;
+mod terminal_return;
 
 #[allow(unused_imports)]
 pub use mu_buf::*;
 pub use serialize::*;
+pub use terminal_return::*;
 
 #[cfg(feature = "call_tracking")]
 mod call_tracking_contexts;
