@@ -57,7 +57,7 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
     let env: TestEnvironmentHandle = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
-            sdk::contract_return_encoded(&FailToEncode);
+            sdk::internal::contract_return_encoded(&FailToEncode);
         });
     });
     mock.deploy_contract_to(&CHILD_ADDR);

@@ -12,6 +12,7 @@ mod mock_public {
             ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,
         },
         frame_result::FrameResult,
+        invoke_error::InvokeError,
         mock_contract::MockContract,
         mock_transaction_handler::MockTransactionHandler,
         test_environment::{TestEnvironment, TestEnvironmentHandle},

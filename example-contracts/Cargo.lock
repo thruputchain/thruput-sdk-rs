@@ -65,6 +65,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
+name = "codegen_hygiene"
+version = "0.4.0"
+dependencies = [
+ "codegen_hygiene",
+ "sdk",
+]
+
+[[package]]
 name = "codegen_impl_client"
 version = "0.4.0"
 dependencies = [

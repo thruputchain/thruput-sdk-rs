@@ -291,8 +291,13 @@ fn invoke_frame<X>(
         // (i.e. when `raw_Invoke` returns `Ok`). Never read on the error path.
         frame_status: InvocationFrameStatusCode::Fault,
     };
-    let result =
-        sys::raw_Invoke(address, args, auth_bytes, &inputs, &mut outputs);
+    let result = {
+        // The callee has its own memory on a real guest, so the caller's
+        // live guards must not leak into the callee's terminal-return
+        // check. Restored when the scope ends, including on unwind.
+        let _reset = crate::storage::live_guards::FrameGuardReset::new();
+        sys::raw_Invoke(address, args, auth_bytes, &inputs, &mut outputs)
+    };
 
     let is_ok = match result {
         // A child frame ran; its outcome is reported in `frame_status`.
