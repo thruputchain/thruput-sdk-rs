@@ -55,12 +55,16 @@
 
 ENTRY(_start)
 
-/* Stack reserve size. 24K by default: no-alloc contracts keep their
- * ScratchBufs (4K each, several live at once on cross-call paths) on the
- * stack, so the reserve must hold a few of them plus call frames. The
- * reserve costs nothing in the stored artifact — the lowerer trims it via
- * `initial_memory_start` — only address space shared with the heap, which
- * no-alloc contracts don't use at all.
+/* Stack reserve size. 30K by default: a no-alloc contract's scratch buffers
+ * (SCRATCH_MAX = 4K each, see `sdk::call::with_call_scratch`) are plain
+ * stack locals, and several are live at once — an entrypoint holds the 4K
+ * calldata buffer for its whole frame, and a chain like
+ * entrypoint -> method -> storage helper carries a scratch per frame that
+ * encodes. Measured worst case is ~9K; 30K leaves headroom for a deeper
+ * chain rather than trapping on overflow. The reserve costs nothing in the
+ * stored artifact — the lowerer trims it via `initial_memory_start` — only
+ * address space shared with the heap, which no-alloc contracts don't use at
+ * all.
  *
  * Per-contract override (must be a multiple of 16, enforced by the ASSERT
  * at the bottom): pass a linker --defsym in the contract's rustflags,
@@ -70,7 +74,7 @@ ENTRY(_start)
  *
  * PROVIDE yields to such an external definition.
  */
-PROVIDE(__stack_size = 24K);
+PROVIDE(__stack_size = 30K);
 
 /* True guest data-memory size. The VM provisions exactly this much
  * (memory_bytes in the artifact header). MUST stay in lockstep with
