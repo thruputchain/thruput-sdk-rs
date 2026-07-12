@@ -240,9 +240,6 @@ fn generate_client_fn(
         .client_ident()
         .unwrap_or_else(|| format_ident!("UnknownClient"));
     let error_enum_ident = format_ident!("{}Error", client_ident);
-    let throws_list = contract.throws_list();
-    let selector_dispatch =
-        generate_selector_dispatch(&error_enum_ident, &throws_list);
 
     Ok(quote_spanned! {method.sig().span()=>
 
@@ -280,20 +277,13 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                use ::sdk::call::RawCallError;
-                match ::sdk::call::try_call_raw_with::<_, #return_type, #error_enum_ident>(
+                // Both the selector dispatch and the error mapping live on the
+                // error enum, emitted once per client rather than per method.
+                ::sdk::call::try_call_raw_with::<_, #return_type, #error_enum_ident>(
                     &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| { #selector_dispatch },
-                ) {
-                    Ok(val) => Ok(val),
-                    Err(RawCallError::Exception(e)) => Err(e),
-                    Err(RawCallError::Fault(s)) => Err(#error_enum_ident::Fault(s)),
-                    Err(RawCallError::Invalid) => Err(#error_enum_ident::Invalid),
-                    Err(RawCallError::UnparseableReturn(s)) => Err(#error_enum_ident::UnparseableReturn(s)),
-                    Err(RawCallError::UnparseableAbort(s)) => Err(#error_enum_ident::UnparseableAbort(s)),
-                    Err(RawCallError::UnparseableAuthHandles(s)) => Err(#error_enum_ident::UnparseableAuthHandles(s)),
-                    Err(RawCallError::EncodingArgs(s)) => Err(#error_enum_ident::EncodingArgs(s)),
-                }
+                    #error_enum_ident::__gh_dispatch_exn,
+                )
+                .map_err(#error_enum_ident::__gh_from_call_error)
             })
         }
     })
@@ -304,6 +294,8 @@ fn generate_error_enum(
     throws_list: &[ThrownType],
 ) -> TokenStream {
     let error_enum_ident = format_ident!("{}Error", client_ident);
+    let selector_dispatch =
+        generate_selector_dispatch(&error_enum_ident, throws_list);
     let selector_uniqueness_asserts =
         generate_selector_uniqueness_asserts(throws_list);
 
@@ -396,6 +388,45 @@ fn generate_error_enum(
                     Self::UnparseableAbort(s) => cthrow(CallingError::DecodingException(s)),
                     Self::UnparseableAuthHandles(s) => cthrow(CallingError::DecodingSuccess(s)),
                     Self::EncodingArgs(s) => cthrow(CallingError::EncodingArgs(s)),
+                }
+            }
+        }
+
+        // Both of these depend only on the *client* (its declared `throws`
+        // list), not on any one method — but a `try_` method body would
+        // inline them per method, and the selector dispatch carries a
+        // `to_owned()` (a `RawException` copy) in every arm. Emitted once
+        // here and called by each `try_` wrapper instead: the per-client cost
+        // goes from O(methods) to O(1).
+        //
+        // `inline(never)` pins that, since a `try_` method is otherwise a
+        // small enough body for LLVM to pull them back in.
+        #[doc(hidden)]
+        impl #error_enum_ident {
+            /// Decode a caught exception into this client's error enum by
+            /// selector. Passed to `try_call_raw_with` as `on_exn`, so it runs
+            /// while the abort bytes are still borrowed from the call scratch.
+            #[doc(hidden)]
+            #[inline(never)]
+            fn __gh_dispatch_exn(exn: ::sdk::exn::RawExceptionRef<'_>) -> Self {
+                #selector_dispatch
+            }
+
+            /// Map a raw call failure onto this client's error enum.
+            #[doc(hidden)]
+            #[inline(never)]
+            fn __gh_from_call_error(
+                e: ::sdk::call::RawCallError<Self>,
+            ) -> Self {
+                use ::sdk::call::RawCallError;
+                match e {
+                    RawCallError::Exception(e) => e,
+                    RawCallError::Fault(s) => Self::Fault(s),
+                    RawCallError::Invalid => Self::Invalid,
+                    RawCallError::UnparseableReturn(s) => Self::UnparseableReturn(s),
+                    RawCallError::UnparseableAbort(s) => Self::UnparseableAbort(s),
+                    RawCallError::UnparseableAuthHandles(s) => Self::UnparseableAuthHandles(s),
+                    RawCallError::EncodingArgs(s) => Self::EncodingArgs(s),
                 }
             }
         }
