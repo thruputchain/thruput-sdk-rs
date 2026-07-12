@@ -436,11 +436,13 @@ fn with_call_scratch<R>(
     })
 }
 
-/// [`with_call_scratch`] for the SDK's one closure big enough to be worth not
-/// duplicating: the whole of [`try_call_raw_with`], re-instantiated per
-/// `(ARGS, RET, X)` call form. See
+/// [`with_call_scratch`] for the SDK's one closure big enough to be worth
+/// giving a single call site: the whole of [`try_call_raw_with`],
+/// re-instantiated per `(ARGS, RET, X)` call form. That is what lets the call
+/// body inline into the calling contract method, where the entrypoint, gas
+/// limit and flags const-fold away. See
 /// [`with_mut_or_fresh_shared`](ContractLocalRef::with_mut_or_fresh_shared)
-/// for the trade this makes.
+/// for the trade it makes (it costs a scratch-sized slot on the hot frame).
 fn with_call_scratch_shared<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
