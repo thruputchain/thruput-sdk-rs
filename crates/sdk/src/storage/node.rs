@@ -100,6 +100,14 @@ mod tests {
     use super::*;
 
     #[derive(crate::Storage)]
+    struct UnitState;
+
+    #[test]
+    fn unit_struct_contract_state_root_constructs() {
+        let _node: Node<UnitState> = contract_state_root::<UnitState>();
+    }
+
+    #[derive(crate::Storage)]
     struct LeafState {
         value: crate::storage::Value<u64>,
     }
