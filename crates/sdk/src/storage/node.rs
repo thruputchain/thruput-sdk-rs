@@ -8,25 +8,21 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 #[allow(private_bounds)]
 pub trait StorageType: Sealed + From<Keypath> {}
 
-/// A keypath-storing wrapper for compound storage field groups.
+/// Wrapper marking a compound storage field group.
 ///
-/// Pairs a `T: From<Keypath>` with its root keypath.
-/// Derefs to T for field access.
+/// Derefs to `T` for field access. The node does not retain its own keypath:
+/// each field handle constructed by `T::from` already carries the path it
+/// needs, so keeping the parent path would add an unused buffer and require an
+/// otherwise-unnecessary clone during construction.
 pub struct Node<T> {
-    keypath: Keypath,
     fields: T,
 }
 
 impl<T: From<Keypath>> From<Keypath> for Node<T> {
     fn from(keypath: Keypath) -> Self {
-        let fields = T::from(keypath.clone());
-        Self { keypath, fields }
-    }
-}
-
-impl<T> Node<T> {
-    pub fn keypath(&self) -> &Keypath {
-        &self.keypath
+        Self {
+            fields: T::from(keypath),
+        }
     }
 }
 
@@ -102,30 +98,18 @@ pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::StorageDomain;
-    use crate::storage::{FramedDomain, frame_domain, framed_domain_len};
 
-    struct UnitState;
-    impl From<Keypath> for UnitState {
-        fn from(_: Keypath) -> Self {
-            Self
-        }
-    }
-    impl StorageDomain for UnitState {
-        const DOMAIN: FramedDomain = {
-            const N: usize = framed_domain_len("UnitState");
-            const BYTES: [u8; N] = frame_domain::<N>("UnitState");
-            FramedDomain::new(&BYTES)
-        };
+    #[derive(crate::Storage)]
+    struct LeafState {
+        value: crate::storage::Value<u64>,
     }
 
     #[test]
     fn contract_state_root_seeds_domain() {
-        let node: Node<UnitState> = contract_state_root::<UnitState>();
-        // The const-framed seed equals the runtime child() frame exactly.
-        let expected = Keypath::default().child("UnitState");
-        assert!(node.keypath().addresses_same_slot(&expected));
-        // And it is NOT the bare empty root.
-        assert!(!node.keypath().addresses_same_slot(&Keypath::default()));
+        let node: Node<LeafState> = contract_state_root::<LeafState>();
+        // Observe the domain through a real field path: the Node itself does
+        // not retain a redundant copy of the parent path.
+        let expected = Keypath::default().child("LeafState").child(&0u32);
+        assert!(node.value.keypath().addresses_same_slot(&expected));
     }
 }
