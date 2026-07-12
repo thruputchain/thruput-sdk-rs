@@ -129,6 +129,37 @@ pub fn deactivate_panic_hook() {
     });
 }
 
+// Wrap a function (i.e. part of a contract) within a try-catch block
+// that appropriately handles groundhog error codes.
+pub fn invoke_wrapper<'a, F>(
+    wrapped: F,
+) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
+where
+    F: Fn() + UnwindSafe + Clone + 'a,
+{
+    Box::new(move || {
+        let w = wrapped.clone();
+        let result = panic::catch_unwind(w);
+
+        match result {
+            Ok(_) => groundhog_sys::ForeignInvokeResult {
+                panic: InvokeErrorCode::None.0,
+            },
+            Err(err) => {
+                if let Some(my_error) = err.downcast_ref::<InvokeError>() {
+                    return groundhog_sys::ForeignInvokeResult {
+                        panic: my_error.error_type.0,
+                    };
+                }
+                eprintln!("unrecoverable error: {:?}", err);
+                groundhog_sys::ForeignInvokeResult {
+                    panic: InvokeErrorCode::Unrecoverable.0,
+                }
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,35 +250,4 @@ mod tests {
         assert_eq!(panic_hook_depth(), 0);
         deactivate_panic_hook();
     }
-}
-
-// Wrap a function (i.e. part of a contract) within a try-catch block
-// that appropriately handles groundhog error codes.
-pub fn invoke_wrapper<'a, F>(
-    wrapped: F,
-) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
-where
-    F: Fn() + UnwindSafe + Clone + 'a,
-{
-    Box::new(move || {
-        let w = wrapped.clone();
-        let result = panic::catch_unwind(w);
-
-        match result {
-            Ok(_) => groundhog_sys::ForeignInvokeResult {
-                panic: InvokeErrorCode::None.0,
-            },
-            Err(err) => {
-                if let Some(my_error) = err.downcast_ref::<InvokeError>() {
-                    return groundhog_sys::ForeignInvokeResult {
-                        panic: my_error.error_type.0,
-                    };
-                }
-                eprintln!("unrecoverable error: {:?}", err);
-                groundhog_sys::ForeignInvokeResult {
-                    panic: InvokeErrorCode::Unrecoverable.0,
-                }
-            }
-        }
-    })
 }

@@ -35,7 +35,7 @@ fn test_unparseable_return() {
     // The contract "returns successfully" but with garbage bytes that
     // can't be XDR-decoded as the expected return type.
     let result = run_at_test_addr(|| {
-        sdk::contract_return_buf(&[0xFF]);
+        sdk::internal::contract_return(&[0xFF], &[]);
     });
     let res: Result<u64, RawCallError> = into_root_call_result(&result);
     assert!(

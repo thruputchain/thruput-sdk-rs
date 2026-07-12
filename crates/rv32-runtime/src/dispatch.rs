@@ -7,7 +7,7 @@
 
 /// One method's dispatch record: its selector and the wrapper to invoke.
 ///
-/// `wrapper` runs the calldata-decode / invoke / `contract_return_encoded`
+/// `wrapper` runs the calldata-decode / invoke / `sdk::internal::contract_return_encoded`
 /// path; it diverges (never returns to the dispatcher) in practice.
 #[repr(C)]
 #[derive(Clone, Copy)]

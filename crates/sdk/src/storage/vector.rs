@@ -4,6 +4,7 @@ use super::map::Map;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use super::value::Value;
+use crate::exn::NoneIfMissing;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
@@ -55,11 +56,16 @@ impl<S> Vector<S> {
 impl<S: StorageType> Vector<S> {
     /// Current logical extent (number of in-bounds indices).
     ///
+    /// A missing len slot reads as 0 (a never-written vector is empty).
+    /// Any other failure — a value at the slot that is not a `u32`, a
+    /// wrong storage type, a host fault — aborts typed like every other
+    /// storage accessor, instead of masquerading as an empty vector.
+    ///
     /// Vector slots are sparse-capable: callers may delete element storage
     /// without shrinking len, so an in-bounds index does not guarantee that
     /// the slot currently has backing data.
     pub fn len(&self) -> u32 {
-        self.len.try_get().unwrap_or(0)
+        self.len.try_get().none_if_missing().unwrap_or(0)
     }
 
     /// Returns true if the vector contains no elements.
