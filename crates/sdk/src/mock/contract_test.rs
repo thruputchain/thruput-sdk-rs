@@ -10,8 +10,9 @@
 //! `test_wasm` is the harness for running real wasm blobs through the full
 //! SignedTransaction path (the only place gas_consumed is observable).
 
-use crate::call::{ContractError, ContractResult, RawCallError};
+use crate::call::RawCallError;
 use crate::exn::FaultString;
+use crate::exn::RawException;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
 use groundhog_native_exec as native_exec;
@@ -38,7 +39,7 @@ pub fn into_root_call_result<T>(
 where
     T: ReadXDROwned + ReceiveAuthHandles,
 {
-    let contract_result: ContractResult = match result.frame().output() {
+    match result.frame().output() {
         Return { return_buffer } => {
             // A successful frame whose commit failed must not decode to Ok —
             // mirror the legacy wrappers, which panicked on commit failure.
@@ -46,17 +47,29 @@ where
                 &ExecResult::ExecResultOK => {}
                 r => panic!("Transaction failed: {:?}", r),
             }
-            Ok((return_buffer.as_slice().to_vec(), AuthHandleBuf::new()))
+            // No returned auth handles: the root frame has no caller to hand
+            // them back to.
+            crate::call::contract_call_decode::<T>(
+                return_buffer.as_slice(),
+                &[],
+            )
+            .map_err(crate::call::widen_uninhabited_exn)
         }
+        // Kept raw, not typed-decoded: callers assert on the selector and
+        // payload of whatever came back.
         Abort { abort_buffer } => {
-            Err(ContractError::Abort(abort_buffer.as_slice().to_vec()))
+            match RawException::from_abort_buf(abort_buffer.as_slice()) {
+                Ok(exn) => Err(RawCallError::Exception(exn)),
+                Err(e) => Err(RawCallError::UnparseableAbort(
+                    FaultString::from_display(e),
+                )),
+            }
         }
-        Fault => Err(ContractError::Fault(FaultString::empty())),
+        Fault => Err(RawCallError::Fault(FaultString::empty())),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }
-    };
-    crate::call::into_raw_call_result(contract_result)
+    }
 }
 
 /// Run some code in the test environment, as a single auto-committed

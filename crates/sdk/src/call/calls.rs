@@ -61,37 +61,6 @@ where
     })
 }
 
-/// Typed cross-contract call: encode `args`, invoke, decode the return
-/// value (or surface the abort as a [`RawCallError`]).
-///
-/// Convenience form of [`try_call_raw_with`]: both the encoded-args and
-/// returned-data bytes live in a lazily-allocated per-instance scratch
-/// reused across calls (under `alloc`), so repeated calls perform no
-/// per-call allocations even though the guest bump allocator never frees,
-/// and neither outgoing calldata nor received returns have an SDK-imposed
-/// size cap. Undecoded exceptions escape as owned
-/// [`RawException`](crate::exn::RawException)s (one copy on the
-/// exception path).
-///
-/// The [`contract`](macro@crate::contract) macro emits calls to
-/// [`try_call_raw_with`] directly instead, to control that copy.
-#[cfg_attr(feature = "debugging", track_caller)]
-pub fn try_call_raw<ARGS, RET>(
-    address: &ContractAddress,
-    entrypoint: ContractEntrypointID,
-    gas_limit: u64,
-    args: &ARGS,
-    flags: crate::invoke_config::InvokeFlagSet,
-) -> Result<RET, RawCallError>
-where
-    ARGS: WriteXDR + crate::CollectAuthHandles,
-    RET: ReadXDROwned + crate::ReceiveAuthHandles,
-{
-    try_call_raw_with(address, entrypoint, gas_limit, args, flags, |exn| {
-        exn.to_owned()
-    })
-}
-
 /// CXS-encode `value` into the (cleared) scratch data buffer.
 ///
 /// Under `alloc` the buffer grows organically to the encoding's size (no
@@ -204,7 +173,7 @@ pub enum CallOutcome {
 /// attempted, so they are left empty (not stale from a previous call) even
 /// if this returns `Err`.
 ///
-/// Prefer [`try_call_raw`] (or a generated client) for ordinary typed
+/// Prefer [`try_call_raw_with`] (or a generated client) for ordinary typed
 /// calls. This entry point exists for forwarders and proxies — e.g. wallet
 /// contracts that relay opaque calldata to a target and pass the raw
 /// return/abort buffer back verbatim — which cannot name the argument or

@@ -75,8 +75,7 @@ pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
 }
 
 /// `library_abort` for client-side codegen; differs only in the
-/// breadcrumb's location label (mirrors the old
-/// `client_contract_abort_encoded` split). `inline(never)`: see
+/// breadcrumb's location label. `inline(never)`: see
 /// `library_abort` (in release the two are identical and the linker's
 /// ICF folds them).
 #[inline(never)]

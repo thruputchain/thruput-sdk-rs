@@ -64,12 +64,13 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw::<(), ()>(
+            let err = sdk::call::try_call_raw_with::<(), (), _>(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
                 &(),
                 0,
+                |exn| exn.to_owned(),
             )
             .expect_err("child must abort: its return value fails to encode");
 

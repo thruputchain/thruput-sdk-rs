@@ -63,20 +63,6 @@ where
     _contract_abort_encoded(exn)
 }
 
-// Codepath for aborts in client-side codegen; coalesce with above after
-// removing printlns.
-#[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
-pub fn client_contract_abort_encoded<T>(exn: &T) -> !
-where
-    T: WriteXDR + ?Sized + core::fmt::Debug,
-{
-    #[cfg(all(feature = "debugging", feature = "std"))]
-    abort_breadcrumb("Throwing", "Interface location", &exn);
-
-    _contract_abort_encoded(exn)
-}
-
 // Inlining this leads to significant code size bloat.
 #[inline(never)]
 fn _contract_abort_encoded<T>(exn: &T) -> !
