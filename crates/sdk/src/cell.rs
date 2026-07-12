@@ -90,6 +90,13 @@ pub(crate) trait ContractLocalRef<T> {
     /// un-cached. The fallback is out of line and `cold` so the fresh
     /// (no-alloc: `SCRATCH_MAX`-byte) value doesn't get pre-allocated in
     /// every caller's prologue when the happy path is inlined.
+    ///
+    /// `f` is called in each arm, so its body is emitted twice: inlined in the
+    /// hot path, and again inside [`fresh_fallback`] (a distinct closure type
+    /// per use means no cross-arm sharing). For a *large* `f`, use
+    /// [`with_mut_or_fresh_shared`], which emits it once.
+    ///
+    /// [`with_mut_or_fresh_shared`]: Self::with_mut_or_fresh_shared
     #[inline]
     fn with_mut_or_fresh<R>(
         &'static self,
@@ -101,12 +108,52 @@ pub(crate) trait ContractLocalRef<T> {
             Err(_) => fresh_fallback(fresh, f),
         })
     }
+
+    /// [`with_mut_or_fresh`](Self::with_mut_or_fresh) for a large `f`:
+    /// identical semantics, one emitted copy of the body.
+    ///
+    /// The cached value and the fresh fallback funnel into a *single*
+    /// `f(value)` call site — hence the `Option` rather than an `f(..)` in
+    /// each arm. Worth it only when `f` is big: in this SDK exactly one
+    /// closure clears that bar — `with_call_scratch_shared`'s, which is an
+    /// entire cross-contract call, re-instantiated per call form per
+    /// contract. The small encode closures (events, storage values, returns)
+    /// go the other way and use `with_mut_or_fresh`.
+    ///
+    /// The price is stack, not code: the `Option<T>` slot only the cold arm
+    /// ever fills still sits in the frame of everyone who inlines this, so a
+    /// no-alloc call form carries a `SCRATCH_MAX`-sized hole on the hot path
+    /// (measured: ~4.4 KiB, against a 24 KiB guest stack). Nothing *copies*
+    /// through it — `T`'s buffer is `MaybeUninit`, `None` writes only a
+    /// discriminant, and `fresh()`'s return is constructed in place — so the
+    /// cost is the frame, not a `memset`/`memcpy`. Routing both arms through
+    /// a shared `#[inline(never)]` trampoline instead would keep the fresh
+    /// `T` in the cold frame, but measured ~3.4 KiB worse across the contract
+    /// suite; codesize won.
+    #[inline]
+    fn with_mut_or_fresh_shared<R>(
+        &'static self,
+        fresh: fn() -> T,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> R {
+        self.with_ref(|cell| {
+            let mut fallback: Option<T> = None;
+            let mut borrowed = cell.try_borrow_mut().ok();
+
+            let value = match borrowed.as_deref_mut() {
+                Some(cached) => cached,
+                // Cold: the cell is checked out up-stack (re-entrancy).
+                None => fallback.insert(fresh()),
+            };
+
+            f(value)
+        })
+    }
 }
 
-/// Re-entrant-checkout fallback shared by every
-/// [`ContractLocalRef::with_mut_or_fresh`] call site. Out of line and `cold`
-/// so a fresh `T`'s construction isn't duplicated into every caller's
-/// inlined happy path.
+/// Re-entrant-checkout fallback for [`ContractLocalRef::with_mut_or_fresh`].
+/// Out of line and `cold` so neither a fresh `T`'s construction nor the second
+/// copy of `f` lands in every caller's inlined happy path.
 #[cold]
 #[inline(never)]
 fn fresh_fallback<T, R>(fresh: fn() -> T, f: impl FnOnce(&mut T) -> R) -> R {
@@ -126,6 +173,11 @@ mod tests {
         static CELL: ContractRefCell<u32> = const { ContractRefCell::new(1) };
     }
 
+    crate::contract_local! {
+        static SHARED_CELL: ContractRefCell<u32> =
+            const { ContractRefCell::new(1) };
+    }
+
     /// A re-entrant checkout (e.g. a throw while the write scratch is
     /// borrowed for encoding, or the native mock's nested in-process
     /// frames) must get a fresh transient value, and the cached value must
@@ -143,6 +195,24 @@ mod tests {
 
         // The cached value survives; the fresh one was transient.
         CELL.with_mut_or_fresh(|| 42, |v| assert_eq!(*v, 7));
+    }
+
+    /// The shared-body checkout differs only in how `f` is emitted, so it
+    /// owes the same semantics: the re-entrant arm gets a fresh value (via
+    /// the `Option` fallback slot rather than a second copy of `f`), and the
+    /// cached value survives untouched.
+    #[test]
+    fn reentrant_shared_checkout_falls_back_to_fresh() {
+        let inner_saw = SHARED_CELL.with_mut_or_fresh_shared(
+            || 42,
+            |outer| {
+                *outer = 7;
+                SHARED_CELL.with_mut_or_fresh_shared(|| 42, |inner| *inner)
+            },
+        );
+        assert_eq!(inner_saw, 42);
+
+        SHARED_CELL.with_mut_or_fresh_shared(|| 42, |v| assert_eq!(*v, 7));
     }
 }
 

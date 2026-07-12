@@ -387,7 +387,7 @@ fn generate_error_enum(
 
                 match self {
                     #(#rethrow_declared_arms,)*
-                    Self::Library(e) => ::sdk::throw(e),
+                    Self::Library(e) => cthrow(e),
                     Self::BadDecode(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),
