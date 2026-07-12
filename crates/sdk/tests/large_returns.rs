@@ -59,7 +59,7 @@ fn contract_call_receives_returns_larger_than_500_bytes() {
 }
 
 #[test]
-fn try_call_raw_decodes_returns_larger_than_500_bytes() {
+fn try_call_raw_with_decodes_returns_larger_than_500_bytes() {
     // The child returns the CXS encoding of a 600-byte Vec<u8>.
     let encoded =
         sdk::xdr::cxs::encode(&vec![0xCD_u8; 600]).expect("encode failed");
@@ -71,12 +71,13 @@ fn try_call_raw_decodes_returns_larger_than_500_bytes() {
         tx.call(&PARENT_ADDR).run(|| {
             // Call twice: the second call exercises scratch-buffer reuse.
             for _ in 0..2 {
-                let result: Vec<u8> = sdk::call::try_call_raw(
+                let result: Vec<u8> = sdk::call::try_call_raw_with(
                     &CHILD_ADDR,
                     entrypoint(),
                     u64::MAX,
                     &(),
                     0,
+                    |exn| exn.to_owned(),
                 )
                 .expect("call failed");
                 assert_eq!(result, vec![0xCD_u8; 600]);
@@ -87,7 +88,7 @@ fn try_call_raw_decodes_returns_larger_than_500_bytes() {
 }
 
 #[test]
-fn try_call_raw_preserves_abort_payloads_larger_than_500_bytes() {
+fn try_call_raw_with_preserves_abort_payloads_larger_than_500_bytes() {
     // Abort buffer layout: [u64 selector][payload bytes...].
     let selector: u64 = 0xDEAD_BEEF_CAFE_F00D;
     let mut abort_buf =
@@ -99,12 +100,13 @@ fn try_call_raw_preserves_abort_payloads_larger_than_500_bytes() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw::<(), Vec<u8>>(
+            let err = sdk::call::try_call_raw_with::<(), Vec<u8>, _>(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
                 &(),
                 0,
+                |exn| exn.to_owned(),
             )
             .expect_err("child must abort");
             match err {
