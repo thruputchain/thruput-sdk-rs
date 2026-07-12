@@ -179,6 +179,16 @@ fn wide_slot_indices_match_runtime_child() {
     let state = WideSlots::from(root.clone());
     assert!(state.a.keypath().addresses_same_slot(&root.child(&63u32)));
     assert!(state.b.keypath().addresses_same_slot(&root.child(&300u32)));
-    assert!(state.c.keypath().addresses_same_slot(&root.child(&70_000u32)));
-    assert!(state.d.keypath().addresses_same_slot(&root.child(&u32::MAX)));
+    assert!(
+        state
+            .c
+            .keypath()
+            .addresses_same_slot(&root.child(&70_000u32))
+    );
+    assert!(
+        state
+            .d
+            .keypath()
+            .addresses_same_slot(&root.child(&u32::MAX))
+    );
 }

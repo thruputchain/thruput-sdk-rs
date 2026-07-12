@@ -41,6 +41,9 @@ impl Hygiene {
 
     /// All at once, mixed with a real storage read so `self` is used.
     pub fn echo_sum(&self, state: u64, entrypoint: u64, args: u64) -> u64 {
-        state + entrypoint + args + self.marker.try_get().none_if_missing().unwrap_or(0)
+        state
+            + entrypoint
+            + args
+            + self.marker.try_get().none_if_missing().unwrap_or(0)
     }
 }
