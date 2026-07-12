@@ -433,16 +433,14 @@ fn const_root_state_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
                     // Also build the FromConstPath fallback impl (for when
                     // this struct appears as a nested field): uses today's
                     // From<Keypath> with Keypath::from_bytes — one prefix
-                    // copy (the v1 depth-1 rule).
+                    // copy (the v1 depth-1 rule). Its body only needs
+                    // `Self: From<Keypath>`, so bound each field on
+                    // From<Keypath> alone — a FromConstPath bound here would
+                    // be pure over-constraint and needlessly reject structs
+                    // with hand-written From<Keypath> field types.
                     let mut from_const_path_generics = input.generics.clone();
                     for (field, _) in &field_slots {
                         let field_type = &field.ty;
-                        from_const_path_generics
-                            .make_where_clause()
-                            .predicates
-                            .push(syn::parse_quote!(
-                                #field_type: ::sdk::storage::FromConstPath
-                            ));
                         from_const_path_generics
                             .make_where_clause()
                             .predicates

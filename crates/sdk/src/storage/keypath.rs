@@ -157,7 +157,10 @@ impl Keypath {
     /// struct keys children by field position, a `Map` by user key, a `Vector`
     /// by region index then element index one level down), so distinct slots
     /// stay distinct. A hand-written `From<Keypath>` must uphold the same rule:
-    /// give each child of a node a distinct `value`.
+    /// give each child of a node a distinct `value`. (Note that a hand-written
+    /// `From<Keypath>` type can serve as a `Map`/`Vector` element but not as a
+    /// field of a `#[storage]` struct — fields additionally require the
+    /// derive-provided `FromConstPath`; see that trait's docs.)
     pub fn child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
         let mut child = self.clone();
         // Encode the component into the reused scratch in place (no fresh
