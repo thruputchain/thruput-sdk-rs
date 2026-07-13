@@ -59,7 +59,12 @@ alloc = [
 ]
 
 # Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
+std = [
+    "alloc",
+    "groundhog-xdr/std",
+    "groundhog-contract-spec/owned-model",
+    "xdrs/detailed-errors",
+]
 
 # Enable recommended development features
 dev = [
