@@ -27,6 +27,6 @@ impl Counter {
     }
 
     pub fn get(&self) -> i128 {
-        self.value.try_get().unwrap_or(0)
+        self.value.try_get().none_if_missing().unwrap_or(0)
     }
 }

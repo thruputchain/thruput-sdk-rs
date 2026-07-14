@@ -9,11 +9,11 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
-const TEST_FFI_VERSION: &str = "0.19.0";
+const TEST_FFI_VERSION: &str = "0.20.0";
 
 /// Must match the version expected by hogd/built_contracts/build_wasm.sh.
 #[cfg(feature = "source-build")]
-const GROUNDHOG_CLI_VERSION: &str = "0.5.11";
+const GROUNDHOG_CLI_VERSION: &str = "0.5.12";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
@@ -546,9 +546,14 @@ fn fetch_hogd_rust_deps(
             cli_root.display()
         );
         let pkg = format!("groundhog-cli@{GROUNDHOG_CLI_VERSION}");
+        // --locked: build with the CLI's published Cargo.lock. Without it,
+        // cargo re-resolves transitive deps to the latest compatible versions,
+        // which can pair the CLI's pinned deps with newer registry crates they
+        // don't compile against.
         let output = Command::new("cargo")
             .args([
                 "install",
+                "--locked",
                 "--root",
                 cli_root.to_str().unwrap(),
                 "--registry",

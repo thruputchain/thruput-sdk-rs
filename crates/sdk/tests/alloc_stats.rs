@@ -1,5 +1,5 @@
 //! Per-frame allocation stats through the SDK's real client-call path:
-//! `try_call_raw` → `Invoke` syscall → hogd → trampoline → mock method.
+//! `try_call_raw_with` → `Invoke` syscall → hogd → trampoline → mock method.
 
 sdk::install_counting_allocator!();
 
@@ -25,12 +25,13 @@ fn client_style_cross_call_produces_labeled_alloc_record() {
 
     let result = env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let () = sdk::call::try_call_raw(
+            let () = sdk::call::try_call_raw_with(
                 &CHILD_ADDR,
                 entrypoint,
                 u64::MAX,
                 &(),
                 0,
+                |exn| exn.to_owned(),
             )
             .expect("cross-call failed");
         })

@@ -33,6 +33,16 @@ These are separate workspaces with their own pinned deps in `[workspace.dependen
 
 (After bumping the workspace, run `grep 'version = "=OLD"' example-contracts/Cargo.toml integration_test/Cargo.toml` to catch any pin that was missed.)
 
+### Workspace-excluded fixtures (must be updated manually)
+
+These directories are **not** members of any workspace and are excluded from the root `Cargo.toml`. Their sdk pins and `Cargo.lock` files must be updated by hand after bumping the workspace version:
+
+- `example_contracts/multi_root_collision` — one manifest + its own `Cargo.lock`
+- `example-contracts/cross_crate_collision` — one pin in the workspace root's
+  `[workspace.dependencies]` (members inherit it) + its own `Cargo.lock`
+
+The repo-wide `grep` in the Verification step will catch stale `=X.Y.Z` pins inside these directories too; treat any match there as a required manual fix.
+
 ### 4. groundhog-sys FFI version (if applicable)
 
 - `groundhog-sys/build.rs` — `TEST_FFI_VERSION` constant (independent version, only bump when the test-ffi release changes)

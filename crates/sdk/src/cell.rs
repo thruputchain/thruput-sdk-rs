@@ -27,18 +27,21 @@ mod _ref_impl {
 }
 
 // Guest environment: wrap `RefCell` so it can live in a plain static.
-#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
+#[cfg(all(
+    any(doc, target_family = "wasm", target_arch = "riscv32"),
+    feature = "alloc"
+))]
 mod _ref_impl {
     /// A wrapped [`core::cell::RefCell`] that implements [`Sync`] so it can
     /// be used in statics — the by-reference companion to [`ContractCell`]
     /// for state that must be borrowed in place (e.g. the SDK's fixed
     /// buffers, which would cost a stack copy if moved through `Cell`).
-    /// Declare via [`contract_local!`](crate::contract_local) and access
-    /// with [`ContractLocalRef::with_ref`], which works identically against
-    /// the guest static and the test env's thread-local.
+    /// Declare via [`contract_local!`](crate::contract_local); the SDK
+    /// accesses it through a crate-private checkout trait that works
+    /// identically against the guest static and the test env's
+    /// thread-local.
     ///
     /// [`ContractCell`]: super::ContractCell
-    /// [`ContractLocalRef::with_ref`]: super::ContractLocalRef::with_ref
     pub struct ContractRefCell<T>(core::cell::RefCell<T>);
 
     // SAFETY: single-threaded guest, no interrupts; the test environment
@@ -61,53 +64,27 @@ mod _ref_impl {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[allow(unused_imports)]
 pub use _ref_impl::*;
 
 /// Uniform access to a [`contract_local!`](crate::contract_local)
 /// [`ContractRefCell`] static: implemented by the guest static itself and by
 /// the test env's `LocalKey`, so `CELL.with_ref(|c| ...)` works in both.
-pub trait ContractLocalRef<T> {
+///
+/// Crate-private: contracts should not build on the SDK's internal cells.
+///
+/// `alloc`-only, because the SDK's one by-reference cell is the `alloc`
+/// scratch pool ([`call::with_call_scratch`](crate::call)). The no-alloc guest
+/// keeps its scratch on the stack — a `MaybeUninit` buffer is free to build,
+/// so there is nothing to cache — and so needs no cell, no borrow flag, and no
+/// re-entrancy fallback at all.
+#[cfg(feature = "alloc")]
+pub(crate) trait ContractLocalRef<T> {
     fn with_ref<R>(
         &'static self,
         f: impl FnOnce(&core::cell::RefCell<T>) -> R,
     ) -> R;
-
-    /// Run `f` with exclusive access to the cell's contents.
-    ///
-    /// This is the checkout-or-fresh pattern behind the SDK's per-instance
-    /// scratch buffers. Normally the cell is free, so `f` runs in place
-    /// against the cached value — no copy, and for a no-alloc fixed buffer,
-    /// no stack move either. If the cell is already borrowed up-stack
-    /// (re-entrancy: a nested in-process frame in the native mock, or SDK
-    /// re-entry while the cell is checked out — e.g. throwing an exception
-    /// while the write scratch is borrowed for encoding), `f` instead runs
-    /// against a fresh `T` built by `fresh` — correct, just momentarily
-    /// un-cached. The fallback is out of line and `cold` so the fresh
-    /// (no-alloc: `SCRATCH_MAX`-byte) value doesn't get pre-allocated in
-    /// every caller's prologue when the happy path is inlined.
-    #[inline]
-    fn with_mut_or_fresh<R>(
-        &'static self,
-        fresh: fn() -> T,
-        f: impl FnOnce(&mut T) -> R,
-    ) -> R {
-        self.with_ref(|cell| match cell.try_borrow_mut() {
-            Ok(mut guard) => f(&mut *guard),
-            Err(_) => fresh_fallback(fresh, f),
-        })
-    }
-}
-
-/// Re-entrant-checkout fallback shared by every
-/// [`ContractLocalRef::with_mut_or_fresh`] call site. Out of line and `cold`
-/// so a fresh `T`'s construction isn't duplicated into every caller's
-/// inlined happy path.
-#[cold]
-#[inline(never)]
-fn fresh_fallback<T, R>(fresh: fn() -> T, f: impl FnOnce(&mut T) -> R) -> R {
-    let mut value = fresh();
-    f(&mut value)
 }
 
 // Guest environment: wrap

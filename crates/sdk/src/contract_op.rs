@@ -3,33 +3,13 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-use crate::cell::{ContractLocalRef, ContractRefCell};
 #[cfg(not(feature = "alloc"))]
 use crate::internal::MUBuf;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::xdr::*;
-use crate::{
-    CollectAuthHandles, FaultString, HandlingError, library_throw,
-    syscall_throw,
-};
+use crate::{FaultString, HandlingError, syscall_throw};
 use core::mem::MaybeUninit;
-
-pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
-    let revert = false;
-
-    let auth_token_ids_bytes =
-        crate::call::auth_handles_as_bytes(auth_token_ids);
-
-    sys::raw_Return(buf, revert, auth_token_ids_bytes)
-}
-
-#[inline]
-pub fn contract_return_buf(buf: &[u8]) -> ! {
-    let auth_token_ids = &[];
-
-    contract_return(buf, auth_token_ids)
-}
 
 pub fn contract_abort(buf: &[u8]) -> ! {
     let revert = true;
@@ -83,20 +63,6 @@ where
     _contract_abort_encoded(exn)
 }
 
-// Codepath for aborts in client-side codegen; coalesce with above after
-// removing printlns.
-#[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
-pub fn client_contract_abort_encoded<T>(exn: &T) -> !
-where
-    T: WriteXDR + ?Sized + core::fmt::Debug,
-{
-    #[cfg(all(feature = "debugging", feature = "std"))]
-    abort_breadcrumb("Throwing", "Interface location", &exn);
-
-    _contract_abort_encoded(exn)
-}
-
 // Inlining this leads to significant code size bloat.
 #[inline(never)]
 fn _contract_abort_encoded<T>(exn: &T) -> !
@@ -110,53 +76,20 @@ where
     })
 }
 
-// Try once more to encode an exception before just trapping. Reachable from
-// every `_contract_abort_encoded` throw path; out of line and `cold` so its
-// fresh (no-alloc: SCRATCH_MAX-byte) buffer doesn't get pre-allocated in
-// every abort-capable caller's prologue when the happy path is inlined.
+// A user exception failed to encode in `_contract_abort_encoded`:
+// report it as a typed library exception instead of trapping. Reachable
+// only from the generic `throw<E>` path — library exceptions go through
+// the hand-rolled `abort_encode` encoder, which is infallible (fixed
+// buffer sized to the worst-case variant) and does not touch the shared
+// scratch, so no second-failure fallback is needed here anymore.
 #[cold]
 #[inline(never)]
 fn exception_encoding_error(err: WriteError) -> ! {
     use crate::exn::LibraryExn;
-    use crate::exn::cross_exn::ContractExn;
 
-    let exn = ContractExn::new(LibraryExn::from(
+    crate::exn::abort_encode::library_abort(&LibraryExn::from(
         HandlingError::EncodingException(FaultString::via_display(&err)),
-    ));
-    // Encode in place: the shared scratch is borrowed up-stack (that's how
-    // we got here), so this pays one fresh buffer — but not a second one
-    // for a by-value return.
-    let mut buf = crate::internal::new_scratch();
-    crate::internal::encode_scratch(&mut buf, &exn)
-        .unwrap_or_else(|_| crate::trap());
-
-    contract_abort(buf.as_ref());
-}
-
-#[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
-pub fn contract_return_encoded<RET>(ret: &RET) -> !
-where
-    RET: WriteXDR + ?Sized + CollectAuthHandles,
-{
-    // Collect auth handles first (own them), then encode the return value
-    // into the reused scratch in place and hand it straight to the syscall —
-    // no fresh 4 KiB buffer on the (small) guest stack.
-    let auth_handles = crate::call::collect_auth_handle_bytes(ret)
-        .unwrap_or_else(|e| {
-            // This is the successful-return path, so a failure here is an
-            // `EncodingSuccess` condition — not `EncodingException`, which is
-            // reserved for a failed *abort* encode.
-            library_throw(HandlingError::EncodingSuccess(
-                FaultString::from_display(e),
-            ));
-        });
-
-    crate::call::with_scratch(|buf| {
-        crate::internal::encode_scratch(buf, ret)
-            .unwrap_or_else(|e| crate::exn::encoding_success_throw(e));
-        contract_return(buf.as_ref(), auth_handles.as_slice());
-    })
+    ))
 }
 
 pub fn get_caller() -> ContractAddress {
@@ -220,7 +153,7 @@ pub type AuthTokenIdBuf = heapless::Vec<u32, 32>;
 /// Fetch the current frame's calldata and auth-token ids into
 /// caller-provided buffers (cleared first).
 ///
-/// This is the primitive behind [`with_calldata_and_auth_tokens`]: the
+/// This is the fallible core of [`fetch_calldata_and_auth_tokens`]: the
 /// buffers are filled in place, never moved by value. Buffers are
 /// heap-allocated with their exact sizes, queried up front via
 /// `GetCalldataLen`, so calldata of any length is supported.
@@ -283,7 +216,7 @@ fn fetch_calldata_and_auth_tokens_into(
 /// Fetch the current frame's calldata and auth-token ids into
 /// caller-provided buffers (cleared first).
 ///
-/// This is the primitive behind [`with_calldata_and_auth_tokens`]: the
+/// This is the fallible core of [`fetch_calldata_and_auth_tokens`]: the
 /// buffers are filled in place, never moved by value. Without `alloc`,
 /// calldata lands in the fixed
 /// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer and the
@@ -344,63 +277,41 @@ fn fetch_calldata_and_auth_tokens_into(
     Ok(())
 }
 
-crate::contract_local! {
-    static CALLDATA_SCRATCH: ContractRefCell<(Calldata, AuthTokenIdBuf)> =
-        const {
-            ContractRefCell::new((Calldata::new(), AuthTokenIdBuf::new()))
-        };
-}
-
-/// Fetch this frame's calldata and auth-token ids and run `f` on them,
-/// reporting a fetch failure as `Err` instead of aborting. Same buffer
-/// plumbing as [`with_calldata_and_auth_tokens`] — the `try_` law (see the
-/// [`exn`](mod@crate::exn) module docs) applies: the only way this aborts
-/// the VM is through `f` itself. The `Err` arm is guest-reachable via a
-/// `kGetCalldata` fetch failure (surfaced as a `LibraryExn::Syscall` value;
-/// the syscall itself may succeed while the SDK wrapper rejects the data),
-/// which is not limited to an adversarial host: in the no-alloc guest it is
+/// Fetch this frame's calldata and auth-token ids into the caller's
+/// buffers (cleared first), throwing a `LibraryExn::Syscall` on fetch
+/// failure. The single calldata API: generated entrypoint wrappers and
+/// raw-calldata contracts both use it. The throw is guest-reachable and
+/// not limited to an adversarial host: in the no-alloc guest it is
 /// exactly what an ordinary transaction gets if its calldata exceeds
-/// `SCRATCH_MAX` (4096) bytes or carries more than 32 auth tokens — the
-/// primary case this API exists to report through `Err` rather than
-/// aborting on.
+/// `SCRATCH_MAX` (4096) bytes or carries more than 32 auth tokens.
 ///
-/// The buffers live in the per-instance calldata cell — a guest `static` —
-/// so the (SCRATCH_MAX-byte, no-alloc) calldata buffer costs no stack and
-/// is never copied. The cell stays borrowed while `f` runs; decoded args
-/// borrow from it for the whole frame, which is why it is distinct from
-/// the write scratch. A re-entrant fetch (a nested in-process frame in the
-/// native mock) falls back to fresh buffers via
-/// [`ContractLocalRef::with_mut_or_fresh`], so the borrow can't alias.
-pub fn try_with_calldata_and_auth_tokens<R>(
-    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
-) -> Result<R, crate::exn::LibraryExn> {
-    CALLDATA_SCRATCH.with_mut_or_fresh(
-        fresh_calldata,
-        |(calldata, auth_ids)| {
-            fetch_calldata_and_auth_tokens_into(calldata, auth_ids).map_err(
-                |syserr| {
-                    crate::exn::syscall_exn(SyscallNo::kGetCalldata, syserr)
-                },
-            )?;
-            Ok(f(calldata, auth_ids))
-        },
-    )
-}
-
-/// Fetch this frame's calldata and auth-token ids and run `f` on them,
-/// throwing a `LibraryExn::Syscall` on fetch failure. The single calldata
-/// API: generated entrypoint wrappers and raw-calldata contracts both use
-/// it.
+/// The buffers live in the caller's frame and are filled in place —
+/// never moved by value. Generated entrypoint wrappers declare them as
+/// locals and fetch exactly once, at the root of the frame; the decoded
+/// args borrow the calldata buffer for the entire handler frame. In the
+/// no-alloc guest that costs `SCRATCH_MAX` (4096) bytes of stack per
+/// live fetch. There is no shared cell, so nested fetches (the native
+/// mock's in-process frames, or a hand-written re-fetch) each get their
+/// own buffers and cannot alias.
 ///
-/// A thin throwing wrapper over [`try_with_calldata_and_auth_tokens`] so the
-/// two spellings can't drift: whatever `LibraryExn` the `try_` form would
-/// return on fetch failure is exactly what this throws.
-pub fn with_calldata_and_auth_tokens<R>(
-    f: impl FnOnce(&Calldata, &AuthTokenIdBuf) -> R,
-) -> R {
-    try_with_calldata_and_auth_tokens(f).unwrap_or_else(|e| library_throw(e))
-}
-
-fn fresh_calldata() -> (Calldata, AuthTokenIdBuf) {
-    (crate::internal::new_scratch(), AuthTokenIdBuf::new())
+/// Non-generic and `#[inline(never)]`, both load-bearing for codesize:
+/// every entrypoint reaches this single copy of the fetch machinery
+/// (~440 bytes in the optimized wasm) by direct call — nothing
+/// monomorphizes per entrypoint, and no handler's address is ever taken,
+/// so the funcref table (capped at 64 initial elements on-chain) does
+/// not grow with entrypoint count. Without the attribute, LTO inlines
+/// the body back into each export, recreating the per-export copies.
+///
+/// `doc(hidden)`: raw calldata access is plumbing for the generated
+/// entrypoint wrappers, not a surface contracts should discover and
+/// build on.
+#[doc(hidden)]
+#[inline(never)]
+pub fn fetch_calldata_and_auth_tokens(
+    calldata: &mut Calldata,
+    auth_ids: &mut AuthTokenIdBuf,
+) {
+    fetch_calldata_and_auth_tokens_into(calldata, auth_ids).unwrap_or_else(
+        |syserr| syscall_throw(SyscallNo::kGetCalldata, syserr),
+    );
 }

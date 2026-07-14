@@ -59,7 +59,12 @@ alloc = [
 ]
 
 # Include interfaces requiring std
-std = ["alloc", "groundhog-xdr/std", "groundhog-contract-spec/owned-model"]
+std = [
+    "alloc",
+    "groundhog-xdr/std",
+    "groundhog-contract-spec/owned-model",
+    "xdrs/detailed-errors",
+]
 
 # Enable recommended development features
 dev = [
@@ -116,4 +121,3 @@ groundhog-wasm-runtime = { workspace = true }
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 groundhog-rv32-runtime = { workspace = true }
-linkme = { workspace = true }

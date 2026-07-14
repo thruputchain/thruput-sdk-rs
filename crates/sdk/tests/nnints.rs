@@ -32,9 +32,12 @@ contract_test!(test_nnints_exn {
     static KEY: StorageKey = static_key!("my nnint");
     let key = &KEY;
 
-    // Assuming no previous activity at this storage location, try_get gives
-    // None:
-    assert_eq!(non_negative_int_try_get(key), None);
+    // Assuming no previous activity at this storage location, try_get
+    // reports a storage-missing error (and none_if_missing maps it to None):
+    assert!(
+        non_negative_int_try_get(key).unwrap_err().is_storage_missing()
+    );
+    assert_eq!(non_negative_int_try_get(key).none_if_missing(), None);
 
     let mut n = 0;
 
@@ -196,25 +199,26 @@ fn get_wrong_type_fails() {
     );
 }
 
-// Try-get on a wrong-type location aborts with invalid-input.
+// Try-get on a wrong-type location reports invalid-input as `Err` (the
+// `try_` law: no abort), and the error is not the storage-missing kind.
 //
 #[test]
-fn try_get_wrong_type_fails() {
+fn try_get_wrong_type_reports_err() {
     use sdk::sys_exn::nnint::*;
 
-    let res = run_tx_result(|| {
+    run_tx(|| {
         let key = StorageKey::default();
         let key = &key;
 
         bytestring_set(key, b"");
-        let _ = non_negative_int_try_get(key);
-    });
-
-    assert_syscall_exception(
-        &res,
-        SyscallNo::kNonnegativeIntGet,
-        SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
-    );
+        let err = non_negative_int_try_get(key).unwrap_err();
+        assert!(!err.is_storage_missing());
+        assert!(err.as_syscall_exn().unwrap().is(
+            SyscallNo::kNonnegativeIntGet,
+            SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+        ));
+    })
+    .assert_success();
 }
 
 // Trying to get an nnint from a deleted key aborts with not-exist.

@@ -1,9 +1,10 @@
 use super::deletable::Deletable;
-use super::keypath::Keypath;
+use super::keypath::{FramedComponent, Keypath};
 use super::map::Map;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
 use super::value::Value;
+use crate::exn::NoneIfMissing;
 use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
@@ -26,8 +27,14 @@ impl<S> Debug for Vector<S> {
 
 impl<S> From<Keypath> for Vector<S> {
     fn from(keypath: Keypath) -> Self {
-        let len_kp = keypath.child(&0u32);
-        let values_kp = keypath.child(&1u32);
+        // Fixed layout slots (0 = len, 1 = values), pre-framed at const
+        // time: state-load appends constant bytes instead of runtime-CXS-
+        // encoding through the scratch buffer. Element slots stay runtime-
+        // derived (indices are dynamic).
+        const LEN_SLOT: FramedComponent = FramedComponent::from_u32(0);
+        const VALUES_SLOT: FramedComponent = FramedComponent::from_u32(1);
+        let len_kp = keypath.child_framed(&LEN_SLOT);
+        let values_kp = keypath.child_framed(&VALUES_SLOT);
 
         Self {
             keypath,
@@ -49,11 +56,16 @@ impl<S> Vector<S> {
 impl<S: StorageType> Vector<S> {
     /// Current logical extent (number of in-bounds indices).
     ///
+    /// A missing len slot reads as 0 (a never-written vector is empty).
+    /// Any other failure — a value at the slot that is not a `u32`, a
+    /// wrong storage type, a host fault — aborts typed like every other
+    /// storage accessor, instead of masquerading as an empty vector.
+    ///
     /// Vector slots are sparse-capable: callers may delete element storage
     /// without shrinking len, so an in-bounds index does not guarantee that
     /// the slot currently has backing data.
     pub fn len(&self) -> u32 {
-        self.len.try_get().unwrap_or(0)
+        self.len.try_get().none_if_missing().unwrap_or(0)
     }
 
     /// Returns true if the vector contains no elements.
@@ -261,5 +273,22 @@ impl<'a, S: StorageType> IntoIterator for &'a mut Vector<S> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+#[cfg(test)]
+mod test_vector_slots {
+    use super::*;
+    use crate::storage::Value;
+
+    /// Drift guard: the const-framed fixed slots (0 = len, 1 = values)
+    /// must address exactly what runtime child() derives.
+    #[test]
+    fn fixed_slots_match_runtime_child() {
+        let root = Keypath::default().child("V");
+        let v: Vector<Value<u32>> = Vector::from(root.clone());
+        assert!(v.len.keypath().addresses_same_slot(&root.child(&0u32)));
+        assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
+        assert!(v.keypath().addresses_same_slot(&root));
     }
 }

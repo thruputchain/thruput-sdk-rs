@@ -55,12 +55,16 @@
 
 ENTRY(_start)
 
-/* Stack reserve size. 24K by default: no-alloc contracts keep their
- * ScratchBufs (4K each, several live at once on cross-call paths) on the
- * stack, so the reserve must hold a few of them plus call frames. The
- * reserve costs nothing in the stored artifact — the lowerer trims it via
- * `initial_memory_start` — only address space shared with the heap, which
- * no-alloc contracts don't use at all.
+/* Stack reserve size. 30K by default: a no-alloc contract's scratch buffers
+ * (SCRATCH_MAX = 4K each, see `sdk::call::with_call_scratch`) are plain
+ * stack locals, and several are live at once — an entrypoint holds the 4K
+ * calldata buffer for its whole frame, and a chain like
+ * entrypoint -> method -> storage helper carries a scratch per frame that
+ * encodes. Measured worst case is ~9K; 30K leaves headroom for a deeper
+ * chain rather than trapping on overflow. The reserve costs nothing in the
+ * stored artifact — the lowerer trims it via `initial_memory_start` — only
+ * address space shared with the heap, which no-alloc contracts don't use at
+ * all.
  *
  * Per-contract override (must be a multiple of 16, enforced by the ASSERT
  * at the bottom): pass a linker --defsym in the contract's rustflags,
@@ -70,7 +74,7 @@ ENTRY(_start)
  *
  * PROVIDE yields to such an external definition.
  */
-PROVIDE(__stack_size = 24K);
+PROVIDE(__stack_size = 30K);
 
 /* True guest data-memory size. The VM provisions exactly this much
  * (memory_bytes in the artifact header). MUST stay in lockstep with
@@ -98,6 +102,19 @@ MEMORY
 __stack_bottom = ORIGIN(DATA);
 __stack_top = __stack_bottom + __stack_size;
 
+/* gp-relaxation anchor. With --relax-gp (set in the contract rustflags),
+ * lld rewrites the lui+addi address materialization of any symbol whose
+ * final address lands in [gp - 0x800, gp + 0x7FF] into a single
+ * gp-relative instruction. Statics start exactly at __stack_top
+ * (stack-first layout), so anchoring 0x800 past it covers the first
+ * 4 KiB of .rodata/.data/.bss — for small contracts, the whole statics
+ * band. Purely opportunistic: out-of-window accesses keep the
+ * two-instruction form; correctness is never involved. _start loads gp
+ * from this symbol (rv32-runtime/src/start.rs). PROVIDE yields to a
+ * per-contract --defsym override, and the expression tracks any
+ * __stack_size override automatically. */
+PROVIDE(__global_pointer$ = __stack_top + 0x800);
+
 SECTIONS
 {
   .text 0 : ALIGN(4)
@@ -113,19 +130,20 @@ SECTIONS
 
   .rodata __stack_top : ALIGN(8)
   {
-    /* Guest dispatch registry (linkme distributed_slice). Placed inside
-     * .rodata with explicit __start_/__stop_ encapsulation symbols so the
-     * table rides the lowerer's existing .rodata -> initial-memory copy,
-     * instead of an orphan section the PROGBITS allowlist would skip.
-     * Section names are produced by linkme from the slice name
-     * GROUNDHOG_RV32_ENTRYPOINTS. */
+    /* Guest dispatch table: one `Entrypoint` record per #[contract] method,
+     * emitted by the groundhog-macros expansion via
+     * #[link_section = "groundhog_rv32_entrypoints"]. Placed inside .rodata
+     * with explicit bracket symbols so the table rides the lowerer's
+     * existing .rodata -> initial-memory copy, instead of an orphan section
+     * the PROGBITS allowlist would skip. Section and symbol names are owned
+     * by this repo end-to-end (macro emits, this script brackets,
+     * rv32-runtime/src/start.rs reads) — deliberately NOT the linker's
+     * __start_<section> auto-encapsulation convention, so this script is
+     * unambiguously the single definer. */
     . = ALIGN(8);
-    __start_linkme_GROUNDHOG_RV32_ENTRYPOINTS = .;
-    KEEP(*(linkme_GROUNDHOG_RV32_ENTRYPOINTS))
-    __stop_linkme_GROUNDHOG_RV32_ENTRYPOINTS = .;
-    __start_linkm2_GROUNDHOG_RV32_ENTRYPOINTS = .;
-    KEEP(*(linkm2_GROUNDHOG_RV32_ENTRYPOINTS))
-    __stop_linkm2_GROUNDHOG_RV32_ENTRYPOINTS = .;
+    __groundhog_rv32_entrypoints_start = .;
+    KEEP(*(groundhog_rv32_entrypoints))
+    __groundhog_rv32_entrypoints_end = .;
 
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
@@ -162,6 +180,14 @@ SECTIONS
 
   /DISCARD/ :
   {
+    /* Spec anchors are needed while the linker resolves archive members, but
+     * not in the final ELF: the retained raw fragments are independently
+     * marked `#[used]`. Discard the relocation graph after it has pulled those
+     * fragments in, leaving neither data nor executable metadata for the
+     * lowerer to handle. Keep these names in sync with the SDK macros.
+     */
+    *(groundhogspecanchorsv0)
+    *(groundhogspecanchortextv0)
     *(.got .got.*)
     *(.got.plt .got.plt.*)
     *(.plt .plt.*)

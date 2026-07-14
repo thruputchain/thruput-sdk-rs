@@ -20,7 +20,7 @@ fn self_return_larger_than_500_bytes_encodes() {
     let env = TestEnvironment::no_cost();
     let result = env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || -> () {
-            sdk::contract_return_encoded(&payload);
+            sdk::internal::contract_return_encoded(&payload);
         })
     });
     result.assert_success();
@@ -52,9 +52,13 @@ fn outgoing_calldata_larger_than_500_bytes_encodes() {
     let env: TestEnvironmentHandle = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
-            let calldata_len = sdk::contract_op::with_calldata_and_auth_tokens(
-                |calldata, _| calldata.len(),
+            let mut calldata = sdk::internal::new_scratch();
+            let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+            sdk::contract_op::fetch_calldata_and_auth_tokens(
+                &mut calldata,
+                &mut auth_ids,
             );
+            let calldata_len = calldata.len();
             let encoded = sdk::xdr::cxs::encode(&(calldata_len as u64))
                 .expect("encode failed");
             sdk::sys::raw_Return(&encoded, false, &[]);
@@ -67,12 +71,13 @@ fn outgoing_calldata_larger_than_500_bytes_encodes() {
             // Call twice: the second call exercises scratch reuse after
             // the buffer served both encode and receive duty.
             for _ in 0..2 {
-                let received_len: u64 = sdk::call::try_call_raw(
+                let received_len: u64 = sdk::call::try_call_raw_with(
                     &CHILD_ADDR,
                     entrypoint(),
                     u64::MAX,
                     &args,
                     0,
+                    |exn| exn.to_owned(),
                 )
                 .expect("call failed");
                 assert_eq!(received_len, expected_calldata_len);

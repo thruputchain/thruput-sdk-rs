@@ -76,6 +76,68 @@ impl<'a> From<&'a TxEmittedEvent> for EmittedEvent<'a> {
     }
 }
 
+/// Why constructing a `TypedEvent` from a raw event failed. Internal:
+/// surfaced only through [`TypedEvent::new`]'s panic message (the `Display`
+/// texts below are that message and must not change) or discarded by
+/// [`TypedEvent::try_new`].
+enum BuildError {
+    /// The event's claimed topics don't fit its body.
+    Malformed { num_topics: u32, body_len: usize },
+    /// Topic 0 doesn't match `E`'s static discriminant.
+    SignatureMismatch {
+        actual: Option<Topic>,
+        expected: &'static Topic,
+        type_name: &'static str,
+    },
+    /// The event's topic count doesn't match `E`'s declared static count.
+    TopicCountMismatch {
+        actual: u32,
+        expected: u32,
+        type_name: &'static str,
+    },
+    /// The payload bytes don't decode as `E::Payload`.
+    Decode(xdrs::ReadError),
+}
+
+impl core::fmt::Display for BuildError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            BuildError::Malformed {
+                num_topics,
+                body_len,
+            } => write!(
+                f,
+                "TypedEvent::new: malformed event — {} topics do not fit a \
+                 {}-byte body",
+                num_topics, body_len,
+            ),
+            BuildError::SignatureMismatch {
+                actual,
+                expected,
+                type_name,
+            } => write!(
+                f,
+                "TypedEvent::new: event type mismatch — topic 0 {:?} does \
+                 not match the expected discriminant {:?} for {}",
+                actual, expected, type_name,
+            ),
+            BuildError::TopicCountMismatch {
+                actual,
+                expected,
+                type_name,
+            } => write!(
+                f,
+                "TypedEvent::new: topic count mismatch — event has {} \
+                 topics but {} declares {}",
+                actual, type_name, expected,
+            ),
+            BuildError::Decode(e) => {
+                write!(f, "failed to decode event payload: {}", e)
+            }
+        }
+    }
+}
+
 /// A typed view over an emitted event, combining topic access with
 /// a pre-decoded payload.
 pub struct TypedEvent<'a, E: Event> {
@@ -84,43 +146,68 @@ pub struct TypedEvent<'a, E: Event> {
 }
 
 impl<'a, E: Event> TypedEvent<'a, E> {
+    /// Decode a raw event into a typed view, or say why it isn't an `E`.
+    /// Shared engine behind [`new`](Self::new) (panics with the error's
+    /// `Display` text) and [`try_new`](Self::try_new) (discards it).
+    fn build(raw: &'a TxEmittedEvent) -> Result<Self, BuildError> {
+        let emitted = EmittedEvent::from(raw);
+        // Reject a malformed event up front, before the signature/payload
+        // checks (which would otherwise report a misleading "type mismatch"
+        // or decode a silently-empty payload).
+        let payload_bytes =
+            emitted.payload().ok_or(BuildError::Malformed {
+                num_topics: raw.num_topics,
+                body_len: raw.serialized_event.len(),
+            })?;
+        if let Some(expected) = E::signature() {
+            match emitted.topic(0) {
+                Some(actual) if actual == expected => {}
+                other => {
+                    return Err(BuildError::SignatureMismatch {
+                        actual: other.copied(),
+                        expected,
+                        type_name: core::any::type_name::<E>(),
+                    });
+                }
+            }
+        }
+        // After the signature check, so a different-type event still reports
+        // "type mismatch" rather than a count difference.
+        if raw.num_topics != E::num_topics() {
+            return Err(BuildError::TopicCountMismatch {
+                actual: raw.num_topics,
+                expected: E::num_topics(),
+                type_name: core::any::type_name::<E>(),
+            });
+        }
+        let payload =
+            E::decode_payload(payload_bytes).map_err(BuildError::Decode)?;
+        Ok(Self { emitted, payload })
+    }
+
     /// Decode a raw event into a typed view.
     ///
     /// When `E` declares a static topic-0 discriminant (via
     /// [`Event::signature`]), the raw event's topic 0 is verified against it
     /// first, so a payload that merely *shares a shape* with `E` cannot be
-    /// silently mistyped as `E`. Panics on a discriminant mismatch or on
-    /// payload decode failure.
+    /// silently mistyped as `E`. Panics on a discriminant mismatch, a topic
+    /// count differing from [`Event::num_topics`], or payload decode
+    /// failure.
     #[track_caller]
     pub fn new(raw: &'a TxEmittedEvent) -> Self {
-        let emitted = EmittedEvent::from(raw);
-        // Reject a malformed event up front, with a clear message, before the
-        // signature/payload checks (which would otherwise report a misleading
-        // "type mismatch" or decode a silently-empty payload).
-        let payload_bytes = emitted.payload().unwrap_or_else(|| {
-            panic!(
-                "TypedEvent::new: malformed event — {} topics do not fit a \
-                 {}-byte body",
-                raw.num_topics,
-                raw.serialized_event.len(),
-            )
-        });
-        if let Some(expected) = E::signature() {
-            match emitted.topic(0) {
-                Some(actual) if actual == expected => {}
-                other => panic!(
-                    "TypedEvent::new: event type mismatch — topic 0 {:?} does \
-                     not match the expected discriminant {:?} for {}",
-                    other,
-                    expected,
-                    core::any::type_name::<E>(),
-                ),
-            }
+        match Self::build(raw) {
+            Ok(typed) => typed,
+            Err(e) => panic!("{}", e),
         }
-        let payload = E::decode_payload(payload_bytes).unwrap_or_else(|e| {
-            panic!("failed to decode event payload: {}", e)
-        });
-        Self { emitted, payload }
+    }
+
+    /// Non-panicking twin of [`new`](Self::new): `Some` only if the event is
+    /// well-formed, its topic 0 matches `E`'s declared discriminant (when
+    /// one exists), its topic count matches [`Event::num_topics`], and its
+    /// payload decodes as `E::Payload`. The probe for scanning event streams
+    /// that contain foreign events.
+    pub fn try_new(raw: &'a TxEmittedEvent) -> Option<Self> {
+        Self::build(raw).ok()
     }
 
     /// The decoded payload.
@@ -196,5 +283,158 @@ mod tests {
         assert_eq!(ev.payload(), Some(&[1u8, 2, 3, 4][..]));
         assert!(ev.topic(0).is_some());
         assert_eq!(ev.topic(1), None);
+    }
+
+    const SIG: Topic = [0xAB; 32];
+
+    /// Minimal Event impl with a static signature and a 4-byte big-endian
+    /// u32 payload. Decode is hand-rolled so these no_std tests don't need
+    /// cxs encode (which requires alloc).
+    struct SigEvent;
+
+    impl xdrs::WriteXDR for SigEvent {
+        fn write_xdr<F, W: xdrs::Writer<F>>(
+            &self,
+            _w: &mut W,
+        ) -> xdrs::WriteResult<()> {
+            Ok(())
+        }
+
+        unsafe fn write_xdr_unchecked<F, W: xdrs::WriterUnchecked<F>>(
+            &self,
+            _w: &mut W,
+        ) {
+        }
+    }
+
+    impl Event for SigEvent {
+        type Payload<'a> = u32;
+
+        fn num_topics() -> u32 {
+            1
+        }
+
+        fn signature() -> Option<&'static Topic> {
+            Some(&SIG)
+        }
+
+        fn decode_payload(bytes: &[u8]) -> Result<u32, xdrs::ReadError> {
+            match <[u8; 4]>::try_from(bytes) {
+                Ok(b) => Ok(u32::from_be_bytes(b)),
+                Err(_) => Err(xdrs::ReadError::SourceEmpty {
+                    requested: 4,
+                    remaining: bytes.len(),
+                }),
+            }
+        }
+    }
+
+    /// Event whose payload decode accepts any bytes — isolates the
+    /// topic-count check: without it, a wrong-count event with a matching
+    /// signature would still decode successfully and match.
+    struct LenientEvent;
+
+    impl xdrs::WriteXDR for LenientEvent {
+        fn write_xdr<F, W: xdrs::Writer<F>>(
+            &self,
+            _w: &mut W,
+        ) -> xdrs::WriteResult<()> {
+            Ok(())
+        }
+
+        unsafe fn write_xdr_unchecked<F, W: xdrs::WriterUnchecked<F>>(
+            &self,
+            _w: &mut W,
+        ) {
+        }
+    }
+
+    impl Event for LenientEvent {
+        type Payload<'a> = usize;
+
+        fn num_topics() -> u32 {
+            1
+        }
+
+        fn signature() -> Option<&'static Topic> {
+            Some(&SIG)
+        }
+
+        fn decode_payload(bytes: &[u8]) -> Result<usize, xdrs::ReadError> {
+            Ok(bytes.len())
+        }
+    }
+
+    #[test]
+    fn try_new_decodes_matching_event() {
+        // Topic 0 = SIG (32 × 0xAB), payload = 7u32 big-endian.
+        static BODY: [u8; 36] = {
+            let mut b = [0xABu8; 36];
+            b[32] = 0;
+            b[33] = 0;
+            b[34] = 0;
+            b[35] = 7;
+            b
+        };
+        let raw = raw_event(1, &BODY);
+        let typed =
+            TypedEvent::<SigEvent>::try_new(&raw).expect("should decode");
+        assert_eq!(*typed.payload(), 7);
+        assert_eq!(typed.topic(0), Some(&SIG));
+    }
+
+    #[test]
+    fn try_new_rejects_signature_mismatch() {
+        // Topic 0 is 32 × 0xCD ≠ SIG; payload bytes are valid u32.
+        static BODY: [u8; 36] = [0xCD; 36];
+        let raw = raw_event(1, &BODY);
+        assert!(TypedEvent::<SigEvent>::try_new(&raw).is_none());
+    }
+
+    #[test]
+    fn try_new_rejects_malformed_event() {
+        // Claims 3 topics (96 bytes) but the body is only 40.
+        static BODY: [u8; 40] = [0u8; 40];
+        let raw = raw_event(3, &BODY);
+        assert!(TypedEvent::<SigEvent>::try_new(&raw).is_none());
+    }
+
+    #[test]
+    fn try_new_rejects_undecodable_payload() {
+        // Topic 0 = SIG but only 3 payload bytes — decode_payload fails.
+        static BODY: [u8; 35] = [0xAB; 35];
+        let raw = raw_event(1, &BODY);
+        assert!(TypedEvent::<SigEvent>::try_new(&raw).is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "event type mismatch")]
+    fn new_still_panics_on_signature_mismatch() {
+        static BODY: [u8; 36] = [0xCD; 36];
+        let raw = raw_event(1, &BODY);
+        let _ = TypedEvent::<SigEvent>::new(&raw);
+    }
+
+    #[test]
+    fn try_new_rejects_topic_count_mismatch() {
+        // Two topics (both 0xAB, so topic 0 = SIG) + 4 payload bytes, but
+        // LenientEvent declares exactly 1 topic. Its payload decode accepts
+        // anything, so only the count check can reject this.
+        static BODY: [u8; 68] = [0xAB; 68];
+        let raw = raw_event(2, &BODY);
+        assert!(TypedEvent::<LenientEvent>::try_new(&raw).is_none());
+
+        // Sanity: with the declared count the same body prefix matches.
+        static OK_BODY: [u8; 36] = [0xAB; 36];
+        let ok = raw_event(1, &OK_BODY);
+        assert!(TypedEvent::<LenientEvent>::try_new(&ok).is_some());
+    }
+
+    #[test]
+    #[should_panic(expected = "topic count mismatch")]
+    fn new_panics_on_topic_count_mismatch() {
+        static BODY: [u8; 68] = [0xAB; 68];
+        let raw = raw_event(2, &BODY);
+        let _ = TypedEvent::<LenientEvent>::new(&raw);
     }
 }

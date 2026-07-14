@@ -204,7 +204,14 @@ fn impl_from_keypath(
         resolved.push((idx, field.span()));
 
         field_initializers.extend(quote! {
-            let #field_name = keypath.child(&#idx).into();
+            let #field_name = {
+                // The frame bytes are concrete at expansion time (the index
+                // is a literal), so the inner const is legal even under
+                // generic impls — it captures no generic params.
+                const __SLOT_FRAME: ::sdk::storage::FramedComponent =
+                    ::sdk::storage::FramedComponent::from_u32(#idx);
+                keypath.child_framed(&__SLOT_FRAME).into()
+            };
         });
 
         // Add `FieldType: From<Keypath>` bound

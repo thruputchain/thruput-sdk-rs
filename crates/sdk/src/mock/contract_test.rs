@@ -10,8 +10,9 @@
 //! `test_wasm` is the harness for running real wasm blobs through the full
 //! SignedTransaction path (the only place gas_consumed is observable).
 
-use crate::call::{ContractError, ContractResult, RawCallError};
+use crate::call::RawCallError;
 use crate::exn::FaultString;
+use crate::exn::RawException;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
 use groundhog_native_exec as native_exec;
@@ -38,7 +39,7 @@ pub fn into_root_call_result<T>(
 where
     T: ReadXDROwned + ReceiveAuthHandles,
 {
-    let contract_result: ContractResult = match result.frame().output() {
+    match result.frame().output() {
         Return { return_buffer } => {
             // A successful frame whose commit failed must not decode to Ok —
             // mirror the legacy wrappers, which panicked on commit failure.
@@ -46,17 +47,29 @@ where
                 &ExecResult::ExecResultOK => {}
                 r => panic!("Transaction failed: {:?}", r),
             }
-            Ok((return_buffer.as_slice().to_vec(), AuthHandleBuf::new()))
+            // No returned auth handles: the root frame has no caller to hand
+            // them back to.
+            crate::call::contract_call_decode::<T>(
+                return_buffer.as_slice(),
+                &[],
+            )
+            .map_err(crate::call::widen_uninhabited_exn)
         }
+        // Kept raw, not typed-decoded: callers assert on the selector and
+        // payload of whatever came back.
         Abort { abort_buffer } => {
-            Err(ContractError::Abort(abort_buffer.as_slice().to_vec()))
+            match RawException::from_abort_buf(abort_buffer.as_slice()) {
+                Ok(exn) => Err(RawCallError::Exception(exn)),
+                Err(e) => Err(RawCallError::UnparseableAbort(
+                    FaultString::from_display(e),
+                )),
+            }
         }
-        Fault => Err(ContractError::Fault(FaultString::empty())),
+        Fault => Err(RawCallError::Fault(FaultString::empty())),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }
-    };
-    crate::call::into_raw_call_result(contract_result)
+    }
 }
 
 /// Run some code in the test environment, as a single auto-committed
@@ -204,10 +217,10 @@ where
     // std::println!("gas consumed: {}", gas_consumed);
 
     match handler.try_commit_transaction() {
-        ExecResult::ExecResultOK => {}
+        native_exec::TryCommitResult::Ok => {}
         // Note: these results are also deterministic:
-        //     ExecResultTxDeterministicError
-        //     ExecResultTxRootFrameReverted
+        //     TxDeterministicError
+        //     TxRootFrameReverted
         r => panic!("Transaction failed: {:?}", r),
     }
 
@@ -303,8 +316,49 @@ pub fn deploy_address(
 #[cfg(test)]
 mod tests {
     use super::load_rv32_contract;
+    use super::wasm_test_handler;
+    use crate::TestEnvironment;
     use std::format;
     use std::fs;
+    use std::string::String;
+
+    #[test]
+    fn panic_with_live_transaction_handler_survives_drop() {
+        // Parity with native-exec's
+        // `panic_with_open_transaction_is_not_masked_by_drop`, but for the real
+        // `TransactionHandler` (full SignedTransaction) path: a test that
+        // panics while a handler is live (invoked but not yet committed) must
+        // let the original panic propagate, not have it masked by a second
+        // panic from `Drop`'s FFI teardown.
+        //
+        // This drives the clean-abort path — the FFI abort/close succeed, so
+        // the only way `Drop` could double-panic here is if it panicked
+        // unconditionally (as it did before the teardown errors were routed
+        // through `drop_failure`). We can't inject an FFI teardown *failure*
+        // from a unit test, so this guards against reintroducing an
+        // unconditional Drop panic rather than reproducing the conditional
+        // double-failure that the fix ultimately hardens against.
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let env = TestEnvironment::new(None);
+                let mut handler = wasm_test_handler(&env, || {});
+                // Transaction invoked but never committed or aborted: Drop must
+                // abort it during unwind.
+                let _ = handler.root_invoke();
+                panic!("original failure message");
+            }));
+
+        let payload = caught.expect_err("the panic must propagate, not abort");
+        let msg = payload
+            .downcast_ref::<&'static str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str));
+        assert_eq!(
+            msg,
+            Some("original failure message"),
+            "the original panic message must survive Drop cleanup"
+        );
+    }
 
     #[test]
     fn load_rv32_contract_wraps_artifact_bytes() {

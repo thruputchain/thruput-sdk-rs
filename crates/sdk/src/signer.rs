@@ -22,6 +22,13 @@ impl<T> WriteXDR for Signed<T> {
     fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
         Ok(())
     }
+
+    #[inline(always)]
+    unsafe fn write_xdr_unchecked<F, W: WriterUnchecked<F>>(
+        &self,
+        _w: &mut W,
+    ) {
+    }
 }
 
 impl<'r, T> ReadXDR<'r> for Signed<T> {

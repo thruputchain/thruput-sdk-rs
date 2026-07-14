@@ -1,4 +1,4 @@
-use super::keypath::Keypath;
+use super::keypath::{KeyCache, Keypath};
 use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
@@ -28,28 +28,37 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// `sys_exn::nnint`.
 #[derive(Debug)]
 pub struct NNInt {
-    keypath: Keypath,
+    key: KeyCache,
 }
 
 impl From<Keypath> for NNInt {
     fn from(keypath: Keypath) -> Self {
-        Self { keypath }
+        Self {
+            key: KeyCache::from(keypath),
+        }
     }
 }
 
 impl NNInt {
     /// Get the current value.  Aborts if location not yet set.
     pub fn get(&self) -> i128 {
-        non_negative_int_get(&self.keypath.generate_key())
+        non_negative_int_get(self.key.get())
     }
 
-    /// Get the current value, or none if not yet set
-    pub fn try_get(&self) -> Option<i128> {
-        non_negative_int_try_get(&self.keypath.generate_key())
+    /// Get the current value, reporting failure as `Err` instead of
+    /// aborting (the `try_` law; see the [`exn`](mod@crate::exn) module
+    /// docs). A not-yet-set location is an `Err` for which
+    /// [`is_storage_missing`](crate::exn::LibraryExn::is_storage_missing)
+    /// is true — use
+    /// [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing) to
+    /// treat just that case as an ordinary `None`. See
+    /// [`non_negative_int_try_get`] for the full error contract.
+    pub fn try_get(&self) -> Result<i128, crate::exn::LibraryExn> {
+        non_negative_int_try_get(self.key.get())
     }
 
     fn flags(&self) -> StorageDeltaFlags {
-        if self.keypath.is_exclusive() {
+        if self.key.keypath().is_exclusive() {
             StorageDeltaFlags::ExclusiveLock
         } else {
             StorageDeltaFlags::None
@@ -63,12 +72,7 @@ impl NNInt {
     /// lower. A non-negative `set_value` keeps the floor at `0`. (At commit,
     /// `value >= min(set_value, 0)` must hold.) See the [type docs](NNInt).
     pub fn set(&mut self, set_value: i128) {
-        nnint::set_add(
-            &self.keypath.generate_key(),
-            Some(set_value),
-            0,
-            self.flags(),
-        );
+        nnint::set_add(self.key.get(), Some(set_value), 0, self.flags());
     }
 
     /// Increment by an amount (without querying the current value).
@@ -78,7 +82,7 @@ impl NNInt {
     /// [type docs](NNInt)). For a call-time non-negativity check, use
     /// [`strict_inc`](Self::strict_inc). Throws on overflow.
     pub fn inc(&mut self, increment: i128) {
-        let key = &self.keypath.generate_key();
+        let key = self.key.get();
         let (s, a) = nnint::get_values(key);
         let add_value =
             a.checked_add(increment).unwrap_or_else(|| nnint_overflow());
@@ -92,17 +96,26 @@ impl NNInt {
     }
 
     /// Increment by an amount, like [`NNInt::strict_inc`], but report
-    /// overflow/underflow to the caller instead of aborting, so a contract
-    /// can raise a domain-specific exception. On `Err` the stored value is
-    /// unmodified; no extra storage roundtrip over [`NNInt::inc`].
+    /// failure to the caller instead of aborting (the `try_` law; see the
+    /// [`exn`](mod@crate::exn) module docs), so a contract can raise a
+    /// domain-specific exception. On `Err` the stored value is unmodified;
+    /// no extra storage roundtrip over [`NNInt::inc`]. The domain errors
+    /// are `NonNegativeIntOverflow`/`NonNegativeIntUnderflow`; a wrong
+    /// storage type at the key or any other syscall failure surfaces as
+    /// `LibraryExn::Syscall`.
     pub fn try_strict_inc(
         &mut self,
         increment: i128,
     ) -> Result<(), crate::exn::LibraryExn> {
         use crate::exn::LibraryExn;
 
-        let key = &self.keypath.generate_key();
-        let (s, a) = nnint::try_get_values_force(key).unwrap_or((0, 0));
+        let key = self.key.get();
+        let (s, a) = match nnint::try_get_values_force(key) {
+            Ok(values) => values,
+            // A never-written location increments as if from zero.
+            Err(e) if e.is_storage_missing() => (0, 0),
+            Err(e) => return Err(e),
+        };
 
         let add_value = a
             .checked_add(increment)
@@ -115,8 +128,7 @@ impl NNInt {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
 
-        nnint::set_add(key, Some(s), add_value, self.flags());
-        Ok(())
+        nnint::try_set_add(key, Some(s), add_value, self.flags())
     }
 }
 
@@ -126,9 +138,6 @@ impl super::node::StorageType for NNInt {}
 impl super::deletable::Deletable for NNInt {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
         let effective = StorageDeltaFlags(flags.0 | self.flags().0);
-        crate::sys_exn::delete::delete_with_flags(
-            &self.keypath.generate_key(),
-            effective,
-        );
+        crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
     }
 }

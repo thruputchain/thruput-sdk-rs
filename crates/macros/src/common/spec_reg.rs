@@ -526,6 +526,13 @@ fn emit_root_anchor_tokens(
     Some(quote! {
         #[cfg(#cfg)]
         const _: () = {
+            // This table is a link-time GC root only; contract code never
+            // reads it. On RV32 the linker follows its relocations to pull in
+            // the transitive raw-spec graph, then discards the table itself.
+            #[cfg_attr(
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecanchorsv0")
+            )]
             #[used]
             static ROOT_SPEC_ANCHORS: [fn() -> usize; #count] = [
                 #(#anchor_roots),*
@@ -696,6 +703,8 @@ mod tests {
 
         assert!(tokens.contains("__GROUNDHOG_SPEC_ANCHOR_ROOT"), "{tokens}");
         assert!(tokens.contains("Option < Vec < Payload > >"), "{tokens}");
+        assert!(tokens.contains("groundhogspecanchorsv0"), "{tokens}");
+        assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
     }
 
     #[test]

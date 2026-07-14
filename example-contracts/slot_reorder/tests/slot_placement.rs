@@ -5,6 +5,22 @@ use slot_reorder::*;
 
 static NONCE: SHA256Hash = sdk::sha256_static!("SLOT_REORDER_NONCE");
 
+/// Slots >= 63 take multi-byte CXS index encodings (2-, 3-, and 5-byte
+/// forms). Lock the derive's field derivation against runtime `child()`
+/// across every width, including the u32::MAX extreme the `#[slot(N)]`
+/// parser allows.
+#[derive(Storage)]
+struct WideSlots {
+    #[slot(63)]
+    a: Value<u64>,
+    #[slot(300)]
+    b: Value<u64>,
+    #[slot(70_000)]
+    c: Value<u64>,
+    #[slot(4_294_967_295)]
+    d: Value<u64>,
+}
+
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
     let env = TestEnvironment::no_cost();
     let contract = slot_reorder::register_mock_contract(&env);
@@ -152,5 +168,27 @@ fn keypath_identity_matches_pinned_slot() {
             .keypath()
             .addresses_same_slot(&root.child(&2u32)),
         "`third` should address slot 2 (positional)"
+    );
+}
+
+/// Keypath-identity (no I/O): const-framed field derivation must equal
+/// runtime child() at every CXS index width.
+#[test]
+fn wide_slot_indices_match_runtime_child() {
+    let root = Keypath::default().child("WideSlots");
+    let state = WideSlots::from(root.clone());
+    assert!(state.a.keypath().addresses_same_slot(&root.child(&63u32)));
+    assert!(state.b.keypath().addresses_same_slot(&root.child(&300u32)));
+    assert!(
+        state
+            .c
+            .keypath()
+            .addresses_same_slot(&root.child(&70_000u32))
+    );
+    assert!(
+        state
+            .d
+            .keypath()
+            .addresses_same_slot(&root.child(&u32::MAX))
     );
 }

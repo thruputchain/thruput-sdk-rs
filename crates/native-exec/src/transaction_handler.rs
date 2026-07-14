@@ -133,9 +133,10 @@ impl TransactionHandler {
     /// Tries to commit the transaction to the database.
     /// This must be called after root_invoke, and only once per transaction.
     ///
-    /// Returns the [`ExecResult`](groundhog_xdr::exec_result::ExecResult)
-    /// reported by the executor; check it to see whether the commit
-    /// succeeded.
+    /// Returns the [`TryCommitResult`](crate::TryCommitResult) reported by the
+    /// executor; check it to see whether the commit succeeded. On a
+    /// nondeterministic (two-phase commit) failure it carries the
+    /// storage-conflict diagnostic.
     ///
     /// This will abort the transaction if the root invocation failed.
     /// So it is safe to call either try_commit_transaction or abort_transaction
@@ -145,9 +146,7 @@ impl TransactionHandler {
     ///
     /// Panics if called before `root_invoke`, or if the transaction was
     /// already committed or aborted.
-    pub fn try_commit_transaction(
-        &mut self,
-    ) -> groundhog_xdr::exec_result::ExecResult {
+    pub fn try_commit_transaction(&mut self) -> crate::TryCommitResult {
         if !self.invoked {
             panic!(
                 "cannot try to commit a transaction that has not been invoked"
@@ -166,9 +165,10 @@ impl TransactionHandler {
             panic!("failed to try to commit transaction: {err}");
         }
 
-        let exec_result: groundhog_xdr::exec_result::ExecResult =
-            res.result_code.into();
-        exec_result
+        crate::TryCommitResult::from_ffi(
+            res.result_code,
+            &res.serialized_conflict,
+        )
     }
 
     /// Aborts the transaction.
@@ -195,14 +195,30 @@ impl TransactionHandler {
 impl Drop for TransactionHandler {
     fn drop(&mut self) {
         if self.invoked && !self.committed && !self.aborted {
-            self.abort_transaction();
+            // Abort the uncommitted transaction. Inlined rather than calling
+            // `abort_transaction` to avoid its panic on FFI error: we may be
+            // unwinding from a test failure, and a panic in `drop` would
+            // double-panic into a SIGABRT that hides the original message.
+            self.aborted = true;
+            let res =
+                unsafe { groundhog_sys::abort_transaction(self.handler) };
+            let err: FFIErrorCode = res.into();
+            if err != FFIErrorCode::None {
+                crate::drop_failure(format_args!(
+                    "failed to abort uncommitted transaction during cleanup: {:?}",
+                    err
+                ));
+            }
         }
 
         let res =
             unsafe { groundhog_sys::close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
-            panic!("failed to close syscall handler: {:?}", err);
+            crate::drop_failure(format_args!(
+                "failed to close syscall handler: {:?}",
+                err
+            ));
         }
     }
 }

@@ -507,7 +507,7 @@ impl TestEnvironment {
     ) -> TransactResult {
         let mut tx = MockTransactionHandler::new(self.clone());
         let frame_result = f(&mut tx);
-        let exec_result = tx.try_commit_transaction();
+        let exec_result = tx.try_commit_transaction().exec_result();
         TransactResult::new(frame_result, exec_result)
     }
 

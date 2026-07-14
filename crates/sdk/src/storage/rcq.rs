@@ -1,6 +1,7 @@
 use super::keypath::{KeyCache, Keypath};
-use super::throw_load_exn;
 use crate::StorageKey;
+use crate::exn::LibraryExn;
+use crate::re_throw::OrReThrow;
 use crate::sys_exn::rcq::*;
 use crate::xdr::*;
 use core::fmt::Debug;
@@ -16,13 +17,20 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// contents, which may be arbitrary bytestrings.  However, `insert_raw` may
 /// create entries that the typed methods cannot successfully decode.
 ///
+/// The `try_` forms report failure — including an empty queue, an `Err` for
+/// which [`is_storage_missing`](LibraryExn::is_storage_missing) is true —
+/// through their return value instead of aborting (the `try_` law; see the
+/// [`exn`](mod@crate::exn) module docs). The plain forms abort with exactly
+/// the exception their `try_` counterpart would have returned.
+///
 /// # Size cap
 ///
 /// Each queue entry's encoding is capped at the SDK's fixed encode-buffer size
 /// (~1 KiB). `insert` throws a typed exception if the entry exceeds that
-/// limit. `consume`, `try_consume`, `peek`, and `try_peek` throw
-/// `StorageSerialization` if an entry in the queue is larger — which can only
-/// happen if something other than the typed `insert` wrote the entry.
+/// limit. `consume` and `peek` throw (and `try_consume` and `try_peek`
+/// return) `StorageSerialization` if an entry in the queue is larger — which
+/// can only happen if something other than the typed `insert` wrote the
+/// entry.
 ///
 #[derive(Debug)]
 pub struct RCQ<T> {
@@ -62,25 +70,29 @@ impl<T> RCQ<T> {
         retrocausal_queue_consume_sized(self.key())
     }
 
-    /// Try to consume a fixed-size queue entry.
+    /// Consume a fixed-size queue entry, reporting failure as `Err`.
     ///
-    /// If an entry is present but does not have the expected size, an
-    /// exception is thrown.
-    ///
-    pub fn try_consume_sized<const N: usize>(&mut self) -> Option<[u8; N]> {
+    /// An entry of a different size is `LibraryExn::RetrocausalQueueEntryWrongSize`
+    /// and is left in the queue.
+    pub fn try_consume_sized<const N: usize>(
+        &mut self,
+    ) -> Result<[u8; N], LibraryExn> {
         retrocausal_queue_try_consume_sized(self.key())
     }
 
     /// Consume a raw queue entry into a boxed slice.
     #[cfg(feature = "alloc")]
     pub fn consume_raw(&mut self) -> alloc::boxed::Box<[u8]> {
-        retrocausal_queue_get(self.key(), false)
+        self.try_consume_raw().or_re_throw()
     }
 
-    /// Try to consume a raw queue entry into a boxed slice.
+    /// Consume a raw queue entry into a boxed slice, reporting failure as
+    /// `Err`.
     #[cfg(feature = "alloc")]
-    pub fn try_consume_raw(&mut self) -> Option<alloc::boxed::Box<[u8]>> {
-        retrocausal_queue_try_get(self.key(), false)
+    pub fn try_consume_raw(
+        &mut self,
+    ) -> Result<alloc::boxed::Box<[u8]>, LibraryExn> {
+        retrocausal_queue_try_consume(self.key())
     }
 
     /// Retrieve a fixed-size queue entry without consuming it.
@@ -88,25 +100,27 @@ impl<T> RCQ<T> {
         retrocausal_queue_peek_sized(self.key())
     }
 
-    /// Try to retrieve a fixed-size queue entry without consuming it.
+    /// Retrieve a fixed-size queue entry without consuming it, reporting
+    /// failure as `Err`.
     ///
-    /// If an entry is present but does not have the expected size, an
-    /// exception is thrown.
-    ///
-    pub fn try_peek_sized<const N: usize>(&self) -> Option<[u8; N]> {
+    /// An entry of a different size is `LibraryExn::RetrocausalQueueEntryWrongSize`.
+    pub fn try_peek_sized<const N: usize>(
+        &self,
+    ) -> Result<[u8; N], LibraryExn> {
         retrocausal_queue_try_peek_sized(self.key())
     }
 
     /// Retrieve a raw queue entry into a boxed slice without consuming it.
     #[cfg(feature = "alloc")]
     pub fn peek_raw(&self) -> alloc::boxed::Box<[u8]> {
-        retrocausal_queue_get(self.key(), true)
+        self.try_peek_raw().or_re_throw()
     }
 
-    /// Try to retrieve a raw queue entry into a boxed slice without consuming it.
+    /// Retrieve a raw queue entry into a boxed slice without consuming it,
+    /// reporting failure as `Err`.
     #[cfg(feature = "alloc")]
-    pub fn try_peek_raw(&self) -> Option<alloc::boxed::Box<[u8]>> {
-        retrocausal_queue_try_get(self.key(), true)
+    pub fn try_peek_raw(&self) -> Result<alloc::boxed::Box<[u8]>, LibraryExn> {
+        retrocausal_queue_try_peek(self.key())
     }
 }
 
@@ -130,53 +144,40 @@ where
 {
     /// Consume a queue entry and return the decoded item.
     pub fn consume(&mut self) -> T {
-        crate::call::with_scratch(|buf| {
-            match retrocausal_queue_read_into(self.key(), false, buf) {
-                Some(()) => {}
-                None => super::error::throw_load_exn_oversized(),
-            }
-            cxs::decode(buf.as_slice()).unwrap_or_else(|e| throw_load_exn(e))
-        })
+        // A single consuming read: a decode failure throws, and the trap
+        // rolls the consume back, so the destructive read is unobservable.
+        self.try_decode_entry(false).or_re_throw()
     }
 
-    /// Try to consume a queue entry and return the decoded item.
-    pub fn try_consume(&mut self) -> Option<T> {
-        crate::call::with_scratch(|buf| {
-            // outer None = empty queue; Some(None) = too large.
-            match retrocausal_queue_try_read_into(self.key(), false, buf)? {
-                Some(()) => {}
-                None => super::error::throw_load_exn_oversized(),
-            }
-            Some(
-                cxs::decode(buf.as_slice())
-                    .unwrap_or_else(|e| throw_load_exn(e)),
-            )
-        })
+    /// Consume a queue entry and return the decoded item, reporting failure
+    /// as `Err`. An entry that fails to decode as `T` is
+    /// `LibraryExn::StorageSerialization` and is left in the queue.
+    pub fn try_consume(&mut self) -> Result<T, LibraryExn> {
+        // Decode from a peek so a bad entry is reported without being
+        // destroyed (matching try_consume_sized), then pop the validated
+        // entry without copying it out again.
+        let value = self.try_decode_entry(true)?;
+        retrocausal_queue_try_discard(self.key())?;
+        Ok(value)
     }
 
     /// Retrieve a queue entry and return the decoded item, without consuming the entry.
     pub fn peek(&self) -> T {
-        crate::call::with_scratch(|buf| {
-            match retrocausal_queue_read_into(self.key(), true, buf) {
-                Some(()) => {}
-                None => super::error::throw_load_exn_oversized(),
-            }
-            cxs::decode(buf.as_slice()).unwrap_or_else(|e| throw_load_exn(e))
-        })
+        self.try_peek().or_re_throw()
     }
 
-    /// Try to retrieve a queue entry and return the decoded item, without consuming the entry.
-    pub fn try_peek(&self) -> Option<T> {
+    /// Retrieve a queue entry and return the decoded item without consuming
+    /// the entry, reporting failure as `Err`. Same error contract as
+    /// [`try_consume`](Self::try_consume).
+    pub fn try_peek(&self) -> Result<T, LibraryExn> {
+        self.try_decode_entry(true)
+    }
+
+    fn try_decode_entry(&self, peek: bool) -> Result<T, LibraryExn> {
         crate::call::with_scratch(|buf| {
-            // outer None = empty queue; Some(None) = too large.
-            match retrocausal_queue_try_read_into(self.key(), true, buf)? {
-                Some(()) => {}
-                None => super::error::throw_load_exn_oversized(),
-            }
-            Some(
-                cxs::decode(buf.as_slice())
-                    .unwrap_or_else(|e| throw_load_exn(e)),
-            )
+            retrocausal_queue_try_read_into(self.key(), peek, buf)?;
+            cxs::decode(buf.as_slice())
+                .map_err(|_| LibraryExn::StorageSerialization)
         })
     }
 }

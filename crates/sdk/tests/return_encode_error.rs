@@ -33,6 +33,14 @@ impl WriteXDR for FailToEncode {
     fn write_xdr<F, W: Writer<F>>(&self, _w: &mut W) -> WriteResult<()> {
         Err(WriteError::InvalidArrayLength)
     }
+
+    unsafe fn write_xdr_unchecked<F, W: sdk::xdr::WriterUnchecked<F>>(
+        &self,
+        _w: &mut W,
+    ) {
+        // Checked-encode failure has no unchecked analogue; this type only
+        // exercises the fallible return path.
+    }
 }
 
 impl CollectAuthHandles for FailToEncode {
@@ -49,19 +57,20 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
     let env: TestEnvironmentHandle = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
-            sdk::contract_return_encoded(&FailToEncode);
+            sdk::internal::contract_return_encoded(&FailToEncode);
         });
     });
     mock.deploy_contract_to(&CHILD_ADDR);
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw::<(), ()>(
+            let err = sdk::call::try_call_raw_with::<(), (), _>(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
                 &(),
                 0,
+                |exn| exn.to_owned(),
             )
             .expect_err("child must abort: its return value fails to encode");
 

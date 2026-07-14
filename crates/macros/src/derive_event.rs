@@ -137,6 +137,10 @@ fn emit_event_spec(
 
         #[doc(hidden)]
         #[inline(never)]
+        #[cfg_attr(
+            target_arch = "riscv32",
+            unsafe(link_section = "groundhogspecanchortextv0")
+        )]
         pub fn #anchor_fn_ident() -> usize {
             #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
             {
@@ -214,6 +218,13 @@ fn emit_exported_event_fragment(
         // `Named` references in the exported def resolve during spec assembly.
         #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
         const _: () = {
+            // Link-time retention metadata only. The RV32 linker follows the
+            // relocation to pull in the raw-spec graph, then discards the
+            // table before producing the final ELF.
+            #[cfg_attr(
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecanchorsv0")
+            )]
             #[used]
             static __GROUNDHOG_EVENT_SPEC_ANCHORS: [fn() -> usize; 1] =
                 [#anchor_fn_ident];
@@ -288,6 +299,14 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             ::sdk::WriteXDR::write_xdr(&self.#field_ident, w)?;
         }
     });
+    let payload_writes_unchecked = payload.iter().map(|field| {
+        let field_ident = field.ident.as_ref().unwrap();
+        quote! {
+            unsafe {
+                ::sdk::WriteXDR::write_xdr_unchecked(&self.#field_ident, w);
+            }
+        }
+    });
 
     // --- Payload struct ---
     let payload_ident = format_ident!("{}Payload", ident);
@@ -355,7 +374,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         impl #impl_generics ::sdk::Event for #ident #ty_generics #where_clause {
             type Payload<'__payload> = #payload_ty_in_gat;
 
-            fn num_topics(&self) -> u32 {
+            fn num_topics() -> u32 {
                 #num_topics
             }
 
@@ -392,6 +411,17 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
                 #(#payload_writes)*
                 ::core::result::Result::Ok(())
             }
+
+            #[allow(unused_variables)]
+            unsafe fn write_xdr_unchecked<
+                __F,
+                __W: ::sdk::__xdrs::WriterUnchecked<__F>,
+            >(
+                &self,
+                w: &mut __W,
+            ) {
+                #(#payload_writes_unchecked)*
+            }
         }
     })
 }
@@ -424,6 +454,7 @@ mod tests {
             tokens.contains("ContractEventSpec for TransferEvent"),
             "{tokens}"
         );
+        assert!(tokens.contains("groundhogspecanchortextv0"), "{tokens}");
         assert!(
             tokens.contains("__groundhog_spec_event_anchor_fn_TransferEvent"),
             "{tokens}"
@@ -463,6 +494,7 @@ mod tests {
             tokens.contains("__GROUNDHOG_EVENT_SPEC_ANCHORS"),
             "{tokens}"
         );
+        assert!(tokens.contains("groundhogspecanchorsv0"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
     }
 

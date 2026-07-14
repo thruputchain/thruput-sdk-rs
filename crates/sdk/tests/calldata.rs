@@ -14,12 +14,14 @@ fn fetch_roundtrips(payload: Vec<u8>) {
         tx.call(&addr)
             .with_calldata(BytesM::try_from(payload.clone()).unwrap())
             .run(move || {
-                sdk::contract_op::with_calldata_and_auth_tokens(
-                    |calldata, auth_ids| {
-                        assert_eq!(calldata.as_slice(), expected.as_slice());
-                        assert!(auth_ids.is_empty());
-                    },
-                )
+                let mut calldata = sdk::internal::new_scratch();
+                let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+                sdk::contract_op::fetch_calldata_and_auth_tokens(
+                    &mut calldata,
+                    &mut auth_ids,
+                );
+                assert_eq!(calldata.as_slice(), expected.as_slice());
+                assert!(auth_ids.is_empty());
             })
     })
     .assert_success();
@@ -39,30 +41,4 @@ fn empty_calldata_roundtrips() {
 fn calldata_larger_than_the_legacy_stack_buffer_roundtrips() {
     // 2000 bytes: four times the old CALLDATA_MAX of 500.
     fetch_roundtrips((0..2000u32).map(|i| (i % 251) as u8).collect());
-}
-
-// Mirrors `fetch_roundtrips` above, but through the `try_` spelling: the Ok
-// path is exercised here (ordinary calls never hit the fetch-failure Err
-// arm — that's only reachable via a `kGetCalldata` syscall failure, which
-// isn't triggerable from a normal contract call in this harness).
-#[test]
-fn try_with_calldata_and_auth_tokens_ok_path_roundtrips() {
-    let payload: Vec<u8> = (0..100u32).map(|i| i as u8).collect();
-    let expected = payload.clone();
-    let env = TestEnvironment::no_cost();
-    env.transact(|tx| {
-        let addr = ContractAddress::named("calldata_roundtrip");
-        tx.call(&addr)
-            .with_calldata(BytesM::try_from(payload.clone()).unwrap())
-            .run(move || {
-                sdk::contract_op::try_with_calldata_and_auth_tokens(
-                    |calldata, auth_ids| {
-                        assert_eq!(calldata.as_slice(), expected.as_slice());
-                        assert!(auth_ids.is_empty());
-                    },
-                )
-                .expect("calldata fetch cannot fail in this harness")
-            })
-    })
-    .assert_success();
 }

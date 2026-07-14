@@ -206,7 +206,7 @@ fn generate_client_fn(
         let print_string = format!("[sdk] Client: Calling method {}", ident);
 
         quote! {
-            ::sdk::debug_log!("{} with args {:?}", #print_string, args);
+            ::sdk::debug_log!("{} with args {:?}", #print_string, __gh_args);
         }
     } else {
         quote! {}
@@ -250,14 +250,14 @@ fn generate_client_fn(
         #[cfg_attr(test, track_caller)]
         pub fn #ident(&self, #(#sent_params),* ) #sig_output
         {
-            let entrypoint = #entrypoint_lit;
-            let args = #args_tuple;
+            let __gh_entrypoint = #entrypoint_lit;
+            let __gh_args = #args_tuple;
 
             #log_call
 
             with_call_tracking!(#call_info, {
                 ::sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
-                    &self.address, entrypoint, self.config.gas_limit, &args, self.config.flags,
+                    &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
                     |exn| exn.re_throw(),
                 )
                 .or_re_throw()
@@ -274,15 +274,15 @@ fn generate_client_fn(
         #[cfg_attr(test, track_caller)]
         pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, #error_enum_ident>
         {
-            let entrypoint = #entrypoint_lit;
-            let args = #args_tuple;
+            let __gh_entrypoint = #entrypoint_lit;
+            let __gh_args = #args_tuple;
 
             #log_call
 
             with_call_tracking!(#call_info, {
                 use ::sdk::call::RawCallError;
                 match ::sdk::call::try_call_raw_with::<_, #return_type, #error_enum_ident>(
-                    &self.address, entrypoint, self.config.gas_limit, &args, self.config.flags,
+                    &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
                     |exn| { #selector_dispatch },
                 ) {
                     Ok(val) => Ok(val),
@@ -387,7 +387,7 @@ fn generate_error_enum(
 
                 match self {
                     #(#rethrow_declared_arms,)*
-                    Self::Library(e) => ::sdk::throw(e),
+                    Self::Library(e) => cthrow(e),
                     Self::BadDecode(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Unknown(raw) => ::sdk::ReThrow::re_throw(raw),
                     Self::Fault(f) => panic!("{f}"),

@@ -22,7 +22,7 @@ pub struct SwapV2Driver {
 impl SwapV2Driver {
     // Must be called exactly once before any other methods
     pub fn initialize(&mut self, swap_pair: &Address) {
-        if self.cfg.try_get().is_some() {
+        if self.cfg.try_get().none_if_missing().is_some() {
             panic!("Already initialized.");
         }
 
@@ -55,7 +55,7 @@ impl SwapV2Driver {
         let mut n_processed = 0;
         let mut n_failed = 0;
 
-        while let Some(req) = self.requests.try_consume() {
+        while let Some(req) = self.requests.try_consume().none_if_missing() {
             match req {
                 Request::Purchase(ref req) => cfg
                     .pair()

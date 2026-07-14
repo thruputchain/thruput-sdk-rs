@@ -1,3 +1,4 @@
+use groundhog_native_exec::TryCommitResult;
 use groundhog_native_exec::frame_result::FrameResult;
 use groundhog_native_exec::transact_result::TransactResult;
 use groundhog_xdr::exec_result::ExecResult;
@@ -16,7 +17,7 @@ struct TestValue(u32);
 
 impl Event for TestValue {
     type Payload<'a> = TestValue;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         0
     }
     fn signature() -> Option<&'static [u8; 32]> {
@@ -36,7 +37,7 @@ struct EventA(u32);
 
 impl Event for EventA {
     type Payload<'a> = EventA;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         1
     }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
@@ -59,7 +60,7 @@ struct EventB(u32);
 
 impl Event for EventB {
     type Payload<'a> = EventB;
-    fn num_topics(&self) -> u32 {
+    fn num_topics() -> u32 {
         1
     }
     fn topic(&self, index: u32) -> Option<TopicSrc<'_>> {
@@ -198,7 +199,7 @@ fn test_mock_handler_commit() {
         .result();
 
     let exec_result = handler.try_commit_transaction();
-    assert_eq!(exec_result, ExecResult::ExecResultOK);
+    assert_eq!(exec_result, TryCommitResult::Ok);
 }
 
 #[test]
@@ -272,7 +273,7 @@ fn test_mock_handler_panic_then_commit() {
     result.assert_fault();
 
     let exec_result = handler.try_commit_transaction();
-    assert_eq!(exec_result, ExecResult::ExecResultTxDeterministicError);
+    assert_eq!(exec_result, TryCommitResult::TxDeterministicError);
 }
 
 #[test]
@@ -331,7 +332,7 @@ fn test_transact_manual_commit() {
         frame_result.assert_success();
         tx.try_commit_transaction()
     });
-    assert_eq!(exec_result, ExecResult::ExecResultOK);
+    assert_eq!(exec_result, TryCommitResult::Ok);
 }
 
 #[test]
@@ -367,13 +368,13 @@ fn test_transact_manual_inspect_before_commit() {
             tx.try_commit_transaction()
         } else {
             tx.abort_transaction();
-            ExecResult::ExecResultTxRootFrameReverted
+            TryCommitResult::TxRootFrameReverted
         };
         (frame_result, exec_result)
     });
 
     frame_result.assert_success();
-    assert_eq!(exec_result, ExecResult::ExecResultOK);
+    assert_eq!(exec_result, TryCommitResult::Ok);
 }
 
 #[test]
@@ -707,12 +708,12 @@ fn test_assert_emitted_finds_matching_event() {
     assert_eq!(result.events().len(), 3);
 
     // Find the event with value 20
-    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 20);
 
     // Also works on the frame directly
     result
         .frame()
-        .assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 30);
+        .assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 30);
 }
 
 #[test]
@@ -729,7 +730,7 @@ fn test_assert_emitted_panics_when_no_match() {
     });
 
     result.assert_success();
-    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 999);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 999);
 }
 
 #[test]
@@ -859,8 +860,13 @@ fn test_filter_events() {
     });
 
     result.assert_success();
-    let values: Vec<TestValue> = result.filter_events(&TEST_ADDR);
-    assert_eq!(values, vec![TestValue(10), TestValue(20), TestValue(30)]);
+    let values = result.filter_events::<TestValue>(&TEST_ADDR);
+    let payloads: Vec<&TestValue> =
+        values.iter().map(|t| t.payload()).collect();
+    assert_eq!(
+        payloads,
+        vec![&TestValue(10), &TestValue(20), &TestValue(30)]
+    );
 }
 
 // ── Continuable frame tests ──────────────────────────────────────────────
@@ -997,12 +1003,23 @@ fn test_filter_events_by_topic() {
     assert_eq!(result.events().len(), 3);
 
     // filter_events<EventA> should only return the two EventA instances
-    let a_events: Vec<EventA> = result.filter_events(&TEST_ADDR);
-    assert_eq!(a_events, vec![EventA(10), EventA(30)]);
+    let a_events = result.filter_events::<EventA>(&TEST_ADDR);
+    let a_payloads: Vec<&EventA> =
+        a_events.iter().map(|t| t.payload()).collect();
+    assert_eq!(a_payloads, vec![&EventA(10), &EventA(30)]);
 
     // filter_events<EventB> should only return the one EventB instance
-    let b_events: Vec<EventB> = result.filter_events(&TEST_ADDR);
-    assert_eq!(b_events, vec![EventB(20)]);
+    let b_events = result.filter_events::<EventB>(&TEST_ADDR);
+    let b_payloads: Vec<&EventB> =
+        b_events.iter().map(|t| t.payload()).collect();
+    assert_eq!(b_payloads, vec![&EventB(20)]);
+
+    // TestValue declares no signature but does declare 0 topics, so the
+    // topic-count check rejects all three single-topic events even though
+    // their payloads decode as u32. Pins the count check for
+    // signature-less types.
+    let untyped = result.filter_events::<TestValue>(&TEST_ADDR);
+    assert_eq!(untyped.len(), 0);
 }
 
 #[test]
@@ -1020,13 +1037,15 @@ fn test_filter_events_topic_mismatch_skips() {
 
     result.assert_success();
 
-    // EventA expects topic 0, but the raw event has no topics → no match
-    let events: Vec<EventA> = result.filter_events(&TEST_ADDR);
+    // EventA declares a signature, but the raw event has no topics → no match
+    let events = result.filter_events::<EventA>(&TEST_ADDR);
     assert!(events.is_empty());
 
-    // TestValue expects 0 topics, raw event has 0 topics → match
-    let events: Vec<TestValue> = result.filter_events(&TEST_ADDR);
-    assert_eq!(events, vec![TestValue(42)]);
+    // TestValue declares 0 topics and the raw event has 0 → count matches,
+    // and the payload decodes → match
+    let events = result.filter_events::<TestValue>(&TEST_ADDR);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].payload(), &TestValue(42));
 }
 
 #[test]
@@ -1060,10 +1079,10 @@ fn test_assert_emitted_distinguishes_by_topic() {
     result.assert_success();
 
     // assert_emitted for EventA should find EventA(10) but not EventB(20)
-    result.assert_emitted::<EventA>(&TEST_ADDR, |v| v.0 == 10);
+    result.assert_emitted::<EventA>(&TEST_ADDR, |t| t.payload().0 == 10);
 
     // assert_emitted for EventB should find EventB(20) but not EventA(10)
-    result.assert_emitted::<EventB>(&TEST_ADDR, |v| v.0 == 20);
+    result.assert_emitted::<EventB>(&TEST_ADDR, |t| t.payload().0 == 20);
 }
 
 #[test]
@@ -1121,7 +1140,7 @@ fn test_assert_emitted_skips_unrelated_malformed_event() {
     };
     let result = FrameResult::new(output, None, vec![valid, malformed]);
 
-    result.assert_emitted::<TestValue>(&TEST_ADDR, |v| v.0 == 20);
+    result.assert_emitted::<TestValue>(&TEST_ADDR, |t| t.payload().0 == 20);
 }
 
 //-------------------------------------------------------------------------
@@ -1251,4 +1270,46 @@ fn test_run_zero_byte_encoding_roundtrips() {
     assert!(result.frame().return_buffer().is_empty());
     let v: Empty = result.assert_return_as();
     assert_eq!(v, Empty);
+}
+
+// ── Interleaving suspended subframes across transactions ──────────────
+
+/// A subframe can be suspended (`FrameAction::Continue`) while another
+/// transaction runs to completion, then resumed and closed — as long as it
+/// is opened from the suspended parent's handle at top level
+/// (`ContinuableFrame::child_call`), not from inside an `execute` closure.
+/// The borrow checker enforces the frame-nesting discipline: while the
+/// child's `ContinuableFrame` is alive, the parent cannot be executed,
+/// closed, or given another child.
+#[test]
+fn test_subframe_suspends_across_interleaved_transactions() {
+    let env = TestEnvironment::new(None);
+    let mut tx1 = MockTransactionHandler::new(env.clone());
+    let mut tx2 = MockTransactionHandler::new(env);
+
+    let addr1 = ContractAddress::new([1u8; 32]);
+    let addr2 = ContractAddress::new([2u8; 32]);
+    let addr3 = ContractAddress::new([3u8; 32]);
+
+    // tx1: root frame, suspended.
+    let mut root = tx1.call(&addr1).run_continuable(|_| FrameAction::Continue);
+
+    // tx1: subframe opened from the suspended parent, then suspended itself.
+    let mut child = root
+        .child_call(&addr2)
+        .run_continuable(|_| FrameAction::Continue);
+
+    // tx2 runs to completion while tx1's subframe is suspended.
+    let r2 = tx2.call(&addr3).run(|| ());
+    r2.assert_success();
+
+    // Resume and close tx1 inner-first: the subframe, then the root.
+    child.run_continuable(|_| FrameAction::Close);
+    child.finish().assert_success();
+
+    root.run_continuable(|_| FrameAction::Close);
+    root.finish().assert_success();
+
+    assert_eq!(tx1.try_commit_transaction(), TryCommitResult::Ok);
+    assert_eq!(tx2.try_commit_transaction(), TryCommitResult::Ok);
 }

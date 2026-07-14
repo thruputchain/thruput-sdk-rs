@@ -25,6 +25,7 @@ members = [
     "contracts/payment_channel",
     "contracts/read_only_test",
     "contracts/return_fault_test",
+    "contracts/rv32_smoke_counter",
     "contracts/sha256_raw",
     "contracts/sha256_wrapper",
     "contracts/simple_wallet",
@@ -47,7 +48,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.16.1" }
+sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.17.1" }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.4" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.4" }
@@ -58,8 +59,8 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 bottle-test-if = { path = "../crates/bottle-test-if" }
 
 # External groundhog dependencies
-groundhog-xdr = { registry = "groundhog", version = "=0.18.0", features = ["xdrs", "syscalls"] }
-groundhog-syscall = { registry = "groundhog", version = "=0.18.0" }
+groundhog-xdr = { registry = "groundhog", version = "=0.19.7", features = ["xdrs", "syscalls"] }
+groundhog-syscall = { registry = "groundhog", version = "=0.19.7" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }

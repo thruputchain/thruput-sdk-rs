@@ -24,18 +24,79 @@ fn test_rcq_raw() {
         assert_eq!(rcq.peek_raw().as_ref(), &[4]);
         assert_eq!(rcq.peek_raw().as_ref(), &[4]);
         assert_eq!(rcq.consume_raw().as_ref(), &[4]);
-        assert_eq!(rcq.try_peek_raw().map(|b| Vec::from(b)), Some(vec![5]));
-        assert_eq!(rcq.try_consume_raw().map(|b| Vec::from(b)), Some(vec![5]));
-        assert_eq!(rcq.try_peek_raw(), None);
-        assert_eq!(rcq.try_consume_raw(), None);
-        assert_eq!(rcq.try_peek_sized::<1>().as_ref(), None);
-        assert_eq!(rcq.try_consume_sized::<1>().as_ref(), None);
+        assert_eq!(rcq.try_peek_raw().map(Vec::from), Ok(vec![5]));
+        assert_eq!(rcq.try_consume_raw().map(Vec::from), Ok(vec![5]));
+        // Empty queue: the try_ forms report a storage-missing error
+        // instead of aborting.
+        assert!(rcq.try_peek_raw().unwrap_err().is_storage_missing());
+        assert!(rcq.try_consume_raw().unwrap_err().is_storage_missing());
+        assert!(rcq.try_peek_sized::<1>().unwrap_err().is_storage_missing());
+        assert!(
+            rcq.try_consume_sized::<1>()
+                .unwrap_err()
+                .is_storage_missing()
+        );
+    })
+    .assert_success();
+}
+
+// A wrong-size entry is reported as RetrocausalQueueEntryWrongSize by the sized try_
+// forms — and stays in the queue (checked by peeking before consuming).
+#[test]
+fn test_rcq_sized_wrong_size() {
+    let env = TestEnvironment::no_cost();
+
+    run_rcq(&env, |mut rcq: RCQ<()>| {
+        rcq.insert_raw(&[7; 3]);
+
+        assert_eq!(
+            rcq.try_consume_sized::<2>(),
+            Err(LibraryExn::RetrocausalQueueEntryWrongSize {
+                expected: 2,
+                found: 3
+            })
+        );
+        assert_eq!(
+            rcq.try_peek_sized::<2>(),
+            Err(LibraryExn::RetrocausalQueueEntryWrongSize {
+                expected: 2,
+                found: 3
+            })
+        );
+
+        // The mis-sized entry was not consumed by the failed reads.
+        assert_eq!(rcq.consume_sized(), [7; 3]);
     })
     .assert_success();
 }
 
 #[derive(Debug, PartialEq, ReadXDR, WriteXDR)]
 struct Foo(u32);
+
+// An entry that fails to decode is reported as StorageSerialization by the
+// typed try_ forms — and stays in the queue, so error handling can inspect
+// or skip it instead of silently operating on the next entry.
+#[test]
+fn test_rcq_decode_failure_preserves_entry() {
+    let env = TestEnvironment::no_cost();
+
+    run_rcq(&env, |mut rcq: RCQ<Foo>| {
+        // Foo's encoding is exactly 4 bytes; 3 raw bytes cannot decode.
+        rcq.insert_raw(&[9; 3]);
+        rcq.insert(&Foo(1));
+
+        assert_eq!(rcq.try_consume(), Err(LibraryExn::StorageSerialization));
+        assert_eq!(rcq.try_peek(), Err(LibraryExn::StorageSerialization));
+
+        // The malformed entry survived the failed reads: still at the head,
+        // with the valid entry behind it not skipped.
+        assert_eq!(rcq.consume_raw().as_ref(), &[9; 3]);
+        assert_eq!(rcq.try_consume(), Ok(Foo(1)));
+        // ... and a successful try_consume did pop its entry.
+        assert!(rcq.try_consume().unwrap_err().is_storage_missing());
+    })
+    .assert_success();
+}
 
 #[test]
 fn test_rcq() {
@@ -51,8 +112,10 @@ fn test_rcq() {
         assert_eq!(rcq.peek(), Foo(2));
         assert_eq!(rcq.consume(), Foo(2));
         assert_eq!(rcq.consume(), Foo(3));
-        assert_eq!(rcq.try_peek(), None);
-        assert_eq!(rcq.try_consume(), None);
+        assert!(rcq.try_peek().unwrap_err().is_storage_missing());
+        assert!(rcq.try_consume().unwrap_err().is_storage_missing());
+        assert_eq!(rcq.try_peek().none_if_missing(), None);
+        assert_eq!(rcq.try_consume().none_if_missing(), None);
     })
     .assert_success();
 }
@@ -78,7 +141,9 @@ fn run(
 }
 
 #[allow(dead_code)]
-fn tx_result_try_as<E: Exn>(txr: &TransactResult) -> Option<E> {
+fn tx_result_try_as<E: Exn + xdr::ReadXDROwned>(
+    txr: &TransactResult,
+) -> Option<E> {
     let caught =
         RawException::from_abort_buf(txr.frame().abort_buffer()).unwrap();
     caught.try_as::<E>()

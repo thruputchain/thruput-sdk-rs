@@ -22,6 +22,7 @@ members = [
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",
+    "codegen_hygiene",
     "codegen_impl_noclient",
     "codegen_impl_client",
     "storage_errors",
@@ -56,6 +57,7 @@ members = [
 
 exclude = [
     "multi_root_collision",
+    "cross_crate_collision",
 ]
 
 [workspace.package]
@@ -70,8 +72,8 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.16.1" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.16.1" }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.17.1" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.17.1" }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.4" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.4" }
@@ -83,7 +85,7 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 bottle-test-if = { path = "../crates/bottle-test-if" }
 
 # External groundhog dependencies
-xdrs = { registry = "groundhog", version = "0.7.0"  }
+xdrs = { registry = "groundhog", version = "0.8.0", default-features = false }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }

@@ -36,8 +36,17 @@ pub trait Event: xdrs::WriteXDR {
     /// the input bytes (e.g. `&'a [u8]` fields stay borrowed).
     type Payload<'a>;
 
-    /// Number of topics this event carries (0..=3).
-    fn num_topics(&self) -> u32;
+    /// Number of topics this event type carries (0..=3), including the
+    /// signature topic when present.
+    ///
+    /// This is a static property of the type: every emission carries the
+    /// same count, and typed-event matching ([`TypedEvent::try_new`] /
+    /// [`TypedEvent::new`]) rejects a raw event whose `num_topics` differs —
+    /// so a matching topic 0 plus a coincidentally decodable payload cannot
+    /// pass for an `E` emitted with a different topic count.
+    fn num_topics() -> u32
+    where
+        Self: Sized;
 
     /// The static topic-0 discriminant for this event type, if it has one.
     ///

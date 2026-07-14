@@ -9,7 +9,9 @@ use thiserror::Error;
 // and figure out how to Display them at the right times.
 
 /// Plumbing errors resulting from making a contract call:
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec)]
+#[derive(
+    Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
+)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[repr(i32)]
 pub enum CallingError {
@@ -36,7 +38,9 @@ pub enum CallingError {
 }
 
 /// Plumbing errors resulting from handling a contract call:
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec)]
+#[derive(
+    Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
+)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[repr(i32)]
 pub enum HandlingError {
@@ -57,7 +61,9 @@ pub enum HandlingError {
 }
 
 /// Plumbing errors resulting from working with auth tokens:
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec)]
+#[derive(
+    Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
+)]
 #[cfg_attr(feature = "debugging", derive(Error))]
 #[repr(i32)]
 pub enum AuthTokenError {

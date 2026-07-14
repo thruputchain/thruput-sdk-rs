@@ -368,16 +368,16 @@ pub fn generate_method(
         };
 
         let deref = if is_mut {
-            quote! { state_node.deref_mut() }
+            quote! { __gh_state_node.deref_mut() }
         } else {
-            quote! { state_node.deref() }
+            quote! { __gh_state_node.deref() }
         };
 
         quote! {
             use core::ops::{Deref, DerefMut};
-            let #mutability state_node: ::sdk::storage::Node<#self_ty> =
+            let #mutability __gh_state_node: ::sdk::storage::Node<#self_ty> =
                 ::sdk::storage::contract_state_root::<#self_ty>();
-            let #mutability state :&#mutability #self_ty = #deref;
+            let #mutability __gh_state :&#mutability #self_ty = #deref;
         }
     } else {
         // Free function: no state variable at all
@@ -390,9 +390,9 @@ pub fn generate_method(
         if let Some(contract) = contract {
             if let Some(trait_path) = contract.trait_path() {
                 let self_ty = contract.self_ty();
-                quote! { <#self_ty as #trait_path>::#ident(state, #arg_names) }
+                quote! { <#self_ty as #trait_path>::#ident(__gh_state, #arg_names) }
             } else {
-                quote! { state.#ident(#arg_names) }
+                quote! { __gh_state.#ident(#arg_names) }
             }
         } else {
             unreachable!("is_method implies contract source")
@@ -417,44 +417,63 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Decode the args, run the body, encode the result. The whole body runs
-    // inside `with_calldata_and_auth_tokens`: the calldata lives in the
-    // per-instance calldata cell (a guest static — zero stack, no by-value
-    // copy of the no-alloc SCRATCH_MAX buffer), and the decoded args borrow
-    // it for the whole frame.
+    // Decode the args, run the body, encode the result. The calldata and
+    // auth-token buffers are locals of this (per-entrypoint) wrapper frame,
+    // filled in place by the shared, non-generic
+    // `fetch_calldata_and_auth_tokens` — no by-value copy of the no-alloc
+    // SCRATCH_MAX buffer — and the decoded args borrow the calldata buffer
+    // for the whole frame.
+    //
+    // Both calls here (wrapper -> fetch, and the handler body itself) are
+    // direct. That is load-bearing for the chain's funcref-table cap (64
+    // initial elements): passing the handler to the SDK as a closure or
+    // `fn` pointer reifies one table slot per entrypoint, which pushed
+    // many-entrypoint contracts past the cap. The shared machinery stays
+    // one copy per contract because the fetch fn is non-generic and
+    // `#[inline(never)]`.
     let wrapped_call = quote! {{
         //
         // If debug mode: log the method-call
         #log_guest_call
 
-        ::sdk::contract_op::with_calldata_and_auth_tokens(|calldata, auth_token_ids| {
-            let res = {
+        let mut __gh_calldata: ::sdk::contract_op::Calldata =
+            ::sdk::internal::new_scratch();
+        let mut __gh_auth_token_ids: ::sdk::contract_op::AuthTokenIdBuf =
+            ::sdk::contract_op::AuthTokenIdBuf::new();
+        ::sdk::contract_op::fetch_calldata_and_auth_tokens(
+            &mut __gh_calldata,
+            &mut __gh_auth_token_ids,
+        );
 
-                // Load contract state
-                #load_state
+        let __gh_res = {
 
-                // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
-                // contract_call_decode then fills in Signer handles from the auth
-                // token ID list)
-                let mut __args =
-                    ::sdk::call::contract_call_decode(calldata.as_ref(), auth_token_ids.as_slice())
-                        .unwrap_or_else(|e|
-                            ::sdk::exn::decoding_args_throw(&e));
+            // Load contract state
+            #load_state
 
-                // Destructure into named args
-                let (#arg_names) = __args;
+            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
+            // contract_call_decode then fills in Signer handles from the auth
+            // token ID list)
+            let mut __args =
+                ::sdk::call::contract_call_decode(
+                    __gh_calldata.as_ref(),
+                    __gh_auth_token_ids.as_slice(),
+                )
+                    .unwrap_or_else(|e|
+                        ::sdk::exn::decoding_args_throw(&e));
 
-                // Call the method implementation (passing the contract state, if any,
-                // and the args)
-                #invoke
+            // Destructure into named args
+            let (#arg_names) = __args;
 
-                // Make sure any storage nodes are fully dropped (and written to environment).
-                // Not technically necessary, given that the storage is wrapped in a Node<T>.
-            };
+            // Call the method implementation (passing the contract state, if any,
+            // and the args)
+            #invoke
 
-            // Return the result to the VM
-            ::sdk::contract_return_encoded(&res);
-        })
+            // Make sure any storage nodes are fully dropped (and written to environment).
+            // Not technically necessary, given that the storage is wrapped in a Node<T>.
+        };
+
+        // Return the result to the VM
+        ::sdk::internal::contract_return_encoded(&__gh_res);
     }};
 
     // Include method info in debugging context (when enabled)
@@ -484,9 +503,11 @@ pub fn generate_method(
     // enabled.  The build script passes --features entrypoints; deps
     // that don't enable the feature cannot inject entrypoints.
     //
-    // RV32 self-registers each method into the runtime's distributed_slice
-    // (GROUNDHOG_RV32_ENTRYPOINTS) which `_start` scans at runtime, instead of
-    // exporting a per-method symbol. WASM still uses host-side export dispatch.
+    // RV32 self-registers each method by emitting an `Entrypoint` record into
+    // the `groundhog_rv32_entrypoints` input section, which the rv32-runtime
+    // linker script brackets and `_start`'s dispatcher scans at runtime,
+    // instead of exporting a per-method symbol. WASM still uses host-side
+    // export dispatch.
     let method_id_u64 = u64::from_be_bytes(*entrypoint);
     let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
@@ -502,13 +523,15 @@ pub fn generate_method(
             #internal_name()
         }
 
-        // rv32 guest dispatch: register this method into the runtime's
-        // distributed_slice instead of exporting a per-method symbol.
+        // rv32 guest dispatch: place this method's Entrypoint record in the
+        // dispatch-table input section. Naming is owned by the SDK end-to-end:
+        // this macro emits the section, the rv32-runtime linker script
+        // (link/groundhog-rv32.ld) KEEPs and brackets it, and
+        // rv32-runtime/src/start.rs walks it. `#[used]` keeps the static
+        // through codegen/LTO; KEEP() covers --gc-sections.
         #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
-        #[::sdk::__rv32_linkme::distributed_slice(
-            ::sdk::__rv32::GROUNDHOG_RV32_ENTRYPOINTS
-        )]
-        #[linkme(crate = ::sdk::__rv32_linkme)]
+        #[used]
+        #[unsafe(link_section = "groundhog_rv32_entrypoints")]
         #[allow(non_upper_case_globals)]
         static #rv32_entry_static: ::sdk::__rv32::Entrypoint =
             ::sdk::__rv32::Entrypoint {
@@ -611,6 +634,31 @@ mod tests {
     }
 
     #[test]
+    fn export_wrappers_use_outlined_calldata_fetch() {
+        let config = parse_config(r#"interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        // The wrapper must own the buffers and reach the shared,
+        // non-generic fetch primitive by direct call.
+        assert!(
+            generated.contains("fetch_calldata_and_auth_tokens"),
+            "generated: {generated}"
+        );
+
+        // Nothing in the wrapper may take a function's address: every
+        // escaped address is a funcref table slot, and the chain caps the
+        // table at 64 initial elements. The old `as fn(...)` handler cast
+        // cost ~1 slot per entrypoint.
+        assert!(!generated.contains("as fn"), "generated: {generated}");
+    }
+
+    #[test]
     fn free_function_exports_emit_rv32_registry_not_export_symbols() {
         let config = parse_config(r#"interface = "Iface""#);
         let item: syn::ItemFn = syn::parse_quote! {
@@ -625,13 +673,15 @@ mod tests {
         assert!(generated.contains("target_family = \"wasm\""));
         assert!(generated.contains("export_name"));
 
-        // rv32 now self-registers into the distributed slice...
+        // rv32 now emits a #[used] static into the repo-owned
+        // groundhog_rv32_entrypoints section (no linkme, no distributed_slice).
         assert!(generated.contains("target_arch = \"riscv32\""));
-        assert!(generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
-        assert!(generated.contains("distributed_slice"));
+        assert!(generated.contains("groundhog_rv32_entrypoints"));
+        assert!(generated.contains("link_section"));
 
-        // ...and the old rv32 dispatch symbols are gone.
+        // The old rv32 dispatch symbols and linkme machinery are gone.
         assert!(!generated.contains(".text.gh_"));
-        assert!(!generated.contains("link_section"));
+        assert!(!generated.contains("distributed_slice"));
+        assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
     }
 }

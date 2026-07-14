@@ -100,6 +100,11 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
+                #[cfg_attr(
+                    target_arch = "riscv32",
+                    unsafe(link_section = "groundhogspecanchortextv0")
+                )]
                 fn __GROUNDHOG_IFACE_THROW_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#throw_anchor_stmts)*
@@ -112,6 +117,11 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
+                #[cfg_attr(
+                    target_arch = "riscv32",
+                    unsafe(link_section = "groundhogspecanchortextv0")
+                )]
                 fn __GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#event_anchor_stmts)*
@@ -147,6 +157,11 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
+                #[cfg_attr(target_arch = "riscv32", inline(never))]
+                #[cfg_attr(
+                    target_arch = "riscv32",
+                    unsafe(link_section = "groundhogspecanchortextv0")
+                )]
                 fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#method_anchor_stmts)*
