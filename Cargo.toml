@@ -50,7 +50,12 @@ categories = ["blockchain"]
 # version, and must unfortunately be updated manually whenever the
 # workspace package version is updated prior to a new release.
 #
-# Additionally, these configs for embedded workspaces need updating for the new
+# When the workspace package version undergoes a *semver-major change*, the
+# standard-interfaces/ crates should be bumped to a new minor version.  (This
+# allows them to be published with a dependency on the new SDK major version;
+# the previously-published versions will be incompatible with the new SDK.)
+#
+# Additionally, these configs for independent workspaces need updating for the new
 # SDK and interface versions:
 #    example-contracts/Cargo.toml
 #    integration_test/Cargo.toml
@@ -74,9 +79,9 @@ groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", versi
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.17.1" }
 
 # Standard interfaces
-groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.4" }
-groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.4" }
-groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.4" }
+groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.5" }
+groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.5" }
+groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.5" }
 
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
