@@ -6,6 +6,7 @@
 // 2: Do we want some runtime-checked "single-use" checks for these authclaims?
 
 use crate::sys::{self, SysResult};
+use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;
 use groundhog_xdr::auth_claim::AuthClaim;
 
@@ -51,25 +52,22 @@ pub fn remove_address_public_key(pk_index: u32) -> SysResult<()> {
     sys::uninit_ChangePublicKeyRegistration(pk_index, None, &[], None)
 }
 
-mod pubkey_authclaim {
-    use super::*;
-    use crate::types::ContractAddress;
-    use crate::types::SHA256Hash;
+const PUBKEY_ACCOUNT_TAG: SHA256Hash = crate::sha256_static!("PUBKEY_ACCOUNT");
+
+/// Given an [`AuthClaim`] (such as one retrieved from [`get_auth_claim`]),
+/// compute the associated `ContractAddress` controlled by the contained public
+/// key (or `None` if it is not a public-key auth-claim).
+#[must_use]
+pub fn auth_claim_pubkey_contract_address(
+    auth_claim: &AuthClaim,
+) -> Option<ContractAddress> {
     use crate::hash::*;
 
-    const PUBKEY_ACCOUNT_TAG: SHA256Hash = crate::sha256_static!("PUBKEY_ACCOUNT");
-
-    /// Given an [`AuthClaim`] (such as one retrieved from [`get_auth_claim`]),
-    /// compute the associated `ContractAddress` controlled by the contained
-    /// public key (or `None` if it is not a public-key auth-claim).
-    pub fn auth_claim_pubkey_contract_address(auth_claim: &AuthClaim) -> Option<ContractAddress> {
-        match auth_claim {
-            AuthClaim::kPubkeySignature { pubkey_preimage } => {
-                let address = (PUBKEY_ACCOUNT_TAG ^ pubkey_preimage.hash()).into();
-                Some(address)
-            }
-            _ => None,
+    match auth_claim {
+        AuthClaim::kPubkeySignature { pubkey_preimage } => {
+            let address = (PUBKEY_ACCOUNT_TAG ^ pubkey_preimage.hash()).into();
+            Some(address)
         }
+        _ => None,
     }
 }
-pub use pubkey_authclaim::*;
