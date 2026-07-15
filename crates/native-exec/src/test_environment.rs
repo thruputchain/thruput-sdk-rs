@@ -501,6 +501,7 @@ impl TestEnvironment {
     /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
     /// (hogd handles abort internally when the root frame reverted).
+    #[must_use]
     pub fn transact(
         self: &TestEnvironmentHandle,
         f: impl FnOnce(&mut MockTransactionHandler) -> FrameResult,
@@ -514,6 +515,7 @@ impl TestEnvironment {
     /// Like [`transact`](Self::transact), but attaches `auth_claim` to the
     /// mocked transaction instead of the default source-address claim. Use
     /// this to control the auth-claim seen by the contract under test.
+    #[must_use]
     pub fn transact_with_auth_claim(
         self: &TestEnvironmentHandle,
         auth_claim: groundhog_xdr::auth_claim::AuthClaim,
@@ -533,6 +535,7 @@ impl TestEnvironment {
     /// The closure receives a MockTransactionHandler and is responsible for
     /// calling tx.try_commit_transaction() or tx.abort_transaction().
     /// The closure's return value is forwarded as the return value of transact_manual.
+    #[must_use]
     pub fn transact_manual<R>(
         self: &TestEnvironmentHandle,
         f: impl FnOnce(&mut MockTransactionHandler) -> R,
@@ -546,6 +549,7 @@ impl TestEnvironment {
     /// Like [`transact_manual`](Self::transact_manual), but attaches
     /// `auth_claim` to the mocked transaction instead of the default
     /// source-address claim.
+    #[must_use]
     pub fn transact_manual_with_auth_claim<R>(
         self: &TestEnvironmentHandle,
         auth_claim: groundhog_xdr::auth_claim::AuthClaim,

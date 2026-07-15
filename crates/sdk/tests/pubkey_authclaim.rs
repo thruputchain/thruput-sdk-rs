@@ -8,17 +8,19 @@ const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 fn pubkey_address_derivation_check() {
     let env = TestEnvironment::no_cost();
     let claim = example_pubkey_claim();
-    let expected_address = native_derive_pubkey_contract_address(&claim);
+    let expected_address = native_derive_pubkey_contract_address(&claim)
+        .expect("pubkey claim derives to some address");
 
     env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| {
             let sdk_derived_address =
-                auth_claim_pubkey_contract_address(&claim);
+                auth_claim_pubkey_contract_address(&claim)
+                    .expect("sdk derives some address from a pubkey claim");
 
-            assert!(sdk_derived_address.is_some());
             assert_eq!(sdk_derived_address, expected_address);
         })
-    });
+    })
+    .assert_success();
 }
 
 // Verifies that an auth-claim can be attached to a mock transaction via
@@ -42,7 +44,8 @@ fn pubkey_auth_claim_is_visible_to_contract() {
             // for pubkey claims.
             assert_eq!(auth_claim_pubkey_contract_address(&observed), None);
         })
-    });
+    })
+    .assert_success();
 
     // Check behavior with the supplied example pubkey auth-claim
     let claim_for_custom = claim.clone();
@@ -56,7 +59,8 @@ fn pubkey_auth_claim_is_visible_to_contract() {
             assert!(sdk_derived_address.is_some());
             assert_eq!(sdk_derived_address, expected_address);
         })
-    });
+    })
+    .assert_success();
 }
 
 // Verify that we can `transact_with_auth_claim`, `tx.call` with the associated
@@ -82,7 +86,8 @@ fn pubkey_auth_claim_maps_to_current_address() {
             assert_eq!(sdk_derived_address, expected_address);
             assert_eq!(sdk_derived_address, get_current_address());
         })
-    });
+    })
+    .assert_success();
 
     // The negative case (running as TEST_ADDR)
     env.transact_with_auth_claim(claim.clone(), |tx| {
@@ -93,7 +98,8 @@ fn pubkey_auth_claim_maps_to_current_address() {
 
             assert_ne!(sdk_derived_address, get_current_address());
         })
-    });
+    })
+    .assert_success();
 }
 
 // Make a pubkey auth-claim
@@ -109,19 +115,19 @@ fn native_derive_pubkey_contract_address(
     auth_claim: &AuthClaim,
 ) -> Option<ContractAddress> {
     use sha2::{Digest, Sha256};
+    const PUBKEY_ACCOUNT_TAG: SHA256Hash =
+        crate::sha256_static!("PUBKEY_ACCOUNT");
 
     match auth_claim {
         AuthClaim::kPubkeySignature { pubkey_preimage } => {
-            let preimage_encoded =
-                xdrs::cxs::encode(&pubkey_preimage).unwrap();
-            let hashed: [u8; 32] =
+            let version: u32 = 0;
+            let domain = PUBKEY_ACCOUNT_TAG.as_ref();
+            let payload = pubkey_preimage;
+            let preimage = (version, domain, payload);
+            let preimage_encoded = xdrs::cxs::encode(&preimage).unwrap();
+            let digest: [u8; 32] =
                 Sha256::digest(preimage_encoded.as_slice()).into();
-            let tag: [u8; 32] =
-                Sha256::digest("PUBKEY_ACCOUNT".as_bytes()).into();
-            let hashed: SHA256Hash = hashed.into();
-            let tag: SHA256Hash = tag.into();
-            let addr: SHA256Hash = tag ^ hashed;
-            Some(addr.into())
+            Some(digest.into())
         }
         _ => None,
     }

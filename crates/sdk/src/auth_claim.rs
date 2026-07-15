@@ -5,6 +5,7 @@
 // 1: is there a better interface in which to wrap these calls?
 // 2: Do we want some runtime-checked "single-use" checks for these authclaims?
 
+use crate::hash_domain::domain_hash;
 use crate::sys::{self, SysResult};
 use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;
@@ -61,11 +62,11 @@ const PUBKEY_ACCOUNT_TAG: SHA256Hash = crate::sha256_static!("PUBKEY_ACCOUNT");
 pub fn auth_claim_pubkey_contract_address(
     auth_claim: &AuthClaim,
 ) -> Option<ContractAddress> {
-    use crate::hash::*;
-
     match auth_claim {
         AuthClaim::kPubkeySignature { pubkey_preimage } => {
-            let address = (PUBKEY_ACCOUNT_TAG ^ pubkey_preimage.hash()).into();
+            let digest =
+                domain_hash(PUBKEY_ACCOUNT_TAG.as_ref(), pubkey_preimage);
+            let address = digest.into();
             Some(address)
         }
         _ => None,

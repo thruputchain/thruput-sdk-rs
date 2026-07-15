@@ -291,8 +291,8 @@ where
 
 pub fn deploy_address(
     deployer_address: &ContractAddress,
-    nonce: &Hash256,
-    contract_hash: &Hash256,
+    nonce: &SHA256Hash,
+    contract_hash: &SHA256Hash,
 ) -> ContractAddress {
     use groundhog_xdr::contract::ContractDeploymentHashPreimage;
     use sha2::{Digest, Sha256};
