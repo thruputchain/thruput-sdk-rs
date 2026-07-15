@@ -519,8 +519,10 @@ impl TestEnvironment {
         auth_claim: groundhog_xdr::auth_claim::AuthClaim,
         f: impl FnOnce(&mut MockTransactionHandler) -> FrameResult,
     ) -> TransactResult {
-        let mut tx =
-            MockTransactionHandler::new_with_auth_claim(self.clone(), auth_claim);
+        let mut tx = MockTransactionHandler::new_with_auth_claim(
+            self.clone(),
+            auth_claim,
+        );
         let frame_result = f(&mut tx);
         let exec_result = tx.try_commit_transaction().exec_result();
         TransactResult::new(frame_result, exec_result)
@@ -549,8 +551,10 @@ impl TestEnvironment {
         auth_claim: groundhog_xdr::auth_claim::AuthClaim,
         f: impl FnOnce(&mut MockTransactionHandler) -> R,
     ) -> R {
-        let mut tx =
-            MockTransactionHandler::new_with_auth_claim(self.clone(), auth_claim);
+        let mut tx = MockTransactionHandler::new_with_auth_claim(
+            self.clone(),
+            auth_claim,
+        );
         f(&mut tx)
     }
 
