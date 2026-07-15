@@ -443,16 +443,36 @@ pub struct MockTransactionHandler {
 }
 
 impl MockTransactionHandler {
+    /// Create a mock transaction handler with the default auth-claim
+    /// (a `kSourceAddressAuthData` claim with no allowed keys and zero
+    /// required weight).
+    ///
+    /// Use [`new_with_auth_claim`](Self::new_with_auth_claim) to attach a
+    /// specific auth-claim instead.
     pub fn new(env: Rc<TestEnvironment>) -> Self {
-        // TODO(geoff): ways to mock this out
+        Self::new_with_auth_claim(env, Self::default_auth_claim())
+    }
+
+    /// The auth-claim attached by [`new`](Self::new): a
+    /// `kSourceAddressAuthData` claim with no allowed keys and zero
+    /// required weight.
+    pub fn default_auth_claim() -> AuthClaim {
         use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
-        let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData {
+        AuthClaim::kSourceAddressAuthData {
             source_address_claim: AuthClaim_source_address_claim {
                 allowed_keys: 0,
                 required_weight: 0,
             },
-        };
+        }
+    }
 
+    /// Create a mock transaction handler that attaches `auth_claim` to the
+    /// mocked transaction, letting a test control the auth-claim seen by the
+    /// contract under test (e.g. via `get_auth_claim`).
+    pub fn new_with_auth_claim(
+        env: Rc<TestEnvironment>,
+        auth_claim: AuthClaim,
+    ) -> Self {
         let serialized_auth_claim = xdrs::txs::encode(&auth_claim).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
