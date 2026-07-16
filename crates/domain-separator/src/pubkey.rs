@@ -24,7 +24,12 @@ pub fn pubkey_account_address(
     preimage: &PubkeyAccountPreimage,
 ) -> ContractAddress {
     let mut scratch = [MaybeUninit::<u8>::uninit(); SCRATCH];
-    let hash = PUBKEY_ACCOUNT.hash_into(preimage, &mut scratch);
+    // SAFETY: `SCRATCH` is the prefix length plus `PubkeyAccountPreimage`'s
+    // worst-case CXS size (`ConstMaxSize::MAX_SIZE`, checked to be bounded at
+    // compile time), so the buffer always holds the encoded preimage.
+    // `PubkeyAccountPreimage` has no variable-length fields, so it cannot
+    // violate a declared XDR bound.
+    let hash = unsafe { PUBKEY_ACCOUNT.hash_into(preimage, &mut scratch) };
     ContractAddress::new(hash.into_inner())
 }
 
@@ -54,7 +59,8 @@ mod tests {
 
     #[test]
     fn scratch_fits_representative_preimage() {
-        // Must not trip encode_into's bounds check inside hash_into.
+        // SCRATCH must hold this preimage: with the unchecked encode path a
+        // short buffer would be UB, not a panic.
         let _ = pubkey_account_address(&sample());
     }
 }

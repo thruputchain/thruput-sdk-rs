@@ -28,11 +28,19 @@ struct HashPreimage<'a, T: WriteXDR + ?Sized> {
 impl DomainSeparator {
     /// `sha256(self || cxs(object))`, serializing `object` through `scratch`.
     ///
-    /// # Panics
+    /// Takes the unchecked encode path: on gas-metered guests the bounds check
+    /// and error path are pure overhead when the buffer is statically sized to
+    /// the worst case (see [`crate::pubkey_account_address`]).
     ///
-    /// Panics if `scratch` is smaller than
-    /// `self.as_bytes().len() + cxs_size(object)`.
-    pub fn hash_into<T: WriteXDR + ?Sized>(
+    /// # Safety
+    ///
+    /// - `scratch` must be at least `self.as_bytes().len()` plus the worst-case
+    ///   CXS size of `object`. There is no runtime size check: a short buffer is
+    ///   undefined behaviour, not a panic. Size it from
+    ///   `<T as xdrs::cxs::ConstMaxSize>::MAX_SIZE` rather than by inspection.
+    /// - `object` must respect its declared XDR bounds (e.g. a `VecM<T, MAX>`
+    ///   no longer than `MAX`), or the encoding can exceed that size bound.
+    pub unsafe fn hash_into<T: WriteXDR + ?Sized>(
         &self,
         object: &T,
         scratch: &mut [MaybeUninit<u8>],
@@ -41,12 +49,13 @@ impl DomainSeparator {
             domain_separator: self,
             object,
         };
-        let total = xdrs::cxs::encode_into(&preimage, scratch)
-            .expect("domain-separator scratch too small for the preimage");
-        // SAFETY: `encode_into` returned `Ok(total)`. It writes through
-        // `IntoBufWriter`, which advances its counter only via a private
-        // `reserve` whose callers (`put_byte`/`put_bytes`) fill the entire
-        // reserved region immediately, so `scratch[..total]` is initialized.
+        // SAFETY: forwarded caller contract — `scratch` holds the encoded
+        // preimage and `object` respects its declared bounds. The prefix is a
+        // fixed opaque, so it adds exactly `as_bytes().len()` bytes.
+        let total =
+            unsafe { xdrs::cxs::encode_into_unchecked(&preimage, scratch) };
+        // SAFETY: the writer initializes every byte it counts, so
+        // `scratch[..total]` is initialized.
         let bytes = unsafe {
             core::slice::from_raw_parts(scratch.as_ptr() as *const u8, total)
         };
@@ -96,7 +105,10 @@ mod tests {
         let expected =
             manual(&PUBKEY_ACCOUNT, &xdrs::cxs::encode(&obj).unwrap());
         let mut scratch = [MaybeUninit::<u8>::uninit(); 64];
-        assert_eq!(PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch), expected);
+        assert_eq!(
+            unsafe { PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch) },
+            expected
+        );
     }
 
     #[test]
@@ -104,7 +116,7 @@ mod tests {
         let obj: u64 = 12345;
         let mut scratch = [MaybeUninit::<u8>::uninit(); 64];
         assert_eq!(
-            PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch),
+            unsafe { PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch) },
             PUBKEY_ACCOUNT.hash(&obj)
         );
     }
