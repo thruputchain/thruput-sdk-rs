@@ -5,6 +5,7 @@ pub use xdrs::{BytesM, VecM};
 pub use groundhog_xdr::auth_claim::AuthClaim;
 pub use groundhog_xdr::auth_claim::AuthClaimType;
 pub use groundhog_xdr::auth_claim::KeyID;
+pub use groundhog_xdr::auth_claim::PubkeyAccountPreimage;
 pub use groundhog_xdr::contract;
 pub use groundhog_xdr::contract::Contract;
 pub use groundhog_xdr::contract::ContractEntrypointID;
