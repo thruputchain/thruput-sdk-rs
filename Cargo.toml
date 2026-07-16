@@ -18,6 +18,7 @@ default-members = [
     "crates/bottle-test-if",
     "crates/contract-spec",
     "crates/contract-util",
+    "crates/domain-separator",
     "crates/event",
     "crates/hogd-sys",
     "crates/macros",
@@ -76,6 +77,7 @@ groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0
 groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.17.2" }
 groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.17.2" }
 groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.17.2" }
+groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.17.2" }
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.17.2" }
 # Standard interfaces (also this repository)
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.5" }

@@ -441,6 +441,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-domain-separator"
+version = "0.17.2"
+dependencies = [
+ "groundhog-xdr",
+ "hex-literal",
+ "sha2",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-erc1271-if"
 version = "0.1.5"
 dependencies = [
