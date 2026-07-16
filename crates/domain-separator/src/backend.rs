@@ -4,7 +4,6 @@
 //! `compile_error!` guards in `lib.rs`).
 
 #[cfg(feature = "sha2")]
-#[allow(dead_code)]
 pub(crate) fn sha256_raw(bytes: &[u8]) -> [u8; 32] {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -13,7 +12,6 @@ pub(crate) fn sha256_raw(bytes: &[u8]) -> [u8; 32] {
 }
 
 #[cfg(feature = "syscall")]
-#[allow(dead_code)]
 pub(crate) fn sha256_raw(bytes: &[u8]) -> [u8; 32] {
     use core::mem::MaybeUninit;
     use groundhog_xdr::types::SHA256Hash;
