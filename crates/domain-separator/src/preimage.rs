@@ -9,36 +9,29 @@ use crate::DomainSeparator;
 use crate::backend::sha256_raw;
 
 /// The semantic preimage `domain_separator || object` — the Rust stand-in for
-/// the XDR `VersionedPreimage<T>` that generics can't express. Internal.
+/// the XDR `VersionedPreimage<T>` that XDR schemas can't express generically.
+///
+/// The layout is spelled once, here: CXS concatenates struct fields with no
+/// framing, and `DomainSeparator`'s `WriteXDR` re-emits its precomputed prefix
+/// verbatim, so this encodes to exactly `prefix || cxs(object)`. Both
+/// [`DomainSeparator::hash`] and [`DomainSeparator::hash_into`] go through it,
+/// so the host and guest paths cannot disagree.
+///
+/// The `?Sized` object field needs `xdrs >= 0.8.2`, where the blanket
+/// `impl WriteXDR for &T` accepts unsized `T`.
+#[derive(WriteXDR)]
 struct HashPreimage<'a, T: WriteXDR + ?Sized> {
     domain_separator: &'a DomainSeparator,
     object: &'a T,
 }
 
-impl<T: WriteXDR + ?Sized> HashPreimage<'_, T> {
-    /// Serialize `prefix || cxs(object)` into `buf`, returning the total length.
-    /// Panics if `buf` is too small.
-    fn write_into(&self, buf: &mut [MaybeUninit<u8>]) -> usize {
-        let prefix = self.domain_separator.as_bytes();
-        assert!(
-            buf.len() >= prefix.len(),
-            "domain-separator scratch too small for the prefix"
-        );
-        for (slot, &byte) in buf.iter_mut().zip(prefix) {
-            slot.write(byte);
-        }
-        let written =
-            xdrs::cxs::encode_into(self.object, &mut buf[prefix.len()..])
-                .expect("domain-separator scratch too small for the object");
-        prefix.len() + written
-    }
-}
-
 impl DomainSeparator {
     /// `sha256(self || cxs(object))`, serializing `object` through `scratch`.
     ///
-    /// `scratch` must hold at least `self.as_bytes().len() + cxs_size(object)`
-    /// bytes; a too-small buffer panics.
+    /// # Panics
+    ///
+    /// Panics if `scratch` is smaller than
+    /// `self.as_bytes().len() + cxs_size(object)`.
     pub fn hash_into<T: WriteXDR + ?Sized>(
         &self,
         object: &T,
@@ -48,13 +41,12 @@ impl DomainSeparator {
             domain_separator: self,
             object,
         };
-        let total = preimage.write_into(scratch);
-        // SAFETY: `write_into` initializes `scratch[..total]`. The prefix loop
-        // calls `slot.write(byte)` for every byte in `0..prefix.len()`, and
-        // `xdrs::cxs::encode_into` uses `IntoBufWriter` which calls
-        // `MaybeUninit::write` / `write_copy_of_slice` for every byte it
-        // advances its counter by — so `scratch[prefix.len()..total]` is also
-        // fully initialized.
+        let total = xdrs::cxs::encode_into(&preimage, scratch)
+            .expect("domain-separator scratch too small for the preimage");
+        // SAFETY: `encode_into` returned `Ok(total)`. It writes through
+        // `IntoBufWriter`, which advances its counter only via a private
+        // `reserve` whose callers (`put_byte`/`put_bytes`) fill the entire
+        // reserved region immediately, so `scratch[..total]` is initialized.
         let bytes = unsafe {
             core::slice::from_raw_parts(scratch.as_ptr() as *const u8, total)
         };
@@ -65,12 +57,11 @@ impl DomainSeparator {
     #[cfg(feature = "alloc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn hash<T: WriteXDR + ?Sized>(&self, object: &T) -> SHA256Hash {
-        let object_cxs = xdrs::cxs::encode(object).expect("cxs encode failed");
-        let prefix = self.as_bytes();
-        let mut buf =
-            alloc::vec::Vec::with_capacity(prefix.len() + object_cxs.len());
-        buf.extend_from_slice(prefix);
-        buf.extend_from_slice(&object_cxs);
+        let preimage = HashPreimage {
+            domain_separator: self,
+            object,
+        };
+        let buf = xdrs::cxs::encode(&preimage).expect("cxs encode failed");
         SHA256Hash::new(sha256_raw(&buf))
     }
 }
@@ -78,9 +69,13 @@ impl DomainSeparator {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
+    use crate::PUBKEY_ACCOUNT;
 
-    const TEST: DomainSeparator = crate::domain_separator!("Test");
-
+    /// Independently spells the preimage layout as a plain concatenation.
+    /// This is the guard on the derived encoding: if `#[derive(WriteXDR)]` on
+    /// `HashPreimage` ever emitted framing (a length prefix, padding, a field
+    /// count), the derived bytes would stop matching this and the tests below
+    /// would fail.
     fn manual(sep: &DomainSeparator, object_cxs: &[u8]) -> SHA256Hash {
         let mut buf = sep.as_bytes().to_vec();
         buf.extend_from_slice(object_cxs);
@@ -90,14 +85,27 @@ mod tests {
     #[test]
     fn hash_matches_manual_concatenation() {
         let obj: u64 = 0xdead_beef;
-        let expected = manual(&TEST, &xdrs::cxs::encode(&obj).unwrap());
-        assert_eq!(TEST.hash(&obj), expected);
+        let expected =
+            manual(&PUBKEY_ACCOUNT, &xdrs::cxs::encode(&obj).unwrap());
+        assert_eq!(PUBKEY_ACCOUNT.hash(&obj), expected);
+    }
+
+    #[test]
+    fn hash_into_matches_manual_concatenation() {
+        let obj: u64 = 0xdead_beef;
+        let expected =
+            manual(&PUBKEY_ACCOUNT, &xdrs::cxs::encode(&obj).unwrap());
+        let mut scratch = [MaybeUninit::<u8>::uninit(); 64];
+        assert_eq!(PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch), expected);
     }
 
     #[test]
     fn hash_into_matches_hash() {
         let obj: u64 = 12345;
         let mut scratch = [MaybeUninit::<u8>::uninit(); 64];
-        assert_eq!(TEST.hash_into(&obj, &mut scratch), TEST.hash(&obj));
+        assert_eq!(
+            PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch),
+            PUBKEY_ACCOUNT.hash(&obj)
+        );
     }
 }

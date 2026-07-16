@@ -4,7 +4,7 @@
 //!
 //! Derives `sha256( cxs(DomainSeparator) || cxs(object) )`, matching the C++
 //! validator. The domain-separator prefix is baked into rodata at compile time
-//! (see [`domain_separator!`]); the SHA-256 backend is feature-selected
+//! (see [`PUBKEY_ACCOUNT`]); the SHA-256 backend is feature-selected
 //! (`sha2` for host/native, `syscall` for guests) with no trait machinery.
 
 #[cfg(feature = "alloc")]
@@ -31,7 +31,3 @@ mod preimage;
 
 mod pubkey;
 pub use pubkey::pubkey_account_address;
-
-// Hidden items referenced by the `domain_separator!` macro expansion.
-#[doc(hidden)]
-pub use separator::{__prefix_bytes, __prefix_size, DomainSeparatorRepr};
