@@ -45,6 +45,7 @@ sdk = { path = ".", features = ["dev"] }
 
 hex-literal = { workspace = true }
 groundhog-contract-util = { workspace = true }
+groundhog-domain-separator = { workspace = true }
 trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
