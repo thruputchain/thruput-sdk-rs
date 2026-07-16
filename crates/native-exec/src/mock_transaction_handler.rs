@@ -431,6 +431,41 @@ impl Drop for ThreadlocalContextPushcount {
     }
 }
 
+/// Configuration for a mocked transaction, applied when the handler is
+/// created. Build one with [`TestEnvironment::transaction`], or use
+/// [`MockTransactionConfig::default`] for the standard setup.
+///
+/// This is the extension point for the mocked transaction context: new knobs
+/// (e.g. the source-tx hash) become fields here rather than new constructor
+/// overloads.
+#[derive(Clone)]
+pub struct MockTransactionConfig {
+    /// The auth-claim attached to the mocked transaction, observed by the
+    /// contract under test (e.g. via `get_auth_claim`).
+    pub auth_claim: AuthClaim,
+}
+
+impl MockTransactionConfig {
+    /// A `kSourceAddressAuthData` claim with no allowed keys and zero required weight.
+    pub fn default_auth_claim() -> AuthClaim {
+        use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
+        AuthClaim::kSourceAddressAuthData {
+            source_address_claim: AuthClaim_source_address_claim {
+                allowed_keys: 0,
+                required_weight: 0,
+            },
+        }
+    }
+}
+
+impl Default for MockTransactionConfig {
+    fn default() -> Self {
+        Self {
+            auth_claim: Self::default_auth_claim(),
+        }
+    }
+}
+
 // Can run one, and only one, transaction,
 // and then get the results
 pub struct MockTransactionHandler {
@@ -443,37 +478,24 @@ pub struct MockTransactionHandler {
 }
 
 impl MockTransactionHandler {
-    /// Create a mock transaction handler with the default auth-claim
-    /// (a `kSourceAddressAuthData` claim with no allowed keys and zero
-    /// required weight).
+    /// Create a mock transaction handler with the default configuration
+    /// (see [`MockTransactionConfig`]).
     ///
-    /// Use [`new_with_auth_claim`](Self::new_with_auth_claim) to attach a
-    /// specific auth-claim instead.
+    /// Use [`TestEnvironment::transaction`] to customize the configuration
+    /// before creating the handler.
     pub fn new(env: Rc<TestEnvironment>) -> Self {
-        Self::new_with_auth_claim(env, Self::default_auth_claim())
+        Self::new_with_config(env, MockTransactionConfig::default())
     }
 
-    /// The auth-claim attached by [`new`](Self::new): a
-    /// `kSourceAddressAuthData` claim with no allowed keys and zero
-    /// required weight.
-    pub fn default_auth_claim() -> AuthClaim {
-        use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
-        AuthClaim::kSourceAddressAuthData {
-            source_address_claim: AuthClaim_source_address_claim {
-                allowed_keys: 0,
-                required_weight: 0,
-            },
-        }
-    }
-
-    /// Create a mock transaction handler that attaches `auth_claim` to the
-    /// mocked transaction, letting a test control the auth-claim seen by the
-    /// contract under test (e.g. via `get_auth_claim`).
-    pub fn new_with_auth_claim(
+    /// Create a mock transaction handler from an explicit
+    /// [`MockTransactionConfig`], letting a test configure the context of the
+    /// mocked transaction.
+    pub fn new_with_config(
         env: Rc<TestEnvironment>,
-        auth_claim: AuthClaim,
+        config: MockTransactionConfig,
     ) -> Self {
-        let serialized_auth_claim = xdrs::txs::encode(&auth_claim).unwrap();
+        let serialized_auth_claim =
+            xdrs::txs::encode(&config.auth_claim).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
             groundhog_sys::open_mocked_syscall_handler(

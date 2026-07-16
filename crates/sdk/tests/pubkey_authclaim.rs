@@ -24,11 +24,12 @@ fn pubkey_address_derivation_check() {
 }
 
 // Verifies that an auth-claim can be attached to a mock transaction via
-// `transact_with_auth_claim` and is observed by the contract under test.
+// `env.transaction().with_auth_claim(..)` and is observed by the contract
+// under test.
 #[test]
 fn pubkey_auth_claim_is_visible_to_contract() {
     let env = TestEnvironment::no_cost();
-    let default_claim = MockTransactionHandler::default_auth_claim();
+    let default_claim = MockTransactionConfig::default_auth_claim();
     let claim = example_pubkey_claim();
     let expected_address = native_derive_pubkey_contract_address(&claim);
 
@@ -49,21 +50,23 @@ fn pubkey_auth_claim_is_visible_to_contract() {
 
     // Check behavior with the supplied example pubkey auth-claim
     let claim_for_custom = claim.clone();
-    env.transact_with_auth_claim(claim.clone(), |tx| {
-        tx.call(&TEST_ADDR).run(|| {
-            let observed = sdk::get_auth_claim().unwrap();
-            assert_eq!(observed, claim_for_custom);
+    env.transaction()
+        .with_auth_claim(claim.clone())
+        .transact(|tx| {
+            tx.call(&TEST_ADDR).run(|| {
+                let observed = sdk::get_auth_claim().unwrap();
+                assert_eq!(observed, claim_for_custom);
 
-            let sdk_derived_address =
-                auth_claim_pubkey_contract_address(&claim);
-            assert!(sdk_derived_address.is_some());
-            assert_eq!(sdk_derived_address, expected_address);
+                let sdk_derived_address =
+                    auth_claim_pubkey_contract_address(&claim);
+                assert!(sdk_derived_address.is_some());
+                assert_eq!(sdk_derived_address, expected_address);
+            })
         })
-    })
-    .assert_success();
+        .assert_success();
 }
 
-// Verify that we can `transact_with_auth_claim`, `tx.call` with the associated
+// Verify that we can attach a pubkey auth-claim, `tx.call` with the associated
 // address, and then assert that the current address is that address.
 #[test]
 fn pubkey_auth_claim_maps_to_current_address() {
@@ -74,32 +77,38 @@ fn pubkey_auth_claim_maps_to_current_address() {
 
     // The positive case
     let claim_for_custom = claim.clone();
-    env.transact_with_auth_claim(claim.clone(), |tx| {
-        tx.call(&expected_address).run(|| {
-            let observed = sdk::get_auth_claim().unwrap();
-            assert_eq!(observed, claim_for_custom);
+    env.transaction()
+        .with_auth_claim(claim.clone())
+        .transact(|tx| {
+            tx.call(&expected_address).run(|| {
+                let observed = sdk::get_auth_claim().unwrap();
+                assert_eq!(observed, claim_for_custom);
 
-            let sdk_derived_address =
-                auth_claim_pubkey_contract_address(&claim)
-                    .expect("sdk derives some address from a pubkey claim");
+                let sdk_derived_address = auth_claim_pubkey_contract_address(
+                    &claim,
+                )
+                .expect("sdk derives some address from a pubkey claim");
 
-            assert_eq!(sdk_derived_address, expected_address);
-            assert_eq!(sdk_derived_address, get_current_address());
+                assert_eq!(sdk_derived_address, expected_address);
+                assert_eq!(sdk_derived_address, get_current_address());
+            })
         })
-    })
-    .assert_success();
+        .assert_success();
 
     // The negative case (running as TEST_ADDR)
-    env.transact_with_auth_claim(claim.clone(), |tx| {
-        tx.call(&TEST_ADDR).run(|| {
-            let sdk_derived_address =
-                auth_claim_pubkey_contract_address(&claim)
-                    .expect("sdk derives some address from a pubkey claim");
+    env.transaction()
+        .with_auth_claim(claim.clone())
+        .transact(|tx| {
+            tx.call(&TEST_ADDR).run(|| {
+                let sdk_derived_address = auth_claim_pubkey_contract_address(
+                    &claim,
+                )
+                .expect("sdk derives some address from a pubkey claim");
 
-            assert_ne!(sdk_derived_address, get_current_address());
+                assert_ne!(sdk_derived_address, get_current_address());
+            })
         })
-    })
-    .assert_success();
+        .assert_success();
 }
 
 // Make a pubkey auth-claim

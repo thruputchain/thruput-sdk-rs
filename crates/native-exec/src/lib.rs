@@ -27,6 +27,7 @@ pub mod mock_transaction_handler;
 pub mod test_environment;
 pub mod test_helpers;
 pub mod transact_result;
+pub mod transaction_builder;
 pub mod transaction_handler;
 pub mod try_commit_result;
 pub use try_commit_result::TryCommitResult;

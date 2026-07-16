@@ -14,10 +14,13 @@ mod mock_public {
         frame_result::FrameResult,
         invoke_error::InvokeError,
         mock_contract::MockContract,
-        mock_transaction_handler::MockTransactionHandler,
+        mock_transaction_handler::{
+            MockTransactionConfig, MockTransactionHandler,
+        },
         test_environment::{TestEnvironment, TestEnvironmentHandle},
         test_helpers::Named,
         transact_result::TransactResult,
+        transaction_builder::TransactionBuilder,
         try_commit_result::{
             DbConflictCode, DbConflictDiagnostic, DbConflictResult,
             TryCommitResult,
