@@ -18,6 +18,7 @@ default-members = [
     "crates/bottle-test-if",
     "crates/contract-spec",
     "crates/contract-util",
+    "crates/domain-separator",
     "crates/event",
     "crates/hogd-sys",
     "crates/macros",
@@ -76,6 +77,7 @@ groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0
 groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.17.2" }
 groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.17.2" }
 groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.17.2" }
+groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.17.2" }
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.17.2" }
 # Standard interfaces (also this repository)
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.5" }
@@ -88,14 +90,14 @@ erc20-native-test = { path = "standard-tests/erc20-native-test" }
 bottle-test-if = { path = "crates/bottle-test-if" }
 
 # Deps from protocol-rs repo:
-groundhog-spec = { registry = "groundhog", version = "0.19.7", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "0.19.7" }
-groundhog-xdr = { registry = "groundhog", version = "0.19.7", features = ["xdrs"] }
-groundhog-syscall = { registry = "groundhog", version = "0.19.7" }
-hogexec-internal = { registry = "groundhog", version = "0.19.7" }
+groundhog-spec = { registry = "groundhog", version = "0.19.9", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "0.19.9" }
+groundhog-xdr = { registry = "groundhog", version = "0.19.9", features = ["xdrs"] }
+groundhog-syscall = { registry = "groundhog", version = "0.19.9" }
+hogexec-internal = { registry = "groundhog", version = "0.19.9" }
 
 # Deps from xdrs repo:
-xdrs = { registry = "groundhog", version = "0.8.0", default-features = false, features = ["int128", "heapless"] }
+xdrs = { registry = "groundhog", version = "0.8.2", default-features = false, features = ["int128", "heapless"] }
 xdr-common = { registry = "groundhog", version = "0.8.0" }
 
 # Other groundhog deps:
