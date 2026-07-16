@@ -23,3 +23,10 @@ compile_error!(
 );
 
 mod backend;
+
+mod separator;
+pub use separator::{DomainSeparator, PUBKEY_ACCOUNT};
+
+// Hidden items referenced by the `domain_separator!` macro expansion.
+#[doc(hidden)]
+pub use separator::{__prefix_bytes, __prefix_size, DomainSeparatorRepr};
