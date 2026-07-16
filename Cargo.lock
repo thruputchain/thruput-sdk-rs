@@ -585,6 +585,7 @@ name = "groundhog-test-vectors"
 version = "0.17.2"
 dependencies = [
  "groundhog-contract-util",
+ "groundhog-domain-separator",
  "groundhog-xdr",
  "serde_json",
  "xdrs",
