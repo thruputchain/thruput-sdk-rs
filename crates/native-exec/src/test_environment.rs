@@ -581,9 +581,12 @@ impl TestEnvironment {
     /// Check the auth claims on the provided transaction
     /// against the provided source and auxiliary auth data.
     /// Does not load any information from the database.
+    ///
+    /// Pass `None` to represent "no registered auth data" (the pubkey-claim
+    /// case). Pass `Some(d)` to supply serialized [`AddressAuthData`].
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
-        source_auth_data: &AddressAuthData,
+        source_auth_data: Option<&AddressAuthData>,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
         let ffi_serialized_tx =
@@ -592,12 +595,20 @@ impl TestEnvironment {
                 len: serialized_tx.len().try_into().unwrap(),
             };
 
+        // `None` → null pointer with len=0 (pubkey-claim path, 0.20.1+).
+        // `Some(d)` → serialize and pass as before.
         let serialized_source_auth_data =
-            txs::encode(source_auth_data).unwrap();
+            source_auth_data.map(|d| txs::encode(d).unwrap());
         let ffi_serialized_source_auth_data =
-            groundhog_sys::FFISourceAuthData {
-                data: serialized_source_auth_data.as_ptr() as *mut u8,
-                len: serialized_source_auth_data.len().try_into().unwrap(),
+            match &serialized_source_auth_data {
+                Some(bytes) => groundhog_sys::FFISourceAuthData {
+                    data: bytes.as_ptr() as *mut u8,
+                    len: bytes.len().try_into().unwrap(),
+                },
+                None => groundhog_sys::FFISourceAuthData {
+                    data: core::ptr::null_mut(),
+                    len: 0,
+                },
             };
 
         let res = unsafe {
