@@ -26,6 +26,8 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
+groundhog-domain-separator = { workspace = true, features = ["syscall"] }
+hex-literal = { workspace = true }
 
 # Optional
 bottle-test-if = { workspace = true, optional = true }
