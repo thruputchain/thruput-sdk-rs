@@ -1,4 +1,4 @@
-use groundhog_domain_separator::pubkey_account_address;
+use groundhog_domain_separator::syscall::pubkey_account_address;
 use hex_literal::hex;
 use sdk::*;
 
@@ -23,9 +23,10 @@ impl HasherImpl {
         }
     }
 
-    // `groundhog-domain-separator` is built here with `syscall`, so this
-    // derivation hashes through the SHA256 syscall rather than linking `sha2`
-    // into the guest. The expectation is the cross-implementation vector from
+    // The `syscall::` path hashes through the SHA256 syscall rather than
+    // linking `sha2` into the guest; on wasm32/rv32 reaching the `sha2` backend
+    // at all is a compile error. The expectation is the cross-implementation
+    // vector from
     // `groundhog-test-vectors domain-separator` (pubkey = [0x01; 32], nonce =
     // 1) — the address the C++ validator derives.
     pub fn check_pubkey_account_address() {
@@ -43,5 +44,27 @@ impl HasherImpl {
         if pubkey_account_address(&preimage) != EXPECTED_ADDRESS {
             panic!("Unexpected pubkey account address");
         }
+    }
+
+    /// Derives an address through the SHA256 syscall and hands it back, so a
+    /// host test can diff the guest backend against `sha2`. The contract cannot
+    /// run that diff itself: reaching `sha2` from a guest is a compile error,
+    /// which is the point of the split.
+    ///
+    /// Takes the pubkey as a repeated byte rather than a `PubkeyAccountPreimage`
+    /// because the preimage does not implement the auth-handle traits calldata
+    /// requires; the test rebuilds the identical preimage host-side. The byte
+    /// rides in a `u32` because XDR has no 1-byte wire type.
+    pub fn derive_pubkey_account_address(
+        pubkey_byte: u32,
+        nonce: u64,
+    ) -> ContractAddress {
+        let preimage = PubkeyAccountPreimage {
+            pubkey: PublicKey::Ed25519 {
+                ed25519: Ed25519PublicKey::from([pubkey_byte as u8; 32]),
+            },
+            nonce,
+        };
+        pubkey_account_address(&preimage)
     }
 }

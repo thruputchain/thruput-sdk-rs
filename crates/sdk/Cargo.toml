@@ -35,7 +35,11 @@ groundhog-wasm-meter = { workspace = true, optional = true }
 
 # External dependencies
 thiserror = { workspace = true }
-sha2 = { workspace = true, default-features = false }
+# Host-only: every use is behind `mock` or `cfg(test)` -- guests hash through
+# the SHA256 syscall (`crypto::sha256`). Optional so a guest build cannot
+# compile it in, and so any future non-test `use sha2::` fails loudly here
+# rather than silently linking software SHA-256 into every contract.
+sha2 = { workspace = true, default-features = false, optional = true }
 heapless = { workspace = true }
 linkme = { workspace = true, optional = true }
 
@@ -83,6 +87,7 @@ mock = [
     "groundhog-macros/mock",
     "groundhog-xdr/syscalls_mock",
     "dep:linkme",
+    "dep:sha2",
 ]
 
 # Forwarded to groundhog-sys (via native-exec): build the FFI library from

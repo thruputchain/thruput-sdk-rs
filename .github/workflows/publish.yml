@@ -59,16 +59,18 @@ jobs:
         uses: ./actions/cargo-publish-dry-run
         with:
           packages: ${{ env.PUBLISH_PACKAGES }}
-          # `syscall` selects groundhog-domain-separator's guest SHA-256 backend,
-          # which forwards to `groundhog-xdr/syscalls` (wasm32/riscv32 only) and is
-          # mutually exclusive with the `sha2` backend that `-F std` forces on.
+          # groundhog-domain-separator's backends are additive, so most combinations
+          # are fine. The exception is a bare `syscall`: it forwards to
+          # `groundhog-xdr/syscalls`, which has no dispatch path on the host.
+          # `syscall-mock` needs no skip -- it supplies that dispatch itself.
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features --skip syscall
-          # groundhog-domain-separator needs exactly one SHA-256 backend: force its
-          # guest `syscall` one on and skip the host `sha2` one (and `default`, which
-          # pulls in `sha2` via `std`). Both are no-ops for the other packages here.
-          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default -F syscall --ignore-unknown-features
+          # On guests, reaching groundhog-domain-separator's `sha2` backend is a hard
+          # error, so skip it and `default` (which pulls it in via `std`). Its
+          # `syscall-mock` is host-only, like sdk's `mock`. `-F syscall` keeps the
+          # guest backend compiled somewhere. All no-ops for the other packages here.
+          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
           cargo-hack-wasm32-packages: groundhog-wasm-runtime sdk groundhog-domain-separator
-          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default -F syscall --ignore-unknown-features
+          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
           cargo-hack-rv32-packages: groundhog-rv32-runtime sdk groundhog-domain-separator
           arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
 
