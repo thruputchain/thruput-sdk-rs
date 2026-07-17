@@ -50,20 +50,3 @@ pub fn add_address_public_key(
 pub fn remove_address_public_key(pk_index: u32) -> SysResult<()> {
     sys::uninit_ChangePublicKeyRegistration(pk_index, None, &[], None)
 }
-
-/// Given an [`AuthClaim`] (such as one retrieved from [`get_auth_claim`]),
-/// compute the associated `ContractAddress` controlled by the contained public
-/// key (or `None` if it is not a public-key auth-claim).
-#[must_use]
-pub fn auth_claim_pubkey_contract_address(
-    auth_claim: &AuthClaim,
-) -> Option<crate::types::ContractAddress> {
-    match auth_claim {
-        AuthClaim::kPubkeySignature { pubkey_preimage } => {
-            Some(groundhog_domain_separator::syscall::pubkey_account_address(
-                pubkey_preimage,
-            ))
-        }
-        _ => None,
-    }
-}
