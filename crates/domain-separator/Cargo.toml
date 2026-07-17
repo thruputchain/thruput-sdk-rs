@@ -28,3 +28,7 @@ std = ["alloc", "sha2", "groundhog-xdr/std"]
 alloc = ["xdrs/alloc", "groundhog-xdr/alloc"]
 sha2 = ["dep:sha2"]
 syscall = ["groundhog-xdr/syscalls"]
+# Gives `syscall` a dispatch path on the host, where `groundhog-xdr/syscalls`
+# has none. Needed by anything running a contract frame natively (native-exec)
+# and by host `--all-features` builds, which enable `syscall` unconditionally.
+syscall-mock = ["syscall", "groundhog-xdr/syscalls_mock"]

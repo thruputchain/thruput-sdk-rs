@@ -11,7 +11,7 @@
 /// the positive test would actually catch a wrong address rather than always
 /// returning success.
 use ed25519_dalek::{Signer, SigningKey};
-use groundhog_domain_separator::pubkey_account_address;
+use groundhog_domain_separator::sha2::pubkey_account_address;
 use groundhog_native_exec::test_environment::TestEnvironment;
 use groundhog_xdr::auth_claim::{
     AuthClaim, AuthVerifyErrorCode, PubkeyAccountPreimage,

@@ -6,7 +6,7 @@ use groundhog_xdr::types::SHA256Hash;
 use xdrs::WriteXDR;
 
 use crate::DomainSeparator;
-use crate::backend::sha256_raw;
+use crate::backend::Sha256Backend;
 
 /// The semantic preimage `domain_separator || object` — the Rust stand-in for
 /// the XDR `VersionedPreimage<T>` that XDR schemas can't express generically.
@@ -30,7 +30,12 @@ impl DomainSeparator {
     ///
     /// Takes the unchecked encode path: on gas-metered guests the bounds check
     /// and error path are pure overhead when the buffer is statically sized to
-    /// the worst case (see [`crate::pubkey_account_address`]).
+    /// the worst case (see [`crate::syscall::pubkey_account_address`]).
+    ///
+    /// `H` names the SHA-256 backend explicitly, since with both features on
+    /// there is no single right answer. Callers wanting a ready-made derivation
+    /// should reach for the [`sha2`](crate::sha2) / [`syscall`](crate::syscall)
+    /// modules instead, which spell the backend in the path.
     ///
     /// # Safety
     ///
@@ -40,7 +45,7 @@ impl DomainSeparator {
     ///   `<T as xdrs::cxs::ConstMaxSize>::MAX_SIZE` rather than by inspection.
     /// - `object` must respect its declared XDR bounds (e.g. a `VecM<T, MAX>`
     ///   no longer than `MAX`), or the encoding can exceed that size bound.
-    pub unsafe fn hash_into<T: WriteXDR + ?Sized>(
+    pub unsafe fn hash_into<H: Sha256Backend, T: WriteXDR + ?Sized>(
         &self,
         object: &T,
         scratch: &mut [MaybeUninit<u8>],
@@ -59,26 +64,32 @@ impl DomainSeparator {
         let bytes = unsafe {
             core::slice::from_raw_parts(scratch.as_ptr() as *const u8, total)
         };
-        SHA256Hash::new(sha256_raw(bytes))
+        SHA256Hash::new(H::sha256(bytes))
     }
 
     /// `sha256(self || cxs(object))`, allocating the scratch buffer.
+    ///
+    /// `H` names the SHA-256 backend; see [`DomainSeparator::hash_into`].
     #[cfg(feature = "alloc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-    pub fn hash<T: WriteXDR + ?Sized>(&self, object: &T) -> SHA256Hash {
+    pub fn hash<H: Sha256Backend, T: WriteXDR + ?Sized>(
+        &self,
+        object: &T,
+    ) -> SHA256Hash {
         let preimage = HashPreimage {
             domain_separator: self,
             object,
         };
         let buf = xdrs::cxs::encode(&preimage).expect("cxs encode failed");
-        SHA256Hash::new(sha256_raw(&buf))
+        SHA256Hash::new(H::sha256(&buf))
     }
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, feature = "std", feature = "sha2"))]
 mod tests {
     use super::*;
     use crate::PUBKEY_ACCOUNT;
+    use crate::backend::Sha2;
 
     /// Independently spells the preimage layout as a plain concatenation.
     /// This is the guard on the derived encoding: if `#[derive(WriteXDR)]` on
@@ -88,7 +99,7 @@ mod tests {
     fn manual(sep: &DomainSeparator, object_cxs: &[u8]) -> SHA256Hash {
         let mut buf = sep.as_bytes().to_vec();
         buf.extend_from_slice(object_cxs);
-        SHA256Hash::new(sha256_raw(&buf))
+        SHA256Hash::new(Sha2::sha256(&buf))
     }
 
     #[test]
@@ -96,7 +107,7 @@ mod tests {
         let obj: u64 = 0xdead_beef;
         let expected =
             manual(&PUBKEY_ACCOUNT, &xdrs::cxs::encode(&obj).unwrap());
-        assert_eq!(PUBKEY_ACCOUNT.hash(&obj), expected);
+        assert_eq!(PUBKEY_ACCOUNT.hash::<Sha2, _>(&obj), expected);
     }
 
     #[test]
@@ -106,7 +117,7 @@ mod tests {
             manual(&PUBKEY_ACCOUNT, &xdrs::cxs::encode(&obj).unwrap());
         let mut scratch = [MaybeUninit::<u8>::uninit(); 64];
         assert_eq!(
-            unsafe { PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch) },
+            unsafe { PUBKEY_ACCOUNT.hash_into::<Sha2, _>(&obj, &mut scratch) },
             expected
         );
     }
@@ -116,8 +127,8 @@ mod tests {
         let obj: u64 = 12345;
         let mut scratch = [MaybeUninit::<u8>::uninit(); 64];
         assert_eq!(
-            unsafe { PUBKEY_ACCOUNT.hash_into(&obj, &mut scratch) },
-            PUBKEY_ACCOUNT.hash(&obj)
+            unsafe { PUBKEY_ACCOUNT.hash_into::<Sha2, _>(&obj, &mut scratch) },
+            PUBKEY_ACCOUNT.hash::<Sha2, _>(&obj)
         );
     }
 }
