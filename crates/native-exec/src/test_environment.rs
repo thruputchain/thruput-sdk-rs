@@ -2,6 +2,7 @@ use crate::frame_result::FrameResult;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::mock_transaction_handler::MockTransactionHandler;
 use crate::transact_result::TransactResult;
+use crate::transaction_builder::TransactionBuilder;
 use core::ffi::c_void;
 use groundhog_storage_cost::StorageCostModel;
 use groundhog_sys::FFIErrorCode;
@@ -496,32 +497,54 @@ impl TestEnvironment {
         c
     }
 
-    /// Execute a transaction with auto-commit.
+    /// Start configuring a transaction to execute in this environment.
+    ///
+    /// Returns a [`TransactionBuilder`]; chain `with_*` methods (e.g.
+    /// [`with_auth_claim`](TransactionBuilder::with_auth_claim)) to customize
+    /// the mocked transaction context, then finish with
+    /// [`transact`](TransactionBuilder::transact),
+    /// [`transact_manual`](TransactionBuilder::transact_manual), or
+    /// [`build`](TransactionBuilder::build).
+    ///
+    /// ```ignore
+    /// env.transaction()
+    ///     .with_auth_claim(my_claim)
+    ///     .transact(|tx| tx.call(&addr).run(|| { /* ... */ }));
+    /// ```
+    pub fn transaction(self: &TestEnvironmentHandle) -> TransactionBuilder {
+        TransactionBuilder::new(self.clone())
+    }
+
+    /// Execute a transaction with auto-commit and the default configuration.
     ///
     /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
     /// (hogd handles abort internally when the root frame reverted).
+    ///
+    /// Shorthand for `env.transaction().transact(f)`; use
+    /// [`transaction`](Self::transaction) to customize the transaction first.
+    #[must_use]
     pub fn transact(
         self: &TestEnvironmentHandle,
         f: impl FnOnce(&mut MockTransactionHandler) -> FrameResult,
     ) -> TransactResult {
-        let mut tx = MockTransactionHandler::new(self.clone());
-        let frame_result = f(&mut tx);
-        let exec_result = tx.try_commit_transaction().exec_result();
-        TransactResult::new(frame_result, exec_result)
+        self.transaction().transact(f)
     }
 
-    /// Execute a transaction with manual commit/abort control.
+    /// Execute a transaction with manual commit/abort control and the default
+    /// configuration.
     ///
     /// The closure receives a MockTransactionHandler and is responsible for
     /// calling tx.try_commit_transaction() or tx.abort_transaction().
     /// The closure's return value is forwarded as the return value of transact_manual.
+    ///
+    /// Shorthand for `env.transaction().transact_manual(f)`; use
+    /// [`transaction`](Self::transaction) to customize the transaction first.
     pub fn transact_manual<R>(
         self: &TestEnvironmentHandle,
         f: impl FnOnce(&mut MockTransactionHandler) -> R,
     ) -> R {
-        let mut tx = MockTransactionHandler::new(self.clone());
-        f(&mut tx)
+        self.transaction().transact_manual(f)
     }
 
     // -- Setup-phase methods --

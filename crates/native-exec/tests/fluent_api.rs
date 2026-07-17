@@ -339,7 +339,7 @@ fn test_transact_manual_commit() {
 fn test_transact_manual_abort() {
     let env = TestEnvironment::new(None);
 
-    env.transact_manual(|tx| {
+    let _ = env.transact_manual(|tx| {
         let frame_result = tx.call(&[1u8; 32].into()).run(|| -> () {
             panic!("this should fault");
         });

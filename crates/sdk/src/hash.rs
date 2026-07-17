@@ -1,9 +1,7 @@
 //! Hash trait
 
-use crate::crypto::sha256;
+use crate::crypto::{SHA256Hash, sha256};
 use crate::{FaultString, HandlingError, library_throw};
-
-pub type Hash256 = crate::crypto::SHA256Hash;
 
 /// SHA-256 of a value's CXS encoding.
 ///
@@ -15,17 +13,16 @@ pub type Hash256 = crate::crypto::SHA256Hash;
 /// [`HandlingError::EncodingException`] (a non-returning library exception),
 /// matching how terminal returns and aborts handle the same overflow.
 pub trait Hash {
-    fn hash(&self) -> Hash256;
+    fn hash(&self) -> SHA256Hash;
 }
 
 // We encode the whole value into the shared scratch buffer before hashing.
 // TODO: Use the incremental-hashing interface.
-
 impl<T> Hash for T
 where
     T: xdrs::WriteXDR,
 {
-    fn hash(&self) -> Hash256 {
+    fn hash(&self) -> SHA256Hash {
         crate::call::with_scratch(|buf| {
             crate::internal::encode_scratch(buf, self).unwrap_or_else(|e| {
                 library_throw(HandlingError::EncodingException(

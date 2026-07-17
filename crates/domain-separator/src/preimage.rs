@@ -131,4 +131,27 @@ mod tests {
             PUBKEY_ACCOUNT.hash::<Sha2, _>(&obj)
         );
     }
+
+    #[test]
+    fn hash_matches_manual_construction() {
+        use sha2::{Digest, Sha256};
+
+        let obj: () = ();
+        let observed = PUBKEY_ACCOUNT.hash::<Sha2, _>(&obj);
+
+        // Compare against a manual construction
+
+        let version: i32 = 0;
+        let domain: &[u8] = b"PubkeyAccount"; // a slice, not an array
+        let preimage = (version, domain, obj);
+
+        let preimage_encoded = xdrs::cxs::encode(&preimage).unwrap();
+        let preimage_encoded_expected = b"\0\x0dPubkeyAccount";
+        assert_eq!(preimage_encoded, preimage_encoded_expected);
+
+        let expected: [u8; 32] =
+            Sha256::digest(preimage_encoded.as_slice()).into();
+        let expected: SHA256Hash = expected.into();
+        assert_eq!(observed, expected);
+    }
 }
