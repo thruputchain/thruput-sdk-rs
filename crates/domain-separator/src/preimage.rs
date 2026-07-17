@@ -30,12 +30,12 @@ impl DomainSeparator {
     ///
     /// Takes the unchecked encode path: on gas-metered guests the bounds check
     /// and error path are pure overhead when the buffer is statically sized to
-    /// the worst case (see [`crate::syscall::pubkey_account_address`]).
+    /// the worst case (see `syscall::pubkey_account_address`).
     ///
     /// `H` names the SHA-256 backend explicitly, since with both features on
     /// there is no single right answer. Callers wanting a ready-made derivation
-    /// should reach for the [`sha2`](crate::sha2) / [`syscall`](crate::syscall)
-    /// modules instead, which spell the backend in the path.
+    /// should reach for the `sha2` / `syscall` modules instead, which spell the
+    /// backend in the path.
     ///
     /// # Safety
     ///

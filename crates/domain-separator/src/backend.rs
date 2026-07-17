@@ -3,15 +3,18 @@
 //! Both backends compile together when both features are on: they are distinct
 //! types, not competing definitions of one function, so nothing forces a choice
 //! at build time and feature unification is a non-event. The choice is made at
-//! each call site instead — see the [`sha2`](crate::sha2) and
-//! [`syscall`](crate::syscall) modules, which name it in the path so no caller
-//! can pick a backend by accident.
+//! each call site instead — see the `sha2` and `syscall` modules, which name it
+//! in the path so no caller can pick a backend by accident.
+//!
+//! (Those modules and the backend types are feature-gated, so they are named
+//! here in plain code spans rather than intra-doc links: the crate documents
+//! under any feature set, and a link to a cfg'd-out item is a hard error.)
 
 /// SHA-256 of a byte slice.
 ///
 /// Implemented by the backend marker types, which are feature-gated:
-/// [`Sha2`] (`sha2`) hashes in-process; [`Syscall`] (`syscall`) delegates to
-/// the host. Callers pick one; there is deliberately no default.
+/// `Sha2` (`sha2`) hashes in-process; `Syscall` (`syscall`) delegates to the
+/// host. Callers pick one; there is deliberately no default.
 pub trait Sha256Backend {
     /// `sha256(bytes)`.
     fn sha256(bytes: &[u8]) -> [u8; 32];

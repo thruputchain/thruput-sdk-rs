@@ -14,9 +14,13 @@
 //! fighting over feature unification. Because both can be live, nothing is
 //! selected implicitly — callers name the backend in the path:
 //!
-//! - [`sha2::pubkey_account_address`] hashes in-process. Host tooling.
-//! - [`syscall::pubkey_account_address`] hashes through the SHA256 syscall.
+//! - `sha2::pubkey_account_address` hashes in-process. Host tooling.
+//! - `syscall::pubkey_account_address` hashes through the SHA256 syscall.
 //!   Contracts. Add `syscall-mock` to run it natively under `native-exec`.
+//!
+//! Both are named in plain code spans, not intra-doc links: each is gated on its
+//! feature, and this crate is documented under whatever feature set the caller
+//! picked, where a link to a cfg'd-out item is a hard error.
 //!
 //! There is deliberately no default and no fallback: a contract silently
 //! linking `sha2` would be a correctness and code-size bug, so a guest build

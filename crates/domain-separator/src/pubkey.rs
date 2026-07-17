@@ -26,8 +26,8 @@ const SCRATCH: usize = {
 };
 
 /// `sha256( cxs(DomainSeparator("PubkeyAccount")) || cxs(preimage) )`, hashed
-/// with `H`. The backend-bound wrappers in [`crate::sha2`] / [`crate::syscall`]
-/// are the public API.
+/// with `H`. The backend-bound wrappers in the `sha2` / `syscall` modules are
+/// the public API.
 fn derive<H: Sha256Backend>(
     preimage: &PubkeyAccountPreimage,
 ) -> ContractAddress {
