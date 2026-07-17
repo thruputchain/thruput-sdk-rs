@@ -124,15 +124,13 @@ fn native_derive_pubkey_contract_address(
     auth_claim: &AuthClaim,
 ) -> Option<ContractAddress> {
     use sha2::{Digest, Sha256};
-    const PUBKEY_ACCOUNT_TAG: SHA256Hash =
-        crate::sha256_static!("PUBKEY_ACCOUNT");
 
     match auth_claim {
         AuthClaim::kPubkeySignature { pubkey_preimage } => {
-            let version: u32 = 0;
-            let domain = PUBKEY_ACCOUNT_TAG.as_ref();
-            let payload = pubkey_preimage;
-            let preimage = (version, domain, payload);
+            let version: i32 = 0;
+            let domain: &[u8] = b"PubkeyAccount"; // a slice, not an array
+            let preimage = (version, domain, pubkey_preimage);
+
             let preimage_encoded = xdrs::cxs::encode(&preimage).unwrap();
             let digest: [u8; 32] =
                 Sha256::digest(preimage_encoded.as_slice()).into();

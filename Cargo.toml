@@ -77,7 +77,7 @@ groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0
 groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.17.3" }
 groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.17.3" }
 groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.17.3" }
-groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.17.3" }
+groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.17.3", default-features = false }
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.17.3" }
 # Standard interfaces (also this repository)
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.5" }

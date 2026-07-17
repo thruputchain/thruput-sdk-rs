@@ -5,9 +5,7 @@
 // 1: is there a better interface in which to wrap these calls?
 // 2: Do we want some runtime-checked "single-use" checks for these authclaims?
 
-use crate::hash_domain::domain_hash;
 use crate::sys::{self, SysResult};
-use crate::types::{ContractAddress, SHA256Hash};
 use core::mem::MaybeUninit;
 use groundhog_xdr::auth_claim::AuthClaim;
 
@@ -53,21 +51,18 @@ pub fn remove_address_public_key(pk_index: u32) -> SysResult<()> {
     sys::uninit_ChangePublicKeyRegistration(pk_index, None, &[], None)
 }
 
-const PUBKEY_ACCOUNT_TAG: SHA256Hash = crate::sha256_static!("PUBKEY_ACCOUNT");
-
 /// Given an [`AuthClaim`] (such as one retrieved from [`get_auth_claim`]),
 /// compute the associated `ContractAddress` controlled by the contained public
 /// key (or `None` if it is not a public-key auth-claim).
 #[must_use]
 pub fn auth_claim_pubkey_contract_address(
     auth_claim: &AuthClaim,
-) -> Option<ContractAddress> {
+) -> Option<crate::types::ContractAddress> {
     match auth_claim {
         AuthClaim::kPubkeySignature { pubkey_preimage } => {
-            let digest =
-                domain_hash(PUBKEY_ACCOUNT_TAG.as_ref(), pubkey_preimage);
-            let address = digest.into();
-            Some(address)
+            Some(groundhog_domain_separator::syscall::pubkey_account_address(
+                pubkey_preimage,
+            ))
         }
         _ => None,
     }

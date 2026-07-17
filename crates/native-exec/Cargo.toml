@@ -43,7 +43,7 @@ groundhog-trace = { workspace = true }
 
 [dev-dependencies]
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
-groundhog-domain-separator = { workspace = true }
+groundhog-domain-separator = { workspace = true, features = ["std"] }
 
 [lints.clippy]
 let_and_return = "allow"

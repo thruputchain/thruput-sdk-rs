@@ -55,11 +55,11 @@ version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 [features]
 # Enable allocation features
 alloc = [
-    "groundhog-xdr/alloc",
     "xdrs/alloc",
     "groundhog-contract-spec/alloc",
     "groundhog-wasm-runtime/alloc",
     "groundhog-rv32-runtime/alloc",
+    "groundhog-domain-separator/alloc",
 ]
 
 # Include interfaces requiring std
@@ -110,9 +110,11 @@ required-features = ["std"]
 # the mock syscall implementation linked through native-exec.
 [target.'cfg(any(target_family = "wasm", target_arch = "riscv32"))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls"] }
+groundhog-domain-separator = { workspace = true, features = ["syscall"] }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
+groundhog-domain-separator = { workspace = true, features = ["syscall-mock"] }
 # Host-only: backs the storage-domain uniqueness registry (STORAGE_DOMAINS),
 # cfg-gated out of guest builds — see storage/domain_registry.rs.
 linkme = { workspace = true }

@@ -1240,6 +1240,7 @@ version = "0.17.3"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
+ "groundhog-domain-separator",
  "groundhog-event",
  "groundhog-macros",
  "groundhog-native-exec",
