@@ -109,9 +109,6 @@ pub(crate) fn bytestring_read_into(
     #[cfg(feature = "alloc")]
     buf.reserve(len);
     if len > buf.spare_capacity_mut().len() {
-        // TODO(geoff): thsi should probably be an error instead of None,
-        // although right now as long as the noalloc buffer size is less
-        // than the max bytestring length, this branch will never fire.
         return Ok(None);
     }
     let mut written_len = MaybeUninit::uninit();

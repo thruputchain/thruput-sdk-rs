@@ -4,4 +4,3 @@ sdk::declare_mock_contract!();
 
 mod implementation;
 pub use implementation::*;
-

@@ -75,7 +75,9 @@ pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
 /// remaining error paths are invalid flags or host faults) use this to keep
 /// the `try_` law.
 #[inline]
-pub(crate) fn try_get_values(key: &StorageKey) -> Result<(Option<i128>, i128), LibraryExn> {
+pub(crate) fn try_get_values(
+    key: &StorageKey,
+) -> Result<(Option<i128>, i128), LibraryExn> {
     _get_values(key, false)
         .map_err(|e| syscall_exn(SyscallNo::kNonnegativeIntGet, e))
 }

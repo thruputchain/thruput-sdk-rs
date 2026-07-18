@@ -1184,7 +1184,6 @@ dependencies = [
  "groundhog-erc20-if",
  "sdk",
  "velocity_limit",
- "xdrs",
 ]
 
 [[package]]
