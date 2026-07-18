@@ -130,11 +130,7 @@ where
 
 impl<T> super::deletable::Deletable for Value<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.key.keypath().is_exclusive() {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        };
+        let keypath_flags = self.key.keypath().flags();
         let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
         crate::sys_exn::delete::delete_with_flags(&self.key, effective);
     }

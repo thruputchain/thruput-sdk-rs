@@ -25,7 +25,7 @@
 
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-use crate::exn::{LibraryExn, syscall_exn, syscall_throw};
+use crate::exn::{LibraryExn, syscall_exn};
 use crate::re_throw::OrReThrow;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;

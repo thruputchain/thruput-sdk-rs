@@ -33,6 +33,9 @@ pub use rcq::*;
 pub mod value;
 pub use value::*;
 
+pub mod linear_constraint;
+pub use linear_constraint::*;
+
 pub mod map;
 pub use map::*;
 

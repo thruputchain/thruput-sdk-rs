@@ -1,6 +1,7 @@
 use crate::crypto::sha256;
 use crate::types::StorageKey;
 use core::fmt::Debug;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 use xdrs::{WriteXDR, cxs::ConstWriter};
 
 /// Append-only byte buffer backing a [`Keypath`] preimage.
@@ -230,6 +231,14 @@ impl Keypath {
 
     pub fn set_exclusive(&mut self) {
         self.exclusive = true;
+    }
+
+    pub fn flags(&self) -> StorageDeltaFlags {
+        if self.exclusive {
+            StorageDeltaFlags::ExclusiveLock
+        } else {
+            StorageDeltaFlags::None
+        }
     }
 }
 

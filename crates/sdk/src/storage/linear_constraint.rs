@@ -1,9 +1,8 @@
 use super::keypath::{KeyCache, Keypath};
-use crate::exn::nnint_overflow;
-use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
-use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
+
+use crate::re_throw::OrReThrow;
 
 
 /// Implements a linear constraint on some set of (contract-defined) state.
@@ -23,11 +22,10 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// sum (for a given transaction) of a_i * \delta_i.  
 ///
 /// Callers can reset the constraint via `set_capacity`.
-#[derive(Debug)]
 pub struct LinearConstraint {
     key: KeyCache,
-    delta: i128,
     capacity: Option<i128>,
+    delta: i128,
     _live: crate::storage::live_guards::LiveGuard,
 }
 
@@ -35,6 +33,8 @@ impl From<Keypath> for LinearConstraint {
     fn from(keypath: Keypath) -> Self {
         Self {
             key: KeyCache::from(keypath),
+            capacity: None,
+            delta: 0,
             _live: crate::storage::live_guards::LiveGuard::new(),
         }
     }
@@ -53,8 +53,8 @@ impl LinearConstraint {
     /// on the knowledge that either the transaction will fail or the the contract will repair the constraint
     /// before terminating.
     pub fn try_get_remaining_capacity(&self) -> Result<i128, crate::exn::LibraryExn> {
-        let (s, a) = match nnint::try_get_values(self.key.get()) {
-            Ok((s, a)) => (s, a),
+        let (s, a) : (i128, i128) = match nnint::try_get_values(self.key.get()) {
+            Ok((s, a)) => (s.unwrap_or(0), a),
             Err(e) if e.is_storage_missing() => (0, 0),
             Err(e) => return Err(e),
         };
@@ -67,19 +67,27 @@ impl LinearConstraint {
     }
 
     pub fn try_apply_delta(&mut self, delta: i128) -> Result<(), crate::exn::LibraryExn> {
-        self.delta = self.delta.checked_add(delta).ok_or(crate::exn::LibraryExn::NonNegativeIntOverflow)?;
+        self.delta = self.delta.checked_sub(delta).ok_or(crate::exn::LibraryExn::NonNegativeIntUnderflow)?;
         Ok(())
     }
 
     pub fn apply_delta(&mut self, delta: i128) {
         self.try_apply_delta(delta).or_re_throw();
     }
+
+    pub fn set_capacity(&mut self, capacity: i128) {
+        self.capacity = Some(capacity);
+    }
+
+    pub fn flags(&self) -> StorageDeltaFlags {
+        self.key.keypath().flags()
+    }
 }
 
 /// Lazy writeback to storage
 impl Drop for LinearConstraint {
     fn drop(&mut self) {
-        nnint::try_set(self.key.get(), self.delta, self.capacity).or_re_throw();
+        nnint::try_set_add(self.key.get(), self.capacity, self.delta, self.flags()).or_re_throw();
         // live guard drops here
     }
 }
