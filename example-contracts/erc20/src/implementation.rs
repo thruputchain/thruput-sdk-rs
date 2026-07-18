@@ -1,11 +1,10 @@
 //! An implementation of ERC20
 
 use crate::interface::*;
-use sdk::storage::{Map, NNInt, Value};
+use sdk::storage::{Balance, Map, Value};
 use sdk::*;
 
-type Balance = NNInt;
-type Allowance = NNInt;
+type Allowance = Balance;
 
 #[sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
@@ -13,7 +12,7 @@ pub struct TokenContract {
     config: Value<Config>,
     balances: Map<ContractAddress, Balance>,
     allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
-    total_supply: NNInt,
+    total_supply: Balance,
 }
 
 #[cfg(feature = "metadata")]
@@ -46,27 +45,25 @@ impl TokenContract {
         self.config.get().administrator
     }
 
-    // These internal functions use the underlying storage to create an
-    // abstraction whereby all balances and allowances exist, defaulting to
-    // zero if never set. They do _not_ check authorization.
+    // These internal functions do _not_ check authorization.
 
-    // Balance stored at given owner address, or zero if empty
     fn _balance_amount_of(&self, owner: &ContractAddress) -> Amount {
-        self.balances
-            .at(owner)
-            .try_get()
-            .none_if_missing()
-            .unwrap_or(0) as Amount
+        self.balances.at(owner).get()
     }
 
-    // Adjust balance at given owner address, from zero if empty.
-    // For never-stored-to addresses, this acts as if the value was zero.
-    fn _adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
-        // The standard error contract: a result outside the non-negative
-        // range throws ERC20Error::TooLarge.
+    // A balance credit is lazy: the total-supply invariant proves that a
+    // valid transfer or mint cannot overflow an individual balance.
+    fn _credit_balance(&mut self, owner: &ContractAddress, amount: Amount) {
         self.balances
             .at_mut(owner)
-            .try_strict_inc(diff)
+            .try_credit(amount)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+    }
+
+    fn _debit_balance(&mut self, owner: &ContractAddress, amount: Amount) {
+        self.balances
+            .at_mut(owner)
+            .try_debit(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
@@ -75,12 +72,7 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
-        self.allowances
-            .at(owner)
-            .at(spender)
-            .try_get()
-            .none_if_missing()
-            .unwrap_or(0) as Amount
+        self.allowances.at(owner).at(spender).get()
     }
 
     // Adjust allowance for owner and spender, from zero if empty.
@@ -91,22 +83,34 @@ impl TokenContract {
         spender: &ContractAddress,
         diff: Difference,
     ) {
-        // Standard error contract: a negative result throws TooLarge.
-        self.allowances
-            .at_mut(owner)
-            .at_mut(spender)
-            .try_strict_inc(diff)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        let mut owner_allowances = self.allowances.at_mut(owner);
+        let mut allowance = owner_allowances.at_mut(spender);
+        let result = if diff >= 0 {
+            // Allowances are not bounded by total supply, so credit them
+            // strictly to preserve the interface's immediate TooLarge error.
+            allowance.try_checked_credit(diff as u128)
+        } else {
+            allowance.try_debit(diff.unsigned_abs())
+        };
+        result.unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
         log_approval_event(owner, spender, diff);
     }
 
-    fn _adjust_total_supply(&mut self, diff: Difference) {
-        self.total_supply.strict_inc(diff);
+    fn _checked_credit_total_supply(&mut self, amount: Amount) {
+        self.total_supply
+            .try_checked_credit(amount)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+    }
+
+    fn _debit_total_supply(&mut self, amount: Amount) {
+        self.total_supply
+            .try_debit(amount)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
     fn _total_supply(&self) -> Amount {
-        self.total_supply.try_get().none_if_missing().unwrap_or(0) as Amount
+        self.total_supply.get()
     }
 }
 
@@ -134,9 +138,8 @@ impl ERC20 for TokenContract {
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
         let owner = get_caller();
 
-        let diff = amount_to_diff(amount);
-        self._adjust_balance(&owner, -diff);
-        self._adjust_balance(receiver, diff);
+        self._debit_balance(&owner, amount);
+        self._credit_balance(receiver, amount);
 
         log_transfer_event(&owner, receiver, amount);
     }
@@ -151,8 +154,8 @@ impl ERC20 for TokenContract {
 
         let diff = amount_to_diff(amount);
         self._adjust_allowance(owner, &spender, -diff);
-        self._adjust_balance(owner, -diff);
-        self._adjust_balance(receiver, diff);
+        self._debit_balance(owner, amount);
+        self._credit_balance(receiver, amount);
 
         log_transfer_event(owner, receiver, amount);
     }
@@ -191,9 +194,10 @@ impl ERC20 for TokenContract {
             ERC20Error::MustBeContractOwner,
         );
 
-        let diff = amount_to_diff(amount);
-        self._adjust_balance(receiver, diff);
-        self._adjust_total_supply(diff);
+        // Establish the checked supply bound first. Once it holds, the lazy
+        // receiver credit cannot overflow an individual balance.
+        self._checked_credit_total_supply(amount);
+        self._credit_balance(receiver, amount);
 
         log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
     }
@@ -205,9 +209,8 @@ impl ERC20 for TokenContract {
             ERC20Error::MustBeContractOwner,
         );
 
-        let diff = amount_to_diff(amount);
-        self._adjust_balance(owner, -diff);
-        self._adjust_total_supply(-diff);
+        self._debit_balance(owner, amount);
+        self._debit_total_supply(amount);
 
         log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount);
     }
