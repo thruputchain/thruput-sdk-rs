@@ -74,6 +74,26 @@ contract_test!(test_set_capacity_after_dropped_write_reports_err {
     c.consume_capacity(-5);
 });
 
+contract_test!(test_explicit_flush {
+    let mut c: CapacityConstraint = Keypath::default().into();
+    // A clean handle flushes as a no-op.
+    assert_eq!(c.try_flush(), Ok(()));
+
+    c.set_capacity(100);
+    c.consume_capacity(60);
+    c.flush();
+
+    // The flush landed: a second handle sees it...
+    let peek: CapacityConstraint = Keypath::default().into();
+    assert_eq!(peek.get_remaining_capacity(), 40);
+
+    // ...and the flushed handle is clean again: consumption staged after
+    // the flush merges without double-applying the earlier batch.
+    c.consume_capacity(10);
+    drop(c);
+    assert_eq!(peek.get_remaining_capacity(), 30);
+});
+
 contract_test!(test_read_only_handle_leaves_no_trace {
     {
         // A never-written cell reads as zero remaining capacity.

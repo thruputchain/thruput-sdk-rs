@@ -198,6 +198,34 @@ contract_test!(test_value_load_mut {
     assert_eq!(val.get(), 42);
 });
 
+contract_test!(test_value_mut_flush {
+    let mut val: Value<i32> = Keypath::default().into();
+    val.set(&1);
+
+    let mut guard = val.load_mut();
+    // A clean guard flushes as a no-op.
+    assert_eq!(guard.try_flush(), Ok(()));
+
+    // An explicit flush writes immediately, before drop.
+    *guard = 5;
+    guard.flush();
+    let peek: Value<i32> = Keypath::default().into();
+    assert_eq!(peek.get(), 5);
+
+    // The flushed guard is clean but still usable: mutating it re-arms
+    // the drop-time writeback.
+    *guard = 6;
+    drop(guard);
+    assert_eq!(val.get(), 6);
+
+    // A guard that is never mutated writes nothing at drop.
+    {
+        let guard = val.load_mut();
+        assert_eq!(*guard, 6);
+    }
+    assert_eq!(val.get(), 6);
+});
+
 contract_test!(test_map_at_value {
     let mut map: Map<u32, Value<i32>> = Keypath::default().into();
 

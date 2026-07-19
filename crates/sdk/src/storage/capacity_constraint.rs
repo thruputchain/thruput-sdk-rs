@@ -34,7 +34,8 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// *merging* with whatever earlier handles in the same transaction recorded.
 /// A handle that only read is not flushed at all: read-only access neither
 /// writes storage nor counts as a prior write for
-/// [`set_capacity`](Self::set_capacity).
+/// [`set_capacity`](Self::set_capacity). To catch a flush error instead of
+/// aborting in drop, flush explicitly with [`try_flush`](Self::try_flush).
 pub struct CapacityConstraint {
     key: KeyCache,
     capacity: Option<i128>,
@@ -157,14 +158,35 @@ impl CapacityConstraint {
         self.key.keypath().flags()
     }
 
-    /// Merge this handle's staged changes into the cell's pending values.
-    fn flush(&mut self) -> Result<(), crate::exn::LibraryExn> {
+    /// Merge this handle's staged changes into the cell's pending values
+    /// now instead of waiting for drop.
+    ///
+    /// A clean handle (nothing staged since construction or the last flush)
+    /// is a no-op. After a flush the handle remains usable; subsequent
+    /// [`consume_capacity`](Self::consume_capacity) calls stage a new batch.
+    pub fn flush(&mut self) {
+        self.try_flush().or_re_throw()
+    }
+
+    /// Like [`flush`](Self::flush), but report failure as `Err` instead of
+    /// aborting (the `try_` law; see the [`exn`](mod@crate::exn) module
+    /// docs) — in particular, the only way to catch an error the drop-time
+    /// flush would abort with. On `Err` the staged changes are retained:
+    /// drop re-attempts the flush and aborts if it still fails, so a caught
+    /// error cannot silently lose the write.
+    pub fn try_flush(&mut self) -> Result<(), crate::exn::LibraryExn> {
+        if self.capacity.is_none() && self.delta == 0 {
+            return Ok(());
+        }
         let key = self.key.get();
         let (s, a) = nnint::try_get_values(key)?;
         let add_value = a
             .checked_add(self.delta)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-        nnint::try_set_add(key, self.capacity.or(s), add_value, self.flags())
+        nnint::try_set_add(key, self.capacity.or(s), add_value, self.flags())?;
+        self.capacity = None;
+        self.delta = 0;
+        Ok(())
     }
 }
 
@@ -173,10 +195,7 @@ impl CapacityConstraint {
 /// syscall entirely, so read-only access leaves no trace.
 impl Drop for CapacityConstraint {
     fn drop(&mut self) {
-        if self.capacity.is_none() && self.delta == 0 {
-            return;
-        }
-        self.flush().or_re_throw();
+        self.try_flush().or_re_throw();
         // live guard drops here
     }
 }
