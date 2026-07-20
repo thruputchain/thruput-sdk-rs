@@ -4,6 +4,7 @@ use sdk::Named;
 use sdk::contract_test;
 use sdk::exn::LibraryExn;
 use sdk::storage::{Balance, Keypath, NNInt};
+use sdk::u127;
 
 contract_test!(balance_defaults_to_zero {
     let balance: Balance = Keypath::default().into();
@@ -13,16 +14,16 @@ contract_test!(balance_defaults_to_zero {
 
 contract_test!(balance_credits_and_debits {
     let mut balance: Balance = Keypath::default().into();
-    balance.credit(100);
-    balance.debit(35);
+    balance.credit(100.into());
+    balance.debit(35.into());
     assert_eq!(balance.get(), 65);
 });
 
 contract_test!(balance_underflow_is_immediate_and_non_mutating {
     let mut balance: Balance = Keypath::default().into();
-    balance.credit(10);
+    balance.credit(10.into());
     assert_eq!(
-        balance.try_debit(11),
+        balance.try_debit(11.into()),
         Err(LibraryExn::NonNegativeIntUnderflow)
     );
     assert_eq!(balance.get(), 10);
@@ -30,9 +31,9 @@ contract_test!(balance_underflow_is_immediate_and_non_mutating {
 
 contract_test!(balance_checked_credit_overflow_is_immediate_and_non_mutating {
     let mut balance: Balance = Keypath::default().into();
-    balance.checked_credit(i128::MAX as u128);
+    balance.checked_credit(u127::max());
     assert_eq!(
-        balance.try_checked_credit(1),
+        balance.try_checked_credit(1.into()),
         Err(LibraryExn::NonNegativeIntOverflow)
     );
     assert_eq!(balance.get(), i128::MAX as u128);
@@ -41,8 +42,8 @@ contract_test!(balance_checked_credit_overflow_is_immediate_and_non_mutating {
 contract_test!(zero_credit_and_debit_leave_missing_balance_unwritten {
     let keypath = Keypath::default();
     let mut balance: Balance = keypath.clone().into();
-    balance.credit(0);
-    balance.debit(0);
+    balance.credit(0.into());
+    balance.debit(0.into());
 
     let raw: NNInt = keypath.into();
     assert!(raw.try_get().unwrap_err().is_storage_missing());
@@ -61,23 +62,6 @@ contract_test!(balance_rejects_negative_raw_state {
     );
 });
 
-contract_test!(balance_rejects_amounts_above_i128_max {
-    let mut balance: Balance = Keypath::default().into();
-    let too_large = (i128::MAX as u128) + 1;
-    assert_eq!(
-        balance.try_credit(too_large),
-        Err(LibraryExn::NonNegativeIntOverflow)
-    );
-    assert_eq!(
-        balance.try_checked_credit(too_large),
-        Err(LibraryExn::NonNegativeIntOverflow)
-    );
-    assert_eq!(
-        balance.try_debit(too_large),
-        Err(LibraryExn::NonNegativeIntUnderflow)
-    );
-});
-
 #[test]
 fn balance_and_nnint_share_committed_storage_representation() {
     let env = sdk::TestEnvironment::no_cost();
@@ -86,7 +70,7 @@ fn balance_and_nnint_share_committed_storage_representation() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.credit(12);
+            balance.credit(12.into());
         })
     })
     .assert_success();
@@ -119,7 +103,7 @@ fn lazy_credit_defers_committed_base_overflow() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.checked_credit(i128::MAX as u128);
+            balance.checked_credit(u127::max());
         })
     })
     .assert_success();
@@ -128,7 +112,7 @@ fn lazy_credit_defers_committed_base_overflow() {
     let lazy_result = env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            assert_eq!(balance.try_credit(1), Ok(()));
+            assert_eq!(balance.try_credit(1.into()), Ok(()));
         })
     });
     lazy_result.assert_commit_failed();
@@ -137,7 +121,7 @@ fn lazy_credit_defers_committed_base_overflow() {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
             assert_eq!(
-                balance.try_checked_credit(1),
+                balance.try_checked_credit(1.into()),
                 Err(LibraryExn::NonNegativeIntOverflow)
             );
         })

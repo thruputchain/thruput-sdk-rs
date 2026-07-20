@@ -117,6 +117,7 @@ pub mod serialize;
 pub mod signer;
 pub mod stats;
 pub mod types;
+mod u127_type;
 
 #[doc(hidden)]
 pub mod mintable;
@@ -144,6 +145,8 @@ pub use signer::*;
 pub use throw::*;
 pub use types::*;
 pub use util::*;
+pub use u127_type::*;
+
 // XDR serialization vocabulary that is part of the SDK's public API (macro
 // expansions reference these as `::sdk::…`). The rest of the xdrs surface
 // stays namespaced under `sdk::xdr`.

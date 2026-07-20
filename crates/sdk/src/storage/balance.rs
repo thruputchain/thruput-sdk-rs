@@ -2,6 +2,7 @@ use super::keypath::{KeyCache, Keypath};
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint_internal as nnint;
+use crate::u127_type::*;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A non-negative, zero-defaulting balance backed by Groundhog's mergeable
@@ -72,7 +73,7 @@ impl Balance {
     /// committed balance is checked when the transaction commits, not here.
     /// Use [`checked_credit`](Self::checked_credit) when the contract needs an
     /// immediate overflow result.
-    pub fn credit(&mut self, amount: u128) {
+    pub fn credit(&mut self, amount: u127) {
         self.try_credit(amount).or_re_throw()
     }
 
@@ -83,17 +84,14 @@ impl Balance {
     /// This does not turn the credit into checked arithmetic. Overflow against
     /// the committed balance remains a commit-time check because a credit
     /// deliberately does not load that balance.
-    pub fn try_credit(&mut self, amount: u128) -> Result<(), LibraryExn> {
-        if amount == 0 {
+    pub fn try_credit(&mut self, amount: u127) -> Result<(), LibraryExn> {
+        if amount.is_zero() {
             return Ok(());
         }
-        let increment: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
         let key = self.key.get();
         let (set, add) = nnint::try_get_values(key)?;
         let add = add
-            .checked_add(increment)
+            .checked_add(amount.into())
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
         nnint::try_set_add(key, set, add, self.flags())
     }
@@ -103,7 +101,7 @@ impl Balance {
     ///
     /// Unlike [`credit`](Self::credit), this loads the current balance and
     /// therefore establishes a strict constraint against the state snapshot.
-    pub fn checked_credit(&mut self, amount: u128) {
+    pub fn checked_credit(&mut self, amount: u127) {
         self.try_checked_credit(amount).or_re_throw()
     }
 
@@ -113,22 +111,20 @@ impl Balance {
     /// unmodified.
     pub fn try_checked_credit(
         &mut self,
-        amount: u128,
+        amount: u127,
     ) -> Result<(), LibraryExn> {
-        if amount == 0 {
+        if amount.is_zero() {
             return Ok(());
         }
-        let increment: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
         let key = self.key.get();
         let (set, add) = match nnint::try_get_values_force(key) {
             Ok(values) => values,
             Err(e) if e.is_storage_missing() => (0, 0),
             Err(e) => return Err(e),
         };
+        let amount: i128 = amount.into();
         let add = add
-            .checked_add(increment)
+            .checked_add(amount)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
         let total = set
             .checked_add(add)
@@ -141,7 +137,7 @@ impl Balance {
 
     /// Debit a non-negative amount, throwing immediately if the balance is
     /// insufficient.
-    pub fn debit(&mut self, amount: u128) {
+    pub fn debit(&mut self, amount: u127) {
         self.try_debit(amount).or_re_throw()
     }
 
@@ -149,21 +145,19 @@ impl Balance {
     /// `Err` instead of aborting (the `try_` law; see the
     /// [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
     /// unmodified.
-    pub fn try_debit(&mut self, amount: u128) -> Result<(), LibraryExn> {
-        if amount == 0 {
+    pub fn try_debit(&mut self, amount: u127) -> Result<(), LibraryExn> {
+        if amount.is_zero() {
             return Ok(());
         }
-        let decrement: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntUnderflow)?;
         let key = self.key.get();
         let (set, add) = match nnint::try_get_values_force(key) {
             Ok(values) => values,
             Err(e) if e.is_storage_missing() => (0, 0),
             Err(e) => return Err(e),
         };
+        let amount: i128 = amount.into();
         let add = add
-            .checked_sub(decrement)
+            .checked_sub(amount)
             .ok_or(LibraryExn::NonNegativeIntUnderflow)?;
         let total = set
             .checked_add(add)
