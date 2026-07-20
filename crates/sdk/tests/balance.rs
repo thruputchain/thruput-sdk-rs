@@ -8,15 +8,15 @@ use sdk::u127;
 
 contract_test!(balance_defaults_to_zero {
     let balance: Balance = Keypath::default().into();
-    assert_eq!(balance.get(), 0);
-    assert_eq!(balance.try_get(), Ok(0));
+    assert_eq!(balance.get(), 0.into());
+    assert_eq!(balance.try_get(), Ok(0.into()));
 });
 
 contract_test!(balance_credits_and_debits {
     let mut balance: Balance = Keypath::default().into();
     balance.credit(100.into());
     balance.debit(35.into());
-    assert_eq!(balance.get(), 65);
+    assert_eq!(balance.get(), 65.into());
 });
 
 contract_test!(balance_underflow_is_immediate_and_non_mutating {
@@ -26,17 +26,17 @@ contract_test!(balance_underflow_is_immediate_and_non_mutating {
         balance.try_debit(11.into()),
         Err(LibraryExn::NonNegativeIntUnderflow)
     );
-    assert_eq!(balance.get(), 10);
+    assert_eq!(balance.get(), 10.into());
 });
 
 contract_test!(balance_checked_credit_overflow_is_immediate_and_non_mutating {
     let mut balance: Balance = Keypath::default().into();
-    balance.checked_credit(u127::max());
+    balance.checked_credit(u127::MAX);
     assert_eq!(
         balance.try_checked_credit(1.into()),
         Err(LibraryExn::NonNegativeIntOverflow)
     );
-    assert_eq!(balance.get(), i128::MAX as u128);
+    assert_eq!(balance.get(), u127::MAX);
 });
 
 contract_test!(zero_credit_and_debit_leave_missing_balance_unwritten {
@@ -89,7 +89,7 @@ fn balance_and_nnint_share_committed_storage_representation() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let balance: Balance = Keypath::default().into();
-            assert_eq!(balance.get(), 15);
+            assert_eq!(balance.get(), 15.into());
         })
     })
     .assert_success();
@@ -103,7 +103,7 @@ fn lazy_credit_defers_committed_base_overflow() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.checked_credit(u127::max());
+            balance.checked_credit(u127::MAX);
         })
     })
     .assert_success();

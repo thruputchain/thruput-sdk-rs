@@ -45,14 +45,14 @@ impl Balance {
     }
 
     /// Get the balance, treating a never-written location as zero.
-    pub fn get(&self) -> u128 {
+    pub fn get(&self) -> u127 {
         self.try_get().or_re_throw()
     }
 
     /// Get the balance, reporting storage failures instead of throwing.
     /// A never-written location is `Ok(0)`. A negative value written through
     /// the lower-level NNInt API is reported as an underflow.
-    pub fn try_get(&self) -> Result<u128, LibraryExn> {
+    pub fn try_get(&self) -> Result<u127, LibraryExn> {
         match nnint::try_get_values_force(self.key.get()) {
             Ok((set, add)) => {
                 let value = set
@@ -62,7 +62,7 @@ impl Balance {
                     .try_into()
                     .map_err(|_| LibraryExn::NonNegativeIntUnderflow)
             }
-            Err(e) if e.is_storage_missing() => Ok(0),
+            Err(e) if e.is_storage_missing() => Ok(0.into()),
             Err(e) => Err(e),
         }
     }
@@ -122,9 +122,8 @@ impl Balance {
             Err(e) if e.is_storage_missing() => (0, 0),
             Err(e) => return Err(e),
         };
-        let amount: i128 = amount.into();
         let add = add
-            .checked_add(amount)
+            .checked_add(amount.into())
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
         let total = set
             .checked_add(add)
@@ -155,9 +154,8 @@ impl Balance {
             Err(e) if e.is_storage_missing() => (0, 0),
             Err(e) => return Err(e),
         };
-        let amount: i128 = amount.into();
         let add = add
-            .checked_sub(amount)
+            .checked_sub(amount.into())
             .ok_or(LibraryExn::NonNegativeIntUnderflow)?;
         let total = set
             .checked_add(add)

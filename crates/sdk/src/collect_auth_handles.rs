@@ -53,6 +53,7 @@ impl_collect_noop!(
     bool,
     (),
     str,
+    crate::u127_type::u127,
     sdk::types::ContractAddress,
     sdk::types::BlockHeight,
     sdk::types::SHA256Hash,
