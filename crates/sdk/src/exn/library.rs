@@ -82,8 +82,8 @@ pub enum LibraryExn {
     #[cfg_attr(
         feature = "debugging",
         error(
-            "capacity constraint: set_capacity after a prior write \
-               this transaction"
+            "capacity constraint: set_capacity conflicts with a prior \
+               write this transaction"
         )
     )]
     CapacityConstraintAlreadyWritten = 12,

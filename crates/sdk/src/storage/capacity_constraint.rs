@@ -26,7 +26,8 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 /// Callers can reset the constraint via
 /// [`set_capacity`](Self::set_capacity), which must be the first write to
-/// the cell in its transaction.
+/// the cell in its transaction (or an idempotent repeat of the value
+/// already set this transaction).
 ///
 /// # Writeback
 ///
@@ -122,8 +123,10 @@ impl CapacityConstraint {
 
     /// Set the remaining capacity.
     ///
-    /// This must be the first write to the constraint in its transaction;
-    /// see [`try_set_capacity`](Self::try_set_capacity). Aborts otherwise.
+    /// This must be the first write to the constraint in its transaction,
+    /// or an idempotent repeat of the capacity already set this
+    /// transaction; see [`try_set_capacity`](Self::try_set_capacity).
+    /// Aborts otherwise.
     pub fn set_capacity(&mut self, capacity: i128) {
         self.try_set_capacity(capacity).or_re_throw();
     }
@@ -133,21 +136,39 @@ impl CapacityConstraint {
     /// [`exn`](mod@crate::exn) module docs).
     ///
     /// Setting the capacity must be the first write to the constraint in
-    /// its transaction: if the cell has already been written — whether by
-    /// this handle or by one already dropped — this reports
-    /// [`LibraryExn::CapacityConstraintAlreadyWritten`]. This prevents a
-    /// capacity reset from silently discarding consumption recorded earlier
-    /// in the transaction. The check consults the pending storage state,
-    /// not just this handle.
+    /// its transaction, with one exception: repeating the value already
+    /// set this transaction (by this handle or one already dropped) is an
+    /// idempotent no-op that preserves recorded consumption. This mirrors
+    /// the runtime's cross-transaction rule — concurrent transactions
+    /// setting the same value may share a block — so same-value sets
+    /// commute at every scope. Any other prior write reports
+    /// [`LibraryExn::CapacityConstraintAlreadyWritten`]: a different
+    /// capacity value, or consumption recorded before any set. This
+    /// prevents a capacity reset from silently discarding consumption.
+    /// The check consults the pending storage state, not just this handle,
+    /// so writes flushed by already-dropped handles are seen.
     pub fn try_set_capacity(
         &mut self,
         capacity: i128,
     ) -> Result<(), crate::exn::LibraryExn> {
-        if self.capacity.is_some() || self.delta != 0 {
-            return Err(LibraryExn::CapacityConstraintAlreadyWritten);
+        if let Some(staged) = self.capacity {
+            return if staged == capacity {
+                Ok(())
+            } else {
+                Err(LibraryExn::CapacityConstraintAlreadyWritten)
+            };
         }
         let (s, a) = nnint::try_get_values(self.key.get())?;
-        if s.is_some() || a != 0 {
+        if let Some(pending) = s {
+            return if pending == capacity {
+                Ok(())
+            } else {
+                Err(LibraryExn::CapacityConstraintAlreadyWritten)
+            };
+        }
+        // No set anywhere this transaction: consumption must not have been
+        // recorded either, or the reset would discard it.
+        if self.delta != 0 || a != 0 {
             return Err(LibraryExn::CapacityConstraintAlreadyWritten);
         }
         self.capacity = Some(capacity);
@@ -162,8 +183,11 @@ impl CapacityConstraint {
     /// now instead of waiting for drop.
     ///
     /// A clean handle (nothing staged since construction or the last flush)
-    /// is a no-op. After a flush the handle remains usable; subsequent
-    /// [`consume_capacity`](Self::consume_capacity) calls stage a new batch.
+    /// is a no-op. A successful flush resets the staged delta to zero, so
+    /// the handle remains usable: consumption staged by later
+    /// [`consume_capacity`](Self::consume_capacity) calls is merged on top
+    /// of the flushed batch by drop (or the next flush) — consume, flush,
+    /// consume accumulates both consumptions.
     pub fn flush(&mut self) {
         self.try_flush().or_re_throw()
     }

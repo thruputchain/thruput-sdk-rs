@@ -74,6 +74,34 @@ contract_test!(test_set_capacity_after_dropped_write_reports_err {
     c.consume_capacity(-5);
 });
 
+contract_test!(test_set_capacity_same_value_is_idempotent {
+    // Repeating the value already set on this handle is a no-op that
+    // preserves recorded consumption.
+    {
+        let mut c: CapacityConstraint = Keypath::default().into();
+        c.set_capacity(100);
+        c.consume_capacity(60);
+        assert_eq!(c.try_set_capacity(100), Ok(()));
+        assert_eq!(c.get_remaining_capacity(), 40);
+        // A different value still conflicts.
+        assert_eq!(
+            c.try_set_capacity(50),
+            Err(LibraryExn::CapacityConstraintAlreadyWritten)
+        );
+    }
+
+    // Same value against the pending set flushed by the dropped handle:
+    // also a no-op, consumption still preserved.
+    let mut c: CapacityConstraint = Keypath::default().into();
+    assert_eq!(c.try_set_capacity(100), Ok(()));
+    c.consume_capacity(10);
+    assert_eq!(c.get_remaining_capacity(), 30);
+    assert_eq!(
+        c.try_set_capacity(50),
+        Err(LibraryExn::CapacityConstraintAlreadyWritten)
+    );
+});
+
 contract_test!(test_explicit_flush {
     let mut c: CapacityConstraint = Keypath::default().into();
     // A clean handle flushes as a no-op.
