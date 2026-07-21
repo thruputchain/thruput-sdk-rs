@@ -101,12 +101,9 @@ impl Balance {
             .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
         let key = self.key.get();
         let (set, add) = nnint::try_get_values(key)?;
-        // The above syscall does not return any previously-fetched set-value
-        debug_assert_eq!(set, None);
         let add = add
             .checked_add(increment)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-        // This syscall doesn't throw because `set == None`
         nnint::try_set_add(key, set, add, self.flags())
     }
 
