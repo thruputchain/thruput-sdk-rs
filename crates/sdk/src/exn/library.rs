@@ -78,6 +78,15 @@ pub enum LibraryExn {
         )
     )]
     RetrocausalQueueEntryWrongSize { expected: u32, found: u32 } = 11,
+
+    #[cfg_attr(
+        feature = "debugging",
+        error(
+            "capacity constraint: set_capacity conflicts with a prior \
+               write this transaction"
+        )
+    )]
+    CapacityConstraintAlreadyWritten = 12,
 }
 
 impl From<HandlingError> for LibraryExn {

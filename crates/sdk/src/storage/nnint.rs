@@ -58,11 +58,7 @@ impl NNInt {
     }
 
     fn flags(&self) -> StorageDeltaFlags {
-        if self.key.keypath().is_exclusive() {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        }
+        self.key.keypath().flags()
     }
 
     /// Set the value, clearing accumulated [`inc`](Self::inc)s this transaction.

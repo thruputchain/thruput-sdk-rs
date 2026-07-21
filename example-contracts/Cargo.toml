@@ -52,6 +52,7 @@ members = [
     "counter-rv32",
     "multi_root_storage",
     "slot_reorder",
+    "velocity_limit",
 ]
 
 exclude = [
