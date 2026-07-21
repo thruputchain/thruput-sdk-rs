@@ -11,38 +11,38 @@ contract_test!(balance_defaults_to_zero {
     assert_eq!(balance.try_get(), Ok(0));
 });
 
-contract_test!(balance_credits_and_debits {
+contract_test!(balance_increases_and_decreases {
     let mut balance: Balance = Keypath::default().into();
-    balance.credit(100);
-    balance.debit(35);
+    balance.increase(100);
+    balance.decrease(35);
     assert_eq!(balance.get(), 65);
 });
 
 contract_test!(balance_underflow_is_immediate_and_non_mutating {
     let mut balance: Balance = Keypath::default().into();
-    balance.credit(10);
+    balance.increase(10);
     assert_eq!(
-        balance.try_debit(11),
+        balance.try_decrease(11),
         Err(LibraryExn::NonNegativeIntUnderflow)
     );
     assert_eq!(balance.get(), 10);
 });
 
-contract_test!(balance_checked_credit_overflow_is_immediate_and_non_mutating {
+contract_test!(balance_checked_increase_overflow_is_immediate_and_non_mutating {
     let mut balance: Balance = Keypath::default().into();
-    balance.checked_credit(i128::MAX as u128);
+    balance.checked_increase(i128::MAX as u128);
     assert_eq!(
-        balance.try_checked_credit(1),
+        balance.try_checked_increase(1),
         Err(LibraryExn::NonNegativeIntOverflow)
     );
     assert_eq!(balance.get(), i128::MAX as u128);
 });
 
-contract_test!(zero_credit_and_debit_leave_missing_balance_unwritten {
+contract_test!(zero_increase_and_decrease_leave_missing_balance_unwritten {
     let keypath = Keypath::default();
     let mut balance: Balance = keypath.clone().into();
-    balance.credit(0);
-    balance.debit(0);
+    balance.increase(0);
+    balance.decrease(0);
 
     let raw: NNInt = keypath.into();
     assert!(raw.try_get().unwrap_err().is_storage_missing());
@@ -65,15 +65,15 @@ contract_test!(balance_rejects_amounts_above_i128_max {
     let mut balance: Balance = Keypath::default().into();
     let too_large = (i128::MAX as u128) + 1;
     assert_eq!(
-        balance.try_credit(too_large),
+        balance.try_increase(too_large),
         Err(LibraryExn::NonNegativeIntOverflow)
     );
     assert_eq!(
-        balance.try_checked_credit(too_large),
+        balance.try_checked_increase(too_large),
         Err(LibraryExn::NonNegativeIntOverflow)
     );
     assert_eq!(
-        balance.try_debit(too_large),
+        balance.try_decrease(too_large),
         Err(LibraryExn::NonNegativeIntUnderflow)
     );
 });
@@ -86,7 +86,7 @@ fn balance_and_nnint_share_committed_storage_representation() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.credit(12);
+            balance.increase(12);
         })
     })
     .assert_success();
@@ -112,14 +112,14 @@ fn balance_and_nnint_share_committed_storage_representation() {
 }
 
 #[test]
-fn lazy_credit_defers_committed_base_overflow() {
+fn lazy_increase_defers_committed_base_overflow() {
     let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("balance_lazy_credit");
+    let address = sdk::ContractAddress::named("balance_lazy_increase");
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.checked_credit(i128::MAX as u128);
+            balance.checked_increase(i128::MAX as u128);
         })
     })
     .assert_success();
@@ -128,7 +128,7 @@ fn lazy_credit_defers_committed_base_overflow() {
     let lazy_result = env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            assert_eq!(balance.try_credit(1), Ok(()));
+            assert_eq!(balance.try_increase(1), Ok(()));
         })
     });
     lazy_result.assert_commit_failed();
@@ -137,7 +137,7 @@ fn lazy_credit_defers_committed_base_overflow() {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
             assert_eq!(
-                balance.try_checked_credit(1),
+                balance.try_checked_increase(1),
                 Err(LibraryExn::NonNegativeIntOverflow)
             );
         })

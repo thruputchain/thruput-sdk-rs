@@ -5,26 +5,27 @@ use crate::sys_exn::nnint_internal as nnint;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A non-negative, zero-defaulting balance backed by Groundhog's mergeable
-/// integer storage cell.
+/// integer-storage cell.
 ///
-/// Credits and debits have deliberately different APIs:
+/// Increases and decreases have deliberately different APIs:
 ///
-/// - [`credit`](Self::credit) records a positive delta without loading the
-///   current balance. Credits from multiple transactions can therefore merge;
+/// - [`increase`](Self::increase) records a positive delta without loading the
+///   current balance. Increases from multiple transactions can therefore merge;
 ///   the runtime checks final overflow when the transaction commits.
-/// - [`debit`](Self::debit) loads the current balance and fails immediately if
-///   the debit would make it negative.
-/// - [`checked_credit`](Self::checked_credit) is the explicit alternative when
-///   a caller needs to detect overflow during contract execution.
+/// - [`checked_increase`](Self::checked_increase) loads the current balance
+///   and aborts on balance overflow during contract execution.
+/// - [`decrease`](Self::decrease) loads the current balance and fails
+///   immediately if the decrease would make it negative.
 ///
 /// Unlike [`NNInt`](super::NNInt), `Balance` exposes no absolute `set` or
 /// signed adjustment operation. A missing storage cell reads as zero.
 ///
 /// `Balance` uses the same storage representation as `NNInt`, so an existing
 /// non-negative `NNInt` can be read as a balance. Setting that cell negative
-/// through the lower-level API violates the `Balance` invariant. In particular,
-/// a lazy credit does not load the committed value and therefore cannot detect
-/// invalid negative state introduced through another handle type.
+/// through the lower-level API violates the `Balance` invariant. In
+/// particular, `increase` does not load the committed value and therefore
+/// cannot detect invalid negative state introduced through another handle
+/// type.
 #[derive(Debug)]
 pub struct Balance {
     key: KeyCache,
@@ -66,24 +67,24 @@ impl Balance {
         }
     }
 
-    /// Credit a non-negative amount without loading the current balance.
+    /// Increase a non-negative amount without loading the current balance.
     ///
     /// This operation is deliberately mergeable: overflow against the
     /// committed balance is checked when the transaction commits, not here.
-    /// Use [`checked_credit`](Self::checked_credit) when the contract needs an
-    /// immediate overflow result.
-    pub fn credit(&mut self, amount: u128) {
-        self.try_credit(amount).or_re_throw()
+    /// Use [`checked_increase`](Self::checked_increase) when the contract
+    /// needs an immediate overflow result.
+    pub fn increase(&mut self, amount: u128) {
+        self.try_increase(amount).or_re_throw()
     }
 
-    /// Like [`credit`](Self::credit), but report immediate conversion or
+    /// Like [`increase`](Self::increase), but report immediate conversion or
     /// accumulated-delta overflow as `Err` instead of aborting (the `try_`
     /// law; see the [`exn`](mod@crate::exn) module docs).
     ///
-    /// This does not turn the credit into checked arithmetic. Overflow against
-    /// the committed balance remains a commit-time check because a credit
-    /// deliberately does not load that balance.
-    pub fn try_credit(&mut self, amount: u128) -> Result<(), LibraryExn> {
+    /// This does not turn the increase into checked arithmetic. Overflow
+    /// against the committed balance remains a commit-time check because an
+    /// increase deliberately does not load that balance.
+    pub fn try_increase(&mut self, amount: u128) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
@@ -98,20 +99,20 @@ impl Balance {
         nnint::try_set_add(key, set, add, self.flags())
     }
 
-    /// Credit a non-negative amount, throwing immediately if the resulting
+    /// Increase a non-negative amount, throwing immediately if the resulting
     /// balance would overflow.
     ///
-    /// Unlike [`credit`](Self::credit), this loads the current balance and
+    /// Unlike [`increase`](Self::increase), this loads the current balance and
     /// therefore establishes a strict constraint against the state snapshot.
-    pub fn checked_credit(&mut self, amount: u128) {
-        self.try_checked_credit(amount).or_re_throw()
+    pub fn checked_increase(&mut self, amount: u128) {
+        self.try_checked_increase(amount).or_re_throw()
     }
 
-    /// Like [`checked_credit`](Self::checked_credit), but report overflow or
-    /// storage failure as `Err` instead of aborting (the `try_` law; see the
-    /// [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
+    /// Like [`checked_increase`](Self::checked_increase), but report overflow
+    /// or storage failure as `Err` instead of aborting (the `try_` law; see
+    /// the [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
     /// unmodified.
-    pub fn try_checked_credit(
+    pub fn try_checked_increase(
         &mut self,
         amount: u128,
     ) -> Result<(), LibraryExn> {
@@ -139,17 +140,17 @@ impl Balance {
         nnint::try_set_add(key, Some(set), add, self.flags())
     }
 
-    /// Debit a non-negative amount, throwing immediately if the balance is
+    /// Decrease a non-negative amount, throwing immediately if the balance is
     /// insufficient.
-    pub fn debit(&mut self, amount: u128) {
-        self.try_debit(amount).or_re_throw()
+    pub fn decrease(&mut self, amount: u128) {
+        self.try_decrease(amount).or_re_throw()
     }
 
-    /// Like [`debit`](Self::debit), but report underflow or storage failure as
-    /// `Err` instead of aborting (the `try_` law; see the
+    /// Like [`decrease`](Self::decrease), but report underflow or storage
+    /// failure as `Err` instead of aborting (the `try_` law; see the
     /// [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
     /// unmodified.
-    pub fn try_debit(&mut self, amount: u128) -> Result<(), LibraryExn> {
+    pub fn try_decrease(&mut self, amount: u128) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
