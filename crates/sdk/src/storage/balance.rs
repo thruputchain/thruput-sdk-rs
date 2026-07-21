@@ -7,15 +7,20 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// A non-negative, zero-defaulting balance backed by Groundhog's mergeable
 /// integer-storage cell.
 ///
+/// Integer values in the range `0..i128::MAX` can be represented.
+///
 /// Increases and decreases have deliberately different APIs:
 ///
 /// - [`increase`](Self::increase) records a positive delta without loading the
-///   current balance. Increases from multiple transactions can therefore merge;
+///   committed balance. Increases from concurrent transactions can merge;
 ///   the runtime checks final overflow when the transaction commits.
-/// - [`checked_increase`](Self::checked_increase) loads the current balance
-///   and aborts on balance overflow during contract execution.
-/// - [`decrease`](Self::decrease) loads the current balance and fails
+/// - [`decrease`](Self::decrease) always loads the committed balance and fails
 ///   immediately if the decrease would make it negative.
+///
+/// The alternative operation [`checked_increase`](Self::checked_increase)
+/// loads the committed balance and fails immediately (during contract
+/// execution) in the case of overflow.  This can make it easier to locate the
+/// cause of failures.
 ///
 /// Unlike [`NNInt`](super::NNInt), `Balance` exposes no absolute `set` or
 /// signed adjustment operation. A missing storage cell reads as zero.
@@ -49,9 +54,9 @@ impl Balance {
         self.try_get().or_re_throw()
     }
 
-    /// Get the balance, reporting storage failures instead of throwing.
-    /// A never-written location is `Ok(0)`. A negative value written through
-    /// the lower-level NNInt API is reported as an underflow.
+    /// Get the balance, reporting storage failures instead of throwing an
+    /// exception. A never-written location is `Ok(0)`. A negative value
+    /// written through the lower-level NNInt API is reported as an underflow.
     pub fn try_get(&self) -> Result<u128, LibraryExn> {
         match nnint::try_get_values_force(self.key.get()) {
             Ok((set, add)) => {
@@ -67,12 +72,15 @@ impl Balance {
         }
     }
 
-    /// Increase a non-negative amount without loading the current balance.
+    /// Increase by a non-negative amount without loading the current balance.
     ///
     /// This operation is deliberately mergeable: overflow against the
     /// committed balance is checked when the transaction commits, not here.
     /// Use [`checked_increase`](Self::checked_increase) when the contract
     /// needs an immediate overflow result.
+    ///
+    /// *Throws:* any error that would be returned by
+    /// [`try_increase`](Self::try_increase).
     pub fn increase(&mut self, amount: u128) {
         self.try_increase(amount).or_re_throw()
     }
@@ -93,23 +101,29 @@ impl Balance {
             .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
         let key = self.key.get();
         let (set, add) = nnint::try_get_values(key)?;
+        // The above syscall does not return any previously-fetched set-value
+        debug_assert_eq!(set, None);
         let add = add
             .checked_add(increment)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+        // This syscall doesn't throw because `set == None`
         nnint::try_set_add(key, set, add, self.flags())
     }
 
-    /// Increase a non-negative amount, throwing immediately if the resulting
+    /// Increase by a non-negative amount, throwing immediately if the resulting
     /// balance would overflow.
     ///
     /// Unlike [`increase`](Self::increase), this loads the current balance and
     /// therefore establishes a strict constraint against the state snapshot.
+    ///
+    /// *Throws:* any error that would be returned by
+    /// [`try_checked_increase`](Self::try_checked_increase).
     pub fn checked_increase(&mut self, amount: u128) {
         self.try_checked_increase(amount).or_re_throw()
     }
 
     /// Like [`checked_increase`](Self::checked_increase), but report overflow
-    /// or storage failure as `Err` instead of aborting (the `try_` law; see
+    /// or storage-type failure as `Err` instead of aborting (the `try_` law; see
     /// the [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
     /// unmodified.
     pub fn try_checked_increase(
@@ -140,16 +154,19 @@ impl Balance {
         nnint::try_set_add(key, Some(set), add, self.flags())
     }
 
-    /// Decrease a non-negative amount, throwing immediately if the balance is
-    /// insufficient.
+    /// Decrease by a non-negative amount, failing immediately if the balance
+    /// is insufficient.
+    ///
+    /// *Throws:* any error that would be returned by `try_decrease`.
     pub fn decrease(&mut self, amount: u128) {
         self.try_decrease(amount).or_re_throw()
     }
 
     /// Like [`decrease`](Self::decrease), but report underflow or storage
     /// failure as `Err` instead of aborting (the `try_` law; see the
-    /// [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
-    /// unmodified.
+    /// [`exn`](mod@crate::exn) module docs).
+    ///
+    /// On `Err`, the stored value is unmodified.
     pub fn try_decrease(&mut self, amount: u128) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
