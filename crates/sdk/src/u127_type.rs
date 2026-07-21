@@ -76,9 +76,13 @@ impl From<u32> for u127 {
 }
 
 #[test]
-fn i128_max_abs_fits_u127() {
-    let n = i128::MAX.unsigned_abs();
+fn i128_conversion_checks() {
+    assert_eq!(i128::MAX as u128, i128::MIN.unsigned_abs() - 1);
 
-    let r: Result<u127, LibraryExn> = n.try_into();
-    assert!(r.is_ok());
+    assert!(TryInto::<u127>::try_into(i128::MIN.unsigned_abs()).is_err());
+    assert!(TryInto::<u127>::try_into(i128::MIN.unsigned_abs() - 1).is_ok());
+    assert!(TryInto::<u127>::try_into(i128::MAX).is_ok());
+    assert!(TryInto::<u127>::try_into(0i128).is_ok());
+    assert!(TryInto::<u127>::try_into(-1i128).is_err());
+    assert!(TryInto::<u127>::try_into(i128::MIN).is_err());
 }
