@@ -231,6 +231,16 @@ pub fn load_wasm_contract<P>(path: P) -> Contract
 where
     P: AsRef<std::path::Path>,
 {
+    load_wasm_contract_instrumented(path, true)
+}
+
+pub fn load_wasm_contract_instrumented<P>(
+    path: P,
+    please_instrument: bool,
+) -> Contract
+where
+    P: AsRef<std::path::Path>,
+{
     use crate::contract::ContractBlob;
 
     let raw_wasm = std::fs::read(path.as_ref()).unwrap_or_else(|e| {
@@ -241,13 +251,13 @@ where
         )
     });
 
-    let instrument_config = groundhog_wasm_meter::Config {
-        max_imported_functions: 1,
-        reject_floats: true,
-        ..groundhog_wasm_meter::Config::default()
-    };
+    let wasm = if please_instrument {
+        let instrument_config = groundhog_wasm_meter::Config {
+            max_imported_functions: 1,
+            reject_floats: true,
+            ..groundhog_wasm_meter::Config::default()
+        };
 
-    let instrumented =
         groundhog_wasm_meter::instrument(&raw_wasm, &instrument_config)
             .unwrap_or_else(|e| {
                 panic!(
@@ -255,11 +265,12 @@ where
                     path.as_ref().to_str().unwrap_or("?"),
                     e
                 )
-            });
-
-    let contract: ContractBlob = ContractBlob {
-        data: BytesM(instrumented),
+            })
+    } else {
+        raw_wasm
     };
+
+    let contract: ContractBlob = ContractBlob { data: BytesM(wasm) };
 
     Contract::kWasmi {
         wasmi_contract: contract,
