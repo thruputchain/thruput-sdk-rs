@@ -45,6 +45,8 @@ impl From<Keypath> for Balance {
 }
 
 impl Balance {
+    pub const MAX: u128 = i128::MAX as u128;
+
     fn flags(&self) -> StorageDeltaFlags {
         self.key.keypath().flags()
     }

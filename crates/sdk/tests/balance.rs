@@ -116,23 +116,27 @@ fn lazy_increase_defers_committed_base_overflow() {
     let env = sdk::TestEnvironment::no_cost();
     let address = sdk::ContractAddress::named("balance_lazy_increase");
 
+    // Set balance to max value
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.checked_increase(i128::MAX as u128);
+            balance.checked_increase(Balance::MAX);
         })
     })
     .assert_success();
+
     env.advance_block();
 
-    let lazy_result = env.transact(|tx| {
+    // Lazy increase tx should succeed but fail to commit
+    env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
             assert_eq!(balance.try_increase(1), Ok(()));
         })
-    });
-    lazy_result.assert_commit_failed();
+    })
+    .assert_commit_failed();
 
+    // Checked increase should fail immediately
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
@@ -143,4 +147,35 @@ fn lazy_increase_defers_committed_base_overflow() {
         })
     })
     .assert_success();
+}
+
+#[test]
+fn lazy_increase_accepts_overflow_of_loaded_value () {
+    let env = sdk::TestEnvironment::no_cost();
+    let address = sdk::ContractAddress::named("balance_lazy_increase");
+
+    // Set balance to max value
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            let mut balance: Balance = Keypath::default().into();
+            balance.checked_increase(Balance::MAX);
+        })
+    })
+    .assert_success();
+
+    env.advance_block();
+
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            // Load the committed value
+            let balance: Balance = Keypath::default().into();
+            assert_eq!(balance.get(), Balance::MAX);
+
+            // Lazy increase: accepts overflowing increase despite
+            // previously-loaded value
+            let mut balance: Balance = Keypath::default().into();
+            assert_eq!(balance.try_increase(1), Ok(()));
+        })
+    })
+    .assert_commit_failed();
 }
