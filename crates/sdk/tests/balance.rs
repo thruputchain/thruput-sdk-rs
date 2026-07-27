@@ -150,7 +150,7 @@ fn lazy_increase_defers_committed_base_overflow() {
 }
 
 #[test]
-fn lazy_increase_accepts_overflow_of_loaded_value () {
+fn lazy_increase_accepts_overflow_of_loaded_value() {
     let env = sdk::TestEnvironment::no_cost();
     let address = sdk::ContractAddress::named("balance_lazy_increase");
 

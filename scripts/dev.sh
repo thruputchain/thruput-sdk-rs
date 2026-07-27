@@ -7,7 +7,7 @@ TARGET_DIR="$(realpath "target")"
 ### BUILDING ###
 
 cargo() {
-    if [ -v CARGO_UNLOCK ] && [ -n "$CARGO_UNLOCK" ]; then
+    if [ "${CARGO_UNLOCK+x}" = x ] && [ -n "$CARGO_UNLOCK" ]; then
         command cargo "$@"
     else
         command cargo --locked "$@"

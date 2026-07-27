@@ -56,14 +56,14 @@ impl TokenContract {
     fn _credit_balance(&mut self, owner: &ContractAddress, amount: Amount) {
         self.balances
             .at_mut(owner)
-            .try_credit(amount)
+            .try_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
     fn _debit_balance(&mut self, owner: &ContractAddress, amount: Amount) {
         self.balances
             .at_mut(owner)
-            .try_debit(amount)
+            .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
@@ -88,9 +88,9 @@ impl TokenContract {
         let result = if diff >= 0 {
             // Allowances are not bounded by total supply, so credit them
             // strictly to preserve the interface's immediate TooLarge error.
-            allowance.try_checked_credit(diff as u128)
+            allowance.try_checked_increase(diff as u128)
         } else {
-            allowance.try_debit(diff.unsigned_abs())
+            allowance.try_decrease(diff.unsigned_abs())
         };
         result.unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
@@ -99,13 +99,13 @@ impl TokenContract {
 
     fn _checked_credit_total_supply(&mut self, amount: Amount) {
         self.total_supply
-            .try_checked_credit(amount)
+            .try_checked_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
     fn _debit_total_supply(&mut self, amount: Amount) {
         self.total_supply
-            .try_debit(amount)
+            .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
