@@ -86,6 +86,7 @@ jobs:
             groundhog-contract-util
             groundhog-contract-spec
             groundhog-sys
+            groundhog-domain-separator
             groundhog-native-exec
             groundhog-macros
             groundhog-rv32-runtime
