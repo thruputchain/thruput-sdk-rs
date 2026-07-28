@@ -27,6 +27,7 @@ default-members = [
     "crates/spec-tool",
     "crates/storage-cost",
     "crates/test-vectors",
+    "crates/version-check",
     "crates/sdk/tests/vector-tests",
     "crates/sdk/tests/version-mismatch-helper",
     "standard-interfaces/*",

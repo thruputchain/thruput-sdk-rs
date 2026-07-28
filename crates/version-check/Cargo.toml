@@ -1,0 +1,18 @@
+[package]
+name = "version-check"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+description = "Checks that in-repo version pins agree across every manifest and lockfile"
+
+# Deps are declared inline rather than in the root `[workspace.dependencies]`
+# table: this crate is the only consumer, and the root table is precisely the
+# surface this checker exists to keep small.
+[dependencies]
+semver = "1.0.28"
+toml_edit = "0.25.13"
+
+[lib]
+doctest = false
