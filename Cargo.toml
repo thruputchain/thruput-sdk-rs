@@ -51,10 +51,11 @@ categories = ["blockchain"]
 # version, and must unfortunately be updated manually whenever the
 # workspace package version is updated prior to a new release.
 #
-# When the workspace package version undergoes a *semver-major change*, the
-# standard-interfaces/ crates should be bumped to a new minor version.  (This
-# allows them to be published with a dependency on the new SDK major version;
-# the previously-published versions will be incompatible with the new SDK.)
+# When the workspace package version (or groundhog-xdr) undergoes a
+# *semver-major change*, the standard-interfaces/ crates should be bumped to a
+# new minor version.  (This allows them to be published with a dependency on
+# the new SDK major version; the previously-published versions will be
+# incompatible with the new SDK.)
 #
 # Additionally, these configs for independent workspaces need updating for the new
 # SDK and interface versions:
@@ -80,9 +81,9 @@ groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", versi
 groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.17.4" }
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.17.4" }
 # Standard interfaces (also this repository)
-groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.5" }
-groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.5" }
-groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.5" }
+groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.6" }
+groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.6" }
+groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.6" }
 # Unpublished test crates
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }

@@ -76,9 +76,9 @@ sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.17.4" }
 groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.17.4" }
 groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.17.4", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.5" }
-groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.5" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.5" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.6" }
+groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.6" }
+groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.6" }
 
 erc20-test = { path = "../standard-tests/erc20-test" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
