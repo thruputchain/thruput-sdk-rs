@@ -6,6 +6,8 @@ on:
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   PUBLISH_PACKAGES: >-
+    # Note: Changes here should usually be mirrored in
+    #   publish_standard_interfaces.yml
     groundhog-event
     groundhog-storage-cost
     groundhog-contract-util
