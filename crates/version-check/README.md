@@ -38,6 +38,47 @@ The `#[test]` in `src/lib.rs` means the plain `cargo test` in `scripts/dev.sh`
 already covers this crate — it is in the root `default-members`, so no extra CI
 wiring exists or is needed.
 
+## Scope: submodules are scanned when checked out
+
+Paths listed in `.gitmodules` — `integration_test/contracts` today — are scanned
+if they are populated and skipped if they are not. A submodule is treated as
+absent when its directory is missing, empty, or holds nothing but its own `.git`
+gitlink.
+
+This matters because **`ci.yml` initializes submodules and `sdk_tests.yml` does
+not**, so coverage genuinely differs between workflows:
+
+```
+version-check: 118 manifests, 6 lockfiles      # local, ci.yml
+  submodules scanned: integration_test/contracts
+all pins agree
+
+version-check: 83 manifests, 6 lockfiles       # sdk_tests
+  submodules not checked out, so not scanned: integration_test/contracts
+all pins agree
+```
+
+Varying coverage is safe only because it is *stated*, never silent — the counts
+and the submodule disposition are printed on every run, including in the panic
+message when the `#[test]` fails, so reduced coverage cannot read as "everything
+is fine".
+
+### Absent is not the same as resolved
+
+One subtlety makes this work. An exception scoped inside a submodule matches no
+pin site when that submodule is absent — which looks exactly like an exception
+whose underlying problem has been fixed. Reporting it as stale is wrong, and it
+is precisely how the first version of this crate failed: green locally, red in
+`sdk_tests`, for a reason that had nothing to do with any pin.
+
+So `Repo::is_unscanned` distinguishes the two, and the stale-exception check
+stays silent about scopes that were never scanned. The check still fires
+normally when the submodule *is* present, so an exception that has genuinely
+outlived its purpose is still caught — just only in the runs that can see it.
+
+Nothing in the checks is specific to this repository, so a submodule's own
+repository can also run the checker on itself.
+
 ## The core invariant
 
 There is deliberately no notion of a "version stream" anywhere in this crate.
@@ -78,7 +119,15 @@ The current set:
   are excluded from `external-agreement`, pending a PR to the
   `integration_test_contracts` submodule. Both are temporary: the contracts
   should inherit these from the `integration_test` workspace rather than pinning
-  them inline, which would remove the pin sites entirely.
+  them inline, which would remove the pin sites entirely. They only apply when
+  that submodule is checked out — see
+  [Absent is not the same as resolved](#absent-is-not-the-same-as-resolved).
+
+Agreement exceptions are scoped to a manifest prefix rather than excusing a crate
+repo-wide, so the excused *site* drops out of the comparison while the crate
+stays checked everywhere else — a blanket exception on something as widely pinned
+as `thiserror` would hide every future divergence along with the one being
+excused.
 
 **Exceptions are checked in both directions.** An exception that matches no pin
 site, or whose site has since come into line with the rest of the repo, is

@@ -33,6 +33,35 @@ pub fn check(root: &Path) -> Result<Vec<Violation>, Error> {
     Ok(checks::all(&repo))
 }
 
+/// What the run actually covered.
+///
+/// Always reported, so that a submodule which is not checked out shows up as
+/// reduced coverage rather than reading as "everything is fine".
+pub fn scope_summary(repo: &model::Repo) -> String {
+    use std::fmt::Write as _;
+
+    let mut out = format!(
+        "{} manifests, {} lockfiles",
+        repo.manifests.len(),
+        repo.lockfiles.len()
+    );
+    if !repo.included_submodules.is_empty() {
+        let _ = write!(
+            out,
+            "\n  submodules scanned: {}",
+            repo.included_submodules.join(", ")
+        );
+    }
+    if !repo.absent_submodules.is_empty() {
+        let _ = write!(
+            out,
+            "\n  submodules not checked out, so not scanned: {}",
+            repo.absent_submodules.join(", ")
+        );
+    }
+    out
+}
+
 /// Render violations as a report, grouped by file in repository order.
 pub fn report(violations: &[Violation]) -> String {
     use std::fmt::Write as _;
@@ -85,10 +114,17 @@ mod tests {
     /// Runs as part of the plain `cargo test` in `scripts/dev.sh`.
     #[test]
     fn pins_are_consistent() {
-        let violations = super::check(super::repo_root())
+        let repo = super::model::Repo::load(super::repo_root())
             .expect("failed to read the repository");
+        let violations = super::checks::all(&repo);
         if !violations.is_empty() {
-            panic!("\n{}", super::report(&violations));
+            // Lead with the scope: which submodules were in play is often the
+            // difference between a local run and a CI run.
+            panic!(
+                "\n{}\n\n{}",
+                super::scope_summary(&repo),
+                super::report(&violations)
+            );
         }
     }
 }

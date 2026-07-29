@@ -403,6 +403,12 @@ fn external_agreement(repo: &Repo, out: &mut Vec<Violation>) {
     for (i, e) in EXTERNAL_AGREEMENT_EXCEPTIONS.iter().enumerate() {
         let policy = "crates/version-check/src/policy.rs".to_string();
         let Some(sites) = excused.get(&i) else {
+            // Nothing matched — but if the exception points into a submodule
+            // that is not checked out, those files were never scanned, so this
+            // says nothing about whether the exception is still needed.
+            if repo.is_unscanned(e.manifest_prefix) {
+                continue;
+            }
             let mut v = Violation::new(
                 "external-agreement",
                 policy,

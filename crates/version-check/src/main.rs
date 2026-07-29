@@ -6,24 +6,29 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use version_check::model::Repo;
+
 fn main() -> ExitCode {
     let root = match std::env::args().nth(1) {
         Some(arg) => PathBuf::from(arg),
         None => version_check::repo_root().to_path_buf(),
     };
 
-    let violations = match version_check::check(&root) {
-        Ok(v) => v,
+    let repo = match Repo::load(&root) {
+        Ok(r) => r,
         Err(e) => {
             eprintln!("version-check: {e}");
             return ExitCode::from(2);
         }
     };
 
+    println!("version-check: {}", version_check::scope_summary(&repo));
+
+    let violations = version_check::checks::all(&repo);
     if violations.is_empty() {
-        println!("version-check: all pins agree");
+        println!("all pins agree");
         return ExitCode::SUCCESS;
     }
-    print!("{}", version_check::report(&violations));
+    print!("\n{}", version_check::report(&violations));
     ExitCode::FAILURE
 }

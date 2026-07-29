@@ -93,9 +93,10 @@ pub const DEFAULT_MEMBER_EXCEPTIONS: &[Named] = &[
 
 /// Pin sites excluded from the external-agreement comparison.
 ///
-/// The SDK, protocol-rs, and xdrs release together, so a divergent pin is
-/// normally a bug rather than a preference. Both entries below are temporary and
-/// track work in another repository, not a real need for two versions.
+/// They only bite when the `integration_test/contracts` submodule is checked
+/// out. When it is not, the files were never scanned, so
+/// `Repo::is_unscanned` suppresses the stale-exception report rather than
+/// treating the absence as evidence the exception is obsolete.
 pub const EXTERNAL_AGREEMENT_EXCEPTIONS: &[AgreementException] = &[
     AgreementException {
         crate_name: "hex-literal",

@@ -127,13 +127,25 @@ pub struct Repo {
     /// In-repo packages by name. A package with an unresolvable version is
     /// omitted here and reported by [`crate::checks`] instead.
     pub locals: BTreeMap<String, Local>,
+    /// Submodule paths that are checked out, and so were scanned.
+    pub included_submodules: Vec<String>,
+    /// Submodule paths that are not checked out, and so could not be scanned.
+    pub absent_submodules: Vec<String>,
 }
 
 impl Repo {
     pub fn load(root: &Path) -> Result<Repo, Error> {
+        let (included_submodules, absent_submodules) =
+            partition_submodules(root);
         let mut manifest_paths = Vec::new();
         let mut lock_paths = Vec::new();
-        collect(root, &mut manifest_paths, &mut lock_paths)?;
+        collect(
+            root,
+            root,
+            &absent_submodules,
+            &mut manifest_paths,
+            &mut lock_paths,
+        )?;
         manifest_paths.sort();
         lock_paths.sort();
 
@@ -145,18 +157,18 @@ impl Repo {
 
         let mut locals = BTreeMap::new();
         for m in &manifests {
-            if let Some(pkg) = &m.package {
-                if let Some(v) = &pkg.version {
-                    locals.insert(
-                        pkg.name.clone(),
-                        Local {
-                            name: pkg.name.clone(),
-                            version: v.clone(),
-                            manifest: m.rel.clone(),
-                            dir: m.dir.clone(),
-                        },
-                    );
-                }
+            if let Some(pkg) = &m.package
+                && let Some(v) = &pkg.version
+            {
+                locals.insert(
+                    pkg.name.clone(),
+                    Local {
+                        name: pkg.name.clone(),
+                        version: v.clone(),
+                        manifest: m.rel.clone(),
+                        dir: m.dir.clone(),
+                    },
+                );
             }
         }
 
@@ -166,6 +178,8 @@ impl Repo {
         }
 
         Ok(Repo {
+            included_submodules,
+            absent_submodules,
             root: root.to_path_buf(),
             manifests,
             lockfiles,
@@ -195,6 +209,20 @@ impl Repo {
     pub fn edges(&self) -> impl Iterator<Item = &Edge> {
         self.manifests.iter().flat_map(|m| m.edges.iter())
     }
+
+    /// True when `prefix` names a location inside a submodule that is not
+    /// checked out.
+    ///
+    /// Lets the checks distinguish "this policy entry is obsolete" from "the
+    /// files it refers to were never scanned" — a distinction that decides
+    /// whether a stale-exception report is a real finding or an artifact of the
+    /// checkout.
+    pub fn is_unscanned(&self, prefix: &str) -> bool {
+        let prefix = prefix.trim_end_matches('/');
+        self.absent_submodules
+            .iter()
+            .any(|s| prefix == s || prefix.starts_with(&format!("{s}/")))
+    }
 }
 
 fn parent_dir(rel: &str) -> String {
@@ -204,8 +232,50 @@ fn parent_dir(rel: &str) -> String {
     }
 }
 
+/// Submodule paths declared in `.gitmodules`, repo-relative.
+///
+/// `.gitmodules` is git-config format, not TOML — `path = a/b` is a bare value
+/// that a TOML parser rejects — so scan it by line.
+fn submodule_paths(root: &Path) -> Vec<String> {
+    let Ok(text) = fs::read_to_string(root.join(".gitmodules")) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = text
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("path"))
+        .filter_map(|rest| rest.trim_start().strip_prefix('='))
+        .map(|v| v.trim().trim_matches('"').to_string())
+        .filter(|v| !v.is_empty())
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Split declared submodules into (checked out, not checked out).
+///
+/// An uninitialized submodule is an empty directory, so a populated one is one
+/// holding something other than its own `.git` gitlink.
+fn partition_submodules(root: &Path) -> (Vec<String>, Vec<String>) {
+    let mut included = Vec::new();
+    let mut absent = Vec::new();
+    for rel in submodule_paths(root) {
+        let populated = fs::read_dir(root.join(&rel))
+            .map(|entries| entries.flatten().any(|e| e.file_name() != ".git"))
+            .unwrap_or(false);
+        if populated {
+            included.push(rel);
+        } else {
+            absent.push(rel);
+        }
+    }
+    (included, absent)
+}
+
 fn collect(
+    root: &Path,
     dir: &Path,
+    skip: &[String],
     manifests: &mut Vec<PathBuf>,
     locks: &mut Vec<PathBuf>,
 ) -> Result<(), Error> {
@@ -218,7 +288,8 @@ fn collect(
         let name = entry.file_name().to_string_lossy().to_string();
         let ty = entry.file_type().map_err(|e| Error::Io(path.clone(), e))?;
         if ty.is_dir() {
-            if !SKIP_DIRS.contains(&name.as_str()) {
+            let rel = rel_path(root, &path);
+            if !SKIP_DIRS.contains(&name.as_str()) && !skip.contains(&rel) {
                 subdirs.push(path);
             }
         } else if name == "Cargo.toml" {
@@ -229,7 +300,7 @@ fn collect(
     }
     subdirs.sort();
     for sub in subdirs {
-        collect(&sub, manifests, locks)?;
+        collect(root, &sub, skip, manifests, locks)?;
     }
     Ok(())
 }
@@ -297,10 +368,7 @@ fn parse_manifest(root: &Path, path: &Path) -> Result<Manifest, Error> {
                     }
                 }
             };
-            let publish = match p.get("publish") {
-                Some(item) if item.as_bool() == Some(false) => false,
-                _ => true,
-            };
+            let publish = !matches!(p.get("publish"), Some(item) if item.as_bool() == Some(false));
             Package {
                 name,
                 version: match &spec {
