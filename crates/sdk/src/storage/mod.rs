@@ -27,6 +27,9 @@ pub use bytestring::*;
 pub mod nnint;
 pub use nnint::*;
 
+pub mod balance;
+pub use balance::*;
+
 pub mod rcq;
 pub use rcq::*;
 
