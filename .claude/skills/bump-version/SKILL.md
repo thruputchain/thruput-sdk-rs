@@ -5,67 +5,114 @@ description: Use when bumping crate versions, releasing, or updating dependency 
 
 # Bump Version
 
-Patch-bump the workspace and update all pinned dependency references across the three workspaces and their lockfiles.
+Patch-bump the workspace and update all pinned dependency references across the
+six workspaces and their six lockfiles.
+
+## Verification is automated — use it
+
+`crates/version-check` checks every pin in the repository in one pass and names
+each file and line that disagrees. It replaces the hand-rolled `grep`s this
+skill used to recommend, and it catches things a `grep` cannot: a caret where an
+exact pin was meant, a path dep pointing at a moved crate, an in-repo crate
+locked to a registry source, a new crate missing from `default-members`.
+
+```bash
+cargo run -p version-check    # readable report, exit 1 on any violation
+cargo test -p version-check   # same checks; also runs in the plain `cargo test`
+```
+
+Run it **before** you start, to confirm a clean baseline, and again after each
+step below. Fix everything it reports before moving on. See
+`crates/version-check/README.md` for the full check list.
+
+Two things it does **not** cover, so they stay on you:
+
+- Whether the new version number is the right one (patch vs minor vs major).
+- The `TEST_FFI_VERSION` constant (step 4).
 
 ## Files to Update
 
 ### 1. Root `Cargo.toml`
 
-- `[workspace.package] version` — the workspace version (e.g. `"0.5.0"` -> `"0.5.1"`)
-- `[workspace.dependencies]` — every entry with `version = "=X.Y.Z"` pointing at an in-repo crate. Currently: groundhog-contract-util, groundhog-contract-spec, groundhog-native-exec, groundhog-macros, groundhog-sys, groundhog-storage-cost, groundhog-event, groundhog-spec-tool, groundhog-test-vectors. **Authoritative check:** `grep '=' Cargo.toml | grep 'path = ' | grep 'version = "='` — every match starting with `groundhog-` must be bumped. The standard-interface pins (`groundhog-erc20-if`, `groundhog-erc20-metadata-if`, `groundhog-erc1271-if`) have their own version line (currently `=0.1.0`) and are bumped independently, not with the workspace version.
+- `[workspace.package] version` — the workspace version (e.g. `"0.17.4"` ->
+  `"0.17.5"`)
+- `[workspace.dependencies]` — every entry with `version = "=X.Y.Z"` and a
+  `path` pointing at an in-repo crate.
+
+The standard-interface pins (`groundhog-erc20-if`, `groundhog-erc20-metadata-if`,
+`groundhog-erc1271-if`) sit on their own version line — `=0.1.6` at the time of
+writing — and are bumped independently of the workspace version, when the SDK
+undergoes a semver-major change.
 
 ### 2. Standard interface crates
 
-Each has its own sdk dep (not inherited from workspace). Update both `[dependencies]` and `[target.'cfg(not(target_family = "wasm"))'.dependencies]` sdk version pins:
+Each carries its own `sdk` dep rather than inheriting from the workspace. Update
+the pin in **both** `[dependencies]` and
+`[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]`:
 
 - `standard-interfaces/groundhog-erc20/Cargo.toml`
 - `standard-interfaces/groundhog-erc20-metadata/Cargo.toml`
 - `standard-interfaces/groundhog-erc1271/Cargo.toml`
 
-**Authoritative check:** `ls standard-interfaces/*/Cargo.toml` — every entry needs the sdk pin bumped. If new crates have been added, include them.
+These pins are deliberately **caret** (`version = "0.17.4"`), not exact: the
+published interface crates are compatible with any SDK patch release. Do not
+"fix" them to `=`. `version-check` enforces the caret via an exception in
+`crates/version-check/src/policy.rs`, so a stray `=` here fails the check.
 
-### 3. Sub-workspace Cargo.toml files
+### 3. Sub-workspace `Cargo.toml` files
 
-These are separate workspaces with their own pinned deps in `[workspace.dependencies]`. Update **every** `=X.Y.Z` pin pointing at this repo, not just `sdk`:
+Separate workspaces with their own `[workspace.dependencies]`. Update **every**
+`=X.Y.Z` pin pointing at this repo, not just `sdk` — both currently pin several
+in-repo crates plus the standard interfaces:
 
-- `example-contracts/Cargo.toml` — currently pins both `sdk` and `groundhog-contract-util` at the workspace version
-- `integration_test/Cargo.toml` — currently pins `sdk` at the workspace version
-
-(After bumping the workspace, run `grep 'version = "=OLD"' example-contracts/Cargo.toml integration_test/Cargo.toml` to catch any pin that was missed.)
+- `example-contracts/Cargo.toml`
+- `integration_test/Cargo.toml`
+- `logging-test/Cargo.toml`
 
 ### Workspace-excluded fixtures (must be updated manually)
 
-These directories are **not** members of any workspace and are excluded from the root `Cargo.toml`. Their sdk pins and `Cargo.lock` files must be updated by hand after bumping the workspace version:
+Not members of any workspace, so nothing resolves them until you build them
+directly. Both need their pin and their own `Cargo.lock` updated:
 
-- `example_contracts/multi_root_collision` — one manifest + its own `Cargo.lock`
-- `example-contracts/cross_crate_collision` — one pin in the workspace root's
+- `example-contracts/multi_root_collision` — one manifest + its own `Cargo.lock`
+- `example-contracts/cross_crate_collision` — one pin in that workspace root's
   `[workspace.dependencies]` (members inherit it) + its own `Cargo.lock`
 
-The repo-wide `grep` in the Verification step will catch stale `=X.Y.Z` pins inside these directories too; treat any match there as a required manual fix.
+`version-check` scans both, including their lockfiles, so a stale pin here is
+reported like any other rather than waiting to surface at build time.
 
-### 4. groundhog-sys FFI version (if applicable)
+### 4. `hogd-sys` FFI version (if applicable)
 
-- `groundhog-sys/build.rs` — `TEST_FFI_VERSION` constant (independent version, only bump when the test-ffi release changes)
+- `crates/hogd-sys/build.rs` — the `TEST_FFI_VERSION` constant (`"0.20.1"` at
+  the time of writing). An independent version line: bump it only when the
+  test-ffi release changes, not with the workspace version. Not covered by
+  `version-check`.
 
 ### 5. Lockfiles
 
-Run `cargo update --workspace` against each workspace's manifest:
+Six workspaces, six lockfiles. `cargo update --workspace` against each:
 
 ```bash
-cargo update --workspace                                                  # root
+cargo update --workspace                                                          # root
 cargo update --manifest-path example-contracts/Cargo.toml --workspace
+cargo update --manifest-path example-contracts/cross_crate_collision/Cargo.toml --workspace
+cargo update --manifest-path example-contracts/multi_root_collision/Cargo.toml --workspace
 cargo update --manifest-path integration_test/Cargo.toml --workspace
 cargo update --manifest-path logging-test/Cargo.toml --workspace
 ```
 
-If `cargo update` fails with `failed to select a version for the requirement` against an in-repo crate, you missed a pin — fix it before re-running. The error names the offending crate.
+If `cargo update` fails with `failed to select a version for the requirement`
+against an in-repo crate, you missed a pin. Prefer running `version-check`
+first — it reports every missed pin at once, whereas `cargo update` stops at the
+first one and only for the workspace it is resolving.
 
-## Verification
-
-After all edits, confirm no stale pins remain:
+## Finishing
 
 ```bash
-grep -r 'version = "=OLD_VERSION"' --include='Cargo.toml' .
+cargo run -p version-check
 ```
 
-This should return no matches for the old version.
+A clean run means every pin, in every manifest and lockfile, agrees. If it
+reports a **stale exception**, the deviation it was recording has been resolved
+upstream — delete that entry from `crates/version-check/src/policy.rs` rather
+than leaving it in place.
