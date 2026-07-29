@@ -51,10 +51,14 @@ impl TokenContract {
         self.balances.at(owner).get()
     }
 
-    fn _increase_balance(&mut self, owner: &ContractAddress, amount: Amount) {
+    fn _lazy_increase_balance(
+        &mut self,
+        owner: &ContractAddress,
+        amount: Amount,
+    ) {
         self.balances
             .at_mut(owner)
-            .try_increase(amount)
+            .try_lazy_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
@@ -84,9 +88,9 @@ impl TokenContract {
         let mut owner_allowances = self.allowances.at_mut(owner);
         let mut allowance = owner_allowances.at_mut(spender);
         let result = if diff >= 0 {
-            // Allowances are not bounded by total supply, so credit them
+            // Allowances are not bounded by total supply, so increase them
             // strictly to preserve the interface's immediate TooLarge error.
-            allowance.try_checked_increase(diff as u128)
+            allowance.try_increase(diff as u128)
         } else {
             allowance.try_decrease(diff.unsigned_abs())
         };
@@ -95,9 +99,9 @@ impl TokenContract {
         log_approval_event(owner, spender, diff);
     }
 
-    fn _checked_increase_total_supply(&mut self, amount: Amount) {
+    fn _increase_total_supply(&mut self, amount: Amount) {
         self.total_supply
-            .try_checked_increase(amount)
+            .try_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
@@ -137,7 +141,7 @@ impl ERC20 for TokenContract {
         let owner = get_caller();
 
         self._decrease_balance(&owner, amount);
-        self._increase_balance(receiver, amount);
+        self._lazy_increase_balance(receiver, amount);
 
         log_transfer_event(&owner, receiver, amount);
     }
@@ -153,7 +157,7 @@ impl ERC20 for TokenContract {
         let diff = amount_to_diff(amount);
         self._adjust_allowance(owner, &spender, -diff);
         self._decrease_balance(owner, amount);
-        self._increase_balance(receiver, amount);
+        self._lazy_increase_balance(receiver, amount);
 
         log_transfer_event(owner, receiver, amount);
     }
@@ -194,8 +198,8 @@ impl ERC20 for TokenContract {
 
         // Establish the checked supply bound first. Once it holds, the lazy
         // receiver increase cannot overflow an individual balance.
-        self._checked_increase_total_supply(amount);
-        self._increase_balance(receiver, amount);
+        self._increase_total_supply(amount);
+        self._lazy_increase_balance(receiver, amount);
 
         log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
     }

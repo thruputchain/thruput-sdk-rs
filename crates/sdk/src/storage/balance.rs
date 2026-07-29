@@ -9,28 +9,27 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 /// Integer values in the range `0..i128::MAX` can be represented.
 ///
-/// Increases and decreases have deliberately different APIs:
+/// Each direction comes in a checked and a lazy form:
 ///
-/// - [`increase`](Self::increase) records a positive delta without loading the
-///   committed balance. Increases from concurrent transactions can merge;
-///   the runtime checks final overflow when the transaction commits.
-/// - [`decrease`](Self::decrease) always loads the committed balance and fails
-///   immediately if the decrease would make it negative.
-///
-/// The alternative operation [`checked_increase`](Self::checked_increase)
-/// loads the committed balance and fails immediately (during contract
-/// execution) in the case of overflow.  This can make it easier to locate the
-/// cause of failures.
+/// - [`increase`](Self::increase) and [`decrease`](Self::decrease) load the
+///   committed balance and fail immediately (during contract execution) if the
+///   result would overflow or go negative. Loading establishes a strict
+///   constraint against the state snapshot, and immediate failure makes the
+///   cause easier to locate.
+/// - [`lazy_increase`](Self::lazy_increase) and
+///   [`lazy_decrease`](Self::lazy_decrease) record a delta without loading the
+///   committed balance. Deltas from concurrent transactions can merge; the
+///   runtime checks the committed result when the transaction commits.
 ///
 /// Unlike [`NNInt`](super::NNInt), `Balance` exposes no absolute `set` or
-/// signed adjustment operation. A missing storage cell reads as zero.
+/// signed-adjustment operation. A missing storage cell reads as zero.
 ///
 /// `Balance` uses the same storage representation as `NNInt`, so an existing
 /// non-negative `NNInt` can be read as a balance. Setting that cell negative
 /// through the lower-level API violates the `Balance` invariant. In
-/// particular, `increase` does not load the committed value and therefore
-/// cannot detect invalid negative state introduced through another handle
-/// type.
+/// particular, the lazy operations do not load the committed value and
+/// therefore cannot detect invalid negative state introduced through another
+/// handle type.
 #[derive(Debug)]
 pub struct Balance {
     key: KeyCache,
@@ -74,12 +73,13 @@ impl Balance {
         }
     }
 
-    /// Increase by a non-negative amount without loading the current balance.
+    /// Increase by a non-negative amount, throwing immediately if the resulting
+    /// balance would overflow.
     ///
-    /// This operation is deliberately mergeable: overflow against the
-    /// committed balance is checked when the transaction commits, not here.
-    /// Use [`checked_increase`](Self::checked_increase) when the contract
-    /// needs an immediate overflow result.
+    /// This loads the current balance and therefore establishes a strict
+    /// constraint against the state snapshot. Use
+    /// [`lazy_increase`](Self::lazy_increase) when the increase should instead
+    /// merge with concurrent transactions.
     ///
     /// *Throws:* any error that would be returned by
     /// [`try_increase`](Self::try_increase).
@@ -87,48 +87,11 @@ impl Balance {
         self.try_increase(amount).or_re_throw()
     }
 
-    /// Like [`increase`](Self::increase), but report immediate conversion or
-    /// accumulated-delta overflow as `Err` instead of aborting (the `try_`
-    /// law; see the [`exn`](mod@crate::exn) module docs).
-    ///
-    /// This does not turn the increase into checked arithmetic. Overflow
-    /// against the committed balance remains a commit-time check because an
-    /// increase deliberately does not load that balance.
-    pub fn try_increase(&mut self, amount: u128) -> Result<(), LibraryExn> {
-        if amount == 0 {
-            return Ok(());
-        }
-        let increment: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
-        let key = self.key.get();
-        let (set, add) = nnint::try_get_values(key)?;
-        let add = add
-            .checked_add(increment)
-            .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-        nnint::try_set_add(key, set, add, self.flags())
-    }
-
-    /// Increase by a non-negative amount, throwing immediately if the resulting
-    /// balance would overflow.
-    ///
-    /// Unlike [`increase`](Self::increase), this loads the current balance and
-    /// therefore establishes a strict constraint against the state snapshot.
-    ///
-    /// *Throws:* any error that would be returned by
-    /// [`try_checked_increase`](Self::try_checked_increase).
-    pub fn checked_increase(&mut self, amount: u128) {
-        self.try_checked_increase(amount).or_re_throw()
-    }
-
-    /// Like [`checked_increase`](Self::checked_increase), but report overflow
-    /// or storage-type failure as `Err` instead of aborting (the `try_` law; see
-    /// the [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
+    /// Like [`increase`](Self::increase), but report overflow or storage-type
+    /// failure as `Err` instead of aborting (the `try_` law; see the
+    /// [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
     /// unmodified.
-    pub fn try_checked_increase(
-        &mut self,
-        amount: u128,
-    ) -> Result<(), LibraryExn> {
+    pub fn try_increase(&mut self, amount: u128) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
@@ -153,10 +116,16 @@ impl Balance {
         nnint::try_set_add(key, Some(set), add, self.flags())
     }
 
-    /// Decrease by a non-negative amount, failing immediately if the balance
+    /// Decrease by a non-negative amount, throwing immediately if the balance
     /// is insufficient.
     ///
-    /// *Throws:* any error that would be returned by `try_decrease`.
+    /// This loads the current balance and therefore establishes a strict
+    /// constraint against the state snapshot. Use
+    /// [`lazy_decrease`](Self::lazy_decrease) when the decrease should instead
+    /// merge with concurrent transactions.
+    ///
+    /// *Throws:* any error that would be returned by
+    /// [`try_decrease`](Self::try_decrease).
     pub fn decrease(&mut self, amount: u128) {
         self.try_decrease(amount).or_re_throw()
     }
@@ -189,6 +158,93 @@ impl Balance {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
         nnint::try_set_add(key, Some(set), add, self.flags())
+    }
+
+    /// Increase by a non-negative amount without loading the current balance.
+    ///
+    /// This operation is deliberately mergeable: overflow against the
+    /// committed balance is checked when the transaction commits, not here.
+    /// Use [`increase`](Self::increase) when the contract needs an immediate
+    /// overflow result.
+    ///
+    /// *Throws:* any error that would be returned by
+    /// [`try_lazy_increase`](Self::try_lazy_increase).
+    pub fn lazy_increase(&mut self, amount: u128) {
+        self.try_lazy_increase(amount).or_re_throw()
+    }
+
+    /// Like [`lazy_increase`](Self::lazy_increase), but report immediate
+    /// conversion or accumulated-delta overflow as `Err` instead of aborting
+    /// (the `try_` law; see the [`exn`](mod@crate::exn) module docs).
+    ///
+    /// This does not turn the increase into checked arithmetic. Overflow
+    /// against the committed balance remains a commit-time check because a
+    /// lazy increase deliberately does not load that balance.
+    pub fn try_lazy_increase(
+        &mut self,
+        amount: u128,
+    ) -> Result<(), LibraryExn> {
+        if amount == 0 {
+            return Ok(());
+        }
+        let increment: i128 = amount
+            .try_into()
+            .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
+        let key = self.key.get();
+        let (set, add) = nnint::try_get_values(key)?;
+        let add = add
+            .checked_add(increment)
+            .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+        nnint::try_set_add(key, set, add, self.flags())
+    }
+
+    /// Decrease by a non-negative amount without loading the current balance.
+    ///
+    /// This operation is deliberately mergeable: sufficiency against the
+    /// committed balance is checked when the transaction commits, not here.
+    /// Use [`decrease`](Self::decrease) when the contract needs an immediate
+    /// insufficient-balance result.
+    ///
+    /// *Throws:* any error that would be returned by
+    /// [`try_lazy_decrease`](Self::try_lazy_decrease).
+    pub fn lazy_decrease(&mut self, amount: u128) {
+        self.try_lazy_decrease(amount).or_re_throw()
+    }
+
+    /// Like [`lazy_decrease`](Self::lazy_decrease), but report immediate
+    /// conversion or accumulated-delta underflow as `Err` instead of aborting
+    /// (the `try_` law; see the [`exn`](mod@crate::exn) module docs).
+    ///
+    /// This does not turn the decrease into checked arithmetic. Sufficiency
+    /// against the committed balance remains a commit-time check because a
+    /// lazy decrease deliberately does not load that balance. A balance
+    /// already written this transaction is the exception: that value is
+    /// pending in the storage layer rather than in the database, so it costs
+    /// no load and is checked here.
+    pub fn try_lazy_decrease(
+        &mut self,
+        amount: u128,
+    ) -> Result<(), LibraryExn> {
+        if amount == 0 {
+            return Ok(());
+        }
+        let decrement: i128 = amount
+            .try_into()
+            .map_err(|_| LibraryExn::NonNegativeIntUnderflow)?;
+        let key = self.key.get();
+        let (set, add) = nnint::try_get_values(key)?;
+        let add = add
+            .checked_sub(decrement)
+            .ok_or(LibraryExn::NonNegativeIntUnderflow)?;
+        if let Some(set) = set {
+            let total = set
+                .checked_add(add)
+                .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+            if total < 0 {
+                return Err(LibraryExn::NonNegativeIntUnderflow);
+            }
+        }
+        nnint::try_set_add(key, set, add, self.flags())
     }
 }
 

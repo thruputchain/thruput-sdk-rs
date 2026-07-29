@@ -18,6 +18,13 @@ contract_test!(balance_increases_and_decreases {
     assert_eq!(balance.get(), 65);
 });
 
+contract_test!(balance_lazily_increases_and_decreases {
+    let mut balance: Balance = Keypath::default().into();
+    balance.lazy_increase(100);
+    balance.lazy_decrease(35);
+    assert_eq!(balance.get(), 65);
+});
+
 contract_test!(balance_underflow_is_immediate_and_non_mutating {
     let mut balance: Balance = Keypath::default().into();
     balance.increase(10);
@@ -28,21 +35,36 @@ contract_test!(balance_underflow_is_immediate_and_non_mutating {
     assert_eq!(balance.get(), 10);
 });
 
-contract_test!(balance_checked_increase_overflow_is_immediate_and_non_mutating {
+contract_test!(lazy_decrease_checks_a_balance_written_this_transaction {
+    // A checked increase leaves a pending "set" value, which the storage
+    // layer requires the accumulated delta to respect, so the underflow is
+    // reported here rather than deferred to commit.
     let mut balance: Balance = Keypath::default().into();
-    balance.checked_increase(i128::MAX as u128);
+    balance.increase(10);
     assert_eq!(
-        balance.try_checked_increase(1),
-        Err(LibraryExn::NonNegativeIntOverflow)
+        balance.try_lazy_decrease(11),
+        Err(LibraryExn::NonNegativeIntUnderflow)
     );
-    assert_eq!(balance.get(), i128::MAX as u128);
+    assert_eq!(balance.get(), 10);
 });
 
-contract_test!(zero_increase_and_decrease_leave_missing_balance_unwritten {
+contract_test!(balance_increase_overflow_is_immediate_and_non_mutating {
+    let mut balance: Balance = Keypath::default().into();
+    balance.increase(Balance::MAX);
+    assert_eq!(
+        balance.try_increase(1),
+        Err(LibraryExn::NonNegativeIntOverflow)
+    );
+    assert_eq!(balance.get(), Balance::MAX);
+});
+
+contract_test!(zero_adjustments_leave_missing_balance_unwritten {
     let keypath = Keypath::default();
     let mut balance: Balance = keypath.clone().into();
     balance.increase(0);
     balance.decrease(0);
+    balance.lazy_increase(0);
+    balance.lazy_decrease(0);
 
     let raw: NNInt = keypath.into();
     assert!(raw.try_get().unwrap_err().is_storage_missing());
@@ -69,11 +91,15 @@ contract_test!(balance_rejects_amounts_above_i128_max {
         Err(LibraryExn::NonNegativeIntOverflow)
     );
     assert_eq!(
-        balance.try_checked_increase(too_large),
+        balance.try_lazy_increase(too_large),
         Err(LibraryExn::NonNegativeIntOverflow)
     );
     assert_eq!(
         balance.try_decrease(too_large),
+        Err(LibraryExn::NonNegativeIntUnderflow)
+    );
+    assert_eq!(
+        balance.try_lazy_decrease(too_large),
         Err(LibraryExn::NonNegativeIntUnderflow)
     );
 });
@@ -120,7 +146,7 @@ fn lazy_increase_defers_committed_base_overflow() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.checked_increase(Balance::MAX);
+            balance.increase(Balance::MAX);
         })
     })
     .assert_success();
@@ -131,7 +157,7 @@ fn lazy_increase_defers_committed_base_overflow() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            assert_eq!(balance.try_increase(1), Ok(()));
+            assert_eq!(balance.try_lazy_increase(1), Ok(()));
         })
     })
     .assert_commit_failed();
@@ -141,7 +167,7 @@ fn lazy_increase_defers_committed_base_overflow() {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
             assert_eq!(
-                balance.try_checked_increase(1),
+                balance.try_increase(1),
                 Err(LibraryExn::NonNegativeIntOverflow)
             );
         })
@@ -150,7 +176,7 @@ fn lazy_increase_defers_committed_base_overflow() {
 }
 
 #[test]
-fn lazy_increase_accepts_overflow_of_loaded_value () {
+fn lazy_increase_accepts_overflow_of_loaded_value() {
     let env = sdk::TestEnvironment::no_cost();
     let address = sdk::ContractAddress::named("balance_lazy_increase");
 
@@ -158,7 +184,7 @@ fn lazy_increase_accepts_overflow_of_loaded_value () {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             let mut balance: Balance = Keypath::default().into();
-            balance.checked_increase(Balance::MAX);
+            balance.increase(Balance::MAX);
         })
     })
     .assert_success();
@@ -174,7 +200,74 @@ fn lazy_increase_accepts_overflow_of_loaded_value () {
             // Lazy increase: accepts overflowing increase despite
             // previously-loaded value
             let mut balance: Balance = Keypath::default().into();
-            assert_eq!(balance.try_increase(1), Ok(()));
+            assert_eq!(balance.try_lazy_increase(1), Ok(()));
+        })
+    })
+    .assert_commit_failed();
+}
+
+#[test]
+fn lazy_decrease_defers_committed_base_underflow() {
+    let env = sdk::TestEnvironment::no_cost();
+    let address = sdk::ContractAddress::named("balance_lazy_decrease");
+
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            let mut balance: Balance = Keypath::default().into();
+            balance.increase(10);
+        })
+    })
+    .assert_success();
+
+    env.advance_block();
+
+    // Lazy decrease tx should succeed but fail to commit
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            let mut balance: Balance = Keypath::default().into();
+            assert_eq!(balance.try_lazy_decrease(11), Ok(()));
+        })
+    })
+    .assert_commit_failed();
+
+    // Checked decrease should fail immediately
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            let mut balance: Balance = Keypath::default().into();
+            assert_eq!(
+                balance.try_decrease(11),
+                Err(LibraryExn::NonNegativeIntUnderflow)
+            );
+        })
+    })
+    .assert_success();
+}
+
+#[test]
+fn lazy_decrease_accepts_underflow_of_loaded_value() {
+    let env = sdk::TestEnvironment::no_cost();
+    let address = sdk::ContractAddress::named("balance_lazy_decrease");
+
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            let mut balance: Balance = Keypath::default().into();
+            balance.increase(10);
+        })
+    })
+    .assert_success();
+
+    env.advance_block();
+
+    env.transact(|tx| {
+        tx.call(&address).run(|| {
+            // Load the committed value
+            let balance: Balance = Keypath::default().into();
+            assert_eq!(balance.get(), 10);
+
+            // Lazy decrease: accepts underflowing decrease despite
+            // previously-loaded value
+            let mut balance: Balance = Keypath::default().into();
+            assert_eq!(balance.try_lazy_decrease(11), Ok(()));
         })
     })
     .assert_commit_failed();
