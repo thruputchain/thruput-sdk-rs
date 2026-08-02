@@ -52,21 +52,19 @@ categories = ["blockchain"]
 # version, and must unfortunately be updated manually whenever the
 # workspace package version is updated prior to a new release.
 #
-# When the workspace package version (or groundhog-xdr) undergoes a
-# *semver-major change*, the standard-interfaces/ crates should be bumped to a
-# new minor version.  (This allows them to be published with a dependency on
-# the new SDK major version; the previously-published versions will be
-# incompatible with the new SDK.)
-#
-# Additionally, these configs for independent workspaces need updating for the new
+# Additionally, these independent workspaces need updating to the new
 # SDK and interface versions:
-#    example-contracts/Cargo.toml
-#    integration_test/Cargo.toml
+#    example-contracts/
+#    example_contracts/multi_root_collision/
+#    example-contracts/cross_crate_collision/ (3 manifests: alpha, beta, wrapper)
+#    integration_test/
 #
-# Lastly, these independent workspaces need their sdk version updated
-# (they are excluded from the root workspace and carry their own Cargo.lock):
-#    example_contracts/multi_root_collision
-#    example-contracts/cross_crate_collision  (3 manifests: alpha, beta, wrapper)
+# When the workspace package version (or groundhog-xdr) undergoes a
+# *breaking change* (major or minor), the standard-interfaces/ crates
+# should be bumped to a new patch version.  (This allows them to be
+# published with a dependency on the new SDK version; the
+# previously-published versions will be incompatible with the new
+# SDK.)
 #
 sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.17.5" }
 groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.17.5" }
