@@ -127,14 +127,33 @@ pub struct Repo {
     /// In-repo packages by name. A package with an unresolvable version is
     /// omitted here and reported by [`crate::checks`] instead.
     pub locals: BTreeMap<String, Local>,
+    /// True when lockfiles were deliberately not read, so an empty `lockfiles`
+    /// is a choice rather than a finding.
+    pub lockfiles_ignored: bool,
     /// Submodule paths that are checked out, and so were scanned.
     pub included_submodules: Vec<String>,
     /// Submodule paths that are not checked out, and so could not be scanned.
     pub absent_submodules: Vec<String>,
 }
 
+/// Knobs for [`Repo::load_with`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LoadOptions {
+    /// Skip reading lockfiles, so the `lockfile` check has nothing to inspect.
+    ///
+    /// Useful mid-bump, when the manifests have been edited but the six
+    /// lockfiles have not been regenerated yet — regenerating them needs
+    /// registry access, which the manifest checks do not.
+    pub ignore_lockfiles: bool,
+}
+
 impl Repo {
+    /// Load with the default options: everything is read.
     pub fn load(root: &Path) -> Result<Repo, Error> {
+        Repo::load_with(root, LoadOptions::default())
+    }
+
+    pub fn load_with(root: &Path, opts: LoadOptions) -> Result<Repo, Error> {
         let (included_submodules, absent_submodules) =
             partition_submodules(root);
         let mut manifest_paths = Vec::new();
@@ -173,11 +192,14 @@ impl Repo {
         }
 
         let mut lockfiles = Vec::new();
-        for path in &lock_paths {
-            lockfiles.push(parse_lockfile(root, path)?);
+        if !opts.ignore_lockfiles {
+            for path in &lock_paths {
+                lockfiles.push(parse_lockfile(root, path)?);
+            }
         }
 
         Ok(Repo {
+            lockfiles_ignored: opts.ignore_lockfiles,
             included_submodules,
             absent_submodules,
             root: root.to_path_buf(),

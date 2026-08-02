@@ -21,12 +21,15 @@ pub use model::Error;
 
 /// The repository root, as known at compile time.
 ///
-/// (Correct for both the test and the binary when built from this workspace.)
+/// (Correct when the binary is built from this workspace.)
 pub fn repo_root() -> &'static Path {
     Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
 }
 
 /// Load every manifest and lockfile under `root` and run all checks.
+///
+/// For anything other than the defaults — `--ignore-lockfiles`, say — go through
+/// [`model::Repo::load_with`] and [`checks::all`] directly.
 pub fn check(root: &Path) -> Result<Vec<Violation>, Error> {
     let repo = model::Repo::load(root)?;
     Ok(checks::all(&repo))
@@ -39,11 +42,18 @@ pub fn check(root: &Path) -> Result<Vec<Violation>, Error> {
 pub fn scope_summary(repo: &model::Repo) -> String {
     use std::fmt::Write as _;
 
-    let mut out = format!(
-        "{} manifests, {} lockfiles",
-        repo.manifests.len(),
-        repo.lockfiles.len()
-    );
+    let mut out = if repo.lockfiles_ignored {
+        format!(
+            "{} manifests, lockfiles ignored (--ignore-lockfiles)",
+            repo.manifests.len()
+        )
+    } else {
+        format!(
+            "{} manifests, {} lockfiles",
+            repo.manifests.len(),
+            repo.lockfiles.len()
+        )
+    };
     if !repo.included_submodules.is_empty() {
         let _ = write!(
             out,

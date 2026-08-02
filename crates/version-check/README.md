@@ -31,9 +31,27 @@ It is a *checker*, not a bumper: it never edits anything. See
 ```bash
 cargo run -p version-check        # same checks, readable report, exit 1 on failure
 cargo run -p version-check -- /path/to/other/checkout
+cargo run -p version-check -- --ignore-lockfiles
+cargo run -p version-check -- --help
 ```
 
 This check is run as part of `scripts/ci.sh`.
+
+`--ignore-lockfiles` skips reading the six lockfiles, so the `lockfile` check has
+nothing to inspect and every other check runs unchanged. It is for the middle of
+a bump: once the manifests are edited but before `cargo update` has been run
+against each workspace, the lockfiles are *expected* to disagree, and
+regenerating them needs registry access that the manifest checks do not. Use it
+to confirm the pins are right first, then regenerate, then run without the flag.
+
+Like the submodule handling, the narrowed scope is stated rather than implied:
+
+```
+version-check: 118 manifests, lockfiles ignored (--ignore-lockfiles)
+```
+
+`scripts/dev.sh` runs the checker without the flag, and does so *after* the
+lockfiles have been updated, so CI always runs the full check.
 
 ## Scope: submodules are scanned when checked out
 
@@ -56,9 +74,8 @@ all pins agree
 ```
 
 Varying coverage is safe only because it is *stated*, never silent — the counts
-and the submodule disposition are printed on every run, including in the panic
-message when the `#[test]` fails, so reduced coverage cannot read as "everything
-is fine".
+and the submodule disposition are printed on every run, pass or fail, so reduced
+coverage cannot read as "everything is fine".
 
 ### Absent is not the same as resolved
 

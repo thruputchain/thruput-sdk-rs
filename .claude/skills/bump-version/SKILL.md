@@ -106,6 +106,17 @@ against an in-repo crate, you missed a pin. Prefer running `version-check`
 first — it reports every missed pin at once, whereas `cargo update` stops at the
 first one and only for the workspace it is resolving.
 
+At this point the manifests are edited but the lockfiles are not regenerated, so
+a plain run would report six lockfiles' worth of expected disagreement. Use the
+flag to check just the manifests:
+
+```bash
+cargo run -p version-check -- --ignore-lockfiles
+```
+
+Get that clean *before* running the `cargo update` commands above, then run
+without the flag afterwards to confirm the lockfiles caught up.
+
 ## Finishing
 
 ```bash
