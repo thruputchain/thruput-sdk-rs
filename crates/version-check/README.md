@@ -29,14 +29,11 @@ It is a *checker*, not a bumper: it never edits anything. See
 ## Running it
 
 ```bash
-cargo test -p version-check       # how CI runs it
 cargo run -p version-check        # same checks, readable report, exit 1 on failure
 cargo run -p version-check -- /path/to/other/checkout
 ```
 
-The `#[test]` in `src/lib.rs` means the plain `cargo test` in `scripts/dev.sh`
-already covers this crate — it is in the root `default-members`, so no extra CI
-wiring exists or is needed.
+This check is run as part of `scripts/ci.sh`.
 
 ## Scope: submodules are scanned when checked out
 
