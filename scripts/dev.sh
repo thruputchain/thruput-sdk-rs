@@ -664,6 +664,9 @@ check_all() {
 
     { skip LOGGING || logging_test_build; } &&
 
+    # now that Cargo.lock files have been updated:
+    cargo run -p version-check &&
+
     info "All tests succeeded." ||
     fail "Some tests failed"
 }

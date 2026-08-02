@@ -8,8 +8,7 @@
 //!
 //! See `README.md` for the checklist and the reasoning behind each one.
 //!
-//! The entry point is [`check`]. `main.rs` is a thin wrapper, and the `#[test]`
-//! below runs that same code under `cargo test`.
+//! The entry point is [`check`]. `main.rs` is a thin wrapper.
 
 pub mod checks;
 pub mod model;
@@ -105,26 +104,4 @@ pub fn report(violations: &[Violation]) -> String {
         if violations.len() == 1 { "" } else { "s" }
     );
     out
-}
-
-#[cfg(test)]
-mod tests {
-    /// The repository's version pins are self-consistent.
-    ///
-    /// Runs as part of the plain `cargo test` in `scripts/dev.sh`.
-    #[test]
-    fn pins_are_consistent() {
-        let repo = super::model::Repo::load(super::repo_root())
-            .expect("failed to read the repository");
-        let violations = super::checks::all(&repo);
-        if !violations.is_empty() {
-            // Lead with the scope: which submodules were in play is often the
-            // difference between a local run and a CI run.
-            panic!(
-                "\n{}\n\n{}",
-                super::scope_summary(&repo),
-                super::report(&violations)
-            );
-        }
-    }
 }
