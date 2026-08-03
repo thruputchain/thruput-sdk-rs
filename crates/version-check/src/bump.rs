@@ -466,7 +466,26 @@ pub fn update_lockfiles(repo: &Repo, plan: &Plan) -> Result<(), Error> {
 }
 
 /// Refuse to write over uncommitted work: `git diff` is the review surface.
-pub fn require_clean_worktree(repo: &Repo) -> Result<(), Error> {
+/// What `git status --porcelain` says about the worktree.
+#[derive(Debug, Default)]
+pub struct Worktree {
+    /// Tracked paths with staged or unstaged changes.
+    pub modified: Vec<String>,
+    /// Untracked paths. Git collapses whole new directories, so an entry may be
+    /// a directory and end in `/`.
+    pub untracked: Vec<String>,
+}
+
+impl Worktree {
+    /// True when `rel` is untracked, directly or via a collapsed parent.
+    pub fn is_untracked(&self, rel: &str) -> bool {
+        self.untracked
+            .iter()
+            .any(|u| rel == u || (u.ends_with('/') && rel.starts_with(u)))
+    }
+}
+
+pub fn worktree(repo: &Repo) -> Result<Worktree, Error> {
     let out = Command::new("git")
         .arg("-C")
         .arg(&repo.root)
@@ -479,16 +498,67 @@ pub fn require_clean_worktree(repo: &Repo) -> Result<(), Error> {
             "git status failed; is this a git checkout?".to_string(),
         ));
     }
-    let dirty = String::from_utf8_lossy(&out.stdout);
-    if !dirty.trim().is_empty() {
-        return Err(Error::Precondition(format!(
-            "the working tree has uncommitted changes, and this rewrites ~25 \
-             pins across six workspaces:\n{}\ncommit or stash first, or pass \
-             --allow-dirty",
-            dirty.trim_end()
-        )));
+
+    let mut state = Worktree::default();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        let (status, path) = line.split_at(2);
+        let path = path.trim_start().to_string();
+        if status == "??" {
+            state.untracked.push(path);
+        } else {
+            state.modified.push(path);
+        }
     }
-    Ok(())
+    Ok(state)
+}
+
+/// Refuse to write over uncommitted work: `git diff` is the review surface.
+///
+/// Untracked files are fine. Nothing here can clobber a file git does not know
+/// about, and refusing to run because of a stray scratch file is just noise.
+/// Untracked files the bump would *edit* are a different matter — see
+/// [`require_targets_tracked`].
+pub fn require_clean_worktree(state: &Worktree) -> Result<(), Error> {
+    if state.modified.is_empty() {
+        return Ok(());
+    }
+    Err(Error::Precondition(format!(
+        "the working tree has uncommitted changes to tracked files, and this \
+         rewrites ~25 pins across six workspaces:\n  {}\ncommit or stash \
+         first, or pass --allow-dirty",
+        state.modified.join("\n  ")
+    )))
+}
+
+/// Refuse to edit a manifest git is not tracking.
+///
+/// Tolerating untracked files rests on `git checkout` being able to undo the
+/// bump. That is not true of a manifest git has never seen — a brand-new
+/// `standard-interfaces/` crate, say, whose version and `sdk` pin the bump would
+/// happily rewrite with no way back.
+pub fn require_targets_tracked(
+    state: &Worktree,
+    plan: &Plan,
+) -> Result<(), Error> {
+    let mut untracked: Vec<&str> = plan
+        .edits
+        .iter()
+        .map(|e| e.manifest.as_str())
+        .filter(|m| state.is_untracked(m))
+        .collect();
+    untracked.sort();
+    untracked.dedup();
+    if untracked.is_empty() {
+        return Ok(());
+    }
+    Err(Error::Precondition(format!(
+        "the bump would edit files git is not tracking, so `git checkout` \
+         could not undo it:\n  {}\n`git add` them first, or pass --allow-dirty",
+        untracked.join("\n  ")
+    )))
 }
 
 /// Human-readable summary of what a plan will do.

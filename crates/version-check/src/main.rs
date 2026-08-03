@@ -35,7 +35,9 @@ bump options:
   --protocol X.Y.Z     Move the protocol-rs crates to this version. Implies an
                        SDK bump (patch unless <spec> says otherwise) and a
                        standard-interfaces patch bump.
-  --allow-dirty        Skip the clean-worktree requirement.
+  --allow-dirty        Bump even with uncommitted changes to tracked files, or
+                       with edits landing in untracked manifests. Untracked
+                       files alone never block.
   --skip-lockfiles     Edit manifests but do not run `cargo update`. The
                        lockfile check is skipped to match.
 
@@ -188,7 +190,14 @@ fn bump_main(args: &[String]) -> ExitCode {
     };
     println!("version-check: {}", version_check::scope_summary(&repo));
 
-    if !allow_dirty && let Err(e) = bump::require_clean_worktree(&repo) {
+    let worktree = match bump::worktree(&repo) {
+        Ok(w) => w,
+        Err(e) => {
+            eprintln!("version-check: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    if !allow_dirty && let Err(e) = bump::require_clean_worktree(&worktree) {
         eprintln!("version-check: {e}");
         return ExitCode::from(2);
     }
@@ -211,6 +220,13 @@ fn bump_main(args: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     }
     print!("{}", bump::describe(&plan));
+
+    if !allow_dirty
+        && let Err(e) = bump::require_targets_tracked(&worktree, &plan)
+    {
+        eprintln!("version-check: {e}");
+        return ExitCode::from(2);
+    }
 
     if let Err(e) = bump::apply(&repo, &plan) {
         eprintln!("version-check: {e}");

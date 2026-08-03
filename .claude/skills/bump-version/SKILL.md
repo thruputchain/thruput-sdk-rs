@@ -20,9 +20,10 @@ cargo run -p version-check -- bump breaking           # semver-incompatible SDK 
 cargo run -p version-check -- bump --protocol 0.21.0  # move protocol-rs
 ```
 
-It requires a clean worktree, verifies the repo is self-consistent *before*
-touching anything, rewrites every pin, regenerates all six lockfiles, and
-re-verifies. Review with `git diff`; `git checkout` is the undo.
+It requires no uncommitted changes to tracked files (untracked files are fine),
+verifies the repo is self-consistent *before* touching anything, rewrites every
+pin, regenerates all six lockfiles, and re-verifies. Review with `git diff`;
+`git checkout` is the undo.
 
 Decide which of the three you want, then let it do the arithmetic:
 

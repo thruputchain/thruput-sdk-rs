@@ -220,8 +220,16 @@ Writes go through `toml_edit`, preserving comments and formatting.
 
 ### Safety
 
-1. A clean worktree is required, unless `--allow-dirty`. `git diff` is the review
-   surface and git is the undo.
+1. No uncommitted changes to **tracked** files, unless `--allow-dirty`. `git
+   diff` is the review surface and git is the undo.
+
+   Untracked files are fine — nothing here can clobber a file git has never
+   seen, and refusing to run over a stray scratch file is just noise. The one
+   exception is an untracked file the bump would *edit* (a brand-new
+   `standard-interfaces/` crate, say): tolerating untracked files rests on `git
+   checkout` being able to undo the bump, which is not true of a manifest git
+   does not know about. Those are named and refused separately, after the plan
+   exists and so with the offending paths in hand.
 2. Every check runs **before** anything is written. Bumping a repository that
    already disagrees with itself would bury the original problem under ~25
    unrelated edits.
