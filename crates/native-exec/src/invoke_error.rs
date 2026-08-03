@@ -74,15 +74,19 @@ fn install_panic_hook() {
                 return;
             }
 
-            if let Some(payload) =
-                panic_info.payload().downcast_ref::<InvokeError>()
-            {
-                panic::resume_unwind(Box::new(payload.clone()));
+            // While an invocation is active the hook only controls printing;
+            // it must not panic or resume_unwind — since rust-lang/rust#158369
+            // (nightly-2026-06-26, Rust 1.98) that aborts the process.
+            // [`InvokeError`] payloads are expected control flow (aborts,
+            // frame unwinds), so they stay silent; anything else is a
+            // contract panic, printed compactly here in place of the default
+            // hook's output. Either way the original payload keeps unwinding
+            // to the enclosing catch site ([`invoke_wrapper`] or the mock
+            // frame executor), which maps non-[`InvokeError`] payloads to a
+            // deterministic error.
+            if panic_info.payload().downcast_ref::<InvokeError>().is_none() {
+                _print_panic_info(panic_info);
             }
-
-            _print_panic_info(panic_info);
-
-            panic::resume_unwind(Box::new(deterministic_error()));
         }));
     });
 }
@@ -151,6 +155,14 @@ where
                         panic: my_error.error_type.0,
                     };
                 }
+                if is_panic_hook_active() {
+                    // An ordinary panic out of contract code; the hook
+                    // already printed it. Deterministic failure of this
+                    // invocation.
+                    return groundhog_sys::ForeignInvokeResult {
+                        panic: InvokeErrorCode::Deterministic.0,
+                    };
+                }
                 eprintln!("unrecoverable error: {:?}", err);
                 groundhog_sys::ForeignInvokeResult {
                     panic: InvokeErrorCode::Unrecoverable.0,
@@ -174,39 +186,46 @@ mod tests {
     }
 
     #[test]
-    fn panic_hook_converts_panics_when_active() {
-        // Install the hook so it's ready
+    fn hook_never_panics_and_leaves_payload_untouched() {
+        // Regression for rust-lang/rust#158369 (first in nightly-2026-06-26):
+        // the hook used to resume_unwind a converted payload from inside the
+        // hook, which now aborts the whole process. Merely completing this
+        // test proves the hook no longer panics while active.
         install_panic_hook();
 
-        // Without activation: a string panic stays a string panic
-        assert_eq!(panic_hook_depth(), 0);
-        let err = panic::catch_unwind(|| panic!("bare panic")).unwrap_err();
-        assert!(
-            err.downcast_ref::<InvokeError>().is_none(),
-            "without activation, panic should NOT be converted to InvokeError"
-        );
-
-        // With activation: a string panic is converted to a deterministic InvokeError
         activate_panic_hook();
-        assert_eq!(panic_hook_depth(), 1);
-
         let err =
             panic::catch_unwind(|| panic!("contract panic")).unwrap_err();
-        let invoke_err = err.downcast_ref::<InvokeError>().expect(
-            "with activation, panic should be converted to InvokeError",
+        assert_eq!(
+            err.downcast_ref::<&str>(),
+            Some(&"contract panic"),
+            "the hook must let the original payload unwind unchanged; \
+             conversion is the catch site's job"
         );
-        assert_eq!(invoke_err.error_type, InvokeErrorCode::Deterministic);
+        deactivate_panic_hook();
+    }
+
+    #[test]
+    fn invoke_wrapper_converts_panics_when_active() {
+        // With activation: an ordinary contract panic becomes a
+        // deterministic error at the catch site.
+        activate_panic_hook();
+        assert_eq!(panic_hook_depth(), 1);
+        let result = invoke_wrapper(|| panic!("contract panic"))();
+        assert_eq!(result.panic, InvokeErrorCode::Deterministic.0);
+
+        // InvokeError payloads pass through with their own code.
+        let result =
+            invoke_wrapper(|| std::panic::panic_any(validation_error()))();
+        assert_eq!(result.panic, InvokeErrorCode::ValidationFailure.0);
 
         deactivate_panic_hook();
         assert_eq!(panic_hook_depth(), 0);
 
-        // After deactivation: back to normal
-        let err =
-            panic::catch_unwind(|| panic!("after deactivate")).unwrap_err();
-        assert!(
-            err.downcast_ref::<InvokeError>().is_none(),
-            "after deactivation, panic should NOT be converted to InvokeError"
-        );
+        // Without activation: an ordinary panic is a harness bug, not a
+        // contract failure.
+        let result = invoke_wrapper(|| panic!("after deactivate"))();
+        assert_eq!(result.panic, InvokeErrorCode::Unrecoverable.0);
     }
 
     #[test]
@@ -227,14 +246,11 @@ mod tests {
         assert_eq!(panic_hook_depth(), 1);
         assert!(is_panic_hook_active());
 
-        // Panic here should still be converted (this is the bug scenario:
-        // before the fix, the inner deactivate would have turned off the hook)
-        let err =
-            panic::catch_unwind(|| panic!("mid-nest panic")).unwrap_err();
-        let invoke_err = err
-            .downcast_ref::<InvokeError>()
-            .expect("hook should still be active after inner deactivate");
-        assert_eq!(invoke_err.error_type, InvokeErrorCode::Deterministic);
+        // A panic here must still count as a contract failure (this is the
+        // bug scenario: before the fix, the inner deactivate would have
+        // turned off the hook)
+        let result = invoke_wrapper(|| panic!("mid-nest panic"))();
+        assert_eq!(result.panic, InvokeErrorCode::Deterministic.0);
 
         // Outer deactivate
         deactivate_panic_hook();

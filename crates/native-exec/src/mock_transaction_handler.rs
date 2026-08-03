@@ -307,8 +307,11 @@ impl MockInvocationFrame {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
                 } else {
-                    eprintln!("unrecoverable error: {:?}", err);
-                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable);
+                    // The lambda always runs with the panic hook active, so
+                    // an ordinary panic payload is contract code panicking
+                    // (already printed by the hook): a deterministic failure
+                    // of this frame.
+                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Deterministic);
                 }
             }
         };
