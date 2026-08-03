@@ -242,12 +242,21 @@ fn find_prebuilt_bindings(
 /// rpath entries configured in .cargo/config.toml.
 fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
-    // OUT_DIR is target/<profile>/build/<pkg>-<hash>/out
+    // OUT_DIR is <profile>/build/<pkg>-<hash>/out (cargo <= 1.98) or
+    // <profile>/build/<pkg>/<hash>/out (cargo 1.99+), so a fixed number of
+    // `parent()` hops is wrong for one layout or the other. Find the `build`
+    // ancestor instead; its parent is the profile dir in both. (Our package
+    // is not itself named `build`, so the first match is the right one.)
     let deps_dir = out_dir
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .ok_or("OUT_DIR does not have expected depth (target/<profile>/build/<pkg>-<hash>/out)")?
+        .ancestors()
+        .find(|p| p.file_name() == Some(std::ffi::OsStr::new("build")))
+        .and_then(|build| build.parent())
+        .ok_or_else(|| {
+            format!(
+                "OUT_DIR {} has no `build` ancestor; cannot locate <profile>/deps",
+                out_dir.display()
+            )
+        })?
         .join("deps");
 
     let lib_name = shared_lib_name();
@@ -255,7 +264,18 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let dst = deps_dir.join(&lib_name);
 
     if src.exists() {
-        fs::copy(&src, &dst)?;
+        // On a cold target dir the build script can run before anything has
+        // created <profile>/deps (cargo 1.99+ no longer pre-creates it).
+        fs::create_dir_all(&deps_dir).map_err(|e| {
+            format!("failed to create {}: {e}", deps_dir.display())
+        })?;
+        fs::copy(&src, &dst).map_err(|e| {
+            format!(
+                "failed to copy {} to {}: {e}",
+                src.display(),
+                dst.display()
+            )
+        })?;
         println!(
             "cargo:warning=Copied {} to {} for rpath resolution",
             src.display(),
