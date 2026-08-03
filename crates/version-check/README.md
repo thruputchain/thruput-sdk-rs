@@ -1,7 +1,7 @@
 # version-check
 
 Checks that version pins agree across every manifest and lockfile in this
-repository.
+repository.  Also automates version-bumping.
 
 ## Why
 
@@ -23,8 +23,9 @@ workspace it happens to be resolving, and only once you get as far as running
 `cargo update` or `cargo publish` there. This crate reports every disagreement
 in the repository in a single pass, before any of that.
 
-It is a *checker*, not a bumper: it never edits anything. See
-[Toward a bumper](#toward-a-bumper).
+It also applies coordinated version bumps — see [Bumping](#bumping). The check
+and the bump share one discovery layer, so the check list is exactly the bump's
+postcondition.
 
 ## Running it
 
@@ -148,23 +149,23 @@ site, or whose site has since come into line with the rest of the repo, is
 itself reported as stale — so the list cannot quietly rot after the work it was
 waiting on lands.
 
-## Anticipated checks
+## Possible additional checks
 
 Not yet implemented, in rough order of value:
 
 - **`publish-coverage`** — every publishable in-repo crate appears in the
-  `PUBLISH_PACKAGES` list of `.github/workflows/publish.yml` or
+  `PUBLISH_PACKAGES` list of `.github/workflows/publish.yml` and
   `publish_standard_interfaces.yml`. A new published crate missing from the
   release workflow is the same class of error as a missed pin, and is currently
   caught only by noticing it never shipped.
+- **`ffi-version`** — `crates/hogd-sys/build.rs` carries a `TEST_FFI_VERSION`
+  constant on its own independent version line. Worth at least parsing and
+  sanity-checking, though what it should be checked *against* is unclear.
 - **`missing-pin`** — an in-repo dependency of a *published* crate that carries
   no `version` at all. `cargo publish` rejects this, so the check would only
   move the failure earlier; the exceptions (path-only dev-dependencies, which
   cargo strips at package time, and `publish = false` crates) are what make it
   fiddly enough to defer.
-- **`ffi-version`** — `crates/hogd-sys/build.rs` carries a `TEST_FFI_VERSION`
-  constant on its own independent version line. Worth at least parsing and
-  sanity-checking, though what it should be checked *against* is unclear.
 - **`feature-agreement`** — extend `external-agreement` to flag manifests that
   pin the same external crate at the same version but with divergent
   `features`/`default-features`. Likely noisy; needs a look at how much real
@@ -182,24 +183,65 @@ Not yet implemented, in rough order of value:
 - **`workspace = true` naming a key absent from the workspace table.** `cargo`
   already errors on this at manifest load, well before this check would run.
 
-## Other version-check TODOs
+## Bumping
 
-- **Fixture-based unit tests** — the checks are currently validated by
-  perturbing the real repository and confirming each one fires. Synthetic
-  fixture repositories under `tests/` would be better.
+```bash
+cargo run -p version-check -- bump patch                # patch-bump the SDK
+cargo run -p version-check -- bump breaking             # semver-incompatible SDK bump
+cargo run -p version-check -- bump 1.0.0                # an explicit target
+cargo run -p version-check -- bump --protocol 0.21.0    # move protocol-rs
+```
 
-## Toward a bumper
+The `standard-interfaces` are deliberately untouched by a patch bump. Their
+`sdk` pin is a caret, so `^0.17.4` still contains `0.17.5` and nothing needs to
+change — the pins are *supposed* to drift between breaking releases, and a
+breaking bump refreshes them to the current workspace version, absorbing
+however much drift accumulated.
 
-The discovery and policy layers are the reusable half of a bump tool. A bumper
-would reuse `model::Repo` unchanged, replace `checks` with `toml_edit` writes at
-the same pin sites — `toml_edit` preserves the comments and ordering that the
-root manifest depends on heavily — and then run `cargo update --workspace` once
-per lockfile. The check list above is exactly its postcondition, so nothing
-built here is throwaway.
+`--protocol` implies an SDK bump, patch unless the spec asks for more, because a
+breaking protocol-rs change forces a new interfaces release so clients can
+request a version built against it. The `xdrs` / `xdr-common` crates are a
+separate train and are left alone.
+
+### How it decides what to edit
+
+There is no hardcoded file list. The two crate families are told apart by how
+each package declares its own version: `VersionSpec::Inherited` is the
+workspace family, a literal version under `standard-interfaces/` is the
+independent interface line. That predicate must be path-scoped rather than "has
+a literal version" — `bottle-test-if` (0.1.0) and `version-mismatch-helper`
+(1.0.0) also carry literal versions and must never move.
+
+Requirements keep their operator: only the version part is rewritten, so `=`
+stays `=` and a caret stays a caret. Multi-part requirements (`>=1, <2`) are
+refused rather than guessed at.
+
+Writes go through `toml_edit`, preserving comments and formatting.
+
+### Safety
+
+1. A clean worktree is required, unless `--allow-dirty`. `git diff` is the review
+   surface and git is the undo.
+2. Every check runs **before** anything is written. Bumping a repository that
+   already disagrees with itself would bury the original problem under ~25
+   unrelated edits.
+3. After the manifests are rewritten, the checks run again with
+   `--ignore-lockfiles`, since the lockfiles have not caught up yet.
+4. `cargo update --workspace` runs against each of the six workspace roots —
+   themselves discovered, not listed. `--skip-lockfiles` stops before this.
+5. Every check runs once more as the postcondition.
+
+Deliberately not automated:
+
+- choosing whether a change is breaking
+- `TEST_FFI_VERSION`
+- the publish workflows
+- anything inside a submodule
 
 ## Toward an xtask
 
-`src/main.rs` is a thin wrapper over `lib::check` and `lib::report`, so this can
-become a subcommand of a repo-wide `xtask` without restructuring: move the
-argument parsing up a level and call `version_check::check(root)`. That is the
-intended direction for the `scripts/*.sh` checks generally.
+`src/main.rs` is a thin wrapper over the library, so both subcommands can move
+under a repo-wide `xtask` without restructuring: lift the argument parsing and
+call `version_check::checks::all` / `version_check::bump::plan` directly. That is
+the intended direction for the `scripts/*.sh` checks generally — at which point
+the crate's name, which now covers a bumper too, is worth revisiting.

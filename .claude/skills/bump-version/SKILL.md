@@ -5,32 +5,53 @@ description: Use when bumping crate versions, releasing, or updating dependency 
 
 # Bump Version
 
-Patch-bump the workspace and update all pinned dependency references across the
-six workspaces and their six lockfiles.
+Bump the workspace and update all pinned dependency references across the six
+workspaces and their six lockfiles.
 
-## Verification is automated — use it
+## This is automated — use the tool
 
-`crates/version-check` checks every pin in the repository in one pass and names
-each file and line that disagrees. It replaces the hand-rolled `grep`s this
-skill used to recommend, and it catches things a `grep` cannot: a caret where an
-exact pin was meant, a path dep pointing at a moved crate, an in-repo crate
-locked to a registry source, a new crate missing from `default-members`.
+`crates/version-check` both applies the bump and verifies it. Prefer it over the
+manual procedure below, which is now reference material for when something
+unusual comes up.
 
 ```bash
-cargo run -p version-check    # readable report, exit 1 on any violation
-cargo test -p version-check   # same checks; also runs in the plain `cargo test`
+cargo run -p version-check -- bump patch              # patch-bump the SDK
+cargo run -p version-check -- bump breaking           # semver-incompatible SDK bump
+cargo run -p version-check -- bump --protocol 0.21.0  # move protocol-rs
 ```
 
-Run it **before** you start, to confirm a clean baseline, and again after each
-step below. Fix everything it reports before moving on. See
-`crates/version-check/README.md` for the full check list.
+It requires a clean worktree, verifies the repo is self-consistent *before*
+touching anything, rewrites every pin, regenerates all six lockfiles, and
+re-verifies. Review with `git diff`; `git checkout` is the undo.
 
-Two things it does **not** cover, so they stay on you:
+Decide which of the three you want, then let it do the arithmetic:
 
-- Whether the new version number is the right one (patch vs minor vs major).
-- The `TEST_FFI_VERSION` constant (step 4).
+- **patch** — a normal SDK release. The standard interfaces are correctly left
+  alone; their caret `sdk` pin already contains the new version.
+- **breaking** — the SDK's own API broke. Also patch-bumps the standard
+  interfaces and refreshes their `sdk` pins.
+- **--protocol X.Y.Z** — a breaking protocol-rs change. Implies an SDK patch
+  bump and an interfaces patch bump. Combine with `breaking` if the SDK's own
+  API broke too.
 
-## Files to Update
+Things it does **not** cover, so they stay on you:
+
+- Whether the change is breaking, and what the new version number should be.
+- The `TEST_FFI_VERSION` constant (step 4 below).
+- Checking whether every publishable in-repo crate appears in the
+  `PUBLISH_PACKAGES` list of `.github/workflows/publish.yml` and
+  `publish_standard_interfaces.yml`.
+
+To check without bumping — before starting, or at any point:
+
+```bash
+cargo run -p version-check                       # full check
+cargo run -p version-check -- --ignore-lockfiles # manifests only
+```
+
+## Files to Update (reference)
+
+What the tool edits, and what to do by hand if you are not using it.
 
 ### 1. Root `Cargo.toml`
 

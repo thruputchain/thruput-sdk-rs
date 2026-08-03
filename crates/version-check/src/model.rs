@@ -63,6 +63,9 @@ pub struct Edge {
     pub line: usize,
     /// Human-readable table path, e.g. `target.cfg(unix).dependencies`.
     pub table: String,
+    /// The same table, as segments — what a writer needs to navigate back to
+    /// this entry. `table` is for humans; this is for [`crate::bump`].
+    pub table_path: Vec<String>,
     pub kind: &'static str,
     /// The table key as written.
     pub key: String,
@@ -508,6 +511,7 @@ fn push_edges(
             manifest: rel.to_string(),
             line: key_line(text, doc, path, key),
             table: label.to_string(),
+            table_path: path.iter().map(|s| s.to_string()).collect(),
             kind,
             key: key.to_string(),
             name: renamed.unwrap_or_else(|| key.to_string()),

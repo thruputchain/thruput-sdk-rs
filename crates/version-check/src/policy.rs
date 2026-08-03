@@ -39,6 +39,21 @@ impl Named {
     }
 }
 
+/// Manifests under this prefix hold the standard-interface crates, which carry
+/// their own version line rather than the workspace's.
+pub const INTERFACE_PREFIX: &str = "standard-interfaces/";
+
+/// Crates from the protocol-rs repository, which release together at one
+/// version. A breaking change here forces a new standard-interfaces release, so
+/// that clients can request a version built against it.
+pub const PROTOCOL_CRATES: &[&str] = &[
+    "groundhog-spec",
+    "groundhog-trace",
+    "groundhog-xdr",
+    "groundhog-syscall",
+    "hogexec-internal",
+];
+
 /// In-repo pins that are not `=`.
 pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[OperatorException {
     manifest_prefix: "standard-interfaces/",

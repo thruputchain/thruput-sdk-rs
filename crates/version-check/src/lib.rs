@@ -10,6 +10,7 @@
 //!
 //! The entry point is [`check`]. `main.rs` is a thin wrapper.
 
+pub mod bump;
 pub mod checks;
 pub mod model;
 pub mod policy;
