@@ -37,6 +37,15 @@ pub enum CallingError {
     EncodingArgs(FaultString) = 3,
 }
 
+/// `Result<T, CallingError>::or_re_throw()` aborts with the typed
+/// `LibraryExn::Calling` exception (client-side interface path).
+impl crate::re_throw::ReThrow for CallingError {
+    #[cfg_attr(feature = "debugging", track_caller)]
+    fn re_throw(self) -> ! {
+        crate::exn::client_library_throw(self)
+    }
+}
+
 /// Plumbing errors resulting from handling a contract call:
 #[derive(
     Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
