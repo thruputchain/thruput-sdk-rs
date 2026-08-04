@@ -204,10 +204,8 @@ fn fetch_calldata_and_auth_tokens_into(
     // Convert bytes to u32s using native byte order (wasm is little-endian)
     auth_ids.clear();
     auth_ids.reserve(auth_token_count as usize);
-    for chunk in auth_token_buf.chunks_exact(4) {
-        auth_ids.push(u32::from_ne_bytes([
-            chunk[0], chunk[1], chunk[2], chunk[3],
-        ]));
+    for chunk in auth_token_buf.as_chunks::<4>().0 {
+        auth_ids.push(u32::from_ne_bytes(*chunk));
     }
 
     Ok(())
@@ -269,8 +267,8 @@ fn fetch_calldata_and_auth_tokens_into(
 
     // Convert bytes to u32s using native byte order (wasm is little-endian)
     auth_ids.clear();
-    for chunk in auth_token_buf.as_ref().chunks_exact(4) {
-        let id = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+    for chunk in auth_token_buf.as_ref().as_chunks::<4>().0 {
+        let id = u32::from_ne_bytes(*chunk);
         auth_ids.push(id).expect("too many auth token IDs");
     }
 

@@ -98,7 +98,7 @@ impl Display for Frame {
         // non-returning abort context. All `with_debug_context` callers are still
         // on the stack, so their `context` references remain live.
         let context = unsafe { self.context.as_ref() };
-        write!(f, "{} at {}", context, &self.location)
+        write!(f, "{} at {}", context, self.location)
     }
 }
 
