@@ -264,6 +264,16 @@ contract_test!(test_exclusive_propagation {
     }
 });
 
+contract_test!(test_value_set_exclusive {
+    let mut val: Value<u32> = Keypath::default().into();
+
+    val.set_exclusive(&10);
+    assert_eq!(val.get(), 10);
+
+    assert_eq!(val.try_set_exclusive(&20), Ok(()));
+    assert_eq!(val.get(), 20);
+});
+
 contract_test!(test_vector_pop {
     let mut vec: Vector<Value<u32>> = Keypath::default().into();
 
