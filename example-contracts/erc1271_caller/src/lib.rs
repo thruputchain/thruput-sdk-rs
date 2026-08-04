@@ -4,7 +4,6 @@ sdk::declare_mock_contract!();
 
 use groundhog_erc1271_if::ERC1271Client;
 use sdk::ContractAddress;
-use sdk::OrReThrow;
 use sdk::contract;
 use sdk::signer::{AssumeTokens, Signed};
 
@@ -20,8 +19,7 @@ impl Caller {
     ) -> Signed<u64> {
         let tokens =
             ERC1271Client::new(wallet).is_valid_signature(message, signature);
-        let (token,): (Signed<u64>,) =
-            AssumeTokens::try_assume_tokens(tokens).or_re_throw();
+        let (token,): (Signed<u64>,) = AssumeTokens::assume_tokens(tokens);
         token
     }
 
@@ -34,7 +32,7 @@ impl Caller {
         let tokens =
             ERC1271Client::new(wallet).is_valid_signature(message, signature);
         let (a, b): (Signed<u64>, Signed<u64>) =
-            AssumeTokens::try_assume_tokens(tokens).or_re_throw();
+            AssumeTokens::assume_tokens(tokens);
         let (val_a, minter_a): (u64, ContractAddress) = a.consume();
         let (val_b, minter_b): (u64, ContractAddress) = b.consume();
         assert_eq!(*wallet, minter_a);
@@ -50,7 +48,7 @@ impl Caller {
     ) {
         let tokens =
             ERC1271Client::new(wallet).is_valid_signature(message, signature);
-        let () = AssumeTokens::try_assume_tokens(tokens).or_re_throw();
+        let () = AssumeTokens::assume_tokens(tokens);
     }
 
     /// Consume a Signed<u64> token and return its inner value.

@@ -61,8 +61,7 @@ fn assume_tokens_mismatch_throws_cross_call_decode_error() {
             // wrong count must surface as the same catchable cross-call
             // error as a return-payload decode failure, not a panic.
             let tokens: Vec<Signed<Opaque>> = vec![];
-            let (_,): (Signed<u64>,) =
-                AssumeTokens::try_assume_tokens(tokens).or_re_throw();
+            let (_,): (Signed<u64>,) = AssumeTokens::assume_tokens(tokens);
         })
     });
     result.assert_abort();

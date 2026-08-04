@@ -97,6 +97,15 @@ pub trait AssumeTokens: Sized {
     fn try_assume_tokens(
         tokens: alloc::vec::Vec<Signed<Opaque>>,
     ) -> Result<Self, crate::exn::CallingError>;
+
+    /// Throwing convenience form:
+    /// [`try_assume_tokens`](Self::try_assume_tokens) with a count mismatch
+    /// propagated as a typed abort.
+    #[cfg_attr(feature = "debugging", track_caller)]
+    fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
+        use crate::re_throw::OrReThrow;
+        Self::try_assume_tokens(tokens).or_re_throw()
+    }
 }
 
 /// Report a returned-token count mismatch as the cross-call decode error.
