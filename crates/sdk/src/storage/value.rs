@@ -102,6 +102,33 @@ where
         &mut self,
         value: &T,
     ) -> Result<(), crate::exn::LibraryExn> {
+        self.try_set_impl(value, self.key.keypath().is_exclusive())
+    }
+
+    /// Serialize and store the value with an exclusive lock.
+    pub fn set_exclusive(&mut self, value: &T) {
+        use crate::re_throw::OrReThrow;
+        self.try_set_exclusive(value).or_re_throw()
+    }
+
+    /// Like [`set_exclusive`](Self::set_exclusive), but report failure as
+    /// `Err` instead of aborting (the `try_` law; see the
+    /// [`exn`](mod@crate::exn) module docs). The error contract is
+    /// [`try_set`](Self::try_set)'s. On `Err` the stored value is
+    /// unmodified and no lock is taken.
+    pub fn try_set_exclusive(
+        &mut self,
+        value: &T,
+    ) -> Result<(), crate::exn::LibraryExn> {
+        self.try_set_impl(value, true)
+    }
+
+    /// Shared serialize-and-set; `exclusive` selects the lock flavor.
+    fn try_set_impl(
+        &mut self,
+        value: &T,
+        exclusive: bool,
+    ) -> Result<(), crate::exn::LibraryExn> {
         use crate::exn::{LibraryExn, syscall_exn};
         use crate::sys::SyscallNo;
         use crate::sys_result::bytestring::*;
@@ -109,23 +136,13 @@ where
         crate::call::with_scratch(|buf| {
             crate::internal::encode_scratch(buf, value)
                 .map_err(|_| LibraryExn::StorageSerialization)?;
-            let result = if self.key.keypath().is_exclusive() {
+            let result = if exclusive {
                 bytestring_set_exclusive(&self.key, buf.as_slice())
             } else {
                 bytestring_set(&self.key, buf.as_slice())
             };
             result.map_err(|e| syscall_exn(SyscallNo::kBytestringSet, e))
         })
-    }
-
-    /// Serialize and store the value with an exclusive lock.
-    pub fn set_exclusive(&mut self, value: &T) {
-        use crate::sys_exn::bytestring::*;
-
-        crate::call::with_scratch(|buf| {
-            crate::internal::encode_scratch(buf, value).unwrap();
-            bytestring_set_exclusive(&self.key, buf.as_slice());
-        });
     }
 }
 
