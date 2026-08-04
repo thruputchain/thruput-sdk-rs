@@ -1290,3 +1290,171 @@ fn identical_duplicate_exception_entries_are_deduped() {
 
     assert_eq!(spec.interfaces[0].throws.len(), 1);
 }
+
+// ---------------------------------------------------------------------------
+// Signed tokens
+// ---------------------------------------------------------------------------
+
+fn signed_token(preimage_type: ContractType) -> ContractType {
+    ContractType::SignedToken {
+        signed_token_preimage:
+            groundhog_contract_spec::ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(preimage_type)),
+            },
+    }
+}
+
+fn opaque_signed_token() -> ContractType {
+    ContractType::SignedToken {
+        signed_token_preimage:
+            groundhog_contract_spec::ContractSignedTokenPreimage {
+                preimage_type: None,
+            },
+    }
+}
+
+#[test]
+fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
+    // A signed-token arg followed by a normal calldata arg: the token must
+    // stay a SignedToken node (not decay to u32), and the Named type inside
+    // its preimage must pull in the typedef.
+    let spec = canon(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Token"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Token"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("transfer"),
+                    args: vec![
+                        ContractField {
+                            name: s("auth"),
+                            ty: signed_token(ContractType::Named {
+                                named: s("TransferAuth"),
+                            }),
+                        },
+                        ContractField {
+                            name: s("amount"),
+                            ty: ContractType::U64,
+                        },
+                    ]
+                    .try_into()
+                    .unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("TransferAuth"),
+                    fields: vec![ContractField {
+                        name: s("amount"),
+                        ty: ContractType::U64,
+                    }]
+                    .try_into()
+                    .unwrap(),
+                },
+            },
+        },
+    ])
+    .unwrap();
+
+    let method = &spec.interfaces[0].methods[0];
+    assert_eq!(
+        method.args[0].ty,
+        signed_token(ContractType::Named {
+            named: s("TransferAuth"),
+        })
+    );
+    assert_eq!(method.args[1].ty, ContractType::U64);
+    // The preimage's Named type is reachable, so its typedef is retained.
+    assert_eq!(spec.type_defs.len(), 1);
+}
+
+#[test]
+fn opaque_signed_token_return_type_canonicalizes() {
+    // A `Vec<Signed<Opaque>>` return (e.g. erc1271's is_valid_signature):
+    // the erased preimage must survive canonicalization untouched.
+    let spec = canon(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Wallet"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Wallet"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("is_valid_signature"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Vector {
+                        vector: groundhog_contract_spec::ContractVectorType {
+                            element: Box::new(opaque_signed_token()),
+                            max_len: u32::MAX,
+                        },
+                    },
+                },
+            },
+        },
+    ])
+    .unwrap();
+
+    assert_eq!(
+        spec.interfaces[0].methods[0].return_type,
+        ContractType::Vector {
+            vector: groundhog_contract_spec::ContractVectorType {
+                element: Box::new(opaque_signed_token()),
+                max_len: u32::MAX,
+            },
+        }
+    );
+}
+
+#[test]
+fn signed_token_preimage_missing_typedef_is_rejected() {
+    // collect_named_types must recurse into the token preimage: a Named
+    // type there without a typedef is an error, not a silent omission.
+    let err = canon(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Token"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Token"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("transfer"),
+                    args: vec![ContractField {
+                        name: s("auth"),
+                        ty: signed_token(ContractType::Named {
+                            named: s("MissingAuth"),
+                        }),
+                    }]
+                    .try_into()
+                    .unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ])
+    .unwrap_err();
+
+    assert!(
+        matches!(err, SpecToolError::MissingTypeDef(ref name) if name == "MissingAuth"),
+        "expected MissingTypeDef(MissingAuth), got {err:?}"
+    );
+}

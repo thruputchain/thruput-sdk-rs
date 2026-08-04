@@ -57,6 +57,10 @@ pub enum SpecToolError {
     ConflictingMethod(String),
     /// Multiple conflicting event definitions exist for the same event name.
     ConflictingEventDef(String),
+    /// The spec contains a variant this tool version does not understand
+    /// (e.g. it was produced by a newer toolchain). Rejecting it loudly
+    /// beats silently dropping or mangling parts of the spec.
+    UnsupportedVariant(String),
     /// An error occurred while parsing or writing the wasm binary.
     Wasm(String),
 }
@@ -88,6 +92,9 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::ConflictingEventDef(msg) => {
                 write!(f, "conflicting event definitions for {msg}")
+            }
+            Self::UnsupportedVariant(msg) => {
+                write!(f, "unsupported spec variant: {msg}")
             }
             Self::Wasm(msg) => f.write_str(msg),
         }
@@ -189,7 +196,8 @@ pub fn canonicalize_spec(
                     .push(fragment.method.clone());
             }
             SpecFragment::SpecTypeDef { type_def } => {
-                let symbol = type_def_symbol(type_def).clone();
+                validate_type_def(type_def)?;
+                let symbol = type_def_symbol(type_def)?.clone();
                 spec_str(&symbol)?;
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
@@ -197,7 +205,8 @@ pub fn canonicalize_spec(
                 }
             }
             SpecFragment::ExportedSpecTypeDef { type_def } => {
-                let symbol = type_def_symbol(type_def).clone();
+                validate_type_def(type_def)?;
+                let symbol = type_def_symbol(type_def)?.clone();
                 spec_str(&symbol)?;
                 exported_roots.insert(symbol.clone());
                 let defs = type_defs.entry(symbol).or_default();
@@ -228,7 +237,14 @@ pub fn canonicalize_spec(
                     interface_anchor.interface_version.clone(),
                 ));
             }
-            _ => {}
+            // `SpecFragment` is #[non_exhaustive]: a fragment kind this tool
+            // doesn't know about must fail loudly, not be silently dropped
+            // from the spec.
+            _ => {
+                return Err(SpecToolError::UnsupportedVariant(
+                    "unknown SpecFragment variant".to_string(),
+                ));
+            }
         }
     }
 
@@ -389,8 +405,86 @@ fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
     spec_str(&method.name)?;
     for arg in method.args.iter() {
         spec_str(&arg.name)?;
+        validate_type(&arg.ty)?;
     }
+    validate_type(&method.return_type)?;
     Ok(())
+}
+
+/// Rejects types containing variants this tool version does not know.
+///
+/// Every type entering [`canonicalize_spec`] passes through here (method
+/// signatures, throws, typedef bodies, event fields), so the later
+/// total-function paths — sort-key rendering and JSON output — can rely on
+/// only known variants reaching them.
+fn validate_type(ty: &ContractType) -> Result<(), SpecToolError> {
+    match ty {
+        ContractType::Option { option_inner } => validate_type(option_inner),
+        ContractType::Vector { vector } => validate_type(&vector.element),
+        ContractType::Array { array } => validate_type(&array.element),
+        ContractType::Tuple { tuple } => {
+            tuple.iter().try_for_each(validate_type)
+        }
+        ContractType::SignedToken {
+            signed_token_preimage,
+        } => match &signed_token_preimage.preimage_type {
+            Some(preimage_type) => validate_type(preimage_type),
+            // An erased (opaque) preimage.
+            None => Ok(()),
+        },
+        ContractType::Named { named } => spec_str(named).map(|_| ()),
+        ContractType::Void
+        | ContractType::Bool
+        | ContractType::U8
+        | ContractType::U32
+        | ContractType::I32
+        | ContractType::U64
+        | ContractType::I64
+        | ContractType::U128
+        | ContractType::I128
+        | ContractType::String
+        | ContractType::Bytes
+        | ContractType::Address => Ok(()),
+        _ => Err(SpecToolError::UnsupportedVariant(
+            "unknown ContractType variant".to_string(),
+        )),
+    }
+}
+
+fn validate_type_def(type_def: &ContractTypeDef) -> Result<(), SpecToolError> {
+    match type_def {
+        ContractTypeDef::TypeDefStruct { struct_def } => struct_def
+            .fields
+            .iter()
+            .try_for_each(|field| validate_type(&field.ty)),
+        ContractTypeDef::TypeDefEnum { .. } => Ok(()),
+        ContractTypeDef::TypeDefUnion { union_def } => union_def
+            .cases
+            .iter()
+            .try_for_each(|case| validate_union_case_type(&case.case_type)),
+        _ => Err(SpecToolError::UnsupportedVariant(
+            "unknown ContractTypeDef variant".to_string(),
+        )),
+    }
+}
+
+fn validate_union_case_type(
+    case_type: &ContractUnionCaseType,
+) -> Result<(), SpecToolError> {
+    match case_type {
+        ContractUnionCaseType::UnionCaseVoid => Ok(()),
+        ContractUnionCaseType::UnionCaseTuple { tuple } => {
+            tuple.iter().try_for_each(validate_type)
+        }
+        ContractUnionCaseType::UnionCaseStruct { struct_fields } => {
+            struct_fields
+                .iter()
+                .try_for_each(|field| validate_type(&field.ty))
+        }
+        _ => Err(SpecToolError::UnsupportedVariant(
+            "unknown ContractUnionCaseType variant".to_string(),
+        )),
+    }
 }
 
 fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
@@ -409,6 +503,9 @@ fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
             event.topics.len(),
         )));
     }
+    for field in event.topics.iter().chain(event.fields.iter()) {
+        validate_type(&field.ty)?;
+    }
     Ok(())
 }
 
@@ -416,6 +513,10 @@ fn canonicalize_exception_list(
     interface_key: &str,
     types: &[ContractExceptionType],
 ) -> Result<Vec<ContractExceptionType>, SpecToolError> {
+    // Validate before sorting: the sort key below assumes known variants.
+    for exn in types {
+        validate_type(&exn.ty)?;
+    }
     let mut types = types.to_vec();
     // Canonical order is by selector, since the selector is the key clients
     // decode exceptions by.
@@ -512,7 +613,11 @@ fn resolve_reachable_type_defs(
                     )?;
                 }
             }
-            Some(_) => panic!("unknown ContractTypeDef variant"),
+            Some(_) => {
+                return Err(SpecToolError::UnsupportedVariant(
+                    "unknown ContractTypeDef variant".to_string(),
+                ));
+            }
             None => {
                 return Err(SpecToolError::MissingTypeDef(
                     spec_str_lossy(&symbol).into_owned(),
@@ -547,6 +652,13 @@ fn collect_named_types(
                 collect_named_types(item, defs, resolved, pending)?;
             }
         }
+        ContractType::SignedToken {
+            signed_token_preimage,
+        } => {
+            if let Some(preimage_type) = &signed_token_preimage.preimage_type {
+                collect_named_types(preimage_type, defs, resolved, pending)?;
+            }
+        }
         ContractType::Named { named } => {
             spec_str(named)?;
             let Some(candidates) = defs.get(named) else {
@@ -576,10 +688,13 @@ fn collect_named_types(
         | ContractType::String
         | ContractType::Bytes
         | ContractType::Address => {}
-        // Same policy as canonical_type_key/type_to_json: a variant this
-        // tool doesn't know about must fail loudly, not silently drop its
-        // typedefs from the spec.
-        _ => panic!("unknown ContractType variant"),
+        // A variant this tool doesn't know about must fail loudly, not
+        // silently drop its typedefs from the spec.
+        _ => {
+            return Err(SpecToolError::UnsupportedVariant(
+                "unknown ContractType variant".to_string(),
+            ));
+        }
     }
 
     Ok(())
@@ -603,7 +718,11 @@ fn collect_union_case_named_types(
                 collect_named_types(&field.ty, defs, resolved, pending)?;
             }
         }
-        _ => panic!("unknown ContractUnionCaseType variant"),
+        _ => {
+            return Err(SpecToolError::UnsupportedVariant(
+                "unknown ContractUnionCaseType variant".to_string(),
+            ));
+        }
     }
     Ok(())
 }
@@ -665,16 +784,31 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::Named { named } => {
             format!("named({})", spec_str_lossy(named))
         }
+        ContractType::SignedToken {
+            signed_token_preimage,
+        } => match &signed_token_preimage.preimage_type {
+            Some(preimage_type) => {
+                format!("signed_token({})", canonical_type_key(preimage_type))
+            }
+            None => "signed_token(opaque)".to_string(),
+        },
+        // Unreachable for canonicalized input: `validate_type` rejects
+        // unknown variants at fragment ingestion, before any sort key is
+        // rendered. Kept as a loud backstop for direct callers.
         _ => panic!("unknown ContractType variant"),
     }
 }
 
-fn type_def_symbol(type_def: &ContractTypeDef) -> &ContractSpecString {
+fn type_def_symbol(
+    type_def: &ContractTypeDef,
+) -> Result<&ContractSpecString, SpecToolError> {
     match type_def {
-        ContractTypeDef::TypeDefStruct { struct_def } => &struct_def.name,
-        ContractTypeDef::TypeDefEnum { enum_def } => &enum_def.name,
-        ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
-        _ => panic!("unknown ContractTypeDef variant"),
+        ContractTypeDef::TypeDefStruct { struct_def } => Ok(&struct_def.name),
+        ContractTypeDef::TypeDefEnum { enum_def } => Ok(&enum_def.name),
+        ContractTypeDef::TypeDefUnion { union_def } => Ok(&union_def.name),
+        _ => Err(SpecToolError::UnsupportedVariant(
+            "unknown ContractTypeDef variant".to_string(),
+        )),
     }
 }
 
@@ -756,6 +890,20 @@ pub fn type_to_json(ty: &ContractType) -> serde_json::Value {
             let element = &array.element;
             json!({"kind": "array", "len": array.len, "element": type_to_json(element)})
         }
+        ContractType::SignedToken {
+            signed_token_preimage,
+        } => {
+            // `preimage` is `null` for an erased (opaque) payload.
+            json!({
+                "kind": "signed_token",
+                "preimage": signed_token_preimage
+                    .preimage_type
+                    .as_deref()
+                    .map(type_to_json),
+            })
+        }
+        // Unreachable for canonicalized input (see `validate_type`); loud
+        // backstop for direct callers of this pub fn.
         _ => panic!("unknown ContractType variant"),
     }
 }
@@ -782,6 +930,8 @@ pub fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
                 "case_type": union_case_type_to_json(&c.case_type),
             })).collect::<Vec<_>>(),
         }),
+        // Unreachable for canonicalized input (see `validate_type_def`);
+        // loud backstop for direct callers of this pub fn.
         _ => panic!("unknown ContractTypeDef variant"),
     }
 }
@@ -800,6 +950,8 @@ fn union_case_type_to_json(
             "kind": "struct",
             "fields": struct_fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
+        // Unreachable for canonicalized input (see
+        // `validate_union_case_type`); loud backstop for direct callers.
         _ => panic!("unknown ContractUnionCaseType variant"),
     }
 }
