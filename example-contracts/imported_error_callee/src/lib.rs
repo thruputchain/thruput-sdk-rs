@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
-#![feature(used_with_arg)]
 
 sdk::declare_mock_contract!();
 

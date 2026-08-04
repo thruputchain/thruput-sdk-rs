@@ -10,9 +10,10 @@ pub mod view;
 #[cfg(feature = "owned-model")]
 pub use groundhog_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
-    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
-    ContractTypeDef, ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
+    ContractExceptionType, ContractField, ContractSignedTokenPreimage,
+    ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
     ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
     ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceAnchor,
     SpecInterfaceFragment, SpecMethodFragment,
@@ -75,6 +76,13 @@ pub trait ContractTypeRefSpec {
     /// they are retained via the linker-anchor mechanism
     /// (`__GROUNDHOG_SPEC_ANCHOR_ROOT`) and resolved by spec-tool.
     const INFO: ContractTypeInfo<'static>;
+
+    /// How this type appears as a signed-token preimage
+    /// (`ContractTypeView::SignedToken`'s payload): the type itself by
+    /// default, or `None` for a type-erased payload (the SDK's `Opaque`
+    /// overrides this).
+    const SIGNED_PREIMAGE: Option<&'static view::ContractTypeView<'static>> =
+        Some(&Self::INFO.ty);
 
     /// Hidden root symbol used to retain imported raw typedef fragments.
     #[doc(hidden)]

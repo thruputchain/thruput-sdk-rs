@@ -363,7 +363,9 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json
+    signer_callee_json="${optimized}/signer_callee.spec.json"
+    erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
     free_fn_wasm="${optimized}/free_fn_unnamed.wasm"
     imported_json="${optimized}/imported_error_callee.spec.json"
@@ -422,7 +424,14 @@ check_contract_spec_artifacts() {
     assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
     assert_file_contains "$genesis_json" '"name":"deploy"' &&
     assert_file_contains "$genesis_json" '"name":"deploy_and_invoke"' &&
-    assert_wasm_has_final_spec_only "$genesis_wasm"
+    assert_wasm_has_final_spec_only "$genesis_wasm" &&
+
+    # `Signed<T>` args/returns spec as signed_token nodes carrying the
+    # preimage type (they consume no calldata bytes), never as u32 handles;
+    # `Signed<Opaque>` is an erased (null) preimage.
+    assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
+    assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
+    assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}'
 }
 
 itc_build() {

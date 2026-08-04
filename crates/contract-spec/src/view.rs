@@ -6,11 +6,11 @@
 #[cfg(feature = "owned-model")]
 use crate::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
-    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
-    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceAnchor,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractExceptionType, ContractField, ContractSignedTokenPreimage,
+    ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
 };
 #[cfg(feature = "owned-model")]
 use alloc::{boxed::Box, vec::Vec};
@@ -70,6 +70,12 @@ pub enum ContractTypeView<'a> {
     Named(&'a str) = 14,
     U8 = 15,
     Array(ContractArrayTypeView<'a>) = 16,
+    /// A signed auth token whose preimage has the referenced type, or
+    /// `None` for a type-erased (opaque) payload. Encodes identically to
+    /// the owned model's `ContractSignedTokenPreimage` wrapper (a single
+    /// optional `ContractType` field). Consumes no calldata bytes; the
+    /// token handle arrives out of band.
+    SignedToken(Option<&'a ContractTypeView<'a>>) = 17,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -356,6 +362,14 @@ impl From<ContractTypeView<'_>> for ContractType {
             ContractTypeView::Array(array) => ContractType::Array {
                 array: array.into(),
             },
+            ContractTypeView::SignedToken(inner) => {
+                ContractType::SignedToken {
+                    signed_token_preimage: ContractSignedTokenPreimage {
+                        preimage_type: inner
+                            .map(|inner| Box::new((*inner).into())),
+                    },
+                }
+            }
         }
     }
 }

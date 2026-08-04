@@ -74,6 +74,6 @@ jobs:
           version: ${{ inputs.version }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-01-30
+          toolchain: nightly-2026-07-01
           force: 'true'
           expected-tag: v${{ inputs.version }}

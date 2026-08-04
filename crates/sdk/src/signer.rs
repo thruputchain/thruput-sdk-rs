@@ -272,11 +272,48 @@ impl<T> ReceiveAuthHandles for Signed<T> {
     }
 }
 
-impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T> {
+/// A `Signed<Opaque>` is a token whose payload type is erased, so as a
+/// signed-token preimage `Opaque` is `None`. Its `INFO` type is
+/// unreachable in practice — `Opaque` has no XDR impls, so it cannot
+/// appear in a method signature outside `Signed<Opaque>`, whose spec node
+/// uses only `SIGNED_PREIMAGE`.
+impl groundhog_contract_spec::ContractTypeRefSpec for Opaque {
     const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
         groundhog_contract_spec::ContractTypeInfo {
-            ty: groundhog_contract_spec::view::ContractTypeView::U32,
+            ty: groundhog_contract_spec::view::ContractTypeView::Void,
         };
+
+    const SIGNED_PREIMAGE: Option<
+        &'static groundhog_contract_spec::view::ContractTypeView<'static>,
+    > = None;
+}
+
+/// A `Signed<T>` consumes no calldata bytes (the handle arrives out of
+/// band); its spec node is `SignedToken` carrying `T`'s type as the token
+/// preimage (`None` for `Signed<Opaque>`), so spec-driven encoders neither
+/// reserve calldata bytes for it nor lose the preimage shape.
+impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T>
+where
+    T: groundhog_contract_spec::ContractTypeRefSpec,
+{
+    const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
+        groundhog_contract_spec::ContractTypeInfo {
+            ty: groundhog_contract_spec::view::ContractTypeView::SignedToken(
+                T::SIGNED_PREIMAGE,
+            ),
+        };
+
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(
+        target_arch = "riscv32",
+        unsafe(link_section = "groundhogspecanchortextv0")
+    )]
+    fn __groundhog_spec_anchor() -> usize {
+        groundhog_contract_spec::mix_anchor_fn(
+            0,
+            <T as groundhog_contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -527,6 +564,29 @@ mod tests {
         let mut buf = crate::collect_auth_handles::AuthHandleBuf::new();
         args.collect_auth_handles(&mut buf).unwrap();
         assert_eq!(buf.as_slice(), &[10, 20]);
+    }
+
+    #[test]
+    fn signed_spec_is_signed_token_of_payload_type() {
+        use groundhog_contract_spec::type_ref;
+        use groundhog_contract_spec::view::ContractTypeView;
+
+        assert_eq!(
+            type_ref::<Signed<u64>>(),
+            ContractTypeView::SignedToken(Some(&ContractTypeView::U64))
+        );
+        // Erased payload specs as SignedToken(None).
+        assert_eq!(
+            type_ref::<Signed<Opaque>>(),
+            ContractTypeView::SignedToken(None)
+        );
+        // Nested tokens spec recursively.
+        assert_eq!(
+            type_ref::<Signed<Signed<u32>>>(),
+            ContractTypeView::SignedToken(Some(
+                &ContractTypeView::SignedToken(Some(&ContractTypeView::U32))
+            ))
+        );
     }
 
     #[test]
