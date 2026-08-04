@@ -51,8 +51,6 @@ pub fn setup_etx_primed() -> Result<Etx> {
     Ok(etx)
 }
 
-pub use setup_etx_primed as setup_pair_primed;
-
 // Contract code
 
 // Deploy and init A/B token contracts, given the hash of a registered token
