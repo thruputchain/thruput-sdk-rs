@@ -350,10 +350,19 @@ fn invoke_frame(
 
 /// Size the auth-handle buffer to hold the token-id list the syscall
 /// outputs report.
+///
+/// The runtime guarantees the reported byte length is a multiple of four
+/// (the list is `u32` token ids), so the division below never discards
+/// trailing bytes.
 fn resize_auth_handles(
     buf: &mut AuthHandleBuf,
     outputs: &sys::CopyableInvokeOutputs,
 ) -> Result<(), CallFault> {
+    debug_assert!(
+        (outputs.returned_auth_token_len as usize)
+            .is_multiple_of(core::mem::size_of::<u32>()),
+        "runtime reported an auth-token byte length not divisible by four"
+    );
     let count =
         outputs.returned_auth_token_len as usize / core::mem::size_of::<u32>();
     #[cfg(feature = "alloc")]

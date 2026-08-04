@@ -50,6 +50,35 @@ fn consume_aborts_on_leftover_child_handles() {
 }
 
 #[test]
+fn assume_tokens_mismatch_throws_cross_call_decode_error() {
+    use sdk::exn::{CallingError, LibraryExn, RawException};
+    use sdk::signer::{AssumeTokens, Opaque};
+
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            // A called wallet decides how many tokens it returns; the
+            // wrong count must surface as the same catchable cross-call
+            // error as a return-payload decode failure, not a panic.
+            let tokens: Vec<Signed<Opaque>> = vec![];
+            let (_,): (Signed<u64>,) =
+                AssumeTokens::try_assume_tokens(tokens).or_re_throw();
+        })
+    });
+    result.assert_abort();
+
+    let caught =
+        RawException::from_abort_buf(result.frame().abort_buffer()).unwrap();
+    let exn = caught
+        .try_as::<LibraryExn>()
+        .expect("abort payload decodes as LibraryExn");
+    assert!(
+        matches!(exn, LibraryExn::Calling(CallingError::DecodingSuccess(_))),
+        "expected Calling(DecodingSuccess), got {exn:?}"
+    );
+}
+
+#[test]
 fn consume_succeeds_with_exact_child_handles() {
     let env = TestEnvironment::no_cost();
     let result = env.transact(|tx| {
