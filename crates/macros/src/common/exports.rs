@@ -355,7 +355,10 @@ pub fn generate_method(
             .as_ref()
             .map(|r| {
                 r.mutability.is_some()
-                    || matches!(&r.kind, syn::ReceiverKind::Reference(_, _, Some(_)))
+                    || matches!(
+                        &r.kind,
+                        syn::ReceiverKind::Reference(_, _, Some(_))
+                    )
             })
             .unwrap_or(false);
 
