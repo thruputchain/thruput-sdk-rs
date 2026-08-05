@@ -353,7 +353,10 @@ pub fn generate_method(
             .sig()
             .receiver()
             .as_ref()
-            .map(|r| r.mutability.is_some())
+            .map(|r| {
+                r.mutability.is_some()
+                    || matches!(&r.kind, syn::ReceiverKind::Reference(_, _, Some(_)))
+            })
             .unwrap_or(false);
 
     let arg_names = method_arg_name_list(method.sig());
