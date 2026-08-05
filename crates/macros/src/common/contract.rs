@@ -219,11 +219,11 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn trait_path(&self) -> Option<syn::Path> {
-        self.trait_.as_ref().map(|(_, path, _)| path.clone())
+        self.trait_.as_ref().map(|(path, _)| path.clone())
     }
 
     fn interface_name(&self) -> Option<String> {
-        if let Some((_, path, _)) = &self.trait_ {
+        if let Some((path, _)) = &self.trait_ {
             return Some(path_last_segment_ident(path).to_string());
         }
 
@@ -544,7 +544,7 @@ pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
         }),
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
-        | syn::Type::BareFn(_)
+        | syn::Type::FnPtr(_)
         | syn::Type::Ptr(_) => Err(error(
             ty,
             "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
@@ -568,7 +568,7 @@ pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
         }
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
-        | syn::Type::BareFn(_)
+        | syn::Type::FnPtr(_)
         | syn::Type::Ptr(_) => Err(error(
             ty,
             "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",

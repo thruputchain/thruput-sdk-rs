@@ -16,11 +16,11 @@ proc-macro = true
 
 [dependencies]
 groundhog-contract-util = { workspace = true, features = ["syn"] }
-darling = "0.20.10"
+darling = "0.24"
 proc-macro2 = "1.0.92"
 quote = "1.0.38"
 sha2 = { workspace = true }
-syn = { version = "2.0.93" , features = [ "full" , "extra-traits", "visit", "printing", "fold" ] }
+syn = { version = "3.0.3" , features = [ "full" , "extra-traits", "visit", "printing", "fold" ] }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 
 [features]
