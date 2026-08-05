@@ -101,7 +101,7 @@ xdrs = { registry = "groundhog", version = "0.8.2", default-features = false, fe
 xdr-common = { registry = "groundhog", version = "0.8.0" }
 
 # Other groundhog deps:
-groundhog-wasm-meter = { registry = "groundhog", version = "0.3" }
+groundhog-wasm-meter = { registry = "groundhog", version = "0.8" }
 
 # External crates.io dependencies
 thiserror = { version = "2.0.12", default-features = false }

@@ -499,9 +499,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-wasm-meter"
-version = "0.3.0"
+version = "0.8.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "44ecac25b56261eb42d76a7016f5496f350fc32814a4075110c70be0abeed152"
+checksum = "fb2d6b4f18f83d7ce7fd8a6dea56d54e8c6c9c7cceb7a7a5f9fb08c508b23429"
 dependencies = [
  "wasm-encoder",
  "wasmparser",
