@@ -168,12 +168,23 @@ pub fn generate_trait_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
 
-    // A trait emits its interface/method/event fragments as *candidates*,
+    // A trait emits its interface/method fragments as *candidates*,
     // target-gated (not `entrypoints`): present whenever the interface crate
     // compiles for a contract target, with no feature required, and retained
     // via `#[used]`. Post-processing drops them unless something anchors the
     // interface — a `#[contract] impl` does this, and a standalone interface
     // carrier does it explicitly via `export_interface_spec!`.
+    //
+    // Event fragments are the exception: post-processing has no anchor key for
+    // them (a raw `SpecEvent` carries only the event def, no interface
+    // name/version), so target-gated event candidates would survive shaking
+    // and land in the spec of every contract that merely *links* this
+    // interface crate. They are therefore `entrypoints`-gated, so the trait
+    // donates its events only when this crate is itself the artifact being
+    // spec'd (its `export_interface_spec!` carrier, built `-F entrypoints`).
+    // An implementor doesn't need them from here: the trait-impl branch of
+    // `generate_impl_raw_spec_fragments` re-emits the same defs from
+    // `__GROUNDHOG_IFACE_EVENTS`, gated on the *contract's* `entrypoints`.
     let interface_fragment = generate_interface_fragment_tokens(
         &target_cfg(),
         quote! { #iface_name },
@@ -181,10 +192,14 @@ pub fn generate_trait_raw_spec_fragments(
         quote! { &[#(#throws),*] },
     );
     let event_fragments =
-        generate_config_event_fragments_tokens(&target_cfg(), config);
+        generate_config_event_fragments_tokens(&entrypoints_cfg(), config);
+    let event_anchor_root = emit_root_anchor_tokens(
+        &entrypoints_cfg(),
+        &config_event_anchor_tokens(config),
+    )
+    .unwrap_or_else(|| quote! {});
 
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
-    anchor_roots.extend(config_event_anchor_tokens(config));
 
     let method_fragments = methods
         .iter()
@@ -208,6 +223,7 @@ pub fn generate_trait_raw_spec_fragments(
         #(#method_fragments)*
         #event_fragments
         #anchor_root
+        #event_anchor_root
     })
 }
 

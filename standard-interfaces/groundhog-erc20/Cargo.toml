@@ -9,10 +9,10 @@ description = "ERC20 standard interface for Groundhog smart contracts"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
-# Selects the rv32 spec-carrier bin target (below). The trait's spec is
-# target-gated and needs no feature; this only gates the carrier bin, built
-# with `-F entrypoints` like every other contract's spec build. A plain
-# `cargo build`/`test` skips the entry-point-less bin without it.
+# Selects the rv32 spec-carrier bin target (below), and gates the trait's
+# event fragments. The trait's interface/method spec is target-gated and needs
+# no feature; only its `emits(...)` events require `entrypoints`, so a contract
+# that merely links this crate doesn't inherit them.
 entrypoints = []
 dev = ["sdk/dev", "dep:thiserror"]
 
