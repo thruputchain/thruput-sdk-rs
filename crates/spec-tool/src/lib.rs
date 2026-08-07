@@ -172,8 +172,9 @@ pub fn canonicalize_spec(
                 for name in &emits {
                     if spec_str(name)?.is_empty() {
                         return Err(SpecToolError::InvalidRawFragment(
-                            "interface emits entries must be non-empty"
-                                .to_string(),
+                            format!(
+                                "{interface_key}: interface emits entries must be non-empty"
+                            ),
                         ));
                     }
                 }
@@ -326,6 +327,7 @@ pub fn canonicalize_spec(
                 ))
             })?;
 
+            // Unreachable in practice: the throws check above fires first for anchor-only buckets; kept for symmetry.
             let emits = bucket.emits.ok_or_else(|| {
                 SpecToolError::MissingInterfaceFragment(interface_key_string(
                     &spec_str_lossy(&name),

@@ -341,6 +341,18 @@ assert_file_contains() {
     }
 }
 
+assert_file_lacks() {
+    local path
+    path="$1"; shift
+    local needle
+    needle="$1"; shift
+
+    if rg -F --quiet "$needle" "$path"; then
+        fail "Expected $path to lack $needle"
+        return 1
+    fi
+}
+
 assert_wasm_has_final_spec_only() {
     local path
     path="$1"; shift
@@ -400,6 +412,8 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
     assert_file_contains "$spec_named_json" '"name":"PayloadEvent"' &&
     assert_file_contains "$spec_named_json" '"name":"AuditEvent"' &&
+    assert_file_lacks "$spec_named_json" '"name":"GhostEvent"' &&
+    assert_file_lacks "$spec_named_json" '"name":"UnimplementedInterface"' &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&

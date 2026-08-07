@@ -112,7 +112,6 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -209,7 +208,6 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -233,7 +231,6 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -451,7 +448,6 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -506,7 +502,6 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -613,7 +608,6 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -626,7 +620,6 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },
@@ -677,7 +670,6 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
                 })]
                 .try_into()
                 .unwrap(),
-
                 emits: vec![].try_into().unwrap(),
             },
         },

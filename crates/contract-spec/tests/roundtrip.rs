@@ -739,10 +739,14 @@ fn alias_byte_collections_resolve_via_trait_layer() {
 
 #[test]
 fn interface_fragment_emits_roundtrips() {
+    let throws = [ContractExceptionTypeView {
+        selector: 0xDEAD,
+        ty: ContractTypeView::Named("DemoError"),
+    }];
     let view = SpecFragmentView::Interface(SpecInterfaceFragmentView {
         interface_name: "Token",
         interface_version: "0.1.0",
-        throws: &[],
+        throws: &throws,
         emits: &["TransferEvent", "ApprovalEvent"],
     });
     let encoded = txs::encode(&view).unwrap();
@@ -757,6 +761,8 @@ fn interface_fragment_emits_roundtrips() {
         interface_fragment.emits.to_vec(),
         vec![s("TransferEvent"), s("ApprovalEvent")]
     );
+    assert_eq!(interface_fragment.throws.len(), 1);
+    assert_eq!(interface_fragment.throws[0].selector, 0xDEAD);
     // Owned conversion path agrees:
     let owned = SpecFragment::from(view);
     assert_eq!(owned, decoded);
