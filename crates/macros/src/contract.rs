@@ -115,6 +115,15 @@ fn apply_with_config(
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_EVENTS: &'static [::sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
             });
+            let emits_name_tokens = emits.iter().map(|path| {
+                quote::quote! {
+                    <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
+                }
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_EMITS: &'static [&'static str] = &[#(#emits_name_tokens),*];
+            });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 #[cfg_attr(target_arch = "riscv32", inline(never))]
@@ -442,6 +451,25 @@ mod emits_tests {
         assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
         assert!(
             tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn trait_gets_emits_names_const() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Token {
+                fn transfer(&mut self);
+            }
+        };
+
+        let config =
+            parse_config(r#"emits(TransferEvent, events::ApprovalEvent)"#);
+        let tokens = apply_with_config(&item, &config).unwrap().to_string();
+
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
+        assert!(
+            tokens.contains("ContractEventSpec > :: EVENT_DEF . name"),
             "{tokens}"
         );
     }
