@@ -241,7 +241,6 @@ check_rv32_mem_symbols() {
 
 eg_build_rv32_all() {
     require_groundhog_cli || return 1
-    rv32_cli_supports_raw_spec || return 0
 
     local package elf
     for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
@@ -256,7 +255,8 @@ eg_build_rv32_all() {
         check_rv32_dispatch "$elf" || return 1
         check_rv32_mem_symbols "$elf" || return 1
     done
-    check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts")
+    check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts") &&
+    check_rv32_contract_spec_artifacts
 }
 
 # integration_test rv32 contracts are NOT *-rv32 wrapper packages — the rv32
@@ -279,7 +279,6 @@ ls_itc_rv32_packages() {
 
 itc_build_rv32_all() {
     require_groundhog_cli || return 1
-    rv32_cli_supports_raw_spec || return 0
     # Discovery yielding nothing means the tree moved under us (dir renamed,
     # bins dropped) — fail rather than silently build zero contracts.
     [ -n "$(ls_itc_rv32_packages)" ] || {
@@ -377,7 +376,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -390,6 +389,7 @@ check_contract_spec_artifacts() {
     genesis_wasm="${optimized}/genesis_deployer.wasm"
     erc20_json="${optimized}/erc20_raw_storage.spec.json"
     swap_json="${optimized}/swap.spec.json"
+    event_shaking_json="${optimized}/event_shaking_subset.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -418,6 +418,20 @@ check_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"name":"AuditEvent"' &&
     assert_file_lacks "$spec_named_json" '"name":"GhostEvent"' &&
     assert_file_lacks "$spec_named_json" '"name":"UnimplementedInterface"' &&
+
+    # Cross-crate event shaking: event_shaking_subset implements only the
+    # `Adopted` trait from event_shaking_if; `Orphan` is never implemented.
+    # The spec JSON is minified (no spaces), so needle matching is exact.
+    # "name":"Orphan"  ends with a closing quote so it cannot false-match
+    # "name":"OrphanEvent" (which has 'E' after "Orphan", not '"').
+    # AdoptedPayload asserts positive typedef retention; OrphanPayload asserts
+    # typedef shaking (both directions covered by a single fixture).
+    assert_file_contains "$event_shaking_json" '"name":"Adopted"' &&
+    assert_file_contains "$event_shaking_json" '"name":"AdoptedEvent"' &&
+    assert_file_contains "$event_shaking_json" '"name":"AdoptedPayload"' &&
+    assert_file_lacks "$event_shaking_json" '"name":"Orphan"' &&
+    assert_file_lacks "$event_shaking_json" '"name":"OrphanEvent"' &&
+    assert_file_lacks "$event_shaking_json" '"name":"OrphanPayload"' &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
@@ -448,6 +462,35 @@ check_contract_spec_artifacts() {
     assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
     assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
     assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}'
+}
+
+# Asserts on rv32-pipeline-produced spec JSONs written to target/groundhog/.
+# Called at the end of eg_build_rv32_all (not from check_all) so it only runs
+# when the rv32 build succeeds and is not skipped via SKIP_RV32_EXAMPLES.
+# NOTE: assumes the rv32 build loop ran in the same invocation — target/groundhog
+# is never cleaned automatically, so a stale spec from a previous run could
+# otherwise satisfy these checks without the current code being re-exercised.
+check_rv32_contract_spec_artifacts() {
+    info "CHECK-SPECS(rv32)"
+
+    local groundhog_dir
+    groundhog_dir="${TARGET_DIR}/groundhog"
+
+    # Same needles as the wasm block for event_shaking_subset; the rv32 spec
+    # JSON is also minified (no spaces), so the same false-positive reasoning
+    # applies: "name":"Orphan" (closing quote after n) cannot match
+    # "name":"OrphanEvent" (E comes before the closing quote).
+    # AdoptedPayload asserts positive typedef retention; OrphanPayload asserts
+    # typedef shaking (both directions covered by a single fixture).
+    local rv32_event_shaking_json
+    rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset_rv32.spec.json"
+
+    assert_file_contains "$rv32_event_shaking_json" '"name":"Adopted"' &&
+    assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedEvent"' &&
+    assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedPayload"' &&
+    assert_file_lacks "$rv32_event_shaking_json" '"name":"Orphan"' &&
+    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanEvent"' &&
+    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanPayload"'
 }
 
 itc_build() {
@@ -830,23 +873,6 @@ warn() {
 
 fail() {
     printf "\n!! %s\n" "$1" >&2
-    return 1
-}
-
-# TODO(spec-0.18): remove this gate once a groundhog CLI built against
-# spec-tool >= 0.18 is released and GROUNDHOG_CLI_VERSION is bumped past
-# 0.7.0. The raw spec fragment format gained interface `emits` refs in SDK
-# 0.18.0 (breaking); older CLIs hard-error parsing the rv32 raw section
-# ("non-zero XDR padding"), so rv32 builds are skipped — loudly — until the
-# pin catches up. Wasm spec coverage is unaffected (it uses the in-repo
-# spec-tool).
-rv32_cli_supports_raw_spec() {
-    local installed
-    installed=$(groundhog --version | awk '{print $2}')
-    if [ "$(printf '%s\n' "$installed" 0.7.0 | sort -V | head -1)" = "0.7.0" ]; then
-        return 0
-    fi
-    warn "groundhog CLI ${installed} predates the 0.18 raw spec format; SKIPPING rv32 contract builds until the CLI pin is bumped past 0.7.0 (TODO(spec-0.18))"
     return 1
 }
 
