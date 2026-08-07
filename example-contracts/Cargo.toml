@@ -53,6 +53,9 @@ members = [
     "multi_root_storage",
     "slot_reorder",
     "velocity_limit",
+    "event_shaking_if",
+    "event_shaking_subset",
+    "event_shaking_subset-rv32",
 ]
 
 exclude = [

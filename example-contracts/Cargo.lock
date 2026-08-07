@@ -307,6 +307,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
 
 [[package]]
+name = "event_shaking_if"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
+name = "event_shaking_subset"
+version = "0.4.0"
+dependencies = [
+ "event_shaking_if",
+ "event_shaking_subset",
+ "sdk",
+]
+
+[[package]]
+name = "event_shaking_subset-rv32"
+version = "0.4.0"
+dependencies = [
+ "event_shaking_subset",
+ "sdk",
+]
+
+[[package]]
 name = "exceptions"
 version = "0.4.0"
 dependencies = [

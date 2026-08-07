@@ -1,0 +1,28 @@
+[package]
+name = "event_shaking_subset"
+description = "Contract implementing only a subset of imported interface traits (event-shaking e2e)"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "event_shaking_if/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+event_shaking_if = { path = "../event_shaking_if" }
+
+[dev-dependencies]
+event_shaking_subset = { path = ".", features = ["dev"] }
