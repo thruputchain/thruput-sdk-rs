@@ -28,6 +28,7 @@ pub struct SpecInterfaceFragment {
     pub interface_name: ContractSpecString,
     pub interface_version: ContractSpecString,
     pub throws: VecM<ContractExceptionType>,
+    pub emits: VecM<ContractSpecString>,
 }
 
 #[derive(

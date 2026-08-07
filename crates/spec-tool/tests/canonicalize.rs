@@ -69,6 +69,7 @@ fn canonicalize_spec_drops_unanchored_interfaces() {
             interface_name: s("Named"),
             interface_version: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }])
     .unwrap();
@@ -111,6 +112,8 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -206,6 +209,8 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -228,6 +233,8 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -282,6 +289,7 @@ fn canonicalize_spec_dedups_identical_methods() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -314,6 +322,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -389,6 +398,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -441,6 +451,8 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -494,6 +506,8 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -544,6 +558,7 @@ fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -598,6 +613,8 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -609,6 +626,8 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -658,6 +677,8 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
                 })]
                 .try_into()
                 .unwrap(),
+
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -706,6 +727,7 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
             interface_name: s("Named"),
             interface_version: s("v1"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }])
     .unwrap_err();
@@ -726,6 +748,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -840,6 +863,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -917,6 +941,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1003,6 +1028,7 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1176,6 +1202,7 @@ fn non_utf8_interface_name_is_rejected_not_panicked() {
             .unwrap(),
             interface_version: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
 
@@ -1190,6 +1217,7 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1232,6 +1260,7 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
                 ]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1272,6 +1301,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
                 ]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {

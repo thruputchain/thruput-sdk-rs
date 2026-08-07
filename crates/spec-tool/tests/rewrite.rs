@@ -115,6 +115,7 @@ fn rewrite_cli_writes_a_json_sidecar() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
 
@@ -164,6 +165,7 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -287,6 +289,7 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -294,6 +297,7 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -335,6 +339,7 @@ fn rewrite_preserves_unrelated_custom_sections() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
     let mut module = Module::new();
@@ -382,6 +387,7 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -389,6 +395,7 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -424,6 +431,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     })
     .unwrap();
@@ -433,6 +441,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -440,6 +449,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -475,6 +485,7 @@ fn rewrite_preserves_unrelated_data_segments() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
     let kept_data = b"retain-me".to_vec();
@@ -518,6 +529,7 @@ fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
     let mut raw_module = Module::new();
@@ -539,6 +551,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -546,6 +559,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);

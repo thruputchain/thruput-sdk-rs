@@ -179,6 +179,11 @@ pub struct SpecInterfaceFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
     pub throws: &'a [ContractExceptionTypeView<'a>],
+    /// Names of the events this interface declares via `emits(...)`.
+    /// References into the artifact's event-def pool; the post-processor
+    /// retains only event defs referenced by a surviving interface (or
+    /// force-exported via `#[event_spec(export)]`).
+    pub emits: &'a [&'a str],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -562,6 +567,14 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
                 .iter()
                 .copied()
                 .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+            emits: value
+                .emits
+                .iter()
+                .copied()
+                .map(to_spec_string)
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),
