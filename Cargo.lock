@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
@@ -412,7 +412,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -422,7 +422,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -561,7 +561,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -572,7 +572,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-xdr",
  "sha2 0.11.0",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-domain-separator"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-xdr",
  "hex-literal",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc1271-if"
-version = "0.1.7"
+version = "0.1.6"
 dependencies = [
  "sdk",
  "thiserror",
@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.7"
+version = "0.1.6"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-xdr",
@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-metadata-if"
-version = "0.1.7"
+version = "0.1.6"
 dependencies = [
  "groundhog-erc20-metadata-if",
  "groundhog-xdr",
@@ -620,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -628,7 +628,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "darling 0.20.11",
  "groundhog-contract-util",
@@ -641,7 +641,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "ed25519-dalek",
  "groundhog-domain-separator",
@@ -658,7 +658,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-rv32-runtime"
-version = "0.18.0"
+version = "0.17.6"
 
 [[package]]
 name = "groundhog-serde_arrays"
@@ -684,7 +684,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec-tool"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-contract-spec",
  "sdk",
@@ -698,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "bindgen",
  "cmake",
@@ -723,7 +723,7 @@ checksum = "159b91cc2e2d7eb5cc60df2e4a11333bdf1b2bff04311d19fdadf50d769c0ee6"
 
 [[package]]
 name = "groundhog-test-vectors"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-contract-util",
  "groundhog-domain-separator",
@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-wasm-runtime"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-xdr",
  "heapless",
@@ -1236,7 +1236,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
@@ -1643,7 +1643,7 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "vector-tests"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "sdk",
  "vector-tests",
@@ -1651,7 +1651,7 @@ dependencies = [
 
 [[package]]
 name = "version-check"
-version = "0.18.0"
+version = "0.17.6"
 dependencies = [
  "semver",
  "toml_edit",
