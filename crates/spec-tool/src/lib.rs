@@ -275,11 +275,10 @@ pub fn canonicalize_spec(
                     interface_anchor.interface_name.clone(),
                     interface_anchor.interface_version.clone(),
                 ));
-            }
-            // `SpecFragment` is SDK-owned and matched exhaustively: a new
-            // fragment kind is a compile error here, and an unknown
-            // discriminant in raw bytes fails XDR decode in
-            // `parse_raw_fragments` before reaching this match.
+            } // `SpecFragment` is SDK-owned and matched exhaustively: a new
+              // fragment kind is a compile error here, and an unknown
+              // discriminant in raw bytes fails XDR decode in
+              // `parse_raw_fragments` before reaching this match.
         }
     }
 
