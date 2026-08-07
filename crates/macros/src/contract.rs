@@ -469,7 +469,15 @@ mod emits_tests {
 
         assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
         assert!(
-            tokens.contains("ContractEventSpec > :: EVENT_DEF . name"),
+            tokens.contains(
+                "< TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
+            ),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains(
+                "< events :: ApprovalEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
+            ),
             "{tokens}"
         );
     }
