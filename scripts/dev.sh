@@ -241,6 +241,7 @@ check_rv32_mem_symbols() {
 
 eg_build_rv32_all() {
     require_groundhog_cli || return 1
+    rv32_cli_supports_raw_spec || return 0
 
     local package elf
     for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
@@ -278,6 +279,7 @@ ls_itc_rv32_packages() {
 
 itc_build_rv32_all() {
     require_groundhog_cli || return 1
+    rv32_cli_supports_raw_spec || return 0
     # Discovery yielding nothing means the tree moved under us (dir renamed,
     # bins dropped) — fail rather than silently build zero contracts.
     [ -n "$(ls_itc_rv32_packages)" ] || {
@@ -828,6 +830,23 @@ warn() {
 
 fail() {
     printf "\n!! %s\n" "$1" >&2
+    return 1
+}
+
+# TODO(spec-0.18): remove this gate once a groundhog CLI built against
+# spec-tool >= 0.18 is released and GROUNDHOG_CLI_VERSION is bumped past
+# 0.7.0. The raw spec fragment format gained interface `emits` refs in SDK
+# 0.18.0 (breaking); older CLIs hard-error parsing the rv32 raw section
+# ("non-zero XDR padding"), so rv32 builds are skipped — loudly — until the
+# pin catches up. Wasm spec coverage is unaffected (it uses the in-repo
+# spec-tool).
+rv32_cli_supports_raw_spec() {
+    local installed
+    installed=$(groundhog --version | awk '{print $2}')
+    if [ "$(printf '%s\n' "$installed" 0.7.0 | sort -V | head -1)" = "0.7.0" ]; then
+        return 0
+    fi
+    warn "groundhog CLI ${installed} predates the 0.18 raw spec format; SKIPPING rv32 contract builds until the CLI pin is bumped past 0.7.0 (TODO(spec-0.18))"
     return 1
 }
 
