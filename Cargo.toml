@@ -36,7 +36,7 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.17.6"
+version = "0.18.0"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
@@ -66,23 +66,23 @@ categories = ["blockchain"]
 # previously-published versions will be incompatible with the new
 # SDK.)
 #
-sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.17.6" }
-groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.17.6" }
-groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.17.6" }
-groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.17.6", default-features = false }
-groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.17.6" }
-groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.17.6" }
-groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.17.6" }
-groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.17.6" }
-groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.17.6" }
-groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.17.6" }
-groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.17.6" }
-groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.17.6" }
-groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.17.6" }
+sdk = { path = "crates/sdk", registry = "groundhog", version = "=0.18.0" }
+groundhog-macros = { path = "crates/macros", registry = "groundhog", version = "=0.18.0" }
+groundhog-contract-util = { path = "crates/contract-util" , registry = "groundhog", version = "=0.18.0" }
+groundhog-contract-spec = { path = "crates/contract-spec", registry = "groundhog", version = "=0.18.0", default-features = false }
+groundhog-native-exec = { path = "crates/native-exec" , registry = "groundhog", version = "=0.18.0" }
+groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "=0.18.0" }
+groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.18.0" }
+groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.18.0" }
+groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.18.0" }
+groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.18.0" }
+groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.18.0" }
+groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.18.0" }
+groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.18.0" }
 # Standard interfaces (also this repository)
-groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.6" }
-groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.6" }
-groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.6" }
+groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.7" }
+groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.7" }
+groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.7" }
 # Unpublished test crates
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
