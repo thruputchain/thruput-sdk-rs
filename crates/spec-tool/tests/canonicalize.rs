@@ -1067,14 +1067,15 @@ fn event_def(name: &str, payload_ty: ContractType) -> ContractEventDef {
 #[test]
 fn canonicalize_spec_collects_and_dedupes_event_defs() {
     let mut fragments = base_interface_fragments();
-    fragments.push(SpecFragment::SpecEvent {
+    // ExportedSpecEvent is always retained; identical duplicates (e.g. from
+    // another codegen unit) are deduped regardless of fragment variant.
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::U128),
     });
-    // An identical duplicate (e.g. from another codegen unit) merges.
-    fragments.push(SpecFragment::SpecEvent {
+    // An identical duplicate merges.
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::U128),
     });
-    // The exported variant is collected through the same path.
     fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("ApprovalEvent", ContractType::I128),
     });
@@ -1088,8 +1089,10 @@ fn canonicalize_spec_collects_and_dedupes_event_defs() {
 
 #[test]
 fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
+    // ExportedSpecEvent is retained regardless of interface emits; its field
+    // types are resolved transitively.
     let mut fragments = base_interface_fragments();
-    fragments.push(SpecFragment::SpecEvent {
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def(
             "MintEvent",
             ContractType::Named {
@@ -1118,7 +1121,7 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
 
     // Without the typedef fragment the named reference must fail.
     let mut missing = base_interface_fragments();
-    missing.push(SpecFragment::SpecEvent {
+    missing.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def(
             "MintEvent",
             ContractType::Named {
@@ -1134,11 +1137,12 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_event_defs() {
+    // Use ExportedSpecEvent so both defs are retained; conflict check must fire.
     let mut fragments = base_interface_fragments();
-    fragments.push(SpecFragment::SpecEvent {
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::U128),
     });
-    fragments.push(SpecFragment::SpecEvent {
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::I128),
     });
 
@@ -1319,4 +1323,146 @@ fn identical_duplicate_exception_entries_are_deduped() {
     .unwrap();
 
     assert_eq!(spec.interfaces[0].throws.len(), 1);
+}
+
+// ---------------------------------------------------------------------------
+// Event shaking
+// ---------------------------------------------------------------------------
+
+fn event(name: &str) -> ContractEventDef {
+    ContractEventDef {
+        name: s(name),
+        signature: [0u8; 32].into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    }
+}
+
+fn iface_with_emits(name: &str, emits: &[&str]) -> SpecFragment {
+    SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            emits: emits
+                .iter()
+                .map(|e| s(e))
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        },
+    }
+}
+
+fn anchor(name: &str) -> SpecFragment {
+    SpecFragment::InterfaceAnchor {
+        interface_anchor: SpecInterfaceAnchor {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+        },
+    }
+}
+
+#[test]
+fn events_of_unanchored_interfaces_are_shaken() {
+    // Impl'd interface A emits AEvent; interface B is an unimplemented
+    // candidate from the same interface crate emitting BEvent. Only AEvent
+    // may survive.
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &["AEvent"]),
+        SpecFragment::SpecEvent {
+            event_def: event("AEvent"),
+        },
+        iface_with_emits("B", &["BEvent"]),
+        SpecFragment::SpecEvent {
+            event_def: event("BEvent"),
+        },
+        anchor("A"),
+    ])
+    .unwrap();
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["AEvent"]);
+}
+
+#[test]
+fn exported_events_survive_without_any_interface_reference() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        SpecFragment::ExportedSpecEvent {
+            event_def: event("LooseEvent"),
+        },
+        anchor("A"),
+    ])
+    .unwrap();
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["LooseEvent"]);
+}
+
+#[test]
+fn conflicting_defs_ignored_when_event_is_shaken() {
+    // B's conflicting def of "Ev" must not fail A's build once B is shaken.
+    let mut other = event("Ev");
+    other.signature = [1u8; 32].into();
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        iface_with_emits("B", &["Ev"]),
+        SpecFragment::SpecEvent {
+            event_def: event("Ev"),
+        },
+        SpecFragment::SpecEvent { event_def: other },
+        anchor("A"),
+    ])
+    .unwrap();
+    assert!(spec.events.is_empty());
+}
+
+#[test]
+fn conflicting_defs_of_retained_event_still_error() {
+    let mut other = event("Ev");
+    other.signature = [1u8; 32].into();
+    let err = canonicalize_spec(&[
+        iface_with_emits("A", &["Ev"]),
+        SpecFragment::SpecEvent {
+            event_def: event("Ev"),
+        },
+        SpecFragment::SpecEvent { event_def: other },
+        anchor("A"),
+    ])
+    .unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::ConflictingEventDef(_)),
+        "{err}"
+    );
+}
+
+#[test]
+fn emits_reference_without_def_errors() {
+    let err = canonicalize_spec(&[
+        iface_with_emits("A", &["GhostEvent"]),
+        anchor("A"),
+    ])
+    .unwrap_err();
+    assert!(matches!(err, SpecToolError::MissingEventDef(_)), "{err}");
+}
+
+#[test]
+fn conflicting_interface_emits_error() {
+    let err = canonicalize_spec(&[
+        iface_with_emits("A", &["Y"]),
+        iface_with_emits("A", &["X"]),
+        SpecFragment::SpecEvent {
+            event_def: event("X"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: event("Y"),
+        },
+        anchor("A"),
+    ])
+    .unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::ConflictingInterfaceEmits(_)),
+        "{err}"
+    );
 }
