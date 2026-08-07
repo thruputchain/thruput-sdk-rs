@@ -342,6 +342,7 @@ fn fragment_and_view_conversions_roundtrip() {
         interface_name: "Named",
         interface_version: "0.1.0",
         throws: &interface_throws,
+        emits: &[],
     };
     let method = SpecMethodFragmentView {
         interface_name: "Named",
@@ -421,6 +422,7 @@ fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
         interface_name: "Named",
         interface_version: "0.3.0",
         throws: &interface_throws,
+        emits: &[],
     });
     let method = SpecFragmentView::Method(SpecMethodFragmentView {
         interface_name: "Named",
@@ -489,6 +491,7 @@ fn borrowed_fragment_views_have_const_txs_writers() {
             interface_name: "Named",
             interface_version: "0.1.0",
             throws: &THROWS,
+            emits: &[],
         };
     const RAW: [u8; FRAGMENT.const_txs_size()] = {
         let mut w = txs::ConstWriter::<{ FRAGMENT.const_txs_size() }>::new();
@@ -601,6 +604,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         0,
@@ -803,6 +807,37 @@ fn alias_byte_collections_resolve_via_trait_layer() {
             len: 32,
         })
     );
+}
+
+#[test]
+fn interface_fragment_emits_roundtrips() {
+    let throws = [ContractExceptionTypeView {
+        selector: 0xDEAD,
+        ty: ContractTypeView::Named("DemoError"),
+    }];
+    let view = SpecFragmentView::Interface(SpecInterfaceFragmentView {
+        interface_name: "Token",
+        interface_version: "0.1.0",
+        throws: &throws,
+        emits: &["TransferEvent", "ApprovalEvent"],
+    });
+    let encoded = txs::encode(&view).unwrap();
+    let decoded: SpecFragment = txs::decode(&encoded).unwrap();
+    let SpecFragment::SpecInterface {
+        ref interface_fragment,
+    } = decoded
+    else {
+        panic!("wrong variant");
+    };
+    assert_eq!(
+        interface_fragment.emits.to_vec(),
+        vec![s("TransferEvent"), s("ApprovalEvent")]
+    );
+    assert_eq!(interface_fragment.throws.len(), 1);
+    assert_eq!(interface_fragment.throws[0].selector, 0xDEAD);
+    // Owned conversion path agrees:
+    let owned = SpecFragment::from(view);
+    assert_eq!(owned, decoded);
 }
 
 #[test]

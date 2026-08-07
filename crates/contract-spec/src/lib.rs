@@ -15,9 +15,12 @@ pub use groundhog_spec::{
     ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
     ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
     ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
-    ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceAnchor,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractVectorType,
 };
+#[cfg(feature = "owned-model")]
+mod fragment;
+#[cfg(feature = "owned-model")]
+pub use fragment::*;
 pub use view::*;
 #[cfg(feature = "alloc")]
 use xdrs::VecM;

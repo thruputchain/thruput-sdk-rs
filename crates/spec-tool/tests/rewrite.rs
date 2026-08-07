@@ -1,9 +1,10 @@
 use std::{fs, process::Command};
 
 use groundhog_contract_spec::{
-    ContractArrayType, ContractField, ContractSpec, ContractSpecMethod,
-    ContractSpecString, ContractType, ContractVectorType, SpecFragment,
-    SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
+    ContractArrayType, ContractEventDef, ContractField, ContractSpec,
+    ContractSpecMethod, ContractSpecString, ContractType, ContractVectorType,
+    SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
+    SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME, SpecToolError,
@@ -115,6 +116,7 @@ fn rewrite_cli_writes_a_json_sidecar() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
 
@@ -164,6 +166,7 @@ fn rewrite_cli_preserves_vec_and_array_of_u8_shapes() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -287,6 +290,7 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -294,6 +298,7 @@ fn rewrite_replaces_raw_section_with_one_final_section() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -335,6 +340,7 @@ fn rewrite_preserves_unrelated_custom_sections() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
     let mut module = Module::new();
@@ -382,6 +388,7 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -389,6 +396,7 @@ fn rewrite_rejects_raw_only_data_segment_leaks() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -424,6 +432,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     })
     .unwrap();
@@ -433,6 +442,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -440,6 +450,7 @@ fn rewrite_rejects_partial_data_segment_leaks() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -475,6 +486,7 @@ fn rewrite_preserves_unrelated_data_segments() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
     let kept_data = b"retain-me".to_vec();
@@ -518,6 +530,7 @@ fn rewrite_preserves_final_section_when_rerun_without_raw_fragments() {
             interface_name: s("ExplicitNamedInterface"),
             interface_version: s("0.3.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
     let mut raw_module = Module::new();
@@ -539,6 +552,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
                 interface_name: s("ExplicitNamedInterface"),
                 interface_version: s("0.3.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -546,6 +560,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
                 interface_name: s("VersionedCallee"),
                 interface_version: s("1.2.3"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
     ]);
@@ -648,4 +663,123 @@ fn rewrite_rejects_typedef_only_modules_with_no_entrypoints() {
 
     assert!(matches!(err, SpecToolError::InvalidRawFragment(_)));
     assert!(err.to_string().contains("#[contract]"));
+}
+
+// ---------------------------------------------------------------------------
+// Regression: event shaking through the rewrite pipeline (the original bug)
+//
+// Before event shaking: an interface crate with multiple `#[contract]` traits
+// both carrying `emits(...)` would cause events from ALL traits (including
+// unimplemented ones) to appear in the final spec, because nothing removed
+// event fragments that were only referenced by an unanchored interface.
+//
+// After the fix: only events reachable via surviving (anchored) interfaces
+// survive `rewrite_wasm`.
+// ---------------------------------------------------------------------------
+
+/// Construct a minimal WASM module whose raw-spec section contains two
+/// interface fragments (A and B) each referencing one event, plus the event
+/// defs, but only an anchor for A.  This mirrors a contract that implements
+/// trait A from an interface crate that also defines trait B.
+fn event_shaking_module() -> Vec<u8> {
+    fn iface(name: &str, emits_name: &str) -> SpecFragment {
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: ContractSpecString::try_from(name).unwrap(),
+                interface_version: ContractSpecString::try_from("1.0.0")
+                    .unwrap(),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![ContractSpecString::try_from(emits_name).unwrap()]
+                    .try_into()
+                    .unwrap(),
+            },
+        }
+    }
+
+    fn ev_fragment(name: &str) -> SpecFragment {
+        SpecFragment::SpecEvent {
+            event_def: ContractEventDef {
+                name: ContractSpecString::try_from(name).unwrap(),
+                signature: [0u8; 32].into(),
+                topics: vec![].try_into().unwrap(),
+                fields: vec![].try_into().unwrap(),
+            },
+        }
+    }
+
+    fn method_fragment(iface_name: &str, method_name: &str) -> SpecFragment {
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: ContractSpecString::try_from(iface_name)
+                    .unwrap(),
+                interface_version: ContractSpecString::try_from("1.0.0")
+                    .unwrap(),
+                method: ContractSpecMethod {
+                    name: ContractSpecString::try_from(method_name).unwrap(),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        }
+    }
+
+    fn anchor_fragment(iface_name: &str) -> SpecFragment {
+        SpecFragment::InterfaceAnchor {
+            interface_anchor: SpecInterfaceAnchor {
+                interface_name: ContractSpecString::try_from(iface_name)
+                    .unwrap(),
+                interface_version: ContractSpecString::try_from("1.0.0")
+                    .unwrap(),
+            },
+        }
+    }
+
+    // Manually encode fragments — do NOT use encode_fragments() here because
+    // that helper auto-anchors every interface it sees.  We want only A
+    // anchored so that B's event is shaken out.
+    let fragments = [
+        iface("ImplA", "AEvent"),
+        method_fragment("ImplA", "a_method"),
+        ev_fragment("AEvent"),
+        iface("UnimplB", "BEvent"),
+        method_fragment("UnimplB", "b_method"),
+        ev_fragment("BEvent"),
+        anchor_fragment("ImplA"), // only A is implemented
+    ];
+
+    let mut raw = Vec::new();
+    for frag in &fragments {
+        raw.extend(xdrs::txs::encode(frag).unwrap());
+    }
+
+    let mut module = wasm_encoder::Module::new();
+    module.section(&wasm_encoder::CustomSection {
+        name: RAW_SECTION_NAME.into(),
+        data: raw.as_slice().into(),
+    });
+    module.finish()
+}
+
+#[test]
+fn rewrite_shakes_events_of_unimplemented_interfaces() {
+    let module = event_shaking_module();
+    let rewritten = rewrite_wasm(&module).unwrap();
+    let spec = final_spec(&rewritten).expect("final spec must be present");
+
+    // AEvent (from the implemented interface A) must survive.
+    let event_names: Vec<&str> = spec
+        .events
+        .iter()
+        .map(|e| std::str::from_utf8(&e.name).unwrap())
+        .collect();
+    assert!(
+        event_names.contains(&"AEvent"),
+        "AEvent from implemented interface A must be in the spec; got {event_names:?}"
+    );
+
+    // BEvent (from the unimplemented interface B) must be absent.
+    assert!(
+        !event_names.contains(&"BEvent"),
+        "BEvent from unimplemented interface B must be shaken out; got {event_names:?}"
+    );
 }

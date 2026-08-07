@@ -57,6 +57,10 @@ pub enum SpecToolError {
     ConflictingMethod(String),
     /// Multiple conflicting event definitions exist for the same event name.
     ConflictingEventDef(String),
+    /// Multiple interface fragments declare different `emits` for the same interface.
+    ConflictingInterfaceEmits(String),
+    /// An interface's `emits` references an event with no definition fragment.
+    MissingEventDef(String),
     /// The spec contains a variant this tool version does not understand
     /// (e.g. it was produced by a newer toolchain). Rejecting it loudly
     /// beats silently dropping or mangling parts of the spec.
@@ -93,6 +97,12 @@ impl core::fmt::Display for SpecToolError {
             Self::ConflictingEventDef(msg) => {
                 write!(f, "conflicting event definitions for {msg}")
             }
+            Self::ConflictingInterfaceEmits(msg) => {
+                write!(f, "conflicting emits metadata for interface {msg}")
+            }
+            Self::MissingEventDef(msg) => {
+                write!(f, "missing event definition for {msg}")
+            }
             Self::UnsupportedVariant(msg) => {
                 write!(f, "unsupported spec variant: {msg}")
             }
@@ -106,6 +116,7 @@ impl std::error::Error for SpecToolError {}
 #[derive(Default)]
 struct InterfaceBucket {
     throws: Option<Vec<ContractExceptionType>>,
+    emits: Option<Vec<ContractSpecString>>,
     methods: Vec<ContractSpecMethod>,
 }
 
@@ -139,6 +150,8 @@ pub fn canonicalize_spec(
     )>::new();
     let mut events =
         BTreeMap::<ContractSpecString, Vec<ContractEventDef>>::new();
+    let mut exported_events =
+        std::collections::BTreeSet::<ContractSpecString>::new();
 
     for fragment in raw {
         match fragment {
@@ -162,18 +175,41 @@ pub fn canonicalize_spec(
                     &interface_key,
                     &fragment.throws,
                 )?;
+                let mut emits = fragment.emits.to_vec();
+                for name in &emits {
+                    if spec_str(name)?.is_empty() {
+                        return Err(SpecToolError::InvalidRawFragment(
+                            format!(
+                                "{interface_key}: interface emits entries must be non-empty"
+                            ),
+                        ));
+                    }
+                }
+                emits.sort();
+                emits.dedup();
+
                 let bucket = interfaces.entry(key).or_default();
 
                 match &bucket.throws {
                     Some(existing) if *existing != throws => {
                         return Err(
                             SpecToolError::ConflictingInterfaceThrows(
-                                interface_key,
+                                interface_key.clone(),
                             ),
                         );
                     }
                     Some(_) => {}
                     None => bucket.throws = Some(throws),
+                }
+
+                match &bucket.emits {
+                    Some(existing) if *existing != emits => {
+                        return Err(SpecToolError::ConflictingInterfaceEmits(
+                            interface_key,
+                        ));
+                    }
+                    Some(_) => {}
+                    None => bucket.emits = Some(emits),
                 }
             }
             SpecFragment::SpecMethod {
@@ -214,14 +250,17 @@ pub fn canonicalize_spec(
                     defs.push(type_def.clone());
                 }
             }
-            // `SpecEvent` fragments are emitted only at contract impl sites
-            // for events declared via `emits(...)` on the interface;
+            // `SpecEvent` fragments are candidates referenced by interface
+            // `emits` lists; they survive only if a surviving (anchored)
+            // interface lists their name in `emits`.
             // `ExportedSpecEvent` fragments come from `#[event_spec(export)]`
-            // and force inclusion from any crate linked into the binary.
-            // Both land in the final spec.
+            // and force inclusion unconditionally.
             SpecFragment::SpecEvent { event_def }
             | SpecFragment::ExportedSpecEvent { event_def } => {
                 validate_event(event_def)?;
+                if matches!(fragment, SpecFragment::ExportedSpecEvent { .. }) {
+                    exported_events.insert(event_def.name.clone());
+                }
                 let defs = events.entry(event_def.name.clone()).or_default();
                 if !defs.iter().any(|existing| existing == event_def) {
                     defs.push(event_def.clone());
@@ -236,15 +275,10 @@ pub fn canonicalize_spec(
                     interface_anchor.interface_name.clone(),
                     interface_anchor.interface_version.clone(),
                 ));
-            }
-            // `SpecFragment` is #[non_exhaustive]: a fragment kind this tool
-            // doesn't know about must fail loudly, not be silently dropped
-            // from the spec.
-            _ => {
-                return Err(SpecToolError::UnsupportedVariant(
-                    "unknown SpecFragment variant".to_string(),
-                ));
-            }
+            } // `SpecFragment` is SDK-owned and matched exhaustively: a new
+              // fragment kind is a compile error here, and an unknown
+              // discriminant in raw bytes fails XDR decode in
+              // `parse_raw_fragments` before reaching this match.
         }
     }
 
@@ -260,21 +294,13 @@ pub fn canonicalize_spec(
         }
     }
 
-    let events = events
-        .into_iter()
-        .map(|(name, defs)| {
-            if defs.len() > 1 {
-                return Err(SpecToolError::ConflictingEventDef(
-                    spec_str_lossy(&name).into_owned(),
-                ));
-            }
-            Ok(defs.into_iter().next().unwrap())
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
     // Spec shaking: keep only interfaces that were anchored (by an impl, or by
     // `export_interface_spec!` in an interface carrier). A trait's interface
     // candidates that nothing in this artifact anchors are dropped.
+    //
+    // While iterating surviving interfaces, collect the event names they emit
+    // so we can shake unreferenced event defs in the next step.
+    let mut retained_event_names = exported_events;
     let interfaces = interfaces
         .into_iter()
         .filter(|((name, vers), _)| {
@@ -313,12 +339,42 @@ pub fn canonicalize_spec(
                 ))
             })?;
 
+            // Unreachable in practice: the throws check above fires first for anchor-only buckets; kept for symmetry.
+            let emits = bucket.emits.ok_or_else(|| {
+                SpecToolError::MissingInterfaceFragment(interface_key_string(
+                    &spec_str_lossy(&name),
+                    &spec_str_lossy(&vers),
+                ))
+            })?;
+            retained_event_names.extend(emits);
+
             Ok(ContractSpecInterface {
                 name,
                 vers,
                 throws: throws.try_into().unwrap(),
                 methods: deduped_methods.try_into().unwrap(),
             })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Event shaking: a def survives only if a surviving interface's `emits`
+    // references it, or it was force-exported via `#[event_spec(export)]`.
+    // Conflicts among shaken defs are deliberately ignored — an unimplemented
+    // interface candidate must not fail an unrelated contract's build.
+    let events = retained_event_names
+        .into_iter()
+        .map(|name| {
+            let defs = events.remove(&name).ok_or_else(|| {
+                SpecToolError::MissingEventDef(
+                    spec_str_lossy(&name).into_owned(),
+                )
+            })?;
+            if defs.len() > 1 {
+                return Err(SpecToolError::ConflictingEventDef(
+                    spec_str_lossy(&name).into_owned(),
+                ));
+            }
+            Ok(defs.into_iter().next().unwrap())
         })
         .collect::<Result<Vec<_>, _>>()?;
 

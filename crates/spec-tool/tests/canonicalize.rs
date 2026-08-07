@@ -69,6 +69,7 @@ fn canonicalize_spec_drops_unanchored_interfaces() {
             interface_name: s("Named"),
             interface_version: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }])
     .unwrap();
@@ -111,6 +112,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -206,6 +208,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -228,6 +231,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -282,6 +286,7 @@ fn canonicalize_spec_dedups_identical_methods() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -314,6 +319,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -389,6 +395,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -441,6 +448,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -494,6 +502,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -544,6 +553,7 @@ fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -598,6 +608,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecInterface {
@@ -609,6 +620,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -658,6 +670,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
                 })]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -706,6 +719,7 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
             interface_name: s("Named"),
             interface_version: s("v1"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }])
     .unwrap_err();
@@ -726,6 +740,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -840,6 +855,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -917,6 +933,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1003,6 +1020,7 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1041,14 +1059,15 @@ fn event_def(name: &str, payload_ty: ContractType) -> ContractEventDef {
 #[test]
 fn canonicalize_spec_collects_and_dedupes_event_defs() {
     let mut fragments = base_interface_fragments();
-    fragments.push(SpecFragment::SpecEvent {
+    // ExportedSpecEvent is always retained; identical duplicates (e.g. from
+    // another codegen unit) are deduped regardless of fragment variant.
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::U128),
     });
-    // An identical duplicate (e.g. from another codegen unit) merges.
-    fragments.push(SpecFragment::SpecEvent {
+    // An identical duplicate merges.
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::U128),
     });
-    // The exported variant is collected through the same path.
     fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("ApprovalEvent", ContractType::I128),
     });
@@ -1062,8 +1081,10 @@ fn canonicalize_spec_collects_and_dedupes_event_defs() {
 
 #[test]
 fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
+    // ExportedSpecEvent is retained regardless of interface emits; its field
+    // types are resolved transitively.
     let mut fragments = base_interface_fragments();
-    fragments.push(SpecFragment::SpecEvent {
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def(
             "MintEvent",
             ContractType::Named {
@@ -1092,7 +1113,7 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
 
     // Without the typedef fragment the named reference must fail.
     let mut missing = base_interface_fragments();
-    missing.push(SpecFragment::SpecEvent {
+    missing.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def(
             "MintEvent",
             ContractType::Named {
@@ -1108,11 +1129,12 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
 
 #[test]
 fn canonicalize_spec_rejects_conflicting_event_defs() {
+    // Use ExportedSpecEvent so both defs are retained; conflict check must fire.
     let mut fragments = base_interface_fragments();
-    fragments.push(SpecFragment::SpecEvent {
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::U128),
     });
-    fragments.push(SpecFragment::SpecEvent {
+    fragments.push(SpecFragment::ExportedSpecEvent {
         event_def: event_def("TransferEvent", ContractType::I128),
     });
 
@@ -1176,6 +1198,7 @@ fn non_utf8_interface_name_is_rejected_not_panicked() {
             .unwrap(),
             interface_version: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
         },
     }]);
 
@@ -1190,6 +1213,7 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1232,6 +1256,7 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
                 ]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1272,6 +1297,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
                 ]
                 .try_into()
                 .unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1289,6 +1315,148 @@ fn identical_duplicate_exception_entries_are_deduped() {
     .unwrap();
 
     assert_eq!(spec.interfaces[0].throws.len(), 1);
+}
+
+// ---------------------------------------------------------------------------
+// Event shaking
+// ---------------------------------------------------------------------------
+
+fn event(name: &str) -> ContractEventDef {
+    ContractEventDef {
+        name: s(name),
+        signature: [0u8; 32].into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    }
+}
+
+fn iface_with_emits(name: &str, emits: &[&str]) -> SpecFragment {
+    SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            emits: emits
+                .iter()
+                .map(|e| s(e))
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        },
+    }
+}
+
+fn anchor(name: &str) -> SpecFragment {
+    SpecFragment::InterfaceAnchor {
+        interface_anchor: SpecInterfaceAnchor {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+        },
+    }
+}
+
+#[test]
+fn events_of_unanchored_interfaces_are_shaken() {
+    // Impl'd interface A emits AEvent; interface B is an unimplemented
+    // candidate from the same interface crate emitting BEvent. Only AEvent
+    // may survive.
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &["AEvent"]),
+        SpecFragment::SpecEvent {
+            event_def: event("AEvent"),
+        },
+        iface_with_emits("B", &["BEvent"]),
+        SpecFragment::SpecEvent {
+            event_def: event("BEvent"),
+        },
+        anchor("A"),
+    ])
+    .unwrap();
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["AEvent"]);
+}
+
+#[test]
+fn exported_events_survive_without_any_interface_reference() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        SpecFragment::ExportedSpecEvent {
+            event_def: event("LooseEvent"),
+        },
+        anchor("A"),
+    ])
+    .unwrap();
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["LooseEvent"]);
+}
+
+#[test]
+fn conflicting_defs_ignored_when_event_is_shaken() {
+    // B's conflicting def of "Ev" must not fail A's build once B is shaken.
+    let mut other = event("Ev");
+    other.signature = [1u8; 32].into();
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        iface_with_emits("B", &["Ev"]),
+        SpecFragment::SpecEvent {
+            event_def: event("Ev"),
+        },
+        SpecFragment::SpecEvent { event_def: other },
+        anchor("A"),
+    ])
+    .unwrap();
+    assert!(spec.events.is_empty());
+}
+
+#[test]
+fn conflicting_defs_of_retained_event_still_error() {
+    let mut other = event("Ev");
+    other.signature = [1u8; 32].into();
+    let err = canonicalize_spec(&[
+        iface_with_emits("A", &["Ev"]),
+        SpecFragment::SpecEvent {
+            event_def: event("Ev"),
+        },
+        SpecFragment::SpecEvent { event_def: other },
+        anchor("A"),
+    ])
+    .unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::ConflictingEventDef(_)),
+        "{err}"
+    );
+}
+
+#[test]
+fn emits_reference_without_def_errors() {
+    let err = canonicalize_spec(&[
+        iface_with_emits("A", &["GhostEvent"]),
+        anchor("A"),
+    ])
+    .unwrap_err();
+    assert!(matches!(err, SpecToolError::MissingEventDef(_)), "{err}");
+}
+
+#[test]
+fn conflicting_interface_emits_error() {
+    let err = canonicalize_spec(&[
+        iface_with_emits("A", &["Y"]),
+        iface_with_emits("A", &["X"]),
+        SpecFragment::SpecEvent {
+            event_def: event("X"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: event("Y"),
+        },
+        anchor("A"),
+    ])
+    .unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::ConflictingInterfaceEmits(_)),
+        "{err}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1324,6 +1492,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
                 interface_name: s("Token"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1388,6 +1557,7 @@ fn opaque_signed_token_return_type_canonicalizes() {
                 interface_name: s("Wallet"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
@@ -1430,6 +1600,7 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
                 interface_name: s("Token"),
                 interface_version: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
             },
         },
         SpecFragment::SpecMethod {
