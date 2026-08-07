@@ -228,7 +228,6 @@ pub fn canonicalize_spec(
                     interface_anchor.interface_version.clone(),
                 ));
             }
-            _ => {}
         }
     }
 
