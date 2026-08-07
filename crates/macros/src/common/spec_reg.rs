@@ -27,6 +27,7 @@ pub fn generate_impl_raw_spec_fragments(
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROWS },
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EMITS },
         );
         let method_fragments =
             generate_trait_method_fragments_tokens(self_ty, trait_path);
@@ -63,11 +64,13 @@ pub fn generate_impl_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
 
+    let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
+        quote! { &[#(#emits_names),*] },
     );
     let event_fragments =
         generate_config_event_fragments_tokens(&entrypoints_cfg(), config);
@@ -115,11 +118,13 @@ pub fn generate_free_function_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
 
+    let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
+        quote! { &[#(#emits_names),*] },
     );
     let method_fragment = generate_method_fragment_tokens(
         &entrypoints_cfg(),
@@ -174,11 +179,13 @@ pub fn generate_trait_raw_spec_fragments(
     // via `#[used]`. Post-processing drops them unless something anchors the
     // interface — a `#[contract] impl` does this, and a standalone interface
     // carrier does it explicitly via `export_interface_spec!`.
+    let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &target_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
         quote! { &[#(#throws),*] },
+        quote! { &[#(#emits_names),*] },
     );
     let event_fragments =
         generate_config_event_fragments_tokens(&target_cfg(), config);
@@ -430,11 +437,26 @@ fn config_event_anchor_tokens(config: &Config) -> Vec<TokenStream> {
         .collect()
 }
 
+/// Event-name reference tokens for the `emits` field of an interface
+/// fragment, from the `emits(...)` config list, in declaration order.
+fn config_emits_name_tokens(config: &Config) -> Vec<TokenStream> {
+    config
+        .emits_list()
+        .into_iter()
+        .map(|path| {
+            quote! {
+                <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
+            }
+        })
+        .collect()
+}
+
 fn generate_interface_fragment_tokens(
     cfg: &TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
     throws: TokenStream,
+    emits: TokenStream,
 ) -> TokenStream {
     emit_raw_fragment_tokens_with_cfg(
         cfg.clone(),
@@ -444,6 +466,7 @@ fn generate_interface_fragment_tokens(
                     interface_name: #interface_name,
                     interface_version: #interface_version,
                     throws: #throws,
+                    emits: #emits,
                 }
             )
         },
@@ -578,6 +601,7 @@ mod tests {
         assert!(tokens.contains("__GROUNDHOG_IFACE_THROWS"));
         assert!(tokens.contains("const_txs_size"));
         assert!(tokens.contains("ConstWriter"));
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
     }
 
     #[test]
@@ -772,6 +796,10 @@ mod tests {
         assert!(
             tokens.contains("events :: TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
             "{tokens}"
+        );
+        assert!(
+            tokens.contains("EVENT_DEF . name"),
+            "interface fragment must carry emits names: {tokens}"
         );
     }
 
