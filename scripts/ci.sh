@@ -19,4 +19,13 @@ if [ "$(groundhog --version 2>/dev/null | awk '{print $2}')" != "$GROUNDHOG_CLI_
         --registry groundhog --locked
 fi
 
+# groundhog 0.6 refuses to run without an active config profile, even for an
+# offline `build --target rv32`. A CI runner has no global config, so bootstrap
+# a throwaway one. The guard keeps this a no-op for a developer running
+# scripts/ci.sh locally: `config get` with no argument resolves the active
+# profile and exits nonzero only when there isn't one.
+if ! groundhog config get --json >/dev/null 2>&1; then
+    groundhog config new ci --network local --use --global --quiet
+fi
+
 exec ./scripts/dev.sh ci

@@ -84,36 +84,67 @@ impl Signed<Opaque> {
 }
 
 #[cfg(feature = "alloc")]
-pub trait AssumeTokens {
-    fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self;
+pub trait AssumeTokens: Sized {
+    /// Destructure the auth tokens returned by a called contract into a
+    /// typed tuple, checking the count.
+    ///
+    /// The callee decides how many tokens it returns, so a wrong count is
+    /// untrusted input, not a caller bug: it is reported as
+    /// [`CallingError::DecodingSuccess`](crate::exn::CallingError) — the same
+    /// cross-call error as a return-payload decode failure. Propagate it as a
+    /// typed abort with
+    /// [`or_re_throw`](crate::re_throw::OrReThrow::or_re_throw).
+    fn try_assume_tokens(
+        tokens: alloc::vec::Vec<Signed<Opaque>>,
+    ) -> Result<Self, crate::exn::CallingError>;
+
+    /// Throwing convenience form:
+    /// [`try_assume_tokens`](Self::try_assume_tokens) with a count mismatch
+    /// propagated as a typed abort.
+    #[cfg_attr(feature = "debugging", track_caller)]
+    fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
+        use crate::re_throw::OrReThrow;
+        Self::try_assume_tokens(tokens).or_re_throw()
+    }
+}
+
+/// Report a returned-token count mismatch as the cross-call decode error.
+#[cfg(feature = "alloc")]
+fn check_token_count(
+    got: usize,
+    expected: usize,
+) -> Result<(), crate::exn::CallingError> {
+    if got == expected {
+        Ok(())
+    } else {
+        Err(crate::exn::CallingError::DecodingSuccess(
+            FaultString::from_display(format_args!(
+                "expected {expected} auth tokens, got {got}"
+            )),
+        ))
+    }
 }
 
 #[cfg(feature = "alloc")]
 macro_rules! impl_assume_tokens {
     () => {
         impl AssumeTokens for () {
-            fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
-                assert!(
-                    tokens.is_empty(),
-                    "expected 0 auth tokens, got {}",
-                    tokens.len()
-                );
+            fn try_assume_tokens(
+                tokens: alloc::vec::Vec<Signed<Opaque>>,
+            ) -> Result<Self, crate::exn::CallingError> {
+                check_token_count(tokens.len(), 0)
             }
         }
     };
     ($($idx:tt : $T:ident),+) => {
         impl<$($T: MintableType),+> AssumeTokens for ($(Signed<$T>,)+) {
-            fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
+            fn try_assume_tokens(
+                tokens: alloc::vec::Vec<Signed<Opaque>>,
+            ) -> Result<Self, crate::exn::CallingError> {
                 const N: usize = impl_assume_tokens!(@count $($T),+);
-                assert_eq!(
-                    tokens.len(),
-                    N,
-                    "expected {} auth tokens, got {}",
-                    N,
-                    tokens.len()
-                );
+                check_token_count(tokens.len(), N)?;
                 let mut iter = tokens.into_iter();
-                ($(impl_assume_tokens!(@take iter, $T),)+)
+                Ok(($(impl_assume_tokens!(@take iter, $T),)+))
             }
         }
     };
@@ -144,6 +175,60 @@ impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F);
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G);
 #[cfg(feature = "alloc")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K, 11: L
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N, 14: O
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N, 14: O, 15: P
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N, 14: O, 15: P, 16: Q
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N, 14: O, 15: P, 16: Q, 17: R
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N, 14: O, 15: P, 16: Q, 17: R, 18: S
+);
+#[cfg(feature = "alloc")]
+impl_assume_tokens!(
+    0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
+    11: L, 12: M, 13: N, 14: O, 15: P, 16: Q, 17: R, 18: S, 19: T
+);
 
 use crate::collect_auth_handles::{AuthHandleBuf, CollectAuthHandles};
 use crate::receive_auth_handles::ReceiveAuthHandles;
@@ -187,11 +272,48 @@ impl<T> ReceiveAuthHandles for Signed<T> {
     }
 }
 
-impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T> {
+/// A `Signed<Opaque>` is a token whose payload type is erased, so as a
+/// signed-token preimage `Opaque` is `None`. Its `INFO` type is
+/// unreachable in practice — `Opaque` has no XDR impls, so it cannot
+/// appear in a method signature outside `Signed<Opaque>`, whose spec node
+/// uses only `SIGNED_PREIMAGE`.
+impl groundhog_contract_spec::ContractTypeRefSpec for Opaque {
     const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
         groundhog_contract_spec::ContractTypeInfo {
-            ty: groundhog_contract_spec::view::ContractTypeView::U32,
+            ty: groundhog_contract_spec::view::ContractTypeView::Void,
         };
+
+    const SIGNED_PREIMAGE: Option<
+        &'static groundhog_contract_spec::view::ContractTypeView<'static>,
+    > = None;
+}
+
+/// A `Signed<T>` consumes no calldata bytes (the handle arrives out of
+/// band); its spec node is `SignedToken` carrying `T`'s type as the token
+/// preimage (`None` for `Signed<Opaque>`), so spec-driven encoders neither
+/// reserve calldata bytes for it nor lose the preimage shape.
+impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T>
+where
+    T: groundhog_contract_spec::ContractTypeRefSpec,
+{
+    const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
+        groundhog_contract_spec::ContractTypeInfo {
+            ty: groundhog_contract_spec::view::ContractTypeView::SignedToken(
+                T::SIGNED_PREIMAGE,
+            ),
+        };
+
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(
+        target_arch = "riscv32",
+        unsafe(link_section = "groundhogspecanchortextv0")
+    )]
+    fn __groundhog_spec_anchor() -> usize {
+        groundhog_contract_spec::mix_anchor_fn(
+            0,
+            <T as groundhog_contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -445,6 +567,29 @@ mod tests {
     }
 
     #[test]
+    fn signed_spec_is_signed_token_of_payload_type() {
+        use groundhog_contract_spec::type_ref;
+        use groundhog_contract_spec::view::ContractTypeView;
+
+        assert_eq!(
+            type_ref::<Signed<u64>>(),
+            ContractTypeView::SignedToken(Some(&ContractTypeView::U64))
+        );
+        // Erased payload specs as SignedToken(None).
+        assert_eq!(
+            type_ref::<Signed<Opaque>>(),
+            ContractTypeView::SignedToken(None)
+        );
+        // Nested tokens spec recursively.
+        assert_eq!(
+            type_ref::<Signed<Signed<u32>>>(),
+            ContractTypeView::SignedToken(Some(
+                &ContractTypeView::SignedToken(Some(&ContractTypeView::U32))
+            ))
+        );
+    }
+
+    #[test]
     fn assume_preserves_handle() {
         let opaque: Signed<Opaque> = Signed::from_handle(42);
         let typed: Signed<u64> = opaque.assume();
@@ -453,24 +598,25 @@ mod tests {
 
     #[cfg(feature = "alloc")]
     #[test]
-    fn assume_tokens_unit() {
+    fn try_assume_tokens_unit() {
         use crate::signer::AssumeTokens;
         let tokens = vec![];
-        let () = AssumeTokens::assume_tokens(tokens);
+        let () = AssumeTokens::try_assume_tokens(tokens).unwrap();
     }
 
     #[cfg(feature = "alloc")]
     #[test]
-    fn assume_tokens_single() {
+    fn try_assume_tokens_single() {
         use crate::signer::AssumeTokens;
         let tokens = vec![Signed::<Opaque>::from_handle(10)];
-        let (a,): (Signed<u64>,) = AssumeTokens::assume_tokens(tokens);
+        let (a,): (Signed<u64>,) =
+            AssumeTokens::try_assume_tokens(tokens).unwrap();
         assert_eq!(a.handle(), 10);
     }
 
     #[cfg(feature = "alloc")]
     #[test]
-    fn assume_tokens_triple() {
+    fn try_assume_tokens_triple() {
         use crate::signer::AssumeTokens;
         let tokens = vec![
             Signed::<Opaque>::from_handle(10),
@@ -478,7 +624,7 @@ mod tests {
             Signed::<Opaque>::from_handle(30),
         ];
         let (a, b, c): (Signed<u64>, Signed<u32>, Signed<bool>) =
-            AssumeTokens::assume_tokens(tokens);
+            AssumeTokens::try_assume_tokens(tokens).unwrap();
         assert_eq!(a.handle(), 10);
         assert_eq!(b.handle(), 20);
         assert_eq!(c.handle(), 30);
@@ -486,15 +632,61 @@ mod tests {
 
     #[cfg(feature = "alloc")]
     #[test]
-    #[should_panic(expected = "expected 2 auth tokens, got 3")]
-    fn assume_tokens_length_mismatch_panics() {
+    fn try_assume_tokens_pair() {
+        use crate::signer::AssumeTokens;
+        let tokens = vec![
+            Signed::<Opaque>::from_handle(10),
+            Signed::<Opaque>::from_handle(20),
+        ];
+        let (a, b): (Signed<u64>, Signed<u32>) =
+            AssumeTokens::try_assume_tokens(tokens).unwrap();
+        assert_eq!(a.handle(), 10);
+        assert_eq!(b.handle(), 20);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn try_assume_tokens_too_many_is_decode_error() {
+        use crate::exn::CallingError;
         use crate::signer::AssumeTokens;
         let tokens = vec![
             Signed::<Opaque>::from_handle(1),
             Signed::<Opaque>::from_handle(2),
             Signed::<Opaque>::from_handle(3),
         ];
-        let (_, _): (Signed<u64>, Signed<u32>) =
-            AssumeTokens::assume_tokens(tokens);
+        let r: Result<(Signed<u64>, Signed<u32>), CallingError> =
+            AssumeTokens::try_assume_tokens(tokens);
+        assert!(
+            matches!(r, Err(CallingError::DecodingSuccess(_))),
+            "expected DecodingSuccess, got {r:?}"
+        );
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn try_assume_tokens_too_few_is_decode_error() {
+        use crate::exn::CallingError;
+        use crate::signer::AssumeTokens;
+        let tokens = vec![Signed::<Opaque>::from_handle(1)];
+        let r: Result<(Signed<u64>, Signed<u32>), CallingError> =
+            AssumeTokens::try_assume_tokens(tokens);
+        assert!(
+            matches!(r, Err(CallingError::DecodingSuccess(_))),
+            "expected DecodingSuccess, got {r:?}"
+        );
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn try_assume_tokens_unit_rejects_nonempty() {
+        use crate::exn::CallingError;
+        use crate::signer::AssumeTokens;
+        let tokens = vec![Signed::<Opaque>::from_handle(1)];
+        let r: Result<(), CallingError> =
+            AssumeTokens::try_assume_tokens(tokens);
+        assert!(
+            matches!(r, Err(CallingError::DecodingSuccess(_))),
+            "expected DecodingSuccess, got {r:?}"
+        );
     }
 }

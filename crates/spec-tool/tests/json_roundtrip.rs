@@ -915,3 +915,124 @@ fn spec_with_events_roundtrips() {
         "{rendered}"
     );
 }
+
+#[test]
+fn signed_token_types_roundtrip() {
+    let signed_named = ContractType::SignedToken {
+        signed_token_preimage:
+            groundhog_contract_spec::ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(ContractType::Named {
+                    named: s("TransferAuth"),
+                })),
+            },
+    };
+    // A nested token whose child is an erased token (`None` preimage,
+    // i.e. Signed<Opaque>).
+    let signed_nested = ContractType::SignedToken {
+        signed_token_preimage:
+            groundhog_contract_spec::ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(ContractType::SignedToken {
+                    signed_token_preimage:
+                        groundhog_contract_spec::ContractSignedTokenPreimage {
+                            preimage_type: None,
+                        },
+                })),
+            },
+    };
+
+    roundtrip(&ContractSpec {
+        interfaces: vec![ContractSpecInterface {
+            name: s("Token"),
+            vers: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            methods: vec![ContractSpecMethod {
+                name: s("transfer"),
+                args: vec![
+                    ContractField {
+                        name: s("auth"),
+                        ty: signed_named,
+                    },
+                    ContractField {
+                        name: s("amount"),
+                        ty: ContractType::U64,
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+                return_type: signed_nested,
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        type_defs: vec![ContractTypeDef::TypeDefStruct {
+            struct_def: ContractStructDef {
+                name: s("TransferAuth"),
+                fields: vec![ContractField {
+                    name: s("amount"),
+                    ty: ContractType::U64,
+                }]
+                .try_into()
+                .unwrap(),
+            },
+        }]
+        .try_into()
+        .unwrap(),
+        events: vec![].try_into().unwrap(),
+    });
+}
+
+#[test]
+fn render_spec_json_renders_signed_token() {
+    let spec = ContractSpec {
+        interfaces: vec![ContractSpecInterface {
+            name: s("Token"),
+            vers: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            methods: vec![ContractSpecMethod {
+                name: s("transfer"),
+                args: vec![
+                    ContractField {
+                        name: s("auth"),
+                        ty: ContractType::SignedToken {
+                            signed_token_preimage:
+                                groundhog_contract_spec::ContractSignedTokenPreimage {
+                                    preimage_type: Some(Box::new(ContractType::U64)),
+                                },
+                        },
+                    },
+                    ContractField {
+                        name: s("erased"),
+                        ty: ContractType::SignedToken {
+                            signed_token_preimage:
+                                groundhog_contract_spec::ContractSignedTokenPreimage {
+                                    preimage_type: None,
+                                },
+                        },
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+                return_type: ContractType::Void,
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        type_defs: vec![].try_into().unwrap(),
+        events: vec![].try_into().unwrap(),
+    };
+
+    let json = groundhog_spec_tool::render_spec_json(&spec);
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        value["interfaces"][0]["methods"][0]["args"][0]["type"],
+        serde_json::json!({"kind": "signed_token", "preimage": {"kind": "u64"}})
+    );
+    assert_eq!(
+        value["interfaces"][0]["methods"][0]["args"][1]["type"],
+        serde_json::json!({"kind": "signed_token", "preimage": null})
+    );
+}

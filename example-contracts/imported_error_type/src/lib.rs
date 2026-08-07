@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(used_with_arg)]
 
 use sdk::*;
 

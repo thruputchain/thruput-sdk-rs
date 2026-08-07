@@ -1,0 +1,42 @@
+name: Scaffold Smoke
+
+# Builds a `groundhog new` scaffold from the latest *released* groundhog CLI
+# against the sdk at head (see scripts/scaffold-smoke.sh). Guards the
+# released-CLI x sdk-head combination — the class of breakage sdk 0.17.8
+# shipped (scaffold build broken by an xdrs feature edge) — so it runs on
+# pushes to main rather than on every PR commit: each run costs a cold
+# scaffold build, and the drift it catches is against the released CLI, not
+# a function of individual PR diffs.
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
+jobs:
+  scaffold-smoke:
+    runs-on: namespace-profile-hogd-linux
+
+    steps:
+      # No SSH keys, submodules, or FFI secrets: the workspace has no git
+      # dependencies, the only submodule (integration_test/contracts) is not
+      # a workspace member, and the scaffold build never enables sdk/dev.
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      # NB: deliberately NOT caching ./target — cargo's many-small-file churn
+      # stalls on the network-backed cache mount. Cache only the dependency
+      # sources. Mirrors ci.yml.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+
+      - name: Scaffold and build
+        run: ./scripts/scaffold-smoke.sh

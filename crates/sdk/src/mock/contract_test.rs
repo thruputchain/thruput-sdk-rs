@@ -24,6 +24,8 @@ use groundhog_xdr::transaction::{
 };
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
+use std::string::ToString;
+use std::vec;
 use std::vec::Vec;
 
 /// Decode a `TransactResult`'s root-frame outcome into the same
@@ -252,9 +254,17 @@ where
     });
 
     let wasm = if please_instrument {
+        // Mirrors hogd's `verify_contract_meter` config (hogd/rust/common/src/lib.rs
+        // at the pinned test-ffi tag) so the mock accepts exactly what the chain does.
         let instrument_config = groundhog_wasm_meter::Config {
             max_imported_functions: 1,
+            max_table_initial_size: 64,
             reject_floats: true,
+            allowed_custom_sections: vec![
+                "name".to_string(),
+                "groundhogspecv0".to_string(),
+                "groundhogspecrawv0".to_string(),
+            ],
             ..groundhog_wasm_meter::Config::default()
         };
 

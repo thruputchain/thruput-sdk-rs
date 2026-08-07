@@ -2,11 +2,12 @@ use groundhog_contract_spec::{
     ContractArrayType, ContractArrayTypeView, ContractEnumDef,
     ContractEnumDefView, ContractEnumVariant, ContractEnumVariantView,
     ContractEventDef, ContractEventDefView, ContractExceptionType,
-    ContractExceptionTypeView, ContractField, ContractFieldView, ContractSpec,
-    ContractSpecInterface, ContractSpecInterfaceView, ContractSpecMethod,
-    ContractSpecMethodView, ContractSpecString, ContractSpecView,
-    ContractStructDefView, ContractType, ContractTypeDef, ContractTypeDefView,
-    ContractTypeInfo, ContractTypeRefSpec, ContractTypeSpec, ContractTypeView,
+    ContractExceptionTypeView, ContractField, ContractFieldView,
+    ContractSignedTokenPreimage, ContractSpec, ContractSpecInterface,
+    ContractSpecInterfaceView, ContractSpecMethod, ContractSpecMethodView,
+    ContractSpecString, ContractSpecView, ContractStructDefView, ContractType,
+    ContractTypeDef, ContractTypeDefView, ContractTypeInfo,
+    ContractTypeRefSpec, ContractTypeSpec, ContractTypeView,
     ContractUnionCase, ContractUnionCaseType, ContractUnionCaseTypeView,
     ContractUnionCaseView, ContractUnionDef, ContractUnionDefView,
     ContractVectorType, ContractVectorTypeView, SpecFragment,
@@ -152,6 +153,8 @@ fn borrowed_views_convert_to_owned_model() {
             element: &ContractTypeView::U8,
             len: 32,
         }),
+        ContractTypeView::SignedToken(Some(&named_payload)),
+        ContractTypeView::SignedToken(None),
     ];
     let methods = [ContractSpecMethodView {
         name: "ping",
@@ -271,6 +274,18 @@ fn borrowed_views_convert_to_owned_model() {
                     array: ContractArrayType {
                         element: Box::new(ContractType::U8),
                         len: 32,
+                    },
+                },
+                ContractType::SignedToken {
+                    signed_token_preimage: ContractSignedTokenPreimage {
+                        preimage_type: Some(Box::new(ContractType::Named {
+                            named: s("Payload"),
+                        })),
+                    },
+                },
+                ContractType::SignedToken {
+                    signed_token_preimage: ContractSignedTokenPreimage {
+                        preimage_type: None,
                     },
                 },
             ]
@@ -538,6 +553,22 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
         },
         16,
     );
+    assert_xdr_tag(
+        &ContractType::SignedToken {
+            signed_token_preimage: ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(ContractType::U64)),
+            },
+        },
+        17,
+    );
+    assert_xdr_tag(
+        &ContractType::SignedToken {
+            signed_token_preimage: ContractSignedTokenPreimage {
+                preimage_type: None,
+            },
+        },
+        17,
+    );
 
     assert_xdr_tag(
         &ContractTypeDef::TypeDefStruct {
@@ -617,6 +648,47 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
         4,
     );
     assert_xdr_tag(&SpecFragment::ExportedSpecEvent { event_def }, 5);
+}
+
+#[test]
+fn signed_token_view_matches_owned_wire_encoding() {
+    // The view's `SignedToken(&inner)` must encode byte-identically to the
+    // owned model's `SignedToken { signed_token_preimage }` node.
+    let view = ContractTypeView::SignedToken(Some(&ContractTypeView::Named(
+        "TransferAuth",
+    )));
+    let owned = ContractType::from(view);
+    assert_eq!(
+        owned,
+        ContractType::SignedToken {
+            signed_token_preimage: ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(ContractType::Named {
+                    named: s("TransferAuth"),
+                })),
+            },
+        }
+    );
+    assert_eq!(encode(&view).unwrap(), encode(&owned).unwrap());
+
+    // An erased (opaque) preimage: `None` on both sides of the model.
+    let opaque = ContractTypeView::SignedToken(None);
+    let owned_opaque = ContractType::from(opaque);
+    assert_eq!(
+        owned_opaque,
+        ContractType::SignedToken {
+            signed_token_preimage: ContractSignedTokenPreimage {
+                preimage_type: None,
+            },
+        }
+    );
+    assert_eq!(encode(&opaque).unwrap(), encode(&owned_opaque).unwrap());
+
+    // Nested child tokens spec recursively.
+    let nested = ContractTypeView::SignedToken(Some(
+        &ContractTypeView::SignedToken(None),
+    ));
+    let owned_nested = ContractType::from(nested);
+    assert_eq!(encode(&nested).unwrap(), encode(&owned_nested).unwrap());
 }
 
 #[test]

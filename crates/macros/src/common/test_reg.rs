@@ -67,7 +67,7 @@ pub fn generate_impl_registry_fragment(
     _config: &Config,
 ) -> Result<TokenStream> {
     let self_ty = &item.self_ty;
-    let register_path = if let Some((_, trait_path, _)) = &item.trait_ {
+    let register_path = if let Some((trait_path, _)) = &item.trait_ {
         quote! { <#self_ty as #trait_path>::__mock }
     } else {
         quote! { #self_ty::__mock }

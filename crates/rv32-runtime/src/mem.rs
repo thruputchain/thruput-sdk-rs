@@ -121,17 +121,21 @@ unsafe fn fill(dst: *mut u8, byte: u8, n: usize) {
 // The exported strong symbols (rv32 contracts only).
 // ---------------------------------------------------------------------------
 
+// The signatures use `c_void` exactly as libc declares them: rustc (since
+// nightly-2026-07) cross-checks definitions of the runtime mem symbols the
+// standard library relies on and rejects mismatched pointer types.
+
 /// Forward copy, word-granular, any alignment. Hot loop: lw/sw/addi/addi/bltu.
 /// C contract: overlapping ranges are the caller's UB; see `copy_forward` for
 /// the internal ascending-order invariant `memmove` relies on.
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memcpy(
-    dst: *mut u8,
-    src: *const u8,
+    dst: *mut core::ffi::c_void,
+    src: *const core::ffi::c_void,
     n: usize,
-) -> *mut u8 {
-    unsafe { copy_forward(dst, src, n) };
+) -> *mut core::ffi::c_void {
+    unsafe { copy_forward(dst.cast::<u8>(), src.cast::<u8>(), n) };
     dst
 }
 
@@ -140,19 +144,23 @@ unsafe extern "C" fn memcpy(
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memmove(
-    dst: *mut u8,
-    src: *const u8,
+    dst: *mut core::ffi::c_void,
+    src: *const core::ffi::c_void,
     n: usize,
-) -> *mut u8 {
-    unsafe { move_any(dst, src, n) };
+) -> *mut core::ffi::c_void {
+    unsafe { move_any(dst.cast::<u8>(), src.cast::<u8>(), n) };
     dst
 }
 
 /// Word-granular fill, any alignment. C semantics: fill value is `c as u8`.
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
-unsafe extern "C" fn memset(dst: *mut u8, c: i32, n: usize) -> *mut u8 {
-    unsafe { fill(dst, c as u8, n) };
+unsafe extern "C" fn memset(
+    dst: *mut core::ffi::c_void,
+    c: i32,
+    n: usize,
+) -> *mut core::ffi::c_void {
+    unsafe { fill(dst.cast::<u8>(), c as u8, n) };
     dst
 }
 

@@ -21,7 +21,7 @@ pub fn generate_impl_raw_spec_fragments(
     // canonical spec. The trait consts are plain associated data, available
     // cross-crate without the interface crate being built with `entrypoints`,
     // so impls of an external interface still emit a complete spec.
-    if let Some((_, trait_path, _)) = &item.trait_ {
+    if let Some((trait_path, _)) = &item.trait_ {
         let interface_fragment = generate_interface_fragment_tokens(
             &entrypoints_cfg(),
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
