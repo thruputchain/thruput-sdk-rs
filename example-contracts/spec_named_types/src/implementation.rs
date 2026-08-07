@@ -46,6 +46,25 @@ pub struct AuditEvent {
     pub tag: u64,
 }
 
+/// Event declared only on `UnimplementedInterface` below.  Because that trait
+/// is never implemented by `SpecNamedTypesContract`, spec shaking must remove
+/// this event from the final canonicalized spec.
+#[derive(Event)]
+pub struct GhostEvent {
+    pub code: u32,
+}
+
+/// A second `#[contract]` trait that carries `emits(GhostEvent)` but is
+/// intentionally NOT implemented by `SpecNamedTypesContract`.  Its candidate
+/// spec fragments (interface + method + GhostEvent def) co-travel into the
+/// raw WASM section, but the absence of an `InterfaceAnchor` causes spec
+/// shaking to drop both the interface and GhostEvent from the final spec.
+/// This exercises the original bug: unimplemented-trait events must not leak.
+#[contract(emits(GhostEvent))]
+pub trait UnimplementedInterface {
+    fn ghost_ping() -> u32;
+}
+
 #[derive(Default)]
 pub struct SpecNamedTypesContract;
 

@@ -3,7 +3,8 @@ use std::{fs, process::Command};
 use groundhog_contract_spec::{
     ContractArrayType, ContractEventDef, ContractField, ContractSpec,
     ContractSpecMethod, ContractSpecString, ContractType, ContractVectorType,
-    SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
+    SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
+    SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME, SpecToolError,
@@ -685,7 +686,8 @@ fn event_shaking_module() -> Vec<u8> {
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: ContractSpecString::try_from(name).unwrap(),
-                interface_version: ContractSpecString::try_from("1.0.0").unwrap(),
+                interface_version: ContractSpecString::try_from("1.0.0")
+                    .unwrap(),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![ContractSpecString::try_from(emits_name).unwrap()]
                     .try_into()
@@ -708,8 +710,10 @@ fn event_shaking_module() -> Vec<u8> {
     fn method_fragment(iface_name: &str, method_name: &str) -> SpecFragment {
         SpecFragment::SpecMethod {
             method_fragment: SpecMethodFragment {
-                interface_name: ContractSpecString::try_from(iface_name).unwrap(),
-                interface_version: ContractSpecString::try_from("1.0.0").unwrap(),
+                interface_name: ContractSpecString::try_from(iface_name)
+                    .unwrap(),
+                interface_version: ContractSpecString::try_from("1.0.0")
+                    .unwrap(),
                 method: ContractSpecMethod {
                     name: ContractSpecString::try_from(method_name).unwrap(),
                     args: vec![].try_into().unwrap(),
@@ -722,8 +726,10 @@ fn event_shaking_module() -> Vec<u8> {
     fn anchor_fragment(iface_name: &str) -> SpecFragment {
         SpecFragment::InterfaceAnchor {
             interface_anchor: SpecInterfaceAnchor {
-                interface_name: ContractSpecString::try_from(iface_name).unwrap(),
-                interface_version: ContractSpecString::try_from("1.0.0").unwrap(),
+                interface_name: ContractSpecString::try_from(iface_name)
+                    .unwrap(),
+                interface_version: ContractSpecString::try_from("1.0.0")
+                    .unwrap(),
             },
         }
     }
