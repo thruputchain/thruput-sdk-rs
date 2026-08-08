@@ -619,15 +619,33 @@ check_rv32_contract_spec_artifacts() {
     # "name":"OrphanEvent" (E comes before the closing quote).
     # AdoptedPayload asserts positive typedef retention; OrphanPayload asserts
     # typedef shaking (both directions covered by a single fixture).
-    local rv32_event_shaking_json
+    local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset_rv32.spec.json"
+    rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller_rv32.spec.json"
+    rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller_rv32.spec.json"
 
     assert_file_contains "$rv32_event_shaking_json" '"name":"Adopted"' &&
     assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedEvent"' &&
     assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedPayload"' &&
     assert_file_lacks "$rv32_event_shaking_json" '"name":"Orphan"' &&
     assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanEvent"' &&
-    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanPayload"'
+    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanPayload"' &&
+
+    # Same needles as the wasm typedef-collision block: the caller links two
+    # market interface crates with colliding SharedConfig defs, implements
+    # neither. Cross-version coverage: this pipeline canonicalizes with the
+    # pinned CLI's embedded spec-tool, not the workspace one.
+    assert_file_contains "$rv32_typedef_shaking_json" '"name":"Caller"' &&
+    assert_file_lacks "$rv32_typedef_shaking_json" '"name":"SharedConfig"' &&
+    assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV1"' &&
+    assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV2"' &&
+
+    # Same needles as the wasm interface-metadata-conflict block: two Token
+    # traits colliding on the interface key with different emits metadata,
+    # neither implemented.
+    assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
+    assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
+    assert_file_lacks "$rv32_iface_conflict_json" '"name":"PingEvent"'
 }
 
 itc_build() {
