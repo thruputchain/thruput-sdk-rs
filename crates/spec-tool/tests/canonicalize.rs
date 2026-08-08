@@ -1549,6 +1549,94 @@ fn conflicting_interface_emits_error() {
     );
 }
 
+/// Interface fragment with the given throws list and empty emits.
+fn iface_with_throws(
+    name: &str,
+    throws: &[ContractExceptionType],
+) -> SpecFragment {
+    SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+            throws: throws.to_vec().try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
+        },
+    }
+}
+
+// Interface-metadata conflicts (throws / emits / exception selectors) are
+// only errors for anchored interfaces. Two unrelated interface crates can
+// collide on the same interface key — the name defaults to the bare trait
+// ident and the version to the crate version — so a caller linking both
+// (implementing neither) must not fail on their disagreement, mirroring the
+// typedef/event conflict policy.
+
+#[test]
+fn conflicting_throws_ignored_when_interface_is_unanchored() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        iface_with_throws(
+            "B",
+            &[exn(ContractType::Named { named: s("ErrX") })],
+        ),
+        iface_with_throws(
+            "B",
+            &[exn(ContractType::Named { named: s("ErrY") })],
+        ),
+        anchor("A"),
+    ])
+    .unwrap();
+    let ifaces: Vec<&str> =
+        spec.interfaces.iter().map(|i| spec_str(&i.name)).collect();
+    assert_eq!(ifaces, vec!["A"]);
+}
+
+#[test]
+fn conflicting_emits_ignored_when_interface_is_unanchored() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        iface_with_emits("B", &["X"]),
+        iface_with_emits("B", &["Y"]),
+        SpecFragment::SpecEvent {
+            event_def: event("X"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: event("Y"),
+        },
+        anchor("A"),
+    ])
+    .unwrap();
+    let ifaces: Vec<&str> =
+        spec.interfaces.iter().map(|i| spec_str(&i.name)).collect();
+    assert_eq!(ifaces, vec!["A"]);
+    assert!(spec.events.is_empty());
+}
+
+#[test]
+fn selector_conflict_ignored_when_interface_is_unanchored() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("A", &[]),
+        iface_with_throws(
+            "B",
+            &[
+                ContractExceptionType {
+                    selector: 7,
+                    ty: ContractType::Named { named: s("ErrA") },
+                },
+                ContractExceptionType {
+                    selector: 7,
+                    ty: ContractType::Named { named: s("ErrB") },
+                },
+            ],
+        ),
+        anchor("A"),
+    ])
+    .unwrap();
+    let ifaces: Vec<&str> =
+        spec.interfaces.iter().map(|i| spec_str(&i.name)).collect();
+    assert_eq!(ifaces, vec!["A"]);
+}
+
 // ---------------------------------------------------------------------------
 // Signed tokens
 // ---------------------------------------------------------------------------
