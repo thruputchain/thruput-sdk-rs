@@ -370,6 +370,20 @@ assert_wasm_has_final_spec_only() {
     fi
 }
 
+# For raw contracts whose linked spec fragments all shake out: the finalized
+# wasm must carry no spec sections at all (neither raw nor final).
+assert_wasm_lacks_spec_sections() {
+    local path
+    path="$1"; shift
+    local dump
+    dump="$(wasm-objdump -x "$path")" || return 1
+
+    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspec"; then
+        fail "Expected $path to carry no spec sections"
+        return 1
+    fi
+}
+
 check_contract_spec_artifacts() {
     info "CHECK-SPECS"
 
@@ -458,6 +472,15 @@ check_contract_spec_artifacts() {
     assert_file_lacks "$iface_conflict_json" '"name":"Token"' &&
     assert_file_lacks "$iface_conflict_json" '"name":"PingEvent"' &&
 
+    # Raw contract (hand-written entrypoints) linking an interface crate:
+    # the shaken candidates must leave NO spec sections — same artifact
+    # shape as typedef-only raw contracts — and no spec.json sidecar.
+    assert_wasm_lacks_spec_sections "${optimized}/raw_iface_dep.wasm" &&
+    if [ -f "${optimized}/raw_iface_dep.spec.json" ]; then
+        fail "Expected no spec.json sidecar for raw contract raw_iface_dep"
+        return 1
+    fi &&
+
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
     assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
@@ -545,6 +568,35 @@ check_iface_conflict_detected() {
     echo "$out" | rg -F --quiet \
         "conflicting emits metadata for interface Token" || {
         fail "Expected a Token emits-metadata conflict from iface_conflict_impl, got: $out"
+        return 1
+    }
+}
+
+# Negative spec fixture: missing_contract_macro forgot its #[contract] macro
+# (no exported entrypoints) while linking an interface crate whose candidates
+# populate the raw section. The missing-#[contract] guard must fire even so —
+# historically it only fired when the raw section carried no interface
+# fragments at all, so this exact shape shipped silently as an uninvocable
+# module with an empty spec.
+check_missing_contract_macro_detected() {
+    info "CHECK-MISSING-CONTRACT-MACRO-DETECTED"
+
+    build_wasm "${SDK_DIR}/example-contracts" missing_contract_macro \
+        --release || return 1
+
+    local out
+    if out=$( (
+        cd "$SDK_DIR" &&
+        cargo run --quiet -p groundhog-spec-tool -- \
+            rewrite \
+            --wasm "${CONTRACT}/missing_contract_macro.wasm" \
+            --json-out "${CONTRACT}/missing_contract_macro.spec.json"
+    ) 2>&1); then
+        fail "Expected spec rewrite of missing_contract_macro to fail (no entrypoints), but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet "missing its #[contract] macro" || {
+        fail "Expected the missing-#[contract] guard error from missing_contract_macro, got: $out"
         return 1
     }
 }
@@ -804,6 +856,7 @@ check_all() {
         check_contract_spec_artifacts &&
         check_typedef_conflict_detected &&
         check_iface_conflict_detected &&
+        check_missing_contract_macro_detected &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
         eg_bottle_test_all &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&

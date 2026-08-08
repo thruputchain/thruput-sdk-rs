@@ -64,7 +64,11 @@ fn canonicalize_spec_drops_unanchored_interfaces() {
     // Strict shaking: an interface candidate with no `InterfaceAnchor` (this
     // calls `canonicalize_spec` directly, not the auto-anchoring `canon`
     // helper) is dropped — there is intentionally no "include all" fallback.
-    let spec = canonicalize_spec(&[SpecFragment::SpecInterface {
+    // With nothing anchored or exported, the whole spec shakes to nothing,
+    // which reports as NoSpecFragments: the caller (rewrite) treats it as
+    // "no spec section" for raw contracts and as a hard error for modules
+    // with no entrypoints (the missing-#[contract] guard).
+    let err = canonicalize_spec(&[SpecFragment::SpecInterface {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s("Named"),
             interface_version: s("0.1.0"),
@@ -72,12 +76,8 @@ fn canonicalize_spec_drops_unanchored_interfaces() {
             emits: vec![].try_into().unwrap(),
         },
     }])
-    .unwrap();
-    assert!(
-        spec.interfaces.is_empty(),
-        "an unanchored interface must be shaken out, got {:?}",
-        spec.interfaces
-    );
+    .unwrap_err();
+    assert!(matches!(err, SpecToolError::NoSpecFragments), "{err}");
 }
 
 #[test]

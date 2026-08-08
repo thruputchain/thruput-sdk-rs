@@ -35,14 +35,15 @@ pub struct RewrittenWasm {
 ///   spec is decoded and re-encoded (idempotent re-runs).
 /// - If the input has no spec sections at all, the output carries none and
 ///   `spec` is `None`.
-/// - Raw fragments that define types but no interface occur for raw
-///   contracts (hand-written `export_name` entrypoints, no `#[contract]`)
-///   that link SDK code carrying typedefs — e.g. `test_bytestring`,
-///   `calldata_raw`. The fragments are stripped and `spec` is `None`,
-///   **provided the module exports at least one function**. If it exports
-///   none, this is a hard error: an entrypoint-less contract cannot be
-///   invoked and is almost certainly missing its `#[contract]` macro (this
-///   caught exactly that bug in `genesis_deployer`).
+/// - Raw fragments whose spec shakes to nothing occur for raw contracts
+///   (hand-written `export_name` entrypoints, no `#[contract]`) that link
+///   SDK code carrying typedefs — e.g. `test_bytestring`, `calldata_raw` —
+///   or interface crates whose candidates nothing anchors. The fragments
+///   are stripped and `spec` is `None`, **provided the module exports at
+///   least one function**. If it exports none, this is a hard error: an
+///   entrypoint-less contract cannot be invoked and is almost certainly
+///   missing its `#[contract]` macro (this caught exactly that bug in
+///   `genesis_deployer`).
 /// - Errors with "raw spec bytes leaked into linear memory" if any raw
 ///   fragment's encoding appears in a data segment — raw fragments must live
 ///   only in custom sections, never in the contract's linear memory image.
@@ -56,7 +57,7 @@ pub fn rewrite_wasm_with_spec(
         match canonicalize_spec(&raw_fragments) {
             Ok(spec) => Some(spec),
             Err(SpecToolError::NoSpecFragments) => {
-                // Typedefs but no interface: benign for raw contracts,
+                // The spec shook to nothing: benign for raw contracts,
                 // fatal for a contract that forgot #[contract] — the
                 // distinguishing signal is whether anything is exported.
                 ensure_module_has_function_exports(bytes)?;
@@ -159,10 +160,10 @@ fn ensure_module_has_function_exports(
         }
     }
     Err(SpecToolError::InvalidRawFragment(
-        "raw spec sections contain type definitions but no interface, and \
-         the module exports no functions: the contract is likely missing \
-         its #[contract] macro (a contract with no entrypoints cannot be \
-         invoked)"
+        "raw spec sections yielded no spec content (nothing anchored or \
+         exported), and the module exports no functions: the contract is \
+         likely missing its #[contract] macro (a contract with no \
+         entrypoints cannot be invoked)"
             .to_string(),
     ))
 }
