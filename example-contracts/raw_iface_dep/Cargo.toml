@@ -1,0 +1,28 @@
+[package]
+name = "raw_iface_dep"
+description = "Raw contract (hand-written entrypoints) linking an interface crate: shaken candidates must leave no spec section"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "iface_conflict_if_a/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+iface_conflict_if_a = { path = "../iface_conflict_if_a" }
+
+[dev-dependencies]
+raw_iface_dep = { path = ".", features = ["dev"] }
