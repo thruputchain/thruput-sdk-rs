@@ -1158,6 +1158,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "typedef_shaking_caller"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "typedef_shaking_caller",
+ "typedef_shaking_if_v1",
+ "typedef_shaking_if_v2",
+]
+
+[[package]]
+name = "typedef_shaking_if_v1"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
+name = "typedef_shaking_if_v2"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

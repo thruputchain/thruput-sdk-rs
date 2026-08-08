@@ -376,7 +376,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -390,6 +390,7 @@ check_contract_spec_artifacts() {
     erc20_json="${optimized}/erc20_raw_storage.spec.json"
     swap_json="${optimized}/swap.spec.json"
     event_shaking_json="${optimized}/event_shaking_subset.spec.json"
+    typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -432,6 +433,18 @@ check_contract_spec_artifacts() {
     assert_file_lacks "$event_shaking_json" '"name":"Orphan"' &&
     assert_file_lacks "$event_shaking_json" '"name":"OrphanEvent"' &&
     assert_file_lacks "$event_shaking_json" '"name":"OrphanPayload"' &&
+
+    # Typedef-collision shaking: typedef_shaking_caller links two "versions"
+    # of a market interface crate (typedef_shaking_if_v1/v2) purely to call
+    # them, implementing neither trait. Each crate defines a differently
+    # shaped `SharedConfig`; both defs co-travel into the raw section but are
+    # unreachable, so the conflict must not fail the build (pre-fix this
+    # build died with ConflictingTypeDef) and nothing from the market
+    # interfaces may reach the final spec.
+    assert_file_contains "$typedef_shaking_json" '"name":"Caller"' &&
+    assert_file_lacks "$typedef_shaking_json" '"name":"SharedConfig"' &&
+    assert_file_lacks "$typedef_shaking_json" '"name":"MarketV1"' &&
+    assert_file_lacks "$typedef_shaking_json" '"name":"MarketV2"' &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
