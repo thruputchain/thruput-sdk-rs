@@ -56,6 +56,10 @@ members = [
     "event_shaking_if",
     "event_shaking_subset",
     "event_shaking_subset-rv32",
+    "typedef_shaking_if_v1",
+    "typedef_shaking_if_v2",
+    "typedef_shaking_caller",
+    "typedef_collision_reachable",
 ]
 
 exclude = [
@@ -75,9 +79,9 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.18.0" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.18.0" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.18.0", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.18.1" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.18.1" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.18.1", default-features = false }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.8" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.8" }

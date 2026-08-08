@@ -376,7 +376,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -390,6 +390,7 @@ check_contract_spec_artifacts() {
     erc20_json="${optimized}/erc20_raw_storage.spec.json"
     swap_json="${optimized}/swap.spec.json"
     event_shaking_json="${optimized}/event_shaking_subset.spec.json"
+    typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -433,6 +434,18 @@ check_contract_spec_artifacts() {
     assert_file_lacks "$event_shaking_json" '"name":"OrphanEvent"' &&
     assert_file_lacks "$event_shaking_json" '"name":"OrphanPayload"' &&
 
+    # Typedef-collision shaking: typedef_shaking_caller links two "versions"
+    # of a market interface crate (typedef_shaking_if_v1/v2) purely to call
+    # them, implementing neither trait. Each crate defines a differently
+    # shaped `SharedConfig`; both defs co-travel into the raw section but are
+    # unreachable, so the conflict must not fail the build (pre-fix this
+    # build died with ConflictingTypeDef) and nothing from the market
+    # interfaces may reach the final spec.
+    assert_file_contains "$typedef_shaking_json" '"name":"Caller"' &&
+    assert_file_lacks "$typedef_shaking_json" '"name":"SharedConfig"' &&
+    assert_file_lacks "$typedef_shaking_json" '"name":"MarketV1"' &&
+    assert_file_lacks "$typedef_shaking_json" '"name":"MarketV2"' &&
+
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
     assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
@@ -462,6 +475,36 @@ check_contract_spec_artifacts() {
     assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
     assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
     assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}'
+}
+
+# Negative spec fixture: typedef_collision_reachable implements MarketV1
+# (anchoring it, so v1's SharedConfig is reachable from the retained spec)
+# while also linking typedef_shaking_if_v2, whose unimplemented candidate
+# contributes a differently-shaped SharedConfig def. The wasm build succeeds;
+# the spec rewrite must FAIL with a typedef conflict — pinning that the
+# reachable-conflict error survived the unreachable-conflict relaxation.
+check_typedef_conflict_detected() {
+    info "CHECK-SPEC-CONFLICT-DETECTED"
+
+    build_wasm "${SDK_DIR}/example-contracts" typedef_collision_reachable \
+        --release || return 1
+
+    local out
+    if out=$( (
+        cd "$SDK_DIR" &&
+        cargo run --quiet -p groundhog-spec-tool -- \
+            rewrite \
+            --wasm "${CONTRACT}/typedef_collision_reachable.wasm" \
+            --json-out "${CONTRACT}/typedef_collision_reachable.spec.json"
+    ) 2>&1); then
+        fail "Expected spec rewrite of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet \
+        "conflicting contract type definitions for SharedConfig" || {
+        fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
+        return 1
+    }
 }
 
 # Asserts on rv32-pipeline-produced spec JSONs written to target/groundhog/.
@@ -717,6 +760,7 @@ check_all() {
         { skip BUILD_EXAMPLES || eg_build_all; } &&
         { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
         check_contract_spec_artifacts &&
+        check_typedef_conflict_detected &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
         eg_bottle_test_all &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&

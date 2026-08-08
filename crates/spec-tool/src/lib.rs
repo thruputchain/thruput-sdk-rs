@@ -286,13 +286,11 @@ pub fn canonicalize_spec(
         return Err(SpecToolError::NoSpecFragments);
     }
 
-    for (symbol, defs) in &type_defs {
-        if defs.len() > 1 {
-            return Err(SpecToolError::ConflictingTypeDef(
-                spec_str_lossy(symbol).into_owned(),
-            ));
-        }
-    }
+    // Typedef conflicts are checked in `collect_named_types`, which sees only
+    // defs reachable from the retained spec. A def conflict among shaken
+    // (unreachable) typedefs — e.g. two versions of an interface crate linked
+    // by a caller that implements neither — must not fail the build, matching
+    // the event-def policy above.
 
     // Spec shaking: keep only interfaces that were anchored (by an impl, or by
     // `export_interface_spec!` in an interface carrier). A trait's interface
