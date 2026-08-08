@@ -598,15 +598,64 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
 }
 
 fn typedef_only_module(with_function_export: bool) -> Vec<u8> {
-    let raw_blob = encode_fragments(&[SpecFragment::SpecTypeDef {
-        type_def: groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
-            struct_def: groundhog_contract_spec::ContractStructDef {
-                name: s("HelperType"),
-                fields: vec![].try_into().unwrap(),
-            },
-        },
-    }]);
+    raw_fragment_module(
+        encode_fragments(&[SpecFragment::SpecTypeDef {
+            type_def:
+                groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
+                    struct_def: groundhog_contract_spec::ContractStructDef {
+                        name: s("HelperType"),
+                        fields: vec![].try_into().unwrap(),
+                    },
+                },
+        }]),
+        with_function_export,
+    )
+}
 
+/// Like [`encode_fragments`] but WITHOUT the auto-anchoring — for fixtures
+/// modeling interface candidates that nothing in the artifact implements.
+fn encode_fragments_unanchored(fragments: &[SpecFragment]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for fragment in fragments {
+        bytes.extend(encode(fragment).unwrap());
+    }
+    bytes
+}
+
+/// Module whose raw section carries an unanchored interface candidate (with
+/// a method) — what linking an interface crate contributes to an artifact
+/// that implements none of its traits. Everything shakes out.
+fn unanchored_iface_module(with_function_export: bool) -> Vec<u8> {
+    raw_fragment_module(
+        encode_fragments_unanchored(&[
+            SpecFragment::SpecInterface {
+                interface_fragment: SpecInterfaceFragment {
+                    interface_name: s("Linked"),
+                    interface_version: s("1.0.0"),
+                    throws: vec![].try_into().unwrap(),
+                    emits: vec![].try_into().unwrap(),
+                },
+            },
+            SpecFragment::SpecMethod {
+                method_fragment: SpecMethodFragment {
+                    interface_name: s("Linked"),
+                    interface_version: s("1.0.0"),
+                    method: ContractSpecMethod {
+                        name: s("ping"),
+                        args: vec![].try_into().unwrap(),
+                        return_type: ContractType::Void,
+                    },
+                },
+            },
+        ]),
+        with_function_export,
+    )
+}
+
+fn raw_fragment_module(
+    raw_blob: Vec<u8>,
+    with_function_export: bool,
+) -> Vec<u8> {
     let mut module = Module::new();
     if with_function_export {
         let mut types = TypeSection::new();
@@ -660,6 +709,38 @@ fn rewrite_rejects_typedef_only_modules_with_no_entrypoints() {
     // bug in genesis_deployer) — an uninvokable contract must not pass the
     // build.
     let err = rewrite_wasm(&typedef_only_module(false)).unwrap_err();
+
+    assert!(matches!(err, SpecToolError::InvalidRawFragment(_)));
+    assert!(err.to_string().contains("#[contract]"));
+}
+
+#[test]
+fn rewrite_strips_all_shaken_raw_sections_from_raw_contracts() {
+    // A raw contract (hand-written export_name entrypoints) that links an
+    // interface crate: the crate's unanchored candidates all shake out, so
+    // the artifact shape must match the typedef-only raw-contract case —
+    // fragments stripped, NO spec section emitted. It must not flip to a
+    // final section claiming `interfaces: []` just because a dependency
+    // carried interface candidates.
+    let rewritten = rewrite_wasm(&unanchored_iface_module(true)).unwrap();
+
+    assert!(
+        custom_sections(&rewritten).is_empty(),
+        "expected no spec sections, got {:?}",
+        custom_sections(&rewritten)
+            .iter()
+            .map(|(name, _)| name)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn rewrite_rejects_all_shaken_modules_with_no_entrypoints() {
+    // The missing-#[contract] guard must fire even when the dependency
+    // graph contributed interface candidates: a module that anchors nothing
+    // and exports no functions is an uninvokable contract regardless of
+    // what its deps put in the raw section.
+    let err = rewrite_wasm(&unanchored_iface_module(false)).unwrap_err();
 
     assert!(matches!(err, SpecToolError::InvalidRawFragment(_)));
     assert!(err.to_string().contains("#[contract]"));

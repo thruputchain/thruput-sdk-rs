@@ -273,9 +273,11 @@ pub fn canonicalize_spec(
         }
     }
 
-    if interfaces.is_empty() {
-        return Err(SpecToolError::NoSpecFragments);
-    }
+    // Whether any spec content exists is decided AFTER shaking (see the
+    // post-shake check below), not on the candidate map here: linked
+    // interface crates make the candidate map non-empty even for artifacts
+    // whose spec shakes to nothing, and export-only artifacts have spec
+    // content with no interface candidates at all.
 
     // Typedef conflicts are checked in `collect_named_types`, which sees only
     // defs reachable from the retained spec. A def conflict among shaken
@@ -393,6 +395,17 @@ pub fn canonicalize_spec(
         &type_defs,
         &exported_roots,
     )?;
+
+    // Nothing anchored, nothing exported: the artifact has no spec. Report
+    // NoSpecFragments so the caller can distinguish "raw contract whose
+    // linked fragments all shook out" (benign, no spec section) from "a
+    // contract missing its #[contract] macro" (no entrypoints — hard error
+    // in rewrite). A real #[contract] contract always anchors its own
+    // interface, so a well-formed contract can never reach this.
+    if interfaces.is_empty() && events.is_empty() && type_defs.is_empty() {
+        return Err(SpecToolError::NoSpecFragments);
+    }
+
     Ok(ContractSpec {
         interfaces: interfaces.try_into().unwrap(),
         type_defs: type_defs.try_into().unwrap(),
