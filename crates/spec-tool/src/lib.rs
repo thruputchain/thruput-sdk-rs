@@ -139,20 +139,29 @@ pub fn canonicalize_spec(
 /// Like [`canonicalize_spec`], but additionally shakes methods with no
 /// corresponding exported entrypoint.
 ///
-/// `exported_fns` is the module's exported function-name set. For each
-/// anchored interface, each method's expected entrypoint export name is
-/// computed with the same `contract-util` functions the macro codegen uses;
-/// methods whose entrypoint is absent are dropped. This removes phantom
-/// methods contributed by a *different* trait candidate that collides on the
-/// interface key (default name = trait ident, default version = crate
-/// version) — the contract still builds, and the spec reflects only what is
-/// callable.
+/// `exported_fns` is the module's set of **entrypoint export names** — the
+/// 16-hex uppercase rendering of the dispatch ID
+/// ([`groundhog_contract_util::entrypoint_export_name`]). For wasm this is
+/// exactly the export section's function names. An rv32 caller must map its
+/// dispatch-table method IDs through `entrypoint_export_name` — NOT pass
+/// ELF symbol names (rv32 wrapper symbols carry the human-readable ID
+/// preimage, which never matches; passing them would silently disable
+/// shaking).
 ///
-/// Carrier rule: if NONE of an interface's methods are exported, the
-/// interface keeps its full method list. Spec-carrier binaries
-/// (`export_interface_spec!`) export no entrypoints at all and must still
-/// publish complete interfaces; the rule also guarantees shaking can never
-/// empty an interface.
+/// For each anchored interface, each method's expected entrypoint export
+/// name is computed with the same `contract-util` functions the macro
+/// codegen uses; methods whose entrypoint is absent are dropped. This
+/// removes phantom methods contributed by a *different* trait candidate
+/// that collides on the interface key (default name = trait ident, default
+/// version = crate version) — the contract still builds, and the spec
+/// reflects only what is callable.
+///
+/// Carrier rule: an EMPTY `exported_fns` set disables shaking entirely.
+/// Spec-carrier binaries (`export_interface_spec!`) export no functions at
+/// all and must still publish complete interfaces. The exemption is
+/// deliberately module-wide rather than per-interface: an anchored
+/// interface with zero real methods (e.g. an implemented marker trait
+/// whose key a collider squats) must not smuggle phantom methods through.
 pub fn canonicalize_spec_with_exports(
     raw: &[SpecFragment],
     exported_fns: &std::collections::BTreeSet<String>,
@@ -357,29 +366,34 @@ fn canonicalize_spec_inner(
             // Method shaking by export cross-reference (see
             // `canonicalize_spec_with_exports`): drop methods whose
             // entrypoint the module does not export — phantom methods from
-            // a colliding trait candidate — unless NO method is exported
-            // (spec-carrier binaries publish full interfaces).
-            if let Some(exports) = exported_fns {
+            // a colliding trait candidate. Skipped only when the module
+            // exports no functions at all (a spec-carrier binary), which
+            // the caller signals with an empty set: the exemption is
+            // module-wide, never per-interface, so an anchored interface
+            // with zero real methods cannot smuggle a collider's phantoms
+            // through.
+            if let Some(exports) = exported_fns
+                && !exports.is_empty()
+            {
                 let iface_name = spec_str(&name)?.to_string();
                 let iface_vers = spec_str(&vers)?.to_string();
-                let mut is_exported = Vec::with_capacity(deduped_methods.len());
-                for method in &deduped_methods {
-                    let export_name =
-                        groundhog_contract_util::entrypoint_export_name(
-                            groundhog_contract_util::contract_entrypoint_id(
+                deduped_methods = deduped_methods
+                    .into_iter()
+                    .map(|method| {
+                        let export_name =
+                            groundhog_contract_util::entrypoint_export_name_for(
                                 Some(&iface_name),
                                 &iface_vers,
                                 &groundhog_contract_util::NormalizedMethodSignature::new(
                                     spec_str(&method.name)?,
                                 ),
-                            ),
-                        );
-                    is_exported.push(exports.contains(&export_name));
-                }
-                if is_exported.iter().any(|&exported| exported) {
-                    let mut flags = is_exported.into_iter();
-                    deduped_methods.retain(|_| flags.next().unwrap());
-                }
+                            );
+                        Ok((exports.contains(&export_name), method))
+                    })
+                    .collect::<Result<Vec<_>, SpecToolError>>()?
+                    .into_iter()
+                    .filter_map(|(keep, method)| keep.then_some(method))
+                    .collect();
             }
 
             // Interface-metadata conflicts (throws, emits, exception
@@ -514,6 +528,20 @@ fn validate_interface_key(
     if !is_semver_triplet(interface_version) {
         return Err(SpecToolError::InvalidRawFragment(format!(
             "interface version must be MAJOR.MINOR.PATCH, got {interface_version}"
+        )));
+    }
+    // The digits-only shape check above still admits non-canonical strings
+    // ("01.0.0", components beyond u64) that contract-util's strict semver
+    // parser panics on. That parser runs when computing entrypoint IDs
+    // during method shaking, so reject here — crafted or corrupt raw
+    // sections must produce an error, never a panic.
+    if groundhog_contract_util::semver::try_major_version_from_string(
+        interface_version,
+    )
+    .is_none()
+    {
+        return Err(SpecToolError::InvalidRawFragment(format!(
+            "interface version is not canonical semver: {interface_version}"
         )));
     }
     Ok(())

@@ -98,13 +98,33 @@ impl Display for EntrypointSignature {
 ///   (`interface = "..."` override or the self type name)
 /// - free functions default to `_unnamed_interface` unless an explicit
 ///   `interface = "..."` override is present
+/// The interface name used when a free function has no explicit
+/// `interface = "..."` override.
+pub const UNNAMED_INTERFACE: &str = "_unnamed_interface";
+
+/// The normalized (interface, MAJOR version, method-signature) triple that
+/// defines entrypoint identity. Single source of truth for
+/// [`contract_entrypoint_id`] and [`entrypoint_link_name`]: both consume this
+/// triple, so link-name equality coincides with ID equality by construction.
+fn entrypoint_id_preimage<'a>(
+    interface_name: Option<&'a str>,
+    version_str: &str,
+    method: &NormalizedMethodSignature,
+) -> (&'a str, String, String) {
+    (
+        interface_name.unwrap_or(UNNAMED_INTERFACE),
+        semver::major_version_from_string(version_str),
+        method.get_signature_string(),
+    )
+}
+
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
     version_str: &str,
     method: &NormalizedMethodSignature,
 ) -> ContractEntrypointID {
-    let major_version = semver::major_version_from_string(version_str);
-    let method_sig = method.get_signature_string();
+    let (interface_name, major_version, method_sig) =
+        entrypoint_id_preimage(interface_name, version_str, method);
 
     // Entrypoint ID = sha256(INTERFACE_NAME :: MAJOR_VERSION :: METHOD_SIGNATURE)[0..8]
     //
@@ -114,7 +134,7 @@ pub fn contract_entrypoint_id(
     // major "2" + method "x" vs "Foo" + "12" + "x", both "Foo12x"), colliding
     // to the same id and silently misrouting a call.
     let mut hasher = sha2::Sha256::new();
-    hasher.update(interface_name.unwrap_or("_unnamed_interface").as_bytes());
+    hasher.update(interface_name.as_bytes());
     hasher.update(b"::");
     hasher.update(major_version.as_bytes());
     hasher.update(b"::");
@@ -123,6 +143,23 @@ pub fn contract_entrypoint_id(
 
     let entrypoint_id: [u8; 8] = result[0..8].try_into().unwrap();
     ContractEntrypointID::from(entrypoint_id)
+}
+
+/// The wasm export-section name of the entrypoint for the given
+/// (interface, version, method) triple: [`contract_entrypoint_id`] rendered
+/// through [`entrypoint_export_name`]. Use this instead of composing the two
+/// by hand — when the ID preimage changes (e.g. the signature-checksum TODO
+/// above), every caller stays in sync.
+pub fn entrypoint_export_name_for(
+    interface_name: Option<&str>,
+    version_str: &str,
+    method: &NormalizedMethodSignature,
+) -> String {
+    entrypoint_export_name(contract_entrypoint_id(
+        interface_name,
+        version_str,
+        method,
+    ))
 }
 
 pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
@@ -142,12 +179,10 @@ pub fn entrypoint_link_name(
     version_str: &str,
     method: &NormalizedMethodSignature,
 ) -> String {
-    let major_version = semver::major_version_from_string(version_str);
+    let (interface_name, major_version, method_sig) =
+        entrypoint_id_preimage(interface_name, version_str, method);
     format!(
-        "__groundhog_entrypoint::{}::{}::{}",
-        interface_name.unwrap_or("_unnamed_interface"),
-        major_version,
-        method.get_signature_string(),
+        "__groundhog_entrypoint::{interface_name}::{major_version}::{method_sig}"
     )
 }
 

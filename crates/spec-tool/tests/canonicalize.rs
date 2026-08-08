@@ -824,6 +824,30 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
 }
 
 #[test]
+fn canonicalize_spec_rejects_non_canonical_semver_versions() {
+    // These pass the digits-only shape check but are not canonical semver;
+    // the strict major-version parser (used to compute entrypoint IDs
+    // during method shaking) panics on them, so they must be rejected at
+    // ingestion — crafted or corrupt raw sections must produce
+    // SpecToolError, never a panic.
+    for bad in ["01.0.0", "0.00.1", "99999999999999999999.0.0"] {
+        let err = canon(&[SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s(bad),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        }])
+        .unwrap_err();
+        assert!(
+            matches!(err, SpecToolError::InvalidRawFragment(_)),
+            "{bad}: {err}"
+        );
+    }
+}
+
+#[test]
 fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
     let spec = canon(&[
         SpecFragment::SpecInterface {
@@ -1643,14 +1667,12 @@ fn selector_conflict_ignored_when_interface_is_unanchored() {
 // ---------------------------------------------------------------------------
 
 /// Export-section name of the entrypoint for `iface_name@vers::method`,
-/// computed with the same contract-util functions the macro codegen uses.
+/// computed with the same contract-util function the shaker uses.
 fn export_name(iface_name: &str, vers: &str, method: &str) -> String {
-    groundhog_contract_util::entrypoint_export_name(
-        groundhog_contract_util::contract_entrypoint_id(
-            Some(iface_name),
-            vers,
-            &groundhog_contract_util::NormalizedMethodSignature::new(method),
-        ),
+    groundhog_contract_util::entrypoint_export_name_for(
+        Some(iface_name),
+        vers,
+        &groundhog_contract_util::NormalizedMethodSignature::new(method),
     )
 }
 
@@ -1725,11 +1747,10 @@ fn phantom_methods_without_exported_entrypoints_are_shaken() {
 }
 
 #[test]
-fn carrier_interfaces_without_any_exported_method_keep_all_methods() {
-    // A spec-carrier binary (export_interface_spec!) exports no entrypoints
+fn empty_export_set_disables_method_shaking() {
+    // A spec-carrier binary (export_interface_spec!) exports no functions
     // at all; its interfaces must publish their full method list.
-    let exports: std::collections::BTreeSet<String> =
-        ["unrelated_export".to_string()].into_iter().collect();
+    let exports = std::collections::BTreeSet::new();
     let spec =
         canonicalize_spec_with_exports(&ledger_fixture(), &exports).unwrap();
     let methods: Vec<&str> = spec.interfaces[0]
@@ -1739,6 +1760,25 @@ fn carrier_interfaces_without_any_exported_method_keep_all_methods() {
         .collect();
     assert_eq!(methods, vec!["ping", "steal"]);
     assert_eq!(spec.type_defs.len(), 1);
+}
+
+#[test]
+fn phantom_methods_shaken_even_when_no_interface_method_is_exported() {
+    // The carrier exemption is module-wide (zero exported functions), NOT
+    // per-interface: a contract module (it exports SOMETHING) anchoring an
+    // interface none of whose methods are exported — e.g. an implemented
+    // empty marker trait whose key a collider crate squats with method
+    // candidates — must still shake the phantoms rather than publish them.
+    let exports: std::collections::BTreeSet<String> =
+        ["unrelated_export".to_string()].into_iter().collect();
+    let spec =
+        canonicalize_spec_with_exports(&ledger_fixture(), &exports).unwrap();
+    assert!(
+        spec.interfaces[0].methods.is_empty(),
+        "phantoms must shake even with zero real methods, got {:?}",
+        spec.interfaces[0].methods
+    );
+    assert!(spec.type_defs.is_empty());
 }
 
 #[test]

@@ -745,14 +745,12 @@ fn rewrite_strips_all_shaken_raw_sections_from_raw_contracts() {
 }
 
 /// Export-section name of the entrypoint for `iface@vers::method`, via the
-/// same contract-util functions the macro codegen uses.
+/// same contract-util function the shaker uses.
 fn entrypoint_export(iface: &str, vers: &str, method: &str) -> String {
-    groundhog_contract_util::entrypoint_export_name(
-        groundhog_contract_util::contract_entrypoint_id(
-            Some(iface),
-            vers,
-            &groundhog_contract_util::NormalizedMethodSignature::new(method),
-        ),
+    groundhog_contract_util::entrypoint_export_name_for(
+        Some(iface),
+        vers,
+        &groundhog_contract_util::NormalizedMethodSignature::new(method),
     )
 }
 
@@ -810,9 +808,9 @@ fn rewrite_shakes_phantom_methods_without_entrypoints() {
 #[test]
 fn rewrite_keeps_carrier_interface_methods_despite_no_entrypoints() {
     // A spec-carrier artifact (export_interface_spec!) anchors an interface
-    // but exports no entrypoints for it; the full method list must survive.
-    // The module exports one unrelated function so the missing-#[contract]
-    // guard does not fire.
+    // and exports no functions AT ALL — the module-wide carrier exemption
+    // must keep the full method list. (The missing-#[contract] guard does
+    // not fire because the anchored interface keeps the spec non-empty.)
     let raw = encode_fragments(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
@@ -834,7 +832,7 @@ fn rewrite_keeps_carrier_interface_methods_despite_no_entrypoints() {
             },
         },
     ]);
-    let module = raw_fragment_module(raw, Some("unrelated_export"));
+    let module = raw_fragment_module(raw, None);
     let rewritten = rewrite_wasm(&module).unwrap();
     let spec = final_spec(&rewritten).unwrap();
     assert_eq!(spec.interfaces[0].methods.len(), 1);
