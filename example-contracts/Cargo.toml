@@ -66,6 +66,8 @@ members = [
     "iface_conflict_impl",
     "raw_iface_dep",
     "missing_contract_macro",
+    "typedef_shaking_caller-rv32",
+    "iface_conflict_caller-rv32",
 ]
 
 exclude = [

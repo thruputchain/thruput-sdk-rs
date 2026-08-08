@@ -658,6 +658,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "iface_conflict_caller-rv32"
+version = "0.4.0"
+dependencies = [
+ "iface_conflict_caller",
+ "sdk",
+]
+
+[[package]]
 name = "iface_conflict_if_a"
 version = "0.4.0"
 dependencies = [
@@ -1227,6 +1235,14 @@ dependencies = [
  "typedef_shaking_caller",
  "typedef_shaking_if_v1",
  "typedef_shaking_if_v2",
+]
+
+[[package]]
+name = "typedef_shaking_caller-rv32"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "typedef_shaking_caller",
 ]
 
 [[package]]
