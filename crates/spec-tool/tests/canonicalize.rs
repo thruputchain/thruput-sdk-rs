@@ -546,8 +546,12 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
 }
 
 #[test]
-fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
-    let err = canon(&[
+fn canonicalize_spec_shakes_unreachable_conflicting_type_defs() {
+    // Deliberate semantic change (matches event-def policy): a def conflict
+    // is only an error if the symbol is reachable from the retained spec.
+    // Unreachable conflicting defs are all shaken; none may appear in the
+    // output and the conflict must not fail the build.
+    let spec = canon(&[
         SpecFragment::SpecInterface {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
@@ -589,11 +593,97 @@ fn canonicalize_spec_rejects_unreachable_conflicting_type_defs() {
             },
         },
     ])
-    .unwrap_err();
+    .unwrap();
 
     assert!(
-        matches!(err, SpecToolError::ConflictingTypeDef(name) if name == "NeverUsed")
+        spec.type_defs.is_empty(),
+        "unreachable conflicting defs must be shaken, got {:?}",
+        spec.type_defs
     );
+}
+
+#[test]
+fn conflicting_defs_ignored_when_type_is_unreachable() {
+    // A caller links two versions of an interface crate (candidates MarketV1
+    // and MarketV2) to call other contracts, implementing neither. Each
+    // version defines a differently-shaped type named "SharedConfig". Both
+    // candidates are shaken, so the def conflict must not fail the caller's
+    // build, and neither def may appear in the final spec.
+    let market = |name: &str| SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
+        },
+    };
+    let configure = |name: &str| SpecFragment::SpecMethod {
+        method_fragment: SpecMethodFragment {
+            interface_name: s(name),
+            interface_version: s("0.1.0"),
+            method: ContractSpecMethod {
+                name: s("configure"),
+                args: vec![ContractField {
+                    name: s("cfg"),
+                    ty: ContractType::Named {
+                        named: s("SharedConfig"),
+                    },
+                }]
+                .try_into()
+                .unwrap(),
+                return_type: ContractType::Void,
+            },
+        },
+    };
+    let spec = canonicalize_spec(&[
+        iface_with_emits("Caller", &[]),
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Caller"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        market("MarketV1"),
+        configure("MarketV1"),
+        market("MarketV2"),
+        configure("MarketV2"),
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("SharedConfig"),
+                    fields: vec![ContractField {
+                        name: s("limit"),
+                        ty: ContractType::U32,
+                    }]
+                    .try_into()
+                    .unwrap(),
+                },
+            },
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("SharedConfig"),
+                    fields: vec![].try_into().unwrap(),
+                },
+            },
+        },
+        anchor("Caller"),
+    ])
+    .unwrap();
+    assert!(
+        spec.type_defs.is_empty(),
+        "unreachable conflicting defs must be shaken, got {:?}",
+        spec.type_defs
+    );
+    let ifaces: Vec<&str> =
+        spec.interfaces.iter().map(|i| spec_str(&i.name)).collect();
+    assert_eq!(ifaces, vec!["Caller"]);
 }
 
 #[test]
