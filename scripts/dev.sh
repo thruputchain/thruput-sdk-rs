@@ -477,6 +477,36 @@ check_contract_spec_artifacts() {
     assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}'
 }
 
+# Negative spec fixture: typedef_collision_reachable implements MarketV1
+# (anchoring it, so v1's SharedConfig is reachable from the retained spec)
+# while also linking typedef_shaking_if_v2, whose unimplemented candidate
+# contributes a differently-shaped SharedConfig def. The wasm build succeeds;
+# the spec rewrite must FAIL with a typedef conflict — pinning that the
+# reachable-conflict error survived the unreachable-conflict relaxation.
+check_typedef_conflict_detected() {
+    info "CHECK-SPEC-CONFLICT-DETECTED"
+
+    build_wasm "${SDK_DIR}/example-contracts" typedef_collision_reachable \
+        --release || return 1
+
+    local out
+    if out=$( (
+        cd "$SDK_DIR" &&
+        cargo run --quiet -p groundhog-spec-tool -- \
+            rewrite \
+            --wasm "${CONTRACT}/typedef_collision_reachable.wasm" \
+            --json-out "${CONTRACT}/typedef_collision_reachable.spec.json"
+    ) 2>&1); then
+        fail "Expected spec rewrite of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet \
+        "conflicting contract type definitions for SharedConfig" || {
+        fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
+        return 1
+    }
+}
+
 # Asserts on rv32-pipeline-produced spec JSONs written to target/groundhog/.
 # Called at the end of eg_build_rv32_all (not from check_all) so it only runs
 # when the rv32 build succeeds and is not skipped via SKIP_RV32_EXAMPLES.
@@ -730,6 +760,7 @@ check_all() {
         { skip BUILD_EXAMPLES || eg_build_all; } &&
         { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
         check_contract_spec_artifacts &&
+        check_typedef_conflict_detected &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
         eg_bottle_test_all &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&

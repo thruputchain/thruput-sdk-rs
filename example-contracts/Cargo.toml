@@ -59,6 +59,7 @@ members = [
     "typedef_shaking_if_v1",
     "typedef_shaking_if_v2",
     "typedef_shaking_caller",
+    "typedef_collision_reachable",
 ]
 
 exclude = [

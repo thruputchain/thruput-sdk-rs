@@ -1158,6 +1158,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "typedef_collision_reachable"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "typedef_collision_reachable",
+ "typedef_shaking_if_v1",
+ "typedef_shaking_if_v2",
+]
+
+[[package]]
 name = "typedef_shaking_caller"
 version = "0.4.0"
 dependencies = [

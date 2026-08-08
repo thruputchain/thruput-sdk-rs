@@ -1,0 +1,29 @@
+[package]
+name = "typedef_collision_reachable"
+description = "Negative spec fixture: implements MarketV1 while linking if_v2, so the SharedConfig conflict is reachable and spec rewrite must fail"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "typedef_shaking_if_v1/dev", "typedef_shaking_if_v2/dev"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { workspace = true }
+typedef_shaking_if_v1 = { path = "../typedef_shaking_if_v1" }
+typedef_shaking_if_v2 = { path = "../typedef_shaking_if_v2" }
+
+[dev-dependencies]
+typedef_collision_reachable = { path = ".", features = ["dev"] }
