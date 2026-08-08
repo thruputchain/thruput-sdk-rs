@@ -204,6 +204,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dup_entrypoint_neg"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -827,6 +834,30 @@ version = "0.4.0"
 dependencies = [
  "named_interface_callee",
  "named_interface_caller",
+ "sdk",
+]
+
+[[package]]
+name = "phantom_method_if_a"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
+name = "phantom_method_if_b"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
+name = "phantom_method_impl"
+version = "0.4.0"
+dependencies = [
+ "phantom_method_if_a",
+ "phantom_method_if_b",
+ "phantom_method_impl",
  "sdk",
 ]
 

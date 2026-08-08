@@ -68,6 +68,10 @@ members = [
     "missing_contract_macro",
     "typedef_shaking_caller-rv32",
     "iface_conflict_caller-rv32",
+    "phantom_method_if_a",
+    "phantom_method_if_b",
+    "phantom_method_impl",
+    "dup_entrypoint_neg",
 ]
 
 exclude = [
