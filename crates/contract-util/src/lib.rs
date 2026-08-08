@@ -88,16 +88,6 @@ impl Display for EntrypointSignature {
     }
 }
 
-/// Derive a standard entrypoint ID for a contract method.
-/// The interface name is a domain separator.
-///
-/// In the SDK macros (`#[contract]`):
-/// - trait and trait-impl methods use the effective interface name
-///   (`interface = "..."` override or the trait name)
-/// - bare impl methods use the effective interface name
-///   (`interface = "..."` override or the self type name)
-/// - free functions default to `_unnamed_interface` unless an explicit
-///   `interface = "..."` override is present
 /// The interface name used when a free function has no explicit
 /// `interface = "..."` override.
 pub const UNNAMED_INTERFACE: &str = "_unnamed_interface";
@@ -118,6 +108,16 @@ fn entrypoint_id_preimage<'a>(
     )
 }
 
+/// Derive a standard entrypoint ID for a contract method.
+/// The interface name is a domain separator.
+///
+/// In the SDK macros (`#[contract]`):
+/// - trait and trait-impl methods use the effective interface name
+///   (`interface = "..."` override or the trait name)
+/// - bare impl methods use the effective interface name
+///   (`interface = "..."` override or the self type name)
+/// - free functions default to [`UNNAMED_INTERFACE`] unless an explicit
+///   `interface = "..."` override is present
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
     version_str: &str,
