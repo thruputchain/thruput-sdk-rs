@@ -522,6 +522,10 @@ pub fn generate_method(
     let method_id_u64 = u64::from_be_bytes(*entrypoint);
     let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
+    let id_guard_ident = format_ident!("__GH_RV32_ENTRY_ID_GUARD_{}", ident);
+    let link_guard_ident =
+        format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
+    let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
     Ok(quote! {
 
         #[doc=#export_docstr]
@@ -540,13 +544,41 @@ pub fn generate_method(
             target_family = "wasm",
             unsafe(export_name = #export_name)
         )]
-        #[cfg_attr(
-            target_arch = "riscv32",
-            unsafe(export_name = #link_name)
-        )]
         pub extern "C" fn #extern_name() {
             #internal_name()
         }
+
+        // rv32 duplicate-entrypoint guards: two zero-sized symbols per
+        // method (symtab-only — neither reaches the lowered image) so a
+        // colliding dispatch ID fails the build instead of producing two
+        // dispatch-table records where the runtime's first-match-wins scan
+        // silently routes every call to one impl. wasm needs no guards: its
+        // export_name above IS the dispatch surface and collides on its own.
+        //
+        // The readable ID-preimage symbol is declared FIRST so the common
+        // collision (same interface/method key) is reported against it —
+        // rustc aborts on the first duplicate symbol in declaration order —
+        // naming the interface and method:
+        //   error: symbol `__groundhog_entrypoint::Ledger::0.4::clash`
+        //          is already defined
+        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
+        #[used]
+        #[unsafe(export_name = #link_name)]
+        #[allow(non_upper_case_globals)]
+        static #link_guard_ident: () = ();
+
+        // Belt-and-braces: the 16-hex dispatch ID (constant prefix keeps
+        // name-equality identical to ID-equality, and sorts this guard
+        // after the readable one so rustc reports the readable symbol for
+        // same-key collisions). Two *distinct* preimages whose truncated
+        // hashes collide to one dispatch ID (including an adversarially
+        // constructed collision) produce different readable symbols — only
+        // this guard turns that case into a build error.
+        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
+        #[used]
+        #[unsafe(export_name = #id_guard_name)]
+        #[allow(non_upper_case_globals)]
+        static #id_guard_ident: () = ();
 
         // rv32 guest dispatch: place this method's Entrypoint record in the
         // dispatch-table input section. Naming is owned by the SDK end-to-end:
@@ -741,6 +773,13 @@ mod tests {
         assert!(generated.contains(&expected_link_name), "{generated}");
         assert!(
             generated.contains("target_arch = \"riscv32\""),
+            "{generated}"
+        );
+        // Belt-and-braces guard: the 16-hex ID is also emitted as a
+        // zero-sized rv32 symbol, so cross-preimage hash collisions (which
+        // produce distinct readable symbols) still fail the build.
+        assert!(
+            generated.contains("__GH_RV32_ENTRY_ID_GUARD_"),
             "{generated}"
         );
     }
