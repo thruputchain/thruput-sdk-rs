@@ -659,7 +659,7 @@ check_all() {
         { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
         check_contract_spec_artifacts &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
-        eg_bottle_test_all &&
+        { skip BOTTLE_EXAMPLES || eg_bottle_test_all; } &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
         { skip REGISTRY_STRIPPED || bash "${SDK_DIR}/scripts/check-storage-registry-stripped.sh"; }
     }; } &&
