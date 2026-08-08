@@ -72,6 +72,7 @@ members = [
     "phantom_method_if_b",
     "phantom_method_impl",
     "dup_entrypoint_neg",
+    "prerelease_version",
 ]
 
 exclude = [

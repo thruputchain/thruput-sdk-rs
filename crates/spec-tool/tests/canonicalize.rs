@@ -818,9 +818,28 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
     assert_eq!(
         err,
         SpecToolError::InvalidRawFragment(
-            "interface version must be MAJOR.MINOR.PATCH, got v1".into()
+            "interface version must be a semver triplet like \"1.0.0\" \
+             (optionally with -PRERELEASE and +BUILD suffixes), got v1"
+                .into()
         )
     );
+}
+
+#[test]
+fn canonicalize_spec_accepts_prerelease_interface_versions() {
+    // The macro-side validator accepts `version = "1.0.0-rc.1"` (semver
+    // pre-release/build suffixes); ingestion must agree, or a contract with
+    // a pre-release version compiles and then fails at spec rewrite.
+    let spec = canon(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("Named"),
+            interface_version: s("1.0.0-rc.1"),
+            throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
+        },
+    }])
+    .unwrap();
+    assert_eq!(spec_str(&spec.interfaces[0].vers), "1.0.0-rc.1");
 }
 
 #[test]

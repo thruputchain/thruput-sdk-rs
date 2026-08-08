@@ -416,7 +416,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json phantom_method_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json phantom_method_json prerelease_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -433,6 +433,7 @@ check_contract_spec_artifacts() {
     typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
     iface_conflict_json="${optimized}/iface_conflict_caller.spec.json"
     phantom_method_json="${optimized}/phantom_method_impl.spec.json"
+    prerelease_json="${optimized}/prerelease_version.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -510,6 +511,12 @@ check_contract_spec_artifacts() {
     assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
     assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
     assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
+
+    # Pre-release interface versions: the macro accepts them and the spec
+    # pipeline must publish them verbatim (historically ingestion rejected
+    # anything but bare MAJOR.MINOR.PATCH, so a pre-release contract
+    # compiled and then failed at spec rewrite).
+    assert_file_contains "$prerelease_json" '"version":"0.9.0-rc.1"' &&
 
     # Raw contract (hand-written entrypoints) linking an interface crate:
     # the shaken candidates must leave NO spec sections — same artifact
