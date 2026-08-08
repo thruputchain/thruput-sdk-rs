@@ -338,8 +338,7 @@ fn apply_with_config(
         _ => Err(error(
             item,
             "the #[contract] attribute applies to a trait, an impl block, \
-             or a free function"
-                .to_string(),
+             or a free function",
         )),
     }
 }
