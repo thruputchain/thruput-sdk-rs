@@ -133,6 +133,37 @@ struct InterfaceBucket {
 pub fn canonicalize_spec(
     raw: &[SpecFragment],
 ) -> Result<ContractSpec, SpecToolError> {
+    canonicalize_spec_inner(raw, None)
+}
+
+/// Like [`canonicalize_spec`], but additionally shakes methods with no
+/// corresponding exported entrypoint.
+///
+/// `exported_fns` is the module's exported function-name set. For each
+/// anchored interface, each method's expected entrypoint export name is
+/// computed with the same `contract-util` functions the macro codegen uses;
+/// methods whose entrypoint is absent are dropped. This removes phantom
+/// methods contributed by a *different* trait candidate that collides on the
+/// interface key (default name = trait ident, default version = crate
+/// version) — the contract still builds, and the spec reflects only what is
+/// callable.
+///
+/// Carrier rule: if NONE of an interface's methods are exported, the
+/// interface keeps its full method list. Spec-carrier binaries
+/// (`export_interface_spec!`) export no entrypoints at all and must still
+/// publish complete interfaces; the rule also guarantees shaking can never
+/// empty an interface.
+pub fn canonicalize_spec_with_exports(
+    raw: &[SpecFragment],
+    exported_fns: &std::collections::BTreeSet<String>,
+) -> Result<ContractSpec, SpecToolError> {
+    canonicalize_spec_inner(raw, Some(exported_fns))
+}
+
+fn canonicalize_spec_inner(
+    raw: &[SpecFragment],
+    exported_fns: Option<&std::collections::BTreeSet<String>>,
+) -> Result<ContractSpec, SpecToolError> {
     if raw.is_empty() {
         return Err(SpecToolError::NoSpecFragments);
     }
@@ -321,6 +352,34 @@ pub fn canonicalize_spec(
                     )));
                 }
                 deduped_methods.push(method);
+            }
+
+            // Method shaking by export cross-reference (see
+            // `canonicalize_spec_with_exports`): drop methods whose
+            // entrypoint the module does not export — phantom methods from
+            // a colliding trait candidate — unless NO method is exported
+            // (spec-carrier binaries publish full interfaces).
+            if let Some(exports) = exported_fns {
+                let iface_name = spec_str(&name)?.to_string();
+                let iface_vers = spec_str(&vers)?.to_string();
+                let mut is_exported = Vec::with_capacity(deduped_methods.len());
+                for method in &deduped_methods {
+                    let export_name =
+                        groundhog_contract_util::entrypoint_export_name(
+                            groundhog_contract_util::contract_entrypoint_id(
+                                Some(&iface_name),
+                                &iface_vers,
+                                &groundhog_contract_util::NormalizedMethodSignature::new(
+                                    spec_str(&method.name)?,
+                                ),
+                            ),
+                        );
+                    is_exported.push(exports.contains(&export_name));
+                }
+                if is_exported.iter().any(|&exported| exported) {
+                    let mut flags = is_exported.into_iter();
+                    deduped_methods.retain(|_| flags.next().unwrap());
+                }
             }
 
             // Interface-metadata conflicts (throws, emits, exception

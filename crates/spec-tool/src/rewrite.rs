@@ -5,7 +5,7 @@ use wasmparser::Parser;
 use xdrs::txs::{decode, encode};
 
 use crate::{
-    ContractSpec, SpecFragment, SpecToolError, canonicalize_spec,
+    ContractSpec, SpecFragment, SpecToolError, canonicalize_spec_with_exports,
     raw::{FINAL_SECTION_NAME, RAW_SECTION_NAME, parse_raw_fragments},
 };
 
@@ -54,13 +54,16 @@ pub fn rewrite_wasm_with_spec(
     let spec = if raw_fragments.is_empty() {
         collect_final_spec(bytes)?
     } else {
-        match canonicalize_spec(&raw_fragments) {
+        let exported_fns = exported_function_names(bytes)?;
+        match canonicalize_spec_with_exports(&raw_fragments, &exported_fns) {
             Ok(spec) => Some(spec),
             Err(SpecToolError::NoSpecFragments) => {
                 // The spec shook to nothing: benign for raw contracts,
                 // fatal for a contract that forgot #[contract] — the
                 // distinguishing signal is whether anything is exported.
-                ensure_module_has_function_exports(bytes)?;
+                if exported_fns.is_empty() {
+                    return Err(missing_contract_macro_error());
+                }
                 None
             }
             Err(err) => return Err(err),
@@ -142,9 +145,13 @@ fn collect_final_spec(
     Ok(None)
 }
 
-fn ensure_module_has_function_exports(
+/// Names of the module's exported functions, used both for the
+/// missing-#[contract] guard (empty set) and for method shaking
+/// ([`canonicalize_spec_with_exports`]).
+fn exported_function_names(
     bytes: &[u8],
-) -> Result<(), SpecToolError> {
+) -> Result<std::collections::BTreeSet<String>, SpecToolError> {
+    let mut names = std::collections::BTreeSet::new();
     for payload in Parser::new(0).parse_all(bytes) {
         let payload =
             payload.map_err(|err| SpecToolError::Wasm(err.to_string()))?;
@@ -154,18 +161,22 @@ fn ensure_module_has_function_exports(
                 let export = export
                     .map_err(|err| SpecToolError::Wasm(err.to_string()))?;
                 if export.kind == wasmparser::ExternalKind::Func {
-                    return Ok(());
+                    names.insert(export.name.to_string());
                 }
             }
         }
     }
-    Err(SpecToolError::InvalidRawFragment(
+    Ok(names)
+}
+
+fn missing_contract_macro_error() -> SpecToolError {
+    SpecToolError::InvalidRawFragment(
         "raw spec sections yielded no spec content (nothing anchored or \
          exported), and the module exports no functions: the contract is \
          likely missing its #[contract] macro (a contract with no \
          entrypoints cannot be invoked)"
             .to_string(),
-    ))
+    )
 }
 
 fn ensure_raw_fragments_stay_out_of_linear_memory(

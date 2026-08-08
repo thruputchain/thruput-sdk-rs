@@ -521,8 +521,15 @@ pub fn generate_method(
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
+        // The export_name applies on BOTH guest targets. wasm needs it for
+        // host-side export dispatch; on rv32 (where dispatch is the record
+        // below) it exists so a duplicate entrypoint ID — a colliding
+        // interface key with the same method name — fails the link as a
+        // duplicate symbol, instead of producing two dispatch records where
+        // the runtime's first-match-wins scan silently routes every call to
+        // one impl.
         #[cfg_attr(
-            target_family = "wasm",
+            any(target_family = "wasm", target_arch = "riscv32"),
             unsafe(export_name = #export_name)
         )]
         pub extern "C" fn #extern_name() {
@@ -689,5 +696,29 @@ mod tests {
         assert!(!generated.contains(".text.gh_"));
         assert!(!generated.contains("distributed_slice"));
         assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
+    }
+
+    #[test]
+    fn entrypoint_wrapper_symbol_carries_id_on_rv32_too() {
+        // The wrapper's export_name applies on BOTH guest targets, so a
+        // duplicate entrypoint ID (colliding interface key + same method
+        // name) is a duplicate-symbol link error on rv32 exactly as on wasm
+        // — instead of two dispatch-table records where the runtime's
+        // first-match-wins scan silently routes every call to one impl.
+        let config = parse_config(r#"interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        assert!(
+            generated.contains(
+                "any (target_family = \"wasm\" , target_arch = \"riscv32\")"
+            ),
+            "{generated}"
+        );
     }
 }
