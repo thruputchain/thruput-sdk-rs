@@ -115,8 +115,14 @@ impl std::error::Error for SpecToolError {}
 
 #[derive(Default)]
 struct InterfaceBucket {
-    throws: Option<Vec<ContractExceptionType>>,
-    emits: Option<Vec<ContractSpecString>>,
+    /// Distinct (throws, emits) candidates from this interface's fragments;
+    /// emits pre-canonicalized (sorted, deduped), throws kept raw. Conflicts
+    /// among candidates — including selector conflicts within a throws list —
+    /// are only checked for anchored interfaces after shaking: unrelated
+    /// interface crates can collide on a key (trait-ident name, crate-version
+    /// version), and a caller linking both must not fail on their
+    /// disagreement.
+    candidates: Vec<(Vec<ContractExceptionType>, Vec<ContractSpecString>)>,
     methods: Vec<ContractSpecMethod>,
 }
 
@@ -171,10 +177,13 @@ pub fn canonicalize_spec(
                     &spec_str_lossy(&key.0),
                     &spec_str_lossy(&key.1),
                 );
-                let throws = canonicalize_exception_list(
-                    &interface_key,
-                    &fragment.throws,
-                )?;
+                // Malformed producer output fails loudly even on candidates
+                // that will be shaken; conflict detection, by contrast, is
+                // deferred to anchored interfaces post-shake (see
+                // `InterfaceBucket::candidates`).
+                for exn in fragment.throws.iter() {
+                    validate_type(&exn.ty)?;
+                }
                 let mut emits = fragment.emits.to_vec();
                 for name in &emits {
                     if spec_str(name)?.is_empty() {
@@ -188,28 +197,10 @@ pub fn canonicalize_spec(
                 emits.sort();
                 emits.dedup();
 
+                let candidate = (fragment.throws.to_vec(), emits);
                 let bucket = interfaces.entry(key).or_default();
-
-                match &bucket.throws {
-                    Some(existing) if *existing != throws => {
-                        return Err(
-                            SpecToolError::ConflictingInterfaceThrows(
-                                interface_key.clone(),
-                            ),
-                        );
-                    }
-                    Some(_) => {}
-                    None => bucket.throws = Some(throws),
-                }
-
-                match &bucket.emits {
-                    Some(existing) if *existing != emits => {
-                        return Err(SpecToolError::ConflictingInterfaceEmits(
-                            interface_key,
-                        ));
-                    }
-                    Some(_) => {}
-                    None => bucket.emits = Some(emits),
+                if !bucket.candidates.contains(&candidate) {
+                    bucket.candidates.push(candidate);
                 }
             }
             SpecFragment::SpecMethod {
@@ -330,20 +321,40 @@ pub fn canonicalize_spec(
                 deduped_methods.push(method);
             }
 
-            let throws = bucket.throws.ok_or_else(|| {
-                SpecToolError::MissingInterfaceFragment(interface_key_string(
-                    &spec_str_lossy(&name),
-                    &spec_str_lossy(&vers),
-                ))
-            })?;
-
-            // Unreachable in practice: the throws check above fires first for anchor-only buckets; kept for symmetry.
-            let emits = bucket.emits.ok_or_else(|| {
-                SpecToolError::MissingInterfaceFragment(interface_key_string(
-                    &spec_str_lossy(&name),
-                    &spec_str_lossy(&vers),
-                ))
-            })?;
+            // Interface-metadata conflicts (throws, emits, exception
+            // selectors) are only errors for anchored interfaces: candidates
+            // of shaken interfaces never got here. Throws are compared in
+            // canonical form so fragment ordering cannot cause spurious
+            // conflicts.
+            let interface_key = interface_key_string(
+                &spec_str_lossy(&name),
+                &spec_str_lossy(&vers),
+            );
+            let mut candidates = bucket.candidates.into_iter();
+            let (first_throws, emits) =
+                candidates.next().ok_or_else(|| {
+                    SpecToolError::MissingInterfaceFragment(
+                        interface_key.clone(),
+                    )
+                })?;
+            let throws =
+                canonicalize_exception_list(&interface_key, &first_throws)?;
+            for (other_throws, other_emits) in candidates {
+                let other_throws = canonicalize_exception_list(
+                    &interface_key,
+                    &other_throws,
+                )?;
+                if other_throws != throws {
+                    return Err(SpecToolError::ConflictingInterfaceThrows(
+                        interface_key,
+                    ));
+                }
+                if other_emits != emits {
+                    return Err(SpecToolError::ConflictingInterfaceEmits(
+                        interface_key,
+                    ));
+                }
+            }
             retained_event_names.extend(emits);
 
             Ok(ContractSpecInterface {
