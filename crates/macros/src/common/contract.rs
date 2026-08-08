@@ -138,6 +138,31 @@ where
     }
 }
 
+/// Reject generic type/const parameters on contract methods: the method
+/// signatures are spliced into non-generic module-level consts (spec defs,
+/// entrypoint wrappers, clients), so a method-scoped `T` would surface as
+/// an unresolved-type error inside generated code. Lifetime parameters are
+/// left alone.
+pub fn validate_method_generics<M>(
+    methods: impl IntoIterator<Item = M>,
+) -> Result<()>
+where
+    M: Method,
+{
+    for method in methods {
+        for param in &method.sig().generics.params {
+            if !matches!(param, syn::GenericParam::Lifetime(_)) {
+                return Err(error(
+                    param,
+                    "generic parameters are not supported on contract \
+                     methods",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 use core::cmp::Ordering;
 pub fn cmp_method_by_name(a: &impl Method, b: &impl Method) -> Ordering {
     cmp_sig_by_name(a.sig(), b.sig())

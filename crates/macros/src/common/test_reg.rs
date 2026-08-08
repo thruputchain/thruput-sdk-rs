@@ -12,16 +12,6 @@ pub fn generate_trait_method(
     item: &syn::ItemImpl,
     config: &Config,
 ) -> Result<syn::ImplItem> {
-    // Error if user specified test_setup on any impl
-    if config.test_setup.is_some() {
-        return Err(syn::Error::new_spanned(
-            item,
-            "test_setup = \"...\" is no longer supported. \
-             The #[contract] macro now generates `__mock` \
-             automatically. Use `<Type as Trait>::__mock` in tests instead.",
-        ));
-    }
-
     let registrations = build_registrations(item, config)?;
 
     Ok(syn::parse_quote! {
@@ -37,16 +27,6 @@ pub fn generate_bare_method(
     item: &syn::ItemImpl,
     config: &Config,
 ) -> Result<TokenStream> {
-    // Error if user specified test_setup on any impl
-    if config.test_setup.is_some() {
-        return Err(syn::Error::new_spanned(
-            item,
-            "test_setup = \"...\" is no longer supported. \
-             The #[contract] macro now generates `__mock` \
-             automatically. Use `Type::__mock` in tests instead.",
-        ));
-    }
-
     let registrations = build_registrations(item, config)?;
 
     let self_ty = &item.self_ty;

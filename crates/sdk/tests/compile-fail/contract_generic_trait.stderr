@@ -1,0 +1,5 @@
+error: generic parameters are not supported on #[contract] traits
+ --> tests/compile-fail/contract_generic_trait.rs:6:17
+  |
+6 | pub trait Vault<T> {
+  |                 ^

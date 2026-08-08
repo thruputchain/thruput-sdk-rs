@@ -151,7 +151,15 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 ///
 /// `version = "x.y.z"`, `interface = "Name"`, `exports = "mod_name"`,
 /// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
-/// `emits(Event1, Event2)`, `test_setup = "fn_name"`.
+/// `emits(Event1, Event2)`.
+///
+/// # Limitations
+///
+/// Generic parameters are not supported on `#[contract]` items or their
+/// methods (generated clients, entrypoint wrappers, and spec consts are
+/// non-generic). A struct may carry only one `#[contract]` impl block:
+/// the generated client/entrypoints/exports items are named after the
+/// interface, so a second block collides on them.
 ///
 /// # Storage-domain collision detection
 ///

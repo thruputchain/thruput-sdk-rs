@@ -6,6 +6,23 @@ use quote::{format_ident, quote};
 use syn::{DeriveInput, Fields, GenericParam, Result};
 
 /// Returns (topic_fields, payload_fields).
+/// Reject generic type/const parameters: the event def is a non-generic
+/// module-level const, so a type-scoped `T` would surface as an
+/// unresolved-type error inside generated code. Lifetime parameters are
+/// supported (folded to `'static` in the spec const).
+fn validate_no_type_generics(input: &DeriveInput) -> Result<()> {
+    for param in &input.generics.params {
+        if !matches!(param, syn::GenericParam::Lifetime(_)) {
+            return Err(syn::Error::new_spanned(
+                param,
+                "#[derive(Event)] does not support generic parameters \
+                 (lifetimes are allowed)",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn partition_fields(
     fields: &Fields,
 ) -> Result<(Vec<&syn::Field>, Vec<&syn::Field>)> {
@@ -233,6 +250,7 @@ fn emit_exported_event_fragment(
 }
 
 pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
+    validate_no_type_generics(input)?;
     let syn::Data::Struct(data) = &input.data else {
         return Err(syn::Error::new_spanned(
             input,
@@ -429,6 +447,20 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 #[cfg(test)]
 mod tests {
     use super::expand;
+
+    #[test]
+    fn expand_rejects_generic_type_parameters() {
+        // Lifetimes are supported (folded to 'static in the spec const);
+        // type/const parameters would splice an unresolvable `T` into the
+        // module-level def const — reject with a clear message instead.
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct BadEvent<T> {
+                value: T,
+            }
+        };
+        let err = expand(&input).map(|t| t.to_string()).unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
 
     #[test]
     fn expand_emits_event_def_const_and_spec_impl() {

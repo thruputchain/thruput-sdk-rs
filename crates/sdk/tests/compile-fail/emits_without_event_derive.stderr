@@ -1,0 +1,12 @@
+error[E0277]: `NotAnEvent` is not a contract event
+ --> tests/compile-fail/emits_without_event_derive.rs:9:18
+  |
+9 | #[contract(emits(NotAnEvent))]
+  |                  ^^^^^^^^^^ not a contract event
+  |
+help: the trait `ContractEventSpec` is not implemented for `NotAnEvent`
+ --> tests/compile-fail/emits_without_event_derive.rs:5:1
+  |
+5 | pub struct NotAnEvent {
+  | ^^^^^^^^^^^^^^^^^^^^^
+  = note: add `#[derive(Event)]` to `NotAnEvent` — `emits(...)` in `#[contract(...)]` requires it

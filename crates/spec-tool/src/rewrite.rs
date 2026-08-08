@@ -173,8 +173,11 @@ fn missing_contract_macro_error() -> SpecToolError {
     SpecToolError::InvalidRawFragment(
         "raw spec sections yielded no spec content (nothing anchored or \
          exported), and the module exports no functions: the contract is \
-         likely missing its #[contract] macro (a contract with no \
-         entrypoints cannot be invoked)"
+         likely missing its #[contract] macro, or was built without the \
+         `entrypoints` feature (a contract with no entrypoints cannot be \
+         invoked). The two causes are indistinguishable at the wasm level — \
+         check that every impl carries #[contract] and that the build \
+         passes `--features entrypoints`."
             .to_string(),
     )
 }

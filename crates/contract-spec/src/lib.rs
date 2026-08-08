@@ -37,6 +37,12 @@ pub trait ContractTypeSpec {
 /// definition. The definition is emitted into the raw spec section only
 /// where the event is declared (`emits(...)` on an interface) or exported
 /// (`#[event_spec(export)]` on the derive).
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a contract event",
+    label = "not a contract event",
+    note = "add `#[derive(Event)]` to `{Self}` — `emits(...)` in \
+            `#[contract(...)]` requires it"
+)]
 pub trait ContractEventSpec {
     /// The event's definition (name, signature, topics, fields) as a const view.
     const EVENT_DEF: view::ContractEventDefView<'static>;

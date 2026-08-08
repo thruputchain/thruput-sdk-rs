@@ -39,6 +39,13 @@ use core::fmt::Debug;
 /// Throwing only needs `WriteXDR`, so decoding is not a supertrait; the
 /// generic decode sites ([`RawExceptionRef::try_as`] /
 /// [`RawException::try_as`]) require `ReadXDROwned` explicitly.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a contract exception",
+    label = "not a contract exception",
+    note = "annotate `{Self}` with `#[contract_exception]` (or `#[exn]` if \
+            you handle your own derives) — `throws = ...` in \
+            `#[contract(...)]` requires it"
+)]
 pub trait Exn: Debug + PartialEq + WriteXDR {
     const SELECTOR: u64;
 }
