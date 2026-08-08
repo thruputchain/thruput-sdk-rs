@@ -1,0 +1,4 @@
+Negative spec fixture: the wasm build succeeds but spec-tool rewrite must
+fail (anchored Token key has conflicting emits metadata from the two
+colliding interface crates). Exercised by check_iface_conflict_detected in
+scripts/dev.sh, not the standard build-and-finalize loop.

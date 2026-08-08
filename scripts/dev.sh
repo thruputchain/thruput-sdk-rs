@@ -376,7 +376,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -391,6 +391,7 @@ check_contract_spec_artifacts() {
     swap_json="${optimized}/swap.spec.json"
     event_shaking_json="${optimized}/event_shaking_subset.spec.json"
     typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
+    iface_conflict_json="${optimized}/iface_conflict_caller.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -445,6 +446,17 @@ check_contract_spec_artifacts() {
     assert_file_lacks "$typedef_shaking_json" '"name":"SharedConfig"' &&
     assert_file_lacks "$typedef_shaking_json" '"name":"MarketV1"' &&
     assert_file_lacks "$typedef_shaking_json" '"name":"MarketV2"' &&
+
+    # Interface-metadata conflict shaking: iface_conflict_caller links two
+    # interface crates whose `Token` traits collide on the same interface key
+    # (default name = trait ident, default version = workspace crate version)
+    # with different emits metadata, implementing neither. Both candidates are
+    # shaken, so the disagreement must not fail the build (pre-fix this build
+    # died with ConflictingInterfaceEmits) and neither Token nor PingEvent may
+    # reach the final spec.
+    assert_file_contains "$iface_conflict_json" '"name":"ConflictCaller"' &&
+    assert_file_lacks "$iface_conflict_json" '"name":"Token"' &&
+    assert_file_lacks "$iface_conflict_json" '"name":"PingEvent"' &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
@@ -503,6 +515,36 @@ check_typedef_conflict_detected() {
     echo "$out" | rg -F --quiet \
         "conflicting contract type definitions for SharedConfig" || {
         fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
+        return 1
+    }
+}
+
+# Negative spec fixture: iface_conflict_impl implements iface_conflict_if_a's
+# Token (anchoring the shared Token interface key) while also linking
+# iface_conflict_if_b, whose colliding Token candidate carries different
+# emits metadata. The wasm build succeeds; the spec rewrite must FAIL with
+# an emits-metadata conflict — pinning that the anchored-key conflict error
+# survived the unanchored-conflict relaxation.
+check_iface_conflict_detected() {
+    info "CHECK-IFACE-CONFLICT-DETECTED"
+
+    build_wasm "${SDK_DIR}/example-contracts" iface_conflict_impl \
+        --release || return 1
+
+    local out
+    if out=$( (
+        cd "$SDK_DIR" &&
+        cargo run --quiet -p groundhog-spec-tool -- \
+            rewrite \
+            --wasm "${CONTRACT}/iface_conflict_impl.wasm" \
+            --json-out "${CONTRACT}/iface_conflict_impl.spec.json"
+    ) 2>&1); then
+        fail "Expected spec rewrite of iface_conflict_impl to fail with an emits-metadata conflict, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet \
+        "conflicting emits metadata for interface Token" || {
+        fail "Expected a Token emits-metadata conflict from iface_conflict_impl, got: $out"
         return 1
     }
 }
@@ -761,6 +803,7 @@ check_all() {
         { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
         check_contract_spec_artifacts &&
         check_typedef_conflict_detected &&
+        check_iface_conflict_detected &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
         eg_bottle_test_all &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
