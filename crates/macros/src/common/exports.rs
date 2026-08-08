@@ -339,6 +339,11 @@ pub fn generate_method(
 
     let export_name = entrypoint_export_name(entrypoint);
     let export_docstr = format!(" {} = {}", export_name, entrypoint_sig);
+    let link_name = contract_util::entrypoint_link_name(
+        iface_name,
+        &iface_vers,
+        &entrypoint_sig.method_sig,
+    );
 
     let extern_name = format_ident!("{}_extern", ident);
     let internal_name = contract
@@ -521,16 +526,23 @@ pub fn generate_method(
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
-        // The export_name applies on BOTH guest targets. wasm needs it for
-        // host-side export dispatch; on rv32 (where dispatch is the record
-        // below) it exists so a duplicate entrypoint ID — a colliding
-        // interface key with the same method name — fails the link as a
-        // duplicate symbol, instead of producing two dispatch records where
-        // the runtime's first-match-wins scan silently routes every call to
-        // one impl.
+        // The wrapper carries a symbol name on BOTH guest targets, so a
+        // duplicate entrypoint ID — a colliding interface key with the same
+        // method name — fails the build as a duplicate symbol, instead of
+        // producing two dispatch records where the rv32 runtime's
+        // first-match-wins scan silently routes every call to one impl.
+        // wasm must use the 16-hex ID (the host dispatches by export name);
+        // rv32 dispatch goes through the record below, so its symbol is the
+        // human-readable ID preimage — the duplicate-symbol error then
+        // names the interface and method. Symbol names never reach the
+        // lowered rv32 image, so readability is free.
         #[cfg_attr(
-            any(target_family = "wasm", target_arch = "riscv32"),
+            target_family = "wasm",
             unsafe(export_name = #export_name)
+        )]
+        #[cfg_attr(
+            target_arch = "riscv32",
+            unsafe(export_name = #link_name)
         )]
         pub extern "C" fn #extern_name() {
             #internal_name()
@@ -699,12 +711,15 @@ mod tests {
     }
 
     #[test]
-    fn entrypoint_wrapper_symbol_carries_id_on_rv32_too() {
-        // The wrapper's export_name applies on BOTH guest targets, so a
+    fn entrypoint_wrapper_symbol_carries_id_preimage_on_rv32() {
+        // The wrapper carries a symbol name on BOTH guest targets, so a
         // duplicate entrypoint ID (colliding interface key + same method
-        // name) is a duplicate-symbol link error on rv32 exactly as on wasm
-        // — instead of two dispatch-table records where the runtime's
+        // name) is a duplicate-symbol build error on rv32 exactly as on
+        // wasm — instead of two dispatch-table records where the runtime's
         // first-match-wins scan silently routes every call to one impl.
+        // wasm must use the 16-hex ID (the host dispatches by export name);
+        // rv32 dispatch goes through the record table, so its symbol uses
+        // the human-readable ID preimage for a legible error message.
         let config = parse_config(r#"interface = "Iface""#);
         let item: syn::ItemFn = syn::parse_quote! {
             fn ping() {}
@@ -714,10 +729,18 @@ mod tests {
             .unwrap()
             .to_string();
 
+        let expected_link_name = contract_util::entrypoint_link_name(
+            Some("Iface"),
+            &super::super::contract::interface_vers_default(),
+            &contract_util::NormalizedMethodSignature::new("ping"),
+        );
         assert!(
-            generated.contains(
-                "any (target_family = \"wasm\" , target_arch = \"riscv32\")"
-            ),
+            expected_link_name.starts_with("__groundhog_entrypoint::Iface::"),
+            "{expected_link_name}"
+        );
+        assert!(generated.contains(&expected_link_name), "{generated}");
+        assert!(
+            generated.contains("target_arch = \"riscv32\""),
             "{generated}"
         );
     }

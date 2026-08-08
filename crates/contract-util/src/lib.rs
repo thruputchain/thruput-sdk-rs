@@ -129,6 +129,28 @@ pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
     format!("{:016X}", u64::from_be_bytes(*id))
 }
 
+/// Human-readable symbol name carrying the entrypoint-ID *preimage*, used as
+/// the rv32 wrapper's `export_name` so a duplicate entrypoint ID fails the
+/// build with an error naming the interface and method (rather than a bare
+/// 16-hex ID). Built from the same (interface, MAJOR version, method
+/// signature) triple as [`contract_entrypoint_id`], so link-name equality
+/// coincides exactly with entrypoint-ID equality. Symbol names never reach
+/// the lowered rv32 image (they live in non-allocatable ELF sections), so
+/// readability costs nothing in the deployed artifact.
+pub fn entrypoint_link_name(
+    interface_name: Option<&str>,
+    version_str: &str,
+    method: &NormalizedMethodSignature,
+) -> String {
+    let major_version = semver::major_version_from_string(version_str);
+    format!(
+        "__groundhog_entrypoint::{}::{}::{}",
+        interface_name.unwrap_or("_unnamed_interface"),
+        major_version,
+        method.get_signature_string(),
+    )
+}
+
 /// Derive a standard exception selector for a contract exception type.
 ///
 /// Exception selector = sha256(MAJOR_VERSION :: CRATE_NAME :: TYPE_NAME)[0..8]
