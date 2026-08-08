@@ -68,6 +68,11 @@ members = [
     "missing_contract_macro",
     "typedef_shaking_caller-rv32",
     "iface_conflict_caller-rv32",
+    "phantom_method_if_a",
+    "phantom_method_if_b",
+    "phantom_method_impl",
+    "dup_entrypoint_neg",
+    "prerelease_version",
 ]
 
 exclude = [
@@ -87,9 +92,9 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.18.1" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.18.1" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.18.1", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.18.2" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.18.2" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.18.2", default-features = false }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.8" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.8" }

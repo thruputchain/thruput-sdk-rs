@@ -88,6 +88,26 @@ impl Display for EntrypointSignature {
     }
 }
 
+/// The interface name used when a free function has no explicit
+/// `interface = "..."` override.
+pub const UNNAMED_INTERFACE: &str = "_unnamed_interface";
+
+/// The normalized (interface, MAJOR version, method-signature) triple that
+/// defines entrypoint identity. Single source of truth for
+/// [`contract_entrypoint_id`] and [`entrypoint_link_name`]: both consume this
+/// triple, so link-name equality coincides with ID equality by construction.
+fn entrypoint_id_preimage<'a>(
+    interface_name: Option<&'a str>,
+    version_str: &str,
+    method: &NormalizedMethodSignature,
+) -> (&'a str, String, String) {
+    (
+        interface_name.unwrap_or(UNNAMED_INTERFACE),
+        semver::major_version_from_string(version_str),
+        method.get_signature_string(),
+    )
+}
+
 /// Derive a standard entrypoint ID for a contract method.
 /// The interface name is a domain separator.
 ///
@@ -96,15 +116,15 @@ impl Display for EntrypointSignature {
 ///   (`interface = "..."` override or the trait name)
 /// - bare impl methods use the effective interface name
 ///   (`interface = "..."` override or the self type name)
-/// - free functions default to `_unnamed_interface` unless an explicit
+/// - free functions default to [`UNNAMED_INTERFACE`] unless an explicit
 ///   `interface = "..."` override is present
 pub fn contract_entrypoint_id(
     interface_name: Option<&str>,
     version_str: &str,
     method: &NormalizedMethodSignature,
 ) -> ContractEntrypointID {
-    let major_version = semver::major_version_from_string(version_str);
-    let method_sig = method.get_signature_string();
+    let (interface_name, major_version, method_sig) =
+        entrypoint_id_preimage(interface_name, version_str, method);
 
     // Entrypoint ID = sha256(INTERFACE_NAME :: MAJOR_VERSION :: METHOD_SIGNATURE)[0..8]
     //
@@ -114,7 +134,7 @@ pub fn contract_entrypoint_id(
     // major "2" + method "x" vs "Foo" + "12" + "x", both "Foo12x"), colliding
     // to the same id and silently misrouting a call.
     let mut hasher = sha2::Sha256::new();
-    hasher.update(interface_name.unwrap_or("_unnamed_interface").as_bytes());
+    hasher.update(interface_name.as_bytes());
     hasher.update(b"::");
     hasher.update(major_version.as_bytes());
     hasher.update(b"::");
@@ -125,8 +145,45 @@ pub fn contract_entrypoint_id(
     ContractEntrypointID::from(entrypoint_id)
 }
 
+/// The wasm export-section name of the entrypoint for the given
+/// (interface, version, method) triple: [`contract_entrypoint_id`] rendered
+/// through [`entrypoint_export_name`]. Use this instead of composing the two
+/// by hand — when the ID preimage changes (e.g. the signature-checksum TODO
+/// above), every caller stays in sync.
+pub fn entrypoint_export_name_for(
+    interface_name: Option<&str>,
+    version_str: &str,
+    method: &NormalizedMethodSignature,
+) -> String {
+    entrypoint_export_name(contract_entrypoint_id(
+        interface_name,
+        version_str,
+        method,
+    ))
+}
+
 pub fn entrypoint_export_name(id: ContractEntrypointID) -> String {
     format!("{:016X}", u64::from_be_bytes(*id))
+}
+
+/// Human-readable symbol name carrying the entrypoint-ID *preimage*, used as
+/// the rv32 wrapper's `export_name` so a duplicate entrypoint ID fails the
+/// build with an error naming the interface and method (rather than a bare
+/// 16-hex ID). Built from the same (interface, MAJOR version, method
+/// signature) triple as [`contract_entrypoint_id`], so link-name equality
+/// coincides exactly with entrypoint-ID equality. Symbol names never reach
+/// the lowered rv32 image (they live in non-allocatable ELF sections), so
+/// readability costs nothing in the deployed artifact.
+pub fn entrypoint_link_name(
+    interface_name: Option<&str>,
+    version_str: &str,
+    method: &NormalizedMethodSignature,
+) -> String {
+    let (interface_name, major_version, method_sig) =
+        entrypoint_id_preimage(interface_name, version_str, method);
+    format!(
+        "__groundhog_entrypoint::{interface_name}::{major_version}::{method_sig}"
+    )
 }
 
 /// Derive a standard exception selector for a contract exception type.

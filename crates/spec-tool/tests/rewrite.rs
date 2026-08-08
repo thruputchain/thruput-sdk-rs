@@ -598,7 +598,7 @@ fn rewrite_rejects_mixed_data_segment_leaks() {
 }
 
 fn typedef_only_module(with_function_export: bool) -> Vec<u8> {
-    raw_fragment_module(
+    raw_fragment_module_bool(
         encode_fragments(&[SpecFragment::SpecTypeDef {
             type_def:
                 groundhog_contract_spec::ContractTypeDef::TypeDefStruct {
@@ -626,7 +626,7 @@ fn encode_fragments_unanchored(fragments: &[SpecFragment]) -> Vec<u8> {
 /// a method) — what linking an interface crate contributes to an artifact
 /// that implements none of its traits. Everything shakes out.
 fn unanchored_iface_module(with_function_export: bool) -> Vec<u8> {
-    raw_fragment_module(
+    raw_fragment_module_bool(
         encode_fragments_unanchored(&[
             SpecFragment::SpecInterface {
                 interface_fragment: SpecInterfaceFragment {
@@ -652,10 +652,20 @@ fn unanchored_iface_module(with_function_export: bool) -> Vec<u8> {
     )
 }
 
-fn raw_fragment_module(
+fn raw_fragment_module_bool(
     raw_blob: Vec<u8>,
     with_function_export: bool,
 ) -> Vec<u8> {
+    raw_fragment_module(raw_blob, with_function_export.then_some("0"))
+}
+
+/// Minimal module carrying `raw_blob` as its raw spec section, optionally
+/// exporting one no-op function under `export_fn_name`.
+fn raw_fragment_module(
+    raw_blob: Vec<u8>,
+    export_fn_name: Option<&str>,
+) -> Vec<u8> {
+    let with_function_export = export_fn_name.is_some();
     let mut module = Module::new();
     if with_function_export {
         let mut types = TypeSection::new();
@@ -674,9 +684,9 @@ fn raw_fragment_module(
         page_size_log2: None,
     });
     module.section(&memory);
-    if with_function_export {
+    if let Some(export_fn_name) = export_fn_name {
         let mut exports = ExportSection::new();
-        exports.export("0", ExportKind::Func, 0);
+        exports.export(export_fn_name, ExportKind::Func, 0);
         module.section(&exports);
         let mut code = CodeSection::new();
         let mut body = Function::new([]);
@@ -732,6 +742,100 @@ fn rewrite_strips_all_shaken_raw_sections_from_raw_contracts() {
             .map(|(name, _)| name)
             .collect::<Vec<_>>()
     );
+}
+
+/// Export-section name of the entrypoint for `iface@vers::method`, via the
+/// same contract-util function the shaker uses.
+fn entrypoint_export(iface: &str, vers: &str, method: &str) -> String {
+    groundhog_contract_util::entrypoint_export_name_for(
+        Some(iface),
+        vers,
+        &groundhog_contract_util::NormalizedMethodSignature::new(method),
+    )
+}
+
+#[test]
+fn rewrite_shakes_phantom_methods_without_entrypoints() {
+    // Colliding-key phantom: the anchored `Ledger` bucket carries `ping`
+    // (real, exported) and `steal` (from a colliding candidate, no
+    // entrypoint). The rewritten spec must advertise only `ping`.
+    let raw = encode_fragments(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("1.0.0"),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("1.0.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("1.0.0"),
+                method: ContractSpecMethod {
+                    name: s("steal"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ]);
+    let module = raw_fragment_module(
+        raw,
+        Some(&entrypoint_export("Ledger", "1.0.0", "ping")),
+    );
+    let rewritten = rewrite_wasm(&module).unwrap();
+    let spec = final_spec(&rewritten).unwrap();
+    let methods: Vec<&str> = spec.interfaces[0]
+        .methods
+        .iter()
+        .map(|m| spec_str(&m.name))
+        .collect();
+    assert_eq!(methods, vec!["ping"]);
+}
+
+#[test]
+fn rewrite_keeps_carrier_interface_methods_despite_no_entrypoints() {
+    // A spec-carrier artifact (export_interface_spec!) anchors an interface
+    // and exports no functions AT ALL — the module-wide carrier exemption
+    // must keep the full method list. (The missing-#[contract] guard does
+    // not fire because the anchored interface keeps the spec non-empty.)
+    let raw = encode_fragments(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("1.0.0"),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("1.0.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ]);
+    let module = raw_fragment_module(raw, None);
+    let rewritten = rewrite_wasm(&module).unwrap();
+    let spec = final_spec(&rewritten).unwrap();
+    assert_eq!(spec.interfaces[0].methods.len(), 1);
 }
 
 #[test]

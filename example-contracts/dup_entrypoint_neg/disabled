@@ -1,0 +1,5 @@
+Negative fixture: the build must FAIL at link time on both guest targets
+(duplicate entrypoint-ID symbol from two colliding traits sharing a method
+name). Exercised by check_rv32_duplicate_entrypoint_detected in
+scripts/dev.sh, not the standard build loops. The directory name has no
+-rv32 suffix on purpose, so the rv32 wrapper glob does not pick it up.

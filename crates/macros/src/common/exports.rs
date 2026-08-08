@@ -339,6 +339,11 @@ pub fn generate_method(
 
     let export_name = entrypoint_export_name(entrypoint);
     let export_docstr = format!(" {} = {}", export_name, entrypoint_sig);
+    let link_name = contract_util::entrypoint_link_name(
+        iface_name,
+        &iface_vers,
+        &entrypoint_sig.method_sig,
+    );
 
     let extern_name = format_ident!("{}_extern", ident);
     let internal_name = contract
@@ -517,10 +522,24 @@ pub fn generate_method(
     let method_id_u64 = u64::from_be_bytes(*entrypoint);
     let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
+    let id_guard_ident = format_ident!("__GH_RV32_ENTRY_ID_GUARD_{}", ident);
+    let link_guard_ident =
+        format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
+    let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
     Ok(quote! {
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
+        // The wrapper carries a symbol name on BOTH guest targets, so a
+        // duplicate entrypoint ID — a colliding interface key with the same
+        // method name — fails the build as a duplicate symbol, instead of
+        // producing two dispatch records where the rv32 runtime's
+        // first-match-wins scan silently routes every call to one impl.
+        // wasm must use the 16-hex ID (the host dispatches by export name);
+        // rv32 dispatch goes through the record below, so its symbol is the
+        // human-readable ID preimage — the duplicate-symbol error then
+        // names the interface and method. Symbol names never reach the
+        // lowered rv32 image, so readability is free.
         #[cfg_attr(
             target_family = "wasm",
             unsafe(export_name = #export_name)
@@ -528,6 +547,38 @@ pub fn generate_method(
         pub extern "C" fn #extern_name() {
             #internal_name()
         }
+
+        // rv32 duplicate-entrypoint guards: two zero-sized symbols per
+        // method (symtab-only — neither reaches the lowered image) so a
+        // colliding dispatch ID fails the build instead of producing two
+        // dispatch-table records where the runtime's first-match-wins scan
+        // silently routes every call to one impl. wasm needs no guards: its
+        // export_name above IS the dispatch surface and collides on its own.
+        //
+        // The readable ID-preimage symbol is declared FIRST so the common
+        // collision (same interface/method key) is reported against it —
+        // rustc aborts on the first duplicate symbol in declaration order —
+        // naming the interface and method:
+        //   error: symbol `__groundhog_entrypoint::Ledger::0.4::clash`
+        //          is already defined
+        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
+        #[used]
+        #[unsafe(export_name = #link_name)]
+        #[allow(non_upper_case_globals)]
+        static #link_guard_ident: () = ();
+
+        // Belt-and-braces: the 16-hex dispatch ID (constant prefix keeps
+        // name-equality identical to ID-equality, and sorts this guard
+        // after the readable one so rustc reports the readable symbol for
+        // same-key collisions). Two *distinct* preimages whose truncated
+        // hashes collide to one dispatch ID (including an adversarially
+        // constructed collision) produce different readable symbols — only
+        // this guard turns that case into a build error.
+        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
+        #[used]
+        #[unsafe(export_name = #id_guard_name)]
+        #[allow(non_upper_case_globals)]
+        static #id_guard_ident: () = ();
 
         // rv32 guest dispatch: place this method's Entrypoint record in the
         // dispatch-table input section. Naming is owned by the SDK end-to-end:
@@ -689,5 +740,47 @@ mod tests {
         assert!(!generated.contains(".text.gh_"));
         assert!(!generated.contains("distributed_slice"));
         assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
+    }
+
+    #[test]
+    fn entrypoint_wrapper_symbol_carries_id_preimage_on_rv32() {
+        // The wrapper carries a symbol name on BOTH guest targets, so a
+        // duplicate entrypoint ID (colliding interface key + same method
+        // name) is a duplicate-symbol build error on rv32 exactly as on
+        // wasm — instead of two dispatch-table records where the runtime's
+        // first-match-wins scan silently routes every call to one impl.
+        // wasm must use the 16-hex ID (the host dispatches by export name);
+        // rv32 dispatch goes through the record table, so its symbol uses
+        // the human-readable ID preimage for a legible error message.
+        let config = parse_config(r#"interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        let expected_link_name = contract_util::entrypoint_link_name(
+            Some("Iface"),
+            &super::super::contract::interface_vers_default(),
+            &contract_util::NormalizedMethodSignature::new("ping"),
+        );
+        assert!(
+            expected_link_name.starts_with("__groundhog_entrypoint::Iface::"),
+            "{expected_link_name}"
+        );
+        assert!(generated.contains(&expected_link_name), "{generated}");
+        assert!(
+            generated.contains("target_arch = \"riscv32\""),
+            "{generated}"
+        );
+        // Belt-and-braces guard: the 16-hex ID is also emitted as a
+        // zero-sized rv32 symbol, so cross-preimage hash collisions (which
+        // produce distinct readable symbols) still fail the build.
+        assert!(
+            generated.contains("__GH_RV32_ENTRY_ID_GUARD_"),
+            "{generated}"
+        );
     }
 }

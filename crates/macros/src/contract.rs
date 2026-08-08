@@ -38,6 +38,22 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
+            // The spec advertises every trait method, but entrypoints are
+            // only generated for methods present in the #[contract] impl
+            // block — a defaulted method would be advertised yet uncallable.
+            for trait_item in &item.items {
+                if let syn::TraitItem::Fn(method) = trait_item
+                    && method.default.is_some()
+                {
+                    return Err(syn::Error::new_spanned(
+                        &method.sig,
+                        "contract trait methods cannot have default bodies: \
+                         a defaulted method would appear in the contract \
+                         spec without a callable entrypoint; implement it \
+                         in the #[contract] impl block instead",
+                    ));
+                }
+            }
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
@@ -329,6 +345,26 @@ mod tests {
         let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
         let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
         Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn trait_contract_rejects_default_method_bodies() {
+        // A defaulted trait method would be advertised in the spec (methods
+        // come from the trait) with no entrypoint emitted (codegen walks the
+        // impl block) — a spec method callers cannot invoke. Reject at
+        // expansion time.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                fn deposit(&mut self, amount: u128);
+                fn version(&self) -> u32 {
+                    1
+                }
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("default bod"), "{err}");
     }
 
     #[test]

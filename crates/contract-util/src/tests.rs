@@ -179,4 +179,29 @@ mod tests {
              distinct entrypoint ids"
         );
     }
+
+    #[test]
+    fn entrypoint_link_name_mirrors_id_preimage_equality() {
+        use crate::{NormalizedMethodSignature, entrypoint_link_name};
+        // The rv32 wrapper symbol carries the human-readable ID preimage so
+        // duplicate-entrypoint link errors name the interface and method.
+        // Equality of the link name must coincide exactly with equality of
+        // the entrypoint ID: it is built from the same (interface, MAJOR
+        // version, method-signature) triple — the full version must not
+        // leak in, or two same-major crates would collide in dispatch while
+        // their symbols differ.
+        let name = |vers: &str| {
+            entrypoint_link_name(
+                Some("Ledger"),
+                vers,
+                &NormalizedMethodSignature::new("clash"),
+            )
+        };
+        assert_eq!(name("0.4.1"), name("0.4.9"));
+        assert_ne!(name("0.4.1"), name("0.5.0"));
+        assert_eq!(
+            name("0.4.1"),
+            "__groundhog_entrypoint::Ledger::0.4::clash"
+        );
+    }
 }

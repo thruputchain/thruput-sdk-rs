@@ -256,7 +256,33 @@ eg_build_rv32_all() {
         check_rv32_mem_symbols "$elf" || return 1
     done
     check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts") &&
-    check_rv32_contract_spec_artifacts
+    check_rv32_contract_spec_artifacts &&
+    check_rv32_duplicate_entrypoint_detected
+}
+
+# Negative fixture: dup_entrypoint_neg has two colliding traits sharing a
+# method name, so both impls produce the same entrypoint ID. The wrapper
+# symbol carries the ID on rv32 (as on wasm), so the build must FAIL with a
+# duplicate-symbol error — replacing the previous silent behavior where two
+# dispatch-table records shared an ID and the runtime's first-match-wins
+# scan routed every call to one impl. The crate's directory deliberately
+# lacks the -rv32 suffix so the wrapper glob above never builds it
+# expecting success.
+check_rv32_duplicate_entrypoint_detected() {
+    info "CHECK-RV32-DUP-ENTRYPOINT-DETECTED"
+
+    local out
+    if out=$( (
+        cd "${SDK_DIR}/example-contracts" &&
+        groundhog build --target rv32 -p dup_entrypoint_neg
+    ) 2>&1); then
+        fail "Expected the rv32 build of dup_entrypoint_neg to fail with a duplicate entrypoint symbol, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg --quiet -e "already defined" -e "duplicate symbol" || {
+        fail "Expected a duplicate-symbol error from dup_entrypoint_neg, got: $out"
+        return 1
+    }
 }
 
 # integration_test rv32 contracts are NOT *-rv32 wrapper packages — the rv32
@@ -390,7 +416,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json phantom_method_json prerelease_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -406,6 +432,8 @@ check_contract_spec_artifacts() {
     event_shaking_json="${optimized}/event_shaking_subset.spec.json"
     typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
     iface_conflict_json="${optimized}/iface_conflict_caller.spec.json"
+    phantom_method_json="${optimized}/phantom_method_impl.spec.json"
+    prerelease_json="${optimized}/prerelease_version.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -471,6 +499,24 @@ check_contract_spec_artifacts() {
     assert_file_contains "$iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$iface_conflict_json" '"name":"Token"' &&
     assert_file_lacks "$iface_conflict_json" '"name":"PingEvent"' &&
+
+    # Phantom-method shaking: phantom_method_impl implements A's Ledger
+    # (method ping) while linking B's colliding Ledger (method steal, payload
+    # LootConfig) and carrying a same-crate collider (method phantom_local).
+    # The contract must build, and its spec must advertise exactly the
+    # methods with real entrypoints: ping only, with the phantom method's
+    # payload typedef shaken too.
+    assert_file_contains "$phantom_method_json" '"name":"Ledger"' &&
+    assert_file_contains "$phantom_method_json" '"name":"ping"' &&
+    assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
+    assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
+    assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
+
+    # Pre-release interface versions: the macro accepts them and the spec
+    # pipeline must publish them verbatim (historically ingestion rejected
+    # anything but bare MAJOR.MINOR.PATCH, so a pre-release contract
+    # compiled and then failed at spec rewrite).
+    assert_file_contains "$prerelease_json" '"version":"0.9.0-rc.1"' &&
 
     # Raw contract (hand-written entrypoints) linking an interface crate:
     # the shaken candidates must leave NO spec sections — same artifact

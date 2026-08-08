@@ -1,0 +1,5 @@
+error: contract trait methods cannot have default bodies: a defaulted method would appear in the contract spec without a callable entrypoint; implement it in the #[contract] impl block instead
+ --> tests/compile-fail/contract_trait_default_method_body.rs:9:5
+  |
+9 |     fn version(&self) -> u32 {
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^

@@ -6,7 +6,8 @@ use groundhog_contract_spec::{
     SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
-    SpecToolError, canonicalize_spec, parse_raw_fragments,
+    SpecToolError, canonicalize_spec, canonicalize_spec_with_exports,
+    parse_raw_fragments,
 };
 use xdrs::txs::encode;
 
@@ -817,9 +818,52 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
     assert_eq!(
         err,
         SpecToolError::InvalidRawFragment(
-            "interface version must be MAJOR.MINOR.PATCH, got v1".into()
+            "interface version must be a semver triplet like \"1.0.0\" \
+             (optionally with -PRERELEASE and +BUILD suffixes), got v1"
+                .into()
         )
     );
+}
+
+#[test]
+fn canonicalize_spec_accepts_prerelease_interface_versions() {
+    // The macro-side validator accepts `version = "1.0.0-rc.1"` (semver
+    // pre-release/build suffixes); ingestion must agree, or a contract with
+    // a pre-release version compiles and then fails at spec rewrite.
+    let spec = canon(&[SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("Named"),
+            interface_version: s("1.0.0-rc.1"),
+            throws: vec![].try_into().unwrap(),
+            emits: vec![].try_into().unwrap(),
+        },
+    }])
+    .unwrap();
+    assert_eq!(spec_str(&spec.interfaces[0].vers), "1.0.0-rc.1");
+}
+
+#[test]
+fn canonicalize_spec_rejects_non_canonical_semver_versions() {
+    // These pass the digits-only shape check but are not canonical semver;
+    // the strict major-version parser (used to compute entrypoint IDs
+    // during method shaking) panics on them, so they must be rejected at
+    // ingestion — crafted or corrupt raw sections must produce
+    // SpecToolError, never a panic.
+    for bad in ["01.0.0", "0.00.1", "99999999999999999999.0.0"] {
+        let err = canon(&[SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s(bad),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        }])
+        .unwrap_err();
+        assert!(
+            matches!(err, SpecToolError::InvalidRawFragment(_)),
+            "{bad}: {err}"
+        );
+    }
 }
 
 #[test]
@@ -1635,6 +1679,131 @@ fn selector_conflict_ignored_when_interface_is_unanchored() {
     let ifaces: Vec<&str> =
         spec.interfaces.iter().map(|i| spec_str(&i.name)).collect();
     assert_eq!(ifaces, vec!["A"]);
+}
+
+// ---------------------------------------------------------------------------
+// Method shaking by export cross-reference
+// ---------------------------------------------------------------------------
+
+/// Export-section name of the entrypoint for `iface_name@vers::method`,
+/// computed with the same contract-util function the shaker uses.
+fn export_name(iface_name: &str, vers: &str, method: &str) -> String {
+    groundhog_contract_util::entrypoint_export_name_for(
+        Some(iface_name),
+        vers,
+        &groundhog_contract_util::NormalizedMethodSignature::new(method),
+    )
+}
+
+fn ledger_fixture() -> Vec<SpecFragment> {
+    // Colliding-key scenario: the contract implements crate A's `Ledger`
+    // (method `ping`), and links crate B whose unrelated `Ledger` candidate
+    // (same default name + version, identical empty metadata) contributes
+    // method `steal` with a named payload type. Only `ping` has an exported
+    // entrypoint.
+    vec![
+        iface_with_emits("Ledger", &[]),
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Ledger"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("steal"),
+                    args: vec![ContractField {
+                        name: s("cfg"),
+                        ty: ContractType::Named {
+                            named: s("LootCfg"),
+                        },
+                    }]
+                    .try_into()
+                    .unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: ContractTypeDef::TypeDefStruct {
+                struct_def: ContractStructDef {
+                    name: s("LootCfg"),
+                    fields: vec![].try_into().unwrap(),
+                },
+            },
+        },
+        anchor("Ledger"),
+    ]
+}
+
+#[test]
+fn phantom_methods_without_exported_entrypoints_are_shaken() {
+    let exports: std::collections::BTreeSet<String> =
+        [export_name("Ledger", "0.1.0", "ping")]
+            .into_iter()
+            .collect();
+    let spec =
+        canonicalize_spec_with_exports(&ledger_fixture(), &exports).unwrap();
+    let methods: Vec<&str> = spec.interfaces[0]
+        .methods
+        .iter()
+        .map(|m| spec_str(&m.name))
+        .collect();
+    assert_eq!(methods, vec!["ping"]);
+    assert!(
+        spec.type_defs.is_empty(),
+        "typedefs reachable only through shaken methods must drop, got {:?}",
+        spec.type_defs
+    );
+}
+
+#[test]
+fn empty_export_set_disables_method_shaking() {
+    // A spec-carrier binary (export_interface_spec!) exports no functions
+    // at all; its interfaces must publish their full method list.
+    let exports = std::collections::BTreeSet::new();
+    let spec =
+        canonicalize_spec_with_exports(&ledger_fixture(), &exports).unwrap();
+    let methods: Vec<&str> = spec.interfaces[0]
+        .methods
+        .iter()
+        .map(|m| spec_str(&m.name))
+        .collect();
+    assert_eq!(methods, vec!["ping", "steal"]);
+    assert_eq!(spec.type_defs.len(), 1);
+}
+
+#[test]
+fn phantom_methods_shaken_even_when_no_interface_method_is_exported() {
+    // The carrier exemption is module-wide (zero exported functions), NOT
+    // per-interface: a contract module (it exports SOMETHING) anchoring an
+    // interface none of whose methods are exported — e.g. an implemented
+    // empty marker trait whose key a collider crate squats with method
+    // candidates — must still shake the phantoms rather than publish them.
+    let exports: std::collections::BTreeSet<String> =
+        ["unrelated_export".to_string()].into_iter().collect();
+    let spec =
+        canonicalize_spec_with_exports(&ledger_fixture(), &exports).unwrap();
+    assert!(
+        spec.interfaces[0].methods.is_empty(),
+        "phantoms must shake even with zero real methods, got {:?}",
+        spec.interfaces[0].methods
+    );
+    assert!(spec.type_defs.is_empty());
+}
+
+#[test]
+fn canonicalize_spec_without_exports_does_not_shake_methods() {
+    let spec = canonicalize_spec(&ledger_fixture()).unwrap();
+    assert_eq!(spec.interfaces[0].methods.len(), 2);
 }
 
 // ---------------------------------------------------------------------------

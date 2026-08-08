@@ -133,6 +133,46 @@ struct InterfaceBucket {
 pub fn canonicalize_spec(
     raw: &[SpecFragment],
 ) -> Result<ContractSpec, SpecToolError> {
+    canonicalize_spec_inner(raw, None)
+}
+
+/// Like [`canonicalize_spec`], but additionally shakes methods with no
+/// corresponding exported entrypoint.
+///
+/// `exported_fns` is the module's set of **entrypoint export names** — the
+/// 16-hex uppercase rendering of the dispatch ID
+/// ([`groundhog_contract_util::entrypoint_export_name`]). For wasm this is
+/// exactly the export section's function names. An rv32 caller must map its
+/// dispatch-table method IDs through `entrypoint_export_name` — NOT pass
+/// ELF symbol names (rv32 wrapper symbols carry the human-readable ID
+/// preimage, which never matches; passing them would silently disable
+/// shaking).
+///
+/// For each anchored interface, each method's expected entrypoint export
+/// name is computed with the same `contract-util` functions the macro
+/// codegen uses; methods whose entrypoint is absent are dropped. This
+/// removes phantom methods contributed by a *different* trait candidate
+/// that collides on the interface key (default name = trait ident, default
+/// version = crate version) — the contract still builds, and the spec
+/// reflects only what is callable.
+///
+/// Carrier rule: an EMPTY `exported_fns` set disables shaking entirely.
+/// Spec-carrier binaries (`export_interface_spec!`) export no functions at
+/// all and must still publish complete interfaces. The exemption is
+/// deliberately module-wide rather than per-interface: an anchored
+/// interface with zero real methods (e.g. an implemented marker trait
+/// whose key a collider squats) must not smuggle phantom methods through.
+pub fn canonicalize_spec_with_exports(
+    raw: &[SpecFragment],
+    exported_fns: &std::collections::BTreeSet<String>,
+) -> Result<ContractSpec, SpecToolError> {
+    canonicalize_spec_inner(raw, Some(exported_fns))
+}
+
+fn canonicalize_spec_inner(
+    raw: &[SpecFragment],
+    exported_fns: Option<&std::collections::BTreeSet<String>>,
+) -> Result<ContractSpec, SpecToolError> {
     if raw.is_empty() {
         return Err(SpecToolError::NoSpecFragments);
     }
@@ -323,6 +363,39 @@ pub fn canonicalize_spec(
                 deduped_methods.push(method);
             }
 
+            // Method shaking by export cross-reference (see
+            // `canonicalize_spec_with_exports`): drop methods whose
+            // entrypoint the module does not export — phantom methods from
+            // a colliding trait candidate. Skipped only when the module
+            // exports no functions at all (a spec-carrier binary), which
+            // the caller signals with an empty set: the exemption is
+            // module-wide, never per-interface, so an anchored interface
+            // with zero real methods cannot smuggle a collider's phantoms
+            // through.
+            if let Some(exports) = exported_fns
+                && !exports.is_empty()
+            {
+                let iface_name = spec_str(&name)?.to_string();
+                let iface_vers = spec_str(&vers)?.to_string();
+                deduped_methods = deduped_methods
+                    .into_iter()
+                    .map(|method| {
+                        let export_name =
+                            groundhog_contract_util::entrypoint_export_name_for(
+                                Some(&iface_name),
+                                &iface_vers,
+                                &groundhog_contract_util::NormalizedMethodSignature::new(
+                                    spec_str(&method.name)?,
+                                ),
+                            );
+                        Ok((exports.contains(&export_name), method))
+                    })
+                    .collect::<Result<Vec<_>, SpecToolError>>()?
+                    .into_iter()
+                    .filter_map(|(keep, method)| keep.then_some(method))
+                    .collect();
+            }
+
             // Interface-metadata conflicts (throws, emits, exception
             // selectors) are only errors for anchored interfaces: candidates
             // of shaken interfaces never got here. Throws are compared in
@@ -452,26 +525,25 @@ fn validate_interface_key(
             "interface fragments must include name and version".to_string(),
         ));
     }
-    if !is_semver_triplet(interface_version) {
+    // Same acceptance contract as the macro-side validator
+    // (macros/common/util.rs validate_version_string), and the same strict
+    // parser the shaking path runs when computing entrypoint IDs: canonical
+    // semver triplets, optionally with -PRERELEASE/+BUILD suffixes.
+    // Non-canonical strings ("01.0.0", components beyond u64) are rejected
+    // here so crafted or corrupt raw sections produce an error, never a
+    // panic in contract-util's panicking parser.
+    if groundhog_contract_util::semver::try_major_version_from_string(
+        interface_version,
+    )
+    .is_none()
+    {
         return Err(SpecToolError::InvalidRawFragment(format!(
-            "interface version must be MAJOR.MINOR.PATCH, got {interface_version}"
+            "interface version must be a semver triplet like \"1.0.0\" \
+             (optionally with -PRERELEASE and +BUILD suffixes), got \
+             {interface_version}"
         )));
     }
     Ok(())
-}
-
-fn is_semver_triplet(version: &str) -> bool {
-    let mut parts = version.split('.');
-    matches!(
-        (parts.next(), parts.next(), parts.next(), parts.next()),
-        (Some(major), Some(minor), Some(patch), None)
-            if !major.is_empty()
-                && !minor.is_empty()
-                && !patch.is_empty()
-                && major.chars().all(|ch| ch.is_ascii_digit())
-                && minor.chars().all(|ch| ch.is_ascii_digit())
-                && patch.chars().all(|ch| ch.is_ascii_digit())
-    )
 }
 
 fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
