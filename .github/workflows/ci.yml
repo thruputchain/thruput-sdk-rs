@@ -16,20 +16,132 @@ env:
 jobs:
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    name: build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Example wasm builds + spec finalization + spec-artifact checks
+          # + rv32 builds/checks + native example tests.
+          - name: examples-test
+            submodules: false
+            skips: >-
+              SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_BOTTLE_EXAMPLES=1
+              SKIP_DOMAIN_COLLISION=1 SKIP_REGISTRY_STRIPPED=1
+              SKIP_INTEGRATION=1 SKIP_LOGGING=1 SKIP_WASM_STRINGS=1
+              SKIP_QUALITY=1
+          # Example wasm builds + bottle tests + domain-collision +
+          # registry-stripped + wasm-strings. (Rebuilds the example wasm:
+          # bottle tests consume sibling contracts' optimized wasm, so this
+          # job can't reuse examples-test's build.)
+          - name: examples-bottle
+            submodules: false
+            skips: >-
+              SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_RV32_EXAMPLES=1
+              SKIP_TEST_EXAMPLES=1 SKIP_INTEGRATION=1 SKIP_LOGGING=1
+              SKIP_QUALITY=1
+          # Docs + full integration block + logging build + lint/fmt/xxx.
+          # Only entry needing the integration_test/contracts submodule
+          # (hence the SSH keys). Keeps wasm-strings: integration contracts
+          # share the sdk target dir (target-dir = "../target"), so this
+          # entry's scan covers the integration wasm while examples-bottle
+          # covers the example wasm.
+          - name: checks
+            submodules: true
+            skips: >-
+              SKIP_SDK_TESTS=1 SKIP_EXAMPLES=1
     runs-on: namespace-profile-hogd-linux
     env:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
-      # SDK unit tests run in the separate `sdk-tests` job (sdk_tests.yml).
-      SKIP_SDK_TESTS: "1"
+      # Every matrix entry sets SKIP_SDK_TESTS=1: SDK unit tests run in the
+      # separate `sdk-tests` job (sdk_tests.yml).
       # Share one FFI download cache across every groundhog-sys build instance
       # (and across runs, via the Namespace cache below). Without this the cache
       # defaults to each instance's OUT_DIR, so every workspace/feature variant
       # re-downloads the prebuilt FFI tarball.
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
+      # Namespace-cached CLI install root: ci.sh installs the pinned groundhog
+      # CLI here once per version bump instead of recompiling it every run.
+      GROUNDHOG_CLI_ROOT: ${{ github.workspace }}/.groundhog-cli
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
-      # SSH remotes) can authenticate.
+      # SSH remotes) can authenticate. Only the entry that initializes
+      # submodules needs it.
+      - uses: webfactory/ssh-agent@v0.10.0
+        if: matrix.submodules
+        with:
+          ssh-private-key: |
+            ${{ secrets.HOGD_ACCESS_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_RS }}
+            ${{ secrets.SDK_TO_BCS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
+            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+            ${{ secrets.SDK_TO_XDRS_KEY }}
+            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+            ${{ secrets.SDK_TO_CHUCKD_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+            ${{ secrets.SDK_TO_METRICS_HISTORY }}
+            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
+            ${{ secrets.SDK_TO_LIBGO }}
+            ${{ secrets.SDK_TO_SELF }}
+            ${{ secrets.SDK_TO_ABORT_RS }}
+            ${{ secrets.SDK_TO_HOGX_KEY }}
+            ${{ secrets.SDK_TO_SCP_KEY }}
+
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      - name: Initialize submodules
+        if: matrix.submodules
+        run: git submodule update --init --recursive
+
+      # NB: deliberately NOT caching ./target. The Namespace cross-invocation
+      # cache is a network/overlay-backed mount; cargo's many-small-file churn
+      # in target/ stalls on it (the runner sits at ~0-5% CPU on 32 cores —
+      # I/O-wait, not compute). Building target/ on the runner's local disk and
+      # eating a cold compile is faster than an I/O-starved "incremental" build.
+      # We still cache the dependency *sources* (read-mostly, few large files)
+      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
+      # FFI download and the compiled groundhog CLI.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ github.workspace }}/.hogd-ffi-cache
+            ${{ github.workspace }}/.groundhog-cli
+
+      # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
+      # features like --ignore-file); the runner image doesn't ship it.
+      - name: Install ripgrep
+        run: |
+          if ! command -v rg >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y ripgrep
+          fi
+          rg --version
+
+      - name: Run CI
+        run: env ${{ matrix.skips }} ./scripts/ci.sh
+
+  # Main pushes only, off the PR critical path. Self-contained: rebuilds the
+  # example wasm + rv32 artifacts and the full integration block (metrics.sh's
+  # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
+  # metrics read target/optimized, the rv32 release ELFs, and target/groundhog).
+  metrics:
+    if: github.ref == 'refs/heads/main'
+    runs-on: namespace-profile-hogd-linux
+    env:
+      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
+      GROUNDHOG_CLI_ROOT: ${{ github.workspace }}/.groundhog-cli
+
+    steps:
+      # Needed both for the submodule fetch and for metrics.sh's push to
+      # metrics_history (SDK_TO_METRICS_HISTORY).
       - uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: |
@@ -58,14 +170,6 @@ jobs:
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
-      # NB: deliberately NOT caching ./target. The Namespace cross-invocation
-      # cache is a network/overlay-backed mount; cargo's many-small-file churn
-      # in target/ stalls on it (the runner sits at ~0-5% CPU on 32 cores —
-      # I/O-wait, not compute). Building target/ on the runner's local disk and
-      # eating a cold compile is faster than an I/O-starved "incremental" build.
-      # We still cache the dependency *sources* (read-mostly, few large files)
-      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
-      # FFI download.
       - name: Configure Namespace Cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
@@ -73,9 +177,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ github.workspace }}/.hogd-ffi-cache
+            ${{ github.workspace }}/.groundhog-cli
 
-      # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
-      # features like --ignore-file); the runner image doesn't ship it.
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
@@ -83,13 +186,20 @@ jobs:
           fi
           rg --version
 
-      - name: Run CI
-        run: ./scripts/ci.sh
+      - name: Build metrics inputs
+        run: >-
+          env SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_TEST_EXAMPLES=1
+          SKIP_BOTTLE_EXAMPLES=1 SKIP_DOMAIN_COLLISION=1
+          SKIP_REGISTRY_STRIPPED=1 SKIP_LOGGING=1 SKIP_WASM_STRINGS=1
+          SKIP_QUALITY=1 ./scripts/ci.sh
 
       - name: Log metrics
-        if: github.ref == 'refs/heads/main'
         env:
           # Detached HEAD on CI checkout would make metrics.sh derive "HEAD";
           # pass the real branch (matches the old hog `git_branch`).
           GIT_BRANCH: ${{ github.ref_name }}
-        run: ./scripts/metrics.sh
+        run: |
+          # ci.sh's PATH export doesn't survive into this step; re-expose the
+          # cached CLI in case bottle re-runs ever shell out to it.
+          export PATH="${GROUNDHOG_CLI_ROOT}/bin:${PATH}"
+          ./scripts/metrics.sh

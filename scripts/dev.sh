@@ -922,7 +922,7 @@ check_all() {
         check_iface_conflict_detected &&
         check_missing_contract_macro_detected &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
-        eg_bottle_test_all &&
+        { skip BOTTLE_EXAMPLES || eg_bottle_test_all; } &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
         { skip REGISTRY_STRIPPED || bash "${SDK_DIR}/scripts/check-storage-registry-stripped.sh"; }
     }; } &&
