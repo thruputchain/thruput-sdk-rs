@@ -155,10 +155,13 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 ///
 /// # Limitations
 ///
-/// Generic parameters are not supported on `#[contract]` items (including
-/// item-level lifetimes) or their methods (generated clients, entrypoint
-/// wrappers, and spec consts are non-generic; method and event lifetimes
-/// are fine). Associated types are not supported in `#[contract]` traits.
+/// Generic parameters — including explicit lifetime parameters — are not
+/// supported on `#[contract]` items or their methods: generated clients,
+/// entrypoint wrappers, and spec consts are non-generic, so a spliced
+/// `T` or `'a` cannot resolve there. Elided borrow lifetimes (`&self`,
+/// `&[u8]`) are fine, and `#[derive(Event)]` types may carry lifetime
+/// parameters (folded to `'static` in the spec). Associated types are not
+/// supported in `#[contract]` traits.
 /// A struct must carry only one `#[contract]` impl block: depending on
 /// configuration a second block either collides on generated items
 /// (E0428 on names you never wrote) or compiles while silently merging

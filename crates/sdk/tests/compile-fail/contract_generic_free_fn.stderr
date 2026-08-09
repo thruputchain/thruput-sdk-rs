@@ -1,4 +1,4 @@
-error: generic parameters are not supported on #[contract] free functions (lifetimes are allowed)
+error: generic parameters (including lifetimes) are not supported on #[contract] free functions
  --> tests/compile-fail/contract_generic_free_fn.rs:6:16
   |
 6 | pub fn hash_it<T>(value: T) -> u32 {

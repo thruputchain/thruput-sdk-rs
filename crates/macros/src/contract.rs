@@ -329,7 +329,7 @@ fn apply_with_config(
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
             validate_no_generics(
                 &item.sig.generics,
-                true,
+                false,
                 "#[contract] free functions",
             )?;
 

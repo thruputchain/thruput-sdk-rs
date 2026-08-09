@@ -138,11 +138,13 @@ where
     }
 }
 
-/// Reject generic type/const parameters on contract methods: the method
-/// signatures are spliced into non-generic module-level consts (spec defs,
-/// entrypoint wrappers, clients), so a method-scoped `T` would surface as
-/// an unresolved-type error inside generated code. Lifetime parameters are
-/// left alone.
+/// Reject generic parameters on contract methods: the method signatures
+/// are spliced into non-generic module-level consts and client fns (spec
+/// defs, entrypoint wrappers, clients), so a method-scoped `T` — or an
+/// explicit `<'a>` lifetime parameter, verified to die with E0261 inside
+/// the generated client — would surface as an error in code the author
+/// never wrote. Elided borrow lifetimes (`&self`, `&[u8]`) are not
+/// generic parameters and remain fine.
 pub fn validate_method_generics<M>(
     methods: impl IntoIterator<Item = M>,
 ) -> Result<()>
@@ -152,7 +154,7 @@ where
     for method in methods {
         super::util::validate_no_generics(
             &method.sig().generics,
-            true,
+            false,
             "contract methods",
         )?;
     }

@@ -72,10 +72,12 @@ where
 /// first offending parameter. Generated code (clients, entrypoint wrappers,
 /// spec consts, `Exn` impls) is non-generic, so generics would otherwise
 /// surface as unresolved-type errors deep inside code the author never
-/// wrote. `allow_lifetimes` is for positions where lifetimes are handled
-/// (folded to `'static` in spec consts, or plain borrows in signatures);
-/// item-level lifetimes are rejected because the generated companion items
-/// carry no lifetime parameters at all.
+/// wrote. `allow_lifetimes` is only for positions where lifetime params
+/// are genuinely handled (`#[derive(Event)]` folds them to `'static`);
+/// everywhere else even explicit lifetimes are rejected — the generated
+/// companion items declare no lifetime parameters, so a spliced `'a` dies
+/// with E0261 in code the author never wrote. Elided borrow lifetimes are
+/// not generics params and are unaffected.
 ///
 /// The single shared guard for every macro that splices user types into
 /// non-generic output — new macros should call this rather than hand-roll
