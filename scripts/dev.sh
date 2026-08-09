@@ -647,6 +647,32 @@ check_missing_contract_macro_detected() {
     }
 }
 
+# The rv32 analogue of assert_wasm_has_final_spec_only: spec content must
+# not reach the deployed .rv32a memory image. Raw fragments live in the
+# ELF's groundhogspecrawv0 section (where the CLI reads them); the lowerer
+# must not copy them into the image, and rv32 has no embedded final spec
+# (spec.json/.xdr are sidecars). Each needle is a spec-only name — the
+# runtime never embeds them (dispatch uses hashed IDs, events hashed
+# signatures) — asserted PRESENT in the ELF first so a vanished raw
+# section (or renamed fixture type) cannot make the check pass vacuously.
+assert_rv32a_lacks_spec_content() {
+    local rv32a elf
+    rv32a="$1"; shift
+    elf="$1"; shift
+
+    local needle
+    for needle in "$@"; do
+        rg -a -F --quiet "$needle" "$elf" || {
+            fail "Expected $elf to contain spec needle $needle (raw spec section missing from the ELF?)"
+            return 1
+        }
+        if rg -a -F --quiet "$needle" "$rv32a"; then
+            fail "Spec content leaked into the lowered image $rv32a: found $needle"
+            return 1
+        fi
+    done
+}
+
 # Asserts on rv32-pipeline-produced spec JSONs written to target/groundhog/.
 # Called at the end of eg_build_rv32_all (not from check_all) so it only runs
 # when the rv32 build succeeds and is not skipped via SKIP_RV32_EXAMPLES.
@@ -691,7 +717,20 @@ check_rv32_contract_spec_artifacts() {
     # neither implemented.
     assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
-    assert_file_lacks "$rv32_iface_conflict_json" '"name":"PingEvent"'
+    assert_file_lacks "$rv32_iface_conflict_json" '"name":"PingEvent"' &&
+
+    assert_rv32a_lacks_spec_content \
+        "${groundhog_dir}/event_shaking_subset_rv32.rv32a" \
+        "${RV32_RELEASE}/event_shaking_subset_rv32" \
+        "AdoptedEvent" "OrphanPayload" &&
+    assert_rv32a_lacks_spec_content \
+        "${groundhog_dir}/typedef_shaking_caller_rv32.rv32a" \
+        "${RV32_RELEASE}/typedef_shaking_caller_rv32" \
+        "SharedConfig" "MarketV1" &&
+    assert_rv32a_lacks_spec_content \
+        "${groundhog_dir}/iface_conflict_caller_rv32.rv32a" \
+        "${RV32_RELEASE}/iface_conflict_caller_rv32" \
+        "PingEvent"
 }
 
 itc_build() {
