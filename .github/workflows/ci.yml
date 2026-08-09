@@ -42,12 +42,14 @@ jobs:
               SKIP_QUALITY=1
           # Docs + full integration block + logging build + lint/fmt/xxx.
           # Only entry needing the integration_test/contracts submodule
-          # (hence the SSH keys). wasm-strings reads the sdk workspace's
-          # release wasm dir, which only example builds populate — skipped.
+          # (hence the SSH keys). Keeps wasm-strings: integration contracts
+          # share the sdk target dir (target-dir = "../target"), so this
+          # entry's scan covers the integration wasm while examples-bottle
+          # covers the example wasm.
           - name: checks
             submodules: true
             skips: >-
-              SKIP_SDK_TESTS=1 SKIP_EXAMPLES=1 SKIP_WASM_STRINGS=1
+              SKIP_SDK_TESTS=1 SKIP_EXAMPLES=1
     runs-on: namespace-profile-hogd-linux
     env:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
