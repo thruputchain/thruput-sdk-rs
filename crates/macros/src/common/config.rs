@@ -178,7 +178,6 @@ impl FromMeta for EmitsList {
 #[derive(Clone, Debug, FromMeta)]
 pub struct Config {
     pub exports: Option<SpannedValue<String>>,
-    pub test_setup: Option<String>,
     pub interface: Option<SpannedValue<String>>,
     pub version: Option<SpannedValue<String>>,
 
@@ -273,6 +272,17 @@ mod tests {
 
     fn empty_config() -> Config {
         parse_config("")
+    }
+
+    #[test]
+    fn test_setup_key_is_rejected_as_unknown() {
+        // Dead config key: darling's unknown-field error handles it
+        // uniformly across item kinds and features.
+        let tokens: proc_macro2::TokenStream =
+            r#"test_setup = "setup_fn""#.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        let err = Config::from_list(&meta_list).unwrap_err();
+        assert!(err.to_string().contains("test_setup"), "{err}");
     }
 
     // -- internal_exports_mod_ident --

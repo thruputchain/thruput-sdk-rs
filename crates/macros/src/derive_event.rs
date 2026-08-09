@@ -233,6 +233,14 @@ fn emit_exported_event_fragment(
 }
 
 pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
+    // The event def is a non-generic module-level const, so a type-scoped
+    // `T` would surface as an unresolvable type inside generated code.
+    // Lifetimes are supported (folded to `'static` in the spec const).
+    crate::common::util::validate_no_generics(
+        &input.generics,
+        true,
+        "#[derive(Event)] types",
+    )?;
     let syn::Data::Struct(data) = &input.data else {
         return Err(syn::Error::new_spanned(
             input,
@@ -429,6 +437,20 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 #[cfg(test)]
 mod tests {
     use super::expand;
+
+    #[test]
+    fn expand_rejects_generic_type_parameters() {
+        // Lifetimes are supported (folded to 'static in the spec const);
+        // type/const parameters would splice an unresolvable `T` into the
+        // module-level def const — reject with a clear message instead.
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct BadEvent<T> {
+                value: T,
+            }
+        };
+        let err = expand(&input).map(|t| t.to_string()).unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
 
     #[test]
     fn expand_emits_event_def_const_and_spec_impl() {

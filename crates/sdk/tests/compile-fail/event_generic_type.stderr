@@ -1,0 +1,5 @@
+error: generic parameters are not supported on #[derive(Event)] types (lifetimes are allowed)
+ --> tests/compile-fail/event_generic_type.rs:6:25
+  |
+6 | pub struct GenericEvent<T> {
+  |                         ^

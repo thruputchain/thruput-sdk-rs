@@ -38,10 +38,12 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            // The spec advertises every trait method, but entrypoints are
-            // only generated for methods present in the #[contract] impl
-            // block — a defaulted method would be advertised yet uncallable.
+            validate_no_generics(&item.generics, false, "#[contract] traits")?;
             for trait_item in &item.items {
+                // The spec advertises every trait method, but entrypoints
+                // are only generated for methods present in the #[contract]
+                // impl block — a defaulted method would be advertised yet
+                // uncallable.
                 if let syn::TraitItem::Fn(method) = trait_item
                     && method.default.is_some()
                 {
@@ -53,12 +55,23 @@ fn apply_with_config(
                          in the #[contract] impl block instead",
                     ));
                 }
+                // An associated type would be spliced as `Self::Asset` into
+                // non-generic spec consts and the generated client, where
+                // it cannot resolve.
+                if let syn::TraitItem::Type(assoc) = trait_item {
+                    return Err(syn::Error::new_spanned(
+                        assoc,
+                        "associated types are not supported in #[contract] \
+                         traits",
+                    ));
+                }
             }
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
+            contract::validate_method_generics(contract.methods_sorted())?;
             let throws_tokens = contract::throws_spec_tokens(&contract)?;
             let throw_anchor_tokens =
                 contract::throws_anchor_tokens(&contract)?;
@@ -234,12 +247,18 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
+            validate_no_generics(
+                &item.generics,
+                false,
+                "#[contract] impl blocks",
+            )?;
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_bare_impl_method_visibility(item)?;
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
+            contract::validate_method_generics(contract.methods_sorted())?;
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -308,6 +327,11 @@ fn apply_with_config(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
+            validate_no_generics(
+                &item.sig.generics,
+                false,
+                "#[contract] free functions",
+            )?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
@@ -329,7 +353,8 @@ fn apply_with_config(
         }
         _ => Err(error(
             item,
-            format!("Can't apply attribute to item {:?}", item),
+            "the #[contract] attribute applies to a trait, an impl block, \
+             or a free function",
         )),
     }
 }
@@ -345,6 +370,93 @@ mod tests {
         let tokens: proc_macro2::TokenStream = attrs.parse().unwrap();
         let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
         Config::from_list(&meta_list).unwrap()
+    }
+
+    #[test]
+    fn contract_rejects_wrong_item_kind_with_short_message() {
+        // Historically this dumped the entire syn debug AST of the item.
+        let item: syn::Item = syn::parse_quote! {
+            struct NotAContract;
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("applies to a trait, an impl block, or a free"),
+            "{msg}"
+        );
+        assert!(msg.len() < 200, "error must not dump the AST: {msg}");
+    }
+
+    #[test]
+    fn contract_rejects_generic_traits() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault<T> {
+                fn deposit(&mut self, asset: T);
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
+
+    #[test]
+    fn contract_rejects_generic_impls() {
+        let item: syn::Item = syn::parse_quote! {
+            impl<T> Vault<T> {
+                pub fn ping(&self) -> u32 {
+                    1
+                }
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
+
+    #[test]
+    fn contract_rejects_trait_associated_types() {
+        // `type Asset;` would be spliced as `Self::Asset` into non-generic
+        // spec consts and the generated client — reject clearly instead.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                type Asset;
+                fn ping(&self) -> u32;
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("associated types"), "{err}");
+    }
+
+    #[test]
+    fn contract_free_fn_generics_error_names_free_functions() {
+        let item: syn::Item = syn::parse_quote! {
+            pub fn hash_it<T>(value: T) -> u32 {
+                0
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("free functions"), "{err}");
+    }
+
+    #[test]
+    fn contract_rejects_generic_methods() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                fn deposit<T>(&mut self, asset: T);
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
     }
 
     #[test]

@@ -151,7 +151,21 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 ///
 /// `version = "x.y.z"`, `interface = "Name"`, `exports = "mod_name"`,
 /// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
-/// `emits(Event1, Event2)`, `test_setup = "fn_name"`.
+/// `emits(Event1, Event2)`.
+///
+/// # Limitations
+///
+/// Generic parameters — including explicit lifetime parameters — are not
+/// supported on `#[contract]` items or their methods: generated clients,
+/// entrypoint wrappers, and spec consts are non-generic, so a spliced
+/// `T` or `'a` cannot resolve there. Elided borrow lifetimes (`&self`,
+/// `&[u8]`) are fine, and `#[derive(Event)]` types may carry lifetime
+/// parameters (folded to `'static` in the spec). Associated types are not
+/// supported in `#[contract]` traits.
+/// A struct must carry only one `#[contract]` impl block: depending on
+/// configuration a second block either collides on generated items
+/// (E0428 on names you never wrote) or compiles while silently merging
+/// the entrypoint surface — neither is supported.
 ///
 /// # Storage-domain collision detection
 ///
