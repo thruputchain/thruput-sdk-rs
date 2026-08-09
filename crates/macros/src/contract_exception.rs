@@ -25,6 +25,24 @@ pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
         return err.into_compile_error();
     }
 
+    // The generated `impl Exn`/`ContractTypeName` use the bare ident, so a
+    // generic exception type would produce cascading missing-generics
+    // errors inside generated code.
+    let generics = match &item {
+        Item::Enum(e) => Some(&e.generics),
+        Item::Struct(s) => Some(&s.generics),
+        _ => None,
+    };
+    if let Some(generics) = generics
+        && let Err(err) = crate::common::util::validate_no_generics(
+            generics,
+            false,
+            "#[contract_exception] types",
+        )
+    {
+        return err.into_compile_error();
+    }
+
     match item {
         Item::Enum(e) => expand_enum(args, e),
         Item::Struct(s) => expand_struct(args, s),

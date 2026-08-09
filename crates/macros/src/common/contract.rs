@@ -150,15 +150,11 @@ where
     M: Method,
 {
     for method in methods {
-        for param in &method.sig().generics.params {
-            if !matches!(param, syn::GenericParam::Lifetime(_)) {
-                return Err(error(
-                    param,
-                    "generic parameters are not supported on contract \
-                     methods",
-                ));
-            }
-        }
+        super::util::validate_no_generics(
+            &method.sig().generics,
+            true,
+            "contract methods",
+        )?;
     }
     Ok(())
 }

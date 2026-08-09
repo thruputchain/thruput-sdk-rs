@@ -6,23 +6,6 @@ use quote::{format_ident, quote};
 use syn::{DeriveInput, Fields, GenericParam, Result};
 
 /// Returns (topic_fields, payload_fields).
-/// Reject generic type/const parameters: the event def is a non-generic
-/// module-level const, so a type-scoped `T` would surface as an
-/// unresolved-type error inside generated code. Lifetime parameters are
-/// supported (folded to `'static` in the spec const).
-fn validate_no_type_generics(input: &DeriveInput) -> Result<()> {
-    for param in &input.generics.params {
-        if !matches!(param, syn::GenericParam::Lifetime(_)) {
-            return Err(syn::Error::new_spanned(
-                param,
-                "#[derive(Event)] does not support generic parameters \
-                 (lifetimes are allowed)",
-            ));
-        }
-    }
-    Ok(())
-}
-
 fn partition_fields(
     fields: &Fields,
 ) -> Result<(Vec<&syn::Field>, Vec<&syn::Field>)> {
@@ -250,7 +233,14 @@ fn emit_exported_event_fragment(
 }
 
 pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
-    validate_no_type_generics(input)?;
+    // The event def is a non-generic module-level const, so a type-scoped
+    // `T` would surface as an unresolvable type inside generated code.
+    // Lifetimes are supported (folded to `'static` in the spec const).
+    crate::common::util::validate_no_generics(
+        &input.generics,
+        true,
+        "#[derive(Event)] types",
+    )?;
     let syn::Data::Struct(data) = &input.data else {
         return Err(syn::Error::new_spanned(
             input,

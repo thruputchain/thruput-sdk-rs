@@ -38,11 +38,12 @@ fn apply_with_config(
 ) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
-            validate_no_item_generics(&item.generics, "#[contract] traits")?;
-            // The spec advertises every trait method, but entrypoints are
-            // only generated for methods present in the #[contract] impl
-            // block — a defaulted method would be advertised yet uncallable.
+            validate_no_generics(&item.generics, false, "#[contract] traits")?;
             for trait_item in &item.items {
+                // The spec advertises every trait method, but entrypoints
+                // are only generated for methods present in the #[contract]
+                // impl block — a defaulted method would be advertised yet
+                // uncallable.
                 if let syn::TraitItem::Fn(method) = trait_item
                     && method.default.is_some()
                 {
@@ -52,6 +53,16 @@ fn apply_with_config(
                          a defaulted method would appear in the contract \
                          spec without a callable entrypoint; implement it \
                          in the #[contract] impl block instead",
+                    ));
+                }
+                // An associated type would be spliced as `Self::Asset` into
+                // non-generic spec consts and the generated client, where
+                // it cannot resolve.
+                if let syn::TraitItem::Type(assoc) = trait_item {
+                    return Err(syn::Error::new_spanned(
+                        assoc,
+                        "associated types are not supported in #[contract] \
+                         traits",
                     ));
                 }
             }
@@ -236,8 +247,9 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
-            validate_no_item_generics(
+            validate_no_generics(
                 &item.generics,
+                false,
                 "#[contract] impl blocks",
             )?;
             let contract = ConfiguredContract::new(config.clone(), item);
@@ -315,7 +327,11 @@ fn apply_with_config(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
-            contract::validate_method_generics(contract.methods_sorted())?;
+            validate_no_generics(
+                &item.sig.generics,
+                true,
+                "#[contract] free functions",
+            )?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
@@ -341,23 +357,6 @@ fn apply_with_config(
              or a free function",
         )),
     }
-}
-
-/// Reject generic parameters on a `#[contract]` item. Generated code
-/// (clients, entrypoint wrappers, spec consts) is non-generic, so generics
-/// would otherwise surface as unresolved-type errors deep inside code the
-/// author never wrote.
-fn validate_no_item_generics(
-    generics: &syn::Generics,
-    item_kind: &str,
-) -> Result<()> {
-    if let Some(param) = generics.params.first() {
-        return Err(syn::Error::new_spanned(
-            param,
-            format!("generic parameters are not supported on {item_kind}"),
-        ));
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -416,6 +415,35 @@ mod tests {
             .map(|t| t.to_string())
             .unwrap_err();
         assert!(err.to_string().contains("generic"), "{err}");
+    }
+
+    #[test]
+    fn contract_rejects_trait_associated_types() {
+        // `type Asset;` would be spliced as `Self::Asset` into non-generic
+        // spec consts and the generated client — reject clearly instead.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                type Asset;
+                fn ping(&self) -> u32;
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("associated types"), "{err}");
+    }
+
+    #[test]
+    fn contract_free_fn_generics_error_names_free_functions() {
+        let item: syn::Item = syn::parse_quote! {
+            pub fn hash_it<T>(value: T) -> u32 {
+                0
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("free functions"), "{err}");
     }
 
     #[test]

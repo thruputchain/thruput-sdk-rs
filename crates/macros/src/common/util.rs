@@ -68,6 +68,44 @@ where
     Error::new(spanned.span(), msg.as_ref())
 }
 
+/// Reject generic parameters on `subject`, with a spanned error on the
+/// first offending parameter. Generated code (clients, entrypoint wrappers,
+/// spec consts, `Exn` impls) is non-generic, so generics would otherwise
+/// surface as unresolved-type errors deep inside code the author never
+/// wrote. `allow_lifetimes` is for positions where lifetimes are handled
+/// (folded to `'static` in spec consts, or plain borrows in signatures);
+/// item-level lifetimes are rejected because the generated companion items
+/// carry no lifetime parameters at all.
+///
+/// The single shared guard for every macro that splices user types into
+/// non-generic output — new macros should call this rather than hand-roll
+/// the check (hand-rolled copies are how `#[contract_exception]` was
+/// originally missed).
+pub fn validate_no_generics(
+    generics: &syn::Generics,
+    allow_lifetimes: bool,
+    subject: &str,
+) -> Result<(), Error> {
+    for param in &generics.params {
+        if allow_lifetimes && matches!(param, syn::GenericParam::Lifetime(_)) {
+            continue;
+        }
+        let msg = if allow_lifetimes {
+            format!(
+                "generic parameters are not supported on {subject} \
+                 (lifetimes are allowed)"
+            )
+        } else {
+            format!(
+                "generic parameters (including lifetimes) are not \
+                 supported on {subject}"
+            )
+        };
+        return Err(error(param, msg));
+    }
+    Ok(())
+}
+
 /// Validate a user-supplied `version = "..."` attribute value before it
 /// reaches the panicking semver parser inside the selector/entrypoint
 /// hash derivation. `span` should be the span of the attribute value so

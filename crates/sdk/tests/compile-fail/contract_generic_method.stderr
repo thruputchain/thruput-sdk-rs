@@ -1,4 +1,4 @@
-error: generic parameters are not supported on contract methods
+error: generic parameters are not supported on contract methods (lifetimes are allowed)
   --> tests/compile-fail/contract_generic_method.rs:10:18
    |
 10 |     pub fn store<T>(&mut self, value: T) {

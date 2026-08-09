@@ -155,11 +155,14 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 ///
 /// # Limitations
 ///
-/// Generic parameters are not supported on `#[contract]` items or their
-/// methods (generated clients, entrypoint wrappers, and spec consts are
-/// non-generic). A struct may carry only one `#[contract]` impl block:
-/// the generated client/entrypoints/exports items are named after the
-/// interface, so a second block collides on them.
+/// Generic parameters are not supported on `#[contract]` items (including
+/// item-level lifetimes) or their methods (generated clients, entrypoint
+/// wrappers, and spec consts are non-generic; method and event lifetimes
+/// are fine). Associated types are not supported in `#[contract]` traits.
+/// A struct must carry only one `#[contract]` impl block: depending on
+/// configuration a second block either collides on generated items
+/// (E0428 on names you never wrote) or compiles while silently merging
+/// the entrypoint surface — neither is supported.
 ///
 /// # Storage-domain collision detection
 ///

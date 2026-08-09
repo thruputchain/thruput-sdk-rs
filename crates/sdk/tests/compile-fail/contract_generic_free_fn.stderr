@@ -1,0 +1,5 @@
+error: generic parameters are not supported on #[contract] free functions (lifetimes are allowed)
+ --> tests/compile-fail/contract_generic_free_fn.rs:6:16
+  |
+6 | pub fn hash_it<T>(value: T) -> u32 {
+  |                ^

@@ -80,6 +80,12 @@ pub struct ContractTypeInfo<'a> {
 
 /// Trait for types that can appear in contract spec signatures.
 /// Implemented for primitives, collections, and `#[contract_type]` types.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot appear in a contract signature",
+    label = "not a contract-spec type",
+    note = "annotate the defining type with `#[contract_type]` (error \
+            types: `#[contract_exception]`, events: `#[derive(Event)]`)"
+)]
 pub trait ContractTypeRefSpec {
     /// The type reference. Transitive type definitions are not carried here;
     /// they are retained via the linker-anchor mechanism
