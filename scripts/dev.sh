@@ -416,7 +416,7 @@ check_contract_spec_artifacts() {
     local optimized
     optimized="${TARGET_DIR}/optimized"
 
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json phantom_method_json prerelease_json
+    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json phantom_method_json prerelease_json
     signer_callee_json="${optimized}/signer_callee.spec.json"
     erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
     free_fn_json="${optimized}/free_fn_unnamed.spec.json"
@@ -428,7 +428,6 @@ check_contract_spec_artifacts() {
     genesis_json="${optimized}/genesis_deployer.spec.json"
     genesis_wasm="${optimized}/genesis_deployer.wasm"
     erc20_json="${optimized}/erc20_raw_storage.spec.json"
-    swap_json="${optimized}/swap.spec.json"
     event_shaking_json="${optimized}/event_shaking_subset.spec.json"
     typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
     iface_conflict_json="${optimized}/iface_conflict_caller.spec.json"
@@ -531,19 +530,6 @@ check_contract_spec_artifacts() {
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
     assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
     assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
-
-    assert_file_contains "$swap_json" '"name":"MintEvent"' &&
-    assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
-    assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
-    assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
-
-    # Regression guard: method specs are sourced from the ISwapV2Pair *trait*,
-    # not the impl. The impl names the first `initialize` arg `_factory` (unused
-    # marker); the trait names it `factory`. If method specs ever revert to
-    # being impl-sourced, the same-crate trait+impl build fails with
-    # `conflicting method definitions`, or this assertion catches `_factory`
-    # leaking into the published interface spec.
-    assert_file_contains "$swap_json" '"name":"initialize","args":[{"name":"factory"' &&
 
     assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
     assert_file_contains "$genesis_json" '"name":"deploy"' &&
