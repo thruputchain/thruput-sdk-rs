@@ -248,6 +248,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-u256"
+version = "0.19.0"
+dependencies = [
+ "groundhog-contract-spec",
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-wasm-meter"
 version = "0.8.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
@@ -493,6 +501,7 @@ dependencies = [
  "groundhog-native-exec",
  "groundhog-rv32-runtime",
  "groundhog-storage-cost",
+ "groundhog-u256",
  "groundhog-wasm-meter",
  "groundhog-wasm-runtime",
  "groundhog-xdr",

@@ -10,6 +10,7 @@ env:
     groundhog-storage-cost
     groundhog-contract-util
     groundhog-contract-spec
+    groundhog-u256
     groundhog-sys
     groundhog-domain-separator
     groundhog-native-exec

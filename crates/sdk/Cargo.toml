@@ -24,6 +24,7 @@ groundhog-macros = { workspace = true }
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
 groundhog-contract-spec = { workspace = true }
+groundhog-u256 = { workspace = true }
 hogexec-internal = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
 
@@ -55,6 +56,7 @@ version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 [features]
 # Enable allocation features
 alloc = [
+    "groundhog-u256/alloc",
     "groundhog-xdr/alloc",
     "xdrs/alloc",
     "groundhog-contract-spec/alloc",
@@ -65,6 +67,7 @@ alloc = [
 # Include interfaces requiring std
 std = [
     "alloc",
+    "groundhog-u256/std",
     "groundhog-xdr/std",
     "groundhog-contract-spec/owned-model",
     "xdrs/detailed-errors",
@@ -95,7 +98,7 @@ mock = [
 source-build = ["groundhog-native-exec?/source-build"]
 
 # Diagnostics (can be enabled without mock, alloc and std)
-debugging = []
+debugging = ["groundhog-u256/fmt"]
 call_tracking = ["debugging"] # contract-call tracking
 
 # Optional diagnostic features (not enabled by "dev")
