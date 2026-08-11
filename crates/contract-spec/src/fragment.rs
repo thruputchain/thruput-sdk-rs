@@ -1,10 +1,16 @@
 //! Owned raw-spec fragment types.
 //!
-//! `groundhogspecrawv0` fragments are internal to the SDK toolchain: the
+//! `groundhogspecraw*` fragments are internal to the SDK toolchain: the
 //! `#[contract]` macros emit them (as const views) and spec-tool parses and
 //! canonicalizes them. Downstream consumers only ever see the finalized
 //! `ContractSpec`, so the fragment types live here rather than in the
 //! protocol-level `groundhog-spec` crate.
+//!
+//! These types are the raw wire format. Any change to their encoding — a new
+//! field, a new variant, a reordering — must bump
+//! [`RAW_SPEC_FORMAT`](crate::RAW_SPEC_FORMAT) and its mirrors; see
+//! [`crate::format`]. The stream is unframed, so a consumer that disagrees
+//! about the layout desynchronizes rather than failing cleanly.
 
 use groundhog_spec::{
     ContractEventDef, ContractExceptionType, ContractSpecMethod,

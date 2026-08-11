@@ -13,6 +13,7 @@ pub use groundhog_contract_spec::{
 };
 pub use raw::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
     parse_raw_fragments,
 };
 
@@ -65,8 +66,39 @@ pub enum SpecToolError {
     /// (e.g. it was produced by a newer toolchain). Rejecting it loudly
     /// beats silently dropping or mangling parts of the spec.
     UnsupportedVariant(String),
+    /// The artifact's raw spec section is a newer wire format than this build
+    /// understands. See [`check_raw_spec_format`].
+    RawSpecFormatTooNew { found: u32, supported: u32 },
+    /// The artifact's raw spec section is an older wire format than this
+    /// build understands. See [`check_raw_spec_format`].
+    RawSpecFormatTooOld { found: u32, supported: u32 },
     /// An error occurred while parsing or writing the wasm binary.
     Wasm(String),
+}
+
+/// Check an artifact's raw spec wire format against this build's.
+///
+/// The raw section is an unframed XDR stream, so a version disagreement
+/// cannot be recovered from once decoding starts — it desynchronizes and
+/// every later fragment decodes as garbage. Both directions are therefore
+/// rejected up front, and each names the two versions and the way out: the
+/// two sides are released independently (the SDK compiled into the contract
+/// versus the `groundhog-spec-tool` linked into the CLI), so either can be
+/// the stale one and the fix differs.
+pub fn check_raw_spec_format(found: u32) -> Result<(), SpecToolError> {
+    match found.cmp(&RAW_SPEC_FORMAT) {
+        std::cmp::Ordering::Equal => Ok(()),
+        std::cmp::Ordering::Greater => {
+            Err(SpecToolError::RawSpecFormatTooNew {
+                found,
+                supported: RAW_SPEC_FORMAT,
+            })
+        }
+        std::cmp::Ordering::Less => Err(SpecToolError::RawSpecFormatTooOld {
+            found,
+            supported: RAW_SPEC_FORMAT,
+        }),
+    }
 }
 
 impl core::fmt::Display for SpecToolError {
@@ -106,6 +138,21 @@ impl core::fmt::Display for SpecToolError {
             Self::UnsupportedVariant(msg) => {
                 write!(f, "unsupported spec variant: {msg}")
             }
+            Self::RawSpecFormatTooNew { found, supported } => write!(
+                f,
+                "this contract was built with a newer Groundhog SDK than \
+                 this tool understands (contract raw spec format {found}, \
+                 this tool supports {supported}). Upgrade the groundhog CLI, \
+                 or rebuild the contract against an SDK matching it.",
+            ),
+            Self::RawSpecFormatTooOld { found, supported } => write!(
+                f,
+                "this contract was built with an older Groundhog SDK than \
+                 this tool understands (contract raw spec format {found}, \
+                 this tool supports {supported}). Rebuild the contract \
+                 against a newer SDK, or use a groundhog CLI matching the \
+                 SDK it was built with.",
+            ),
             Self::Wasm(msg) => f.write_str(msg),
         }
     }

@@ -6,7 +6,10 @@ use xdrs::txs::{decode, encode};
 
 use crate::{
     ContractSpec, SpecFragment, SpecToolError, canonicalize_spec_with_exports,
-    raw::{FINAL_SECTION_NAME, RAW_SECTION_NAME, parse_raw_fragments},
+    check_raw_spec_format,
+    raw::{
+        FINAL_SECTION_NAME, SpecSection, classify_section, parse_raw_fragments,
+    },
 };
 
 /// Rewrite a wasm binary's contract-spec custom sections, returning the new
@@ -28,9 +31,13 @@ pub struct RewrittenWasm {
 /// Canonicalize a wasm binary's contract-spec sections.
 ///
 /// Semantics:
-/// - All `groundhogspecrawv0` (raw fragment) and `groundhogspecv0` (final)
+/// - All `groundhogspecraw*` (raw fragment) and `groundhogspecv0` (final)
 ///   custom sections are stripped, and a single final section containing the
 ///   canonicalized spec is re-emitted.
+/// - Errors if a raw section's wire format is not the one this build reads,
+///   in either direction — see [`crate::check_raw_spec_format`]. This is
+///   checked before decoding, because an unframed XDR stream cannot report
+///   its own version once decoding has desynchronized.
 /// - If the input has no raw fragments but does carry a final section, that
 ///   spec is decoded and re-encoded (idempotent re-runs).
 /// - If the input has no spec sections at all, the output carries none and
@@ -78,9 +85,11 @@ pub fn rewrite_wasm_with_spec(
 
         match payload {
             wasmparser::Payload::CustomSection(section) => {
-                match section.name() {
-                    RAW_SECTION_NAME | FINAL_SECTION_NAME => continue,
-                    _ => push_section(&mut module, bytes, 0, section.range()),
+                match classify_section(section.name()) {
+                    SpecSection::Raw(_) | SpecSection::Final => continue,
+                    SpecSection::Other => {
+                        push_section(&mut module, bytes, 0, section.range())
+                    }
                 }
             }
             _ => {
@@ -113,9 +122,14 @@ fn collect_raw_fragments(
             payload.map_err(|err| SpecToolError::Wasm(err.to_string()))?;
 
         if let wasmparser::Payload::CustomSection(section) = payload {
-            if section.name() != RAW_SECTION_NAME {
+            let SpecSection::Raw(format) = classify_section(section.name())
+            else {
                 continue;
-            }
+            };
+            // A raw section of any version is ours; one we cannot read is a
+            // version skew, reported as such rather than left to desync the
+            // XDR stream into an unrelated-looking decode failure.
+            check_raw_spec_format(format)?;
 
             raw_fragments.extend(parse_raw_fragments(section.data())?);
         }

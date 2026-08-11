@@ -263,7 +263,7 @@ where
             allowed_custom_sections: vec![
                 "name".to_string(),
                 "groundhogspecv0".to_string(),
-                "groundhogspecrawv0".to_string(),
+                "groundhogspecrawv1".to_string(),
             ],
             ..groundhog_wasm_meter::Config::default()
         };

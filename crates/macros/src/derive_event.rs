@@ -200,7 +200,7 @@ fn emit_exported_event_fragment(
         #[doc(hidden)]
         #[cfg_attr(
             any(target_family = "wasm", target_arch = "riscv32"),
-            unsafe(link_section = "groundhogspecrawv0")
+            unsafe(link_section = "groundhogspecrawv1")
         )]
         // RV32 only: `#[used]` keeps the section live through ELF linking for CLI
         // extraction. On wasm the custom section is retained without it, and
@@ -489,7 +489,7 @@ mod tests {
         // Slice payload fields lower through the unsized trait impl.
         assert!(tokens.contains("type_ref :: < [u8] >"), "{tokens}");
         // Without `#[event_spec(export)]` no raw fragment is emitted.
-        assert!(!tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(!tokens.contains("groundhogspecrawv1"), "{tokens}");
     }
 
     #[test]
@@ -507,7 +507,7 @@ mod tests {
             tokens.contains("SpecFragmentView :: ExportedEvent"),
             "{tokens}"
         );
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv1"), "{tokens}");
         assert!(
             tokens.contains("__groundhog_spec_raw_event_fragment_AuditEvent"),
             "{tokens}"
