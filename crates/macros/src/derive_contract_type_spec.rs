@@ -132,7 +132,7 @@ fn emit_raw_typedef_fragment(ident: &syn::Ident, export: bool) -> TokenStream {
         #[doc(hidden)]
         #[cfg_attr(
             any(target_family = "wasm", target_arch = "riscv32"),
-            unsafe(link_section = "groundhogspecrawv0")
+            unsafe(link_section = "groundhogspecrawv1")
         )]
         // RV32 only: `#[used]` keeps the section live through ELF linking for CLI
         // extraction. On wasm the custom section is retained without it, and

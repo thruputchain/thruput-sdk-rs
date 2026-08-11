@@ -5,7 +5,13 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
+pub mod format;
 pub mod view;
+
+pub use format::{
+    FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
+    SpecSection, classify_section,
+};
 
 #[cfg(feature = "owned-model")]
 pub use groundhog_spec::{

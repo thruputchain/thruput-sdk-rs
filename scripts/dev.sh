@@ -390,8 +390,11 @@ assert_wasm_has_final_spec_only() {
         fail "Expected $path to contain groundhogspecv0"
         return 1
     }
-    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspecrawv0"; then
-        fail "Expected $path to omit groundhogspecrawv0"
+    # Match the version-less prefix, not a specific "…v0"/"…v1" name: a check
+    # pinned to one version passes vacuously the moment the raw spec format is
+    # bumped, which is exactly when it most needs to hold.
+    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspecraw"; then
+        fail "Expected $path to omit all groundhogspecraw* sections"
         return 1
     fi
 }
@@ -649,7 +652,7 @@ check_missing_contract_macro_detected() {
 
 # The rv32 analogue of assert_wasm_has_final_spec_only: spec content must
 # not reach the deployed .rv32a memory image. Raw fragments live in the
-# ELF's groundhogspecrawv0 section (where the CLI reads them); the lowerer
+# ELF's groundhogspecraw* section (where the CLI reads them); the lowerer
 # must not copy them into the image, and rv32 has no embedded final spec
 # (spec.json/.xdr are sidecars). Each needle is a spec-only name — the
 # runtime never embeds them (dispatch uses hashed IDs, events hashed

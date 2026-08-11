@@ -155,7 +155,7 @@ pub fn generate_free_function_raw_spec_fragments(
     })
 }
 
-/// Emit the `groundhogspecrawv0` fragments for a `#[contract]` trait
+/// Emit the `groundhogspecrawv1` fragments for a `#[contract]` trait
 /// (interface) definition: one Interface fragment, one Method fragment per
 /// trait method, event fragments, plus throws/event/signature anchor roots.
 /// Mirrors the bare-impl path of `generate_impl_raw_spec_fragments`, but
@@ -262,7 +262,7 @@ fn generate_trait_method_fragments_tokens(
 
             #[cfg_attr(
                 any(target_family = "wasm", target_arch = "riscv32"),
-                unsafe(link_section = "groundhogspecrawv0")
+                unsafe(link_section = "groundhogspecrawv1")
             )]
             // RV32 only: `#[used]` keeps the section live through ELF linking
             // for CLI extraction. On wasm the custom section is retained
@@ -323,7 +323,7 @@ fn generate_trait_event_fragments_tokens(
 
             #[cfg_attr(
                 any(target_family = "wasm", target_arch = "riscv32"),
-                unsafe(link_section = "groundhogspecrawv0")
+                unsafe(link_section = "groundhogspecrawv1")
             )]
             // RV32 only: `#[used]` keeps the section live through ELF linking
             // for CLI extraction. On wasm the custom section is retained
@@ -525,7 +525,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
 
             #[cfg_attr(
                 any(target_family = "wasm", target_arch = "riscv32"),
-                unsafe(link_section = "groundhogspecrawv0")
+                unsafe(link_section = "groundhogspecrawv1")
             )]
             // RV32 only: `#[used]` keeps the section live through ELF linking for
             // CLI extraction. On wasm the custom section is retained without it,
@@ -591,7 +591,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("groundhogspecrawv1"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
@@ -615,7 +615,7 @@ mod tests {
             .unwrap()
             .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("groundhogspecrawv1"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
@@ -767,7 +767,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv1"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
         assert!(
             tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"),
@@ -867,7 +867,7 @@ mod emits_tests {
             "{tokens}"
         );
         assert!(tokens.contains("RAW_SPEC_EVENT_FRAGMENTS"), "{tokens}");
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv1"), "{tokens}");
     }
 
     #[test]
