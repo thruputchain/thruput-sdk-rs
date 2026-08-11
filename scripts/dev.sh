@@ -887,6 +887,20 @@ bottle_test_contract() {
         -o "$BOTTLE_TEST/${wasm_name}.wasm" \
         "$BOTTLE_TEST_RAW/${wasm_name}.wasm" &&
 
+    # Finalize the spec sections before handing the module to the node, the
+    # same way `groundhog build` does for a real deployment. cargo emits one
+    # raw fragment section per crate; those are a compile-time intermediate,
+    # and hogd's contract verifier allows only the finalized
+    # `groundhogspecv0`. Without this the module is rejected outright, and
+    # bottle-test would be exercising a shape no deployed contract ever has.
+    (
+        cd "$SDK_DIR" &&
+        cargo run --quiet -p groundhog-spec-tool -- \
+            rewrite \
+            --wasm "$BOTTLE_TEST/${wasm_name}.wasm" \
+            --json-out "$BOTTLE_TEST/${wasm_name}.spec.json"
+    ) &&
+
     cargo run -p bottle-test --profile dev "$package"
 }
 
