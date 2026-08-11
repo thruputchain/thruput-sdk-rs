@@ -12,8 +12,20 @@
 
 use core::alloc::{GlobalAlloc, Layout};
 
+/// Upper bound on the heap extent, mirroring `__memory_size` in
+/// `link/groundhog-rv32.ld`. Used *only* to give `__heap_base` a provenance
+/// footprint; the functional bound is `__heap_end`, read from the linker at
+/// runtime. Drift against the linker script is therefore not a safety issue:
+/// too small merely narrows provenance, too large over-covers.
+const GUEST_MEMORY_SIZE: usize = 64 * 1024;
+
+// `__heap_base` is declared as an array rather than a bare `u8` so pointers
+// derived from it carry provenance over the region the allocator hands out.
+// `__heap_end` stays a bare symbol: it is absolute (`= __memory_size`), so only
+// its address is ever wanted, never a byte at that address. Both are
+// declarations and reserve no storage.
 unsafe extern "C" {
-    static __heap_base: u8;
+    static __heap_base: [u8; GUEST_MEMORY_SIZE];
     static __heap_end: u8;
 }
 
@@ -29,7 +41,7 @@ unsafe impl GlobalAlloc for BumpAllocator {
 
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
-            cursor = (&raw const __heap_base) as usize;
+            cursor = (&raw const __heap_base).cast::<u8>() as usize;
         }
 
         // `__heap_end` is an absolute linker symbol (`= __memory_size`), so it
