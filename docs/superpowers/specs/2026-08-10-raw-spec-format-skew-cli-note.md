@@ -93,12 +93,24 @@ wrong diagnosis and arguably worse than the parse error. Switch to
 ### 3. Section-name constants in the lowerer
 
 `crates/rv32/lower/src/lower.rs:28` hardcodes
-`SPEC_METADATA_SECTIONS = ["groundhogspecrawv0", "groundhogspecv0"]`. The
-lowerer strips spec sections from the VM image; with the rename it would leave
-`groundhogspecrawv1` **in the lowered image**. Note `ci: assert spec content
-never reaches lowered rv32 images (#330)` exists precisely to catch this — it
-may well fail first. Match on `RAW_SECTION_PREFIX` rather than adding `v1` to
-the list, so the next bump doesn't reopen it.
+`SPEC_METADATA_SECTIONS = ["groundhogspecrawv0", "groundhogspecv0"]`, which
+`is_spec_metadata_section` uses to skip spec sections (`lower.rs:131`).
+
+**This is the first thing that breaks, and it fails loudly.** Confirmed
+against sdk_rs PR #333 CI:
+
+```
+error: RV32 lowering failed: unexpected alloc section: groundhogspecrawv1
+```
+
+`groundhogspecrawv1` misses the strip list, falls through to the
+`ALLOC_ALLOWLIST` check at `lower.rs:137`, and hard-errors. That is the
+*safe* failure — it fails closed rather than leaking spec content into the VM
+image — but it means **every rv32 build fails until this is fixed**, so it is
+a blocker rather than a cleanup.
+
+Match on `RAW_SECTION_PREFIX` in `is_spec_metadata_section` rather than adding
+`v1` to the list, so the next format bump doesn't reopen it.
 
 ### 4. Bidirectional tests
 
