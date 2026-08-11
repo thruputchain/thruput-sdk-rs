@@ -53,9 +53,12 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// - `initialize`, `mint` and `burn` always fault: the supply is fixed at
 ///   genesis and there is no administrator.
 /// - `total_supply` is the constant total HOG supply.
-/// - An overdraft `transfer` is not rejected at invoke time with
-///   [`groundhog_erc20_if::ERC20Error::TooLarge`]; the balance check is
-///   deferred, so the transaction instead fails at commit.
+///
+/// An overdraft `transfer` used to be a third divergence: the balance check
+/// was deferred, so it passed invoke and failed at commit. As of test-ffi
+/// 0.21.0 the precompile rejects it at invoke time with
+/// [`groundhog_erc20_if::ERC20Error::TooLarge`], matching the reference
+/// contract, so it is asserted as a fault like any other overdraft.
 ///
 /// Those divergences are asserted here too, so a change on either side
 /// shows up as a regression.
@@ -151,8 +154,7 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     });
     result.assert_fault();
 
-    // Divergence: an overdraft transfer is not rejected at invoke time;
-    // the balance check is deferred and the transaction fails at commit.
+    // Overdrafts are rejected at invoke time, same as the reference contract.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let client = ERC20Client::new(token);
@@ -160,5 +162,5 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
             client.transfer(&SPENDER, balance + 1);
         })
     });
-    result.assert_commit_failed();
+    result.assert_abort();
 }
