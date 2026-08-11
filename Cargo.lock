@@ -419,12 +419,14 @@ name = "groundhog-macros"
 version = "0.19.0"
 dependencies = [
  "darling",
+ "groundhog-contract-spec",
  "groundhog-contract-util",
  "groundhog-xdr",
  "proc-macro2",
  "quote",
  "sha2",
  "syn 3.0.3",
+ "xdrs",
 ]
 
 [[package]]

@@ -38,6 +38,7 @@ fn check_enum_discriminants(
 /// Shared helper: generate `impl ContractTypeName for #ident`.
 /// Used by both `#[contract_type]` and `#[contract_exception]`.
 fn contract_type_name_impl(
+    krate: &syn::Path,
     ident: &syn::Ident,
     name: Option<&str>,
 ) -> proc_macro2::TokenStream {
@@ -46,7 +47,7 @@ fn contract_type_name_impl(
         None => quote! { stringify!(#ident) },
     };
     quote! {
-        impl ::sdk::__contract_spec::ContractTypeName for #ident {
+        impl #krate::__contract_spec::ContractTypeName for #ident {
             const NAME: &'static str = #name_value;
         }
     }
@@ -342,6 +343,47 @@ pub fn contract_type(
     contract_type::expand(args, item).into()
 }
 
+/// Derive `ContractTypeSpec` (plus `ContractTypeRefSpec`, a linker anchor, and
+/// the raw typedef link-section fragment) for a struct or enum.
+///
+/// # Options
+///
+/// - `#[contract_type_spec(export)]` — emit the fragment as an *exported*
+///   typedef, so it survives spec shaking without an inbound reference.
+/// - `#[contract_type_spec(crate = "...")]` — resolve the emitted paths through
+///   the given crate path instead of `::sdk`.
+///
+/// # `crate = "..."`
+///
+/// The derive normally emits literal `::sdk::…` paths, so a crate that `sdk`
+/// itself depends on cannot use it — naming `::sdk` from below `sdk` is a
+/// dependency cycle. But everything the derive reaches for is an `sdk`
+/// *re-export* of a crate below `sdk`: `__contract_spec` is
+/// `groundhog-contract-spec` and `__xdrs` is `xdrs`. Nothing here is owned by
+/// `sdk`.
+///
+/// So such a crate can supply a shim matching those two names and point the
+/// derive at it:
+///
+/// ```ignore
+/// #[doc(hidden)]
+/// pub mod __sdk_paths {
+///     pub use groundhog_contract_spec as __contract_spec;
+///     pub use xdrs as __xdrs;
+/// }
+///
+/// #[derive(ContractTypeSpec)]
+/// #[contract_type_spec(crate = "::groundhog_u256::__sdk_paths")]
+/// pub struct U256([u32; 8]);
+/// ```
+///
+/// The consumer still supplies its own `impl ContractTypeName`, which the
+/// derive references but never emits.
+///
+/// Note this covers *spec* impls only. `#[contract_type]` additionally emits
+/// impls of traits genuinely owned by `sdk` (`CollectAuthHandles`,
+/// `ReceiveAuthHandles`, `MintableType`), which a lower crate cannot implement
+/// — that is a dependency problem, not a path problem, and has no override.
 #[proc_macro_derive(ContractTypeSpec, attributes(contract_type_spec))]
 pub fn derive_contract_type_spec(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
