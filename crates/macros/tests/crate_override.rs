@@ -87,10 +87,14 @@ fn derived_type_def_round_trips_through_the_shim_paths() {
 /// The link-section static the derive emits is `cfg`-gated to wasm/riscv32, so
 /// on the host it never compiles. Encode the same fragment the same way here so
 /// the `__xdrs` half of the shim is exercised and the wire bytes are pinned.
+///
+/// Deliberately spelled `sdk_paths::__xdrs` rather than `xdrs`: that is the name
+/// the macro reaches for, so a shim missing it fails here on the host instead of
+/// only under a guest target nothing in CI builds this crate for.
 const RAW_LEN: usize = EXPECTED_FRAGMENT.const_txs_size();
 
 const RAW_BYTES: [u8; RAW_LEN] = {
-    let mut w = xdrs::txs::ConstWriter::<RAW_LEN>::new();
+    let mut w = sdk_paths::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
     EXPECTED_FRAGMENT.const_write_txs(&mut w);
     w.into_bytes()
 };
