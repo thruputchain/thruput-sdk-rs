@@ -6,8 +6,15 @@ use core::alloc::{GlobalAlloc, Layout};
 
 const WASM_PAGE_SIZE: usize = 65536;
 
+// Declared as an array spanning the whole page, not a bare `u8`, so pointers
+// derived from this symbol carry provenance over the region the allocator
+// actually hands out. `WASM_PAGE_SIZE` is an upper bound on the heap (which
+// starts at `__heap_base > 0`), so the declared extent is a superset of the
+// real one; the bounds check below keeps every returned pointer inside real
+// memory. This is a declaration, not a definition: it reserves no storage and
+// leaves the module's `(memory N)` page count unchanged.
 unsafe extern "C" {
-    static __heap_base: u8;
+    static __heap_base: [u8; WASM_PAGE_SIZE];
 }
 
 static mut CURSOR: usize = usize::MAX;
@@ -17,23 +24,19 @@ struct SlabAllocator;
 unsafe impl GlobalAlloc for SlabAllocator {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let size = layout.size();
-        let align = layout.align();
-
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
-            cursor = unsafe { &__heap_base as *const u8 as usize };
+            cursor = (&raw const __heap_base).cast::<u8>() as usize;
         }
 
-        let aligned = (cursor + align - 1) & !(align - 1);
-        let new_cursor = aligned + size;
-
-        if new_cursor > WASM_PAGE_SIZE {
+        let Some((start, new_cursor)) =
+            crate::bump::bump(cursor, WASM_PAGE_SIZE, layout)
+        else {
             return core::ptr::null_mut();
-        }
+        };
 
         unsafe { CURSOR = new_cursor };
-        aligned as *mut u8
+        start as *mut u8
     }
 
     #[inline(always)]

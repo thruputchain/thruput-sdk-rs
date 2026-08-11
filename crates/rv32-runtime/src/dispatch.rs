@@ -32,9 +32,39 @@ pub fn lookup(
 mod tests {
     use super::*;
 
-    extern "C" fn a() {}
-    extern "C" fn b() {}
-    extern "C" fn c() {}
+    use core::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Mutex;
+
+    static LAST: AtomicU32 = AtomicU32::new(0);
+    static LOCK: Mutex<()> = Mutex::new(());
+
+    extern "C" fn a() {
+        LAST.store(0xA, Ordering::Relaxed);
+    }
+    extern "C" fn b() {
+        LAST.store(0xB, Ordering::Relaxed);
+    }
+    extern "C" fn c() {
+        LAST.store(0xC, Ordering::Relaxed);
+    }
+
+    /// Call `f` and report which wrapper ran.
+    ///
+    /// Identity is checked by invoking the returned pointer rather than
+    /// comparing addresses: Rust does not guarantee that casting a function
+    /// to a pointer twice yields equal values (functions may be merged or
+    /// duplicated), and Miri models that non-determinism, so neither
+    /// `as usize` nor `fn_addr_eq` is a valid identity test. Calling also
+    /// covers strictly more -- that the dispatched pointer is callable.
+    ///
+    /// Serialized: the wrappers share one cell and cargo runs tests in
+    /// parallel threads.
+    fn observe(f: extern "C" fn()) -> u32 {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        LAST.store(0, Ordering::Relaxed);
+        f();
+        LAST.load(Ordering::Relaxed)
+    }
 
     fn table() -> [Entrypoint; 3] {
         [
@@ -58,14 +88,14 @@ mod tests {
     fn finds_known_method() {
         let t = table();
         let got = lookup(&t, 0x1111_2222_3333_4444).unwrap();
-        assert_eq!(got as usize, a as *const () as usize);
+        assert_eq!(observe(got), 0xA);
     }
 
     #[test]
     fn first_match_wins_on_duplicate() {
         let t = table();
         let got = lookup(&t, 0x5555_6666_7777_8888).unwrap();
-        assert_eq!(got as usize, b as *const () as usize);
+        assert_eq!(observe(got), 0xB);
     }
 
     #[test]
