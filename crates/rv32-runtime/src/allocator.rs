@@ -29,10 +29,14 @@ unsafe impl GlobalAlloc for BumpAllocator {
 
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
-            cursor = unsafe { &__heap_base as *const u8 as usize };
+            cursor = (&raw const __heap_base) as usize;
         }
 
-        let heap_end = unsafe { &__heap_end as *const u8 as usize };
+        // `__heap_end` is an absolute linker symbol (`= __memory_size`), so it
+        // names an address one past the end of guest memory rather than a real
+        // object. Take its address without forming a reference: `&__heap_end`
+        // would assert a valid, dereferenceable byte that does not exist.
+        let heap_end = (&raw const __heap_end) as usize;
 
         let Some(aligned) =
             cursor.checked_add(align - 1).map(|c| c & !(align - 1))

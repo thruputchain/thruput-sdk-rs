@@ -22,7 +22,7 @@ unsafe impl GlobalAlloc for SlabAllocator {
 
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
-            cursor = unsafe { &__heap_base as *const u8 as usize };
+            cursor = (&raw const __heap_base) as usize;
         }
 
         let aligned = (cursor + align - 1) & !(align - 1);
