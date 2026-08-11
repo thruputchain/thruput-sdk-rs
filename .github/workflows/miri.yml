@@ -1,0 +1,61 @@
+name: Miri
+
+# Miri over the guest runtimes' unsafe paths: the hand-rolled rv32
+# mem-intrinsic cores and the bump-allocator arithmetic. Deliberately narrow
+# -- this is the raw-pointer code where a provenance or aliasing mistake would
+# be silent on device, not a general test run. The broad suites live in
+# ci.yml / sdk_tests.yml.
+#
+# What this cannot cover: the allocators' `#[global_allocator]` wrappers bind
+# linker-script extern statics (`__heap_base`, `__heap_end`) that Miri has no
+# way to model, and both crates `compile_error!` off-target. The pure cores
+# are split out precisely so the logic is reachable from a host test; the
+# extern-static derivation itself stays outside Miri's reach.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
+jobs:
+  miri:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: namespace-profile-hogd-linux
+
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      # Dependency sources only, matching ci.yml -- see the note there on why
+      # ./target is deliberately not cached.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+
+      # Resolves against rust-toolchain.toml, so Miri matches the pinned
+      # nightly the rest of the workspace builds with.
+      - name: Install Miri
+        run: |
+          rustup component add miri
+          cargo miri --version
+
+      # `--lib` is required, not stylistic: a bare `cargo test -p ...` also
+      # builds the plain (non-test) lib target, where `cfg(test)` is false and
+      # the crate's `compile_error!` fires on a host build. `--lib` builds only
+      # the test harness.
+      - name: Miri - rv32 runtime (mem intrinsics, dispatch, bump allocator)
+        run: cargo miri test -p groundhog-rv32-runtime --lib
+
+      - name: Miri - wasm runtime (bump allocator)
+        run: cargo miri test -p groundhog-wasm-runtime --lib
