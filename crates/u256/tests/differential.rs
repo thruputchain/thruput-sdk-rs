@@ -3,16 +3,13 @@
 // carries the same allow where it invokes the macro.
 #![allow(clippy::manual_div_ceil)]
 
-//! Differential tests against Parity's `uint`.
+//! Differential tests against Parity's `uint`, the implementation this crate
+//! replaces. It is correct, just badly matched to 32-bit targets, which makes
+//! it a good oracle: every operation here must agree with it exactly.
 //!
-//! `uint` is the implementation this crate replaces. It is correct -- it is
-//! just badly matched to 32-bit targets -- which makes it an excellent oracle.
-//! Every operation here must agree with it exactly.
-//!
-//! The sqrt and division cases are ported from the hand-rolled `[u32; 8]`
-//! routines that lived in the swap suite's `swap-u256` crate, including the
-//! random sweeps sized to actually exercise Knuth D's add-back correction
-//! (which fires with probability ~2/2^32 and needs volume to be hit at all).
+//! The sqrt and division cases are ported from the swap suite's `swap-u256`,
+//! including the random sweeps sized to hit Knuth D's add-back correction
+//! (~2/2^32, so it needs volume).
 
 use groundhog_u256::{U256, checked_mul_div_u128, mul_div_u128};
 
@@ -636,16 +633,13 @@ fn mul_div_u128_overflow_panics() {
 // Operators track `overflow-checks` exactly as u128 does
 // ---------------------------------------------------------------------------
 
-/// The `should_panic` tests below are only meaningful if this build has
-/// overflow checks on -- otherwise the operators are supposed to wrap, and the
-/// tests would be silently vacuous rather than failing.
+/// The `should_panic` tests below are vacuous without overflow checks on.
 #[test]
 fn tests_run_with_overflow_checks_on() {
     const { assert!(cfg!(overflow_checks)) };
 }
 
-/// The other half of the contract: with checks off, `U256` wraps like `u128`.
-/// This is what a release contract build gets.
+/// The other half: with checks off, `U256` wraps like `u128`.
 #[test]
 fn wrapping_matches_u128_semantics() {
     // `u128` wraps identically under the same flag, which is the property the
@@ -792,11 +786,8 @@ fn xdr_encoding_is_big_endian() {
 // Ergonomics
 // ---------------------------------------------------------------------------
 
-/// Idiomatic code must just work -- that is the whole reason the operator tier
-/// exists alongside the fast tier. In particular an unsuffixed integer literal
-/// has to infer against `Mul<u32>` without an annotation, which stops being
-/// true the moment a second integer `Mul` impl is added. This test is here to
-/// fail loudly if that happens.
+/// An unsuffixed literal has to infer against `Mul<u32>` without an
+/// annotation, which stops being true if a second integer `Mul` impl is added.
 #[test]
 fn integer_literals_and_operators_need_no_annotations() {
     let a = U256::from(5u32);
@@ -825,10 +816,8 @@ fn integer_literals_and_operators_need_no_annotations() {
     assert!(numerator / denominator > U256::ZERO);
 }
 
-/// Formatting flags must behave as they do for the primitive integers.
-/// Fixed-width hex (`{:064x}`) is the ordinary spelling for a 256-bit word, so
-/// silently ignoring the width would produce malformed output at exactly the
-/// call sites that care most.
+/// Fixed-width hex is the ordinary spelling for a 256-bit word, so ignoring
+/// the width flag would produce malformed output where it matters most.
 #[test]
 fn formatting_honours_width_and_padding_flags() {
     let n = U256::from(0x1fu32);

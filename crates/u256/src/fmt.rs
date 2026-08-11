@@ -1,16 +1,9 @@
 //! Formatting.
 //!
-//! `Debug` is unconditional; everything else is behind the `fmt` feature.
-//!
-//! The split is not arbitrary. `Debug` has to be always available because
-//! `#[derive(Debug)]` on any struct holding a `U256` would otherwise fail to
-//! compile in a guest build -- and contract state structs do derive it. So
-//! `Debug` renders hexadecimal, which costs shifts and a lookup table and no
-//! division.
-//!
-//! `Display` and `FromStr` are the expensive pair: decimal needs a repeated
-//! division loop. Nothing in a release contract build should be formatting, so
-//! they are compiled out by default.
+//! `Debug` is unconditional -- contract state structs `#[derive(Debug)]` over
+//! `U256`, and gating it would break them in guest builds -- so it renders hex,
+//! which needs no division. `Display`/`FromStr` need a decimal division loop no
+//! release guest build should carry, so they sit behind `fmt`.
 
 use crate::U256;
 use core::fmt;

@@ -5,16 +5,10 @@ use crate::U256;
 impl U256 {
     /// The largest `r` such that `r * r <= self`.
     ///
-    /// This is the digit-by-digit (binary restoring) method: walk `bit` down
-    /// the even powers of two and at each step test whether the running
-    /// remainder can absorb `res + bit`. Only shifts, comparisons and
-    /// subtractions -- no division.
-    ///
-    /// Newton's method is the obvious alternative and is much worse here: its
-    /// iteration step is `(x + n / x) >> 1`, a full 256-bit division, which
-    /// LLVM then inlines into the sqrt loop. `uint`'s Newton-based
-    /// `integer_sqrt` measured 12,732 bytes of rv32 text -- roughly 19% of the
-    /// artifact format's 64 KiB code cap, for a square root.
+    /// Digit-by-digit (binary restoring): shifts, comparisons and subtractions,
+    /// no division. Newton's method costs a full 256-bit divide per iteration
+    /// that LLVM inlines into the loop -- `uint`'s Newton-based version
+    /// measured 12,732 bytes of rv32 text, for a square root.
     pub const fn integer_sqrt(self) -> Self {
         let len = self.bit_len();
         if len <= 1 {
@@ -50,8 +44,8 @@ const fn const_ge(a: U256, b: U256) -> bool {
     let mut i = crate::LIMBS;
     while i > 0 {
         i -= 1;
-        if a.0[i] != b.0[i] {
-            return a.0[i] > b.0[i];
+        if a.limbs[i] != b.limbs[i] {
+            return a.limbs[i] > b.limbs[i];
         }
     }
     true

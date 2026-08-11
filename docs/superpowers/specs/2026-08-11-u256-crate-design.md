@@ -105,32 +105,50 @@ it a distinct package preserves per-package `[profile.*.package]` overrides.
 Must be added to the root `Cargo.toml` `default-members` list, per the comment
 there — it is not a target-only runtime crate.
 
-**Constraint discovered during design:** `crates/macros` hard-codes `::sdk::`
-paths in its expansions (`derive_contract_type_spec.rs:81-88`,
-`contract_exception.rs:78-83`) and offers no crate-path override. A
-`crates/u256` that used `#[sdk::contract_type]` would therefore be a
-dependency cycle (`u256 -> sdk -> u256`).
+**Constraint discovered during design, since resolved.** `crates/macros`
+hard-coded `::sdk::` paths with no crate-path override, so a `crates/u256`
+using `#[sdk::contract_type]` would have been a dependency cycle
+(`u256 -> sdk -> u256`). The first cut of this crate therefore hand-wrote the
+spec impls.
 
-The trait set that `#[contract_type]` expands to splits cleanly by ownership,
-which resolves this without touching the macro crate:
+PR #337 added `#[contract_type_spec(crate = "...")]` to
+`#[derive(ContractTypeSpec)]`. Nothing that derive emits is owned by `sdk` —
+it reaches only for `__contract_spec` and `__xdrs`, both `sdk` re-exporting a
+crate below it — so a path shim is enough. `crates/u256` now provides
+`__sdk_paths` re-exporting those two names and derives its spec impls, keeping
+only `ContractTypeName` by hand (the derive references it but never emits it;
+it is a name string with no encoded bytes).
+
+`tests/spec_abi.rs` pins the result byte-for-byte against the literals the
+hand-written version produced, so the swap is verified rather than assumed.
+
+The remaining trait set still splits by ownership:
 
 | Trait | Defined in | Implemented in |
 |---|---|---|
-| `ReadXDR`, `WriteXDR` | `xdrs` | `crates/u256` (foreign trait, local type) |
-| `ContractTypeSpec`, `ContractTypeName`, `ContractTypeRefSpec` | `groundhog-contract-spec` | `crates/u256` (foreign trait, local type) |
+| `ReadXDR`, `WriteXDR` | `xdrs` | `crates/u256` (hand-written: MS-first limb order) |
+| `ContractTypeSpec`, `ContractTypeRefSpec` | `groundhog-contract-spec` | `crates/u256`, via the derive |
+| `ContractTypeName` | `groundhog-contract-spec` | `crates/u256`, by hand |
 | `CollectAuthHandles`, `ReceiveAuthHandles`, `MintableType` | `crates/sdk` | `crates/sdk` (local trait, foreign type) |
 
-Both directions are orphan-safe. The `sdk` half is three lines — `U256` joins
-the existing `impl_collect_noop!` / `impl_receive_noop!` /
-`impl_mintable_leaf!` lists alongside `u128`. The `u256` half hand-writes the
-XDR impls (needed anyway for the limb order) plus the spec consts and the raw
-typedef link-section fragment that `#[derive(ContractTypeSpec)]` would emit.
+The full `#[contract_type]` attribute macro is still unavailable below `sdk`,
+because it also emits impls of the sdk-owned traits in the last row — a
+dependency problem rather than a path one. Not needed here: those three impls
+already live in `sdk`, where `U256` joins the existing `impl_collect_noop!` /
+`impl_receive_noop!` / `impl_mintable_leaf!` lists.
+
+Both directions are orphan-safe: the `sdk` half is a local trait on a foreign
+type, the `u256` half a foreign trait on a local type.
 
 ### Representation
 
 ```rust
-pub struct U256([u32; 8]);   // limbs[0] is least significant
+pub struct U256 { limbs: [u32; 8] }   // limbs[0] is least significant
 ```
+
+A named field rather than a tuple: `#[derive(ContractTypeSpec)]` names an
+unnamed field `_0`, and the spec field name is wire-visible, so the Rust-side
+field carries `limbs`. `from_limbs`/`to_limbs` are the accessors either way.
 
 `Copy + Clone + PartialEq + Eq + PartialOrd + Ord + Hash`. `Copy` is required:
 `swap-pair`'s `Reserves` derives `Copy` and holds `[U256; 2]`.
@@ -314,8 +332,8 @@ Implemented on `geoff/u256-crate`. Measured as built, rv32,
   build that only calls `div_rem_small`. Two things follow: the split works
   (the small path does not drag Knuth D in), and Knuth D over `[u32; 8]` costs
   roughly a sixth of `uint`'s 11,300-byte equivalent.
-- 51 tests pass (differential against `uint`, plus direct coverage of the
-  64-by-32 divide); `sdk` is unchanged at 33 passing.
+- 54 tests pass (differential against `uint`, direct coverage of the 64-by-32
+  divide, and the spec-ABI pins); `sdk` is unchanged at 33 passing.
 - Both guest targets compile `no_std`; `UpperHex`'s digit table and the decimal
   buffer length both had to be feature-gated, which is direct evidence the
   `fmt` gating removes what it claims to.

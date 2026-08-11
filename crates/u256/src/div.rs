@@ -1,17 +1,9 @@
 //! Division and remainder.
 //!
-//! # Why the small-divisor path is a separate function
-//!
-//! Knuth algorithm D is the expensive item in this crate -- `uint`'s
-//! equivalent measured 11,300 bytes of rv32 text, 17% of the artifact
-//! format's 64 KiB code cap. Dividing by a small constant is far more common
-//! than dividing by another 256-bit value, and decimal formatting divides by
-//! `10^9` repeatedly.
-//!
-//! So [`U256::div_rem_small`] is its own function rather than a fast path
-//! inside [`U256::div_rem`]. A contract that only ever divides by constants
-//! links the cheap routine and nothing else; only reaching for the general
-//! `U256 / U256` pulls Knuth D in.
+//! [`U256::div_rem_small`] is a separate function rather than a fast path
+//! inside [`U256::div_rem`], so a contract that only divides by constants (or
+//! formats a decimal) links the cheap routine and not Knuth D. Measured: the
+//! general path costs 2,044 bytes of rv32 text on top of the small one.
 
 use crate::{LIMBS, U256};
 
@@ -21,22 +13,13 @@ const B: u64 = 1 << 32;
 /// Half-limb base, for the 64-by-32 divide below.
 const HB: u32 = 1 << 16;
 
-/// Divides the 64-bit value `(hi, lo)` by `d`, returning `(quotient,
-/// remainder)`. Requires `hi < d` (so the quotient fits in 32 bits) and
-/// `d != 0`; both hold at every call site.
+/// Divides `(hi, lo)` by `d`. Requires `hi < d` and `d != 0`; both hold at
+/// every call site.
 ///
-/// # Why not just write `((hi as u64) << 32 | lo as u64) / d as u64`
-///
-/// Because on riscv32 that is not a division instruction, it is a call to
-/// `__udivdi3`/`__umoddi3`. `DIVU` is XLEN-wide, so on a 32-bit target it
-/// divides 32-bit operands only — there is no 64-by-32 divide to lower onto.
-/// Written the obvious way, `div_rem_small` paid a compiler-builtins call on
-/// every one of its eight limb iterations, which is precisely the cost this
-/// crate exists to remove. Verified by disassembly: the u64 spelling produced
-/// zero `divu` instructions.
-///
-/// This is Hacker's Delight's `divlu`, schoolbook division in base 2^16 so
-/// that every divide is a native 32-bit `DIVU`.
+/// Hacker's Delight's `divlu` -- schoolbook base 2^16, so every divide is a
+/// native 32-bit `DIVU`. The obvious `(hi:lo as u64) / d` spelling is not:
+/// `DIVU` is XLEN-wide, so on rv32 it lowers to `__udivdi3`/`__umoddi3`, one
+/// libcall per limb. (Verified by disassembly; it emitted zero `divu`.)
 #[inline]
 const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
     debug_assert!(hi < d);
@@ -57,9 +40,8 @@ const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
     let un1 = un10 >> 16;
     let un0 = un10 & 0xffff;
 
-    // First half-digit. `rhat < 2^16` is maintained by the `break`, so
-    // `rhat << 16` never overflows; and `q1 * vn0` is only evaluated once
-    // `q1 < 2^16` (the `||` short-circuits), so it cannot overflow either.
+    // `rhat < 2^16` is held by the `break`, and `q1 * vn0` is only reached once
+    // `q1 < 2^16`, so neither overflows.
     let mut q1 = un32 / vn1;
     let mut rhat = un32 - q1 * vn1;
     while q1 >= HB || q1 * vn0 > (rhat << 16) | un1 {
@@ -70,15 +52,13 @@ const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
         }
     }
 
-    // The true value of `un21` fits in 32 bits; the intermediate
-    // `un32 * 2^16` does not, so this is deliberately modular. Two's
-    // complement makes the wrapped arithmetic land on the right answer.
+    // `un21` fits in 32 bits but `un32 * 2^16` does not; the wrapping is
+    // deliberate and lands on the right answer.
     let un21 = un32
         .wrapping_mul(HB)
         .wrapping_add(un1)
         .wrapping_sub(q1.wrapping_mul(d));
 
-    // Second half-digit.
     let mut q0 = un21 / vn1;
     rhat = un21 - q0 * vn1;
     while q0 >= HB || q0 * vn0 > (rhat << 16) | un0 {
@@ -118,12 +98,12 @@ impl U256 {
             i -= 1;
             // `rem` is a remainder, so `rem < rhs` holds on every iteration,
             // which is exactly `div_rem_2by1`'s precondition.
-            let (qi, r) = div_rem_2by1(rem, self.0[i], rhs);
+            let (qi, r) = div_rem_2by1(rem, self.limbs[i], rhs);
             q[i] = qi;
             rem = r;
         }
 
-        (Self(q), rem)
+        (Self::from_limbs(q), rem)
     }
 
     /// Divides by another `U256`, returning the quotient and remainder.
@@ -152,19 +132,18 @@ impl U256 {
             return Some((Self::ZERO, self));
         }
 
-        // Single-limb divisor: hand off to the cheap routine. This is a call
-        // to a separate function, not an inlined copy, so a contract that only
-        // uses `div_rem_small` never links the code below it.
+        // Separate function, not an inlined copy, so a contract using only
+        // `div_rem_small` never links the code below.
         if dn == 1 {
-            let (q, r) = self.div_rem_small(rhs.0[0]);
+            let (q, r) = self.div_rem_small(rhs.limbs[0]);
             let mut rem = [0u32; LIMBS];
             rem[0] = r;
-            return Some((q, Self(rem)));
+            return Some((q, Self::from_limbs(rem)));
         }
 
         // Knuth algorithm D (Hacker's Delight `divmnu`), base 2^32.
-        let u = self.0;
-        let v = rhs.0;
+        let u = self.limbs;
+        let v = rhs.limbs;
 
         let s = v[dn - 1].leading_zeros();
 
@@ -234,9 +213,8 @@ impl U256 {
 
             q[j] = qhat as u32;
 
-            // The estimate was one too large (probability ~2/2^32): add the
-            // divisor back. Rare enough that the differential tests need a
-            // wide random sweep to exercise it at all.
+            // Estimate one too large (probability ~2/2^32): add the divisor
+            // back. Rare enough that the tests need a wide sweep to hit it.
             if t < 0 {
                 q[j] -= 1;
                 let mut carry = 0u64;
@@ -260,7 +238,7 @@ impl U256 {
             i += 1;
         }
 
-        Some((Self(q), Self(r)))
+        Some((Self::from_limbs(q), Self::from_limbs(r)))
     }
 
     /// Division, returning `None` if `rhs` is zero.
@@ -316,8 +294,8 @@ pub fn checked_mul_div_u128(a: u128, b: u128, d: u128) -> Option<u128> {
 mod tests {
     use super::*;
 
-    /// The reference is the spelling `div_rem_2by1` replaced: a plain u64
-    /// divide. It is correct and obvious; it is just a libcall on rv32.
+    /// The spelling `div_rem_2by1` replaced -- correct and obvious, just a
+    /// libcall on rv32.
     fn reference(hi: u32, lo: u32, d: u32) -> (u32, u32) {
         let n = ((hi as u64) << 32) | (lo as u64);
         ((n / d as u64) as u32, (n % d as u64) as u32)

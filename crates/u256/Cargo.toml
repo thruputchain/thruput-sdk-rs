@@ -16,6 +16,10 @@ crate-type = ["rlib"]
 
 [dependencies]
 groundhog-contract-spec = { workspace = true }
+# Used only for `#[derive(ContractTypeSpec)]`, via its `crate = "..."` override
+# (PR #337). Depending on `sdk` for the same derive would be a cycle, since
+# `sdk` depends on this crate.
+groundhog-macros = { workspace = true }
 xdrs = { workspace = true }
 
 [dev-dependencies]
@@ -27,6 +31,8 @@ uint = { version = "0.10.0", default-features = false }
 # Integration tests link dev-dependencies, not the lib's normal dependencies,
 # so the XDR round-trip tests need their own handle on xdrs.
 xdrs = { workspace = true, features = ["alloc"] }
+# Likewise: the ABI-pinning test names spec types directly.
+groundhog-contract-spec = { workspace = true }
 
 [features]
 default = ["std"]

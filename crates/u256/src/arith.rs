@@ -1,9 +1,8 @@
 //! Addition, subtraction, multiplication, shifts and bitwise operations.
 //!
-//! The operators mirror the primitive integers exactly: they wrap when
-//! `overflow-checks` is off and panic when it is on. Every `panic!` here is
-//! guarded by `cfg!(overflow_checks)`, which const-folds to `false` in a
-//! release contract build, so the branch and its message are eliminated.
+//! The operators mirror the primitives: wrap when `overflow-checks` is off,
+//! panic when it is on. Each `panic!` is guarded by `cfg!(overflow_checks)`,
+//! which const-folds away in a release contract build.
 
 use crate::{LIMBS, U256};
 use core::ops::{
@@ -14,9 +13,8 @@ use core::ops::{
 
 /// `acc + a * b + carry`, split into (low, high) 32-bit halves.
 ///
-/// The widest possible value is `(2^32 - 1)^2 + 2 * (2^32 - 1) = 2^64 - 1`, so
-/// the `u64` intermediate never overflows. On rv32 this is a `mul`/`mulhu`
-/// pair; on wasm32 an `i64.extend_u` and an `i64.mul`. No libcall either way.
+/// Peaks at `(2^32-1)^2 + 2*(2^32-1) = 2^64-1`, so the `u64` never overflows.
+/// A `mul`/`mulhu` pair on rv32, `i64.extend_u`/`i64.mul` on wasm32.
 #[inline(always)]
 const fn mac(acc: u32, a: u32, b: u32, carry: u32) -> (u32, u32) {
     let t = (a as u64) * (b as u64) + (acc as u64) + (carry as u64);
@@ -35,12 +33,14 @@ impl U256 {
         let mut carry = 0u32;
         let mut i = 0;
         while i < LIMBS {
-            let t = (self.0[i] as u64) + (rhs.0[i] as u64) + (carry as u64);
+            let t = (self.limbs[i] as u64)
+                + (rhs.limbs[i] as u64)
+                + (carry as u64);
             out[i] = t as u32;
             carry = (t >> 32) as u32;
             i += 1;
         }
-        (Self(out), carry != 0)
+        (Self::from_limbs(out), carry != 0)
     }
 
     /// Wrapping subtraction, with a flag reporting whether it wrapped.
@@ -50,14 +50,14 @@ impl U256 {
         let mut borrow = 0u32;
         let mut i = 0;
         while i < LIMBS {
-            let t = (self.0[i] as u64)
-                .wrapping_sub(rhs.0[i] as u64)
+            let t = (self.limbs[i] as u64)
+                .wrapping_sub(rhs.limbs[i] as u64)
                 .wrapping_sub(borrow as u64);
             out[i] = t as u32;
             borrow = ((t >> 32) & 1) as u32;
             i += 1;
         }
-        (Self(out), borrow != 0)
+        (Self::from_limbs(out), borrow != 0)
     }
 
     /// Addition, returning `None` on overflow.
@@ -114,11 +114,9 @@ impl U256 {
 
     /// The exact 256-bit product of two 128-bit values.
     ///
-    /// This is the shape that dominates real call sites -- reserve products,
-    /// LP-share ratios, any `a * b / c` where `a` and `b` are token amounts.
-    /// It cannot overflow, so it needs no check and no `Option`, and it costs
-    /// sixteen `mul`/`mulhu` pairs with no carry-propagation loop over the
-    /// upper half.
+    /// The shape that dominates real call sites (`a * b / c` over token
+    /// amounts). Cannot overflow, so no check and no `Option`; sixteen
+    /// `mul`/`mulhu` pairs.
     #[inline]
     pub const fn widening_mul(a: u128, b: u128) -> Self {
         let al = [
@@ -148,26 +146,25 @@ impl U256 {
             out[i + 4] = carry;
             i += 1;
         }
-        Self(out)
+        Self::from_limbs(out)
     }
 
     /// Multiplication by a 32-bit value, with a flag reporting overflow.
     ///
-    /// Deliberately separate from the general 256x256 multiply: scaling by a
-    /// small constant (fee numerators, basis points) is common, and should not
-    /// drag the full schoolbook loop into a contract that never needs it.
+    /// Separate from the general 256x256 multiply so scaling by a small
+    /// constant does not drag the schoolbook loop in.
     #[inline]
     pub const fn overflowing_mul_u32(self, rhs: u32) -> (Self, bool) {
         let mut out = [0u32; LIMBS];
         let mut carry = 0u32;
         let mut i = 0;
         while i < LIMBS {
-            let (lo, hi) = mac(0, self.0[i], rhs, carry);
+            let (lo, hi) = mac(0, self.limbs[i], rhs, carry);
             out[i] = lo;
             carry = hi;
             i += 1;
         }
-        (Self(out), carry != 0)
+        (Self::from_limbs(out), carry != 0)
     }
 
     /// Wrapping multiplication, with a flag reporting whether it wrapped.
@@ -182,7 +179,8 @@ impl U256 {
             let mut j = 0;
             // Products landing inside the low 256 bits.
             while j < LIMBS - i {
-                let (lo, hi) = mac(out[i + j], self.0[i], rhs.0[j], carry);
+                let (lo, hi) =
+                    mac(out[i + j], self.limbs[i], rhs.limbs[j], carry);
                 out[i + j] = lo;
                 carry = hi;
                 j += 1;
@@ -193,7 +191,7 @@ impl U256 {
             }
             // So is any product whose position is past the top limb.
             while j < LIMBS {
-                if self.0[i] != 0 && rhs.0[j] != 0 {
+                if self.limbs[i] != 0 && rhs.limbs[j] != 0 {
                     overflow = true;
                 }
                 j += 1;
@@ -201,7 +199,7 @@ impl U256 {
             i += 1;
         }
 
-        (Self(out), overflow)
+        (Self::from_limbs(out), overflow)
     }
 
     /// Multiplication, returning `None` on overflow.
@@ -251,13 +249,13 @@ impl U256 {
         while i > limb_shift {
             i -= 1;
             let src = i - limb_shift;
-            let mut v = self.0[src] << bit_shift;
+            let mut v = self.limbs[src] << bit_shift;
             if bit_shift > 0 && src > 0 {
-                v |= self.0[src - 1] >> (32 - bit_shift);
+                v |= self.limbs[src - 1] >> (32 - bit_shift);
             }
             out[i] = v;
         }
-        Self(out)
+        Self::from_limbs(out)
     }
 
     /// Left shift, returning `None` if the shift amount is at least 256.
@@ -288,14 +286,14 @@ impl U256 {
         let mut i = 0;
         while i + limb_shift < LIMBS {
             let src = i + limb_shift;
-            let mut v = self.0[src] >> bit_shift;
+            let mut v = self.limbs[src] >> bit_shift;
             if bit_shift > 0 && src + 1 < LIMBS {
-                v |= self.0[src + 1] << (32 - bit_shift);
+                v |= self.limbs[src + 1] << (32 - bit_shift);
             }
             out[i] = v;
             i += 1;
         }
-        Self(out)
+        Self::from_limbs(out)
     }
 
     /// Right shift, returning `None` if the shift amount is at least 256.
@@ -423,10 +421,10 @@ impl Not for U256 {
         let mut out = [0u32; LIMBS];
         let mut i = 0;
         while i < LIMBS {
-            out[i] = !self.0[i];
+            out[i] = !self.limbs[i];
             i += 1;
         }
-        Self(out)
+        Self::from_limbs(out)
     }
 }
 
@@ -440,10 +438,10 @@ macro_rules! impl_bitop {
                 let mut out = [0u32; LIMBS];
                 let mut i = 0;
                 while i < LIMBS {
-                    out[i] = self.0[i] $op rhs.0[i];
+                    out[i] = self.limbs[i] $op rhs.limbs[i];
                     i += 1;
                 }
-                Self(out)
+                Self::from_limbs(out)
             }
         }
     };
