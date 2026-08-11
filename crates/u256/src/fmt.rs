@@ -5,52 +5,23 @@
 //! The split is not arbitrary. `Debug` has to be always available because
 //! `#[derive(Debug)]` on any struct holding a `U256` would otherwise fail to
 //! compile in a guest build -- and contract state structs do derive it. So
-//! `Debug` renders hexadecimal using its own nibble extraction, which costs
-//! shifts and a lookup and no division.
+//! `Debug` renders hexadecimal, which costs shifts and a lookup table and no
+//! division.
 //!
 //! `Display` and `FromStr` are the expensive pair: decimal needs a repeated
 //! division loop. Nothing in a release contract build should be formatting, so
 //! they are compiled out by default.
 
-use crate::{LIMBS, U256};
+use crate::U256;
 use core::fmt;
 
-/// Writes the value as hex with leading zeros suppressed.
-///
-/// `prefix` forces the `0x`; otherwise it follows the alternate flag, so
-/// `{:x}` is bare and `{:#x}` is prefixed, as for the primitive integers.
-fn write_hex(
-    n: &U256,
-    f: &mut fmt::Formatter<'_>,
-    digits: &[u8; 16],
-    prefix: bool,
-) -> fmt::Result {
-    if prefix || f.alternate() {
-        f.write_str("0x")?;
-    }
+/// 2^256 - 1 is 64 hexadecimal digits.
+const HEX_DIGITS: usize = 64;
 
-    let mut started = false;
-    let mut limb = LIMBS;
-    while limb > 0 {
-        limb -= 1;
-        let mut nibble = 8;
-        while nibble > 0 {
-            nibble -= 1;
-            let d = ((n.0[limb] >> (nibble * 4)) & 0xf) as usize;
-            if d != 0 || started || (limb == 0 && nibble == 0) {
-                started = true;
-                f.write_str(
-                    // SAFETY-free: `digits` is ASCII, so a one-byte slice of
-                    // it is valid UTF-8 by construction.
-                    core::str::from_utf8(&digits[d..d + 1])
-                        .expect("hex digit table is ASCII"),
-                )?;
-            }
-        }
-    }
-
-    Ok(())
-}
+/// 2^256 - 1 is 78 decimal digits. Only the decimal path uses this, and that
+/// is behind `fmt`.
+#[cfg(feature = "fmt")]
+const DEC_DIGITS: usize = 78;
 
 const LOWER: [u8; 16] = *b"0123456789abcdef";
 
@@ -59,69 +30,115 @@ const LOWER: [u8; 16] = *b"0123456789abcdef";
 #[cfg(feature = "fmt")]
 const UPPER: [u8; 16] = *b"0123456789ABCDEF";
 
+/// Renders the significant hex digits into `buf`, returning them as a string.
+/// Digits are written from the back, so the return value borrows the tail.
+fn hex_digits<'a>(
+    n: &U256,
+    buf: &'a mut [u8; HEX_DIGITS],
+    table: &[u8; 16],
+) -> &'a str {
+    let mut pos = buf.len();
+    let mut v = *n;
+
+    if v.is_zero() {
+        pos -= 1;
+        buf[pos] = b'0';
+    } else {
+        while !v.is_zero() {
+            pos -= 1;
+            buf[pos] = table[(v.to_limbs()[0] & 0xf) as usize];
+            v = v.wrapping_shr(4);
+        }
+    }
+
+    core::str::from_utf8(&buf[pos..]).expect("hex digits are ASCII")
+}
+
 impl fmt::Debug for U256 {
+    /// Renders as `0x`-prefixed hex.
+    ///
+    /// Unlike the `LowerHex`/`UpperHex` impls this does not honour width or
+    /// fill flags -- `Debug` is for diagnostics, and a padded `{:?}` on an
+    /// integer is not a thing callers ask for. Use `{:x}` when the exact
+    /// textual shape matters.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_hex(self, f, &LOWER, true)
+        let mut buf = [0u8; HEX_DIGITS];
+        f.write_str("0x")?;
+        f.write_str(hex_digits(self, &mut buf, &LOWER))
     }
 }
 
 #[cfg(feature = "fmt")]
 impl fmt::LowerHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_hex(self, f, &LOWER, false)
+        let mut buf = [0u8; HEX_DIGITS];
+        let digits = hex_digits(self, &mut buf, &LOWER);
+        // `pad_integral` applies width, fill, alignment and zero-padding, and
+        // emits the prefix only under `#` -- so `{:064x}` and `{:#x}` behave
+        // as they do for the primitive integers. Fixed-width hex is the
+        // common spelling for a 256-bit word, so this has to be right.
+        f.pad_integral(true, "0x", digits)
     }
 }
 
 #[cfg(feature = "fmt")]
 impl fmt::UpperHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_hex(self, f, &UPPER, false)
+        let mut buf = [0u8; HEX_DIGITS];
+        let digits = hex_digits(self, &mut buf, &UPPER);
+        // Lowercase `0x` even here: `format!("{:#X}", 255u8)` is `"0xFF"`.
+        f.pad_integral(true, "0x", digits)
     }
+}
+
+/// Renders the decimal digits into `buf`, returning them as a string.
+#[cfg(feature = "fmt")]
+fn dec_digits<'a>(n: &U256, buf: &'a mut [u8; DEC_DIGITS]) -> &'a str {
+    let mut pos = buf.len();
+    let mut v = *n;
+
+    if v.is_zero() {
+        pos -= 1;
+        buf[pos] = b'0';
+    }
+
+    // Nine digits at a time: 10^9 is the largest power of ten fitting in a
+    // u32, so each step is one `div_rem_small` rather than nine.
+    while !v.is_zero() {
+        let (q, r) = v.div_rem_small(1_000_000_000);
+        v = q;
+        let mut r = r;
+        // The leading chunk emits only its significant digits; every other
+        // chunk is zero-padded to nine, or interior zeros would be lost.
+        let count = if v.is_zero() {
+            let mut d = 0;
+            let mut t = r;
+            while t != 0 {
+                d += 1;
+                t /= 10;
+            }
+            d
+        } else {
+            9
+        };
+        let mut i = 0;
+        while i < count {
+            pos -= 1;
+            buf[pos] = b'0' + (r % 10) as u8;
+            r /= 10;
+            i += 1;
+        }
+    }
+
+    core::str::from_utf8(&buf[pos..]).expect("decimal digits are ASCII")
 }
 
 #[cfg(feature = "fmt")]
 impl fmt::Display for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_zero() {
-            return f.write_str("0");
-        }
-
-        // 2^256 - 1 is 78 decimal digits.
-        let mut buf = [0u8; 78];
-        let mut pos = buf.len();
-        let mut n = *self;
-
-        // Nine digits at a time: 10^9 is the largest power of ten fitting in a
-        // u32, so each step is one `div_rem_small` rather than nine.
-        while !n.is_zero() {
-            let (q, r) = n.div_rem_small(1_000_000_000);
-            n = q;
-            let mut r = r;
-            let chunk = if n.is_zero() {
-                // Leading chunk: emit only its significant digits.
-                let mut d = 0;
-                let mut t = r;
-                while t != 0 {
-                    d += 1;
-                    t /= 10;
-                }
-                d
-            } else {
-                9
-            };
-            let mut i = 0;
-            while i < chunk {
-                pos -= 1;
-                buf[pos] = b'0' + (r % 10) as u8;
-                r /= 10;
-                i += 1;
-            }
-        }
-
-        f.write_str(
-            core::str::from_utf8(&buf[pos..])
-                .expect("decimal digits are ASCII"),
-        )
+        let mut buf = [0u8; DEC_DIGITS];
+        let digits = dec_digits(self, &mut buf);
+        f.pad_integral(true, "", digits)
     }
 }
 

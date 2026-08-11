@@ -310,14 +310,43 @@ fast path — the opposite algorithm with the opposite size/speed tradeoff.
 Implemented on `geoff/u256-crate`. Measured as built, rv32,
 `opt-level = "z"`, LTO, `codegen-units = 1`:
 
-- Reaching for the general `U256 / U256` adds **1,752 bytes** of `.text` over a
+- Reaching for the general `U256 / U256` adds **2,044 bytes** of `.text` over a
   build that only calls `div_rem_small`. Two things follow: the split works
   (the small path does not drag Knuth D in), and Knuth D over `[u32; 8]` costs
   roughly a sixth of `uint`'s 11,300-byte equivalent.
-- 46 differential tests against `uint` pass; `sdk` is unchanged at 33 passing.
-- Both guest targets compile `no_std`; `UpperHex`'s digit table had to be
-  feature-gated, which is direct evidence the `fmt` gating removes what it
-  claims to.
+- 51 tests pass (differential against `uint`, plus direct coverage of the
+  64-by-32 divide); `sdk` is unchanged at 33 passing.
+- Both guest targets compile `no_std`; `UpperHex`'s digit table and the decimal
+  buffer length both had to be feature-gated, which is direct evidence the
+  `fmt` gating removes what it claims to.
+
+### `DIVU` is XLEN-wide (found in review)
+
+The first draft of `div_rem_small` wrote its per-limb step as
+`((rem as u64) << 32 | limb as u64) / d as u64`, with a comment claiming this
+lowered "straight onto rv32's `DIVU`". That was wrong, and the claim was
+inherited from the `swap-u256` code this crate ports.
+
+`DIVU` is XLEN-wide, so on a 32-bit target it divides 32-bit operands only —
+there is no 64-by-32 divide to lower onto. Disassembly confirmed it: the
+function contained **zero** `divu` instructions and the build pulled in
+`__udivdi3`/`__umoddi3`/`__udivmoddi4`. Eight limb iterations meant eight
+compiler-builtins calls, in the path this design calls cheap.
+
+Replaced with `div_rem_2by1`, Hacker's Delight's `divlu` — schoolbook division
+in base 2^16, so every divide is a native 32-bit `DIVU`. After: **2 `divu`
+instructions, zero libcalls.** The routine has a precondition (`hi < d`) that
+holds at the call site because `rem` is a remainder, and it is covered
+directly by 250,000 randomized cases against the `u64` spelling it replaces,
+plus the normalised/unnormalised divisor edges.
+
+**Known follow-up.** Knuth D's quotient estimate has the same shape
+(`num / vn[dn-1]` over a `u64`) and still emits one libcall per quotient limb —
+confirmed by disassembly. It was left alone deliberately: Knuth D permits
+`un[j+dn] == vn[dn-1]`, so `qhat` can reach 2^32 and `div_rem_2by1`'s
+precondition does not hold; handling that requires reworking the correction
+loop into 32-bit arithmetic. That is a delicate change to the least-used path,
+and it did not belong in the same commit as the crate's introduction.
 
 ## Success criteria
 

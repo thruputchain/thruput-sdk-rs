@@ -824,3 +824,41 @@ fn integer_literals_and_operators_need_no_annotations() {
     let denominator = U256::from(amount_in) * 1000 + fee;
     assert!(numerator / denominator > U256::ZERO);
 }
+
+/// Formatting flags must behave as they do for the primitive integers.
+/// Fixed-width hex (`{:064x}`) is the ordinary spelling for a 256-bit word, so
+/// silently ignoring the width would produce malformed output at exactly the
+/// call sites that care most.
+#[test]
+fn formatting_honours_width_and_padding_flags() {
+    let n = U256::from(0x1fu32);
+
+    // Zero-padded fixed width -- the Ethereum-style 32-byte word.
+    assert_eq!(format!("{n:064x}"), format!("{:062}1f", 0));
+    assert_eq!(format!("{n:064x}").len(), 64);
+    assert_eq!(format!("{n:#066x}").len(), 66);
+    assert!(format!("{n:#066x}").starts_with("0x0"));
+
+    // Alignment and fill.
+    assert_eq!(format!("{n:>6x}"), "    1f");
+    assert_eq!(format!("{n:<6x}"), "1f    ");
+    assert_eq!(format!("{n:*^6x}"), "**1f**");
+    assert_eq!(format!("{n:06X}"), "00001F");
+
+    // Decimal takes the same treatment.
+    assert_eq!(format!("{n:>6}"), "    31");
+    assert_eq!(format!("{n:06}"), "000031");
+    assert_eq!(format!("{n:*^6}"), "**31**");
+
+    // Zero is not a special case.
+    assert_eq!(format!("{:04x}", U256::ZERO), "0000");
+    assert_eq!(format!("{:04}", U256::ZERO), "0000");
+
+    // And the flagless spellings are unchanged.
+    assert_eq!(format!("{n:x}"), "1f");
+    assert_eq!(format!("{n:#x}"), "0x1f");
+    assert_eq!(format!("{n}"), "31");
+
+    // U256::MAX is exactly 64 hex digits, so width 64 must not pad it.
+    assert_eq!(format!("{:064x}", U256::MAX), "f".repeat(64));
+}

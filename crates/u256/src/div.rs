@@ -18,11 +18,88 @@ use crate::{LIMBS, U256};
 /// The base of the limb representation, as a `u64` for intermediate work.
 const B: u64 = 1 << 32;
 
+/// Half-limb base, for the 64-by-32 divide below.
+const HB: u32 = 1 << 16;
+
+/// Divides the 64-bit value `(hi, lo)` by `d`, returning `(quotient,
+/// remainder)`. Requires `hi < d` (so the quotient fits in 32 bits) and
+/// `d != 0`; both hold at every call site.
+///
+/// # Why not just write `((hi as u64) << 32 | lo as u64) / d as u64`
+///
+/// Because on riscv32 that is not a division instruction, it is a call to
+/// `__udivdi3`/`__umoddi3`. `DIVU` is XLEN-wide, so on a 32-bit target it
+/// divides 32-bit operands only — there is no 64-by-32 divide to lower onto.
+/// Written the obvious way, `div_rem_small` paid a compiler-builtins call on
+/// every one of its eight limb iterations, which is precisely the cost this
+/// crate exists to remove. Verified by disassembly: the u64 spelling produced
+/// zero `divu` instructions.
+///
+/// This is Hacker's Delight's `divlu`, schoolbook division in base 2^16 so
+/// that every divide is a native 32-bit `DIVU`.
+#[inline]
+const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
+    debug_assert!(hi < d);
+
+    // Normalise so the divisor's high bit is set, which is what bounds the
+    // half-digit estimates below.
+    let s = d.leading_zeros();
+    let d = d << s;
+    let vn1 = d >> 16;
+    let vn0 = d & 0xffff;
+
+    let un32 = if s == 0 {
+        hi
+    } else {
+        (hi << s) | (lo >> (32 - s))
+    };
+    let un10 = lo << s;
+    let un1 = un10 >> 16;
+    let un0 = un10 & 0xffff;
+
+    // First half-digit. `rhat < 2^16` is maintained by the `break`, so
+    // `rhat << 16` never overflows; and `q1 * vn0` is only evaluated once
+    // `q1 < 2^16` (the `||` short-circuits), so it cannot overflow either.
+    let mut q1 = un32 / vn1;
+    let mut rhat = un32 - q1 * vn1;
+    while q1 >= HB || q1 * vn0 > (rhat << 16) | un1 {
+        q1 -= 1;
+        rhat += vn1;
+        if rhat >= HB {
+            break;
+        }
+    }
+
+    // The true value of `un21` fits in 32 bits; the intermediate
+    // `un32 * 2^16` does not, so this is deliberately modular. Two's
+    // complement makes the wrapped arithmetic land on the right answer.
+    let un21 = un32
+        .wrapping_mul(HB)
+        .wrapping_add(un1)
+        .wrapping_sub(q1.wrapping_mul(d));
+
+    // Second half-digit.
+    let mut q0 = un21 / vn1;
+    rhat = un21 - q0 * vn1;
+    while q0 >= HB || q0 * vn0 > (rhat << 16) | un0 {
+        q0 -= 1;
+        rhat += vn1;
+        if rhat >= HB {
+            break;
+        }
+    }
+
+    let rem = un21
+        .wrapping_mul(HB)
+        .wrapping_add(un0)
+        .wrapping_sub(q0.wrapping_mul(d))
+        >> s;
+
+    (q1 * HB + q0, rem)
+}
+
 impl U256 {
     /// Divides by a 32-bit value, returning the quotient and remainder.
-    ///
-    /// Each step is a 64-by-32 divide, which is what rv32's `DIVU` natively
-    /// performs.
     ///
     /// # Panics
     ///
@@ -33,19 +110,20 @@ impl U256 {
             panic!("attempt to divide by zero");
         }
 
-        let d = rhs as u64;
         let mut q = [0u32; LIMBS];
-        let mut rem = 0u64;
+        let mut rem = 0u32;
 
         let mut i = LIMBS;
         while i > 0 {
             i -= 1;
-            let cur = (rem << 32) | (self.0[i] as u64);
-            q[i] = (cur / d) as u32;
-            rem = cur % d;
+            // `rem` is a remainder, so `rem < rhs` holds on every iteration,
+            // which is exactly `div_rem_2by1`'s precondition.
+            let (qi, r) = div_rem_2by1(rem, self.0[i], rhs);
+            q[i] = qi;
+            rem = r;
         }
 
-        (Self(q), rem as u32)
+        (Self(q), rem)
     }
 
     /// Divides by another `U256`, returning the quotient and remainder.
@@ -232,4 +310,94 @@ pub fn mul_div_u128(a: u128, b: u128, d: u128) -> u128 {
 pub fn checked_mul_div_u128(a: u128, b: u128, d: u128) -> Option<u128> {
     let (q, _) = U256::widening_mul(a, b).checked_div_rem(U256::from(d))?;
     u128::try_from(q).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The reference is the spelling `div_rem_2by1` replaced: a plain u64
+    /// divide. It is correct and obvious; it is just a libcall on rv32.
+    fn reference(hi: u32, lo: u32, d: u32) -> (u32, u32) {
+        let n = ((hi as u64) << 32) | (lo as u64);
+        ((n / d as u64) as u32, (n % d as u64) as u32)
+    }
+
+    fn check(hi: u32, lo: u32, d: u32) {
+        assert!(hi < d, "precondition");
+        assert_eq!(
+            div_rem_2by1(hi, lo, d),
+            reference(hi, lo, d),
+            "({hi}, {lo}) / {d}"
+        );
+    }
+
+    #[test]
+    fn div_rem_2by1_matches_u64_on_boundaries() {
+        let interesting = [
+            1u32,
+            2,
+            3,
+            10,
+            1_000_000_000,
+            0xffff,
+            0x1_0000,
+            0x8000_0000,
+            0xffff_fffe,
+            u32::MAX,
+        ];
+        let los = [0u32, 1, 0xffff, 0x1_0000, 0x8000_0000, u32::MAX];
+
+        for d in interesting {
+            for lo in los {
+                // hi must stay below d.
+                for hi in [0, d / 2, d.saturating_sub(1)] {
+                    if hi < d {
+                        check(hi, lo, d);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn div_rem_2by1_matches_u64_on_random_inputs() {
+        // Deterministic xorshift so a failure reproduces exactly.
+        let mut x = 0x2545_f491_4f6c_dd1du64;
+        let mut next = move || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+
+        for _ in 0..200_000 {
+            let d = (next() as u32).max(1);
+            let hi = (next() as u32) % d;
+            let lo = next() as u32;
+            check(hi, lo, d);
+        }
+    }
+
+    /// Divisors with a set high bit skip normalisation (`s == 0`), which is
+    /// the branch where a `>> (32 - s)` would be undefined.
+    #[test]
+    fn div_rem_2by1_handles_unnormalised_and_normalised_divisors() {
+        let mut x = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = move || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+
+        for _ in 0..50_000 {
+            // Already normalised: high bit set, so s == 0.
+            let d = (next() as u32) | 0x8000_0000;
+            check((next() as u32) % d, next() as u32, d);
+
+            // Maximally unnormalised: s == 31.
+            check(0, next() as u32, 1);
+        }
+    }
 }
