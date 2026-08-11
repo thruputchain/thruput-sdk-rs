@@ -36,9 +36,6 @@ struct BumpAllocator;
 unsafe impl GlobalAlloc for BumpAllocator {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let size = layout.size();
-        let align = layout.align();
-
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
             cursor = (&raw const __heap_base).cast::<u8>() as usize;
@@ -50,21 +47,14 @@ unsafe impl GlobalAlloc for BumpAllocator {
         // would assert a valid, dereferenceable byte that does not exist.
         let heap_end = (&raw const __heap_end) as usize;
 
-        let Some(aligned) =
-            cursor.checked_add(align - 1).map(|c| c & !(align - 1))
+        let Some((start, new_cursor)) =
+            crate::bump::bump(cursor, heap_end, layout)
         else {
             return core::ptr::null_mut();
         };
-        let Some(new_cursor) = aligned.checked_add(size) else {
-            return core::ptr::null_mut();
-        };
-
-        if new_cursor > heap_end {
-            return core::ptr::null_mut();
-        }
 
         unsafe { CURSOR = new_cursor };
-        aligned as *mut u8
+        start as *mut u8
     }
 
     #[inline(always)]

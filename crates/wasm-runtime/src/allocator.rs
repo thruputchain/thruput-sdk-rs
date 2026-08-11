@@ -24,23 +24,19 @@ struct SlabAllocator;
 unsafe impl GlobalAlloc for SlabAllocator {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let size = layout.size();
-        let align = layout.align();
-
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
             cursor = (&raw const __heap_base).cast::<u8>() as usize;
         }
 
-        let aligned = (cursor + align - 1) & !(align - 1);
-        let new_cursor = aligned + size;
-
-        if new_cursor > WASM_PAGE_SIZE {
+        let Some((start, new_cursor)) =
+            crate::bump::bump(cursor, WASM_PAGE_SIZE, layout)
+        else {
             return core::ptr::null_mut();
-        }
+        };
 
         unsafe { CURSOR = new_cursor };
-        aligned as *mut u8
+        start as *mut u8
     }
 
     #[inline(always)]

@@ -18,15 +18,30 @@
 //!
 //! [`groundhog-rv32-runtime`]: ../groundhog_rv32_runtime/index.html
 
-#![no_std]
+// `cfg_attr(not(test), no_std)` so the target-independent modules can be
+// exercised by a host `cargo test --lib` (and under Miri), matching
+// groundhog-rv32-runtime.
+#![cfg_attr(not(test), no_std)]
 
-#[cfg(not(any(target_arch = "wasm32", doc)))]
+#[cfg(not(any(target_arch = "wasm32", doc, test)))]
 compile_error!(
     "groundhog-wasm-runtime can only be built for the wasm32 target"
 );
 
-// Allocator gated on `alloc`, matching `sdk`'s `alloc` feature.
-#[cfg(feature = "alloc")]
+// Allocator gated on `alloc`, matching `sdk`'s `alloc` feature. wasm-only: it
+// binds the `__heap_base` linker symbol and installs a `#[global_allocator]`.
+#[cfg(all(feature = "alloc", target_arch = "wasm32"))]
 mod allocator;
 
+// The allocator's pure bump arithmetic, split out so it also compiles for
+// host unit tests. On target it follows `allocator`'s gating exactly -- that
+// module is its only caller, so without `alloc` it would be dead code and
+// trip `--deny warnings`. Under `test` it is always compiled, so a default
+// host `cargo test --lib` runs its tests without needing the feature.
+#[cfg(any(all(feature = "alloc", target_arch = "wasm32"), test))]
+mod bump;
+
+// wasm-only: defines `#[panic_handler]` and traps via `core::arch::wasm32`,
+// neither of which can compile on the host.
+#[cfg(target_arch = "wasm32")]
 mod panic;
