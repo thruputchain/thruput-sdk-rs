@@ -787,3 +787,40 @@ fn xdr_encoding_is_big_endian() {
     let max = xdrs::txs::encode(&U256::MAX).expect("encode");
     assert_eq!(max, [0xffu8; 32]);
 }
+
+// ---------------------------------------------------------------------------
+// Ergonomics
+// ---------------------------------------------------------------------------
+
+/// Idiomatic code must just work -- that is the whole reason the operator tier
+/// exists alongside the fast tier. In particular an unsuffixed integer literal
+/// has to infer against `Mul<u32>` without an annotation, which stops being
+/// true the moment a second integer `Mul` impl is added. This test is here to
+/// fail loudly if that happens.
+#[test]
+fn integer_literals_and_operators_need_no_annotations() {
+    let a = U256::from(5u32);
+
+    assert_eq!(a * 997, U256::from(4985u32));
+    assert_eq!(a + U256::ONE, U256::from(6u32));
+    assert_eq!(a - U256::ONE, U256::from(4u32));
+    assert_eq!(a << 112, U256::ONE.wrapping_shl(112) * 5);
+    assert_eq!(a >> 1, U256::from(2u32));
+    assert_eq!(a / U256::from(2u32), U256::from(2u32));
+    assert_eq!(a % U256::from(2u32), U256::ONE);
+
+    // Assign forms, including the u32 rhs.
+    let mut b = a;
+    b += U256::ONE;
+    b *= 2;
+    b -= U256::ONE;
+    assert_eq!(b, U256::from(11u32));
+
+    // The shapes the swap suite writes today.
+    let amount_in = 1_000u128;
+    let reserve_out = 5_000u128;
+    let fee = U256::from(amount_in) * 997;
+    let numerator = fee * U256::from(reserve_out);
+    let denominator = U256::from(amount_in) * 1000 + fee;
+    assert!(numerator / denominator > U256::ZERO);
+}
