@@ -163,6 +163,15 @@ impl MockInvocationFrame {
         )
     }
 
+    /// Configure a child frame of this one.
+    ///
+    /// Give it an [`at_contract_address`](MockInvocationFrameConfig::at_contract_address)
+    /// distinct from every frame already open: the test FFI admits mock frames
+    /// under the same reentrance rule production applies to `Invoke`, so an
+    /// address that already has an active frame on the stack is refused (hogd
+    /// #3301) and `build()` panics unrecoverably. The config default is
+    /// `[0; 32]` at every level, which is reentrant against a parent that also
+    /// took the default.
     pub fn open_child_frame(&mut self) -> MockInvocationFrameConfig<'_> {
         // One open child at a time: `FrameAction::Continue` exists to
         // interleave frames across separate transactions, not to nest
@@ -641,6 +650,21 @@ mod tests {
 
     use super::*;
 
+    // Frames that are open at the same time need distinct invoked_addresses.
+    // The test FFI admits mock frames under production's reentrance rule, which
+    // refuses an address that already has an active frame on the stack (hogd
+    // #3301), and `MockInvocationFrameConfig` defaults every level to the same
+    // [0; 32] — so a nested frame has to say which contract it is. Addresses may
+    // be reused across separate handlers (separate transactions, separate frame
+    // stacks) and by sequential frames at the same depth.
+    fn root_addr() -> groundhog_xdr::types::ContractAddress {
+        [0xA0u8; 32].into()
+    }
+
+    fn child_addr() -> groundhog_xdr::types::ContractAddress {
+        [0xB0u8; 32].into()
+    }
+
     #[test]
     fn test_mock_transaction_handler() {
         let env = TestEnvironment::new(None);
@@ -651,6 +675,7 @@ mod tests {
 
         let result = handler
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -694,7 +719,11 @@ mod tests {
                 let mut handler = MockTransactionHandler::new(env);
                 // Transaction -> Running, root frame -> Started, but never
                 // closed or committed.
-                handler.open_root_frame().with_invoke_flags(0).build();
+                handler
+                    .open_root_frame()
+                    .at_contract_address(root_addr())
+                    .with_invoke_flags(0)
+                    .build();
                 panic!("original failure message");
             }));
 
@@ -723,6 +752,7 @@ mod tests {
 
         let result = handler
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -745,11 +775,13 @@ mod tests {
 
         let result = handler
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 frame
                     .open_child_frame()
+                    .at_contract_address(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -812,6 +844,7 @@ mod tests {
 
         handler
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
@@ -820,6 +853,7 @@ mod tests {
 
                 frame
                     .open_child_frame()
+                    .at_contract_address(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     // First execute: Continue, depth goes to 2 then back to 1
@@ -854,12 +888,14 @@ mod tests {
 
         let result = handler
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 // Child panics
                 frame
                     .open_child_frame()
+                    .at_contract_address(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -893,6 +929,7 @@ mod tests {
         // handler1: Continue with nested child frame
         let frame1 = handler1
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
@@ -900,6 +937,7 @@ mod tests {
 
                 frame
                     .open_child_frame()
+                    .at_contract_address(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -916,6 +954,7 @@ mod tests {
         // handler2: Continue (no children)
         let frame2 = handler2
             .open_root_frame()
+            .at_contract_address(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -931,6 +970,7 @@ mod tests {
 
                 frame
                     .open_child_frame()
+                    .at_contract_address(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -953,6 +993,7 @@ mod tests {
 
                 frame
                     .open_child_frame()
+                    .at_contract_address(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -1004,7 +1045,11 @@ mod tests {
         // PARENT frame, poisoning the transaction. Guard it loudly.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame()
+            .at_contract_address(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -1012,6 +1057,7 @@ mod tests {
                     // Leave the child frame open (Continue, never Close)...
                     frame
                         .open_child_frame()
+                        .at_contract_address(child_addr())
                         .with_invoke_flags(0)
                         .build()
                         .execute(|_| FrameAction::Continue);
@@ -1032,13 +1078,18 @@ mod tests {
         // order, so the propagated panic is the unrecoverable guard error.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame()
+            .at_contract_address(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 frame.execute(|frame| -> FrameAction {
                     frame
                         .open_child_frame()
+                        .at_contract_address(child_addr())
                         .with_invoke_flags(0)
                         .build()
                         .execute(|_| FrameAction::Continue);
@@ -1061,11 +1112,16 @@ mod tests {
         // — losing the child handle. Guard it loudly.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame()
+            .at_contract_address(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         frame.execute(|frame| {
             frame
                 .open_child_frame()
+                .at_contract_address(child_addr())
                 .with_invoke_flags(0)
                 .build()
                 .execute(|_| FrameAction::Continue);
@@ -1094,12 +1150,17 @@ mod tests {
         // nest multiple open frames inside one parent.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame()
+            .at_contract_address(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         frame.execute(|frame| {
             // First child stays open.
             frame
                 .open_child_frame()
+                .at_contract_address(child_addr())
                 .with_invoke_flags(0)
                 .build()
                 .execute(|_| FrameAction::Continue);
