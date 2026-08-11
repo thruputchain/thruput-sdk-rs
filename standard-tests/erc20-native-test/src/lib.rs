@@ -56,9 +56,10 @@ hash_ident! { static SPENDER: ContractAddress; }
 ///
 /// An overdraft `transfer` used to be a third divergence: the balance check
 /// was deferred, so it passed invoke and failed at commit. As of test-ffi
-/// 0.21.0 the precompile rejects it at invoke time with
-/// [`groundhog_erc20_if::ERC20Error::TooLarge`], matching the reference
-/// contract, so it is asserted as a fault like any other overdraft.
+/// 0.21.0 the precompile throws
+/// [`groundhog_erc20_if::ERC20Error::TooLarge`] at invoke time like the
+/// reference contract, so it is asserted the same way the rest of this file
+/// asserts a typed throw: `try_*` plus a match on the error.
 ///
 /// Those divergences are asserted here too, so a change on either side
 /// shows up as a regression.
@@ -154,13 +155,18 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     });
     result.assert_fault();
 
-    // Overdrafts are rejected at invoke time, same as the reference contract.
+    // Overdrafts are rejected at invoke time with the same error the
+    // reference contract throws, asserted the same way erc20-test does
+    // (`try_*` + match) so the two are directly comparable.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let client = ERC20Client::new(token);
             let balance = client.get_balance();
-            client.transfer(&SPENDER, balance + 1);
+            assert!(matches!(
+                client.try_transfer(&SPENDER, balance + 1),
+                Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
+            ));
         })
     });
-    result.assert_abort();
+    result.assert_success();
 }
