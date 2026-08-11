@@ -23,6 +23,13 @@ sha2 = { workspace = true }
 syn = { version = "3.0.3" , features = [ "full" , "extra-traits", "visit", "printing", "fold" ] }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 
+# `tests/crate_override.rs` stands in for a crate that sits below `sdk` in the
+# dependency graph. Deliberately no `sdk` here: that the test compiles at all is
+# the proof `#[contract_type_spec(crate = "...")]` breaks the cycle.
+[dev-dependencies]
+groundhog-contract-spec = { workspace = true }
+xdrs = { workspace = true }
+
 [features]
 logging = []
 

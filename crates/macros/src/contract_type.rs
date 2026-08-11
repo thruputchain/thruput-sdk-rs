@@ -165,7 +165,11 @@ fn expand_contract_type_name(
     ident: &syn::Ident,
     args: &ContractTypeArgs,
 ) -> TokenStream {
-    crate::contract_type_name_impl(ident, args.name.as_deref())
+    crate::contract_type_name_impl(
+        &crate::common::contract::sdk_crate_path(),
+        ident,
+        args.name.as_deref(),
+    )
 }
 
 /// Which auth-handle walker trait to generate. Collect and Receive

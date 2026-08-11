@@ -29,7 +29,7 @@ jobs:
               SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_BOTTLE_EXAMPLES=1
               SKIP_DOMAIN_COLLISION=1 SKIP_REGISTRY_STRIPPED=1
               SKIP_INTEGRATION=1 SKIP_LOGGING=1 SKIP_WASM_STRINGS=1
-              SKIP_QUALITY=1
+              SKIP_QUALITY=1 SKIP_MACROS_GUEST=1
           # Example wasm builds + bottle tests + domain-collision +
           # registry-stripped + wasm-strings. (Rebuilds the example wasm:
           # bottle tests consume sibling contracts' optimized wasm, so this
@@ -39,7 +39,7 @@ jobs:
             skips: >-
               SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_RV32_EXAMPLES=1
               SKIP_TEST_EXAMPLES=1 SKIP_INTEGRATION=1 SKIP_LOGGING=1
-              SKIP_QUALITY=1
+              SKIP_QUALITY=1 SKIP_MACROS_GUEST=1
           # Docs + full integration block + logging build + lint/fmt/xxx.
           # Only entry needing the integration_test/contracts submodule
           # (hence the SSH keys). Keeps wasm-strings: integration contracts

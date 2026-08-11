@@ -547,9 +547,19 @@ pub fn method_anchor_tokens(
     Ok(tokens)
 }
 
-fn lower_via_type_ref_trait(ty: &syn::Type) -> TokenStream {
+/// The crate path spec-emitting macros use unless told otherwise.
+///
+/// Everything reached through it (`__contract_spec`, `__xdrs`) is an `sdk`
+/// re-export of a crate *below* `sdk`, so a crate that `sdk` depends on can
+/// name those targets directly and pass its own shim path instead. See
+/// `#[contract_type_spec(crate = "...")]`.
+pub fn sdk_crate_path() -> syn::Path {
+    syn::parse_quote!(::sdk)
+}
+
+fn lower_via_type_ref_trait(krate: &syn::Path, ty: &syn::Type) -> TokenStream {
     quote! {
-        ::sdk::__contract_spec::type_ref::<#ty>()
+        #krate::__contract_spec::type_ref::<#ty>()
     }
 }
 
@@ -580,14 +590,25 @@ pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
 }
 
 pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
+    contract_type_view_tokens_in(&sdk_crate_path(), ty)
+}
+
+/// As [`contract_type_view_tokens`], but resolving the spec traits through
+/// `krate` rather than `::sdk`.
+pub fn contract_type_view_tokens_in(
+    krate: &syn::Path,
+    ty: &syn::Type,
+) -> Result<TokenStream> {
     match ty {
         syn::Type::Reference(reference) => {
-            contract_type_view_tokens(&reference.elem)
+            contract_type_view_tokens_in(krate, &reference.elem)
         }
-        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(ty)),
-        syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
+        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(krate, ty)),
+        syn::Type::Paren(paren) => {
+            contract_type_view_tokens_in(krate, &paren.elem)
+        }
         syn::Type::Slice(_) | syn::Type::Array(_) | syn::Type::Tuple(_) => {
-            Ok(lower_via_type_ref_trait(ty))
+            Ok(lower_via_type_ref_trait(krate, ty))
         }
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
