@@ -761,6 +761,21 @@ logging_test_build() {
     )
 }
 
+# Regression guard: the raw spec fragment `#[derive(ContractTypeSpec)]` emits
+# is behind a `cfg(any(target_family = "wasm", target_arch = "riscv32"))`, so a
+# host build never compiles it. Every other consumer reaches that code through
+# `::sdk`, which the example/integration wasm builds cover -- but nothing else
+# builds a crate that uses `#[contract_type_spec(crate = "...")]`, and its whole
+# point is resolving those paths through a shim instead. Without this, a
+# regression in the overridden guest path surfaces only when a downstream crate
+# below `sdk` builds for a guest target.
+macros_crate_override_guest_build() {
+    info "BUILD groundhog-macros crate-override test (wasm)"
+
+    cargo check -p groundhog-macros --tests \
+        --target wasm32-unknown-unknown
+}
+
 ### LINT ###
 
 lint_contracts() {
@@ -991,6 +1006,8 @@ check_all() {
     }; } &&
 
     { skip LOGGING || logging_test_build; } &&
+
+    { skip MACROS_GUEST || macros_crate_override_guest_build; } &&
 
     # now that Cargo.lock files have been updated:
     cargo run -p version-check &&

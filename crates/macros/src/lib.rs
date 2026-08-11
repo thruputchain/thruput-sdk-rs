@@ -373,9 +373,15 @@ pub fn contract_type(
 /// }
 ///
 /// #[derive(ContractTypeSpec)]
-/// #[contract_type_spec(crate = "::groundhog_u256::__sdk_paths")]
+/// #[contract_type_spec(crate = "crate::__sdk_paths")]
 /// pub struct U256([u32; 8]);
 /// ```
+///
+/// Note the `crate::` prefix. The derive is applied *inside* the crate that
+/// owns the shim, and a crate cannot name itself as `::its_own_name` without a
+/// separate `extern crate self as its_own_name;` — spelling it
+/// `::groundhog_u256::__sdk_paths` there fails with E0433. An absolute path is
+/// right only when some *other* crate owns the shim.
 ///
 /// The consumer still supplies its own `impl ContractTypeName`, which the
 /// derive references but never emits.
