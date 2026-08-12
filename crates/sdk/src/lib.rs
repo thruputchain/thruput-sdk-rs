@@ -37,6 +37,15 @@ pub use groundhog_contract_spec as contract_spec;
 #[doc(hidden)]
 pub use groundhog_contract_spec as __contract_spec;
 
+/// 256-bit unsigned integer arithmetic.
+///
+/// [`U256`] behaves like `u128`, including on overflow: the operators wrap
+/// when `overflow-checks` is off (as in every contract profile) and panic when
+/// it is on. See [`u256::mul_div_u128`] for the exact `a * b / d` that motivates
+/// most reaches for a 256-bit type.
+pub use groundhog_u256 as u256;
+pub use groundhog_u256::{U256, checked_mul_div_u128, mul_div_u128};
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 

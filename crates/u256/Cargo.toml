@@ -1,0 +1,47 @@
+[package]
+name = "groundhog-u256"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "256-bit unsigned integer for Groundhog contracts, with a 32-bit-native representation"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+groundhog-contract-spec = { workspace = true }
+# Used only for `#[derive(ContractTypeSpec)]`, via its `crate = "..."` override
+# (PR #337). Depending on `sdk` for the same derive would be a cycle, since
+# `sdk` depends on this crate.
+groundhog-macros = { workspace = true }
+xdrs = { workspace = true }
+
+[dev-dependencies]
+# Oracle only. Parity's `uint` is the implementation this crate replaces;
+# the differential tests assert we agree with it everywhere. It must never
+# become a normal dependency -- its u64 limbs and u128 intermediates are the
+# whole reason this crate exists.
+uint = { version = "0.10.0", default-features = false }
+# Integration tests link dev-dependencies, not the lib's normal dependencies,
+# so the XDR round-trip tests need their own handle on xdrs.
+xdrs = { workspace = true, features = ["alloc"] }
+# Likewise: the ABI-pinning test names spec types directly.
+groundhog-contract-spec = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["alloc", "fmt", "groundhog-contract-spec/alloc", "xdrs/alloc"]
+alloc = ["xdrs/alloc"]
+
+# Decimal and hex formatting (`Display`, `FromStr`, `LowerHex`, `UpperHex`).
+#
+# Off by default in guest builds: `Display`/`FromStr` need a repeated
+# decimal-division loop and its rodata, which no release contract should be
+# paying for. `Debug` is NOT behind this feature -- see `fmt.rs`.
+fmt = []
