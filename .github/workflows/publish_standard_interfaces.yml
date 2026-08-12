@@ -89,6 +89,7 @@ jobs:
             groundhog-domain-separator
             groundhog-native-exec
             groundhog-macros
+            groundhog-u256
             groundhog-rv32-runtime
             groundhog-wasm-runtime
             sdk

@@ -12,11 +12,11 @@ env:
     groundhog-storage-cost
     groundhog-contract-util
     groundhog-contract-spec
-    groundhog-u256
     groundhog-sys
     groundhog-domain-separator
     groundhog-native-exec
     groundhog-macros
+    groundhog-u256
     groundhog-test-vectors
     groundhog-rv32-runtime
     groundhog-wasm-runtime
