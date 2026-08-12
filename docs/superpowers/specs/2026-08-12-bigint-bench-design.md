@@ -218,20 +218,21 @@ measured across implementations:
   Whether the extra 144 bytes buys back the instruction count is a gas question
   this harness answers, not a codesize one.
 
-### Gas: implemented, not yet run here
+### Gas: no numbers recorded here yet
 
-The gas half is written and compiles; it has not been executed in the
-environment this was developed in. `sdk`'s mock node stands up through the hogd
-test FFI, whose x23 RPC layer binds `AF_INET6` unconditionally, and this
-container's kernel has no IPv6 (`/proc/sys/net/ipv6` absent) — every
-`TestEnvironment::new` fails with `create_db: 5` here, including the existing
-`example-contracts` tests. Nothing about that is specific to this change; CI
-runners have IPv6 and the wasm bottle tests run there today.
+The gas half is implemented and the table above has the columns for it, but the
+figures are not in this document: the environment the harness was developed in
+could not start the mock node at all. `sdk`'s test FFI stands the node up through
+x23, whose RPC layer binds `AF_INET6` unconditionally, and that container's
+kernel had no IPv6 (`/proc/sys/net/ipv6` absent), so every
+`TestEnvironment::new` failed with `create_db: 5` — including the existing
+`example-contracts` tests, so nothing about it was specific to this change.
 
-So the numbers above are measured and the gas column is not. `-s`
-(`--no-gas`) exists for that case: it reports the codesize half without starting
-the node, and is what produced the table above. Dropping `-s` on a host with a
-working mock node fills in the gas and Δgas columns.
+`scripts/dev.sh bigint-bench` on any host that runs the wasm bottle tests fills
+in the gas and Δgas columns. Paste them here when they exist; the first question
+they answer is the one the `mul` row above raises, since a 144-byte codesize loss
+on the general multiply is worth taking if the instruction count moves the other
+way.
 
 ## Extending it
 

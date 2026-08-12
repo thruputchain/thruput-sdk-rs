@@ -30,9 +30,6 @@ set -euo pipefail
 #   gas_total, gas_base       gas for the kernel call, and for the `none` build
 #   gas_net, gas_per_op       gas_total - gas_base, and that over `iters`
 #   iters                     kernel iterations behind gas_total
-#
-# The gas fields are absent when the sweep ran with -s (codesize only), rather
-# than zeroed -- a zero would read as a measurement.
 
 # stdout carries the metric rows; the comparison table goes to stderr, which
 # metrics.sh discards. Same split as sdk_perf_gas.sh.

@@ -153,7 +153,6 @@ pair, which is minutes of work, so it is not part of `ci`:
 
 ```shell
 dev bigint-bench                 # full sweep, both metrics
-dev bigint-bench -s              # codesize only (skips the mock node)
 dev bigint-bench -o 'div sqrt'   # one or two operations, while iterating
 dev bigint-bench-test            # host check that the backends agree
 ```

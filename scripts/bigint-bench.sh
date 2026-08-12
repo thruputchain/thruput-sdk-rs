@@ -14,21 +14,18 @@ set -euo pipefail
 # difference against it.
 #
 # Usage:
-#   scripts/bigint-bench.sh [-i ITERS] [-b BACKENDS] [-o OPS] [-k] [-s]
+#   scripts/bigint-bench.sh [-i ITERS] [-b BACKENDS] [-o OPS] [-k]
 #
 #   -i ITERS     kernel iterations per gas measurement (default 1000)
 #   -b BACKENDS  space-separated backend subset (default: u256 uint)
 #   -o OPS       space-separated operation subset; `none` is always built,
 #                since every other number is measured against it
 #   -k           keep going after a failed build instead of aborting
-#   -s           codesize only: skip the gas half, which is the only part that
-#                needs the mock node
 #
 # Run from the SDK's top-level directory. Requires the pinned groundhog CLI
-# (scripts/ci.sh installs it) and llvm-readelf or readelf on PATH. The gas half
-# additionally needs whatever `sdk`'s `dev` feature needs to stand up the mock
-# node -- notably an IPv6-capable loopback, which the test FFI's RPC layer binds
-# unconditionally; use -s where that is unavailable.
+# (scripts/ci.sh installs it), llvm-readelf or readelf on PATH, and whatever
+# `sdk`'s `dev` feature needs to stand up the mock node -- the same set the wasm
+# bottle tests already require.
 
 SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"
@@ -71,17 +68,15 @@ ITERS=1000
 BACKENDS="$BACKENDS_ALL"
 OPS="$OPS_ALL"
 KEEP_GOING=0
-GAS_FLAG=""
 
-while getopts "i:b:o:ksh" opt; do
+while getopts "i:b:o:kh" opt; do
     case "$opt" in
         i) ITERS="$OPTARG" ;;
         b) BACKENDS="$OPTARG" ;;
         o) OPS="$OPTARG" ;;
         k) KEEP_GOING=1 ;;
-        s) GAS_FLAG="--no-gas" ;;
         h|*)
-            sed -n '3,31p' "$0" >&2
+            sed -n '3,27p' "$0" >&2
             exit 0
             ;;
     esac
@@ -209,11 +204,7 @@ if [ "$failures" -gt 0 ]; then
 fi
 
 echo >&2
-if [ -n "$GAS_FLAG" ]; then
-    echo "=== REPORT codesize only (-s)" >&2
-else
-    echo "=== MEASURE gas (${ITERS} iterations per operation)" >&2
-fi
+echo "=== MEASURE gas (${ITERS} iterations per operation)" >&2
 
 # stdout: `name key=value ...` metric rows. stderr: the comparison table.
 # Same split as scripts/metrics/sdk_perf_gas.sh, so this is safe to redirect
@@ -222,5 +213,4 @@ cargo run --quiet -p bigint-bench --profile dev -- \
     --dir "$OUT_DIR" \
     --codesize "$CODESIZE_TSV" \
     --iters "$ITERS" \
-    --baseline u256 \
-    $GAS_FLAG
+    --baseline u256

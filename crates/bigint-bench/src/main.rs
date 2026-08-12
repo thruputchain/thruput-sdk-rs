@@ -6,14 +6,13 @@
 //!
 //! ```text
 //! cargo run -p bigint-bench -- --dir target/bigint-bench [--iters 1000] \
-//!     [--codesize target/bigint-bench/codesize.tsv] [--baseline u256] [--no-gas]
+//!     [--codesize target/bigint-bench/codesize.tsv] [--baseline u256]
 //! ```
 //!
 //! Artifacts are discovered as `<backend>.<op>.rv32a` in `--dir`. Each is
 //! deployed into its own [`TestEnvironment`] and invoked once; gas is read from
 //! `stats::gas_remaining()` either side of the call, exactly as
-//! `crates/bottle-test` does for wasm. `--no-gas` skips that half and reports
-//! codesize alone, for hosts where the mock node cannot start.
+//! `crates/bottle-test` does for wasm.
 //!
 //! Two rows per backend matter. `<backend>.none` is the calibration build: the
 //! same loop with an identity operation, so it carries the entrypoint dispatch,
@@ -74,8 +73,7 @@ impl Codesize {
 struct Row {
     backend: String,
     op: String,
-    /// `None` under `--no-gas`, which reports codesize alone.
-    gas: Option<u64>,
+    gas: u64,
     size: Codesize,
 }
 
@@ -99,11 +97,7 @@ fn main() {
 
     let mut rows = Vec::new();
     for (backend, op, path) in artifacts {
-        let gas = if args.measure_gas {
-            Some(measure_gas(&path, args.iters))
-        } else {
-            None
-        };
+        let gas = measure_gas(&path, args.iters);
         let size = sizes.get(&(backend.clone(), op.clone())).copied();
         if args.codesize.is_some() && size.is_none() {
             panic!(
@@ -279,7 +273,7 @@ fn read_codesize_tsv(path: &Path) -> BTreeMap<(String, String), Codesize> {
 /// A backend's calibration figures, from its `none` build.
 #[derive(Clone, Copy, Default)]
 struct Baseline {
-    gas: Option<u64>,
+    gas: u64,
     text: u64,
 }
 
@@ -288,8 +282,8 @@ struct Baseline {
 struct Marginal {
     /// `.text` bytes the operation adds.
     text: i64,
-    /// Gas per operation, absent when gas was not measured.
-    gas: Option<f64>,
+    /// Gas per operation.
+    gas: f64,
 }
 
 /// `name key=value ...` on stdout, one line per build.
@@ -298,18 +292,17 @@ struct Marginal {
 /// appended to metric history as-is. The `*_net` fields are the marginals over
 /// this backend's `none` row; the absolute values are kept alongside them so a
 /// consumer can recompute or track either.
-///
-/// Under `--no-gas` the gas fields are omitted rather than zeroed: a zero would
-/// read as a measured result.
 fn emit_metric_rows(rows: &[Row], iters: u32) {
     let baselines = baselines(rows);
 
     for row in rows {
         let base = baselines.get(&row.backend).copied().unwrap_or_default();
+        let gas_net = row.gas as i64 - base.gas as i64;
 
-        let mut line = format!(
+        println!(
             "{}.{} text={} rodata={} data={} bss={} data_image={} \
-             rv32a={} text_net={}",
+             rv32a={} text_net={} gas_total={} gas_base={} gas_net={} \
+             iters={} gas_per_op={:.3}",
             row.backend,
             row.op,
             row.size.text,
@@ -319,18 +312,12 @@ fn emit_metric_rows(rows: &[Row], iters: u32) {
             row.size.data_image(),
             row.size.rv32a,
             row.size.text as i64 - base.text as i64,
+            row.gas,
+            base.gas,
+            gas_net,
+            iters,
+            gas_net as f64 / f64::from(iters),
         );
-
-        if let (Some(gas), Some(base_gas)) = (row.gas, base.gas) {
-            let net = gas as i64 - base_gas as i64;
-            line += &format!(
-                " gas_total={gas} gas_base={base_gas} gas_net={net} \
-                 iters={iters} gas_per_op={:.3}",
-                net as f64 / f64::from(iters),
-            );
-        }
-
-        println!("{line}");
     }
 }
 
@@ -354,7 +341,6 @@ fn baselines(rows: &[Row]) -> BTreeMap<String, Baseline> {
 /// The human-readable comparison, on stderr.
 fn report(rows: &[Row], iters: u32, baseline_backend: Option<&str>) {
     let baselines = baselines(rows);
-    let measured_gas = rows.iter().any(|r| r.gas.is_some());
 
     let mut backends: Vec<&str> =
         rows.iter().map(|r| r.backend.as_str()).collect();
@@ -369,17 +355,11 @@ fn report(rows: &[Row], iters: u32, baseline_backend: Option<&str>) {
 
     for backend in &backends {
         match baselines.get(*backend) {
-            Some(base) => match base.gas {
-                Some(gas) => eprintln!(
-                    "calibration ({backend}.{BASELINE_OP}): {gas} gas over \
-                     {iters} iterations, {} bytes .text",
-                    base.text
-                ),
-                None => eprintln!(
-                    "calibration ({backend}.{BASELINE_OP}): {} bytes .text",
-                    base.text
-                ),
-            },
+            Some(base) => eprintln!(
+                "calibration ({backend}.{BASELINE_OP}): {} gas over {iters} \
+                 iterations, {} bytes .text",
+                base.gas, base.text
+            ),
             None => eprintln!(
                 "warning: no {backend}.{BASELINE_OP} build; every {backend} \
                  number below is absolute, not per-operation"
@@ -399,27 +379,23 @@ fn report(rows: &[Row], iters: u32, baseline_backend: Option<&str>) {
         let base = baselines.get(backend).copied().unwrap_or_default();
         Some(Marginal {
             text: row.size.text as i64 - base.text as i64,
-            gas: row.gas.zip(base.gas).map(|(gas, base_gas)| {
-                (gas as i64 - base_gas as i64) as f64 / f64::from(iters)
-            }),
+            gas: (row.gas as i64 - base.gas as i64) as f64 / f64::from(iters),
         })
     };
 
-    // One `.text` column per backend, plus a gas column each when gas was
-    // measured, then a delta pair against the base backend.
+    // A `.text` and a gas column per backend, then a delta pair for each
+    // backend that is not the one being compared against.
     let mut header = format!("{:<15}", "operation");
     for backend in &backends {
-        header += &format!("{:>12}", format!("{backend} B"));
-        if measured_gas {
-            header += &format!("{:>12}", format!("{backend} gas"));
-        }
+        header += &format!(
+            "{:>12}{:>12}",
+            format!("{backend} B"),
+            format!("{backend} gas")
+        );
     }
     for backend in &backends {
         if Some(*backend) != base_backend {
-            header += &format!("{:>16}", "ΔB");
-            if measured_gas {
-                header += &format!("{:>16}", "Δgas");
-            }
+            header += &format!("{:>16}{:>16}", "ΔB", "Δgas");
         }
     }
     eprintln!("{header}");
@@ -434,21 +410,8 @@ fn report(rows: &[Row], iters: u32, baseline_backend: Option<&str>) {
         let mut line = format!("{op:<15}");
         for backend in &backends {
             match marginal(backend, op) {
-                Some(m) => {
-                    line += &format!("{:>12}", m.text);
-                    if measured_gas {
-                        line += &match m.gas {
-                            Some(gas) => format!("{gas:>12.2}"),
-                            None => format!("{:>12}", "-"),
-                        };
-                    }
-                }
-                None => {
-                    line += &format!("{:>12}", "-");
-                    if measured_gas {
-                        line += &format!("{:>12}", "-");
-                    }
-                }
+                Some(m) => line += &format!("{:>12}{:>12.2}", m.text, m.gas),
+                None => line += &format!("{:>12}{:>12}", "-", "-"),
             }
         }
 
@@ -457,59 +420,34 @@ fn report(rows: &[Row], iters: u32, baseline_backend: Option<&str>) {
             if Some(*backend) == base_backend {
                 continue;
             }
-            let against = marginal(backend, op);
-            line += &format!(
-                "{:>16}",
-                match (base, against) {
-                    (Some(b), Some(m)) => delta_i(m.text - b.text, b.text),
-                    _ => "-".to_string(),
+            match (base, marginal(backend, op)) {
+                (Some(b), Some(m)) => {
+                    line += &format!(
+                        "{:>16}{:>16}",
+                        delta_i(m.text - b.text, b.text),
+                        delta_f(m.gas - b.gas, b.gas),
+                    );
                 }
-            );
-            if measured_gas {
-                line += &format!(
-                    "{:>16}",
-                    match (
-                        base.and_then(|b| b.gas),
-                        against.and_then(|m| m.gas)
-                    ) {
-                        (Some(b), Some(m)) => delta_f(m - b, b),
-                        _ => "-".to_string(),
-                    }
-                );
+                _ => line += &format!("{:>16}{:>16}", "-", "-"),
             }
         }
         eprintln!("{line}");
     }
 
     eprintln!();
-    let legend = if measured_gas {
-        format!(
-            "B and gas columns are per-operation marginals over \
-             `{BASELINE_OP}`: `B` the .text the operation adds to the \
-             artifact, `gas` its gas divided by {iters} iterations"
-        )
-    } else {
-        format!(
-            "B columns are per-operation marginals over `{BASELINE_OP}`: \
-             the .text the operation adds to the artifact"
-        )
-    };
     match base_backend {
         Some(base) => eprintln!(
-            "{legend}. Δ columns are the other backend minus `{base}`, so \
-             negative is cheaper than `{base}`."
+            "B and gas columns are per-operation marginals over \
+             `{BASELINE_OP}`: `B` the .text the operation adds to the \
+             artifact, `gas` its gas divided by {iters} iterations. \
+             Δ columns are the other backend minus `{base}`, so negative is \
+             cheaper than `{base}`."
         ),
         None => {
             eprintln!(
                 "no backend had a calibration build; columns are absolute"
             )
         }
-    }
-    if !measured_gas {
-        eprintln!(
-            "gas not measured (--no-gas): the mock node was not run, so this \
-             is the codesize half of the report only."
-        );
     }
 }
 
@@ -579,7 +517,6 @@ struct Args {
     codesize: Option<PathBuf>,
     iters: u32,
     baseline: Option<String>,
-    measure_gas: bool,
 }
 
 impl Args {
@@ -588,7 +525,6 @@ impl Args {
         let mut codesize = None;
         let mut iters = 1000u32;
         let mut baseline = None;
-        let mut measure_gas = true;
 
         let mut args = args.peekable();
         while let Some(arg) = args.next() {
@@ -608,15 +544,10 @@ impl Args {
                         .parse()
                         .unwrap_or_else(|e| panic!("--iters {raw}: {e}"));
                 }
-                "--no-gas" => measure_gas = false,
                 "-h" | "--help" => {
                     eprintln!(
                         "usage: bigint-bench --dir <artifact dir> \
-                         [--codesize <tsv>] [--iters <n>] \
-                         [--baseline <backend>] [--no-gas]\n\
-                         \n\
-                         --no-gas reports codesize only, without starting the \
-                         mock node."
+                         [--codesize <tsv>] [--iters <n>] [--baseline <backend>]"
                     );
                     std::process::exit(0);
                 }
@@ -631,7 +562,6 @@ impl Args {
             codesize,
             iters,
             baseline,
-            measure_gas,
         }
     }
 }
