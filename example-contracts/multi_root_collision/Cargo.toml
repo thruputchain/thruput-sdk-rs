@@ -24,7 +24,7 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.19.0" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.19.1" }
 
 [dev-dependencies]
 multi_root_collision = { path = ".", features = ["dev"] }
