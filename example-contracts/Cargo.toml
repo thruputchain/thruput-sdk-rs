@@ -73,6 +73,9 @@ members = [
     "phantom_method_impl",
     "dup_entrypoint_neg",
     "prerelease_version",
+    # Built only by scripts/bigint-bench.sh (34 rv32 variants); carries a
+    # `disabled` marker so the wasm loops skip it. See its Cargo.toml.
+    "bigint-bench-contract",
 ]
 
 exclude = [
@@ -104,6 +107,7 @@ erc20-test = { path = "../standard-tests/erc20-test" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "../standard-tests/erc20-native-test" }
 bottle-test-if = { path = "../crates/bottle-test-if" }
+bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # External groundhog dependencies
 xdrs = { registry = "groundhog", version = "0.8.2", default-features = false }

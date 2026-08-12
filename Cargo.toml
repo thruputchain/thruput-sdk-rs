@@ -14,6 +14,8 @@ members = [
 # `cargo build/test/doc` (which build all default members) skip them. Add new
 # crates/* packages here too unless they are target-only runtimes.
 default-members = [
+    "crates/bigint-bench",
+    "crates/bigint-bench-if",
     "crates/bottle-test",
     "crates/bottle-test-if",
     "crates/contract-spec",
@@ -90,6 +92,7 @@ erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
 erc20-native-test = { path = "standard-tests/erc20-native-test" }
 bottle-test-if = { path = "crates/bottle-test-if" }
+bigint-bench-if = { path = "crates/bigint-bench-if" }
 
 # Deps from protocol-rs repo:
 groundhog-spec = { registry = "groundhog", version = "0.20.6", default-features = false }

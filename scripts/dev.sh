@@ -971,6 +971,35 @@ itc_bottle_test_all() {
     bottle_test_contracts "integration_test" "integration_test/contracts"
 }
 
+### BIG-INTEGER BENCHMARK ###
+
+# rv32 codesize + gas for 256-bit arithmetic, per operation, per implementation.
+#
+# Deliberately not part of `ci`: it builds the benchmark contract once per
+# (backend, operation) pair -- 34 rv32 builds with LTO today -- which is minutes
+# of work for a number that only moves when the arithmetic does. Run it on
+# demand, or from scripts/metrics/sdk_bigint_bench_rv32.sh.
+bigint_bench() {
+    require_groundhog_cli || return 1
+
+    bash "${SDK_DIR}/scripts/bigint-bench.sh" "$@"
+}
+
+# The benchmark's host-side differential test: both backends must agree on every
+# operation in the sweep. Cheap (no rv32, no node), and the check that keeps a
+# codesize or gas comparison honest -- a mis-mapped operation would otherwise
+# read as a performance win. See bigint-bench-contract/tests/differential.rs.
+#
+# Needs its own entry because the package carries a `disabled` marker, so
+# eg_test_all skips it along with the wasm build loop.
+bigint_bench_test() {
+    info "TEST bigint-bench-contract (backend differential)"
+    (
+        cd "${SDK_DIR}/example-contracts" &&
+        cargo test -p bigint-bench-contract
+    )
+}
+
 build_docs() {
     RUSTDOCFLAGS="--deny warnings --cfg docsrs" \
         cargo doc --features=dev "$@"
@@ -1250,6 +1279,12 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         run-bottle-tests)
             eg_bottle_test_all &&
                 itc_bottle_test_all
+            ;;
+        bigint-bench)
+            bigint_bench "$@"
+            ;;
+        bigint-bench-test)
+            bigint_bench_test
             ;;
         entrypoints)
             contract_entrypoints "$@"

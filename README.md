@@ -143,6 +143,24 @@ dev build-examples
 dev expand example-contracts/erc20
 ```
 
+### Benchmarking 256-bit arithmetic
+
+`dev bigint-bench` reports rv32 codesize and runtime gas per operation for each
+256-bit integer implementation under test — today `sdk::U256` against Parity's
+`uint` — so a change to `crates/u256` can be diffed against the implementation it
+replaced. It builds the benchmark contract once per (implementation, operation)
+pair, which is minutes of work, so it is not part of `ci`:
+
+```shell
+dev bigint-bench                 # full sweep, both metrics
+dev bigint-bench -s              # codesize only (skips the mock node)
+dev bigint-bench -o 'div sqrt'   # one or two operations, while iterating
+dev bigint-bench-test            # host check that the backends agree
+```
+
+Design and current numbers:
+`docs/superpowers/specs/2026-08-12-bigint-bench-design.md`.
+
 ### Diagnostics
 
 When running tests:

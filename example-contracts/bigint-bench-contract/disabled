@@ -1,0 +1,14 @@
+Not part of the wasm contract build/test loop.
+
+`scripts/dev.sh` skips packages carrying this marker (ls_contract_packages),
+which is what keeps this package out of the wasm build, the wasm bottle-test
+sweep, and `eg_test_all`. It is built only by scripts/bigint-bench.sh, once per
+(backend, operation) pair, and only for rv32:
+
+    scripts/dev.sh bigint-bench          # full rv32 codesize + gas sweep
+    scripts/dev.sh bigint-bench-test     # host differential test only
+
+The package name deliberately lacks the `-rv32` suffix so the standard rv32
+wrapper glob (and scripts/metrics/sdk_codesizes_rv32.sh, which derives its
+append-only metric rows from that same glob) does not pick up 34 build variants
+of it.
