@@ -86,6 +86,13 @@ impl<'s> RawExceptionRef<'s> {
         &self.wire[self.payload_start..]
     }
 
+    /// Decode as `T` if the selector matches, `None` otherwise.
+    ///
+    /// `T` must contain no [`Signed`](crate::signer::Signed): abort frames
+    /// carry no auth-token handles, so one would decode to the
+    /// uninitialized `u32::MAX` sentinel — a value shaped like an auth
+    /// token that faults on use. Nothing is checked here; spec
+    /// canonicalization rejects such a payload when the contract is built.
     pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
         if self.selector == T::SELECTOR {
             contract_call_decode_exn_prefix(self.payload()).ok()

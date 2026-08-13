@@ -54,6 +54,10 @@ pub enum SpecToolError {
     ConflictingExceptionSelector(String),
     /// Multiple interface fragments declare different `throws` for the same interface.
     ConflictingInterfaceThrows(String),
+    /// A `throws` entry's payload type reaches a `SignedToken`. Abort frames
+    /// carry no auth-token handles, so the token could only ever decode to
+    /// an uninitialized sentinel.
+    ExceptionCarriesAuthToken(String),
     /// Multiple conflicting method definitions share the same name in an interface.
     ConflictingMethod(String),
     /// Multiple conflicting event definitions exist for the same event name.
@@ -122,6 +126,9 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::ConflictingInterfaceThrows(msg) => {
                 write!(f, "conflicting throws metadata for interface {msg}")
+            }
+            Self::ExceptionCarriesAuthToken(msg) => {
+                write!(f, "exception payload carries an auth token: {msg}")
             }
             Self::ConflictingMethod(msg) => {
                 write!(f, "conflicting method definitions for {msg}")
@@ -516,6 +523,8 @@ fn canonicalize_spec_inner(
         &exported_roots,
     )?;
 
+    reject_auth_tokens_in_throws(&interfaces, &type_defs)?;
+
     // Nothing anchored, nothing exported: the artifact has no spec. Report
     // NoSpecFragments so the caller can distinguish "raw contract whose
     // linked fragments all shook out" (benign, no spec section) from "a
@@ -614,6 +623,138 @@ fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
 /// signatures, throws, typedef bodies, event fields), so the later
 /// total-function paths — sort-key rendering and JSON output — can rely on
 /// only known variants reaching them.
+/// Reject any `throws(...)` payload whose type graph reaches a
+/// `SignedToken`.
+///
+/// A signed token is carried out of band: the handle travels in the
+/// auth-token list the host returns beside a *successful* return, while the
+/// token itself occupies zero wire bytes. Abort frames have no such list —
+/// the host refuses to return auth tokens on a revert frame — so a token
+/// reached through an exception payload can never be given a real handle.
+/// Decoding one yields an uninitialized sentinel: a value shaped like an
+/// auth token that faults on every use, at a moment the throwing contract
+/// chooses.
+///
+/// There is no encoding that makes this work, so it is rejected here rather
+/// than diagnosed later. Checking the spec (instead of the Rust types)
+/// means the rule holds for every SDK that emits a spec, costs nothing at
+/// runtime, and imposes no trait bound on exception types.
+fn reject_auth_tokens_in_throws(
+    interfaces: &[ContractSpecInterface],
+    type_defs: &[ContractTypeDef],
+) -> Result<(), SpecToolError> {
+    let defs: BTreeMap<&ContractSpecString, &ContractTypeDef> = type_defs
+        .iter()
+        .filter_map(|def| type_def_name(def).map(|name| (name, def)))
+        .collect();
+
+    for interface in interfaces {
+        for exn in interface.throws.iter() {
+            let mut visited = std::collections::BTreeSet::new();
+            if type_reaches_auth_token(&exn.ty, &defs, &mut visited) {
+                return Err(SpecToolError::ExceptionCarriesAuthToken(
+                    format!(
+                        "{}: exception with selector 0x{:016x} contains a \
+                         signed token; abort frames carry no auth handles, \
+                         so it could only decode to an uninitialized \
+                         sentinel — return the token from a successful call \
+                         instead",
+                        spec_str_lossy(&interface.name),
+                        exn.selector,
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The declared name of a type def, or `None` for a variant this build does
+/// not model. An unknown def is simply not resolvable here;
+/// [`validate_type_def`] is what rejects it.
+fn type_def_name(def: &ContractTypeDef) -> Option<&ContractSpecString> {
+    match def {
+        ContractTypeDef::TypeDefStruct { struct_def } => {
+            Some(&struct_def.name)
+        }
+        ContractTypeDef::TypeDefEnum { enum_def } => Some(&enum_def.name),
+        ContractTypeDef::TypeDefUnion { union_def } => Some(&union_def.name),
+        _ => None,
+    }
+}
+
+/// Whether `ty` reaches a `SignedToken`, resolving `Named` references
+/// against `defs`.
+///
+/// `visited` guards the named-type recursion: contract types may be
+/// recursive (a tree holding subtrees), and a token reachable only by
+/// descending forever is not reachable at all, so revisiting a name in
+/// progress contributes nothing.
+fn type_reaches_auth_token(
+    ty: &ContractType,
+    defs: &BTreeMap<&ContractSpecString, &ContractTypeDef>,
+    visited: &mut std::collections::BTreeSet<ContractSpecString>,
+) -> bool {
+    match ty {
+        // The preimage is not inspected: the token itself is already
+        // disqualifying, whatever it wraps.
+        ContractType::SignedToken { .. } => true,
+        ContractType::Option { option_inner } => {
+            type_reaches_auth_token(option_inner, defs, visited)
+        }
+        ContractType::Vector { vector } => {
+            type_reaches_auth_token(&vector.element, defs, visited)
+        }
+        ContractType::Array { array } => {
+            type_reaches_auth_token(&array.element, defs, visited)
+        }
+        ContractType::Tuple { tuple } => tuple
+            .iter()
+            .any(|inner| type_reaches_auth_token(inner, defs, visited)),
+        ContractType::Named { named } => {
+            if !visited.insert(named.clone()) {
+                return false;
+            }
+            // A dangling name cannot be walked. `resolve_reachable_type_defs`
+            // has already run, so it would have reported the missing def.
+            defs.get(named).is_some_and(|def| {
+                type_def_reaches_auth_token(def, defs, visited)
+            })
+        }
+        _ => false,
+    }
+}
+
+/// Whether a type def's fields (or union-case payloads) reach a
+/// `SignedToken`. Enums are plain discriminants, so they carry nothing.
+fn type_def_reaches_auth_token(
+    def: &ContractTypeDef,
+    defs: &BTreeMap<&ContractSpecString, &ContractTypeDef>,
+    visited: &mut std::collections::BTreeSet<ContractSpecString>,
+) -> bool {
+    match def {
+        ContractTypeDef::TypeDefStruct { struct_def } => struct_def
+            .fields
+            .iter()
+            .any(|field| type_reaches_auth_token(&field.ty, defs, visited)),
+        ContractTypeDef::TypeDefUnion { union_def } => {
+            union_def.cases.iter().any(|case| match &case.case_type {
+                ContractUnionCaseType::UnionCaseVoid => false,
+                ContractUnionCaseType::UnionCaseTuple { tuple } => tuple
+                    .iter()
+                    .any(|ty| type_reaches_auth_token(ty, defs, visited)),
+                ContractUnionCaseType::UnionCaseStruct { struct_fields } => {
+                    struct_fields.iter().any(|field| {
+                        type_reaches_auth_token(&field.ty, defs, visited)
+                    })
+                }
+                _ => false,
+            })
+        }
+        _ => false,
+    }
+}
+
 fn validate_type(ty: &ContractType) -> Result<(), SpecToolError> {
     match ty {
         ContractType::Option { option_inner } => validate_type(option_inner),

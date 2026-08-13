@@ -2,7 +2,7 @@ use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractExceptionType,
     ContractField, ContractSpec, ContractSpecMethod, ContractSpecString,
     ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
-    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    ContractUnionCaseType, ContractUnionDef, ContractVectorType, SpecFragment,
     SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
@@ -1975,4 +1975,240 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
         matches!(err, SpecToolError::MissingTypeDef(ref name) if name == "MissingAuth"),
         "expected MissingTypeDef(MissingAuth), got {err:?}"
     );
+}
+
+// A `throws(...)` payload may not reach a signed token. The handle for a
+// signed token travels in the auth-token list the host returns beside a
+// *successful* return; abort frames carry no such list, so a token reached
+// through an exception can never be given a real handle and would decode to
+// an uninitialized sentinel.
+
+/// Build a spec whose single `throws` entry has type `exn_ty`, alongside
+/// `type_defs`.
+fn canon_with_throws(
+    exn_ty: ContractType,
+    type_defs: Vec<ContractTypeDef>,
+) -> Result<ContractSpec, SpecToolError> {
+    let mut fragments = vec![
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                throws: vec![exn(exn_ty)].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("ping"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: ContractType::Void,
+                },
+            },
+        },
+    ];
+    fragments.extend(
+        type_defs
+            .into_iter()
+            .map(|type_def| SpecFragment::SpecTypeDef { type_def }),
+    );
+    canon(&fragments)
+}
+
+fn struct_def(name: &str, fields: Vec<ContractField>) -> ContractTypeDef {
+    ContractTypeDef::TypeDefStruct {
+        struct_def: ContractStructDef {
+            name: s(name),
+            fields: fields.try_into().unwrap(),
+        },
+    }
+}
+
+#[test]
+fn throws_signed_token_directly_is_rejected() {
+    assert!(matches!(
+        canon_with_throws(signed_token(ContractType::U64), vec![]),
+        Err(SpecToolError::ExceptionCarriesAuthToken(_))
+    ));
+}
+
+#[test]
+fn throws_opaque_signed_token_is_rejected() {
+    // An erased preimage is still a token: the payload is irrelevant.
+    assert!(matches!(
+        canon_with_throws(opaque_signed_token(), vec![]),
+        Err(SpecToolError::ExceptionCarriesAuthToken(_))
+    ));
+}
+
+#[test]
+fn throws_struct_field_signed_token_is_rejected() {
+    // The realistic shape: an error type that hands a token back.
+    assert!(matches!(
+        canon_with_throws(
+            ContractType::Named {
+                named: s("RefundError")
+            },
+            vec![struct_def(
+                "RefundError",
+                vec![ContractField {
+                    name: s("returned"),
+                    ty: signed_token(ContractType::U64),
+                }],
+            )],
+        ),
+        Err(SpecToolError::ExceptionCarriesAuthToken(_))
+    ));
+}
+
+#[test]
+fn throws_deeply_nested_signed_token_is_rejected() {
+    // Wrapping in containers and another named type must not launder it.
+    assert!(matches!(
+        canon_with_throws(
+            ContractType::Named { named: s("Outer") },
+            vec![
+                struct_def(
+                    "Outer",
+                    vec![ContractField {
+                        name: s("inner"),
+                        ty: ContractType::Option {
+                            option_inner: Box::new(ContractType::Named {
+                                named: s("Inner")
+                            }),
+                        },
+                    }],
+                ),
+                struct_def(
+                    "Inner",
+                    vec![ContractField {
+                        name: s("tokens"),
+                        ty: ContractType::Vector {
+                            vector: ContractVectorType {
+                                element: Box::new(opaque_signed_token()),
+                                max_len: u32::MAX,
+                            },
+                        },
+                    }],
+                ),
+            ],
+        ),
+        Err(SpecToolError::ExceptionCarriesAuthToken(_))
+    ));
+}
+
+#[test]
+fn throws_recursive_type_without_token_is_accepted() {
+    // A self-referential exception payload must terminate the walk rather
+    // than recurse forever — and must not be falsely accused.
+    let spec = canon_with_throws(
+        ContractType::Named {
+            named: s("TreeError"),
+        },
+        vec![struct_def(
+            "TreeError",
+            vec![
+                ContractField {
+                    name: s("code"),
+                    ty: ContractType::U32,
+                },
+                ContractField {
+                    name: s("cause"),
+                    ty: ContractType::Option {
+                        option_inner: Box::new(ContractType::Named {
+                            named: s("TreeError"),
+                        }),
+                    },
+                },
+            ],
+        )],
+    );
+
+    assert!(spec.is_ok(), "recursive payload rejected: {spec:?}");
+}
+
+#[test]
+fn throws_recursive_type_reaching_token_is_still_rejected() {
+    // Recursion must not become an escape hatch: the token is reachable on a
+    // finite path, so the visited-set guard must not mask it.
+    assert!(matches!(
+        canon_with_throws(
+            ContractType::Named {
+                named: s("TreeError")
+            },
+            vec![struct_def(
+                "TreeError",
+                vec![
+                    ContractField {
+                        name: s("claim"),
+                        ty: opaque_signed_token(),
+                    },
+                    ContractField {
+                        name: s("cause"),
+                        ty: ContractType::Option {
+                            option_inner: Box::new(ContractType::Named {
+                                named: s("TreeError")
+                            }),
+                        },
+                    },
+                ],
+            )],
+        ),
+        Err(SpecToolError::ExceptionCarriesAuthToken(_))
+    ));
+}
+
+#[test]
+fn throws_without_signed_token_is_accepted() {
+    let spec = canon_with_throws(
+        ContractType::Named {
+            named: s("PlainError"),
+        },
+        vec![struct_def(
+            "PlainError",
+            vec![ContractField {
+                name: s("code"),
+                ty: ContractType::U32,
+            }],
+        )],
+    );
+
+    assert!(spec.is_ok(), "plain payload rejected: {spec:?}");
+}
+
+#[test]
+fn signed_token_in_method_argument_is_still_allowed() {
+    // The rule is specific to exception payloads: passing and returning
+    // signed tokens on the success path is the whole point of the feature.
+    let spec = canon(&[
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Demo"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("deposit"),
+                    args: vec![ContractField {
+                        name: s("token"),
+                        ty: signed_token(ContractType::U64),
+                    }]
+                    .try_into()
+                    .unwrap(),
+                    return_type: opaque_signed_token(),
+                },
+            },
+        },
+    ]);
+
+    assert!(spec.is_ok(), "signed token in method rejected: {spec:?}");
 }
