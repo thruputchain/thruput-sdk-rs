@@ -438,6 +438,20 @@ const fn shift_bits(wide: u128) -> (u32, bool) {
     ((wide as u32) & (U256::BITS - 1), wide >= U256::BITS as u128)
 }
 
+// Defined before `impl_shift!`, which expands it: `macro_rules!` scoping is
+// textual, not item-order-independent. The invocations for the non-shift
+// operators stay with the bitwise impls further down.
+macro_rules! impl_assign {
+    ($trait:ident, $method:ident, $base:ident, $base_method:ident, $rhs:ty) => {
+        impl $trait<$rhs> for U256 {
+            #[inline]
+            fn $method(&mut self, rhs: $rhs) {
+                *self = <Self as $base<$rhs>>::$base_method(*self, rhs);
+            }
+        }
+    };
+}
+
 /// Shifts are implemented for every integer type, exactly as the primitives do
 /// it.
 ///
@@ -475,19 +489,8 @@ macro_rules! impl_shift {
                 }
             }
 
-            impl ShlAssign<$t> for U256 {
-                #[inline]
-                fn shl_assign(&mut self, rhs: $t) {
-                    *self = <Self as Shl<$t>>::shl(*self, rhs);
-                }
-            }
-
-            impl ShrAssign<$t> for U256 {
-                #[inline]
-                fn shr_assign(&mut self, rhs: $t) {
-                    *self = <Self as Shr<$t>>::shr(*self, rhs);
-                }
-            }
+            impl_assign!(ShlAssign, shl_assign, Shl, shl, $t);
+            impl_assign!(ShrAssign, shr_assign, Shr, shr, $t);
         )*
     };
 }
@@ -534,17 +537,7 @@ impl_bitop!(BitAnd, bitand, &);
 impl_bitop!(BitOr, bitor, |);
 impl_bitop!(BitXor, bitxor, ^);
 
-macro_rules! impl_assign {
-    ($trait:ident, $method:ident, $base:ident, $base_method:ident, $rhs:ty) => {
-        impl $trait<$rhs> for U256 {
-            #[inline]
-            fn $method(&mut self, rhs: $rhs) {
-                *self = <Self as $base<$rhs>>::$base_method(*self, rhs);
-            }
-        }
-    };
-}
-
+// `impl_assign!` itself is defined above `impl_shift!`, which also expands it.
 impl_assign!(AddAssign, add_assign, Add, add, U256);
 impl_assign!(SubAssign, sub_assign, Sub, sub, U256);
 impl_assign!(MulAssign, mul_assign, Mul, mul, U256);

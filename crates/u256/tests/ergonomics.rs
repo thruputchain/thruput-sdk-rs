@@ -47,6 +47,12 @@ fn the_from_trait_impls_are_still_reachable() {
 
     assert_eq!(via_into, U256::from(5));
     assert_eq!(<U256 as From<u32>>::from(5), U256::from(5));
+
+    // UFCS is the only spelling that can reach `From<u128>`: the inherent
+    // `U256::from` shadows it in path form, and no unsuffixed literal or
+    // `.into()` in the other tests lands on it. If the trait body ever
+    // regresses into calling itself, this is the test that stack-overflows.
+    assert_eq!(<U256 as From<u128>>::from(1 << 100), U256::ONE << 100u32);
 }
 
 #[test]
