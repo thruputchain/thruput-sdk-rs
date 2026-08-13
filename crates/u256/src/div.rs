@@ -2,8 +2,10 @@
 //!
 //! [`U256::div_rem_small`] is a separate function rather than a fast path
 //! inside [`U256::div_rem`], so a contract that only divides by constants (or
-//! formats a decimal) links the cheap routine and not Knuth D. Measured: the
-//! general path costs 2,044 bytes of rv32 text on top of the small one.
+//! formats a decimal) links the cheap routine and not Knuth D. Measured on an
+//! rv32 probe linking one call and nothing else: the general path costs 1,576
+//! bytes of text on top of the small one. (It was 2,836 before the quotient
+//! estimate stopped going through `__udivdi3` -- see the estimate below.)
 
 use crate::{LIMBS, U256};
 
@@ -183,19 +185,38 @@ impl U256 {
             j -= 1;
 
             // Estimate one quotient limb from the top two dividend limbs.
-            let num = ((un[j + dn] as u64) << 32) | (un[j + dn - 1] as u64);
-            let mut qhat = num / (vn[dn - 1] as u64);
-            let mut rhat = num % (vn[dn - 1] as u64);
+            //
+            // `div_rem_2by1` wants `hi < dv`, while Knuth allows equality (the
+            // running remainder is below the divisor, so `hi <= dv`). Equality
+            // means the true digit is `B + lo / dv`, at least `B`; step D3
+            // clamps that to `B - 1`, which is still an upper bound on the real
+            // quotient digit, and the correction below plus the add-back take
+            // it the rest of the way. Spelling the common branch as
+            // `div_rem_2by1` keeps the whole loop on native 32-bit `DIVU`s
+            // instead of one `__udivdi3` per quotient digit.
+            let hi = un[j + dn];
+            let lo = un[j + dn - 1];
+            let dv = vn[dn - 1];
 
-            while qhat >= B
-                || qhat * (vn[dn - 2] as u64)
+            let (mut qhat, mut rhat) = if hi < dv {
+                let (qh, rh) = div_rem_2by1(hi, lo, dv);
+                (qh as u64, rh as u64)
+            } else {
+                let num = ((hi as u64) << 32) | (lo as u64);
+                (B - 1, num - (B - 1) * (dv as u64))
+            };
+
+            // `rhat >= B` makes the test below vacuous -- `(rhat << 32) | ..`
+            // exceeds any `qhat * vn[dn - 2]` -- and the shift would drop the
+            // bits that make that true, so it guards the loop rather than only
+            // breaking out of it. `qhat < B` now holds by construction, so the
+            // estimate no longer needs its own bound check.
+            while rhat < B
+                && qhat * (vn[dn - 2] as u64)
                     > (rhat << 32) | (un[j + dn - 2] as u64)
             {
                 qhat -= 1;
-                rhat += vn[dn - 1] as u64;
-                if rhat >= B {
-                    break;
-                }
+                rhat += dv as u64;
             }
 
             // Multiply and subtract.
