@@ -27,7 +27,9 @@ xdrs = { workspace = true }
 # `no_std` (see `[features]`), but the differential tests exercise `Display`
 # and `FromStr`, so a plain `cargo test` has to build with `std` and `fmt`.
 # Gating those tests on the features instead would let them silently stop
-# running.
+# running. `nightly` keeps the tests on the exact `overflow_checks` keying
+# guest builds use (the workspace toolchain is nightly anyway); the stable
+# fallback arm is covered by the `--no-default-features` check below.
 #
 # Side effect: feature unification means every `cargo test -p groundhog-u256`
 # builds the lib with `std` + `fmt`, and `--no-default-features` is silently a
@@ -35,7 +37,7 @@ xdrs = { workspace = true }
 # tested. `test_package` in scripts/dev.sh keeps a
 # `cargo check --no-default-features` alongside the tests so that config
 # cannot rot unnoticed.
-groundhog-u256 = { path = ".", features = ["std", "fmt"] }
+groundhog-u256 = { path = ".", features = ["std", "fmt", "nightly"] }
 # Oracle only. Parity's `uint` is the implementation this crate replaces;
 # the differential tests assert we agree with it everywhere. It must never
 # become a normal dependency -- its u64 limbs and u128 intermediates are the
@@ -61,3 +63,11 @@ alloc = ["xdrs/alloc"]
 # decimal-division loop and its rodata, which no release contract should be
 # paying for. `Debug` is NOT behind this feature -- see `fmt.rs`.
 fmt = []
+
+# Requires a nightly compiler: enables `#![feature(cfg_overflow_checks)]` so
+# the operators key their overflow panics off the real `-C overflow-checks`
+# flag, exactly like the primitives. Off (the default, so stable consumers
+# like the CLI's spec-tool build still compile) overflow checks are always
+# on -- see lib.rs. `sdk` turns this on for guest targets only, which always
+# build nightly.
+nightly = []

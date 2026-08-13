@@ -1,7 +1,7 @@
 //! Addition, subtraction, multiplication, shifts and bitwise operations.
 //!
 //! The operators mirror the primitives: wrap when `overflow-checks` is off,
-//! panic when it is on. Each `panic!` is guarded by `cfg!(overflow_checks)`,
+//! panic when it is on. Each `panic!` is guarded by [`OVERFLOW_CHECKS`],
 //! which const-folds away in a release contract build.
 //!
 //! # Inlining
@@ -341,10 +341,19 @@ impl U256 {
 // ---------------------------------------------------------------------------
 // Operators
 //
-// `cfg!(overflow_checks)` is a compile-time bool, so in a release contract
-// build (`overflow-checks = false`) each guard folds to `false` and the panic
-// is eliminated along with its message.
+// `OVERFLOW_CHECKS` is a compile-time bool, so in a release contract build
+// (`overflow-checks = false`) each guard folds to `false` and the panic is
+// eliminated along with its message.
 // ---------------------------------------------------------------------------
+
+// With the `nightly` feature this is the same flag rustc keys the primitives'
+// operators off. The stable fallback is unconditionally `true`: stable
+// consumers are host tools, never gas-metered contracts, so they pay the
+// guard rather than ever silently wrapping (see the gate in lib.rs).
+#[cfg(feature = "nightly")]
+const OVERFLOW_CHECKS: bool = cfg!(overflow_checks);
+#[cfg(not(feature = "nightly"))]
+const OVERFLOW_CHECKS: bool = true;
 
 impl Add for U256 {
     type Output = Self;
@@ -352,7 +361,7 @@ impl Add for U256 {
     #[inline]
     fn add(self, rhs: Self) -> Self {
         let (v, overflow) = self.overflowing_add(rhs);
-        if cfg!(overflow_checks) && overflow {
+        if OVERFLOW_CHECKS && overflow {
             panic!("attempt to add with overflow");
         }
         v
@@ -365,7 +374,7 @@ impl Sub for U256 {
     #[inline]
     fn sub(self, rhs: Self) -> Self {
         let (v, overflow) = self.overflowing_sub(rhs);
-        if cfg!(overflow_checks) && overflow {
+        if OVERFLOW_CHECKS && overflow {
             panic!("attempt to subtract with overflow");
         }
         v
@@ -378,7 +387,7 @@ impl Mul for U256 {
     #[inline]
     fn mul(self, rhs: Self) -> Self {
         let (v, overflow) = self.overflowing_mul(rhs);
-        if cfg!(overflow_checks) && overflow {
+        if OVERFLOW_CHECKS && overflow {
             panic!("attempt to multiply with overflow");
         }
         v
@@ -391,7 +400,7 @@ impl Mul<u32> for U256 {
     #[inline]
     fn mul(self, rhs: u32) -> Self {
         let (v, overflow) = self.overflowing_mul_u32(rhs);
-        if cfg!(overflow_checks) && overflow {
+        if OVERFLOW_CHECKS && overflow {
             panic!("attempt to multiply with overflow");
         }
         v
@@ -469,7 +478,7 @@ macro_rules! impl_shift {
                 #[inline]
                 fn shl(self, rhs: $t) -> Self {
                     let (bits, overflow) = shift_bits(rhs as u128);
-                    if cfg!(overflow_checks) && overflow {
+                    if OVERFLOW_CHECKS && overflow {
                         panic!("attempt to shift left with overflow");
                     }
                     self.wrapping_shl(bits)
@@ -482,7 +491,7 @@ macro_rules! impl_shift {
                 #[inline]
                 fn shr(self, rhs: $t) -> Self {
                     let (bits, overflow) = shift_bits(rhs as u128);
-                    if cfg!(overflow_checks) && overflow {
+                    if OVERFLOW_CHECKS && overflow {
                         panic!("attempt to shift right with overflow");
                     }
                     self.wrapping_shr(bits)
