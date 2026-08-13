@@ -29,7 +29,9 @@ pub(crate) struct LiveGuard;
 
 impl LiveGuard {
     pub(crate) fn new() -> Self {
-        LIVE_VALUE_MUTS.with(|c| c.set(c.get() + 1));
+        // Saturating: a wrapped count would read as "no live guards" and let
+        // `assert_no_live_guards` wave a dropped storage write through.
+        LIVE_VALUE_MUTS.with(|c| c.set(c.get().saturating_add(1)));
         Self
     }
 }
@@ -37,8 +39,9 @@ impl LiveGuard {
 impl Drop for LiveGuard {
     fn drop(&mut self) {
         // Cannot underflow: the only way to obtain a `LiveGuard` is `new`,
-        // which incremented.
-        LIVE_VALUE_MUTS.with(|c| c.set(c.get() - 1));
+        // which incremented. Saturating anyway — an underflowed count is a
+        // huge "live" count that would fail every subsequent return.
+        LIVE_VALUE_MUTS.with(|c| c.set(c.get().saturating_sub(1)));
     }
 }
 

@@ -64,15 +64,20 @@ fn write_location(loc: &Location) -> LocString {
 
     let mut line_col = String::<16>::new();
     write!(line_col, ":{}:{}", loc.line(), loc.column()).unwrap();
-    rem -= line_col.len();
+    // Saturating throughout: this is the abort-diagnostics path, and a `rem`
+    // that wrapped past zero (contract profiles disable overflow checks) would
+    // turn a truncated filename into a panic inside the panic reporter. A
+    // saturated `rem` just truncates harder.
+    rem = rem.saturating_sub(line_col.len());
 
     let file = loc.file();
     if file.len() > rem {
         // Truncate front of filepath
         let elipsis = "...";
         out.write_str(elipsis).unwrap();
-        rem -= elipsis.len();
-        out.write_str(&file[file.len() - rem..]).unwrap();
+        rem = rem.saturating_sub(elipsis.len());
+        out.write_str(&file[file.len().saturating_sub(rem)..])
+            .unwrap();
     } else {
         out.write_str(file).unwrap();
     }
@@ -118,7 +123,7 @@ pub(crate) struct Backtrace {
 impl Display for Backtrace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut frames = self.top;
-        let mut depth = 1; // depth 0 is the abort call itself
+        let mut depth = 1usize; // depth 0 is the abort call itself
 
         while let Some(frame) = frames {
             // Safety: upheld by the caller of `Backtrace::capture`, which
@@ -129,7 +134,9 @@ impl Display for Backtrace {
             writeln!(f, "  {}: {}", depth, frame)?;
 
             frames = frame.next;
-            depth += 1;
+            // One frame per live stack frame, so this cannot reach
+            // `usize::MAX`; saturating keeps the reporter panic-free anyway.
+            depth = depth.saturating_add(1);
         }
 
         Ok(())

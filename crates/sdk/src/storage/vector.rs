@@ -158,11 +158,13 @@ impl<S: StorageType + Deletable> Vector<S> {
     /// Remove the last element, deleting its storage.
     /// Aborts if the vector is empty.
     pub fn pop(&mut self) {
-        let len = self.len();
-        if len == 0 {
+        // `checked_sub` *is* the empty check: the last index and the "is there
+        // one" test are the same question, and a bare `len - 1` on an empty
+        // vector would wrap to `u32::MAX` in a contract release build
+        // (`overflow-checks = false`) and derive an element keypath from it.
+        let Some(new_len) = self.len().checked_sub(1) else {
             super::error::oob_throw(0, 0);
-        }
-        let new_len = len - 1;
+        };
         let mut elem = S::from(self.make_elem_keypath(new_len));
         elem.delete_internal(StorageDeltaFlags::ExclusiveLock);
         self.len.set_exclusive(&new_len);
@@ -180,6 +182,14 @@ impl<S: StorageType + Deletable> Deletable for Vector<S> {
     }
 }
 
+// Cursor arithmetic in the four iterator impls below is `saturating_*` rather
+// than bare `+`/`-`. Each site is guarded by `index >= len` so the saturating
+// form is *exactly* the wrapping-free result — the point is that a future
+// edit which breaks the guard produces a clamped cursor instead of a wrapped
+// one, and a wrapped cursor is an element keypath pointing at some other
+// slot. Contract profiles build with `overflow-checks = false`, so a bare
+// operator would not trap.
+
 /// Iterator over vector elements (shared borrow, read-only).
 pub struct VectorIter<'a, S> {
     vec: &'a Vector<S>,
@@ -195,12 +205,12 @@ impl<'a, S: StorageType> Iterator for VectorIter<'a, S> {
             return None;
         }
         let elem = S::from(self.vec.make_elem_keypath(self.index));
-        self.index += 1;
+        self.index = self.index.saturating_add(1);
         Some(SlotRef::new(self.vec, elem))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = (self.len - self.index) as usize;
+        let remaining = self.len.saturating_sub(self.index) as usize;
         (remaining, Some(remaining))
     }
 }
@@ -212,7 +222,7 @@ impl<'a, S: StorageType> DoubleEndedIterator for VectorIter<'a, S> {
         if self.index >= self.len {
             return None;
         }
-        self.len -= 1;
+        self.len = self.len.saturating_sub(1);
         let elem = S::from(self.vec.make_elem_keypath(self.len));
         Some(SlotRef::new(self.vec, elem))
     }
@@ -233,14 +243,14 @@ impl<'a, S: StorageType> Iterator for VectorIterMut<'a, S> {
             return None;
         }
         let elem = S::from(self.vec.make_elem_keypath(self.index));
-        self.index += 1;
+        self.index = self.index.saturating_add(1);
         // SAFETY: the iterator holds &'a mut Vector<S>, ensuring
         // exclusive access to the vector for 'a.
         Some(SlotMut::new_detached(elem))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = (self.len - self.index) as usize;
+        let remaining = self.len.saturating_sub(self.index) as usize;
         (remaining, Some(remaining))
     }
 }
@@ -252,7 +262,7 @@ impl<'a, S: StorageType> DoubleEndedIterator for VectorIterMut<'a, S> {
         if self.index >= self.len {
             return None;
         }
-        self.len -= 1;
+        self.len = self.len.saturating_sub(1);
         let elem = S::from(self.vec.make_elem_keypath(self.len));
         Some(SlotMut::new_detached(elem))
     }

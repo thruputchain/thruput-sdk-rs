@@ -21,7 +21,10 @@ pub static STORAGE_DOMAINS: [DomainRecord];
 /// blocks is not a false positive).
 pub fn check_duplicate(records: &[DomainRecord]) -> Option<(usize, usize)> {
     for i in 0..records.len() {
-        for j in (i + 1)..records.len() {
+        // Bounded by `records.len()`, so this cannot wrap; saturating for the
+        // same reason as `Map::at_disjoint_mut`'s pair loop — a skipped pair
+        // is a missed root collision.
+        for j in i.saturating_add(1)..records.len() {
             if records[i].domain.as_bytes() == records[j].domain.as_bytes()
                 && records[i].type_path != records[j].type_path
             {

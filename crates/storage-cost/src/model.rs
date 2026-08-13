@@ -38,9 +38,16 @@ impl StorageCostModel {
     }
 
     /// Cost of a bytestring of the given length
+    ///
+    /// Saturating: the operands are a widened `u32` and a `usize`, so the
+    /// `i128` product cannot actually overflow — and if the widths ever
+    /// change, saturating to `i128::MAX` over-charges rather than wrapping
+    /// to a cost the caller can afford.
     pub fn bytestring_cost(&self, length: usize) -> i128 {
-        self.base_data_item_cost()
-            + self.bytestring_cost_per_byte() * length as i128
+        self.base_data_item_cost().saturating_add(
+            self.bytestring_cost_per_byte()
+                .saturating_mul(length as i128),
+        )
     }
 
     /// Cost of a non-negative integer
@@ -57,9 +64,14 @@ impl StorageCostModel {
     }
 
     /// Cost of a contract deployment of the given length
+    ///
+    /// Saturating for the same reason as
+    /// [`bytestring_cost`](Self::bytestring_cost).
     pub fn contract_deployment_cost(&self, length: usize) -> i128 {
-        self.base_contract_deployment_cost()
-            + self.contract_deployment_cost_per_byte() * length as i128
+        self.base_contract_deployment_cost().saturating_add(
+            self.contract_deployment_cost_per_byte()
+                .saturating_mul(length as i128),
+        )
     }
 
     /// Cost of a native token balance

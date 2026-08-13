@@ -363,8 +363,12 @@ fn resize_auth_handles(
             .is_multiple_of(core::mem::size_of::<u32>()),
         "runtime reported an auth-token byte length not divisible by four"
     );
-    let count =
-        outputs.returned_auth_token_len as usize / core::mem::size_of::<u32>();
+    // Divide by a `NonZero` so the divisor's non-zeroness is a type-level
+    // fact rather than a comment (and so the workspace's
+    // `arithmetic_side_effects` deny is satisfied without an escape hatch).
+    const U32_BYTES: core::num::NonZero<usize> =
+        core::num::NonZero::new(core::mem::size_of::<u32>()).unwrap();
+    let count = outputs.returned_auth_token_len as usize / U32_BYTES;
     #[cfg(feature = "alloc")]
     {
         buf.resize(count, 0);

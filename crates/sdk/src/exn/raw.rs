@@ -65,7 +65,12 @@ pub(super) fn parse_abort_prefix(
             FaultString::from_display(e),
         ))
     })?;
-    Ok((selector, bytes.len() - reader.remaining_slice().len()))
+    // The reader only ever consumes from `bytes`, so the remainder is a
+    // suffix and this cannot go negative; saturating rather than bare `-`
+    // because a wrapped offset (contract profiles disable overflow checks)
+    // would be used to slice the payload out of `wire`.
+    let consumed = bytes.len().saturating_sub(reader.remaining_slice().len());
+    Ok((selector, consumed))
 }
 
 impl<'s> RawExceptionRef<'s> {

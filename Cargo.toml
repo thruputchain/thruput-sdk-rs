@@ -114,3 +114,22 @@ sha2 = { version = "0.11.0", default-features = false }
 heapless = { version = "0.9.2" }
 hex-literal = "1.0.0"
 linkme = "0.3"
+
+# Lints shared by the crates that compile into a contract guest. Opt in with
+# `[lints] workspace = true` in the crate manifest.
+#
+# `arithmetic_side_effects`: every contract profile sets
+# `overflow-checks = false` (`.cargo/contract.toml`), so in a production
+# contract build a bare `+`/`-`/`*` wraps silently instead of panicking. When
+# the wrapped value feeds a storage keypath, an index that wraps to zero
+# aliases a *different, live* slot — a silent read/write of the wrong data
+# rather than a fault. Denying the lint makes each such site a compile error
+# until the author picks the behavior explicitly: `checked_*` (+ a structured
+# throw), `saturating_*`, or `wrapping_*` where wrapping is the intent.
+#
+# `groundhog-u256` deliberately does NOT opt in: `U256`'s documented contract
+# is to behave exactly like a `u128` primitive, wrapping under
+# `overflow-checks = false`, so its operator bodies are the one place where
+# bare arithmetic is the specification.
+[workspace.lints.clippy]
+arithmetic_side_effects = "deny"

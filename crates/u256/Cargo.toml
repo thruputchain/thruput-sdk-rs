@@ -61,3 +61,11 @@ alloc = ["xdrs/alloc"]
 # decimal-division loop and its rodata, which no release contract should be
 # paying for. `Debug` is NOT behind this feature -- see `fmt.rs`.
 fmt = []
+
+# Deliberately no `[lints] workspace = true`. The workspace denies
+# `clippy::arithmetic_side_effects` for crates that compile into a contract
+# guest, but `U256`'s documented contract is to behave exactly like a `u128`
+# primitive -- wrapping under `overflow-checks = false`, panicking under it --
+# so bare `+`/`-`/`*` in the operator bodies here *is* the specification.
+# Callers who need a decision get `checked_*` / `wrapping_*` / `saturating_*`,
+# and their call sites are covered by the deny.

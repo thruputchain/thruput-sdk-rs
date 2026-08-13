@@ -50,8 +50,13 @@ impl<'a> EmittedEvent<'a> {
             return None;
         }
 
-        let topic_offset = TOPIC_SIZE * index as usize;
-        let topic_extent = topic_offset + TOPIC_SIZE;
+        // Checked rather than bare `*`/`+`: contract profiles build with
+        // `overflow-checks = false`, so a wrap here would silently hand back
+        // some *other* topic's bytes. The bounds above already rule it out;
+        // this makes that a `None` instead of a wrong slice if they ever stop
+        // holding.
+        let topic_offset = TOPIC_SIZE.checked_mul(index as usize)?;
+        let topic_extent = topic_offset.checked_add(TOPIC_SIZE)?;
 
         let topic_bytes = &event.serialized_event[topic_offset..topic_extent];
 

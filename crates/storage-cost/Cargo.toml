@@ -17,3 +17,6 @@ xdrs = { workspace = true, features = ["alloc"] }
 
 [features]
 
+
+[lints]
+workspace = true

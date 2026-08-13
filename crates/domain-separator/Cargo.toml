@@ -32,3 +32,6 @@ syscall = ["groundhog-xdr/syscalls"]
 # has none. Needed by anything running a contract frame natively (native-exec)
 # and by host `--all-features` builds, which enable `syscall` unconditionally.
 syscall-mock = ["syscall", "groundhog-xdr/syscalls_mock"]
+
+[lints]
+workspace = true

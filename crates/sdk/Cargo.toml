@@ -129,3 +129,6 @@ groundhog-wasm-runtime = { workspace = true }
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 groundhog-rv32-runtime = { workspace = true }
+
+[lints]
+workspace = true

@@ -71,6 +71,25 @@ Important storage-model rules:
 - Nested storage structs inside collections must be wrapped in
   [`Node<T>`](storage::Node), for example `Vector<Node<MyFields>>`.
 
+## Index arithmetic and storage keys
+
+Production contract profiles set `overflow-checks = false`, so in a release
+build a bare `+`/`-`/`*` wraps instead of panicking. When a wrapped value
+becomes part of a storage key, the result is not a fault but a *different,
+live slot*: an index advanced past its maximum wraps to zero and addresses
+the same slot a fresh sequence would. Reads return another entry's data and
+writes overwrite it.
+
+The SDK guards its own derivation paths against this by denying
+`clippy::arithmetic_side_effects` in the crates that compile into a guest, so
+every arithmetic site in SDK storage code has to spell out its overflow
+behavior — see the `[workspace.lints.clippy]` comment in the repository root
+`Cargo.toml`. Contract code is a separate crate and is not covered by that
+deny. If your contract derives storage keys from arithmetic on
+caller-controlled values, either enable the same lint in your own manifest or
+use `checked_*` on those values directly; do not rely on an overflow panic
+that the release profile has switched off.
+
 # Contract macros
 
 The [`storage`](macro@crate::storage) macro is shorthand for

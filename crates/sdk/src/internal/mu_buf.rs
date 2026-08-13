@@ -49,7 +49,10 @@ impl<const SIZE: usize> MUBuf<SIZE> {
     /// would overflow the fixed capacity (signature mirrors `heapless::Vec`).
     #[allow(clippy::result_unit_err)]
     pub fn extend_from_slice(&mut self, other: &[u8]) -> Result<(), ()> {
-        let end = self.len + other.len();
+        // Saturating, matching `StaticKeyBuf::append_bytes`: a bare `+` wraps
+        // in contract release builds (`overflow-checks = false`), and a
+        // wrapped `end` would slip past the capacity check below.
+        let end = self.len.saturating_add(other.len());
         if end > SIZE {
             return Err(());
         }

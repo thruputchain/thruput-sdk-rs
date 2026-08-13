@@ -100,7 +100,10 @@ impl<K, V> Map<K, V> {
 
         // O(n^2) check for keys that resolve to the same storage slot.
         for i in 0..N {
-            for j in (i + 1)..N {
+            // `i < N <= usize::MAX`, so this cannot wrap; saturating keeps
+            // the pair loop from silently degenerating if it ever could,
+            // since a skipped pair here means an *undetected* alias.
+            for j in i.saturating_add(1)..N {
                 assert!(
                     !keypaths[i].addresses_same_slot(&keypaths[j]),
                     "at_disjoint_mut: duplicate keys at indices {i} and {j}"

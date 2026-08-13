@@ -17,3 +17,6 @@ crate-type = ["rlib"]
 [dependencies]
 groundhog-xdr = { workspace = true }
 xdrs = { workspace = true }
+
+[lints]
+workspace = true

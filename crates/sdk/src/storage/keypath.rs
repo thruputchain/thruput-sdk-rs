@@ -248,6 +248,10 @@ impl Keypath {
 /// component: `CXS(byte_len) ‖ CXS(domain)`. Kept honest by the
 /// `const_frame_matches_runtime_child` test and by [`frame_domain`]'s
 /// exact-fill assertion.
+// `usize` byte counts over a `&'static str` that must already fit
+// `STATIC_KEYPATH_CAPACITY` (asserted below), evaluated at const time by
+// every caller — exempt from the workspace `arithmetic_side_effects` deny.
+#[allow(clippy::arithmetic_side_effects)]
 pub const fn framed_domain_len(domain: &str) -> usize {
     // 10 = two CXS(u32) length prefixes at their 5-byte maximum. Framed
     // domains share the keypath preimage budget; a domain anywhere near

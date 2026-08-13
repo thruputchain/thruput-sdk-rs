@@ -20,7 +20,16 @@ mod call_tracking_contexts;
 #[cfg(feature = "call_tracking")]
 pub use call_tracking_contexts::*;
 
+// The `const fn` builders below are exempt from the workspace's
+// `arithmetic_side_effects` deny (see the root `Cargo.toml` for why it is
+// denied): every operand is a `usize` slice length or a cursor walking one,
+// so overflowing would take an array longer than the address space. Each
+// builder also asserts its exact output length, which const-evaluates to a
+// compile error for any caller whose `LEN`/`OUT` does not add up. Nothing
+// here reaches a wrapped value the way a keypath index would.
+
 /// Constant-time string equality check for use in `const` assertions.
+#[allow(clippy::arithmetic_side_effects)]
 pub const fn const_str_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
     if a.len() != b.len() {
@@ -43,6 +52,7 @@ pub const fn const_str_eq(a: &str, b: &str) -> bool {
 ///
 /// For `&str` inputs with known lengths, use [`const_str_concat`].
 #[inline]
+#[allow(clippy::arithmetic_side_effects)]
 pub const fn const_str_concat_bytes<
     const N: usize,
     const M: usize,
@@ -71,6 +81,7 @@ pub const fn const_str_concat_bytes<
 /// To obtain a `&str`, use `core::str::from_utf8(&bytes)` in a `const` context
 /// (valid UTF-8 is preserved when both inputs are `&str`).
 #[inline]
+#[allow(clippy::arithmetic_side_effects)]
 pub const fn const_str_concat<
     const N: usize,
     const M: usize,
@@ -102,6 +113,7 @@ pub const fn const_str_concat<
 /// For use from generated `#[contract]` code only.
 #[doc(hidden)]
 #[inline]
+#[allow(clippy::arithmetic_side_effects)]
 pub const fn const_iface_version_mismatch_diagnostic_bytes<
     const P: usize,
     const M: usize,
@@ -179,6 +191,7 @@ pub const fn const_iface_version_mismatch_diagnostic_bytes<
 /// For use from generated `#[contract]` code only.
 #[doc(hidden)]
 #[inline]
+#[allow(clippy::arithmetic_side_effects)]
 pub const fn const_iface_name_mismatch_diagnostic_bytes<
     const P: usize,
     const I: usize,
