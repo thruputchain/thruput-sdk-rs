@@ -164,7 +164,8 @@ mod registry_tests {
                     entry.name,
                 );
             assert_eq!(
-                entry.selector, expected,
+                entry.selector,
+                expected,
                 "registry entry {} has selector 0x{:016x} but its recorded \
                  preimage ({} :: {} :: {}) hashes to 0x{:016x}",
                 entry.name,
