@@ -23,6 +23,12 @@ groundhog-macros = { workspace = true }
 xdrs = { workspace = true }
 
 [dev-dependencies]
+# Self-dependency, to turn features on for tests only. The crate defaults to
+# `no_std` (see `[features]`), but the differential tests exercise `Display`
+# and `FromStr`, so a plain `cargo test` has to build with `std` and `fmt`.
+# Gating those tests on the features instead would let them silently stop
+# running.
+groundhog-u256 = { path = ".", features = ["std", "fmt"] }
 # Oracle only. Parity's `uint` is the implementation this crate replaces;
 # the differential tests assert we agree with it everywhere. It must never
 # become a normal dependency -- its u64 limbs and u128 intermediates are the
@@ -35,7 +41,10 @@ xdrs = { workspace = true, features = ["alloc"] }
 groundhog-contract-spec = { workspace = true }
 
 [features]
-default = ["std"]
+# No default features: this crate is built into contracts, and a guest build
+# that picks up `std` by accident does not link. Hosts opt in with
+# `features = ["std"]`.
+default = []
 std = ["alloc", "fmt", "groundhog-contract-spec/alloc", "xdrs/alloc"]
 alloc = ["xdrs/alloc"]
 

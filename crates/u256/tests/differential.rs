@@ -63,7 +63,7 @@ impl Rng {
     fn next_u256(&mut self, limbs: usize) -> U256 {
         let mut v = U256::ZERO;
         for _ in 0..limbs {
-            v = v.wrapping_shl(64) | U256::from(self.next_u64());
+            v = v.wrapping_shl(64) | U256::from_u64(self.next_u64());
         }
         v
     }
@@ -76,9 +76,9 @@ fn boundary_values() -> Vec<U256> {
         U256::ONE,
         U256::MAX,
         U256::MAX - U256::ONE,
-        U256::from(u32::MAX),
-        U256::from(u32::MAX as u64 + 1),
-        U256::from(u64::MAX),
+        U256::from_u32(u32::MAX),
+        U256::from_u64(u32::MAX as u64 + 1),
+        U256::from_u64(u64::MAX),
         U256::from(u64::MAX as u128 + 1),
         U256::from(u128::MAX),
     ];
@@ -112,9 +112,11 @@ fn from_primitives_matches_oracle() {
     for _ in 0..2000 {
         let a = rng.next_u128();
         assert_eq!(to_oracle(U256::from(a)), O::from(a));
-        assert_eq!(to_oracle(U256::from(a as u64)), O::from(a as u64));
-        assert_eq!(to_oracle(U256::from(a as u32)), O::from(a as u32));
-        assert_eq!(to_oracle(U256::from(a as u8)), O::from(a as u8));
+        // Through `Into`, which is the only route to the narrower `From`
+        // impls now that the inherent `U256::from` shadows them.
+        assert_eq!(to_oracle((a as u64).into()), O::from(a as u64));
+        assert_eq!(to_oracle((a as u32).into()), O::from(a as u32));
+        assert_eq!(to_oracle((a as u8).into()), O::from(a as u8));
     }
 }
 
@@ -203,7 +205,7 @@ fn saturating_and_checked_add_sub() {
     assert_eq!(U256::ZERO.saturating_sub(U256::ONE), U256::ZERO);
     assert_eq!(U256::MAX.checked_add(U256::ONE), None);
     assert_eq!(U256::ZERO.checked_sub(U256::ONE), None);
-    assert_eq!(U256::ONE.checked_add(U256::ONE), Some(U256::from(2u32)));
+    assert_eq!(U256::ONE.checked_add(U256::ONE), Some(U256::from(2)));
     assert_eq!(U256::ONE.checked_sub(U256::ONE), Some(U256::ZERO));
 }
 
@@ -284,7 +286,7 @@ fn mul_u32_matches_general_mul() {
             let a = rng.next_u256(limbs);
             let b = rng.next_u64() as u32;
             let (v, o) = a.overflowing_mul_u32(b);
-            let (ev, eo) = a.overflowing_mul(U256::from(b));
+            let (ev, eo) = a.overflowing_mul(U256::from_u32(b));
             assert_eq!((v, o), (ev, eo), "{a:?} * {b}");
         }
     }
@@ -376,7 +378,7 @@ fn check_div(n: U256, d: U256) {
 fn div_matches_oracle_on_small_values() {
     for a in 0u64..64 {
         for b in 1u64..64 {
-            check_div(U256::from(a), U256::from(b));
+            check_div(U256::from_u64(a), U256::from_u64(b));
         }
     }
 }
@@ -420,10 +422,10 @@ fn div_matches_oracle_on_random_inputs() {
 fn div_matches_oracle_on_estimate_worst_cases() {
     let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
     for _ in 0..4000 {
-        let top = U256::from(u32::MAX);
+        let top = U256::from_u32(u32::MAX);
         for shift in [32u32, 64, 96, 128] {
-            let d =
-                top.wrapping_shl(shift) | U256::from(rng.next_u64() & 0xffff);
+            let d = top.wrapping_shl(shift)
+                | U256::from_u64(rng.next_u64() & 0xffff);
             if d.is_zero() {
                 continue;
             }
@@ -441,15 +443,15 @@ fn div_rem_small_matches_general_div() {
             let n = rng.next_u256(limbs);
             let d = (rng.next_u64() as u32) | 1;
             let (q, r) = n.div_rem_small(d);
-            let (eq, er) = n.div_rem(U256::from(d));
-            assert_eq!((q, U256::from(r)), (eq, er), "{n:?} / {d}");
+            let (eq, er) = n.div_rem(U256::from_u32(d));
+            assert_eq!((q, U256::from_u32(r)), (eq, er), "{n:?} / {d}");
         }
     }
     // Powers of ten, which is what Display drives through this path.
     for d in [10u32, 1_000, 1_000_000_000] {
         let n = U256::from(u128::MAX);
         let (q, r) = n.div_rem_small(d);
-        assert_eq!((q, U256::from(r)), n.div_rem(U256::from(d)));
+        assert_eq!((q, U256::from_u32(r)), n.div_rem(U256::from_u32(d)));
     }
 }
 
@@ -511,14 +513,14 @@ fn check_sqrt(n: U256) {
 #[test]
 fn sqrt_matches_oracle_on_small_values() {
     for i in 0u64..1024 {
-        check_sqrt(U256::from(i));
+        check_sqrt(U256::from_u64(i));
     }
 }
 
 #[test]
 fn sqrt_matches_oracle_on_perfect_squares_and_neighbours() {
     for i in 0u64..512 {
-        let sq = U256::from(i) * U256::from(i);
+        let sq = U256::from_u64(i) * U256::from_u64(i);
         check_sqrt(sq);
         if !sq.is_zero() {
             check_sqrt(sq - U256::ONE);
@@ -553,7 +555,7 @@ fn sqrt_matches_oracle_on_products_of_u128s() {
 fn sqrt_result_is_the_true_floor() {
     let mut rng = Rng(0xc0ff_eec0_ffee_c0ff);
     let mut vals: Vec<U256> = (0u64..2048)
-        .map(|i| U256::from(i) * U256::from(7u64) + U256::from(3u64))
+        .map(|i| U256::from_u64(i) * U256::from(7) + U256::from(3))
         .collect();
     for _ in 0..2000 {
         vals.push(rng.next_u256(4));
@@ -665,7 +667,7 @@ fn sub_overflow_panics_under_overflow_checks() {
 #[test]
 #[should_panic(expected = "attempt to multiply with overflow")]
 fn mul_overflow_panics_under_overflow_checks() {
-    let _ = U256::MAX * U256::from(2u32);
+    let _ = U256::MAX * U256::from(2);
 }
 
 // ---------------------------------------------------------------------------
@@ -769,7 +771,7 @@ fn xdr_round_trips() {
 /// order would still round-trip, so only a fixed vector catches it.
 #[test]
 fn xdr_encoding_is_big_endian() {
-    let n = U256::from(0x0102_0304_0506_0708u64);
+    let n = U256::from(0x0102_0304_0506_0708);
     let bytes = xdrs::txs::encode(&n).expect("encode");
 
     let mut expected = [0u8; 32];
@@ -790,22 +792,22 @@ fn xdr_encoding_is_big_endian() {
 /// annotation, which stops being true if a second integer `Mul` impl is added.
 #[test]
 fn integer_literals_and_operators_need_no_annotations() {
-    let a = U256::from(5u32);
+    let a = U256::from(5);
 
-    assert_eq!(a * 997, U256::from(4985u32));
-    assert_eq!(a + U256::ONE, U256::from(6u32));
-    assert_eq!(a - U256::ONE, U256::from(4u32));
+    assert_eq!(a * 997, U256::from(4985));
+    assert_eq!(a + U256::ONE, U256::from(6));
+    assert_eq!(a - U256::ONE, U256::from(4));
     assert_eq!(a << 112, U256::ONE.wrapping_shl(112) * 5);
-    assert_eq!(a >> 1, U256::from(2u32));
-    assert_eq!(a / U256::from(2u32), U256::from(2u32));
-    assert_eq!(a % U256::from(2u32), U256::ONE);
+    assert_eq!(a >> 1, U256::from(2));
+    assert_eq!(a / U256::from(2), U256::from(2));
+    assert_eq!(a % U256::from(2), U256::ONE);
 
     // Assign forms, including the u32 rhs.
     let mut b = a;
     b += U256::ONE;
     b *= 2;
     b -= U256::ONE;
-    assert_eq!(b, U256::from(11u32));
+    assert_eq!(b, U256::from(11));
 
     // The shapes the swap suite writes today.
     let amount_in = 1_000u128;
@@ -820,7 +822,7 @@ fn integer_literals_and_operators_need_no_annotations() {
 /// the width flag would produce malformed output where it matters most.
 #[test]
 fn formatting_honours_width_and_padding_flags() {
-    let n = U256::from(0x1fu32);
+    let n = U256::from(0x1f);
 
     // Zero-padded fixed width -- the Ethereum-style 32-byte word.
     assert_eq!(format!("{n:064x}"), format!("{:062}1f", 0));

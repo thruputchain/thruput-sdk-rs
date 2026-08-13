@@ -180,7 +180,7 @@ impl core::str::FromStr for U256 {
                 return Err(ParseU256Error::Overflow);
             }
             let (next, overflow) =
-                scaled.overflowing_add(U256::from(byte - b'0'));
+                scaled.overflowing_add(U256::from_u32((byte - b'0') as u32));
             if overflow {
                 return Err(ParseU256Error::Overflow);
             }

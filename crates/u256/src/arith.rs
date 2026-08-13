@@ -3,6 +3,32 @@
 //! The operators mirror the primitives: wrap when `overflow-checks` is off,
 //! panic when it is on. Each `panic!` is guarded by `cfg!(overflow_checks)`,
 //! which const-folds away in a release contract build.
+//!
+//! # Inlining
+//!
+//! The big bodies here are `#[inline(never)]` on rv32 and `#[inline]`
+//! everywhere else. Two things drive that split.
+//!
+//! Deleting `#[inline]` would be a no-op: contract profiles build with fat LTO
+//! and one codegen unit, where LLVM inlines on its own cost model regardless
+//! of the hint. Only `inline(never)` changes anything.
+//!
+//! And the right answer differs by target, because inlining lets LLVM
+//! specialize each copy against known-zero limbs. Measured on rv32 `.text` and
+//! wasm `CODE` against a probe with N distinct call sites, `inline(never)`
+//! breaks even at roughly:
+//!
+//! | function                          | rv32 | wasm |
+//! |-----------------------------------|------|------|
+//! | `widening_mul`, `overflowing_mul` | 1.3  | 5.0  |
+//! | `from_be_bytes`                   | 1.2  | 2.2  |
+//! | `to_be_bytes`                     | 1.8  | 18   |
+//!
+//! Real contracts sit at a handful of call sites (the swap pair has four
+//! multiply sites), so outlining pays on rv32 and costs on wasm. rv32 is where
+//! the 64 KiB artifact cap binds, hence the `cfg_attr`. Keep the small bodies
+//! -- add/sub/shift/compare/`is_zero`/`from_limbs` -- plain `#[inline]`: they
+//! are smaller than the call sequence that would replace them.
 
 use crate::{LIMBS, U256};
 use core::ops::{
@@ -117,7 +143,8 @@ impl U256 {
     /// The shape that dominates real call sites (`a * b / c` over token
     /// amounts). Cannot overflow, so no check and no `Option`; sixteen
     /// `mul`/`mulhu` pairs.
-    #[inline]
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn widening_mul(a: u128, b: u128) -> Self {
         let al = [
             a as u32,
@@ -168,7 +195,11 @@ impl U256 {
     }
 
     /// Wrapping multiplication, with a flag reporting whether it wrapped.
-    #[inline]
+    ///
+    /// Outlined on rv32; see [`U256::widening_mul`] and the note at the top of
+    /// this module.
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let mut out = [0u32; LIMBS];
         let mut overflow = false;
@@ -389,29 +420,81 @@ impl Rem for U256 {
     }
 }
 
-impl Shl<u32> for U256 {
-    type Output = Self;
-
-    #[inline]
-    fn shl(self, rhs: u32) -> Self {
-        if cfg!(overflow_checks) && rhs >= Self::BITS {
-            panic!("attempt to shift left with overflow");
-        }
-        self.wrapping_shl(rhs)
-    }
+/// Splits a shift amount, already widened to `u128`, into the amount the shift
+/// primitives take and whether it was out of range.
+///
+/// Masking, not saturating. The primitives reduce an out-of-range shift modulo
+/// the width, so the amount that survives is the low `log2(BITS)` bits of the
+/// operand: `1u64 << 32` shifts by `(1 << 32) % 256 == 0`, and `-2` shifts by
+/// 254. Collapsing those to `u32::MAX` would shift by 255 in both cases, which
+/// is wrong in exactly the profiles that matter -- with `overflow-checks` off,
+/// the mask is the whole behaviour and nothing panics to hide it.
+///
+/// Callers widen with `as`, which sign-extends, so a negative amount arrives
+/// here as a very large `u128`: out of range for the panic path, and masking to
+/// its own low bits for the wrapping path, both matching the primitives.
+#[inline]
+const fn shift_bits(wide: u128) -> (u32, bool) {
+    ((wide as u32) & (U256::BITS - 1), wide >= U256::BITS as u128)
 }
 
-impl Shr<u32> for U256 {
-    type Output = Self;
+/// Shifts are implemented for every integer type, exactly as the primitives do
+/// it.
+///
+/// The full family is load-bearing, not a convenience: with a single
+/// `Shl<u32>` impl an unsuffixed `x << 112` resolves the literal to `u32` and
+/// builds, but as soon as a second impl exists the literal becomes ambiguous
+/// and falls back to `i32`. Omitting the signed types here would break every
+/// bare-literal shift in the wild.
+macro_rules! impl_shift {
+    ($($t:ty),* $(,)?) => {
+        $(
+            impl Shl<$t> for U256 {
+                type Output = Self;
 
-    #[inline]
-    fn shr(self, rhs: u32) -> Self {
-        if cfg!(overflow_checks) && rhs >= Self::BITS {
-            panic!("attempt to shift right with overflow");
-        }
-        self.wrapping_shr(rhs)
-    }
+                #[inline]
+                fn shl(self, rhs: $t) -> Self {
+                    let (bits, overflow) = shift_bits(rhs as u128);
+                    if cfg!(overflow_checks) && overflow {
+                        panic!("attempt to shift left with overflow");
+                    }
+                    self.wrapping_shl(bits)
+                }
+            }
+
+            impl Shr<$t> for U256 {
+                type Output = Self;
+
+                #[inline]
+                fn shr(self, rhs: $t) -> Self {
+                    let (bits, overflow) = shift_bits(rhs as u128);
+                    if cfg!(overflow_checks) && overflow {
+                        panic!("attempt to shift right with overflow");
+                    }
+                    self.wrapping_shr(bits)
+                }
+            }
+
+            impl ShlAssign<$t> for U256 {
+                #[inline]
+                fn shl_assign(&mut self, rhs: $t) {
+                    *self = <Self as Shl<$t>>::shl(*self, rhs);
+                }
+            }
+
+            impl ShrAssign<$t> for U256 {
+                #[inline]
+                fn shr_assign(&mut self, rhs: $t) {
+                    *self = <Self as Shr<$t>>::shr(*self, rhs);
+                }
+            }
+        )*
+    };
 }
+
+impl_shift!(
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+);
 
 impl Not for U256 {
     type Output = Self;
@@ -471,5 +554,34 @@ impl_assign!(RemAssign, rem_assign, Rem, rem, U256);
 impl_assign!(BitAndAssign, bitand_assign, BitAnd, bitand, U256);
 impl_assign!(BitOrAssign, bitor_assign, BitOr, bitor, U256);
 impl_assign!(BitXorAssign, bitxor_assign, BitXor, bitxor, U256);
-impl_assign!(ShlAssign, shl_assign, Shl, shl, u32);
-impl_assign!(ShrAssign, shr_assign, Shr, shr, u32);
+
+#[cfg(test)]
+mod tests {
+    use super::shift_bits;
+
+    /// The operator-level version of this can only be tested in one profile at
+    /// a time -- with `overflow-checks` on every out-of-range shift panics
+    /// before the mask is observable, and that is the profile tests run in.
+    /// The mask is the entire behaviour of a release contract build, so it is
+    /// pinned here instead.
+    #[test]
+    fn out_of_range_shift_amounts_mask_rather_than_saturate() {
+        assert_eq!(shift_bits(0), (0, false));
+        assert_eq!(shift_bits(255), (255, false));
+        assert_eq!(shift_bits(256), (0, true));
+        // 300 % 256; saturating to `u32::MAX` would have said 255.
+        assert_eq!(shift_bits(300), (44, true));
+        // Wider than `u32`: the low bits survive the narrowing.
+        assert_eq!(shift_bits(1u128 << 32), (0, true));
+        assert_eq!(shift_bits((1u128 << 32) + 7), (7, true));
+    }
+
+    /// Callers widen with `as`, so negatives arrive sign-extended.
+    #[test]
+    fn negative_shift_amounts_mask_to_their_low_bits() {
+        assert_eq!(shift_bits(-1i32 as u128), (255, true));
+        // Saturating gave 255 here too, which is the bug: -2 is 254.
+        assert_eq!(shift_bits(-2i32 as u128), (254, true));
+        assert_eq!(shift_bits(-256i64 as u128), (0, true));
+    }
+}
