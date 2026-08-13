@@ -111,8 +111,15 @@ required-features = ["std"]
 
 # RV32 and WASM contracts use real syscalls into hogd. Host-native builds use
 # the mock syscall implementation linked through native-exec.
+#
+# `groundhog-u256/nightly` rides the same gate: guest builds always run a
+# nightly toolchain, so contracts get the exact `cfg(overflow_checks)` keying,
+# while host builds of `sdk` (the CLI's spec-tool path) stay compilable on
+# stable. Resolver v2+ keeps features of an inactive target's dependencies out
+# of unification, so this cannot leak into host builds.
 [target.'cfg(any(target_family = "wasm", target_arch = "riscv32"))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls"] }
+groundhog-u256 = { workspace = true, features = ["nightly"] }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }

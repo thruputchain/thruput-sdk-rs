@@ -11,10 +11,13 @@
 //! `overflow-checks` is off (as every contract profile sets it) and panic when
 //! it is on. Use [`U256::checked_add`] and friends where it matters.
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
-// Keys the operators off the same flag rustc uses for the primitives.
-// `cfg(debug_assertions)` is a faithful stable substitute here -- every profile
-// in this workspace moves the two together.
-#![feature(cfg_overflow_checks)]
+// Keys the operators off the same flag rustc uses for the primitives. Behind
+// a cargo feature so stable consumers (the CLI's spec-tool build) can compile
+// this crate: without it the operators fall back to `cfg(debug_assertions)`, a
+// faithful substitute here -- every profile in this workspace moves the two
+// together. Guest builds always run nightly and get `nightly` through `sdk`'s
+// target-gated dependency, so contracts keep the exact keying.
+#![cfg_attr(feature = "nightly", feature(cfg_overflow_checks))]
 
 mod arith;
 mod div;
