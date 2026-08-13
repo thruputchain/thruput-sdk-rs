@@ -435,6 +435,57 @@ fn div_matches_oracle_on_estimate_worst_cases() {
     }
 }
 
+// The quotient-digit estimate takes a separate branch when the running
+// remainder's top limb equals the divisor's: the true digit is then at least
+// `B`, so the estimate is clamped instead of divided out. Random inputs reach
+// that branch with probability ~2^-32 per digit, so it needs building by hand.
+//
+// With `v` already normalised (top bit set, so the division does not shift),
+// `u = q * v * B^k + R` divides as digit `q` followed by the digits of
+// `R / v`. Give `R` the same leading limb as `v` -- legal as long as
+// `R < v * B^k`, which the lower limbs arrange -- and the next digit's
+// estimate starts on the clamp.
+fn check_div_from_limbs(v: &[u32], r: &[u32], q: u32) {
+    let shift = 32 * (r.len() - v.len()) as u32;
+
+    let mut limbs = [0u32; 8];
+    limbs[..v.len()].copy_from_slice(v);
+    let v = U256::from_limbs(limbs);
+
+    let mut limbs = [0u32; 8];
+    limbs[..r.len()].copy_from_slice(r);
+    let r = U256::from_limbs(limbs);
+
+    check_div((v * U256::from_u32(q)).wrapping_shl(shift) + r, v);
+}
+
+#[test]
+fn div_matches_oracle_when_the_digit_estimate_is_clamped() {
+    // `r1 < v0` keeps `R` below `v * B`; `r1 + v1` is the partial remainder
+    // the clamp hands to the correction loop, and the big values push it past
+    // `B`, where the correction test is vacuous.
+    for v1 in [0x8000_0000u32, 0x8000_0001, 0xc000_0001, u32::MAX] {
+        for v0 in [1u32, 2, 0x7fff_ffff, 0x8000_0000, u32::MAX] {
+            for r1 in [0, 1, v0 / 2, v0 - 1] {
+                for r0 in [0u32, 1, 0x8000_0000, u32::MAX] {
+                    for q in [1u32, 2, 0x8000_0000, 0xffff_fffe, u32::MAX] {
+                        // Two-limb divisor: R = [r0, r1, v1].
+                        check_div_from_limbs(&[v0, v1], &[r0, r1, v1], q);
+
+                        // Three-limb divisor: R = [r0, r1, r2, v1], where
+                        // `r2 < vm` is what keeps `R < v * B`.
+                        check_div_from_limbs(
+                            &[r0, v0, v1],
+                            &[r0, r1, v0 - 1, v1],
+                            q,
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn div_rem_small_matches_general_div() {
     let mut rng = Rng(0xf00d_f00d_f00d_f00d);
