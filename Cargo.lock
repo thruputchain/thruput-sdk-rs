@@ -498,6 +498,8 @@ version = "0.19.3"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
+ "groundhog-erc1271-if",
+ "groundhog-erc20-if",
  "sdk",
  "serde_json",
  "tempfile",

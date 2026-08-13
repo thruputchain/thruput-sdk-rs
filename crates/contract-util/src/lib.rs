@@ -205,7 +205,19 @@ pub fn exception_selector(
     type_name: &str,
 ) -> u64 {
     let major_version = semver::major_version_from_string(version_str);
+    exception_selector_from_major(&major_version, crate_name, type_name)
+}
 
+/// [`exception_selector`] with the major version already derived (the exact
+/// preimage component, e.g. `"1"` or `"0.9"` — not a full semver string).
+///
+/// Use this when checking a recorded (major_version, crate_name, type_name)
+/// preimage against a baked selector.
+pub fn exception_selector_from_major(
+    major_version: &str,
+    crate_name: &str,
+    type_name: &str,
+) -> u64 {
     let mut hasher = sha2::Sha256::new();
     hasher.update(major_version.as_bytes());
     hasher.update(b"::");
