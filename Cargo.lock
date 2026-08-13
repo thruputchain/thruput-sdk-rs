@@ -547,6 +547,7 @@ version = "0.19.1"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-macros",
+ "groundhog-u256",
  "uint",
  "xdrs",
 ]

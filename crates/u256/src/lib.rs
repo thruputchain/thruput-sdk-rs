@@ -79,6 +79,44 @@ impl U256 {
         Self { limbs }
     }
 
+    /// Constructs a value from a `u128`.
+    ///
+    /// Inherent, and deliberately so. `From` is implemented for every unsigned
+    /// width, which leaves `U256::from(1000)` ambiguous -- an unsuffixed
+    /// literal matches all of them -- and an inherent function shadows the
+    /// trait for the path form, pinning the literal to `u128`. It is also
+    /// usable in const position, which `From::from` is not.
+    ///
+    /// The trait impls are untouched, so `.into()` and generic `T: Into<U256>`
+    /// code still convert from any width. What this shadowing costs is
+    /// `U256::from(x)` for an `x` narrower than `u128`; use `x.into()` or
+    /// [`from_u32`](Self::from_u32) / [`from_u64`](Self::from_u64) there.
+    #[inline]
+    pub const fn from(n: u128) -> Self {
+        Self::from_limbs([
+            n as u32,
+            (n >> 32) as u32,
+            (n >> 64) as u32,
+            (n >> 96) as u32,
+            0,
+            0,
+            0,
+            0,
+        ])
+    }
+
+    /// Constructs a value from a `u32`, without widening at the call site.
+    #[inline]
+    pub const fn from_u32(n: u32) -> Self {
+        Self::from_limbs([n, 0, 0, 0, 0, 0, 0, 0])
+    }
+
+    /// Constructs a value from a `u64`, without widening at the call site.
+    #[inline]
+    pub const fn from_u64(n: u64) -> Self {
+        Self::from_limbs([n as u32, (n >> 32) as u32, 0, 0, 0, 0, 0, 0])
+    }
+
     /// Returns the limbs, least-significant-first.
     #[inline]
     pub const fn to_limbs(self) -> [u32; LIMBS] {
@@ -133,7 +171,11 @@ impl U256 {
     }
 
     /// Returns the big-endian byte representation.
-    #[inline]
+    ///
+    /// Outlined on rv32 -- every contract that stores a `U256` pays for this
+    /// one. See the inlining note in `arith`.
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
         let mut out = [0u8; 32];
         let mut i = 0;
@@ -151,7 +193,10 @@ impl U256 {
     }
 
     /// Constructs a value from its big-endian byte representation.
-    #[inline]
+    ///
+    /// Outlined on rv32; see the inlining note in `arith`.
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
         let mut limbs = [0u32; LIMBS];
         let mut i = 0;
@@ -172,15 +217,16 @@ impl U256 {
 // Conversions
 // ---------------------------------------------------------------------------
 
+// The bodies below all resolve to the inherent constructors, not to each
+// other: an inherent function shadows the trait for the `Self::from` path
+// form, so `Self::from(n)` inside `impl From<u128>` is not recursive.
 macro_rules! impl_from_small {
     ($($t:ty),* $(,)?) => {
         $(
             impl From<$t> for U256 {
                 #[inline]
                 fn from(n: $t) -> Self {
-                    let mut limbs = [0u32; LIMBS];
-                    limbs[0] = n as u32;
-                    Self::from_limbs(limbs)
+                    Self::from_u32(n as u32)
                 }
             }
         )*
@@ -192,22 +238,14 @@ impl_from_small!(u8, u16, u32);
 impl From<u64> for U256 {
     #[inline]
     fn from(n: u64) -> Self {
-        let mut limbs = [0u32; LIMBS];
-        limbs[0] = n as u32;
-        limbs[1] = (n >> 32) as u32;
-        Self::from_limbs(limbs)
+        Self::from_u64(n)
     }
 }
 
 impl From<u128> for U256 {
     #[inline]
     fn from(n: u128) -> Self {
-        let mut limbs = [0u32; LIMBS];
-        limbs[0] = n as u32;
-        limbs[1] = (n >> 32) as u32;
-        limbs[2] = (n >> 64) as u32;
-        limbs[3] = (n >> 96) as u32;
-        Self::from_limbs(limbs)
+        Self::from(n)
     }
 }
 

@@ -3,6 +3,32 @@
 //! The operators mirror the primitives: wrap when `overflow-checks` is off,
 //! panic when it is on. Each `panic!` is guarded by `cfg!(overflow_checks)`,
 //! which const-folds away in a release contract build.
+//!
+//! # Inlining
+//!
+//! The big bodies here are `#[inline(never)]` on rv32 and `#[inline]`
+//! everywhere else. Two things drive that split.
+//!
+//! Deleting `#[inline]` would be a no-op: contract profiles build with fat LTO
+//! and one codegen unit, where LLVM inlines on its own cost model regardless
+//! of the hint. Only `inline(never)` changes anything.
+//!
+//! And the right answer differs by target, because inlining lets LLVM
+//! specialize each copy against known-zero limbs. Measured on rv32 `.text` and
+//! wasm `CODE` against a probe with N distinct call sites, `inline(never)`
+//! breaks even at roughly:
+//!
+//! | function                          | rv32 | wasm |
+//! |-----------------------------------|------|------|
+//! | `widening_mul`, `overflowing_mul` | 1.3  | 5.0  |
+//! | `from_be_bytes`                   | 1.2  | 2.2  |
+//! | `to_be_bytes`                     | 1.8  | 18   |
+//!
+//! Real contracts sit at a handful of call sites (the swap pair has four
+//! multiply sites), so outlining pays on rv32 and costs on wasm. rv32 is where
+//! the 64 KiB artifact cap binds, hence the `cfg_attr`. Keep the small bodies
+//! -- add/sub/shift/compare/`is_zero`/`from_limbs` -- plain `#[inline]`: they
+//! are smaller than the call sequence that would replace them.
 
 use crate::{LIMBS, U256};
 use core::ops::{
@@ -117,7 +143,8 @@ impl U256 {
     /// The shape that dominates real call sites (`a * b / c` over token
     /// amounts). Cannot overflow, so no check and no `Option`; sixteen
     /// `mul`/`mulhu` pairs.
-    #[inline]
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn widening_mul(a: u128, b: u128) -> Self {
         let al = [
             a as u32,
@@ -168,7 +195,11 @@ impl U256 {
     }
 
     /// Wrapping multiplication, with a flag reporting whether it wrapped.
-    #[inline]
+    ///
+    /// Outlined on rv32; see [`U256::widening_mul`] and the note at the top of
+    /// this module.
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let mut out = [0u32; LIMBS];
         let mut overflow = false;
@@ -389,29 +420,76 @@ impl Rem for U256 {
     }
 }
 
-impl Shl<u32> for U256 {
-    type Output = Self;
-
-    #[inline]
-    fn shl(self, rhs: u32) -> Self {
-        if cfg!(overflow_checks) && rhs >= Self::BITS {
-            panic!("attempt to shift left with overflow");
-        }
-        self.wrapping_shl(rhs)
-    }
+/// Normalizes a shift amount of any integer type to the `u32` the shift
+/// primitives take.
+///
+/// Saturating rather than `as`: a `u64` amount of `1 << 32` truncates to `0`
+/// under `as`, which would silently shift by nothing instead of overflowing.
+/// Negative amounts saturate to `u32::MAX`, whose low bits are all ones -- the
+/// same value `-1 as u32` masks to, so the wrapping behaviour still matches the
+/// primitives.
+#[inline]
+fn shift_amount<T: TryInto<u32>>(n: T) -> u32 {
+    n.try_into().unwrap_or(u32::MAX)
 }
 
-impl Shr<u32> for U256 {
-    type Output = Self;
+/// Shifts are implemented for every integer type, exactly as the primitives do
+/// it.
+///
+/// The full family is load-bearing, not a convenience: with a single
+/// `Shl<u32>` impl an unsuffixed `x << 112` resolves the literal to `u32` and
+/// builds, but as soon as a second impl exists the literal becomes ambiguous
+/// and falls back to `i32`. Omitting the signed types here would break every
+/// bare-literal shift in the wild.
+macro_rules! impl_shift {
+    ($($t:ty),* $(,)?) => {
+        $(
+            impl Shl<$t> for U256 {
+                type Output = Self;
 
-    #[inline]
-    fn shr(self, rhs: u32) -> Self {
-        if cfg!(overflow_checks) && rhs >= Self::BITS {
-            panic!("attempt to shift right with overflow");
-        }
-        self.wrapping_shr(rhs)
-    }
+                #[inline]
+                fn shl(self, rhs: $t) -> Self {
+                    let rhs = shift_amount(rhs);
+                    if cfg!(overflow_checks) && rhs >= Self::BITS {
+                        panic!("attempt to shift left with overflow");
+                    }
+                    self.wrapping_shl(rhs)
+                }
+            }
+
+            impl Shr<$t> for U256 {
+                type Output = Self;
+
+                #[inline]
+                fn shr(self, rhs: $t) -> Self {
+                    let rhs = shift_amount(rhs);
+                    if cfg!(overflow_checks) && rhs >= Self::BITS {
+                        panic!("attempt to shift right with overflow");
+                    }
+                    self.wrapping_shr(rhs)
+                }
+            }
+
+            impl ShlAssign<$t> for U256 {
+                #[inline]
+                fn shl_assign(&mut self, rhs: $t) {
+                    *self = <Self as Shl<$t>>::shl(*self, rhs);
+                }
+            }
+
+            impl ShrAssign<$t> for U256 {
+                #[inline]
+                fn shr_assign(&mut self, rhs: $t) {
+                    *self = <Self as Shr<$t>>::shr(*self, rhs);
+                }
+            }
+        )*
+    };
 }
+
+impl_shift!(
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+);
 
 impl Not for U256 {
     type Output = Self;
@@ -471,5 +549,3 @@ impl_assign!(RemAssign, rem_assign, Rem, rem, U256);
 impl_assign!(BitAndAssign, bitand_assign, BitAnd, bitand, U256);
 impl_assign!(BitOrAssign, bitor_assign, BitOr, bitor, U256);
 impl_assign!(BitXorAssign, bitxor_assign, BitXor, bitxor, U256);
-impl_assign!(ShlAssign, shl_assign, Shl, shl, u32);
-impl_assign!(ShrAssign, shr_assign, Shr, shr, u32);
