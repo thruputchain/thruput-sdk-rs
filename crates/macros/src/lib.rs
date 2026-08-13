@@ -154,6 +154,11 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// `client = ClientIdent`, `throws = Error` / `throws(E1, E2)`,
 /// `emits(Event1, Event2)`.
 ///
+/// No `throws(...)` type may contain a `sdk::signer::Signed`: abort frames
+/// carry no auth-token handles, so such a payload could only decode to an
+/// uninitialized sentinel. Spec canonicalization rejects it when the
+/// contract is built. See `#[contract_exception]`.
+///
 /// # Limitations
 ///
 /// Generic parameters — including explicit lifetime parameters — are not
@@ -257,6 +262,14 @@ pub fn derive_deletable(input: TokenStream) -> TokenStream {
 /// `#[exn]` or `#[exn(version = "1.0.0")]` — emits `impl Exn` with a
 /// computed selector. Use this when you handle your own derives.
 /// For the full convenience macro, use `#[contract_exception]` instead.
+///
+/// Handling your own derives means owning the rule that
+/// `#[contract_exception]` enforces structurally: **an exception payload
+/// may not contain a `sdk::signer::Signed`**, because abort
+/// frames carry no auth-token handles and such a field could only decode to
+/// an uninitialized sentinel. See `#[contract_exception]` for the full
+/// reasoning. Nothing here can check that for you, but the contract's spec
+/// is validated at build time and will reject it.
 #[proc_macro_attribute]
 pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
     let item = syn::parse_macro_input!(item_tokens as syn::Item);
@@ -269,6 +282,28 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
 /// `#[contract_exception]` or `#[contract_exception(version = "1.0.0", name = "...")]` —
 /// full convenience macro: derives + `#[repr(i32)]` + `impl Exn` +
 /// `impl ContractTypeName`.
+///
+/// # Exception payloads cannot carry auth tokens
+///
+/// No field may be — or contain — a `sdk::signer::Signed`.
+///
+/// A `Signed` occupies zero wire bytes; its real handle arrives out of band
+/// in the auth-token list the host returns beside a *successful* return.
+/// Abort frames carry no such list (the host refuses to return auth tokens
+/// on a revert frame), so a `Signed` reached through an exception decodes
+/// to the uninitialized `u32::MAX` sentinel — a value that looks like an
+/// auth token, is not one, and faults when consumed or returned.
+///
+/// There is no way to write this correctly, so hand the token back through
+/// a successful return instead, or identify it by something inert (the
+/// minter's address, an id) and let the caller re-obtain it.
+///
+/// Two things catch it. This macro's derives block the direct route —
+/// `Signed` implements neither `Clone` nor `PartialEq`, both derived here —
+/// so reaching the situation at all takes hand-written impls (or `#[exn]`).
+/// Beyond that, spec canonicalization walks each `throws(...)` payload when
+/// the contract is built and rejects any that reaches a signed token,
+/// however deeply nested, so hand-rolled types do not slip through.
 #[proc_macro_attribute]
 pub fn contract_exception(
     attr_args: TokenStream,
