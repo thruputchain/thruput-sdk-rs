@@ -10,6 +10,13 @@
 //! [`U256`] behaves like `u128` on overflow: the operators wrap when
 //! `overflow-checks` is off (as every contract profile sets it) and panic when
 //! it is on. Use [`U256::checked_add`] and friends where it matters.
+//!
+//! The keying is exact under the `nightly` feature (guest builds get it
+//! through `sdk`), which reads rustc's real `overflow-checks` flag. Without
+//! it — on a stable compiler, where that cfg does not exist — the operators
+//! key off `debug-assertions` instead. The two flags move together in every
+//! standard profile; a stable build of a profile that splits them gets the
+//! `debug-assertions` behavior.
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 // Keys the operators off the same flag rustc uses for the primitives. Behind
 // a cargo feature so stable consumers (the CLI's spec-tool build) can compile
