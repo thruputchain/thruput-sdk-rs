@@ -420,17 +420,22 @@ impl Rem for U256 {
     }
 }
 
-/// Normalizes a shift amount of any integer type to the `u32` the shift
-/// primitives take.
+/// Splits a shift amount, already widened to `u128`, into the amount the shift
+/// primitives take and whether it was out of range.
 ///
-/// Saturating rather than `as`: a `u64` amount of `1 << 32` truncates to `0`
-/// under `as`, which would silently shift by nothing instead of overflowing.
-/// Negative amounts saturate to `u32::MAX`, whose low bits are all ones -- the
-/// same value `-1 as u32` masks to, so the wrapping behaviour still matches the
-/// primitives.
+/// Masking, not saturating. The primitives reduce an out-of-range shift modulo
+/// the width, so the amount that survives is the low `log2(BITS)` bits of the
+/// operand: `1u64 << 32` shifts by `(1 << 32) % 256 == 0`, and `-2` shifts by
+/// 254. Collapsing those to `u32::MAX` would shift by 255 in both cases, which
+/// is wrong in exactly the profiles that matter -- with `overflow-checks` off,
+/// the mask is the whole behaviour and nothing panics to hide it.
+///
+/// Callers widen with `as`, which sign-extends, so a negative amount arrives
+/// here as a very large `u128`: out of range for the panic path, and masking to
+/// its own low bits for the wrapping path, both matching the primitives.
 #[inline]
-fn shift_amount<T: TryInto<u32>>(n: T) -> u32 {
-    n.try_into().unwrap_or(u32::MAX)
+const fn shift_bits(wide: u128) -> (u32, bool) {
+    ((wide as u32) & (U256::BITS - 1), wide >= U256::BITS as u128)
 }
 
 /// Shifts are implemented for every integer type, exactly as the primitives do
@@ -449,11 +454,11 @@ macro_rules! impl_shift {
 
                 #[inline]
                 fn shl(self, rhs: $t) -> Self {
-                    let rhs = shift_amount(rhs);
-                    if cfg!(overflow_checks) && rhs >= Self::BITS {
+                    let (bits, overflow) = shift_bits(rhs as u128);
+                    if cfg!(overflow_checks) && overflow {
                         panic!("attempt to shift left with overflow");
                     }
-                    self.wrapping_shl(rhs)
+                    self.wrapping_shl(bits)
                 }
             }
 
@@ -462,11 +467,11 @@ macro_rules! impl_shift {
 
                 #[inline]
                 fn shr(self, rhs: $t) -> Self {
-                    let rhs = shift_amount(rhs);
-                    if cfg!(overflow_checks) && rhs >= Self::BITS {
+                    let (bits, overflow) = shift_bits(rhs as u128);
+                    if cfg!(overflow_checks) && overflow {
                         panic!("attempt to shift right with overflow");
                     }
-                    self.wrapping_shr(rhs)
+                    self.wrapping_shr(bits)
                 }
             }
 
@@ -549,3 +554,34 @@ impl_assign!(RemAssign, rem_assign, Rem, rem, U256);
 impl_assign!(BitAndAssign, bitand_assign, BitAnd, bitand, U256);
 impl_assign!(BitOrAssign, bitor_assign, BitOr, bitor, U256);
 impl_assign!(BitXorAssign, bitxor_assign, BitXor, bitxor, U256);
+
+#[cfg(test)]
+mod tests {
+    use super::shift_bits;
+
+    /// The operator-level version of this can only be tested in one profile at
+    /// a time -- with `overflow-checks` on every out-of-range shift panics
+    /// before the mask is observable, and that is the profile tests run in.
+    /// The mask is the entire behaviour of a release contract build, so it is
+    /// pinned here instead.
+    #[test]
+    fn out_of_range_shift_amounts_mask_rather_than_saturate() {
+        assert_eq!(shift_bits(0), (0, false));
+        assert_eq!(shift_bits(255), (255, false));
+        assert_eq!(shift_bits(256), (0, true));
+        // 300 % 256; saturating to `u32::MAX` would have said 255.
+        assert_eq!(shift_bits(300), (44, true));
+        // Wider than `u32`: the low bits survive the narrowing.
+        assert_eq!(shift_bits(1u128 << 32), (0, true));
+        assert_eq!(shift_bits((1u128 << 32) + 7), (7, true));
+    }
+
+    /// Callers widen with `as`, so negatives arrive sign-extended.
+    #[test]
+    fn negative_shift_amounts_mask_to_their_low_bits() {
+        assert_eq!(shift_bits(-1i32 as u128), (255, true));
+        // Saturating gave 255 here too, which is the bug: -2 is 254.
+        assert_eq!(shift_bits(-2i32 as u128), (254, true));
+        assert_eq!(shift_bits(-256i64 as u128), (0, true));
+    }
+}
