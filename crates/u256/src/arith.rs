@@ -347,13 +347,13 @@ impl U256 {
 // ---------------------------------------------------------------------------
 
 // With the `nightly` feature this is the same flag rustc keys the primitives'
-// operators off; the stable fallback reads `debug_assertions`, which every
-// profile in this workspace moves in lockstep with `overflow-checks` (see the
-// gate in lib.rs).
+// operators off. The stable fallback is unconditionally `true`: stable
+// consumers are host tools, never gas-metered contracts, so they pay the
+// guard rather than ever silently wrapping (see the gate in lib.rs).
 #[cfg(feature = "nightly")]
 const OVERFLOW_CHECKS: bool = cfg!(overflow_checks);
 #[cfg(not(feature = "nightly"))]
-const OVERFLOW_CHECKS: bool = cfg!(debug_assertions);
+const OVERFLOW_CHECKS: bool = true;
 
 impl Add for U256 {
     type Output = Self;
