@@ -6,7 +6,7 @@ on:
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   # Note: Changes here should usually be mirrored in
-  #   publish_standard_interfaces.yml
+  #   publish_standard_interfaces.yml and publish_dry_run.yml
   PUBLISH_PACKAGES: >-
     groundhog-event
     groundhog-storage-cost
@@ -62,6 +62,27 @@ jobs:
         uses: ./actions/cargo-publish-dry-run
         with:
           packages: ${{ env.PUBLISH_PACKAGES }}
+          # groundhog-spec-tool exact-pins the standard-interface crates, which
+          # are workspace path deps here — `cargo vendor` skips those, so the
+          # offline packaging steps need them pre-vendored. Pre-vendoring an
+          # interface crate resolves its deps against vendor/ too, so the
+          # primaries it depends on come first, in dependency order (same list
+          # as publish_standard_interfaces.yml).
+          vendor-workspace-deps:
+            groundhog-storage-cost
+            groundhog-event
+            groundhog-contract-util
+            groundhog-contract-spec
+            groundhog-sys
+            groundhog-domain-separator
+            groundhog-native-exec
+            groundhog-macros
+            groundhog-u256
+            groundhog-rv32-runtime
+            groundhog-wasm-runtime
+            sdk
+            groundhog-erc20-if
+            groundhog-erc1271-if
           # groundhog-domain-separator's backends are additive, so most combinations
           # are fine. The exception is a bare `syscall`: it forwards to
           # `groundhog-xdr/syscalls`, which has no dispatch path on the host.
@@ -89,6 +110,10 @@ jobs:
           git push origin ${{ steps.publish-tag.outputs.tag }}
           git remote set-url origin git@github.com:${{ github.repository }}.git
           
+      # Unlike the dry run, this resolves deps against the live registry:
+      # groundhog-spec-tool's exact-pinned standard-interface versions must
+      # already be published (publish_standard_interfaces.yml runs first
+      # whenever those pins are bumped).
       - name: publish
         uses: ./actions/cargo-publish
         with:

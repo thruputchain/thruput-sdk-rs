@@ -6,6 +6,15 @@ use xdrs::txs;
 
 pub struct DescribableType {
     pub name: &'static str,
+    /// `CARGO_PKG_NAME` of the crate defining the type — the selector
+    /// preimage's crate component.
+    pub crate_name: &'static str,
+    /// Major version in the selector preimage (`"1"`, `"0.1"`, ...), as
+    /// derived by `groundhog_contract_util::semver` from the version the
+    /// type's macro baked in. The registry invariant test recomputes each
+    /// selector from these fields, so an entry that skews from its crate's
+    /// actual selector fails the build here.
+    pub major_version: &'static str,
     pub selector: u64,
     pub fragments: &'static [SpecFragmentView<'static>],
     pub root: &'static str,
@@ -20,15 +29,48 @@ const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
     sdk::exn::__groundhog_spec_fragment_FaultString,
 ];
 
-pub const REGISTRY: &[DescribableType] = &[DescribableType {
-    name: "LibraryExn",
-    selector: <sdk::exn::LibraryExn as sdk::exn::Exn>::SELECTOR,
-    fragments: LIBRARY_EXN_FRAGMENTS,
-    root: "LibraryExn",
-}];
+const ERC20_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[groundhog_erc20_if::__groundhog_spec_fragment_ERC20Error];
+
+const ERC1271_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[groundhog_erc1271_if::__groundhog_spec_fragment_ERC1271Error];
+
+pub const REGISTRY: &[DescribableType] = &[
+    DescribableType {
+        name: "LibraryExn",
+        crate_name: "sdk",
+        // The sdk pins `#[exn(version = "1.0.0")]` rather than tracking
+        // CARGO_PKG_VERSION.
+        major_version: "1",
+        selector: <sdk::exn::LibraryExn as sdk::exn::Exn>::SELECTOR,
+        fragments: LIBRARY_EXN_FRAGMENTS,
+        root: "LibraryExn",
+    },
+    DescribableType {
+        name: "ERC20Error",
+        crate_name: "groundhog-erc20-if",
+        major_version: "0.1",
+        selector: <groundhog_erc20_if::ERC20Error as sdk::exn::Exn>::SELECTOR,
+        fragments: ERC20_ERROR_FRAGMENTS,
+        root: "ERC20Error",
+    },
+    DescribableType {
+        name: "ERC1271Error",
+        crate_name: "groundhog-erc1271-if",
+        major_version: "0.1",
+        selector:
+            <groundhog_erc1271_if::ERC1271Error as sdk::exn::Exn>::SELECTOR,
+        fragments: ERC1271_ERROR_FRAGMENTS,
+        root: "ERC1271Error",
+    },
+];
 
 pub fn lookup(name: &str) -> Option<&'static DescribableType> {
     REGISTRY.iter().find(|t| t.name == name)
+}
+
+pub fn lookup_by_selector(selector: u64) -> Option<&'static DescribableType> {
+    REGISTRY.iter().find(|t| t.selector == selector)
 }
 
 pub struct DescribeOutput {
@@ -106,4 +148,57 @@ pub fn write_output<W: Write>(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn selectors_match_recorded_preimage() {
+        for entry in REGISTRY {
+            let expected =
+                groundhog_contract_util::exception_selector_from_major(
+                    entry.major_version,
+                    entry.crate_name,
+                    entry.name,
+                );
+            assert_eq!(
+                entry.selector,
+                expected,
+                "registry entry {} has selector 0x{:016x} but its recorded \
+                 preimage ({} :: {} :: {}) hashes to 0x{:016x}",
+                entry.name,
+                entry.selector,
+                entry.major_version,
+                entry.crate_name,
+                entry.name,
+                expected,
+            );
+        }
+    }
+
+    #[test]
+    fn names_and_selectors_unique() {
+        for (i, a) in REGISTRY.iter().enumerate() {
+            for b in &REGISTRY[i + 1..] {
+                assert_ne!(a.name, b.name);
+                assert_ne!(
+                    a.selector, b.selector,
+                    "{} and {} share a selector",
+                    a.name, b.name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lookup_by_selector_finds_each_entry() {
+        for entry in REGISTRY {
+            let found = lookup_by_selector(entry.selector)
+                .expect("registered selector must resolve");
+            assert_eq!(found.name, entry.name);
+        }
+        assert!(lookup_by_selector(0).is_none());
+    }
 }
