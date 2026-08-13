@@ -12,6 +12,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bigint-bench"
+version = "0.19.1"
+dependencies = [
+ "bigint-bench-if",
+ "sdk",
+]
+
+[[package]]
+name = "bigint-bench-if"
+version = "0.19.1"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.71.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

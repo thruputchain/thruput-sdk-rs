@@ -21,6 +21,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "bigint-bench-contract"
+version = "0.4.0"
+dependencies = [
+ "bigint-bench-contract",
+ "bigint-bench-if",
+ "sdk",
+ "uint",
+]
+
+[[package]]
+name = "bigint-bench-if"
+version = "0.19.1"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
