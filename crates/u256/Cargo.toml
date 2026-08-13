@@ -28,6 +28,13 @@ xdrs = { workspace = true }
 # and `FromStr`, so a plain `cargo test` has to build with `std` and `fmt`.
 # Gating those tests on the features instead would let them silently stop
 # running.
+#
+# Side effect: feature unification means every `cargo test -p groundhog-u256`
+# builds the lib with `std` + `fmt`, and `--no-default-features` is silently a
+# no-op for tests -- the no-feature guest config is only ever *compiled*, never
+# tested. `test_package` in scripts/dev.sh keeps a
+# `cargo check --no-default-features` alongside the tests so that config
+# cannot rot unnoticed.
 groundhog-u256 = { path = ".", features = ["std", "fmt"] }
 # Oracle only. Parity's `uint` is the implementation this crate replaces;
 # the differential tests assert we agree with it everywhere. It must never

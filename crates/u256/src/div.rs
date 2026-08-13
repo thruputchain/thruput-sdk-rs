@@ -2,10 +2,12 @@
 //!
 //! [`U256::div_rem_small`] is a separate function rather than a fast path
 //! inside [`U256::div_rem`], so a contract that only divides by constants (or
-//! formats a decimal) links the cheap routine and not Knuth D. Measured on an
-//! rv32 probe linking one call and nothing else: the general path costs 1,576
-//! bytes of text on top of the small one. (It was 2,836 before the quotient
-//! estimate stopped going through `__udivdi3` -- see the estimate below.)
+//! formats a decimal) links the cheap routine and not Knuth D. Measured by
+//! `scripts/bigint-bench.sh -b u256 -o "div div_small"`: linking `div` adds
+//! 2,640 bytes of rv32 .text where `div_small` adds 680, so the general path
+//! costs 1,960 on top of the small one. (It was 240 more before the Knuth D
+//! loop called `div_rem_2by1_normalized` directly, and far worse when the
+//! quotient estimate went through `__udivdi3` -- see the estimate below.)
 
 use crate::{LIMBS, U256};
 
@@ -27,25 +29,40 @@ const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
     debug_assert!(hi < d);
 
     // Normalise so the divisor's high bit is set, which is what bounds the
-    // half-digit estimates below.
+    // half-digit estimates in the core.
     let s = d.leading_zeros();
-    let d = d << s;
-    let vn1 = d >> 16;
-    let vn0 = d & 0xffff;
-
     let un32 = if s == 0 {
         hi
     } else {
         (hi << s) | (lo >> (32 - s))
     };
-    let un10 = lo << s;
-    let un1 = un10 >> 16;
-    let un0 = un10 & 0xffff;
+    let (q, rem) = div_rem_2by1_normalized(un32, lo << s, d << s);
+    (q, rem >> s)
+}
+
+/// The core of [`div_rem_2by1`], for a divisor whose high bit is already set.
+/// Requires `hi < d`.
+///
+/// Split out so the Knuth D loop, which normalises its divisor once up front,
+/// does not re-derive `s == 0` per quotient digit. LLVM cannot prove it --
+/// known-bits does not carry `x << clz(x)` through the array stores -- so the
+/// wrapper's selects and shifts would otherwise ride along in the hot loop as
+/// dead work.
+#[inline]
+const fn div_rem_2by1_normalized(hi: u32, lo: u32, d: u32) -> (u32, u32) {
+    debug_assert!(hi < d);
+    debug_assert!(d >> 31 == 1);
+
+    let vn1 = d >> 16;
+    let vn0 = d & 0xffff;
+
+    let un1 = lo >> 16;
+    let un0 = lo & 0xffff;
 
     // `rhat < 2^16` is held by the `break`, and `q1 * vn0` is only reached once
     // `q1 < 2^16`, so neither overflows.
-    let mut q1 = un32 / vn1;
-    let mut rhat = un32 - q1 * vn1;
+    let mut q1 = hi / vn1;
+    let mut rhat = hi - q1 * vn1;
     while q1 >= HB || q1 * vn0 > (rhat << 16) | un1 {
         q1 -= 1;
         rhat += vn1;
@@ -54,9 +71,9 @@ const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
         }
     }
 
-    // `un21` fits in 32 bits but `un32 * 2^16` does not; the wrapping is
+    // `un21` fits in 32 bits but `hi * 2^16` does not; the wrapping is
     // deliberate and lands on the right answer.
-    let un21 = un32
+    let un21 = hi
         .wrapping_mul(HB)
         .wrapping_add(un1)
         .wrapping_sub(q1.wrapping_mul(d));
@@ -74,8 +91,7 @@ const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
     let rem = un21
         .wrapping_mul(HB)
         .wrapping_add(un0)
-        .wrapping_sub(q0.wrapping_mul(d))
-        >> s;
+        .wrapping_sub(q0.wrapping_mul(d));
 
     (q1 * HB + q0, rem)
 }
@@ -186,24 +202,31 @@ impl U256 {
 
             // Estimate one quotient limb from the top two dividend limbs.
             //
-            // `div_rem_2by1` wants `hi < dv`, while Knuth allows equality (the
-            // running remainder is below the divisor, so `hi <= dv`). Equality
-            // means the true digit is `B + lo / dv`, at least `B`; step D3
-            // clamps that to `B - 1`, which is still an upper bound on the real
-            // quotient digit, and the correction below plus the add-back take
-            // it the rest of the way. Spelling the common branch as
-            // `div_rem_2by1` keeps the whole loop on native 32-bit `DIVU`s
-            // instead of one `__udivdi3` per quotient digit.
+            // `div_rem_2by1_normalized` wants `hi < dv`, while Knuth allows
+            // equality (the running remainder is below the divisor, so
+            // `hi <= dv`). Equality means the true digit is `B + lo / dv`, at
+            // least `B`; step D3 clamps that to `B - 1`, which is still an
+            // upper bound on the real quotient digit, and the correction below
+            // plus the add-back take it the rest of the way. Spelling the
+            // common branch as `div_rem_2by1_normalized` -- `dv` is the
+            // normalised divisor's top limb, so its high bit is set -- keeps
+            // the whole loop on native 32-bit `DIVU`s instead of one
+            // `__udivdi3` per quotient digit, and skips the wrapper's
+            // re-normalisation prologue.
             let hi = un[j + dn];
             let lo = un[j + dn - 1];
             let dv = vn[dn - 1];
 
             let (mut qhat, mut rhat) = if hi < dv {
-                let (qh, rh) = div_rem_2by1(hi, lo, dv);
+                let (qh, rh) = div_rem_2by1_normalized(hi, lo, dv);
                 (qh as u64, rh as u64)
             } else {
-                let num = ((hi as u64) << 32) | (lo as u64);
-                (B - 1, num - (B - 1) * (dv as u64))
+                // `hi <= dv` (above), so only equality reaches here, and the
+                // Knuth rhat `num - (B - 1) * dv` collapses: `num` is
+                // `dv * B + lo`, so subtracting `(B - 1) * dv` leaves
+                // `dv + lo`.
+                debug_assert!(hi == dv);
+                (B - 1, (dv as u64) + (lo as u64))
             };
 
             // `rhat >= B` makes the test below vacuous -- `(rhat << 32) | ..`
@@ -329,6 +352,16 @@ mod tests {
             reference(hi, lo, d),
             "({hi}, {lo}) / {d}"
         );
+        // A normalised divisor also satisfies the core's stricter
+        // precondition, so pin the core against the oracle directly rather
+        // than only through the wrapper's `s == 0` path.
+        if d >> 31 == 1 {
+            assert_eq!(
+                div_rem_2by1_normalized(hi, lo, d),
+                reference(hi, lo, d),
+                "normalized ({hi}, {lo}) / {d}"
+            );
+        }
     }
 
     #[test]

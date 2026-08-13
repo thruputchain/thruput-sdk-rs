@@ -93,6 +93,16 @@ impl U256 {
     /// [`from_u32`](Self::from_u32) / [`from_u64`](Self::from_u64) there.
     #[inline]
     pub const fn from(n: u128) -> Self {
+        Self::from_u128(n)
+    }
+
+    /// Constructs a value from a `u128`, under a name no trait shadows.
+    ///
+    /// [`from`](Self::from) is this function behind the literal-pinning
+    /// shadow, and the `From<u128>` impl calls it too, so neither body
+    /// depends on the shadowing to terminate.
+    #[inline]
+    pub const fn from_u128(n: u128) -> Self {
         Self::from_limbs([
             n as u32,
             (n >> 32) as u32,
@@ -217,9 +227,12 @@ impl U256 {
 // Conversions
 // ---------------------------------------------------------------------------
 
-// The bodies below all resolve to the inherent constructors, not to each
-// other: an inherent function shadows the trait for the `Self::from` path
-// form, so `Self::from(n)` inside `impl From<u128>` is not recursive.
+// The bodies below all call inherent-only names (`from_u32`, `from_u64`,
+// `from_u128`), never `Self::from`. That spelling would compile today -- the
+// inherent `from` shadows the trait in path form -- but its termination would
+// hang on the shadowing: rename the inherent fn and `Self::from(n)` inside
+// `impl From<u128>` re-resolves to the trait impl and recurses, with only a
+// warn-level `unconditional_recursion` lint standing in the way.
 macro_rules! impl_from_small {
     ($($t:ty),* $(,)?) => {
         $(
@@ -245,7 +258,7 @@ impl From<u64> for U256 {
 impl From<u128> for U256 {
     #[inline]
     fn from(n: u128) -> Self {
-        Self::from(n)
+        Self::from_u128(n)
     }
 }
 

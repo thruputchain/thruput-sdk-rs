@@ -818,6 +818,10 @@ lint_contract() {
 
 test_package() {
     cargo test &&
+    # u256's self-dev-dep unifies std+fmt into every test build, so the
+    # no-feature guest config is only ever compiled, never tested; check it
+    # explicitly so cfg-gating mistakes fail here and not in a contract build.
+    cargo check -p groundhog-u256 --no-default-features &&
     cargo test -p sdk -Fstd --tests &&
     cargo test -p groundhog-erc20-metadata-if --all-targets &&
     cargo test -p groundhog-spec-tool --all-targets &&
