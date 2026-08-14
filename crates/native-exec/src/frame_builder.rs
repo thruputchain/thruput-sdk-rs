@@ -120,7 +120,7 @@ impl<'a> FrameHandle<'a> {
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
-        let config = self.frame.open_child_frame().at_contract_address(*addr);
+        let config = self.frame.open_child_frame(*addr);
         FrameBuilder::new(config)
     }
 }
@@ -149,7 +149,7 @@ impl<'a> ContinuableFrame<'a> {
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
-        let config = self.frame.open_child_frame().at_contract_address(*addr);
+        let config = self.frame.open_child_frame(*addr);
         FrameBuilder::new(config)
     }
 
