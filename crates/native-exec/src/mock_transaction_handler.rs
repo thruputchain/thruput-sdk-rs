@@ -48,8 +48,14 @@ pub struct MockInvocationFrameConfig<'a> {
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
+    // The invoked address is a constructor parameter rather than an optional
+    // builder step: the test FFI admits mock frames under production's
+    // reentrance rule, which refuses an address that already has an active
+    // frame (hogd #3301). A default would make "forgot to set it" the
+    // reentrant case, and only at run time.
     fn new(
         root_handler: *mut c_void,
+        contract_address: groundhog_xdr::types::ContractAddress,
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
@@ -58,7 +64,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
             context_pushcount,
             root_handler,
             invocation: groundhog_xdr::transaction::Invocation {
-                invoked_address: [0; 32].into(),
+                invoked_address: contract_address,
                 entrypoint: [0; 8].into(),
                 gas_limit: u64::MAX,
                 calldata: xdr_common::BytesM::default(),
@@ -67,14 +73,6 @@ impl<'a> MockInvocationFrameConfig<'a> {
             to_emplace,
             root_frame_closed,
         }
-    }
-
-    pub fn at_contract_address(
-        mut self,
-        contract_address: groundhog_xdr::types::ContractAddress,
-    ) -> Self {
-        self.invocation.invoked_address = contract_address;
-        self
     }
 
     pub fn with_calldata(mut self, calldata: xdr_common::BytesM) -> Self {
@@ -163,7 +161,18 @@ impl MockInvocationFrame {
         )
     }
 
-    pub fn open_child_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+    /// Configure a child frame of this one, invoking `contract_address`.
+    ///
+    /// The address must differ from every frame already open on the stack: the
+    /// test FFI admits mock frames under the same reentrance rule production
+    /// applies to `Invoke`, so an address that already has an active frame is
+    /// refused (hogd #3301) and `build()` panics unrecoverably. Frames that
+    /// have already finished, and frames in other transactions, do not count —
+    /// only the ones open at the same time.
+    pub fn open_child_frame(
+        &mut self,
+        contract_address: groundhog_xdr::types::ContractAddress,
+    ) -> MockInvocationFrameConfig<'_> {
         // One open child at a time: `FrameAction::Continue` exists to
         // interleave frames across separate transactions, not to nest
         // multiple open frames inside one parent. (The test FFI lib guards
@@ -177,6 +186,7 @@ impl MockInvocationFrame {
         }
         let config = MockInvocationFrameConfig::new(
             self.root_handler,
+            contract_address,
             &mut self.child_frame,
             self.context_pushcount.clone(),
             None,
@@ -569,11 +579,18 @@ impl MockTransactionHandler {
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
-        let config = self.open_root_frame().at_contract_address(*addr);
+        let config = self.open_root_frame(*addr);
         FrameBuilder::new(config)
     }
 
-    pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+    /// Configure this transaction's root frame, invoking `contract_address`.
+    ///
+    /// Child frames opened underneath it must name different addresses; see
+    /// [`MockInvocationFrame::open_child_frame`].
+    pub fn open_root_frame(
+        &mut self,
+        contract_address: groundhog_xdr::types::ContractAddress,
+    ) -> MockInvocationFrameConfig<'_> {
         assert_eq!(
             self.state,
             MockTransactionState::NotStarted,
@@ -582,6 +599,7 @@ impl MockTransactionHandler {
         self.state = MockTransactionState::Running;
         let config = MockInvocationFrameConfig::new(
             self.handler,
+            contract_address,
             &mut self.root_frame,
             self.context_pushcount.clone(),
             Some(self.root_frame_closed.clone()),
@@ -641,6 +659,24 @@ mod tests {
 
     use super::*;
 
+    // Frames that are open at the same time need distinct invoked_addresses:
+    // the test FFI admits mock frames under production's reentrance rule, which
+    // refuses an address that already has an active frame on the stack (hogd
+    // #3301). Addresses may be reused across separate handlers (separate
+    // transactions, separate frame stacks) and by sequential frames at the same
+    // depth, so these three cover every nesting the tests below build.
+    fn root_addr() -> groundhog_xdr::types::ContractAddress {
+        [0xA0u8; 32].into()
+    }
+
+    fn child_addr() -> groundhog_xdr::types::ContractAddress {
+        [0xB0u8; 32].into()
+    }
+
+    fn sibling_addr() -> groundhog_xdr::types::ContractAddress {
+        [0xC0u8; 32].into()
+    }
+
     #[test]
     fn test_mock_transaction_handler() {
         let env = TestEnvironment::new(None);
@@ -650,7 +686,7 @@ mod tests {
         static mut SECOND: bool = false;
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -694,7 +730,10 @@ mod tests {
                 let mut handler = MockTransactionHandler::new(env);
                 // Transaction -> Running, root frame -> Started, but never
                 // closed or committed.
-                handler.open_root_frame().with_invoke_flags(0).build();
+                handler
+                    .open_root_frame(root_addr())
+                    .with_invoke_flags(0)
+                    .build();
                 panic!("original failure message");
             }));
 
@@ -722,7 +761,7 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -744,12 +783,12 @@ mod tests {
         static mut SECOND: bool = false;
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -782,11 +821,10 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame()
-            .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(groundhog_xdr::types::ContractAddress::from(
                 [1; 32],
             ))
+            .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
@@ -811,7 +849,7 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
@@ -819,7 +857,7 @@ mod tests {
                 assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     // First execute: Continue, depth goes to 2 then back to 1
@@ -853,13 +891,13 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 // Child panics
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -892,14 +930,14 @@ mod tests {
 
         // handler1: Continue with nested child frame
         let frame1 = handler1
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -915,7 +953,7 @@ mod tests {
 
         // handler2: Continue (no children)
         let frame2 = handler2
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -930,7 +968,7 @@ mod tests {
                 assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -952,7 +990,7 @@ mod tests {
                 assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -1004,14 +1042,17 @@ mod tests {
         // PARENT frame, poisoning the transaction. Guard it loudly.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 frame.execute(|frame| {
                     // Leave the child frame open (Continue, never Close)...
                     frame
-                        .open_child_frame()
+                        .open_child_frame(child_addr())
                         .with_invoke_flags(0)
                         .build()
                         .execute(|_| FrameAction::Continue);
@@ -1032,13 +1073,16 @@ mod tests {
         // order, so the propagated panic is the unrecoverable guard error.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 frame.execute(|frame| -> FrameAction {
                     frame
-                        .open_child_frame()
+                        .open_child_frame(child_addr())
                         .with_invoke_flags(0)
                         .build()
                         .execute(|_| FrameAction::Continue);
@@ -1061,11 +1105,14 @@ mod tests {
         // — losing the child handle. Guard it loudly.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         frame.execute(|frame| {
             frame
-                .open_child_frame()
+                .open_child_frame(child_addr())
                 .with_invoke_flags(0)
                 .build()
                 .execute(|_| FrameAction::Continue);
@@ -1094,12 +1141,15 @@ mod tests {
         // nest multiple open frames inside one parent.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         frame.execute(|frame| {
             // First child stays open.
             frame
-                .open_child_frame()
+                .open_child_frame(child_addr())
                 .with_invoke_flags(0)
                 .build()
                 .execute(|_| FrameAction::Continue);
@@ -1108,7 +1158,9 @@ mod tests {
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                frame.open_child_frame();
+                // A fresh address, so the panic is the one-open-child guard
+                // rather than anything the reentrance rule would have caught.
+                frame.open_child_frame(sibling_addr());
             }));
 
         assert_unrecoverable_payload(caught.expect_err(
@@ -1123,11 +1175,10 @@ mod tests {
         let mut handler2 = MockTransactionHandler::new(env);
 
         let frame1 = handler1
-            .open_root_frame()
-            .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(groundhog_xdr::types::ContractAddress::from(
                 [1; 32],
             ))
+            .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
@@ -1141,11 +1192,10 @@ mod tests {
             });
 
         let frame2 = handler2
-            .open_root_frame()
-            .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(groundhog_xdr::types::ContractAddress::from(
                 [2; 32],
             ))
+            .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");

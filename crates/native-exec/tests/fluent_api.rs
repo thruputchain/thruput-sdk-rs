@@ -192,7 +192,7 @@ fn test_mock_handler_commit() {
     let mut handler = MockTransactionHandler::new(env);
 
     handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| FrameAction::Close)
@@ -208,7 +208,7 @@ fn test_mock_handler_abort() {
     let mut handler = MockTransactionHandler::new(env);
 
     handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| FrameAction::Close)
@@ -223,7 +223,7 @@ fn test_mock_handler_event_logs_empty() {
     let mut handler = MockTransactionHandler::new(env);
 
     let result = handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| FrameAction::Close)
@@ -243,7 +243,7 @@ fn test_mock_handler_panic_produces_fault() {
     let mut handler = MockTransactionHandler::new(env);
 
     let result = handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| {
@@ -260,7 +260,7 @@ fn test_mock_handler_panic_then_commit() {
     let mut handler = MockTransactionHandler::new(env);
 
     let result = handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| {
@@ -282,7 +282,7 @@ fn test_mock_handler_panic_then_abort() {
     let mut handler = MockTransactionHandler::new(env);
 
     handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| {
@@ -943,7 +943,7 @@ fn test_mock_handler_syscall_sha256() {
     let mut handler = MockTransactionHandler::new(env);
 
     let result = handler
-        .open_root_frame()
+        .open_root_frame(TEST_ADDR)
         .with_invoke_flags(0)
         .build()
         .execute(|_| {
