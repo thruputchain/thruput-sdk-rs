@@ -438,7 +438,7 @@ check_rv32_contract_spec_artifacts() {
     # typedef shaking (both directions covered by a single fixture).
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
-    local erc20_json swap_json signer_callee_json erc1271_wallet_json
+    local erc20_json signer_callee_json erc1271_wallet_json
     local phantom_method_json prerelease_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
@@ -449,7 +449,6 @@ check_rv32_contract_spec_artifacts() {
     spec_named_json="${groundhog_dir}/spec_named_types.spec.json"
     genesis_json="${groundhog_dir}/genesis_deployer.spec.json"
     erc20_json="${groundhog_dir}/erc20_raw_storage.spec.json"
-    swap_json="${groundhog_dir}/swap.spec.json"
     signer_callee_json="${groundhog_dir}/signer_callee.spec.json"
     erc1271_wallet_json="${groundhog_dir}/erc1271_wallet.spec.json"
     phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
@@ -513,18 +512,9 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
     assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
 
-    assert_file_contains "$swap_json" '"name":"MintEvent"' &&
-    assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
-    assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
-    assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
-
-    # Regression guard: method specs are sourced from the ISwapV2Pair *trait*,
-    # not the impl. The impl names the first `initialize` arg `_factory` (unused
-    # marker); the trait names it `factory`. If method specs ever revert to
-    # being impl-sourced, the same-crate trait+impl build fails with
-    # `conflicting method definitions`, or this assertion catches `_factory`
-    # leaking into the published interface spec.
-    assert_file_contains "$swap_json" '"name":"initialize","args":[{"name":"factory"' &&
+    # No swap assertions: the swap* contracts are gone. The event coverage they
+    # provided is carried by erc20_raw_storage above; the
+    # trait-sourced-method-spec guard they carried has no replacement.
 
     assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
     assert_file_contains "$genesis_json" '"name":"deploy"' &&

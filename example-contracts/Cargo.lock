@@ -1134,42 +1134,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
-name = "swap"
-version = "0.1.0"
-dependencies = [
- "erc20",
- "groundhog-erc20-if",
- "heapless",
- "sdk",
- "swap",
- "uint",
-]
-
-[[package]]
-name = "swap_driver"
-version = "0.1.0"
-dependencies = [
- "erc20",
- "groundhog-erc20-if",
- "groundhog-erc20-metadata-if",
- "heapless",
- "sdk",
- "swap",
- "swap_driver",
- "thiserror",
- "uint",
-]
-
-[[package]]
-name = "swap_request"
-version = "0.4.0"
-dependencies = [
- "sdk",
- "swap_request",
- "xdrs",
-]
-
-[[package]]
 name = "syn"
 version = "3.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
