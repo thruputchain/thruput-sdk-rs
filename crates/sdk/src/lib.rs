@@ -63,6 +63,25 @@ extern crate groundhog_rv32_runtime as _;
 #[doc(hidden)]
 pub mod __rv32 {
     pub use groundhog_rv32_runtime::Entrypoint;
+
+    /// The runtime dispatcher's undefined-method hook, under the
+    /// `unknown_method_exn` feature.
+    ///
+    /// `groundhog-rv32-runtime` cannot build a `LibraryExn` itself — it is
+    /// dependency-free by design, and `sdk` depends on *it*, not the other
+    /// way round — so the two meet at this C symbol: the runtime declares
+    /// it, and this is the one definition. That also means the feature has
+    /// to be enabled here (it forwards to the runtime), never on the
+    /// runtime alone: the runtime alone links to an undefined symbol.
+    ///
+    /// Takes no `method_id`: the caller chose the id it invoked, so echoing
+    /// it back buys nothing, and the unit variant keeps both the encoded
+    /// payload and the emitted code minimal.
+    #[cfg(feature = "unknown_method_exn")]
+    #[unsafe(no_mangle)]
+    extern "C" fn __groundhog_unknown_method() -> ! {
+        crate::exn::library_throw(crate::exn::LibraryExn::UnknownMethod)
+    }
 }
 
 #[cfg(not(target_arch = "riscv32"))]

@@ -101,6 +101,15 @@ call_tracking = ["debugging"] # contract-call tracking
 # Optional diagnostic features (not enabled by "dev")
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
 
+# Report a call to a method this contract does not define as the typed
+# `LibraryExn::UnknownMethod` (decodable by selector) instead of trapping
+# the frame. Off by default: the default is the cheaper, older behavior,
+# and turning this on is a wire-visible choice about what callers observe.
+# Forwarded to the rv32 runtime, whose dispatcher is the throw site; on
+# the native mock executor the same feature installs the matching fallback
+# so `cargo test` and the deployed rv32 image agree.
+unknown_method_exn = ["groundhog-rv32-runtime/unknown_method_exn"]
+
 [[test]]
 name = "int128"
 required-features = ["std"]

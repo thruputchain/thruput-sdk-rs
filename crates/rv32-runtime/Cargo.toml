@@ -23,6 +23,11 @@ default = []
 # Install the bump `#[global_allocator]`. Forwarded from `sdk`'s `alloc`
 # feature so contracts that don't allocate don't carry an allocator.
 alloc = []
+# Dispatch an unknown method id to `__groundhog_unknown_method` (a typed
+# `LibraryExn::UnknownMethod` abort) instead of `ebreak`. Forwarded from
+# `sdk`'s feature of the same name, which is what DEFINES that symbol --
+# enabling it here alone is a link error, by design.
+unknown_method_exn = []
 
 [dependencies]
 # Intentionally minimal. The runtime is target-specific glue; we want to

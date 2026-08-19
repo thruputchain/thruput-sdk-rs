@@ -1,0 +1,46 @@
+[package]
+name = "unknown_method"
+description = "A contract built with sdk/unknown_method_exn: undefined methods throw LibraryExn::UnknownMethod instead of trapping"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `groundhog build --target rv32 -p unknown_method` derives
+# `--bin unknown_method` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+#
+# This fixture exists to be BUILT as well as tested: its codesize row is the
+# standing measurement of what `unknown_method_exn` costs, and its guest image
+# is the only place the rv32 dispatcher's typed arm is linked in CI.
+[[bin]]
+name = "unknown_method"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+# The point of the fixture: the same contract, with the feature on.
+#
+# Cargo unifies features per invocation, so a whole-workspace
+# `cargo test`/`cargo build` from example-contracts/ turns this on for every
+# other contract's `sdk` too. Both dev.sh loops that matter build and test one
+# package at a time (`build_rv32`, `eg_test`), which keeps that unification
+# scoped to this package -- and keeps the codesize rows honest.
+sdk = { workspace = true, features = ["unknown_method_exn"] }
+
+[dev-dependencies]
+unknown_method = { path = ".", features = ["dev"] }

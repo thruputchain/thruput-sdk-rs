@@ -97,9 +97,26 @@ pub fn register_mock_package(
     for fragment in fragments {
         (fragment.register)(&mut contract);
     }
+    register_unknown_method(&mut contract);
     env.setup_create_contract(&contract.as_contract());
     contract
 }
+
+/// Mirror the rv32 dispatcher's undefined-method behavior on the native
+/// mock, so a contract's tests observe what its deployed image would do.
+///
+/// With `unknown_method_exn` off there is nothing to install: the mock's
+/// own default (a deterministic failure) already matches the guest's
+/// `ebreak`.
+#[cfg(feature = "unknown_method_exn")]
+fn register_unknown_method(contract: &mut MockContract) {
+    contract.register_unknown_method(|| {
+        crate::exn::library_throw(crate::exn::LibraryExn::UnknownMethod)
+    });
+}
+
+#[cfg(not(feature = "unknown_method_exn"))]
+fn register_unknown_method(_contract: &mut MockContract) {}
 
 #[cfg(test)]
 mod tests {
