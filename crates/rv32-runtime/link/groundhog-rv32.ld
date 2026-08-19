@@ -14,7 +14,8 @@
  * `--no-check-sections` (set in the contract .cargo/config.toml); the overlap
  * is intentional, not a layout bug.
  *
- * DATA is laid out stack-first (the wasm-ld `--stack-first` discipline):
+ * DATA is laid out stack-first, so a stack overflow runs off the bottom of
+ * memory and traps instead of silently corrupting .data:
  *
  *   0x0 .. __stack_top    stack, growing DOWN from __stack_top
  *   __stack_top ..        .rodata / .data / .bss

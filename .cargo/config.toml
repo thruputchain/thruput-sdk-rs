@@ -1,10 +1,10 @@
 [build]
 rustflags = [ "--deny", "warnings" ]
 
-[target.'cfg(all(target_os = "macos", not(target_family = "wasm")))']
+[target.'cfg(target_os = "macos")']
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-lSystem", "-C", "link-arg=-Wl,-rpath,@loader_path" ]
 
-[target.'cfg(all(target_os = "linux", not(target_family = "wasm")))']
+[target.'cfg(target_os = "linux")']
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-Wl,-rpath,$ORIGIN" ]
 
 [registries]

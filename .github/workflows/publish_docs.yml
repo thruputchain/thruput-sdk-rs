@@ -26,7 +26,6 @@ on:
           groundhog-macros
           groundhog-test-vectors
           groundhog-rv32-runtime
-          groundhog-wasm-runtime
           sdk
           groundhog-spec-tool
 
@@ -70,7 +69,7 @@ jobs:
         uses: ./actions/cargo-doc
         with:
           packages: ${{ inputs.packages }}
-          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
+          arch-only-packages: groundhog-rv32-runtime
           version: ${{ inputs.version }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}

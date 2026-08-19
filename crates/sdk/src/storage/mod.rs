@@ -45,12 +45,12 @@ pub use map::*;
 pub mod vector;
 pub use vector::*;
 
-#[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+#[cfg(not(target_arch = "riscv32"))]
 pub mod domain_registry;
-#[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+#[cfg(not(target_arch = "riscv32"))]
 pub use domain_registry::*;
 
-#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
+#[cfg(not(any(doc, target_arch = "riscv32")))]
 pub(crate) mod live_guards;
 
 /// Guest builds have no live-guard tracker: `Drop` never runs past a
@@ -58,7 +58,7 @@ pub(crate) mod live_guards;
 /// exists to catch. No-op stubs keep every call site free of `cfg`, and
 /// compile to nothing — `LiveGuard`/`FrameGuardReset` are `Drop`-less ZSTs.
 /// (Same dual-impl convention as [`crate::rt::trap`].)
-#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
+#[cfg(any(doc, target_arch = "riscv32"))]
 pub(crate) mod live_guards {
     pub(crate) struct LiveGuard;
     impl LiveGuard {

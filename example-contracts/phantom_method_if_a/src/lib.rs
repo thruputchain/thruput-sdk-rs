@@ -4,7 +4,7 @@
 //! unrelated `trait Ledger { fn steal }` that collides on the interface key
 //! (same default name = trait ident, same version = shared workspace crate
 //! version) with identical (empty) throws/emits metadata — so the two
-//! candidates merge into one method bucket.  A contract implementing A's
+//! interface candidates merge into one bucket.  A contract implementing A's
 //! `Ledger` while linking B must still build, and its published spec must
 //! advertise only the methods with real entrypoints: `ping`, never `steal`.
 

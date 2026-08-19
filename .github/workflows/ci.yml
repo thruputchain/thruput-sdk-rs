@@ -21,19 +21,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Example wasm builds + spec finalization + spec-artifact checks
-          # + rv32 builds/checks + native example tests.
+          # rv32 example builds + spec-artifact checks + embedded-string
+          # scan + native example tests.
           - name: examples-test
             submodules: false
             skips: >-
               SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_BOTTLE_EXAMPLES=1
               SKIP_DOMAIN_COLLISION=1 SKIP_REGISTRY_STRIPPED=1
-              SKIP_INTEGRATION=1 SKIP_LOGGING=1 SKIP_WASM_STRINGS=1
+              SKIP_INTEGRATION=1 SKIP_LOGGING=1
               SKIP_QUALITY=1 SKIP_MACROS_GUEST=1
-          # Example wasm builds + bottle tests + domain-collision +
-          # registry-stripped + wasm-strings. (Rebuilds the example wasm:
-          # bottle tests consume sibling contracts' optimized wasm, so this
-          # job can't reuse examples-test's build.)
+          # Bottle tests + domain-collision + registry-stripped. The bottle
+          # tests build their own rv32 artifact pair per contract, so this
+          # job needs no example build of its own.
           - name: examples-bottle
             submodules: false
             skips: >-
@@ -42,10 +41,7 @@ jobs:
               SKIP_QUALITY=1 SKIP_MACROS_GUEST=1
           # Docs + full integration block + logging build + lint/fmt/xxx.
           # Only entry needing the integration_test/contracts submodule
-          # (hence the SSH keys). Keeps wasm-strings: integration contracts
-          # share the sdk target dir (target-dir = "../target"), so this
-          # entry's scan covers the integration wasm while examples-bottle
-          # covers the example wasm.
+          # (hence the SSH keys).
           - name: checks
             submodules: true
             skips: >-
@@ -128,9 +124,9 @@ jobs:
         run: env ${{ matrix.skips }} ./scripts/ci.sh
 
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
-  # example wasm + rv32 artifacts and the full integration block (metrics.sh's
+  # rv32 example artifacts and the full integration block (metrics.sh's
   # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
-  # metrics read target/optimized, the rv32 release ELFs, and target/groundhog).
+  # metrics read the rv32 release ELFs and target/groundhog).
   metrics:
     if: github.ref == 'refs/heads/main'
     runs-on: namespace-profile-hogd-linux
@@ -190,7 +186,7 @@ jobs:
         run: >-
           env SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_TEST_EXAMPLES=1
           SKIP_BOTTLE_EXAMPLES=1 SKIP_DOMAIN_COLLISION=1
-          SKIP_REGISTRY_STRIPPED=1 SKIP_LOGGING=1 SKIP_WASM_STRINGS=1
+          SKIP_REGISTRY_STRIPPED=1 SKIP_LOGGING=1
           SKIP_QUALITY=1 ./scripts/ci.sh
 
       - name: Log metrics

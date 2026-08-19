@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 sdk = { package = "sdk", path = "../.." }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 sdk = { package = "sdk", path = "../..", features = ["std"] }
 
 [features]

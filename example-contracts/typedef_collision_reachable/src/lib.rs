@@ -6,9 +6,9 @@
 //! the retained spec — while still linking `typedef_shaking_if_v2`, whose
 //! unimplemented candidate contributes a differently-shaped `SharedConfig`
 //! def to the pool.  With the retained name ambiguous, `collect_named_types`
-//! must fail the spec rewrite with a typedef conflict: the wasm build
-//! succeeds, but `groundhog-spec-tool rewrite` must error.  dev.sh's
-//! `check_typedef_conflict_detected` asserts exactly that.
+//! must fail spec canonicalization with a typedef conflict: the ELF links,
+//! but the spec step of `groundhog build --target rv32` must error.  dev.sh's
+//! `check_rv32_typedef_conflict_detected` asserts exactly that.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

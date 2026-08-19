@@ -251,10 +251,10 @@ impl TestEnvironmentInner {
                 panic!(
                     "setup_create_contract failed: {err}\n\
                      \n\
-                     The contract's WASM binary failed validation. Common causes:\n\
-                     - Missing stack limit instrumentation (WASM not run through groundhog-wasm-meter)\n\
-                     - Linear memory bounds too large\n\
-                     - Unsupported WASM extension (e.g. threads, SIMD, reference types)\n"
+                     The contract's rv32 artifact failed validation. Common causes:\n\
+                     - The raw ELF was deployed instead of the lowered .rv32a image\n\
+                     - Memory image bounds too large\n\
+                     - Unsupported instructions (only the RV32IM subset is accepted)\n"
                 );
             }
             panic!("setup_create_contract failed: {err}");
@@ -652,9 +652,6 @@ fn deployment_contract_size(contract: &Contract) -> u32 {
     match contract {
         Contract::kNative { .. } => 0,
         Contract::kMockTest { .. } => TEST_CONTRACT_SIZE,
-        Contract::kWasmi { wasmi_contract } => {
-            wasmi_contract.data.len() as u32
-        }
         Contract::kRv32 { rv32_contract } => rv32_contract.data.len() as u32,
         other => panic!("unsupported contract variant: {:?}", other),
     }

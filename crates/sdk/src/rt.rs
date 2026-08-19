@@ -1,12 +1,5 @@
 //! Runtime exit (trap)
 
-#[cfg(target_arch = "wasm32")]
-#[inline(always)]
-/// WASM: execute an illegal instruction
-pub fn trap() -> ! {
-    core::arch::wasm32::unreachable()
-}
-
 #[cfg(feature = "mock")]
 #[allow(dead_code)]
 #[allow(unused)]
@@ -18,7 +11,7 @@ pub fn trap() -> ! {
     panic_any(deterministic_error())
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "mock")))]
+#[cfg(not(feature = "mock"))]
 #[inline(always)]
 pub fn trap() -> ! {
     panic!("unreachable");

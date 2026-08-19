@@ -39,7 +39,7 @@ fn preimage(pubkey_byte: u32, nonce: u64) -> PubkeyAccountPreimage {
 /// Both backends coexist in this one test binary only because they are additive
 /// types rather than competing definitions: the contract links `syscall`, this
 /// test's dev-dependency adds `sha2`, and dev-dependencies are never built for
-/// wasm32/rv32 — so the guest still cannot reach `sha2`.
+/// rv32 — so the guest still cannot reach `sha2`.
 #[test]
 fn syscall_matches_sha2() {
     let cases = [

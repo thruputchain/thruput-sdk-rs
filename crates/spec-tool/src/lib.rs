@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 pub mod describe;
 pub mod raw;
-pub mod rewrite;
 
 pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
@@ -20,7 +19,7 @@ pub use raw::{
 /// Decode a spec string, rejecting non-UTF-8 bytes.
 ///
 /// `ContractSpecString` is raw bytes on the wire (XDR decode performs no
-/// UTF-8 validation), so malformed wasm can carry arbitrary bytes here.
+/// UTF-8 validation), so a malformed artifact can carry arbitrary bytes here.
 fn spec_str(s: &ContractSpecString) -> Result<&str, SpecToolError> {
     std::str::from_utf8(s).map_err(|_| {
         SpecToolError::InvalidRawFragment(format!(
@@ -76,8 +75,6 @@ pub enum SpecToolError {
     /// The artifact's raw spec section is an older wire format than this
     /// build understands. See [`check_raw_spec_format`].
     RawSpecFormatTooOld { found: u32, supported: u32 },
-    /// An error occurred while parsing or writing the wasm binary.
-    Wasm(String),
 }
 
 /// Check an artifact's raw spec wire format against this build's.
@@ -160,7 +157,6 @@ impl core::fmt::Display for SpecToolError {
                  against a newer SDK, or use a groundhog CLI matching the \
                  SDK it was built with.",
             ),
-            Self::Wasm(msg) => f.write_str(msg),
         }
     }
 }
@@ -195,20 +191,24 @@ pub fn canonicalize_spec(
 ///
 /// `exported_fns` is the module's set of **entrypoint export names** — the
 /// 16-hex uppercase rendering of the dispatch ID
-/// ([`groundhog_contract_util::entrypoint_export_name`]). For wasm this is
-/// exactly the export section's function names. An rv32 caller must map its
-/// dispatch-table method IDs through `entrypoint_export_name` — NOT pass
-/// ELF symbol names (rv32 wrapper symbols carry the human-readable ID
+/// ([`groundhog_contract_util::entrypoint_export_name`]). Callers must map
+/// their dispatch-table method IDs through `entrypoint_export_name` — NOT
+/// pass ELF symbol names (rv32 wrapper symbols carry the human-readable ID
 /// preimage, which never matches; passing them would silently disable
 /// shaking).
 ///
 /// For each anchored interface, each method's expected entrypoint export
 /// name is computed with the same `contract-util` functions the macro
-/// codegen uses; methods whose entrypoint is absent are dropped. This
-/// removes phantom methods contributed by a *different* trait candidate
-/// that collides on the interface key (default name = trait ident, default
-/// version = crate version) — the contract still builds, and the spec
-/// reflects only what is callable.
+/// codegen uses; methods whose entrypoint is absent are dropped.
+///
+/// This is a second line of defense against phantom methods — methods
+/// contributed by a *different* trait candidate that collides on the
+/// interface key (default name = trait ident, default version = crate
+/// version). The first, and the one that does the work for artifacts built
+/// by a current SDK, is at emission: only a site that anchors an interface
+/// emits its `Method` fragments, so a trait nothing implements contributes
+/// none. Passing exports additionally catches an artifact built by an older
+/// SDK, where the fragments still carried unanchored candidates.
 ///
 /// Carrier rule: an EMPTY `exported_fns` set disables shaking entirely.
 /// Spec-carrier binaries (`export_interface_spec!`) export no functions at

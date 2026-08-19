@@ -17,7 +17,6 @@ env:
     groundhog-u256
     groundhog-test-vectors
     groundhog-rv32-runtime
-    groundhog-wasm-runtime
     sdk
     groundhog-spec-tool
 
@@ -76,7 +75,6 @@ jobs:
             groundhog-macros
             groundhog-u256
             groundhog-rv32-runtime
-            groundhog-wasm-runtime
             sdk
             groundhog-erc20-if
             groundhog-erc1271-if
@@ -89,8 +87,6 @@ jobs:
           # error, so skip it and `default` (which pulls it in via `std`). Its
           # `syscall-mock` is host-only, like sdk's `mock`. `-F syscall` keeps the
           # guest backend compiled somewhere. All no-ops for the other packages here.
-          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
-          cargo-hack-wasm32-packages: groundhog-wasm-runtime sdk groundhog-domain-separator
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
           cargo-hack-rv32-packages: groundhog-rv32-runtime sdk groundhog-domain-separator
-          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
+          arch-only-packages: groundhog-rv32-runtime

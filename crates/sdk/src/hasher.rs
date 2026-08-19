@@ -117,12 +117,7 @@ contract_local! {
 // local_key_cell_update is stabilized (rust#143989). Using get/set for now
 // because .update() on LocalKey<Cell<T>> requires nightly, which breaks
 // doc builds on stable (e.g. kellnr).
-#[cfg(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-))]
+#[cfg(any(doc, feature = "std", target_arch = "riscv32"))]
 fn slot_alloc() -> Option<HasherIndex> {
     let mut avail = AVAILABLE.get();
 
@@ -138,22 +133,12 @@ fn slot_alloc() -> Option<HasherIndex> {
 }
 
 // Suppress compile errors when building for native without std
-#[cfg(not(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-)))]
+#[cfg(not(any(doc, feature = "std", target_arch = "riscv32")))]
 fn slot_alloc() -> Option<HasherIndex> {
     None
 }
 
-#[cfg(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-))]
+#[cfg(any(doc, feature = "std", target_arch = "riscv32"))]
 fn slot_free(i: HasherIndex) -> bool {
     let mut avail = AVAILABLE.get();
 
@@ -166,12 +151,7 @@ fn slot_free(i: HasherIndex) -> bool {
     }
 }
 
-#[cfg(not(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-)))]
+#[cfg(not(any(doc, feature = "std", target_arch = "riscv32")))]
 fn slot_free(_i: HasherIndex) -> bool {
     false
 }

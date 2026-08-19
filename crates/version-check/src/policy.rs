@@ -93,18 +93,11 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
 ];
 
 /// `crates/*` members deliberately absent from `default-members`.
-pub const DEFAULT_MEMBER_EXCEPTIONS: &[Named] = &[
-    Named {
-        name: "groundhog-rv32-runtime",
-        reason: "target-only runtime: a top-level compile_error! rejects every \
+pub const DEFAULT_MEMBER_EXCEPTIONS: &[Named] = &[Named {
+    name: "groundhog-rv32-runtime",
+    reason: "target-only runtime: a top-level compile_error! rejects every \
                  target but rv32, so host-wide builds must skip it",
-    },
-    Named {
-        name: "groundhog-wasm-runtime",
-        reason: "target-only runtime: a top-level compile_error! rejects every \
-                 target but wasm, so host-wide builds must skip it",
-    },
-];
+}];
 
 /// Pin sites excluded from the external-agreement comparison.
 ///

@@ -145,7 +145,7 @@ pub fn contract_entrypoint_id(
     ContractEntrypointID::from(entrypoint_id)
 }
 
-/// The wasm export-section name of the entrypoint for the given
+/// The export symbol name of the entrypoint for the given
 /// (interface, version, method) triple: [`contract_entrypoint_id`] rendered
 /// through [`entrypoint_export_name`]. Use this instead of composing the two
 /// by hand — when the ID preimage changes (e.g. the signature-checksum TODO

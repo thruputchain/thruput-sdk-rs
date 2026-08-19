@@ -14,11 +14,8 @@ members = [
     "hasher",
     "rcq_test",
     "simple_wallet_old",
-    "swap",
-    "swap_driver",
     "test_bytestring",
     "rcq_test",
-    "swap_request",
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",
@@ -49,13 +46,11 @@ members = [
     "erc1271_wallet",
     "erc1271_caller",
     "invoke_flags_test",
-    "counter-rv32",
     "multi_root_storage",
     "slot_reorder",
     "velocity_limit",
     "event_shaking_if",
     "event_shaking_subset",
-    "event_shaking_subset-rv32",
     "typedef_shaking_if_v1",
     "typedef_shaking_if_v2",
     "typedef_shaking_caller",
@@ -65,16 +60,15 @@ members = [
     "iface_conflict_caller",
     "iface_conflict_impl",
     "raw_iface_dep",
-    "missing_contract_macro",
-    "typedef_shaking_caller-rv32",
-    "iface_conflict_caller-rv32",
     "phantom_method_if_a",
     "phantom_method_if_b",
     "phantom_method_impl",
     "dup_entrypoint_neg",
     "prerelease_version",
+    "missing_contract_macro",
     # Built only by scripts/bigint-bench.sh (34 rv32 variants); carries a
-    # `disabled` marker so the wasm loops skip it. See its Cargo.toml.
+    # `disabled` marker so the generic contract loops skip it. See its
+    # Cargo.toml.
     "bigint-bench-contract",
 ]
 
@@ -95,13 +89,13 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.19.6" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.19.6" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.19.6", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.20.0" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.20.0" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.20.0", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.10" }
-groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.10" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.10" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.11" }
+groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.11" }
+groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.11" }
 
 erc20-test = { path = "../standard-tests/erc20-test" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }

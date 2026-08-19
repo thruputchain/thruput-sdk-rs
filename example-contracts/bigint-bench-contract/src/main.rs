@@ -1,8 +1,8 @@
 //! RV32 binary wrapper for the big-integer benchmark contract.
 //!
 //! Same shape as `counter-rv32`, but in the same package as the library rather
-//! than a sibling: the library is never built for wasm, so there is nothing for
-//! a separate wrapper to keep target-agnostic.
+//! than a sibling: the library is never built for anything but rv32, so there
+//! is nothing for a separate wrapper to keep target-agnostic.
 //!
 //! The runtime (`_start`, `#[panic_handler]`, `#[global_allocator]`, linker
 //! script) arrives transitively: `sdk` force-links `groundhog-rv32-runtime` on

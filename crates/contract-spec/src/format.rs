@@ -57,7 +57,7 @@ pub const RAW_SECTION_NAME: &str = "groundhogspecrawv1";
 /// the protocol-level `groundhog-spec` crate rather than by this module.
 pub const FINAL_SECTION_NAME: &str = "groundhogspecv0";
 
-/// What a wasm/ELF custom section name means to the spec pipeline.
+/// What an ELF section name means to the spec pipeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpecSection {
     /// A raw fragment section carrying the given wire-format version. The

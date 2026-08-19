@@ -15,7 +15,7 @@ entrypoints = []
 dev = ["sdk/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 sdk = { path = "../sdk_rs/crates/sdk" }
@@ -95,10 +95,10 @@ git submodule update --init --recursive
 
 You can use [rustup](https://rustup.rs/) to get a Rust toolchain.
 
-Then install the WASM target:
+Then install the RV32 contract target:
 
 ```shell
-rustup +nightly target add wasm32-unknown-unknown
+rustup +nightly target add riscv32im-unknown-none-elf
 ```
 
 Also, install the rust sources so the build process can
@@ -137,7 +137,7 @@ e.g.:
 ```shell
 alias dev='./scripts/dev.sh'
 
-dev build-examples
+dev build-examples-rv32
 
 # Expand macros to view internals of contract wrappers, etc.
 dev expand example-contracts/erc20

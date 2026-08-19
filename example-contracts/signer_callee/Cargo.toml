@@ -13,14 +13,25 @@ edition.workspace = true
 
 [features]
 default = ["alloc"]
-entrypoints = []
+# The guest build needs alloc: `sdk::signer::mint_auth_token` is alloc-gated,
+# and `groundhog build` passes --no-default-features, so `default` does not
+# reach it. State the requirement on the feature the CLI does enable.
+entrypoints = ["alloc"]
 alloc = ["sdk/alloc"]
 dev = ["sdk/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
+
+# The rv32 artifact. `groundhog build --target rv32 -p signer_callee` derives
+# `--bin signer_callee` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "signer_callee"
+path = "src/main.rs"
+required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }

@@ -1,16 +1,13 @@
 // Test environment: just alias `core::cell::Cell`.
 // Statics will work if placed in `contract_local!{}`
-#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
+#[cfg(not(any(doc, target_arch = "riscv32")))]
 mod _impl {
     pub use core::cell::Cell as ContractCell;
 }
 
 // Test environment: alias `core::cell::RefCell`; `contract_local!` places the
 // static in thread-local storage and `with_ref` goes through `LocalKey`.
-#[cfg(all(
-    not(any(doc, target_family = "wasm", target_arch = "riscv32")),
-    feature = "std"
-))]
+#[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
 mod _ref_impl {
     pub use core::cell::RefCell as ContractRefCell;
 
@@ -27,10 +24,7 @@ mod _ref_impl {
 }
 
 // Guest environment: wrap `RefCell` so it can live in a plain static.
-#[cfg(all(
-    any(doc, target_family = "wasm", target_arch = "riscv32"),
-    feature = "alloc"
-))]
+#[cfg(all(any(doc, target_arch = "riscv32"), feature = "alloc"))]
 mod _ref_impl {
     /// A wrapped [`core::cell::RefCell`] that implements [`Sync`] so it can
     /// be used in statics — the by-reference companion to [`ContractCell`]
@@ -88,7 +82,7 @@ pub(crate) trait ContractLocalRef<T> {
 }
 
 // Guest environment: wrap
-#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
+#[cfg(any(doc, target_arch = "riscv32"))]
 mod _impl {
     // All we need to provide here is interior mutability. By also declaring
     // our wrapper thread-safe, we can use it in a static.

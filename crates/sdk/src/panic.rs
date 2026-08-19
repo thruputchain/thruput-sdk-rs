@@ -1,7 +1,6 @@
-// The wasm `#[panic_handler]` and `#[global_allocator]` live in
-// `groundhog-wasm-runtime`, which `sdk` force-links on wasm targets (see
-// `lib.rs`). The rv32 equivalents live in `groundhog-rv32-runtime`. Natively,
-// the standard library supplies the panic handler.
+// The rv32 `#[panic_handler]` and `#[global_allocator]` live in
+// `groundhog-rv32-runtime`, which `sdk` force-links on rv32 targets (see
+// `lib.rs`). Natively, the standard library supplies the panic handler.
 //
 // This module retains only the `Panic` *type* below, which the exception
 // machinery (`exn`, `throw`, `re_throw`, …) uses to carry panic info under the
@@ -29,14 +28,6 @@ mod with_message {
     impl Error for Panic {}
 
     impl Panic {
-        #[cfg_attr(test, allow(dead_code))]
-        pub fn from_info(info: &core::panic::PanicInfo) -> Self {
-            Self::from_hook_info(
-                info.message().as_str().unwrap_or("<has args>"),
-                info.location(),
-            )
-        }
-
         pub fn from_hook_info(
             message: &str,
             location: Option<&Location>,
@@ -90,13 +81,6 @@ mod without_message {
     pub struct Panic;
 
     impl Error for Panic {}
-
-    impl Panic {
-        #[cfg(target_arch = "wasm32")]
-        pub fn from_info(_info: &core::panic::PanicInfo) -> Self {
-            Self
-        }
-    }
 
     impl Display for Panic {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

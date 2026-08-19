@@ -1,14 +1,14 @@
 name: Miri
 
-# Miri over the guest runtimes' unsafe paths: the hand-rolled rv32
+# Miri over the guest runtime's unsafe paths: the hand-rolled rv32
 # mem-intrinsic cores and the bump-allocator arithmetic. Deliberately narrow
 # -- this is the raw-pointer code where a provenance or aliasing mistake would
 # be silent on device, not a general test run. The broad suites live in
 # ci.yml / sdk_tests.yml.
 #
-# What this cannot cover: the allocators' `#[global_allocator]` wrappers bind
+# What this cannot cover: the allocator's `#[global_allocator]` wrapper binds
 # linker-script extern statics (`__heap_base`, `__heap_end`) that Miri has no
-# way to model, and both crates `compile_error!` off-target. The pure cores
+# way to model, and the crate `compile_error!`s off-target. The pure cores
 # are split out precisely so the logic is reachable from a host test; the
 # extern-static derivation itself stays outside Miri's reach.
 
@@ -56,6 +56,3 @@ jobs:
       # the test harness.
       - name: Miri - rv32 runtime (mem intrinsics, dispatch, bump allocator)
         run: cargo miri test -p groundhog-rv32-runtime --lib
-
-      - name: Miri - wasm runtime (bump allocator)
-        run: cargo miri test -p groundhog-wasm-runtime --lib

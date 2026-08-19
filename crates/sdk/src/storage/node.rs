@@ -86,7 +86,7 @@ pub trait StorageDomain {
 // Still measurably worth keeping out of line even after `StaticKeyBuf`
 // dropped its zero-fill: the body is small enough that LLVM inlines it into
 // every entrypoint, duplicating the CXS-framing/copy work at each call site.
-// Measured on erc20 (10 entrypoints, wasm-opt -O3, Code section size):
+// Measured on erc20 (10 entrypoints, optimized release build, code size):
 // inline(never) = 14583 bytes, inlined = 16118 bytes (+1535 bytes). Keep out
 // of line.
 #[doc(hidden)]

@@ -7,7 +7,7 @@
 # broke the `groundhog new` scaffold's build without anything in this repo's
 # CI noticing. This script exercises exactly the new-user path: install the
 # CLI from the registry, scaffold a project, point its sdk dependency at
-# this checkout, and build both contract targets.
+# this checkout, and build the contract.
 #
 # Run by .github/workflows/scaffold_smoke.yml on pushes to main. Runnable
 # locally too; set SKIP_CLI_INSTALL=1 to use the groundhog CLI already on
@@ -56,11 +56,10 @@ fi
 sed -i.bak "s|^sdk = .*|sdk = { path = \"$SDK_DIR/crates/sdk\" }|" Cargo.toml
 rm Cargo.toml.bak
 
-# Build both contract targets, exactly as the scaffold's "next steps"
-# suggest. No --optimize: skips the wasm-opt requirement, and compile/link
-# breakage — the thing this test is for — surfaces without it. The
-# scaffold's own rust-toolchain.toml pins the nightly + targets; rustup
-# installs them on first use. Host `cargo test` is deliberately out of
-# scope: default features pull sdk/dev and with it the hogd FFI download.
+# Build the contract, exactly as the scaffold's "next steps" suggest. No
+# --optimize: compile/link breakage — the thing this test is for — surfaces
+# without it. The scaffold's own rust-toolchain.toml pins the nightly +
+# target; rustup installs them on first use. Host `cargo test` is
+# deliberately out of scope: default features pull sdk/dev and with it the
+# hogd FFI download.
 groundhog build --target rv32
-groundhog build --target wasm

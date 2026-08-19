@@ -11,7 +11,7 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 /// This must match the version in hogd/test_ffi/test_bindings.h.
 const TEST_FFI_VERSION: &str = "0.21.0";
 
-/// Must match the version expected by hogd/built_contracts/build_wasm.sh.
+/// Must match the version expected by hogd/built_contracts' build scripts.
 #[cfg(feature = "source-build")]
 const GROUNDHOG_CLI_VERSION: &str = "0.9.0";
 
@@ -346,10 +346,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target = env::var("TARGET").unwrap();
     println!("cargo:warning=TARGET is '{target}'");
 
-    if target == "wasm32-unknown-unknown" {
-        return Err(
-            "native_exec does not build for wasm32-unknown-unknown".into()
-        );
+    if target.starts_with("riscv32") {
+        return Err(format!("native_exec does not build for {target}").into());
     }
 
     println!("cargo:rerun-if-env-changed=HOGD_FFI_BUILD");
@@ -491,7 +489,7 @@ fn fetch_hogd_rust_deps(
                 "fetch",
                 "-Zbuild-std",
                 "--target",
-                "wasm32-unknown-unknown",
+                "riscv32im-unknown-none-elf",
             ])
             .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
             .current_dir(&contracts_dir)
@@ -499,8 +497,9 @@ fn fetch_hogd_rust_deps(
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(format!(
-                "cargo fetch -Zbuild-std --target wasm32-unknown-unknown \
-                 in built_contracts failed: {stderr}"
+                "cargo fetch -Zbuild-std --target \
+                 riscv32im-unknown-none-elf in built_contracts failed: \
+                 {stderr}"
             )
             .into());
         }
@@ -985,16 +984,13 @@ fn build_from_cmake(
         .define("CMAKE_CXX_COMPILER_LAUNCHER", "ccache")
         .define("ENABLE_TEST_CONTRACTS", "OFF");
 
-    #[cfg(feature = "wasm_backtraces")]
-    cfg.define("WASM_DEBUG_BACKTRACES", "ON");
-
     // Force re-configuration before building, if requested
     cfg.always_configure(
         env::var("NATIVE_EXEC_ALWAYS_CONFIGURE").is_ok_and(|s| !s.is_empty()),
     );
 
-    // Put the locally-installed groundhog-cli on PATH so cmake/build_wasm.sh
-    // can find it without touching the user's global cargo bin.
+    // Put the locally-installed groundhog-cli on PATH so hogd's cmake
+    // contract builds can find it without touching the user's global cargo bin.
     let cli_bin = out_dir.join("groundhog-cli/bin");
     if cli_bin.exists() {
         let path = env::var("PATH").unwrap_or_default();

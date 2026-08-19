@@ -57,7 +57,7 @@ pub struct GhostEvent {
 /// A second `#[contract]` trait that carries `emits(GhostEvent)` but is
 /// intentionally NOT implemented by `SpecNamedTypesContract`.  Its candidate
 /// spec fragments (interface + method + GhostEvent def) co-travel into the
-/// raw WASM section, but the absence of an `InterfaceAnchor` causes spec
+/// raw spec section, but the absence of an `InterfaceAnchor` causes spec
 /// shaking to drop both the interface and GhostEvent from the final spec.
 /// This exercises the original bug: unimplemented-trait events must not leak.
 #[contract(emits(GhostEvent))]

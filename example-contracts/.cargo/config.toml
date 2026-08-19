@@ -4,14 +4,6 @@ rustflags = [
     "--deny", "warnings",
     ]
 
-[target.wasm32-unknown-unknown]
-rustflags = [
-    "-C", "panic=immediate-abort",
-    "-C", "link-args=-zstack-size=30000",
-    "-Z", "unstable-options",
-    "--deny", "warnings",
-    ]
-
 # The CANONICAL [target.riscv32im-unknown-none-elf] rustflags.
 # integration_test/.cargo/config.toml carries a synced copy (edit both).
 # NEVER add this section to the workspace-root .cargo/config.toml or any
@@ -80,6 +72,3 @@ debug-assertions = false
 panic = "abort"
 lto = true
 codegen-units = 1
-
-[profile.bottle_test]
-inherits = "release"

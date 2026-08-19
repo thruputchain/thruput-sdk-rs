@@ -7,8 +7,8 @@
 //! result.assert_success();
 //! ```
 //! `contract_test!` and `client_test` are thin sugar over that pattern.
-//! `test_wasm` is the harness for running real wasm blobs through the full
-//! SignedTransaction path (the only place gas_consumed is observable).
+//! `test_rv32` is the harness for running real rv32 artifacts through the
+//! full SignedTransaction path (the only place gas_consumed is observable).
 
 use crate::call::RawCallError;
 use crate::exn::FaultString;
@@ -24,8 +24,6 @@ use groundhog_xdr::transaction::{
 };
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
-use std::string::ToString;
-use std::vec;
 use std::vec::Vec;
 
 /// Decode a `TransactResult`'s root-frame outcome into the same
@@ -124,7 +122,7 @@ where
     .assert_success();
 }
 
-mod contract_test_wasm {
+mod contract_test_guest {
     use crate::SHA256Hash;
     use alloc::boxed::Box;
     use core::error::Error;
@@ -137,7 +135,7 @@ mod contract_test_wasm {
     }
 }
 
-pub use contract_test_wasm::*;
+pub use contract_test_guest::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Stats {
@@ -146,8 +144,8 @@ pub struct Stats {
 
 /// Build a one-shot TransactionHandler that runs `test` as a mock contract
 /// method through the full SignedTransaction path. Internal harness for
-/// `test_wasm` — everything else uses `env.transact`.
-fn wasm_test_handler<F>(
+/// `test_rv32` — everything else uses `env.transact`.
+fn guest_test_handler<F>(
     env: &TestEnvironmentHandle,
     test: F,
 ) -> TransactionHandler
@@ -191,19 +189,19 @@ where
     TransactionHandler::new(env.clone(), &stx)
 }
 
-pub fn test_wasm<P, T>(path: P, test: T) -> Stats
+pub fn test_rv32<P, T>(path: P, test: T) -> Stats
 where
     P: AsRef<std::path::Path>,
     T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
 {
-    let contract = load_wasm_contract(path);
+    let contract = load_rv32_contract(path);
 
     // Set up the contract
     let env = TestEnvironment::new(None);
     TestEnvironment::enable_syscall_logging();
     let contract_hash = env.setup_create_contract(&contract);
 
-    let mut handler = wasm_test_handler(&env, move || -> () {
+    let mut handler = guest_test_handler(&env, move || -> () {
         test.run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
@@ -227,64 +225,6 @@ where
     }
 
     Stats { gas_consumed }
-}
-
-pub fn load_wasm_contract<P>(path: P) -> Contract
-where
-    P: AsRef<std::path::Path>,
-{
-    load_wasm_contract_instrumented(path, true)
-}
-
-pub fn load_wasm_contract_instrumented<P>(
-    path: P,
-    please_instrument: bool,
-) -> Contract
-where
-    P: AsRef<std::path::Path>,
-{
-    use crate::contract::ContractBlob;
-
-    let raw_wasm = std::fs::read(path.as_ref()).unwrap_or_else(|e| {
-        panic!(
-            "{}: couldn't load wasm: {}",
-            path.as_ref().to_str().unwrap_or("?"),
-            e
-        )
-    });
-
-    let wasm = if please_instrument {
-        // Mirrors hogd's `verify_contract_meter` config (hogd/rust/common/src/lib.rs
-        // at the pinned test-ffi tag) so the mock accepts exactly what the chain does.
-        let instrument_config = groundhog_wasm_meter::Config {
-            max_imported_functions: 1,
-            max_table_initial_size: 64,
-            reject_floats: true,
-            allowed_custom_sections: vec![
-                "name".to_string(),
-                "groundhogspecv0".to_string(),
-                "groundhogspecrawv1".to_string(),
-            ],
-            ..groundhog_wasm_meter::Config::default()
-        };
-
-        groundhog_wasm_meter::instrument(&raw_wasm, &instrument_config)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "{}: wasm instrumentation failed: {}",
-                    path.as_ref().to_str().unwrap_or("?"),
-                    e
-                )
-            })
-    } else {
-        raw_wasm
-    };
-
-    let contract: ContractBlob = ContractBlob { data: BytesM(wasm) };
-
-    Contract::kWasmi {
-        wasmi_contract: contract,
-    }
 }
 
 pub fn load_rv32_contract<P>(path: P) -> Contract
@@ -336,8 +276,8 @@ pub fn deploy_address(
 
 #[cfg(test)]
 mod tests {
+    use super::guest_test_handler;
     use super::load_rv32_contract;
-    use super::wasm_test_handler;
     use crate::TestEnvironment;
     use std::format;
     use std::fs;
@@ -362,7 +302,7 @@ mod tests {
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let env = TestEnvironment::new(None);
-                let mut handler = wasm_test_handler(&env, || {});
+                let mut handler = guest_test_handler(&env, || {});
                 // Transaction invoked but never committed or aborted: Drop must
                 // abort it during unwind.
                 let _ = handler.root_invoke();

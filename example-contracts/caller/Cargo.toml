@@ -16,9 +16,17 @@ entrypoints = []
 dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
+
+# The rv32 artifact. `groundhog build --target rv32 -p caller` derives
+# `--bin caller` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }

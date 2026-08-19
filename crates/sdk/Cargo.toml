@@ -32,7 +32,6 @@ xdrs = { workspace = true, features = ["heapless"] }
 groundhog-contract-util = { workspace = true, optional = true }
 groundhog-storage-cost = { workspace = true, optional = true }
 groundhog-native-exec = { workspace = true, optional = true }
-groundhog-wasm-meter = { workspace = true, optional = true }
 
 # External dependencies
 thiserror = { workspace = true }
@@ -60,7 +59,6 @@ alloc = [
     "groundhog-xdr/alloc",
     "xdrs/alloc",
     "groundhog-contract-spec/alloc",
-    "groundhog-wasm-runtime/alloc",
     "groundhog-rv32-runtime/alloc",
 ]
 
@@ -85,7 +83,6 @@ dev = [
 mock = [
     "std",
     "dep:groundhog-native-exec",
-    "dep:groundhog-wasm-meter",
     "dep:groundhog-storage-cost",
     "groundhog-macros/mock",
     "groundhog-xdr/syscalls_mock",
@@ -103,36 +100,30 @@ call_tracking = ["debugging"] # contract-call tracking
 
 # Optional diagnostic features (not enabled by "dev")
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
-panic_logging = ["groundhog-wasm-runtime/panic_logging"] # send panic messages to the log() syscall
 
 [[test]]
 name = "int128"
 required-features = ["std"]
 
-# RV32 and WASM contracts use real syscalls into hogd. Host-native builds use
-# the mock syscall implementation linked through native-exec.
+# RV32 contracts use real syscalls into hogd. Host-native builds use the mock
+# syscall implementation linked through native-exec.
 #
 # `groundhog-u256/nightly` rides the same gate: guest builds always run a
 # nightly toolchain, so contracts get the exact `cfg(overflow_checks)` keying,
 # while host builds of `sdk` (the CLI's spec-tool path) stay compilable on
 # stable. Resolver v2+ keeps features of an inactive target's dependencies out
 # of unification, so this cannot leak into host builds.
-[target.'cfg(any(target_family = "wasm", target_arch = "riscv32"))'.dependencies]
+#
+# The guest runtime is force-linked from lib.rs (`extern crate ... as _`) so
+# contracts and the rv32 bin wrapper don't declare it. It is a target-specific
+# crate, so it stays target-gated and out of the host/test dependency graph.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls"] }
 groundhog-u256 = { workspace = true, features = ["nightly"] }
+groundhog-rv32-runtime = { workspace = true }
 
-[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
 # Host-only: backs the storage-domain uniqueness registry (STORAGE_DOMAINS),
 # cfg-gated out of guest builds — see storage/domain_registry.rs.
 linkme = { workspace = true }
-
-# Guest runtimes: force-linked from lib.rs (`extern crate ... as _`) so
-# contracts and the rv32 bin wrapper don't declare them. They are target-specific
-# crates, so keep these dependencies target-gated and out of the host/test
-# dependency graph.
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-groundhog-wasm-runtime = { workspace = true }
-
-[target.'cfg(target_arch = "riscv32")'.dependencies]
-groundhog-rv32-runtime = { workspace = true }
