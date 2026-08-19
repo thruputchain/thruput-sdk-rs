@@ -1,0 +1,29 @@
+[package]
+name = "erc20_low_level-rv32"
+description = "RV32 binary wrapper around the erc20_low_level example contract"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = ["erc20_low_level/entrypoints"]
+# The bottle-test tester artifact: the same contract plus the BottleTest
+# entrypoints that drive it. scripts/dev.sh builds this package twice --
+# once plain (the target under measurement) and once with this feature (the
+# tester) -- and hands both artifacts to `cargo run -p bottle-test`.
+bottle-test = ["erc20_low_level/bottle-test"]
+
+[[bin]]
+name = "erc20_low_level_rv32"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+erc20_low_level = { path = "../erc20_low_level" }
+sdk = { workspace = true }

@@ -24,7 +24,7 @@ bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/al
 metadata = ["dep:groundhog-erc20-metadata-if"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 

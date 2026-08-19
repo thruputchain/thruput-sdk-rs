@@ -65,7 +65,6 @@ members = [
     "iface_conflict_caller",
     "iface_conflict_impl",
     "raw_iface_dep",
-    "missing_contract_macro",
     "typedef_shaking_caller-rv32",
     "iface_conflict_caller-rv32",
     "phantom_method_if_a",
@@ -73,8 +72,26 @@ members = [
     "phantom_method_impl",
     "dup_entrypoint_neg",
     "prerelease_version",
+    "erc20-rv32",
+    "erc20_low_level-rv32",
+    "erc20_raw_storage-rv32",
+    "hasher-rv32",
+    "caller-rv32",
+    "exceptions-rv32",
+    "free_fn_unnamed-rv32",
+    "imported_error_callee-rv32",
+    "multi_imported_traits-rv32",
+    "spec_named_types-rv32",
+    "genesis_deployer-rv32",
+    "swap-rv32",
+    "signer_callee-rv32",
+    "erc1271_wallet-rv32",
+    "phantom_method_impl-rv32",
+    "prerelease_version-rv32",
+    "complex-storage-rv32",
     # Built only by scripts/bigint-bench.sh (34 rv32 variants); carries a
-    # `disabled` marker so the wasm loops skip it. See its Cargo.toml.
+    # `disabled` marker so the generic contract loops skip it. See its
+    # Cargo.toml.
     "bigint-bench-contract",
 ]
 

@@ -5,19 +5,12 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
 
-#[cfg(all(
-    feature = "std",
-    any(target_family = "wasm", target_arch = "riscv32"),
-))]
+#[cfg(all(feature = "std", target_arch = "riscv32"))]
 compile_error!(
     "Feature 'std' cannot be enabled when targeting guest contracts"
 );
 
-#[cfg(all(
-    not(feature = "std"),
-    not(target_family = "wasm"),
-    not(target_arch = "riscv32"),
-))]
+#[cfg(all(not(feature = "std"), not(target_arch = "riscv32")))]
 compile_error!("Feature 'std' is required when compiling natively");
 
 // Allow `#[exn]` to emit `::sdk::exn::Exn` and have it resolve
@@ -54,15 +47,12 @@ pub use groundhog_u256::{U256, checked_mul_div_u128, mul_div_u128};
 extern crate alloc;
 
 // Guest targets get their runtime — `#[global_allocator]`, `#[panic_handler]`,
-// and (on rv32) the `_start` entry — from a dedicated runtime crate, the same
-// way a hosted target gets these from std + the system. Force-link it so
-// contracts (and the rv32 bin wrapper) don't have to name it. The
+// and the `_start` entry — from a dedicated runtime crate, the same way a
+// hosted target gets these from std + the system. Force-link it so contracts
+// (and the rv32 bin wrapper) don't have to name it. The
 // `extern crate ... as _` is load-bearing: nothing references these items by
 // name, so without it the runtime would be pruned as an unused dependency,
 // taking the lang items with it.
-#[cfg(target_arch = "wasm32")]
-extern crate groundhog_wasm_runtime as _;
-
 #[cfg(target_arch = "riscv32")]
 extern crate groundhog_rv32_runtime as _;
 
@@ -75,7 +65,7 @@ pub mod __rv32 {
     pub use groundhog_rv32_runtime::Entrypoint;
 }
 
-#[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+#[cfg(not(target_arch = "riscv32"))]
 #[doc(hidden)]
 pub extern crate linkme as __linkme;
 
@@ -203,10 +193,7 @@ pub mod storage;
 #[macro_export]
 macro_rules! storage_domain_uniqueness_test {
     () => {
-        #[cfg(all(
-            test,
-            not(any(target_family = "wasm", target_arch = "riscv32"))
-        ))]
+        #[cfg(all(test, not(target_arch = "riscv32")))]
         #[test]
         fn storage_domains_unique_across_linked_crates() {
             $crate::storage::assert_unique_storage_domains();

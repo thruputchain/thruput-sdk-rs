@@ -4,15 +4,16 @@ members = [
     "crates/*",
     "crates/sdk/tests/vector-tests",
     "crates/sdk/tests/version-mismatch-helper",
+    "crates/macros/tests/crate-override-guest",
     "standard-interfaces/*",
     "standard-tests/*",
 ]
-# The guest runtime crates (crates/rv32-runtime, crates/wasm-runtime) only
-# compile for their target — a top-level compile_error! rejects every other
-# target. They stay workspace members (for field inheritance, `-p` builds, and
-# publishing via sdk), but are excluded from default-members so host-wide
-# `cargo build/test/doc` (which build all default members) skip them. Add new
-# crates/* packages here too unless they are target-only runtimes.
+# The guest runtime crate (crates/rv32-runtime) only compiles for its target —
+# a top-level compile_error! rejects every other target. It stays a workspace
+# member (for field inheritance, `-p` builds, and publishing via sdk), but is
+# excluded from default-members so host-wide `cargo build/test/doc` (which
+# build all default members) skip it. Add new crates/* packages here too
+# unless they are target-only runtimes.
 default-members = [
     "crates/bigint-bench",
     "crates/bigint-bench-if",
@@ -33,6 +34,7 @@ default-members = [
     "crates/version-check",
     "crates/sdk/tests/vector-tests",
     "crates/sdk/tests/version-mismatch-helper",
+    "crates/macros/tests/crate-override-guest",
     "standard-interfaces/*",
     "standard-tests/*",
 ]
@@ -78,7 +80,6 @@ groundhog-sys = { path = "crates/hogd-sys" , registry = "groundhog", version = "
 groundhog-storage-cost = { path = "crates/storage-cost" , registry = "groundhog", version = "=0.19.6" }
 groundhog-event = { path = "crates/event", registry = "groundhog", version = "=0.19.6" }
 groundhog-rv32-runtime = { path = "crates/rv32-runtime", registry = "groundhog", version = "=0.19.6" }
-groundhog-wasm-runtime = { path = "crates/wasm-runtime", registry = "groundhog", version = "=0.19.6" }
 groundhog-spec-tool = { path = "crates/spec-tool", registry = "groundhog", version = "=0.19.6" }
 groundhog-domain-separator = { path = "crates/domain-separator", registry = "groundhog", version = "=0.19.6" }
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.19.6" }
@@ -104,9 +105,6 @@ hogexec-internal = { registry = "groundhog", version = "0.21.1" }
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.8.2", default-features = false, features = ["int128", "heapless"] }
 xdr-common = { registry = "groundhog", version = "0.8.0" }
-
-# Other groundhog deps:
-groundhog-wasm-meter = { registry = "groundhog", version = "0.8" }
 
 # External crates.io dependencies
 thiserror = { version = "2.0.12", default-features = false }

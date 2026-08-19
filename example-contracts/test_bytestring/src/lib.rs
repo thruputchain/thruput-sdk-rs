@@ -2,7 +2,6 @@
 
 use sdk::*;
 
-#[cfg_attr(target_family = "wasm", unsafe(export_name = "0"))]
 pub extern "C" fn write_bytestring() -> i32 {
     let mut calldata_buf = sdk::internal::new_scratch();
     let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
@@ -18,7 +17,6 @@ pub extern "C" fn write_bytestring() -> i32 {
     0
 }
 
-#[cfg_attr(target_family = "wasm", unsafe(export_name = "1"))]
 pub extern "C" fn log_bytestring() -> i32 {
     let mut calldata_buf = sdk::internal::new_scratch();
     let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
@@ -38,7 +36,6 @@ pub extern "C" fn log_bytestring() -> i32 {
     0
 }
 
-#[cfg_attr(target_family = "wasm", unsafe(export_name = "2"))]
 pub extern "C" fn expect_bytestring() -> i32 {
     let mut calldata_buf = sdk::internal::new_scratch();
     let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();

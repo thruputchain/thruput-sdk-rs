@@ -470,11 +470,7 @@ pub(crate) fn with_scratch<R>(f: impl FnOnce(&mut Buf) -> R) -> R {
     with_call_scratch(|buf, _auth| f(buf))
 }
 
-#[cfg(all(
-    test,
-    not(any(target_family = "wasm", target_arch = "riscv32")),
-    feature = "std"
-))]
+#[cfg(all(test, not(target_arch = "riscv32"), feature = "std"))]
 mod scratch_tests {
     use super::*;
 

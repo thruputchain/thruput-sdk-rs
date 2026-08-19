@@ -24,7 +24,7 @@ impl HasherImpl {
     }
 
     // The `syscall::` path hashes through the SHA256 syscall rather than
-    // linking `sha2` into the guest; on wasm32/rv32 reaching the `sha2` backend
+    // linking `sha2` into the guest; on rv32 reaching the `sha2` backend
     // at all is a compile error. The expectation is the cross-implementation
     // vector from
     // `groundhog-test-vectors domain-separator` (pubkey = [0x01; 32], nonce =

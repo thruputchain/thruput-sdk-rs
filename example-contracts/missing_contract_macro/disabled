@@ -1,5 +1,0 @@
-Negative spec fixture: the wasm build succeeds but spec-tool rewrite must
-fail (no exported entrypoints — the missing-#[contract] guard — even though
-linked interface candidates populate the raw section). Exercised by
-check_missing_contract_macro_detected in scripts/dev.sh, not the standard
-build-and-finalize loop.

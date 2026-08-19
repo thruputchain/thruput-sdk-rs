@@ -1,0 +1,1 @@
+rv32-only wrapper; build with `groundhog build --target rv32 -p signer_callee-rv32`.

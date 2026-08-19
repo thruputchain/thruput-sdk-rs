@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Tools for reading, writing, and embedding Groundhog contract specs in Wasm modules"
+description = "Tools for reading, writing, and canonicalizing Groundhog contract specs"
 
 [lib]
 path = "src/lib.rs"
@@ -22,8 +22,6 @@ groundhog-erc1271-if = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }
-wasm-encoder = "0.252.0"
-wasmparser = "0.252.0"
 sdk = { workspace = true, features = ["std"] }
 
 [dev-dependencies]

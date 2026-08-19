@@ -51,5 +51,4 @@ jobs:
           SKIP_LOGGING: "1"
           SKIP_LINT: "1"
           SKIP_FMT: "1"
-          SKIP_WASM_STRINGS: "1"
         run: ./scripts/dev.sh ci

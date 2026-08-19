@@ -11,7 +11,7 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 [dependencies]
 sdk = { workspace = true }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 sdk = { workspace = true, features = ["std"] }
 
 [lib]

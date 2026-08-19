@@ -16,9 +16,17 @@ entrypoints = []
 dev = ["sdk/dev", "typedef_shaking_if_v1/dev", "typedef_shaking_if_v2/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
+
+# The rv32 artifact. The directory deliberately lacks a `-rv32` suffix so the
+# wrapper glob in scripts/dev.sh never builds it expecting success; the
+# negative check builds it by name. Same shape as dup_entrypoint_neg.
+[[bin]]
+name = "typedef_collision_reachable"
+path = "src/main.rs"
+required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }

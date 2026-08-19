@@ -20,7 +20,7 @@ dev = ["sdk/dev"]
 bottle-test = ["dep:bottle-test-if"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
@@ -35,7 +35,7 @@ bottle-test-if = { workspace = true, optional = true }
 [dev-dependencies]
 hasher = { path = ".", features = ["dev"] }
 # The host side of the backend diff in tests/test.rs. `sha2` is a dev-dependency
-# feature on purpose: dev-dependencies are not built for wasm32/rv32, so this
+# feature on purpose: dev-dependencies are not built for rv32, so this
 # cannot leak the host backend into the guest (where it is a compile error).
 # `syscall-mock` gives the syscall backend its host dispatch path directly,
 # rather than leaning on `sdk/mock` to enable it.

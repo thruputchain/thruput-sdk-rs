@@ -4,14 +4,6 @@ rustflags = [
     "--deny", "warnings",
     ]
 
-[target.wasm32-unknown-unknown]
-rustflags = [
-    "-C", "panic=immediate-abort",
-    "-C", "link-args=-zstack-size=30000",
-    "-Z", "unstable-options",
-    "--deny", "warnings",
-    ]
-
 # SYNCED COPY of the canonical rv32 stanza in
 # example-contracts/.cargo/config.toml — edit both together; see that file
 # for the full flag rationale. Present here because integration_test/ is a
@@ -46,9 +38,6 @@ debug-assertions = false
 panic = "abort"
 lto = true
 codegen-units = 1
-
-[profile.bottle_test]
-inherits = "release"
 
 # [unstable]
 # build-std = ["core", "alloc"]

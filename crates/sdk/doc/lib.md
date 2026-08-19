@@ -39,8 +39,8 @@ If feature `alloc` is enabled:
 - The [`alloc`] crate is linked in, giving access to allocating datatypes like
   `String` and `Vec`.
 - A simple bump allocator is installed by the guest runtime crate
-  (`groundhog-wasm-runtime` on wasm, `groundhog-rv32-runtime` on rv32).
-  Allocations are not freed until the current contract invocation terminates.
+  (`groundhog-rv32-runtime`). Allocations are not freed until the current
+  contract invocation terminates.
 
 Datatypes defined by third-party libraries or by the user may be used in memory
 and in persistent storage, noting that:
@@ -121,7 +121,7 @@ The SDK exposes three main testing lanes:
   mock registration
 - [`TestEnvironment`](crate::TestEnvironment): direct control over environment,
   blocks, deployment, and multi-contract scenarios
-- [`test_wasm()`]: run a built wasm contract in the test harness
+- [`test_rv32()`]: run a built rv32 contract artifact in the test harness
 
 Typical native client test, with the contract crate calling
 `sdk::declare_mock_contract!();` in its `lib.rs` to generate
@@ -158,8 +158,8 @@ env.transact(|tx| {
 Advanced helpers are available when you need lower-level control:
 - [`contract_test!`]
 - [`into_root_call_result()`]
-- [`load_wasm_contract()`]
-- [`test_wasm()`]
+- [`load_rv32_contract()`]
+- [`test_rv32()`]
 
 # Example Contract
 

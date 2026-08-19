@@ -1,0 +1,24 @@
+[package]
+name = "prerelease_version-rv32"
+description = "RV32 binary wrapper around the prerelease_version example contract"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = ["prerelease_version/entrypoints"]
+
+[[bin]]
+name = "prerelease_version_rv32"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+prerelease_version = { path = "../prerelease_version" }
+sdk = { workspace = true }

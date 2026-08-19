@@ -73,8 +73,7 @@ prebuilt download.
 
 **Use this when:**
 - You're on an unsupported platform
-- You want to build with custom flags or modifications (see also the
-  `wasm_backtraces` feature, which is only available with source builds)
+- You want to build with custom flags or modifications
 - You're developing changes to the C++ code
 
 ### 3. Use Custom Library Path (Override)

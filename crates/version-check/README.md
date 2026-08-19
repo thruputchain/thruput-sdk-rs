@@ -127,9 +127,8 @@ The current set:
   crates are compatible with any SDK patch release.
 - Those three plus `bottle-test-if` and `version-mismatch-helper` declare their
   own versions instead of inheriting the workspace version.
-- `groundhog-rv32-runtime` and `groundhog-wasm-runtime` are absent from
-  `default-members`, because a top-level `compile_error!` rejects the host
-  target.
+- `groundhog-rv32-runtime` is absent from `default-members`, because a
+  top-level `compile_error!` rejects the host target.
 - `hex-literal` and `thiserror` pin sites under `integration_test/contracts/`
   are excluded from `external-agreement`, pending a PR to the
   `integration_test_contracts` submodule. Both are temporary: the contracts

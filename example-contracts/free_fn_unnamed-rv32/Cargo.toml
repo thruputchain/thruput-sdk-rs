@@ -1,0 +1,24 @@
+[package]
+name = "free_fn_unnamed-rv32"
+description = "RV32 binary wrapper around the free_fn_unnamed example contract"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = ["free_fn_unnamed/entrypoints"]
+
+[[bin]]
+name = "free_fn_unnamed_rv32"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+free_fn_unnamed = { path = "../free_fn_unnamed" }
+sdk = { workspace = true }

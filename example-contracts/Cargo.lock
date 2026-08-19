@@ -38,12 +38,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitflags"
-version = "2.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
-
-[[package]]
 name = "block-buffer"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -72,6 +66,14 @@ dependencies = [
  "caller",
  "erc20",
  "groundhog-erc20-if",
+ "sdk",
+]
+
+[[package]]
+name = "caller-rv32"
+version = "0.4.0"
+dependencies = [
+ "caller",
  "sdk",
 ]
 
@@ -123,6 +125,14 @@ dependencies = [
 
 [[package]]
 name = "complex-storage"
+version = "0.4.0"
+dependencies = [
+ "complex-storage",
+ "sdk",
+]
+
+[[package]]
+name = "complex-storage-rv32"
 version = "0.4.0"
 dependencies = [
  "complex-storage",
@@ -259,6 +269,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc1271_wallet-rv32"
+version = "0.4.0"
+dependencies = [
+ "erc1271_wallet",
+ "sdk",
+]
+
+[[package]]
 name = "erc20"
 version = "0.4.0"
 dependencies = [
@@ -293,6 +311,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc20-rv32"
+version = "0.4.0"
+dependencies = [
+ "erc20",
+ "sdk",
+]
+
+[[package]]
 name = "erc20-test"
 version = "0.19.6"
 dependencies = [
@@ -314,6 +340,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc20_low_level-rv32"
+version = "0.4.0"
+dependencies = [
+ "erc20_low_level",
+ "sdk",
+]
+
+[[package]]
 name = "erc20_raw_storage"
 version = "0.4.0"
 dependencies = [
@@ -321,6 +355,14 @@ dependencies = [
  "erc20-native-test",
  "erc20_raw_storage",
  "groundhog-erc20-if",
+ "sdk",
+]
+
+[[package]]
+name = "erc20_raw_storage-rv32"
+version = "0.4.0"
+dependencies = [
+ "erc20_raw_storage",
  "sdk",
 ]
 
@@ -363,13 +405,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "foldhash"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+name = "exceptions-rv32"
+version = "0.4.0"
+dependencies = [
+ "exceptions",
+ "sdk",
+]
 
 [[package]]
 name = "free_fn_unnamed"
+version = "0.4.0"
+dependencies = [
+ "free_fn_unnamed",
+ "sdk",
+]
+
+[[package]]
+name = "free_fn_unnamed-rv32"
 version = "0.4.0"
 dependencies = [
  "free_fn_unnamed",
@@ -388,6 +440,14 @@ dependencies = [
 
 [[package]]
 name = "genesis_deployer"
+version = "0.4.0"
+dependencies = [
+ "genesis_deployer",
+ "sdk",
+]
+
+[[package]]
+name = "genesis_deployer-rv32"
 version = "0.4.0"
 dependencies = [
  "genesis_deployer",
@@ -555,24 +615,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "groundhog-wasm-meter"
-version = "0.8.1"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "a2d027a3b193a374ae5ead85ec75c87a09f810792fc8bb9efd6d3c0059db75ee"
-dependencies = [
- "wasm-encoder",
- "wasmparser",
-]
-
-[[package]]
-name = "groundhog-wasm-runtime"
-version = "0.19.6"
-dependencies = [
- "groundhog-xdr",
- "heapless",
-]
-
-[[package]]
 name = "groundhog-xdr"
 version = "0.21.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
@@ -617,11 +659,6 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-dependencies = [
- "foldhash",
- "serde",
- "serde_core",
-]
 
 [[package]]
 name = "hasher"
@@ -631,6 +668,14 @@ dependencies = [
  "groundhog-domain-separator",
  "hasher",
  "hex-literal",
+ "sdk",
+]
+
+[[package]]
+name = "hasher-rv32"
+version = "0.4.0"
+dependencies = [
+ "hasher",
  "sdk",
 ]
 
@@ -732,6 +777,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "imported_error_callee-rv32"
+version = "0.4.0"
+dependencies = [
+ "imported_error_callee",
+ "sdk",
+]
+
+[[package]]
 name = "imported_error_caller"
 version = "0.4.0"
 dependencies = [
@@ -755,8 +808,6 @@ checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
  "hashbrown",
- "serde",
- "serde_core",
 ]
 
 [[package]]
@@ -772,12 +823,6 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "leb128fmt"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libc"
@@ -812,15 +857,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
-name = "missing_contract_macro"
-version = "0.4.0"
-dependencies = [
- "iface_conflict_if_a",
- "missing_contract_macro",
- "sdk",
-]
-
-[[package]]
 name = "multi_imported_traits"
 version = "0.4.0"
 dependencies = [
@@ -828,6 +864,14 @@ dependencies = [
  "named_interface_callee",
  "sdk",
  "versioned_callee",
+]
+
+[[package]]
+name = "multi_imported_traits-rv32"
+version = "0.4.0"
+dependencies = [
+ "multi_imported_traits",
+ "sdk",
 ]
 
 [[package]]
@@ -888,7 +932,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "phantom_method_impl-rv32"
+version = "0.4.0"
+dependencies = [
+ "phantom_method_impl",
+ "sdk",
+]
+
+[[package]]
 name = "prerelease_version"
+version = "0.4.0"
+dependencies = [
+ "prerelease_version",
+ "sdk",
+]
+
+[[package]]
+name = "prerelease_version-rv32"
 version = "0.4.0"
 dependencies = [
  "prerelease_version",
@@ -1000,8 +1060,6 @@ dependencies = [
  "groundhog-rv32-runtime",
  "groundhog-storage-cost",
  "groundhog-u256",
- "groundhog-wasm-meter",
- "groundhog-wasm-runtime",
  "groundhog-xdr",
  "heapless",
  "hogexec-internal",
@@ -1010,12 +1068,6 @@ dependencies = [
  "thiserror",
  "xdrs",
 ]
-
-[[package]]
-name = "semver"
-version = "1.0.28"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "serde"
@@ -1104,6 +1156,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "signer_callee-rv32"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "signer_callee",
+]
+
+[[package]]
 name = "signer_caller"
 version = "0.4.0"
 dependencies = [
@@ -1175,6 +1235,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "spec_named_types-rv32"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "spec_named_types",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1218,6 +1286,14 @@ dependencies = [
  "sdk",
  "swap",
  "uint",
+]
+
+[[package]]
+name = "swap-rv32"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "swap",
 ]
 
 [[package]]
@@ -1380,29 +1456,6 @@ dependencies = [
  "sdk",
  "versioned_callee",
  "versioned_caller",
-]
-
-[[package]]
-name = "wasm-encoder"
-version = "0.252.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8185ae345fa5687c054626ff9a50e7089797a343d9904d1dc9820eb4c4d3196f"
-dependencies = [
- "leb128fmt",
- "wasmparser",
-]
-
-[[package]]
-name = "wasmparser"
-version = "0.252.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3eb099dcadcde5be9eef55e3a337128efd4e44b4c93122487e4d2e4e1c6627c"
-dependencies = [
- "bitflags",
- "hashbrown",
- "indexmap",
- "semver",
- "serde",
 ]
 
 [[package]]

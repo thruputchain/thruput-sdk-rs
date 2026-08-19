@@ -17,7 +17,7 @@ dev = ["std", "sdk/dev"]
 std = []
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 

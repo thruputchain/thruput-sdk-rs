@@ -137,9 +137,9 @@ pub fn generate(
 
     // Emit a host-gated static that registers (self_ty::DOMAIN, "<module>::<self_ty>")
     // into STORAGE_DOMAINS so the collision-checker can detect two roots sharing a domain.
-    // Gated cfg(not(any(target_family = "wasm", target_arch = "riscv32"))) to match the
-    // registry's own gate. Each contract block gets a unique static name derived from the
-    // self_ty + trait (or "inherent") to avoid symbol collisions across multiple impl blocks.
+    // Gated cfg(not(target_arch = "riscv32")) to match the registry's own gate.
+    // Each contract block gets a unique static name derived from the self_ty +
+    // trait (or "inherent") to avoid symbol collisions across multiple impl blocks.
     //
     // Also emits a host-only #[test] (one per contract block) that calls
     // assert_unique_storage_domains() so any domain collision is caught by `cargo test`.
@@ -173,7 +173,7 @@ pub fn generate(
             disc
         );
         let registration = quote! {
-            #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+            #[cfg(not(target_arch = "riscv32"))]
             #[::sdk::__linkme::distributed_slice(::sdk::storage::STORAGE_DOMAINS)]
             #[linkme(crate = ::sdk::__linkme)]
             #[allow(non_upper_case_globals)]
@@ -191,7 +191,7 @@ pub fn generate(
         // gets no storage-domain collision detection (and no warning). Keep lib
         // tests enabled for the guarantee to hold.
         let test = quote! {
-            #[cfg(all(test, not(any(target_family = "wasm", target_arch = "riscv32"))))]
+            #[cfg(all(test, not(target_arch = "riscv32")))]
             #[test]
             #[allow(non_snake_case)]
             fn #test_ident() {
@@ -517,8 +517,7 @@ pub fn generate_method(
     // RV32 self-registers each method by emitting an `Entrypoint` record into
     // the `groundhog_rv32_entrypoints` input section, which the rv32-runtime
     // linker script brackets and `_start`'s dispatcher scans at runtime,
-    // instead of exporting a per-method symbol. WASM still uses host-side
-    // export dispatch.
+    // instead of exporting a per-method symbol.
     let method_id_u64 = u64::from_be_bytes(*entrypoint);
     let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
@@ -530,20 +529,6 @@ pub fn generate_method(
 
         #[doc=#export_docstr]
         #[cfg(feature = "entrypoints")]
-        // The wrapper carries a symbol name on BOTH guest targets, so a
-        // duplicate entrypoint ID — a colliding interface key with the same
-        // method name — fails the build as a duplicate symbol, instead of
-        // producing two dispatch records where the rv32 runtime's
-        // first-match-wins scan silently routes every call to one impl.
-        // wasm must use the 16-hex ID (the host dispatches by export name);
-        // rv32 dispatch goes through the record below, so its symbol is the
-        // human-readable ID preimage — the duplicate-symbol error then
-        // names the interface and method. Symbol names never reach the
-        // lowered rv32 image, so readability is free.
-        #[cfg_attr(
-            target_family = "wasm",
-            unsafe(export_name = #export_name)
-        )]
         pub extern "C" fn #extern_name() {
             #internal_name()
         }
@@ -552,8 +537,10 @@ pub fn generate_method(
         // method (symtab-only — neither reaches the lowered image) so a
         // colliding dispatch ID fails the build instead of producing two
         // dispatch-table records where the runtime's first-match-wins scan
-        // silently routes every call to one impl. wasm needs no guards: its
-        // export_name above IS the dispatch surface and collides on its own.
+        // silently routes every call to one impl. Symbol names never reach
+        // the lowered rv32 image, so readability is free: the readable ID
+        // preimage makes the duplicate-symbol error name the interface and
+        // method.
         //
         // The readable ID-preimage symbol is declared FIRST so the common
         // collision (same interface/method key) is reported against it —
@@ -726,10 +713,6 @@ mod tests {
             .unwrap()
             .to_string();
 
-        // WASM still uses host-side export dispatch.
-        assert!(generated.contains("target_family = \"wasm\""));
-        assert!(generated.contains("export_name"));
-
         // rv32 now emits a #[used] static into the repo-owned
         // groundhog_rv32_entrypoints section (no linkme, no distributed_slice).
         assert!(generated.contains("target_arch = \"riscv32\""));
@@ -744,14 +727,12 @@ mod tests {
 
     #[test]
     fn entrypoint_wrapper_symbol_carries_id_preimage_on_rv32() {
-        // The wrapper carries a symbol name on BOTH guest targets, so a
-        // duplicate entrypoint ID (colliding interface key + same method
-        // name) is a duplicate-symbol build error on rv32 exactly as on
-        // wasm — instead of two dispatch-table records where the runtime's
-        // first-match-wins scan silently routes every call to one impl.
-        // wasm must use the 16-hex ID (the host dispatches by export name);
-        // rv32 dispatch goes through the record table, so its symbol uses
-        // the human-readable ID preimage for a legible error message.
+        // A duplicate entrypoint ID (colliding interface key + same method
+        // name) must be a duplicate-symbol build error, instead of two
+        // dispatch-table records where the runtime's first-match-wins scan
+        // silently routes every call to one impl. rv32 dispatch goes through
+        // the record table, so the guard symbol uses the human-readable ID
+        // preimage for a legible error message.
         let config = parse_config(r#"interface = "Iface""#);
         let item: syn::ItemFn = syn::parse_quote! {
             fn ping() {}

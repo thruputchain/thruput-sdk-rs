@@ -24,7 +24,7 @@ set -euo pipefail
 #
 # Run from the SDK's top-level directory. Requires the pinned groundhog CLI
 # (scripts/ci.sh installs it), llvm-readelf or readelf on PATH, and whatever
-# `sdk`'s `dev` feature needs to stand up the mock node -- the same set the wasm
+# `sdk`'s `dev` feature needs to stand up the mock node -- the same set the
 # bottle tests already require.
 
 SDK_DIR="$(realpath ".")"

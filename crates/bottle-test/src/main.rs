@@ -1,25 +1,30 @@
 use bottle_test_if::*;
 
-use sdk::load_wasm_contract;
+use sdk::load_rv32_contract;
 use sdk::*;
 
 pub fn main() {
-    let package = std::env::args()
+    let stem = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| panic!("Please specify contract package to test"));
+        .unwrap_or_else(|| panic!("Please specify contract artifact to test"));
 
-    bottle_test(&package);
+    bottle_test(&stem);
 }
 
 pub const TESTER_NONCE: SHA256Hash = SHA256Hash::new([7; 32]);
 pub const OWNER: ContractAddress = ContractAddress::new([0xFF; 32]);
 
-fn bottle_test(package: &str) {
+/// `stem` is the artifact stem `scripts/dev.sh` staged the pair under: the
+/// rv32 bin name of the contract's `-rv32` wrapper package. The two builds
+/// differ only in the wrapper's `bottle-test` feature — the target is the
+/// contract under measurement, the tester adds the `BottleTest` entrypoints
+/// that drive it.
+fn bottle_test(stem: &str) {
     let target_contract =
-        load_wasm_contract(format!("target/optimized/{package}.wasm"));
+        load_rv32_contract(format!("target/bottle-test/{stem}.target.rv32a"));
 
     let tester_contract =
-        load_wasm_contract(format!("target/bottle-test/{package}.wasm"));
+        load_rv32_contract(format!("target/bottle-test/{stem}.tester.rv32a"));
 
     let env = TestEnvironment::no_cost();
 
@@ -28,7 +33,7 @@ fn bottle_test(package: &str) {
     let target_hash = env.setup_create_contract(&target_contract);
 
     // Something we can move into the test closure
-    let package = package.to_string();
+    let stem = stem.to_string();
 
     let result = env.transact(|tx| {
         tx.call(&OWNER).run(move || {
@@ -49,7 +54,7 @@ fn bottle_test(package: &str) {
                 "Bottle test succeeded (gas consumed: {})",
                 gas_consumed
             );
-            println!("{}\tgas_consumed\t{}", package, gas_consumed);
+            println!("{}\tgas_consumed\t{}", stem, gas_consumed);
         })
     });
     result.assert_success();

@@ -16,7 +16,7 @@ entrypoints = []
 dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 

@@ -16,7 +16,7 @@ entrypoints = []
 dev = ["sdk/dev", "phantom_method_if_a/dev", "phantom_method_if_b/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 

@@ -70,7 +70,7 @@ undergoes a semver-major change.
 
 Each carries its own `sdk` dep rather than inheriting from the workspace. Update
 the pin in **both** `[dependencies]` and
-`[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]`:
+`[target.'cfg(not(target_arch = "riscv32"))'.dependencies]`:
 
 - `standard-interfaces/groundhog-erc20/Cargo.toml`
 - `standard-interfaces/groundhog-erc20-metadata/Cargo.toml`

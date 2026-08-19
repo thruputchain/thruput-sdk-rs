@@ -16,7 +16,7 @@ entrypoints = []
 dev = ["sdk/dev", "event_shaking_if/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 

@@ -1,8 +1,9 @@
 //! `#[panic_handler]` for rv32 contracts.
 //!
-//! WASM contracts use `-Cpanic=immediate_abort` to strip the panic path
-//! entirely. For rv32 we issue `ebreak`, which the hogd VM traps as
-//! `Trap::kBreakpoint` and the runtime maps to a deterministic failure.
+//! Release contract profiles use `-Cpanic=immediate-abort`, which strips the
+//! panic path entirely. Where the handler is reached we issue `ebreak`, which
+//! the hogd VM traps as `Trap::kBreakpoint` and the runtime maps to a
+//! deterministic failure.
 //!
 //! Notes:
 //!   - hogd now accepts `ebreak` (0x00100073) as a deterministic-trap

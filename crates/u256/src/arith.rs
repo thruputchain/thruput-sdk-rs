@@ -14,19 +14,15 @@
 //! of the hint. Only `inline(never)` changes anything.
 //!
 //! And the right answer differs by target, because inlining lets LLVM
-//! specialize each copy against known-zero limbs. Measured on rv32 `.text` and
-//! wasm `CODE` against a probe with N distinct call sites, `inline(never)`
-//! breaks even at roughly:
-//!
-//! | function                          | rv32 | wasm |
-//! |-----------------------------------|------|------|
-//! | `widening_mul`, `overflowing_mul` | 1.3  | 5.0  |
-//! | `from_be_bytes`                   | 1.2  | 2.2  |
-//! | `to_be_bytes`                     | 1.8  | 18   |
+//! specialize each copy against known-zero limbs. Measured on rv32 `.text`
+//! against a probe with N distinct call sites, `inline(never)` breaks even at
+//! roughly 1.3 call sites for `widening_mul`/`overflowing_mul`, 1.2 for
+//! `from_be_bytes`, and 1.8 for `to_be_bytes` -- against host builds, where
+//! the break-even is several times higher.
 //!
 //! Real contracts sit at a handful of call sites (the swap pair has four
-//! multiply sites), so outlining pays on rv32 and costs on wasm. rv32 is where
-//! the 64 KiB artifact cap binds, hence the `cfg_attr`. Keep the small bodies
+//! multiply sites), so outlining pays on rv32. rv32 is also where the 64 KiB
+//! artifact cap binds, hence the `cfg_attr`. Keep the small bodies
 //! -- add/sub/shift/compare/`is_zero`/`from_limbs` -- plain `#[inline]`: they
 //! are smaller than the call sequence that would replace them.
 
@@ -40,7 +36,7 @@ use core::ops::{
 /// `acc + a * b + carry`, split into (low, high) 32-bit halves.
 ///
 /// Peaks at `(2^32-1)^2 + 2*(2^32-1) = 2^64-1`, so the `u64` never overflows.
-/// A `mul`/`mulhu` pair on rv32, `i64.extend_u`/`i64.mul` on wasm32.
+/// A `mul`/`mulhu` pair on rv32.
 #[inline(always)]
 const fn mac(acc: u32, a: u32, b: u32, carry: u32) -> (u32, u32) {
     let t = (a as u64) * (b as u64) + (acc as u64) + (carry as u64);

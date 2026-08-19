@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Toolkit for testing contracts via wasm invocation"
+description = "Toolkit for testing contracts via rv32 invocation"
 
 [dependencies]
 sdk = { workspace = true, features = ["dev"] }

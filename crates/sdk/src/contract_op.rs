@@ -19,9 +19,9 @@ pub fn contract_abort(buf: &[u8]) -> ! {
 
 /// Terminate the current call frame immediately, reverting it.
 ///
-/// The caller observes a deterministic error with no return buffer,
-/// equivalent to the wasm `unreachable` instruction. To abort with a
-/// serialized exception payload instead, use [`contract_abort`].
+/// The caller observes a deterministic error with no return buffer, the
+/// same outcome as an illegal instruction trap. To abort with a serialized
+/// exception payload instead, use [`contract_abort`].
 pub fn contract_revert() -> ! {
     sys::raw_Exit()
 }
@@ -201,7 +201,7 @@ fn fetch_calldata_and_auth_tokens_into(
     unsafe { calldata.set_len(written) };
     unsafe { auth_token_buf.set_len(auth_written) };
 
-    // Convert bytes to u32s using native byte order (wasm is little-endian)
+    // Convert bytes to u32s using native byte order (rv32 is little-endian)
     auth_ids.clear();
     auth_ids.reserve(auth_token_count as usize);
     for chunk in auth_token_buf.as_chunks::<4>().0 {
@@ -265,7 +265,7 @@ fn fetch_calldata_and_auth_tokens_into(
     }
     unsafe { auth_token_buf.set_len(auth_written) };
 
-    // Convert bytes to u32s using native byte order (wasm is little-endian)
+    // Convert bytes to u32s using native byte order (rv32 is little-endian)
     auth_ids.clear();
     for chunk in auth_token_buf.as_ref().as_chunks::<4>().0 {
         let id = u32::from_ne_bytes(*chunk);
@@ -294,11 +294,10 @@ fn fetch_calldata_and_auth_tokens_into(
 ///
 /// Non-generic and `#[inline(never)]`, both load-bearing for codesize:
 /// every entrypoint reaches this single copy of the fetch machinery
-/// (~440 bytes in the optimized wasm) by direct call — nothing
-/// monomorphizes per entrypoint, and no handler's address is ever taken,
-/// so the funcref table (capped at 64 initial elements on-chain) does
-/// not grow with entrypoint count. Without the attribute, LTO inlines
-/// the body back into each export, recreating the per-export copies.
+/// (~440 bytes in the optimized artifact) by direct call — nothing
+/// monomorphizes per entrypoint, and no handler's address is ever taken.
+/// Without the attribute, LTO inlines the body back into each export,
+/// recreating the per-export copies.
 ///
 /// `doc(hidden)`: raw calldata access is plumbing for the generated
 /// entrypoint wrappers, not a surface contracts should discover and

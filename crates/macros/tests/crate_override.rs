@@ -84,7 +84,7 @@ fn derived_type_def_round_trips_through_the_shim_paths() {
     );
 }
 
-/// The link-section static the derive emits is `cfg`-gated to wasm/riscv32, so
+/// The link-section static the derive emits is `cfg`-gated to riscv32, so
 /// on the host it never compiles. Encode the same fragment the same way here so
 /// the `__xdrs` half of the shim is exercised and the wire bytes are pinned.
 ///

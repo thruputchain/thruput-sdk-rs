@@ -1,0 +1,24 @@
+[package]
+name = "genesis_deployer-rv32"
+description = "RV32 binary wrapper around the genesis_deployer example contract"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = ["genesis_deployer/entrypoints"]
+
+[[bin]]
+name = "genesis_deployer_rv32"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+genesis_deployer = { path = "../genesis_deployer" }
+sdk = { workspace = true }

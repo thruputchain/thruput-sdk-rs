@@ -8,27 +8,26 @@
 //! the actual cause. That is the failure these tests exist to prevent — it
 //! shipped once, when `emits` was added to `SpecInterfaceFragment` without a
 //! version bump.
+//!
+//! The pipeline these guard is: read a section name, [`classify_section`] it,
+//! and — for a `Raw` section — run [`check_raw_spec_format`] *before* handing
+//! the body to [`parse_raw_fragments`].
 
 use groundhog_spec_tool::{
-    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecToolError, check_raw_spec_format,
-    rewrite::rewrite_wasm,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, SpecToolError,
+    check_raw_spec_format, classify_section, parse_raw_fragments,
 };
-use wasm_encoder::{CustomSection, Module};
 
-/// A wasm module carrying one raw spec section at `format`.
-///
-/// The body is deliberately not a valid fragment stream: the version check
-/// must fire *before* decoding, since a desynchronized decode is exactly the
-/// confusing failure being ruled out. A test that used well-formed bytes
-/// could pass while the check ran too late to matter.
-fn module_with_raw_section(format: u32) -> Vec<u8> {
-    let mut module = Module::new();
-    module.section(&CustomSection {
-        name: format!("{RAW_SECTION_PREFIX}v{format}").as_str().into(),
-        data: b"not a valid fragment stream".as_slice().into(),
-    });
-    module.finish()
+/// The name a contract built at `format` puts on its raw spec section.
+fn raw_section_name(format: u32) -> String {
+    format!("{RAW_SECTION_PREFIX}v{format}")
 }
+
+/// Deliberately not a valid fragment stream: the version check must fire
+/// *before* decoding, since a desynchronized decode is exactly the confusing
+/// failure being ruled out. A test that used well-formed bytes could pass
+/// while the check ran too late to matter.
+const NOT_A_FRAGMENT_STREAM: &[u8] = b"not a valid fragment stream";
 
 #[test]
 fn check_accepts_only_this_builds_format() {
@@ -50,30 +49,34 @@ fn check_accepts_only_this_builds_format() {
 }
 
 #[test]
-fn rewrite_rejects_a_newer_raw_spec_format() {
-    let err = rewrite_wasm(&module_with_raw_section(RAW_SPEC_FORMAT + 1))
-        .expect_err("a newer raw spec format must not be parsed");
-
+fn a_newer_raw_spec_section_is_rejected_as_skew() {
+    let format = RAW_SPEC_FORMAT + 1;
     assert_eq!(
-        err,
-        SpecToolError::RawSpecFormatTooNew {
-            found: RAW_SPEC_FORMAT + 1,
+        classify_section(&raw_section_name(format)),
+        SpecSection::Raw(format),
+    );
+    assert_eq!(
+        check_raw_spec_format(format),
+        Err(SpecToolError::RawSpecFormatTooNew {
+            found: format,
             supported: RAW_SPEC_FORMAT,
-        },
+        }),
     );
 }
 
 #[test]
-fn rewrite_rejects_an_older_raw_spec_format() {
-    let err = rewrite_wasm(&module_with_raw_section(RAW_SPEC_FORMAT - 1))
-        .expect_err("an older raw spec format must not be parsed");
-
+fn an_older_raw_spec_section_is_rejected_as_skew() {
+    let format = RAW_SPEC_FORMAT - 1;
     assert_eq!(
-        err,
-        SpecToolError::RawSpecFormatTooOld {
-            found: RAW_SPEC_FORMAT - 1,
+        classify_section(&raw_section_name(format)),
+        SpecSection::Raw(format),
+    );
+    assert_eq!(
+        check_raw_spec_format(format),
+        Err(SpecToolError::RawSpecFormatTooOld {
+            found: format,
             supported: RAW_SPEC_FORMAT,
-        },
+        }),
     );
 }
 
@@ -101,48 +104,52 @@ fn skew_messages_name_both_versions_and_a_fix() {
     assert!(too_old.contains("Rebuild the contract"), "{too_old}");
 }
 
-/// A skewed section must be diagnosed, not silently ignored. Matching the
-/// section name exactly (rather than by prefix) would make a skewed artifact
-/// look like a contract with no spec at all — the wrong diagnosis, and the
-/// one the CLI gave before this check existed.
+/// A skewed section must be diagnosed as skew, not as a missing spec and not
+/// as a corrupt fragment stream. Matching the section name exactly (rather
+/// than by prefix) would make a skewed artifact look like a contract with no
+/// spec at all — the wrong diagnosis, and the one the CLI gave before this
+/// check existed. Decoding first would report the desynchronized parse.
 #[test]
-fn skewed_section_is_not_mistaken_for_a_missing_spec() {
+fn skewed_section_is_not_mistaken_for_a_missing_or_corrupt_spec() {
     for format in [RAW_SPEC_FORMAT - 1, RAW_SPEC_FORMAT + 1] {
-        let err = rewrite_wasm(&module_with_raw_section(format))
+        let SpecSection::Raw(found) =
+            classify_section(&raw_section_name(format))
+        else {
+            panic!("format {format} was not classified as a raw spec section");
+        };
+
+        let err = check_raw_spec_format(found)
             .expect_err("skewed section must be an error");
         assert!(
-            !matches!(err, SpecToolError::NoSpecFragments),
-            "format {format} reported as a missing spec: {err}",
+            matches!(
+                err,
+                SpecToolError::RawSpecFormatTooNew { .. }
+                    | SpecToolError::RawSpecFormatTooOld { .. }
+            ),
+            "format {format} was not reported as version skew: {err}",
         );
+
+        // What the caller would have gotten had it decoded first: an
+        // unrelated-looking parse failure. This is the diagnosis the version
+        // check exists to pre-empt, so the two must stay distinguishable.
+        assert!(matches!(
+            parse_raw_fragments(NOT_A_FRAGMENT_STREAM),
+            Err(SpecToolError::InvalidRawFragment(_)),
+        ));
     }
 }
 
-/// Custom sections that merely resemble the raw section name are left alone,
-/// so the prefix match cannot swallow unrelated tooling sections.
+/// Sections that merely resemble the raw section name are not spec data, so
+/// the prefix match cannot swallow unrelated tooling sections.
 #[test]
-fn unrelated_custom_sections_are_untouched() {
-    let mut module = Module::new();
-    module.section(&CustomSection {
-        name: RAW_SECTION_PREFIX.into(), // no version suffix
-        data: b"unrelated".as_slice().into(),
-    });
-    module.section(&CustomSection {
-        name: "producers".into(),
-        data: b"unrelated".as_slice().into(),
-    });
-    let bytes = module.finish();
-
-    let rewritten = rewrite_wasm(&bytes)
-        .expect("unversioned lookalikes are not spec data");
-
-    let mut names = Vec::new();
-    for payload in wasmparser::Parser::new(0).parse_all(&rewritten) {
-        if let wasmparser::Payload::CustomSection(section) = payload.unwrap() {
-            names.push(section.name().to_owned());
-        }
-    }
+fn unrelated_sections_are_untouched() {
+    // No version suffix.
+    assert_eq!(classify_section(RAW_SECTION_PREFIX), SpecSection::Other);
+    // Not a number where the version belongs.
     assert_eq!(
-        names,
-        vec![RAW_SECTION_PREFIX.to_owned(), "producers".into()]
+        classify_section(&format!("{RAW_SECTION_PREFIX}vnope")),
+        SpecSection::Other,
     );
+    assert_eq!(classify_section("producers"), SpecSection::Other);
+    assert_eq!(classify_section(".text"), SpecSection::Other);
 }

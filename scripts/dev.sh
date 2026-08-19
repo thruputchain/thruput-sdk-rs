@@ -14,87 +14,15 @@ cargo() {
     fi
 }
 
-CONTRACT="${TARGET_DIR}/wasm32-unknown-unknown/release"
-OPTIMIZED="${TARGET_DIR}/optimized"
 RV32_TARGET="riscv32im-unknown-none-elf"
 RV32_RELEASE="${TARGET_DIR}/${RV32_TARGET}/release"
+# Where `groundhog build --target rv32` writes the lowered artifacts:
+# <stem>.{rv32a,rv32.json,spec.json,spec.xdr}.
+LOWERED="${TARGET_DIR}/groundhog"
 
-# Wasm features the pinned nightly emits, enabled explicitly for every wasm-opt
-# invocation. Older binaryen builds don't auto-detect them from the
-# target_features section and reject e.g. i32.extend8_s; all of these are
-# ABI-neutral, stable, and already accepted by the runtime.
-WASM_OPT_FEATURES="--enable-bulk-memory --enable-sign-ext --enable-mutable-globals --enable-nontrapping-float-to-int"
-
-build_contracts() {
-    local workspace_dir
-    workspace_dir="$1"; shift
-    local packages_dir
-    packages_dir="${1:-$workspace_dir}"; shift 2>/dev/null || true
-
-    local package
-    for package in $(ls_contract_packages "$packages_dir") ; do
-        build_contract "$workspace_dir" "$package" || {
-            fail "Failed building contract $package"
-            return 1
-        }
-    done
-}
-
-build_contract() {
-    local workspace_dir
-    workspace_dir="$1"; shift
-    local package
-    package="$1"; shift
-
-    info "BUILD $package"
-
-    build_wasm "$workspace_dir" "$package" --release &&
-    make_optimized "$package" &&
-    finalize_contract_spec "$package"
-}
-
-build_wasm() {
-    local workspace_dir
-    workspace_dir="$1"; shift
-    local package
-    package="$1"; shift
-
-    (
-        cd "$workspace_dir" &&
-        cargo --config ".cargo/contract.toml" \
-            build -p "$package" -F entrypoints "$@"
-    )
-}
-
-make_optimized() {
-    local package
-    package="$1"; shift
-
-    local contract optimized
-    # Cargo converts hyphens to underscores in output filenames
-    local wasm_name="${package//-/_}"
-    contract="${CONTRACT}/${wasm_name}.wasm"
-    optimized="${OPTIMIZED}/${wasm_name}.wasm"
-
-    mkdir -p "$OPTIMIZED" &&
-
-    # debugging="-g" # don't strip symbols?
-    debugging=""
-
-    # further compress the wasm (anecdotally, wasm-opt -Os and -Oz do only
-    # very slightly better)
-    #
-    # Enable the wasm features the pinned nightly emits explicitly, rather than
-    # relying on wasm-opt's binaryen version auto-detecting them from the
-    # target_features section (older binaryen builds don't, and reject e.g.
-    # i32.extend8_s). All are ABI-neutral, stable, and already accepted by the
-    # runtime.
-    wasm-opt -O3 $debugging $WASM_OPT_FEATURES -o "${optimized}" "${contract}"
-}
-
-# rv32 bin-wrapper packages carry a `disabled` marker so the wasm build loop
-# (ls_contract_packages) skips them; they are discovered here by the *-rv32
-# directory-name convention instead.
+# rv32 bin-wrapper packages carry a `disabled` marker so the generic contract
+# loops (ls_contract_packages) skip them; they are discovered here by the
+# *-rv32 directory-name convention instead.
 ls_rv32_packages() {
     local contracts_dir
     contracts_dir="$1"; shift
@@ -130,9 +58,10 @@ build_rv32() {
         # The groundhog CLI compiles the ELF (honoring this workspace's
         # .cargo/config.toml rv32 rustflags) and lowers it in-process,
         # writing target/groundhog/<snake>.{rv32a,rv32.json,spec.json,spec.xdr}.
-        # No -F here: the CLI itself passes --no-default-features and the
-        # package's entrypoints (or rv32-entrypoints) feature — see the
-        # build_flags it records in the .rv32.json sidecar.
+        # The CLI itself passes --no-default-features and the package's
+        # entrypoints (or rv32-entrypoints) feature — see the build_flags it
+        # records in the .rv32.json sidecar. Callers may pass extra trailing
+        # cargo args (e.g. `-F bottle-test`), which are additive on top.
         #
         # build-std passes through as trailing cargo args, exactly like
         # hogd's build_risc.sh: the rv32 rustflags use panic=immediate-abort
@@ -147,7 +76,8 @@ build_rv32() {
         # mem-override held. The deployed artifact is the lowered .rv32a,
         # which carries no symtab regardless.
         CARGO_PROFILE_RELEASE_STRIP=false \
-        groundhog build --target rv32 -p "$package" -- $locked -Zbuild-std=core,alloc
+        groundhog build --target rv32 -p "$package" -- \
+            $locked -Zbuild-std=core,alloc "$@"
     )
 }
 
@@ -158,19 +88,23 @@ check_rv32_dispatch() {
     bash "${SDK_DIR}/scripts/check-rv32-dispatch.sh" "$elf"
 }
 
+# Contracts built with the `debugging` feature (to match CrossExn wire format
+# with the test runner) are expected to carry embedded path strings. Empty
+# today: the rv32 profile builds with panic=immediate-abort, which strips the
+# panic path — including `exceptions`, the one debugging-enabled fixture.
+RV32_STRINGS_ALLOW_LIST=""
+
 check_rv32_strings() {
-    # Same invariant check-wasm-size.sh enforces for wasm: production rv32
-    # builds (panic=immediate-abort, strip=symbols) must embed no .rs file
-    # paths. No allow-list — no rv32 contract builds with `debugging` today;
-    # if one ever does, promote this to a script sharing check-wasm-size.sh's
-    # allow-list logic rather than forking it here.
+    # Production rv32 builds (panic=immediate-abort, strip=symbols) must embed
+    # no .rs file paths: they leak in from #[track_caller] and panic!()
+    # locations.
     #
     # Takes package names as args; scans exactly those ELFs, not a directory
     # glob: the release dir is shared with root-workspace rv32 builds and
     # can hold stale ELFs from renamed or removed packages.
     info "Checking rv32 binaries for embedded path strings"
 
-    local package elf rs_paths
+    local package elf rs_paths allowed
     for package in "$@"; do
         elf="${RV32_RELEASE}/${package//-/_}"
         [ -f "$elf" ] || {
@@ -179,6 +113,12 @@ check_rv32_strings() {
         }
         rs_paths=$(strings "$elf" | grep -E '\.rs$' || true)
         if [ -n "$rs_paths" ]; then
+            for allowed in $RV32_STRINGS_ALLOW_LIST; do
+                if [ "$package" = "$allowed" ]; then
+                    echo "SKIP: $(basename "$elf") (built with debugging)"
+                    continue 2
+                fi
+            done
             printf '%s\n' "$rs_paths" | sed 's/^/  /'
             fail "$(basename "$elf") contains embedded .rs path strings"
             return 1
@@ -257,13 +197,65 @@ eg_build_rv32_all() {
     done
     check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts") &&
     check_rv32_contract_spec_artifacts &&
+    check_rv32_typedef_conflict_detected &&
+    check_rv32_iface_conflict_detected &&
     check_rv32_duplicate_entrypoint_detected
+}
+
+# Negative spec fixture: typedef_collision_reachable implements MarketV1
+# (anchoring it, so v1's SharedConfig is reachable from the retained spec)
+# while also linking typedef_shaking_if_v2, whose unimplemented candidate
+# contributes a differently-shaped SharedConfig def. The ELF links; the spec
+# canonicalization the CLI runs during lowering must FAIL with a typedef
+# conflict — pinning that the reachable-conflict error survived the
+# unreachable-conflict relaxation. The crate's directory deliberately lacks
+# the -rv32 suffix so the wrapper glob never builds it expecting success.
+check_rv32_typedef_conflict_detected() {
+    info "CHECK-RV32-SPEC-CONFLICT-DETECTED"
+
+    local out
+    if out=$( (
+        cd "${SDK_DIR}/example-contracts" &&
+        groundhog build --target rv32 -p typedef_collision_reachable
+    ) 2>&1); then
+        fail "Expected the rv32 build of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet \
+        "conflicting contract type definitions for SharedConfig" || {
+        fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
+        return 1
+    }
+}
+
+# Negative spec fixture: iface_conflict_impl implements iface_conflict_if_a's
+# Token (anchoring the shared Token interface key) while also linking
+# iface_conflict_if_b, whose colliding Token candidate carries different
+# emits metadata. The ELF links; the spec canonicalization must FAIL with an
+# emits-metadata conflict — pinning that the anchored-key conflict error
+# survived the unanchored-conflict relaxation.
+check_rv32_iface_conflict_detected() {
+    info "CHECK-RV32-IFACE-CONFLICT-DETECTED"
+
+    local out
+    if out=$( (
+        cd "${SDK_DIR}/example-contracts" &&
+        groundhog build --target rv32 -p iface_conflict_impl
+    ) 2>&1); then
+        fail "Expected the rv32 build of iface_conflict_impl to fail with an emits-metadata conflict, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet \
+        "conflicting emits metadata for interface Token" || {
+        fail "Expected a Token emits-metadata conflict from iface_conflict_impl, got: $out"
+        return 1
+    }
 }
 
 # Negative fixture: dup_entrypoint_neg has two colliding traits sharing a
 # method name, so both impls produce the same entrypoint ID. The wrapper
-# symbol carries the ID on rv32 (as on wasm), so the build must FAIL with a
-# duplicate-symbol error — replacing the previous silent behavior where two
+# symbol carries the ID, so the build must FAIL with a duplicate-symbol
+# error — replacing the previous silent behavior where two
 # dispatch-table records shared an ID and the runtime's first-match-wins
 # scan routed every call to one impl. The crate's directory deliberately
 # lacks the -rv32 suffix so the wrapper glob above never builds it
@@ -286,12 +278,11 @@ check_rv32_duplicate_entrypoint_detected() {
 }
 
 # integration_test rv32 contracts are NOT *-rv32 wrapper packages — the rv32
-# bin wrapper is each contract's own src/main.rs. Auto-discovered: the wasm
-# contract set (dirs with Cargo.toml minus `disabled`, same as the wasm build
-# loop) narrowed to packages that declare a [[bin]]. Declaring the wrapper
-# bin IS the rv32 enablement; raw wasm-ABI contracts (hand-written
-# export_name entrypoints, no bin — e.g. sha256_raw) are excluded by
-# construction until someone ports them. The metric scripts
+# bin wrapper is each contract's own src/main.rs. Auto-discovered: the
+# contract set (dirs with Cargo.toml minus `disabled`) narrowed to packages
+# that declare a [[bin]]. Declaring the wrapper bin IS the rv32 enablement;
+# raw contracts with hand-written entrypoints and no bin (e.g. sha256_raw)
+# are excluded by construction until someone ports them. The metric scripts
 # (scripts/metrics/sdk_codesizes_rv32*.sh) derive the same set — keep the
 # rules in sync.
 ls_itc_rv32_packages() {
@@ -325,37 +316,6 @@ itc_build_rv32_all() {
     check_rv32_strings $(ls_itc_rv32_packages)
 }
 
-finalize_contract_spec() {
-    local package
-    package="$1"; shift
-
-    local wasm_name optimized json_out
-    wasm_name="${package//-/_}"
-    optimized="${OPTIMIZED}/${wasm_name}.wasm"
-    json_out="${OPTIMIZED}/${wasm_name}.spec.json"
-
-    info "SPEC $package"
-
-    (
-        cd "$SDK_DIR" &&
-        cargo run --quiet -p groundhog-spec-tool -- \
-            rewrite \
-            --wasm "${optimized}" \
-            --json-out "${json_out}"
-    )
-}
-
-eg_build() {
-    local package
-    package="$1"; shift
-
-    build_contract "${SDK_DIR}/example-contracts" "${package}"
-}
-
-eg_build_all() {
-    build_contracts "${SDK_DIR}/example-contracts"
-}
-
 assert_file_contains() {
     local path
     path="$1"; shift
@@ -380,280 +340,9 @@ assert_file_lacks() {
     fi
 }
 
-assert_wasm_has_final_spec_only() {
-    local path
-    path="$1"; shift
-    local dump
-    dump="$(wasm-objdump -x "$path")" || return 1
-
-    printf '%s\n' "$dump" | rg -F --quiet "groundhogspecv0" || {
-        fail "Expected $path to contain groundhogspecv0"
-        return 1
-    }
-    # Match the version-less prefix, not a specific "…v0"/"…v1" name: a check
-    # pinned to one version passes vacuously the moment the raw spec format is
-    # bumped, which is exactly when it most needs to hold.
-    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspecraw"; then
-        fail "Expected $path to omit all groundhogspecraw* sections"
-        return 1
-    fi
-}
-
-# For raw contracts whose linked spec fragments all shake out: the finalized
-# wasm must carry no spec sections at all (neither raw nor final).
-assert_wasm_lacks_spec_sections() {
-    local path
-    path="$1"; shift
-    local dump
-    dump="$(wasm-objdump -x "$path")" || return 1
-
-    if printf '%s\n' "$dump" | rg -F --quiet "groundhogspec"; then
-        fail "Expected $path to carry no spec sections"
-        return 1
-    fi
-}
-
-check_contract_spec_artifacts() {
-    info "CHECK-SPECS"
-
-    local optimized
-    optimized="${TARGET_DIR}/optimized"
-
-    local free_fn_json free_fn_wasm imported_json multi_json multi_wasm spec_named_json genesis_json genesis_wasm erc20_json swap_json signer_callee_json erc1271_wallet_json event_shaking_json typedef_shaking_json iface_conflict_json phantom_method_json prerelease_json
-    signer_callee_json="${optimized}/signer_callee.spec.json"
-    erc1271_wallet_json="${optimized}/erc1271_wallet.spec.json"
-    free_fn_json="${optimized}/free_fn_unnamed.spec.json"
-    free_fn_wasm="${optimized}/free_fn_unnamed.wasm"
-    imported_json="${optimized}/imported_error_callee.spec.json"
-    multi_json="${optimized}/multi_imported_traits.spec.json"
-    multi_wasm="${optimized}/multi_imported_traits.wasm"
-    spec_named_json="${optimized}/spec_named_types.spec.json"
-    genesis_json="${optimized}/genesis_deployer.spec.json"
-    genesis_wasm="${optimized}/genesis_deployer.wasm"
-    erc20_json="${optimized}/erc20_raw_storage.spec.json"
-    swap_json="${optimized}/swap.spec.json"
-    event_shaking_json="${optimized}/event_shaking_subset.spec.json"
-    typedef_shaking_json="${optimized}/typedef_shaking_caller.spec.json"
-    iface_conflict_json="${optimized}/iface_conflict_caller.spec.json"
-    phantom_method_json="${optimized}/phantom_method_impl.spec.json"
-    prerelease_json="${optimized}/prerelease_version.spec.json"
-
-    assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
-    assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
-    assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
-    assert_wasm_has_final_spec_only "$free_fn_wasm" &&
-
-    assert_file_contains "$imported_json" '"name":"ImportedErrorCallee"' &&
-    assert_file_contains "$imported_json" '"ImportedError"' &&
-
-    assert_file_contains "$multi_json" '"name":"ExplicitNamedInterface"' &&
-    assert_file_contains "$multi_json" '"name":"VersionedCallee"' &&
-    assert_file_contains "$multi_json" '"version":"1.2.3"' &&
-    assert_wasm_has_final_spec_only "$multi_wasm" &&
-
-    assert_file_contains "$spec_named_json" '"type_defs":[' &&
-    assert_file_contains "$spec_named_json" '"name":"SpecNamedTypesContract"' &&
-    assert_file_contains "$spec_named_json" '"Payload"' &&
-    assert_file_contains "$spec_named_json" '"Choice"' &&
-    assert_file_contains "$spec_named_json" '"Envelope"' &&
-    assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
-    assert_file_contains "$spec_named_json" '"kind":"vec","element":{"kind":"u8"}' &&
-    assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
-    assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
-    assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
-    assert_file_contains "$spec_named_json" '"name":"PayloadEvent"' &&
-    assert_file_contains "$spec_named_json" '"name":"AuditEvent"' &&
-    assert_file_lacks "$spec_named_json" '"name":"GhostEvent"' &&
-    assert_file_lacks "$spec_named_json" '"name":"UnimplementedInterface"' &&
-
-    # Cross-crate event shaking: event_shaking_subset implements only the
-    # `Adopted` trait from event_shaking_if; `Orphan` is never implemented.
-    # The spec JSON is minified (no spaces), so needle matching is exact.
-    # "name":"Orphan"  ends with a closing quote so it cannot false-match
-    # "name":"OrphanEvent" (which has 'E' after "Orphan", not '"').
-    # AdoptedPayload asserts positive typedef retention; OrphanPayload asserts
-    # typedef shaking (both directions covered by a single fixture).
-    assert_file_contains "$event_shaking_json" '"name":"Adopted"' &&
-    assert_file_contains "$event_shaking_json" '"name":"AdoptedEvent"' &&
-    assert_file_contains "$event_shaking_json" '"name":"AdoptedPayload"' &&
-    assert_file_lacks "$event_shaking_json" '"name":"Orphan"' &&
-    assert_file_lacks "$event_shaking_json" '"name":"OrphanEvent"' &&
-    assert_file_lacks "$event_shaking_json" '"name":"OrphanPayload"' &&
-
-    # Typedef-collision shaking: typedef_shaking_caller links two "versions"
-    # of a market interface crate (typedef_shaking_if_v1/v2) purely to call
-    # them, implementing neither trait. Each crate defines a differently
-    # shaped `SharedConfig`; both defs co-travel into the raw section but are
-    # unreachable, so the conflict must not fail the build (pre-fix this
-    # build died with ConflictingTypeDef) and nothing from the market
-    # interfaces may reach the final spec.
-    assert_file_contains "$typedef_shaking_json" '"name":"Caller"' &&
-    assert_file_lacks "$typedef_shaking_json" '"name":"SharedConfig"' &&
-    assert_file_lacks "$typedef_shaking_json" '"name":"MarketV1"' &&
-    assert_file_lacks "$typedef_shaking_json" '"name":"MarketV2"' &&
-
-    # Interface-metadata conflict shaking: iface_conflict_caller links two
-    # interface crates whose `Token` traits collide on the same interface key
-    # (default name = trait ident, default version = workspace crate version)
-    # with different emits metadata, implementing neither. Both candidates are
-    # shaken, so the disagreement must not fail the build (pre-fix this build
-    # died with ConflictingInterfaceEmits) and neither Token nor PingEvent may
-    # reach the final spec.
-    assert_file_contains "$iface_conflict_json" '"name":"ConflictCaller"' &&
-    assert_file_lacks "$iface_conflict_json" '"name":"Token"' &&
-    assert_file_lacks "$iface_conflict_json" '"name":"PingEvent"' &&
-
-    # Phantom-method shaking: phantom_method_impl implements A's Ledger
-    # (method ping) while linking B's colliding Ledger (method steal, payload
-    # LootConfig) and carrying a same-crate collider (method phantom_local).
-    # The contract must build, and its spec must advertise exactly the
-    # methods with real entrypoints: ping only, with the phantom method's
-    # payload typedef shaken too.
-    assert_file_contains "$phantom_method_json" '"name":"Ledger"' &&
-    assert_file_contains "$phantom_method_json" '"name":"ping"' &&
-    assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
-    assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
-    assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
-
-    # Pre-release interface versions: the macro accepts them and the spec
-    # pipeline must publish them verbatim (historically ingestion rejected
-    # anything but bare MAJOR.MINOR.PATCH, so a pre-release contract
-    # compiled and then failed at spec rewrite).
-    assert_file_contains "$prerelease_json" '"version":"0.9.0-rc.1"' &&
-
-    # Raw contract (hand-written entrypoints) linking an interface crate:
-    # the shaken candidates must leave NO spec sections — same artifact
-    # shape as typedef-only raw contracts — and no spec.json sidecar.
-    assert_wasm_lacks_spec_sections "${optimized}/raw_iface_dep.wasm" &&
-    if [ -f "${optimized}/raw_iface_dep.spec.json" ]; then
-        fail "Expected no spec.json sidecar for raw contract raw_iface_dep"
-        return 1
-    fi &&
-
-    assert_file_contains "$erc20_json" '"events":[' &&
-    assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
-    assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
-    assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
-
-    assert_file_contains "$swap_json" '"name":"MintEvent"' &&
-    assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
-    assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
-    assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
-
-    # Regression guard: method specs are sourced from the ISwapV2Pair *trait*,
-    # not the impl. The impl names the first `initialize` arg `_factory` (unused
-    # marker); the trait names it `factory`. If method specs ever revert to
-    # being impl-sourced, the same-crate trait+impl build fails with
-    # `conflicting method definitions`, or this assertion catches `_factory`
-    # leaking into the published interface spec.
-    assert_file_contains "$swap_json" '"name":"initialize","args":[{"name":"factory"' &&
-
-    assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
-    assert_file_contains "$genesis_json" '"name":"deploy"' &&
-    assert_file_contains "$genesis_json" '"name":"deploy_and_invoke"' &&
-    assert_wasm_has_final_spec_only "$genesis_wasm" &&
-
-    # `Signed<T>` args/returns spec as signed_token nodes carrying the
-    # preimage type (they consume no calldata bytes), never as u32 handles;
-    # `Signed<Opaque>` is an erased (null) preimage.
-    assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
-    assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
-    assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}'
-}
-
-# Negative spec fixture: typedef_collision_reachable implements MarketV1
-# (anchoring it, so v1's SharedConfig is reachable from the retained spec)
-# while also linking typedef_shaking_if_v2, whose unimplemented candidate
-# contributes a differently-shaped SharedConfig def. The wasm build succeeds;
-# the spec rewrite must FAIL with a typedef conflict — pinning that the
-# reachable-conflict error survived the unreachable-conflict relaxation.
-check_typedef_conflict_detected() {
-    info "CHECK-SPEC-CONFLICT-DETECTED"
-
-    build_wasm "${SDK_DIR}/example-contracts" typedef_collision_reachable \
-        --release || return 1
-
-    local out
-    if out=$( (
-        cd "$SDK_DIR" &&
-        cargo run --quiet -p groundhog-spec-tool -- \
-            rewrite \
-            --wasm "${CONTRACT}/typedef_collision_reachable.wasm" \
-            --json-out "${CONTRACT}/typedef_collision_reachable.spec.json"
-    ) 2>&1); then
-        fail "Expected spec rewrite of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
-        return 1
-    fi
-    echo "$out" | rg -F --quiet \
-        "conflicting contract type definitions for SharedConfig" || {
-        fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
-        return 1
-    }
-}
-
-# Negative spec fixture: iface_conflict_impl implements iface_conflict_if_a's
-# Token (anchoring the shared Token interface key) while also linking
-# iface_conflict_if_b, whose colliding Token candidate carries different
-# emits metadata. The wasm build succeeds; the spec rewrite must FAIL with
-# an emits-metadata conflict — pinning that the anchored-key conflict error
-# survived the unanchored-conflict relaxation.
-check_iface_conflict_detected() {
-    info "CHECK-IFACE-CONFLICT-DETECTED"
-
-    build_wasm "${SDK_DIR}/example-contracts" iface_conflict_impl \
-        --release || return 1
-
-    local out
-    if out=$( (
-        cd "$SDK_DIR" &&
-        cargo run --quiet -p groundhog-spec-tool -- \
-            rewrite \
-            --wasm "${CONTRACT}/iface_conflict_impl.wasm" \
-            --json-out "${CONTRACT}/iface_conflict_impl.spec.json"
-    ) 2>&1); then
-        fail "Expected spec rewrite of iface_conflict_impl to fail with an emits-metadata conflict, but it succeeded"
-        return 1
-    fi
-    echo "$out" | rg -F --quiet \
-        "conflicting emits metadata for interface Token" || {
-        fail "Expected a Token emits-metadata conflict from iface_conflict_impl, got: $out"
-        return 1
-    }
-}
-
-# Negative spec fixture: missing_contract_macro forgot its #[contract] macro
-# (no exported entrypoints) while linking an interface crate whose candidates
-# populate the raw section. The missing-#[contract] guard must fire even so —
-# historically it only fired when the raw section carried no interface
-# fragments at all, so this exact shape shipped silently as an uninvocable
-# module with an empty spec.
-check_missing_contract_macro_detected() {
-    info "CHECK-MISSING-CONTRACT-MACRO-DETECTED"
-
-    build_wasm "${SDK_DIR}/example-contracts" missing_contract_macro \
-        --release || return 1
-
-    local out
-    if out=$( (
-        cd "$SDK_DIR" &&
-        cargo run --quiet -p groundhog-spec-tool -- \
-            rewrite \
-            --wasm "${CONTRACT}/missing_contract_macro.wasm" \
-            --json-out "${CONTRACT}/missing_contract_macro.spec.json"
-    ) 2>&1); then
-        fail "Expected spec rewrite of missing_contract_macro to fail (no entrypoints), but it succeeded"
-        return 1
-    fi
-    echo "$out" | rg -F --quiet "missing its #[contract] macro" || {
-        fail "Expected the missing-#[contract] guard error from missing_contract_macro, got: $out"
-        return 1
-    }
-}
-
-# The rv32 analogue of assert_wasm_has_final_spec_only: spec content must
-# not reach the deployed .rv32a memory image. Raw fragments live in the
-# ELF's groundhogspecraw* section (where the CLI reads them); the lowerer
-# must not copy them into the image, and rv32 has no embedded final spec
+# Spec content must not reach the deployed .rv32a memory image. Raw fragments
+# live in the ELF's groundhogspecraw* section (where the CLI reads them); the
+# lowerer must not copy them into the image, and rv32 has no embedded final spec
 # (spec.json/.xdr are sidecars). Each needle is a spec-only name — the
 # runtime never embeds them (dispatch uses hashed IDs, events hashed
 # signatures) — asserted PRESENT in the ELF first so a vanished raw
@@ -688,17 +377,105 @@ check_rv32_contract_spec_artifacts() {
     local groundhog_dir
     groundhog_dir="${TARGET_DIR}/groundhog"
 
-    # Same needles as the wasm block for event_shaking_subset; the rv32 spec
-    # JSON is also minified (no spaces), so the same false-positive reasoning
-    # applies: "name":"Orphan" (closing quote after n) cannot match
+    # The spec JSON is minified (no spaces), so needle matching is exact:
+    # "name":"Orphan" (closing quote after n) cannot match
     # "name":"OrphanEvent" (E comes before the closing quote).
     # AdoptedPayload asserts positive typedef retention; OrphanPayload asserts
     # typedef shaking (both directions covered by a single fixture).
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
+    local free_fn_json imported_json multi_json spec_named_json genesis_json
+    local erc20_json swap_json signer_callee_json erc1271_wallet_json
+    local phantom_method_json prerelease_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset_rv32.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller_rv32.spec.json"
     rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller_rv32.spec.json"
+    free_fn_json="${groundhog_dir}/free_fn_unnamed_rv32.spec.json"
+    imported_json="${groundhog_dir}/imported_error_callee_rv32.spec.json"
+    multi_json="${groundhog_dir}/multi_imported_traits_rv32.spec.json"
+    spec_named_json="${groundhog_dir}/spec_named_types_rv32.spec.json"
+    genesis_json="${groundhog_dir}/genesis_deployer_rv32.spec.json"
+    erc20_json="${groundhog_dir}/erc20_raw_storage_rv32.spec.json"
+    swap_json="${groundhog_dir}/swap_rv32.spec.json"
+    signer_callee_json="${groundhog_dir}/signer_callee_rv32.spec.json"
+    erc1271_wallet_json="${groundhog_dir}/erc1271_wallet_rv32.spec.json"
+    phantom_method_json="${groundhog_dir}/phantom_method_impl_rv32.spec.json"
+    prerelease_json="${groundhog_dir}/prerelease_version_rv32.spec.json"
 
+    assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
+    assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
+    assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
+
+    assert_file_contains "$imported_json" '"name":"ImportedErrorCallee"' &&
+    assert_file_contains "$imported_json" '"ImportedError"' &&
+
+    assert_file_contains "$multi_json" '"name":"ExplicitNamedInterface"' &&
+    assert_file_contains "$multi_json" '"name":"VersionedCallee"' &&
+    assert_file_contains "$multi_json" '"version":"1.2.3"' &&
+
+    assert_file_contains "$spec_named_json" '"type_defs":[' &&
+    assert_file_contains "$spec_named_json" '"name":"SpecNamedTypesContract"' &&
+    assert_file_contains "$spec_named_json" '"Payload"' &&
+    assert_file_contains "$spec_named_json" '"Choice"' &&
+    assert_file_contains "$spec_named_json" '"Envelope"' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
+    assert_file_contains "$spec_named_json" '"kind":"vec","element":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
+    assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
+    assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
+    assert_file_contains "$spec_named_json" '"name":"PayloadEvent"' &&
+    assert_file_contains "$spec_named_json" '"name":"AuditEvent"' &&
+    assert_file_lacks "$spec_named_json" '"name":"GhostEvent"' &&
+    assert_file_lacks "$spec_named_json" '"name":"UnimplementedInterface"' &&
+
+    # Phantom-method shaking: phantom_method_impl implements A's Ledger
+    # (method ping) while linking B's colliding Ledger (method steal, payload
+    # LootConfig) and carrying a same-crate collider (method phantom_local).
+    # The contract must build, and its spec must advertise exactly the
+    # methods with real entrypoints: ping only, with the phantom method's
+    # payload typedef shaken too.
+    assert_file_contains "$phantom_method_json" '"name":"Ledger"' &&
+    assert_file_contains "$phantom_method_json" '"name":"ping"' &&
+    assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
+    assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
+    assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
+
+    # Pre-release interface versions: the macro accepts them and the spec
+    # pipeline must publish them verbatim (historically ingestion rejected
+    # anything but bare MAJOR.MINOR.PATCH, so a pre-release contract
+    # compiled and then failed at spec finalization).
+    assert_file_contains "$prerelease_json" '"version":"0.9.0-rc.1"' &&
+
+    assert_file_contains "$erc20_json" '"events":[' &&
+    assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
+    assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
+    assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
+
+    assert_file_contains "$swap_json" '"name":"MintEvent"' &&
+    assert_file_contains "$swap_json" '"name":"BurnEvent"' &&
+    assert_file_contains "$swap_json" '"name":"SwapEvent"' &&
+    assert_file_contains "$swap_json" '"name":"SyncEvent"' &&
+
+    # Regression guard: method specs are sourced from the ISwapV2Pair *trait*,
+    # not the impl. The impl names the first `initialize` arg `_factory` (unused
+    # marker); the trait names it `factory`. If method specs ever revert to
+    # being impl-sourced, the same-crate trait+impl build fails with
+    # `conflicting method definitions`, or this assertion catches `_factory`
+    # leaking into the published interface spec.
+    assert_file_contains "$swap_json" '"name":"initialize","args":[{"name":"factory"' &&
+
+    assert_file_contains "$genesis_json" '"name":"GenesisDeployer"' &&
+    assert_file_contains "$genesis_json" '"name":"deploy"' &&
+    assert_file_contains "$genesis_json" '"name":"deploy_and_invoke"' &&
+
+    # `Signed<T>` args/returns spec as signed_token nodes carrying the
+    # preimage type (they consume no calldata bytes), never as u32 handles;
+    # `Signed<Opaque>` is an erased (null) preimage.
+    assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
+    assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
+    assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}' &&
+
+    # Cross-crate event shaking: event_shaking_subset implements only the
+    # `Adopted` trait from event_shaking_if; `Orphan` is never implemented.
     assert_file_contains "$rv32_event_shaking_json" '"name":"Adopted"' &&
     assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedEvent"' &&
     assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedPayload"' &&
@@ -706,18 +483,27 @@ check_rv32_contract_spec_artifacts() {
     assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanEvent"' &&
     assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanPayload"' &&
 
-    # Same needles as the wasm typedef-collision block: the caller links two
-    # market interface crates with colliding SharedConfig defs, implements
-    # neither. Cross-version coverage: this pipeline canonicalizes with the
-    # pinned CLI's embedded spec-tool, not the workspace one.
+    # Typedef-collision shaking: the caller links two "versions" of a market
+    # interface crate (typedef_shaking_if_v1/v2) purely to call them,
+    # implementing neither trait. Each defines a differently shaped
+    # `SharedConfig`; both defs co-travel into the raw section but are
+    # unreachable, so the conflict must not fail the build (pre-fix this
+    # build died with ConflictingTypeDef) and nothing from the market
+    # interfaces may reach the final spec. Cross-version coverage: this
+    # pipeline canonicalizes with the pinned CLI's embedded spec-tool, not
+    # the workspace one.
     assert_file_contains "$rv32_typedef_shaking_json" '"name":"Caller"' &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"SharedConfig"' &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV1"' &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV2"' &&
 
-    # Same needles as the wasm interface-metadata-conflict block: two Token
-    # traits colliding on the interface key with different emits metadata,
-    # neither implemented.
+    # Interface-metadata conflict shaking: iface_conflict_caller links two
+    # interface crates whose `Token` traits collide on the same interface key
+    # (default name = trait ident, default version = workspace crate version)
+    # with different emits metadata, implementing neither. Both candidates are
+    # shaken, so the disagreement must not fail the build (pre-fix this build
+    # died with ConflictingInterfaceEmits) and neither Token nor PingEvent may
+    # reach the final spec.
     assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"PingEvent"' &&
@@ -736,44 +522,36 @@ check_rv32_contract_spec_artifacts() {
         "PingEvent"
 }
 
-itc_build() {
-    package="$1"; shift
-
-    build_contract "${SDK_DIR}/integration_test" "${package}"
-}
-
-itc_build_all() {
-    # fibonacci is in the loop (alphabetically before fibonacci_call, whose
-    # tests consume its wasm); it no longer needs an explicit first build.
-    build_contracts "${SDK_DIR}/integration_test" "${SDK_DIR}/integration_test/contracts"
-}
-
 # Regression guard: the logging-test workspace unconditionally enables
 # sdk/logging, which makes the codegen emit debug_log! calls in client
 # stubs.  This catches use-after-move bugs for non-Copy by-value params
 # (e.g. BlockHeight) that only surface under feature unification.
 logging_test_build() {
-    info "BUILD logging-test (wasm + spec)"
+    info "BUILD logging-test (rv32)"
 
     (
         cd "${SDK_DIR}/logging-test" &&
-        cargo check -p htlc-logging --target wasm32-unknown-unknown
+        cargo check -p htlc-logging --target "$RV32_TARGET" \
+            -Zbuild-std=core,alloc
     )
 }
 
 # Regression guard: the raw spec fragment `#[derive(ContractTypeSpec)]` emits
-# is behind a `cfg(any(target_family = "wasm", target_arch = "riscv32"))`, so a
-# host build never compiles it. Every other consumer reaches that code through
-# `::sdk`, which the example/integration wasm builds cover -- but nothing else
-# builds a crate that uses `#[contract_type_spec(crate = "...")]`, and its whole
-# point is resolving those paths through a shim instead. Without this, a
-# regression in the overridden guest path surfaces only when a downstream crate
-# below `sdk` builds for a guest target.
+# is behind a `cfg(target_arch = "riscv32")`, so a host build never compiles
+# it. Every other consumer reaches that code through `::sdk`, which the
+# example/integration rv32 builds cover -- but nothing else builds a crate
+# that uses `#[contract_type_spec(crate = "...")]`, and its whole point is
+# resolving those paths through a shim instead. Without this, a regression in
+# the overridden guest path surfaces only when a downstream crate below `sdk`
+# builds for a guest target.
 macros_crate_override_guest_build() {
-    info "BUILD groundhog-macros crate-override test (wasm)"
+    info "BUILD groundhog-macros crate-override test (rv32)"
 
-    cargo check -p groundhog-macros --tests \
-        --target wasm32-unknown-unknown
+    # A dedicated no_std package rather than `-p groundhog-macros --tests`:
+    # that would build the proc-macro crate's own unit tests for rv32, and
+    # its deps (proc-macro2 &co) need std.
+    cargo check -p macros-crate-override-guest \
+        --target "$RV32_TARGET" -Zbuild-std=core,alloc
 }
 
 ### LINT ###
@@ -804,10 +582,13 @@ lint_contract() {
     (
         cd "$workspace_dir" &&
 
-        cargo --config ".cargo/contract.toml" \
-            clippy -p "$package" \
+        # Guest lint: the workspace .cargo/config.toml supplies the rv32
+        # rustflags; build-std goes on the command line (see build_rv32).
+        cargo clippy -p "$package" \
+                -F entrypoints \
                 --release \
-                --target wasm32-unknown-unknown \
+                --target "$RV32_TARGET" \
+                -Zbuild-std=core,alloc \
                 -- -Dwarnings &&
 
         cargo clippy -F dev -p "$package"
@@ -851,8 +632,8 @@ eg_test() {
 }
 
 eg_test_all() {
-    # Note: Some of these tests require their associated wasms to be compiled
-    # first.
+    # Note: Some of these tests require their associated rv32 artifacts to be
+    # built first (scripts/dev.sh build-examples-rv32).
 
     packages_dir="example-contracts"
 
@@ -882,45 +663,40 @@ itc_test_all() {
 
 ### BOTTLE TEST ###
 
-BOTTLE_TEST_RAW="${TARGET_DIR}/wasm32-unknown-unknown/bottle_test"
 BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 
+# Builds the contract twice for rv32 and runs the pair through the harness:
+#
+#   <stem>.target.rv32a   the contract under measurement (entrypoints only)
+#   <stem>.tester.rv32a   the same contract plus the BottleTest entrypoints
+#                         that drive it (the package's `bottle-test` feature)
+#
+# `groundhog build` writes both to the same target/groundhog/<stem>.rv32a, so
+# each is copied aside before the next build overwrites it — the same staging
+# scripts/bigint-bench.sh does for its per-variant artifacts.
+#
+# `package` is the rv32 bin-wrapper package (e.g. erc20-rv32); its `[[bin]]`
+# name is the underscored package name, which is the artifact stem.
 bottle_test_contract() {
-    # NOTE: This requires that the contract's wasm has already been built
-
     local workspace_dir package
     workspace_dir="$1"; shift
     package="$1"; shift
 
     info "BOTTLE-TEST $package"
 
-    build_wasm "$workspace_dir" "$package" \
-        --profile="bottle_test" \
-        --features="bottle-test" \
-        -Z unstable-options \
-        &&
+    require_groundhog_cli || return 1
 
-    local wasm_name="${package//-/_}" &&
+    local stem="${package//-/_}"
+
     mkdir -p "$BOTTLE_TEST" &&
-    wasm-opt -O3 $WASM_OPT_FEATURES \
-        -o "$BOTTLE_TEST/${wasm_name}.wasm" \
-        "$BOTTLE_TEST_RAW/${wasm_name}.wasm" &&
 
-    # Finalize the spec sections before handing the module to the node, the
-    # same way `groundhog build` does for a real deployment. cargo emits one
-    # raw fragment section per crate; those are a compile-time intermediate,
-    # and hogd's contract verifier allows only the finalized
-    # `groundhogspecv0`. Without this the module is rejected outright, and
-    # bottle-test would be exercising a shape no deployed contract ever has.
-    (
-        cd "$SDK_DIR" &&
-        cargo run --quiet -p groundhog-spec-tool -- \
-            rewrite \
-            --wasm "$BOTTLE_TEST/${wasm_name}.wasm" \
-            --json-out "$BOTTLE_TEST/${wasm_name}.spec.json"
-    ) &&
+    build_rv32 "$workspace_dir" "$package" "$@" &&
+    cp "${LOWERED}/${stem}.rv32a" "${BOTTLE_TEST}/${stem}.target.rv32a" &&
 
-    cargo run -p bottle-test --profile dev "$package"
+    build_rv32 "$workspace_dir" "$package" -F bottle-test "$@" &&
+    cp "${LOWERED}/${stem}.rv32a" "${BOTTLE_TEST}/${stem}.tester.rv32a" &&
+
+    cargo run -p bottle-test --profile dev "$stem"
 }
 
 has_bottle_test() {
@@ -928,24 +704,7 @@ has_bottle_test() {
     contract="$1"; shift
     cargo_toml="$contract/Cargo.toml"
 
-    grep -s "bottle-test" "$cargo_toml" >/dev/null
-}
-
-bottle_test_contracts() {
-    local workspace_dir
-    workspace_dir="$1"; shift
-    local packages_dir
-    packages_dir="${1:-$workspace_dir}"; shift 2>/dev/null || true
-
-    local package
-    for package in $(ls_contract_packages "$packages_dir") ; do
-        if has_bottle_test "$packages_dir/$package"; then
-            [ ! -f "$packages_dir/$package/disabled-bottle" ] || continue
-
-            bottle_test_contract "$workspace_dir" "$package" "$@" ||
-                return 1
-        fi
-    done
+    grep -s "^bottle-test = " "$cargo_toml" >/dev/null
 }
 
 ls_contract_packages() {
@@ -967,12 +726,32 @@ ls_contract_packages() {
     done
 }
 
+# The bottle-tested example contracts are the rv32 wrapper packages that
+# declare a `bottle-test` feature (which forwards to the library's).
 eg_bottle_test_all() {
-    bottle_test_contracts "example-contracts"
+    local package
+    for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
+        has_bottle_test "example-contracts/$package" || continue
+        [ ! -f "example-contracts/$package/disabled-bottle" ] || continue
+
+        bottle_test_contract "${SDK_DIR}/example-contracts" "$package" ||
+            return 1
+    done
 }
 
+# integration_test contracts host their own rv32 bin (see
+# ls_itc_rv32_packages), so the bottle-test feature lives on the contract
+# package itself rather than on a sibling wrapper.
 itc_bottle_test_all() {
-    bottle_test_contracts "integration_test" "integration_test/contracts"
+    local package
+    for package in $(ls_itc_rv32_packages); do
+        has_bottle_test "integration_test/contracts/$package" || continue
+        [ ! -f "integration_test/contracts/$package/disabled-bottle" ] ||
+            continue
+
+        bottle_test_contract "${SDK_DIR}/integration_test" "$package" ||
+            return 1
+    done
 }
 
 ### BIG-INTEGER BENCHMARK ###
@@ -995,7 +774,7 @@ bigint_bench() {
 # read as a performance win. See bigint-bench-contract/tests/differential.rs.
 #
 # Needs its own entry because the package carries a `disabled` marker, so
-# eg_test_all skips it along with the wasm build loop.
+# eg_test_all skips it along with the rv32 wrapper glob.
 bigint_bench_test() {
     info "TEST bigint-bench-contract (backend differential)"
     (
@@ -1019,12 +798,7 @@ check_all() {
     { skip SDK_TESTS || test_package; } &&
 
     { skip EXAMPLES || {
-        { skip BUILD_EXAMPLES || eg_build_all; } &&
         { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
-        check_contract_spec_artifacts &&
-        check_typedef_conflict_detected &&
-        check_iface_conflict_detected &&
-        check_missing_contract_macro_detected &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
         { skip BOTTLE_EXAMPLES || eg_bottle_test_all; } &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
@@ -1032,7 +806,6 @@ check_all() {
     }; } &&
 
     { skip INTEGRATION || {
-        itc_build_all &&
         { skip RV32_INTEGRATION || itc_build_rv32_all; } &&
         itc_test_all &&
         itc_bottle_test_all
@@ -1051,25 +824,18 @@ check_all() {
 
 ### Other dev utils
 
-find_contract_config() {
-    local dir="$1"
-    while [ ! -f "$dir/.cargo/contract.toml" ] && [ "$dir" != "/" ]; do
-        dir="$(dirname "$dir")"
-    done
-    echo "$dir/.cargo/contract.toml"
-}
-
+# Guest dependency tree / macro expansion. Both run against the rv32 target
+# so what they show is what a contract actually compiles; the workspace
+# .cargo/config.toml supplies the rustflags and build-std goes on the command
+# line (see build_rv32).
 tree_contract() {
     local contract
     contract=$(realpath "$1"); shift
-    local config
-    config="$(find_contract_config "$contract")"
 
     (
         cd "$contract" &&
-        cargo --config "$config" \
-            tree \
-            --target "wasm32-unknown-unknown" \
+        cargo tree \
+            --target "$RV32_TARGET" \
             --edges no-proc-macro,no-build,no-dev \
             -Z build-std=core,alloc \
             -Z build-std-features=std/optimize_for_size \
@@ -1080,28 +846,25 @@ tree_contract() {
 expand_contract() {
     local contract
     contract=$(realpath "$1"); shift
-    local config
-    config="$(find_contract_config "$contract")"
 
     (
         cd "$contract" &&
-        cargo --config "$config" \
-            expand \
+        cargo expand \
             --features "entrypoints" \
-            --target "wasm32-unknown-unknown" \
+            --target "$RV32_TARGET" \
             --color=always \
         #
     )
 }
 
+# The deployed rv32 artifact's entrypoint table, as recorded by the lowerer.
 contract_entrypoints() {
-    local package
+    local package stem
     package=$(basename "$1"); shift
+    stem="${package//-/_}"
 
-    wasm="${CONTRACT}/${package}.wasm"
-
-    ls -l "$wasm" &&
-    wasm-objdump -j Export -x "$wasm"
+    ls -l "${LOWERED}/${stem}.rv32a" &&
+    cat "${LOWERED}/${stem}.rv32.json"
 }
 
 ### Quality checks
@@ -1155,7 +918,6 @@ fmt_check() {
 
 ci_check() {
     check_all &&
-    { skip WASM_STRINGS || check_wasm_strings; } &&
     { skip QUALITY || check_quality; } &&
     info "CI clean!" ||
     fail "CI failed!"
@@ -1166,11 +928,6 @@ check_quality() {
     { skip FMT || fmt_check; } &&
     xxx_check &&
     true
-}
-
-check_wasm_strings() {
-    info "Checking WASM binaries for embedded path strings"
-    bash "${SDK_DIR}/scripts/check-wasm-size.sh" "$CONTRACT"
 }
 
 info() {
@@ -1239,20 +996,14 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         ls-enabled)
             ls_contract_packages "$1"
             ;;
-        build)
+        build|build-rv32)
             dir=$(dirname "$1")
             pkg=$(basename "$1")
 
-            build_contract "$dir" "$pkg"
-            ;;
-        build-examples)
-            eg_build_all
+            build_rv32 "$dir" "$pkg"
             ;;
         build-examples-rv32)
             eg_build_rv32_all
-            ;;
-        build-itc)
-            itc_build_all
             ;;
         build-integration-rv32)
             itc_build_rv32_all
@@ -1294,7 +1045,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             contract_entrypoints "$@"
             ;;
         strings)
-            check_wasm_strings
+            check_rv32_strings "$@"
             ;;
         tree)
             tree_contract "$1"

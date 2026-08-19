@@ -32,5 +32,5 @@ pub mod transaction_handler;
 pub mod try_commit_result;
 pub use try_commit_result::TryCommitResult;
 
-#[cfg(target_family = "wasm")]
-compile_error!("The `native_exec` crate cannot be compiled for wasm.");
+#[cfg(target_arch = "riscv32")]
+compile_error!("The `native_exec` crate cannot be compiled for rv32.");

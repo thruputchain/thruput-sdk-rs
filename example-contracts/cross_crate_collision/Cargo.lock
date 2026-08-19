@@ -17,12 +17,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitflags"
-version = "2.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
-
-[[package]]
 name = "block-buffer"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -129,12 +123,6 @@ name = "escape-bytes"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
-
-[[package]]
-name = "foldhash"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "fslock"
@@ -271,24 +259,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "groundhog-wasm-meter"
-version = "0.8.1"
-source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "a2d027a3b193a374ae5ead85ec75c87a09f810792fc8bb9efd6d3c0059db75ee"
-dependencies = [
- "wasm-encoder",
- "wasmparser",
-]
-
-[[package]]
-name = "groundhog-wasm-runtime"
-version = "0.19.6"
-dependencies = [
- "groundhog-xdr",
- "heapless",
-]
-
-[[package]]
 name = "groundhog-xdr"
 version = "0.21.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
@@ -333,11 +303,6 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-dependencies = [
- "foldhash",
- "serde",
- "serde_core",
-]
 
 [[package]]
 name = "heapless"
@@ -381,8 +346,6 @@ checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
  "hashbrown",
- "serde",
- "serde_core",
 ]
 
 [[package]]
@@ -390,12 +353,6 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "leb128fmt"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libc"
@@ -509,8 +466,6 @@ dependencies = [
  "groundhog-rv32-runtime",
  "groundhog-storage-cost",
  "groundhog-u256",
- "groundhog-wasm-meter",
- "groundhog-wasm-runtime",
  "groundhog-xdr",
  "heapless",
  "hogexec-internal",
@@ -519,12 +474,6 @@ dependencies = [
  "thiserror",
  "xdrs",
 ]
-
-[[package]]
-name = "semver"
-version = "1.0.28"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "serde"
@@ -664,29 +613,6 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
-
-[[package]]
-name = "wasm-encoder"
-version = "0.252.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8185ae345fa5687c054626ff9a50e7089797a343d9904d1dc9820eb4c4d3196f"
-dependencies = [
- "leb128fmt",
- "wasmparser",
-]
-
-[[package]]
-name = "wasmparser"
-version = "0.252.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3eb099dcadcde5be9eef55e3a337128efd4e44b4c93122487e4d2e4e1c6627c"
-dependencies = [
- "bitflags",
- "hashbrown",
- "indexmap",
- "semver",
- "serde",
-]
 
 [[package]]
 name = "winapi"

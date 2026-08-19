@@ -1,4 +1,4 @@
-Negative spec fixture: the wasm build succeeds but spec-tool rewrite must
+Negative spec fixture: the ELF links but spec canonicalization must
 fail (reachable SharedConfig typedef conflict). Exercised by
 check_typedef_conflict_detected in scripts/dev.sh, not the standard
 build-and-finalize loop.

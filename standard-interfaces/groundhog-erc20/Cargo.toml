@@ -24,7 +24,7 @@ groundhog-xdr = { workspace = true }
 [dev-dependencies]
 groundhog-erc20-if = { path = ".", features = ["dev"] }
 
-[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.19.6", features = ["std"] }
 
 [lib]

@@ -35,10 +35,7 @@ extern crate alloc;
 // this reachable by accident -- one host-ish dependency anywhere in a guest's
 // graph turning `sha2` on is enough -- so it is a hard error rather than a
 // silent substitution. Guests want `syscall`.
-#[cfg(all(
-    feature = "sha2",
-    any(target_family = "wasm", target_arch = "riscv32")
-))]
+#[cfg(all(feature = "sha2", target_arch = "riscv32"))]
 compile_error!(
     "groundhog-domain-separator: the `sha2` backend must not be linked into a \
      guest contract; use the `syscall` backend"

@@ -4,8 +4,7 @@
 //! `riscv32im-unknown-none-elf`.
 //!
 //! This crate is the rv32 analog of what the system + linker provide for
-//! hosted targets, and what the WASM toolchain provides implicitly for
-//! `wasm32-unknown-unknown`. It supplies:
+//! hosted targets. It supplies:
 //!
 //!   - a `_start` entry symbol that the linker can resolve;
 //!   - a `#[panic_handler]`;

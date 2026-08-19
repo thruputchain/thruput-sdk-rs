@@ -1,0 +1,1 @@
+rv32-only wrapper; build with `groundhog build --target rv32 -p phantom_method_impl-rv32`.

@@ -22,11 +22,11 @@ type LocString = String<100>;
 // On guest targets (single-threaded), use a plain static with ContractCell (which is Sync).
 // On native (multi-threaded), use thread_local with core::cell::Cell.
 // Both provide .get() and .set() for Copy types.
-#[cfg(any(doc, target_family = "wasm", target_arch = "riscv32"))]
+#[cfg(any(doc, target_arch = "riscv32"))]
 static FRAMES: crate::ContractCell<Option<NonNull<Frame>>> =
     crate::ContractCell::new(None);
 
-#[cfg(not(any(doc, target_family = "wasm", target_arch = "riscv32")))]
+#[cfg(not(any(doc, target_arch = "riscv32")))]
 std::thread_local! {
     static FRAMES: core::cell::Cell<Option<NonNull<Frame>>> =
         const { core::cell::Cell::new(None) };

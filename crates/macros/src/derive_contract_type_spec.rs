@@ -50,13 +50,13 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
             unsafe(link_section = "groundhogspecanchortextv0")
         )]
         pub fn #anchor_fn_ident() -> usize {
-            #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
+            #[cfg(target_arch = "riscv32")]
             {
                 let mut acc = 0usize;
                 #(#anchor_stmts)*
                 acc
             }
-            #[cfg(not(any(target_family = "wasm", target_arch = "riscv32")))]
+            #[cfg(not(target_arch = "riscv32"))]
             {
                 0usize
             }
@@ -168,16 +168,14 @@ fn emit_raw_typedef_fragment(
         #[doc(hidden)]
         const #raw_len_ident: usize = #fragment_ident.const_txs_size();
 
-        #[cfg(any(target_family = "wasm", target_arch = "riscv32"))]
+        #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
         #[cfg_attr(
-            any(target_family = "wasm", target_arch = "riscv32"),
+            target_arch = "riscv32",
             unsafe(link_section = "groundhogspecrawv1")
         )]
-        // RV32 only: `#[used]` keeps the section live through ELF linking for CLI
-        // extraction. On wasm the custom section is retained without it, and
-        // `#[used]` there would force the fragment bytes into linear memory
-        // (tripping the spec-tool leak guard).
+        // `#[used]` keeps the section live through ELF linking so the CLI
+        // can extract it.
         #[cfg_attr(target_arch = "riscv32", used)]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =

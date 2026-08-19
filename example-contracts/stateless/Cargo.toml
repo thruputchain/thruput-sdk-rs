@@ -16,7 +16,7 @@ entrypoints = []
 dev = ["sdk/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 

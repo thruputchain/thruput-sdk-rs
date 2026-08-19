@@ -233,10 +233,7 @@ fn generate_trait_method_fragments_tokens(
     // `link_section` requires a string literal. Keep this in sync with
     // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
-        #[cfg(all(
-            any(target_family = "wasm", target_arch = "riscv32"),
-            feature = "entrypoints"
-        ))]
+        #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
             const METHODS: &[::sdk::__contract_spec::ContractSpecMethodView<'static>] =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHODS;
@@ -261,13 +258,11 @@ fn generate_trait_method_fragments_tokens(
             };
 
             #[cfg_attr(
-                any(target_family = "wasm", target_arch = "riscv32"),
+                target_arch = "riscv32",
                 unsafe(link_section = "groundhogspecrawv1")
             )]
-            // RV32 only: `#[used]` keeps the section live through ELF linking
-            // for CLI extraction. On wasm the custom section is retained
-            // without it, and `#[used]` there would force the fragment bytes
-            // into linear memory (tripping the spec-tool leak guard).
+            // `#[used]` keeps the section live through ELF linking so the
+            // CLI can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_METHOD_FRAGMENTS: [u8; RAW_LEN] = {
                 let mut w =
@@ -301,10 +296,7 @@ fn generate_trait_event_fragments_tokens(
     // `link_section` requires a string literal. Keep this in sync with
     // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
-        #[cfg(all(
-            any(target_family = "wasm", target_arch = "riscv32"),
-            feature = "entrypoints"
-        ))]
+        #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
             const EVENTS: &[::sdk::__contract_spec::ContractEventDefView<'static>] =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENTS;
@@ -322,13 +314,11 @@ fn generate_trait_event_fragments_tokens(
             };
 
             #[cfg_attr(
-                any(target_family = "wasm", target_arch = "riscv32"),
+                target_arch = "riscv32",
                 unsafe(link_section = "groundhogspecrawv1")
             )]
-            // RV32 only: `#[used]` keeps the section live through ELF linking
-            // for CLI extraction. On wasm the custom section is retained
-            // without it, and `#[used]` there would force the fragment bytes
-            // into linear memory (tripping the spec-tool leak guard).
+            // `#[used]` keeps the section live through ELF linking so the
+            // CLI can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_EVENT_FRAGMENTS: [u8; RAW_LEN] = {
                 let mut w =
@@ -350,7 +340,7 @@ fn generate_trait_event_fragments_tokens(
 /// for a contract target — independent of `entrypoints` — and are shaken out
 /// in post-processing unless an impl anchors the interface.
 fn target_cfg() -> TokenStream {
-    quote! { any(target_family = "wasm", target_arch = "riscv32") }
+    quote! { target_arch = "riscv32" }
 }
 
 /// The cfg gate for an *anchor*: emitted only at the site that wants the
@@ -358,10 +348,7 @@ fn target_cfg() -> TokenStream {
 /// or an interface carrier built with `spec`).
 fn entrypoints_cfg() -> TokenStream {
     quote! {
-        all(
-            any(target_family = "wasm", target_arch = "riscv32"),
-            feature = "entrypoints"
-        )
+        all(target_arch = "riscv32", feature = "entrypoints")
     }
 }
 
@@ -524,13 +511,11 @@ pub fn emit_raw_fragment_tokens_with_cfg(
             };
 
             #[cfg_attr(
-                any(target_family = "wasm", target_arch = "riscv32"),
+                target_arch = "riscv32",
                 unsafe(link_section = "groundhogspecrawv1")
             )]
-            // RV32 only: `#[used]` keeps the section live through ELF linking for
-            // CLI extraction. On wasm the custom section is retained without it,
-            // and `#[used]` there would force the fragment bytes into linear
-            // memory (tripping the spec-tool leak guard).
+            // `#[used]` keeps the section live through ELF linking so the CLI
+            // can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };

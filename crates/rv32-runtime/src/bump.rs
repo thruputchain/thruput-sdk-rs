@@ -5,10 +5,8 @@
 //! allocator module is the only caller: it supplies the cursor and the heap
 //! ceiling, and turns the returned address back into a pointer.
 //!
-//! `groundhog-wasm-runtime` carries a copy of this module rather than sharing
-//! it through a common crate: both runtimes keep an empty dependency graph on
-//! purpose, and this is a self-contained page of integer math. Keep the two
-//! in sync.
+//! Self-contained integer math with no dependencies, which is what keeps this
+//! runtime's dependency graph empty.
 
 use core::alloc::Layout;
 
