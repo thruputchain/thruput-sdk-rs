@@ -22,9 +22,9 @@ pub struct MockContractInner {
     >,
     /// Run instead of a deterministic failure when an invoked method id
     /// matches no entry in `funcs`. `None` (the default) keeps the
-    /// historical behavior; `sdk` installs one under its
-    /// `unknown_method_exn` feature so the native mock agrees with the
-    /// rv32 guest dispatcher about what an undefined method does.
+    /// historical behavior; `sdk::register_mock_package` installs a
+    /// `LibraryExn::UnknownMethod` throw, so a mock standing in for a real
+    /// contract agrees with the rv32 guest dispatcher.
     unknown: Option<Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>>,
 }
 

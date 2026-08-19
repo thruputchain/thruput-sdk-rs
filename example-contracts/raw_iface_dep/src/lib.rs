@@ -9,8 +9,8 @@
 //! which the `#[contract]` macro normally populates. This crate deliberately
 //! has no macro, so it writes its record by hand — a supported shape, and the
 //! one that keeps the fixture a real contract rather than a compile-only
-//! stub. The dispatcher traps (ebreak) when a wrapper returns, so the
-//! wrapper ends in `raw_Return`.
+//! stub. The dispatcher aborts with `LibraryExn::UnknownMethod` when a
+//! wrapper returns, so the wrapper ends in `raw_Return`.
 
 #![no_std]
 

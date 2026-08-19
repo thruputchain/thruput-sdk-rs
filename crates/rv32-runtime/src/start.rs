@@ -9,8 +9,6 @@
 //! `groundhog_rv32_entrypoints` section) and calls the matching wrapper.
 
 use crate::dispatch::{Entrypoint, lookup};
-#[cfg(not(feature = "unknown_method_exn"))]
-use core::arch::asm;
 use core::arch::naked_asm;
 
 // Dispatch-table bracket symbols. The linker script
@@ -53,49 +51,33 @@ fn entrypoints() -> &'static [Entrypoint] {
     }
 }
 
-// `dispatch_failed` is the dispatcher's terminal arm: reached when no table
-// entry matches the invoked method id, or if a wrapper returns (it shouldn't —
-// wrappers diverge via the Return syscall). The `unknown_method_exn` feature,
-// forwarded by `sdk`, picks which of the two definitions below is compiled.
+// The dispatcher's terminal arm, defined by `sdk` (see `sdk::__rv32`): abort
+// the frame with the typed `LibraryExn::UnknownMethod`, which the caller can
+// decode by selector. It replaced an `ebreak` here — a `Trap::kBreakpoint` the
+// caller could not tell apart from an OOB access or a bad instruction — for 20
+// bytes of .text, since `library_abort` is already linked into every contract.
 //
-// The wrapper-returned case rides along with whichever arm is compiled. It is
-// unreachable in practice, and both arms fail the frame deterministically, so
-// the only cost of sharing is that such a bug would be *reported* as an
-// unknown method under the feature.
-
-/// Immediate deterministic trap: hogd traps `ebreak` as `Trap::kBreakpoint`.
-/// The caller gets an empty return buffer and cannot tell "no such method"
-/// from any other trap.
-#[cfg(not(feature = "unknown_method_exn"))]
-#[inline(always)]
-fn dispatch_failed() -> ! {
-    unsafe { asm!("ebreak", options(noreturn)) }
-}
-
-// Defined by `sdk` (rv32 only) when its `unknown_method_exn` feature is on;
-// see `sdk::__rv32`. Diverges by aborting the frame with the encoded
-// exception, so it never returns to the dispatcher.
-#[cfg(feature = "unknown_method_exn")]
+// This crate cannot build the exception itself: it is dependency-free by
+// design and `sdk` depends on *it*, so the two meet at this symbol. Nothing
+// links this crate without `sdk` (`sdk` force-links it on rv32), so the
+// definition is always there.
 unsafe extern "C" {
     #[link_name = "__groundhog_unknown_method"]
     safe fn unknown_method_exn() -> !;
 }
 
-/// Abort with the typed `LibraryExn::UnknownMethod`, which the caller can
-/// decode by selector instead of guessing at a bare trap.
-#[cfg(feature = "unknown_method_exn")]
-#[inline(always)]
-fn dispatch_failed() -> ! {
-    unknown_method_exn()
-}
-
 /// C-ABI entry called by the naked `_start`. `method_id` arrives reassembled
 /// from the seeded `a0`/`a1`.
+///
+/// Falls through to the unknown-method abort when no table entry matches, and
+/// also if a wrapper returns — it shouldn't (wrappers diverge via the Return
+/// syscall), so that case is unreachable in practice and merely reports itself
+/// as an unknown method if a bug ever reaches it.
 extern "C" fn rv32_dispatch(method_id: u64) -> ! {
     if let Some(wrapper) = lookup(entrypoints(), method_id) {
         wrapper();
     }
-    dispatch_failed()
+    unknown_method_exn()
 }
 
 #[unsafe(naked)]
