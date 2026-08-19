@@ -102,6 +102,14 @@ pub fn get_caller() -> ContractAddress {
     unsafe { out_addr.assume_init() }
 }
 
+/// The hash of the transaction that initiated the current execution.
+///
+/// This is `groundhog-xdr`'s `TransactionHash`: sha256 of the XDR-encoded
+/// `Transaction` — the same object the signatures are over, and the
+/// identifier the transaction carries network-wide. It deliberately covers
+/// neither the signatures wrapped around it nor the nondeterministic data a
+/// proposer attaches, so a submitter can compute it at signing time and use
+/// it to find its own transaction.
 pub fn get_source_transaction_hash() -> SHA256Hash {
     let mut out_hash: MaybeUninit<SHA256Hash> =
         MaybeUninit::<SHA256Hash>::uninit();
