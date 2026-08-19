@@ -31,6 +31,14 @@ LOWERED="${TARGET_DIR}/groundhog"
 # bins too, but must never be built here expecting success. The checks that
 # own them build them by name.
 #
+# A package is recognized by an EXPLICIT `[[bin]]` in its manifest, not by
+# cargo's target auto-discovery. That is deliberate — an auto-discovered bin
+# carries no `required-features`, so host `cargo test` would select the
+# `#![no_main]` rv32 bin and fail to link ("undefined symbol: main") — but it
+# means a package relying on auto-discovery would drop out of the rv32 build,
+# the dispatch/strings checks and the codesize metrics with no diagnostic at
+# all. check_rv32_implicit_bin below turns that silence into a failure.
+#
 # Identical to ls_itc_rv32_packages below, and to the discovery in
 # scripts/metrics/sdk_codesizes_rv32*.sh — keep the rules in sync.
 ls_rv32_packages() {
@@ -39,10 +47,40 @@ ls_rv32_packages() {
 
     local package
     for package in $(ls_contract_packages "$contracts_dir"); do
-        grep -q '^\[\[bin\]\]' "$contracts_dir/$package/Cargo.toml" ||
-            continue
+        declares_bin "$contracts_dir/$package/Cargo.toml" || continue
         echo "$package"
     done
+}
+
+# True when a manifest declares a `[[bin]]` table. Leading whitespace is legal
+# TOML, so match it rather than anchoring the header at column zero.
+declares_bin() {
+    grep -qE '^[[:space:]]*\[\[bin\]\]' "$1"
+}
+
+# A contract with a `src/main.rs` and no `[[bin]]` gets an auto-discovered bin
+# target: buildable, but invisible to ls_rv32_packages (see its comment), and
+# unguarded by `required-features` on the host. Both failures are silent, so
+# fail here instead. `autobins = false` opts a package out of auto-discovery,
+# which makes a bare `src/main.rs` inert and the omission correct.
+check_rv32_implicit_bin() {
+    local contracts_dir
+    contracts_dir="$1"; shift
+
+    info "Checking contracts declare their rv32 bin explicitly"
+
+    local package manifest status
+    status=0
+    for package in $(ls_contract_packages "$contracts_dir"); do
+        manifest="$contracts_dir/$package/Cargo.toml"
+        [ -f "$contracts_dir/$package/src/main.rs" ] || continue
+        declares_bin "$manifest" && continue
+        grep -qE '^[[:space:]]*autobins[[:space:]]*=[[:space:]]*false' \
+            "$manifest" && continue
+        fail "$package has src/main.rs but no [[bin]]: cargo would auto-discover it (no required-features, so host builds link it) and the rv32 loop would skip it"
+        status=1
+    done
+    return "$status"
 }
 
 build_rv32() {
@@ -204,6 +242,7 @@ eg_build_rv32_all() {
         check_rv32_dispatch "$elf" || return 1
         check_rv32_mem_symbols "$elf" || return 1
     done
+    check_rv32_implicit_bin "${SDK_DIR}/example-contracts" &&
     check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts") &&
     check_rv32_contract_spec_artifacts &&
     check_rv32_typedef_conflict_detected &&
@@ -343,7 +382,7 @@ ls_itc_rv32_packages() {
     local contracts_dir="${SDK_DIR}/integration_test/contracts"
     local package
     for package in $(ls_contract_packages "$contracts_dir"); do
-        grep -q '^\[\[bin\]\]' "$contracts_dir/$package/Cargo.toml" || continue
+        declares_bin "$contracts_dir/$package/Cargo.toml" || continue
         echo "$package"
     done
 }
@@ -367,6 +406,7 @@ itc_build_rv32_all() {
         check_rv32_dispatch "$elf" || return 1
         check_rv32_mem_symbols "$elf" || return 1
     done
+    check_rv32_implicit_bin "${SDK_DIR}/integration_test/contracts" &&
     check_rv32_strings $(ls_itc_rv32_packages)
 }
 

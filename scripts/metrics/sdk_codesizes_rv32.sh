@@ -84,7 +84,7 @@ for pkg_dir in "$CONTRACTS_DIR"/*/; do
     pkg_dir=${pkg_dir%/}
     [ -f "$pkg_dir/Cargo.toml" ] || continue
     [ -f "$pkg_dir/disabled" ] && continue
-    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
+    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
     found=1
     name=$(basename "$pkg_dir")
     emit_row "${name//-/_}"
@@ -102,7 +102,7 @@ for pkg_dir in "$ITC_CONTRACTS_DIR"/*/; do
     pkg_dir=${pkg_dir%/}
     [ -f "$pkg_dir/Cargo.toml" ] || continue
     [ -f "$pkg_dir/disabled" ] && continue
-    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
+    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
     name=$(basename "$pkg_dir")
     [ "$name" != "target" ] || continue
     found=1
