@@ -12,7 +12,7 @@
 
 use sdk::*;
 
-fn write_bytestring() {
+pub fn write_bytestring() {
     let mut calldata_buf = sdk::internal::new_scratch();
     let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
     fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
@@ -25,7 +25,7 @@ fn write_bytestring() {
     bytestring_set(&key, string);
 }
 
-fn log_bytestring() {
+pub fn log_bytestring() {
     let mut calldata_buf = sdk::internal::new_scratch();
     let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
     fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
@@ -42,7 +42,7 @@ fn log_bytestring() {
     log(&bstring);
 }
 
-fn expect_bytestring() {
+pub fn expect_bytestring() {
     let mut calldata_buf = sdk::internal::new_scratch();
     let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
     fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);

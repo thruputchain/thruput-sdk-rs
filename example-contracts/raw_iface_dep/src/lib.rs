@@ -17,7 +17,7 @@
 use iface_conflict_if_a::TokenClient;
 use sdk::*;
 
-fn ping_token() {
+pub fn ping_token() {
     let token = ContractAddress::new([0u8; 32]);
     let _ = TokenClient::new(&token).ping();
 }
