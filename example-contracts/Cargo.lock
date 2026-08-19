@@ -1173,6 +1173,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "trait_sourced_method_spec"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "trait_sourced_method_spec",
+]
+
+[[package]]
 name = "typedef_collision_reachable"
 version = "0.4.0"
 dependencies = [
