@@ -198,13 +198,10 @@ fn emit_exported_event_fragment(
 
         #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
-        #[cfg_attr(
-            target_arch = "riscv32",
-            unsafe(link_section = "groundhogspecrawv1")
-        )]
+        #[unsafe(link_section = "groundhogspecrawv1")]
         // `#[used]` keeps the section live through ELF linking so the CLI
         // can extract it.
-        #[cfg_attr(target_arch = "riscv32", used)]
+        #[used]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =
                 ::sdk::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();

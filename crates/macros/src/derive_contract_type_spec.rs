@@ -170,13 +170,10 @@ fn emit_raw_typedef_fragment(
 
         #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
-        #[cfg_attr(
-            target_arch = "riscv32",
-            unsafe(link_section = "groundhogspecrawv1")
-        )]
+        #[unsafe(link_section = "groundhogspecrawv1")]
         // `#[used]` keeps the section live through ELF linking so the CLI
         // can extract it.
-        #[cfg_attr(target_arch = "riscv32", used)]
+        #[used]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =
                 #krate::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();
@@ -473,9 +470,15 @@ mod tests {
             tokens.contains("const __GROUNDHOG_SPEC_ANCHOR_ROOT : fn () -> usize = __groundhog_spec_anchor_fn_Envelope"),
             "{tokens}"
         );
+        // The raw fragment static is rv32-gated and carries both attributes
+        // the CLI's extraction depends on: the section name, and `#[used]` to
+        // survive linking. Gated by the `#[cfg]` on the item, so the
+        // attributes themselves are unconditional.
         assert!(
             tokens.contains(
-                "used)] static __groundhog_spec_raw_typedef_fragment_Envelope"
+                "# [cfg (target_arch = \"riscv32\")] # [doc (hidden)] \
+                 # [unsafe (link_section = \"groundhogspecrawv1\")] # [used] \
+                 static __groundhog_spec_raw_typedef_fragment_Envelope"
             ),
             "{tokens}"
         );
