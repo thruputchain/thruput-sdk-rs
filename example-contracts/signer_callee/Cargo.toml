@@ -13,7 +13,10 @@ edition.workspace = true
 
 [features]
 default = ["alloc"]
-entrypoints = []
+# The guest build needs alloc: `sdk::signer::mint_auth_token` is alloc-gated,
+# and `groundhog build` passes --no-default-features, so `default` does not
+# reach it. State the requirement on the feature the CLI does enable.
+entrypoints = ["alloc"]
 alloc = ["sdk/alloc"]
 dev = ["sdk/dev"]
 
