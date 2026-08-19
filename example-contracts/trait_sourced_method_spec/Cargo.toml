@@ -1,0 +1,35 @@
+[package]
+name = "trait_sourced_method_spec"
+description = "Contract whose impl renames the trait's parameters — the published spec must carry the trait's names"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `groundhog build --target rv32 -p trait_sourced_method_spec` derives
+# `--bin trait_sourced_method_spec` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "trait_sourced_method_spec"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { workspace = true }
+
+[dev-dependencies]
+trait_sourced_method_spec = { path = ".", features = ["dev"] }

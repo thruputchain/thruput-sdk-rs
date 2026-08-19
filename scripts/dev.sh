@@ -479,7 +479,7 @@ check_rv32_contract_spec_artifacts() {
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
     local erc20_json signer_callee_json erc1271_wallet_json
-    local phantom_method_json prerelease_json
+    local phantom_method_json prerelease_json trait_sourced_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
     rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller.spec.json"
@@ -493,6 +493,7 @@ check_rv32_contract_spec_artifacts() {
     erc1271_wallet_json="${groundhog_dir}/erc1271_wallet.spec.json"
     phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
     prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
+    trait_sourced_json="${groundhog_dir}/trait_sourced_method_spec.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -531,6 +532,24 @@ check_rv32_contract_spec_artifacts() {
     assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
     assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
     assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
+
+    # Method specs are sourced from the `#[contract]` trait, never from the
+    # impl's own signatures. trait_sourced_method_spec's impl renames every
+    # parameter `Pair` declares (`_factory`, `_numerator`, `_denominator` —
+    # the unused-parameter convention); the published interface spec is a
+    # contract's public API, so it must carry the trait's names, in the
+    # trait's order. Trait and impl share a crate, so a regression also shows
+    # up as a `conflicting method definitions` build failure — but only this
+    # assertion catches an impl name that reaches the spec silently.
+    #
+    # Replaces the guard the deleted `swap` contract carried; the macro-layer
+    # twin is `trait_impl_methods_come_from_trait_const_not_impl_signatures`.
+    assert_file_contains "$trait_sourced_json" '"name":"initialize","args":[{"name":"factory"' &&
+    assert_file_contains "$trait_sourced_json" '"name":"set_rate","args":[{"name":"numerator"' &&
+    assert_file_contains "$trait_sourced_json" '"name":"denominator"' &&
+    assert_file_lacks "$trait_sourced_json" '"_factory"' &&
+    assert_file_lacks "$trait_sourced_json" '"_numerator"' &&
+    assert_file_lacks "$trait_sourced_json" '"_denominator"' &&
 
     # Pre-release interface versions: the macro accepts them and the spec
     # pipeline must publish them verbatim (historically ingestion rejected
