@@ -87,6 +87,19 @@ pub enum LibraryExn {
         )
     )]
     CapacityConstraintAlreadyWritten = 12,
+
+    /// The invoked method id matched no entrypoint on this contract.
+    ///
+    /// Thrown by guest dispatch (and by the native mock, for a contract
+    /// registered through `register_mock_package`) in place of the bare
+    /// trap it used to answer with, which a caller could not tell apart
+    /// from an OOB access or a bad instruction. Carries no method id —
+    /// the caller picked the id it invoked.
+    #[cfg_attr(
+        feature = "debugging",
+        error("no entrypoint on this contract matches the invoked method")
+    )]
+    UnknownMethod = 13,
 }
 
 impl From<HandlingError> for LibraryExn {

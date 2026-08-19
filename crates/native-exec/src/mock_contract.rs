@@ -20,6 +20,12 @@ pub struct MockContractInner {
         ContractEntrypointID,
         Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>,
     >,
+    /// Run instead of a deterministic failure when an invoked method id
+    /// matches no entry in `funcs`. `None` (the default) keeps the
+    /// historical behavior; `sdk::register_mock_package` installs a
+    /// `LibraryExn::UnknownMethod` throw, so a mock standing in for a real
+    /// contract agrees with the rv32 guest dispatcher.
+    unknown: Option<Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>>,
 }
 
 pub struct MockContract {
@@ -67,6 +73,20 @@ impl MockContract {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
 
+    /// Install the handler for method ids this contract does not define,
+    /// replacing any previous one.
+    ///
+    /// The registered closure runs inside the same `invoke_wrapper` catch
+    /// site as a real method, so aborting out of it (e.g. via
+    /// `sdk::exn::library_throw`) reaches the caller as an ordinary
+    /// exception rather than escaping the frame.
+    pub fn register_unknown_method<F>(&mut self, func: F)
+    where
+        F: Fn() + UnwindSafe + Clone + 'static,
+    {
+        unsafe { (*self.contract).unknown = Some(invoke_wrapper(func)) };
+    }
+
     pub fn register<F: FnOnce(&mut Self)>(&mut self, f: F) -> &mut Self {
         f(self);
         self
@@ -83,6 +103,7 @@ impl MockContractInner {
             index: n,
             hash: result.into(),
             funcs: HashMap::new(),
+            unknown: None,
         }
     }
 
@@ -95,5 +116,12 @@ impl MockContractInner {
         method: ContractEntrypointID,
     ) -> Option<&dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
         self.funcs.get(&method).map(|boxed| boxed.as_ref())
+    }
+
+    /// The handler for undefined method ids, if one was registered.
+    pub fn get_unknown_func(
+        &self,
+    ) -> Option<&dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
+        self.unknown.as_ref().map(|boxed| boxed.as_ref())
     }
 }

@@ -77,7 +77,12 @@ unsafe extern "C" fn trampoline(
 
     let method: ContractEntrypointID = method.to_be_bytes().into();
 
-    match unsafe { (*c).get_func(method) } {
+    // Undefined method: run the registered fallback if there is one (see
+    // `MockContract::register_unknown_method`), otherwise fail the frame
+    // deterministically — the native analog of the rv32 dispatcher's
+    // `ebreak`.
+    match unsafe { (*c).get_func(method).or_else(|| (*c).get_unknown_func()) }
+    {
         Some(x) => x(),
         None => groundhog_sys::ForeignInvokeResult {
             panic: InvokeErrorCode::Deterministic.0,

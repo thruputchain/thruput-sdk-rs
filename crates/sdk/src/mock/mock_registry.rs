@@ -97,6 +97,11 @@ pub fn register_mock_package(
     for fragment in fragments {
         (fragment.register)(&mut contract);
     }
+    // Mirror the rv32 dispatcher's undefined-method behavior, so a
+    // contract's tests observe what its deployed image would do.
+    contract.register_unknown_method(|| {
+        crate::exn::library_throw(crate::exn::LibraryExn::UnknownMethod)
+    });
     env.setup_create_contract(&contract.as_contract());
     contract
 }

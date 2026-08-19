@@ -197,6 +197,8 @@ mod tests {
         assert_wire_compat(LibraryExn::NonNegativeIntOverflow);
         assert_wire_compat(LibraryExn::StorageSerialization);
         assert_wire_compat(LibraryExn::StorageKeypathOverflow);
+        assert_wire_compat(LibraryExn::CapacityConstraintAlreadyWritten);
+        assert_wire_compat(LibraryExn::UnknownMethod);
     }
 
     #[test]

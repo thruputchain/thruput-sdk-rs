@@ -67,6 +67,7 @@ members = [
     "dup_entrypoint_neg",
     "prerelease_version",
     "missing_contract_macro",
+    "unknown_method",
     # Built only by scripts/bigint-bench.sh (34 rv32 variants); carries a
     # `disabled` marker so the generic contract loops skip it. See its
     # Cargo.toml.
@@ -90,13 +91,13 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.20.0" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.20.0" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.20.0", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.21.0" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.21.0" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.21.0", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.11" }
-groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.11" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.11" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.12" }
+groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.12" }
+groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.12" }
 
 erc20-test = { path = "../standard-tests/erc20-test" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }

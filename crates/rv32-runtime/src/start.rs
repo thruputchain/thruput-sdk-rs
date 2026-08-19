@@ -9,7 +9,7 @@
 //! `groundhog_rv32_entrypoints` section) and calls the matching wrapper.
 
 use crate::dispatch::{Entrypoint, lookup};
-use core::arch::{asm, naked_asm};
+use core::arch::naked_asm;
 
 // Dispatch-table bracket symbols. The linker script
 // (link/groundhog-rv32.ld) defines both around the KEEP'd
@@ -51,22 +51,33 @@ fn entrypoints() -> &'static [Entrypoint] {
     }
 }
 
-/// Immediate deterministic trap.
-/// Reached on an unknown method id under guest-side dispatch, or if a wrapper
-/// returns (it shouldn't — wrappers diverge via the Return syscall). hogd traps
-/// `ebreak` as `Trap::kBreakpoint` → deterministic failure.
-#[inline(always)]
-fn deterministic_trap() -> ! {
-    unsafe { asm!("ebreak", options(noreturn)) }
+// The dispatcher's terminal arm, defined by `sdk` (see `sdk::__rv32`): abort
+// the frame with the typed `LibraryExn::UnknownMethod`, which the caller can
+// decode by selector. It replaced an `ebreak` here — a `Trap::kBreakpoint` the
+// caller could not tell apart from an OOB access or a bad instruction — for 20
+// bytes of .text, since `library_abort` is already linked into every contract.
+//
+// This crate cannot build the exception itself: it is dependency-free by
+// design and `sdk` depends on *it*, so the two meet at this symbol. Nothing
+// links this crate without `sdk` (`sdk` force-links it on rv32), so the
+// definition is always there.
+unsafe extern "C" {
+    #[link_name = "__groundhog_unknown_method"]
+    safe fn unknown_method_exn() -> !;
 }
 
 /// C-ABI entry called by the naked `_start`. `method_id` arrives reassembled
 /// from the seeded `a0`/`a1`.
+///
+/// Falls through to the unknown-method abort when no table entry matches, and
+/// also if a wrapper returns — it shouldn't (wrappers diverge via the Return
+/// syscall), so that case is unreachable in practice and merely reports itself
+/// as an unknown method if a bug ever reaches it.
 extern "C" fn rv32_dispatch(method_id: u64) -> ! {
     if let Some(wrapper) = lookup(entrypoints(), method_id) {
         wrapper();
     }
-    deterministic_trap()
+    unknown_method_exn()
 }
 
 #[unsafe(naked)]
