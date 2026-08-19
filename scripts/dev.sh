@@ -199,6 +199,7 @@ eg_build_rv32_all() {
     check_rv32_contract_spec_artifacts &&
     check_rv32_typedef_conflict_detected &&
     check_rv32_iface_conflict_detected &&
+    check_rv32_missing_entrypoints_detected &&
     check_rv32_duplicate_entrypoint_detected
 }
 
@@ -248,6 +249,53 @@ check_rv32_iface_conflict_detected() {
     echo "$out" | rg -F --quiet \
         "conflicting emits metadata for interface Token" || {
         fail "Expected a Token emits-metadata conflict from iface_conflict_impl, got: $out"
+        return 1
+    }
+}
+
+# Negative fixture: missing_contract_macro forgot its #[contract] macro and
+# does not hand-register an `Entrypoint` record either, so its dispatch table
+# is empty and nothing can ever call it. Omitting the macro is legitimate on
+# its own — raw_iface_dep and test_bytestring write their records by hand —
+# so the guard is on the table being EMPTY, not on the macro being absent.
+#
+# check-rv32-dispatch.sh already enforces that for every contract in the build
+# loop; this asserts it actually fires, on a fixture whose linked interface
+# crate still populates the raw spec section (the shape that historically
+# shipped silently as an uninvocable module with an empty spec).
+#
+# Built by name, unstripped: the bracket symbols the strong check reads are
+# link-time constants that a stripped ELF drops. The crate's directory
+# deliberately lacks the -rv32 suffix so the wrapper glob never builds it
+# expecting success.
+check_rv32_missing_entrypoints_detected() {
+    info "CHECK-RV32-MISSING-ENTRYPOINTS-DETECTED"
+
+    local locked="--locked"
+    if [ -n "${CARGO_UNLOCK:-}" ]; then
+        locked=""
+    fi
+
+    (
+        cd "${SDK_DIR}/example-contracts" &&
+        CARGO_PROFILE_RELEASE_STRIP=false \
+        cargo build $locked -p missing_contract_macro -F entrypoints \
+            --release --target "$RV32_TARGET" \
+            -Zbuild-std=core,alloc \
+            -Zbuild-std-features=std/optimize_for_size
+    ) || {
+        fail "Expected missing_contract_macro to LINK for rv32 (only its dispatch table should be empty)"
+        return 1
+    }
+
+    local out
+    if out=$(bash "${SDK_DIR}/scripts/check-rv32-dispatch.sh" \
+        "${RV32_RELEASE}/missing_contract_macro" 2>&1); then
+        fail "Expected the dispatch check to reject missing_contract_macro's empty table, but it passed: $out"
+        return 1
+    fi
+    echo "$out" | rg -F --quiet "dispatch table is empty" || {
+        fail "Expected an empty-dispatch-table error from missing_contract_macro, got: $out"
         return 1
     }
 }
@@ -444,6 +492,15 @@ check_rv32_contract_spec_artifacts() {
     # anything but bare MAJOR.MINOR.PATCH, so a pre-release contract
     # compiled and then failed at spec finalization).
     assert_file_contains "$prerelease_json" '"version":"0.9.0-rc.1"' &&
+
+    # Raw contract (hand-written entrypoint records, no #[contract]) linking
+    # an interface crate: the shaken candidates must leave no spec at all, not
+    # a spec claiming `interfaces: []` just because a dependency carried
+    # interface candidates. The rv32 pipeline writes no sidecar in that case.
+    if [ -f "${groundhog_dir}/raw_iface_dep_rv32.spec.json" ]; then
+        fail "Expected no spec.json sidecar for raw contract raw_iface_dep"
+        return 1
+    fi &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&

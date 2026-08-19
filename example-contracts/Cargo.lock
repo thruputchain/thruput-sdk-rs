@@ -857,6 +857,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "missing_contract_macro"
+version = "0.4.0"
+dependencies = [
+ "iface_conflict_if_a",
+ "missing_contract_macro",
+ "sdk",
+]
+
+[[package]]
 name = "multi_imported_traits"
 version = "0.4.0"
 dependencies = [
@@ -978,6 +987,14 @@ name = "raw_iface_dep"
 version = "0.4.0"
 dependencies = [
  "iface_conflict_if_a",
+ "raw_iface_dep",
+ "sdk",
+]
+
+[[package]]
+name = "raw_iface_dep-rv32"
+version = "0.4.0"
+dependencies = [
  "raw_iface_dep",
  "sdk",
 ]
@@ -1333,6 +1350,14 @@ dependencies = [
 
 [[package]]
 name = "test_bytestring"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "test_bytestring",
+]
+
+[[package]]
+name = "test_bytestring-rv32"
 version = "0.4.0"
 dependencies = [
  "sdk",
