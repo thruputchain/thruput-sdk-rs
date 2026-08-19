@@ -1,9 +1,14 @@
 # Manual, idempotent docs (re)generation for a given released version.
 #
-# Normal releases publish docs automatically via the inline "publish docs" step
-# in publish.yml. Use this workflow to rebuild docs for an already-tagged version
-# (e.g. if a publish-time docs build broke). It checks out the tag, asserts it,
-# and re-uploads with force, so it's safe to run any number of times.
+# Normal releases publish docs automatically via the inline "publish docs" steps
+# in publish.yml and publish_standard_interfaces.yml. Use this workflow to
+# rebuild docs for an already-tagged version (e.g. if a publish-time docs build
+# broke). It checks out the tag, asserts it, and re-uploads with force, so it's
+# safe to run any number of times.
+#
+# For a standard-interface crate, set packages to just that crate and
+# tag_prefix to its tag scheme, e.g. packages=groundhog-erc20-if,
+# tag_prefix=groundhog-erc20-if-v, version=0.1.12.
 name: Publish docs
 
 on:
@@ -12,6 +17,10 @@ on:
       version:
         description: 'Version to (re)generate docs for, e.g. 0.14.11'
         required: true
+      tag_prefix:
+        description: 'Tag prefix; the tag checked out is <tag_prefix><version>'
+        required: false
+        default: 'v'
       packages:
         description: 'Space-separated package list (default: the published SDK set)'
         required: false
@@ -50,7 +59,7 @@ jobs:
       - name: Checkout at tag
         uses: actions/checkout@v6
         with:
-          ref: v${{ inputs.version }}
+          ref: ${{ inputs.tag_prefix }}${{ inputs.version }}
           fetch-depth: 0
           submodules: recursive
           persist-credentials: true
@@ -75,4 +84,4 @@ jobs:
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           toolchain: nightly-2026-07-01
           force: 'true'
-          expected-tag: v${{ inputs.version }}
+          expected-tag: ${{ inputs.tag_prefix }}${{ inputs.version }}
