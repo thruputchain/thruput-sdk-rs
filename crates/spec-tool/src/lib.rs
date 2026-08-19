@@ -199,11 +199,16 @@ pub fn canonicalize_spec(
 ///
 /// For each anchored interface, each method's expected entrypoint export
 /// name is computed with the same `contract-util` functions the macro
-/// codegen uses; methods whose entrypoint is absent are dropped. This
-/// removes phantom methods contributed by a *different* trait candidate
-/// that collides on the interface key (default name = trait ident, default
-/// version = crate version) — the contract still builds, and the spec
-/// reflects only what is callable.
+/// codegen uses; methods whose entrypoint is absent are dropped.
+///
+/// This is a second line of defense against phantom methods — methods
+/// contributed by a *different* trait candidate that collides on the
+/// interface key (default name = trait ident, default version = crate
+/// version). The first, and the one that does the work for artifacts built
+/// by a current SDK, is at emission: only a site that anchors an interface
+/// emits its `Method` fragments, so a trait nothing implements contributes
+/// none. Passing exports additionally catches an artifact built by an older
+/// SDK, where the fragments still carried unanchored candidates.
 ///
 /// Carrier rule: an EMPTY `exported_fns` set disables shaking entirely.
 /// Spec-carrier binaries (`export_interface_spec!`) export no functions at

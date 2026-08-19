@@ -49,6 +49,15 @@ pub struct SpecInterfaceFragment {
     PartialOrd,
     Ord,
 )]
+/// A method belonging to `interface_name`@`interface_version`.
+///
+/// Emitted only by a site that also anchors that interface — a `#[contract]`
+/// impl, or `export_interface_spec!` in a carrier. A `#[contract]` trait
+/// definition emits its [`SpecInterfaceFragment`] as a candidate but no
+/// methods: two unrelated traits can collide on one interface key (default
+/// name = trait ident, default version = crate version), and candidate
+/// methods from a trait nothing implements would merge into the same bucket
+/// and publish as phantom methods of the contract that merely links them.
 pub struct SpecMethodFragment {
     pub interface_name: ContractSpecString,
     pub interface_version: ContractSpecString,

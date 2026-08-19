@@ -178,6 +178,7 @@ fn apply_with_config(
                 .into_iter()
                 .map(|m| contract::method_spec_view_tokens(&m))
                 .collect::<Result<Vec<_>>>()?;
+            let method_views2 = method_views.clone();
             let method_anchor_lists = contract
                 .methods_sorted()
                 .into_iter()
@@ -226,6 +227,15 @@ fn apply_with_config(
                 "__GROUNDHOG_IFACE_ANCHOR_{}",
                 item.ident
             );
+            // Module-level twin of the associated `__GROUNDHOG_IFACE_METHODS`,
+            // reachable for the same reason as the anchor const. A carrier
+            // must emit the method fragments itself: they are no longer
+            // emitted from the trait definition (see
+            // `generate_trait_raw_spec_fragments`).
+            let methods_const_ident = quote::format_ident!(
+                "__GROUNDHOG_IFACE_METHODS_{}",
+                item.ident
+            );
             out.extend(quote::quote! {
                 #[doc(hidden)]
                 #[allow(non_upper_case_globals)]
@@ -235,6 +245,12 @@ fn apply_with_config(
                         interface_name: #iface_name,
                         interface_version: #iface_vers,
                     };
+
+                #[doc(hidden)]
+                #[allow(non_upper_case_globals)]
+                pub const #methods_const_ident:
+                    &'static [::sdk::__contract_spec::ContractSpecMethodView<'static>] =
+                    &[#(#method_views2),*];
             });
 
             // Generate client interface
@@ -493,8 +509,15 @@ mod tests {
         assert!(tokens.contains("groundhogspecrawv1"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
-        assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
+        // No method fragments: those come from whatever anchors the
+        // interface (a `#[contract] impl`, or `export_interface_spec!` via
+        // the module-level methods const emitted below).
+        assert!(!tokens.contains("SpecMethodFragmentView"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_METHODS_ERC20"),
+            "{tokens}"
+        );
     }
 
     #[test]

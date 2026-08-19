@@ -30,8 +30,8 @@ impl phantom_method_if_a::Ledger for PhantomMethodContract {
 }
 
 /// Same-crate collider: an unimplemented trait with the same ident (and
-/// therefore the same interface key) as the implemented one.  Its
-/// `phantom_local` candidate must likewise be shaken from the spec.
+/// therefore the same interface key) as the implemented one.  Nothing
+/// anchors it, so `phantom_local` must likewise stay out of the spec.
 pub mod local_collider {
     use sdk::*;
 
