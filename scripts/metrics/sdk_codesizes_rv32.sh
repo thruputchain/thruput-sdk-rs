@@ -76,12 +76,16 @@ emit_row() {
     echo "$name text=$text rodata=$rodata data=$data bss=$bss data_image=$((rodata + data)) file=$file"
 }
 
+# example-contracts rv32 discovery, mirroring dev.sh ls_rv32_packages (keep
+# the rules in sync): contract dirs minus the `disabled` marker, narrowed to
+# packages declaring a [[bin]]. Bin name = underscored package name.
 found=0
-for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
-    [ -d "$pkg_dir" ] && [ -f "$pkg_dir/Cargo.toml" ] || continue
+for pkg_dir in "$CONTRACTS_DIR"/*/; do
+    pkg_dir=${pkg_dir%/}
+    [ -f "$pkg_dir/Cargo.toml" ] || continue
+    [ -f "$pkg_dir/disabled" ] && continue
+    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
     found=1
-    # Bin name = underscored package name by convention (the wrapper's
-    # [[bin]] declares it; see dev.sh eg_build_rv32_all).
     name=$(basename "$pkg_dir")
     emit_row "${name//-/_}"
 done

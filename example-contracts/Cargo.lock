@@ -70,14 +70,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "caller-rv32"
-version = "0.4.0"
-dependencies = [
- "caller",
- "sdk",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,14 +124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "complex-storage-rv32"
-version = "0.4.0"
-dependencies = [
- "complex-storage",
- "sdk",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -147,14 +131,6 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "counter"
-version = "0.4.0"
-dependencies = [
- "counter",
- "sdk",
-]
-
-[[package]]
-name = "counter-rv32"
 version = "0.4.0"
 dependencies = [
  "counter",
@@ -269,14 +245,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "erc1271_wallet-rv32"
-version = "0.4.0"
-dependencies = [
- "erc1271_wallet",
- "sdk",
-]
-
-[[package]]
 name = "erc20"
 version = "0.4.0"
 dependencies = [
@@ -311,14 +279,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "erc20-rv32"
-version = "0.4.0"
-dependencies = [
- "erc20",
- "sdk",
-]
-
-[[package]]
 name = "erc20-test"
 version = "0.20.0"
 dependencies = [
@@ -340,14 +300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "erc20_low_level-rv32"
-version = "0.4.0"
-dependencies = [
- "erc20_low_level",
- "sdk",
-]
-
-[[package]]
 name = "erc20_raw_storage"
 version = "0.4.0"
 dependencies = [
@@ -355,14 +307,6 @@ dependencies = [
  "erc20-native-test",
  "erc20_raw_storage",
  "groundhog-erc20-if",
- "sdk",
-]
-
-[[package]]
-name = "erc20_raw_storage-rv32"
-version = "0.4.0"
-dependencies = [
- "erc20_raw_storage",
  "sdk",
 ]
 
@@ -389,14 +333,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "event_shaking_subset-rv32"
-version = "0.4.0"
-dependencies = [
- "event_shaking_subset",
- "sdk",
-]
-
-[[package]]
 name = "exceptions"
 version = "0.4.0"
 dependencies = [
@@ -405,23 +341,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "exceptions-rv32"
-version = "0.4.0"
-dependencies = [
- "exceptions",
- "sdk",
-]
-
-[[package]]
 name = "free_fn_unnamed"
-version = "0.4.0"
-dependencies = [
- "free_fn_unnamed",
- "sdk",
-]
-
-[[package]]
-name = "free_fn_unnamed-rv32"
 version = "0.4.0"
 dependencies = [
  "free_fn_unnamed",
@@ -440,14 +360,6 @@ dependencies = [
 
 [[package]]
 name = "genesis_deployer"
-version = "0.4.0"
-dependencies = [
- "genesis_deployer",
- "sdk",
-]
-
-[[package]]
-name = "genesis_deployer-rv32"
 version = "0.4.0"
 dependencies = [
  "genesis_deployer",
@@ -672,14 +584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hasher-rv32"
-version = "0.4.0"
-dependencies = [
- "hasher",
- "sdk",
-]
-
-[[package]]
 name = "heapless"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -736,14 +640,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iface_conflict_caller-rv32"
-version = "0.4.0"
-dependencies = [
- "iface_conflict_caller",
- "sdk",
-]
-
-[[package]]
 name = "iface_conflict_if_a"
 version = "0.4.0"
 dependencies = [
@@ -773,14 +669,6 @@ version = "0.4.0"
 dependencies = [
  "imported_error_callee",
  "imported_error_type",
- "sdk",
-]
-
-[[package]]
-name = "imported_error_callee-rv32"
-version = "0.4.0"
-dependencies = [
- "imported_error_callee",
  "sdk",
 ]
 
@@ -876,14 +764,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multi_imported_traits-rv32"
-version = "0.4.0"
-dependencies = [
- "multi_imported_traits",
- "sdk",
-]
-
-[[package]]
 name = "multi_root_storage"
 version = "0.4.0"
 dependencies = [
@@ -941,23 +821,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "phantom_method_impl-rv32"
-version = "0.4.0"
-dependencies = [
- "phantom_method_impl",
- "sdk",
-]
-
-[[package]]
 name = "prerelease_version"
-version = "0.4.0"
-dependencies = [
- "prerelease_version",
- "sdk",
-]
-
-[[package]]
-name = "prerelease_version-rv32"
 version = "0.4.0"
 dependencies = [
  "prerelease_version",
@@ -987,14 +851,6 @@ name = "raw_iface_dep"
 version = "0.4.0"
 dependencies = [
  "iface_conflict_if_a",
- "raw_iface_dep",
- "sdk",
-]
-
-[[package]]
-name = "raw_iface_dep-rv32"
-version = "0.4.0"
-dependencies = [
  "raw_iface_dep",
  "sdk",
 ]
@@ -1173,14 +1029,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "signer_callee-rv32"
-version = "0.4.0"
-dependencies = [
- "sdk",
- "signer_callee",
-]
-
-[[package]]
 name = "signer_caller"
 version = "0.4.0"
 dependencies = [
@@ -1252,14 +1100,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spec_named_types-rv32"
-version = "0.4.0"
-dependencies = [
- "sdk",
- "spec_named_types",
-]
-
-[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1306,14 +1146,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swap-rv32"
-version = "0.4.0"
-dependencies = [
- "sdk",
- "swap",
-]
-
-[[package]]
 name = "swap_driver"
 version = "0.1.0"
 dependencies = [
@@ -1350,14 +1182,6 @@ dependencies = [
 
 [[package]]
 name = "test_bytestring"
-version = "0.4.0"
-dependencies = [
- "sdk",
- "test_bytestring",
-]
-
-[[package]]
-name = "test_bytestring-rv32"
 version = "0.4.0"
 dependencies = [
  "sdk",
@@ -1402,14 +1226,6 @@ dependencies = [
  "typedef_shaking_caller",
  "typedef_shaking_if_v1",
  "typedef_shaking_if_v2",
-]
-
-[[package]]
-name = "typedef_shaking_caller-rv32"
-version = "0.4.0"
-dependencies = [
- "sdk",
- "typedef_shaking_caller",
 ]
 
 [[package]]

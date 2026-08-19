@@ -63,9 +63,15 @@ emit_row() {
     echo "$name code=$code initial_memory=$initial_memory memory=$memory artifact=$artifact"
 }
 
+# example-contracts rv32 discovery, mirroring dev.sh ls_rv32_packages (keep
+# the rules in sync): contract dirs minus the `disabled` marker, narrowed to
+# packages declaring a [[bin]]. Bin name = underscored package name.
 names=""
-for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
-    [ -d "$pkg_dir" ] && [ -f "$pkg_dir/Cargo.toml" ] || continue
+for pkg_dir in "$CONTRACTS_DIR"/*/; do
+    pkg_dir=${pkg_dir%/}
+    [ -f "$pkg_dir/Cargo.toml" ] || continue
+    [ -f "$pkg_dir/disabled" ] && continue
+    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
     name=$(basename "$pkg_dir")
     names="$names ${name//-/_}"
 done

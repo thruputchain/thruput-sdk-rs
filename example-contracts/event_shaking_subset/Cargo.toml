@@ -20,6 +20,14 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `groundhog build --target rv32 -p event_shaking_subset` derives
+# `--bin event_shaking_subset` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "event_shaking_subset"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
 sdk = { workspace = true }
 event_shaking_if = { path = "../event_shaking_if" }

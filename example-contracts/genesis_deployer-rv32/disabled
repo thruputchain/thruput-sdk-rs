@@ -1,1 +1,0 @@
-rv32-only wrapper; build with `groundhog build --target rv32 -p genesis_deployer-rv32`.

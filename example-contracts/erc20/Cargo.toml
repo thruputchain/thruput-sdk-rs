@@ -28,6 +28,14 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `groundhog build --target rv32 -p erc20` derives
+# `--bin erc20` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "erc20"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
 sdk = { workspace = true }
 groundhog-erc20-if = { workspace = true }

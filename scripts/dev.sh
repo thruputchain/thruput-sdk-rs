@@ -20,19 +20,28 @@ RV32_RELEASE="${TARGET_DIR}/${RV32_TARGET}/release"
 # <stem>.{rv32a,rv32.json,spec.json,spec.xdr}.
 LOWERED="${TARGET_DIR}/groundhog"
 
-# rv32 bin-wrapper packages carry a `disabled` marker so the generic contract
-# loops (ls_contract_packages) skip them; they are discovered here by the
-# *-rv32 directory-name convention instead.
+# rv32 contracts: the contract set (dirs with Cargo.toml minus the `disabled`
+# marker, i.e. ls_contract_packages) narrowed to packages that declare a
+# [[bin]]. Each contract hosts its own rv32 bin at src/main.rs; declaring it
+# IS the rv32 enablement.
+#
+# The `disabled` marker is what keeps the negative fixtures
+# (missing_contract_macro, typedef_collision_reachable, iface_conflict_impl,
+# dup_entrypoint_neg) and bigint-bench-contract out of this loop: they carry
+# bins too, but must never be built here expecting success. The checks that
+# own them build them by name.
+#
+# Identical to ls_itc_rv32_packages below, and to the discovery in
+# scripts/metrics/sdk_codesizes_rv32*.sh — keep the rules in sync.
 ls_rv32_packages() {
     local contracts_dir
     contracts_dir="$1"; shift
 
-    local contract
-    for contract in "$contracts_dir"/*-rv32 ; do
-        [ -d "$contract" ] || continue;
-        [ -f "$contract"/Cargo.toml ] || continue;
-
-        basename "$contract"
+    local package
+    for package in $(ls_contract_packages "$contracts_dir"); do
+        grep -q '^\[\[bin\]\]' "$contracts_dir/$package/Cargo.toml" ||
+            continue
+        echo "$package"
     done
 }
 
@@ -188,9 +197,9 @@ eg_build_rv32_all() {
             fail "Failed building rv32 contract $package"
             return 1
         }
-        # Bin names are NOT auto-converted by cargo: *-rv32 wrapper packages
-        # must declare `[[bin]] name` as the underscored package name (see
-        # counter-rv32/Cargo.toml), which is what this path derivation assumes.
+        # Bin names are NOT auto-converted by cargo: each contract must
+        # declare `[[bin]] name` as the underscored package name (see
+        # counter/Cargo.toml), which is what this path derivation assumes.
         elf="${RV32_RELEASE}/${package//-/_}"
         check_rv32_dispatch "$elf" || return 1
         check_rv32_mem_symbols "$elf" || return 1
@@ -209,8 +218,8 @@ eg_build_rv32_all() {
 # contributes a differently-shaped SharedConfig def. The ELF links; the spec
 # canonicalization the CLI runs during lowering must FAIL with a typedef
 # conflict — pinning that the reachable-conflict error survived the
-# unreachable-conflict relaxation. The crate's directory deliberately lacks
-# the -rv32 suffix so the wrapper glob never builds it expecting success.
+# unreachable-conflict relaxation. The crate carries a `disabled` marker so
+# the rv32 build loop never builds it expecting success.
 check_rv32_typedef_conflict_detected() {
     info "CHECK-RV32-SPEC-CONFLICT-DETECTED"
 
@@ -265,9 +274,9 @@ check_rv32_iface_conflict_detected() {
 # shipped silently as an uninvocable module with an empty spec).
 #
 # Built by name, unstripped: the bracket symbols the strong check reads are
-# link-time constants that a stripped ELF drops. The crate's directory
-# deliberately lacks the -rv32 suffix so the wrapper glob never builds it
-# expecting success.
+# link-time constants that a stripped ELF drops. The crate carries a
+# `disabled` marker so the rv32 build loop never builds it expecting
+# success.
 check_rv32_missing_entrypoints_detected() {
     info "CHECK-RV32-MISSING-ENTRYPOINTS-DETECTED"
 
@@ -305,9 +314,8 @@ check_rv32_missing_entrypoints_detected() {
 # symbol carries the ID, so the build must FAIL with a duplicate-symbol
 # error — replacing the previous silent behavior where two
 # dispatch-table records shared an ID and the runtime's first-match-wins
-# scan routed every call to one impl. The crate's directory deliberately
-# lacks the -rv32 suffix so the wrapper glob above never builds it
-# expecting success.
+# scan routed every call to one impl. The crate carries a `disabled` marker
+# so the rv32 build loop above never builds it expecting success.
 check_rv32_duplicate_entrypoint_detected() {
     info "CHECK-RV32-DUP-ENTRYPOINT-DETECTED"
 
@@ -325,12 +333,10 @@ check_rv32_duplicate_entrypoint_detected() {
     }
 }
 
-# integration_test rv32 contracts are NOT *-rv32 wrapper packages — the rv32
-# bin wrapper is each contract's own src/main.rs. Auto-discovered: the
-# contract set (dirs with Cargo.toml minus `disabled`) narrowed to packages
-# that declare a [[bin]]. Declaring the wrapper bin IS the rv32 enablement;
-# raw contracts with hand-written entrypoints and no bin (e.g. sha256_raw)
-# are excluded by construction until someone ports them. The metric scripts
+# Same rule as ls_rv32_packages, against the integration_test contract dir:
+# the contract set minus `disabled`, narrowed to packages declaring a
+# [[bin]]. A contract with hand-written entrypoints and no bin is excluded by
+# construction until someone gives it one. The metric scripts
 # (scripts/metrics/sdk_codesizes_rv32*.sh) derive the same set — keep the
 # rules in sync.
 ls_itc_rv32_packages() {
@@ -434,20 +440,20 @@ check_rv32_contract_spec_artifacts() {
     local free_fn_json imported_json multi_json spec_named_json genesis_json
     local erc20_json swap_json signer_callee_json erc1271_wallet_json
     local phantom_method_json prerelease_json
-    rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset_rv32.spec.json"
-    rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller_rv32.spec.json"
-    rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller_rv32.spec.json"
-    free_fn_json="${groundhog_dir}/free_fn_unnamed_rv32.spec.json"
-    imported_json="${groundhog_dir}/imported_error_callee_rv32.spec.json"
-    multi_json="${groundhog_dir}/multi_imported_traits_rv32.spec.json"
-    spec_named_json="${groundhog_dir}/spec_named_types_rv32.spec.json"
-    genesis_json="${groundhog_dir}/genesis_deployer_rv32.spec.json"
-    erc20_json="${groundhog_dir}/erc20_raw_storage_rv32.spec.json"
-    swap_json="${groundhog_dir}/swap_rv32.spec.json"
-    signer_callee_json="${groundhog_dir}/signer_callee_rv32.spec.json"
-    erc1271_wallet_json="${groundhog_dir}/erc1271_wallet_rv32.spec.json"
-    phantom_method_json="${groundhog_dir}/phantom_method_impl_rv32.spec.json"
-    prerelease_json="${groundhog_dir}/prerelease_version_rv32.spec.json"
+    rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
+    rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
+    rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller.spec.json"
+    free_fn_json="${groundhog_dir}/free_fn_unnamed.spec.json"
+    imported_json="${groundhog_dir}/imported_error_callee.spec.json"
+    multi_json="${groundhog_dir}/multi_imported_traits.spec.json"
+    spec_named_json="${groundhog_dir}/spec_named_types.spec.json"
+    genesis_json="${groundhog_dir}/genesis_deployer.spec.json"
+    erc20_json="${groundhog_dir}/erc20_raw_storage.spec.json"
+    swap_json="${groundhog_dir}/swap.spec.json"
+    signer_callee_json="${groundhog_dir}/signer_callee.spec.json"
+    erc1271_wallet_json="${groundhog_dir}/erc1271_wallet.spec.json"
+    phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
+    prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -497,7 +503,7 @@ check_rv32_contract_spec_artifacts() {
     # an interface crate: the shaken candidates must leave no spec at all, not
     # a spec claiming `interfaces: []` just because a dependency carried
     # interface candidates. The rv32 pipeline writes no sidecar in that case.
-    if [ -f "${groundhog_dir}/raw_iface_dep_rv32.spec.json" ]; then
+    if [ -f "${groundhog_dir}/raw_iface_dep.spec.json" ]; then
         fail "Expected no spec.json sidecar for raw contract raw_iface_dep"
         return 1
     fi &&
@@ -566,16 +572,16 @@ check_rv32_contract_spec_artifacts() {
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"PingEvent"' &&
 
     assert_rv32a_lacks_spec_content \
-        "${groundhog_dir}/event_shaking_subset_rv32.rv32a" \
-        "${RV32_RELEASE}/event_shaking_subset_rv32" \
+        "${groundhog_dir}/event_shaking_subset.rv32a" \
+        "${RV32_RELEASE}/event_shaking_subset" \
         "AdoptedEvent" "OrphanPayload" &&
     assert_rv32a_lacks_spec_content \
-        "${groundhog_dir}/typedef_shaking_caller_rv32.rv32a" \
-        "${RV32_RELEASE}/typedef_shaking_caller_rv32" \
+        "${groundhog_dir}/typedef_shaking_caller.rv32a" \
+        "${RV32_RELEASE}/typedef_shaking_caller" \
         "SharedConfig" "MarketV1" &&
     assert_rv32a_lacks_spec_content \
-        "${groundhog_dir}/iface_conflict_caller_rv32.rv32a" \
-        "${RV32_RELEASE}/iface_conflict_caller_rv32" \
+        "${groundhog_dir}/iface_conflict_caller.rv32a" \
+        "${RV32_RELEASE}/iface_conflict_caller" \
         "PingEvent"
 }
 
@@ -732,8 +738,8 @@ BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 # each is copied aside before the next build overwrites it — the same staging
 # scripts/bigint-bench.sh does for its per-variant artifacts.
 #
-# `package` is the rv32 bin-wrapper package (e.g. erc20-rv32); its `[[bin]]`
-# name is the underscored package name, which is the artifact stem.
+# `package` is the contract package (e.g. erc20); its `[[bin]]` name is the
+# underscored package name, which is the artifact stem.
 bottle_test_contract() {
     local workspace_dir package
     workspace_dir="$1"; shift

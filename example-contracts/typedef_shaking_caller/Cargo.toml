@@ -20,6 +20,14 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `groundhog build --target rv32 -p typedef_shaking_caller` derives
+# `--bin typedef_shaking_caller` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "typedef_shaking_caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
 sdk = { workspace = true }
 typedef_shaking_if_v1 = { path = "../typedef_shaking_if_v1" }

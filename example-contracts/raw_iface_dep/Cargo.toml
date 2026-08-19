@@ -20,6 +20,14 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `groundhog build --target rv32 -p raw_iface_dep` derives
+# `--bin raw_iface_dep` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "raw_iface_dep"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
 sdk = { workspace = true }
 iface_conflict_if_a = { path = "../iface_conflict_if_a" }

@@ -1,7 +1,7 @@
 //! Test one contract calling the other, both running as rv32 guests.
 //!
-//! Requires the lowered artifacts of the `erc20-rv32` and `caller-rv32`
-//! wrapper packages: `scripts/dev.sh build-examples-rv32` writes them.
+//! Requires the lowered `erc20` and `caller` artifacts:
+//! `scripts/dev.sh build-examples-rv32` writes them.
 mod common;
 use common::*;
 use sdk::Named;
@@ -9,8 +9,8 @@ use sdk::Named;
 // These paths only work for the example-contracts directory
 // that is hosted in the SDK package.
 //
-const ERC20_PATH: &str = "../../target/groundhog/erc20_rv32.rv32a";
-const CALLER_PATH: &str = "../../target/groundhog/caller_rv32.rv32a";
+const ERC20_PATH: &str = "../../target/groundhog/erc20.rv32a";
+const CALLER_PATH: &str = "../../target/groundhog/caller.rv32a";
 
 #[test]
 fn caller_test_rv32() {

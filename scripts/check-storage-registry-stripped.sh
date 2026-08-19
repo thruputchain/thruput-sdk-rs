@@ -7,14 +7,14 @@
 # guarded by cfg(not(target_arch = "riscv32")) and must never appear in a
 # deployed contract artifact.
 #
-# Takes the rv32 bin-wrapper package; its [[bin]] name is the underscored
-# package name, which is the ELF name.
+# Takes a contract package; its [[bin]] name is the underscored package name,
+# which is the ELF name.
 #
 # Usage:
-#   scripts/check-storage-registry-stripped.sh [rv32-wrapper-package]
+#   scripts/check-storage-registry-stripped.sh [package]
 #
 # Example:
-#   scripts/check-storage-registry-stripped.sh complex-storage-rv32
+#   scripts/check-storage-registry-stripped.sh complex-storage
 #
 # Outcomes:
 #   toolchain unconfirmable          -> SKIPPED, exit 0
@@ -27,7 +27,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_DIR="$SCRIPT_DIR/.."
 
-PKG="${1:-complex-storage-rv32}"
+PKG="${1:-complex-storage}"
 BIN_NAME="${PKG//-/_}"
 RV32_TARGET="riscv32im-unknown-none-elf"
 

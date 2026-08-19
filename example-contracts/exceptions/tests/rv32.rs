@@ -1,8 +1,8 @@
-//! Requires the lowered artifact of the `exceptions-rv32` wrapper package:
-//! `scripts/dev.sh build-examples-rv32` writes it.
+//! Requires the lowered `exceptions` artifact: `scripts/dev.sh
+//! build-examples-rv32` writes it.
 
 // test working directory is example contract directory
-const RV32_PATH: &str = "../../target/groundhog/exceptions_rv32.rv32a";
+const RV32_PATH: &str = "../../target/groundhog/exceptions.rv32a";
 
 mod common;
 use common::*;
