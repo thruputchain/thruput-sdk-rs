@@ -16,7 +16,7 @@ cargo() {
 
 RV32_TARGET="riscv32im-unknown-none-elf"
 RV32_RELEASE="${TARGET_DIR}/${RV32_TARGET}/release"
-# Where `groundhog build --target rv32` writes the lowered artifacts:
+# Where `groundhog build` writes the lowered artifacts:
 # <stem>.{rv32a,rv32.json,spec.json,spec.xdr}.
 LOWERED="${TARGET_DIR}/groundhog"
 
@@ -123,7 +123,7 @@ build_rv32() {
         # mem-override held. The deployed artifact is the lowered .rv32a,
         # which carries no symtab regardless.
         CARGO_PROFILE_RELEASE_STRIP=false \
-        groundhog build --target rv32 -p "$package" -- \
+        groundhog build -p "$package" -- \
             $locked -Zbuild-std=core,alloc "$@"
     )
 }
@@ -265,7 +265,7 @@ check_rv32_typedef_conflict_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/example-contracts" &&
-        groundhog build --target rv32 -p typedef_collision_reachable
+        groundhog build -p typedef_collision_reachable
     ) 2>&1); then
         fail "Expected the rv32 build of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
         return 1
@@ -289,7 +289,7 @@ check_rv32_iface_conflict_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/example-contracts" &&
-        groundhog build --target rv32 -p iface_conflict_impl
+        groundhog build -p iface_conflict_impl
     ) 2>&1); then
         fail "Expected the rv32 build of iface_conflict_impl to fail with an emits-metadata conflict, but it succeeded"
         return 1
@@ -361,7 +361,7 @@ check_rv32_duplicate_entrypoint_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/example-contracts" &&
-        groundhog build --target rv32 -p dup_entrypoint_neg
+        groundhog build -p dup_entrypoint_neg
     ) 2>&1); then
         fail "Expected the rv32 build of dup_entrypoint_neg to fail with a duplicate entrypoint symbol, but it succeeded"
         return 1

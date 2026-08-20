@@ -3,7 +3,7 @@
 set -e
 
 # Install the pinned groundhog CLI (dev.sh rv32 contract builds run
-# `groundhog build --target rv32`, which lowers the ELF in-process).
+# `groundhog build`, which lowers the ELF in-process).
 # The version check makes re-runs with a warm ~/.cargo/bin free; the
 # registry index + token are already configured (.cargo/config.toml,
 # CARGO_REGISTRIES_GROUNDHOG_TOKEN).
@@ -30,7 +30,7 @@ if [ "$(groundhog --version 2>/dev/null | awk '{print $2}')" != "$GROUNDHOG_CLI_
 fi
 
 # groundhog 0.6 refuses to run without an active config profile, even for an
-# offline `build --target rv32`. A CI runner has no global config, so bootstrap
+# offline `build`. A CI runner has no global config, so bootstrap
 # a throwaway one. The guard keeps this a no-op for a developer running
 # scripts/ci.sh locally: `config get` with no argument resolves the active
 # profile and exits nonzero only when there isn't one.

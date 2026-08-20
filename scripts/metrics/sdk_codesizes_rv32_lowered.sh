@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Per-contract lowered rv32 artifact metrics: the true on-chain numbers,
-# read from the `groundhog build --target rv32` metadata sidecars
+# read from the `groundhog build` metadata sidecars
 # (<name>.rv32.json in target/groundhog/). sdk_codesizes_rv32 keeps the
 # per-section detail of the unstripped ELF; this metric records what the
 # lowerer actually emits.
