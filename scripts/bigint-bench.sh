@@ -164,7 +164,7 @@ for backend in $BACKENDS; do
         # which carries no symtab regardless.
         if ! (
             cd "$CONTRACTS_DIR" &&
-            groundhog build --target rv32 -p "$PACKAGE" -- \
+            groundhog build -p "$PACKAGE" -- \
                 $LOCKED -Zbuild-std=core,alloc -F "$features" \
                 --config 'profile.release.strip=false'
         ); then
