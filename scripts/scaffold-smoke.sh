@@ -56,10 +56,10 @@ fi
 sed -i.bak "s|^sdk = .*|sdk = { path = \"$SDK_DIR/crates/sdk\" }|" Cargo.toml
 rm Cargo.toml.bak
 
-# Build the contract, exactly as the scaffold's "next steps" suggest. No
-# --optimize: compile/link breakage — the thing this test is for — surfaces
-# without it. The scaffold's own rust-toolchain.toml pins the nightly +
-# target; rustup installs them on first use. Host `cargo test` is
-# deliberately out of scope: default features pull sdk/dev and with it the
-# hogd FFI download.
-groundhog build --target rv32
+# Build the contract, exactly as the scaffold's "next steps" suggest. RV32
+# is the CLI's only artifact target, so the build takes no target flag: 0.9.6
+# removed --target along with WASM. The scaffold's own rust-toolchain.toml
+# pins the nightly + target; rustup installs them on first use. Host `cargo
+# test` is deliberately out of scope: default features pull sdk/dev and with
+# it the hogd FFI download.
+groundhog build
