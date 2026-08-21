@@ -30,6 +30,26 @@ use xdrs::txs;
 // so we pick a default (nonzero) value as a placeholder.
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
 const TEST_CONTRACT_SIZE: u32 = 1024;
+
+/// Name of the network that [`TestEnvironment`]s run on.
+///
+/// Every environment is created against one fixed, obviously-not-mainnet
+/// network identity, so that a test cannot accidentally produce (or replay)
+/// something signed for a real network.
+pub const TEST_NETWORK_NAME: &str = "LOCAL_UNIT_TEST";
+
+/// The [`NetworkHash`] that [`TestEnvironment`]s are created with:
+/// `sha256(`[`TEST_NETWORK_NAME`]`)`.
+///
+/// Pass a different one to [`TestEnvironment::with_network_hash`] if a test
+/// needs to pin a specific network.
+pub fn test_network_hash() -> NetworkHash {
+    let mut hasher = Sha256::new();
+    hasher.update(TEST_NETWORK_NAME.as_bytes());
+    let hash: [u8; 32] = hasher.finalize().into();
+    NetworkHash::new(hash.into())
+}
+
 pub struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
@@ -44,7 +64,9 @@ pub struct TestEnvironmentInner {
 /// clone the handle to share the environment across helpers.
 ///
 /// - [`TestEnvironment::new`] takes an optional storage cost model;
-///   [`TestEnvironment::no_cost`] disables storage costs entirely.
+///   [`TestEnvironment::no_cost`] disables storage costs entirely. Both run on
+///   the default test network ([`test_network_hash`]);
+///   [`TestEnvironment::with_network_hash`] picks a different one.
 /// - The `setup_*` methods seed state (contracts, deployments, storage
 ///   tokens) as if applied in a previous block; call them before running
 ///   transactions.
@@ -95,7 +117,10 @@ pub(crate) struct DBWrapper {
 }
 
 impl DBWrapper {
-    pub fn new(cost_model: Option<&StorageCostModel>) -> Self {
+    pub fn new(
+        cost_model: Option<&StorageCostModel>,
+        network_hash: &NetworkHash,
+    ) -> Self {
         let cost_model_bytes =
             cost_model.map(|model| model.serialize().unwrap());
 
@@ -104,10 +129,13 @@ impl DBWrapper {
             .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
             .unwrap_or((core::ptr::null(), 0));
 
+        // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
+        // rejects a null one.
         let res = unsafe {
             groundhog_sys::create_db(
                 ffi_cost_model_bytes.0,
                 ffi_cost_model_bytes.1,
+                network_hash.as_ptr(),
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();
@@ -208,11 +236,14 @@ impl Drop for RuntimeContextWrapper {
 }
 
 impl TestEnvironmentInner {
-    pub fn new(cost_model: Option<&StorageCostModel>) -> Self {
+    pub fn new(
+        cost_model: Option<&StorageCostModel>,
+        network_hash: &NetworkHash,
+    ) -> Self {
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
         Self {
-            db: DBWrapper::new(cost_model),
+            db: DBWrapper::new(cost_model, network_hash),
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
@@ -421,7 +452,7 @@ impl Drop for TestEnvironmentInner {
 
 impl Default for TestEnvironmentInner {
     fn default() -> Self {
-        Self::new(None)
+        Self::new(None, &test_network_hash())
     }
 }
 
@@ -429,11 +460,24 @@ impl Default for TestEnvironmentInner {
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
 impl TestEnvironment {
+    /// Creates an environment on the default test network
+    /// ([`test_network_hash`]).
     pub fn new(
         cost_model: Option<&StorageCostModel>,
     ) -> TestEnvironmentHandle {
+        Self::with_network_hash(cost_model, &test_network_hash())
+    }
+
+    /// Creates an environment on a caller-chosen network.
+    pub fn with_network_hash(
+        cost_model: Option<&StorageCostModel>,
+        network_hash: &NetworkHash,
+    ) -> TestEnvironmentHandle {
         let te = Rc::new(Self {
-            inner: RefCell::new(TestEnvironmentInner::new(cost_model)),
+            inner: RefCell::new(TestEnvironmentInner::new(
+                cost_model,
+                network_hash,
+            )),
         });
 
         if std::env::var("SDK_TEST_ENABLE_SYSCALL_LOGGING").is_ok() {
@@ -669,6 +713,18 @@ mod tests {
     use xdrs::BytesM;
 
     const TEST_ADDR: ContractAddress = ContractAddress::new([0x11; 32]);
+
+    #[test]
+    fn test_network_hash_is_sha256_of_the_test_network_name() {
+        // Pinned so the network every test runs on cannot drift silently:
+        // sha256("LOCAL_UNIT_TEST").
+        let expected: [u8; 32] = [
+            0xb0, 0xb2, 0xfc, 0xc8, 0x57, 0xda, 0xa6, 0x04, 0x78, 0x7b, 0xb8,
+            0x4b, 0x45, 0xa4, 0xca, 0xf0, 0x32, 0xea, 0x6b, 0x93, 0xf5, 0xa5,
+            0xed, 0x1c, 0x14, 0xa9, 0xbf, 0xf8, 0xfa, 0x65, 0xbb, 0x52,
+        ];
+        assert_eq!(test_network_hash(), NetworkHash::new(expected.into()));
+    }
 
     #[test]
     fn deployment_contract_size_uses_rv32_blob_length() {

@@ -110,7 +110,7 @@ Uses the `TEST_FFI_VERSION` constant in `crates/hogd-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
-Current version: **0.17.0** (tag: `test-ffi-v0.17.0`)
+Current version: **0.22.0** (tag: `test-ffi-v0.22.0`)
 
 ### Source / Custom-lib-dir Path
 
