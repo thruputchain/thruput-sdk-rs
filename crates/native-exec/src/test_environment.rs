@@ -659,9 +659,11 @@ impl TestEnvironment {
     ///
     /// `network_hash` is part of every signature preimage, so it must be the
     /// network the signatures were produced for — see
-    /// [`groundhog_domain_separator::transaction_signature_preimage`]. There
-    /// is no database here to read it from, so it is passed explicitly;
-    /// [`test_network_hash`] is what a [`TestEnvironment`] would use.
+    /// `groundhog_domain_separator::transaction_signature_preimage`, named in a
+    /// plain code span because that crate is only a dev-dependency here and an
+    /// intra-doc link to it does not resolve. There is no database here to read
+    /// the hash from, so it is passed explicitly; [`test_network_hash`] is what
+    /// a [`TestEnvironment`] would use.
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
         source_auth_data: Option<&AddressAuthData>,
