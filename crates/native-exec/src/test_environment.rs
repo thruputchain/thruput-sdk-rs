@@ -656,9 +656,16 @@ impl TestEnvironment {
     ///
     /// Pass `None` to represent "no registered auth data" (the pubkey-claim
     /// case). Pass `Some(d)` to supply serialized [`AddressAuthData`].
+    ///
+    /// `network_hash` is part of every signature preimage, so it must be the
+    /// network the signatures were produced for — see
+    /// [`groundhog_domain_separator::transaction_signature_preimage`]. There
+    /// is no database here to read it from, so it is passed explicitly;
+    /// [`test_network_hash`] is what a [`TestEnvironment`] would use.
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
         source_auth_data: Option<&AddressAuthData>,
+        network_hash: &NetworkHash,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
         let ffi_serialized_tx =
@@ -687,6 +694,7 @@ impl TestEnvironment {
             groundhog_sys::verify_signed_transaction_auth(
                 ffi_serialized_tx,
                 ffi_serialized_source_auth_data,
+                network_hash.as_ptr(),
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();

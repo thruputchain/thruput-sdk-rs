@@ -12,7 +12,10 @@
 /// returning success.
 use ed25519_dalek::{Signer, SigningKey};
 use groundhog_domain_separator::sha2::pubkey_account_address;
-use groundhog_native_exec::test_environment::TestEnvironment;
+use groundhog_domain_separator::transaction_signature_preimage;
+use groundhog_native_exec::test_environment::{
+    TestEnvironment, test_network_hash,
+};
 use groundhog_xdr::auth_claim::{
     AuthClaim, AuthVerifyErrorCode, PubkeyAccountPreimage,
 };
@@ -24,13 +27,13 @@ use groundhog_xdr::types::{
     BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
     PublicKey, Signature as XdrSignature,
 };
-use xdrs::{BytesM, VecM, txs};
+use xdrs::{BytesM, VecM};
 
 /// Build a `SignedTransaction` whose `invoked_address` is `address`.
 ///
 /// The transaction carries a `kPubkeySignature` claim for `preimage` and is
-/// signed with `signing_key` over the plain XDR encoding of the `Transaction`
-/// (matching the C++ `make_signature` helper: `ed25519_sign(sk, serialize(tx))`).
+/// signed with `signing_key` over the canonical signature preimage for
+/// [`test_network_hash`].
 fn make_signed_tx(
     signing_key: &SigningKey,
     preimage: PubkeyAccountPreimage,
@@ -53,10 +56,12 @@ fn make_signed_tx(
         },
     };
 
-    // Sign the plain XDR-serialized Transaction (not CXS; ed25519 hashes
-    // internally, so no pre-hashing).  This matches the C++ reference.
-    let tx_bytes = txs::encode(&tx).expect("failed to encode transaction");
-    let sig = signing_key.sign(&tx_bytes);
+    // Sign the domain-separated, network-bound preimage (ed25519 hashes
+    // internally, so no pre-hashing).  This must match the C++ reference,
+    // `hogd::transaction_signature_preimage`.
+    let preimage = transaction_signature_preimage(&test_network_hash(), &tx)
+        .expect("failed to encode signature preimage");
+    let sig = signing_key.sign(&preimage);
 
     let decorated_sig = DecoratedSignature {
         public_key_id: 0,
@@ -93,8 +98,11 @@ fn pubkey_auth_address_roundtrip() {
 
     // None = no registered auth data; the pubkey claim path in test-ffi 0.20.1
     // succeeds exactly when the derived address matches invoked_address.
-    let result =
-        TestEnvironment::verify_signed_transaction_auth_static(&stx, None);
+    let result = TestEnvironment::verify_signed_transaction_auth_static(
+        &stx,
+        None,
+        &test_network_hash(),
+    );
 
     assert_eq!(
         result,
@@ -129,8 +137,11 @@ fn pubkey_auth_address_wrong_address_fails() {
     let bad_address = ContractAddress::from(bad_bytes);
 
     let stx = make_signed_tx(&signing_key, preimage, bad_address);
-    let result =
-        TestEnvironment::verify_signed_transaction_auth_static(&stx, None);
+    let result = TestEnvironment::verify_signed_transaction_auth_static(
+        &stx,
+        None,
+        &test_network_hash(),
+    );
 
     assert_ne!(
         result,
