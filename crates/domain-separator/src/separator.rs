@@ -129,6 +129,30 @@ const PUBKEY_ACCOUNT_BYTES: [u8; PUBKEY_ACCOUNT_N] =
 pub const PUBKEY_ACCOUNT: DomainSeparator =
     DomainSeparator::from_cxs_bytes(&PUBKEY_ACCOUNT_BYTES);
 
+const TRANSACTION_NAME: &[u8] = b"Transaction";
+
+const _: () = ::core::assert!(
+    TRANSACTION_NAME.len() <= 256,
+    "domain separator name exceeds BytesM<256>"
+);
+
+const TRANSACTION_REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
+    ext: 0,
+    name: TRANSACTION_NAME,
+};
+
+const TRANSACTION_N: usize = prefix_size(&TRANSACTION_REPR);
+
+const TRANSACTION_BYTES: [u8; TRANSACTION_N] =
+    prefix_bytes::<TRANSACTION_N>(&TRANSACTION_REPR);
+
+/// Domain separator for transaction signature preimages (`"Transaction"`).
+///
+/// Unlike [`PUBKEY_ACCOUNT`] this one prefixes a message that is signed
+/// directly rather than hashed; see `transaction_signature_preimage`.
+pub const TRANSACTION: DomainSeparator =
+    DomainSeparator::from_cxs_bytes(&TRANSACTION_BYTES);
+
 #[cfg(all(test, feature = "alloc", feature = "sha2"))]
 mod tests {
     use super::*;
@@ -151,6 +175,13 @@ mod tests {
     fn prefix_expected_bytes() {
         // 0x00 (ext discriminant) + 0x0d (opaque len = 13) + "PubkeyAccount".
         assert_eq!(PUBKEY_ACCOUNT.as_bytes(), &b"\x00\x0dPubkeyAccount"[..]);
+        // 0x00 (ext discriminant) + 0x0b (opaque len = 11) + "Transaction".
+        assert_eq!(TRANSACTION.as_bytes(), &b"\x00\x0bTransaction"[..]);
+    }
+
+    #[test]
+    fn separators_are_distinct() {
+        assert_ne!(PUBKEY_ACCOUNT.as_bytes(), TRANSACTION.as_bytes());
     }
 
     /// The `WriteXDR` pass-through must re-emit the prefix verbatim — no length
