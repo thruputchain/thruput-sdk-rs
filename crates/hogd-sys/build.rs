@@ -831,13 +831,6 @@ fn ensure_cached_download(
     Ok(())
 }
 
-/// True when the user explicitly opted out of checksum verification.
-fn allow_unverified() -> bool {
-    env::var("HOGD_FFI_ALLOW_UNVERIFIED")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-}
-
 /// Verify the archive against its `.sha256` checksum file.
 fn verify_checksum(
     archive_path: &Path,
@@ -845,16 +838,9 @@ fn verify_checksum(
     archive_bytes: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !checksum_path.exists() {
-        if allow_unverified() {
-            println!(
-                "cargo:warning=Checksum file not found; HOGD_FFI_ALLOW_UNVERIFIED=1 is set, skipping verification"
-            );
-            return Ok(());
-        }
         return Err(format!(
             "Checksum file not found at {}; refusing to use an unverified \
-             archive. Set HOGD_FFI_ALLOW_UNVERIFIED=1 to skip verification \
-             explicitly.",
+             archive.",
             checksum_path.display()
         )
         .into());
@@ -926,31 +912,12 @@ fn download_and_extract(
     ensure_cached_download(&download_url, &archive_path, &user, "Archive")?;
 
     // Download checksum. A failed or absent checksum is a hard error: an
-    // unverifiable archive is indistinguishable from a tampered one, so the
-    // opt-out has to be explicit.
-    println!("cargo:rerun-if-env-changed=HOGD_FFI_ALLOW_UNVERIFIED");
+    // unverifiable archive is indistinguishable from a tampered one. Cached
+    // builds are unaffected — a cache hit on both files skips both downloads.
     let checksum_url = format!("{download_url}.sha256");
     let checksum_path = cache_dir.join(format!("{archive_name}.sha256"));
-    if let Err(e) = ensure_cached_download(
-        &checksum_url,
-        &checksum_path,
-        &user,
-        "Checksum",
-    ) {
-        let _ = fs::remove_file(&checksum_path);
-        if allow_unverified() {
-            println!(
-                "cargo:warning=Checksum download failed ({e}); HOGD_FFI_ALLOW_UNVERIFIED=1 is set, skipping verification",
-            );
-        } else {
-            return Err(format!(
-                "Checksum download failed ({e}). Refusing to use an \
-                 unverified archive; set HOGD_FFI_ALLOW_UNVERIFIED=1 to skip \
-                 verification explicitly."
-            )
-            .into());
-        }
-    }
+    ensure_cached_download(&checksum_url, &checksum_path, &user, "Checksum")
+        .map_err(|e| format!("refusing to use an unverified archive: {e}"))?;
 
     let archive_bytes = fs::read(&archive_path)?;
     verify_checksum(&archive_path, &checksum_path, &archive_bytes)?;
