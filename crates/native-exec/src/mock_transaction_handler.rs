@@ -150,8 +150,8 @@ impl MockInvocationFrame {
         };
         if handler_res != FFIErrorCode::None {
             // An InvokeError payload, not a plain panic!: the Unrecoverable
-            // code makes an enclosing frame re-raise the refusal instead of
-            // recording it as a contract panic.
+            // code propagates out of any enclosing frame instead of being
+            // recorded as a contract panic.
             eprintln!(
                 "failed to open mock invocation frame: {:?}",
                 handler_res
@@ -289,9 +289,8 @@ impl MockInvocationFrame {
 
     /// Run `lambda` as this frame's contract code, mapping panics out of it
     /// to frame outcomes. Unrecoverable [`InvokeError`] payloads (harness
-    /// misuse, FFI refusals) are re-raised instead. The returned
-    /// `FrameAction` closes the frame or leaves it open for another
-    /// `execute`.
+    /// misuse, FFI refusals) propagate instead. The returned `FrameAction`
+    /// closes the frame or leaves it open for another `execute`.
     pub fn execute(
         &mut self,
         lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
@@ -338,14 +337,9 @@ impl MockInvocationFrame {
             Ok(FrameAction::Continue) => {}
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
-                    if my_error.error_type
-                        == hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
-                    {
-                        // Harness-level failure, not contract behavior:
-                        // re-raise instead of recording it as this frame's
-                        // outcome. Drop force-finishes the open frame.
-                        std::panic::resume_unwind(err);
-                    }
+                    // Unrecoverable codes (harness misuse, FFI refusals)
+                    // propagate back out of the close as Unrecoverable
+                    // rather than becoming this frame's outcome.
                     self.close_frame_internal(my_error.error_type);
                 } else {
                     // The lambda always runs with the panic hook active, so
@@ -739,7 +733,7 @@ mod tests {
     fn misuse_inside_nested_execute_propagates_instead_of_faulting_parent() {
         // Regression: a misuse guard firing inside an enclosing frame's
         // `execute` lambda (here: executing an already-closed child) must
-        // be re-raised by the parent's catch site, not recorded as a
+        // propagate out as Unrecoverable, not be recorded as a
         // deterministic contract fault of the parent.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
