@@ -83,7 +83,9 @@ impl<'a> MockInvocationFrameConfig<'a> {
         self
     }
 
-    /// Set the frame's invoke flags (default: 0).
+    /// Set the frame's invoke flags, a bitset of
+    /// [`InvokeFlag`](groundhog_xdr::invoke_flag::InvokeFlag) values
+    /// (default: [`InvokeFlag::None`](groundhog_xdr::invoke_flag::InvokeFlag::None)).
     pub fn with_invoke_flags(mut self, invoke_flags: i32) -> Self {
         self.invoke_flags = invoke_flags;
         self
@@ -152,8 +154,9 @@ impl MockInvocationFrame {
             // Deliberately an InvokeError payload, not a plain panic!: this
             // fires inside `execute`'s catch_unwind when a lambda opens a
             // child frame the FFI refuses (e.g. the reentrance rule), and the
-            // payload's Unrecoverable code is what keeps the enclosing frame
-            // from recording the refusal as a deterministic contract panic.
+            // payload's Unrecoverable code is what makes the enclosing frame
+            // re-raise the refusal instead of recording it as a deterministic
+            // contract panic.
             // The message goes to stderr since the payload itself is opaque.
             eprintln!(
                 "failed to open mock invocation frame: {:?}",
@@ -295,9 +298,9 @@ impl MockInvocationFrame {
     ///
     /// Panics out of the lambda are caught and mapped to frame outcomes
     /// (ordinary panics become deterministic faults; [`InvokeError`]
-    /// payloads keep their code). A harness-misuse panic
-    /// ([`HarnessMisuse`](crate::invoke_error::HarnessMisuse)) is re-raised
-    /// instead of being recorded as a fault of this frame. Returning
+    /// payloads keep their code). An Unrecoverable [`InvokeError`] payload
+    /// (harness misuse, an FFI-refused operation) is re-raised instead of
+    /// being recorded as an outcome of this frame. Returning
     /// `FrameAction::Close` closes the
     /// frame; `FrameAction::Continue` leaves it open for another `execute`.
     pub fn execute(
@@ -345,17 +348,17 @@ impl MockInvocationFrame {
             }
             Ok(FrameAction::Continue) => {}
             Err(err) => {
-                if err
-                    .downcast_ref::<crate::invoke_error::HarnessMisuse>()
-                    .is_some()
-                {
-                    // A misuse guard fired inside the lambda (e.g. driving an
-                    // already-closed child frame). That is a bug in the test,
-                    // not contract behavior: re-raise it so it fails the test
-                    // instead of closing THIS frame as a deterministic fault.
-                    std::panic::resume_unwind(err);
-                }
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
+                    if my_error.error_type
+                        == hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
+                    {
+                        // Harness-level failure (a misuse guard fired inside
+                        // the lambda, or the FFI refused an operation), not
+                        // contract behavior: re-raise it so it fails the test
+                        // instead of being recorded as this frame's outcome.
+                        // Drop force-finishes the still-open frame.
+                        std::panic::resume_unwind(err);
+                    }
                     self.close_frame_internal(my_error.error_type);
                 } else {
                     // The lambda always runs with the panic hook active, so
@@ -762,8 +765,8 @@ mod tests {
         // already-closed child) unwinds into the parent's catch_unwind.
         // With a plain-message payload the parent would classify it as a
         // deterministic contract fault and the test would pass over a
-        // faulted FrameResult; the HarnessMisuse payload must be re-raised
-        // with its message intact instead.
+        // faulted FrameResult; the guard's Unrecoverable InvokeError payload
+        // must be re-raised instead (the guard's message goes to stderr).
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
         let frame = handler
@@ -786,13 +789,12 @@ mod tests {
                 });
             }));
 
-        assert_misuse_message(
-            caught.expect_err(
-                "misuse inside a nested execute closure must propagate as a \
-                 panic, not close the parent frame as a contract fault",
-            ),
-            "cannot execute a frame that has already been closed",
-        );
+        // Expected guard: "cannot execute a frame that has already been
+        // closed" (on stderr).
+        assert_misuse_payload(caught.expect_err(
+            "misuse inside a nested execute closure must propagate as a \
+             panic, not close the parent frame as a contract fault",
+        ));
     }
 
     #[test]
@@ -1137,22 +1139,19 @@ mod tests {
         );
     }
 
-    /// Assert a caught panic payload is a [`HarnessMisuse`] panic (the
-    /// frame-misuse guards) whose message contains `expected`.
+    /// Assert a caught panic payload is the harness-misuse guards'
+    /// Unrecoverable [`InvokeError`]. (The human-readable diagnostic naming
+    /// the guard goes to stderr, not the payload.)
     #[track_caller]
-    fn assert_misuse_message(
-        payload: Box<dyn std::any::Any + Send>,
-        expected: &str,
-    ) {
-        let msg = &payload
-            .downcast_ref::<crate::invoke_error::HarnessMisuse>()
-            .expect(
-                "harness-misuse guards must panic with a HarnessMisuse payload",
-            )
-            .0;
-        assert!(
-            msg.contains(expected),
-            "expected guard message containing {expected:?}, got {msg:?}"
+    fn assert_misuse_payload(payload: Box<dyn std::any::Any + Send>) {
+        let err = payload.downcast_ref::<InvokeError>().expect(
+            "harness-misuse guards must panic with an InvokeError payload",
+        );
+        assert_eq!(
+            err.error_type,
+            hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable,
+            "harness misuse must travel as Unrecoverable, not as a \
+             contract-level error code"
         );
     }
 
@@ -1185,9 +1184,10 @@ mod tests {
                 });
             }));
 
-        assert_misuse_message(
+        // Expected guard: "cannot close a frame while its child frame is
+        // still open" (on stderr).
+        assert_misuse_payload(
             caught.expect_err("closing with an open child must panic"),
-            "cannot close a frame while its child frame is still open",
         );
     }
 
@@ -1215,9 +1215,10 @@ mod tests {
                 });
             }));
 
-        assert_misuse_message(
+        // Expected guard: "cannot close a frame while its child frame is
+        // still open" (on stderr).
+        assert_misuse_payload(
             caught.expect_err("failing with an open child must panic"),
-            "cannot close a frame while its child frame is still open",
         );
     }
 
@@ -1254,10 +1255,11 @@ mod tests {
                 frame.execute(|_| FrameAction::Continue);
             }));
 
-        assert_misuse_message(
+        // Expected guard: "cannot execute a frame while its child frame is
+        // still open" (on stderr).
+        assert_misuse_payload(
             caught
                 .expect_err("executing a frame with an open child must panic"),
-            "cannot execute a frame while its child frame is still open",
         );
     }
 
@@ -1290,12 +1292,11 @@ mod tests {
                 frame.open_child_frame(sibling_addr());
             }));
 
-        assert_misuse_message(
-            caught.expect_err(
-                "opening a second child while one is open must panic",
-            ),
-            "cannot open a child frame while another child frame is still open",
-        );
+        // Expected guard: "cannot open a child frame while another child
+        // frame is still open" (on stderr).
+        assert_misuse_payload(caught.expect_err(
+            "opening a second child while one is open must panic",
+        ));
     }
 
     #[test]

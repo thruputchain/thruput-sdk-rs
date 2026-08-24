@@ -71,30 +71,22 @@ pub fn abort_transaction_error() -> InvokeError {
     }
 }
 
-/// Panic payload for harness misuse: a test driving the mock-frame API
-/// outside its contract (executing an already-closed frame, closing a frame
-/// over an open child, ...). Unlike an ordinary message panic — which the
-/// frame executor records as a deterministic fault of the enclosing frame —
-/// this payload is re-raised by the catch sites, so the misuse always fails
-/// the test instead of surfacing as contract behavior.
-#[derive(Debug)]
-pub struct HarnessMisuse(pub String);
-
-impl fmt::Display for HarnessMisuse {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "harness misuse: {}", self.0)
-    }
-}
-
-/// Panic with a [`HarnessMisuse`] payload carrying `msg`.
+/// Report harness misuse — a test driving the mock-frame API outside its
+/// contract (executing an already-closed frame, closing a frame over an
+/// open child, ...) — and panic with the standard unrecoverable payload.
 ///
-/// Installs the panic hook first so the message is printed even when the
-/// misuse fires outside any active frame (the payload itself is opaque to
-/// the default hook).
+/// Misuse is a bug in the test, not contract behavior, so it travels as an
+/// Unrecoverable [`InvokeError`]: the mock frame executor re-raises that
+/// payload instead of recording it as a fault of the enclosing frame, so
+/// the misuse always fails the test. The message goes to stderr because
+/// the payload itself carries no text.
 #[track_caller]
-pub(crate) fn harness_misuse_panic(msg: impl Into<String>) -> ! {
-    install_panic_hook();
-    panic::panic_any(HarnessMisuse(msg.into()));
+pub(crate) fn harness_misuse_panic(msg: &str) -> ! {
+    eprintln!(
+        "harness misuse: {msg} (at {})",
+        std::panic::Location::caller()
+    );
+    panic::panic_any(unrecoverable_error());
 }
 
 thread_local! {
@@ -107,22 +99,6 @@ fn install_panic_hook() {
     INSTALL_HOOK.call_once(|| {
         let prev_hook = panic::take_hook();
         panic::set_hook(Box::new(move |panic_info| {
-            // A HarnessMisuse payload is opaque to the default hook (it would
-            // print only "Box<dyn Any>"), so print its message here whether
-            // or not a frame is active — misuse must self-diagnose.
-            if let Some(misuse) =
-                panic_info.payload().downcast_ref::<HarnessMisuse>()
-            {
-                eprintln!("{misuse}");
-                if let Some(location) = panic_info.location() {
-                    eprintln!(
-                        "Panic occurred at file '{}' line {}",
-                        location.file(),
-                        location.line()
-                    );
-                }
-                return;
-            }
             if !is_panic_hook_active() {
                 prev_hook(panic_info);
                 return;
