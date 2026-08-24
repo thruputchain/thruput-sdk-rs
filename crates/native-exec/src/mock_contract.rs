@@ -12,6 +12,8 @@ use std::panic::UnwindSafe;
 use std::rc::Rc;
 use xdrs::txs;
 
+/// Backing storage for a mock contract, owned by the [`TestEnvironment`];
+/// interact with it through [`MockContract`] handles.
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: i32,
@@ -28,6 +30,8 @@ pub struct MockContractInner {
     unknown: Option<Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>>,
 }
 
+/// Handle to a mock contract registered in a [`TestEnvironment`]: a
+/// contract whose entrypoints are native closures instead of rv32 code.
 pub struct MockContract {
     contract: *mut MockContractInner,
     _env: Rc<TestEnvironment>,
@@ -40,6 +44,7 @@ fn i32_to_contract(index: i32) -> Contract {
 }
 
 impl MockContract {
+    /// Wrap a raw [`MockContractInner`] owned by `env`.
     pub fn new(
         inner: *mut MockContractInner,
         env: Rc<TestEnvironment>,
@@ -50,10 +55,12 @@ impl MockContract {
         }
     }
 
+    /// The `Contract::kMockTest` value identifying this mock.
     pub fn as_contract(&self) -> Contract {
         i32_to_contract(unsafe { (*self.contract).index })
     }
 
+    /// The contract hash (`sha256(Contract::kMockTest(index))`).
     pub fn as_hash(&self) -> &SHA256Hash {
         unsafe { &(*self.contract).hash }
     }
@@ -66,6 +73,9 @@ impl MockContract {
         self._env.setup_create_deployment(addr, &self.as_contract());
     }
 
+    /// Register `func` as the entrypoint for method `id`. The closure runs
+    /// inside the frame's catch site, so panics and aborts out of it map to
+    /// frame outcomes.
     pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)
     where
         F: Fn() + UnwindSafe + Clone + 'static,
@@ -87,6 +97,8 @@ impl MockContract {
         unsafe { (*self.contract).unknown = Some(invoke_wrapper(func)) };
     }
 
+    /// Apply a registrar closure (e.g. a generated `__mock` function),
+    /// for chaining.
     pub fn register<F: FnOnce(&mut Self)>(&mut self, f: F) -> &mut Self {
         f(self);
         self
@@ -94,6 +106,7 @@ impl MockContract {
 }
 
 impl MockContractInner {
+    /// Create the backing storage for mock contract number `n`.
     pub fn new(n: i32) -> Self {
         let mut hasher = Sha256::new();
         let contract = i32_to_contract(n);
@@ -107,10 +120,12 @@ impl MockContractInner {
         }
     }
 
+    /// The contract hash (`sha256(Contract::kMockTest(index))`).
     pub fn as_hash(&self) -> &SHA256Hash {
         &self.hash
     }
 
+    /// The registered entrypoint for `method`, if any.
     pub fn get_func(
         &self,
         method: ContractEntrypointID,

@@ -6,8 +6,11 @@ use std::panic;
 use std::panic::UnwindSafe;
 use std::sync::Once;
 
+/// Panic payload classifying how an invocation frame terminated; downcast
+/// at the frame's catch site and mapped to the frame outcome.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InvokeError {
+    /// The code the catch site reports to the executor.
     pub error_type: InvokeErrorCode,
 }
 
@@ -19,18 +22,21 @@ impl fmt::Display for InvokeError {
 
 impl Error for InvokeError {}
 
+/// Payload for a deterministic contract failure.
 pub fn deterministic_error() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::Deterministic,
     }
 }
 
+/// Payload for an out-of-gas termination.
 pub fn out_of_gas_error() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::OutOfGas,
     }
 }
 
+/// Payload for an unrecoverable harness/FFI failure (not a contract fault).
 pub fn unrecoverable_error() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::Unrecoverable,
@@ -47,12 +53,14 @@ pub fn control_flow_unwind() -> InvokeError {
     }
 }
 
+/// Payload for a validation failure.
 pub fn validation_error() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::ValidationFailure,
     }
 }
 
+/// Payload for abandoning the whole transaction.
 pub fn abort_transaction_error() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::Abandon,
@@ -117,11 +125,16 @@ pub(crate) fn panic_hook_depth() -> usize {
     PANIC_HOOK_DEPTH.with(|c| c.get())
 }
 
+/// Enter a contract-execution region: install the classifying panic hook
+/// (once) and increment its activation depth.
 pub fn activate_panic_hook() {
     install_panic_hook();
     PANIC_HOOK_DEPTH.with(|c| c.set(c.get() + 1));
 }
 
+/// Leave a contract-execution region entered by [`activate_panic_hook`].
+///
+/// Panics if called without a matching activation.
 pub fn deactivate_panic_hook() {
     PANIC_HOOK_DEPTH.with(|c| {
         let depth = c.get();
@@ -133,8 +146,8 @@ pub fn deactivate_panic_hook() {
     });
 }
 
-// Wrap a function (i.e. part of a contract) within a try-catch block
-// that appropriately handles groundhog error codes.
+/// Wrap a contract closure in the catch site that maps its panics to
+/// groundhog invoke error codes.
 pub fn invoke_wrapper<'a, F>(
     wrapped: F,
 ) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>

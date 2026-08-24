@@ -9,8 +9,10 @@ use xdrs::txs;
 
 use groundhog_sys::FFIErrorCode;
 
-// Can run one, and only one, transaction,
-// and then get the results
+/// Executes one, and only one, full [`SignedTransaction`] against the
+/// environment: [`root_invoke`](Self::root_invoke), then
+/// [`try_commit_transaction`](Self::try_commit_transaction) or
+/// [`abort_transaction`](Self::abort_transaction).
 pub struct TransactionHandler {
     handler: *mut c_void,
     _env: Rc<TestEnvironment>,
@@ -25,14 +27,20 @@ pub struct TransactionHandler {
     aborted: bool,
 }
 
+/// Result of a transaction's root invocation ([`TransactionHandler::root_invoke`]).
 pub struct RootInvokeResult {
+    /// The root frame's outcome.
     pub output: InvocationFrameOutput,
+    /// Gas consumed by the invocation.
     pub gas_consumed: u64,
+    /// The execution trace, when tracing was enabled.
     pub trace: Option<InvocationFrameTrace>,
+    /// Events emitted by the transaction.
     pub events: Vec<TxEmittedEvent>,
 }
 
 impl TransactionHandler {
+    /// Open a handler for executing `stx` against `env`.
     pub fn new(env: Rc<TestEnvironment>, stx: &SignedTransaction) -> Self {
         let tx_bytes = txs::encode(stx).unwrap();
 
@@ -126,6 +134,7 @@ impl TransactionHandler {
         }
     }
 
+    /// The signed transaction this handler executes.
     pub fn get_signed_transaction(&self) -> &SignedTransaction {
         &self.stx
     }

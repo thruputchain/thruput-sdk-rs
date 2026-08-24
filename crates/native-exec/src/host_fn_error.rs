@@ -2,6 +2,9 @@ use groundhog_xdr::syserr::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
 
+/// Perform one guest syscall against the mocked FFI handler, returning its
+/// result code. Host-side terminations unwind with the matching
+/// [`crate::invoke_error`] payload instead of returning.
 #[allow(clippy::too_many_arguments)]
 pub fn perform_mocked_syscall(
     syscall: i32,
@@ -44,6 +47,8 @@ pub fn perform_mocked_syscall(
     }
 }
 
+/// The symbol groundhog-xdr's `syscalls_mock` extern declaration links
+/// against; forwards to [`perform_mocked_syscall`].
 #[unsafe(no_mangle)]
 pub extern "C-unwind" fn syscall_wrapper_impl(
     // Matches groundhog-xdr's `syscalls_mock` extern declaration, which passes

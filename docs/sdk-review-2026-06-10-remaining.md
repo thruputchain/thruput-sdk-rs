@@ -212,6 +212,18 @@ rewrite + buffer unification #241; sections removed below):
   hogd-side robustness gap.) Regression test
   `panic_with_open_transaction_is_not_masked_by_drop` pins the behavior.
 
+**Addressed in the 2026-08-24 devnet-readiness pass** (sections removed
+below):
+
+- *native-exec diagnostics and docs:* frame assertions decode the abort
+  selector and append trace context; `transact_manual` panics when the
+  closure forgets to commit/abort instead of silently drop-aborting; the
+  mock frame executor re-raises the misuse guards' Unrecoverable payload
+  instead of recording it as a contract fault of the enclosing frame; and
+  the crate now builds under `#![warn(missing_docs)]`, with the
+  one-root-frame-per-transaction invariant documented on
+  `call`/`open_root_frame`/`TestEnvironment::transact`.
+
 ## medium severity (5 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
@@ -244,7 +256,7 @@ For the same task ('make a deterministic test id'), the corpus a new author read
 
 The published ERC20 standard interface documents nothing a wallet/token integrator needs: `initialize` has no doc at all (it throws `AlreadyInitialized`; who becomes administrator?); `mint`/`burn` don't say they are owner-restricted (`MustBeContractOwner`) or which `ERC20Error` variants each method can throw; `adjust_allowance` deviates from ERC-20 `approve` semantics (signed delta, not absolute) but that is documented only on the ApprovalEvent type (events.rs:135-138), not the trait method clients call. Also, `Amount` is `u128`, but `From<&TransferEvent> for stdevt::TransferEvent` does `TryInto::<i128>::try_into(val.amount).unwrap()` (events.rs:90) — converting an event for a supply above i128::MAX panics, an undocumented invariant, despite `amount_to_diff` in error.rs:20-22 showing the throwing alternative.
 
-## low severity (36 remaining)
+## low severity (33 remaining)
 
 ### [sdk-core/missing-docs] Public syscall wrappers and InvokeConfig lack rustdoc on throwing behavior, limits, and default semantics
 
@@ -306,29 +318,11 @@ NNInt stores a bare `Keypath` and calls `self.keypath.generate_key()` in every m
 
 `impl_assume_tokens!` is instantiated for 0..=8 elements (signer.rs:104-120), but `impl_receive_tuple!` and `impl_collect_tuple!` both cover arities 1..=20 (receive_auth_handles.rs:207, collect_auth_handles.rs:189). A caller destructuring 9+ opaque tokens gets a confusing 'trait not implemented' error in an API family that otherwise handles 20. Also note `AssumeTokens::assume_tokens` panics on length mismatch (assert_eq) rather than returning Result — consistent with tests but worth a doc line since the rest of the receive surface returns AuthTokenError.
 
-### [native-exec/footgun] tx.call() may only be invoked once per transaction; second call panics — undocumented
-
-**File:** `crates/native-exec/src/mock_transaction_handler.rs:438-451`
-
-`call()` is documented only as "Convenience: open a root frame targeting the given contract address", but it delegates to `open_root_frame()` which does `assert_eq!(self.state, MockTransactionState::NotStarted, "cannot open root frame: transaction already started")`. The natural test pattern — calling two entrypoints inside one `env.transact(|tx| ...)` closure — panics. The one-transaction-one-root-frame invariant is stated only in a non-rustdoc `//` comment on the struct ("Can run one, and only one, transaction", line 348-349), invisible in generated docs. Neither `call`, `transact`, nor the `TestEnvironment` doc example mentions it.
-
 ### [native-exec/footgun] UnwindSafe bounds on run/execute/run_continuable are theater: the impl uses AssertUnwindSafe anyway
 
 **File:** `crates/native-exec/src/mock_transaction_handler.rs:226-245`
 
 `execute` requires `impl FnOnce(&mut Self) -> FrameAction + UnwindSafe` but then immediately does `std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| lambda(self)))`, discarding the bound's guarantee. The bound propagates to `FrameBuilder::run` (frame_builder.rs:59-61), `run_continuable` (99-101), `ContinuableFrame::run_continuable` (136-138), `invoke_wrapper` (invoke_error.rs:219-223), and `MockContract::register_method` (mock_contract.rs:63-65). So test authors who capture `&mut` state or RefCell in a closure get a compile error and must wrap in `AssertUnwindSafe` themselves — pure friction with zero added safety, since the harness already asserts unwind safety internally.
-
-### [native-exec/footgun] transact_manual silently aborts the transaction if the closure forgets to commit
-
-**File:** `crates/native-exec/src/test_environment.rs:518-529`
-
-The rustdoc says "The closure ... is responsible for calling tx.try_commit_transaction() or tx.abort_transaction()", but nothing enforces it. If the author forgets, `MockTransactionHandler::drop` (mock_transaction_handler.rs:463-471) auto-aborts with only an `eprintln!("Cleanup: Aborting mock transaction that was not committed")` — captured and hidden by the test harness — so the test passes while none of its state changes were committed; later `advance_block()`/snapshot reads see nothing and the author debugs the wrong layer. Conversely, calling `tx.try_commit_transaction()` yourself inside the auto-commit `transact()` closure panics on the second commit via `assert_eq!(self.state, MockTransactionState::Running)`; neither doc mentions these interactions.
-
-### [native-exec/footgun] Harness misuse errors surface as opaque `Box<dyn Any>` panics (eprintln + panic_any pattern)
-
-**File:** `crates/native-exec/src/mock_transaction_handler.rs:270-284`
-
-`MockInvocationFrame::result()` on a not-yet-closed frame does `eprintln!("Cannot get the result of a frame while it is not closed"); panic_any(crate::invoke_error::unrecoverable_error())`. The same pattern is used at frame-open failure (lines 139-145) and close failure (177-180). When this fires outside an `execute` catch_unwind — e.g. calling `ContinuableFrame::finish()` after a closure that returned `FrameAction::Continue` — the test fails with panic payload `Box<dyn Any>` and no message in the panic itself; the explanatory eprintln is on captured stderr where users rarely look. `finish()`'s rustdoc says "Call this after the frame has been closed" but doesn't say what happens otherwise. Plain `panic!` with the message would diagnose itself.
 
 ### [native-exec/redundancy] FFI trace/events decoding copy-pasted between MockInvocationFrame and TransactionHandler, with drift
 
