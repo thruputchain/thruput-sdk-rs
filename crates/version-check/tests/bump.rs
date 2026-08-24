@@ -230,10 +230,7 @@ fn explicit_target_roundtrip() {
 
     // 0.17.4 -> 1.0.0 is semver-incompatible, so the interfaces move too.
     assert_eq!(plan.workspace.as_ref().unwrap().new, Version::new(1, 0, 0));
-    assert_eq!(
-        plan.interfaces.as_ref().unwrap().new,
-        Version::new(0, 4, 3)
-    );
+    assert_eq!(plan.interfaces.as_ref().unwrap().new, Version::new(0, 4, 3));
 
     bump::apply(&repo, &plan).unwrap();
 
