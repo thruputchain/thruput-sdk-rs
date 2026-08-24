@@ -34,8 +34,12 @@ pub use groundhog_contract_spec as __contract_spec;
 ///
 /// [`U256`] behaves like `u128`, including on overflow: the operators wrap
 /// when `overflow-checks` is off (as in every contract profile) and panic when
-/// it is on. See [`u256::mul_div_u128`] for the exact `a * b / d` that motivates
-/// most reaches for a 256-bit type.
+/// it is on. The native test harness builds with overflow checks *on*, so an
+/// overflow that fails a test wraps silently on-chain — see the "Arithmetic
+/// on-chain" section of the SDK README, and prefer `checked_*` (or the
+/// storage-level `NNInt`/`Balance` guards) for money math. See
+/// [`u256::mul_div_u128`] for the exact `a * b / d` that motivates most
+/// reaches for a 256-bit type.
 ///
 /// `U256::from` takes a `u128` and is a const fn, so unsuffixed literals and
 /// const items both work: `const FEE: U256 = U256::from(1000)`. Narrower

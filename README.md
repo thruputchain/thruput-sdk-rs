@@ -73,7 +73,28 @@ Generated clients default to `FooClient` for `#[contract] trait Foo` and for
 `#[contract] impl Foo { ... }`. Use `client = CustomClient` only when you want
 to override that default.
 
-## This Repository
+### Arithmetic on-chain
+
+Deployed contracts are built with `overflow-checks = false` (see
+`[profile.release]` in `example-contracts/.cargo/config.toml` and its
+integration_test twin), so on-chain integer arithmetic — including
+`sdk::U256`, which deliberately mirrors the primitives — **silently wraps
+on overflow**. The native test harness compiles with cargo's dev profile,
+where overflow checks are on, so the same expression that panics (and
+fails the test) on the host wraps to a small number on-chain. **A test
+passing under the harness proves nothing about overflow behavior in
+deployment.**
+
+For money math, be explicit instead of relying on operators:
+
+- `checked_add` / `checked_sub` / `checked_mul` on the primitives and on
+  `sdk::U256`, combined with a typed throw on `None`;
+- `sdk::mul_div_u128` / `sdk::checked_mul_div_u128` for `a * b / d` with
+  a 256-bit intermediate (the panics of `mul_div_u128` are unconditional,
+  not `overflow-checks`-gated);
+- storage-level guards: `NNInt::strict_inc` / `try_strict_inc` for a
+  call-time non-negativity check, and `Balance::increase` / `decrease`,
+  which fail on overflow and overdraft in every profile.
 
 Note that this repository contains
 [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
