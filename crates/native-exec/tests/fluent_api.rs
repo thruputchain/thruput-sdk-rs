@@ -1313,3 +1313,30 @@ fn test_subframe_suspends_across_interleaved_transactions() {
     assert_eq!(tx1.try_commit_transaction(), TryCommitResult::Ok);
     assert_eq!(tx2.try_commit_transaction(), TryCommitResult::Ok);
 }
+
+#[test]
+fn transact_manual_without_commit_panics() {
+    // A closure that runs a frame but forgets try_commit_transaction /
+    // abort_transaction is a test bug: the dropped handler would abort
+    // silently and the test would pass with nothing committed. The harness
+    // panics instead.
+    let env = TestEnvironment::new(None);
+
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        env.transact_manual(|tx| {
+            tx.call(&[9u8; 32].into()).run(|| {}).assert_success();
+            // ... and forgets to commit or abort.
+        });
+    }));
+
+    let payload = caught.expect_err("forgetting to commit must panic");
+    let msg = payload
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+        .expect("panic payload must be a message");
+    assert!(
+        msg.contains("transact_manual closure returned without finishing"),
+        "unexpected message: {msg}"
+    );
+}

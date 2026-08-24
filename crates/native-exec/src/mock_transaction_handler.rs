@@ -536,6 +536,12 @@ impl MockTransactionHandler {
         }
     }
 
+    /// True while a transaction has been started (a root frame opened) but
+    /// neither committed nor aborted yet.
+    pub(crate) fn is_running(&self) -> bool {
+        self.state == MockTransactionState::Running
+    }
+
     pub fn abort_transaction(&mut self) {
         assert_eq!(self.state, MockTransactionState::Running);
         assert!(
