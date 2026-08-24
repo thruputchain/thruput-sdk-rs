@@ -675,19 +675,39 @@ fn use_prebuilt_lib(
     Ok(())
 }
 
-fn add_auth_to_curl(cmd: &mut Command, user: &str) {
-    if let Ok(pass) = env::var("HOGD_FFI_PASSWORD") {
-        if !user.is_empty() {
-            println!(
-                "cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables."
-            );
-            cmd.arg("-u").arg(format!("{user}:{pass}"));
-        }
-    } else {
-        println!(
-            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
-        );
+/// The curl config line carrying credentials, or `None` when unauthenticated.
+///
+/// Credentials go to curl via `--config -` on stdin, never on the command
+/// line: argv is world-readable through `ps` while the download runs.
+fn curl_auth_config(user: &str) -> Option<String> {
+    let pass = env::var("HOGD_FFI_PASSWORD").ok()?;
+    if user.is_empty() {
+        return None;
     }
+    println!(
+        "cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables."
+    );
+    Some(format!(
+        "user = \"{}:{}\"\n",
+        curl_config_quote(user),
+        curl_config_quote(&pass)
+    ))
+}
+
+/// Escape a value for use inside a double-quoted curl config string.
+fn curl_config_quote(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 /// Download a file with retry and exponential backoff.
@@ -705,13 +725,34 @@ fn download_with_retry(
         let _ = fs::remove_file(&tmp);
     }
 
+    let auth_config = curl_auth_config(user);
+    if auth_config.is_none() {
+        println!(
+            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
+        );
+    }
+
     let mut wait_secs = 5;
     for attempt in 0..=max_retries {
         let mut cmd = Command::new("curl");
         cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
-        add_auth_to_curl(&mut cmd, user);
 
-        let status = cmd.status();
+        let status = match &auth_config {
+            None => cmd.status(),
+            Some(config) => {
+                cmd.arg("--config").arg("-");
+                cmd.stdin(std::process::Stdio::piped());
+                cmd.spawn().and_then(|mut child| {
+                    use std::io::Write as _;
+                    // Taken (not borrowed) so the pipe closes once written;
+                    // curl reads config until EOF before starting.
+                    if let Some(mut stdin) = child.stdin.take() {
+                        stdin.write_all(config.as_bytes())?;
+                    }
+                    child.wait()
+                })
+            }
+        };
 
         match status {
             Ok(s) if s.success() && tmp.exists() => {
@@ -783,6 +824,13 @@ fn ensure_cached_download(
     Ok(())
 }
 
+/// True when the user explicitly opted out of checksum verification.
+fn allow_unverified() -> bool {
+    env::var("HOGD_FFI_ALLOW_UNVERIFIED")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+}
+
 /// Verify the archive against its `.sha256` checksum file.
 fn verify_checksum(
     archive_path: &Path,
@@ -790,10 +838,19 @@ fn verify_checksum(
     archive_bytes: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !checksum_path.exists() {
-        println!(
-            "cargo:warning=Checksum file not found, skipping verification"
-        );
-        return Ok(());
+        if allow_unverified() {
+            println!(
+                "cargo:warning=Checksum file not found; HOGD_FFI_ALLOW_UNVERIFIED=1 is set, skipping verification"
+            );
+            return Ok(());
+        }
+        return Err(format!(
+            "Checksum file not found at {}; refusing to use an unverified \
+             archive. Set HOGD_FFI_ALLOW_UNVERIFIED=1 to skip verification \
+             explicitly.",
+            checksum_path.display()
+        )
+        .into());
     }
 
     let checksum_content = fs::read_to_string(checksum_path)?;
@@ -861,7 +918,10 @@ fn download_and_extract(
 
     ensure_cached_download(&download_url, &archive_path, &user, "Archive")?;
 
-    // Download checksum (non-fatal on failure)
+    // Download checksum. A failed or absent checksum is a hard error: an
+    // unverifiable archive is indistinguishable from a tampered one, so the
+    // opt-out has to be explicit.
+    println!("cargo:rerun-if-env-changed=HOGD_FFI_ALLOW_UNVERIFIED");
     let checksum_url = format!("{download_url}.sha256");
     let checksum_path = cache_dir.join(format!("{archive_name}.sha256"));
     if let Err(e) = ensure_cached_download(
@@ -871,9 +931,18 @@ fn download_and_extract(
         "Checksum",
     ) {
         let _ = fs::remove_file(&checksum_path);
-        println!(
-            "cargo:warning=Checksum download failed ({e}), skipping verification",
-        );
+        if allow_unverified() {
+            println!(
+                "cargo:warning=Checksum download failed ({e}); HOGD_FFI_ALLOW_UNVERIFIED=1 is set, skipping verification",
+            );
+        } else {
+            return Err(format!(
+                "Checksum download failed ({e}). Refusing to use an \
+                 unverified archive; set HOGD_FFI_ALLOW_UNVERIFIED=1 to skip \
+                 verification explicitly."
+            )
+            .into());
+        }
     }
 
     let archive_bytes = fs::read(&archive_path)?;
