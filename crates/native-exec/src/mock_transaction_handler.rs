@@ -36,8 +36,8 @@ enum MockInvocationFrameState {
     ),
 }
 
-/// Builder for one invocation frame's configuration (calldata, flags, gas
-/// limit) before the frame is opened with [`build`](Self::build).
+/// Builder for one invocation frame's configuration, opened with
+/// [`build`](Self::build).
 pub struct MockInvocationFrameConfig<'a> {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     invocation: groundhog_xdr::transaction::Invocation,
@@ -85,7 +85,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
 
     /// Set the frame's invoke flags, a bitset of
     /// [`InvokeFlag`](groundhog_xdr::invoke_flag::InvokeFlag) values
-    /// (default: [`InvokeFlag::None`](groundhog_xdr::invoke_flag::InvokeFlag::None)).
+    /// (default: none).
     pub fn with_invoke_flags(mut self, invoke_flags: i32) -> Self {
         self.invoke_flags = invoke_flags;
         self
@@ -97,8 +97,8 @@ impl<'a> MockInvocationFrameConfig<'a> {
         self
     }
 
-    /// Open the frame at the FFI level and hand back the emplaced
-    /// [`MockInvocationFrame`] for `execute`/`result` calls.
+    /// Open the frame at the FFI level, returning the
+    /// [`MockInvocationFrame`].
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
@@ -114,13 +114,11 @@ impl<'a> MockInvocationFrameConfig<'a> {
     }
 }
 
-/// One open invocation frame in a mocked transaction.
-///
-/// Drive it with [`execute`](Self::execute) (possibly repeatedly, via
-/// `FrameAction::Continue`) and read the outcome with
-/// [`result`](Self::result) once closed. Prefer the fluent
-/// [`crate::frame_builder::FrameBuilder`] API (`tx.call(...)`)
-/// unless a test needs this level of control.
+/// One open invocation frame in a mocked transaction. Drive it with
+/// [`execute`](Self::execute), then read the outcome with
+/// [`result`](Self::result). Prefer the fluent
+/// [`crate::frame_builder::FrameBuilder`] API unless a test needs this
+/// level of control.
 pub struct MockInvocationFrame {
     root_handler: *mut c_void,
     child_frame: Option<Box<MockInvocationFrame>>,
@@ -151,13 +149,9 @@ impl MockInvocationFrame {
             .into()
         };
         if handler_res != FFIErrorCode::None {
-            // Deliberately an InvokeError payload, not a plain panic!: this
-            // fires inside `execute`'s catch_unwind when a lambda opens a
-            // child frame the FFI refuses (e.g. the reentrance rule), and the
-            // payload's Unrecoverable code is what makes the enclosing frame
-            // re-raise the refusal instead of recording it as a deterministic
-            // contract panic.
-            // The message goes to stderr since the payload itself is opaque.
+            // An InvokeError payload, not a plain panic!: the Unrecoverable
+            // code makes an enclosing frame re-raise the refusal instead of
+            // recording it as a contract panic.
             eprintln!(
                 "failed to open mock invocation frame: {:?}",
                 handler_res
@@ -242,12 +236,9 @@ impl MockInvocationFrame {
         };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();
         if err != FFIErrorCode::None {
-            // Deliberately an InvokeError payload, not a plain panic!: a
-            // close refused by the FFI is the host reporting a contract bug
-            // (e.g. the live storage-guard check on a terminal Return), and
-            // consumers assert on the Unrecoverable payload (see
-            // example-contracts/storage_errors). The host's diagnostic has
-            // already gone to stderr.
+            // An InvokeError payload, not a plain panic!: consumers assert
+            // on the Unrecoverable payload (see
+            // example-contracts/storage_errors).
             eprintln!("failed to close mock invocation frame: {:?}", err);
             panic_any(crate::invoke_error::unrecoverable_error());
         }
@@ -296,15 +287,11 @@ impl MockInvocationFrame {
         self.context_pushcount.borrow_mut().pop_context();
     }
 
-    /// Run `lambda` as this frame's contract code.
-    ///
-    /// Panics out of the lambda are caught and mapped to frame outcomes
-    /// (ordinary panics become deterministic faults; [`InvokeError`]
-    /// payloads keep their code). An Unrecoverable [`InvokeError`] payload
-    /// (harness misuse, an FFI-refused operation) is re-raised instead of
-    /// being recorded as an outcome of this frame. Returning
-    /// `FrameAction::Close` closes the
-    /// frame; `FrameAction::Continue` leaves it open for another `execute`.
+    /// Run `lambda` as this frame's contract code, mapping panics out of it
+    /// to frame outcomes. Unrecoverable [`InvokeError`] payloads (harness
+    /// misuse, FFI refusals) are re-raised instead. The returned
+    /// `FrameAction` closes the frame or leaves it open for another
+    /// `execute`.
     pub fn execute(
         &mut self,
         lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
@@ -354,11 +341,9 @@ impl MockInvocationFrame {
                     if my_error.error_type
                         == hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
                     {
-                        // Harness-level failure (a misuse guard fired inside
-                        // the lambda, or the FFI refused an operation), not
-                        // contract behavior: re-raise it so it fails the test
-                        // instead of being recorded as this frame's outcome.
-                        // Drop force-finishes the still-open frame.
+                        // Harness-level failure, not contract behavior:
+                        // re-raise instead of recording it as this frame's
+                        // outcome. Drop force-finishes the open frame.
                         std::panic::resume_unwind(err);
                     }
                     self.close_frame_internal(my_error.error_type);
@@ -374,10 +359,8 @@ impl MockInvocationFrame {
         self
     }
 
-    /// The closed frame's [`FrameResult`].
-    ///
-    /// Panics if the frame is still open (drive it to `FrameAction::Close`
-    /// first).
+    /// The closed frame's [`FrameResult`]. Panics if the frame is still
+    /// open.
     pub fn result(&mut self) -> FrameResult {
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
@@ -529,15 +512,11 @@ impl Default for MockTransactionConfig {
     }
 }
 
-/// A mocked transaction context: runs one, and only one, transaction.
-///
-/// A transaction has exactly one root frame — [`call`](Self::call) /
-/// [`open_root_frame`](Self::open_root_frame) may be invoked once per
-/// handler, and a second invocation panics. To run a second contract call,
-/// either open a child frame from within the root frame
-/// ([`MockInvocationFrame::open_child_frame`], or `FrameHandle::child_call`
-/// in the fluent API) or run a second transaction (another
-/// `env.transact(..)`).
+/// A mocked transaction context: runs one, and only one, transaction, with
+/// exactly one root frame ([`call`](Self::call) /
+/// [`open_root_frame`](Self::open_root_frame) panic on a second
+/// invocation). Nest further calls as child frames, or use a second
+/// transaction.
 pub struct MockTransactionHandler {
     pub(crate) handler: *mut c_void,
     pub(crate) _env: Rc<TestEnvironment>,
@@ -596,8 +575,8 @@ impl MockTransactionHandler {
         }
     }
 
-    /// True while a transaction has been started (a root frame opened) but
-    /// neither committed nor aborted yet.
+    /// True while a transaction has started but is neither committed nor
+    /// aborted.
     pub(crate) fn is_running(&self) -> bool {
         self.state == MockTransactionState::Running
     }
@@ -620,8 +599,7 @@ impl MockTransactionHandler {
         }
     }
 
-    /// Attempt the two-phase commit of the running transaction, returning
-    /// the [`TryCommitResult`](crate::TryCommitResult) outcome.
+    /// Attempt the two-phase commit of the running transaction.
     ///
     /// Panics unless the transaction is running and its root frame is
     /// closed.
@@ -648,12 +626,10 @@ impl MockTransactionHandler {
     /// Convenience: open a root frame targeting the given contract address.
     /// Returns a FrameBuilder for configuring and executing the frame.
     ///
-    /// A transaction has exactly one root frame, so `call` may be invoked
-    /// only once per transaction; a second call panics ("transaction
-    /// already started"). Call a second contract from *within* the frame
-    /// via `run_continuable` + `FrameHandle::child_call` (or
-    /// [`MockInvocationFrame::open_child_frame`]), or run it in a separate
-    /// `env.transact(..)`.
+    /// A transaction has exactly one root frame, so a second `call` panics;
+    /// call further contracts via child frames (`FrameHandle::child_call`,
+    /// [`MockInvocationFrame::open_child_frame`]) or a separate
+    /// transaction.
     pub fn call(
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,
@@ -665,8 +641,7 @@ impl MockTransactionHandler {
     /// Configure this transaction's root frame, invoking `contract_address`.
     ///
     /// A transaction has exactly one root frame: calling this (or
-    /// [`call`](Self::call)) a second time on the same handler panics. Open
-    /// child frames for nested calls, or use a second transaction.
+    /// [`call`](Self::call)) a second time on the same handler panics.
     ///
     /// Child frames opened underneath it must name different addresses; see
     /// [`MockInvocationFrame::open_child_frame`].

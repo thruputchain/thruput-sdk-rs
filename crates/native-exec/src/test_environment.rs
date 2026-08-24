@@ -51,8 +51,7 @@ pub fn test_network_hash() -> NetworkHash {
 }
 
 /// The state behind a [`TestEnvironment`]: the FFI database, runtime
-/// context, and registered mock contracts. Access it through
-/// [`TestEnvironment`]'s methods.
+/// context, and registered mock contracts.
 pub struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
@@ -239,8 +238,8 @@ impl Drop for RuntimeContextWrapper {
 }
 
 impl TestEnvironmentInner {
-    /// Create the environment state: a fresh in-memory database (with the
-    /// given cost model) and runtime context on `network_hash`.
+    /// Create a fresh in-memory database (with the given cost model) and
+    /// runtime context on `network_hash`.
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
@@ -255,7 +254,7 @@ impl TestEnvironmentInner {
         }
     }
 
-    /// Turn on FFI-level logging of syscalls to stderr at `level` for
+    /// Turn on FFI-level syscall logging to stderr at `level` for
     /// environments created afterwards.
     pub fn enable_syscall_logging(level: groundhog_sys::FFILogLevel) {
         unsafe { groundhog_sys::enable_syscall_logging(level as i32) };
@@ -426,8 +425,8 @@ impl TestEnvironmentInner {
         self.db.get_cost_model()
     }
 
-    /// Verify `tx`'s auth claims against auth data loaded from the
-    /// database; see [`TestEnvironment::verify_signed_transaction_auth`].
+    /// Verify `tx`'s auth claims; see
+    /// [`TestEnvironment::verify_signed_transaction_auth`].
     pub fn run_auth_checks(
         &self,
         tx: &SignedTransaction,
@@ -498,23 +497,21 @@ impl TestEnvironment {
     }
 
     /// Environment with the chain-default cost model on the default test
-    /// network. (Not the `Default` trait: constructors return a handle.)
+    /// network. Not the `Default` trait: constructors return a handle.
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> TestEnvironmentHandle {
         Self::new(None)
     }
 
-    /// Environment in which every storage operation costs zero — the usual
-    /// choice for tests that aren't about storage funding.
+    /// Environment in which every storage operation costs zero.
     pub fn no_cost() -> TestEnvironmentHandle {
         Self::new(Some(
             &groundhog_storage_cost::StorageCostModel::no_cost_model(),
         ))
     }
 
-    /// Turn on FFI-level logging of syscalls to stderr. Affects
-    /// environments created after the call. (Distinct from tracing — the
-    /// structured trace output on [`FrameResult`].)
+    /// Turn on FFI-level syscall logging to stderr for environments
+    /// created after the call.
     pub fn enable_syscall_logging() {
         TestEnvironmentInner::enable_syscall_logging(
             groundhog_sys::FFILogLevel::Trace,
@@ -535,8 +532,8 @@ impl TestEnvironment {
         self.inner.borrow().get_current_cost_model()
     }
 
-    /// Read a committed contract-data storage item from the current block
-    /// snapshot (`None` if the key holds nothing).
+    /// Read a committed contract-data item from the current block snapshot
+    /// (`None` if the key holds nothing).
     pub fn get_snapshot_storage_item(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
@@ -592,10 +589,8 @@ impl TestEnvironment {
     /// and always calls try_commit_transaction when the closure returns
     /// (hogd handles abort internally when the root frame reverted).
     ///
-    /// The transaction has exactly one root frame: call `tx.call(&addr)`
-    /// once inside the closure (a second call panics). For a second
-    /// contract call, open a child frame from within the root frame or use
-    /// another `transact`.
+    /// The transaction has exactly one root frame: a second `tx.call`
+    /// inside the closure panics; use a child frame or another `transact`.
     ///
     /// Shorthand for `env.transaction().transact(f)`; use
     /// [`transaction`](Self::transaction) to customize the transaction first.

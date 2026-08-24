@@ -1316,10 +1316,8 @@ fn test_subframe_suspends_across_interleaved_transactions() {
 
 #[test]
 fn transact_manual_without_commit_panics() {
-    // A closure that runs a frame but forgets try_commit_transaction /
-    // abort_transaction is a test bug: the dropped handler would abort
-    // silently and the test would pass with nothing committed. The harness
-    // panics instead.
+    // Forgetting try_commit_transaction / abort_transaction would silently
+    // drop-abort the transaction; the harness panics instead.
     let env = TestEnvironment::new(None);
 
     let caught =

@@ -69,11 +69,9 @@ impl TransactionBuilder {
     /// Execute a transaction with manual commit/abort control. See
     /// [`TestEnvironment::transact_manual`](crate::test_environment::TestEnvironment::transact_manual).
     ///
-    /// The closure must finish the transaction it starts: after running a
-    /// frame, call `tx.try_commit_transaction()` or `tx.abort_transaction()`
-    /// before returning. A closure that forgets is a test bug — the dropped
-    /// handler would silently abort, so the test would pass while none of its
-    /// writes were committed — and panics here instead.
+    /// The closure must call `tx.try_commit_transaction()` or
+    /// `tx.abort_transaction()` before returning; forgetting panics here
+    /// (a dropped handler would abort silently).
     pub fn transact_manual<R>(
         self,
         f: impl FnOnce(&mut MockTransactionHandler) -> R,
@@ -84,9 +82,7 @@ impl TransactionBuilder {
             !tx.is_running(),
             "transact_manual closure returned without finishing the \
              transaction: call tx.try_commit_transaction() or \
-             tx.abort_transaction() before returning (a dropped handler \
-             aborts silently, so the test would pass with none of its \
-             writes committed)"
+             tx.abort_transaction() before returning"
         );
         out
     }

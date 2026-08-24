@@ -1,9 +1,8 @@
 //! Native execution environment for testing Groundhog contracts in-process.
 //!
-//! The entry point is [`test_environment::TestEnvironment`]: it owns an
-//! in-memory groundhog instance (via the `groundhog-sys` FFI), against which
-//! tests run mocked transactions and invocation frames and assert on their
-//! results.
+//! The entry point is [`test_environment::TestEnvironment`], an in-memory
+//! groundhog instance against which tests run mocked transactions and
+//! assert on their results.
 #![warn(missing_docs)]
 
 /// Report a failure detected inside a `Drop` impl without risking a SIGABRT.

@@ -35,15 +35,14 @@ impl TransactResult {
         );
     }
 
-    /// Assert the root frame aborted. Frame-only check: the commit outcome
-    /// is not consulted (an aborted root frame never commits writes).
+    /// Assert the root frame aborted. Frame-only check; the commit outcome
+    /// is not consulted.
     #[track_caller]
     pub fn assert_abort(&self) {
         self.frame.assert_abort();
     }
 
-    /// Assert the root frame faulted. Frame-only check: the commit outcome
-    /// is not consulted.
+    /// Assert the root frame faulted. Frame-only check.
     #[track_caller]
     pub fn assert_fault(&self) {
         self.frame.assert_fault();
@@ -64,8 +63,7 @@ impl TransactResult {
     }
 
     /// Assert the root frame aborted and decode its abort buffer as `E`,
-    /// passing it to `check`. Frame-only check (commit status not checked),
-    /// like [`assert_abort`](Self::assert_abort).
+    /// passing it to `check`. Frame-only check.
     #[track_caller]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
@@ -124,7 +122,7 @@ impl TransactResult {
         &self.exec_result
     }
 
-    /// The root frame's result (frame-level status, buffers, trace, events).
+    /// The root frame's result.
     pub fn frame(&self) -> &FrameResult {
         &self.frame
     }

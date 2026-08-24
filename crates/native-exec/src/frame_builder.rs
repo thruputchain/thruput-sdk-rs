@@ -7,8 +7,7 @@ use std::panic::UnwindSafe;
 /// What an `execute` closure tells the harness to do with its frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameAction {
-    /// Leave the frame open for further `run_continuable` steps (used to
-    /// interleave frames across transactions).
+    /// Leave the frame open for further `run_continuable` steps.
     Continue,
     /// Close the frame, producing its [`FrameResult`].
     Close,
@@ -33,7 +32,7 @@ impl<'a> FrameBuilder<'a> {
 
     /// Set the frame's invoke flags, a bitset of
     /// [`InvokeFlag`](groundhog_xdr::invoke_flag::InvokeFlag) values
-    /// (default: [`InvokeFlag::None`](groundhog_xdr::invoke_flag::InvokeFlag::None)).
+    /// (default: none).
     pub fn with_flags(self, flags: i32) -> Self {
         Self {
             config: self.config.with_invoke_flags(flags),
@@ -124,13 +123,9 @@ pub struct FrameHandle<'a> {
 }
 
 impl<'a> FrameHandle<'a> {
-    /// Open a child frame of the current frame, invoking `addr`.
-    ///
-    /// The address must differ from every frame already open on the stack
-    /// (the reentrance rule); see
-    /// [`MockInvocationFrame::open_child_frame`]. Opening a child frame is
-    /// how a single transaction runs a second contract — a transaction has
-    /// exactly one root frame.
+    /// Open a child frame of the current frame, invoking `addr`. The
+    /// address must differ from every frame already open on the stack (the
+    /// reentrance rule); see [`MockInvocationFrame::open_child_frame`].
     pub fn child_call(
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,

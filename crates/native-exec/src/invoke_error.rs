@@ -6,12 +6,8 @@ use std::panic;
 use std::panic::UnwindSafe;
 use std::sync::Once;
 
-/// Panic payload classifying how an invocation frame terminated.
-///
-/// Thrown with `panic_any` and downcast at the frame's catch site
-/// ([`invoke_wrapper`] or the mock frame executor), which maps the code to
-/// the frame outcome. An ordinary (non-`InvokeError`) panic payload is
-/// classified as a deterministic contract failure instead.
+/// Panic payload classifying how an invocation frame terminated; downcast
+/// at the frame's catch site and mapped to the frame outcome.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InvokeError {
     /// The code the catch site reports to the executor.
@@ -130,8 +126,7 @@ pub(crate) fn panic_hook_depth() -> usize {
 }
 
 /// Enter a contract-execution region: install the classifying panic hook
-/// (once) and increment its activation depth. Paired with
-/// [`deactivate_panic_hook`].
+/// (once) and increment its activation depth.
 pub fn activate_panic_hook() {
     install_panic_hook();
     PANIC_HOOK_DEPTH.with(|c| c.set(c.get() + 1));
@@ -152,8 +147,7 @@ pub fn deactivate_panic_hook() {
 }
 
 /// Wrap a contract closure in the catch site that maps its panics to
-/// groundhog invoke error codes ([`InvokeError`] payloads keep their code;
-/// ordinary panics become deterministic failures while the hook is active).
+/// groundhog invoke error codes.
 pub fn invoke_wrapper<'a, F>(
     wrapped: F,
 ) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>

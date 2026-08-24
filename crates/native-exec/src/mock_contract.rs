@@ -12,9 +12,8 @@ use std::panic::UnwindSafe;
 use std::rc::Rc;
 use xdrs::txs;
 
-/// Backing storage for a mock contract: its id, hash, and registered
-/// entrypoint closures. Owned by the [`TestEnvironment`]; use
-/// [`MockContract`] handles to interact with it.
+/// Backing storage for a mock contract, owned by the [`TestEnvironment`];
+/// interact with it through [`MockContract`] handles.
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: i32,
@@ -33,9 +32,6 @@ pub struct MockContractInner {
 
 /// Handle to a mock contract registered in a [`TestEnvironment`]: a
 /// contract whose entrypoints are native closures instead of rv32 code.
-///
-/// Obtain one via `TestEnvironment::register_mock` (or the generated
-/// `register_mock_contract`).
 pub struct MockContract {
     contract: *mut MockContractInner,
     _env: Rc<TestEnvironment>,
@@ -64,8 +60,7 @@ impl MockContract {
         i32_to_contract(unsafe { (*self.contract).index })
     }
 
-    /// The contract hash (`sha256(Contract::kMockTest(index))`), used when
-    /// deploying the mock.
+    /// The contract hash (`sha256(Contract::kMockTest(index))`).
     pub fn as_hash(&self) -> &SHA256Hash {
         unsafe { &(*self.contract).hash }
     }
@@ -78,11 +73,9 @@ impl MockContract {
         self._env.setup_create_deployment(addr, &self.as_contract());
     }
 
-    /// Register `func` as the entrypoint for method `id`.
-    ///
-    /// The closure runs inside the frame's catch site
-    /// (`invoke_wrapper`), so panics and aborts out of it are mapped to
-    /// frame outcomes rather than escaping the harness.
+    /// Register `func` as the entrypoint for method `id`. The closure runs
+    /// inside the frame's catch site, so panics and aborts out of it map to
+    /// frame outcomes.
     pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)
     where
         F: Fn() + UnwindSafe + Clone + 'static,
@@ -104,8 +97,8 @@ impl MockContract {
         unsafe { (*self.contract).unknown = Some(invoke_wrapper(func)) };
     }
 
-    /// Apply a registrar closure (e.g. a generated `__mock` function) to
-    /// this contract, for chaining.
+    /// Apply a registrar closure (e.g. a generated `__mock` function),
+    /// for chaining.
     pub fn register<F: FnOnce(&mut Self)>(&mut self, f: F) -> &mut Self {
         f(self);
         self

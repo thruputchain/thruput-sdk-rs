@@ -9,10 +9,8 @@ use xdrs::txs;
 
 use groundhog_sys::FFIErrorCode;
 
-/// Executes one full [`SignedTransaction`] against the environment: runs
-/// one, and only one, transaction, then reports the results.
-///
-/// Drive it with [`root_invoke`](Self::root_invoke), then
+/// Executes one, and only one, full [`SignedTransaction`] against the
+/// environment: [`root_invoke`](Self::root_invoke), then
 /// [`try_commit_transaction`](Self::try_commit_transaction) or
 /// [`abort_transaction`](Self::abort_transaction).
 pub struct TransactionHandler {

@@ -74,11 +74,8 @@ impl FrameResult {
 
     // -- Assertions --
 
-    /// Assert the frame returned successfully.
-    ///
-    /// This checks only the frame outcome, not the database commit — pair it
-    /// with [`TransactResult::assert_success`] semantics (frame + commit) via
-    /// the transaction-level result when commit matters.
+    /// Assert the frame returned successfully. Frame-only check; use
+    /// [`TransactResult::assert_success`] when the commit outcome matters.
     ///
     /// [`TransactResult::assert_success`]: crate::transact_result::TransactResult::assert_success
     #[track_caller]
@@ -92,7 +89,7 @@ impl FrameResult {
     }
 
     /// Assert the frame aborted (threw a contract exception). Frame-only
-    /// check; the commit outcome is not consulted.
+    /// check.
     #[track_caller]
     pub fn assert_abort(&self) {
         assert!(
@@ -103,8 +100,7 @@ impl FrameResult {
         );
     }
 
-    /// Assert the frame faulted (panicked or trapped). Frame-only check;
-    /// the commit outcome is not consulted.
+    /// Assert the frame faulted (panicked or trapped). Frame-only check.
     #[track_caller]
     pub fn assert_fault(&self) {
         assert!(
@@ -207,8 +203,7 @@ impl FrameResult {
         &self.output
     }
 
-    /// The frame's execution trace (syscalls, storage writes), when tracing
-    /// was enabled.
+    /// The frame's execution trace, when tracing was enabled.
     pub fn trace(&self) -> Option<&InvocationFrameTrace> {
         self.trace.as_ref()
     }
