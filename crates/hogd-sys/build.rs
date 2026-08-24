@@ -677,10 +677,18 @@ fn use_prebuilt_lib(
 
 /// The curl config line carrying credentials, or `None` when unauthenticated.
 ///
+/// Warns about why the download is unauthenticated (password not set, or
+/// set with an empty user), so callers need no further diagnostics.
+///
 /// Credentials go to curl via `--config -` on stdin, never on the command
 /// line: argv is world-readable through `ps` while the download runs.
 fn curl_auth_config(user: &str) -> Option<String> {
-    let pass = env::var("HOGD_FFI_PASSWORD").ok()?;
+    let Ok(pass) = env::var("HOGD_FFI_PASSWORD") else {
+        println!(
+            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
+        );
+        return None;
+    };
     if user.is_empty() {
         println!(
             "cargo:warning=HOGD_FFI_PASSWORD is set but HOGD_FFI_USER is empty; downloading without authentication."
@@ -728,12 +736,8 @@ fn download_with_retry(
         let _ = fs::remove_file(&tmp);
     }
 
+    // curl_auth_config warns about why the download is unauthenticated.
     let auth_config = curl_auth_config(user);
-    if auth_config.is_none() {
-        println!(
-            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
-        );
-    }
 
     let mut wait_secs = 5;
     for attempt in 0..=max_retries {
