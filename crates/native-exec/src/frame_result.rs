@@ -4,6 +4,75 @@ use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::ContractAddress;
 
+/// Human-readable name for a frame outcome, for assertion messages.
+fn status_name(output: &InvocationFrameOutput) -> String {
+    match output {
+        InvocationFrameOutput::Return { .. } => "success (Return)".to_string(),
+        InvocationFrameOutput::Abort { .. } => "abort".to_string(),
+        InvocationFrameOutput::Fault => "fault".to_string(),
+        other => format!("unknown status (code {})", other.status_code()),
+    }
+}
+
+/// Decode and gloss an abort buffer's leading exception selector.
+///
+/// Contract aborts encode as `[u64 selector][payload]` (see
+/// `sdk::exn::cross_exn::ContractExn`). Full payload decoding needs the
+/// exception types, which live above this crate (`sdk`, the interface
+/// crates), so this names only selectors whose preimage is stable and
+/// pinned by the owning crate's own tests — currently `LibraryExn` — and
+/// points at `groundhog-spec-tool describe` for the rest.
+fn describe_abort_buffer(buf: &[u8]) -> String {
+    let mut reader = xdrs::cxs::buf_reader::BufReader::new(buf);
+    let Ok(selector) = <u64 as xdrs::ReadXDR>::read_xdr(&mut reader) else {
+        return format!("undecodable abort buffer {:02x?}", buf);
+    };
+    // The same preimage sdk's `library_exn_selector_matches_sha256` test
+    // pins; recomputed here because depending on `sdk`/`spec-tool` from this
+    // crate would be a dependency cycle.
+    let library_exn = groundhog_contract_util::exception_selector(
+        "1.0.0", "sdk", "LibraryExn",
+    );
+    let gloss = if selector == library_exn {
+        " (sdk LibraryExn — decode with `assert_abort_with::<LibraryExn>` \
+         or `groundhog-spec-tool describe LibraryExn`)"
+    } else {
+        " (see `groundhog-spec-tool describe --list` for known selectors)"
+    };
+    format!(
+        "exception selector {selector:#018x}{gloss}, payload {:02x?}",
+        reader.remaining_slice()
+    )
+}
+
+/// One-line trace context for assertion messages: the syscalls the frame
+/// made, ending with the one closest to the failure.
+fn describe_trace(trace: Option<&InvocationFrameTrace>) -> String {
+    let Some(trace) = trace else {
+        return String::new();
+    };
+    let count = trace.system_calls.len();
+    let last = trace.system_calls.iter().last().map(|syscall| {
+        let mut dbg = format!("{syscall:?}");
+        const MAX: usize = 160;
+        if dbg.len() > MAX {
+            let mut end = MAX;
+            while !dbg.is_char_boundary(end) {
+                end -= 1;
+            }
+            dbg.truncate(end);
+            dbg.push('…');
+        }
+        dbg
+    });
+    match last {
+        None => format!("\n  trace: {count} syscalls"),
+        Some(last) => {
+            format!("\n  trace: {count} syscalls, last: {last}")
+        }
+    }
+}
+
 /// Result of executing a single invocation frame.
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
 #[derive(Debug, Clone)]
@@ -47,12 +116,14 @@ impl FrameResult {
         match &self.output {
             InvocationFrameOutput::Return { .. } => {}
             InvocationFrameOutput::Abort { abort_buffer } => panic!(
-                "expected success, got abort (abort buffer: {:02x?})",
-                abort_buffer.as_slice()
+                "expected success, got abort: {}{}",
+                describe_abort_buffer(abort_buffer.as_slice()),
+                describe_trace(self.trace())
             ),
             other => panic!(
-                "expected success, got status code {}",
-                other.status_code()
+                "expected success, got {}{}",
+                status_name(other),
+                describe_trace(self.trace())
             ),
         }
     }
@@ -61,18 +132,28 @@ impl FrameResult {
     pub fn assert_abort(&self) {
         assert!(
             self.is_abort(),
-            "expected abort, got status code {}",
-            self.output.status_code()
+            "expected abort, got {}{}",
+            status_name(&self.output),
+            describe_trace(self.trace())
         );
     }
 
     #[track_caller]
     pub fn assert_fault(&self) {
-        assert!(
-            self.is_fault(),
-            "expected fault, got status code {}",
-            self.output.status_code()
-        );
+        if !self.is_fault() {
+            match &self.output {
+                InvocationFrameOutput::Abort { abort_buffer } => panic!(
+                    "expected fault, got abort: {}{}",
+                    describe_abort_buffer(abort_buffer.as_slice()),
+                    describe_trace(self.trace())
+                ),
+                other => panic!(
+                    "expected fault, got {}{}",
+                    status_name(other),
+                    describe_trace(self.trace())
+                ),
+            }
+        }
     }
 
     // -- Buffer accessors --
@@ -83,9 +164,13 @@ impl FrameResult {
             InvocationFrameOutput::Return { return_buffer } => {
                 return_buffer.as_slice()
             }
-            _ => panic!(
-                "return_buffer() called on non-success frame (status {})",
-                self.output.status_code()
+            InvocationFrameOutput::Abort { abort_buffer } => panic!(
+                "return_buffer() called on aborted frame: {}",
+                describe_abort_buffer(abort_buffer.as_slice())
+            ),
+            other => panic!(
+                "return_buffer() called on non-success frame ({})",
+                status_name(other)
             ),
         }
     }
@@ -96,9 +181,9 @@ impl FrameResult {
             InvocationFrameOutput::Abort { abort_buffer } => {
                 abort_buffer.as_slice()
             }
-            _ => panic!(
-                "abort_buffer() called on non-abort frame (status {})",
-                self.output.status_code()
+            other => panic!(
+                "abort_buffer() called on non-abort frame ({})",
+                status_name(other)
             ),
         }
     }

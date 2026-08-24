@@ -29,6 +29,9 @@ sha2 = { version = "0.11.0" }
 groundhog-sys = { workspace = true }
 groundhog-storage-cost = { workspace = true }
 groundhog-trace = { workspace = true }
+# For naming known abort selectors in assertion messages; depending on
+# `sdk` or `spec-tool` from here would be a dependency cycle.
+groundhog-contract-util = { workspace = true }
 
 [dev-dependencies]
 ed25519-dalek = { version = "3" }
