@@ -53,6 +53,51 @@ contract_test!(test_hasher_empty_input {
     assert_eq!(Hasher::default().finish(), EXPECTED_EMPTY);
 });
 
+// A frame failure with every hasher slot live must unwind cleanly: the
+// unwind drops each live `Hasher`, reclaiming its slot without panicking
+// again. A drop-time panic here would be a double panic — the whole test
+// process would abort instead of reporting the fault. The companion unit
+// test in `src/hasher.rs` pins `Hasher::drop` against a desynced slot
+// (the state that used to panic); this test covers the guest-visible
+// unwind-with-live-hashers path end to end.
+#[test]
+fn test_frame_failure_with_live_hashers_unwinds_cleanly() {
+    let env = TestEnvironment::no_cost();
+    let addr = ContractAddress::named("hasher_unwind");
+
+    // Exhaust the slots so the failure is hasher-triggered: with all
+    // N_HASHERS live, the next allocation panics, and the resulting
+    // unwind drops every live hasher.
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let mut hashers = vec![];
+            for _ in 0..N_HASHERS {
+                let mut h = Hasher::new();
+                h.update(b"foo");
+                hashers.push(h);
+            }
+            assert!(Hasher::try_new().is_none(), "all slots must be in use");
+            // Panics: no more hashers are available.
+            let _overflow = Hasher::new();
+        })
+    });
+    result.assert_fault();
+
+    // The unwind reclaimed every slot: a fresh frame can allocate and
+    // use all of them again.
+    env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            for _ in 0..N_HASHERS {
+                let mut h = Hasher::new();
+                h.update(b"foo");
+                h.update(b"bar");
+                assert_eq!(h.finish(), EXPECTED);
+            }
+        })
+    })
+    .assert_success();
+}
+
 // The stale-slot scenario: a hasher is updated and then dropped without being
 // finalized, so the VM's buffer for that slot still holds its input. A fresh
 // empty hasher that reuses the same slot must still return the empty-input

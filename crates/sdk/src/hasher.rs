@@ -162,6 +162,45 @@ fn slot_free(_i: HasherIndex) -> bool {
     false
 }
 
+// Regression coverage for the drop-during-unwind double panic.
+//
+// `Hasher::drop` used to panic when `slot_free` reported the slot as
+// already free. Drop runs almost exclusively during unwinds (a throw or
+// panic with a live hasher on the stack), and a panic from a destructor
+// during an unwind is a double panic: the process aborts immediately,
+// killing the whole test binary instead of failing one test.
+//
+// The already-free state is not reachable through the public API on a
+// single thread (slot indices are unforgeable and only `drop` frees
+// them), so reconstruct the bookkeeping desync directly with the
+// module's own `slot_free`, the same way `test_slots` drives the
+// allocator. With the old panicking drop this test aborted the entire
+// test process; with the tolerant drop the original panic is the only
+// panic and unwinds normally.
+#[test]
+fn test_drop_of_desynced_slot_during_unwind_is_not_a_double_panic() {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    let hasher = Hasher::try_new().expect("a hasher slot must be available");
+
+    // Desync the bookkeeping: mark the live hasher's slot free behind its
+    // back — the state whose drop used to panic.
+    assert!(slot_free(hasher.index), "slot must have been allocated");
+
+    let unwind = catch_unwind(AssertUnwindSafe(move || {
+        // Move the hasher in so the unwind (not normal scope exit) drops it.
+        let _live = hasher;
+        panic!("frame failure with a live hasher");
+    }));
+
+    let payload = unwind.expect_err("the closure must panic");
+    assert_eq!(
+        payload.downcast_ref::<&str>(),
+        Some(&"frame failure with a live hasher"),
+        "the original panic must be the only panic"
+    );
+}
+
 #[test]
 fn test_slots() {
     use std::vec;
