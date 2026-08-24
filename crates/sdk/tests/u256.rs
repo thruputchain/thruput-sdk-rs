@@ -4,6 +4,10 @@
 //! moves one: through a contract entrypoint (calldata argument + typed
 //! return, via `try_call_raw_with`) and through `storage::Value<U256>`
 //! (persisted across a block boundary and read back from a fresh handle).
+//!
+//! These tests run the contract side as a host closure. The same paths
+//! through a real compiled artifact are covered by
+//! `example-contracts/u256_roundtrip/tests/rv32.rs`.
 
 use sdk::contract::ContractEntrypointID;
 use sdk::storage::{Keypath, Value};
