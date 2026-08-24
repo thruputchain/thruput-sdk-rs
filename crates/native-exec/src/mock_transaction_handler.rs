@@ -235,7 +235,14 @@ impl MockInvocationFrame {
         };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();
         if err != FFIErrorCode::None {
-            panic!("failed to close mock invocation frame: {:?}", err);
+            // Deliberately an InvokeError payload, not a plain panic!: a
+            // close refused by the FFI is the host reporting a contract bug
+            // (e.g. the live storage-guard check on a terminal Return), and
+            // consumers assert on the Unrecoverable payload (see
+            // example-contracts/storage_errors). The host's diagnostic has
+            // already gone to stderr.
+            eprintln!("failed to close mock invocation frame: {:?}", err);
+            panic_any(crate::invoke_error::unrecoverable_error());
         }
 
         let output: InvocationFrameOutput = xdrs::txs::decode(
