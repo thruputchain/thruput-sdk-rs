@@ -447,6 +447,7 @@ dependencies = [
 name = "groundhog-native-exec"
 version = "0.22.0"
 dependencies = [
+ "groundhog-contract-util",
  "groundhog-event",
  "groundhog-storage-cost",
  "groundhog-sys",
