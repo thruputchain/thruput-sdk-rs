@@ -43,11 +43,11 @@ contracts that don't implement it. Each package passes in isolation,
 which is how CI runs them — but it's another instance of the
 feature-unification fragility called out below.
 
-One more silent-failure instance in `scripts/dev.sh` observed during
-verification: `dev.sh test-examples` run from any directory other than
-the repo root iterates zero packages (relative `example-contracts` path)
-and exits 0. (The bare `dev.sh test` arm's dispatch to a nonexistent
-`test_all` has since been fixed.)
+Two more silent-failure instances in `scripts/dev.sh` observed during
+verification: `./scripts/dev.sh test` dispatches to a nonexistent
+`test_all` function and exits 0, and `dev.sh test-examples` run from any
+directory other than the repo root iterates zero packages (relative
+`example-contracts` path) and also exits 0.
 
 **Addressed in the 2026-06-11 fix pass** (sections removed below):
 
