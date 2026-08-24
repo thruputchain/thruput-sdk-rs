@@ -10,6 +10,20 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Element slots are keyed by the element index (`u32`); see [`Map`] for the
 /// key-encoding injectivity invariant that governs the underlying derivation.
+///
+/// # Concurrency
+///
+/// `len` is a plain storage value that every structural mutation —
+/// [`push_with`](Self::push_with), [`push_empty_slot`](Self::push_empty_slot),
+/// [`pop`](Self::pop) — reads and rewrites under an exclusive lock. Of a set
+/// of concurrent transactions that grow or shrink the same vector, only one
+/// can be included in a block; the rest conflict at commit. A `Vector` is
+/// therefore a poor fit for hot append paths (an event log every caller pushes
+/// to, say) — prefer keying a [`Map`] by something caller-specific, or a
+/// mergeable counter like [`NNInt`](super::NNInt), when concurrent writers
+/// matter. Element reads and in-place element writes through
+/// [`at`](Self::at)/[`at_mut`](Self::at_mut) do not touch `len` and carry only
+/// the per-element storage semantics.
 pub struct Vector<S> {
     keypath: Keypath,
     len: Value<u32>,
@@ -94,6 +108,9 @@ impl<S: StorageType> Vector<S> {
     ///
     /// This increments len before the returned slot is written, making the new
     /// index immediately in-bounds for the rest of the invocation.
+    ///
+    /// Writes `len` under an exclusive lock, so concurrent same-block pushes
+    /// conflict at commit — see the Concurrency notes on [`Vector`].
     #[must_use = "push_empty_slot increments len immediately; dropping the slot leaves it uninitialized. Use push_with to initialize atomically, or bind with `let _ = ...` if an empty slot is intentional."]
     pub fn push_empty_slot(&mut self) -> SlotMut<'_, Self, S> {
         let idx = self.len();
@@ -109,6 +126,9 @@ impl<S: StorageType> Vector<S> {
     ///
     /// If `f` panics or traps, the entire invocation frame faults and reverts,
     /// so neither the slot data nor the len increment are committed.
+    ///
+    /// Writes `len` under an exclusive lock, so concurrent same-block pushes
+    /// conflict at commit — see the Concurrency notes on [`Vector`].
     pub fn push_with<R>(&mut self, f: impl FnOnce(&mut S) -> R) -> R {
         let idx = self.len();
         let mut slot = S::from(self.make_elem_keypath(idx));
@@ -157,6 +177,10 @@ impl<S: StorageType> Vector<S> {
 impl<S: StorageType + Deletable> Vector<S> {
     /// Remove the last element, deleting its storage.
     /// Aborts if the vector is empty.
+    ///
+    /// Writes `len` under an exclusive lock, so concurrent same-block
+    /// structural mutations conflict at commit — see the Concurrency notes on
+    /// [`Vector`].
     pub fn pop(&mut self) {
         let len = self.len();
         if len == 0 {
