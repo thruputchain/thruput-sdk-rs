@@ -16,7 +16,6 @@ members = [
     "simple_wallet_old",
     "test_bytestring",
     "trait_sourced_method_spec",
-    "rcq_test",
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",

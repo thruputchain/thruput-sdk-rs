@@ -682,6 +682,9 @@ fn use_prebuilt_lib(
 fn curl_auth_config(user: &str) -> Option<String> {
     let pass = env::var("HOGD_FFI_PASSWORD").ok()?;
     if user.is_empty() {
+        println!(
+            "cargo:warning=HOGD_FFI_PASSWORD is set but HOGD_FFI_USER is empty; downloading without authentication."
+        );
         return None;
     }
     println!(

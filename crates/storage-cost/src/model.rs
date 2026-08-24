@@ -1,5 +1,10 @@
 use groundhog_xdr::storage_cost::StorageCostModelXdr;
 
+/// The chain's storage price list (`protocol/storage_cost.x`).
+///
+/// All costs are denominated in storage tokens — the same units account
+/// storage balances hold and test-environment grants
+/// (`setup_grant_storage_tokens`) are expressed in.
 pub struct StorageCostModel {
     cost_model: StorageCostModelXdr,
 }
@@ -9,6 +14,12 @@ impl StorageCostModel {
         Self { cost_model }
     }
 
+    /// A model in which every storage operation costs zero.
+    ///
+    /// For tests only. Real networks charge nonzero storage costs, so a
+    /// contract exercised only under this model has never paid for storage —
+    /// keep at least one test on a charging model if storage funding matters
+    /// to the contract.
     pub fn no_cost_model() -> Self {
         Self {
             cost_model: StorageCostModelXdr {
@@ -65,6 +76,23 @@ impl StorageCostModel {
     /// Cost of a native token balance
     pub fn balance_cost(&self) -> i128 {
         self.cost_model.balance_cost.into()
+    }
+
+    /// Cost of each key retained in an auth data item, in storage tokens per
+    /// key (the full item costs `base_data_item_cost + auth_per_key_cost *
+    /// num_keys`).
+    pub fn auth_per_key_cost(&self) -> i128 {
+        self.cost_model.auth_per_key_cost.into()
+    }
+
+    /// Cost of one retro-causal queue entry, in storage tokens per entry.
+    pub fn rcq_cost_per_entry(&self) -> i128 {
+        self.cost_model.rcq_cost_per_entry.into()
+    }
+
+    /// Cost of one replay-cache entry, in storage tokens per entry.
+    pub fn replay_cache_cost_per_entry(&self) -> i128 {
+        self.cost_model.replay_cache_cost_per_entry.into()
     }
 
     pub fn as_xdr(&self) -> StorageCostModelXdr {

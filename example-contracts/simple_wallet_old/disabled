@@ -1,0 +1,4 @@
+Pre-auth-claim wallet kept for historical reference. It no longer compiles
+against the current SDK (sdk::__xdrs::txs::encode is gone) and its raw
+Ed25519 flow has no replay prevention (see the TODO in src/lib.rs); the
+signer_* examples cover the current signing flow.

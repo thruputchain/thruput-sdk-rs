@@ -43,11 +43,11 @@ contracts that don't implement it. Each package passes in isolation,
 which is how CI runs them — but it's another instance of the
 feature-unification fragility called out below.
 
-Two more silent-failure instances in `scripts/dev.sh` observed during
-verification: `./scripts/dev.sh test` dispatches to a nonexistent
-`test_all` function and exits 0, and `dev.sh test-examples` run from any
-directory other than the repo root iterates zero packages (relative
-`example-contracts` path) and also exits 0.
+One more silent-failure instance in `scripts/dev.sh` observed during
+verification: `dev.sh test-examples` run from any directory other than
+the repo root iterates zero packages (relative `example-contracts` path)
+and exits 0. (The bare `dev.sh test` arm's dispatch to a nonexistent
+`test_all` has since been fixed.)
 
 **Addressed in the 2026-06-11 fix pass** (sections removed below):
 
@@ -212,7 +212,27 @@ rewrite + buffer unification #241; sections removed below):
   hogd-side robustness gap.) Regression test
   `panic_with_open_transaction_is_not_masked_by_drop` pins the behavior.
 
-## medium severity (5 remaining)
+**Addressed in the 2026-08-24 devnet-readiness pass** (sections removed
+below):
+
+- *Vector len-lock concurrency* is documented on the type and on
+  `push_with`/`push_empty_slot`/`pop`.
+- *get_block_height / gas_remaining / Hasher* now use `syscall_throw`
+  like their siblings, and `Hasher::drop` no longer panics (no more
+  double-panic abort during unwind).
+- *StorageCostModel* gained rustdoc (units, test-only warning on
+  `no_cost_model`) and the missing `auth_per_key_cost` /
+  `rcq_cost_per_entry` / `replay_cache_cost_per_entry` accessors.
+- *hogd-sys download auth* moved off curl's argv (`--config -` on
+  stdin), an empty `HOGD_FFI_USER` with a set password now warns, and a
+  failed/absent `.sha256` fetch is a hard error unless
+  `HOGD_FFI_ALLOW_UNVERIFIED=1`.
+- The duplicate `rcq_test` workspace member is gone (the xdrs pins had
+  already converged at 0.8.2), and the empty `disabled` marker files
+  (`rcq_test`, `simple_wallet_old`, `imported_error_type`) now state
+  their reasons.
+
+## medium severity (4 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
 
@@ -226,12 +246,6 @@ With `debugging`, `FaultString` serializes as `Option<&str>` (`struct FaultStrin
 
 The type's entire rustdoc is `/// Non-negative integer`, yet `set(-5)` succeeds and `get()` then returns -5 (proven by tests/nnints.rs `negative_set_succeeds` and `set_negative_then_increment_succeeds`: "We can explicitly set a negative value, and the transaction succeeds"). Meanwhile `inc()` (doc: "Increment by an amount (without querying the current value)") can drive the committed value negative without any call-site error — the transaction only reverts at commit (tests/internal_nnints.rs `negative_increment_reverts`: "The frame succeeds but the commit must fail"). The nuanced rules (negative set is allowed and disables the non-negativity check; inc after a non-negative set throws immediately; otherwise underflow is a deferred commit failure; concurrency constraints of set vs add) are documented only on the free functions in src/sys_exn/nnint.rs, not on the NNInt methods a contract author actually calls. NNInt is the obvious balance/counter primitive, so an author relying on the type name to guarantee non-negativity at call time, or expecting set(-x) to throw, is badly misled.
 
-### [sdk-storage/missing-docs] Vector push/pop take an exclusive lock on len; concurrent transactions conflict — undocumented
-
-**File:** `crates/sdk/src/storage/vector.rs:87-109`
-
-`push_empty_slot`, `push_with`, and `pop` all call `self.len.set_exclusive(&new_len)`, meaning any two transactions that push to (or pop from) the same vector in the same block conflict and one fails at commit. The SDK's own test relies on this: crates/sdk/tests/vector-tests/tests/test.rs:60-61 — "// vector push acquires exclusive lock on the vector size" followed by `assert_commit_failed_nondeterministically()`. None of the rustdoc on push_with/push_empty_slot/pop mentions this; an author building a shared log/queue with Vector will discover the serialization bottleneck (and nondeterministic commit failures) only in production. Given the runtime's whole design is around concurrency-friendly storage deltas, this is the single most important fact about Vector's write path.
-
 ### [consumer-experience/redundancy] Five competing spellings for deterministic test nonces/addresses across README and examples
 
 **File:** `README.md:32 (vs example-contracts/counter/tests/test.rs:4, erc1271_caller/tests/lifecycle.rs:11-12)`
@@ -244,19 +258,13 @@ For the same task ('make a deterministic test id'), the corpus a new author read
 
 The published ERC20 standard interface documents nothing a wallet/token integrator needs: `initialize` has no doc at all (it throws `AlreadyInitialized`; who becomes administrator?); `mint`/`burn` don't say they are owner-restricted (`MustBeContractOwner`) or which `ERC20Error` variants each method can throw; `adjust_allowance` deviates from ERC-20 `approve` semantics (signed delta, not absolute) but that is documented only on the ApprovalEvent type (events.rs:135-138), not the trait method clients call. Also, `Amount` is `u128`, but `From<&TransferEvent> for stdevt::TransferEvent` does `TryInto::<i128>::try_into(val.amount).unwrap()` (events.rs:90) — converting an event for a supply above i128::MAX panics, an undocumented invariant, despite `amount_to_diff` in error.rs:20-22 showing the throwing alternative.
 
-## low severity (36 remaining)
+## low severity (28 remaining)
 
 ### [sdk-core/missing-docs] Public syscall wrappers and InvokeConfig lack rustdoc on throwing behavior, limits, and default semantics
 
 **File:** `crates/sdk/src/deploy.rs:8-51`
 
 Whole public modules expose undocumented functions whose failure mode is a thrown `LibraryExn` (a non-returning abort): `get_deploy_address`, `get_deploy_address_for_other`, `deploy_contract` (deploy.rs), `get_caller`/`get_current_address`/`get_source_transaction_hash` (contract_op.rs:139-164), `log` (log.rs:5), `sha256` (crypto.rs:9). None state that they throw rather than return errors, and none document size limits (e.g. `log_event`'s 500-byte data cap via `encode_xdr`). `InvokeConfig` (invoke_config.rs:4-17) documents neither field: `gas_limit: u64::MAX` as the default 'forward everything' sentinel and the units of `gas_limit` are exactly what a contract author needs to know before making cross-contract calls.
-
-### [sdk-core/weird] get_block_height and gas_remaining bypass the SDK's syscall_throw convention with bare unwrap/panic
-
-**File:** `crates/sdk/src/block.rs:6`
-
-`raw_GetBlockHeight(&mut block).unwrap();` and stats.rs:11 `unwrap_or_else(|e| panic!("GetTransactionStatistics failed: {:?}", e))` are the only two syscall wrappers in the crate that panic (fault) instead of `syscall_throw(...)` (typed `LibraryExn::Syscall` exception) like contract_op.rs, crypto.rs, deploy.rs, log.rs and event.rs do. Callers get a fault with no selector instead of a catchable library exception, and in non-debugging builds the panic message is lost entirely — a surprising asymmetry for such commonly used getters.
 
 ### [sdk-storage/footgun] Map::at_disjoint_mut uses K::PartialEq as a proxy for storage-key disjointness
 
@@ -354,23 +362,11 @@ The entrypoint ID is computed as `sha256(INTERFACE_NAME || MAJOR_VERSION || METH
 
 `payload()` computes `topics_extent = min(TOPIC_SIZE * event.num_topics as usize, event.serialized_event.len())` and returns `&event.serialized_event[topics_extent..]`. For a malformed event where `num_topics * 32 > serialized_event.len()`, this silently returns an empty payload (which may then XDR-decode "successfully" for zero-field payload types) instead of surfacing the corruption. Meanwhile `topic()` (lines 35-37) returns `None` for exactly the same out-of-bounds condition. Two accessors on the same view classify the same malformed input as "fine, empty" vs "absent". Also `num_topics as usize * 32` relies on the clamp to avoid garbage; nothing validates the documented 0..=3 topic cap. A contract author asserting on payload contents will get a confusing decode error (or false-positive empty match) rather than "event is malformed".
 
-### [small-crates/missing-docs] StorageCostModel public API has zero rustdoc: no units, no warning on no_cost_model(), missing accessors for three model fields
-
-**File:** `crates/storage-cost/src/model.rs:3-30`
-
-`pub struct StorageCostModel`, `pub fn new`, `pub fn no_cost_model`, `pub fn serialize`, and `pub fn as_xdr` carry no rustdoc at all. The cost methods that are documented say only e.g. "Cost of a bytestring of the given length" with no statement of units (token base units? gas?) or why the return type is `i128` for `u64` fields. `no_cost_model()` constructs an all-zero cost model — fine for tests, but nothing says "test-only"; a user estimating storage fees against it gets 0 for everything with no signal. Additionally the XDR model has `auth_per_key_cost`, `rcq_cost_per_entry`, and `replay_cache_cost_per_entry` fields (lines 20-22) for which no cost accessor exists, so the wrapper covers only a subset of the model and callers must escape-hatch through `as_xdr()` without knowing the coverage is partial.
-
 ### [small-crates/weird] hogd-sys build errors and env vars still say "native_exec", which is now a different crate in this workspace
 
 **File:** `crates/hogd-sys/build.rs:330-334`
 
 The guest-target rejection reads `"native_exec does not build for <target>"`, the version-mismatch error (line 419) instructs "Please update TEST_FFI_VERSION in native_exec/build.rs to match the header", and the force-reconfigure env var is `NATIVE_EXEC_ALWAYS_CONFIGURE` (lines 339, 969). The package is `groundhog-sys` in `crates/hogd-sys`, and the workspace contains a separate `crates/native-exec` crate (which has no build.rs constant to update). A user hitting the version-mismatch error is directed to edit the wrong crate. Evidence of a rename that never updated the user-facing strings.
-
-### [small-crates/footgun] Download auth passes user:password on the curl command line; empty HOGD_FFI_USER silently disables auth
-
-**File:** `crates/hogd-sys/build.rs:655-668`
-
-`add_auth_to_curl` does `cmd.arg("-u").arg(format!("{user}:{pass}"))`, putting the secret from `HOGD_FFI_PASSWORD` into curl's argv where it is visible to every local process via `ps` for the duration of the (retried, possibly minutes-long) download — curl supports `--netrc`/stdin config to avoid this. Also, the auth is added only `if !user.is_empty()`: if a user exports `HOGD_FFI_USER=""` (or a CI template leaves it blank) while the password is set, the build silently downloads unauthenticated — the "password not set" warning is in the other branch, so no diagnostic fires. Related: if the `.sha256` checksum download fails, verification is skipped with only a cargo:warning (lines 769-774, 844-854), so an authentication or CDN failure degrades to unverified binaries linked into the test harness.
 
 ### [small-crates/weird] bottle-test-if breaks every workspace inheritance convention used by its sibling crates
 
@@ -389,12 +385,6 @@ The flagship-simple example's `initialize(&mut self, initial_value: u64)` is jus
 **File:** `crates/macros/src/common/client.rs:122-152`
 
 Every generated client gets three look-alike builder methods, but `with_gas_limit` takes `&self` and clones (the original client stays usable — counter/tests/test.rs:90-93 even has a comment proving this non-obvious behavior), while `with_commit_locking` and `with_read_only` take `self` by value and consume the client. Chaining `client.with_gas_limit(n)` then continuing to use `client` works; doing the same after `with_commit_locking()` is a move error (or, with a rebind, silently a different client than the user thinks). An API family this symmetric-looking should have uniform receivers; none of the three is documented (the generated methods carry no rustdoc).
-
-### [consumer-experience/redundancy] example-contracts workspace lists rcq_test twice and pins a different xdrs version than the root workspace
-
-**File:** `example-contracts/Cargo.toml:15,20`
-
-`members` contains "rcq_test" at two positions (after "hasher" and after "test_bytestring") — harmless to cargo but clear copy-paste drift in exactly the file the root manifest warns must be manually kept in sync (sdk_rs/Cargo.toml:53-55). The embedded workspace also pins `xdrs = "0.7.0"` with no features while the root pins `xdrs = { version = "0.7.1", features = ["int128", "heapless"] }`. Related drift: the rcq_test crate is disabled via an empty marker file `example-contracts/rcq_test/disabled` that only scripts/dev.sh:406 understands — an undocumented mechanism a reader of the example corpus has no way to discover.
 
 ### [consumer-experience/weird] groundhog-erc20-metadata-if: wrong crate description, unconditional no_std, and undocumented initialize overlap with ERC20
 
@@ -419,12 +409,6 @@ The sdk deliberately ships two parallel primitive-storage APIs: `sys_result` (re
 **File:** `crates/sdk/src/mock/contract_test.rs:300`
 
 `sdk::deploy::get_deploy_address(nonce, hash)` / `get_deploy_address_for_other(addr, nonce, hash)` ask hogd via syscall (crates/sdk/src/deploy.rs:8-38), while `sdk::mock::contract_test::deploy_address(deployer, nonce, hash)` re-implements the scheme host-side by XDR-encoding ContractDeploymentHashPreimage and sha256-ing it. Three problems: (1) the host copy silently drifts if hogd's scheme changes — nothing ties them together (no shared test comparing the two); (2) under the `mock` feature both `deploy_address` and `get_deploy_address_for_other` are exported at the sdk root with no naming pattern distinguishing 'computed locally' from 'asked the VM'; (3) `deploy_address` (pure computation) sits one keystroke from `deploy_contract` (crates/sdk/src/deploy.rs:40, actually performs a deployment) — neither has rustdoc warning about the difference. crates/bottle-test/src/main.rs already mixes both (`deploy_address(&OWNER, ...)` then `deploy_contract(...)`) and relies on a comment to keep them consistent.
-
-### [cross-crate/weird] Hasher panics on syscall failure while every sibling syscall wrapper throws; Drop can panic
-
-**File:** `crates/sdk/src/hasher.rs:50`
-
-`Hasher::update`/`Hasher::finish` handle syscall failure with `panic!("SHA256Update: syscall failed: {:?}", e)`, whereas the workspace-wide convention for guest syscall wrappers is `syscall_throw(SyscallNo::..., errno)` — see the one-shot `sha256` in the very same domain (crates/sdk/src/crypto.rs:12) and all of sys_exn/. On guests, panic vs syscall_throw produce different failure surfaces (trap vs structured exception), so the incremental and one-shot hashing APIs fail differently for the same underlying errno. Additionally `Hasher::new` panics when all 8 slots (N_HASHERS) are in use — documented — but `Drop for Hasher` also panics (`Hasher::drop: internal error: already freed`), which converts any unwinding path that double-frees into an abort. The slot-exhaustion limit interacts badly with the niche `Drop` strategy of leaving VM slots dirty; none of this is mentioned on `finish`/`update`.
 
 ### [cross-crate/missing-docs] Root-exported syscall modules crypto.rs and deploy.rs have zero rustdoc; verify_signature_ed25519 swallows error causes
 
