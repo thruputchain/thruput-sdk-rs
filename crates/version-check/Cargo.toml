@@ -14,5 +14,8 @@ description = "Checks that in-repo version pins agree across every manifest and 
 semver = "1.0.28"
 toml_edit = "0.25.13"
 
+[dev-dependencies]
+tempfile = "3"
+
 [lib]
 doctest = false
