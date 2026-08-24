@@ -218,9 +218,10 @@ below):
 - *native-exec diagnostics and docs:* frame assertions decode the abort
   selector and append trace context; `transact_manual` panics when the
   closure forgets to commit/abort instead of silently drop-aborting; the
-  harness-misuse guards panic with messages instead of opaque
-  `Box<dyn Any>`; and the crate now builds under `#![warn(missing_docs)]`,
-  with the one-root-frame-per-transaction invariant documented on
+  mock frame executor re-raises the misuse guards' Unrecoverable payload
+  instead of recording it as a contract fault of the enclosing frame; and
+  the crate now builds under `#![warn(missing_docs)]`, with the
+  one-root-frame-per-transaction invariant documented on
   `call`/`open_root_frame`/`TestEnvironment::transact`.
 
 ## medium severity (5 remaining)

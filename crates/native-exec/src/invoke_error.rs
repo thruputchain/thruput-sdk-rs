@@ -71,24 +71,6 @@ pub fn abort_transaction_error() -> InvokeError {
     }
 }
 
-/// Report harness misuse — a test driving the mock-frame API outside its
-/// contract (executing an already-closed frame, closing a frame over an
-/// open child, ...) — and panic with the standard unrecoverable payload.
-///
-/// Misuse is a bug in the test, not contract behavior, so it travels as an
-/// Unrecoverable [`InvokeError`]: the mock frame executor re-raises that
-/// payload instead of recording it as a fault of the enclosing frame, so
-/// the misuse always fails the test. The message goes to stderr because
-/// the payload itself carries no text.
-#[track_caller]
-pub(crate) fn harness_misuse_panic(msg: &str) -> ! {
-    eprintln!(
-        "harness misuse: {msg} (at {})",
-        std::panic::Location::caller()
-    );
-    panic::panic_any(unrecoverable_error());
-}
-
 thread_local! {
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
