@@ -449,7 +449,6 @@ name = "groundhog-native-exec"
 version = "0.23.0"
 dependencies = [
  "ed25519-dalek",
- "groundhog-contract-util",
  "groundhog-domain-separator",
  "groundhog-event",
  "groundhog-storage-cost",
