@@ -31,7 +31,9 @@ impl<'a> FrameBuilder<'a> {
         }
     }
 
-    /// Set the frame's invoke flags (default: 0).
+    /// Set the frame's invoke flags, a bitset of
+    /// [`InvokeFlag`](groundhog_xdr::invoke_flag::InvokeFlag) values
+    /// (default: [`InvokeFlag::None`](groundhog_xdr::invoke_flag::InvokeFlag::None)).
     pub fn with_flags(self, flags: i32) -> Self {
         Self {
             config: self.config.with_invoke_flags(flags),

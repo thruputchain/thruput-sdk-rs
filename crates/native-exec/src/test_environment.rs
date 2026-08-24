@@ -255,8 +255,8 @@ impl TestEnvironmentInner {
         }
     }
 
-    /// Turn on FFI-level syscall logging at `level` for environments
-    /// created afterwards.
+    /// Turn on FFI-level logging of syscalls to stderr at `level` for
+    /// environments created afterwards.
     pub fn enable_syscall_logging(level: groundhog_sys::FFILogLevel) {
         unsafe { groundhog_sys::enable_syscall_logging(level as i32) };
     }
@@ -512,8 +512,9 @@ impl TestEnvironment {
         ))
     }
 
-    /// Turn on FFI-level syscall tracing. Affects environments created
-    /// after the call.
+    /// Turn on FFI-level logging of syscalls to stderr. Affects
+    /// environments created after the call. (Distinct from tracing — the
+    /// structured trace output on [`FrameResult`].)
     pub fn enable_syscall_logging() {
         TestEnvironmentInner::enable_syscall_logging(
             groundhog_sys::FFILogLevel::Trace,
