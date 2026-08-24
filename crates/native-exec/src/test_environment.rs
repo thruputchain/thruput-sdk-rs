@@ -50,6 +50,9 @@ pub fn test_network_hash() -> NetworkHash {
     NetworkHash::new(hash.into())
 }
 
+/// The state behind a [`TestEnvironment`]: the FFI database, runtime
+/// context, and registered mock contracts. Access it through
+/// [`TestEnvironment`]'s methods.
 pub struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
@@ -236,6 +239,8 @@ impl Drop for RuntimeContextWrapper {
 }
 
 impl TestEnvironmentInner {
+    /// Create the environment state: a fresh in-memory database (with the
+    /// given cost model) and runtime context on `network_hash`.
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
@@ -250,6 +255,8 @@ impl TestEnvironmentInner {
         }
     }
 
+    /// Turn on FFI-level syscall logging at `level` for environments
+    /// created afterwards.
     pub fn enable_syscall_logging(level: groundhog_sys::FFILogLevel) {
         unsafe { groundhog_sys::enable_syscall_logging(level as i32) };
     }
@@ -414,10 +421,13 @@ impl TestEnvironmentInner {
         out
     }
 
+    /// The storage cost model the environment's database is running with.
     pub fn get_current_cost_model(&self) -> StorageCostModel {
         self.db.get_cost_model()
     }
 
+    /// Verify `tx`'s auth claims against auth data loaded from the
+    /// database; see [`TestEnvironment::verify_signed_transaction_auth`].
     pub fn run_auth_checks(
         &self,
         tx: &SignedTransaction,
@@ -487,34 +497,45 @@ impl TestEnvironment {
         te
     }
 
+    /// Environment with the chain-default cost model on the default test
+    /// network. (Not the `Default` trait: constructors return a handle.)
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> TestEnvironmentHandle {
         Self::new(None)
     }
 
+    /// Environment in which every storage operation costs zero — the usual
+    /// choice for tests that aren't about storage funding.
     pub fn no_cost() -> TestEnvironmentHandle {
         Self::new(Some(
             &groundhog_storage_cost::StorageCostModel::no_cost_model(),
         ))
     }
 
-    // This has effect only after creation of a test environment
+    /// Turn on FFI-level syscall tracing. Affects environments created
+    /// after the call.
     pub fn enable_syscall_logging() {
         TestEnvironmentInner::enable_syscall_logging(
             groundhog_sys::FFILogLevel::Trace,
         );
     }
 
+    /// Advance to the next block, making committed effects visible to
+    /// subsequent transactions. Panics if a transaction executed but was
+    /// neither committed nor aborted.
     pub fn advance_block(self: &TestEnvironmentHandle) {
         self.inner.borrow_mut().advance_block()
     }
 
+    /// The storage cost model the environment's database is running with.
     pub fn get_current_cost_model(
         self: &TestEnvironmentHandle,
     ) -> StorageCostModel {
         self.inner.borrow().get_current_cost_model()
     }
 
+    /// Read a committed contract-data storage item from the current block
+    /// snapshot (`None` if the key holds nothing).
     pub fn get_snapshot_storage_item(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
@@ -569,6 +590,11 @@ impl TestEnvironment {
     /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
     /// (hogd handles abort internally when the root frame reverted).
+    ///
+    /// The transaction has exactly one root frame: call `tx.call(&addr)`
+    /// once inside the closure (a second call panics). For a second
+    /// contract call, open a child frame from within the root frame or use
+    /// another `transact`.
     ///
     /// Shorthand for `env.transaction().transact(f)`; use
     /// [`transaction`](Self::transaction) to customize the transaction first.

@@ -36,6 +36,8 @@ enum MockInvocationFrameState {
     ),
 }
 
+/// Builder for one invocation frame's configuration (calldata, flags, gas
+/// limit) before the frame is opened with [`build`](Self::build).
 pub struct MockInvocationFrameConfig<'a> {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     invocation: groundhog_xdr::transaction::Invocation,
@@ -75,21 +77,26 @@ impl<'a> MockInvocationFrameConfig<'a> {
         }
     }
 
+    /// Set the calldata the invoked frame observes (default: empty).
     pub fn with_calldata(mut self, calldata: xdr_common::BytesM) -> Self {
         self.invocation.calldata = calldata;
         self
     }
 
+    /// Set the frame's invoke flags (default: 0).
     pub fn with_invoke_flags(mut self, invoke_flags: i32) -> Self {
         self.invoke_flags = invoke_flags;
         self
     }
 
+    /// Set the frame's gas limit (default: `u64::MAX`).
     pub fn with_gas_limit(mut self, gas_limit: u64) -> Self {
         self.invocation.gas_limit = gas_limit;
         self
     }
 
+    /// Open the frame at the FFI level and hand back the emplaced
+    /// [`MockInvocationFrame`] for `execute`/`result` calls.
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
@@ -105,6 +112,13 @@ impl<'a> MockInvocationFrameConfig<'a> {
     }
 }
 
+/// One open invocation frame in a mocked transaction.
+///
+/// Drive it with [`execute`](Self::execute) (possibly repeatedly, via
+/// `FrameAction::Continue`) and read the outcome with
+/// [`result`](Self::result) once closed. Prefer the fluent
+/// [`FrameBuilder`](crate::frame_builder::FrameBuilder) API (`tx.call(...)`)
+/// unless a test needs this level of control.
 pub struct MockInvocationFrame {
     root_handler: *mut c_void,
     child_frame: Option<Box<MockInvocationFrame>>,
@@ -268,6 +282,12 @@ impl MockInvocationFrame {
         self.context_pushcount.borrow_mut().pop_context();
     }
 
+    /// Run `lambda` as this frame's contract code.
+    ///
+    /// Panics out of the lambda are caught and mapped to frame outcomes
+    /// (ordinary panics become deterministic faults; [`InvokeError`]
+    /// payloads keep their code). Returning `FrameAction::Close` closes the
+    /// frame; `FrameAction::Continue` leaves it open for another `execute`.
     pub fn execute(
         &mut self,
         lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
@@ -325,6 +345,10 @@ impl MockInvocationFrame {
         self
     }
 
+    /// The closed frame's [`FrameResult`].
+    ///
+    /// Panics if the frame is still open (drive it to `FrameAction::Close`
+    /// first).
     pub fn result(&mut self) -> FrameResult {
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
@@ -476,8 +500,15 @@ impl Default for MockTransactionConfig {
     }
 }
 
-// Can run one, and only one, transaction,
-// and then get the results
+/// A mocked transaction context: runs one, and only one, transaction.
+///
+/// A transaction has exactly one root frame — [`call`](Self::call) /
+/// [`open_root_frame`](Self::open_root_frame) may be invoked once per
+/// handler, and a second invocation panics. To run a second contract call,
+/// either open a child frame from within the root frame
+/// ([`MockInvocationFrame::open_child_frame`], or `FrameHandle::child_call`
+/// in the fluent API) or run a second transaction (another
+/// `env.transact(..)`).
 pub struct MockTransactionHandler {
     pub(crate) handler: *mut c_void,
     pub(crate) _env: Rc<TestEnvironment>,
@@ -542,6 +573,10 @@ impl MockTransactionHandler {
         self.state == MockTransactionState::Running
     }
 
+    /// Abort the running transaction, discarding its writes.
+    ///
+    /// Panics unless the transaction is running and its root frame is
+    /// closed.
     pub fn abort_transaction(&mut self) {
         assert_eq!(self.state, MockTransactionState::Running);
         assert!(
@@ -556,6 +591,11 @@ impl MockTransactionHandler {
         }
     }
 
+    /// Attempt the two-phase commit of the running transaction, returning
+    /// the [`TryCommitResult`](crate::TryCommitResult) outcome.
+    ///
+    /// Panics unless the transaction is running and its root frame is
+    /// closed.
     pub fn try_commit_transaction(&mut self) -> crate::TryCommitResult {
         assert_eq!(self.state, MockTransactionState::Running);
         assert!(
@@ -578,6 +618,13 @@ impl MockTransactionHandler {
 
     /// Convenience: open a root frame targeting the given contract address.
     /// Returns a FrameBuilder for configuring and executing the frame.
+    ///
+    /// A transaction has exactly one root frame, so `call` may be invoked
+    /// only once per transaction; a second call panics ("transaction
+    /// already started"). Call a second contract from *within* the frame
+    /// via `run_continuable` + `FrameHandle::child_call` (or
+    /// [`MockInvocationFrame::open_child_frame`]), or run it in a separate
+    /// `env.transact(..)`.
     pub fn call(
         &mut self,
         addr: &groundhog_xdr::types::ContractAddress,
@@ -587,6 +634,10 @@ impl MockTransactionHandler {
     }
 
     /// Configure this transaction's root frame, invoking `contract_address`.
+    ///
+    /// A transaction has exactly one root frame: calling this (or
+    /// [`call`](Self::call)) a second time on the same handler panics. Open
+    /// child frames for nested calls, or use a second transaction.
     ///
     /// Child frames opened underneath it must name different addresses; see
     /// [`MockInvocationFrame::open_child_frame`].

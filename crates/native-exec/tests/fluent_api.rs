@@ -1322,12 +1322,13 @@ fn transact_manual_without_commit_panics() {
     // panics instead.
     let env = TestEnvironment::new(None);
 
-    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        env.transact_manual(|tx| {
-            tx.call(&[9u8; 32].into()).run(|| {}).assert_success();
-            // ... and forgets to commit or abort.
-        });
-    }));
+    let caught =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            env.transact_manual(|tx| {
+                tx.call(&[9u8; 32].into()).run(|| {}).assert_success();
+                // ... and forgets to commit or abort.
+            });
+        }));
 
     let payload = caught.expect_err("forgetting to commit must panic");
     let msg = payload

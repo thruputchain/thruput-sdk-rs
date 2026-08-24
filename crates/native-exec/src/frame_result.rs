@@ -31,7 +31,9 @@ fn describe_abort_buffer(buf: &[u8]) -> String {
     // pins; recomputed here because depending on `sdk`/`spec-tool` from this
     // crate would be a dependency cycle.
     let library_exn = groundhog_contract_util::exception_selector(
-        "1.0.0", "sdk", "LibraryExn",
+        "1.0.0",
+        "sdk",
+        "LibraryExn",
     );
     let gloss = if selector == library_exn {
         " (sdk LibraryExn — decode with `assert_abort_with::<LibraryExn>` \
@@ -83,6 +85,7 @@ pub struct FrameResult {
 }
 
 impl FrameResult {
+    /// Wrap a frame's output, optional trace, and emitted events.
     pub fn new(
         output: InvocationFrameOutput,
         trace: Option<InvocationFrameTrace>,
@@ -97,20 +100,30 @@ impl FrameResult {
 
     // -- Status checks (using pattern matching for safety) --
 
+    /// True if the frame returned successfully.
     pub fn is_success(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Return { .. })
     }
 
+    /// True if the frame aborted (threw a contract exception).
     pub fn is_abort(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Abort { .. })
     }
 
+    /// True if the frame faulted (panicked or trapped, with no abort data).
     pub fn is_fault(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Fault)
     }
 
     // -- Assertions --
 
+    /// Assert the frame returned successfully.
+    ///
+    /// This checks only the frame outcome, not the database commit — pair it
+    /// with [`TransactResult::assert_success`] semantics (frame + commit) via
+    /// the transaction-level result when commit matters.
+    ///
+    /// [`TransactResult::assert_success`]: crate::transact_result::TransactResult::assert_success
     #[track_caller]
     pub fn assert_success(&self) {
         match &self.output {
@@ -128,6 +141,8 @@ impl FrameResult {
         }
     }
 
+    /// Assert the frame aborted (threw a contract exception). Frame-only
+    /// check; the commit outcome is not consulted.
     #[track_caller]
     pub fn assert_abort(&self) {
         assert!(
@@ -138,6 +153,8 @@ impl FrameResult {
         );
     }
 
+    /// Assert the frame faulted (panicked or trapped). Frame-only check;
+    /// the commit outcome is not consulted.
     #[track_caller]
     pub fn assert_fault(&self) {
         if !self.is_fault() {
@@ -247,20 +264,25 @@ impl FrameResult {
 
     // -- Raw access --
 
+    /// The frame's raw [`InvocationFrameOutput`].
     pub fn output(&self) -> &InvocationFrameOutput {
         &self.output
     }
 
+    /// The frame's execution trace (syscalls, storage writes), when tracing
+    /// was enabled.
     pub fn trace(&self) -> Option<&InvocationFrameTrace> {
         self.trace.as_ref()
     }
 
     // -- Per-frame events --
 
+    /// The events this frame emitted (empty if the frame reverted).
     pub fn events(&self) -> &[TxEmittedEvent] {
         &self.events
     }
 
+    /// Assert exactly `expected` events were emitted by this frame.
     #[track_caller]
     pub fn assert_event_count(&self, expected: usize) {
         let actual = self.events.len();
@@ -271,6 +293,7 @@ impl FrameResult {
         );
     }
 
+    /// Assert this frame emitted no events.
     #[track_caller]
     pub fn assert_no_events(&self) {
         assert!(
