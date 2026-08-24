@@ -199,8 +199,8 @@ impl MockInvocationFrame {
         // this too, but replacing the open child Box would first Drop it,
         // force-finishing the wrong FFI frame before the lib could object.)
         if self.has_open_child() {
-            panic!(
-                "cannot open a child frame while another child frame is still open"
+            crate::invoke_error::harness_misuse_panic(
+                "cannot open a child frame while another child frame is still open",
             );
         }
         let config = MockInvocationFrameConfig::new(
@@ -224,7 +224,9 @@ impl MockInvocationFrame {
         // abandoned child's Drop would later finish what is at FFI level
         // THIS frame, poisoning the transaction.
         if self.has_open_child() {
-            panic!("cannot close a frame while its child frame is still open");
+            crate::invoke_error::harness_misuse_panic(
+                "cannot close a frame while its child frame is still open",
+            );
         }
 
         let handler_res = unsafe {
@@ -293,7 +295,10 @@ impl MockInvocationFrame {
     ///
     /// Panics out of the lambda are caught and mapped to frame outcomes
     /// (ordinary panics become deterministic faults; [`InvokeError`]
-    /// payloads keep their code). Returning `FrameAction::Close` closes the
+    /// payloads keep their code). A harness-misuse panic
+    /// ([`HarnessMisuse`](crate::invoke_error::HarnessMisuse)) is re-raised
+    /// instead of being recorded as a fault of this frame. Returning
+    /// `FrameAction::Close` closes the
     /// frame; `FrameAction::Continue` leaves it open for another `execute`.
     pub fn execute(
         &mut self,
@@ -303,7 +308,9 @@ impl MockInvocationFrame {
         use crate::frame_builder::FrameAction;
 
         if self.state != MockInvocationFrameState::Started {
-            panic!("cannot execute a frame that has already been closed");
+            crate::invoke_error::harness_misuse_panic(
+                "cannot execute a frame that has already been closed",
+            );
         }
 
         // Executing a frame while its child frame is still open would run
@@ -314,8 +321,8 @@ impl MockInvocationFrame {
         // losing the handle: opening a child inside an `execute` lambda and
         // returning Continue with the child left open.)
         if self.has_open_child() {
-            panic!(
-                "cannot execute a frame while its child frame is still open"
+            crate::invoke_error::harness_misuse_panic(
+                "cannot execute a frame while its child frame is still open",
             );
         }
 
@@ -338,6 +345,16 @@ impl MockInvocationFrame {
             }
             Ok(FrameAction::Continue) => {}
             Err(err) => {
+                if err
+                    .downcast_ref::<crate::invoke_error::HarnessMisuse>()
+                    .is_some()
+                {
+                    // A misuse guard fired inside the lambda (e.g. driving an
+                    // already-closed child frame). That is a bug in the test,
+                    // not contract behavior: re-raise it so it fails the test
+                    // instead of closing THIS frame as a deterministic fault.
+                    std::panic::resume_unwind(err);
+                }
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
                     self.close_frame_internal(my_error.error_type);
                 } else {
@@ -362,9 +379,9 @@ impl MockInvocationFrame {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
             }
             _ => {
-                panic!(
+                crate::invoke_error::harness_misuse_panic(
                     "cannot get the result of a frame while it is not closed \
-                     (drive it to FrameAction::Close first)"
+                     (drive it to FrameAction::Close first)",
                 );
             }
         };
@@ -739,6 +756,46 @@ mod tests {
     }
 
     #[test]
+    fn misuse_inside_nested_execute_propagates_instead_of_faulting_parent() {
+        // Regression: a misuse guard firing INSIDE an enclosing frame's
+        // `execute` lambda (here: chaining a second `execute` onto an
+        // already-closed child) unwinds into the parent's catch_unwind.
+        // With a plain-message payload the parent would classify it as a
+        // deterministic contract fault and the test would pass over a
+        // faulted FrameResult; the HarnessMisuse payload must be re-raised
+        // with its message intact instead.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.execute(|frame| {
+                    let child = frame
+                        .open_child_frame(child_addr())
+                        .with_invoke_flags(0)
+                        .build();
+                    child.execute(|_| FrameAction::Close);
+                    let _ = child.result();
+                    // Misuse: drive the already-closed child again.
+                    child.execute(|_| FrameAction::Close);
+                    FrameAction::Close
+                });
+            }));
+
+        assert_misuse_message(
+            caught.expect_err(
+                "misuse inside a nested execute closure must propagate as a \
+                 panic, not close the parent frame as a contract fault",
+            ),
+            "cannot execute a frame that has already been closed",
+        );
+    }
+
+    #[test]
     fn test_mock_transaction_handler() {
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
@@ -1080,19 +1137,19 @@ mod tests {
         );
     }
 
-    /// Assert a caught panic payload is a plain message panic (the
-    /// frame-nesting misuse guards) containing `expected`.
+    /// Assert a caught panic payload is a [`HarnessMisuse`] panic (the
+    /// frame-misuse guards) whose message contains `expected`.
     #[track_caller]
     fn assert_misuse_message(
         payload: Box<dyn std::any::Any + Send>,
         expected: &str,
     ) {
-        let msg = payload
-            .downcast_ref::<&'static str>()
-            .copied()
-            .map(str::to_string)
-            .or_else(|| payload.downcast_ref::<String>().cloned())
-            .expect("harness-misuse guards must panic with a message payload");
+        let msg = &payload
+            .downcast_ref::<crate::invoke_error::HarnessMisuse>()
+            .expect(
+                "harness-misuse guards must panic with a HarnessMisuse payload",
+            )
+            .0;
         assert!(
             msg.contains(expected),
             "expected guard message containing {expected:?}, got {msg:?}"
