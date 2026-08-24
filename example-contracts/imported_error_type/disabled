@@ -1,1 +1,2 @@
-
+Error-type-only library (no entrypoints of its own); build
+imported_error_callee / imported_error_caller instead.

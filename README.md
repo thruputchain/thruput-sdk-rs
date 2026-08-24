@@ -89,6 +89,14 @@ To retrieve or update their contents in an existing cloned repository, use:
 git submodule update --init --recursive
 ```
 
+The only submodule (`integration_test/contracts`, the
+`integration_test_contracts` repository) is an internal test corpus and is
+not accessible outside the Groundhog organization. If the submodule clone
+fails with a permission error, skip it — everything except the
+`integration_test` suite (`scripts/dev.sh test-itc` and the corresponding
+part of `ci`) builds and tests without it, and `version-check` reports the
+narrowed scan scope explicitly.
+
 ## Requirements
 
 ### Rust toolchain

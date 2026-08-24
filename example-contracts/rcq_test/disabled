@@ -1,0 +1,5 @@
+Entrypoint-driven RCQ exercise predating the native test harness. It still
+builds, but declares no rv32 bin and no tests (test = false), so the sweep
+has nothing to run; the multi-transaction RCQ scenarios are covered by
+crates/sdk/tests/rcq.rs. Kept as a reference for driving RCQs from contract
+entrypoints.
