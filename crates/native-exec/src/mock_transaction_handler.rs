@@ -117,7 +117,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
 /// Drive it with [`execute`](Self::execute) (possibly repeatedly, via
 /// `FrameAction::Continue`) and read the outcome with
 /// [`result`](Self::result) once closed. Prefer the fluent
-/// [`FrameBuilder`](crate::frame_builder::FrameBuilder) API (`tx.call(...)`)
+/// [`crate::frame_builder::FrameBuilder`] API (`tx.call(...)`)
 /// unless a test needs this level of control.
 pub struct MockInvocationFrame {
     root_handler: *mut c_void,
