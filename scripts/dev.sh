@@ -1128,7 +1128,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 
                 test_contract "$dir" "$pkg" "$@"
             else
-                test_all
+                test_package
             fi
             ;;
         bottle-test)
@@ -1139,9 +1139,6 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             ;;
         test-itc)
             itc_test_all "$@"
-            ;;
-        test-spec)
-            test_spec
             ;;
         run-bottle-tests)
             eg_bottle_test_all &&

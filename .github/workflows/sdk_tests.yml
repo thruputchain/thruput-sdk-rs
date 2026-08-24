@@ -45,7 +45,6 @@ jobs:
       - name: Run SDK tests
         env:
           SKIP_DOCS: "1"
-          SKIP_SPEC_TESTS: "1"
           SKIP_EXAMPLES: "1"
           SKIP_INTEGRATION: "1"
           SKIP_LOGGING: "1"
