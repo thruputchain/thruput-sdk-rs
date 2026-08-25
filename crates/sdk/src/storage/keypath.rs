@@ -97,7 +97,188 @@ pub const STATIC_KEYPATH_CAPACITY: usize = 256;
 #[cfg(feature = "alloc")]
 type KeyBufImpl = alloc::vec::Vec<u8>;
 #[cfg(not(feature = "alloc"))]
-type KeyBufImpl = StaticKeyBuf<STATIC_KEYPATH_CAPACITY>;
+type KeyBufImpl = pooled::PooledKeyBuf;
+
+/// Slot-pool-backed [`KeyBuf`] for the no-alloc guest.
+///
+/// A [`Keypath`] whose buffer is a fixed inline array is ~260 bytes, and the
+/// storage layer's builder-style API moves keypaths by value many times per
+/// storage access. On rv32 every move is a real memcpy loop metered per
+/// instruction, which made the typed-storage path ~5,000 instructions per
+/// entrypoint before the first syscall (metrics_history#1080). Keeping the
+/// bytes in a contract-local pool and handing `Keypath` a one-byte slot
+/// handle makes moves free while preserving the no-alloc property: the pool
+/// is a static, not a heap.
+///
+/// The pool is exclusive to this module and single-threaded (the guest has
+/// one thread and no interrupts; the `not(feature = "alloc")` configuration
+/// is unreachable on native hosts, which require `std`, which requires
+/// `alloc`). A terminal Return skips `Drop` and leaks any live slots, which
+/// is fine: the frame's memory dies with it.
+#[cfg(not(feature = "alloc"))]
+mod pooled {
+    use super::{KeyBuf, STATIC_KEYPATH_CAPACITY};
+    use core::cell::UnsafeCell;
+    use core::mem::MaybeUninit;
+
+    /// Concurrently-live keypath buffers per invocation frame. Live handles
+    /// are roughly the contract state root's total field count (the root
+    /// constructs every field's path eagerly) plus a few temporaries per
+    /// `at()` chain.
+    pub const KEYPATH_POOL_SLOTS: usize = 64;
+    const CAP: usize = STATIC_KEYPATH_CAPACITY;
+
+    struct Pool {
+        /// Bitmask of live slots (bit set = allocated). Zero-initialized so
+        /// the whole pool lands in `.bss` and adds nothing to the stored
+        /// initial-memory image.
+        used: u64,
+        lens: [u16; KEYPATH_POOL_SLOTS],
+        bufs: MaybeUninit<[[u8; CAP]; KEYPATH_POOL_SLOTS]>,
+    }
+
+    struct PoolCell(UnsafeCell<Pool>);
+    // SAFETY: single-threaded guest, no interrupts; this configuration does
+    // not build for native hosts (std implies alloc).
+    unsafe impl Sync for PoolCell {}
+
+    const _: () = assert!(KEYPATH_POOL_SLOTS <= 64);
+
+    static POOL: PoolCell = PoolCell(UnsafeCell::new(Pool {
+        used: 0,
+        lens: [0; KEYPATH_POOL_SLOTS],
+        bufs: MaybeUninit::uninit(),
+    }));
+
+    /// Bits admissible in `used`: the low `KEYPATH_POOL_SLOTS` bits.
+    const SLOT_MASK: u64 = if KEYPATH_POOL_SLOTS == 64 {
+        u64::MAX
+    } else {
+        (1u64 << KEYPATH_POOL_SLOTS) - 1
+    };
+
+    /// One pooled buffer. The handle is the identity; the bytes live in
+    /// [`POOL`]. Not `Copy`: dropping returns the slot.
+    pub struct PooledKeyBuf {
+        slot: u8,
+    }
+
+    fn buf_ptr(slot: u8) -> *mut u8 {
+        // Raw pointer projection only — never materialize a reference to the
+        // pool, so slices handed out by `as_slice` stay valid across writes
+        // to other slots.
+        unsafe {
+            (&raw mut (*POOL.0.get()).bufs)
+                .cast::<u8>()
+                .add(slot as usize * CAP)
+        }
+    }
+
+    fn len(slot: u8) -> usize {
+        unsafe {
+            *(&raw const (*POOL.0.get()).lens)
+                .cast::<u16>()
+                .add(slot as usize) as usize
+        }
+    }
+
+    fn set_len(slot: u8, len: usize) {
+        unsafe {
+            *(&raw mut (*POOL.0.get()).lens)
+                .cast::<u16>()
+                .add(slot as usize) = len as u16;
+        }
+    }
+
+    fn alloc_slot() -> u8 {
+        unsafe {
+            let used = &raw mut (*POOL.0.get()).used;
+            let mask = *used;
+            if mask == SLOT_MASK {
+                // Every slot live: the contract holds more concurrent
+                // keypath handles than the pool admits.
+                crate::exn::library_throw(
+                    crate::exn::LibraryExn::StorageKeypathOverflow,
+                );
+            }
+            let slot = (!mask).trailing_zeros() as u8;
+            *used = mask | (1u64 << slot);
+            slot
+        }
+    }
+
+    impl Default for PooledKeyBuf {
+        fn default() -> Self {
+            let slot = alloc_slot();
+            set_len(slot, 0);
+            Self { slot }
+        }
+    }
+
+    impl Clone for PooledKeyBuf {
+        fn clone(&self) -> Self {
+            let new = Self::default();
+            let n = len(self.slot);
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    buf_ptr(self.slot),
+                    buf_ptr(new.slot),
+                    n,
+                );
+            }
+            set_len(new.slot, n);
+            new
+        }
+    }
+
+    impl Drop for PooledKeyBuf {
+        fn drop(&mut self) {
+            unsafe {
+                let used = &raw mut (*POOL.0.get()).used;
+                *used &= !(1u64 << self.slot);
+            }
+        }
+    }
+
+    impl core::fmt::Debug for PooledKeyBuf {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            f.debug_struct("PooledKeyBuf")
+                .field("slot", &self.slot)
+                .field("bytes", &self.as_slice())
+                .finish()
+        }
+    }
+
+    impl KeyBuf for PooledKeyBuf {
+        fn append_bytes(&mut self, bytes: &[u8]) {
+            let start = len(self.slot);
+            let end = start.saturating_add(bytes.len());
+            if end > CAP {
+                crate::exn::library_throw(
+                    crate::exn::LibraryExn::StorageKeypathOverflow,
+                );
+            }
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    bytes.as_ptr(),
+                    buf_ptr(self.slot).add(start),
+                    bytes.len(),
+                );
+            }
+            set_len(self.slot, end);
+        }
+
+        fn as_slice(&self) -> &[u8] {
+            // SAFETY: bytes `..len` were written by `append_bytes`; the pool
+            // is never moved, the slot is uniquely owned by `self`, and
+            // writes go through raw pointers so no reference aliases this
+            // slice.
+            unsafe {
+                core::slice::from_raw_parts(buf_ptr(self.slot), len(self.slot))
+            }
+        }
+    }
+}
 
 /// Path identifying a storage slot.
 ///
