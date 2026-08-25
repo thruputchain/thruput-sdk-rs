@@ -125,14 +125,14 @@ mod pooled {
     /// are roughly the contract state root's total field count (the root
     /// constructs every field's path eagerly) plus a few temporaries per
     /// `at()` chain.
-    pub const KEYPATH_POOL_SLOTS: usize = 64;
+    pub const KEYPATH_POOL_SLOTS: usize = 32;
     const CAP: usize = STATIC_KEYPATH_CAPACITY;
 
     struct Pool {
         /// Bitmask of live slots (bit set = allocated). Zero-initialized so
         /// the whole pool lands in `.bss` and adds nothing to the stored
-        /// initial-memory image.
-        used: u64,
+        /// initial-memory image. `u32` so guest bookkeeping is single-word.
+        used: u32,
         lens: [u16; KEYPATH_POOL_SLOTS],
         bufs: MaybeUninit<[[u8; CAP]; KEYPATH_POOL_SLOTS]>,
     }
@@ -142,7 +142,7 @@ mod pooled {
     // not build for native hosts (std implies alloc).
     unsafe impl Sync for PoolCell {}
 
-    const _: () = assert!(KEYPATH_POOL_SLOTS <= 64);
+    const _: () = assert!(KEYPATH_POOL_SLOTS <= 32);
 
     static POOL: PoolCell = PoolCell(UnsafeCell::new(Pool {
         used: 0,
@@ -151,10 +151,10 @@ mod pooled {
     }));
 
     /// Bits admissible in `used`: the low `KEYPATH_POOL_SLOTS` bits.
-    const SLOT_MASK: u64 = if KEYPATH_POOL_SLOTS == 64 {
-        u64::MAX
+    const SLOT_MASK: u32 = if KEYPATH_POOL_SLOTS == 32 {
+        u32::MAX
     } else {
-        (1u64 << KEYPATH_POOL_SLOTS) - 1
+        (1u32 << KEYPATH_POOL_SLOTS) - 1
     };
 
     /// One pooled buffer. The handle is the identity; the bytes live in
@@ -190,6 +190,7 @@ mod pooled {
         }
     }
 
+    #[inline]
     fn alloc_slot() -> u8 {
         unsafe {
             let used = &raw mut (*POOL.0.get()).used;
@@ -202,7 +203,7 @@ mod pooled {
                 );
             }
             let slot = (!mask).trailing_zeros() as u8;
-            *used = mask | (1u64 << slot);
+            *used = mask | (1u32 << slot);
             slot
         }
     }
@@ -215,28 +216,59 @@ mod pooled {
         }
     }
 
+    /// Out of line for the same reason as [`alloc_slot`]: `child()` clones
+    /// at every derivation level.
+    #[inline(never)]
+    fn clone_slot(from: u8) -> u8 {
+        let slot = alloc_slot();
+        let n = len(from);
+        unsafe {
+            core::ptr::copy_nonoverlapping(buf_ptr(from), buf_ptr(slot), n);
+        }
+        set_len(slot, n);
+        slot
+    }
+
+    #[inline]
+    fn free_slot(slot: u8) {
+        unsafe {
+            let used = &raw mut (*POOL.0.get()).used;
+            *used &= !(1u32 << slot);
+        }
+    }
+
+    /// Kept inlinable: append sites have compile-time-known lengths, and
+    /// inlining lets the copy specialize instead of looping.
+    #[inline]
+    fn append_slot(slot: u8, bytes: &[u8]) {
+        let start = len(slot);
+        let end = start.saturating_add(bytes.len());
+        if end > CAP {
+            crate::exn::library_throw(
+                crate::exn::LibraryExn::StorageKeypathOverflow,
+            );
+        }
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                buf_ptr(slot).add(start),
+                bytes.len(),
+            );
+        }
+        set_len(slot, end);
+    }
+
     impl Clone for PooledKeyBuf {
         fn clone(&self) -> Self {
-            let new = Self::default();
-            let n = len(self.slot);
-            unsafe {
-                core::ptr::copy_nonoverlapping(
-                    buf_ptr(self.slot),
-                    buf_ptr(new.slot),
-                    n,
-                );
+            Self {
+                slot: clone_slot(self.slot),
             }
-            set_len(new.slot, n);
-            new
         }
     }
 
     impl Drop for PooledKeyBuf {
         fn drop(&mut self) {
-            unsafe {
-                let used = &raw mut (*POOL.0.get()).used;
-                *used &= !(1u64 << self.slot);
-            }
+            free_slot(self.slot);
         }
     }
 
@@ -251,21 +283,7 @@ mod pooled {
 
     impl KeyBuf for PooledKeyBuf {
         fn append_bytes(&mut self, bytes: &[u8]) {
-            let start = len(self.slot);
-            let end = start.saturating_add(bytes.len());
-            if end > CAP {
-                crate::exn::library_throw(
-                    crate::exn::LibraryExn::StorageKeypathOverflow,
-                );
-            }
-            unsafe {
-                core::ptr::copy_nonoverlapping(
-                    bytes.as_ptr(),
-                    buf_ptr(self.slot).add(start),
-                    bytes.len(),
-                );
-            }
-            set_len(self.slot, end);
+            append_slot(self.slot, bytes);
         }
 
         fn as_slice(&self) -> &[u8] {
