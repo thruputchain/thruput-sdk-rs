@@ -12,9 +12,11 @@
 # it again (on the tagged commit; running on a later commit without a version
 # bump fails at the tag push, deliberately). The standard-interface crates
 # version independently of the workspace, each under its own
-# `<crate>-v<version>` tag; when a release doesn't bump a crate, its tag
-# stays at the previous release commit, its publish no-ops on the
-# already-uploaded version, and its docs are not rebuilt.
+# `<crate>-v<version>` tag; when a release doesn't bump a crate — its tag
+# sits on an older commit AND its version is already published, verified
+# against the registry — its publish and docs steps are skipped. A tag on
+# another commit whose version is NOT published fails the run rather than
+# publishing content that doesn't match the tag.
 #
 # Dispatch with dry_run for all of the verification and none of the tagging,
 # publishing, or docs.
@@ -178,58 +180,61 @@ jobs:
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
           cargo-hack-rv32-packages: groundhog-rv32-runtime ${{ env.INTERFACE_PACKAGES }}
 
+      # Tags HEAD as `v<version>` and pushes. Re-running on the release
+      # commit passes (the push is a no-op); a run on a new commit without a
+      # workspace version bump fails here, loudly (on-existing-tag: fail is
+      # the action's default).
       - name: Tag commit with version
         if: ${{ inputs.dry_run == false }}
         id: publish-tag
-        uses: ./actions/cargo-version-tag
+        uses: ./actions/cargo-release-tag
         with:
           packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
+          github-token: ${{ github.token }}
 
-      # Pushing a tag that already exists at the same commit is a no-op, so a
-      # re-run on the release commit passes; a run on a new commit without a
-      # workspace version bump fails here, loudly.
-      - name: Push tag
+      # Each interface crate gets its own `<crate>-v<version>` tag, which
+      # legitimately pre-exists at an older commit whenever a release doesn't
+      # bump the crate. skip-if-published verifies against the registry that
+      # such a version is really already published — released=false then
+      # skips the crate's publish and docs steps below — and fails the run
+      # when it is NOT published (a previous run died between tag push and
+      # publish; publishing HEAD would ship content that doesn't match the
+      # tag — re-run from the tagged commit, or delete the stale tag).
+      - name: Tag groundhog-erc20-if
         if: ${{ inputs.dry_run == false }}
-        run: |
-          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}.git
-          git push origin ${{ steps.publish-tag.outputs.tag }}
-          git remote set-url origin git@github.com:${{ github.repository }}.git
+        id: tag-erc20-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc20-if
+          tag-prefix: 'groundhog-erc20-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      # Each interface crate is tagged `<crate>-v<its version>` at HEAD.
-      # Unlike the primary tag, these legitimately pre-exist at an older
-      # commit whenever a release doesn't bump that crate; that case sets
-      # <crate>-released=false, which skips rebuilding the crate's docs
-      # below (they were built from the tagged release commit). Publishing
-      # is NOT gated on it: the registry's already-uploaded check decides
-      # whether a version needs publishing, so a stale tag at a foreign
-      # commit can never silently drop a bumped crate from the release.
-      # A push failure where the tag doesn't exist remotely is fatal.
-      - name: Tag and push standard-interface tags
+      - name: Tag groundhog-erc1271-if
         if: ${{ inputs.dry_run == false }}
-        id: interface-tags
-        run: |
-          source "$HOME/.cargo/env"
-          METADATA=$(cargo metadata --no-deps --format-version 1)
-          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}.git
-          for crate in $INTERFACE_PACKAGES; do
-            VERSION=$(echo "$METADATA" | jq -r --arg pkg "$crate" '.packages[] | select(.name == $pkg) | .version')
-            TAG="${crate}-v${VERSION}"
-            git tag -f "$TAG"
-            if git push origin "$TAG"; then
-              echo "$crate-released=true" >> "$GITHUB_OUTPUT"
-            else
-              REMOTE_SHA=$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1)
-              if [ -z "$REMOTE_SHA" ]; then
-                echo "::error::Pushing tag $TAG failed and it does not exist on the remote"
-                exit 1
-              fi
-              echo "::notice::Tag $TAG already exists at $REMOTE_SHA; not rebuilding $crate docs (publish still runs and no-ops if the version is already uploaded)"
-              echo "$crate-released=false" >> "$GITHUB_OUTPUT"
-            fi
-            echo "$crate-tag=$TAG" >> "$GITHUB_OUTPUT"
-            echo "$crate-version=$VERSION" >> "$GITHUB_OUTPUT"
-          done
-          git remote set-url origin git@github.com:${{ github.repository }}.git
+        id: tag-erc1271-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc1271-if
+          tag-prefix: 'groundhog-erc1271-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-erc20-metadata-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-metadata-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc20-metadata-if
+          tag-prefix: 'groundhog-erc20-metadata-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       # Unlike the dry runs, the publish steps resolve deps against the live
       # registry — hence the dependency order: sdk (here) before the standard
@@ -252,11 +257,11 @@ jobs:
           arch-only-packages: groundhog-rv32-runtime
 
       - name: Publish groundhog-erc20-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-if
-          git-tag: ${{ steps.interface-tags.outputs.groundhog-erc20-if-tag }}
+          git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
@@ -267,22 +272,22 @@ jobs:
           no-verify: 'true'
 
       - name: Publish groundhog-erc1271-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.tag-erc1271-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc1271-if
-          git-tag: ${{ steps.interface-tags.outputs.groundhog-erc1271-if-tag }}
+          git-tag: ${{ steps.tag-erc1271-if.outputs.tag }}
           tag-prefix: 'groundhog-erc1271-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
 
       - name: Publish groundhog-erc20-metadata-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-metadata-if
-          git-tag: ${{ steps.interface-tags.outputs.groundhog-erc20-metadata-if-tag }}
+          git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-metadata-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
@@ -315,44 +320,44 @@ jobs:
           force: 'true'
           expected-tag: ${{ steps.publish-tag.outputs.tag }}
 
-      # Interface docs only rebuild for crates released at this commit
-      # (<crate>-released), so an already-published version's docs are never
-      # regenerated from newer source. The doc builds enable --all-features
+      # Interface docs only rebuild for crates released at this commit (the
+      # tag steps' `released` output), so an already-published version's docs
+      # are never regenerated from newer source. The doc builds enable --all-features
       # (incl. `entrypoints`), which is fine on the host: rustdoc doesn't
       # link, and cargo skips the spec-carrier bin since it shares the lib's
       # name.
       - name: Publish groundhog-erc20-if docs
-        if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc20-if-released == 'true' }}
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
         uses: ./actions/cargo-doc
         with:
           packages: groundhog-erc20-if
-          version: ${{ steps.interface-tags.outputs.groundhog-erc20-if-version }}
+          version: ${{ steps.tag-erc20-if.outputs.version }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           toolchain: nightly-2026-07-01
           force: 'true'
-          expected-tag: ${{ steps.interface-tags.outputs.groundhog-erc20-if-tag }}
+          expected-tag: ${{ steps.tag-erc20-if.outputs.tag }}
 
       - name: Publish groundhog-erc1271-if docs
-        if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc1271-if-released == 'true' }}
+        if: ${{ inputs.dry_run == false && steps.tag-erc1271-if.outputs.released == 'true' }}
         uses: ./actions/cargo-doc
         with:
           packages: groundhog-erc1271-if
-          version: ${{ steps.interface-tags.outputs.groundhog-erc1271-if-version }}
+          version: ${{ steps.tag-erc1271-if.outputs.version }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           toolchain: nightly-2026-07-01
           force: 'true'
-          expected-tag: ${{ steps.interface-tags.outputs.groundhog-erc1271-if-tag }}
+          expected-tag: ${{ steps.tag-erc1271-if.outputs.tag }}
 
       - name: Publish groundhog-erc20-metadata-if docs
-        if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc20-metadata-if-released == 'true' }}
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
         uses: ./actions/cargo-doc
         with:
           packages: groundhog-erc20-metadata-if
-          version: ${{ steps.interface-tags.outputs.groundhog-erc20-metadata-if-version }}
+          version: ${{ steps.tag-erc20-metadata-if.outputs.version }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           toolchain: nightly-2026-07-01
           force: 'true'
-          expected-tag: ${{ steps.interface-tags.outputs.groundhog-erc20-metadata-if-tag }}
+          expected-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
