@@ -26,6 +26,9 @@ fn bottle_test(stem: &str) {
     let tester_contract =
         load_rv32_contract(format!("target/bottle-test/{stem}.tester.rv32a"));
 
+    if std::env::var("BOTTLE_FFI_LOG").is_ok() {
+        TestEnvironment::enable_syscall_logging();
+    }
     let env = TestEnvironment::no_cost();
 
     // Create the tester and target contracts
@@ -105,7 +108,32 @@ mod trace_analysis {
 
     // Returns the sum of this frame's syscall windows (each window includes
     // any child-frame execution nested in it).
-    fn walk(frame: &InvocationFrameTrace, depth: usize, t: &mut Tally) -> u64 {
+    fn walk(
+        frame: &InvocationFrameTrace,
+        depth: usize,
+        entry_gas: Option<u64>,
+        t: &mut Tally,
+    ) -> u64 {
+        // Per-frame guest-gas intervals: instructions executed between the
+        // end of one syscall window and the start of the next.
+        if depth >= 2 && std::env::var("BOTTLE_TRACE_INTERVALS").is_ok() {
+            let mut prev_end: Option<u64> = entry_gas;
+            let mut line = String::new();
+            for sc in frame.system_calls.iter() {
+                let guest_before = prev_end
+                    .map(|e| e.saturating_sub(sc.gas_remaining_at_start))
+                    .unwrap_or(0);
+                prev_end = Some(sc.gas_remaining_at_end);
+                let win = sc
+                    .gas_remaining_at_start
+                    .saturating_sub(sc.gas_remaining_at_end);
+                line.push_str(&format!(
+                    " ..{guest_before}.. {}[{win}]",
+                    body_name(&sc.body)
+                ));
+            }
+            eprintln!("frame depth {depth}:{line}");
+        }
         let mut window_sum: u64 = 0;
         for sc in frame.system_calls.iter() {
             let consumed = sc
@@ -120,7 +148,7 @@ mod trace_analysis {
                         .outputs
                         .as_ref()
                         .and_then(|o| o.child_trace.as_ref())
-                        .map(|child| walk(child, depth + 1, t))
+                        .map(|child| walk(child, depth + 1, Some(sc.gas_remaining_at_start), t))
                         .unwrap_or(0);
                     // Whatever the invoke window consumed beyond the child's
                     // own syscall windows is the child frame's guest
@@ -176,7 +204,7 @@ mod trace_analysis {
                     .outputs
                     .as_ref()
                     .and_then(|o| o.child_trace.as_ref())
-                    .map(|child| walk(child, 1, &mut t))
+                    .map(|child| walk(child, 1, Some(sc.gas_remaining_at_start), &mut t))
                     .unwrap_or(0);
                 *t.guest_by_depth.entry(1).or_default() +=
                     consumed.saturating_sub(child_windows);
