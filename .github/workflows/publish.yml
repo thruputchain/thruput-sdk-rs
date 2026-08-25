@@ -13,8 +13,8 @@
 # bump fails at the tag push, deliberately). The standard-interface crates
 # version independently of the workspace, each under its own
 # `<crate>-v<version>` tag; when a release doesn't bump a crate, its tag
-# stays at the previous release commit and its publish/docs steps are
-# skipped.
+# stays at the previous release commit, its publish no-ops on the
+# already-uploaded version, and its docs are not rebuilt.
 #
 # Dispatch with dry_run for all of the verification and none of the tagging,
 # publishing, or docs.
@@ -198,8 +198,12 @@ jobs:
       # Each interface crate is tagged `<crate>-v<its version>` at HEAD.
       # Unlike the primary tag, these legitimately pre-exist at an older
       # commit whenever a release doesn't bump that crate; that case sets
-      # <crate>-released=false, which skips the crate's publish and docs
-      # steps below. Any other push failure is fatal.
+      # <crate>-released=false, which skips rebuilding the crate's docs
+      # below (they were built from the tagged release commit). Publishing
+      # is NOT gated on it: the registry's already-uploaded check decides
+      # whether a version needs publishing, so a stale tag at a foreign
+      # commit can never silently drop a bumped crate from the release.
+      # A push failure where the tag doesn't exist remotely is fatal.
       - name: Tag and push standard-interface tags
         if: ${{ inputs.dry_run == false }}
         id: interface-tags
@@ -219,7 +223,7 @@ jobs:
                 echo "::error::Pushing tag $TAG failed and it does not exist on the remote"
                 exit 1
               fi
-              echo "Tag $TAG already exists at $REMOTE_SHA; $crate is unchanged in this release"
+              echo "::notice::Tag $TAG already exists at $REMOTE_SHA; not rebuilding $crate docs (publish still runs and no-ops if the version is already uploaded)"
               echo "$crate-released=false" >> "$GITHUB_OUTPUT"
             fi
             echo "$crate-tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -248,7 +252,7 @@ jobs:
           arch-only-packages: groundhog-rv32-runtime
 
       - name: Publish groundhog-erc20-if
-        if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc20-if-released == 'true' }}
+        if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-if
@@ -263,7 +267,7 @@ jobs:
           no-verify: 'true'
 
       - name: Publish groundhog-erc1271-if
-        if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc1271-if-released == 'true' }}
+        if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc1271-if
@@ -274,7 +278,7 @@ jobs:
           no-verify: 'true'
 
       - name: Publish groundhog-erc20-metadata-if
-        if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc20-metadata-if-released == 'true' }}
+        if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-metadata-if
@@ -311,9 +315,12 @@ jobs:
           force: 'true'
           expected-tag: ${{ steps.publish-tag.outputs.tag }}
 
-      # The interface doc builds enable --all-features (incl. `entrypoints`),
-      # which is fine on the host: rustdoc doesn't link, and cargo skips the
-      # spec-carrier bin since it shares the lib's name.
+      # Interface docs only rebuild for crates released at this commit
+      # (<crate>-released), so an already-published version's docs are never
+      # regenerated from newer source. The doc builds enable --all-features
+      # (incl. `entrypoints`), which is fine on the host: rustdoc doesn't
+      # link, and cargo skips the spec-carrier bin since it shares the lib's
+      # name.
       - name: Publish groundhog-erc20-if docs
         if: ${{ inputs.dry_run == false && steps.interface-tags.outputs.groundhog-erc20-if-released == 'true' }}
         uses: ./actions/cargo-doc
