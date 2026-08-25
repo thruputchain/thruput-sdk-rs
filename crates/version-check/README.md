@@ -153,8 +153,8 @@ waiting on lands.
 Not yet implemented, in rough order of value:
 
 - **`publish-coverage`** — every publishable in-repo crate appears in the
-  `PUBLISH_PACKAGES` list of `.github/workflows/publish.yml` and
-  `publish_standard_interfaces.yml`. A new published crate missing from the
+  `PRIMARY_PACKAGES` or `INTERFACE_PACKAGES` list of
+  `.github/workflows/publish.yml`. A new published crate missing from the
   release workflow is the same class of error as a missed pin, and is currently
   caught only by noticing it never shipped.
 - **`ffi-version`** — `crates/hogd-sys/build.rs` carries a `TEST_FFI_VERSION`
