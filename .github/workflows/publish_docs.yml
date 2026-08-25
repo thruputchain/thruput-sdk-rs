@@ -1,10 +1,10 @@
 # Manual, idempotent docs (re)generation for a given released version.
 #
-# Normal releases publish docs automatically via the inline "publish docs" steps
-# in publish.yml and publish_standard_interfaces.yml. Use this workflow to
-# rebuild docs for an already-tagged version (e.g. if a publish-time docs build
-# broke). It checks out the tag, asserts it, and re-uploads with force, so it's
-# safe to run any number of times.
+# Normal releases publish docs automatically via the inline "publish docs"
+# steps in publish.yml. Use this workflow to rebuild docs for an
+# already-tagged version (e.g. if a publish-time docs build broke). It checks
+# out the tag, asserts it, and re-uploads with force, so it's safe to run any
+# number of times.
 #
 # For a standard-interface crate, set packages to just that crate and
 # tag_prefix to its tag scheme, e.g. packages=groundhog-erc20-if,
@@ -33,6 +33,7 @@ on:
           groundhog-domain-separator
           groundhog-native-exec
           groundhog-macros
+          groundhog-u256
           groundhog-test-vectors
           groundhog-rv32-runtime
           sdk

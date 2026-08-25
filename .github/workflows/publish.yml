@@ -1,13 +1,47 @@
-name: Release SDK and related primary packages
+# Releases every published crate in this repository in one idempotent pass.
+#
+# Publishing runs in dependency order:
+#
+#   1. the workspace-versioned crates up through `sdk`
+#   2. the standard-interface crates, which caret-depend on `sdk`
+#   3. `groundhog-spec-tool`, which exact-pins the standard-interface crates
+#
+# Every step tolerates re-runs: tags are recreated at HEAD and only pushed
+# when new, `cargo publish` skips versions the registry already has, and doc
+# uploads use force — so a run that fails partway is resumed by dispatching
+# it again (on the tagged commit; running on a later commit without a version
+# bump fails at the tag push, deliberately). The standard-interface crates
+# version independently of the workspace, each under its own
+# `<crate>-v<version>` tag; when a release doesn't bump a crate — its tag
+# sits on an older commit AND its version is already published, verified
+# against the registry — its publish and docs steps are skipped. A tag on
+# another commit whose version is NOT published fails the run rather than
+# publishing content that doesn't match the tag.
+#
+# Dispatch with dry_run for all of the verification and none of the tagging,
+# publishing, or docs.
+name: Release SDK and standard interfaces
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only (no tag/publish/docs)'
+        required: false
+        type: boolean
+        default: false
+
+# Two concurrent releases would race on tags and registry state; queue them.
+concurrency:
+  group: publish
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  # Note: Changes here should usually be mirrored in
-  #   publish_standard_interfaces.yml and publish_dry_run.yml
-  PUBLISH_PACKAGES: >-
+  # Workspace-versioned crates published under the `v<version>` tag, in
+  # dependency order. groundhog-spec-tool is on the same version line but is
+  # named separately below: it exact-pins the standard-interface crates, so
+  # it publishes after them, while they depend on `sdk` from this list.
+  PRIMARY_PACKAGES: >-
     groundhog-event
     groundhog-storage-cost
     groundhog-contract-util
@@ -20,7 +54,12 @@ env:
     groundhog-test-vectors
     groundhog-rv32-runtime
     sdk
-    groundhog-spec-tool
+  # Standard-interface crates: versioned independently of the workspace,
+  # each published under its own `<crate>-v<version>` tag.
+  INTERFACE_PACKAGES: >-
+    groundhog-erc20-if
+    groundhog-erc1271-if
+    groundhog-erc20-metadata-if
 
 jobs:
   publish:
@@ -57,16 +96,15 @@ jobs:
           path: actions
           ref: main
 
-      - name: publish dry run
+      - name: Publish dry run
         uses: ./actions/cargo-publish-dry-run
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
+          packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
           # groundhog-spec-tool exact-pins the standard-interface crates, which
           # are workspace path deps here — `cargo vendor` skips those, so the
           # offline packaging steps need them pre-vendored. Pre-vendoring an
           # interface crate resolves its deps against vendor/ too, so the
-          # primaries it depends on come first, in dependency order (same list
-          # as publish_standard_interfaces.yml).
+          # primaries it depends on come first, in dependency order.
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
@@ -94,45 +132,186 @@ jobs:
           cargo-hack-rv32-packages: groundhog-rv32-runtime sdk groundhog-domain-separator
           arch-only-packages: groundhog-rv32-runtime
 
-      - name: tag commit with version
-        id: publish-tag
-        uses: ./actions/cargo-version-tag
+      # The dry-run action leaves its vendor/ dir behind; clear it so the
+      # standard-interfaces dry run below re-vendors from scratch.
+      - name: Reset vendor dir
+        run: rm -rf vendor
+
+      - name: Publish dry run (standard interfaces)
+        uses: ./actions/cargo-publish-dry-run
+        env:
+          # The workspace no longer carries rv32 target rustflags (the single
+          # rv32 config lives in example-contracts/.cargo/config.toml; see
+          # docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
+          # The rv32-only spec-carrier bin built by the rv32 powerset below
+          # only needs to LINK, so it gets the minimal link flags here. NOTE:
+          # cargo JOINS env target-rustflags with config-defined ones (measured
+          # on 1.95.0-nightly), so this works only because no config discovered
+          # from the workspace root defines rv32 rustflags — re-adding a root
+          # stanza would duplicate -T fatally. No immediate-abort here: this
+          # build uses the prebuilt core (no build-std).
+          CARGO_TARGET_RISCV32IM_UNKNOWN_NONE_ELF_RUSTFLAGS: >-
+            -C link-arg=-Tgroundhog-rv32.ld
+            -C link-arg=--no-check-sections
+            -C link-arg=-static
+            -C link-arg=--no-dynamic-linker
+            -C link-arg=--gc-sections
+            -C panic=abort
+            -C relocation-model=static
+            -Z trap-unreachable=false
+            --deny warnings
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
-      
-      - name: push tag
-        run: |
-          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}.git
-          git push origin ${{ steps.publish-tag.outputs.tag }}
-          git remote set-url origin git@github.com:${{ github.repository }}.git
-          
-      # Unlike the dry run, this resolves deps against the live registry:
-      # groundhog-spec-tool's exact-pinned standard-interface versions must
-      # already be published (publish_standard_interfaces.yml runs first
-      # whenever those pins are bumped).
-      - name: publish
+          packages: ${{ env.INTERFACE_PACKAGES }}
+          vendor-workspace-deps:
+            groundhog-storage-cost
+            groundhog-event
+            groundhog-contract-util
+            groundhog-contract-spec
+            groundhog-sys
+            groundhog-domain-separator
+            groundhog-native-exec
+            groundhog-macros
+            groundhog-u256
+            groundhog-rv32-runtime
+            sdk
+          # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
+          # cannot link on the host (no `main`); it is verified by the rv32 step below.
+          cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features --skip entrypoints
+          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
+          cargo-hack-rv32-packages: groundhog-rv32-runtime ${{ env.INTERFACE_PACKAGES }}
+
+      # Tags HEAD as `v<version>` and pushes. Re-running on the release
+      # commit passes (the push is a no-op); a run on a new commit without a
+      # workspace version bump fails here, loudly (on-existing-tag: fail is
+      # the action's default).
+      - name: Tag commit with version
+        if: ${{ inputs.dry_run == false }}
+        id: publish-tag
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
+          github-token: ${{ github.token }}
+
+      # Each interface crate gets its own `<crate>-v<version>` tag, which
+      # legitimately pre-exists at an older commit whenever a release doesn't
+      # bump the crate. skip-if-published verifies against the registry that
+      # such a version is really already published — released=false then
+      # skips the crate's publish and docs steps below — and fails the run
+      # when it is NOT published (a previous run died between tag push and
+      # publish; publishing HEAD would ship content that doesn't match the
+      # tag — re-run from the tagged commit, or delete the stale tag).
+      - name: Tag groundhog-erc20-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc20-if
+          tag-prefix: 'groundhog-erc20-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-erc1271-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc1271-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc1271-if
+          tag-prefix: 'groundhog-erc1271-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-erc20-metadata-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-metadata-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc20-metadata-if
+          tag-prefix: 'groundhog-erc20-metadata-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      # Unlike the dry runs, the publish steps resolve deps against the live
+      # registry — hence the dependency order: sdk (here) before the standard
+      # interfaces, and those before groundhog-spec-tool, whose exact-pinned
+      # interface versions must already be published.
+      - name: Publish
+        if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-publish
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
+          packages: ${{ env.PRIMARY_PACKAGES }}
           git-tag: ${{ steps.publish-tag.outputs.tag }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          # Verification is done in the dry-run job above; the host verify-build
+          # Verification is done in the dry-run steps above; the host verify-build
           # here would fail for the architecture-only runtime crates.
           no-verify: 'true'
           # These crates only build for their non-host target, so the publish
           # action's host doc-validation must skip them (covered by the per-target
-          # verify in the dry-run job).
+          # verify in the dry-run step).
           arch-only-packages: groundhog-rv32-runtime
+
+      - name: Publish groundhog-erc20-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc20-if
+          git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc20-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          # Verification is done by the dry-run step above; the publish-time
+          # verify build runs with --all-features, which enables `entrypoints`
+          # and tries to link the rv32-only spec-carrier bin on the host.
+          # (Same for the other interface crates below.)
+          no-verify: 'true'
+
+      - name: Publish groundhog-erc1271-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc1271-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc1271-if
+          git-tag: ${{ steps.tag-erc1271-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc1271-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      - name: Publish groundhog-erc20-metadata-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc20-metadata-if
+          git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc20-metadata-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      - name: Publish spec-tool
+        if: ${{ inputs.dry_run == false }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-spec-tool
+          git-tag: ${{ steps.publish-tag.outputs.tag }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
 
       # Build and upload rustdoc to groundhog.dev/docs, after the crates publish.
       # HEAD is the freshly-tagged commit, so expected-tag validates cleanly.
       # arch-only crates can't build docs on the host, so they're skipped (same
       # as the publish step above).
-      - name: publish docs
+      - name: Publish docs
+        if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-doc
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
+          packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
           arch-only-packages: groundhog-rv32-runtime
           version: ${{ steps.publish-tag.outputs.version }}
           registry-name: groundhog
@@ -140,3 +319,45 @@ jobs:
           toolchain: nightly-2026-07-01
           force: 'true'
           expected-tag: ${{ steps.publish-tag.outputs.tag }}
+
+      # Interface docs only rebuild for crates released at this commit (the
+      # tag steps' `released` output), so an already-published version's docs
+      # are never regenerated from newer source. The doc builds enable --all-features
+      # (incl. `entrypoints`), which is fine on the host: rustdoc doesn't
+      # link, and cargo skips the spec-carrier bin since it shares the lib's
+      # name.
+      - name: Publish groundhog-erc20-if docs
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-erc20-if
+          version: ${{ steps.tag-erc20-if.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-erc20-if.outputs.tag }}
+
+      - name: Publish groundhog-erc1271-if docs
+        if: ${{ inputs.dry_run == false && steps.tag-erc1271-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-erc1271-if
+          version: ${{ steps.tag-erc1271-if.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-erc1271-if.outputs.tag }}
+
+      - name: Publish groundhog-erc20-metadata-if docs
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-erc20-metadata-if
+          version: ${{ steps.tag-erc20-metadata-if.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
