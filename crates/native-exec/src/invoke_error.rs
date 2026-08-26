@@ -144,13 +144,20 @@ pub fn deactivate_panic_hook() {
         .expect("deactivate_panic_hook called without matching activate");
 }
 
-// Wrap a function (i.e. part of a contract) within a try-catch block
-// that appropriately handles groundhog error codes.
+/// Wrap a function (i.e. part of a contract) within a try-catch block that
+/// appropriately handles groundhog error codes.
+///
+/// `Sync` is the load-bearing bound: the wrapper is stored on the contract and
+/// invoked through a shared reference from whichever thread resumed the
+/// coroutine, so `&F` has to be usable there. Cloning an `Rc` capture from two
+/// threads at once would race its refcount, and `Sync` rejects that at the
+/// registration site instead. `Send` goes with it because the captures travel
+/// with the contract's heap allocation.
 pub fn invoke_wrapper<'a, F>(
     wrapped: F,
-) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + 'a>
+) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync + 'a>
 where
-    F: Fn() + UnwindSafe + Clone + 'a,
+    F: Fn() + UnwindSafe + Clone + Send + Sync + 'a,
 {
     Box::new(move || {
         let w = wrapped.clone();

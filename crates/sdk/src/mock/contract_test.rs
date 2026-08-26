@@ -150,7 +150,7 @@ fn guest_test_handler<F>(
     test: F,
 ) -> TransactionHandler
 where
-    F: Fn() + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + Send + Sync + 'static,
 {
     let mut test_contract = env.add_contract();
     let entrypoint = ContractEntrypointID::from([0; 8]);
@@ -192,7 +192,7 @@ where
 pub fn test_rv32<P, T>(path: P, test: T) -> Stats
 where
     P: AsRef<std::path::Path>,
-    T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
+    T: ContractTest + Clone + 'static + core::panic::UnwindSafe + Send + Sync,
 {
     let contract = load_rv32_contract(path);
 
