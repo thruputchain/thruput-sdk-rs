@@ -105,7 +105,14 @@ unsafe extern "C" fn trampoline(
     // `ebreak`.
     match unsafe { (*c).get_func(method).or_else(|| (*c).get_unknown_func()) }
     {
-        Some(x) => x(),
+        Some(x) => {
+            // Mark this thread as running a contract body for the call. The
+            // body may resume on a pool thread rather than the one that
+            // activated the panic hook, and this is the point where the right
+            // thread is known without guessing: it is the one calling `x`.
+            let _in_body = crate::invoke_error::MockInvocationGuard::enter();
+            x()
+        }
         None => groundhog_sys::ForeignInvokeResult {
             panic: InvokeErrorCode::Deterministic.0,
         },

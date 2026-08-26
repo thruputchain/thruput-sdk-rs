@@ -1,10 +1,10 @@
 use hogexec_internal::ffi_enums::InvokeErrorCode;
+use std::cell::Cell;
 use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
 use std::sync::Once;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InvokeError {
@@ -59,23 +59,47 @@ pub fn abort_transaction_error() -> InvokeError {
     }
 }
 
-/// How many mock invocation frames are open.
+thread_local! {
+    /// Frames opened on this thread by `activate_panic_hook`.
+    ///
+    /// Set by the transaction handler around a frame, on the thread that
+    /// entered the FFI call.
+    static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
+
+    /// Mock contract bodies currently running on this thread.
+    ///
+    /// Set by `trampoline` immediately around the body it invokes, which is
+    /// what makes it right where `PANIC_HOOK_DEPTH` alone is wrong: execution
+    /// is coroutinized, so a body runs on whichever pool thread resumed it
+    /// rather than the one that activated -- but `trampoline` and the body it
+    /// calls are always the *same* thread, so marking it there needs no
+    /// guess about which thread that is. hogd's `MockRuntime` captures its
+    /// owning handler for the same reason instead of reading the thread-local
+    /// context slot.
+    ///
+    /// A count, not a flag: a mock body can invoke another contract, which
+    /// re-enters `trampoline` on that thread.
+    static MOCK_INVOCATION_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Marks the calling thread as running a mock contract body for as long as it
+/// is held.
 ///
-/// Process-wide rather than per-thread. Execution is coroutinized, so a
-/// contract body resumes on whichever pool thread picked it up -- never
-/// reliably the one that entered the FFI call and activated the hook. See
-/// `MockRuntime`'s constructor in hogd, which captures its owning handler for
-/// the same reason instead of reading the thread-local context slot. A
-/// per-thread depth reads 0 on the resumed thread, so every contract panic
-/// landing there was classified an unrecoverable harness bug instead of a
-/// deterministic failure of that one invocation.
-///
-/// This coarsens the question from "does this thread have a frame open" to
-/// "does this process". Both readers only use it to tell an expected contract
-/// panic from a harness bug, and `trampoline` reaches a wrapper only from
-/// inside an open frame -- a bare `invoke_wrapper` call outside one is a
-/// unit-test shape, not something the mock executor produces.
-static PANIC_HOOK_DEPTH: AtomicUsize = AtomicUsize::new(0);
+/// Decrements on drop so an unwinding body still leaves the count balanced.
+pub(crate) struct MockInvocationGuard;
+
+impl MockInvocationGuard {
+    pub(crate) fn enter() -> Self {
+        MOCK_INVOCATION_DEPTH.with(|c| c.set(c.get() + 1));
+        MockInvocationGuard
+    }
+}
+
+impl Drop for MockInvocationGuard {
+    fn drop(&mut self) {
+        MOCK_INVOCATION_DEPTH.with(|c| c.set(c.get().saturating_sub(1)));
+    }
+}
 
 static INSTALL_HOOK: Once = Once::new();
 
@@ -123,25 +147,37 @@ fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
     }
 }
 
+/// Whether a panic on this thread is expected control flow rather than a
+/// harness bug.
+///
+/// Either a frame was opened on this thread, or this thread is inside a mock
+/// body -- the second covers the resumed-coroutine case the first cannot see.
 pub(crate) fn is_panic_hook_active() -> bool {
-    panic_hook_depth() > 0
+    panic_hook_depth() > 0 || in_mock_invocation()
+}
+
+pub(crate) fn in_mock_invocation() -> bool {
+    MOCK_INVOCATION_DEPTH.with(|c| c.get()) > 0
 }
 
 pub(crate) fn panic_hook_depth() -> usize {
-    PANIC_HOOK_DEPTH.load(Ordering::Acquire)
+    PANIC_HOOK_DEPTH.with(|c| c.get())
 }
 
 pub fn activate_panic_hook() {
     install_panic_hook();
-    PANIC_HOOK_DEPTH.fetch_add(1, Ordering::AcqRel);
+    PANIC_HOOK_DEPTH.with(|c| c.set(c.get() + 1));
 }
 
 pub fn deactivate_panic_hook() {
-    PANIC_HOOK_DEPTH
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |depth| {
-            depth.checked_sub(1)
-        })
-        .expect("deactivate_panic_hook called without matching activate");
+    PANIC_HOOK_DEPTH.with(|c| {
+        let depth = c.get();
+        assert!(
+            depth > 0,
+            "deactivate_panic_hook called without matching activate"
+        );
+        c.set(depth - 1);
+    });
 }
 
 /// Wrap a function (i.e. part of a contract) within a try-catch block that
@@ -193,6 +229,48 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // A contract panic must classify the same way wherever the body runs.
+    // `activate_panic_hook` marks the thread that entered the FFI call, but
+    // execution is coroutinized and the body resumes on whichever pool thread
+    // picked it up; `trampoline` marks that one, which is what this covers.
+    #[test]
+    fn mock_body_panic_is_deterministic_on_any_thread() {
+        // Off the activating thread and outside a body, an ordinary panic is
+        // a harness bug -- nothing says a frame is running.
+        let unmarked = std::thread::spawn(|| {
+            invoke_wrapper(|| panic!("contract panic"))().panic
+        })
+        .join()
+        .expect("harness thread panicked");
+        assert_eq!(unmarked, InvokeErrorCode::Unrecoverable.0);
+
+        // Inside a body, on that same foreign thread, it is a deterministic
+        // failure of the invocation -- which is the classification the
+        // executor needs and a thread-local activation depth cannot give.
+        let in_body = std::thread::spawn(|| {
+            let _in_body = MockInvocationGuard::enter();
+            invoke_wrapper(|| panic!("contract panic"))().panic
+        })
+        .join()
+        .expect("harness thread panicked");
+        assert_eq!(in_body, InvokeErrorCode::Deterministic.0);
+    }
+
+    #[test]
+    fn mock_invocation_guard_balances_on_unwind() {
+        assert!(!in_mock_invocation());
+        let caught = std::panic::catch_unwind(|| {
+            let _in_body = MockInvocationGuard::enter();
+            assert!(in_mock_invocation());
+            panic!("body panicked");
+        });
+        assert!(caught.is_err());
+        assert!(
+            !in_mock_invocation(),
+            "guard must decrement when the body unwinds through it"
+        );
+    }
 
     #[test]
     fn display_terminates_and_names_the_error_code() {
