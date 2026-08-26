@@ -67,51 +67,44 @@ pub fn abort_transaction_error() -> InvokeError {
     }
 }
 
-// Two counters, not one: the panic hook is active when *either* is non-zero,
-// but they are raised by different owners with independently nesting lifetimes
-// (`activate`/`deactivate` pairs vs. a guard's `Drop`). Kept apart, each stays
-// a count of one thing -- so `panic_hook_depth()` still answers "how many
-// frames did this thread activate", and a stray `deactivate_panic_hook` cannot
-// decrement a count a live `MockInvocationGuard` is relying on.
 thread_local! {
-    /// Frames opened on this thread by `activate_panic_hook`.
-    ///
-    /// Set by the transaction handler around a frame, on the thread that
-    /// entered the FFI call.
-    static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
-
     /// Mock contract bodies currently running on this thread.
     ///
     /// Set by `trampoline` immediately around the body it invokes, which is
-    /// what makes it right where `PANIC_HOOK_DEPTH` alone is wrong: execution
-    /// is coroutinized, so a body runs on whichever pool thread resumed it
-    /// rather than the one that activated -- but `trampoline` and the body it
-    /// calls are always the *same* thread, so marking it there needs no
-    /// guess about which thread that is. hogd's `MockRuntime` captures its
-    /// owning handler for the same reason instead of reading the thread-local
-    /// context slot.
+    /// what makes it right where a mark on the dispatching thread is wrong:
+    /// execution is coroutinized, so a body runs on whichever pool thread
+    /// resumed it -- but `trampoline` and the body it calls are always the
+    /// *same* thread, so marking it there needs no guess about which thread
+    /// that is. hogd's `MockRuntime` captures its owning handler for the same
+    /// reason instead of reading the thread-local context slot.
     ///
     /// A count, not a flag: a mock body can invoke another contract, which
     /// re-enters `trampoline` on that thread.
-    static MOCK_INVOCATION_DEPTH: Cell<usize> = const { Cell::new(0) };
+    static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
-/// Marks the calling thread as running a mock contract body for as long as it
-/// is held.
+/// Activates the classifying panic hook on the calling thread for as long as
+/// it is held, installing it on first use.
+///
+/// Held by `trampoline` around the contract body it invokes. That is the whole
+/// region the hook should cover: a panic anywhere else is a harness bug, and
+/// should keep the default output and stay unrecoverable.
 ///
 /// Decrements on drop so an unwinding body still leaves the count balanced.
-pub(crate) struct MockInvocationGuard;
+pub struct PanicHookGuard;
 
-impl MockInvocationGuard {
-    pub(crate) fn enter() -> Self {
-        MOCK_INVOCATION_DEPTH.with(|c| c.set(c.get() + 1));
-        MockInvocationGuard
+impl PanicHookGuard {
+    /// Enter a contract body on the calling thread.
+    pub fn enter() -> Self {
+        install_panic_hook();
+        PANIC_HOOK_DEPTH.with(|c| c.set(c.get() + 1));
+        PanicHookGuard
     }
 }
 
-impl Drop for MockInvocationGuard {
+impl Drop for PanicHookGuard {
     fn drop(&mut self) {
-        MOCK_INVOCATION_DEPTH.with(|c| c.set(c.get().saturating_sub(1)));
+        PANIC_HOOK_DEPTH.with(|c| c.set(c.get().saturating_sub(1)));
     }
 }
 
@@ -161,51 +154,10 @@ fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
     }
 }
 
-/// Whether a panic on this thread is expected control flow rather than a
-/// harness bug.
-///
-/// Either a frame was opened on this thread, or this thread is inside a mock
-/// body -- the second covers the resumed-coroutine case the first cannot see.
-/// Whether a panic on this thread should be treated as coming from contract
-/// code, and so routed to the compact hook output rather than the default one.
-///
-/// True inside an activated frame *or* inside a mock body, since a body can be
-/// resumed on a thread that never activated.
+/// Whether this thread is inside a contract body, and so whether a panic on it
+/// is contract code failing rather than a harness bug.
 pub(crate) fn is_panic_hook_active() -> bool {
-    panic_hook_depth() > 0 || in_mock_invocation()
-}
-
-/// Whether this thread is currently executing a mock contract body.
-pub(crate) fn in_mock_invocation() -> bool {
-    MOCK_INVOCATION_DEPTH.with(|c| c.get()) > 0
-}
-
-/// How many invocation frames this thread has activated and not yet
-/// deactivated. Counts activations only -- a mock body running here does not
-/// raise it.
-pub(crate) fn panic_hook_depth() -> usize {
-    PANIC_HOOK_DEPTH.with(|c| c.get())
-}
-
-/// Enter a contract-execution region: install the classifying panic hook
-/// (once) and increment its activation depth.
-pub fn activate_panic_hook() {
-    install_panic_hook();
-    PANIC_HOOK_DEPTH.with(|c| c.set(c.get() + 1));
-}
-
-/// Leave a contract-execution region entered by [`activate_panic_hook`].
-///
-/// Panics if called without a matching activation.
-pub fn deactivate_panic_hook() {
-    PANIC_HOOK_DEPTH.with(|c| {
-        let depth = c.get();
-        assert!(
-            depth > 0,
-            "deactivate_panic_hook called without matching activate"
-        );
-        c.set(depth - 1);
-    });
+    PANIC_HOOK_DEPTH.with(|c| c.get()) > 0
 }
 
 /// Wrap a contract closure in the catch site that maps its panics to
@@ -258,10 +210,10 @@ where
 mod tests {
     use super::*;
 
-    // A contract panic must classify the same way wherever the body runs.
-    // `activate_panic_hook` marks the thread that entered the FFI call, but
-    // execution is coroutinized and the body resumes on whichever pool thread
-    // picked it up; `trampoline` marks that one, which is what this covers.
+    // A contract panic must classify the same way wherever the body runs:
+    // execution is coroutinized, so a body resumes on whichever pool thread
+    // picked it up rather than the one that dispatched to it. `trampoline`
+    // marks that thread, which is what this covers.
     #[test]
     fn mock_body_panic_is_deterministic_on_any_thread() {
         // Off the activating thread and outside a body, an ordinary panic is
@@ -277,7 +229,7 @@ mod tests {
         // failure of the invocation -- which is the classification the
         // executor needs and a thread-local activation depth cannot give.
         let in_body = std::thread::spawn(|| {
-            let _in_body = MockInvocationGuard::enter();
+            let _in_body = PanicHookGuard::enter();
             invoke_wrapper(|| panic!("contract panic"))().panic
         })
         .join()
@@ -286,16 +238,16 @@ mod tests {
     }
 
     #[test]
-    fn mock_invocation_guard_balances_on_unwind() {
-        assert!(!in_mock_invocation());
+    fn panic_hook_guard_balances_on_unwind() {
+        assert!(!is_panic_hook_active());
         let caught = std::panic::catch_unwind(|| {
-            let _in_body = MockInvocationGuard::enter();
-            assert!(in_mock_invocation());
+            let _in_body = PanicHookGuard::enter();
+            assert!(is_panic_hook_active());
             panic!("body panicked");
         });
         assert!(caught.is_err());
         assert!(
-            !in_mock_invocation(),
+            !is_panic_hook_active(),
             "guard must decrement when the body unwinds through it"
         );
     }
@@ -315,9 +267,7 @@ mod tests {
         // the hook used to resume_unwind a converted payload from inside the
         // hook, which now aborts the whole process. Merely completing this
         // test proves the hook no longer panics while active.
-        install_panic_hook();
-
-        activate_panic_hook();
+        let _in_body = PanicHookGuard::enter();
         let err =
             panic::catch_unwind(|| panic!("contract panic")).unwrap_err();
         assert_eq!(
@@ -326,68 +276,48 @@ mod tests {
             "the hook must let the original payload unwind unchanged; \
              conversion is the catch site's job"
         );
-        deactivate_panic_hook();
     }
 
     #[test]
-    fn invoke_wrapper_converts_panics_when_active() {
-        // With activation: an ordinary contract panic becomes a
-        // deterministic error at the catch site.
-        activate_panic_hook();
-        assert_eq!(panic_hook_depth(), 1);
-        let result = invoke_wrapper(|| panic!("contract panic"))();
-        assert_eq!(result.panic, InvokeErrorCode::Deterministic.0);
+    fn invoke_wrapper_converts_panics_inside_a_body() {
+        {
+            // Inside a body: an ordinary contract panic becomes a
+            // deterministic error at the catch site.
+            let _in_body = PanicHookGuard::enter();
+            let result = invoke_wrapper(|| panic!("contract panic"))();
+            assert_eq!(result.panic, InvokeErrorCode::Deterministic.0);
 
-        // InvokeError payloads pass through with their own code.
-        let result =
-            invoke_wrapper(|| std::panic::panic_any(validation_error()))();
-        assert_eq!(result.panic, InvokeErrorCode::ValidationFailure.0);
+            // InvokeError payloads pass through with their own code.
+            let result =
+                invoke_wrapper(|| std::panic::panic_any(validation_error()))();
+            assert_eq!(result.panic, InvokeErrorCode::ValidationFailure.0);
+        }
 
-        deactivate_panic_hook();
-        assert_eq!(panic_hook_depth(), 0);
-
-        // Without activation: an ordinary panic is a harness bug, not a
-        // contract failure.
-        let result = invoke_wrapper(|| panic!("after deactivate"))();
+        // Outside one, an ordinary panic is a harness bug, not a contract
+        // failure.
+        assert!(!is_panic_hook_active());
+        let result = invoke_wrapper(|| panic!("outside a body"))();
         assert_eq!(result.panic, InvokeErrorCode::Unrecoverable.0);
     }
 
     #[test]
-    fn nested_activation_stays_active_after_inner_deactivate() {
-        install_panic_hook();
-        assert_eq!(panic_hook_depth(), 0);
+    fn nested_body_stays_active_after_inner_guard_drops() {
+        assert!(!is_panic_hook_active());
 
-        // Outer activate
-        activate_panic_hook();
-        assert_eq!(panic_hook_depth(), 1);
+        let outer = PanicHookGuard::enter();
+        {
+            // A mock body invoking another contract re-enters `trampoline`.
+            let _inner = PanicHookGuard::enter();
+        }
 
-        // Inner activate (simulating nested contract call)
-        activate_panic_hook();
-        assert_eq!(panic_hook_depth(), 2);
-
-        // Inner deactivate — hook must still be active
-        deactivate_panic_hook();
-        assert_eq!(panic_hook_depth(), 1);
+        // The inner drop must not end the outer body: a panic here is still
+        // a contract failure. This is why the marker counts rather than
+        // flags.
         assert!(is_panic_hook_active());
-
-        // A panic here must still count as a contract failure (this is the
-        // bug scenario: before the fix, the inner deactivate would have
-        // turned off the hook)
         let result = invoke_wrapper(|| panic!("mid-nest panic"))();
         assert_eq!(result.panic, InvokeErrorCode::Deterministic.0);
 
-        // Outer deactivate
-        deactivate_panic_hook();
-        assert_eq!(panic_hook_depth(), 0);
+        drop(outer);
         assert!(!is_panic_hook_active());
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "deactivate_panic_hook called without matching activate"
-    )]
-    fn deactivate_without_activate_panics() {
-        assert_eq!(panic_hook_depth(), 0);
-        deactivate_panic_hook();
     }
 }

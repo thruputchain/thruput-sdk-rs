@@ -112,7 +112,7 @@ unsafe extern "C" fn trampoline(
             // body may resume on a pool thread rather than the one that
             // activated the panic hook, and this is the point where the right
             // thread is known without guessing: it is the one calling `x`.
-            let _in_body = crate::invoke_error::MockInvocationGuard::enter();
+            let _in_body = crate::invoke_error::PanicHookGuard::enter();
             x()
         }
         None => groundhog_sys::ForeignInvokeResult {

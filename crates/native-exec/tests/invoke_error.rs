@@ -46,7 +46,7 @@ fn test_panic_ok() {
 }
 
 fn test_sdk_panic() {
-    activate_panic_hook();
+    let _in_body = PanicHookGuard::enter();
     let f: fn() -> () = || {
         panic!("something");
     };
@@ -57,7 +57,7 @@ fn test_sdk_panic() {
 }
 
 fn test_option_panic() {
-    activate_panic_hook();
+    let _in_body = PanicHookGuard::enter();
     // The `unwrap` on a known `None` is the point: it is the stand-in for an
     // ordinary contract-side panic, which the hook must convert.
     #[allow(clippy::unnecessary_literal_unwrap)]
@@ -72,7 +72,7 @@ fn test_option_panic() {
 }
 
 fn test_pass_invoke_error_through_panic_hook() {
-    activate_panic_hook();
+    let _in_body = PanicHookGuard::enter();
     let f: fn() -> () = || panic_any(validation_error());
 
     let boxed = invoke_wrapper(f);
