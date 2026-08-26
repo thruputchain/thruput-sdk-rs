@@ -1,5 +1,5 @@
 //! Regression test: the native token precompile (pre-deployed at
-//! `ADDRESS_PRECOMPILED_HOG_TOKEN` by genesis) stays compatible with the
+//! `ADDRESS_NATIVE_TOKEN` by genesis) stays compatible with the
 //! standard ERC20 interface where it can, and keeps its documented
 //! divergences where it can't.
 

@@ -13,7 +13,11 @@ pub const fn get_precompile_addr(
     ContractAddress::new(bytes)
 }
 
+pub const ADDRESS_NATIVE_TOKEN: ContractAddress =
+    get_precompile_addr(GenesisContractAddresses::kAddressNativeToken);
+pub const ADDRESS_GENESIS_ROOT: ContractAddress =
+    get_precompile_addr(GenesisContractAddresses::kAddressGenesisRoot);
+
+// Compatibility name for the native-token address used before Genesis V2.
 pub const ADDRESS_PRECOMPILED_HOG_TOKEN: ContractAddress =
-    get_precompile_addr(GenesisContractAddresses::kAddressPrecompiledHogToken);
-pub const ADDRESS_INITIAL_TOKEN_CLAIM: ContractAddress =
-    get_precompile_addr(GenesisContractAddresses::kAddressInitialTokenClaim);
+    ADDRESS_NATIVE_TOKEN;
