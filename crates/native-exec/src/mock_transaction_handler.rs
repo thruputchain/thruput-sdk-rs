@@ -318,14 +318,18 @@ impl MockInvocationFrame {
         }
 
         self.push_context();
-        crate::invoke_error::activate_panic_hook();
 
-        let result =
+        let result = {
+            // The lambda stands in for the frame's contract body -- an
+            // ordinary panic out of it is classified below as this frame
+            // failing deterministically -- so the hook covers it, and nests
+            // with the guards `trampoline` holds around real mock bodies.
+            let _hook = crate::invoke_error::PanicHookGuard::enter();
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 lambda(self)
-            }));
+            }))
+        };
 
-        crate::invoke_error::deactivate_panic_hook();
         self.pop_context();
 
         match result {
@@ -939,35 +943,34 @@ mod tests {
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
-                // Outer frame: hook should be active at depth 1
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                // Outer frame: the hook covers the frame's body.
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
-                    // First execute: Continue, depth goes to 2 then back to 1
+                    // First execute: Continue, then the child's guard drops.
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Continue
                     })
-                    // Second execute: still depth 2 inside, then Close
+                    // Second execute: still covered inside, then Close.
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Close
                     })
                     .result();
 
-                // Back in outer frame after inner deactivate: still depth 1
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                // The child finishing must not uncover the outer frame. This
+                // is why the marker counts rather than flags.
                 assert!(crate::invoke_error::is_panic_hook_active());
 
                 FrameAction::Close
             })
             .result();
 
-        // After everything: depth back to 0
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        // After everything: no frame is running.
         assert!(!crate::invoke_error::is_panic_hook_active());
     }
 
@@ -993,7 +996,6 @@ mod tests {
 
                 // Outer frame should still be active and running
                 assert!(crate::invoke_error::is_panic_hook_active());
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
 
                 FrameAction::Close
             })
@@ -1003,16 +1005,15 @@ mod tests {
             result.output().status_code(),
             InvocationFrameStatusCode::Return
         );
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
     }
 
     #[test]
-    fn test_interleaved_handlers_panic_hook_depth() {
+    fn test_interleaved_handlers_keep_panic_hook_active() {
         let env = TestEnvironment::new(None);
         let mut handler1 = MockTransactionHandler::new(env.clone());
         let mut handler2 = MockTransactionHandler::new(env);
 
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler1: Continue with nested child frame
         let frame1 = handler1
@@ -1020,22 +1021,22 @@ mod tests {
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Close
                     })
                     .result();
 
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Continue
             });
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler2: Continue (no children)
         let frame2 = handler2
@@ -1043,57 +1044,56 @@ mod tests {
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Continue
             });
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler1: Close with nested child that panics
         let result1 = frame1
             .execute(|frame| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         panic!("child panic in handler1");
                     })
                     .result();
 
-                // Child panicked but depth is back to 1
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                // The child panicking must not uncover this frame.
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Close
             })
             .result();
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler2: Close with nested child doing Continue then Close
         let result2 = frame2
             .execute(|frame| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Continue
                     })
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Close
                     })
                     .result();
 
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Close
             })
             .result();
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         assert_eq!(
             result1.output().status_code(),

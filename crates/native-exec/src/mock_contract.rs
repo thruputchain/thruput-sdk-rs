@@ -20,14 +20,16 @@ pub struct MockContractInner {
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
     funcs: HashMap<
         ContractEntrypointID,
-        Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>,
+        Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync>,
     >,
     /// Run instead of a deterministic failure when an invoked method id
     /// matches no entry in `funcs`. `None` (the default) keeps the
     /// historical behavior; `sdk::register_mock_package` installs a
     /// `LibraryExn::UnknownMethod` throw, so a mock standing in for a real
     /// contract agrees with the rv32 guest dispatcher.
-    unknown: Option<Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult>>,
+    unknown: Option<
+        Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync>,
+    >,
 }
 
 /// Handle to a mock contract registered in a [`TestEnvironment`]: a
@@ -76,9 +78,15 @@ impl MockContract {
     /// Register `func` as the entrypoint for method `id`. The closure runs
     /// inside the frame's catch site, so panics and aborts out of it map to
     /// frame outcomes.
+    ///
+    /// `Send + Sync` on `func` is what keeps a mock body safe to run on the
+    /// thread the coroutine resumed on rather than the one that registered it;
+    /// see [`invoke_wrapper`]. Capturing `Rc`/`RefCell` state to record calls
+    /// is rejected here -- use `Arc`/`Mutex`, or an `AtomicUsize` for a plain
+    /// counter.
     pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)
     where
-        F: Fn() + UnwindSafe + Clone + 'static,
+        F: Fn() + UnwindSafe + Clone + Send + Sync + 'static,
     {
         unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
     }
@@ -92,7 +100,7 @@ impl MockContract {
     /// exception rather than escaping the frame.
     pub fn register_unknown_method<F>(&mut self, func: F)
     where
-        F: Fn() + UnwindSafe + Clone + 'static,
+        F: Fn() + UnwindSafe + Clone + Send + Sync + 'static,
     {
         unsafe { (*self.contract).unknown = Some(invoke_wrapper(func)) };
     }
@@ -129,14 +137,16 @@ impl MockContractInner {
     pub fn get_func(
         &self,
         method: ContractEntrypointID,
-    ) -> Option<&dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
+    ) -> Option<&(dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync)>
+    {
         self.funcs.get(&method).map(|boxed| boxed.as_ref())
     }
 
     /// The handler for undefined method ids, if one was registered.
     pub fn get_unknown_func(
         &self,
-    ) -> Option<&dyn Fn() -> groundhog_sys::ForeignInvokeResult> {
+    ) -> Option<&(dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync)>
+    {
         self.unknown.as_ref().map(|boxed| boxed.as_ref())
     }
 }

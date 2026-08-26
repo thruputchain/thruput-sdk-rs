@@ -105,6 +105,12 @@ logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when test
 name = "int128"
 required-features = ["std"]
 
+# Mock-executor misuse cases. Gated: without `mock` the APIs under test are
+# absent, so the cases would fail to resolve instead of failing on the bound.
+[[test]]
+name = "compile_fail_mock"
+required-features = ["mock"]
+
 # RV32 contracts use real syscalls into hogd. Host-native builds use the mock
 # syscall implementation linked through native-exec.
 #
