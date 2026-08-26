@@ -1,10 +1,10 @@
 use hogexec_internal::ffi_enums::InvokeErrorCode;
-use std::cell::Cell;
 use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
 use std::sync::Once;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InvokeError {
@@ -59,9 +59,23 @@ pub fn abort_transaction_error() -> InvokeError {
     }
 }
 
-thread_local! {
-    static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
-}
+/// How many mock invocation frames are open.
+///
+/// Process-wide rather than per-thread. Execution is coroutinized, so a
+/// contract body resumes on whichever pool thread picked it up -- never
+/// reliably the one that entered the FFI call and activated the hook. See
+/// `MockRuntime`'s constructor in hogd, which captures its owning handler for
+/// the same reason instead of reading the thread-local context slot. A
+/// per-thread depth reads 0 on the resumed thread, so every contract panic
+/// landing there was classified an unrecoverable harness bug instead of a
+/// deterministic failure of that one invocation.
+///
+/// This coarsens the question from "does this thread have a frame open" to
+/// "does this process". Both readers only use it to tell an expected contract
+/// panic from a harness bug, and `trampoline` reaches a wrapper only from
+/// inside an open frame -- a bare `invoke_wrapper` call outside one is a
+/// unit-test shape, not something the mock executor produces.
+static PANIC_HOOK_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
 static INSTALL_HOOK: Once = Once::new();
 
@@ -114,23 +128,20 @@ pub(crate) fn is_panic_hook_active() -> bool {
 }
 
 pub(crate) fn panic_hook_depth() -> usize {
-    PANIC_HOOK_DEPTH.with(|c| c.get())
+    PANIC_HOOK_DEPTH.load(Ordering::Acquire)
 }
 
 pub fn activate_panic_hook() {
     install_panic_hook();
-    PANIC_HOOK_DEPTH.with(|c| c.set(c.get() + 1));
+    PANIC_HOOK_DEPTH.fetch_add(1, Ordering::AcqRel);
 }
 
 pub fn deactivate_panic_hook() {
-    PANIC_HOOK_DEPTH.with(|c| {
-        let depth = c.get();
-        assert!(
-            depth > 0,
-            "deactivate_panic_hook called without matching activate"
-        );
-        c.set(depth.saturating_sub(1));
-    });
+    PANIC_HOOK_DEPTH
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |depth| {
+            depth.checked_sub(1)
+        })
+        .expect("deactivate_panic_hook called without matching activate");
 }
 
 // Wrap a function (i.e. part of a contract) within a try-catch block
