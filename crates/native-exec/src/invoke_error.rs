@@ -68,29 +68,29 @@ pub fn abort_transaction_error() -> InvokeError {
 }
 
 thread_local! {
-    /// Mock contract bodies currently running on this thread.
-    ///
-    /// Set by `trampoline` immediately around the body it invokes, which is
-    /// what makes it right where a mark on the dispatching thread is wrong:
-    /// execution is coroutinized, so a body runs on whichever pool thread
-    /// resumed it -- but `trampoline` and the body it calls are always the
-    /// *same* thread, so marking it there needs no guess about which thread
-    /// that is. hogd's `MockRuntime` captures its owning handler for the same
-    /// reason instead of reading the thread-local context slot.
-    ///
-    /// A count, not a flag: a mock body can invoke another contract, which
-    /// re-enters `trampoline` on that thread.
+    /// Nested contract-code regions open on this thread; see
+    /// [`PanicHookGuard`], which is the only thing that raises it. hogd's
+    /// `MockRuntime` captures its owning handler for the same thread reason
+    /// instead of reading the thread-local context slot.
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
 /// Activates the classifying panic hook on the calling thread for as long as
 /// it is held, installing it on first use.
 ///
-/// Held by `trampoline` around the contract body it invokes. That is the whole
-/// region the hook should cover: a panic anywhere else is a harness bug, and
-/// should keep the default output and stay unrecoverable.
+/// Held around contract code and nothing else: by `trampoline` around the mock
+/// body it invokes, and by `MockInvocationFrame::execute` around the lambda
+/// standing in for a frame's body. A panic outside those is a harness bug, and
+/// keeps the default output and an unrecoverable code -- which is why the real
+/// FFI call in `TransactionHandler::root_invoke` holds no guard.
 ///
-/// Decrements on drop so an unwinding body still leaves the count balanced.
+/// `trampoline` holding it is also what makes the mark land on the right
+/// thread: execution is coroutinized, so a body runs on whichever pool thread
+/// resumed it, but `trampoline` and the body it calls are always the same one.
+///
+/// A count, not a flag, since these nest: a frame's lambda invokes bodies, and
+/// a body can invoke another contract. Decrements on drop, so an unwinding
+/// body still leaves the count balanced.
 pub struct PanicHookGuard;
 
 impl PanicHookGuard {
@@ -154,7 +154,7 @@ fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
     }
 }
 
-/// Whether this thread is inside a contract body, and so whether a panic on it
+/// Whether this thread is inside contract code, and so whether a panic on it
 /// is contract code failing rather than a harness bug.
 pub(crate) fn is_panic_hook_active() -> bool {
     PANIC_HOOK_DEPTH.with(|c| c.get()) > 0

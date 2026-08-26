@@ -319,10 +319,16 @@ impl MockInvocationFrame {
 
         self.push_context();
 
-        let result =
+        let result = {
+            // The lambda stands in for the frame's contract body -- an
+            // ordinary panic out of it is classified below as this frame
+            // failing deterministically -- so the hook covers it, and nests
+            // with the guards `trampoline` holds around real mock bodies.
+            let _hook = crate::invoke_error::PanicHookGuard::enter();
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 lambda(self)
-            }));
+            }))
+        };
 
         self.pop_context();
 
@@ -340,10 +346,10 @@ impl MockInvocationFrame {
                     // rather than becoming this frame's outcome.
                     self.close_frame_internal(my_error.error_type);
                 } else {
-                    // An ordinary panic payload is the frame's stand-in for
-                    // contract code panicking: a deterministic failure of
-                    // this frame. Printing is the hook's business, and it
-                    // only quiets panics raised inside a mock body.
+                    // The lambda always runs with the panic hook active, so
+                    // an ordinary panic payload is contract code panicking
+                    // (already printed by the hook): a deterministic failure
+                    // of this frame.
                     self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Deterministic);
                 }
             }
@@ -928,6 +934,47 @@ mod tests {
     }
 
     #[test]
+    fn test_nested_frames_keep_panic_hook_active() {
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+
+        handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build()
+            .execute(|frame| {
+                // Outer frame: the hook covers the frame's body.
+                assert!(crate::invoke_error::is_panic_hook_active());
+
+                frame
+                    .open_child_frame(child_addr())
+                    .with_invoke_flags(0)
+                    .build()
+                    // First execute: Continue, then the child's guard drops.
+                    .execute(|_| {
+                        assert!(crate::invoke_error::is_panic_hook_active());
+                        FrameAction::Continue
+                    })
+                    // Second execute: still covered inside, then Close.
+                    .execute(|_| {
+                        assert!(crate::invoke_error::is_panic_hook_active());
+                        FrameAction::Close
+                    })
+                    .result();
+
+                // The child finishing must not uncover the outer frame. This
+                // is why the marker counts rather than flags.
+                assert!(crate::invoke_error::is_panic_hook_active());
+
+                FrameAction::Close
+            })
+            .result();
+
+        // After everything: no frame is running.
+        assert!(!crate::invoke_error::is_panic_hook_active());
+    }
+
+    #[test]
     fn test_nested_frame_panic_still_caught_by_outer() {
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
@@ -948,6 +995,7 @@ mod tests {
                     .result();
 
                 // Outer frame should still be active and running
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 FrameAction::Close
             })
@@ -960,10 +1008,12 @@ mod tests {
     }
 
     #[test]
-    fn test_interleaved_handlers_run_independently() {
+    fn test_interleaved_handlers_keep_panic_hook_active() {
         let env = TestEnvironment::new(None);
         let mut handler1 = MockTransactionHandler::new(env.clone());
         let mut handler2 = MockTransactionHandler::new(env);
+
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler1: Continue with nested child frame
         let frame1 = handler1
@@ -971,26 +1021,39 @@ mod tests {
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
+                assert!(crate::invoke_error::is_panic_hook_active());
+
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
-                    .execute(|_| FrameAction::Close)
+                    .execute(|_| {
+                        assert!(crate::invoke_error::is_panic_hook_active());
+                        FrameAction::Close
+                    })
                     .result();
 
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Continue
             });
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler2: Continue (no children)
         let frame2 = handler2
             .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
-            .execute(|_| FrameAction::Continue);
+            .execute(|_| {
+                assert!(crate::invoke_error::is_panic_hook_active());
+                FrameAction::Continue
+            });
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler1: Close with nested child that panics
         let result1 = frame1
             .execute(|frame| {
+                assert!(crate::invoke_error::is_panic_hook_active());
+
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
@@ -1000,24 +1063,37 @@ mod tests {
                     })
                     .result();
 
+                // The child panicking must not uncover this frame.
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Close
             })
             .result();
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler2: Close with nested child doing Continue then Close
         let result2 = frame2
             .execute(|frame| {
+                assert!(crate::invoke_error::is_panic_hook_active());
+
                 frame
                     .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
-                    .execute(|_| FrameAction::Continue)
-                    .execute(|_| FrameAction::Close)
+                    .execute(|_| {
+                        assert!(crate::invoke_error::is_panic_hook_active());
+                        FrameAction::Continue
+                    })
+                    .execute(|_| {
+                        assert!(crate::invoke_error::is_panic_hook_active());
+                        FrameAction::Close
+                    })
                     .result();
 
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Close
             })
             .result();
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         assert_eq!(
             result1.output().status_code(),
