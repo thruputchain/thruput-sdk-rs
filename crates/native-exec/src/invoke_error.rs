@@ -59,6 +59,12 @@ pub fn abort_transaction_error() -> InvokeError {
     }
 }
 
+// Two counters, not one: the panic hook is active when *either* is non-zero,
+// but they are raised by different owners with independently nesting lifetimes
+// (`activate`/`deactivate` pairs vs. a guard's `Drop`). Kept apart, each stays
+// a count of one thing -- so `panic_hook_depth()` still answers "how many
+// frames did this thread activate", and a stray `deactivate_panic_hook` cannot
+// decrement a count a live `MockInvocationGuard` is relying on.
 thread_local! {
     /// Frames opened on this thread by `activate_panic_hook`.
     ///
@@ -152,14 +158,23 @@ fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
 ///
 /// Either a frame was opened on this thread, or this thread is inside a mock
 /// body -- the second covers the resumed-coroutine case the first cannot see.
+/// Whether a panic on this thread should be treated as coming from contract
+/// code, and so routed to the compact hook output rather than the default one.
+///
+/// True inside an activated frame *or* inside a mock body, since a body can be
+/// resumed on a thread that never activated.
 pub(crate) fn is_panic_hook_active() -> bool {
     panic_hook_depth() > 0 || in_mock_invocation()
 }
 
+/// Whether this thread is currently executing a mock contract body.
 pub(crate) fn in_mock_invocation() -> bool {
     MOCK_INVOCATION_DEPTH.with(|c| c.get()) > 0
 }
 
+/// How many invocation frames this thread has activated and not yet
+/// deactivated. Counts activations only -- a mock body running here does not
+/// raise it.
 pub(crate) fn panic_hook_depth() -> usize {
     PANIC_HOOK_DEPTH.with(|c| c.get())
 }
