@@ -65,12 +65,10 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// shows up as a regression.
 pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     use groundhog_erc20_if::*;
-    use sdk::precompiles::{
-        ADDRESS_INITIAL_TOKEN_CLAIM, ADDRESS_PRECOMPILED_HOG_TOKEN,
-    };
+    use sdk::precompiles::{ADDRESS_GENESIS_ROOT, ADDRESS_NATIVE_TOKEN};
 
     let caller = ContractAddress::named("erc20_test");
-    let token = &ADDRESS_PRECOMPILED_HOG_TOKEN;
+    let token = &ADDRESS_NATIVE_TOKEN;
 
     const BALANCE: Amount = 101;
     // Const-evaluated, so an overflow would be a compile error.
@@ -78,10 +76,9 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
         as Amount
         * groundhog_xdr::types::kHogDivisibility as Amount;
 
-    // Fund the test caller from the genesis allocation, which is held by
-    // the initial-token-claim precompile.
+    // Fund the test caller from the allocation held by the genesis root.
     let result = env.transact(|tx| {
-        tx.call(&ADDRESS_INITIAL_TOKEN_CLAIM).run(move || {
+        tx.call(&ADDRESS_GENESIS_ROOT).run(move || {
             ERC20Client::new(token).transfer(&caller, BALANCE);
         })
     });
