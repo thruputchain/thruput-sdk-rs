@@ -12,6 +12,7 @@ use sha2::{Digest, Sha256};
 /// assert_ne!(alice, ContractAddress::named("bob"));   // distinct
 /// ```
 pub trait Named {
+    /// The deterministic address derived from `name`.
     fn named(name: &str) -> Self;
 }
 

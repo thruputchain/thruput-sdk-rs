@@ -49,9 +49,15 @@ pub use backend::Sha256Backend;
 pub use backend::Syscall;
 
 mod separator;
-pub use separator::{DomainSeparator, PUBKEY_ACCOUNT};
+pub use separator::{DomainSeparator, PUBKEY_ACCOUNT, TRANSACTION};
 
 mod preimage;
+
+#[cfg(feature = "alloc")]
+mod transaction;
+#[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+pub use transaction::transaction_signature_preimage;
 
 mod pubkey;
 #[cfg(feature = "sha2")]

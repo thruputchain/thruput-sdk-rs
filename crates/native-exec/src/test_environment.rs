@@ -50,6 +50,8 @@ pub fn test_network_hash() -> NetworkHash {
     NetworkHash::new(hash.into())
 }
 
+/// The state behind a [`TestEnvironment`]: the FFI database, runtime
+/// context, and registered mock contracts.
 pub struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
@@ -243,6 +245,8 @@ impl Drop for RuntimeContextWrapper {
 }
 
 impl TestEnvironmentInner {
+    /// Create a fresh in-memory database (with the given cost model) and
+    /// runtime context on `network_hash`.
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
@@ -257,6 +261,8 @@ impl TestEnvironmentInner {
         }
     }
 
+    /// Turn on FFI-level syscall logging to stderr at `level` for
+    /// environments created afterwards.
     pub fn enable_syscall_logging(level: groundhog_sys::FFILogLevel) {
         unsafe { groundhog_sys::enable_syscall_logging(level as i32) };
     }
@@ -421,10 +427,13 @@ impl TestEnvironmentInner {
         out
     }
 
+    /// The storage cost model the environment's database is running with.
     pub fn get_current_cost_model(&self) -> StorageCostModel {
         self.db.get_cost_model()
     }
 
+    /// Verify `tx`'s auth claims; see
+    /// [`TestEnvironment::verify_signed_transaction_auth`].
     pub fn run_auth_checks(
         &self,
         tx: &SignedTransaction,
@@ -494,34 +503,44 @@ impl TestEnvironment {
         te
     }
 
+    /// Environment with the chain-default cost model on the default test
+    /// network. Not the `Default` trait: constructors return a handle.
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> TestEnvironmentHandle {
         Self::new(None)
     }
 
+    /// Environment in which every storage operation costs zero.
     pub fn no_cost() -> TestEnvironmentHandle {
         Self::new(Some(
             &groundhog_storage_cost::StorageCostModel::no_cost_model(),
         ))
     }
 
-    // This has effect only after creation of a test environment
+    /// Turn on FFI-level syscall logging to stderr for environments
+    /// created after the call.
     pub fn enable_syscall_logging() {
         TestEnvironmentInner::enable_syscall_logging(
             groundhog_sys::FFILogLevel::Trace,
         );
     }
 
+    /// Advance to the next block, making committed effects visible to
+    /// subsequent transactions. Panics if a transaction executed but was
+    /// neither committed nor aborted.
     pub fn advance_block(self: &TestEnvironmentHandle) {
         self.inner.borrow_mut().advance_block()
     }
 
+    /// The storage cost model the environment's database is running with.
     pub fn get_current_cost_model(
         self: &TestEnvironmentHandle,
     ) -> StorageCostModel {
         self.inner.borrow().get_current_cost_model()
     }
 
+    /// Read a committed contract-data item from the current block snapshot
+    /// (`None` if the key holds nothing).
     pub fn get_snapshot_storage_item(
         self: &TestEnvironmentHandle,
         addr: &ContractAddress,
@@ -576,6 +595,9 @@ impl TestEnvironment {
     /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
     /// (hogd handles abort internally when the root frame reverted).
+    ///
+    /// The transaction has exactly one root frame: a second `tx.call`
+    /// inside the closure panics; use a child frame or another `transact`.
     ///
     /// Shorthand for `env.transaction().transact(f)`; use
     /// [`transaction`](Self::transaction) to customize the transaction first.
@@ -663,9 +685,16 @@ impl TestEnvironment {
     ///
     /// Pass `None` to represent "no registered auth data" (the pubkey-claim
     /// case). Pass `Some(d)` to supply serialized [`AddressAuthData`].
+    ///
+    /// `network_hash` is part of every signature preimage, so it must be the
+    /// network the signatures were produced for — see
+    /// `groundhog_domain_separator::transaction_signature_preimage`. There is
+    /// no database here to read it from, so it is passed explicitly;
+    /// [`test_network_hash`] is what a [`TestEnvironment`] would use.
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
         source_auth_data: Option<&AddressAuthData>,
+        network_hash: &NetworkHash,
     ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
         let ffi_serialized_tx =
@@ -694,6 +723,7 @@ impl TestEnvironment {
             groundhog_sys::verify_signed_transaction_auth(
                 ffi_serialized_tx,
                 ffi_serialized_source_auth_data,
+                network_hash.as_ptr(),
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();

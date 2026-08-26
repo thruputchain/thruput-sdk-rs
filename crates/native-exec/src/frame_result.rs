@@ -4,6 +4,34 @@ use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::ContractAddress;
 
+/// One-line trace context for assertion messages: the syscalls the frame
+/// made, ending with the one closest to the failure.
+fn describe_trace(trace: Option<&InvocationFrameTrace>) -> String {
+    let Some(trace) = trace else {
+        return String::new();
+    };
+    let count = trace.system_calls.len();
+    let last = trace.system_calls.iter().last().map(|syscall| {
+        let mut dbg = format!("{syscall:?}");
+        const MAX: usize = 160;
+        if dbg.len() > MAX {
+            let mut end = MAX;
+            while !dbg.is_char_boundary(end) {
+                end -= 1;
+            }
+            dbg.truncate(end);
+            dbg.push('…');
+        }
+        dbg
+    });
+    match last {
+        None => format!("\n  trace: {count} syscalls"),
+        Some(last) => {
+            format!("\n  trace: {count} syscalls, last: {last}")
+        }
+    }
+}
+
 /// Result of executing a single invocation frame.
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
 #[derive(Debug, Clone)]
@@ -14,6 +42,7 @@ pub struct FrameResult {
 }
 
 impl FrameResult {
+    /// Wrap a frame's output, optional trace, and emitted events.
     pub fn new(
         output: InvocationFrameOutput,
         trace: Option<InvocationFrameTrace>,
@@ -28,50 +57,57 @@ impl FrameResult {
 
     // -- Status checks (using pattern matching for safety) --
 
+    /// True if the frame returned successfully.
     pub fn is_success(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Return { .. })
     }
 
+    /// True if the frame aborted (threw a contract exception).
     pub fn is_abort(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Abort { .. })
     }
 
+    /// True if the frame faulted (panicked or trapped, with no abort data).
     pub fn is_fault(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Fault)
     }
 
     // -- Assertions --
 
+    /// Assert the frame returned successfully. Frame-only check; use
+    /// [`TransactResult::assert_success`] when the commit outcome matters.
+    ///
+    /// [`TransactResult::assert_success`]: crate::transact_result::TransactResult::assert_success
     #[track_caller]
     pub fn assert_success(&self) {
-        match &self.output {
-            InvocationFrameOutput::Return { .. } => {}
-            InvocationFrameOutput::Abort { abort_buffer } => panic!(
-                "expected success, got abort (abort buffer: {:02x?})",
-                abort_buffer.as_slice()
-            ),
-            other => panic!(
-                "expected success, got status code {}",
-                other.status_code()
-            ),
-        }
+        assert!(
+            self.is_success(),
+            "expected success, got {:?}{}",
+            self.output,
+            describe_trace(self.trace())
+        );
     }
 
+    /// Assert the frame aborted (threw a contract exception). Frame-only
+    /// check.
     #[track_caller]
     pub fn assert_abort(&self) {
         assert!(
             self.is_abort(),
-            "expected abort, got status code {}",
-            self.output.status_code()
+            "expected abort, got {:?}{}",
+            self.output,
+            describe_trace(self.trace())
         );
     }
 
+    /// Assert the frame faulted (panicked or trapped). Frame-only check.
     #[track_caller]
     pub fn assert_fault(&self) {
         assert!(
             self.is_fault(),
-            "expected fault, got status code {}",
-            self.output.status_code()
+            "expected fault, got {:?}{}",
+            self.output,
+            describe_trace(self.trace())
         );
     }
 
@@ -83,10 +119,11 @@ impl FrameResult {
             InvocationFrameOutput::Return { return_buffer } => {
                 return_buffer.as_slice()
             }
-            _ => panic!(
-                "return_buffer() called on non-success frame (status {})",
-                self.output.status_code()
-            ),
+            other => {
+                panic!(
+                    "return_buffer() called on non-success frame: {other:?}"
+                )
+            }
         }
     }
 
@@ -96,10 +133,9 @@ impl FrameResult {
             InvocationFrameOutput::Abort { abort_buffer } => {
                 abort_buffer.as_slice()
             }
-            _ => panic!(
-                "abort_buffer() called on non-abort frame (status {})",
-                self.output.status_code()
-            ),
+            other => {
+                panic!("abort_buffer() called on non-abort frame: {other:?}")
+            }
         }
     }
 
@@ -162,20 +198,24 @@ impl FrameResult {
 
     // -- Raw access --
 
+    /// The frame's raw [`InvocationFrameOutput`].
     pub fn output(&self) -> &InvocationFrameOutput {
         &self.output
     }
 
+    /// The frame's execution trace, when tracing was enabled.
     pub fn trace(&self) -> Option<&InvocationFrameTrace> {
         self.trace.as_ref()
     }
 
     // -- Per-frame events --
 
+    /// The events this frame emitted (empty if the frame reverted).
     pub fn events(&self) -> &[TxEmittedEvent] {
         &self.events
     }
 
+    /// Assert exactly `expected` events were emitted by this frame.
     #[track_caller]
     pub fn assert_event_count(&self, expected: usize) {
         let actual = self.events.len();
@@ -186,6 +226,7 @@ impl FrameResult {
         );
     }
 
+    /// Assert this frame emitted no events.
     #[track_caller]
     pub fn assert_no_events(&self) {
         assert!(

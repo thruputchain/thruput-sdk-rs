@@ -321,10 +321,7 @@ mod tests {
         fn decode_payload(bytes: &[u8]) -> Result<u32, xdrs::ReadError> {
             match <[u8; 4]>::try_from(bytes) {
                 Ok(b) => Ok(u32::from_be_bytes(b)),
-                Err(_) => Err(xdrs::ReadError::SourceEmpty {
-                    requested: 4,
-                    remaining: bytes.len(),
-                }),
+                Err(_) => Err(xdrs::ReadError::source_empty(4, bytes.len())),
             }
         }
     }
