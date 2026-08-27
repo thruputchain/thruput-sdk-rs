@@ -90,6 +90,33 @@ impl Hasher {
         })
     }
 
+    /// Crate-internal: replace this hasher's stream with a fresh one holding
+    /// exactly `bytes`. Used by the storage layer's streamed key derivation
+    /// to rebuild its cached prefix midstate in place.
+    pub(crate) fn reabsorb(&mut self, bytes: &[u8]) {
+        self.needs_reset = false;
+        crate::sys::raw_SHA256Update(self.index as u32, bytes, true)
+            .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Update, e));
+    }
+
+    /// Crate-internal: overwrite this hasher's state with a copy of `src`'s
+    /// stream, reporting failure instead of throwing. `false` means `src`'s
+    /// VM-side stream does not exist — for the storage layer's cached prefix
+    /// midstate that signals a stale cache (a new invocation reset the VM's
+    /// streams but not the contract-local cache), which the caller recovers
+    /// from by rebuilding the source. `self` is unchanged on failure.
+    pub(crate) fn copy_from(&mut self, src: &Hasher) -> bool {
+        if src.needs_reset {
+            return false;
+        }
+        let ok = crate::sys::raw_SHA256Copy(src.index as u32, self.index as u32)
+            .is_ok();
+        if ok {
+            self.needs_reset = false;
+        }
+        ok
+    }
+
     /// Consume the hasher and return the SHA256 hash of the prior input.
     ///
     /// Throws a syscall exception (aborting the frame) if a host call fails.
