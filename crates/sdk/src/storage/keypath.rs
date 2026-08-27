@@ -347,9 +347,12 @@ mod streamkey {
         // `ContractCell`); native hosts use the thread-local arm instead.
         unsafe impl Sync for CacheCell {}
 
-        static CACHE: CacheCell = CacheCell(UnsafeCell::new(PrefixCache::new()));
+        static CACHE: CacheCell =
+            CacheCell(UnsafeCell::new(PrefixCache::new()));
 
-        pub(super) fn with_cache<R>(f: impl FnOnce(&mut PrefixCache) -> R) -> R {
+        pub(super) fn with_cache<R>(
+            f: impl FnOnce(&mut PrefixCache) -> R,
+        ) -> R {
             // SAFETY: single-threaded and non-reentrant — `f` never calls
             // back into this module.
             f(unsafe { &mut *CACHE.0.get() })
@@ -366,7 +369,9 @@ mod streamkey {
                 const { RefCell::new(PrefixCache::new()) };
         }
 
-        pub(super) fn with_cache<R>(f: impl FnOnce(&mut PrefixCache) -> R) -> R {
+        pub(super) fn with_cache<R>(
+            f: impl FnOnce(&mut PrefixCache) -> R,
+        ) -> R {
             CACHE.with(|c| f(&mut c.borrow_mut()))
         }
     }
@@ -424,8 +429,10 @@ mod streamkey {
                 cache.len = parent.len() as u16;
                 cache.bytes[..parent.len()].copy_from_slice(parent);
             }
-            let parent_hasher =
-                cache.hasher.as_mut().expect("bug: cache entry just ensured");
+            let parent_hasher = cache
+                .hasher
+                .as_mut()
+                .expect("bug: cache entry just ensured");
             if !t.copy_from(parent_hasher) {
                 // The cached handle's VM stream is gone: a new invocation
                 // reset the VM's streams but not this contract-local cache.

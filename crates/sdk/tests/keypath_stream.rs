@@ -8,7 +8,8 @@ use sdk::{Hasher, N_HASHERS, StorageKey, contract_test, hash_to_array};
 
 // The golden vector from the keypath unit tests: the preimage of
 // `child(&1u32).child(&0u32)` is [01 01 01 00].
-const GOLDEN: StorageKey = StorageKey::new(hash_to_array!(b"\x01\x01\x01\x00"));
+const GOLDEN: StorageKey =
+    StorageKey::new(hash_to_array!(b"\x01\x01\x01\x00"));
 
 // A parented derivation (split inside the preimage) hits the fork path and
 // still produces the exact preimage hash.

@@ -148,7 +148,14 @@ mod trace_analysis {
                         .outputs
                         .as_ref()
                         .and_then(|o| o.child_trace.as_ref())
-                        .map(|child| walk(child, depth + 1, Some(sc.gas_remaining_at_start), t))
+                        .map(|child| {
+                            walk(
+                                child,
+                                depth + 1,
+                                Some(sc.gas_remaining_at_start),
+                                t,
+                            )
+                        })
                         .unwrap_or(0);
                     // Whatever the invoke window consumed beyond the child's
                     // own syscall windows is the child frame's guest
@@ -204,7 +211,9 @@ mod trace_analysis {
                     .outputs
                     .as_ref()
                     .and_then(|o| o.child_trace.as_ref())
-                    .map(|child| walk(child, 1, Some(sc.gas_remaining_at_start), &mut t))
+                    .map(|child| {
+                        walk(child, 1, Some(sc.gas_remaining_at_start), &mut t)
+                    })
                     .unwrap_or(0);
                 *t.guest_by_depth.entry(1).or_default() +=
                     consumed.saturating_sub(child_windows);

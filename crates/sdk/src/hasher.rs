@@ -109,8 +109,9 @@ impl Hasher {
         if src.needs_reset {
             return false;
         }
-        let ok = crate::sys::raw_SHA256Copy(src.index as u32, self.index as u32)
-            .is_ok();
+        let ok =
+            crate::sys::raw_SHA256Copy(src.index as u32, self.index as u32)
+                .is_ok();
         if ok {
             self.needs_reset = false;
         }
