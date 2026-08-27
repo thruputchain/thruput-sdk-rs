@@ -817,13 +817,18 @@ mod tests {
         let env = TestEnvironment::new(None);
         let key = StorageKeyContractData::new([0x44; 32]);
         env.setup_grant_storage_tokens(&TEST_ADDR, 1_000_000_000);
-        env.inner.borrow_mut().setup_create_deployment(
-            &TEST_ADDR,
-            &groundhog_xdr::contract::Contract::kNative {
-                native_contract_id:
-                    groundhog_xdr::precompiles::HogexecPrecompiledNativeContracts::kNativeContractHogToken,
-            },
-        );
+        // Any created, deployable contract works: the transact below runs
+        // through the mock trampoline regardless of the deployed type, and
+        // native precompiles are banned from redeployment (hogd #3592).
+        // A fresh environment hands out mock contract ids from zero.
+        let _mock = env.inner.borrow_mut().add_contract();
+        let contract = groundhog_xdr::contract::Contract::kMockTest {
+            mock_contract_id: 0,
+        };
+        env.inner.borrow_mut().setup_create_contract(&contract);
+        env.inner
+            .borrow_mut()
+            .setup_create_deployment(&TEST_ADDR, &contract);
 
         let result = env.transact(|tx| {
             tx.call(&TEST_ADDR).run(|| {
