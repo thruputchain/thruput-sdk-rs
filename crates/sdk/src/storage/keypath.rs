@@ -298,13 +298,161 @@ mod pooled {
     }
 }
 
+/// Derives storage keys through the VM's incremental-hash streams instead of
+/// the one-shot `sha256` syscall, which the host prices per input byte.
+///
+/// The preimages of sibling slots share their parent's framed prefix, so the
+/// module keeps one cached midstate of the most recent parent prefix (absorbed
+/// once via `SHA256Update`) and derives each sibling by `SHA256Copy`-forking
+/// that midstate and absorbing only the sibling's own final frame. The copy is
+/// constant-time in the VM, which is exactly what makes the fork cheaper than
+/// re-absorbing the prefix.
+///
+/// Streams are a scarce per-invocation VM resource shared with user
+/// [`Hasher`](crate::hasher::Hasher)s, so this module holds at most one
+/// long-lived stream (the cached parent) plus one transient per derivation,
+/// both through the ordinary hasher slot allocator. When no slot is available
+/// the caller falls back to the one-shot `sha256` syscall — the derived key is
+/// identical either way.
+mod streamkey {
+    use super::STATIC_KEYPATH_CAPACITY;
+    use crate::SHA256Hash;
+    use crate::hasher::Hasher;
+
+    struct PrefixCache {
+        /// Live midstate holding `bytes[..len]` absorbed since its reset.
+        /// `None` until the first parented derivation claims a slot.
+        hasher: Option<Hasher>,
+        len: u16,
+        bytes: [u8; STATIC_KEYPATH_CAPACITY],
+    }
+
+    impl PrefixCache {
+        const fn new() -> Self {
+            Self {
+                hasher: None,
+                len: 0,
+                bytes: [0; STATIC_KEYPATH_CAPACITY],
+            }
+        }
+    }
+
+    #[cfg(any(doc, target_arch = "riscv32"))]
+    mod cache_cell {
+        use super::PrefixCache;
+        use core::cell::UnsafeCell;
+
+        struct CacheCell(UnsafeCell<PrefixCache>);
+        // SAFETY: single-threaded guest, no interrupts (the same argument as
+        // `ContractCell`); native hosts use the thread-local arm instead.
+        unsafe impl Sync for CacheCell {}
+
+        static CACHE: CacheCell = CacheCell(UnsafeCell::new(PrefixCache::new()));
+
+        pub(super) fn with_cache<R>(f: impl FnOnce(&mut PrefixCache) -> R) -> R {
+            // SAFETY: single-threaded and non-reentrant — `f` never calls
+            // back into this module.
+            f(unsafe { &mut *CACHE.0.get() })
+        }
+    }
+
+    #[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
+    mod cache_cell {
+        use super::PrefixCache;
+        use core::cell::RefCell;
+
+        std::thread_local! {
+            static CACHE: RefCell<PrefixCache> =
+                const { RefCell::new(PrefixCache::new()) };
+        }
+
+        pub(super) fn with_cache<R>(f: impl FnOnce(&mut PrefixCache) -> R) -> R {
+            CACHE.with(|c| f(&mut c.borrow_mut()))
+        }
+    }
+
+    // Native no-std builds have no syscall dispatch and no thread locals;
+    // `derive` below reports no stream available and the caller falls back.
+    #[cfg(all(not(any(doc, target_arch = "riscv32")), not(feature = "std")))]
+    mod cache_cell {
+        use super::PrefixCache;
+
+        pub(super) fn with_cache<R>(
+            _f: impl FnOnce(&mut PrefixCache) -> R,
+        ) -> R {
+            unreachable!("bug: streamed derivation on a no-syscall target")
+        }
+    }
+
+    /// Mirror of the VM's `kSHA256BufferMaxSize` (hog_exec_constants.x): the
+    /// most one stream absorbs. Larger preimages (possible in `alloc` mode)
+    /// must use the one-shot syscall.
+    const STREAM_INPUT_MAX: usize = 4096;
+
+    /// Hash `pre` through incremental streams, treating `pre[..split]` as the
+    /// parent prefix eligible for midstate caching. Returns `None` when no
+    /// stream slot is available or the preimage exceeds what a stream
+    /// absorbs; the caller must then hash `pre` another way.
+    pub(super) fn derive(pre: &[u8], split: usize) -> Option<SHA256Hash> {
+        if pre.len() > STREAM_INPUT_MAX {
+            return None;
+        }
+        let (parent, tail) = pre.split_at(split);
+
+        let mut t = Hasher::try_new()?;
+
+        // A parent that outgrows the cache line (alloc-mode preimages are
+        // unbounded) or an empty one (nothing shareable) skips the cache.
+        if parent.is_empty() || parent.len() > STATIC_KEYPATH_CAPACITY {
+            t.update(&pre);
+            return Some(t.finish());
+        }
+
+        cache_cell::with_cache(|cache| {
+            let hit = cache.hasher.is_some()
+                && cache.len as usize == parent.len()
+                && &cache.bytes[..parent.len()] == parent;
+            if !hit {
+                // Rebuild the cached midstate for this parent. Dropping the
+                // held hasher first frees its slot, so the replacement's
+                // allocation cannot fail while another slot is free; the
+                // fresh hasher's first update resets the underlying stream.
+                cache.hasher = None;
+                let mut h = Hasher::try_new()?;
+                h.update(&parent);
+                cache.hasher = Some(h);
+                cache.len = parent.len() as u16;
+                cache.bytes[..parent.len()].copy_from_slice(parent);
+            }
+            let parent_hasher =
+                cache.hasher.as_mut().expect("bug: cache entry just ensured");
+            if !t.copy_from(parent_hasher) {
+                // The cached handle's VM stream is gone: a new invocation
+                // reset the VM's streams but not this contract-local cache.
+                // Rebuild the midstate in place and retry once; if the copy
+                // still fails, derive this key by absorbing the whole
+                // preimage into the transient instead.
+                parent_hasher.reabsorb(parent);
+                if !t.copy_from(parent_hasher) {
+                    t.update(&pre);
+                    return Some(t.finish());
+                }
+            }
+            t.update(&tail);
+            Some(t.finish())
+        })
+    }
+}
+
 /// Path identifying a storage slot.
 ///
 /// A keypath is a sequence of length-framed components appended to a byte
 /// buffer. Each call to [`child`](Self::child) appends
 /// `CXS(byte_len) ‖ CXS(value)`: the component value CXS-encoded, prefixed by
-/// the CXS-encoded byte length of that encoding. The storage key is `sha256`
-/// of the buffer, computed once and memoized by [`KeyCache`].
+/// the CXS-encoded byte length of that encoding. The storage key is the
+/// SHA-256 of the buffer — computed through the VM's incremental-hash streams
+/// when one is available (see [`streamkey`]), through the one-shot `sha256`
+/// syscall otherwise, and memoized by [`KeyCache`].
 ///
 /// The self-delimiting `CXS(len)` prefix makes the preimage
 /// `child(v1) ‖ child(v2) ‖ …` uniquely decodable: read the length, then read
@@ -320,6 +468,11 @@ mod pooled {
 #[derive(Clone, Debug, Default)]
 pub struct Keypath {
     buf: KeyBufImpl,
+    /// Preimage length before the most recent frame was appended: the split
+    /// between the parent prefix (shared with sibling slots, eligible for
+    /// midstate caching in [`streamkey`]) and this keypath's own final frame.
+    /// Zero when the keypath has no parent prefix (root, default).
+    last_frame_start: u32,
     exclusive: bool,
 }
 
@@ -360,6 +513,7 @@ impl Keypath {
     /// give each child of a node a distinct `value`.
     pub fn child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
         let mut child = self.clone();
+        child.last_frame_start = self.buf.as_slice().len() as u32;
         // Encode the component into the reused scratch in place (no fresh
         // stack buffer), then frame it into the keypath's own buffer.
         crate::call::with_scratch(|buf| {
@@ -405,12 +559,19 @@ impl Keypath {
     #[doc(hidden)]
     pub fn child_framed(&self, frame: &'static FramedComponent) -> Keypath {
         let mut child = self.clone();
+        child.last_frame_start = self.buf.as_slice().len() as u32;
         child.buf.append_bytes(frame.as_bytes());
         child
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        sha256(self.buf.as_slice()).into()
+        let pre = self.buf.as_slice();
+        match streamkey::derive(pre, self.last_frame_start as usize) {
+            Some(hash) => hash.into(),
+            // No stream slot free (the contract holds all hashers): the
+            // one-shot syscall derives the identical key.
+            None => sha256(pre).into(),
+        }
     }
 
     /// Whether `self` and `other` address the same storage slot.
