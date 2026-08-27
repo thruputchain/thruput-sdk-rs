@@ -117,17 +117,3 @@ heapless = { version = "0.9.2" }
 
 [profile.release]
 trim-paths = "all" # unstable
-
-# Local-source patch: groundhog.dev registry unreachable from this environment.
-[patch."sparse+https://groundhog.dev/crates/api/v1/crates/"]
-groundhog-spec = { path = "/home/user/protocol-rs/groundhog-spec" }
-groundhog-trace = { path = "/home/user/protocol-rs/groundhog-trace" }
-groundhog-xdr = { path = "/home/user/protocol-rs/groundhog-xdr" }
-groundhog-xdr-macros = { path = "/home/user/protocol-rs/groundhog-xdr-macros" }
-groundhog-syscall = { path = "/home/user/protocol-rs/groundhog-syscall" }
-hogexec-internal = { path = "/home/user/protocol-rs/hogexec-internal" }
-xdrs = { path = "/home/user/xdrs" }
-xdr-common = { path = "/home/user/xdrs/xdr-common" }
-xdr-repr = { path = "/home/user/xdrs/xdr-repr" }
-xdr-derive = { path = "/home/user/xdrs/xdr-derive" }
-groundhog-serde_arrays = { path = "/home/user/serde_arrays" }
