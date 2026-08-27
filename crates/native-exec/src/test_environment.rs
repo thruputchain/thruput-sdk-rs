@@ -129,7 +129,7 @@ impl DBWrapper {
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
-        genesis_root_contract: &[u8],
+        genesis_root_contract: &Contract,
     ) -> Self {
         let cost_model_bytes =
             cost_model.map(|model| model.serialize().unwrap());
@@ -139,6 +139,8 @@ impl DBWrapper {
             .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
             .unwrap_or((core::ptr::null(), 0));
 
+        let genesis_root_bytes = txs::encode(genesis_root_contract).unwrap();
+
         // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
         // rejects a null one.
         let res = unsafe {
@@ -146,8 +148,8 @@ impl DBWrapper {
                 ffi_cost_model_bytes.0,
                 ffi_cost_model_bytes.1,
                 network_hash.as_ptr(),
-                genesis_root_contract.as_ptr(),
-                genesis_root_contract.len().try_into().unwrap(),
+                genesis_root_bytes.as_ptr(),
+                genesis_root_bytes.len().try_into().unwrap(),
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();
@@ -249,12 +251,12 @@ impl Drop for RuntimeContextWrapper {
 
 impl TestEnvironmentInner {
     /// Create a fresh in-memory database (with the given cost model) and
-    /// runtime context on `network_hash`. `genesis_root_contract` is the raw
-    /// rv32 blob installed as the genesis root deployment.
+    /// runtime context on `network_hash`. `genesis_root_contract` is
+    /// installed as the genesis root deployment.
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
-        genesis_root_contract: &[u8],
+        genesis_root_contract: &Contract,
     ) -> Self {
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
@@ -477,20 +479,24 @@ impl Drop for TestEnvironmentInner {
 
 impl Default for TestEnvironmentInner {
     fn default() -> Self {
-        Self::new(None, &test_network_hash(), MOCK_GENESIS_ROOT_CONTRACT)
+        Self::new(None, &test_network_hash(), &mock_genesis_root_contract())
     }
 }
 
 /// Shared handle to a [`TestEnvironment`]; returned by its constructors.
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
-/// Genesis root blob installed by the default constructors. The test
-/// environment executes contract bodies natively through the mock
-/// trampoline, so the genesis root's code never runs — only its deployment
-/// exists, and any non-empty bytes satisfy environment creation. Use
-/// [`TestEnvironment::with_genesis_root_contract`] to install a real
-/// artifact instead.
-pub const MOCK_GENESIS_ROOT_CONTRACT: &[u8] = b"sdk mock genesis root";
+/// The genesis root installed by the default constructors: a mock contract
+/// with no registered entrypoints. The test environment executes contract
+/// bodies natively through the mock trampoline, so the genesis root's code
+/// never runs — only its deployment exists. Use
+/// [`TestEnvironment::with_genesis_root_contract`] to install a different
+/// contract (e.g. a real rv32 artifact).
+pub fn mock_genesis_root_contract() -> Contract {
+    Contract::kMockTest {
+        mock_contract_id: i32::MAX,
+    }
+}
 
 impl TestEnvironment {
     /// Creates an environment on the default test network
@@ -502,7 +508,7 @@ impl TestEnvironment {
     }
 
     /// Creates an environment on a caller-chosen network, with
-    /// [`MOCK_GENESIS_ROOT_CONTRACT`] as the genesis root.
+    /// [`mock_genesis_root_contract`] as the genesis root.
     pub fn with_network_hash(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
@@ -510,16 +516,16 @@ impl TestEnvironment {
         Self::with_genesis_root_contract(
             cost_model,
             network_hash,
-            MOCK_GENESIS_ROOT_CONTRACT,
+            &mock_genesis_root_contract(),
         )
     }
 
     /// Creates an environment installing a caller-chosen genesis root
-    /// contract (a raw rv32 blob) instead of the mock placeholder.
+    /// contract instead of [`mock_genesis_root_contract`].
     pub fn with_genesis_root_contract(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
-        genesis_root_contract: &[u8],
+        genesis_root_contract: &Contract,
     ) -> TestEnvironmentHandle {
         let te = Rc::new(Self {
             inner: RefCell::new(TestEnvironmentInner::new(
