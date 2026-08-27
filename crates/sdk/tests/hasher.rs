@@ -113,3 +113,49 @@ contract_test!(test_hasher_empty_input_stale_slot {
     // "foobar" buffer and return EXPECTED instead of EXPECTED_EMPTY.
     assert_eq!(Hasher::new().finish(), EXPECTED_EMPTY);
 });
+
+// Forking copies the absorbed state exactly, and the two hashers diverge
+// independently afterwards: prefix "foo" is absorbed once, then one fork
+// finishes as "foobar" and the original as "foobaz".
+const EXPECTED_BAZ: SHA256Hash = SHA256Hash::new(hash_to_array!(b"foobaz"));
+
+contract_test!(test_hasher_fork_diverges {
+    let mut h = Hasher::new();
+    h.update(b"foo");
+
+    let mut forked = h.fork();
+    forked.update(b"bar");
+    h.update(b"baz");
+
+    assert_eq!(forked.finish(), EXPECTED);
+    assert_eq!(h.finish(), EXPECTED_BAZ);
+});
+
+// Forking a brand-new (never-updated) hasher yields an equally fresh hasher;
+// both still produce correct digests, including the empty input.
+contract_test!(test_hasher_fork_of_fresh_hasher {
+    let h = Hasher::new();
+    let mut forked = h.fork();
+    forked.update(b"foobar");
+    assert_eq!(forked.finish(), EXPECTED);
+    assert_eq!(h.finish(), EXPECTED_EMPTY);
+});
+
+// A fork consumes a slot: with all N_HASHERS live, try_fork must return None
+// rather than panic, and forking works again once a slot frees up.
+contract_test!(test_hasher_fork_respects_slot_budget {
+    let mut hashers = vec![];
+    for _ in 0..N_HASHERS {
+        let mut h = Hasher::new();
+        h.update(b"foo");
+        hashers.push(h);
+    }
+
+    assert!(hashers[0].try_fork().is_none());
+
+    // Free one slot, then the fork succeeds and carries the copied state.
+    hashers.pop();
+    let mut forked = hashers[0].fork();
+    forked.update(b"bar");
+    assert_eq!(forked.finish(), EXPECTED);
+});

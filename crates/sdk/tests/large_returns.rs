@@ -19,7 +19,7 @@ fn entrypoint() -> ContractEntrypointID {
 }
 
 fn env_with_child(
-    child_body: impl Fn() + Clone + std::panic::UnwindSafe + 'static,
+    child_body: impl Fn() + Clone + std::panic::UnwindSafe + Send + Sync + 'static,
 ) -> TestEnvironmentHandle {
     let env = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {

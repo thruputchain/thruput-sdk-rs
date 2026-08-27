@@ -56,6 +56,40 @@ impl Hasher {
             .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Update, e));
     }
 
+    /// Fork the hasher: a new hasher whose state is an exact copy of this
+    /// one's, including all input absorbed so far. The two diverge
+    /// independently afterwards.
+    ///
+    /// Copying is constant-time in the VM regardless of how much input has
+    /// been absorbed, so forking is the cheap way to hash many inputs that
+    /// share a prefix: absorb the prefix once, then fork per suffix.
+    ///
+    /// Panics if more than [`N_HASHERS`] hashers are currently in use.
+    /// Throws a syscall exception (aborting the frame) if the host call
+    /// fails.
+    pub fn fork(&self) -> Hasher {
+        self.try_fork().unwrap_or_else(|| {
+            panic!("Hasher::fork: no more hashers are available");
+        })
+    }
+
+    /// Fork the hasher if a slot is available (see [`fork`](Self::fork)).
+    pub fn try_fork(&self) -> Option<Hasher> {
+        let slot = slot_alloc()?;
+        if self.needs_reset {
+            // No VM-side stream exists for this hasher yet (nothing absorbed
+            // since construction), so the fork is equally fresh: it creates
+            // its own stream on first update. No syscall needed.
+            return Some(Hasher::new_at(slot));
+        }
+        crate::sys::raw_SHA256Copy(self.index as u32, slot as u32)
+            .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Copy, e));
+        Some(Hasher {
+            index: slot,
+            needs_reset: false,
+        })
+    }
+
     /// Consume the hasher and return the SHA256 hash of the prior input.
     ///
     /// Throws a syscall exception (aborting the frame) if a host call fails.

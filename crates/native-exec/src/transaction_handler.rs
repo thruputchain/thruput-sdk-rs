@@ -89,11 +89,14 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        crate::invoke_error::activate_panic_hook();
+        // No panic-hook activation here: contract bodies activate it on entry
+        // (see `PanicHookGuard`), and nothing else under this call is contract
+        // code -- rv32 contracts run in the interpreter, and the rest is this
+        // crate's own marshalling, where a panic is a harness bug that should
+        // stay unrecoverable and print in full.
         let foreign_result: groundhog_sys::ForeignTracedInvokeResult = unsafe {
             groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
-        crate::invoke_error::deactivate_panic_hook();
 
         let err: FFIErrorCode = foreign_result.ffi_error_code.into();
         if err != FFIErrorCode::None {

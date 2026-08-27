@@ -1,0 +1,28 @@
+error[E0277]: `Cell<u32>` cannot be shared between threads safely
+  --> tests/compile-fail-mock/mock_method_captures_cell.rs:19:62
+   |
+19 |           c.register_method(ContractEntrypointID::from_u64(1), move || {
+   |             ---------------                                    ^------
+   |             |                                                  |
+   |  ___________|__________________________________________________within this `{closure@$DIR/tests/compile-fail-mock/mock_method_captures_cell.rs:19:62: 19:69}`
+   | |           |
+   | |           required by a bound introduced by this call
+20 | |             calls.set(calls.get() + 1);
+21 | |         });
+   | |_________^ `Cell<u32>` cannot be shared between threads safely
+   |
+   = help: within `{closure@$DIR/tests/compile-fail-mock/mock_method_captures_cell.rs:19:62: 19:69}`, the trait `Sync` is not implemented for `Cell<u32>`
+   = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock` or `std::sync::atomic::AtomicU32` instead
+note: required because it's used within this closure
+  --> tests/compile-fail-mock/mock_method_captures_cell.rs:19:62
+   |
+19 |         c.register_method(ContractEntrypointID::from_u64(1), move || {
+   |                                                              ^^^^^^^
+note: required by a bound in `MockContract::register_method`
+  --> $WORKSPACE/crates/native-exec/src/mock_contract.rs
+   |
+   |     pub fn register_method<F>(&mut self, id: ContractEntrypointID, func: F)
+   |            --------------- required by a bound in this associated function
+   |     where
+   |         F: Fn() + UnwindSafe + Clone + Send + Sync + 'static,
+   |                                               ^^^^ required by this bound in `MockContract::register_method`
