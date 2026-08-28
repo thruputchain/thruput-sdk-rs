@@ -96,11 +96,11 @@ bottle-test-if = { path = "crates/bottle-test-if" }
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 
 # Deps from protocol-rs repo:
-groundhog-spec = { registry = "groundhog", version = "0.24.1", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "0.24.1" }
-groundhog-xdr = { registry = "groundhog", version = "0.24.1", features = ["xdrs"] }
-groundhog-syscall = { registry = "groundhog", version = "0.24.1" }
-hogexec-internal = { registry = "groundhog", version = "0.24.1" }
+groundhog-spec = { registry = "groundhog", version = "0.26.0", default-features = false }
+groundhog-trace = { registry = "groundhog", version = "0.26.0" }
+groundhog-xdr = { registry = "groundhog", version = "0.26.0", features = ["xdrs"] }
+groundhog-syscall = { registry = "groundhog", version = "0.26.0" }
+hogexec-internal = { registry = "groundhog", version = "0.26.0" }
 
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.8.2", default-features = false, features = ["int128", "heapless"] }
