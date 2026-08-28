@@ -2,7 +2,7 @@
 name = "bottle-test-if"
 version = "0.1.0"
 edition.workspace = true
-publish.workspace = true
+publish = false
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
 description = "Bottle-test interface"
