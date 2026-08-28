@@ -487,17 +487,15 @@ impl Default for TestEnvironmentInner {
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
 
 /// The genesis root installed by the default constructors: a mock contract
-/// with the reserved id (`TEST_FFI_GENESIS_ROOT_MOCK_CONTRACT_ID`), which
-/// the mock-registration FFI rejects for ordinary mocks so no test mock can
-/// collide with it. The test environment executes contract bodies natively
-/// through the mock trampoline, so the genesis root's code never runs —
-/// only its deployment exists. Use
+/// whose id sits at the top of the range, away from the low ids tests
+/// typically register. The test environment executes contract bodies
+/// natively through the mock trampoline, so the genesis root's code never
+/// runs — only its deployment exists. Use
 /// [`TestEnvironment::with_genesis_root_contract`] to install a different
 /// contract (e.g. a real rv32 artifact).
 pub fn mock_genesis_root_contract() -> Contract {
     Contract::kMockTest {
-        mock_contract_id: groundhog_sys::TEST_FFI_GENESIS_ROOT_MOCK_CONTRACT_ID
-            as i32,
+        mock_contract_id: u32::MAX as i32,
     }
 }
 
