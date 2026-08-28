@@ -321,8 +321,12 @@ mod streamkey {
 
     struct PrefixCache {
         /// Live midstate holding `bytes[..len]` absorbed since its reset.
-        /// `None` until the first parented derivation claims a slot.
-        hasher: Option<Hasher>,
+        /// `None` until the first parented derivation claims a slot; once
+        /// claimed, the slot is held for good and the midstate is replaced
+        /// in place on a miss. `ManuallyDrop` keeps the native thread-local
+        /// cache's teardown from running `Hasher::drop`, whose stream
+        /// discard is a syscall no longer backed by a live frame there.
+        hasher: Option<core::mem::ManuallyDrop<Hasher>>,
         len: u16,
         bytes: [u8; STATIC_KEYPATH_CAPACITY],
     }
@@ -418,18 +422,22 @@ mod streamkey {
                 && cache.len as usize == parent.len()
                 && &cache.bytes[..parent.len()] == parent;
             if !hit {
-                // Rebuild the cached midstate for this parent. Dropping the
-                // held hasher first frees its slot, so the replacement's
-                // allocation cannot fail while another slot is free; the
-                // fresh hasher's first update resets the underlying stream.
-                cache.hasher = None;
-                let mut h = Hasher::try_new()?;
-                h.update(&parent);
-                cache.hasher = Some(h);
+                // Rebuild the cached midstate for this parent, reusing the
+                // held hasher's slot in place when there is one: a reset
+                // absorb replaces the underlying stream without touching
+                // the slot allocator.
+                match cache.hasher.as_mut() {
+                    Some(h) => h.reabsorb(parent),
+                    None => {
+                        let mut h = Hasher::try_new()?;
+                        h.update(&parent);
+                        cache.hasher = Some(core::mem::ManuallyDrop::new(h));
+                    }
+                }
                 cache.len = parent.len() as u16;
                 cache.bytes[..parent.len()].copy_from_slice(parent);
             }
-            let parent_hasher = cache
+            let parent_hasher: &mut Hasher = cache
                 .hasher
                 .as_mut()
                 .expect("bug: cache entry just ensured");
