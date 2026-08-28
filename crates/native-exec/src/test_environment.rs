@@ -142,7 +142,8 @@ impl DBWrapper {
         let genesis_root_bytes = txs::encode(genesis_root_contract).unwrap();
 
         // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
-        // rejects a null one.
+        // rejects a null one. A null network config takes this build's stock
+        // genesis values.
         let res = unsafe {
             groundhog_sys::create_db(
                 ffi_cost_model_bytes.0,
@@ -150,6 +151,8 @@ impl DBWrapper {
                 network_hash.as_ptr(),
                 genesis_root_bytes.as_ptr(),
                 genesis_root_bytes.len().try_into().unwrap(),
+                core::ptr::null(),
+                0,
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();
