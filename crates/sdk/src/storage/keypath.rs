@@ -4,102 +4,11 @@ use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 use xdrs::{WriteXDR, cxs::ConstWriter};
 
-/// Append-only byte buffer backing a [`Keypath`] preimage.
-///
-/// Two implementations exist: a growing heap `Vec<u8>` (with the `alloc`
-/// feature) and the fixed [`StaticKeyBuf`] fallback (without). Both append
-/// identical bytes, so derived storage keys never depend on the feature —
-/// only memory behavior and the overflow failure mode differ.
-pub trait KeyBuf: Default + Clone + Debug {
-    /// Append `bytes`, throwing `LibraryExn::StorageKeypathOverflow` if the
-    /// buffer cannot hold them.
-    fn append_bytes(&mut self, bytes: &[u8]);
-    fn as_slice(&self) -> &[u8];
-}
-
-/// Fixed-capacity [`KeyBuf`] used when the `alloc` feature is disabled.
-///
-/// Invariant (everything unsafe here relies on it): bytes `buf[..len]` are
-/// initialized. `append_bytes` only ever writes contiguously starting at
-/// `len` and then extends `len`, so the initialized region is always a
-/// prefix. The tail `buf[len..]` is uninitialized and must never be read —
-/// which is also why `Default` need not (and does not) zero the buffer.
-pub struct StaticKeyBuf<const N: usize> {
-    buf: [core::mem::MaybeUninit<u8>; N],
-    len: u16,
-}
-
-impl<const N: usize> Default for StaticKeyBuf<N> {
-    fn default() -> Self {
-        Self {
-            buf: [core::mem::MaybeUninit::uninit(); N],
-            len: 0,
-        }
-    }
-}
-
-impl<const N: usize> Clone for StaticKeyBuf<N> {
-    fn clone(&self) -> Self {
-        // Copy only the initialized prefix (every `child()` clones the
-        // parent buffer, so this also drops a full-width copy per level).
-        let mut new = Self::default();
-        new.append_bytes(self.as_slice());
-        new
-    }
-}
-
-impl<const N: usize> core::fmt::Debug for StaticKeyBuf<N> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("StaticKeyBuf")
-            .field("bytes", &self.as_slice())
-            .field("len", &self.len)
-            .finish()
-    }
-}
-
-impl<const N: usize> KeyBuf for StaticKeyBuf<N> {
-    fn append_bytes(&mut self, bytes: &[u8]) {
-        const { assert!(N <= u16::MAX as usize) };
-        let start = self.len as usize;
-        let end = start.saturating_add(bytes.len());
-        if end > N {
-            crate::exn::library_throw(
-                crate::exn::LibraryExn::StorageKeypathOverflow,
-            );
-        }
-        for (dst, src) in self.buf[start..end].iter_mut().zip(bytes) {
-            dst.write(*src);
-        }
-        self.len = end as u16;
-    }
-
-    fn as_slice(&self) -> &[u8] {
-        // Safety: init-prefix invariant (see type docs) — `buf[..len]` was
-        // written by `append_bytes` before `len` was extended to cover it.
-        unsafe { xdrs::mu::assume_init_ref(&self.buf[..self.len as usize]) }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl KeyBuf for alloc::vec::Vec<u8> {
-    fn append_bytes(&mut self, bytes: &[u8]) {
-        self.extend_from_slice(bytes);
-    }
-
-    fn as_slice(&self) -> &[u8] {
-        self
-    }
-}
-
-/// No-alloc keypath preimage budget (total framed bytes across all levels).
+/// Keypath preimage budget (total framed bytes across all levels).
 pub const STATIC_KEYPATH_CAPACITY: usize = 256;
 
-#[cfg(feature = "alloc")]
-type KeyBufImpl = alloc::vec::Vec<u8>;
-#[cfg(not(feature = "alloc"))]
-type KeyBufImpl = pooled::PooledKeyBuf;
-
-/// Slot-pool-backed [`KeyBuf`] for the no-alloc guest.
+/// Slot-pool-backed byte buffer for [`Keypath`] preimages — the one
+/// implementation on every target.
 ///
 /// A [`Keypath`] whose buffer is a fixed inline array is ~260 bytes, and the
 /// storage layer's builder-style API moves keypaths by value many times per
@@ -110,15 +19,13 @@ type KeyBufImpl = pooled::PooledKeyBuf;
 /// handle makes moves free while preserving the no-alloc property: the pool
 /// is a static, not a heap.
 ///
-/// The pool is exclusive to this module and single-threaded (the guest has
-/// one thread and no interrupts; the `not(feature = "alloc")` configuration
-/// is unreachable on native hosts, which require `std`, which requires
-/// `alloc`). A terminal Return skips `Drop` and leaks any live slots, which
-/// is fine: the frame's memory dies with it.
-#[cfg(not(feature = "alloc"))]
+/// Native hosts use one pool per thread, mirroring the guest's
+/// per-invocation pool, so native tests enforce exactly the guest's
+/// preimage budget and live-slot cap instead of an unbounded heap buffer
+/// that would hide on-chain overflows. A terminal Return skips `Drop` and
+/// leaks any live slots, which is fine: the frame's memory dies with it.
 mod pooled {
-    use super::{KeyBuf, STATIC_KEYPATH_CAPACITY};
-    use core::cell::UnsafeCell;
+    use super::STATIC_KEYPATH_CAPACITY;
     use core::mem::MaybeUninit;
 
     /// Concurrently-live keypath buffers per invocation frame. Live handles
@@ -137,18 +44,62 @@ mod pooled {
         bufs: MaybeUninit<[[u8; CAP]; KEYPATH_POOL_SLOTS]>,
     }
 
-    struct PoolCell(UnsafeCell<Pool>);
-    // SAFETY: single-threaded guest, no interrupts; this configuration does
-    // not build for native hosts (std implies alloc).
-    unsafe impl Sync for PoolCell {}
-
     const _: () = assert!(KEYPATH_POOL_SLOTS <= 32);
 
-    static POOL: PoolCell = PoolCell(UnsafeCell::new(Pool {
+    const POOL_INIT: Pool = Pool {
         used: 0,
         lens: [0; KEYPATH_POOL_SLOTS],
         bufs: MaybeUninit::uninit(),
-    }));
+    };
+
+    // The guest arm holds the pool in a single static (single-threaded, no
+    // interrupts; zero-initialized so it lands in `.bss`). Native hosts run
+    // many test threads, so each thread gets its own pool — the per-thread
+    // pool plays the role the per-invocation static plays on the guest.
+    #[cfg(any(doc, target_arch = "riscv32"))]
+    mod pool_cell {
+        use super::{POOL_INIT, Pool};
+        use core::cell::UnsafeCell;
+
+        struct PoolCell(UnsafeCell<Pool>);
+        // SAFETY: single-threaded guest, no interrupts; native hosts use
+        // the thread-local arm instead.
+        unsafe impl Sync for PoolCell {}
+
+        static POOL: PoolCell = PoolCell(UnsafeCell::new(POOL_INIT));
+
+        pub(super) fn pool() -> *mut Pool {
+            POOL.0.get()
+        }
+    }
+
+    #[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
+    mod pool_cell {
+        use super::{POOL_INIT, Pool};
+        use core::cell::UnsafeCell;
+
+        std::thread_local! {
+            static POOL: UnsafeCell<Pool> =
+                const { UnsafeCell::new(POOL_INIT) };
+        }
+
+        pub(super) fn pool() -> *mut Pool {
+            // The raw pointer stays valid for the thread's lifetime;
+            // thread-local statics never move.
+            POOL.with(|p| p.get())
+        }
+    }
+
+    // Native no-std builds have no thread locals; unreachable in practice
+    // (building the sdk natively requires the `std` feature).
+    #[cfg(all(not(any(doc, target_arch = "riscv32")), not(feature = "std")))]
+    mod pool_cell {
+        use super::Pool;
+
+        pub(super) fn pool() -> *mut Pool {
+            unreachable!("bug: keypath pool on a no-std native target")
+        }
+    }
 
     /// Bits admissible in `used`: the low `KEYPATH_POOL_SLOTS` bits.
     const SLOT_MASK: u32 = if KEYPATH_POOL_SLOTS == 32 {
@@ -168,7 +119,7 @@ mod pooled {
         // pool, so slices handed out by `as_slice` stay valid across writes
         // to other slots.
         unsafe {
-            (&raw mut (*POOL.0.get()).bufs)
+            (&raw mut (*pool_cell::pool()).bufs)
                 .cast::<u8>()
                 .add(slot as usize * CAP)
         }
@@ -176,7 +127,7 @@ mod pooled {
 
     fn len(slot: u8) -> usize {
         unsafe {
-            *(&raw const (*POOL.0.get()).lens)
+            *(&raw const (*pool_cell::pool()).lens)
                 .cast::<u16>()
                 .add(slot as usize) as usize
         }
@@ -184,7 +135,7 @@ mod pooled {
 
     fn set_len(slot: u8, len: usize) {
         unsafe {
-            *(&raw mut (*POOL.0.get()).lens)
+            *(&raw mut (*pool_cell::pool()).lens)
                 .cast::<u16>()
                 .add(slot as usize) = len as u16;
         }
@@ -193,7 +144,7 @@ mod pooled {
     #[inline]
     fn alloc_slot() -> u8 {
         unsafe {
-            let used = &raw mut (*POOL.0.get()).used;
+            let used = &raw mut (*pool_cell::pool()).used;
             let mask = *used;
             if mask == SLOT_MASK {
                 // Every slot live: the contract holds more concurrent
@@ -232,7 +183,7 @@ mod pooled {
     #[inline]
     fn free_slot(slot: u8) {
         unsafe {
-            let used = &raw mut (*POOL.0.get()).used;
+            let used = &raw mut (*pool_cell::pool()).used;
             *used &= !(1u32 << slot);
         }
     }
@@ -281,12 +232,14 @@ mod pooled {
         }
     }
 
-    impl KeyBuf for PooledKeyBuf {
-        fn append_bytes(&mut self, bytes: &[u8]) {
+    impl PooledKeyBuf {
+        /// Append `bytes`, throwing `LibraryExn::StorageKeypathOverflow`
+        /// if the preimage budget cannot hold them.
+        pub(super) fn append_bytes(&mut self, bytes: &[u8]) {
             append_slot(self.slot, bytes);
         }
 
-        fn as_slice(&self) -> &[u8] {
+        pub(super) fn as_slice(&self) -> &[u8] {
             // SAFETY: bytes `..len` were written by `append_bytes`; the pool
             // is never moved, the slot is uniquely owned by `self`, and
             // writes go through raw pointers so no reference aliases this
@@ -393,26 +346,21 @@ mod streamkey {
         }
     }
 
-    /// Mirror of the VM's `kSHA256BufferMaxSize` (hog_exec_constants.x): the
-    /// most one stream absorbs. Larger preimages (possible in `alloc` mode)
-    /// must use the one-shot syscall.
-    const STREAM_INPUT_MAX: usize = 4096;
+    // Every keypath preimage fits in one stream: the pooled buffer caps
+    // preimages at STATIC_KEYPATH_CAPACITY, well under the VM's
+    // kSHA256BufferMaxSize (4096, hog_exec_constants.x).
+    const _: () = assert!(STATIC_KEYPATH_CAPACITY <= 4096);
 
     /// Hash `pre` through incremental streams, treating `pre[..split]` as the
     /// parent prefix eligible for midstate caching. Returns `None` when no
-    /// stream slot is available or the preimage exceeds what a stream
-    /// absorbs; the caller must then hash `pre` another way.
+    /// stream slot is available; the caller must then hash `pre` another way.
     pub(super) fn derive(pre: &[u8], split: usize) -> Option<SHA256Hash> {
-        if pre.len() > STREAM_INPUT_MAX {
-            return None;
-        }
         let (parent, tail) = pre.split_at(split);
 
         let mut t = Hasher::try_new()?;
 
-        // A parent that outgrows the cache line (alloc-mode preimages are
-        // unbounded) or an empty one (nothing shareable) skips the cache.
-        if parent.is_empty() || parent.len() > STATIC_KEYPATH_CAPACITY {
+        // An empty parent has nothing shareable to cache.
+        if parent.is_empty() {
             t.update(&pre);
             return Some(t.finish());
         }
@@ -475,14 +423,13 @@ mod streamkey {
 /// including fixed opaque `[u8; N]` keys that do not self-delimit — so
 /// distinct component sequences can never share a preimage.
 ///
-/// Without the `alloc` feature, the preimage shares a fixed
-/// [`STATIC_KEYPATH_CAPACITY`]-byte budget; exceeding it throws
-/// `LibraryExn::StorageKeypathOverflow` (enable `alloc`, or pre-hash
-/// oversized keys). A single component's encoding is additionally capped at
-/// the SDK's fixed encode-buffer size in both modes.
+/// The preimage shares a fixed [`STATIC_KEYPATH_CAPACITY`]-byte budget;
+/// exceeding it throws `LibraryExn::StorageKeypathOverflow` (pre-hash
+/// oversized keys). A single component's encoding is additionally capped
+/// at the SDK's fixed encode-buffer size.
 #[derive(Clone, Debug, Default)]
 pub struct Keypath {
-    buf: KeyBufImpl,
+    buf: pooled::PooledKeyBuf,
     /// Preimage length before the most recent frame was appended: the split
     /// between the parent prefix (shared with sibling slots, eligible for
     /// midstate caching in [`streamkey`]) and this keypath's own final frame.
@@ -515,8 +462,7 @@ impl Keypath {
     /// any value bytes.
     ///
     /// A single value's encoding is capped at the SDK's fixed encode-buffer
-    /// size in both modes (with and without `alloc`); oversized values throw
-    /// `LibraryExn::StorageKeypathOverflow`.
+    /// size; oversized values throw `LibraryExn::StorageKeypathOverflow`.
     ///
     /// Slot identity is the sequence of `child` values from the root: there is
     /// no per-component "structural vs. user-key" tag, so two children of the
@@ -784,18 +730,19 @@ mod test_keypath {
     }
 
     #[test]
-    fn static_buf_fills_to_exact_capacity() {
-        let mut s = StaticKeyBuf::<4>::default();
-        s.append_bytes(&[1, 2]);
-        s.append_bytes(&[3, 4]); // exactly N — must succeed
-        assert_eq!(s.as_slice(), &[1, 2, 3, 4]);
+    fn pooled_buf_fills_to_exact_capacity() {
+        let mut s = pooled::PooledKeyBuf::default();
+        s.append_bytes(&[7u8; STATIC_KEYPATH_CAPACITY - 2]);
+        s.append_bytes(&[1, 2]); // exactly the budget — must succeed
+        assert_eq!(s.as_slice().len(), STATIC_KEYPATH_CAPACITY);
     }
 
     #[test]
     #[should_panic]
-    fn static_buf_overflow_throws() {
-        let mut s = StaticKeyBuf::<4>::default();
-        s.append_bytes(&[1, 2, 3, 4, 5]);
+    fn pooled_buf_overflow_throws() {
+        let mut s = pooled::PooledKeyBuf::default();
+        s.append_bytes(&[7u8; STATIC_KEYPATH_CAPACITY]);
+        s.append_bytes(&[1]);
     }
 
     #[test]
@@ -846,38 +793,9 @@ mod test_keypath {
         assert_eq!(digest, expected, "golden domain key changed");
     }
 
-    #[cfg(feature = "alloc")]
-    #[test]
-    fn static_and_vec_bufs_agree() {
-        fn fill<B: KeyBuf>(buf: &mut B) {
-            buf.append_bytes(&[1, 2, 3]);
-            buf.append_bytes(&[4]);
-        }
-        let mut s = StaticKeyBuf::<64>::default();
-        let mut v = alloc::vec::Vec::<u8>::default();
-        fill(&mut s);
-        fill(&mut v);
-        assert_eq!(s.as_slice(), v.as_slice());
-
-        // Clone mid-sequence, then keep appending to the clones — static and
-        // Vec must still agree at every step.
-        let mut s2 = s.clone();
-        let mut v2 = v.clone();
-        assert_eq!(s2.as_slice(), v2.as_slice());
-        s2.append_bytes(&[5, 6]);
-        v2.append_bytes(&[5, 6]);
-        assert_eq!(s2.as_slice(), v2.as_slice());
-        s2.append_bytes(&[7]);
-        v2.append_bytes(&[7]);
-        assert_eq!(s2.as_slice(), v2.as_slice());
-        // Originals must be untouched by the clones' further appends.
-        assert_eq!(s.as_slice(), v.as_slice());
-        assert_eq!(s.as_slice(), &[1, 2, 3, 4]);
-    }
-
     #[test]
     fn clone_copies_only_initialized_prefix_and_diverges() {
-        let mut s = StaticKeyBuf::<8>::default();
+        let mut s = pooled::PooledKeyBuf::default();
         s.append_bytes(&[1, 2, 3]);
         let mut clone = s.clone();
         // Diverge: append DIFFERENT bytes to original and clone.
@@ -889,16 +807,17 @@ mod test_keypath {
 
     #[test]
     fn clone_of_full_buffer_roundtrips() {
-        let mut s = StaticKeyBuf::<4>::default();
-        s.append_bytes(&[1, 2, 3, 4]);
+        let mut s = pooled::PooledKeyBuf::default();
+        let full = [7u8; STATIC_KEYPATH_CAPACITY];
+        s.append_bytes(&full);
         let clone = s.clone();
         assert_eq!(clone.as_slice(), s.as_slice());
-        assert_eq!(clone.as_slice(), &[1, 2, 3, 4]);
+        assert_eq!(clone.as_slice(), &full[..]);
     }
 
     #[test]
     fn default_as_slice_is_empty() {
-        let s = StaticKeyBuf::<8>::default();
+        let s = pooled::PooledKeyBuf::default();
         assert_eq!(s.as_slice(), &[] as &[u8]);
     }
 
