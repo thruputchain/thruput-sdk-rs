@@ -458,8 +458,8 @@ mod streamkey {
 /// `CXS(byte_len) ‖ CXS(value)`: the component value CXS-encoded, prefixed by
 /// the CXS-encoded byte length of that encoding. The storage key is the
 /// SHA-256 of the buffer — computed through the VM's incremental-hash streams
-/// when one is available (see [`streamkey`]), through the one-shot `sha256`
-/// syscall otherwise, and memoized by [`KeyCache`].
+/// when one is available (see the `streamkey` module), through the one-shot
+/// `sha256` syscall otherwise, and memoized by [`KeyCache`].
 ///
 /// The self-delimiting `CXS(len)` prefix makes the preimage
 /// `child(v1) ‖ child(v2) ‖ …` uniquely decodable: read the length, then read
