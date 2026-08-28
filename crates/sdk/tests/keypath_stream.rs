@@ -52,11 +52,11 @@ contract_test!(test_key_is_stable_under_slot_exhaustion {
     // Drain every remaining slot (the derivation's parent-midstate cache
     // legitimately pins one, so this yields N_HASHERS - 1).
     let mut held = Vec::new();
-    while let Some(h) = Hasher::try_new() {
+    while let Ok(h) = Hasher::try_new() {
         held.push(h);
     }
     assert!(!held.is_empty(), "some hasher slots must be allocatable");
-    assert!(Hasher::try_new().is_none(), "slots must be exhausted");
+    assert!(Hasher::try_new().is_err(), "streams must be exhausted");
 
     assert_eq!(kp.generate_key(), GOLDEN);
     drop(held);
@@ -73,7 +73,7 @@ contract_test!(test_derivation_pins_at_most_one_slot {
     }
 
     let mut held = Vec::new();
-    while let Some(h) = Hasher::try_new() {
+    while let Ok(h) = Hasher::try_new() {
         held.push(h);
     }
     assert!(

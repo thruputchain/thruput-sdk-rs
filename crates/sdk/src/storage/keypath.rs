@@ -274,11 +274,12 @@ mod streamkey {
 
     struct PrefixCache {
         /// Live midstate holding `bytes[..len]` absorbed since its reset.
-        /// `None` until the first parented derivation claims a slot; once
-        /// claimed, the slot is held for good and the midstate is replaced
-        /// in place on a miss. `ManuallyDrop` keeps the native thread-local
-        /// cache's teardown from running `Hasher::drop`, whose stream
-        /// discard is a syscall no longer backed by a live frame there.
+        /// `None` until the first parented derivation claims a stream; once
+        /// claimed, the hasher is held for good and the midstate is
+        /// replaced in place on a miss. `ManuallyDrop` keeps the native
+        /// thread-local cache's teardown from running `Hasher::drop`, whose
+        /// stream discard is a syscall no longer backed by a live frame
+        /// there.
         hasher: Option<core::mem::ManuallyDrop<Hasher>>,
         len: u16,
         bytes: [u8; STATIC_KEYPATH_CAPACITY],
@@ -353,14 +354,13 @@ mod streamkey {
 
     /// Hash `pre` through incremental streams, treating `pre[..split]` as the
     /// parent prefix eligible for midstate caching. Returns `None` when no
-    /// stream slot is available; the caller must then hash `pre` another way.
+    /// stream is available; the caller must then hash `pre` another way.
     pub(super) fn derive(pre: &[u8], split: usize) -> Option<SHA256Hash> {
         let (parent, tail) = pre.split_at(split);
 
-        let mut t = Hasher::try_new()?;
-
         // An empty parent has nothing shareable to cache.
         if parent.is_empty() {
+            let mut t = Hasher::try_new().ok()?;
             t.update(&pre);
             return Some(t.finish());
         }
@@ -371,13 +371,13 @@ mod streamkey {
                 && &cache.bytes[..parent.len()] == parent;
             if !hit {
                 // Rebuild the cached midstate for this parent, reusing the
-                // held hasher's slot in place when there is one: a reset
-                // absorb replaces the underlying stream without touching
-                // the slot allocator.
+                // held hasher's stream in place when there is one: a reset
+                // absorb replaces the stream's contents (and revives a
+                // stale one) without claiming a new stream.
                 match cache.hasher.as_mut() {
-                    Some(h) => h.reabsorb(parent),
+                    Some(h) => h.try_reabsorb(parent).ok()?,
                     None => {
-                        let mut h = Hasher::try_new()?;
+                        let mut h = Hasher::try_new().ok()?;
                         h.update(&parent);
                         cache.hasher = Some(core::mem::ManuallyDrop::new(h));
                     }
@@ -385,22 +385,22 @@ mod streamkey {
                 cache.len = parent.len() as u16;
                 cache.bytes[..parent.len()].copy_from_slice(parent);
             }
-            let parent_hasher: &mut Hasher = cache
+            let parent_hasher = cache
                 .hasher
                 .as_mut()
                 .expect("bug: cache entry just ensured");
-            if !t.copy_from(parent_hasher) {
-                // The cached handle's VM stream is gone: a new invocation
-                // reset the VM's streams but not this contract-local cache.
-                // Rebuild the midstate in place and retry once; if the copy
-                // still fails, derive this key by absorbing the whole
-                // preimage into the transient instead.
-                parent_hasher.reabsorb(parent);
-                if !t.copy_from(parent_hasher) {
-                    t.update(&pre);
-                    return Some(t.finish());
+            let mut t = match parent_hasher.try_fork() {
+                Ok(t) => t,
+                Err(_) => {
+                    // The cached handle's VM stream is gone (a new
+                    // invocation reset the VM's streams but not this
+                    // contract-local cache): rebuild the midstate in place
+                    // and retry once. A failure here or on the retried fork
+                    // means no stream capacity instead — fall back.
+                    parent_hasher.try_reabsorb(parent).ok()?;
+                    parent_hasher.try_fork().ok()?
                 }
-            }
+            };
             t.update(&tail);
             Some(t.finish())
         })
