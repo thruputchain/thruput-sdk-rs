@@ -9,6 +9,7 @@ use groundhog_sys::FFIErrorCode;
 use groundhog_xdr::address_auth::AddressAuthData;
 use groundhog_xdr::contract::ContractEntrypointID;
 use groundhog_xdr::contract::*;
+use groundhog_xdr::network_config::NetworkConfig;
 use groundhog_xdr::storage_item::WireStorageItem;
 use groundhog_xdr::transaction::*;
 use groundhog_xdr::types::*;
@@ -178,6 +179,20 @@ impl DBWrapper {
         >(res.data.as_slice().unwrap())
         .unwrap();
         StorageCostModel::new(data)
+    }
+
+    pub fn get_network_config(&self) -> NetworkConfig {
+        let res = unsafe { groundhog_sys::get_network_config(self.db) };
+        let err: FFIErrorCode = res.ffi_error_code.into();
+        if err != FFIErrorCode::None {
+            panic!("failed to get network config: {}", res.ffi_error_code);
+        }
+        if res.data.len == 0 {
+            panic!("failed to get network config: no data");
+        }
+
+        xdrs::txs::decode::<NetworkConfig>(res.data.as_slice().unwrap())
+            .unwrap()
     }
 
     pub fn get_snapshot_storage_item(
@@ -446,6 +461,11 @@ impl TestEnvironmentInner {
         self.db.get_cost_model()
     }
 
+    /// The execution parameters the environment's chain is running under.
+    pub fn get_network_config(&self) -> NetworkConfig {
+        self.db.get_network_config()
+    }
+
     /// Verify `tx`'s auth claims; see
     /// [`TestEnvironment::verify_signed_transaction_auth`].
     pub fn run_auth_checks(
@@ -580,6 +600,12 @@ impl TestEnvironment {
         self: &TestEnvironmentHandle,
     ) -> StorageCostModel {
         self.inner.borrow().get_current_cost_model()
+    }
+
+    /// The execution parameters the environment's chain is running under
+    /// (e.g. `max_sha256_buffers`, the VM's live hash-stream cap).
+    pub fn get_network_config(self: &TestEnvironmentHandle) -> NetworkConfig {
+        self.inner.borrow().get_network_config()
     }
 
     /// Read a committed contract-data item from the current block snapshot

@@ -17,16 +17,17 @@ contract_test!(test_hasher {
         h.update(b"foo");
     }
 
-    // Allocate all the available hashers.
+    // Allocate all the available hashers: the VM enforces the live-stream
+    // budget, so fill until it refuses.
     {
         let mut hashers = vec![];
 
-        for _ in 0..N_HASHERS {
-            let mut h = Hasher::new();
+        while let Ok(mut h) = Hasher::try_new() {
             h.update(b"foo");
             h.update(b"bar");
             hashers.push(h);
         }
+        assert!(!hashers.is_empty(), "some streams must be allocatable");
 
         // The stream budget is spent.
         assert!(Hasher::try_new().is_err());
@@ -63,19 +64,25 @@ fn test_frame_failure_with_live_hashers_unwinds_cleanly() {
     let env = TestEnvironment::no_cost();
     let addr = ContractAddress::named("hasher_unwind");
 
-    // Exhaust the streams so the failure is hasher-triggered: with all
-    // N_HASHERS live, the next allocation throws the stream-cap syscall
+    // The VM's live-stream budget is the chain's `max_sha256_buffers`
+    // network config parameter — read it off the environment rather than
+    // duplicating the value here.
+    let cap = env.get_network_config().max_sha256_buffers as usize;
+    assert!(cap > 0);
+
+    // Exhaust the streams so the failure is hasher-triggered: with `cap`
+    // hashers live, the next allocation throws the stream-cap syscall
     // exception, and the resulting unwind drops every live hasher.
     let result = env.transact(|tx| {
-        tx.call(&addr).run(|| {
+        tx.call(&addr).run(move || {
             let mut hashers = vec![];
-            for _ in 0..N_HASHERS {
+            for _ in 0..cap {
                 let mut h = Hasher::new();
                 h.update(b"foo");
                 hashers.push(h);
             }
             assert!(Hasher::try_new().is_err(), "all streams must be in use");
-            // Throws: the VM refuses a ninth stream.
+            // Throws: the VM refuses a stream past the cap.
             let _overflow = Hasher::new();
         })
     });
@@ -84,8 +91,8 @@ fn test_frame_failure_with_live_hashers_unwinds_cleanly() {
     // Streams are per-frame: a fresh frame can allocate and use the full
     // budget again.
     env.transact(|tx| {
-        tx.call(&addr).run(|| {
-            for _ in 0..N_HASHERS {
+        tx.call(&addr).run(move || {
+            for _ in 0..cap {
                 let mut h = Hasher::new();
                 h.update(b"foo");
                 h.update(b"bar");
@@ -136,16 +143,16 @@ contract_test!(test_hasher_fork_of_fresh_hasher {
     assert_eq!(h.finish(), EXPECTED_EMPTY);
 });
 
-// A fork consumes a stream: with all N_HASHERS live, try_fork must return
+// A fork consumes a stream: with every stream live, try_fork must return
 // the refusing syscall's error rather than panic, and forking works
 // again once a stream frees up.
 contract_test!(test_hasher_fork_respects_slot_budget {
     let mut hashers = vec![];
-    for _ in 0..N_HASHERS {
-        let mut h = Hasher::new();
+    while let Ok(mut h) = Hasher::try_new() {
         h.update(b"foo");
         hashers.push(h);
     }
+    assert!(!hashers.is_empty(), "some streams must be allocatable");
 
     assert!(hashers[0].try_fork().is_err());
 

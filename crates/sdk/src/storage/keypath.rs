@@ -27,8 +27,9 @@ use xdrs::{WriteXDR, cxs::ConstWriter};
 ///
 /// Like a [`Hasher`], a keypath is meaningful only in the current contract
 /// invocation, so it can't be stored. Live keypaths, user hashers, and one
-/// transient per key derivation share the VM's live-stream budget
-/// (`kMaxSHA256Buffers`); the VM refuses streams past it and the refusing
+/// transient per key derivation share the VM's live-stream budget (the
+/// chain's `max_sha256_buffers` network config parameter); the VM refuses
+/// streams past it and the refusing
 /// syscall's error is thrown. A stream absorbs at most
 /// `kSHA256BufferMaxSize` (4096) preimage bytes, also VM-enforced. A single
 /// component's encoding is capped at the SDK's fixed encode-buffer size.
