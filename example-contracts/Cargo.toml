@@ -97,9 +97,9 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.23.2" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.23.2" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.23.2", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.24.0" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.24.0" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.24.0", default-features = false }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.16" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.16" }
