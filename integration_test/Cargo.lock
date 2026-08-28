@@ -421,9 +421,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "a519d3dbde2fed3be793f16da5dcac002ea8311014e8be2d875b5a954e99878b"
+checksum = "341f13feca83998ccb1cdb506aa4b3ac8639f8a8af6a36396e6004389f2e8ed8"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -448,15 +448,15 @@ dependencies = [
 
 [[package]]
 name = "groundhog-syscall"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "33c301065c917652ce5189318791f2d55d955266092b2bd9f6c14fade8c54446"
+checksum = "607fa23bcd1d93bb4f753e644541d8a7ac28ebd38b4b4b5f65866054c70b9033"
 
 [[package]]
 name = "groundhog-trace"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "0dc9121c5a926b8090ac298f94257162234aa468d3e547e47224f60a8504ddbf"
+checksum = "3c5e8e052d71b14121d66d914d786418c908103d32a254e820090f233381acc1"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -476,9 +476,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "866181cd441161c4771d7765b5f347c1793d81b9b24a95b780e3d7b0ec0551d8"
+checksum = "e24da73be2e87ec9c6b1307a23c57ae86344ae43726307a15b5a89ae849629b5"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
@@ -492,9 +492,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "9ef81715120e297a73bc2514698658620d3781f79999865d5f268cee38ec14cd"
+checksum = "68c864c05daa14f63541719eff3bdc1bb2671c20bd4e15fa2682066f54ba9d64"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -547,9 +547,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "985113bb25ca4387d0d1f0bb8aa62c80c53ea7b1a530b449e454b4aa77fb8d4a"
+checksum = "1824000df95f6c1cb33e2dfdd11edcac09a86ff82653c23f74cec6600bff65e3"
 dependencies = [
  "xdrs",
 ]

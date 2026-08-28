@@ -85,9 +85,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cc"
-version = "1.4.0"
+version = "1.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5add81bb678e6cb321aff7fa0dc7689ad82b112dbc032cea19f91d6b8e3582b9"
+checksum = "0ad534f4357a5264cce5019c989cf66a4f0dc4e0d1b1d15f8aacec0ff7360273"
 dependencies = [
  "find-msvc-tools",
  "shlex 2.0.1",
@@ -187,9 +187,9 @@ dependencies = [
 
 [[package]]
 name = "darling"
-version = "0.24.0"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88490bf1b990d87eaaa7ac8aa887f629a08e7359765b4911faf63c3763347d23"
+checksum = "ed17f5901b6630b993ca003def43f2f8ef4014fc13b047b57aad617ff32bc2ec"
 dependencies = [
  "darling_core",
  "darling_macro",
@@ -197,26 +197,26 @@ dependencies = [
 
 [[package]]
 name = "darling_core"
-version = "0.24.0"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "084e274f91c482280130e1e34e0b8d6e66776a060d7b6de7b84289ca778868c4"
+checksum = "6837e2cf7485aaae18f86181d2f0e9a7ed297a025e220aeabf63fdebd3a2ddff"
 dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
  "strsim",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
 name = "darling_macro"
-version = "0.24.0"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f5792fa0d41cd2325ce0ffa64f0a340eaebd4971a3a0c5e1ffd2cc488a355e"
+checksum = "2ac7135c3ef02b2f7833bbeb1be5ba7f966dcde8a87c6b87f65a778d71a02785"
 dependencies = [
  "darling_core",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -260,9 +260,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.17.0"
+version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e5e8f6c15a24b9a3ee5efec809ccd006d3b30e8b3bb63c39af737c7f87daa1d"
+checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
 name = "equivalent"
@@ -331,9 +331,9 @@ checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.9"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+checksum = "d45db016d36b838f563236e9193d0ee6ce38f3f68b6c94e914b4929c96bbb890"
 
 [[package]]
 name = "fslock"
@@ -379,7 +379,7 @@ version = "0.23.1"
 dependencies = [
  "groundhog-xdr",
  "sha2",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -440,7 +440,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sha2",
- "syn 3.0.3",
+ "syn 3.0.4",
  "xdrs",
 ]
 
@@ -476,9 +476,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "a519d3dbde2fed3be793f16da5dcac002ea8311014e8be2d875b5a954e99878b"
+checksum = "341f13feca83998ccb1cdb506aa4b3ac8639f8a8af6a36396e6004389f2e8ed8"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-xdr",
@@ -522,9 +522,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-syscall"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "33c301065c917652ce5189318791f2d55d955266092b2bd9f6c14fade8c54446"
+checksum = "607fa23bcd1d93bb4f753e644541d8a7ac28ebd38b4b4b5f65866054c70b9033"
 
 [[package]]
 name = "groundhog-test-vectors"
@@ -539,9 +539,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "0dc9121c5a926b8090ac298f94257162234aa468d3e547e47224f60a8504ddbf"
+checksum = "3c5e8e052d71b14121d66d914d786418c908103d32a254e820090f233381acc1"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -563,9 +563,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "866181cd441161c4771d7765b5f347c1793d81b9b24a95b780e3d7b0ec0551d8"
+checksum = "e24da73be2e87ec9c6b1307a23c57ae86344ae43726307a15b5a89ae849629b5"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
@@ -579,9 +579,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "9ef81715120e297a73bc2514698658620d3781f79999865d5f268cee38ec14cd"
+checksum = "68c864c05daa14f63541719eff3bdc1bb2671c20bd4e15fa2682066f54ba9d64"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -589,7 +589,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -631,9 +631,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.24.0"
+version = "0.26.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "985113bb25ca4387d0d1f0bb8aa62c80c53ea7b1a530b449e454b4aa77fb8d4a"
+checksum = "1824000df95f6c1cb33e2dfdd11edcac09a86ff82653c23f74cec6600bff65e3"
 dependencies = [
  "xdrs",
 ]
@@ -711,7 +711,7 @@ checksum = "77060ebe535362c3da75682cd17b0431017b6e7c5661e714fc69a7ad017d1301"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -722,9 +722,9 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "log"
-version = "0.4.33"
+version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
+checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "macros-crate-override-guest"
@@ -799,22 +799,22 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "ref-cast"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "216e8f773d7923bcba9ceb86a86c93cabb3903a11872fc3f138c49630e50b96d"
+checksum = "7e440fb4e4b4147295338efb76001ab9e4efc0e5839df2c47fc5ac2381d365c3"
 dependencies = [
  "ref-cast-impl",
 ]
 
 [[package]]
 name = "ref-cast-impl"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c9283685feec7d69af75fb0e858d5e7378f33fe4fc699383b2916ab9273e03c"
+checksum = "92ecd8964f8453721699a1ed72037b0db49ce2f5a5138486ee89bed6f67cdf3a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -902,7 +902,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -963,7 +963,7 @@ checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -974,7 +974,7 @@ checksum = "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -1079,9 +1079,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "3.0.3"
+version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53e9bae58849f64dfa4f5d5ae372c8341f7305f82a3868709269343628b659a3"
+checksum = "e6275cddf4610d1775e6d1fe9469b2e77d0f39fd98fb7450901b821e0c53649f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1118,22 +1118,22 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09a43598840e33d5b0331f38c5e30d13bb11c11210a4b58f0d9b18a5a5eefcd9"
+checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43cbfe0cf76104d42a574802844187e84a305e531ed54455f11fbde0f10541cd"
+checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -1332,7 +1332,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 3.0.3",
+ "syn 3.0.4",
 ]
 
 [[package]]

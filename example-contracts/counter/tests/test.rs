@@ -79,12 +79,16 @@ fn test_gas_limit_does_not_propagate() {
             let client = CounterClient::new(&addr);
             client.initialize(10);
 
-            // Call with tiny gas limit — should fail with OOG
+            // Mock contract bodies run natively and consume no gas, so a
+            // frame admitted with a tiny budget still completes: test-ffi
+            // clamps the child's budget like production kInvoke but only
+            // debits what the body consumed (nothing, for a mock). The call
+            // must succeed rather than fault.
             let result = client.with_gas_limit(1).try_get();
-            assert!(
-                matches!(result, Err(CounterClientError::Fault(_))),
-                "Expected OOG fault with gas_limit=1, got: {:?}",
-                result
+            assert_eq!(
+                result.ok(),
+                Some(10),
+                "gas-limited call against a mock should succeed"
             );
 
             // Subsequent call without explicit gas limit should use default

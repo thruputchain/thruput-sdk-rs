@@ -98,9 +98,11 @@ contract_test!(test_map_entry {
 
 contract_test!(test_storable {
     let data_keypath = Keypath::default();
-    let mut data: Data = data_keypath.clone().into();
-    for i in 0..3u64 {
-        data.nums.push_with(|slot| slot.set(&i));
+    {
+        let mut data: Data = data_keypath.clone().into();
+        for i in 0..3u64 {
+            data.nums.push_with(|slot| slot.set(&i));
+        }
     }
 
     let data: Data = data_keypath.into();
@@ -549,19 +551,23 @@ struct StorageDomainRenamed {
     _v: sdk::storage::Value<u64>,
 }
 
-#[test]
-fn storage_domain_defaults_to_ident_and_overrides() {
+contract_test!(storage_domain_defaults_to_ident_and_overrides {
     // Behavioral: the domain seeds each root field path as its first child
     // frame. Default is the bare ident; #[storage(domain = "...")] overrides.
     let plain = contract_state_root::<StorageDomainPlain>();
-    assert!(plain._v.keypath().addresses_same_slot(
-        &Keypath::default().child("StorageDomainPlain").child(&0u32)
-    ));
+    assert_eq!(
+        *plain._v.key(),
+        Keypath::default()
+            .child("StorageDomainPlain")
+            .child(&0u32)
+            .generate_key()
+    );
     let renamed = contract_state_root::<StorageDomainRenamed>();
-    assert!(renamed._v.keypath().addresses_same_slot(
-        &Keypath::default().child("custom").child(&0u32)
-    ));
-}
+    assert_eq!(
+        *renamed._v.key(),
+        Keypath::default().child("custom").child(&0u32).generate_key()
+    );
+});
 
 #[test]
 fn test_data_fully_consumed() {
@@ -609,16 +615,15 @@ struct Pinned {
     b: Value<u64>, // pinned 7
 }
 
-#[test]
-fn slot_override_remaps_field_keypath() {
+contract_test!(slot_override_remaps_field_keypath {
     let root = Keypath::default();
     let p = Pinned::from(root.clone());
     // b lives at child(&7u32), provably distinct from child(&1u32).
     let expect_b = Value::<u64>::from(root.child(&7u32));
     let other = Value::<u64>::from(root.child(&1u32));
-    assert!(p.b.keypath().addresses_same_slot(expect_b.keypath()));
-    assert!(!p.b.keypath().addresses_same_slot(other.keypath()));
-}
+    assert_eq!(p.b.key(), expect_b.key());
+    assert_ne!(p.b.key(), other.key());
+});
 
 #[derive(sdk::Storage)]
 #[allow(dead_code)]
@@ -629,30 +634,13 @@ struct PositionalAbsoluteIndex {
     c: Value<u64>, // positional: declaration index 2
 }
 
-#[test]
-fn positional_fields_use_absolute_declaration_index() {
+contract_test!(positional_fields_use_absolute_declaration_index {
     let root = Keypath::default();
     let s = PositionalAbsoluteIndex::from(root.clone());
     // c is the 3rd field -> child(&2u32), NOT child(&1u32).
-    assert!(
-        s.c.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&2u32)).keypath()
-        )
-    );
-    assert!(
-        !s.c.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&1u32)).keypath()
-        )
-    );
+    assert_eq!(s.c.key(), Value::<u64>::from(root.child(&2u32)).key());
+    assert_ne!(s.c.key(), Value::<u64>::from(root.child(&1u32)).key());
     // b -> child(&1u32); a -> child(&5u32).
-    assert!(
-        s.b.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&1u32)).keypath()
-        )
-    );
-    assert!(
-        s.a.keypath().addresses_same_slot(
-            Value::<u64>::from(root.child(&5u32)).keypath()
-        )
-    );
-}
+    assert_eq!(s.b.key(), Value::<u64>::from(root.child(&1u32)).key());
+    assert_eq!(s.a.key(), Value::<u64>::from(root.child(&5u32)).key());
+});

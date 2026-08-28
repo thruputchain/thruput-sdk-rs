@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{Keypath, LeafKey};
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint_internal as nnint;
@@ -32,13 +32,13 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// handle type.
 #[derive(Debug)]
 pub struct Balance {
-    key: KeyCache,
+    key: LeafKey,
 }
 
 impl From<Keypath> for Balance {
     fn from(keypath: Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: LeafKey::from(keypath),
         }
     }
 }
@@ -47,7 +47,7 @@ impl Balance {
     pub const MAX: u128 = i128::MAX as u128;
 
     fn flags(&self) -> StorageDeltaFlags {
-        self.key.keypath().flags()
+        self.key.flags()
     }
 
     /// Get the balance, treating a never-written location as zero.

@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{Keypath, LeafKey};
 use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
@@ -28,13 +28,13 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// `sys_exn::nnint`.
 #[derive(Debug)]
 pub struct NNInt {
-    key: KeyCache,
+    key: LeafKey,
 }
 
 impl From<Keypath> for NNInt {
     fn from(keypath: Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: LeafKey::from(keypath),
         }
     }
 }
@@ -58,7 +58,7 @@ impl NNInt {
     }
 
     fn flags(&self) -> StorageDeltaFlags {
-        self.key.keypath().flags()
+        self.key.flags()
     }
 
     /// Set the value, clearing accumulated [`inc`](Self::inc)s this transaction.

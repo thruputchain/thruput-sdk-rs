@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{Keypath, LeafKey};
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint_internal as nnint;
@@ -38,7 +38,7 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// [`set_capacity`](Self::set_capacity). To catch a flush error instead of
 /// aborting in drop, flush explicitly with [`try_flush`](Self::try_flush).
 pub struct CapacityConstraint {
-    key: KeyCache,
+    key: LeafKey,
     capacity: Option<i128>,
     delta: i128,
     _live: crate::storage::live_guards::LiveGuard,
@@ -47,7 +47,7 @@ pub struct CapacityConstraint {
 impl From<Keypath> for CapacityConstraint {
     fn from(keypath: Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: LeafKey::from(keypath),
             capacity: None,
             delta: 0,
             _live: crate::storage::live_guards::LiveGuard::new(),
@@ -176,7 +176,7 @@ impl CapacityConstraint {
     }
 
     fn flags(&self) -> StorageDeltaFlags {
-        self.key.keypath().flags()
+        self.key.flags()
     }
 
     /// Merge this handle's staged changes into the cell's pending values

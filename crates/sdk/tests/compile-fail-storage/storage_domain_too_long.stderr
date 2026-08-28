@@ -13,7 +13,7 @@ note: inside `framed_domain_len`
  ::: src/storage/keypath.rs
   |
   | /     assert!(
-  | |         domain.len() + 10 <= STATIC_KEYPATH_CAPACITY,
+  | |         domain.len() + 10 <= DOMAIN_FRAME_MAX,
   | |         "storage domain too long; shorten it with #[storage_domain = \"...\"]"
   | |     );
   | |_____- in this macro invocation

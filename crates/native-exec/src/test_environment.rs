@@ -129,6 +129,7 @@ impl DBWrapper {
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
+        genesis_root_contract: &Contract,
     ) -> Self {
         let cost_model_bytes =
             cost_model.map(|model| model.serialize().unwrap());
@@ -138,6 +139,8 @@ impl DBWrapper {
             .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
             .unwrap_or((core::ptr::null(), 0));
 
+        let genesis_root_bytes = txs::encode(genesis_root_contract).unwrap();
+
         // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
         // rejects a null one.
         let res = unsafe {
@@ -145,6 +148,8 @@ impl DBWrapper {
                 ffi_cost_model_bytes.0,
                 ffi_cost_model_bytes.1,
                 network_hash.as_ptr(),
+                genesis_root_bytes.as_ptr(),
+                genesis_root_bytes.len().try_into().unwrap(),
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();
@@ -246,15 +251,21 @@ impl Drop for RuntimeContextWrapper {
 
 impl TestEnvironmentInner {
     /// Create a fresh in-memory database (with the given cost model) and
-    /// runtime context on `network_hash`.
+    /// runtime context on `network_hash`. `genesis_root_contract` is
+    /// installed as the genesis root deployment.
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
+        genesis_root_contract: &Contract,
     ) -> Self {
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
         Self {
-            db: DBWrapper::new(cost_model, network_hash),
+            db: DBWrapper::new(
+                cost_model,
+                network_hash,
+                genesis_root_contract,
+            ),
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
@@ -468,12 +479,25 @@ impl Drop for TestEnvironmentInner {
 
 impl Default for TestEnvironmentInner {
     fn default() -> Self {
-        Self::new(None, &test_network_hash())
+        Self::new(None, &test_network_hash(), &mock_genesis_root_contract())
     }
 }
 
 /// Shared handle to a [`TestEnvironment`]; returned by its constructors.
 pub type TestEnvironmentHandle = Rc<TestEnvironment>;
+
+/// The genesis root installed by the default constructors: a mock contract
+/// whose id sits at the top of the range, away from the low ids tests
+/// typically register. The test environment executes contract bodies
+/// natively through the mock trampoline, so the genesis root's code never
+/// runs — only its deployment exists. Use
+/// [`TestEnvironment::with_genesis_root_contract`] to install a different
+/// contract (e.g. a real rv32 artifact).
+pub fn mock_genesis_root_contract() -> Contract {
+    Contract::kMockTest {
+        mock_contract_id: u32::MAX as i32,
+    }
+}
 
 impl TestEnvironment {
     /// Creates an environment on the default test network
@@ -484,15 +508,31 @@ impl TestEnvironment {
         Self::with_network_hash(cost_model, &test_network_hash())
     }
 
-    /// Creates an environment on a caller-chosen network.
+    /// Creates an environment on a caller-chosen network, with
+    /// [`mock_genesis_root_contract`] as the genesis root.
     pub fn with_network_hash(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
+    ) -> TestEnvironmentHandle {
+        Self::with_genesis_root_contract(
+            cost_model,
+            network_hash,
+            &mock_genesis_root_contract(),
+        )
+    }
+
+    /// Creates an environment installing a caller-chosen genesis root
+    /// contract instead of [`mock_genesis_root_contract`].
+    pub fn with_genesis_root_contract(
+        cost_model: Option<&StorageCostModel>,
+        network_hash: &NetworkHash,
+        genesis_root_contract: &Contract,
     ) -> TestEnvironmentHandle {
         let te = Rc::new(Self {
             inner: RefCell::new(TestEnvironmentInner::new(
                 cost_model,
                 network_hash,
+                genesis_root_contract,
             )),
         });
 
@@ -817,13 +857,18 @@ mod tests {
         let env = TestEnvironment::new(None);
         let key = StorageKeyContractData::new([0x44; 32]);
         env.setup_grant_storage_tokens(&TEST_ADDR, 1_000_000_000);
-        env.inner.borrow_mut().setup_create_deployment(
-            &TEST_ADDR,
-            &groundhog_xdr::contract::Contract::kNative {
-                native_contract_id:
-                    groundhog_xdr::precompiles::HogexecPrecompiledNativeContracts::kNativeContractHogToken,
-            },
-        );
+        // Any created, deployable contract works: the transact below runs
+        // through the mock trampoline regardless of the deployed type, and
+        // native precompiles are banned from redeployment (hogd #3592).
+        // A fresh environment hands out mock contract ids from zero.
+        let _mock = env.inner.borrow_mut().add_contract();
+        let contract = groundhog_xdr::contract::Contract::kMockTest {
+            mock_contract_id: 0,
+        };
+        env.inner.borrow_mut().setup_create_contract(&contract);
+        env.inner
+            .borrow_mut()
+            .setup_create_deployment(&TEST_ADDR, &contract);
 
         let result = env.transact(|tx| {
             tx.call(&TEST_ADDR).run(|| {

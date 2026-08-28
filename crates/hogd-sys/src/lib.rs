@@ -24,7 +24,6 @@ pub use bindings::{
     TEST_FFI_VERSION_MAJOR,
     TEST_FFI_VERSION_MINOR,
     TEST_FFI_VERSION_PATCH,
-
 };
 
 // Types
