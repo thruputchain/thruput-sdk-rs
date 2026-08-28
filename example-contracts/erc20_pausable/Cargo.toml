@@ -19,6 +19,7 @@ dev = [
     "groundhog-erc20-metadata-if/dev",
     "groundhog-erc20-pausable-if/dev",
     "groundhog-access-control-if/dev",
+    "groundhog-access-control/dev",
 ]
 
 [lib]
@@ -41,6 +42,7 @@ groundhog-erc20-if = { workspace = true }
 groundhog-erc20-metadata-if = { workspace = true }
 groundhog-erc20-pausable-if = { workspace = true }
 groundhog-access-control-if = { workspace = true }
+groundhog-access-control = { workspace = true }
 
 [dev-dependencies]
 erc20_pausable = { path = ".", features = ["dev"] }

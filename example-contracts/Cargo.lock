@@ -297,6 +297,7 @@ name = "erc20_pausable"
 version = "0.4.0"
 dependencies = [
  "erc20_pausable",
+ "groundhog-access-control",
  "groundhog-access-control-if",
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -368,6 +369,14 @@ name = "genesis_deployer"
 version = "0.4.0"
 dependencies = [
  "genesis_deployer",
+ "sdk",
+]
+
+[[package]]
+name = "groundhog-access-control"
+version = "0.1.16"
+dependencies = [
+ "groundhog-access-control-if",
  "sdk",
 ]
 

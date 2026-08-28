@@ -6,6 +6,7 @@ members = [
     "crates/sdk/tests/version-mismatch-helper",
     "crates/macros/tests/crate-override-guest",
     "standard-interfaces/*",
+    "standard-impls/*",
     "standard-tests/*",
 ]
 # The guest runtime crate (crates/rv32-runtime) only compiles for its target —
@@ -36,6 +37,7 @@ default-members = [
     "crates/sdk/tests/version-mismatch-helper",
     "crates/macros/tests/crate-override-guest",
     "standard-interfaces/*",
+    "standard-impls/*",
     "standard-tests/*",
 ]
 
@@ -90,6 +92,8 @@ groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-meta
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.16" }
 groundhog-erc20-pausable-if = { path = "standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.16" }
 groundhog-access-control-if = { path = "standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.16" }
+# Standard-interface implementation components (also this repository)
+groundhog-access-control = { path = "standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.16" }
 # Unpublished test crates
 erc20-test = { path = "standard-tests/erc20-test" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }

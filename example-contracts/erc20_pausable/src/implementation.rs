@@ -5,11 +5,15 @@
 //! - [`ERC20Pausable`]: holders of [`PAUSER_ROLE`] may pause and unpause;
 //!   while paused, every balance-changing operation throws
 //!   [`ERC20PausableError::EnforcedPause`].
-//! - [`AccessControl`]: every role is administered by
-//!   [`DEFAULT_ADMIN_ROLE`], which `initialize` grants (together with
-//!   [`PAUSER_ROLE`]) to the administrator.
+//! - [`AccessControl`]: implemented by embedding
+//!   [`AccessControlState`] from the `groundhog-access-control`
+//!   component crate and delegating the trait methods to it.
+//!   `initialize` grants [`DEFAULT_ADMIN_ROLE`] and [`PAUSER_ROLE`] to
+//!   the administrator; the component's flat default administers every
+//!   role with [`DEFAULT_ADMIN_ROLE`].
 
 use crate::interface::*;
+use groundhog_access_control::AccessControlState;
 use sdk::storage::{Balance, Map, Value};
 use sdk::*;
 
@@ -25,7 +29,7 @@ pub struct PausableTokenContract {
     allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
     total_supply: Balance,
     paused: Value<bool>,
-    roles: Map<Role, Map<ContractAddress, Value<bool>>>,
+    access: AccessControlState,
 }
 
 #[contract_type]
@@ -47,21 +51,10 @@ impl PausableTokenContract {
 
         // The administrator starts with both roles; the role wiring can be
         // changed afterwards through the AccessControl surface.
-        let sender = get_caller();
-        if self._grant_role(DEFAULT_ADMIN_ROLE, &config.administrator) {
-            log_role_granted_event(
-                DEFAULT_ADMIN_ROLE,
-                &config.administrator,
-                &sender,
-            );
-        }
-        if self._grant_role(&PAUSER_ROLE, &config.administrator) {
-            log_role_granted_event(
-                &PAUSER_ROLE,
-                &config.administrator,
-                &sender,
-            );
-        }
+        self.access
+            .grant_role_unchecked(DEFAULT_ADMIN_ROLE, &config.administrator);
+        self.access
+            .grant_role_unchecked(&PAUSER_ROLE, &config.administrator);
     }
 
     fn _administrator(&self) -> ContractAddress {
@@ -74,44 +67,6 @@ impl PausableTokenContract {
 
     fn _require_not_paused(&self) {
         ensure(!self._paused(), ERC20PausableError::EnforcedPause);
-    }
-
-    // These internal role functions do _not_ check authorization.
-
-    fn _has_role(&self, role: &Role, account: &ContractAddress) -> bool {
-        self.roles
-            .at(role)
-            .at(account)
-            .try_get()
-            .none_if_missing()
-            .unwrap_or(false)
-    }
-
-    /// Every role is administered by the default admin role.
-    fn _role_admin(&self, _role: &Role) -> Role {
-        *DEFAULT_ADMIN_ROLE
-    }
-
-    // Grant `role` to `account`. Returns whether the role was newly held.
-    fn _grant_role(&mut self, role: &Role, account: &ContractAddress) -> bool {
-        if self._has_role(role, account) {
-            return false;
-        }
-        self.roles.at_mut(role).at_mut(account).set(&true);
-        true
-    }
-
-    // Remove `role` from `account`. Returns whether the role was held.
-    fn _revoke_role(
-        &mut self,
-        role: &Role,
-        account: &ContractAddress,
-    ) -> bool {
-        if !self._has_role(role, account) {
-            return false;
-        }
-        self.roles.at_mut(role).at_mut(account).set(&false);
-        true
     }
 
     // These internal token functions do _not_ check authorization or the
@@ -323,7 +278,7 @@ impl ERC20Pausable for PausableTokenContract {
     fn pause(&mut self) {
         let caller = get_caller();
         ensure(
-            self._has_role(&PAUSER_ROLE, &caller),
+            self.access.has_role(&PAUSER_ROLE, &caller),
             ERC20PausableError::MustBePauser,
         );
         ensure(!self._paused(), ERC20PausableError::EnforcedPause);
@@ -335,7 +290,7 @@ impl ERC20Pausable for PausableTokenContract {
     fn unpause(&mut self) {
         let caller = get_caller();
         ensure(
-            self._has_role(&PAUSER_ROLE, &caller),
+            self.access.has_role(&PAUSER_ROLE, &caller),
             ERC20PausableError::MustBePauser,
         );
         ensure(self._paused(), ERC20PausableError::ExpectedPause);
@@ -349,45 +304,28 @@ impl ERC20Pausable for PausableTokenContract {
     }
 }
 
+// Pure delegation into the embedded component: the storage layout, the
+// admin checks, and the event emission all live in
+// `groundhog-access-control`.
 #[contract(version = "0.1.0")]
 impl AccessControl for PausableTokenContract {
     fn has_role(&self, role: &Role, account: &ContractAddress) -> bool {
-        self._has_role(role, account)
+        self.access.has_role(role, account)
     }
 
     fn get_role_admin(&self, role: &Role) -> Role {
-        self._role_admin(role)
+        self.access.role_admin(role)
     }
 
     fn grant_role(&mut self, role: &Role, account: &ContractAddress) {
-        let sender = get_caller();
-        ensure(
-            self._has_role(&self._role_admin(role), &sender),
-            AccessControlError::MissingRole,
-        );
-
-        if self._grant_role(role, account) {
-            log_role_granted_event(role, account, &sender);
-        }
+        self.access.grant_role(role, account);
     }
 
     fn revoke_role(&mut self, role: &Role, account: &ContractAddress) {
-        let sender = get_caller();
-        ensure(
-            self._has_role(&self._role_admin(role), &sender),
-            AccessControlError::MissingRole,
-        );
-
-        if self._revoke_role(role, account) {
-            log_role_revoked_event(role, account, &sender);
-        }
+        self.access.revoke_role(role, account);
     }
 
     fn renounce_role(&mut self, role: &Role) {
-        let caller = get_caller();
-
-        if self._revoke_role(role, &caller) {
-            log_role_revoked_event(role, &caller, &caller);
-        }
+        self.access.renounce_role(role);
     }
 }
