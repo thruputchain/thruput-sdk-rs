@@ -1,366 +1,22 @@
-use crate::crypto::sha256;
+use crate::hasher::Hasher;
 use crate::types::StorageKey;
-use core::fmt::Debug;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 use xdrs::{WriteXDR, cxs::ConstWriter};
 
-/// Keypath preimage budget (total framed bytes across all levels).
-pub const STATIC_KEYPATH_CAPACITY: usize = 256;
-
-/// Slot-pool-backed byte buffer for [`Keypath`] preimages — the one
-/// implementation on every target.
-///
-/// A [`Keypath`] whose buffer is a fixed inline array is ~260 bytes, and the
-/// storage layer's builder-style API moves keypaths by value many times per
-/// storage access. On rv32 every move is a real memcpy loop metered per
-/// instruction, which made the typed-storage path ~5,000 instructions per
-/// entrypoint before the first syscall (metrics_history#1080). Keeping the
-/// bytes in a contract-local pool and handing `Keypath` a one-byte slot
-/// handle makes moves free while preserving the no-alloc property: the pool
-/// is a static, not a heap.
-///
-/// Native hosts use one pool per thread, so native tests run against the
-/// guest's preimage budget and slot cap rather than an unbounded heap
-/// buffer that would hide on-chain overflows. Slots are returned by
-/// `Drop`. The one path that skips `Drop` — the guest's terminal Return —
-/// takes the frame's whole memory image, pool included, with it; native
-/// aborts are unwinds, which run destructors.
-mod pooled {
-    use super::STATIC_KEYPATH_CAPACITY;
-    use core::mem::MaybeUninit;
-
-    /// Concurrently-live keypath buffers per invocation frame. Live handles
-    /// are roughly the contract state root's total field count (the root
-    /// constructs every field's path eagerly) plus a few temporaries per
-    /// `at()` chain.
-    pub const KEYPATH_POOL_SLOTS: usize = 32;
-    const CAP: usize = STATIC_KEYPATH_CAPACITY;
-
-    struct Pool {
-        /// Bitmask of live slots (bit set = allocated). Zero-initialized so
-        /// the whole pool lands in `.bss` and adds nothing to the stored
-        /// initial-memory image. `u32` so guest bookkeeping is single-word.
-        used: u32,
-        lens: [u16; KEYPATH_POOL_SLOTS],
-        bufs: MaybeUninit<[[u8; CAP]; KEYPATH_POOL_SLOTS]>,
-    }
-
-    const _: () = assert!(KEYPATH_POOL_SLOTS <= 32);
-
-    const POOL_INIT: Pool = Pool {
-        used: 0,
-        lens: [0; KEYPATH_POOL_SLOTS],
-        bufs: MaybeUninit::uninit(),
-    };
-
-    // The pool's cell is an `UnsafeCell` rather than a `ContractRefCell`:
-    // `as_slice` hands out slices that must stay valid while other slots
-    // are written, which a scoped `RefCell` borrow cannot express. The
-    // static itself is placed by `contract_local!` — a plain static on the
-    // guest (zero-initialized, so it lands in `.bss`), one pool per thread
-    // on native hosts, where the per-thread pool plays the role the
-    // per-invocation static plays on the guest.
-    struct PoolCell(core::cell::UnsafeCell<Pool>);
-    // SAFETY: single-threaded guest, no interrupts; on native hosts
-    // `contract_local!` places this in thread-local storage instead.
-    unsafe impl Sync for PoolCell {}
-
-    crate::contract_local! {
-        static POOL: PoolCell =
-            const { PoolCell(core::cell::UnsafeCell::new(POOL_INIT)) };
-    }
-
-    #[cfg(any(doc, target_arch = "riscv32"))]
-    fn pool() -> *mut Pool {
-        POOL.0.get()
-    }
-
-    #[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
-    fn pool() -> *mut Pool {
-        // The raw pointer stays valid for the thread's lifetime;
-        // thread-local statics never move.
-        POOL.with(|p| p.0.get())
-    }
-
-    // Native no-std does not build at all (`contract_local!` requires std
-    // natively); this arm only silences resolution errors ahead of that
-    // compile error.
-    #[cfg(all(not(any(doc, target_arch = "riscv32")), not(feature = "std")))]
-    fn pool() -> *mut Pool {
-        unreachable!("bug: keypath pool on a no-std native target")
-    }
-
-    /// Bits admissible in `used`: the low `KEYPATH_POOL_SLOTS` bits.
-    const SLOT_MASK: u32 = if KEYPATH_POOL_SLOTS == 32 {
-        u32::MAX
-    } else {
-        (1u32 << KEYPATH_POOL_SLOTS) - 1
-    };
-
-    /// One pooled buffer. The handle is the identity; the bytes live in
-    /// [`POOL`]. Not `Copy`: dropping returns the slot.
-    pub struct PooledKeyBuf {
-        slot: u8,
-    }
-
-    fn buf_ptr(slot: u8) -> *mut u8 {
-        // Raw pointer projection only — never materialize a reference to the
-        // pool, so slices handed out by `as_slice` stay valid across writes
-        // to other slots.
-        unsafe {
-            (&raw mut (*pool()).bufs)
-                .cast::<u8>()
-                .add(slot as usize * CAP)
-        }
-    }
-
-    fn len(slot: u8) -> usize {
-        unsafe {
-            *(&raw const (*pool()).lens).cast::<u16>().add(slot as usize)
-                as usize
-        }
-    }
-
-    fn set_len(slot: u8, len: usize) {
-        unsafe {
-            *(&raw mut (*pool()).lens).cast::<u16>().add(slot as usize) =
-                len as u16;
-        }
-    }
-
-    #[inline]
-    fn alloc_slot() -> u8 {
-        unsafe {
-            let used = &raw mut (*pool()).used;
-            let mask = *used;
-            if mask == SLOT_MASK {
-                // Every slot live: the contract holds more concurrent
-                // keypath handles than the pool admits.
-                crate::exn::library_throw(
-                    crate::exn::LibraryExn::StorageKeypathOverflow,
-                );
-            }
-            let slot = (!mask).trailing_zeros() as u8;
-            *used = mask | (1u32 << slot);
-            slot
-        }
-    }
-
-    impl Default for PooledKeyBuf {
-        fn default() -> Self {
-            let slot = alloc_slot();
-            set_len(slot, 0);
-            Self { slot }
-        }
-    }
-
-    /// Out of line for the same reason as [`alloc_slot`]: `child()` clones
-    /// at every derivation level.
-    #[inline(never)]
-    fn clone_slot(from: u8) -> u8 {
-        let slot = alloc_slot();
-        let n = len(from);
-        unsafe {
-            core::ptr::copy_nonoverlapping(buf_ptr(from), buf_ptr(slot), n);
-        }
-        set_len(slot, n);
-        slot
-    }
-
-    #[inline]
-    fn free_slot(slot: u8) {
-        unsafe {
-            let used = &raw mut (*pool()).used;
-            *used &= !(1u32 << slot);
-        }
-    }
-
-    /// Kept inlinable: append sites have compile-time-known lengths, and
-    /// inlining lets the copy specialize instead of looping.
-    #[inline]
-    fn append_slot(slot: u8, bytes: &[u8]) {
-        let start = len(slot);
-        let end = start.saturating_add(bytes.len());
-        if end > CAP {
-            crate::exn::library_throw(
-                crate::exn::LibraryExn::StorageKeypathOverflow,
-            );
-        }
-        unsafe {
-            core::ptr::copy_nonoverlapping(
-                bytes.as_ptr(),
-                buf_ptr(slot).add(start),
-                bytes.len(),
-            );
-        }
-        set_len(slot, end);
-    }
-
-    impl Clone for PooledKeyBuf {
-        fn clone(&self) -> Self {
-            Self {
-                slot: clone_slot(self.slot),
-            }
-        }
-    }
-
-    impl Drop for PooledKeyBuf {
-        fn drop(&mut self) {
-            free_slot(self.slot);
-        }
-    }
-
-    impl core::fmt::Debug for PooledKeyBuf {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            f.debug_struct("PooledKeyBuf")
-                .field("slot", &self.slot)
-                .field("bytes", &self.as_slice())
-                .finish()
-        }
-    }
-
-    impl PooledKeyBuf {
-        /// Append `bytes`, throwing `LibraryExn::StorageKeypathOverflow`
-        /// if the preimage budget cannot hold them.
-        pub(super) fn append_bytes(&mut self, bytes: &[u8]) {
-            append_slot(self.slot, bytes);
-        }
-
-        pub(super) fn as_slice(&self) -> &[u8] {
-            // SAFETY: bytes `..len` were written by `append_bytes`; the pool
-            // is never moved, the slot is uniquely owned by `self`, and
-            // writes go through raw pointers so no reference aliases this
-            // slice.
-            unsafe {
-                core::slice::from_raw_parts(buf_ptr(self.slot), len(self.slot))
-            }
-        }
-    }
-}
-
-/// Derives storage keys through the VM's incremental-hash streams instead of
-/// the one-shot `sha256` syscall, which the host prices per input byte.
-///
-/// The preimages of sibling slots share their parent's framed prefix, so the
-/// module keeps one cached midstate of the most recent parent prefix (absorbed
-/// once via `SHA256Update`) and derives each sibling by `SHA256Copy`-forking
-/// that midstate and absorbing only the sibling's own final frame. The copy is
-/// constant-time in the VM, which is exactly what makes the fork cheaper than
-/// re-absorbing the prefix.
-///
-/// Streams are a scarce per-invocation VM resource shared with user
-/// [`Hasher`](crate::hasher::Hasher)s, so this module holds at most one
-/// long-lived stream (the cached parent) plus one transient per derivation,
-/// both through the ordinary hasher slot allocator. When no slot is available
-/// the caller falls back to the one-shot `sha256` syscall — the derived key is
-/// identical either way.
-mod streamkey {
-    use super::STATIC_KEYPATH_CAPACITY;
-    use crate::SHA256Hash;
-    use crate::hasher::Hasher;
-
-    struct PrefixCache {
-        /// Live midstate holding `bytes[..len]` absorbed since its reset.
-        /// `None` until the first parented derivation claims a stream; once
-        /// claimed, the hasher is held for good and the midstate is
-        /// replaced in place on a miss. `ManuallyDrop` keeps the native
-        /// thread-local cache's teardown from running `Hasher::drop`, whose
-        /// stream discard is a syscall no longer backed by a live frame
-        /// there.
-        hasher: Option<core::mem::ManuallyDrop<Hasher>>,
-        len: u16,
-        bytes: [u8; STATIC_KEYPATH_CAPACITY],
-    }
-
-    impl PrefixCache {
-        const fn new() -> Self {
-            Self {
-                hasher: None,
-                len: 0,
-                bytes: [0; STATIC_KEYPATH_CAPACITY],
-            }
-        }
-    }
-
-    crate::contract_local! {
-        static CACHE: crate::cell::ContractRefCell<PrefixCache> =
-            const { crate::cell::ContractRefCell::new(PrefixCache::new()) };
-    }
-
-    fn with_cache<R>(f: impl FnOnce(&mut PrefixCache) -> R) -> R {
-        use crate::cell::ContractLocalRef;
-        CACHE.with_ref(|c| f(&mut c.borrow_mut()))
-    }
-
-    // Every keypath preimage fits in one stream: the pooled buffer caps
-    // preimages at STATIC_KEYPATH_CAPACITY, well under the VM's
-    // kSHA256BufferMaxSize (4096, hog_exec_constants.x).
-    const _: () = assert!(STATIC_KEYPATH_CAPACITY <= 4096);
-
-    /// Hash `pre` through incremental streams, treating `pre[..split]` as the
-    /// parent prefix eligible for midstate caching. Returns `None` when no
-    /// stream is available; the caller must then hash `pre` another way.
-    pub(super) fn derive(pre: &[u8], split: usize) -> Option<SHA256Hash> {
-        let (parent, tail) = pre.split_at(split);
-
-        // An empty parent has nothing shareable to cache.
-        if parent.is_empty() {
-            let mut t = Hasher::try_new().ok()?;
-            t.update(&pre);
-            return Some(t.finish());
-        }
-
-        with_cache(|cache| {
-            let hit = cache.hasher.is_some()
-                && cache.len as usize == parent.len()
-                && &cache.bytes[..parent.len()] == parent;
-            if !hit {
-                // Rebuild the cached midstate for this parent, reusing the
-                // held hasher's stream in place when there is one: a reset
-                // absorb replaces the stream's contents (and revives a
-                // stale one) without claiming a new stream.
-                match cache.hasher.as_mut() {
-                    Some(h) => h.try_reabsorb(parent).ok()?,
-                    None => {
-                        let mut h = Hasher::try_new().ok()?;
-                        h.update(&parent);
-                        cache.hasher = Some(core::mem::ManuallyDrop::new(h));
-                    }
-                }
-                cache.len = parent.len() as u16;
-                cache.bytes[..parent.len()].copy_from_slice(parent);
-            }
-            let parent_hasher = cache
-                .hasher
-                .as_mut()
-                .expect("bug: cache entry just ensured");
-            let mut t = match parent_hasher.try_fork() {
-                Ok(t) => t,
-                Err(_) => {
-                    // The cached handle's VM stream is gone (a new
-                    // invocation reset the VM's streams but not this
-                    // contract-local cache): rebuild the midstate in place
-                    // and retry once. A failure here or on the retried fork
-                    // means no stream capacity instead — fall back.
-                    parent_hasher.try_reabsorb(parent).ok()?;
-                    parent_hasher.try_fork().ok()?
-                }
-            };
-            t.update(&tail);
-            Some(t.finish())
-        })
-    }
-}
-
 /// Path identifying a storage slot.
 ///
-/// A keypath is a sequence of length-framed components appended to a byte
-/// buffer. Each call to [`child`](Self::child) appends
-/// `CXS(byte_len) ‖ CXS(value)`: the component value CXS-encoded, prefixed by
-/// the CXS-encoded byte length of that encoding. The storage key is the
-/// SHA-256 of the buffer — computed through the VM's incremental-hash streams
-/// when one is available (see the `streamkey` module), through the one-shot
-/// `sha256` syscall otherwise, and memoized by [`KeyCache`].
+/// A keypath is a sequence of length-framed components absorbed into one of
+/// the VM's incremental hash streams. Each call to [`child`](Self::child)
+/// appends `CXS(byte_len) ‖ CXS(value)`: the component value CXS-encoded,
+/// prefixed by the CXS-encoded byte length of that encoding. The storage key
+/// is the SHA-256 of the concatenated frames, memoized by [`KeyCache`].
+///
+/// The keypath IS its midstate: it holds the VM stream that has absorbed
+/// exactly its frames. [`child`](Self::child) forks the parent's stream — a
+/// constant-time `SHA256Copy`, which is what that syscall exists for — and
+/// absorbs only its own frame, so a shared parent prefix is absorbed once
+/// ever; [`generate_key`](Self::generate_key) forks once more and finalizes.
+/// No preimage bytes are kept guest-side.
 ///
 /// The self-delimiting `CXS(len)` prefix makes the preimage
 /// `child(v1) ‖ child(v2) ‖ …` uniquely decodable: read the length, then read
@@ -368,19 +24,26 @@ mod streamkey {
 /// including fixed opaque `[u8; N]` keys that do not self-delimit — so
 /// distinct component sequences can never share a preimage.
 ///
-/// The preimage shares a fixed [`STATIC_KEYPATH_CAPACITY`]-byte budget;
-/// exceeding it throws `LibraryExn::StorageKeypathOverflow` (pre-hash
-/// oversized keys). A single component's encoding is additionally capped
-/// at the SDK's fixed encode-buffer size.
-#[derive(Clone, Debug, Default)]
+/// Like a [`Hasher`], a keypath is meaningful only in the current contract
+/// invocation, so it can't be stored. Live keypaths, user hashers, and one
+/// transient per key derivation share the VM's live-stream budget
+/// (`kMaxSHA256Buffers`); the VM refuses streams past it and the refusing
+/// syscall's error is thrown. A stream absorbs at most
+/// `kSHA256BufferMaxSize` (4096) preimage bytes, also VM-enforced. A single
+/// component's encoding is capped at the SDK's fixed encode-buffer size.
+#[derive(Debug, Default)]
 pub struct Keypath {
-    buf: pooled::PooledKeyBuf,
-    /// Preimage length before the most recent frame was appended: the split
-    /// between the parent prefix (shared with sibling slots, eligible for
-    /// midstate caching in [`streamkey`]) and this keypath's own final frame.
-    /// Zero when the keypath has no parent prefix (root, default).
-    last_frame_start: u32,
+    hasher: Hasher,
     exclusive: bool,
+}
+
+impl Clone for Keypath {
+    fn clone(&self) -> Self {
+        Self {
+            hasher: self.hasher.fork(),
+            exclusive: self.exclusive,
+        }
+    }
 }
 
 impl Keypath {
@@ -394,7 +57,7 @@ impl Keypath {
     #[doc(hidden)]
     pub fn root(domain: FramedDomain) -> Self {
         let mut kp = Self::default();
-        kp.buf.append_bytes(domain.as_bytes());
+        kp.hasher.update(&domain.as_bytes());
         kp
     }
 
@@ -419,9 +82,8 @@ impl Keypath {
     /// give each child of a node a distinct `value`.
     pub fn child<I: WriteXDR + ?Sized>(&self, value: &I) -> Keypath {
         let mut child = self.clone();
-        child.last_frame_start = self.buf.as_slice().len() as u32;
         // Encode the component into the reused scratch in place (no fresh
-        // stack buffer), then frame it into the keypath's own buffer.
+        // stack buffer), then absorb the frame into the forked stream.
         crate::call::with_scratch(|buf| {
             crate::internal::encode_scratch(buf, value).unwrap_or_else(|_| {
                 crate::exn::library_throw(
@@ -449,8 +111,8 @@ impl Keypath {
             // Safety: `encode_into` initialized exactly `written` bytes.
             let len_bytes: &[u8] =
                 unsafe { xdrs::mu::assume_init_ref(&len_buf[..written]) };
-            child.buf.append_bytes(len_bytes);
-            child.buf.append_bytes(bytes);
+            child.hasher.update(&len_bytes);
+            child.hasher.update(&bytes);
         });
         child
     }
@@ -465,30 +127,21 @@ impl Keypath {
     #[doc(hidden)]
     pub fn child_framed(&self, frame: &'static FramedComponent) -> Keypath {
         let mut child = self.clone();
-        child.last_frame_start = self.buf.as_slice().len() as u32;
-        child.buf.append_bytes(frame.as_bytes());
+        child.hasher.update(&frame.as_bytes());
         child
     }
 
     pub fn generate_key(&self) -> StorageKey {
-        let pre = self.buf.as_slice();
-        match streamkey::derive(pre, self.last_frame_start as usize) {
-            Some(hash) => hash.into(),
-            // No stream slot free (the contract holds all hashers): the
-            // one-shot syscall derives the identical key.
-            None => sha256(pre).into(),
-        }
+        self.hasher.fork().finish().into()
     }
 
     /// Whether `self` and `other` address the same storage slot.
     ///
-    /// Slot identity is the keypath preimage: two keypaths address the same
-    /// slot iff their framed byte buffers are equal (and therefore hash to
-    /// the same [`generate_key`](Self::generate_key)). The `exclusive`
-    /// access-mode flag is not part of slot identity. Compares the preimages
-    /// directly, so it needs no syscall and no `sha256`.
+    /// Slot identity is the keypath preimage; SHA-256 is collision
+    /// resistant, so equality of the derived keys decides it. The
+    /// `exclusive` access-mode flag is not part of slot identity.
     pub fn addresses_same_slot(&self, other: &Keypath) -> bool {
-        self.buf.as_slice() == other.buf.as_slice()
+        self.generate_key() == other.generate_key()
     }
 
     pub fn is_exclusive(&self) -> bool {
@@ -508,6 +161,11 @@ impl Keypath {
     }
 }
 
+/// Compile-time buffer bound for domain framing (and the domain-length
+/// assert in [`framed_domain_len`]): far above any sane domain name, far
+/// below the VM's 4096-byte stream input cap.
+const DOMAIN_FRAME_MAX: usize = 256;
+
 /// Byte length of [`frame_domain`]'s output for `domain`.
 ///
 /// Const mirror of the framing [`Keypath::child`] applies to a `&str`
@@ -519,13 +177,13 @@ pub const fn framed_domain_len(domain: &str) -> usize {
     // domains share the keypath preimage budget; a domain anywhere near
     // this cap is a bug, so fail const-eval with a readable message.
     assert!(
-        domain.len() + 10 <= STATIC_KEYPATH_CAPACITY,
+        domain.len() + 10 <= DOMAIN_FRAME_MAX,
         "storage domain too long; shorten it with #[storage_domain = \"...\"]"
     );
-    let mut inner = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    let mut inner = ConstWriter::<DOMAIN_FRAME_MAX>::new();
     inner.write_opaque_variable(domain.as_bytes());
     let inner_len = inner.pos();
-    let mut outer = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    let mut outer = ConstWriter::<DOMAIN_FRAME_MAX>::new();
     outer.write_u32(inner_len as u32);
     outer.pos() + inner_len
 }
@@ -537,7 +195,7 @@ pub const fn framed_domain_len(domain: &str) -> usize {
 /// exact fill at const-eval time, so any mismatch is a compile error rather
 /// than a wrong storage key.
 pub const fn frame_domain<const N: usize>(domain: &str) -> [u8; N] {
-    let mut probe = ConstWriter::<STATIC_KEYPATH_CAPACITY>::new();
+    let mut probe = ConstWriter::<DOMAIN_FRAME_MAX>::new();
     probe.write_opaque_variable(domain.as_bytes());
     let inner_len = probe.pos();
     let mut w = ConstWriter::<N>::new();
@@ -621,15 +279,22 @@ impl FramedDomain {
 mod test_keypath {
     use super::*;
 
-    #[test]
-    fn exclusive_flag_propagates_through_clone() {
+    /// Key oracle: sha2 over an expected framed preimage, computed
+    /// natively with no syscall. With no guest-side preimage bytes to
+    /// inspect, drift guards compare stream-derived keys against this.
+    fn oracle_key(preimage: &[u8]) -> StorageKey {
+        use sha2::Digest;
+        let digest: [u8; 32] = sha2::Sha256::digest(preimage).into();
+        crate::SHA256Hash::new(digest).into()
+    }
+
+    crate::contract_test!(exclusive_flag_propagates_through_clone {
         let mut kp = Keypath::default().child("some bytes");
         kp.set_exclusive();
         assert!(kp.clone().is_exclusive());
-    }
+    });
 
-    #[test]
-    fn distinct_paths_distinct_keys() {
+    crate::contract_test!(distinct_paths_distinct_keys {
         let root = Keypath::default();
         // boundary-shift case: [AA BB]+[CC] vs [AA]+[BB CC].
         // Fixed opaque [u8; N] keys do NOT self-delimit, so without the
@@ -637,25 +302,29 @@ mod test_keypath {
         // AA BB CC. The length prefix keeps them distinct.
         let a = root.child(&[0xAAu8, 0xBB]).child(&[0xCCu8]);
         let b = root.child(&[0xAAu8]).child(&[0xBBu8, 0xCC]);
-        assert_ne!(a.buf.as_slice(), b.buf.as_slice());
+        assert!(!a.addresses_same_slot(&b));
         // Concretely: child(&[AA,BB]) = [02 AA BB], child(&[CC]) = [01 CC];
         // child(&[AA]) = [01 AA], child(&[BB,CC]) = [02 BB CC].
-        assert_eq!(a.buf.as_slice(), &[0x02, 0xAA, 0xBB, 0x01, 0xCC]);
-        assert_eq!(b.buf.as_slice(), &[0x01, 0xAA, 0x02, 0xBB, 0xCC]);
-    }
+        assert_eq!(
+            a.generate_key(),
+            oracle_key(&[0x02, 0xAA, 0xBB, 0x01, 0xCC])
+        );
+        assert_eq!(
+            b.generate_key(),
+            oracle_key(&[0x01, 0xAA, 0x02, 0xBB, 0xCC])
+        );
+    });
 
-    #[test]
-    fn addresses_same_slot_matches_preimage_equality() {
+    crate::contract_test!(addresses_same_slot_matches_preimage_equality {
         let root = Keypath::default();
         let a = root.child(&3u32).child(&42u64);
         let same = root.child(&3u32).child(&42u64);
         let different = root.child(&3u32).child(&43u64);
         assert!(a.addresses_same_slot(&same));
         assert!(!a.addresses_same_slot(&different));
-    }
+    });
 
-    #[test]
-    fn addresses_same_slot_ignores_exclusive_flag() {
+    crate::contract_test!(addresses_same_slot_ignores_exclusive_flag {
         // The exclusive flag is an access mode, not part of slot identity:
         // two otherwise-identical keypaths still address the same slot.
         let base = Keypath::default().child(&7u32);
@@ -665,120 +334,58 @@ mod test_keypath {
         assert!(!base.is_exclusive());
         assert!(base.addresses_same_slot(&exclusive));
         assert!(exclusive.addresses_same_slot(&base));
-    }
+    });
 
-    #[test]
-    fn derivation_is_deterministic() {
+    crate::contract_test!(derivation_is_deterministic {
         let k1 = Keypath::default().child(&3u32).child(&42u64);
         let k2 = Keypath::default().child(&3u32).child(&42u64);
-        assert_eq!(k1.buf.as_slice(), k2.buf.as_slice());
-    }
+        assert_eq!(k1.generate_key(), k2.generate_key());
+    });
 
-    #[test]
-    fn pooled_buf_fills_to_exact_capacity() {
-        let mut s = pooled::PooledKeyBuf::default();
-        s.append_bytes(&[7u8; STATIC_KEYPATH_CAPACITY - 2]);
-        s.append_bytes(&[1, 2]); // exactly the budget — must succeed
-        assert_eq!(s.as_slice().len(), STATIC_KEYPATH_CAPACITY);
-    }
-
-    #[test]
-    #[should_panic]
-    fn pooled_buf_overflow_throws() {
-        let mut s = pooled::PooledKeyBuf::default();
-        s.append_bytes(&[7u8; STATIC_KEYPATH_CAPACITY]);
-        s.append_bytes(&[1]);
-    }
-
-    #[test]
-    fn golden_key_vector() {
+    crate::contract_test!(golden_key_vector {
         // Preimage: child(&1u32) ‖ child(&0u32), each = CXS(len) ‖ CXS(value).
         // CXS encodes small uints in 1 byte, so 1u32 -> [01], 0u32 -> [00],
-        // each with byte-length 1 -> CXS(1) = [01].
+        // each with byte-length 1 -> CXS(1) = [01]. Locks the on-chain key:
+        // sha256([01 01 01 00]).
         let kp = Keypath::default().child(&1u32).child(&0u32);
-        let preimage = kp.buf.as_slice();
-        let expected_preimage: &[u8] = &[
-            0x01, // CXS(len=1) for the first component
-            0x01, // CXS(1u32)
-            0x01, // CXS(len=1) for the second component
-            0x00, // CXS(0u32)
-        ];
-        assert_eq!(
-            preimage, expected_preimage,
-            "preimage framing changed — update the golden key too"
-        );
-        // Compute sha256 directly (avoids the syscall mock setup requirement).
-        // sha256([01 01 01 00])
-        use sha2::Digest;
-        let digest: [u8; 32] = sha2::Sha256::digest(preimage).into();
-        let expected = hex_literal::hex!(
+        let expected: StorageKey = crate::SHA256Hash::new(hex_literal::hex!(
             "f896c3a5f9841b6e1f0a22bd35a6a1bc5efb28aaa23b66301ec8098ce57cf99a"
-        );
-        assert_eq!(digest, expected, "golden key changed");
-    }
+        ))
+        .into();
+        assert_eq!(kp.generate_key(), expected, "golden key changed");
+    });
 
-    #[test]
-    fn domain_frame_is_distinct_and_length_framed() {
+    crate::contract_test!(domain_frame_is_distinct_and_length_framed {
         let root = Keypath::default();
         // Two roots with different domains diverge.
         let a = root.child("Token").child(&0u32);
         let b = root.child("Vault").child(&0u32);
-        assert_ne!(a.buf.as_slice(), b.buf.as_slice());
-        // The domain is now just the root's first `child` — no special framing.
+        assert!(!a.addresses_same_slot(&b));
+        // The domain is just the root's first `child` — no special framing.
         // CXS("AB") = [02 41 42] (opaque-variable: CXS(len=2) ‖ "AB"); the
-        // outer child wraps it with CXS(len=3) = [03].
+        // outer child wraps it with CXS(len=3) = [03]. Golden sha256 of the
+        // domain preimage locks the on-chain layout.
         let dom = root.child("AB");
-        assert_eq!(dom.buf.as_slice(), &[0x03, 0x02, b'A', b'B']);
-        // Golden sha256 of the domain preimage — locks the on-chain layout.
-        use sha2::Digest;
-        let digest: [u8; 32] = sha2::Sha256::digest(dom.buf.as_slice()).into();
-        let expected = hex_literal::hex!(
+        assert_eq!(dom.generate_key(), oracle_key(&[0x03, 0x02, b'A', b'B']));
+        let expected: StorageKey = crate::SHA256Hash::new(hex_literal::hex!(
             "801d3bfb551c298e3b7a2dfef59a178ce0c8d3f41fec0f3d8c308035c678e516"
-        );
-        assert_eq!(digest, expected, "golden domain key changed");
-    }
+        ))
+        .into();
+        assert_eq!(dom.generate_key(), expected, "golden domain key changed");
+    });
 
-    #[test]
-    fn clone_copies_only_initialized_prefix_and_diverges() {
-        let mut s = pooled::PooledKeyBuf::default();
-        s.append_bytes(&[1, 2, 3]);
-        let mut clone = s.clone();
-        // Diverge: append DIFFERENT bytes to original and clone.
-        s.append_bytes(&[0xAA, 0xBB]);
-        clone.append_bytes(&[0xCC]);
-        assert_eq!(s.as_slice(), &[1, 2, 3, 0xAA, 0xBB]);
-        assert_eq!(clone.as_slice(), &[1, 2, 3, 0xCC]);
-    }
-
-    #[test]
-    fn clone_of_full_buffer_roundtrips() {
-        let mut s = pooled::PooledKeyBuf::default();
-        let full = [7u8; STATIC_KEYPATH_CAPACITY];
-        s.append_bytes(&full);
-        let clone = s.clone();
-        assert_eq!(clone.as_slice(), s.as_slice());
-        assert_eq!(clone.as_slice(), &full[..]);
-    }
-
-    #[test]
-    fn default_as_slice_is_empty() {
-        let s = pooled::PooledKeyBuf::default();
-        assert_eq!(s.as_slice(), &[] as &[u8]);
-    }
-
-    #[test]
-    fn const_u32_frame_matches_runtime_child() {
+    crate::contract_test!(const_u32_frame_matches_runtime_child {
         // Load-bearing drift guard, same contract as
-        // const_frame_matches_runtime_child: const u32 framing must equal
-        // the runtime CXS codec byte-for-byte, or const-derived field keys
-        // diverge from runtime-derived ones.
+        // const_frame_matches_runtime_child: const u32 framing must hash to
+        // the key the runtime CXS codec derives, or const-derived field
+        // keys diverge from runtime-derived ones.
         macro_rules! check {
             ($v:expr) => {{
                 const FRAMED: FramedComponent = FramedComponent::from_u32($v);
                 let runtime = Keypath::default().child(&$v);
                 assert_eq!(
-                    FRAMED.as_bytes(),
-                    runtime.buf.as_slice(),
+                    runtime.generate_key(),
+                    oracle_key(FRAMED.as_bytes()),
                     "const u32 framing drifted from runtime child() for {}",
                     $v
                 );
@@ -800,10 +407,9 @@ mod test_keypath {
         // (the same layout golden_key_vector locks for the runtime path).
         const F1: FramedComponent = FramedComponent::from_u32(1u32);
         assert_eq!(F1.as_bytes(), &[0x01, 0x01]);
-    }
+    });
 
-    #[test]
-    fn child_framed_matches_child() {
+    crate::contract_test!(child_framed_matches_child {
         const FRAME: FramedComponent = FramedComponent::from_u32(7u32);
         // A non-empty parent (domain + one level) so the append lands on a
         // realistic preimage.
@@ -813,31 +419,29 @@ mod test_keypath {
         assert!(via_const.addresses_same_slot(&via_runtime));
         // It is a child, not the parent.
         assert!(!via_const.addresses_same_slot(&parent));
-    }
+    });
 
-    #[test]
-    fn child_framed_preserves_exclusive_flag() {
+    crate::contract_test!(child_framed_preserves_exclusive_flag {
         const FRAME: FramedComponent = FramedComponent::from_u32(0u32);
         let mut parent = Keypath::default().child("Domain");
         parent.set_exclusive();
         // child_framed clones the parent, so access mode propagates exactly
         // like child() (which also clones).
         assert!(parent.child_framed(&FRAME).is_exclusive());
-    }
+    });
 
-    #[test]
-    fn const_frame_matches_runtime_child() {
-        // THE load-bearing test: const framing must equal the runtime CXS
-        // codec byte-for-byte, or const-derived storage keys diverge from
-        // runtime-derived ones.
+    crate::contract_test!(const_frame_matches_runtime_child {
+        // THE load-bearing test: const framing must hash to the key the
+        // runtime CXS codec derives, or const-derived storage keys diverge
+        // from runtime-derived ones.
         macro_rules! check {
             ($domain:literal) => {{
                 const N: usize = framed_domain_len($domain);
                 const FRAMED: [u8; N] = frame_domain::<N>($domain);
                 let runtime = Keypath::default().child($domain);
                 assert_eq!(
-                    &FRAMED[..],
-                    runtime.buf.as_slice(),
+                    runtime.generate_key(),
+                    oracle_key(&FRAMED),
                     "const framing drifted from runtime child() for {:?}",
                     $domain
                 );
@@ -858,7 +462,7 @@ mod test_keypath {
         const N_AB: usize = framed_domain_len("AB");
         const AB: [u8; N_AB] = frame_domain::<N_AB>("AB");
         assert_eq!(&AB[..], &[0x03, 0x02, b'A', b'B']);
-    }
+    });
 }
 
 pub use keycache::*;

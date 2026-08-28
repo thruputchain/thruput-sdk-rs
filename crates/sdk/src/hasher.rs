@@ -71,16 +71,6 @@ impl Hasher {
         Ok(Hasher { index })
     }
 
-    /// Crate-internal: replace this hasher's stream with a fresh one holding
-    /// exactly `bytes`, reporting failure instead of throwing. Used by the
-    /// storage layer's streamed key derivation to rebuild its cached prefix
-    /// midstate in place — including when the cached stream is stale (VM
-    /// streams are per-invocation; the contract-local cache is not, on
-    /// native hosts).
-    pub(crate) fn try_reabsorb(&mut self, bytes: &[u8]) -> SysResult {
-        crate::sys::raw_SHA256Update(self.index, bytes, true)
-    }
-
     /// Consume the hasher and return the SHA256 hash of the prior input,
     /// freeing its VM-side stream.
     ///

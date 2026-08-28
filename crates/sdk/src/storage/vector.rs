@@ -305,14 +305,13 @@ mod test_vector_slots {
     use super::*;
     use crate::storage::Value;
 
-    /// Drift guard: the const-framed fixed slots (0 = len, 1 = values)
-    /// must address exactly what runtime child() derives.
-    #[test]
-    fn fixed_slots_match_runtime_child() {
+    // Drift guard: the const-framed fixed slots (0 = len, 1 = values)
+    // must address exactly what runtime child() derives.
+    crate::contract_test!(fixed_slots_match_runtime_child {
         let root = Keypath::default().child("V");
         let v: Vector<Value<u32>> = Vector::from(root.clone());
         assert!(v.len.keypath().addresses_same_slot(&root.child(&0u32)));
         assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
         assert!(v.keypath().addresses_same_slot(&root));
-    }
+    });
 }

@@ -102,22 +102,20 @@ mod tests {
     #[derive(crate::Storage)]
     struct UnitState;
 
-    #[test]
-    fn unit_struct_contract_state_root_constructs() {
+    crate::contract_test!(unit_struct_contract_state_root_constructs {
         let _node: Node<UnitState> = contract_state_root::<UnitState>();
-    }
+    });
 
     #[derive(crate::Storage)]
     struct LeafState {
         value: crate::storage::Value<u64>,
     }
 
-    #[test]
-    fn contract_state_root_seeds_domain() {
+    crate::contract_test!(contract_state_root_seeds_domain {
         let node: Node<LeafState> = contract_state_root::<LeafState>();
         // Observe the domain through a real field path: the Node itself does
         // not retain a redundant copy of the parent path.
         let expected = Keypath::default().child("LeafState").child(&0u32);
         assert!(node.value.keypath().addresses_same_slot(&expected));
-    }
+    });
 }
