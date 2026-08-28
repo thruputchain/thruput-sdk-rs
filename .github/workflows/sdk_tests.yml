@@ -16,7 +16,7 @@ env:
 jobs:
   sdk-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: namespace-profile-hogd-linux
+    runs-on: namespace-profile-hogd-linux-2604
     env:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
       # Share one FFI download cache across every groundhog-sys build instance

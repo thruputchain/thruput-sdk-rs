@@ -47,7 +47,7 @@ jobs:
             submodules: true
             skips: >-
               SKIP_SDK_TESTS=1 SKIP_EXAMPLES=1
-    runs-on: namespace-profile-hogd-linux
+    runs-on: namespace-profile-hogd-linux-2604
     env:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
       # Every matrix entry sets SKIP_SDK_TESTS=1: SDK unit tests run in the
@@ -130,7 +130,7 @@ jobs:
   # metrics read the rv32 release ELFs and target/groundhog).
   metrics:
     if: github.ref == 'refs/heads/main'
-    runs-on: namespace-profile-hogd-linux
+    runs-on: namespace-profile-hogd-linux-2604
     env:
       HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache

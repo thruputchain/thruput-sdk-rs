@@ -19,7 +19,7 @@ env:
 
 jobs:
   scaffold-smoke:
-    runs-on: namespace-profile-hogd-linux
+    runs-on: namespace-profile-hogd-linux-2604
 
     steps:
       # No SSH keys, submodules, or FFI secrets: the workspace has no git
