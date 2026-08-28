@@ -31,7 +31,9 @@ pub const DEFAULT_ADMIN_ROLE: &Role = &SHA256Hash::new([0; 32]);
 /// [`get_role_admin`](AccessControl::get_role_admin)`(role)` may grant or
 /// revoke `role`. How the role→admin mapping is wired (and whether it can
 /// change after initialization) is implementation-defined; the reference
-/// implementation administers every role with [`DEFAULT_ADMIN_ROLE`].
+/// implementation administers every role with [`DEFAULT_ADMIN_ROLE`]. An
+/// implementation that re-wires a role's admin must emit
+/// [`RoleAdminChangedEvent`].
 ///
 /// Divergence from OpenZeppelin: `renounce_role` takes no confirmation
 /// argument — it always acts on the caller — so there is no
@@ -46,7 +48,7 @@ pub const DEFAULT_ADMIN_ROLE: &Role = &SHA256Hash::new([0; 32]);
 #[contract(
     client = AccessControlClient,
     throws = AccessControlError,
-    emits(RoleGrantedEvent, RoleRevokedEvent)
+    emits(RoleGrantedEvent, RoleRevokedEvent, RoleAdminChangedEvent)
 )]
 pub trait AccessControl {
     /// True when `account` holds `role`.
