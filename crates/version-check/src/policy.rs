@@ -55,13 +55,24 @@ pub const PROTOCOL_CRATES: &[&str] = &[
 ];
 
 /// In-repo pins that are not `=`.
-pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[OperatorException {
-    manifest_prefix: "standard-interfaces/",
-    dep: "sdk",
-    op: Op::Caret,
-    reason: "the published interface crates are compatible with any sdk patch \
-             release, so they deliberately do not pin the SDK in lockstep",
-}];
+pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
+    OperatorException {
+        manifest_prefix: "standard-interfaces/",
+        dep: "sdk",
+        op: Op::Caret,
+        reason: "the published interface crates are compatible with any sdk \
+                 patch release, so they deliberately do not pin the SDK in \
+                 lockstep",
+    },
+    OperatorException {
+        manifest_prefix: "standard-impls/",
+        dep: "sdk",
+        op: Op::Caret,
+        reason: "the published implementation components follow the interface \
+                 crates' policy: compatible with any sdk patch release, so \
+                 they deliberately do not pin the SDK in lockstep",
+    },
+];
 
 /// Packages allowed to write a literal `version` instead of inheriting the
 /// workspace version.
@@ -80,6 +91,22 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
         name: "groundhog-erc1271-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-erc20-pausable-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-access-control-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-access-control",
+        reason: "implementation component on the standard interfaces' \
+                 independent version line, released in lockstep with its \
+                 interface crate",
     },
     Named {
         name: "bottle-test-if",

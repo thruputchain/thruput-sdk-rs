@@ -13,7 +13,7 @@ dev = ["sdk/dev", "groundhog-access-control-if/dev"]
 
 [dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.24.0" }
-groundhog-access-control-if = { path = "../../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "0.1.16" }
+groundhog-access-control-if = { path = "../../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.16" }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.24.0", features = ["std"] }

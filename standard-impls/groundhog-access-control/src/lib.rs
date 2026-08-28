@@ -43,10 +43,11 @@ use sdk::{ContractAddress, NoneIfMissing, ensure, get_caller};
 ///
 /// Embed as a field of a contract's storage struct. All state starts
 /// empty: nobody holds any role (grant the first administrator from the
-/// contract's initializer via [`grant_role_unchecked`]
-/// (Self::grant_role_unchecked)), and every role is administered by
-/// [`DEFAULT_ADMIN_ROLE`] until [`set_role_admin_unchecked`]
-/// (Self::set_role_admin_unchecked) rewires it.
+/// contract's initializer via
+/// [`grant_role_unchecked`](Self::grant_role_unchecked)), and every role
+/// is administered by [`DEFAULT_ADMIN_ROLE`] until
+/// [`set_role_admin_unchecked`](Self::set_role_admin_unchecked) rewires
+/// it.
 #[sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct AccessControlState {
