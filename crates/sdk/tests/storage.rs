@@ -549,8 +549,7 @@ struct StorageDomainRenamed {
     _v: sdk::storage::Value<u64>,
 }
 
-#[test]
-fn storage_domain_defaults_to_ident_and_overrides() {
+contract_test!(storage_domain_defaults_to_ident_and_overrides {
     // Behavioral: the domain seeds each root field path as its first child
     // frame. Default is the bare ident; #[storage(domain = "...")] overrides.
     let plain = contract_state_root::<StorageDomainPlain>();
@@ -561,7 +560,7 @@ fn storage_domain_defaults_to_ident_and_overrides() {
     assert!(renamed._v.keypath().addresses_same_slot(
         &Keypath::default().child("custom").child(&0u32)
     ));
-}
+});
 
 #[test]
 fn test_data_fully_consumed() {
@@ -609,8 +608,7 @@ struct Pinned {
     b: Value<u64>, // pinned 7
 }
 
-#[test]
-fn slot_override_remaps_field_keypath() {
+contract_test!(slot_override_remaps_field_keypath {
     let root = Keypath::default();
     let p = Pinned::from(root.clone());
     // b lives at child(&7u32), provably distinct from child(&1u32).
@@ -618,7 +616,7 @@ fn slot_override_remaps_field_keypath() {
     let other = Value::<u64>::from(root.child(&1u32));
     assert!(p.b.keypath().addresses_same_slot(expect_b.keypath()));
     assert!(!p.b.keypath().addresses_same_slot(other.keypath()));
-}
+});
 
 #[derive(sdk::Storage)]
 #[allow(dead_code)]
@@ -629,8 +627,7 @@ struct PositionalAbsoluteIndex {
     c: Value<u64>, // positional: declaration index 2
 }
 
-#[test]
-fn positional_fields_use_absolute_declaration_index() {
+contract_test!(positional_fields_use_absolute_declaration_index {
     let root = Keypath::default();
     let s = PositionalAbsoluteIndex::from(root.clone());
     // c is the 3rd field -> child(&2u32), NOT child(&1u32).
@@ -655,4 +652,4 @@ fn positional_fields_use_absolute_declaration_index() {
             Value::<u64>::from(root.child(&5u32)).keypath()
         )
     );
-}
+});
