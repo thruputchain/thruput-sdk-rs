@@ -24,7 +24,7 @@ mod _ref_impl {
 }
 
 // Guest environment: wrap `RefCell` so it can live in a plain static.
-#[cfg(all(any(doc, target_arch = "riscv32"), feature = "alloc"))]
+#[cfg(any(doc, target_arch = "riscv32"))]
 mod _ref_impl {
     /// A wrapped [`core::cell::RefCell`] that implements [`Sync`] so it can
     /// be used in statics — the by-reference companion to [`ContractCell`]
@@ -58,7 +58,6 @@ mod _ref_impl {
     }
 }
 
-#[cfg(feature = "alloc")]
 #[allow(unused_imports)]
 pub use _ref_impl::*;
 
@@ -67,13 +66,6 @@ pub use _ref_impl::*;
 /// the test env's `LocalKey`, so `CELL.with_ref(|c| ...)` works in both.
 ///
 /// Crate-private: contracts should not build on the SDK's internal cells.
-///
-/// `alloc`-only, because the SDK's one by-reference cell is the `alloc`
-/// scratch pool ([`call::with_call_scratch`](crate::call)). The no-alloc guest
-/// keeps its scratch on the stack — a `MaybeUninit` buffer is free to build,
-/// so there is nothing to cache — and so needs no cell, no borrow flag, and no
-/// re-entrancy fallback at all.
-#[cfg(feature = "alloc")]
 pub(crate) trait ContractLocalRef<T> {
     fn with_ref<R>(
         &'static self,

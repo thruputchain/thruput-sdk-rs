@@ -52,53 +52,41 @@ mod pooled {
         bufs: MaybeUninit::uninit(),
     };
 
-    // The guest arm holds the pool in a single static (single-threaded, no
-    // interrupts; zero-initialized so it lands in `.bss`). Native hosts run
-    // many test threads, so each thread gets its own pool — the per-thread
-    // pool plays the role the per-invocation static plays on the guest.
+    // The pool's cell is an `UnsafeCell` rather than a `ContractRefCell`:
+    // `as_slice` hands out slices that must stay valid while other slots
+    // are written, which a scoped `RefCell` borrow cannot express. The
+    // static itself is placed by `contract_local!` — a plain static on the
+    // guest (zero-initialized, so it lands in `.bss`), one pool per thread
+    // on native hosts, where the per-thread pool plays the role the
+    // per-invocation static plays on the guest.
+    struct PoolCell(core::cell::UnsafeCell<Pool>);
+    // SAFETY: single-threaded guest, no interrupts; on native hosts
+    // `contract_local!` places this in thread-local storage instead.
+    unsafe impl Sync for PoolCell {}
+
+    crate::contract_local! {
+        static POOL: PoolCell =
+            const { PoolCell(core::cell::UnsafeCell::new(POOL_INIT)) };
+    }
+
     #[cfg(any(doc, target_arch = "riscv32"))]
-    mod pool_cell {
-        use super::{POOL_INIT, Pool};
-        use core::cell::UnsafeCell;
-
-        struct PoolCell(UnsafeCell<Pool>);
-        // SAFETY: single-threaded guest, no interrupts; native hosts use
-        // the thread-local arm instead.
-        unsafe impl Sync for PoolCell {}
-
-        static POOL: PoolCell = PoolCell(UnsafeCell::new(POOL_INIT));
-
-        pub(super) fn pool() -> *mut Pool {
-            POOL.0.get()
-        }
+    fn pool() -> *mut Pool {
+        POOL.0.get()
     }
 
     #[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
-    mod pool_cell {
-        use super::{POOL_INIT, Pool};
-        use core::cell::UnsafeCell;
-
-        std::thread_local! {
-            static POOL: UnsafeCell<Pool> =
-                const { UnsafeCell::new(POOL_INIT) };
-        }
-
-        pub(super) fn pool() -> *mut Pool {
-            // The raw pointer stays valid for the thread's lifetime;
-            // thread-local statics never move.
-            POOL.with(|p| p.get())
-        }
+    fn pool() -> *mut Pool {
+        // The raw pointer stays valid for the thread's lifetime;
+        // thread-local statics never move.
+        POOL.with(|p| p.0.get())
     }
 
-    // Native no-std builds have no thread locals; unreachable in practice
-    // (building the sdk natively requires the `std` feature).
+    // Native no-std does not build at all (`contract_local!` requires std
+    // natively); this arm only silences resolution errors ahead of that
+    // compile error.
     #[cfg(all(not(any(doc, target_arch = "riscv32")), not(feature = "std")))]
-    mod pool_cell {
-        use super::Pool;
-
-        pub(super) fn pool() -> *mut Pool {
-            unreachable!("bug: keypath pool on a no-std native target")
-        }
+    fn pool() -> *mut Pool {
+        unreachable!("bug: keypath pool on a no-std native target")
     }
 
     /// Bits admissible in `used`: the low `KEYPATH_POOL_SLOTS` bits.
@@ -119,7 +107,7 @@ mod pooled {
         // pool, so slices handed out by `as_slice` stay valid across writes
         // to other slots.
         unsafe {
-            (&raw mut (*pool_cell::pool()).bufs)
+            (&raw mut (*pool()).bufs)
                 .cast::<u8>()
                 .add(slot as usize * CAP)
         }
@@ -127,24 +115,22 @@ mod pooled {
 
     fn len(slot: u8) -> usize {
         unsafe {
-            *(&raw const (*pool_cell::pool()).lens)
-                .cast::<u16>()
-                .add(slot as usize) as usize
+            *(&raw const (*pool()).lens).cast::<u16>().add(slot as usize)
+                as usize
         }
     }
 
     fn set_len(slot: u8, len: usize) {
         unsafe {
-            *(&raw mut (*pool_cell::pool()).lens)
-                .cast::<u16>()
-                .add(slot as usize) = len as u16;
+            *(&raw mut (*pool()).lens).cast::<u16>().add(slot as usize) =
+                len as u16;
         }
     }
 
     #[inline]
     fn alloc_slot() -> u8 {
         unsafe {
-            let used = &raw mut (*pool_cell::pool()).used;
+            let used = &raw mut (*pool()).used;
             let mask = *used;
             if mask == SLOT_MASK {
                 // Every slot live: the contract holds more concurrent
@@ -183,7 +169,7 @@ mod pooled {
     #[inline]
     fn free_slot(slot: u8) {
         unsafe {
-            let used = &raw mut (*pool_cell::pool()).used;
+            let used = &raw mut (*pool()).used;
             *used &= !(1u32 << slot);
         }
     }
@@ -295,56 +281,14 @@ mod streamkey {
         }
     }
 
-    #[cfg(any(doc, target_arch = "riscv32"))]
-    mod cache_cell {
-        use super::PrefixCache;
-        use core::cell::UnsafeCell;
-
-        struct CacheCell(UnsafeCell<PrefixCache>);
-        // SAFETY: single-threaded guest, no interrupts (the same argument as
-        // `ContractCell`); native hosts use the thread-local arm instead.
-        unsafe impl Sync for CacheCell {}
-
-        static CACHE: CacheCell =
-            CacheCell(UnsafeCell::new(PrefixCache::new()));
-
-        pub(super) fn with_cache<R>(
-            f: impl FnOnce(&mut PrefixCache) -> R,
-        ) -> R {
-            // SAFETY: single-threaded and non-reentrant — `f` never calls
-            // back into this module.
-            f(unsafe { &mut *CACHE.0.get() })
-        }
+    crate::contract_local! {
+        static CACHE: crate::cell::ContractRefCell<PrefixCache> =
+            const { crate::cell::ContractRefCell::new(PrefixCache::new()) };
     }
 
-    #[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
-    mod cache_cell {
-        use super::PrefixCache;
-        use core::cell::RefCell;
-
-        std::thread_local! {
-            static CACHE: RefCell<PrefixCache> =
-                const { RefCell::new(PrefixCache::new()) };
-        }
-
-        pub(super) fn with_cache<R>(
-            f: impl FnOnce(&mut PrefixCache) -> R,
-        ) -> R {
-            CACHE.with(|c| f(&mut c.borrow_mut()))
-        }
-    }
-
-    // Native no-std builds have no syscall dispatch and no thread locals;
-    // `derive` below reports no stream available and the caller falls back.
-    #[cfg(all(not(any(doc, target_arch = "riscv32")), not(feature = "std")))]
-    mod cache_cell {
-        use super::PrefixCache;
-
-        pub(super) fn with_cache<R>(
-            _f: impl FnOnce(&mut PrefixCache) -> R,
-        ) -> R {
-            unreachable!("bug: streamed derivation on a no-syscall target")
-        }
+    fn with_cache<R>(f: impl FnOnce(&mut PrefixCache) -> R) -> R {
+        use crate::cell::ContractLocalRef;
+        CACHE.with_ref(|c| f(&mut c.borrow_mut()))
     }
 
     // Every keypath preimage fits in one stream: the pooled buffer caps
@@ -365,7 +309,7 @@ mod streamkey {
             return Some(t.finish());
         }
 
-        cache_cell::with_cache(|cache| {
+        with_cache(|cache| {
             let hit = cache.hasher.is_some()
                 && cache.len as usize == parent.len()
                 && &cache.bytes[..parent.len()] == parent;
