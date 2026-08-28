@@ -1,6 +1,6 @@
 use crate::SHA256Hash;
 use crate::exn::syscall_throw;
-use crate::sys::SyscallNo;
+use crate::sys::{SyscallErrorCode, SyscallNo};
 use core::fmt::*;
 
 /// The maximum number of hashers that can be in existence at once
@@ -20,11 +20,16 @@ pub struct Hasher {
 impl Hasher {
     /// Get a hasher.
     ///
-    /// Panics if more than [`N_HASHERS`] hashers are currently in use.
-    ///
+    /// Throws a syscall exception (`kSHA256Update` /
+    /// `kSyscallErrorCodeInvalidSyscallInput` — the error the VM answers
+    /// stream-cap exhaustion with) if more than [`N_HASHERS`] hashers are
+    /// currently in use.
     pub fn new() -> Hasher {
         Hasher::try_new().unwrap_or_else(|| {
-            panic!("Hasher::new: no more hashers are available");
+            syscall_throw(
+                SyscallNo::kSHA256Update,
+                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
+            )
         })
     }
 
@@ -64,12 +69,16 @@ impl Hasher {
     /// been absorbed, so forking is the cheap way to hash many inputs that
     /// share a prefix: absorb the prefix once, then fork per suffix.
     ///
-    /// Panics if more than [`N_HASHERS`] hashers are currently in use.
     /// Throws a syscall exception (aborting the frame) if the host call
-    /// fails.
+    /// fails, or (`kSHA256Copy` / `kSyscallErrorCodeInvalidSyscallInput` —
+    /// the error the VM answers stream-cap exhaustion with) if more than
+    /// [`N_HASHERS`] hashers are currently in use.
     pub fn fork(&self) -> Hasher {
         self.try_fork().unwrap_or_else(|| {
-            panic!("Hasher::fork: no more hashers are available");
+            syscall_throw(
+                SyscallNo::kSHA256Copy,
+                SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
+            )
         })
     }
 

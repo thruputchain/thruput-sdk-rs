@@ -54,9 +54,9 @@ contract_test!(test_hasher_empty_input {
 });
 
 // A frame failure with every hasher slot live must unwind cleanly: the
-// unwind drops each live `Hasher`, reclaiming its slot without panicking
-// again. A drop-time panic here would be a double panic — the whole test
-// process would abort instead of reporting the fault. The companion unit
+// unwind drops each live `Hasher`, reclaiming its slot without panicking.
+// A drop-time panic here would be a double panic — the whole test
+// process would abort instead of reporting the failure. The companion unit
 // test in `src/hasher.rs` pins `Hasher::drop` against a desynced slot
 // (the state that used to panic); this test covers the guest-visible
 // unwind-with-live-hashers path end to end.
@@ -66,8 +66,8 @@ fn test_frame_failure_with_live_hashers_unwinds_cleanly() {
     let addr = ContractAddress::named("hasher_unwind");
 
     // Exhaust the slots so the failure is hasher-triggered: with all
-    // N_HASHERS live, the next allocation panics, and the resulting
-    // unwind drops every live hasher.
+    // N_HASHERS live, the next allocation throws the stream-cap syscall
+    // exception, and the resulting unwind drops every live hasher.
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
             let mut hashers = vec![];
@@ -77,11 +77,11 @@ fn test_frame_failure_with_live_hashers_unwinds_cleanly() {
                 hashers.push(h);
             }
             assert!(Hasher::try_new().is_none(), "all slots must be in use");
-            // Panics: no more hashers are available.
+            // Throws: no more hashers are available.
             let _overflow = Hasher::new();
         })
     });
-    result.assert_fault();
+    result.assert_abort();
 
     // The unwind reclaimed every slot: a fresh frame can allocate and
     // use all of them again.
