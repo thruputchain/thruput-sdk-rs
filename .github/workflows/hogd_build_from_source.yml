@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    runs-on: namespace-profile-hogd-linux
+    runs-on: namespace-profile-hogd-linux-2604
     env:
       HOGD_FFI_BUILD: "1"
       # hogd's C++ is a clang codebase; the runner defaults to gcc, which
