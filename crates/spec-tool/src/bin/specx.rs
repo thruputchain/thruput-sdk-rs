@@ -1,7 +1,7 @@
 //! Local dev tool: extract and canonicalize the contract spec from an rv32
 //! ELF, mirroring the groundhog CLI's `finalize_rv32_spec` pipeline.
 //!
-//! Usage: specx <elf> <out_spec_json>
+//! Usage: `specx <elf> <out_spec_json>`
 
 use groundhog_spec_tool::{
     SpecSection, check_raw_spec_format, classify_section, render_spec_json,
