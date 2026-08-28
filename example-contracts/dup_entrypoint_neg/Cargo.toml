@@ -1,15 +1,21 @@
 [package]
 name = "dup_entrypoint_neg"
-description = "Negative fixture: two colliding traits with the same method name — the duplicate entrypoint ID must fail the rv32 link"
-version.workspace = true
-authors.workspace = true
-license.workspace = true
-publish.workspace = true
-repository.workspace = true
-homepage.workspace = true
-keywords.workspace = true
-categories.workspace = true
-edition.workspace = true
+description = "Negative fixture: two colliding traits with the same method name — the duplicate entrypoint ID must fail every build (host cargo build and the rv32 link)"
+version = "0.4.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+publish = ["groundhog"]
+repository = "https://github.com/groundhogchain/example-contracts.git"
+homepage = "https://github.com/groundhogchain/example-contracts.git"
+keywords = ["groundhog"]
+categories = ["blockchain"]
+edition = "2024"
+
+# Stand-alone workspace root: this fixture's HOST build fails at codegen on
+# the crate-scoped duplicate-entrypoint guard symbols (deliberately), so it
+# is excluded from the example-contracts workspace, whose host build must
+# succeed. See the `disabled` marker for the checks that own it.
+[workspace]
 
 [features]
 entrypoints = []
@@ -26,4 +32,4 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.23.1" }

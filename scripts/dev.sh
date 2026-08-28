@@ -349,18 +349,21 @@ check_rv32_missing_entrypoints_detected() {
 }
 
 # Negative fixture: dup_entrypoint_neg has two colliding traits sharing a
-# method name, so both impls produce the same entrypoint ID. The wrapper
-# symbol carries the ID, so the build must FAIL with a duplicate-symbol
-# error — replacing the previous silent behavior where two
-# dispatch-table records shared an ID and the runtime's first-match-wins
-# scan routed every call to one impl. The crate carries a `disabled` marker
-# so the rv32 build loop above never builds it expecting success.
+# method name, so both impls produce the same entrypoint ID. Guard symbols
+# carry the ID, so the build must FAIL with a duplicate-symbol error —
+# replacing the previous silent behavior where two dispatch-table records
+# shared an ID and the runtime's first-match-wins scan routed every call to
+# one impl. The crate is workspace-excluded (its host build fails too, at
+# codegen on the crate-scoped guards — see
+# scripts/check-duplicate-entrypoint-detected.sh, which owns the host side)
+# and carries a `disabled` marker so the rv32 build loop above never builds
+# it expecting success.
 check_rv32_duplicate_entrypoint_detected() {
     info "CHECK-RV32-DUP-ENTRYPOINT-DETECTED"
 
     local out
     if out=$( (
-        cd "${SDK_DIR}/example-contracts" &&
+        cd "${SDK_DIR}/example-contracts/dup_entrypoint_neg" &&
         groundhog build -p dup_entrypoint_neg
     ) 2>&1); then
         fail "Expected the rv32 build of dup_entrypoint_neg to fail with a duplicate entrypoint symbol, but it succeeded"
@@ -914,6 +917,7 @@ check_all() {
         { skip TEST_EXAMPLES || eg_test_all; } &&
         { skip BOTTLE_EXAMPLES || eg_bottle_test_all; } &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
+        { skip DUP_ENTRYPOINT || bash "${SDK_DIR}/scripts/check-duplicate-entrypoint-detected.sh"; } &&
         { skip REGISTRY_STRIPPED || bash "${SDK_DIR}/scripts/check-storage-registry-stripped.sh"; }
     }; } &&
 

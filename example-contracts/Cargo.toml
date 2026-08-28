@@ -65,7 +65,6 @@ members = [
     "phantom_method_if_a",
     "phantom_method_if_b",
     "phantom_method_impl",
-    "dup_entrypoint_neg",
     "prerelease_version",
     "missing_contract_macro",
     "unknown_method",
@@ -78,6 +77,12 @@ members = [
 exclude = [
     "multi_root_collision",
     "cross_crate_collision",
+    # Negative duplicate-entrypoint fixture: its HOST build now fails at
+    # codegen on the crate-scoped guard symbols (that is the point), so it
+    # cannot be a member of a workspace whose host build must succeed.
+    # Exercised by scripts/check-duplicate-entrypoint-detected.sh (host) and
+    # check_rv32_duplicate_entrypoint_detected in scripts/dev.sh (guest).
+    "dup_entrypoint_neg",
 ]
 
 [workspace.package]
