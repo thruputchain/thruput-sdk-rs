@@ -12,14 +12,16 @@ struct Pair<A: StorageType, B: StorageType> {
     second: B,
 }
 
+// Kept small: a state root retains a live VM hash stream per field during
+// construction, and the streams budget is kMaxSHA256Buffers.
 #[derive(Debug, Storage)]
-#[allow(dead_code)]
-struct Data {
-    num: Value<i32>,
-    nums: Vector<Value<u64>>,
-    nnints: Vector<NNInt>,
-    bytes: Bytestring,
+struct MapData {
     map: Map<u32, NNInt>,
+}
+
+#[derive(Debug, Storage)]
+struct VecData {
+    nums: Vector<Value<u64>>,
 }
 
 #[derive(Storage)]
@@ -32,12 +34,12 @@ contract_test!(test_map {
     let data_keypath = Keypath::default();
     let slot: u32 = 3;
     {
-        let mut data: Data = data_keypath.clone().into();
+        let mut data: MapData = data_keypath.clone().into();
         data.map.at_mut(&slot).strict_inc(7);
     }
 
     {
-        let data: Data = data_keypath.into();
+        let data: MapData = data_keypath.into();
         let v = data.map.at(&slot).get();
         assert_eq!(v, 7);
     }
@@ -98,12 +100,14 @@ contract_test!(test_map_entry {
 
 contract_test!(test_storable {
     let data_keypath = Keypath::default();
-    let mut data: Data = data_keypath.clone().into();
-    for i in 0..3u64 {
-        data.nums.push_with(|slot| slot.set(&i));
+    {
+        let mut data: VecData = data_keypath.clone().into();
+        for i in 0..3u64 {
+            data.nums.push_with(|slot| slot.set(&i));
+        }
     }
 
-    let data: Data = data_keypath.into();
+    let data: VecData = data_keypath.into();
     for i in 0..3u32 {
         let n = data.nums.at(i).get();
         assert_eq!(n, i as u64);
@@ -253,12 +257,12 @@ contract_test!(test_exclusive_propagation {
 
     // Use at_mut_exclusive -- exclusive flag reaches NNInt
     {
-        let mut data: Data = data_keypath.clone().into();
+        let mut data: MapData = data_keypath.clone().into();
         data.map.at_mut_exclusive(&slot).strict_inc(10);
     }
 
     {
-        let data: Data = data_keypath.into();
+        let data: MapData = data_keypath.into();
         let v = data.map.at(&slot).get();
         assert_eq!(v, 10);
     }

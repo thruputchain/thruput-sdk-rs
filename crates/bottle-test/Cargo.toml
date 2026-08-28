@@ -15,4 +15,3 @@ description = "Toolkit for testing contracts via rv32 invocation"
 sdk = { workspace = true, features = ["dev"] }
 bottle-test-if = { workspace = true, features = ["dev"] }
 groundhog-erc20-if = { workspace = true }
-groundhog-trace = { workspace = true }

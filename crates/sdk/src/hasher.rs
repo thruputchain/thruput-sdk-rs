@@ -48,16 +48,12 @@ impl Hasher {
             .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Update, e));
     }
 
-    /// Fork the hasher: a new hasher whose state is an exact copy of this
-    /// one's, including all input absorbed so far. The two diverge
-    /// independently afterwards.
+    /// Fork the hasher: a new hasher with a copy of the absorbed state,
+    /// after which the two diverge independently. The copy is
+    /// constant-time in the VM, so absorb a shared prefix once and fork
+    /// per suffix.
     ///
-    /// Copying is constant-time in the VM regardless of how much input has
-    /// been absorbed, so forking is the cheap way to hash many inputs that
-    /// share a prefix: absorb the prefix once, then fork per suffix.
-    ///
-    /// Throws a syscall exception if the VM refuses the copy — its
-    /// live-stream cap ([`N_HASHERS`]) is reached.
+    /// Throws a syscall exception if the VM refuses the stream.
     pub fn fork(&self) -> Hasher {
         self.try_fork()
             .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Copy, e))
@@ -93,16 +89,10 @@ impl Hasher {
 
 impl Drop for Hasher {
     fn drop(&mut self) {
-        // Free the VM-side stream by finalizing it and discarding the hash:
-        // indices are never reused, so nothing else reclaims it. The result
-        // is deliberately ignored — the stream may legitimately be gone (a
-        // stale cached handle from a previous invocation on native hosts).
-        // Skipped during native unwinds: the frame is being torn down and
-        // its streams die with it, and a syscall answered with an
-        // unrecoverable host state there would turn the unwind into a
-        // double panic (an immediate process abort). rv32 guests do not
-        // unwind — a contract panic aborts the frame — so there drops never
-        // run mid-panic.
+        // Indices are never reused, so free the VM-side stream here
+        // (finalize, hash and errors ignored). Skipped while unwinding:
+        // the frame's streams die with it anyway, and a throwing syscall
+        // would double-panic. rv32 guests never unwind.
         if !unwinding() {
             let mut discard = core::mem::MaybeUninit::uninit();
             let _ =

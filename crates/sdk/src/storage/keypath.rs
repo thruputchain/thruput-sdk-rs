@@ -315,6 +315,26 @@ mod test_keypath {
         );
     });
 
+    crate::contract_test!(clone_copies_state_and_diverges {
+        // Differential pin, the deleted buffer tests' role: a clone copies
+        // the absorbed state, the original and clone then extend
+        // independently, and each key still equals the sha2 of its exact
+        // framed preimage — so a divergence on either side shows up.
+        let base = Keypath::default().child(&[1u8, 2, 3]);
+        let a = base.child(&[0xAAu8, 0xBB]);
+        let b = base.child(&[0xCCu8]);
+        assert_eq!(
+            a.generate_key(),
+            oracle_key(&[0x03, 1, 2, 3, 0x02, 0xAA, 0xBB])
+        );
+        assert_eq!(
+            b.generate_key(),
+            oracle_key(&[0x03, 1, 2, 3, 0x01, 0xCC])
+        );
+        // The shared parent is untouched by its children's extensions.
+        assert_eq!(base.generate_key(), oracle_key(&[0x03, 1, 2, 3]));
+    });
+
     crate::contract_test!(addresses_same_slot_matches_preimage_equality {
         let root = Keypath::default();
         let a = root.child(&3u32).child(&42u64);
