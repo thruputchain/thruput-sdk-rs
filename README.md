@@ -19,7 +19,6 @@ crate-type = ["rlib"]
 
 [dependencies]
 sdk = { path = "../sdk_rs/crates/sdk" }
-# Add `features = ["storage"]` if the contract uses sdk::storage types.
 
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
