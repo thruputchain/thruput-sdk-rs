@@ -3,11 +3,6 @@ use crate::exn::syscall_throw;
 use crate::sys::{SysResult, SyscallNo};
 use core::fmt::*;
 
-/// The maximum number of hashers that can be in existence at once: the VM's
-/// live-stream cap (`kMaxSHA256Buffers`). Finishing or dropping a hasher
-/// frees its stream.
-pub const N_HASHERS: usize = 8;
-
 type HasherIndex = u32;
 
 /// An incremental hasher, implemented by the VM.
@@ -22,7 +17,8 @@ impl Hasher {
     /// Get a hasher.
     ///
     /// Throws a syscall exception if the VM refuses the stream — its
-    /// live-stream cap ([`N_HASHERS`]) is reached.
+    /// live-stream cap (the chain's `max_sha256_buffers` network config
+    /// parameter) is reached.
     pub fn new() -> Hasher {
         Hasher::try_new()
             .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Update, e))
@@ -153,7 +149,7 @@ fn next_index() -> HasherIndex {
 #[test]
 fn test_indices_are_never_reused() {
     let mut last = next_index();
-    for _ in 0..2 * N_HASHERS {
+    for _ in 0..16 {
         let index = next_index();
         assert!(index > last, "indices must increase monotonically");
         last = index;

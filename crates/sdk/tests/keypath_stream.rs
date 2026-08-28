@@ -76,15 +76,26 @@ fn test_exhaustion_throws_typed_abort() {
 
 // Derivation must not permanently consume streams: transients are
 // finalized and dropped keypaths free theirs, so after arbitrarily many
-// derivations the full budget is allocatable again.
-contract_test!(test_derivation_pins_no_streams {
-    for i in 0u32..20 {
-        let _ = Keypath::default().child(&i).child(&i).generate_key();
-    }
+// derivations the full budget — the chain's `max_sha256_buffers` network
+// config parameter, read off the environment — is allocatable again.
+#[test]
+fn test_derivation_pins_no_streams() {
+    let env = TestEnvironment::no_cost();
+    let cap = env.get_network_config().max_sha256_buffers as usize;
+    assert!(cap > 0);
 
-    let mut held = Vec::new();
-    while let Ok(h) = Hasher::try_new() {
-        held.push(h);
-    }
-    assert_eq!(held.len(), N_HASHERS, "every stream must be free again");
-});
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("keypath_streams")).run(move || {
+            for i in 0u32..20 {
+                let _ = Keypath::default().child(&i).child(&i).generate_key();
+            }
+
+            let mut held = Vec::new();
+            while let Ok(h) = Hasher::try_new() {
+                held.push(h);
+            }
+            assert_eq!(held.len(), cap, "every stream must be free again");
+        })
+    })
+    .assert_success();
+}
