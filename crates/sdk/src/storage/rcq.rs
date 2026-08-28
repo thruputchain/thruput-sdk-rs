@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{Keypath, LeafKey};
 use crate::StorageKey;
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
@@ -34,7 +34,7 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 #[derive(Debug)]
 pub struct RCQ<T> {
-    key: KeyCache,
+    key: LeafKey,
     phantom_entry: PhantomData<fn() -> T>,
 }
 
@@ -48,11 +48,6 @@ impl<T> From<Keypath> for RCQ<T> {
 }
 
 impl<T> RCQ<T> {
-    /// Retrieve the storage keypath of the RCQ item.
-    pub fn keypath(&self) -> &Keypath {
-        self.key.keypath()
-    }
-
     /// Retrieve the storage key of the RCQ item.
     pub fn key(&self) -> &StorageKey {
         self.key.get()
@@ -187,7 +182,7 @@ impl<S> super::node::StorageType for RCQ<S> {}
 
 impl<T> super::deletable::Deletable for RCQ<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.keypath().is_exclusive() {
+        let keypath_flags = if self.key.is_exclusive() {
             StorageDeltaFlags::ExclusiveLock
         } else {
             StorageDeltaFlags::None

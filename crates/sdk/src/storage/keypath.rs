@@ -9,7 +9,8 @@ use xdrs::{WriteXDR, cxs::ConstWriter};
 /// the VM's incremental hash streams. Each call to [`child`](Self::child)
 /// appends `CXS(byte_len) ‖ CXS(value)`: the component value CXS-encoded,
 /// prefixed by the CXS-encoded byte length of that encoding. The storage key
-/// is the SHA-256 of the concatenated frames, memoized by [`KeyCache`].
+/// is the SHA-256 of the concatenated frames; leaf storage cells derive it
+/// once at construction and hold it as a [`LeafKey`].
 ///
 /// The keypath IS its midstate: it holds the VM stream that has absorbed
 /// exactly its frames. [`child`](Self::child) forks the parent's stream — a
@@ -133,6 +134,12 @@ impl Keypath {
 
     pub fn generate_key(&self) -> StorageKey {
         self.hasher.fork().finish().into()
+    }
+
+    /// Consume the keypath and return its storage key, finalizing its own
+    /// stream directly — no transient fork.
+    pub fn into_key(self) -> StorageKey {
+        self.hasher.finish().into()
     }
 
     /// Whether `self` and `other` address the same storage slot.
@@ -485,43 +492,56 @@ mod test_keypath {
     });
 }
 
-pub use keycache::*;
-mod keycache {
+pub use leaf_key::*;
+mod leaf_key {
     use super::Keypath;
     use crate::types::StorageKey;
-    use core::cell::OnceCell;
     use core::ops::Deref;
+    use groundhog_xdr::storage_item::StorageDeltaFlags;
 
+    /// The derived storage key a leaf storage cell holds, plus its access
+    /// mode. Construction derives the key immediately and releases the
+    /// keypath's VM hash stream, so leaves hold no stream — only containers
+    /// that keep deriving child slots (maps, vectors) retain a [`Keypath`].
     #[derive(Debug)]
-    pub struct KeyCache {
-        keypath: Keypath,
-        key: OnceCell<StorageKey>,
+    pub struct LeafKey {
+        key: StorageKey,
+        exclusive: bool,
     }
 
-    impl From<Keypath> for KeyCache {
+    impl From<Keypath> for LeafKey {
         fn from(keypath: Keypath) -> Self {
-            KeyCache {
-                keypath,
-                key: OnceCell::new(),
+            let exclusive = keypath.is_exclusive();
+            LeafKey {
+                key: keypath.into_key(),
+                exclusive,
             }
         }
     }
 
-    impl KeyCache {
+    impl LeafKey {
         pub fn get(&self) -> &StorageKey {
-            self.key.get_or_init(|| self.keypath.generate_key())
+            &self.key
         }
 
-        pub fn keypath(&self) -> &Keypath {
-            &self.keypath
+        pub fn is_exclusive(&self) -> bool {
+            self.exclusive
+        }
+
+        pub fn flags(&self) -> StorageDeltaFlags {
+            if self.exclusive {
+                StorageDeltaFlags::ExclusiveLock
+            } else {
+                StorageDeltaFlags::None
+            }
         }
     }
 
-    impl Deref for KeyCache {
+    impl Deref for LeafKey {
         type Target = StorageKey;
 
         fn deref(&self) -> &Self::Target {
-            self.get()
+            &self.key
         }
     }
 }

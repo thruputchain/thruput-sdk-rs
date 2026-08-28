@@ -11,14 +11,14 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// For in-place modification with auto-flush, use `load_mut()`.
 #[derive(Debug)]
 pub struct Value<T> {
-    key: KeyCache,
+    key: LeafKey,
     _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> From<Keypath> for Value<T> {
     fn from(keypath: Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: LeafKey::from(keypath),
             _marker: PhantomData,
         }
     }
@@ -28,9 +28,9 @@ impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 
 impl<T> Value<T> {
-    /// Return this value's storage keypath.
-    pub fn keypath(&self) -> &Keypath {
-        self.key.keypath()
+    /// Return this value's storage key.
+    pub fn key(&self) -> &crate::types::StorageKey {
+        self.key.get()
     }
 }
 
@@ -102,7 +102,7 @@ where
         &mut self,
         value: &T,
     ) -> Result<(), crate::exn::LibraryExn> {
-        self.try_set_impl(value, self.key.keypath().is_exclusive())
+        self.try_set_impl(value, self.key.is_exclusive())
     }
 
     /// Serialize and store the value with an exclusive lock.
@@ -165,7 +165,7 @@ where
 
 impl<T> super::deletable::Deletable for Value<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = self.key.keypath().flags();
+        let keypath_flags = self.key.flags();
         let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
         crate::sys_exn::delete::delete_with_flags(&self.key, effective);
     }

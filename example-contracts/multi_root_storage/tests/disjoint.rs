@@ -7,8 +7,8 @@ use sdk::{ContractAddress, Named, TestEnvironment};
 #[test]
 fn both_roots_register_and_do_not_collide() {
     // Reference both state types so their distributed-slice registrations are
-    // retained by the test link. A state root holds a live VM hash stream,
-    // so the constructions need a frame.
+    // retained by the test link. Constructing a state root derives storage
+    // keys through VM hash syscalls, so it needs a frame.
     TestEnvironment::no_cost()
         .transact(|tx| {
             tx.call(&ContractAddress::named("disjoint")).run(|| {

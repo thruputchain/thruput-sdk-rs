@@ -116,6 +116,6 @@ mod tests {
         // Observe the domain through a real field path: the Node itself does
         // not retain a redundant copy of the parent path.
         let expected = Keypath::default().child("LeafState").child(&0u32);
-        assert!(node.value.keypath().addresses_same_slot(&expected));
+        assert_eq!(*node.value.key(), expected.generate_key());
     });
 }

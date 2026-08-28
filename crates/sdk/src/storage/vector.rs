@@ -310,7 +310,7 @@ mod test_vector_slots {
     crate::contract_test!(fixed_slots_match_runtime_child {
         let root = Keypath::default().child("V");
         let v: Vector<Value<u32>> = Vector::from(root.clone());
-        assert!(v.len.keypath().addresses_same_slot(&root.child(&0u32)));
+        assert_eq!(*v.len.key(), root.child(&0u32).generate_key());
         assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
         assert!(v.keypath().addresses_same_slot(&root));
     });

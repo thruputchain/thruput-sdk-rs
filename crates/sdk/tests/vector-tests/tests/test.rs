@@ -10,7 +10,7 @@ static NONCE: SHA256Hash = sdk::sha256_static!("VECTOR_TEST_NONCE");
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
     let env = TestEnvironment::no_cost();
     let contract = env.register_mock(VectorTestContract::__mock);
-    let contract_hash = contract.as_hash().clone();
+    let contract_hash = *contract.as_hash();
     (env, contract_hash)
 }
 
