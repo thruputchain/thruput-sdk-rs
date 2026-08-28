@@ -35,9 +35,14 @@ pub const DEFAULT_ADMIN_ROLE: &Role = &SHA256Hash::new([0; 32]);
 /// implementation that re-wires a role's admin must emit
 /// [`RoleAdminChangedEvent`].
 ///
-/// Divergence from OpenZeppelin: `renounce_role` takes no confirmation
-/// argument — it always acts on the caller — so there is no
-/// `BadConfirmation` error.
+/// Divergence from OpenZeppelin: their
+/// `renounceRole(role, callerConfirmation)` makes the caller re-pass its
+/// own address, purely as a guard against reaching the function by
+/// accident from raw calldata, and reverts with `BadConfirmation` on a
+/// mismatch. Groundhog contracts are called through typed clients where
+/// that guard buys nothing, so [`renounce_role`](AccessControl::renounce_role)
+/// drops the confirmation argument — it always acts on the caller — and
+/// no `BadConfirmation` error exists.
 ///
 /// # Error contract
 ///
@@ -72,5 +77,8 @@ pub trait AccessControl {
     /// Remove `role` from the caller and emit [`RoleRevokedEvent`].
     /// Needs no admin role. Does nothing (and emits nothing) when the
     /// caller does not hold `role`.
+    ///
+    /// Unlike OpenZeppelin's `renounceRole`, there is no
+    /// `callerConfirmation` argument (see the trait docs).
     fn renounce_role(&mut self, role: &Role);
 }
