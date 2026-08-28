@@ -124,6 +124,17 @@ fn slot_pins_control_storage_placement() {
 /// matches its *pinned* slot index, not its declaration index.
 #[test]
 fn keypath_identity_matches_pinned_slot() {
+    // Keypaths hold live VM hash streams, so identity checks need a frame.
+    TestEnvironment::no_cost()
+        .transact(|tx| {
+            tx.call(&ContractAddress::named("identity")).run(|| {
+                keypath_identity_matches_pinned_slot_body()
+            })
+        })
+        .assert_success();
+}
+
+fn keypath_identity_matches_pinned_slot_body() {
     let root = Keypath::default().child("SlotReorder");
 
     // Build SlotReorder directly from its root keypath.
@@ -175,6 +186,17 @@ fn keypath_identity_matches_pinned_slot() {
 /// runtime child() at every CXS index width.
 #[test]
 fn wide_slot_indices_match_runtime_child() {
+    // Keypaths hold live VM hash streams, so identity checks need a frame.
+    TestEnvironment::no_cost()
+        .transact(|tx| {
+            tx.call(&ContractAddress::named("wide")).run(|| {
+                wide_slot_indices_match_runtime_child_body()
+            })
+        })
+        .assert_success();
+}
+
+fn wide_slot_indices_match_runtime_child_body() {
     let root = Keypath::default().child("WideSlots");
     let state = WideSlots::from(root.clone());
     assert!(state.a.keypath().addresses_same_slot(&root.child(&63u32)));
