@@ -604,9 +604,7 @@ impl TestEnvironment {
 
     /// The execution parameters the environment's chain is running under
     /// (e.g. `max_sha256_buffers`, the VM's live hash-stream cap).
-    pub fn get_network_config(
-        self: &TestEnvironmentHandle,
-    ) -> NetworkConfig {
+    pub fn get_network_config(self: &TestEnvironmentHandle) -> NetworkConfig {
         self.inner.borrow().get_network_config()
     }
 

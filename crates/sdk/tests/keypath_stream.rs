@@ -85,17 +85,19 @@ fn test_derivation_pins_no_streams() {
     assert!(cap > 0);
 
     env.transact(|tx| {
-        tx.call(&ContractAddress::named("keypath_streams")).run(move || {
-            for i in 0u32..20 {
-                let _ = Keypath::default().child(&i).child(&i).generate_key();
-            }
+        tx.call(&ContractAddress::named("keypath_streams"))
+            .run(move || {
+                for i in 0u32..20 {
+                    let _ =
+                        Keypath::default().child(&i).child(&i).generate_key();
+                }
 
-            let mut held = Vec::new();
-            while let Ok(h) = Hasher::try_new() {
-                held.push(h);
-            }
-            assert_eq!(held.len(), cap, "every stream must be free again");
-        })
+                let mut held = Vec::new();
+                while let Ok(h) = Hasher::try_new() {
+                    held.push(h);
+                }
+                assert_eq!(held.len(), cap, "every stream must be free again");
+            })
     })
     .assert_success();
 }
