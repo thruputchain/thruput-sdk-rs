@@ -525,6 +525,28 @@ pub fn generate_method(
     let link_guard_ident =
         format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
     let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
+    // Crate-scoped guard names for the host-side (every-target) guards
+    // below. Expansion-time env read, same as `interface_vers_default`:
+    // cargo sets CARGO_PKG_NAME/CARGO_PKG_VERSION for the rustc invocation
+    // compiling the contract crate, which is the process this macro expands
+    // in. The version is part of the scope because one host binary can
+    // legitimately link two semver-distinct instances of one contract
+    // package (e.g. a migration test pinning an old release), and cargo
+    // forbids two instances of the same name AND version — so name@version
+    // is a true per-crate-instance identity, while name alone is not.
+    let crate_scope = format!(
+        "{}@{}",
+        std::env::var("CARGO_PKG_NAME")
+            .unwrap_or_else(|_| "unknown-crate".to_string()),
+        std::env::var("CARGO_PKG_VERSION")
+            .unwrap_or_else(|_| "0.0.0".to_string()),
+    );
+    let scoped_link_guard_name = format!("{link_name}[{crate_scope}]");
+    let scoped_id_guard_name = format!("{id_guard_name}[{crate_scope}]");
+    let scoped_link_guard_ident =
+        format_ident!("__GH_ENTRY_NAME_GUARD_CRATE_{}", ident);
+    let scoped_id_guard_ident =
+        format_ident!("__GH_ENTRY_ID_GUARD_CRATE_{}", ident);
     Ok(quote! {
 
         #[doc=#export_docstr]
@@ -566,6 +588,37 @@ pub fn generate_method(
         #[unsafe(export_name = #id_guard_name)]
         #[allow(non_upper_case_globals)]
         static #id_guard_ident: () = ();
+
+        // Crate-scoped twins of the two guards above, emitted on EVERY
+        // target and without the entrypoints feature gate, so a duplicate
+        // definition inside one crate fails any `cargo build`/`cargo test`
+        // at codegen — the loop a contract author (or their AI assistant)
+        // actually iterates in — instead of surfacing only on the guest
+        // build. (`cargo check` skips codegen and still passes; build/test
+        // is the loud gate.)
+        //
+        // The `[<crate>@<version>]` scope suffix is what makes always-on
+        // emission safe: host test binaries routinely link MANY contract
+        // crates (e.g. several implementations of one standard interface,
+        // or two semver-distinct instances of one contract package in a
+        // migration test), and an rv32 artifact links its dependency
+        // contract crates. Those cross-crate key collisions are only real
+        // when both crates emit entrypoints into one guest image, which
+        // the unscoped rv32 guards above still catch. Within one crate
+        // instance, a collision is always a bug — and cargo forbids two
+        // instances sharing both name and version.
+        #[used]
+        #[unsafe(export_name = #scoped_link_guard_name)]
+        #[allow(non_upper_case_globals)]
+        static #scoped_link_guard_ident: () = ();
+
+        // Belt-and-braces, same reasoning as the unscoped ID guard: two
+        // distinct preimages whose truncated hashes collide produce
+        // different readable symbols, and only this guard catches them.
+        #[used]
+        #[unsafe(export_name = #scoped_id_guard_name)]
+        #[allow(non_upper_case_globals)]
+        static #scoped_id_guard_ident: () = ();
 
         // rv32 guest dispatch: place this method's Entrypoint record in the
         // dispatch-table input section. Naming is owned by the SDK end-to-end:
@@ -763,5 +816,57 @@ mod tests {
             generated.contains("__GH_RV32_ENTRY_ID_GUARD_"),
             "{generated}"
         );
+    }
+
+    #[test]
+    fn entrypoint_emits_crate_scoped_guards_on_every_target() {
+        // A duplicate definition within one crate must fail ANY cargo
+        // build at codegen — host `cargo build`/`cargo test` included, not
+        // just the rv32 guest build. That is carried by a crate-scoped
+        // guard-symbol pair emitted with no cfg gate at all: same readable
+        // link-name (and 16-hex ID) preimages as the rv32 guards, suffixed
+        // with `[<crate>]` so unrelated contract crates linked into one
+        // host test binary cannot collide.
+        let config = parse_config(r#"interface = "Iface""#);
+        let item: syn::ItemFn = syn::parse_quote! {
+            fn ping() {}
+        };
+
+        let generated = generate_free_function_bundle(&item, &config)
+            .unwrap()
+            .to_string();
+
+        // Expansion happens in this test process, so the scope suffix is
+        // this crate's own package identity. name@version, not name alone:
+        // one host binary may link two semver-distinct instances of one
+        // contract package, and only name+version identifies an instance.
+        let crate_scope = format!(
+            "{}@{}",
+            std::env::var("CARGO_PKG_NAME").unwrap(),
+            std::env::var("CARGO_PKG_VERSION").unwrap(),
+        );
+        let link_name = contract_util::entrypoint_link_name(
+            Some("Iface"),
+            &super::super::contract::interface_vers_default(),
+            &contract_util::NormalizedMethodSignature::new("ping"),
+        );
+        let scoped_guard = format!("{link_name}[{crate_scope}]");
+        assert!(generated.contains(&scoped_guard), "{generated}");
+        assert!(
+            generated.contains("__GH_ENTRY_NAME_GUARD_CRATE_"),
+            "{generated}"
+        );
+        assert!(
+            generated.contains("__GH_ENTRY_ID_GUARD_CRATE_"),
+            "{generated}"
+        );
+
+        // The crate-scoped guards are unconditional: exactly the two rv32
+        // guards and the rv32 dispatch record are target-gated, nothing
+        // else. (Three cfg'd statics, five statics total per entrypoint.)
+        let cfg_gates = generated
+            .matches("cfg (all (feature = \"entrypoints\" , target_arch = \"riscv32\"))")
+            .count();
+        assert_eq!(cfg_gates, 3, "{generated}");
     }
 }
