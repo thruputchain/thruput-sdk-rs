@@ -1,0 +1,10 @@
+# Layered on by `groundhog build` (see example-contracts/.cargo/contract.toml
+# for the full rationale — this standalone fixture workspace needs its own
+# copy because the CLI resolves the file relative to the package, while the
+# rv32 [target.*] rustflags still flow from example-contracts/.cargo/config.toml
+# via cargo's directory-walk config chain).
+# Keep it to `[unstable]`: no `[target.*]` rustflags here, cargo would JOIN
+# them with the parent config's and pass every flag twice.
+[unstable]
+build-std = ["core", "alloc"]
+build-std-features = ["std/optimize_for_size"]
