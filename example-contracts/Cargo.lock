@@ -293,6 +293,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc20_pausable"
+version = "0.4.0"
+dependencies = [
+ "erc20_pausable",
+ "groundhog-access-control-if",
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "groundhog-erc20-pausable-if",
+ "sdk",
+]
+
+[[package]]
 name = "erc20_raw_storage"
 version = "0.4.0"
 dependencies = [
@@ -360,6 +372,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-access-control-if"
+version = "0.1.16"
+dependencies = [
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-contract-spec"
 version = "0.24.0"
 dependencies = [
@@ -411,6 +431,14 @@ version = "0.1.16"
 dependencies = [
  "groundhog-xdr",
  "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
+name = "groundhog-erc20-pausable-if"
+version = "0.1.16"
+dependencies = [
  "sdk",
  "thiserror",
 ]

@@ -363,6 +363,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "groundhog-access-control-if"
+version = "0.1.16"
+dependencies = [
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-contract-spec"
 version = "0.24.0"
 dependencies = [
@@ -417,6 +425,14 @@ dependencies = [
  "groundhog-erc20-metadata-if",
  "groundhog-xdr",
  "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
+name = "groundhog-erc20-pausable-if"
+version = "0.1.16"
+dependencies = [
  "sdk",
  "thiserror",
 ]
