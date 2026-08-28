@@ -527,10 +527,20 @@ pub fn generate_method(
     let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
     // Crate-scoped guard names for the host-side (every-target) guards
     // below. Expansion-time env read, same as `interface_vers_default`:
-    // cargo sets CARGO_PKG_NAME for the rustc invocation compiling the
-    // contract crate, which is the process this macro expands in.
-    let crate_scope = std::env::var("CARGO_PKG_NAME")
-        .unwrap_or_else(|_| "unknown-crate".to_string());
+    // cargo sets CARGO_PKG_NAME/CARGO_PKG_VERSION for the rustc invocation
+    // compiling the contract crate, which is the process this macro expands
+    // in. The version is part of the scope because one host binary can
+    // legitimately link two semver-distinct instances of one contract
+    // package (e.g. a migration test pinning an old release), and cargo
+    // forbids two instances of the same name AND version — so name@version
+    // is a true per-crate-instance identity, while name alone is not.
+    let crate_scope = format!(
+        "{}@{}",
+        std::env::var("CARGO_PKG_NAME")
+            .unwrap_or_else(|_| "unknown-crate".to_string()),
+        std::env::var("CARGO_PKG_VERSION")
+            .unwrap_or_else(|_| "0.0.0".to_string()),
+    );
     let scoped_link_guard_name = format!("{link_name}[{crate_scope}]");
     let scoped_id_guard_name = format!("{id_guard_name}[{crate_scope}]");
     let scoped_link_guard_ident =
@@ -587,13 +597,16 @@ pub fn generate_method(
         // build. (`cargo check` skips codegen and still passes; build/test
         // is the loud gate.)
         //
-        // The `[<crate>]` scope suffix is what makes always-on emission
-        // safe: host test binaries routinely link MANY contract crates
-        // (e.g. several implementations of one standard interface), and an
-        // rv32 artifact links its dependency contract crates. Those
-        // cross-crate key collisions are only real when both crates emit
-        // entrypoints into one guest image, which the unscoped rv32 guards
-        // above still catch. Within one crate, a collision is always a bug.
+        // The `[<crate>@<version>]` scope suffix is what makes always-on
+        // emission safe: host test binaries routinely link MANY contract
+        // crates (e.g. several implementations of one standard interface,
+        // or two semver-distinct instances of one contract package in a
+        // migration test), and an rv32 artifact links its dependency
+        // contract crates. Those cross-crate key collisions are only real
+        // when both crates emit entrypoints into one guest image, which
+        // the unscoped rv32 guards above still catch. Within one crate
+        // instance, a collision is always a bug — and cargo forbids two
+        // instances sharing both name and version.
         #[used]
         #[unsafe(export_name = #scoped_link_guard_name)]
         #[allow(non_upper_case_globals)]
@@ -824,8 +837,14 @@ mod tests {
             .to_string();
 
         // Expansion happens in this test process, so the scope suffix is
-        // this crate's own package name.
-        let crate_scope = std::env::var("CARGO_PKG_NAME").unwrap();
+        // this crate's own package identity. name@version, not name alone:
+        // one host binary may link two semver-distinct instances of one
+        // contract package, and only name+version identifies an instance.
+        let crate_scope = format!(
+            "{}@{}",
+            std::env::var("CARGO_PKG_NAME").unwrap(),
+            std::env::var("CARGO_PKG_VERSION").unwrap(),
+        );
         let link_name = contract_util::entrypoint_link_name(
             Some("Iface"),
             &super::super::contract::interface_vers_default(),

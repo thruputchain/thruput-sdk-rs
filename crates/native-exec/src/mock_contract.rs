@@ -95,17 +95,22 @@ impl MockContract {
     where
         F: Fn() + UnwindSafe + Clone + Send + Sync + 'static,
     {
-        let previous =
-            unsafe { (*self.contract).funcs.insert(id, invoke_wrapper(func)) };
-        assert!(
-            previous.is_none(),
-            "duplicate entrypoint registration for dispatch ID \
-             {:016X}: two contract methods share one entrypoint ID (same \
-             interface name, major version, and method name), so calls \
-             would silently route to only one of them. Remove or rename \
-             the duplicate definition.",
-            id.into_u64(),
-        );
+        // Entry API so the rejected registration never touches the map: a
+        // caller that catches the panic must still observe the ORIGINAL
+        // handler on later dispatches, not the rejected replacement.
+        match unsafe { &mut (*self.contract).funcs }.entry(id) {
+            std::collections::hash_map::Entry::Occupied(_) => panic!(
+                "duplicate entrypoint registration for dispatch ID \
+                 {:016X}: two contract methods share one entrypoint ID \
+                 (same interface name, major version, and method name), so \
+                 calls would silently route to only one of them. Remove or \
+                 rename the duplicate definition.",
+                id.into_u64(),
+            ),
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(invoke_wrapper(func));
+            }
+        }
     }
 
     /// Install the handler for method ids this contract does not define,

@@ -30,7 +30,7 @@ if ! echo "$out" | grep -q "already defined"; then
 fi
 # The error must come from the crate-scoped guard (the host-side defense),
 # not some other symbol clash.
-if ! echo "$out" | grep -q "\[dup_entrypoint_neg\]\` is already defined"; then
+if ! echo "$out" | grep -q "\[dup_entrypoint_neg@.*\]\` is already defined"; then
     echo "FAIL: duplicate-symbol error did not name a crate-scoped entrypoint guard:" >&2
     echo "$out" >&2
     exit 1
