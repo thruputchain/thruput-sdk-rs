@@ -67,7 +67,6 @@ version = "0.23.1"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
- "groundhog-trace",
  "sdk",
 ]
 
