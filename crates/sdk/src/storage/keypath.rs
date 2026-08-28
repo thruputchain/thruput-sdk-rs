@@ -19,11 +19,12 @@ pub const STATIC_KEYPATH_CAPACITY: usize = 256;
 /// handle makes moves free while preserving the no-alloc property: the pool
 /// is a static, not a heap.
 ///
-/// Native hosts use one pool per thread, mirroring the guest's
-/// per-invocation pool, so native tests enforce exactly the guest's
-/// preimage budget and live-slot cap instead of an unbounded heap buffer
-/// that would hide on-chain overflows. A terminal Return skips `Drop` and
-/// leaks any live slots, which is fine: the frame's memory dies with it.
+/// Native hosts use one pool per thread, so native tests run against the
+/// guest's preimage budget and slot cap rather than an unbounded heap
+/// buffer that would hide on-chain overflows. Slots are returned by
+/// `Drop`. The one path that skips `Drop` — the guest's terminal Return —
+/// takes the frame's whole memory image, pool included, with it; native
+/// aborts are unwinds, which run destructors.
 mod pooled {
     use super::STATIC_KEYPATH_CAPACITY;
     use core::mem::MaybeUninit;
