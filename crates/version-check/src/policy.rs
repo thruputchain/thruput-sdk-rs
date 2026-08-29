@@ -43,6 +43,17 @@ impl Named {
 /// their own version line rather than the workspace's.
 pub const INTERFACE_PREFIX: &str = "standard-interfaces/";
 
+/// Manifests under this prefix hold the standard-interface implementation
+/// components, which ride the interface crates' version line and release in
+/// lockstep with them.
+pub const IMPL_PREFIX: &str = "standard-impls/";
+
+/// True when `rel` belongs to the independently-versioned interface family:
+/// the standard-interface crates and their implementation components.
+pub fn in_interface_family(rel: &str) -> bool {
+    rel.starts_with(INTERFACE_PREFIX) || rel.starts_with(IMPL_PREFIX)
+}
+
 /// Crates from the protocol-rs repository, which release together at one
 /// version. A breaking change here forces a new standard-interfaces release, so
 /// that clients can request a version built against it.

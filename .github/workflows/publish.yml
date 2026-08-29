@@ -54,12 +54,17 @@ env:
     groundhog-test-vectors
     groundhog-rv32-runtime
     sdk
-  # Standard-interface crates: versioned independently of the workspace,
-  # each published under its own `<crate>-v<version>` tag.
+  # Standard-interface crates and their implementation components: versioned
+  # independently of the workspace, each published under its own
+  # `<crate>-v<version>` tag. In dependency order: groundhog-access-control
+  # exact-pins groundhog-access-control-if, so it comes after it.
   INTERFACE_PACKAGES: >-
     groundhog-erc20-if
     groundhog-erc1271-if
     groundhog-erc20-metadata-if
+    groundhog-erc20-pausable-if
+    groundhog-access-control-if
+    groundhog-access-control
 
 jobs:
   publish:
@@ -162,6 +167,9 @@ jobs:
             --deny warnings
         with:
           packages: ${{ env.INTERFACE_PACKAGES }}
+          # groundhog-access-control exact-pins groundhog-access-control-if, a
+          # workspace path dep here, so its offline packaging needs the
+          # interface crate pre-vendored (after the primaries it depends on).
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
@@ -174,6 +182,7 @@ jobs:
             groundhog-u256
             groundhog-rv32-runtime
             sdk
+            groundhog-access-control-if
           # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
           # cannot link on the host (no `main`); it is verified by the rv32 step below.
           cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features --skip entrypoints
@@ -236,6 +245,42 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
+      - name: Tag groundhog-erc20-pausable-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-pausable-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc20-pausable-if
+          tag-prefix: 'groundhog-erc20-pausable-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-access-control-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-access-control-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-access-control-if
+          tag-prefix: 'groundhog-access-control-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-access-control
+        if: ${{ inputs.dry_run == false }}
+        id: tag-access-control
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-access-control
+          tag-prefix: 'groundhog-access-control-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
       # Unlike the dry runs, the publish steps resolve deps against the live
       # registry — hence the dependency order: sdk (here) before the standard
       # interfaces, and those before groundhog-spec-tool, whose exact-pinned
@@ -289,6 +334,41 @@ jobs:
           packages: groundhog-erc20-metadata-if
           git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-metadata-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      - name: Publish groundhog-erc20-pausable-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc20-pausable-if
+          git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc20-pausable-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      - name: Publish groundhog-access-control-if
+        if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-access-control-if
+          git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
+          tag-prefix: 'groundhog-access-control-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      # After groundhog-access-control-if: the component exact-pins it, and
+      # this publish resolves deps against the live registry.
+      - name: Publish groundhog-access-control
+        if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-access-control
+          git-tag: ${{ steps.tag-access-control.outputs.tag }}
+          tag-prefix: 'groundhog-access-control-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
@@ -361,3 +441,39 @@ jobs:
           toolchain: nightly-2026-07-01
           force: 'true'
           expected-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
+
+      - name: Publish groundhog-erc20-pausable-if docs
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-erc20-pausable-if
+          version: ${{ steps.tag-erc20-pausable-if.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
+
+      - name: Publish groundhog-access-control-if docs
+        if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-access-control-if
+          version: ${{ steps.tag-access-control-if.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-access-control-if.outputs.tag }}
+
+      - name: Publish groundhog-access-control docs
+        if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-access-control
+          version: ${{ steps.tag-access-control.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-access-control.outputs.tag }}

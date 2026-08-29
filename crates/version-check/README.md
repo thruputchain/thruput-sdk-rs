@@ -122,11 +122,15 @@ Deliberate deviations live in `src/policy.rs`, and every entry carries a
 `reason` — an exception cannot be added without writing down why it is correct.
 The current set:
 
-- `groundhog-erc20-if`, `groundhog-erc20-metadata-if`, `groundhog-erc1271-if`
-  caret-depend on `sdk` rather than pinning it, because the published interface
-  crates are compatible with any SDK patch release.
-- Those three plus `bottle-test-if` and `version-mismatch-helper` declare their
-  own versions instead of inheriting the workspace version.
+- Manifests under `standard-interfaces/` and `standard-impls/` caret-depend on
+  `sdk` rather than pinning it, because the published interface and
+  implementation-component crates are compatible with any SDK patch release.
+- The standard-interface crates (`groundhog-erc20-if`,
+  `groundhog-erc20-metadata-if`, `groundhog-erc1271-if`,
+  `groundhog-erc20-pausable-if`, `groundhog-access-control-if`) and the
+  `groundhog-access-control` component, plus `bottle-test-if` and
+  `version-mismatch-helper`, declare their own versions instead of inheriting
+  the workspace version.
 - `groundhog-rv32-runtime` is absent from `default-members`, because a
   top-level `compile_error!` rejects the host target.
 - `hex-literal` and `thiserror` pin sites under `integration_test/contracts/`
