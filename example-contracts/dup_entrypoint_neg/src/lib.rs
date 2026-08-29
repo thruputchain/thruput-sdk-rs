@@ -7,7 +7,7 @@
 //! duplicate-symbol error on EVERY build:
 //!
 //! - The host `cargo build`/`cargo test` fails at codegen on the
-//!   crate-scoped guards (`…::clash[dup_entrypoint_neg@0.4.0]`) — the loop a
+//!   crate-scoped guards (`…::clash__crate__<hex-name>__<hex-version>`) — the loop a
 //!   contract author (or their AI assistant) actually iterates in, which
 //!   previously compiled duplicates silently while the mock dispatch
 //!   let the last registration win.
