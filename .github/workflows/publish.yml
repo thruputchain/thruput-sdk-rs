@@ -124,6 +124,8 @@ jobs:
             sdk
             groundhog-erc20-if
             groundhog-erc1271-if
+            groundhog-erc20-pausable-if
+            groundhog-access-control-if
           # groundhog-domain-separator's backends are additive, so most combinations
           # are fine. The exception is a bare `syscall`: it forwards to
           # `groundhog-xdr/syscalls`, which has no dispatch path on the host.

@@ -35,6 +35,14 @@ const ERC20_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
 const ERC1271_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
     &[groundhog_erc1271_if::__groundhog_spec_fragment_ERC1271Error];
 
+const ERC20_PAUSABLE_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
+    groundhog_erc20_pausable_if::__groundhog_spec_fragment_ERC20PausableError,
+];
+
+const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
+    groundhog_access_control_if::__groundhog_spec_fragment_AccessControlError,
+];
+
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
         name: "LibraryExn",
@@ -62,6 +70,24 @@ pub const REGISTRY: &[DescribableType] = &[
             <groundhog_erc1271_if::ERC1271Error as sdk::exn::Exn>::SELECTOR,
         fragments: ERC1271_ERROR_FRAGMENTS,
         root: "ERC1271Error",
+    },
+    DescribableType {
+        name: "ERC20PausableError",
+        crate_name: "groundhog-erc20-pausable-if",
+        major_version: "0.1",
+        selector: <groundhog_erc20_pausable_if::ERC20PausableError
+            as sdk::exn::Exn>::SELECTOR,
+        fragments: ERC20_PAUSABLE_ERROR_FRAGMENTS,
+        root: "ERC20PausableError",
+    },
+    DescribableType {
+        name: "AccessControlError",
+        crate_name: "groundhog-access-control-if",
+        major_version: "0.1",
+        selector: <groundhog_access_control_if::AccessControlError
+            as sdk::exn::Exn>::SELECTOR,
+        fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
+        root: "AccessControlError",
     },
 ];
 
