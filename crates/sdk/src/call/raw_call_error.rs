@@ -75,7 +75,14 @@ impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
             RawCallError::Exception(exn) => {
                 crate::re_throw::ReThrow::re_throw(exn)
             }
+            // The message is host-side state, so only the host has one to
+            // render. A guest carries no string for this: the rv32
+            // `#[panic_handler]` ignores `PanicInfo` and issues `ebreak`,
+            // so anything formatted here would be payload nothing reads.
+            #[cfg(not(target_arch = "riscv32"))]
             RawCallError::Fault(f) => panic!("{f}"),
+            #[cfg(target_arch = "riscv32")]
+            RawCallError::Fault(_) => panic!(),
             RawCallError::UnparseableReturn(error) => {
                 library_throw(CallingError::DecodingSuccess(error))
             }

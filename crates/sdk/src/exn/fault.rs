@@ -12,9 +12,15 @@
 //! the buffer all compile out, so a guest pays nothing for it.
 
 use crate::xdr::*;
+use core::fmt::{self, Debug};
+
+// Host-only, like everything that reads or renders a fault's message.
+#[cfg(not(target_arch = "riscv32"))]
 use core::any::Any;
+#[cfg(not(target_arch = "riscv32"))]
 use core::error::Error;
-use core::fmt::{self, Debug, Display};
+#[cfg(not(target_arch = "riscv32"))]
+use core::fmt::Display;
 
 /// Capacity of the host-side message. Host-only: a guest has no field to size.
 #[cfg(not(target_arch = "riscv32"))]
@@ -34,17 +40,14 @@ pub struct FaultString {
 }
 
 impl FaultString {
-    /// The message, or `"<fault>"` when none was recorded (always, on a
-    /// guest).
+    /// The message, or `"<fault>"` when none was recorded.
+    ///
+    /// Host-only: a guest records no message, so there is nothing for this
+    /// to return and it does not exist there. Reading a fault's text is a
+    /// diagnostic act, and diagnostics are a host concern.
+    #[cfg(not(target_arch = "riscv32"))]
     pub fn as_str(&self) -> &str {
-        #[cfg(not(target_arch = "riscv32"))]
-        {
-            self.msg.as_ref().map(|s| s.as_str()).unwrap_or("<fault>")
-        }
-        #[cfg(target_arch = "riscv32")]
-        {
-            "<fault>"
-        }
+        self.msg.as_ref().map(|s| s.as_str()).unwrap_or("<fault>")
     }
 
     /// A fault with no message.
@@ -94,7 +97,9 @@ impl FaultString {
     }
 
     /// Recover a message from a panic payload, when it is a string.
-    #[cfg_attr(target_arch = "riscv32", allow(unused))]
+    ///
+    /// Host-only: a guest neither unwinds nor records a message.
+    #[cfg(not(target_arch = "riscv32"))]
     pub fn from_any(a: &dyn Any) -> Self {
         if let Some(s) = a.downcast_ref::<&str>() {
             Self::from_display(s)
@@ -114,17 +119,41 @@ impl PartialEq for FaultString {
 
 impl Eq for FaultString {}
 
+// `Debug` is the one formatting impl a guest needs: `LibraryExn` derives it,
+// and `contract_abort_encoded` takes `T: Debug`. The guest arm prints no
+// message because it has none to print.
+#[cfg(not(target_arch = "riscv32"))]
 impl Debug for FaultString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("FaultString").field(&self.as_str()).finish()
     }
 }
 
+#[cfg(target_arch = "riscv32")]
+impl Debug for FaultString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("FaultString")
+    }
+}
+
+#[cfg(not(target_arch = "riscv32"))]
 impl Error for FaultString {}
 
+#[cfg(not(target_arch = "riscv32"))]
 impl Display for FaultString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+// A guest has no message, so this renders nothing -- deliberately not even a
+// placeholder, which would put a string in every contract for a value that is
+// always empty there. It exists at all because generated client code can
+// format a `FaultString` with `{}`.
+#[cfg(target_arch = "riscv32")]
+impl core::fmt::Display for FaultString {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
