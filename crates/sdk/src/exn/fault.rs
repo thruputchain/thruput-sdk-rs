@@ -159,6 +159,13 @@ impl xdrs::txs::ConstMaxSize for FaultString {
     const MAX_SIZE: Option<usize> = Some(0);
 }
 
+// A guest carries no message: no field, no buffer, no formatting. Pinned
+// here so a `cfg` slip that let the host-side field through would fail the
+// guest build rather than quietly costing every contract 500-odd bytes of
+// stack per live fault value.
+#[cfg(target_arch = "riscv32")]
+const _: () = assert!(core::mem::size_of::<FaultString>() == 0);
+
 // The property the rest of the exception machinery depends on: a
 // `FaultString` contributes nothing to any enclosing type's size bound, so
 // `LibraryExn`'s wire size (and `ABORT_MAX`) cannot vary with the message or
