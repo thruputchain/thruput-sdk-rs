@@ -54,34 +54,43 @@ impl FaultString {
     }
 
     /// Record `v`'s `Display` form as the message, truncating to `CAP`.
-    ///
-    /// On a guest this ignores `v` and formats nothing.
-    #[cfg_attr(target_arch = "riscv32", allow(unused))]
+    #[cfg(not(target_arch = "riscv32"))]
     pub fn via_display<V>(v: &V) -> Self
     where
         V: Display + ?Sized,
     {
-        #[cfg(not(target_arch = "riscv32"))]
-        {
-            use core::fmt::Write;
+        use core::fmt::Write;
 
-            let mut s = heapless::String::new();
-            write!(s, "{}", v).unwrap_or_else(|_| {
-                s.clear();
-                let _ = write!(s, "<too-big>");
-            });
+        let mut s = heapless::String::new();
+        write!(s, "{}", v).unwrap_or_else(|_| {
+            s.clear();
+            let _ = write!(s, "<too-big>");
+        });
 
-            Self { msg: Some(s) }
-        }
-        #[cfg(target_arch = "riscv32")]
-        {
-            Self {}
-        }
+        Self { msg: Some(s) }
+    }
+
+    /// Discard `v`: a guest records no message.
+    ///
+    /// Deliberately unbounded rather than `V: Display`. Several callers pass
+    /// an error whose `Display` is itself only compiled in some
+    /// configurations, so requiring the bound here would fail the guest
+    /// build for types that never get formatted on a guest anyway.
+    #[cfg(target_arch = "riscv32")]
+    pub fn via_display<V: ?Sized>(_v: &V) -> Self {
+        Self {}
     }
 
     /// [`via_display`](Self::via_display) for a value passed by value.
+    #[cfg(not(target_arch = "riscv32"))]
     pub fn from_display(s: impl Display) -> Self {
         Self::via_display(&s)
+    }
+
+    /// [`via_display`](Self::via_display) for a value passed by value.
+    #[cfg(target_arch = "riscv32")]
+    pub fn from_display<S>(_s: S) -> Self {
+        Self {}
     }
 
     /// Recover a message from a panic payload, when it is a string.
