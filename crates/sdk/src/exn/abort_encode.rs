@@ -33,6 +33,19 @@ pub(crate) const ABORT_MAX: usize = {
     xdrs::cxs::const_writer::size_u64(u64::MAX) + payload
 };
 
+// `ABORT_MAX` sizes a stack buffer in `library_abort`, so it must stay small
+// -- and, more importantly, must not depend on how the crate was built. It
+// was 544 while `FaultString` serialized its message under `debugging`, which
+// both cost the guest stack and made a contract's abort payload differ
+// between a host test and the shipped artifact. Tripping this means a variant
+// started carrying diagnostic text onto the wire again; keep the text
+// host-side (see `exn::fault`) rather than raising the bound.
+const _: () = assert!(
+    ABORT_MAX < 64,
+    "ABORT_MAX grew: a LibraryExn variant is carrying a payload it should be \
+     keeping host-side"
+);
+
 /// CXS-encode `ContractExn<LibraryExn>` — `[selector][discriminant]
 /// [payload]` — into `buf`, replacing its contents.
 pub(crate) fn encode_library_abort(
@@ -93,14 +106,13 @@ pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
     crate::contract_op::contract_abort(buf.as_ref())
 }
 
-// Coverage caveat: sdk's dev-dependency on itself forces the `dev`
-// features (and thus `debugging`) onto every test build, so these tests
-// only ever execute the with-strings `FaultString` arm and
-// `ABORT_MAX = 544`. Release-mode wire identity still holds by
-// construction rather than by an executed test: the integer and
-// discriminant rules are cfg-independent (exhaustively tested here),
-// and the release `FaultString` is the same ZST `WriteXDR` impl on both
-// sides of the byte-equality assertion.
+// These tests cover the shipped encoding. `FaultString` has one wire form
+// on every target and feature combination -- empty -- so `ABORT_MAX` and
+// every assertion below are the same here as in a guest build, and the
+// integer and discriminant rules were already cfg-independent. (Before
+// `FaultString` carried its message host-side, sdk's dev-dependency on
+// itself forced `debugging` on for every test build, and the encoding
+// that actually shipped was asserted by construction rather than run.)
 #[cfg(test)]
 mod tests {
     use super::*;
