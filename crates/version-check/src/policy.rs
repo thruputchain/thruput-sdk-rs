@@ -82,10 +82,6 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "bottle-test-if",
-        reason: "unpublished test-support crate with its own version line",
-    },
-    Named {
         name: "version-mismatch-helper",
         reason: "fixture that deliberately carries a fixed version to exercise \
                  the SDK's version-mismatch diagnostics",
