@@ -40,8 +40,10 @@ Things it does **not** cover, so they stay on you:
 - Whether the change is breaking, and what the new version number should be.
 - The `TEST_FFI_VERSION` constant (step 4 below).
 - Checking whether every publishable in-repo crate appears in the
-  `PRIMARY_PACKAGES` or `INTERFACE_PACKAGES` list of
-  `.github/workflows/publish.yml`.
+  `PRIMARY_PACKAGES`, `INTERFACE_PACKAGES` or `INTERFACE_DEPENDENT_PACKAGES`
+  list of `.github/workflows/publish.yml`. Which of the three depends on where
+  the crate sits relative to `standard-interfaces/`: upstream of it, in it, or
+  downstream of it.
 
 To check without bumping — before starting, or at any point:
 
@@ -90,6 +92,12 @@ in-repo crates plus the standard interfaces:
 - `example-contracts/Cargo.toml`
 - `integration_test/Cargo.toml`
 - `logging-test/Cargo.toml`
+
+The test-support crates (`bottle-test-if`, `erc20-test`, `erc20-bottle-test`,
+`erc20-native-test`) are on the workspace version line and published like any
+other crate: downstream repositories reach them through the
+`integration_test_contracts` submodule's optional `bottle-test` / `dev`
+features, which cargo has to resolve even when the features stay off.
 
 ### Workspace-excluded fixtures (must be updated manually)
 

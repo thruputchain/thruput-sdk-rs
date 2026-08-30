@@ -88,11 +88,16 @@ groundhog-u256 = { path = "crates/u256", registry = "groundhog", version = "=0.2
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.16" }
 groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.16" }
 groundhog-erc1271-if = { path = "standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.16" }
+# Test-support crates. Published on the workspace version line like the rest:
+# downstream repositories (hogd's built_contracts, notably) depend on the
+# contracts in the integration_test_contracts submodule, whose optional
+# `bottle-test` / `dev` features name these crates, so they have to resolve
+# from the registry even when those features stay off.
+erc20-test = { path = "standard-tests/erc20-test", registry = "groundhog", version = "=0.24.1" }
+erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.24.1" }
+erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "groundhog", version = "=0.24.1" }
+bottle-test-if = { path = "crates/bottle-test-if", registry = "groundhog", version = "=0.24.1" }
 # Unpublished test crates
-erc20-test = { path = "standard-tests/erc20-test" }
-erc20-bottle-test = { path = "standard-tests/erc20-bottle-test" }
-erc20-native-test = { path = "standard-tests/erc20-native-test" }
-bottle-test-if = { path = "crates/bottle-test-if" }
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 
 # Deps from protocol-rs repo:

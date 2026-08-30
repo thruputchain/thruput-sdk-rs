@@ -55,10 +55,10 @@ groundhog-domain-separator = { path = "../crates/domain-separator", registry = "
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.16" }
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.16" }
 
-erc20-test = { path = "../standard-tests/erc20-test" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test" }
-bottle-test-if = { path = "../crates/bottle-test-if" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.24.1" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.24.1" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.24.1" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.24.1" }
 
 # External groundhog dependencies
 groundhog-xdr = { registry = "groundhog", version = "0.27.0", features = ["xdrs", "syscalls"] }
