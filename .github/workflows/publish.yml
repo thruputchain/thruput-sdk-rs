@@ -4,9 +4,8 @@
 #
 #   1. the workspace-versioned crates up through `sdk`
 #   2. the standard-interface crates, which caret-depend on `sdk`
-#   3. the crates that depend on the standard interfaces: `groundhog-spec-tool`,
-#      which exact-pins them, and the `erc20-*-test` conformance-test crates,
-#      which build on `groundhog-erc20-if`
+#   3. the crates downstream of the standard interfaces: `groundhog-spec-tool`
+#      and the `erc20-*-test` crates
 #
 # Every step tolerates re-runs: tags are recreated at HEAD and only pushed
 # when new, `cargo publish` skips versions the registry already has, and doc
@@ -40,10 +39,9 @@ concurrency:
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   # Workspace-versioned crates published under the `v<version>` tag, in
-  # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same
-  # version line but is named separately: those crates sit downstream of the
-  # standard-interface crates, so they publish after them, while the ones
-  # here are what the interfaces depend on.
+  # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
+  # line but is named separately: those crates publish after the standard
+  # interfaces, while these are what the interfaces depend on.
   PRIMARY_PACKAGES: >-
     groundhog-event
     groundhog-storage-cost
@@ -64,8 +62,7 @@ env:
     groundhog-erc20-if
     groundhog-erc1271-if
     groundhog-erc20-metadata-if
-  # Workspace-versioned crates that depend on the standard interfaces, so they
-  # publish after INTERFACE_PACKAGES. They share the `v<version>` tag with
+  # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
   # PRIMARY_PACKAGES.
   INTERFACE_DEPENDENT_PACKAGES: >-
     groundhog-spec-tool
@@ -112,12 +109,11 @@ jobs:
         uses: ./actions/cargo-publish-dry-run
         with:
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
-          # groundhog-spec-tool exact-pins the standard-interface crates, and the
-          # erc20-*-test crates depend on groundhog-erc20-if (plus each other),
-          # which are all workspace path deps here — `cargo vendor` skips those,
-          # so the offline packaging steps need them pre-vendored. Pre-vendoring
-          # a crate resolves its deps against vendor/ too, so everything it
-          # depends on comes first, in dependency order.
+          # The interface-dependent crates reach the standard interfaces (and
+          # each other) as workspace path deps — `cargo vendor` skips those, so
+          # the offline packaging steps need them pre-vendored. Pre-vendoring a
+          # crate resolves its deps against vendor/ too, so the crates it
+          # depends on come first, in dependency order.
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
@@ -309,9 +305,6 @@ jobs:
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
 
-      # groundhog-spec-tool and the erc20-*-test crates: same `v<version>` tag
-      # as the primaries, but published here because they resolve the
-      # standard-interface crates from the live registry.
       - name: Publish interface-dependent crates
         if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-publish

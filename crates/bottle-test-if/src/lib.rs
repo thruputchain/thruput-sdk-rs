@@ -6,12 +6,9 @@
 
 use sdk::*;
 
-/// The explicit `version` decouples this interface's ABI version from the SDK
-/// release version the crate inherits: the macro otherwise defaults a trait's
-/// version to its crate's, which would force every implementing contract's
-/// `#[contract(version = ...)]` to be edited on each SDK bump — including the
-/// ones in the `integration_test_contracts` submodule, which hogd builds too.
-/// It moves only when the trait's own signatures do.
+// Held at 0.1.0 deliberately: the ABI version otherwise defaults to the
+// crate version, and every implementor would have to be re-pinned on each
+// SDK minor bump. Move it when the trait signatures move.
 #[contract(client = BottleTestClient, version = "0.1.0")]
 pub trait BottleTest {
     // Perform setup operations to be excluded from performance metrics
