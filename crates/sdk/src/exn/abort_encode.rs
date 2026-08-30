@@ -77,7 +77,7 @@ pub(crate) fn encode_library_abort(
 /// like the old `_contract_abort_encoded`: every throw-helper call site
 /// must reach this one copy of the encoder by direct call.
 #[inline(never)]
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
     #[cfg(all(feature = "debugging", feature = "std"))]
     crate::contract_op::abort_breadcrumb("Throwing", "Location", exn);
@@ -92,7 +92,7 @@ pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
 /// `library_abort` (in release the two are identical and the linker's
 /// ICF folds them).
 #[inline(never)]
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
     #[cfg(all(feature = "debugging", feature = "std"))]
     crate::contract_op::abort_breadcrumb(

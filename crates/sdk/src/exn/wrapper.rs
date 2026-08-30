@@ -40,7 +40,7 @@ pub enum CallingError {
 /// `Result<T, CallingError>::or_re_throw()` aborts with the typed
 /// `LibraryExn::Calling` exception (client-side interface path).
 impl crate::re_throw::ReThrow for CallingError {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         crate::exn::client_library_throw(self)
     }

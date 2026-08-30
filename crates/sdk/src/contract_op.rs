@@ -33,7 +33,7 @@ pub fn contract_revert() -> ! {
 ///
 /// `#[track_caller]` here reports whichever site called into *this*
 /// function; every call site above it in the chain also carries
-/// `#[cfg_attr(feature = "debugging", track_caller)]` so that location is
+/// `#[cfg_attr(not(target_arch = "riscv32"), track_caller)]` so that location is
 /// the original user call, not an intermediate SDK frame.
 #[cfg(all(feature = "debugging", feature = "std"))]
 #[track_caller]
@@ -52,7 +52,7 @@ pub(crate) fn abort_breadcrumb(
 }
 
 #[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn contract_abort_encoded<T>(exn: &T) -> !
 where
     T: WriteXDR + ?Sized + core::fmt::Debug,

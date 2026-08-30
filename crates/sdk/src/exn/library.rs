@@ -128,7 +128,7 @@ impl From<AuthTokenError> for LibraryExn {
 /// `Result<T, LibraryExn>::or_re_throw()` aborts with the contained
 /// library exception (typed, decodable by selector) rather than a fault.
 impl crate::re_throw::ReThrow for LibraryExn {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         library_throw(self)
     }
@@ -176,7 +176,7 @@ pub trait NoneIfMissing<T> {
 }
 
 impl<T> NoneIfMissing<T> for Result<T, LibraryExn> {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn none_if_missing(self) -> Option<T> {
         use crate::re_throw::ReThrow;
         match self {
@@ -191,12 +191,12 @@ impl crate::__contract_spec::ContractTypeName for LibraryExn {
     const NAME: &'static str = "LibraryExn";
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn library_throw<E: Into<LibraryExn> + core::fmt::Debug>(e: E) -> ! {
     super::abort_encode::library_abort(&e.into())
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(
     e: E,
 ) -> ! {
@@ -205,7 +205,7 @@ pub fn client_library_throw<E: Into<LibraryExn> + core::fmt::Debug>(
 
 /// Throw an exception because a syscall produced an error.
 ///
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn syscall_throw(callno: SyscallNo, errno: SysErr) -> ! {
     library_throw(syscall_exn(callno, errno))
 }
@@ -214,34 +214,34 @@ pub fn syscall_exn(callno: SyscallNo, errno: SysErr) -> LibraryExn {
     LibraryExn::Syscall(SyscallExn::new(callno, errno))
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn nnint_overflow() -> ! {
     library_throw(LibraryExn::NonNegativeIntOverflow)
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn nnint_underflow() -> ! {
     library_throw(LibraryExn::NonNegativeIntUnderflow)
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn decoding_args_throw(e: &CallFault) -> ! {
     library_throw(HandlingError::DecodingArgs(FaultString::from_display(e)))
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn encoding_success_throw<E: Error>(e: E) -> ! {
     library_throw(HandlingError::EncodingSuccess(FaultString::from_display(e)))
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn encoding_exception_throw<E: Error>(e: E) -> ! {
     library_throw(HandlingError::EncodingException(FaultString::from_display(
         e,
     )))
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn encoding_event_throw<E: Display>(e: E) -> ! {
     library_throw(HandlingError::EncodingEvent(FaultString::from_display(e)))
 }

@@ -5,7 +5,7 @@ pub trait OrThrow<T> {
 }
 
 impl<T, Err> OrThrow<T> for Result<T, Err> {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn or_throw<E: crate::Exn>(self, exn: E) -> T {
         match self {
             Ok(v) => v,
@@ -14,7 +14,7 @@ impl<T, Err> OrThrow<T> for Result<T, Err> {
     }
 }
 
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn throw<E>(exn: E) -> !
 where
     E: crate::Exn,

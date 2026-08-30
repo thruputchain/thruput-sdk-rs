@@ -68,7 +68,7 @@ impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
 impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
     for RawCallError<X>
 {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         match self {
             RawCallError::Invalid => library_throw(CallingError::Invalid),

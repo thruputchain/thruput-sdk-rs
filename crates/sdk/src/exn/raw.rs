@@ -104,7 +104,7 @@ impl<'s> RawExceptionRef<'s> {
     /// Re-throw to our caller: abort with the original wire bytes, verbatim.
     /// Zero-copy — this is what plain (non-`try_`) generated methods do.
     #[inline]
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn re_throw(&self) -> ! {
         #[cfg(all(feature = "debugging", feature = "std"))]
         crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
@@ -225,7 +225,7 @@ impl RawException {
 
     /// Re-throw to our caller with the original wire bytes, verbatim.
     #[inline]
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn re_throw(&self) -> ! {
         #[cfg(all(feature = "debugging", feature = "std"))]
         crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
@@ -268,7 +268,7 @@ impl core::fmt::Debug for RawException {
 }
 
 impl crate::re_throw::ReThrow for RawException {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         RawException::re_throw(&self)
     }
