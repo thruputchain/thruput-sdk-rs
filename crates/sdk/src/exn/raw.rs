@@ -106,7 +106,7 @@ impl<'s> RawExceptionRef<'s> {
     #[inline]
     #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn re_throw(&self) -> ! {
-        #[cfg(all(feature = "debugging", feature = "std"))]
+        #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
         crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
 
         crate::contract_op::contract_abort(self.wire)
@@ -140,7 +140,7 @@ fn fmt_exn(
         "{name} {{ selector: 0x{selector:016X}, payload: {} bytes",
         payload.len(),
     )?;
-    #[cfg(feature = "debugging")]
+    #[cfg(not(target_arch = "riscv32"))]
     write!(f, ", hex: {}", crate::hex::hex_encode(&payload))?;
     write!(f, " }}")
 }
@@ -227,7 +227,7 @@ impl RawException {
     #[inline]
     #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn re_throw(&self) -> ! {
-        #[cfg(all(feature = "debugging", feature = "std"))]
+        #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
         crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
 
         crate::contract_op::contract_abort(self.wire.as_ref())

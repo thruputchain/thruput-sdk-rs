@@ -3,7 +3,7 @@
 //! `ContractResult` can represent:
 //! - contract success (with serialized return-value)
 //! - contract exception (with serialized return-value)
-//! - contract fault (with debugging message when `cfg(feature = "debugging")`)
+//! - contract fault (with debugging message when `cfg(not(target_arch = "riscv32"))`)
 
 use crate::{AuthHandleBuf, exn::FaultString};
 use core::fmt::{Debug, Display};
@@ -31,7 +31,7 @@ pub enum ContractError {
 
     /// Terminated without providing a return value.
     ///
-    /// When `cfg(feature = "debugging")`, this contains a string describing
+    /// When `cfg(not(target_arch = "riscv32"))`, this contains a string describing
     /// the fault (e.g., what was passed to `panic`).
     ///
     Fault(FaultString),

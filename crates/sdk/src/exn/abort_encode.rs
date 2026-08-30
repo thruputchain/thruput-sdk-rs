@@ -79,7 +79,7 @@ pub(crate) fn encode_library_abort(
 #[inline(never)]
 #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
-    #[cfg(all(feature = "debugging", feature = "std"))]
+    #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
     crate::contract_op::abort_breadcrumb("Throwing", "Location", exn);
 
     let mut buf = MUBuf::<ABORT_MAX>::new();
@@ -94,7 +94,7 @@ pub(crate) fn library_abort(exn: &LibraryExn) -> ! {
 #[inline(never)]
 #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
-    #[cfg(all(feature = "debugging", feature = "std"))]
+    #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
     crate::contract_op::abort_breadcrumb(
         "Throwing",
         "Interface location",

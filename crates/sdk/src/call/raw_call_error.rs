@@ -40,7 +40,7 @@ pub enum RawCallError<X = RawException> {
 /// `RawCallError<X>` with `widen_uninhabited_exn`.)
 pub type CallFault = RawCallError<core::convert::Infallible>;
 
-#[cfg(feature = "debugging")]
+#[cfg(not(target_arch = "riscv32"))]
 impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

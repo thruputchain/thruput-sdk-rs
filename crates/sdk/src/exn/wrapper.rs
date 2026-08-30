@@ -2,7 +2,7 @@ use crate::ContractTypeSpec;
 use crate::exn::fault::*;
 use crate::xdr::*;
 use core::fmt::Debug;
-#[cfg(feature = "debugging")]
+#[cfg(not(target_arch = "riscv32"))]
 use thiserror::Error;
 
 // TODO: Maybe make the fault-strings into Error sources,
@@ -12,28 +12,28 @@ use thiserror::Error;
 #[derive(
     Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
 )]
-#[cfg_attr(feature = "debugging", derive(Error))]
+#[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[repr(i32)]
 pub enum CallingError {
     #[cfg_attr(
-        feature = "debugging",
+        not(target_arch = "riscv32"),
         error("Invalid call: contract not found (or bad auth tokens)")
     )]
     Invalid = 0,
 
     #[cfg_attr(
-        feature = "debugging",
+        not(target_arch = "riscv32"),
         error("Decoding a successful result: {0}")
     )]
     DecodingSuccess(FaultString) = 1,
 
     #[cfg_attr(
-        feature = "debugging",
+        not(target_arch = "riscv32"),
         error("Decoding an exception result: {0}")
     )]
     DecodingException(FaultString) = 2,
 
-    #[cfg_attr(feature = "debugging", error("Encoding arguments: {0}"))]
+    #[cfg_attr(not(target_arch = "riscv32"), error("Encoding arguments: {0}"))]
     EncodingArgs(FaultString) = 3,
 }
 
@@ -50,22 +50,28 @@ impl crate::re_throw::ReThrow for CallingError {
 #[derive(
     Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
 )]
-#[cfg_attr(feature = "debugging", derive(Error))]
+#[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[repr(i32)]
 pub enum HandlingError {
-    #[cfg_attr(feature = "debugging", error("Decoding argument data: {0}"))]
+    #[cfg_attr(
+        not(target_arch = "riscv32"),
+        error("Decoding argument data: {0}")
+    )]
     DecodingArgs(FaultString) = 0,
 
     #[cfg_attr(
-        feature = "debugging",
+        not(target_arch = "riscv32"),
         error("Encoding successful result: {0}")
     )]
     EncodingSuccess(FaultString) = 1,
 
-    #[cfg_attr(feature = "debugging", error("Encoding exception result: {0}"))]
+    #[cfg_attr(
+        not(target_arch = "riscv32"),
+        error("Encoding exception result: {0}")
+    )]
     EncodingException(FaultString) = 2,
 
-    #[cfg_attr(feature = "debugging", error("Encoding event: {0}"))]
+    #[cfg_attr(not(target_arch = "riscv32"), error("Encoding event: {0}"))]
     EncodingEvent(FaultString) = 3,
 }
 
@@ -73,19 +79,22 @@ pub enum HandlingError {
 #[derive(
     Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
 )]
-#[cfg_attr(feature = "debugging", derive(Error))]
+#[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[repr(i32)]
 pub enum AuthTokenError {
-    #[cfg_attr(feature = "debugging", error("Encoding auth token: {0}"))]
+    #[cfg_attr(
+        not(target_arch = "riscv32"),
+        error("Encoding auth token: {0}")
+    )]
     MintEncodeFailure(FaultString) = 0,
     #[cfg_attr(
-        feature = "debugging",
+        not(target_arch = "riscv32"),
         error("Decoding auth token payload: {0}")
     )]
     ConsumeDecodeFailure(FaultString) = 1,
 
     #[cfg_attr(
-        feature = "debugging",
+        not(target_arch = "riscv32"),
         error("Receiving auth token handles: {0}")
     )]
     ReceiveAuthHandlesFailure(FaultString) = 2,
