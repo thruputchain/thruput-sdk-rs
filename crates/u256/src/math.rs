@@ -584,7 +584,8 @@ impl U256 {
     /// If modular exponentiation ever becomes load-bearing here -- RSA
     /// verification, anything with a pairing behind it -- the answer is a host
     /// syscall alongside `kSHA256`, not a better loop. That is a protocol
-    /// change rather than an SDK one.
+    /// change rather than an SDK one, and it is tracked as
+    /// <https://github.com/groundhogchain/sdk_rs/issues/383>.
     ///
     /// Two things this does have over the Solidity version. It is a
     /// `const fn`, where `Math.modExp` must be `view` because a `staticcall`

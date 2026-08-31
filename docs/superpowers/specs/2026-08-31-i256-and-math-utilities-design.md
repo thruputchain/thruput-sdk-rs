@@ -71,9 +71,9 @@ deferral lapses with the same request.
   **If modular exponentiation becomes load-bearing** — RSA verification,
   anything with a pairing behind it — the faithful answer is a host syscall
   beside `kSHA256`, not a better loop in this crate. That is a protocol change
-  in hogd rather than an SDK one, and it is the shape of the request to make.
-  Three things from EIP-198 and its implementations are worth carrying into
-  that request:
+  in hogd rather than an SDK one. Filed as
+  [#383](https://github.com/groundhogchain/sdk_rs/issues/383), which carries
+  the four things below so they are not rediscovered:
 
   1. **The metering is the hard part, not the arithmetic.** go-ethereum's
      `RequiredGas` carries *three* formulas gated by fork flags —
