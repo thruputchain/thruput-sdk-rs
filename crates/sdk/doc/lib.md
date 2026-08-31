@@ -15,10 +15,7 @@ pub struct MyContract {
     contract_owner: Value<ContractAddress>,
 }
 
-#[contract_exception]
-pub struct MyError;
-
-#[contract(throws = MyError)]
+#[contract]
 impl MyContract {
     pub fn initialize(&mut self, contract_owner: &ContractAddress) {
         self.contract_owner.set(contract_owner);
@@ -27,15 +24,16 @@ impl MyContract {
     pub fn get_owner(&self) -> ContractAddress {
         self.contract_owner.get()
     }
-
-    pub fn oops(&self) {
-        throw(MyError);
-    }
 }
 ```
 
+`#[derive(Storage)]` can also be spelled
+[`#[storage]`](macro@crate::storage).
+
 That expands to a `MyContractClient` for callers, guest entrypoints for the
-deployed artifact, and a contract spec describing the interface.
+deployed artifact, and a contract spec describing the interface. Declaring
+exceptions is a separate step, covered under
+[calling and errors](#calling-and-errors).
 
 Sections: [Cargo features](#cargo-features), [storage](#storage),
 [calling and errors](#calling-and-errors), [events](#events),
@@ -84,6 +82,19 @@ A contract crate wires them up like this:
 # so a dependency cannot inject entrypoints into your binary.
 entrypoints = []
 dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+
+# The rv32 artifact. `groundhog build --target rv32 -p my-contract` derives
+# `--bin my-contract` from the package name, so this name must match it.
+# src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
+# my_contract;` force-links the rlib so the entrypoint records reach the
+# binary.
+[[bin]]
+name = "my-contract"
+path = "src/main.rs"
+required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }
@@ -151,7 +162,10 @@ Important storage-model rules:
 Two types enforce their invariant in the storage layer instead of in contract
 code: [`NNInt`](storage::NNInt) for counters that must not go negative, and
 [`Balance`](storage::Balance), whose `increase`/`decrease` fail on overflow
-and overdraft in every build profile (see [Arithmetic](#arithmetic)).
+and overdraft in every build profile (see [Arithmetic](#arithmetic)). This
+matters most under concurrency: when two transactions in the same block both
+move a balance, the check has to hold against the committed value, not the
+one the contract read.
 [`Deletable`](derive@crate::Deletable) derives recursive deletion for a
 storage struct.
 
@@ -173,8 +187,8 @@ The [`storage`](macro@crate::storage) macro is shorthand for
 The [`contract`](macro@crate::contract) macro exports contract methods for
 cross-contract calls and also generates client types for calling those methods.
 It applies to a trait, a trait impl, an inherent impl, or a free function —
-see its own page for the interface-versus-implementation split, `throws`,
-`storage = false`, and entrypoint-identifier customization.
+see its own page for the interface-versus-implementation split, `throws`, and
+entrypoint-identifier customization.
 
 Client naming defaults:
 
@@ -286,6 +300,11 @@ is on. **The native test harness builds with overflow checks on**, so an
 overflow that fails a test wraps silently on-chain. A passing test proves
 nothing about overflow behavior in deployment.
 
+[`U256`] stores eight 32-bit limbs, which is what the rv32 guest multiplies
+natively. Prefer it over a general-purpose big-integer crate: those typically
+use 64-bit limbs and multiply through `u128`, which the guest has to
+synthesize, so they cost far more code and gas for the same arithmetic.
+
 For money math, be explicit rather than relying on operators:
 
 - `checked_add` / `checked_sub` / `checked_mul` on the primitives and on
@@ -323,7 +342,6 @@ Context about the running transaction:
 - [`mod@stats`]: transaction statistics, including
   [`gas_remaining()`](stats::gas_remaining)
 - [`mod@log`]: contract logging
-- [`mod@precompiles`]: addresses of the genesis contracts
 
 Other useful modules and types:
 
