@@ -171,10 +171,23 @@ fn inv_mod_prime_reverts_on_a_zero_modulus_where_inv_mod_returns_zero() {
     let _ = U256::inv_mod_prime(U256::from(3), U256::ZERO);
 }
 
-/// `Math.modExp` follows EIP-198: a zero modulus is an error, a modulus of one
-/// gives zero, and `0^0` is one.
+/// `Math.modExp`'s edges, which are OpenZeppelin's and not quite the
+/// precompile's.
+///
+/// A zero modulus is the one that differs. The EIP-198 precompile treats it as
+/// defined: go-ethereum's `Run` short-circuits `mod.BitLen() == 0` and returns
+/// a zero-filled buffer, with the comment "Modulo 0 is undefined, return
+/// zero". Solidity never sees that, because `tryModExp` guards `m == 0` and
+/// returns `(false, 0)` *before* the `staticcall`, which `modExp` turns into a
+/// revert. So the error is OpenZeppelin's addition, not the precompile's
+/// behaviour, and matching OpenZeppelin is the right call here -- a port is
+/// written against the library, not the precompile -- but the two are not the
+/// same rule.
+///
+/// The rest is genuinely EIP-198: `0^0` is one, and everything modulo one is
+/// zero.
 #[test]
-fn mod_exp_follows_eip198_at_the_edges() {
+fn mod_exp_matches_openzeppelin_at_the_edges() {
     assert_eq!(
         U256::checked_mod_exp(U256::from(2), U256::from(3), U256::ZERO),
         None

@@ -511,6 +511,12 @@ impl U256 {
 
     /// `b.pow(e) % m`, returning `None` if `m` is zero. `Math.tryModExp`.
     ///
+    /// The zero-modulus refusal follows OpenZeppelin rather than the
+    /// precompile it calls: EIP-198 treats a zero modulus as defined and
+    /// answers zero, and `tryModExp` guards it in Solidity *before* the
+    /// `staticcall`. A port is written against the library, so this matches
+    /// the library.
+    ///
     /// Square-and-multiply over [`checked_mul_mod`](Self::checked_mul_mod):
     /// one full-precision multiply-divide per bit of `e`, plus one more per
     /// set bit -- up to 512 for a full-width exponent. See

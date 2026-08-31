@@ -72,6 +72,28 @@ deferral lapses with the same request.
   anything with a pairing behind it — the faithful answer is a host syscall
   beside `kSHA256`, not a better loop in this crate. That is a protocol change
   in hogd rather than an SDK one, and it is the shape of the request to make.
+  Three things from EIP-198 and its implementations are worth carrying into
+  that request:
+
+  1. **The metering is the hard part, not the arithmetic.** go-ethereum's
+     `RequiredGas` carries *three* formulas gated by fork flags —
+     `byzantiumModexpGas`, `berlinModexpGas` (EIP-2565), `osakaModexpGas`
+     (EIP-7883). MODEXP has been repriced twice because the original schedule
+     underpriced it into a DoS vector. Cost is data-dependent in a way the
+     other precompiles are not: it scales with operand length *and* exponent
+     bit length, so a fixed price is wrong in both directions.
+  2. **A zero modulus is defined, not an error.** The precompile returns a
+     zero-filled buffer the width of the modulus. OpenZeppelin's revert is a
+     Solidity-side guard layered on top, which is why the surface here matches
+     the library rather than the precompile.
+  3. **The algorithm is not a loop like ours.** geth parses into a patched
+     `math/big` and calls `Exp`, which dispatches on the modulus: Montgomery
+     multiplication with a 4-bit window for an odd modulus, a windowed method
+     for a power of two, and a CRT hybrid for an even modulus with odd
+     factors. Go's own source flags the side-channel constraint on the
+     surrounding code. A host implementation should lift a reviewed one —
+     revm's `aurora-engine-modexp` is the Rust precedent — rather than grow
+     one from this crate's square-and-multiply.
 - Constant-time guarantees. Unchanged from the original design: this is not a
   cryptographic bignum. `mod_exp` and `inv_mod` branch on their operands.
 
