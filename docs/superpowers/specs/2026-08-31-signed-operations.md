@@ -152,30 +152,31 @@ It also means **there is no check to skip.** A verifier reconstructs the
 preimage from the `T` it expects; a message of another shape fails signature
 verification. There is no "wrong operation type" error to forget to write.
 
-### What it does not cover
+### Shallowness, and why it is fine here
 
-`TYPE_DEF` is **shallow**. A nested `#[contract_type]` appears in it as
+`TYPE_DEF` is shallow: a nested `#[contract_type]` appears in it as
 `ContractTypeView::Named(NAME)`, not as an inlined definition — transitive
 definitions are resolved by spec-tool at link time, not in a const
-(`ContractTypeRefSpec::INFO` is a `Named` ref, and contract-spec says so).
+(`ContractTypeRefSpec::INFO` is a `Named` ref). Pinned in
+`operation.rs::tests::type_def_names_nested_types_rather_than_inlining_them`.
 
-A nested change that alters the encoding still changes the message via the body
-bytes. What slips through is a nested change that **preserves** the encoding:
-renaming a field, or swapping two fields of the same type. That is a semantic
-reversal an old signature will still verify against. Pinned in
-`operation.rs::tests::nested_renames_are_not_caught_by_type_def`.
+EIP-712 appends referenced struct definitions transitively, and it has to:
+on Ethereum a proxy can swap the code behind a stable `verifyingContract`, so
+one address really can come to reinterpret a type, and only the full type
+closure in the digest catches it.
 
-**EIP-712 does not have this gap** — its `encodeType` appends referenced struct
-definitions transitively, sorted by name. Here the lever for a nested change is
-the separator's version (§2). Read the two mechanisms together:
+**Groundhog removes the premise.** A contract address is derived from the
+contract hash (`get_deploy_address(nonce, contract_hash)`) and there is no
+upgrade syscall, so an address means one code image — and therefore one
+definition of every type it names — for its whole life. `verifying_contract`
+in the preimage binds a signature to that single interpretation, so a shallow
+type definition costs nothing.
 
-- **separator version** — the app's schema epoch; manual, retires everything.
-- **`TYPE_DEF`** — distinguishes shapes within an epoch, and catches top-level
-  drift for free.
-
-Closing the gap properly would need either a build-time check that hashes the
-spec-tool-resolved type closure and fails when it changes without a version
-bump, or getting that closure into a const. Both are larger than this change.
+The residual is build hygiene rather than security: a client generated from a
+*different* spec than the deployed contract could sign a nested payload whose
+field names differ while the encoding matches. The top-level `TYPE_DEF` catches
+that whenever the outer type differs; only nested name-only drift slips through,
+and the fix is regenerating bindings from the deployed contract's spec.
 
 ### What can be signed
 
@@ -249,6 +250,5 @@ Two ways to close that, in preference order:
 - The client half (§8).
 - A worked example contract with nonce storage.
 - `GetNetworkHash` (§6).
-- Transitive type binding (§4).
 - Bumping the `groundhog-test-vectors` pin in
   `client-ts/scripts/regen-test-vectors.sh` once a release carries `signed-op`.

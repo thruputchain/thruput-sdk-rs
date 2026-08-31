@@ -51,25 +51,21 @@
 //! preimage from the `T` it expects; a message of some other shape simply
 //! fails signature verification.
 //!
-//! ## What this does not cover
+//! ## Shallowness, and why it is fine here
 //!
-//! `TYPE_DEF` is **shallow**. A nested `#[contract_type]` appears in it as
-//! `ContractTypeView::Named(NAME)`, not as an inlined definition — transitive
-//! definitions are resolved by spec-tool at link time, not in a const. A nested
-//! change that alters the encoding still changes the message via the body
-//! bytes, but one that preserves it — renaming a field, or swapping two fields
-//! of the same type — is invisible. See
-//! `tests::nested_renames_are_not_caught_by_type_def`.
+//! `TYPE_DEF` is shallow: a nested `#[contract_type]` appears as
+//! `ContractTypeView::Named(NAME)`, not as an inlined definition. EIP-712 by
+//! contrast appends referenced struct definitions transitively — because on
+//! Ethereum a proxy can swap the code behind a stable `verifyingContract`, so
+//! the same address really can reinterpret a type.
 //!
-//! EIP-712 does not have this gap; its `encodeType` appends referenced struct
-//! definitions transitively. Here the lever for a nested change is the
-//! separator's version, which is what it is for: bump
-//! [`domain_separator!`](crate::domain_separator)'s version and every signature
-//! under the old schema dies at once. Read the two together as: the separator
-//! version is the app's schema epoch, `TYPE_DEF` distinguishes shapes within
-//! it and catches top-level drift for free.
+//! Groundhog has no such premise. An address is derived from the contract hash
+//! and there is no upgrade syscall, so one address means one code image and one
+//! definition of every type it names, permanently. `verifying_contract` in the
+//! preimage already binds a signature to that single interpretation. See
+//! `tests::type_def_names_nested_types_rather_than_inlining_them`.
 //!
-//! The bound also excludes bare tuples and primitives, which have a
+//! The bound excludes bare tuples and primitives, which have a
 //! `ContractTypeRefSpec` but no `ContractTypeSpec`. That is deliberate: an
 //! anonymous shape has no identity to bind. Tuple structs are fine — the macro
 //! handles unnamed fields — they just have to be named types.
@@ -382,23 +378,24 @@ mod tests {
         assert_ne!(op(&v1).preimage(), op(&v2).preimage());
     }
 
-    /// **Sharp edge.** `TYPE_DEF` is shallow: a nested `#[contract_type]`
-    /// appears as `ContractTypeView::Named(NAME)`, not as its inlined
-    /// definition (`ContractTypeRefSpec::INFO` is a `Named` ref, and transitive
-    /// definitions are resolved by spec-tool at link time, not in this const).
+    /// `TYPE_DEF` is shallow: a nested `#[contract_type]` appears as
+    /// `ContractTypeView::Named(NAME)`, not as an inlined definition —
+    /// transitive definitions are resolved by spec-tool at link time, not in
+    /// this const. This asserts that shape, because it surprises people.
     ///
-    /// A nested change that *alters* the encoding still changes the message,
-    /// via the body bytes. What slips through is a nested change that preserves
-    /// the encoding — renaming a field, or swapping two fields of the same
-    /// type. Here `Inner` and `InnerRenamed` differ only in field name, so the
-    /// two preimages are byte-identical and an old signature verifies against
-    /// the new meaning.
+    /// It has no security consequence *here*. For an old signature to be
+    /// reinterpreted, one `verifying_contract` address would have to hold two
+    /// different definitions of the nested type. It cannot: an address is
+    /// derived from the contract hash (`get_deploy_address(nonce,
+    /// contract_hash)`) and there is no upgrade syscall, so a given address has
+    /// one code image, and one definition of each type, for its whole life.
+    /// `verifying_contract` in the preimage already closes the door.
     ///
-    /// EIP-712 does not have this gap: its `encodeType` appends referenced
-    /// struct definitions transitively. Retiring signatures across a nested
-    /// rename needs the separator's version bumped.
+    /// EIP-712 needs its transitive `encodeType` precisely because Ethereum
+    /// *does* let a proxy swap the code behind a stable `verifyingContract`.
+    /// Groundhog's addressing removes the premise, not just the symptom.
     #[test]
-    fn nested_renames_are_not_caught_by_type_def() {
+    fn type_def_names_nested_types_rather_than_inlining_them() {
         #[derive(WriteXDR)]
         struct Inner {
             debit: u64,
@@ -414,73 +411,37 @@ mod tests {
                 });
         }
 
-        /// Same name, same encoding, opposite meaning.
-        #[derive(WriteXDR)]
-        struct InnerRenamed {
-            credit: u64,
-        }
-        impl ContractTypeSpec for InnerRenamed {
-            const TYPE_DEF: ContractTypeDefView<'static> =
-                ContractTypeDefView::Struct(ContractStructDefView {
-                    name: "Inner",
-                    fields: &[ContractFieldView {
-                        name: "credit",
-                        ty: ContractTypeView::U64,
-                    }],
-                });
-        }
-
-        // Both enclosing types reference the nested one only by name, which is
-        // what the macro emits for a `#[contract_type]` field.
-        const OUTER_DEF: ContractTypeDefView<'static> =
-            ContractTypeDefView::Struct(ContractStructDefView {
-                name: "Outer",
-                fields: &[ContractFieldView {
-                    name: "inner",
-                    ty: ContractTypeView::Named("Inner"),
-                }],
-            });
-
         #[derive(WriteXDR)]
         struct Outer {
             inner: Inner,
         }
         impl ContractTypeSpec for Outer {
-            const TYPE_DEF: ContractTypeDefView<'static> = OUTER_DEF;
+            // What `#[contract_type]` emits for a nested contract-type field:
+            // `<Inner as ContractTypeRefSpec>::INFO.ty`, which is a `Named` ref.
+            const TYPE_DEF: ContractTypeDefView<'static> =
+                ContractTypeDefView::Struct(ContractStructDefView {
+                    name: "Outer",
+                    fields: &[ContractFieldView {
+                        name: "inner",
+                        ty: ContractTypeView::Named("Inner"),
+                    }],
+                });
         }
 
-        #[derive(WriteXDR)]
-        struct OuterRenamed {
-            inner: InnerRenamed,
-        }
-        impl ContractTypeSpec for OuterRenamed {
-            const TYPE_DEF: ContractTypeDefView<'static> = OUTER_DEF;
-        }
-
-        let before = Outer {
-            inner: Inner { debit: 100 },
+        let ContractTypeDefView::Struct(outer) = Outer::TYPE_DEF else {
+            panic!("Outer is a struct");
         };
-        let after = OuterRenamed {
-            inner: InnerRenamed { credit: 100 },
-        };
-
-        // Documented limitation, not an aspiration: these ARE equal.
         assert_eq!(
-            op(&before).preimage(),
-            op(&after).preimage(),
-            "nested renames are invisible to a shallow TYPE_DEF"
+            outer.fields[0].ty,
+            ContractTypeView::Named("Inner"),
+            "nested types are referenced by name, not inlined"
         );
-
-        // The separator version is the lever that does retire them.
-        crate::domain_separator! {
-            const EPOCH_1 = "App" version "1";
-        }
-        crate::domain_separator! {
-            const EPOCH_2 = "App" version "2";
-        }
-        assert_ne!(
-            op(&before).preimage_in(&EPOCH_1),
-            op(&after).preimage_in(&EPOCH_2)
+        // Inner's own field names are therefore absent from Outer's definition.
+        assert!(
+            !xdrs::cxs::encode(&Outer::TYPE_DEF)
+                .unwrap()
+                .windows(5)
+                .any(|w| w == b"debit"),
         );
     }
 
