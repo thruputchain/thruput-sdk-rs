@@ -80,6 +80,7 @@ sha256 is NOT applied before signing. These bytes are signed directly.
   network                               32 bytes, verbatim
   verifying_contract                    32 bytes, verbatim
   cxs(T::TYPE_DEF)                      the payload type's definition (§4)
+  channel                               CXS varint (u32), 1–5 bytes
   nonce                                 CXS varint (u64), 1–9 bytes
   valid_until                           CXS varint (i64), 1–9 bytes
   cxs(body)                             the payload value, fields inlined
@@ -112,6 +113,7 @@ Each field closes exactly one replay path, and none is optional:
 | `network` | on another network carrying the same address |
 | `verifying_contract` | against a different contract |
 | `T::TYPE_DEF` | as a different kind of message |
+| `channel` | in another of the verifier's nonce channels |
 | `nonce` / `valid_until` | again, or forever |
 
 ## 4. The type binding
@@ -209,29 +211,46 @@ behavioural questions, which mean the same thing under either implementation:
 
 | | |
 |---|---|
-| `next_nonce(signer)` | give me one that will be accepted |
-| `is_usable(signer, n)` | would this be accepted |
+| `next_nonce(signer, channel)` | give me one that will be accepted |
+| `is_usable(signer, channel, n)` | would this be accepted |
 | `verify_and_spend(...)` | check it and consume it, atomically |
-| `cancel_through(signer, n)` | refuse everything at or below `n` |
+| `cancel_through(signer, channel, n)` | refuse everything at or below `n` |
+
+Channels survive the swap too: a replay cache keyed by
+`(signer, channel, nonce)` works exactly as well, and the field costs one byte.
 
 `SignedOpError::NonceTooOld` is the one leak, and deliberately so: a window
 forgets, a replay cache would not. Treat that variant as the marker for
 knowingly incomplete functionality — when the cache lands, it goes.
 
-### What the window fixes, and what it does not
+### Channels: concurrency without unbounded state
 
-It fixes **storage growth**. A per-operation record grows without bound and
-nothing at this layer could collect it; a window is 24 bytes per signer forever.
+A window is read-modify-written, so two operations spending from the same window
+in one block conflict and only one commits — the constraint `Vector`'s length
+field documents. No mergeable primitive avoids it: the storage layer has
+commutative *addition* (`NNInt`) but no commutative bit-set.
 
-It does **not** fix **write contention**, and slightly worsens it: every
-operation from one signer reads and rewrites one slot, where a word-keyed bitmap
-would spread them across several. Of a set of concurrent transactions spending
-nonces for one signer, one commits and the rest conflict — the constraint
-`Vector`'s length field already documents. No mergeable primitive avoids it: the
-storage layer has commutative *addition* (`NNInt`) but no commutative bit-set,
-so a read-modify-write is unavoidable today. Per-signer serialisation is
-arguably inherent — those operations contend for one nonce space — but a replay
-cache could remove it, which is a further reason to keep the seam clean.
+So replay state is per `(signer, channel)`. Operations a signer puts in
+different channels commit in the same block; operations sharing a channel
+serialise. That is the concurrency knob, and it is the signer's to turn.
+
+The channel count is **bounded and chosen by the verifying contract** at
+`initialize`, not an open `u32` space. An unbounded channel space would let any
+signer mint an unbounded number of windows that nothing at this layer can
+collect. With a bound of `n`, a signer's replay state is at most `n` × 24 bytes,
+permanently, and the contract decides how much concurrency it will pay storage
+for. Note it bounds *simultaneous consumption*, not outstanding operations — a
+handful of channels is usually plenty.
+
+`channel` is in the signed preimage; it has to be, or one signature would replay
+once per channel. The *bound* is contract policy checked at verification, so an
+operation naming a channel the contract does not have is refused
+(`SignedOpError::UnknownChannel`) rather than being a signature problem.
+
+### What the window fixes
+
+**Storage growth.** A per-operation record grows without bound and nothing at
+this layer could collect it; a window is fixed-size and slides.
 
 ### Why not the transaction nonce
 

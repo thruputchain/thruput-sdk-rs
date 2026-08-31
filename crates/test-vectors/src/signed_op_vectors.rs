@@ -61,9 +61,11 @@ impl ContractTypeName for Revoke {
     const NAME: &'static str = "Revoke";
 }
 
+#[derive(Clone, Copy)]
 struct Header {
     network: [u8; 32],
     verifying_contract: [u8; 32],
+    channel: u32,
     nonce: u64,
     valid_until: i64,
 }
@@ -76,6 +78,7 @@ fn vector<T: WriteXDR + ContractTypeSpec>(
     let op = SignedOp {
         network: NetworkHash::new(SHA256Hash::new(header.network)),
         verifying_contract: ContractAddress::from(header.verifying_contract),
+        channel: header.channel,
         nonce: header.nonce,
         valid_until: BlockHeight::new(header.valid_until),
         body,
@@ -87,6 +90,7 @@ fn vector<T: WriteXDR + ContractTypeSpec>(
         "type_def_cxs_hex": hex(&xdrs::cxs::encode(&T::TYPE_DEF).unwrap()),
         "network_hex": hex(&header.network),
         "verifying_contract_hex": hex(&header.verifying_contract),
+        "channel": header.channel,
         "nonce": header.nonce.to_string(),
         "valid_until": header.valid_until.to_string(),
         "body_cxs_hex": hex(&xdrs::cxs::encode(body).unwrap()),
@@ -100,19 +104,29 @@ pub fn generate() -> Value {
     let zeroed = Header {
         network: [0u8; 32],
         verifying_contract: [0u8; 32],
+        channel: 0,
         nonce: 0,
         valid_until: 0,
     };
     let typical = Header {
         network: [0x5a; 32],
         verifying_contract: [0x03; 32],
+        channel: 0,
         nonce: 1,
         valid_until: 1_000,
+    };
+    // Same as `typical` but a different channel: pins that the channel is in
+    // the signed bytes, so a submitter cannot move an operation between
+    // channels and replay it.
+    let other_channel = Header {
+        channel: 3,
+        ..typical
     };
     // Widest varints: where a client assuming fixed-width integers breaks.
     let extremes = Header {
         network: [0xff; 32],
         verifying_contract: [0xee; 32],
+        channel: u32::MAX,
         nonce: u64::MAX,
         valid_until: i64::MAX,
     };
@@ -122,6 +136,7 @@ pub fn generate() -> Value {
         // since an omitted zero field still shifts the encoding.
         vector("grant_zeroed", &zeroed, &Grant { amount: 0 }),
         vector("grant_typical", &typical, &Grant { amount: 500 }),
+        vector("grant_channel_3", &other_channel, &Grant { amount: 500 }),
         // Same header, same body bytes, different payload type. If a client
         // produces the same digest for these two it has no type binding.
         vector("revoke_typical", &typical, &Revoke { id: 500 }),
@@ -182,6 +197,21 @@ mod tests {
                 "type_def missing from the preimage"
             );
         }
+    }
+
+    /// The channel is part of the signed bytes; two otherwise identical
+    /// operations in different channels must not share a signature.
+    #[test]
+    fn channel_changes_the_digest() {
+        let out = generate();
+        let vectors = out["vectors"].as_array().unwrap();
+        let a = find(vectors, "grant_typical");
+        let b = find(vectors, "grant_channel_3");
+
+        assert_eq!(a["body_cxs_hex"], b["body_cxs_hex"]);
+        assert_eq!(a["nonce"], b["nonce"]);
+        assert_ne!(a["channel"], b["channel"]);
+        assert_ne!(a["expected_digest_hex"], b["expected_digest_hex"]);
     }
 
     /// The vector set is only meaningful if it contains a pair whose bodies

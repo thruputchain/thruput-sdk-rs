@@ -90,6 +90,15 @@ use sdk::{BlockHeight, contract};
 /// signature was meant for, which is the replay these fields exist to stop.
 #[sdk::contract_type]
 pub struct Operation {
+    /// Which of the verifier's nonce channels this operation spends from.
+    ///
+    /// Signed, so a submitter cannot move an operation between channels and
+    /// replay it. Channels exist for concurrency: operations a signer puts in
+    /// different channels can be consumed in the same block, where operations
+    /// sharing a channel serialise. Valid channels are
+    /// `0..SignedOpNonces::channel_count()`, a bound the contract fixes at
+    /// deployment so a signer's replay state cannot grow without limit.
+    pub channel: u32,
     /// The nonce this operation spends — an opaque value the signer chooses,
     /// not a counter it must keep in step with.
     ///
@@ -128,14 +137,22 @@ pub struct Operation {
 /// `execute_signed_op` is the structured, replay-protected form.
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
-    /// A nonce that would be accepted for `signer` right now.
+    /// How many nonce channels this verifier offers; valid channels are
+    /// `0..n`. Clients spread concurrent operations across them.
+    fn signed_op_channel_count(&self) -> u32;
+
+    /// A nonce that would be accepted for `signer` in `channel` right now.
     ///
     /// Clients call this to pick one. A signer preparing several operations at
     /// once should take this value and increment locally — anything above the
     /// current high water mark is equally acceptable.
-    fn next_signed_op_nonce(&self, signer: &Ed25519PublicKey) -> u64;
+    fn next_signed_op_nonce(
+        &self,
+        signer: &Ed25519PublicKey,
+        channel: u32,
+    ) -> u64;
 
-    /// Whether `nonce` would be accepted for `signer` right now.
+    /// Whether `nonce` would be accepted for `signer` in `channel` right now.
     ///
     /// Deliberately a question about behaviour rather than a view of stored
     /// state: the replay filter behind it is a stopgap (see
@@ -144,6 +161,7 @@ pub trait SignedOp {
     fn is_signed_op_nonce_usable(
         &self,
         signer: &Ed25519PublicKey,
+        channel: u32,
         nonce: u64,
     ) -> bool;
 

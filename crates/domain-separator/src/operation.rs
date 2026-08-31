@@ -21,7 +21,7 @@
 //! | `network` | on another network carrying the same address |
 //! | `verifying_contract` | against a different contract |
 //! | `T::TYPE_DEF` | as a different kind of message |
-//! | `nonce` / `valid_until` | again, or forever |
+//! | `channel` / `nonce` / `valid_until` | again, elsewhere, or forever |
 //!
 //! The third has no counterpart in
 //! [`transaction_signature_preimage`](crate::transaction_signature_preimage),
@@ -88,6 +88,7 @@ struct OpPreimage<'a, T: WriteXDR + ?Sized> {
     network: &'a NetworkHash,
     verifying_contract: &'a ContractAddress,
     type_def: ContractTypeDefView<'a>,
+    channel: u32,
     nonce: u64,
     valid_until: &'a BlockHeight,
     body: &'a T,
@@ -117,6 +118,7 @@ struct OpPreimage<'a, T: WriteXDR + ?Sized> {
 /// let op = SignedOp {
 ///     network: NetworkHash::new(SHA256Hash::new([0x5a; 32])),
 ///     verifying_contract: ContractAddress::from([0x03; 32]),
+///     channel: 0,
 ///     nonce: 1,
 ///     valid_until: BlockHeight::new(1_000),
 ///     body: &Transfer { amount: 42 },
@@ -135,8 +137,18 @@ pub struct SignedOp<'a, T: WriteXDR + ContractTypeSpec + ?Sized> {
     /// The contract entitled to act on this operation. Without it a signature
     /// is replayable against any other contract that accepts the same body.
     pub verifying_contract: ContractAddress,
-    /// Per-signer counter the verifying contract consumes, so one signature
-    /// authorizes one execution.
+    /// Which independent nonce stream this operation spends from.
+    ///
+    /// Signed, and necessarily so: if the channel were chosen by the submitter
+    /// rather than the signer, one signature would replay once per channel.
+    ///
+    /// Its purpose is concurrency. A verifier's replay state is per
+    /// `(signer, channel)`, so operations a signer puts in different channels
+    /// can be consumed in the same block, where operations sharing a channel
+    /// contend for one storage slot and all but one conflict at commit.
+    pub channel: u32,
+    /// The nonce this operation spends within its channel. Nonces are chosen by
+    /// the signer and may be spent out of order.
     pub nonce: u64,
     /// Last block height at which this operation may be executed. A signature
     /// that never expires is a signature the signer cannot retract.
@@ -152,6 +164,7 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> SignedOp<'_, T> {
             network: &self.network,
             verifying_contract: &self.verifying_contract,
             type_def: T::TYPE_DEF,
+            channel: self.channel,
             nonce: self.nonce,
             valid_until: &self.valid_until,
             body: self.body,
@@ -195,6 +208,7 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> SignedOp<'_, T> {
         separator.as_bytes().len()
             + 32 // network
             + 32 // verifying_contract
+            + 5  // channel, widest CXS varint
             + 9  // nonce, widest CXS varint
             + 9  // valid_until, widest CXS varint
             + T::TYPE_DEF.const_cxs_size()
@@ -288,6 +302,7 @@ mod tests {
         SignedOp {
             network: NetworkHash::new(SHA256Hash::new([0x5a; 32])),
             verifying_contract: ContractAddress::from([0x03; 32]),
+            channel: 0,
             nonce: 1,
             valid_until: BlockHeight::new(1_000),
             body,
@@ -307,6 +322,7 @@ mod tests {
         tail.extend_from_slice(
             &xdrs::cxs::encode(&Grant::TYPE_DEF).unwrap(),
         );
+        tail.extend_from_slice(&xdrs::cxs::encode(&0u32).unwrap());
         tail.extend_from_slice(&xdrs::cxs::encode(&1u64).unwrap());
         tail.extend_from_slice(
             &xdrs::cxs::encode(&BlockHeight::new(1_000)).unwrap(),
@@ -450,6 +466,14 @@ mod tests {
                 "verifying_contract",
                 SignedOp {
                     verifying_contract: ContractAddress::from([0x04; 32]),
+                    ..op(&body)
+                }
+                .preimage(),
+            ),
+            (
+                "channel",
+                SignedOp {
+                    channel: 1,
                     ..op(&body)
                 }
                 .preimage(),

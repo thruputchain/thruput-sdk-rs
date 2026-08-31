@@ -22,6 +22,7 @@ pub fn signed_op_of<'a, T: WriteXDR + ContractTypeSpec>(
     SignedOp {
         network: network.clone(),
         verifying_contract: *verifying_contract,
+        channel: op.channel,
         nonce: op.nonce,
         valid_until: op.valid_until.clone(),
         body,
