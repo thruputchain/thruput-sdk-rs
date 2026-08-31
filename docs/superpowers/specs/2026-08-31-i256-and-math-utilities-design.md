@@ -227,6 +227,35 @@ caller re-derive it, because a zero-magnitude quotient loses it — and the
 rounding direction of an inexact zero still depends on which side of zero it
 came from.
 
+### Where the operators diverge from Solidity, deliberately
+
+The library functions match OpenZeppelin on every degenerate input, traced from
+the Solidity source and pinned case by case in `tests/oz_parity.rs` — zero
+moduli, `0^0`, `invMod` vs `invModPrime` disagreeing on a zero modulus,
+`ceilDiv(0, 0)` reverting rather than answering zero, `mulShr` never rounding
+at a zero shift, `clz` against `255 - log2(x)`.
+
+The *operators* follow Rust, and on two points Rust and Solidity disagree:
+
+| | Solidity (checked, default) | Solidity `unchecked` | Rust, and here |
+|---|---|---|---|
+| `x / 0`, `x % 0` | revert | revert (not disableable) | panic |
+| `MIN / -1` | revert | wraps to `MIN` | panic |
+| `MIN % -1` | `0` | `0` | **panic** |
+
+`MIN / -1` matches Solidity's default, which is the one that matters:
+`unchecked` is opt-in per block there, whereas `overflow-checks` here is a
+whole-build setting nobody wrote at the call site. Treating them as equivalent
+would mean a port silently computing `MIN` where its original reverted.
+
+`MIN % -1` is the genuine divergence. Solidity's `smod` is a separate opcode
+that answers 0, and 0 is the correct remainder; Rust panics because x86
+computes quotient and remainder with one trapping instruction. We follow Rust
+so that `I256` and the `i128` beside it in an expression behave alike — the
+rule the rest of this type's overflow behaviour rests on — and document
+`wrapping_rem` as the escape hatch. This was considered and chosen, not
+inherited.
+
 ## Testing
 
 Three oracles, chosen per property.
@@ -261,8 +290,9 @@ they exist to catch.
 
 ## Status
 
-Implemented. 144 tests in `crates/u256`, up from 63: 49 differential
-(unchanged), 32 math, 46 signed, 6 spec-ABI (was 3), 6 ergonomics, 5 unit.
+Implemented. 164 tests in `crates/u256`, up from 63: 49 differential
+(unchanged), 50 signed, 35 math, 13 OpenZeppelin-parity, 6 spec-ABI (was 3),
+6 ergonomics, 5 unit.
 Plus four SDK end-to-end cases (was two) and a second lowered-artifact case in
 `example-contracts/u256_roundtrip`. `cargo clippy --all-targets`, `cargo fmt
 --check` and `cargo doc` are clean, and `groundhog-u256` compiles for

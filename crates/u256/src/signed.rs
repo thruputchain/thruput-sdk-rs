@@ -27,6 +27,34 @@
 //! The wire encoding is the two's complement value as 32 big-endian bytes --
 //! the same 32 bytes a `U256` with those bits would produce, and what
 //! Ethereum's `int256` uses.
+//!
+//! # Where the operators differ from Solidity
+//!
+//! The *library functions* match OpenZeppelin exactly, degenerate inputs
+//! included -- `tests/oz_parity.rs` pins that case by case. The *operators*
+//! follow Rust, and on two points Rust and Solidity genuinely disagree. A port
+//! should know which:
+//!
+//! | | Solidity (checked, the default) | Solidity `unchecked` | Rust, and here |
+//! |---|---|---|---|
+//! | `x / 0`, `x % 0` | revert | revert (not disableable) | panic |
+//! | `MIN / -1` | revert | wraps to `MIN` | panic |
+//! | `MIN % -1` | `0` | `0` | **panic** |
+//!
+//! `MIN / -1` agrees with Solidity's default, which is the one that matters:
+//! `unchecked` is opt-in per block in Solidity, whereas `overflow-checks` here
+//! is a whole-build setting nobody wrote at the call site, so treating the two
+//! as equivalent would silently produce `MIN` where the ported original
+//! reverted.
+//!
+//! `MIN % -1` is the real divergence. Solidity's `smod` is a separate opcode
+//! that simply answers 0, and 0 is the mathematically correct remainder;
+//! Rust panics because x86 computes quotient and remainder with one
+//! instruction that traps on both. We follow Rust so that `I256` and the
+//! `i128` beside it in the same expression behave alike -- the rule the rest
+//! of this type's overflow behaviour is built on. Use
+//! [`wrapping_rem`](I256::wrapping_rem), which answers 0, if a port depends
+//! on the Solidity result.
 
 use crate::{LIMBS, TryFromU256Error, U256};
 
