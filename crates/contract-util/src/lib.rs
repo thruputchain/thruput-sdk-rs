@@ -1,5 +1,6 @@
 //! Miscellaneous utility functions for contract development
 
+use groundhog_domain_separator::OperationTypeId;
 use groundhog_xdr::contract::ContractEntrypointID;
 use sha2::Digest;
 use std::fmt::{self, Display};
@@ -126,23 +127,72 @@ pub fn contract_entrypoint_id(
     let (interface_name, major_version, method_sig) =
         entrypoint_id_preimage(interface_name, version_str, method);
 
-    // Entrypoint ID = sha256(INTERFACE_NAME :: MAJOR_VERSION :: METHOD_SIGNATURE)[0..8]
-    //
-    // The `::` separators are required for the same reason as in
-    // `exception_selector`/`event_signature`: without them, distinct field
-    // triples can concatenate to identical bytes (e.g. interface "Foo1" +
-    // major "2" + method "x" vs "Foo" + "12" + "x", both "Foo12x"), colliding
-    // to the same id and silently misrouting a call.
+    ContractEntrypointID::from(selector_from_triple(
+        interface_name,
+        &major_version,
+        &method_sig,
+    ))
+}
+
+/// `sha256(A :: B :: C)[0..8]`, the 8-byte selector derivation shared by
+/// [`contract_entrypoint_id`] and [`operation_type_id`].
+///
+/// The `::` separators are required for the same reason as in
+/// `exception_selector`/`event_signature`: without them, distinct field
+/// triples can concatenate to identical bytes (e.g. interface "Foo1" +
+/// major "2" + method "x" vs "Foo" + "12" + "x", both "Foo12x"), colliding
+/// to the same id and silently misrouting a call.
+fn selector_from_triple(a: &str, b: &str, c: &str) -> [u8; 8] {
     let mut hasher = sha2::Sha256::new();
-    hasher.update(interface_name.as_bytes());
+    hasher.update(a.as_bytes());
     hasher.update(b"::");
-    hasher.update(major_version.as_bytes());
+    hasher.update(b.as_bytes());
     hasher.update(b"::");
-    hasher.update(method_sig.as_bytes());
+    hasher.update(c.as_bytes());
     let result = hasher.finalize();
 
-    let entrypoint_id: [u8; 8] = result[0..8].try_into().unwrap();
-    ContractEntrypointID::from(entrypoint_id)
+    result[0..8].try_into().unwrap()
+}
+
+/// Derive the type ID for a signed operation:
+/// `sha256(INTERFACE_NAME :: MAJOR_VERSION :: OPERATION_NAME)[0..8]`.
+///
+/// This is [`contract_entrypoint_id`]'s derivation on the same code path, so an
+/// operation named after the method it authorizes gets that method's ID. The
+/// two are never compared and never share a position — an entrypoint ID routes
+/// a call, an operation type ID sits inside a signature preimage — so the
+/// coincidence is a convenience, not a constraint.
+///
+/// Contracts should embed the result as an
+/// [`OperationTypeId::from_u64`] literal rather than deriving it at runtime,
+/// exactly as generated entrypoint IDs do.
+///
+/// ```
+/// use groundhog_contract_util::operation_type_id;
+///
+/// let id = operation_type_id(Some("MyWallet"), "0.1.0", "transfer");
+/// // Stable across builds: it is a hash of the three strings.
+/// assert_eq!(id, operation_type_id(Some("MyWallet"), "0.1.0", "transfer"));
+/// // Every component separates.
+/// assert_ne!(id, operation_type_id(Some("MyWallet"), "0.1.0", "approve"));
+/// assert_ne!(id, operation_type_id(Some("MyWallet"), "0.2.0", "transfer"));
+/// assert_ne!(id, operation_type_id(Some("Other"), "0.1.0", "transfer"));
+/// ```
+///
+/// # Panics
+///
+/// If `version_str` is not valid semver, matching
+/// [`contract_entrypoint_id`].
+pub fn operation_type_id(
+    interface_name: Option<&str>,
+    version_str: &str,
+    operation_name: &str,
+) -> OperationTypeId {
+    OperationTypeId::new(selector_from_triple(
+        interface_name.unwrap_or(UNNAMED_INTERFACE),
+        &semver::major_version_from_string(version_str),
+        operation_name,
+    ))
 }
 
 /// The export symbol name of the entrypoint for the given

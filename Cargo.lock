@@ -377,6 +377,7 @@ dependencies = [
 name = "groundhog-contract-util"
 version = "0.25.0"
 dependencies = [
+ "groundhog-domain-separator",
  "groundhog-xdr",
  "sha2",
  "syn 3.0.4",
@@ -472,6 +473,16 @@ source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "5f38492b48f71b7723c02af35531586816c22057e25c3acf173ef8a9b878ecbf"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "groundhog-signed-op-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-domain-separator",
+ "groundhog-xdr",
+ "sdk",
+ "thiserror",
 ]
 
 [[package]]

@@ -49,7 +49,11 @@ pub use backend::Sha256Backend;
 pub use backend::Syscall;
 
 mod separator;
-pub use separator::{DomainSeparator, PUBKEY_ACCOUNT, TRANSACTION};
+pub use separator::{DomainSeparator, PUBKEY_ACCOUNT, SIGNED_OP, TRANSACTION};
+// Hidden macro surface: `domain_separator!` expands at its call site, so the
+// helpers it names have to be reachable from crate root.
+#[doc(hidden)]
+pub use separator::{DomainSeparatorRepr, prefix_bytes, prefix_size};
 
 mod preimage;
 
@@ -58,6 +62,12 @@ mod transaction;
 #[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub use transaction::transaction_signature_preimage;
+
+mod operation;
+pub use operation::{
+    OperationTypeId, SIGNED_OP_FIXED_PREFIX_LEN, SIGNED_OP_HEADER_MAX_LEN,
+    SignedOp,
+};
 
 mod pubkey;
 #[cfg(feature = "sha2")]

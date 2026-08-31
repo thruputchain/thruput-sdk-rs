@@ -67,6 +67,26 @@ impl DomainSeparator {
         SHA256Hash::new(H::sha256(bytes))
     }
 
+    /// The preimage bytes themselves: `self || cxs(object)`.
+    ///
+    /// This is what a signature should cover when the object is *signed*
+    /// rather than *hashed into an identifier*. Ed25519 hashes its own message,
+    /// so signing these bytes directly is both cheaper and one less convention
+    /// than signing [`hash`](Self::hash)'s output — the same reasoning
+    /// `transaction_signature_preimage` follows.
+    #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+    pub fn preimage<T: WriteXDR + ?Sized>(
+        &self,
+        object: &T,
+    ) -> alloc::vec::Vec<u8> {
+        let preimage = HashPreimage {
+            domain_separator: self,
+            object,
+        };
+        xdrs::cxs::encode(&preimage).expect("cxs encode failed")
+    }
+
     /// `sha256(self || cxs(object))`, allocating the scratch buffer.
     ///
     /// `H` names the SHA-256 backend; see [`DomainSeparator::hash_into`].
@@ -76,12 +96,7 @@ impl DomainSeparator {
         &self,
         object: &T,
     ) -> SHA256Hash {
-        let preimage = HashPreimage {
-            domain_separator: self,
-            object,
-        };
-        let buf = xdrs::cxs::encode(&preimage).expect("cxs encode failed");
-        SHA256Hash::new(H::sha256(&buf))
+        SHA256Hash::new(H::sha256(&self.preimage(object)))
     }
 }
 

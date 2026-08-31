@@ -1,0 +1,30 @@
+[package]
+name = "groundhog-signed-op-if"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "Signed operation (off-chain authorization) standard interface for Groundhog smart contracts"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+[features]
+dev = ["sdk/dev"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.25.0", features = ["alloc"] }
+groundhog-domain-separator = { path = "../../crates/domain-separator", registry = "groundhog", version = "0.25.0", default-features = false, features = ["alloc", "syscall"] }
+groundhog-xdr = { workspace = true }
+thiserror = { workspace = true }
+
+# On the host the `syscall` backend has no dispatch path of its own, so the
+# native side (tests, `native-exec`, `--all-features` doc builds) needs the mock
+# to link. Guests get the real syscall from the block above.
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.25.0", features = ["std"] }
+groundhog-domain-separator = { path = "../../crates/domain-separator", registry = "groundhog", version = "0.25.0", default-features = false, features = ["alloc", "syscall", "syscall-mock"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
