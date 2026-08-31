@@ -556,16 +556,36 @@ impl U256 {
     ///
     /// # Cost
     ///
-    /// **This is the most expensive function in the crate, by a wide margin.**
-    /// The loop runs once per bit of `e`, with one full-precision
-    /// multiply-divide per bit and another per set bit -- up to 512 of them
-    /// for a full-width exponent. At the ~4,700 gas this PR's bench measures
-    /// for one `mul_div`, a 256-bit exponent is on the order of two million
-    /// gas. Solidity gets this from the EIP-198 precompile for a flat fee;
-    /// there is no precompile here.
+    /// **This is the most expensive function in the crate, by a wide margin,
+    /// and the one place where being a library rather than a precompile
+    /// really costs.**
     ///
-    /// An entrypoint that lets a caller choose `e` or `m` is therefore a
-    /// gas-exhaustion surface. Bound the exponent, or charge for it.
+    /// `Math.modExp` in Solidity is not an implementation: it is a
+    /// `staticcall` to the EIP-198 precompile at address `0x05`, so the
+    /// bignum runs as native client code at a flat fee. Groundhog's syscall
+    /// table -- the actual analogue of the EVM's precompile slots -- carries
+    /// `kSHA256` and `kVerifySignature` (EVM `0x02` and `0x01`) but nothing
+    /// for modular exponentiation, so this runs *inside* the contract.
+    ///
+    /// That means the loop is real work: once per bit of `e`, with one
+    /// full-precision multiply-divide per bit and another per set bit, up to
+    /// 512 of them for a full-width exponent. At the 4,712 gas the bench
+    /// measures for one `mul_div`, a 256-bit exponent is on the order of two
+    /// million. An entrypoint that lets a caller choose `e` or `m` is
+    /// therefore a gas-exhaustion surface: bound the exponent, or charge for
+    /// it.
+    ///
+    /// If modular exponentiation ever becomes load-bearing here -- RSA
+    /// verification, anything with a pairing behind it -- the answer is a host
+    /// syscall alongside `kSHA256`, not a better loop. That is a protocol
+    /// change rather than an SDK one.
+    ///
+    /// Two things this does have over the Solidity version. It is a
+    /// `const fn`, where `Math.modExp` must be `view` because a `staticcall`
+    /// is not `pure`. And it cannot silently answer zero: OpenZeppelin's own
+    /// documentation warns that on a chain without the precompile the
+    /// `staticcall` succeeds and the result "may be incorrectly interpreted as
+    /// 0", which is not a failure mode an in-contract loop has.
     ///
     /// # Panics
     ///

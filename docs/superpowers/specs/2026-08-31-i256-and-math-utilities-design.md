@@ -43,17 +43,35 @@ deferral lapses with the same request.
   three functions consume internally is a much larger surface than the request.
 - `SafeCast.sol`. Rust already has `TryFrom`, and this change wires it up for
   every width in both directions.
-- `Math.modExp`'s arbitrary-length `bytes` variant. It exists in Solidity
-  because the EIP-198 precompile takes arbitrary-length inputs, so exposing it
-  costs Solidity nothing beyond the call. Here it would cost an
-  arbitrary-precision integer: modular exponentiation over `bytes` is not a
-  wrapper on the fixed-width routine, it is a different numeric type with its
-  own multiply, divide and allocation story. That is a larger thing than this
-  entire crate, in a crate whose stated reason for existing is that a *single*
-  fixed-width divide is 11 KB of rv32 text. Every value this SDK moves is at
-  most 256 bits wide, so a `bytes` entry point over `<= 32`-byte inputs would
-  be `mod_exp` behind a decode — a wrapper with no capability. Deliberately
-  out of scope rather than deferred.
+- `Math.modExp`'s arbitrary-length `bytes` variant — and, in a sense, `modExp`
+  itself. Worth being precise about what OpenZeppelin actually ships here,
+  because it changes what "parity" means.
+
+  `Math.modExp` is not an implementation. Its body is a `staticcall` to the
+  EIP-198 precompile at address `0x05`; the bignum runs as native client code,
+  which is why the function is `view` rather than `pure` and why the `bytes`
+  variant costs Solidity nothing beyond a different memory layout in the same
+  call.
+
+  Groundhog's syscall table is the real analogue of the EVM's precompile slots,
+  and it carries `kSHA256` and `kVerifySignature` — EVM `0x01` and `0x02` — but
+  nothing for modular exponentiation. (`crates/sdk/src/precompiles.rs` is an
+  unrelated thing: well-known *contract addresses* like the native token, not
+  computational precompiles.) So the fixed-width `mod_exp` here is a real
+  square-and-multiply loop running inside the contract, which is why it carries
+  a cost warning no other function in the crate needs.
+
+  The `bytes` variant on top of that would need an arbitrary-precision integer:
+  a different numeric type with its own multiply, divide and allocation story,
+  in a crate whose reason for existing is that one *fixed-width* divide is 11 KB
+  of rv32 text. And every value this SDK moves is at most 256 bits, so a `bytes`
+  entry point over ≤32-byte inputs would be `mod_exp` behind a decode — a
+  wrapper with no capability. Out of scope, not deferred.
+
+  **If modular exponentiation becomes load-bearing** — RSA verification,
+  anything with a pairing behind it — the faithful answer is a host syscall
+  beside `kSHA256`, not a better loop in this crate. That is a protocol change
+  in hogd rather than an SDK one, and it is the shape of the request to make.
 - Constant-time guarantees. Unchanged from the original design: this is not a
   cryptographic bignum. `mod_exp` and `inv_mod` branch on their operands.
 
