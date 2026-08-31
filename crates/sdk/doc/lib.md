@@ -1,10 +1,10 @@
 This SDK facilitates writing Groundhog contracts in Rust.
 
-A contract is an ordinary Rust crate. Its persistent state is a struct that
-derives [`Storage`](derive@crate::Storage); its behavior is an impl block (or
-trait) marked [`#[contract]`](macro@crate::contract), which generates both the
-guest entrypoints and a typed client that other contracts and tests call
-through.
+A contract is an ordinary Rust crate. Its persistent state lives in one or
+more structs deriving [`Storage`](derive@crate::Storage); its behavior lives
+in one or more impl or trait blocks marked
+[`#[contract]`](macro@crate::contract), which generate the guest entrypoints
+and a typed client that other contracts and tests call through.
 
 ```rust,ignore
 use sdk::storage::Value;
@@ -69,9 +69,12 @@ host-side test build enables `dev`.
   contract specs build `sdk` without it and never fetch that library.
 - **`logging`** — trace contract calls during native tests. Not implied by
   `dev`; enable it when you want the trace.
-- **`source-build`** — build the hogd FFI library from source instead of
-  downloading a prebuilt binary. Forwarded to `groundhog-sys`; only meaningful
-  alongside `dev`.
+- **`source-build`** — compile the cmake source-build path into
+  `groundhog-sys`. It does not select that path: `HOGD_FFI_BUILD=1` does, and
+  it needs this feature to have something to select. Set both to build the
+  hogd FFI library from source rather than download a prebuilt one, which is
+  also the only way to build on a platform with no prebuilt binary. Only
+  meaningful alongside `dev`.
 
 A contract crate wires them up like this:
 
