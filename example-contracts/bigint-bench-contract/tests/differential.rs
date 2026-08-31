@@ -123,6 +123,9 @@ agreement_tests! {
     rem => "rem", ops::rem;
     mul_div_u128 => "mul_div_u128", ops::mul_div_u128;
     mul_div => "mul_div", ops::mul_div;
+    mul_div_and_div => "mul_div_and_div", ops::mul_div_and_div;
+    signed_mul => "signed_mul", ops::signed_mul;
+    signed_div => "signed_div", ops::signed_div;
     shl => "shl", ops::shl;
     shr => "shr", ops::shr;
     bitwise => "bitwise", ops::bitwise;

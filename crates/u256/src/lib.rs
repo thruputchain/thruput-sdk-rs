@@ -406,6 +406,34 @@ macro_rules! impl_try_into {
 // every width without a special case.
 impl_try_into!(u32 => 1, u64 => 2, u128 => 4);
 
+/// Targets narrower than a limb, where the limb count is not the bound.
+///
+/// `impl_try_into!` keys its check on `limb_len`, which cannot express "fits
+/// in eight bits", and its `<< 16 << 16` accumulator would overflow the target
+/// outright. Narrowing to `u32` first and letting that type's own conversion
+/// finish the job is both correct and smaller than a bespoke bound.
+///
+/// These exist for parity with OpenZeppelin's `SafeCast`, whose `toUint8`
+/// through `toUint128` a port will reach for by name.
+macro_rules! impl_try_into_narrow {
+    ($($t:ty),* $(,)?) => {
+        $(
+            impl TryFrom<U256> for $t {
+                type Error = TryFromU256Error;
+
+                #[inline]
+                fn try_from(n: U256) -> Result<Self, Self::Error> {
+                    let narrowed = u32::try_from(n)?;
+                    <$t>::try_from(narrowed)
+                        .map_err(|_| TryFromU256Error(()))
+                }
+            }
+        )*
+    };
+}
+
+impl_try_into_narrow!(u8, u16);
+
 impl PartialOrd for U256 {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {

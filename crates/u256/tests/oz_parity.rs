@@ -284,6 +284,86 @@ fn signed_abs_is_total_at_min() {
     assert_eq!(I256::MIN.checked_abs(), None);
 }
 
+/// `SafeCast.sol` is a table of narrowing casts that revert out of range;
+/// `TryFrom` is the same contract with `Result`. This pins that the table has
+/// no holes at the widths Rust has primitives for, in both directions.
+///
+/// `SafeCast`'s off-width members (`toUint248`, `toUint240`, …) have no Rust
+/// counterpart to convert into; a port needing those checks the bound against
+/// a `U256` mask itself. `usize`/`isize` are deliberately absent too: they are
+/// 32-bit on the guest and 64-bit on the host, so a conversion that succeeded
+/// in a test could fail on chain.
+#[test]
+fn safe_cast_table_has_no_holes() {
+    // Unsigned narrowing, at each width's boundary.
+    assert_eq!(u8::try_from(U256::from(255)), Ok(255u8));
+    assert!(u8::try_from(U256::from(256)).is_err());
+    assert_eq!(u16::try_from(U256::from(65_535)), Ok(65_535u16));
+    assert!(u16::try_from(U256::from(65_536)).is_err());
+    assert_eq!(u32::try_from(U256::from(u32::MAX as u128)), Ok(u32::MAX));
+    assert!(u32::try_from(U256::from(u32::MAX as u128 + 1)).is_err());
+    assert_eq!(u64::try_from(U256::from(u64::MAX as u128)), Ok(u64::MAX));
+    assert_eq!(u128::try_from(U256::from(u128::MAX)), Ok(u128::MAX));
+    assert!(u128::try_from(U256::from(u128::MAX) + U256::ONE).is_err());
+
+    // Signed narrowing, both ends -- the negative side reaches one further,
+    // which is the case a magnitude-based bound gets wrong.
+    assert_eq!(i8::try_from(I256::from(127)), Ok(127i8));
+    assert_eq!(i8::try_from(I256::from(-128)), Ok(-128i8));
+    assert!(i8::try_from(I256::from(128)).is_err());
+    assert!(i8::try_from(I256::from(-129)).is_err());
+    assert_eq!(i16::try_from(I256::from(-32_768)), Ok(-32_768i16));
+    assert!(i16::try_from(I256::from(-32_769)).is_err());
+    assert_eq!(i128::try_from(I256::from(i128::MIN)), Ok(i128::MIN));
+
+    // Signed to unsigned refuses anything negative, at every width.
+    assert!(u8::try_from(I256::MINUS_ONE).is_err());
+    assert!(u16::try_from(I256::MINUS_ONE).is_err());
+    assert!(u128::try_from(I256::MINUS_ONE).is_err());
+    assert_eq!(u8::try_from(I256::from(255)), Ok(255u8));
+
+    // And the two 256-bit directions, which is `toInt256`/`toUint256`.
+    assert_eq!(I256::try_from(U256::ZERO), Ok(I256::ZERO));
+    assert!(I256::try_from(U256::MAX).is_err());
+    assert_eq!(U256::try_from(I256::MAX), Ok(I256::MAX.cast_unsigned()));
+    assert!(U256::try_from(I256::MIN).is_err());
+}
+
+/// Every narrowing conversion must agree with doing it one step at a time
+/// through the primitives, across a sweep -- the bound is easy to write
+/// off-by-one.
+#[test]
+fn narrowing_matches_the_primitive_chain() {
+    let mut x = 1u128;
+    let mut probes = vec![0u128, 1, 2, 127, 128, 255, 256, 32_767, 65_535];
+    while x < u128::MAX / 3 {
+        probes.push(x);
+        x = x.wrapping_mul(3).wrapping_add(1);
+    }
+    for v in probes {
+        let u = U256::from(v);
+        assert_eq!(u8::try_from(u).ok(), u8::try_from(v).ok(), "{v}");
+        assert_eq!(u16::try_from(u).ok(), u16::try_from(v).ok(), "{v}");
+        assert_eq!(u32::try_from(u).ok(), u32::try_from(v).ok(), "{v}");
+
+        let signed = i128::try_from(v).unwrap_or(i128::MAX);
+        let i = I256::from(signed);
+        assert_eq!(
+            i8::try_from(i).ok(),
+            i8::try_from(signed).ok(),
+            "{signed}"
+        );
+        assert_eq!(
+            i16::try_from(i).ok(),
+            i16::try_from(signed).ok(),
+            "{signed}"
+        );
+        let neg = I256::from(-signed);
+        assert_eq!(i8::try_from(neg).ok(), i8::try_from(-signed).ok());
+        assert_eq!(i16::try_from(neg).ok(), i16::try_from(-signed).ok());
+    }
+}
+
 /// `Math.unsignedRoundsUp` is `uint8(rounding) % 2 == 1`, which pins the
 /// discriminant order as much as the predicate.
 #[test]

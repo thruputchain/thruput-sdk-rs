@@ -95,6 +95,23 @@ pub trait Backend: Copy + PartialEq + core::fmt::Debug {
     /// Callers must pass a `d` for which the quotient fits;
     /// [`crate::ops::mul_div`] derives one that always does.
     fn mul_div(a: Self, b: Self, d: Self) -> Self;
+
+    /// Signed multiply with saturation, over the type's bits read as two's
+    /// complement.
+    ///
+    /// Saturating rather than wrapping on purpose: a *wrapping* signed
+    /// multiply is bit-identical to the unsigned one, so it would measure
+    /// [`wrapping_mul`](Backend::wrapping_mul) over again. Saturating keeps
+    /// the overflow flag live, which is where the signed work actually is.
+    ///
+    /// `uint` has no signed type at all, so its implementation is the
+    /// sign-magnitude wrapper a contract author on that backend would have to
+    /// write -- the same reasoning as the 512-bit type behind `mul_div`.
+    fn signed_saturating_mul(self, rhs: Self) -> Self;
+
+    /// Signed truncating division, over the type's bits read as two's
+    /// complement. Quotient truncates toward zero.
+    fn signed_div(self, rhs: Self) -> Self;
 }
 
 /// `sdk::U256`: eight 32-bit limbs, native to a 32-bit register file.
@@ -255,6 +272,29 @@ pub mod u256 {
         fn mul_div(a: Self, b: Self, d: Self) -> Self {
             Self(U256::mul_div(a.0, b.0, d.0))
         }
+
+        #[inline]
+        fn signed_saturating_mul(self, rhs: Self) -> Self {
+            Self(
+                self.0
+                    .cast_signed()
+                    .saturating_mul(rhs.0.cast_signed())
+                    .cast_unsigned(),
+            )
+        }
+
+        #[inline]
+        fn signed_div(self, rhs: Self) -> Self {
+            // `wrapping_div` rather than `/`: `MIN / -1` is a legitimate input
+            // here and the operator aborts on it, which would end the sweep
+            // rather than measure it.
+            Self(
+                self.0
+                    .cast_signed()
+                    .wrapping_div(rhs.0.cast_signed())
+                    .cast_unsigned(),
+            )
+        }
     }
 }
 
@@ -291,6 +331,31 @@ pub mod parity {
     #[inline]
     fn widen(v: PU256) -> PU512 {
         PU512([v.0[0], v.0[1], v.0[2], v.0[3], 0, 0, 0, 0])
+    }
+
+    /// `2^255`: `MIN`'s magnitude, and its bit pattern.
+    #[inline]
+    fn min_magnitude() -> PU256 {
+        PU256::one() << 255
+    }
+
+    /// The sign bit of a value read as two's complement.
+    #[inline]
+    fn is_negative(v: PU256) -> bool {
+        v.bit(255)
+    }
+
+    /// Two's complement negation: `!v + 1`.
+    #[inline]
+    fn negate(v: PU256) -> PU256 {
+        (!v).overflowing_add(PU256::one()).0
+    }
+
+    /// Magnitude of a value read as two's complement. Total: `MIN` maps to
+    /// `2^255`, which the unsigned type holds.
+    #[inline]
+    fn abs(v: PU256) -> PU256 {
+        if is_negative(v) { negate(v) } else { v }
     }
 
     /// Truncates a `PU512` to its low four limbs.
@@ -463,6 +528,30 @@ pub mod parity {
             // cannot overflow `PU512`, and `d` is nonzero by the caller's
             // construction, so neither operator can panic.
             narrow(widen(a) * widen(b) / widen(d))
+        }
+
+        #[inline]
+        fn signed_saturating_mul(self, rhs: Self) -> Self {
+            let (mag, wide) = abs(self).overflowing_mul(abs(rhs));
+            let negative = is_negative(self) != is_negative(rhs);
+            let min = min_magnitude();
+            // The negative range reaches one further than the positive one.
+            let limit = if negative { min } else { min - PU256::one() };
+            if wide || mag > limit {
+                // Saturate to MIN's bits or MAX's, by the product's sign.
+                return if negative { min } else { min - PU256::one() };
+            }
+            if negative { negate(mag) } else { mag }
+        }
+
+        #[inline]
+        fn signed_div(self, rhs: Self) -> Self {
+            let q = abs(self) / abs(rhs);
+            if is_negative(self) != is_negative(rhs) {
+                negate(q)
+            } else {
+                q
+            }
         }
     }
 }

@@ -218,10 +218,20 @@ impl I256 {
     /// product, and the wrapped *signed* bits follow from it without a second
     /// pass: `a * b = (-1)^(sign a ^ sign b) * |a| * |b|`, and that identity
     /// survives reduction mod 2^256, so negating the magnitude product gives
-    /// exactly the bits `cast_unsigned().wrapping_mul()` would have. On rv32
-    /// the schoolbook loop is `inline(never)`, so the saved call is a real
-    /// one -- and it is on the path of every `*`, `checked_mul`,
-    /// `saturating_mul` and step of [`pow`](Self::pow).
+    /// exactly the bits `cast_unsigned().wrapping_mul()` would have.
+    ///
+    /// Which callers this helps is worth being precise about. It is every form
+    /// that *consumes* the overflow flag -- [`checked_mul`](Self::checked_mul),
+    /// [`saturating_mul`](Self::saturating_mul), this function, and each step
+    /// of [`pow`](Self::pow). The bare `*` operator is not among them: in a
+    /// release contract profile `OVERFLOW_CHECKS` folds to false, the flag goes
+    /// unread, and LLVM was already dropping the second multiply as dead.
+    ///
+    /// Measured on rv32 by `scripts/bigint-bench.sh -o "mul signed_mul"`: a
+    /// saturating signed multiply costs 1095.02 gas against 1019.02 for a bare
+    /// wrapping unsigned one -- **+76 gas for the sign handling and the bound
+    /// check**, where a second full schoolbook pass would have been on the
+    /// order of +1,000.
     #[inline]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let (mag, wide) =

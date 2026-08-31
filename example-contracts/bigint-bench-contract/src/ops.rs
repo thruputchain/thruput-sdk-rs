@@ -91,6 +91,33 @@ pub fn mul_div<B: Backend>(a: B, b: B) -> B {
     B::mul_div(a, b, b.bitor(B::one()))
 }
 
+/// Both division paths in one kernel.
+///
+/// The only row that carries *both* Knuth D instantiations, because every
+/// other build links exactly one op. Its marginal over `mul_div` is what the
+/// width specialisation costs a contract that uses `/` as well -- the number
+/// `div`'s `knuth_d` doc could previously only infer.
+#[inline]
+pub fn mul_div_and_div<B: Backend>(a: B, b: B) -> B {
+    let d = b.bitor(B::one());
+    a.div(d).wrapping_add(B::mul_div(a, b, d))
+}
+
+/// Signed multiply, saturating so the overflow check stays live.
+///
+/// A wrapping signed multiply is bit-identical to the unsigned one, so it
+/// would measure [`mul`] again; the sign handling is entirely in the flag.
+#[inline]
+pub fn signed_mul<B: Backend>(a: B, b: B) -> B {
+    a.signed_saturating_mul(b)
+}
+
+/// Signed truncating division. Divisor forced odd, as in [`div`].
+#[inline]
+pub fn signed_div<B: Backend>(a: B, b: B) -> B {
+    a.signed_div(b.bitor(B::one()))
+}
+
 /// Left shift.
 ///
 /// The distance is reduced modulo the width: `sdk::U256::wrapping_shl` masks

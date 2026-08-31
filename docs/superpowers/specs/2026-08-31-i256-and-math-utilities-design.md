@@ -44,8 +44,16 @@ deferral lapses with the same request.
 - `SafeCast.sol`. Rust already has `TryFrom`, and this change wires it up for
   every width in both directions.
 - `Math.modExp`'s arbitrary-length `bytes` variant. It exists in Solidity
-  because the EIP-198 precompile takes arbitrary-length inputs; there is no
-  precompile here, and no consumer.
+  because the EIP-198 precompile takes arbitrary-length inputs, so exposing it
+  costs Solidity nothing beyond the call. Here it would cost an
+  arbitrary-precision integer: modular exponentiation over `bytes` is not a
+  wrapper on the fixed-width routine, it is a different numeric type with its
+  own multiply, divide and allocation story. That is a larger thing than this
+  entire crate, in a crate whose stated reason for existing is that a *single*
+  fixed-width divide is 11 KB of rv32 text. Every value this SDK moves is at
+  most 256 bits wide, so a `bytes` entry point over `<= 32`-byte inputs would
+  be `mod_exp` behind a decode — a wrapper with no capability. Deliberately
+  out of scope rather than deferred.
 - Constant-time guarantees. Unchanged from the original design: this is not a
   cryptographic bignum. `mod_exp` and `inv_mod` branch on their operands.
 
@@ -148,8 +156,24 @@ restore the pre-split shape exactly: it costs 156 bytes on `div` to save 2 gas,
 and makes `mul_div_u128` both bigger and slower. Not taken.
 
 The cost of specialising is that a contract using both `/` and the
-full-precision family links Knuth D twice. That is the trade, made with numbers
-rather than reasoning.
+full-precision family links Knuth D twice — and that half is measured too, by
+a `mul_div_and_div` op that calls both paths in one kernel so the artifact
+carries both instantiations (every other row builds exactly one, which is why
+this needed its own op):
+
+| | .text | gas |
+|---|---|---|
+| `mul_div` alone | 3,992 | 4712.05 |
+| `div` alone | 2,572 | 972.05 |
+| both in one artifact | 6,348 | 5684.05 |
+
+Adding `/` to a contract that already links `mul_div` costs **2,356 bytes**,
+against 2,572 standalone — barely 200 bytes shared, so the two copies are all
+but fully duplicated. Sharing would have saved most of that ~2.1 KB and cost
+27% of every division's gas. Both halves of the trade are now numbers rather
+than one number and one guess. (This document previously put the second copy at
+"the 1,892 bytes one copy costs over `div_small`", inferred from the
+single-kernel rows. The measurement says 2,356 — the inference was 20% light.)
 
 The original design's code-size rule is untouched: `div_rem_small` is still a
 separate function, so a contract that only divides by constants (or formats a
@@ -290,9 +314,11 @@ they exist to catch.
 
 ## Status
 
-Implemented. 164 tests in `crates/u256`, up from 63: 49 differential
-(unchanged), 50 signed, 35 math, 13 OpenZeppelin-parity, 6 spec-ABI (was 3),
-6 ergonomics, 5 unit.
+Implemented. 166 tests in `crates/u256`, up from 63: 49 differential
+(unchanged), 50 signed, 35 math, 15 OpenZeppelin-parity, 6 spec-ABI (was 3),
+6 ergonomics, 5 unit. The bench gains four ops -- `mul_div`,
+`mul_div_and_div`, `signed_mul`, `signed_div` -- and its backend differential
+grows from 16 agreement tests to 22.
 Plus four SDK end-to-end cases (was two) and a second lowered-artifact case in
 `example-contracts/u256_roundtrip`. `cargo clippy --all-targets`, `cargo fmt
 --check` and `cargo doc` are clean, and `groundhog-u256` compiles for
@@ -356,8 +382,34 @@ was added, which confirms the new trait method costs nothing to a build that
 does not select it — the property the whole one-kernel-per-artifact design
 rests on.
 
-`I256` still has no bench rows: `uint` is unsigned, so there is nothing to diff
-against.
+### `I256` has bench rows too
+
+`uint` has no signed type at all, so the baseline is the sign-magnitude wrapper
+a contract author on that backend would have to write — the same reasoning as
+the 512-bit type behind `mul_div`, and checked the same way, by
+`tests/differential.rs` asserting the two agree before either number is
+believed. The multiply row saturates rather than wraps on purpose: a *wrapping*
+signed multiply is bit-identical to the unsigned one, so it would measure `mul`
+again, and all of the signed work is in the overflow flag.
+
+| operation | `u256` .text | `u256` gas | `uint` .text | `uint` gas |
+|---|---|---|---|---|
+| `mul` (unsigned, wrapping) | 564 | 1019.02 | 1,140 | 387.02 |
+| `signed_mul` (saturating) | 1,184 | 1095.02 | 3,616 | 793.02 |
+| `div` (unsigned) | 2,572 | 972.05 | 11,624 | 5002.05 |
+| `signed_div` | 2,848 | 1053.05 | 12,512 | 4800.05 |
+
+Signed arithmetic costs **+620 bytes and +76 gas** over unsigned multiply, and
+**+276 bytes and +81 gas** over unsigned division. That is the whole price of
+the sign, and it confirms the review's `overflowing_mul` fix: two full
+schoolbook passes would have put `signed_mul` near 2,000 gas rather than 1,095.
+
+One row deserves reading honestly rather than selectively. On plain `mul`,
+Parity's `uint` is **faster** — 387 gas against 1,019 — while being twice the
+size. Sixteen `__multi3` libcalls beat sixty-four inline `mul`/`mulhu` pairs on
+these operands. That is a pre-existing row, not something this change moved,
+but it is worth stating: the crate's advantage is in *division* and everything
+built on it (4–5x on `div`, `signed_div`, `mul_div`), not uniformly everywhere.
 
 ## Success criteria
 
@@ -371,3 +423,10 @@ against.
   pre-change baseline.
 - `U256` and `I256` differ on the wire in exactly one byte, and that byte is
   the type name. ✅ pinned.
+- The library functions answer as OpenZeppelin's do on degenerate inputs. ✅
+  pinned case by case in `tests/oz_parity.rs`, each expectation traced from the
+  Solidity source; all fifteen passed unchanged.
+- Nothing measurable is left inferred. ✅ the second Knuth D copy and the
+  signed operations both have bench rows now; the only figures still marked as
+  reasoning are the two `math` refactors whose entry points (`mul_shr_rounding`,
+  `log10_rounding`) have no row, and that is stated where they are claimed.

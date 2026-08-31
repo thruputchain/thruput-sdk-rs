@@ -271,12 +271,24 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// it would restore the pre-split shape exactly: it costs 156 bytes on `div`
 /// to save 2 gas, and makes `mul_div_u128` both bigger and slower. Not taken.
 ///
-/// What the split costs instead: a contract using both `/` and the
-/// full-precision family links Knuth D twice. That cost is *not* in the table
-/// above -- the bench builds one kernel per artifact, so no row there carries
-/// both instantiations. Its order of magnitude is the 1,892 bytes one copy
-/// costs over `div_small`, inferred rather than measured. The trade was made on
-/// the gas column, which is measured.
+/// What the split costs instead is now measured too, by an op that calls both
+/// paths in one kernel so the artifact carries both instantiations:
+///
+/// | | .text | gas |
+/// |---|---|---|
+/// | `mul_div` alone | 3,992 | 4712.05 |
+/// | `div` alone | 2,572 | 972.05 |
+/// | both in one artifact | 6,348 | 5684.05 |
+///
+/// So adding `/` to a contract that already links `mul_div` costs **2,356
+/// bytes** -- against 2,572 standalone, meaning barely 200 bytes are shared
+/// and the two Knuth D copies are all but fully duplicated. Sharing one
+/// function would have saved most of that ~2.1 KB, and cost 27% of every
+/// division's gas. Both halves of that trade are now numbers.
+///
+/// (An earlier version of this comment guessed the second copy at "the 1,892
+/// bytes one copy costs over `div_small`". The measurement says 2,356, so the
+/// guess was 20% light -- which is why it is a measurement now.)
 macro_rules! knuth_d {
     ($name:ident, $n:expr) => {
         const fn $name(

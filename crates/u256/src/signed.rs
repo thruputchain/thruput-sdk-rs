@@ -432,7 +432,13 @@ macro_rules! impl_try_into_signed {
     };
 }
 
-impl_try_into_signed!(i32 => u32, i64 => u64, i128 => u128);
+impl_try_into_signed!(
+    i8 => u8,
+    i16 => u16,
+    i32 => u32,
+    i64 => u64,
+    i128 => u128,
+);
 
 macro_rules! impl_try_into_unsigned {
     ($($t:ty),* $(,)?) => {
@@ -453,7 +459,7 @@ macro_rules! impl_try_into_unsigned {
     };
 }
 
-impl_try_into_unsigned!(u32, u64, u128);
+impl_try_into_unsigned!(u8, u16, u32, u64, u128);
 
 impl PartialOrd for I256 {
     #[inline]
