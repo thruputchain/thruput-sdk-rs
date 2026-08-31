@@ -347,6 +347,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "exn_catch"
+version = "0.4.0"
+dependencies = [
+ "exn_catch",
+ "sdk",
+]
+
+[[package]]
 name = "free_fn_unnamed"
 version = "0.4.0"
 dependencies = [
