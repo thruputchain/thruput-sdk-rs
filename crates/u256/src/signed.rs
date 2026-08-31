@@ -56,7 +56,7 @@
 //! [`wrapping_rem`](I256::wrapping_rem), which answers 0, if a port depends
 //! on the Solidity result.
 
-use crate::{LIMBS, TryFromU256Error, U256};
+use crate::{LIMBS, TryFromIntError, U256};
 
 /// A 256-bit signed integer.
 ///
@@ -355,24 +355,8 @@ impl From<bool> for I256 {
     }
 }
 
-/// Returned when an [`I256`] does not fit the requested type.
-///
-/// Either because the value is out of the target's range, or -- converting to
-/// an unsigned type -- because it is negative.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TryFromI256Error(());
-
-impl core::fmt::Display for TryFromI256Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str("value does not fit in the target type")
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for TryFromI256Error {}
-
 impl TryFrom<U256> for I256 {
-    type Error = TryFromU256Error;
+    type Error = TryFromIntError;
 
     /// Fails for values above `2^255 - 1`, which would land on a negative
     /// `I256`. Use [`U256::cast_signed`] to reinterpret those bits instead.
@@ -380,7 +364,7 @@ impl TryFrom<U256> for I256 {
     fn try_from(n: U256) -> Result<Self, Self::Error> {
         let v = n.cast_signed();
         if v.is_negative() {
-            Err(TryFromU256Error(()))
+            Err(TryFromIntError(()))
         } else {
             Ok(v)
         }
@@ -388,14 +372,14 @@ impl TryFrom<U256> for I256 {
 }
 
 impl TryFrom<I256> for U256 {
-    type Error = TryFromI256Error;
+    type Error = TryFromIntError;
 
     /// Fails for negative values. Use [`I256::cast_unsigned`] to reinterpret
     /// those bits instead.
     #[inline]
     fn try_from(n: I256) -> Result<Self, Self::Error> {
         if n.is_negative() {
-            Err(TryFromI256Error(()))
+            Err(TryFromIntError(()))
         } else {
             Ok(n.cast_unsigned())
         }
@@ -406,25 +390,25 @@ macro_rules! impl_try_into_signed {
     ($($signed:ty => $unsigned:ty),* $(,)?) => {
         $(
             impl TryFrom<I256> for $signed {
-                type Error = TryFromI256Error;
+                type Error = TryFromIntError;
 
                 #[inline]
                 fn try_from(n: I256) -> Result<Self, Self::Error> {
                     let mag = <$unsigned>::try_from(n.unsigned_abs())
-                        .map_err(|_| TryFromI256Error(()))?;
+                        .map_err(|_| TryFromIntError(()))?;
                     if n.is_negative() {
                         // The negative range reaches one further, so the
                         // bound is on the magnitude, not on the positive
                         // value it would cast to.
                         if mag > (1 as $unsigned) << (<$signed>::BITS - 1) {
-                            return Err(TryFromI256Error(()));
+                            return Err(TryFromIntError(()));
                         }
                         // `mag == 2^(B-1)` casts to `MIN`, whose negation is
                         // itself -- exactly the answer wanted.
                         Ok((mag as $signed).wrapping_neg())
                     } else {
                         <$signed>::try_from(mag)
-                            .map_err(|_| TryFromI256Error(()))
+                            .map_err(|_| TryFromIntError(()))
                     }
                 }
             }
@@ -444,15 +428,15 @@ macro_rules! impl_try_into_unsigned {
     ($($t:ty),* $(,)?) => {
         $(
             impl TryFrom<I256> for $t {
-                type Error = TryFromI256Error;
+                type Error = TryFromIntError;
 
                 #[inline]
                 fn try_from(n: I256) -> Result<Self, Self::Error> {
                     if n.is_negative() {
-                        return Err(TryFromI256Error(()));
+                        return Err(TryFromIntError(()));
                     }
                     <$t>::try_from(n.cast_unsigned())
-                        .map_err(|_| TryFromI256Error(()))
+                        .map_err(|_| TryFromIntError(()))
                 }
             }
         )*

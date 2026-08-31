@@ -55,8 +55,7 @@ pub use groundhog_contract_spec as __contract_spec;
 /// [`I256::from_i32`]/[`I256::from_i64`].
 pub use groundhog_u256 as u256;
 pub use groundhog_u256::{
-    I256, Rounding, TryFromI256Error, TryFromU256Error, U256,
-    checked_mul_div_u128, mul_div_u128,
+    I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
 };
 
 #[cfg(feature = "alloc")]

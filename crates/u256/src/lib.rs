@@ -51,7 +51,7 @@ mod sqrt;
 
 pub use div::{checked_mul_div_u128, mul_div_u128};
 pub use math::Rounding;
-pub use signed::{I256, TryFromI256Error};
+pub use signed::I256;
 
 // The spec derive emits this at the type's definition site; `U256`'s lands at
 // the crate root because the struct is declared here. Re-export `I256`'s from
@@ -364,29 +364,40 @@ impl From<bool> for U256 {
     }
 }
 
-/// Returned when a [`U256`] does not fit the requested narrower type.
+/// Returned when an integer conversion in this crate does not fit.
+///
+/// One type covers every direction -- [`U256`] or [`I256`] down to a narrower
+/// primitive, and between the two 256-bit types -- and every reason, whether
+/// the value is out of the target's range or, converting to an unsigned type,
+/// negative. That is what `core::num::TryFromIntError` does:
+/// `u8::try_from(300u32)` and `u8::try_from(-1i32)` both yield it, with no
+/// split by the source's signedness and no payload to inspect. Splitting it
+/// here would add a type without adding information.
+///
+/// It is a distinct type from `core::num::TryFromIntError` only because that
+/// one cannot be constructed outside `core`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TryFromU256Error(pub(crate) ());
+pub struct TryFromIntError(pub(crate) ());
 
-impl core::fmt::Display for TryFromU256Error {
+impl core::fmt::Display for TryFromIntError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("value does not fit in the target type")
     }
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for TryFromU256Error {}
+impl std::error::Error for TryFromIntError {}
 
 macro_rules! impl_try_into {
     ($($t:ty => $limbs:expr),* $(,)?) => {
         $(
             impl TryFrom<U256> for $t {
-                type Error = TryFromU256Error;
+                type Error = TryFromIntError;
 
                 #[inline]
                 fn try_from(n: U256) -> Result<Self, Self::Error> {
                     if n.limb_len() > $limbs {
-                        return Err(TryFromU256Error(()));
+                        return Err(TryFromIntError(()));
                     }
                     let mut out: $t = 0;
                     let mut i = $limbs;
@@ -419,13 +430,13 @@ macro_rules! impl_try_into_narrow {
     ($($t:ty),* $(,)?) => {
         $(
             impl TryFrom<U256> for $t {
-                type Error = TryFromU256Error;
+                type Error = TryFromIntError;
 
                 #[inline]
                 fn try_from(n: U256) -> Result<Self, Self::Error> {
                     let narrowed = u32::try_from(n)?;
                     <$t>::try_from(narrowed)
-                        .map_err(|_| TryFromU256Error(()))
+                        .map_err(|_| TryFromIntError(()))
                 }
             }
         )*
