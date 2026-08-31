@@ -44,9 +44,30 @@ pub trait MatchExn {
     ///
     /// `None` covers all three ways this can miss: no exception at all, a
     /// different exception type, or an `E`-tagged payload that fails to
-    /// decode.
+    /// decode. Use [`try_decode`](Self::try_decode) to separate the last of
+    /// those from the other two.
     fn try_as<E: Exn + ReadXDROwned>(&self) -> Option<E> {
         self.as_exn().and_then(|e| e.try_as())
+    }
+
+    /// [`try_as`](Self::try_as) with the decode failure kept separate:
+    ///
+    /// - `None` — this failure carries no exception, or one belonging to
+    ///   some other type. (Match on
+    ///   [`CallError::Exception`](crate::call::RawCallError::Exception) to
+    ///   tell those two apart.)
+    /// - `Some(Ok(e))` — the selector matched and the payload decoded.
+    /// - `Some(Err(_))` — the selector matched, but the payload does not
+    ///   decode as `E`.
+    ///
+    /// See [`RawExceptionRef::try_decode`] for when the third case arises;
+    /// it is not only forgery. Nothing in the SDK acts on it for you —
+    /// `match_exn!` treats it as a non-match, so a caller that must not
+    /// confuse "corrupt `E`" with "not an `E`" has to ask here.
+    fn try_decode<E: Exn + ReadXDROwned>(
+        &self,
+    ) -> Option<Result<E, crate::xdr::ReadError>> {
+        self.as_exn().and_then(|e| e.try_decode())
     }
 }
 
@@ -152,12 +173,42 @@ pub fn __try_as<T: Exn + ReadXDROwned>(
 /// the error with `_ => e.re_throw()`.  (That arguably could be the invisible
 /// default, but isn't for the sake of clarity.)
 ///
-/// # Decode failures
+/// # What reaches the `_` arm
 ///
-/// [`try_as`](crate::exn::RawExceptionRef::try_as) returns `None` both for a
-/// non-matching selector and for a matching selector whose payload fails to
-/// decode, so both fall to `_`. To tell them apart, compare `raw.selector()`
-/// against `E::SELECTOR` there; no separate API is needed for it.
+/// The `_` arm is not only "some error type I did not name". Five distinct
+/// situations are swept into it, and the macro does not distinguish them:
+///
+/// 1. **No exception at all.** When the scrutinee is a
+///    [`CallError`](crate::call::CallError), every variant other than
+///    `Exception` — a fault, an invalid call, an argument-encoding or
+///    result-decoding failure — carries nothing to decode. These are worth
+///    handling as ordinary `match` arms on `CallError` *before* delegating
+///    to `match_exn!`, precisely so they do not land here.
+/// 2. **An exception of a type no arm names.** The expected case: an error
+///    the caller does not know about, or knows about and chose not to
+///    handle.
+/// 3. **An exception whose selector matches a named type, but whose payload
+///    does not decode as it.** A selector is
+///    `sha256(major_version :: crate :: type)` and says nothing about
+///    payload layout, so this is *not* only forgery or truncation: a callee
+///    that adds a variant to an exception enum makes a semver-compatible
+///    change that leaves the selector untouched, and an older caller cannot
+///    decode the result. It arrives here looking exactly like case 2.
+///    [`MatchExn::try_decode`] is the way to tell the two apart.
+/// 4. **A decoded exception that matched no arm's pattern.** `A::Y` when
+///    only `A::X` has an arm.
+/// 5. **A decoded exception whose every candidate arm had a failing
+///    guard.** Guards fall through to later arms, and then to here.
+///
+/// Case 3 is the one to keep in mind, because it is silent and can be
+/// reached without anyone doing anything wrong. If confusing "a corrupt `E`"
+/// with "not an `E`" would change a decision your contract makes, ask
+/// [`try_decode`](MatchExn::try_decode) rather than relying on the arms.
+///
+/// One near-miss does *not* reach `_`, for symmetry's sake: decoding reads a
+/// **prefix**, so a payload with extra trailing bytes decodes as the shorter
+/// shape and matches. A callee that appends a field to a struct exception is
+/// accepted silently by an older caller, with the added field dropped.
 ///
 /// # Matching a single type
 ///
@@ -377,6 +428,99 @@ mod tests {
     fn unrecognised_selector_reaches_the_wildcard() {
         let raw = RawException::new(!0u64, b"whatever");
         assert!(classify(RawCallError::Exception(raw)).starts_with("other:"));
+    }
+
+    /// `try_decode` separates the two situations `try_as` reports alike.
+    #[test]
+    fn try_decode_separates_wrong_selector_from_bad_payload() {
+        // Selector belongs to another type.
+        let other = err(Beta::Rejected);
+        assert!(other.try_decode::<Alpha>().is_none());
+        assert_eq!(other.try_as::<Alpha>(), None);
+
+        // Matched and decoded.
+        let good = err(Alpha::NotFound);
+        assert!(matches!(
+            good.try_decode::<Alpha>(),
+            Some(Ok(Alpha::NotFound))
+        ));
+
+        // Alpha's selector over a payload that is not an Alpha. `try_as`
+        // cannot tell this from the first case; `try_decode` can.
+        let bad = RawCallError::Exception(RawException::new(
+            Alpha::SELECTOR,
+            &encode_xdr(&9_999_999i32).unwrap(),
+        ));
+        assert_eq!(bad.try_as::<Alpha>(), None);
+        assert!(matches!(bad.try_decode::<Alpha>(), Some(Err(_))));
+    }
+
+    /// The routine skew case behind the docs' warning: a callee adds an enum
+    /// variant, which is semver-compatible and leaves the selector alone, so
+    /// an older caller receives its own selector over a discriminant it does
+    /// not know.
+    #[test]
+    fn try_decode_reports_an_unknown_variant_under_a_shared_selector() {
+        // `AlphaPlus` stands in for a later version of `Alpha`: same
+        // selector, one extra variant.
+        #[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR)]
+        #[repr(i32)]
+        enum AlphaPlus {
+            NotFound = 1,
+            Big { n: u64 } = 2,
+            AddedLater = 3,
+        }
+
+        impl Exn for AlphaPlus {
+            const SELECTOR: u64 = Alpha::SELECTOR;
+        }
+
+        let newer = RawCallError::Exception(RawException::new(
+            AlphaPlus::SELECTOR,
+            &encode_xdr(&AlphaPlus::AddedLater).unwrap(),
+        ));
+
+        // The older caller sees a decode failure, not an unrelated error.
+        assert_eq!(newer.try_as::<Alpha>(), None);
+        assert!(matches!(newer.try_decode::<Alpha>(), Some(Err(_))));
+
+        // And `match_exn!` sweeps it into `_`, which is the documented
+        // behavior this test pins rather than endorses.
+        let landed = match_exn!(newer, {
+            Alpha::NotFound => "not-found",
+            Alpha::Big { .. } => "big",
+            _ => "wildcard",
+        });
+        assert_eq!(landed, "wildcard");
+    }
+
+    /// Decoding reads a prefix, so trailing bytes are accepted rather than
+    /// reported. Pins the asymmetry the macro docs call out.
+    #[test]
+    fn try_decode_accepts_a_payload_with_trailing_bytes() {
+        let mut payload = encode_xdr(&Alpha::NotFound).unwrap();
+        payload.extend_from_slice(b"appended-later");
+        let padded = RawCallError::Exception(RawException::new(
+            Alpha::SELECTOR,
+            &payload,
+        ));
+
+        assert!(matches!(
+            padded.try_decode::<Alpha>(),
+            Some(Ok(Alpha::NotFound))
+        ));
+        assert_eq!(padded.try_as::<Alpha>(), Some(Alpha::NotFound));
+    }
+
+    /// A failure carrying no exception is `None`, same as a mismatched
+    /// selector; `CallError::Exception` is what separates those.
+    #[test]
+    fn try_decode_is_none_when_no_exception_is_carried() {
+        let fault: RawCallError =
+            RawCallError::Fault(FaultString::from_display("boom"));
+        assert!(fault.try_decode::<Alpha>().is_none());
+        let invalid: RawCallError = RawCallError::Invalid;
+        assert!(invalid.try_decode::<Alpha>().is_none());
     }
 
     #[test]

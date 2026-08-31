@@ -280,11 +280,27 @@ adding on its own merits — nothing currently exercises client-side catching
 in a real guest build.
 
 **`BadDecode` stops being a distinct variant.** `try_as` returns `None`
-both for "wrong selector" and "right selector, undecodable payload", so the
-two collapse into `_`. This is deliberate: `match_exn!` users do not need
-the distinction, and it remains available by hand — comparing
-`raw.selector()` against `E::SELECTOR` in the `_` arm separates the two
-cases without any new API.
+both for "wrong selector" and "right selector, undecodable payload", so
+`match_exn!` sweeps the two into `_` alike. The control flow stays that way
+deliberately — an automatic re-throw would let a callee force an abort in a
+caller that wrote a total-looking `_` arm — but the distinction is *not* one
+callers should have to rebuild from selector comparisons, because it is
+reachable without anyone doing anything wrong: a selector is
+`sha256(major_version :: crate :: type)` and covers no payload layout, so a
+callee adding an enum variant makes a semver-compatible change that leaves
+the selector intact and yields a payload older callers cannot decode.
+[`try_decode`] reports it as `Some(Err(_))`, distinct from the `None` of an
+unrelated type; `match_exn!`'s docs enumerate all five conditions that reach
+`_`.
+
+One asymmetry remains, and no decode-error API can reach it: decoding reads
+a *prefix* (`contract_call_decode_exn_prefix` never checks the reader is
+drained), so a callee that *appends* a field is silently accepted by an
+older caller as the shorter shape, with the added data dropped. Closing that
+would mean a drain check in `try_as`, which would start rejecting payloads
+accepted today — a separate decision.
+
+[`try_decode`]: https://groundhog.dev/docs/sdk/latest/sdk/exn/struct.RawExceptionRef.html#method.try_decode
 
 **Repeated decodes across arms.** Two arms naming the same exception type
 each run their own `try_as`, so the payload decodes twice. Selector

@@ -94,17 +94,28 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
 ///
 /// There is no distinct `BadDecode` variant for this: `try_as` returns
 /// `None` both for a selector that matches nothing and for one that matches
-/// a type the payload cannot produce. Telling the two apart is a selector
-/// comparison, which is what this asserts.
+/// a type the payload cannot produce, so `match_exn!` sweeps it into `_`.
+/// `try_decode` is what tells the two apart, and this pins both halves —
+/// the fall-through and the report.
 pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
     let addr = deploy_contract(&TEST_NONCE, contract_hash);
     let client = MultiClient::new(&addr);
 
     match client.try_throw_undecodable() {
-        Err(CallError::Exception(ref raw)) => {
+        Err(ref e @ CallError::Exception(ref raw)) => {
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
-            // Right selector, and still undecodable as that type.
+            // Right selector, and still undecodable as that type. `try_as`
+            // cannot distinguish that from an unrelated error type, so
+            // `match_exn!` sweeps it into `_`; `try_decode` reports it.
             assert_eq!(raw.try_as::<AlphaError>(), None);
+            assert!(matches!(e.try_decode::<AlphaError>(), Some(Err(_))));
+            assert_eq!(
+                match_exn!(e, {
+                    AlphaError::NotFound | AlphaError::Overflow => "alpha",
+                    _ => "wildcard",
+                }),
+                "wildcard"
+            );
             let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: undecodable payload under a declared selector");

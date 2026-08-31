@@ -93,14 +93,50 @@ impl<'s> RawExceptionRef<'s> {
 
     /// Decode as `T` if the selector matches, `None` otherwise.
     ///
+    /// `None` covers two different situations — a selector belonging to some
+    /// other type, and this type's selector over a payload that will not
+    /// decode. Use [`try_decode`](Self::try_decode) when they need telling
+    /// apart.
+    ///
     /// `T` must contain no [`Signed`](crate::signer::Signed): abort frames
     /// carry no auth-token handles, so one would decode to the
     /// uninitialized `u32::MAX` sentinel — a value shaped like an auth
     /// token that faults on use. Nothing is checked here; spec
     /// canonicalization rejects such a payload when the contract is built.
     pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
+        // Defined in terms of `try_decode` so the two cannot drift on which
+        // payloads they accept.
+        self.try_decode().and_then(|decoded| decoded.ok())
+    }
+
+    /// [`try_as`](Self::try_as) with the decode failure kept separate from
+    /// the selector mismatch:
+    ///
+    /// - `None` — the selector belongs to some other exception type.
+    /// - `Some(Ok(t))` — the selector matched and the payload decoded.
+    /// - `Some(Err(e))` — the selector matched, but the payload does not
+    ///   decode as `T`.
+    ///
+    /// The third case is not only a forged or truncated payload. An
+    /// exception's selector is `sha256(major_version :: crate :: type)` and
+    /// says nothing about the payload's layout, so a callee that adds an
+    /// enum variant — a semver-compatible change that leaves the selector
+    /// untouched — throws something an older caller cannot decode. Since
+    /// [`try_as`] reports that as `None`, indistinguishable from an
+    /// unrelated error type, a caller that must not confuse the two should
+    /// reach for this instead.
+    ///
+    /// Note that decoding reads a *prefix*: a payload carrying extra
+    /// trailing bytes decodes as the shorter shape and is reported as
+    /// `Some(Ok(..))`. Appending a field is therefore accepted silently
+    /// rather than surfacing here.
+    ///
+    /// [`try_as`]: Self::try_as
+    pub fn try_decode<T: Exn + ReadXDROwned>(
+        &self,
+    ) -> Option<Result<T, ReadError>> {
         if self.selector == T::SELECTOR {
-            contract_call_decode_exn_prefix(self.payload()).ok()
+            Some(contract_call_decode_exn_prefix(self.payload()))
         } else {
             None
         }
@@ -226,6 +262,13 @@ impl RawException {
 
     pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
         self.as_ref_exn().try_as()
+    }
+
+    /// See [`RawExceptionRef::try_decode`].
+    pub fn try_decode<T: Exn + ReadXDROwned>(
+        &self,
+    ) -> Option<Result<T, ReadError>> {
+        self.as_ref_exn().try_decode()
     }
 
     /// Re-throw to our caller with the original wire bytes, verbatim.
