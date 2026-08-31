@@ -49,6 +49,13 @@ impl U256 {
     // -----------------------------------------------------------------------
 
     /// Wrapping addition, with a flag reporting whether it wrapped.
+    ///
+    /// This is OpenZeppelin's `Math.add512`, which returns the 512-bit sum as
+    /// `(high, low)` because Solidity has no wider type and no `bool`-carrying
+    /// tuple: its `high` is the carry, always zero or one. Here the carry is
+    /// the flag, so `(low, carry)` carries the same information the other way
+    /// round -- widen it with `U256::from(carry)` if you need the high word as
+    /// a value.
     #[inline]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
         let mut out = [0u32; LIMBS];

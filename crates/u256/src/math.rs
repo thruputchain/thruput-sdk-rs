@@ -21,6 +21,19 @@
 //! [`sqrt_rounding`](U256::sqrt_rounding) for the variant that takes a
 //! direction.
 //!
+//! # 512-bit values
+//!
+//! There is no `U512` here, and none is needed for parity: Solidity has no type
+//! wider than `uint256` either, so `Math.sol` returns its two 512-bit results
+//! as a `(high, low)` pair of `uint256`s. Both have a counterpart --
+//! `Math.mul512` is [`widening_mul_u256`](U256::widening_mul_u256) and
+//! `Math.add512` is [`overflowing_add`](U256::overflowing_add), each ordered
+//! `(low, high)` to match `u128::widening_mul` rather than Solidity.
+//!
+//! The only consumers of a 512-bit intermediate in `Math.sol` are `mulDiv` and
+//! `mulShr`, and both are here whole, so the pair never has to be arithmetic
+//! the caller does themselves.
+//!
 //! # Code size
 //!
 //! [`mul_div`](U256::mul_div) and the other full-precision entry points link
