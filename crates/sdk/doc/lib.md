@@ -251,6 +251,13 @@ a host-held auth token: it encodes to zero bytes, and the handle rides
 alongside the XDR arguments. A method signature therefore states in its types
 which arguments must have been authorized.
 
+[`Signed::consume`] hands back the payload and the address that minted the
+token. Any contract can mint a token whose payload decodes as `T`, so
+consuming proves only that some contract minted it and that this contract is
+its intended consumer. **Check the returned minter against an address you
+trust before acting on the payload.** Skipping that check is an authorization
+bypass.
+
 - [`#[contract_type]`](macro@crate::contract_type) makes a struct or enum
   usable as an argument, return value, or auth-token payload. It generates
   the auth-handle walkers that let a `Signed<T>` nest inside it (an enum
@@ -264,8 +271,9 @@ which arguments must have been authorized.
   address requires.
 
 `groundhog-erc1271` is the wallet-facing shape of this: `is_valid_signature`
-returns the auth tokens a wallet chooses to mint, and the caller destructures
-them with `AssumeTokens`.
+returns the auth tokens a wallet chooses to mint. The caller destructures them
+with `AssumeTokens`, then consumes each one and checks its minter against the
+wallet address it trusts.
 
 # Arithmetic
 
