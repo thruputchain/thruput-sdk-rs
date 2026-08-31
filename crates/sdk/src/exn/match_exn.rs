@@ -140,6 +140,9 @@ pub fn __try_as<T: Exn + ReadXDROwned>(
 /// Guards (`Pat if cond =>`) work, and a failing guard falls through to the
 /// later arms rather than straight to `_`.
 ///
+/// Commas follow `match`: an expression body needs a trailing comma, a block
+/// body may take one or leave it off.
+///
 /// # The `_` arm is required
 ///
 /// Arms are sequential rather than exhaustiveness-checked, so nothing can
@@ -223,8 +226,25 @@ macro_rules! __match_exn_arms {
     };
 
     // -- guarded typed arm ----------------------------------------------
+    //
+    // A block body takes an optional comma, so it needs two rules. NOT one
+    // rule with `$(,)? $($rest:tt)*`: when a comma is present the matcher
+    // cannot tell whether it belongs to the optional repetition or is the
+    // first `tt` of `$rest`, and macro_rules rejects that as a local
+    // ambiguity rather than choosing — a hard error at every call site
+    // written `Pat => { .. },`. Each rule below is a fixed token sequence,
+    // so neither is ambiguous. See `block_body_then_comma_*` in the tests.
     ($lbl:lifetime, $exn:ident,
-     $pat:pat if $guard:expr => $body:block $(,)? $($rest:tt)*) => {{
+     $pat:pat if $guard:expr => $body:block , $($rest:tt)*) => {{
+        if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
+            && $guard
+        {
+            break $lbl ($body);
+        }
+        $crate::__match_exn_arms!($lbl, $exn, $($rest)*)
+    }};
+    ($lbl:lifetime, $exn:ident,
+     $pat:pat if $guard:expr => $body:block $($rest:tt)*) => {{
         if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
             && $guard
         {
@@ -243,7 +263,15 @@ macro_rules! __match_exn_arms {
     }};
 
     // -- plain typed arm -------------------------------------------------
-    ($lbl:lifetime, $exn:ident, $pat:pat => $body:block $(,)? $($rest:tt)*) => {{
+    // Two rules for the optional comma, for the reason given above.
+    ($lbl:lifetime, $exn:ident, $pat:pat => $body:block , $($rest:tt)*) => {{
+        if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
+        {
+            break $lbl ($body);
+        }
+        $crate::__match_exn_arms!($lbl, $exn, $($rest)*)
+    }};
+    ($lbl:lifetime, $exn:ident, $pat:pat => $body:block $($rest:tt)*) => {{
         if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
         {
             break $lbl ($body);
@@ -450,5 +478,73 @@ mod tests {
             _ => { 0 }
         });
         assert_eq!(got, 2);
+    }
+
+    /// A block body may be *followed* by a comma, the way `match` arms are
+    /// usually written. Regression test: collapsing the comma-required and
+    /// comma-free block rules into one `$(,)? $($rest:tt)*` matcher turns
+    /// this into `error: local ambiguity when calling macro
+    /// `__match_exn_arms``, because a present comma could belong either to
+    /// the optional repetition or to `$rest`.
+    #[test]
+    fn block_body_then_comma_plain_arm() {
+        let got = match_exn!(err(Beta::Rejected), {
+            Alpha::NotFound => { 1u32 },
+            Beta::Rejected => { 2 },
+            _ => 0,
+        });
+        assert_eq!(got, 2);
+    }
+
+    /// The guarded rule was collapsed the same way, so it needs the same
+    /// cover. The guard must also still fall through to a later arm.
+    #[test]
+    fn block_body_then_comma_guarded_arm() {
+        let classify = |e: RawCallError| {
+            match_exn!(e, {
+                Alpha::Big { n } if n > 100 => { 1u32 },
+                Alpha::Big { n } if n > 10 => { 2 },
+                Alpha::Big { .. } => { 3 },
+                _ => 0,
+            })
+        };
+        assert_eq!(classify(err(Alpha::Big { n: 500 })), 1);
+        assert_eq!(classify(err(Alpha::Big { n: 50 })), 2);
+        assert_eq!(classify(err(Alpha::Big { n: 5 })), 3);
+        assert_eq!(classify(RawCallError::Invalid), 0);
+    }
+
+    /// Body shape and trailing comma are independent: every combination has
+    /// to parse, mixed freely within one invocation.
+    #[test]
+    fn body_shapes_and_commas_mix_freely() {
+        let got = match_exn!(err(Beta::Rejected), {
+            Alpha::NotFound => 1u32,
+            Alpha::Big { .. } => { 2 },
+            Beta::Rejected => { 3 }
+            _ => 0,
+        });
+        assert_eq!(got, 3);
+
+        // Same arms, with the match falling through to `_` as a block.
+        let no_exn: RawCallError = RawCallError::Invalid;
+        let fell_through = match_exn!(no_exn, {
+            Alpha::NotFound => 1u32,
+            Beta::Rejected => { 2 },
+            _ => { 0 }
+        });
+        assert_eq!(fell_through, 0);
+    }
+
+    /// A block body on the last typed arm, comma'd, with `_` immediately
+    /// after — the shape that appears in a two-arm handler, and the one most
+    /// likely to be written by hand.
+    #[test]
+    fn block_body_then_comma_before_wildcard() {
+        let got = match_exn!(err(Alpha::NotFound), {
+            Alpha::NotFound => { 7u32 },
+            _ => 0,
+        });
+        assert_eq!(got, 7);
     }
 }

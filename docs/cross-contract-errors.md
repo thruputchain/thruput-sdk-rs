@@ -233,6 +233,15 @@ one exception type, and `err.try_as()` reads better there than a two-arm
 macro — it is what most of the migrated tests use. It is also `TODO.md`'s
 "add `try_as` to the client error enum" idea, delivered on `CallError`.
 
+**The block-body arm rules must stay split in two.** A block body takes an
+optional trailing comma, and the obvious single matcher for that —
+`$body:block $(,)? $($rest:tt)*` — is a macro_rules *local ambiguity*: a
+comma that is present could belong either to the optional repetition or to
+`$rest`, and the compiler rejects it rather than choosing. The failure is a
+hard error at every call site spelled `Pat => { .. },`, and it hides easily
+because nothing in the tree happened to use that spelling. Two fixed-sequence
+rules per arm shape, and the `block_body_then_comma_*` tests that pin them.
+
 **`RawExceptionRef` is now `Copy`.** All three fields already were, and
 `MatchExn::as_exn` hands out reborrows of it.
 
