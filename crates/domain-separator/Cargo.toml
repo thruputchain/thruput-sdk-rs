@@ -15,6 +15,7 @@ description = "Domain-separated hash derivation for Groundhog (pubkey account ad
 crate-type = ["rlib"]
 
 [dependencies]
+groundhog-contract-spec = { workspace = true }
 groundhog-xdr = { workspace = true, features = ["xdrs"] }
 xdrs = { workspace = true, features = ["derive"] }
 sha2 = { workspace = true, optional = true }
@@ -25,7 +26,7 @@ hex-literal = { workspace = true }
 [features]
 default = ["std"]
 std = ["alloc", "sha2", "groundhog-xdr/std"]
-alloc = ["xdrs/alloc", "groundhog-xdr/alloc"]
+alloc = ["xdrs/alloc", "groundhog-xdr/alloc", "groundhog-contract-spec/alloc"]
 sha2 = ["dep:sha2"]
 syscall = ["groundhog-xdr/syscalls"]
 # Gives `syscall` a dispatch path on the host, where `groundhog-xdr/syscalls`

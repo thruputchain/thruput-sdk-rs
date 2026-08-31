@@ -12,6 +12,11 @@
 //! [`groundhog_domain_separator::SignedOp`]; everything here is about carrying
 //! one over the wire, checking it, and turning it into auth tokens.
 //!
+//! Nothing here reaches the node. The contract verifies with the
+//! `VerifySignature` and `SHA256` syscalls it already has and mints with
+//! `MintAuthToken`; `hogd` enforces the auth-token tree it already enforces and
+//! never parses an operation preimage.
+//!
 //! # Why it returns auth tokens
 //!
 //! [`SignedOp::execute_signed_op`] returns `Vec<Signed<Opaque>>`, the same as
@@ -29,13 +34,16 @@
 //! [`check_signed_op`] performs all of it, and each check maps to a
 //! [`SignedOpError`]. Skipping any one of them reopens a replay path:
 //!
-//! - the signature, against the operation's digest;
-//! - `valid_until`, against the current block height;
 //! - the nonce, against what this signer owes;
-//! - the `type_id`, against the operation the contract thinks it is running.
+//! - `valid_until`, against the current block height;
+//! - that the body decodes as the payload type the contract expects;
+//! - the signature, against the bytes all of that produces.
 //!
-//! Two further bindings are inside the digest rather than checked separately —
-//! the verifying contract (the contract's own address) and the network.
+//! Three further bindings are inside those bytes rather than checked
+//! separately — the verifying contract (the contract's own address), the
+//! network, and the payload type's own definition. The last is why there is no
+//! "wrong operation type" check to forget: name the wrong payload type and the
+//! signature simply fails.
 //!
 //! # The network hash
 //!
@@ -77,23 +85,22 @@ use sdk::{BlockHeight, ContractAddress, contract};
 /// signature was meant for, which is the replay these fields exist to stop.
 #[sdk::contract_type]
 pub struct Operation {
-    /// Which kind of operation this is, as
-    /// [`OperationTypeId::to_u64`](groundhog_domain_separator::OperationTypeId::to_u64).
-    ///
-    /// A `u64` rather than the type itself so the operation stays expressible
-    /// in a contract spec; convert with
-    /// [`OperationTypeId::from_u64`](groundhog_domain_separator::OperationTypeId::from_u64).
-    pub type_id: u64,
     /// The signer's nonce this operation spends.
     pub nonce: u64,
     /// Last block height at which this operation may execute.
     pub valid_until: BlockHeight,
-    /// The CXS-encoded application payload, opaque to this interface.
+    /// The CXS-encoded application payload.
+    ///
+    /// Bytes on the wire because calldata is bytes, but never treated as bytes:
+    /// [`check_signed_op`] decodes them as the payload type the contract
+    /// expects and rebuilds the preimage from the typed value, so the payload's
+    /// [`ContractTypeSpec::TYPE_DEF`](groundhog_contract_spec::ContractTypeSpec)
+    /// is bound into the signature. There is no operation-type field here for
+    /// the same reason: the type is in the signed bytes, not on the wire.
     ///
     /// Typed as an unbounded [`BytesM`], the same as a transaction's
     /// `Calldata`: an operation body is application calldata, and this
-    /// interface has no basis for a tighter bound than the one a call itself
-    /// carries.
+    /// interface has no basis for a tighter bound than a call itself carries.
     pub body: BytesM,
 }
 

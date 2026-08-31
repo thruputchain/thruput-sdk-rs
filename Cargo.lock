@@ -377,7 +377,6 @@ dependencies = [
 name = "groundhog-contract-util"
 version = "0.25.0"
 dependencies = [
- "groundhog-domain-separator",
  "groundhog-xdr",
  "sha2",
  "syn 3.0.4",
@@ -387,6 +386,7 @@ dependencies = [
 name = "groundhog-domain-separator"
 version = "0.25.0"
 dependencies = [
+ "groundhog-contract-spec",
  "groundhog-xdr",
  "hex-literal",
  "sha2",
@@ -479,6 +479,7 @@ dependencies = [
 name = "groundhog-signed-op-if"
 version = "0.1.0"
 dependencies = [
+ "groundhog-contract-spec",
  "groundhog-domain-separator",
  "groundhog-xdr",
  "sdk",
@@ -541,6 +542,7 @@ checksum = "2e2786b0b271501b8fcea7b437950a86213a8d8fe0002c37a5e9f36509ec055a"
 name = "groundhog-test-vectors"
 version = "0.25.0"
 dependencies = [
+ "groundhog-contract-spec",
  "groundhog-contract-util",
  "groundhog-domain-separator",
  "groundhog-xdr",

@@ -14,6 +14,7 @@ dev = ["sdk/dev"]
 [dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.25.0", features = ["alloc"] }
 groundhog-domain-separator = { path = "../../crates/domain-separator", registry = "groundhog", version = "0.25.0", default-features = false, features = ["alloc", "syscall"] }
+groundhog-contract-spec = { workspace = true }
 groundhog-xdr = { workspace = true }
 thiserror = { workspace = true }
 

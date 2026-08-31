@@ -1,137 +1,168 @@
 //! Vectors for the signed-operation preimage.
 //!
 //! Emits every intermediate stage, not just the final digest, so a client that
-//! drifts fails at the stage that drifted: the separator prefix, the derived
-//! operation type ID, the preimage CXS encoding, or the digest.
+//! drifts fails at the stage that drifted: the separator prefix, the payload
+//! type's definition, the struct encoding, the signed message, or the digest.
+//!
+//! The `type_def_cxs_hex` field is the one with no counterpart in the other
+//! vector sets. It is the CXS encoding of the payload type's
+//! `ContractTypeSpec::TYPE_DEF`, which the Rust side gets from
+//! `#[contract_type]` and a client has to reproduce from the contract spec it
+//! already ships.
 
-use groundhog_contract_util::operation_type_id;
+use groundhog_contract_spec::ContractTypeSpec;
+use groundhog_contract_spec::view::{
+    ContractFieldView, ContractStructDefView, ContractTypeDefView,
+    ContractTypeView,
+};
 use groundhog_domain_separator::{SIGNED_OP, Sha2, SignedOp};
 use groundhog_xdr::types::{
     BlockHeight, ContractAddress, NetworkHash, SHA256Hash,
 };
 use serde_json::{Value, json};
+use xdrs::WriteXDR;
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-struct Case {
-    interface: Option<&'static str>,
-    version_str: &'static str,
-    operation: &'static str,
+// Stand-ins for `#[contract_type]` payloads; the macro emits exactly these
+// impls. Written out by hand so this crate needs no dependency on the SDK.
+
+/// A two-field payload with an address, exercising a non-primitive field type.
+#[derive(WriteXDR)]
+struct Transfer {
+    to: ContractAddress,
+    amount: u64,
+}
+
+impl ContractTypeSpec for Transfer {
+    const TYPE_DEF: ContractTypeDefView<'static> =
+        ContractTypeDefView::Struct(ContractStructDefView {
+            name: "Transfer",
+            fields: &[
+                ContractFieldView {
+                    name: "to",
+                    ty: ContractTypeView::Address,
+                },
+                ContractFieldView {
+                    name: "amount",
+                    ty: ContractTypeView::U64,
+                },
+            ],
+        });
+}
+
+/// Encodes byte-identically to [`Revoke`]; only the type definition separates
+/// them. This pair is the reason the binding exists.
+#[derive(WriteXDR)]
+struct Grant {
+    amount: u64,
+}
+
+impl ContractTypeSpec for Grant {
+    const TYPE_DEF: ContractTypeDefView<'static> =
+        ContractTypeDefView::Struct(ContractStructDefView {
+            name: "Grant",
+            fields: &[ContractFieldView {
+                name: "amount",
+                ty: ContractTypeView::U64,
+            }],
+        });
+}
+
+#[derive(WriteXDR)]
+struct Revoke {
+    id: u64,
+}
+
+impl ContractTypeSpec for Revoke {
+    const TYPE_DEF: ContractTypeDefView<'static> =
+        ContractTypeDefView::Struct(ContractStructDefView {
+            name: "Revoke",
+            fields: &[ContractFieldView {
+                name: "id",
+                ty: ContractTypeView::U64,
+            }],
+        });
+}
+
+struct Header {
     network: [u8; 32],
     verifying_contract: [u8; 32],
     nonce: u64,
     valid_until: i64,
-    body: Vec<u8>,
 }
 
-fn cases() -> Vec<Case> {
-    vec![
-        // Zeroed everything: catches a client that omits a field entirely,
-        // since an omitted zero field still shifts the encoding.
-        Case {
-            interface: Some("MyWallet"),
-            version_str: "0.1.0",
-            operation: "transfer",
-            network: [0u8; 32],
-            verifying_contract: [0u8; 32],
-            nonce: 0,
-            valid_until: 0,
-            body: Vec::new(),
-        },
-        // Typical.
-        Case {
-            interface: Some("MyWallet"),
-            version_str: "0.1.0",
-            operation: "transfer",
-            network: [0x5a; 32],
-            verifying_contract: [0x03; 32],
-            nonce: 1,
-            valid_until: 1_000,
-            body: vec![0x2a],
-        },
-        // Same everything but the operation name: pins that the type ID is
-        // load-bearing in the digest.
-        Case {
-            interface: Some("MyWallet"),
-            version_str: "0.1.0",
-            operation: "approve",
-            network: [0x5a; 32],
-            verifying_contract: [0x03; 32],
-            nonce: 1,
-            valid_until: 1_000,
-            body: vec![0x2a],
-        },
-        // Widest varints: nonce and expiry both at their maxima, which is where
-        // a client that assumes fixed-width integers breaks.
-        Case {
-            interface: Some("MyWallet"),
-            version_str: "1.2.3",
-            operation: "sweep",
-            network: [0xff; 32],
-            verifying_contract: [0xee; 32],
-            nonce: u64::MAX,
-            valid_until: i64::MAX,
-            body: vec![0xde, 0xad, 0xbe, 0xef],
-        },
-        // Unnamed interface, and a longer body that crosses a varint length
-        // boundary (>127 bytes) in the body's own opaque length prefix.
-        Case {
-            interface: None,
-            version_str: "0.0.1",
-            operation: "batch",
-            network: [0x11; 32],
-            verifying_contract: [0x22; 32],
-            nonce: 42,
-            valid_until: 999_999,
-            body: (0u16..200).map(|i| (i % 256) as u8).collect(),
-        },
-    ]
+fn vector<T: WriteXDR + ContractTypeSpec>(
+    label: &str,
+    header: &Header,
+    body: &T,
+) -> Value {
+    let op = SignedOp {
+        network: NetworkHash::new(SHA256Hash::new(header.network)),
+        verifying_contract: ContractAddress::from(header.verifying_contract),
+        nonce: header.nonce,
+        valid_until: BlockHeight::new(header.valid_until),
+        body,
+    };
+
+    json!({
+        "label": label,
+        "domain_separator": "SignedOp::1",
+        "domain_separator_cxs_hex": hex(SIGNED_OP.as_bytes()),
+        "type_name": T::TYPE_DEF.symbol(),
+        "type_def_cxs_hex": hex(&xdrs::cxs::encode(&T::TYPE_DEF).unwrap()),
+        "network_hex": hex(&header.network),
+        "verifying_contract_hex": hex(&header.verifying_contract),
+        "nonce": header.nonce.to_string(),
+        "valid_until": header.valid_until.to_string(),
+        "body_cxs_hex": hex(&xdrs::cxs::encode(body).unwrap()),
+        "preimage_cxs_hex": hex(&xdrs::cxs::encode(&op).unwrap()),
+        "signed_message_hex": hex(&op.preimage()),
+        "expected_digest_hex": hex(op.hash::<Sha2>().as_slice()),
+    })
 }
 
 pub fn generate() -> Value {
-    let vectors: Vec<Value> = cases()
-        .into_iter()
-        .map(|case| {
-            let type_id = operation_type_id(
-                case.interface,
-                case.version_str,
-                case.operation,
-            );
-            let op = SignedOp {
-                network: NetworkHash::new(SHA256Hash::new(case.network)),
-                verifying_contract: ContractAddress::from(
-                    case.verifying_contract,
-                ),
-                type_id,
-                nonce: case.nonce,
-                valid_until: BlockHeight::new(case.valid_until),
-                body: &case.body,
-            };
-            let preimage_cxs = xdrs::cxs::encode(&op).unwrap();
-            // What a signer actually signs: separator prefix + struct.
-            let signed_message = op.preimage();
-            let digest = op.hash::<Sha2>();
+    let zeroed = Header {
+        network: [0u8; 32],
+        verifying_contract: [0u8; 32],
+        nonce: 0,
+        valid_until: 0,
+    };
+    let typical = Header {
+        network: [0x5a; 32],
+        verifying_contract: [0x03; 32],
+        nonce: 1,
+        valid_until: 1_000,
+    };
+    // Widest varints: where a client assuming fixed-width integers breaks.
+    let extremes = Header {
+        network: [0xff; 32],
+        verifying_contract: [0xee; 32],
+        nonce: u64::MAX,
+        valid_until: i64::MAX,
+    };
 
-            json!({
-                "domain_separator": "SignedOp::1",
-                "domain_separator_cxs_hex": hex(SIGNED_OP.as_bytes()),
-                "interface": case.interface,
-                "version_str": case.version_str,
-                "operation": case.operation,
-                "type_id_hex": hex(type_id.as_bytes()),
-                "network_hex": hex(&case.network),
-                "verifying_contract_hex": hex(&case.verifying_contract),
-                "nonce": case.nonce.to_string(),
-                "valid_until": case.valid_until.to_string(),
-                "body_hex": hex(&case.body),
-                "preimage_cxs_hex": hex(&preimage_cxs),
-                "signed_message_hex": hex(&signed_message),
-                "expected_digest_hex": hex(digest.as_slice()),
-            })
-        })
-        .collect();
+    let vectors = vec![
+        // Zeroed everything: catches a client that omits a field entirely,
+        // since an omitted zero field still shifts the encoding.
+        vector("grant_zeroed", &zeroed, &Grant { amount: 0 }),
+        vector("grant_typical", &typical, &Grant { amount: 500 }),
+        // Same header, same body bytes, different payload type. If a client
+        // produces the same digest for these two it has no type binding.
+        vector("revoke_typical", &typical, &Revoke { id: 500 }),
+        vector(
+            "transfer_typical",
+            &typical,
+            &Transfer {
+                to: ContractAddress::from([0x07; 32]),
+                amount: 42,
+            },
+        ),
+        vector("grant_extremes", &extremes, &Grant { amount: u64::MAX }),
+    ];
 
     json!({
         "version": 1,
@@ -148,45 +179,50 @@ pub fn print() {
 mod tests {
     use super::*;
 
+    fn find<'a>(vectors: &'a [Value], label: &str) -> &'a Value {
+        vectors
+            .iter()
+            .find(|v| v["label"] == label)
+            .expect("vector present")
+    }
+
     #[test]
     fn generates_well_formed_vectors() {
         let out = generate();
         let vectors = out["vectors"].as_array().expect("vectors array");
         assert!(!vectors.is_empty());
         for v in vectors {
-            // 32-byte digest => 64 hex chars.
             assert_eq!(v["expected_digest_hex"].as_str().unwrap().len(), 64);
-            // 8-byte type ID => 16 hex chars.
-            assert_eq!(v["type_id_hex"].as_str().unwrap().len(), 16);
-            // 0x00 + 0x0b + "SignedOp::1" => 13 bytes => 26 hex chars.
             let sep = v["domain_separator_cxs_hex"].as_str().unwrap();
+            // 0x00 + 0x0b + "SignedOp::1" => 13 bytes => 26 hex chars.
             assert_eq!(sep.len(), 26);
             // The signed message is exactly the separator then the struct.
             let signed = v["signed_message_hex"].as_str().unwrap();
             let preimage = v["preimage_cxs_hex"].as_str().unwrap();
             assert_eq!(signed, format!("{sep}{preimage}"));
+            // The type definition has to actually appear in the message.
+            assert!(
+                preimage.contains(v["type_def_cxs_hex"].as_str().unwrap()),
+                "type_def missing from the preimage"
+            );
         }
     }
 
-    /// The two cases differing only in operation name must not collide, or the
-    /// vector set would pass for a client with no type binding at all.
+    /// The vector set is only meaningful if it contains a pair whose bodies
+    /// encode identically under different payload types.
     #[test]
-    fn operation_name_changes_the_digest() {
+    fn identically_encoded_bodies_get_different_digests() {
         let out = generate();
         let vectors = out["vectors"].as_array().unwrap();
-        let transfer = vectors
-            .iter()
-            .find(|v| v["operation"] == "transfer" && v["nonce"] == "1")
-            .unwrap();
-        let approve = vectors
-            .iter()
-            .find(|v| v["operation"] == "approve")
-            .unwrap();
-        assert_eq!(transfer["body_hex"], approve["body_hex"]);
-        assert_eq!(transfer["nonce"], approve["nonce"]);
+        let grant = find(vectors, "grant_typical");
+        let revoke = find(vectors, "revoke_typical");
+
+        assert_eq!(grant["body_cxs_hex"], revoke["body_cxs_hex"]);
+        assert_eq!(grant["nonce"], revoke["nonce"]);
+        assert_ne!(grant["type_def_cxs_hex"], revoke["type_def_cxs_hex"]);
         assert_ne!(
-            transfer["expected_digest_hex"],
-            approve["expected_digest_hex"]
+            grant["expected_digest_hex"],
+            revoke["expected_digest_hex"]
         );
     }
 }

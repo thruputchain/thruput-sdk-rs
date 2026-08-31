@@ -65,8 +65,7 @@ pub use transaction::transaction_signature_preimage;
 
 mod operation;
 pub use operation::{
-    OperationTypeId, SIGNED_OP_FIXED_PREFIX_LEN, SIGNED_OP_HEADER_MAX_LEN,
-    SignedOp,
+    SIGNED_OP_FIXED_PREFIX_LEN, SIGNED_OP_HEADER_MAX_LEN, SignedOp,
 };
 
 mod pubkey;
