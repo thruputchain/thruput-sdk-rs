@@ -13,7 +13,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["mock"] }
+sdk = { workspace = true, features = ["dev"] }
 groundhog-erc20-if = { workspace = true }
 groundhog-xdr = { workspace = true }
 thiserror = { workspace = true }

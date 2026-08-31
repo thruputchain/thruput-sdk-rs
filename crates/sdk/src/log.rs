@@ -8,7 +8,7 @@ pub fn log(buffer: &[u8]) {
     });
 }
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub fn log_str<S: AsRef<str>>(msg: S) {
     std::println!("::LOG:: {}", msg.as_ref());
 }

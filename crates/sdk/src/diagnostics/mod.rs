@@ -24,7 +24,7 @@ macro_rules! with_debug_context {
     };
 }
 
-#[cfg(all(not(target_arch = "riscv32"), feature = "call_tracking"))]
+#[cfg(not(target_arch = "riscv32"))]
 #[macro_export]
 macro_rules! with_call_tracking {
     { $call_info:expr, $body:expr } => {
@@ -32,7 +32,7 @@ macro_rules! with_call_tracking {
     };
 }
 
-#[cfg(not(all(not(target_arch = "riscv32"), feature = "call_tracking")))]
+#[cfg(target_arch = "riscv32")]
 // Omit call-tracking
 #[macro_export]
 macro_rules! with_call_tracking {

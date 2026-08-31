@@ -903,12 +903,25 @@ build_docs() {
         cargo doc --features=dev "$@"
 }
 
+# Build the sdk itself for the guest target.
+#
+# The host test suite never compiles for rv32, so a guest-only break -- a
+# `cfg` slip, or a bound that only the host can satisfy -- reaches CI only
+# through the contract sweeps much later in this run. This is the same
+# compile, seconds in, with the error pointing at `sdk` rather than at
+# whichever example contract happened to instantiate it first.
+sdk_rv32_build() {
+    info "BUILD(rv32) sdk"
+    cargo build -p sdk --release --target "$RV32_TARGET"
+}
+
 skip() {
     local var="SKIP_$1"
     [ "${!var:-}" = "1" ]
 }
 
 check_all() {
+    { skip SDK_RV32 || sdk_rv32_build; } &&
     { skip DOCS || build_docs; } &&
     { skip SDK_TESTS || test_package; } &&
 
