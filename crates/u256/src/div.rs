@@ -294,9 +294,9 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 ///
 /// | | `div` .text | `div` gas | `sw zero` |
 /// |---|---|---|---|
-/// | zero-init, then write `0..dn` | 2,572 | 972.26 | 40 |
-/// | write all `LIMBS` unconditionally | 2,924 | 947.25 | 40 |
-/// | `MaybeUninit` | **2,360** | **928.25** | **25** |
+/// | zero-init, then write `0..dn` | 2,572 | 972.05 | 40 |
+/// | write all `LIMBS` unconditionally | 2,924 | 947.05 | 40 |
+/// | `MaybeUninit` | **2,360** | **928.05** | **25** |
 ///
 /// The full-width write keeps every zero store and costs 352 bytes to save 25
 /// gas -- backwards where the 64 KiB artifact cap binds. `MaybeUninit` removes
@@ -304,9 +304,9 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 ///
 /// | | .text | gas |
 /// |---|---|---|
-/// | `div` | 2,572 -> 2,360 (**-8.2%**) | 972.26 -> 928.25 (**-4.5%**) |
-/// | `mul_div_u128` | 3,012 -> 2,788 (**-7.4%**) | 1712.23 -> 1628.24 (**-4.9%**) |
-/// | `mul_div` | 3,992 -> 3,892 (**-2.5%**) | 4712.23 -> 4534.23 (**-3.8%**) |
+/// | `div` | 2,572 -> 2,360 (**-8.2%**) | 972.05 -> 928.05 (**-4.5%**) |
+/// | `mul_div_u128` | 3,012 -> 2,788 (**-7.4%**) | 1712.05 -> 1628.05 (**-4.9%**) |
+/// | `mul_div` | 3,992 -> 3,892 (**-2.5%**) | 4712.05 -> 4534.05 (**-3.8%**) |
 ///
 /// This is the crate's only discretionary `unsafe`, so it is the one place
 /// Miri earns its keep: `.github/workflows/miri.yml` runs this crate's suite
@@ -326,19 +326,19 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 ///
 /// | | .text | gas |
 /// |---|---|---|
-/// | `mul_div` alone | 3,992 | 4712.05 |
-/// | `div` alone | 2,572 | 972.05 |
-/// | both in one artifact | 6,348 | 5684.05 |
+/// | `mul_div` alone | 3,892 | 4534.05 |
+/// | `div` alone | 2,360 | 928.05 |
+/// | both in one artifact | 6,088 | 5468.05 |
 ///
-/// So adding `/` to a contract that already links `mul_div` costs **2,356
-/// bytes** -- against 2,572 standalone, meaning barely 200 bytes are shared
+/// So adding `/` to a contract that already links `mul_div` costs **2,196
+/// bytes** -- against 2,360 standalone, meaning barely 160 bytes are shared
 /// and the two Knuth D copies are all but fully duplicated. Sharing one
-/// function would have saved most of that ~2.1 KB, and cost 27% of every
-/// division's gas. Both halves of that trade are now numbers.
+/// function would have saved most of that ~2.2 KB, and cost 27% of every
+/// division's gas. Both halves of that trade are numbers.
 ///
 /// (An earlier version of this comment guessed the second copy at "the 1,892
-/// bytes one copy costs over `div_small`". The measurement says 2,356, so the
-/// guess was 20% light -- which is why it is a measurement now.)
+/// bytes one copy costs over `div_small`". Measuring it said otherwise, by
+/// about 20% -- which is why it is a measurement now.)
 macro_rules! knuth_d {
     ($name:ident, $n:expr) => {
         // `vn` and `un` are `MaybeUninit` scratch, so every read of them is
