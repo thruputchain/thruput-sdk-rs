@@ -1,7 +1,9 @@
 pub use erc20_test::*;
 
 use sdk::hash_ident;
-use sdk::{ContractAddress, Named, SHA256Hash, TestEnvironmentHandle};
+use sdk::{
+    ContractAddress, MatchExn, Named, SHA256Hash, TestEnvironmentHandle,
+};
 
 pub fn test_erc20_contract(
     env: TestEnvironmentHandle,
@@ -119,10 +121,13 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
             let owner_balance = client.get_balance_of(&caller);
             let spender_balance = client.get_balance();
 
-            assert!(matches!(
-                client.try_transfer_from(&caller, &SPENDER, 6),
-                Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-            ));
+            assert_eq!(
+                client
+                    .try_transfer_from(&caller, &SPENDER, 6)
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC20Error::TooLarge),
+            );
 
             client.transfer_from(&caller, &SPENDER, 5);
             assert_eq!(client.allowance(&caller, &SPENDER), 0);
@@ -147,33 +152,32 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let client = ERC20Client::new(token);
-            assert!(matches!(
-                client.try_mint(&caller, 1),
-                Err(ERC20ClientError::ERC20Error(
-                    ERC20Error::MustBeContractOwner
-                ))
-            ));
-            assert!(matches!(
-                client.try_burn(&caller, 1),
-                Err(ERC20ClientError::ERC20Error(
-                    ERC20Error::MustBeContractOwner
-                ))
-            ));
+            assert_eq!(
+                client.try_mint(&caller, 1).unwrap_err().try_as(),
+                Some(ERC20Error::MustBeContractOwner),
+            );
+            assert_eq!(
+                client.try_burn(&caller, 1).unwrap_err().try_as(),
+                Some(ERC20Error::MustBeContractOwner),
+            );
         })
     });
     result.assert_success();
 
     // Overdrafts are rejected at invoke time with the same error the
     // reference contract throws, asserted the same way erc20-test does
-    // (`try_*` + match) so the two are directly comparable.
+    // (`try_*` + `try_as`) so the two are directly comparable.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let client = ERC20Client::new(token);
             let balance = client.get_balance();
-            assert!(matches!(
-                client.try_transfer(&SPENDER, balance + 1),
-                Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-            ));
+            assert_eq!(
+                client
+                    .try_transfer(&SPENDER, balance + 1)
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC20Error::TooLarge),
+            );
         })
     });
     result.assert_success();

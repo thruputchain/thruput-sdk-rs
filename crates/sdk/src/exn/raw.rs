@@ -47,6 +47,11 @@ const _: () = assert!(
 /// with the closure, so it can never be observed stale. To keep it past the
 /// call, [`to_owned`](Self::to_owned) copies it into an owned
 /// [`RawException`].
+///
+/// `Copy`: all three fields are, and [`MatchExn`](crate::exn::MatchExn) hands
+/// out reborrows of it. Covariance in `'s` makes a copy usable at any shorter
+/// lifetime.
+#[derive(Clone, Copy)]
 pub struct RawExceptionRef<'s> {
     selector: u64,
     /// Full verbatim abort wire bytes: `[CXS(selector)][payload]`.
@@ -211,7 +216,7 @@ impl RawException {
     /// Borrow this owned exception as a transient ref, so `try_as`/`re_throw`
     /// share their one implementation with [`RawExceptionRef`] instead of
     /// duplicating it.
-    fn as_ref_exn(&self) -> RawExceptionRef<'_> {
+    pub(crate) fn as_ref_exn(&self) -> RawExceptionRef<'_> {
         RawExceptionRef {
             selector: self.selector,
             wire: self.wire.as_slice(),

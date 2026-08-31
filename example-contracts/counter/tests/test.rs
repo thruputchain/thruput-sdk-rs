@@ -1,4 +1,4 @@
-use counter::{CounterClient, CounterClientError};
+use counter::CounterClient;
 use sdk::*;
 
 static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
@@ -53,14 +53,10 @@ fn test_counter_underflow() {
 
             // Try to decrement by 10 (should abort - would go negative)
             match client.try_decrement(10) {
-                Err(CounterClientError::Library(ref lib_exn)) => {
-                    assert!(
-                        matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
-                        "Expected NonNegativeIntUnderflow, got: {:?}",
-                        lib_exn
-                    );
-                }
-                Err(e) => panic!("Unexpected error: {:?}", e),
+                Err(e) => match_exn!(e, {
+                    LibraryExn::NonNegativeIntUnderflow => {}
+                    _ => panic!("Unexpected error: {e:?}"),
+                }),
                 Ok(()) => panic!("Decrement should have failed"),
             }
         })

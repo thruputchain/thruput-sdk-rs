@@ -36,6 +36,31 @@ fn apply_with_config(
     item: &syn::Item,
     config: &Config,
 ) -> Result<TokenStream2> {
+    let mut out = expand_contract(item, config)?;
+    out.extend(throws_host_use_tokens(config));
+    Ok(out)
+}
+
+/// Reference every `throws(...)` type from ungated code.
+///
+/// The spec fragments that carry the throws list are `riscv32`-gated, and
+/// there is no longer a generated client error enum holding a variant per
+/// declared type, so on a host build nothing else would name these types:
+/// a `throws` type the crate does not itself construct would read as dead
+/// code. Naming the selector is a genuine use, costs nothing at runtime,
+/// and makes the `Exn` bound a host-build error rather than one that only
+/// surfaces when compiling for the guest.
+fn throws_host_use_tokens(config: &Config) -> TokenStream2 {
+    let uses = config.throws_list().into_iter().map(|thrown| {
+        let ty = thrown.ty();
+        quote::quote! {
+            const _: u64 = <#ty as ::sdk::exn::Exn>::SELECTOR;
+        }
+    });
+    quote::quote! { #(#uses)* }
+}
+
+fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
             validate_no_generics(&item.generics, false, "#[contract] traits")?;

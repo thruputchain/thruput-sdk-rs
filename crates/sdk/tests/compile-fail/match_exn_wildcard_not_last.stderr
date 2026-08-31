@@ -1,0 +1,11 @@
+error: the `_` arm of `match_exn!` must come last; arms after it could never be reached
+  --> tests/compile-fail/match_exn_wildcard_not_last.rs:11:19
+   |
+11 |       let _n: u32 = match_exn!(e, {
+   |  ___________________^
+12 | |         _ => 0,
+13 | |         E::A => 1,
+14 | |     });
+   | |______^
+   |
+   = note: this error originates in the macro `$crate::__match_exn_arms` which comes from the expansion of the macro `match_exn` (in Nightly builds, run with -Z macro-backtrace for more info)

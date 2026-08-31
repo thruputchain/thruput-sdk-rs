@@ -73,13 +73,17 @@ or a list of type paths:
 - or on an inherent impl
 - not on a trait impl
 
-Generated client error enums use the last path segment as the variant name. For
-example, `throws(errors::MyError)` generates `ClientError::MyError(...)`.
-Collisions like `foo::Error` and `bar::Error` are rejected at compile time.
+`throws` declares the interface's error contract: it is published in the
+contract spec and documents what callers should expect. It does not restrict
+what a caller can catch — exceptions are identified on the wire by a selector
+derived from the type, so a caller can match any exception type it knows
+about, declared or not. Two types sharing a last path segment (`foo::Error`
+and `bar::Error`) are fine.
 
 Generated clients expose:
 - `client.method(...)` for the success-oriented path
-- `client.try_method(...) -> Result<_, ClientError>` for inspecting exceptions
+- `client.try_method(...) -> Result<_, CallError>` for inspecting exceptions,
+  matched with [`match_exn!`](crate::match_exn)
 
 #### Storage
 

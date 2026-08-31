@@ -3,14 +3,13 @@
 
 use erc20_pausable::PAUSER_ROLE;
 use groundhog_access_control_if::{
-    AccessControlClient, AccessControlClientError, AccessControlError,
-    DEFAULT_ADMIN_ROLE, Role, RoleGrantedEvent, RoleRevokedEvent,
+    AccessControlClient, AccessControlError, DEFAULT_ADMIN_ROLE, Role,
+    RoleGrantedEvent, RoleRevokedEvent,
 };
-use groundhog_erc20_if::{ERC20Client, ERC20ClientError, ERC20Error};
+use groundhog_erc20_if::{ERC20Client, ERC20Error};
 use groundhog_erc20_metadata_if::ERC20MetadataClient;
 use groundhog_erc20_pausable_if::{
-    ERC20PausableClient, ERC20PausableClientError, ERC20PausableError,
-    PausedEvent, UnpausedEvent,
+    ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
 use sdk::*;
 
@@ -94,12 +93,13 @@ fn initialize_sets_metadata_and_roles() {
             assert_eq!(Some(TOKEN_DECIMALS), meta.decimals());
 
             // A second initialize (through either interface) is rejected.
-            assert!(matches!(
-                ERC20Client::new(&addr).try_initialize(&ADMIN),
-                Err(ERC20ClientError::ERC20Error(
-                    ERC20Error::AlreadyInitialized
-                ))
-            ));
+            assert_eq!(
+                ERC20Client::new(&addr)
+                    .try_initialize(&ADMIN)
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC20Error::AlreadyInitialized),
+            );
 
             // The administrator starts with both roles; nobody else has any.
             let access = AccessControlClient::new(&addr);
@@ -147,12 +147,13 @@ fn pause_blocks_balance_changes() {
     // A non-pauser cannot pause, but can still transfer.
     let result = env.transact(|tx| {
         tx.call(&OTHER).run(move || {
-            assert!(matches!(
-                ERC20PausableClient::new(&addr).try_pause(),
-                Err(ERC20PausableClientError::ERC20PausableError(
-                    ERC20PausableError::MustBePauser
-                ))
-            ));
+            assert_eq!(
+                ERC20PausableClient::new(&addr)
+                    .try_pause()
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC20PausableError::MustBePauser),
+            );
             ERC20Client::new(&addr).transfer(&ADMIN, 5);
         })
     });
@@ -168,14 +169,14 @@ fn pause_blocks_balance_changes() {
             assert!(pausable.paused());
 
             let token = ERC20Client::new(&addr);
-            let enforced_pause = |r: Result<(), ERC20ClientError>| match r {
-                Err(ERC20ClientError::Unknown(raw)) => {
-                    assert_eq!(
-                        raw.try_as::<ERC20PausableError>(),
-                        Some(ERC20PausableError::EnforcedPause)
-                    );
-                }
-                other => panic!("expected EnforcedPause, got {other:?}"),
+            // `EnforcedPause` is deliberately absent from ERC20's `throws`
+            // contract, yet it is reached here exactly like a declared
+            // error: the selector identifies the type, not the interface.
+            let enforced_pause = |r: Result<(), CallError>| {
+                assert_eq!(
+                    r.unwrap_err().try_as(),
+                    Some(ERC20PausableError::EnforcedPause),
+                );
             };
             enforced_pause(token.try_transfer(&OTHER, 1));
             enforced_pause(token.try_transfer_from(&OTHER, &ADMIN, 1));
@@ -190,12 +191,10 @@ fn pause_blocks_balance_changes() {
             assert_eq!(token.allowance(&ADMIN, &OTHER), 10);
 
             // Pausing an already-paused token is rejected.
-            assert!(matches!(
-                pausable.try_pause(),
-                Err(ERC20PausableClientError::ERC20PausableError(
-                    ERC20PausableError::EnforcedPause
-                ))
-            ));
+            assert_eq!(
+                pausable.try_pause().unwrap_err().try_as(),
+                Some(ERC20PausableError::EnforcedPause),
+            );
         })
     });
     result.assert_success();
@@ -213,12 +212,10 @@ fn pause_blocks_balance_changes() {
             let pausable = ERC20PausableClient::new(&addr);
             pausable.unpause();
             assert!(!pausable.paused());
-            assert!(matches!(
-                pausable.try_unpause(),
-                Err(ERC20PausableClientError::ERC20PausableError(
-                    ERC20PausableError::ExpectedPause
-                ))
-            ));
+            assert_eq!(
+                pausable.try_unpause().unwrap_err().try_as(),
+                Some(ERC20PausableError::ExpectedPause),
+            );
 
             let token = ERC20Client::new(&addr);
             token.transfer(&OTHER, 5);
@@ -261,27 +258,27 @@ fn roles_gate_pausing_and_are_administered() {
             pausable.unpause();
 
             let access = AccessControlClient::new(&addr);
-            assert!(matches!(
-                access.try_grant_role(&PAUSER_ROLE, &OTHER),
-                Err(AccessControlClientError::AccessControlError(
-                    AccessControlError::MissingRole
-                ))
-            ));
-            assert!(matches!(
-                access.try_revoke_role(&PAUSER_ROLE, &ADMIN),
-                Err(AccessControlClientError::AccessControlError(
-                    AccessControlError::MissingRole
-                ))
-            ));
+            assert_eq!(
+                access
+                    .try_grant_role(&PAUSER_ROLE, &OTHER)
+                    .unwrap_err()
+                    .try_as(),
+                Some(AccessControlError::MissingRole),
+            );
+            assert_eq!(
+                access
+                    .try_revoke_role(&PAUSER_ROLE, &ADMIN)
+                    .unwrap_err()
+                    .try_as(),
+                Some(AccessControlError::MissingRole),
+            );
 
             access.renounce_role(&PAUSER_ROLE);
             assert!(!access.has_role(&PAUSER_ROLE, &OTHER));
-            assert!(matches!(
-                pausable.try_pause(),
-                Err(ERC20PausableClientError::ERC20PausableError(
-                    ERC20PausableError::MustBePauser
-                ))
-            ));
+            assert_eq!(
+                pausable.try_pause().unwrap_err().try_as(),
+                Some(ERC20PausableError::MustBePauser),
+            );
 
             // Renouncing a role that isn't held is a no-op.
             access.renounce_role(&PAUSER_ROLE);

@@ -1,6 +1,8 @@
 # Re-design: SDK support for cross-contract errors
 
-Status: proposal.
+Status: **implemented**. The break was taken in one change rather than
+through the compatibility window described below: `try_*` returns
+`CallError`, and the generated client error enums are gone.
 
 ## Problem
 
@@ -203,7 +205,39 @@ against the borrowed scratch — zero-copy, no `to_owned` at all.
 `throws_spec_tokens` and spec canonicalization, and remains the interface's
 documented error contract.
 
+## As implemented
+
+Four things this proposal did not anticipate:
+
+**`throws` types needed an explicit host-side use.** The spec fragments that
+name them are `riscv32`-gated, so with no enum variant holding them, a
+`throws` type the crate never constructs became dead code on host builds
+(`counter`'s `Error` tripped `-D warnings` immediately). `#[contract]` now
+emits `const _: u64 = <Ty as ::sdk::exn::Exn>::SELECTOR;` per declared type,
+ungated. It costs nothing at runtime and is a strict improvement besides:
+the `Exn` bound on a `throws` type is now a host-build error rather than one
+that only surfaces when compiling for the guest.
+
+**The lowering needs three lint allowances, attached to a `let`.** An arm
+body that diverges — and `_ => e.re_throw()` is the documented way to
+propagate — leaves the `break` carrying its value both unreachable and a
+diverging sub-expression; a `match_exn!` whose only arm is `_` never breaks
+at all, leaving the label unused. Attributes on expressions are still
+unstable, so the labeled block is the initializer of a `let` purely to give
+`#[allow(unreachable_code, unused_labels, clippy::diverging_sub_expression)]`
+a statement to attach to. Without it, any user crate building with
+`-D warnings` breaks on the idiomatic propagate arm.
+
+**`MatchExn::try_as` earns its place.** Most call sites care about exactly
+one exception type, and `err.try_as()` reads better there than a two-arm
+macro — it is what most of the migrated tests use. It is also `TODO.md`'s
+"add `try_as` to the client error enum" idea, delivered on `CallError`.
+
+**`RawExceptionRef` is now `Copy`.** All three fields already were, and
+`MatchExn::as_exn` hands out reborrows of it.
+
 ## Costs
+
 
 **Size: unchanged.** `RawException` carries a fixed `SCRATCH_MAX` inline
 buffer without `alloc` (~4 KiB), but the generated enum already embeds one
@@ -221,9 +255,20 @@ the `RawExceptionRef` path in §4 and copy nothing.
 declared type whether or not the caller inspects it; a caller that only
 re-throws pays for a decode it discards. Here decoding is on demand.
 
-**Code size: expected smaller, unmeasured.** Every `try_*` method currently
-monomorphises a selector-dispatch match with one decode arm per declared
-type. That collapses to one shared `to_owned` closure.
+**Code size: measured, no change — and the predicted win has no fixture.**
+Every `try_*` method used to monomorphise a selector-dispatch match with one
+decode arm per declared type; that collapses to one shared `to_owned`
+closure, which should shrink guest code. Building `counter`, `erc20`,
+`erc20_pausable` and `exceptions` for `riscv32im-unknown-none-elf` with the
+recorded production flags, before and after, gives byte-identical
+`.text`+`.rodata` (+0.00% each). The reason: **no example contract's guest
+binary catches a cross-contract exception** — the `try_` calls in guest code
+are all storage getters — so there is no selector dispatch in them to
+remove. The two that do catch (`multi_throws`, `imported_error_caller`) are
+library-only with no rv32 binary. So: no regression, and the predicted
+reduction stays unmeasured. An rv32 example that catches would be worth
+adding on its own merits — nothing currently exercises client-side catching
+in a real guest build.
 
 **`BadDecode` stops being a distinct variant.** `try_as` returns `None`
 both for "wrong selector" and "right selector, undecodable payload", so the
@@ -250,7 +295,12 @@ nothing tells a caller a new error exists, and nothing checks that a
 cross-checks arms against the callee's spec is conceivable later; it is not
 part of this proposal.
 
-## Backward-compatible route
+## Backward-compatible route (not taken)
+
+Recorded for the reasoning, not as a description of what happened. The
+migration turned out to be ~60 call sites across 17 files and almost
+entirely mechanical, which is what made the window unnecessary.
+
 
 The two changes are separable, and `match_exn!` can ship first without
 breaking anything:
@@ -282,17 +332,39 @@ it. Options:
   declared errors still match through the outer enum, so the syntax is not
   uniform and step 3 is a rewrite rather than a deletion.
 
-## Migration surface
+## Migration surface (done)
 
-`*ClientError` appears ~60 times across 17 files: `example-contracts/`
-(counter, multi_throws, exceptions, storage_errors, erc20_pausable,
-erc1271_caller, imported_error_*, versioned_callee, named_interface_callee,
-invoke_flags_test), `standard-tests/` (erc20-test, erc20-native-test),
-`crates/sdk/tests/compile-pass/throws_paths.rs`, and
-`crates/sdk/src/call/mod.rs`. The developers-site page
-`reference/error-handling.md` ("Cross-Contract Errors", "Undeclared errors")
-and `reference/cross-contract-calls.md` both need rewriting.
+All 33 changed files build and test clean. Beyond the ~60 `*ClientError`
+uses across `example-contracts/`, `standard-tests/` and `crates/sdk/`:
 
-New tests worth adding: `compile-fail` cases for a non-path-rooted arm
-(should say "use `_`"), a missing `_` arm, and cross-type `|`; `compile-pass`
-for guards, `@` bindings, and expression position.
+**Docs rewritten.** `crates/sdk/doc/lib.md` and `doc/macro-contract.md`; on
+the developers site, `reference/error-handling.md`,
+`reference/cross-contract-calls.md`, `reference/sdk-macros.md`,
+`programming-model/testing.md`, `tutorials/build-a-counter.md` and
+`tutorials/build-a-token.md`. The two reference pages' "Version checked"
+notes moved to SDK `0.24.0`.
+
+The long-form `match_exn!` rules live on the macro's own rustdoc, not the
+module's: `exn::match_exn` is a private module (this crate's convention), so
+module docs there would never render.
+
+**Tests.** Twelve unit tests in `exn::match_exn` cover selector dispatch,
+guard fall-through, alternates, `@` bindings, expression position, diverging
+arms, wildcard-only, block bodies without commas, and the three ways
+`try_as` can miss. New `compile-fail` cases: missing `_` arm, `_` not last,
+a non-path-rooted (binding) arm, and a duplicated `throws` type. New
+`compile-pass`: `throws_formerly_reserved_names.rs`, covering the names
+`throws(...)` used to reject.
+
+Three `compile-fail` tests were deleted along with the diagnostics they
+pinned — `throws_duplicate_selector`, `throws_reserved_variant_name`,
+`throws_variant_name_collision`. What they asserted is now legal, and
+`throws_formerly_reserved_names.rs` asserts exactly that.
+
+**Not verified here.** The `.rv32a` artifacts could not be regenerated (the
+`groundhog` CLI needs a configured profile), so the tests that load a
+prebuilt guest artifact ran against stale ones. The guest *compile* path was
+checked directly instead: eight contracts build clean for
+`riscv32im-unknown-none-elf` under `-D warnings` and
+`panic=immediate-abort`. Re-run `scripts/dev.sh build-examples-rv32`
+followed by the rv32 tests before merging.

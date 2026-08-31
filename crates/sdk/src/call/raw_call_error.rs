@@ -30,6 +30,16 @@ pub enum RawCallError<X = RawException> {
     EncodingArgs(FaultString),
 }
 
+/// The error type of every generated `try_*` client method: a call failure
+/// that may carry a caught exception, kept untyped.
+///
+/// Exceptions stay as [`RawException`] rather than being pre-decoded into a
+/// per-client enum, because the wire form already identifies the type by
+/// selector, independently of what any interface declared it `throws`. Match
+/// one with [`match_exn!`](crate::match_exn); everything else here is
+/// ordinary `match` material.
+pub type CallError = RawCallError;
+
 /// A call failure with no exception payload: the target never ran
 /// ([`Invalid`](RawCallError::Invalid)), faulted, or the host's returned
 /// data failed validation. The `Exception` variant is statically

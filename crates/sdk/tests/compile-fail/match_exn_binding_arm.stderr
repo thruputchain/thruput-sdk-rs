@@ -1,0 +1,5 @@
+error[E0282]: type annotations needed
+  --> tests/compile-fail/match_exn_binding_arm.rs:13:9
+   |
+13 |         caught => 1,
+   |         ^^^^^^ cannot infer type

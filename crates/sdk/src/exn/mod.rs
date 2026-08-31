@@ -63,6 +63,9 @@ impl Exn for core::convert::Infallible {
     const SELECTOR: u64 = 0;
 }
 
+mod match_exn;
+pub use match_exn::*;
+
 mod raw;
 pub use raw::*;
 
