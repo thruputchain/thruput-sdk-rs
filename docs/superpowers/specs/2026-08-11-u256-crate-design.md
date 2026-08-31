@@ -53,9 +53,13 @@ every call because the public type's representation is still `[u64; 4]`.
   swap suite uses it today, so there is no call site to shape the API against —
   in particular floor-vs-truncate division semantics, and which of
   `abs`/`signum`/`checked_neg` matter. Deferred until a consumer exists.
+  (**Since shipped**: a consumer appeared. See
+  [`2026-08-31-i256-and-math-utilities-design.md`](2026-08-31-i256-and-math-utilities-design.md).)
 - A general `mul_div(U256, U256, U256)`. Exactness requires a 512-bit
   intermediate. `mul_div_u128` is exact with a U256 intermediate and covers the
   motivating case; the general form is deferred rather than shipped lossy.
+  (**Since shipped**, alongside `I256` and the rest of OpenZeppelin's
+  `Math.sol`; same design note.)
 - `pow`, modular arithmetic, Montgomery form, constant-time guarantees. We are
   not building a cryptographic bignum.
 - Const-generic width (`Uint<const LIMBS>`). Const generics invite accidental

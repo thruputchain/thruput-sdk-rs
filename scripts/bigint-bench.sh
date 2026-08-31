@@ -57,6 +57,7 @@ backend_feature() {
 #
 # `none` first: it is the calibration build every other row subtracts.
 OPS_ALL="none add sub mul mul_small widening_mul div div_small rem mul_div_u128 \
+mul_div mul_div_and_div signed_mul signed_div \
 shl shr bitwise cmp sqrt bytes bit_len"
 
 # The op name and its feature differ only in the separator.

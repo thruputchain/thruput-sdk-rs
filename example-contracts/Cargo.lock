@@ -1217,6 +1217,7 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 name = "u256_roundtrip"
 version = "0.4.0"
 dependencies = [
+ "bottle-test-if",
  "sdk",
  "u256_roundtrip",
 ]

@@ -1,6 +1,6 @@
 [package]
 name = "u256_roundtrip"
-description = "Example contract exercising sdk::U256 through entrypoints and storage"
+description = "Example contract exercising sdk::U256 and sdk::I256 through entrypoints and storage"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -14,6 +14,10 @@ edition.workspace = true
 [features]
 entrypoints = []
 dev = ["sdk/dev"]
+# Adds the `BottleTest` entrypoints that drive this contract from inside
+# another guest contract -- see src/bottle_test.rs for what that covers that
+# the host-driven tests cannot.
+bottle-test = ["dep:bottle-test-if"]
 
 [lib]
 crate-type = ["rlib"]
@@ -30,6 +34,9 @@ required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }
+
+# Optional
+bottle-test-if = { workspace = true, optional = true }
 
 [dev-dependencies]
 u256_roundtrip = { path = ".", features = ["dev"] }

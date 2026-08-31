@@ -1,5 +1,14 @@
-//! A 256-bit unsigned integer stored as `[u32; 8]`, native to a 32-bit
-//! register file.
+//! 256-bit integers stored as `[u32; 8]`, native to a 32-bit register file,
+//! with the math utilities an Ethereum port reaches for.
+//!
+//! [`U256`] is the unsigned type and [`I256`] its two's complement signed
+//! counterpart. Both carry the utility surface an Ethereum port expects:
+//! OpenZeppelin's `Math.sol` on the unsigned side ([`U256::mul_div`] on an
+//! exact 512-bit intermediate, [`U256::mul_shr`], modular arithmetic,
+//! [`U256::integer_sqrt`] and the `log2`/`log10`/`log256` family with a
+//! [`Rounding`] direction) and `SignedMath.sol` on the signed one
+//! ([`I256::average`], [`I256::min`], [`I256::max`],
+//! [`I256::unsigned_abs`]).
 //!
 //! Parity's `uint` stores four `u64` limbs and multiplies through `u128`
 //! intermediates, which on riscv32 is a `compiler_builtins` call rather than an
@@ -7,9 +16,26 @@
 //! bytes of rv32 text and its `integer_sqrt` to 12,732 -- together over a third
 //! of the 64 KiB artifact code cap.
 //!
-//! [`U256`] behaves like `u128` on overflow: the operators wrap when
+//! Both types behave like the primitives on overflow: the operators wrap when
 //! `overflow-checks` is off (as every contract profile sets it) and panic when
 //! it is on. Use [`U256::checked_add`] and friends where it matters.
+//!
+//! [`I256`] costs far less than a second implementation. Addition,
+//! subtraction, multiplication and the bitwise operations produce the same
+//! bits on both types, so only comparison, division, the arithmetic right
+//! shift and formatting are genuinely separate code -- see `signed`.
+//!
+//! Every `Display`, `FromStr`, `LowerHex` and `UpperHex` impl in this crate --
+//! on the integers and on their error types alike -- sits behind the `fmt`
+//! feature, so a guest build carries neither the decimal-division loop nor the
+//! string literals those impls need. `sdk` enables `fmt` only under
+//! `cfg(not(target_arch = "riscv32"))`, so a contract does not build them at
+//! all rather than building them and relying on the linker to notice they are
+//! dead: a `Display` bound on [`U256`] does not resolve for
+//! `riscv32im-unknown-none-elf`. Cargo features are additive, so a dependency
+//! that names this crate with `fmt` itself would still turn it back on --
+//! nothing here can prevent that. `Debug` is the deliberate exception -- see
+//! `fmt`.
 //!
 //! The keying is exact under the `nightly` feature (guest builds get it
 //! through `sdk`), which reads rustc's real `overflow-checks` flag. Without
@@ -28,12 +54,29 @@ mod arith;
 mod div;
 mod fmt;
 mod integration;
+mod math;
+mod signed;
+mod signed_arith;
+mod signed_fmt;
+mod signed_math;
 mod sqrt;
 
 pub use div::{checked_mul_div_u128, mul_div_u128};
+pub use math::Rounding;
+pub use signed::I256;
+
+// The spec derive emits this at the type's definition site; `U256`'s lands at
+// the crate root because the struct is declared here. Re-export `I256`'s from
+// its module so both are reachable under one path -- which is how a spec
+// fragment is named elsewhere in the workspace (`spec-tool`'s registry) and
+// how `tests/spec_abi.rs` pins these two.
+#[doc(hidden)]
+pub use signed::__groundhog_spec_fragment_I256;
 
 #[cfg(feature = "fmt")]
 pub use fmt::ParseU256Error;
+#[cfg(feature = "fmt")]
+pub use signed_fmt::ParseI256Error;
 
 /// Path shim for `#[derive(ContractTypeSpec)]`. The derive would otherwise emit
 /// `::sdk::…`, and `sdk` depends on this crate; both names it needs are just
@@ -188,12 +231,67 @@ impl U256 {
         0
     }
 
+    /// Returns the bit at `i`, counting from the least significant.
+    ///
+    /// Bits at or above [`BITS`](Self::BITS) are zero, rather than a panic:
+    /// callers index by a computed position (an exponent bit, a mask width),
+    /// and the out-of-range answer is unambiguous.
+    #[inline]
+    pub const fn bit(self, i: u32) -> bool {
+        if i >= Self::BITS {
+            return false;
+        }
+        (self.limbs[(i / 32) as usize] >> (i % 32)) & 1 == 1
+    }
+
+    /// Comparison usable from a `const fn`.
+    ///
+    /// The [`Ord`] impl is the one callers want; it just is not `const`, and
+    /// the arithmetic in this crate is. Same ordering, same answer.
+    #[inline]
+    pub const fn const_cmp(self, other: Self) -> core::cmp::Ordering {
+        let mut i = LIMBS;
+        while i > 0 {
+            i -= 1;
+            if self.limbs[i] < other.limbs[i] {
+                return core::cmp::Ordering::Less;
+            }
+            if self.limbs[i] > other.limbs[i] {
+                return core::cmp::Ordering::Greater;
+            }
+        }
+        core::cmp::Ordering::Equal
+    }
+
+    /// `self == other`, from a `const fn`.
+    #[inline]
+    pub(crate) const fn const_eq(self, other: Self) -> bool {
+        matches!(self.const_cmp(other), core::cmp::Ordering::Equal)
+    }
+
+    /// `self < other`, from a `const fn`.
+    #[inline]
+    pub(crate) const fn const_lt(self, other: Self) -> bool {
+        matches!(self.const_cmp(other), core::cmp::Ordering::Less)
+    }
+
+    /// `self > other`, from a `const fn`.
+    #[inline]
+    pub(crate) const fn const_gt(self, other: Self) -> bool {
+        matches!(self.const_cmp(other), core::cmp::Ordering::Greater)
+    }
+
+    /// `self >= other`, from a `const fn`.
+    #[inline]
+    pub(crate) const fn const_ge(self, other: Self) -> bool {
+        !self.const_lt(other)
+    }
+
     /// Returns the big-endian byte representation.
     ///
     /// Outlined on rv32 -- every contract that stores a `U256` pays for this
     /// one. See the inlining note in `arith`.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
         let mut out = [0u8; 32];
         let mut i = 0;
@@ -214,7 +312,6 @@ impl U256 {
     ///
     /// Outlined on rv32; see the inlining note in `arith`.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
         let mut limbs = [0u32; LIMBS];
         let mut i = 0;
@@ -277,29 +374,45 @@ impl From<bool> for U256 {
     }
 }
 
-/// Returned when a [`U256`] does not fit the requested narrower type.
+/// Returned when an integer conversion in this crate does not fit.
+///
+/// One type covers every direction -- [`U256`] or [`I256`] down to a narrower
+/// primitive, and between the two 256-bit types -- and every reason, whether
+/// the value is out of the target's range or, converting to an unsigned type,
+/// negative. That is what `core::num::TryFromIntError` does:
+/// `u8::try_from(300u32)` and `u8::try_from(-1i32)` both yield it, with no
+/// split by the source's signedness and no payload to inspect. Splitting it
+/// here would add a type without adding information.
+///
+/// It is a distinct type from `core::num::TryFromIntError` only because that
+/// one cannot be constructed outside `core`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TryFromU256Error(());
+pub struct TryFromIntError(pub(crate) ());
 
-impl core::fmt::Display for TryFromU256Error {
+/// Gated on `fmt` like every other `Display` in this crate: the message is a
+/// string literal, and a guest build that never formats the error should not
+/// carry it. `std` implies `fmt`, so the `Error` impl below always has its
+/// `Display` bound.
+#[cfg(feature = "fmt")]
+impl core::fmt::Display for TryFromIntError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("value does not fit in the target type")
     }
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for TryFromU256Error {}
+impl std::error::Error for TryFromIntError {}
 
 macro_rules! impl_try_into {
     ($($t:ty => $limbs:expr),* $(,)?) => {
         $(
             impl TryFrom<U256> for $t {
-                type Error = TryFromU256Error;
+                type Error = TryFromIntError;
 
                 #[inline]
                 fn try_from(n: U256) -> Result<Self, Self::Error> {
                     if n.limb_len() > $limbs {
-                        return Err(TryFromU256Error(()));
+                        return Err(TryFromIntError(()));
                     }
                     let mut out: $t = 0;
                     let mut i = $limbs;
@@ -318,6 +431,34 @@ macro_rules! impl_try_into {
 // (it panics/wraps depending on profile), and this form stays correct for
 // every width without a special case.
 impl_try_into!(u32 => 1, u64 => 2, u128 => 4);
+
+/// Targets narrower than a limb, where the limb count is not the bound.
+///
+/// `impl_try_into!` keys its check on `limb_len`, which cannot express "fits
+/// in eight bits", and its `<< 16 << 16` accumulator would overflow the target
+/// outright. Narrowing to `u32` first and letting that type's own conversion
+/// finish the job is both correct and smaller than a bespoke bound.
+///
+/// These exist for parity with OpenZeppelin's `SafeCast`, whose `toUint8`
+/// through `toUint128` a port will reach for by name.
+macro_rules! impl_try_into_narrow {
+    ($($t:ty),* $(,)?) => {
+        $(
+            impl TryFrom<U256> for $t {
+                type Error = TryFromIntError;
+
+                #[inline]
+                fn try_from(n: U256) -> Result<Self, Self::Error> {
+                    let narrowed = u32::try_from(n)?;
+                    <$t>::try_from(narrowed)
+                        .map_err(|_| TryFromIntError(()))
+                }
+            }
+        )*
+    };
+}
+
+impl_try_into_narrow!(u8, u16);
 
 impl PartialOrd for U256 {
     #[inline]

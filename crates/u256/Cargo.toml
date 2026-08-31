@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "256-bit unsigned integer for Groundhog contracts, with a 32-bit-native representation"
+description = "Signed and unsigned 256-bit integers for Groundhog contracts, with a 32-bit-native representation and the OpenZeppelin Math/SignedMath surface"
 
 [lib]
 crate-type = ["rlib"]

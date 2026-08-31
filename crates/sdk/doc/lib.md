@@ -294,15 +294,22 @@ wallet address it trusts.
 
 # Arithmetic
 
-[`U256`] behaves like `u128`, including on overflow: the operators wrap when
-`overflow-checks` is off — as in every contract profile — and panic when it
-is on. **The native test harness builds with overflow checks on**, so an
-overflow that fails a test wraps silently on-chain. A passing test proves
-nothing about overflow behavior in deployment.
+[`U256`] and its signed counterpart [`I256`] behave like `u128` and `i128`,
+including on overflow: the operators wrap when `overflow-checks` is off — as
+in every contract profile — and panic when it is on. **The native test harness
+builds with overflow checks on**, so an overflow that fails a test wraps
+silently on-chain. A passing test proves nothing about overflow behavior in
+deployment.
 
-[`U256`] stores eight 32-bit limbs, which is what the rv32 guest multiplies
-natively. Prefer it over a general-purpose big-integer crate: those typically
-use 64-bit limbs and multiply through `u128`, which the guest has to
+Signed division is the one exception, and it follows the primitives: `I256::MIN
+/ -1` and `I256::MIN % -1` panic in *every* profile, because that is what
+`i128` does — the hardware alternative is a trap, so Rust does not gate it on
+`overflow-checks`. Use `wrapping_div` / `wrapping_rem` if you need the wrap.
+
+Both types store eight 32-bit limbs, which is what the rv32 guest multiplies
+natively, and [`I256`] is the same bits read signed rather than a second
+implementation. Prefer them over a general-purpose big-integer crate: those
+typically use 64-bit limbs and multiply through `u128`, which the guest has to
 synthesize, so they cost far more code and gas for the same arithmetic.
 
 For money math, be explicit rather than relying on operators:
@@ -312,8 +319,16 @@ For money math, be explicit rather than relying on operators:
 - [`mul_div_u128`] / [`checked_mul_div_u128`] for `a * b / d` with a 256-bit
   intermediate (the panics of [`mul_div_u128`] are unconditional, not
   `overflow-checks`-gated);
+- [`U256::mul_div`] when the operands are themselves 256-bit — full
+  precision, on an exact 512-bit intermediate;
 - the storage-level guards [`NNInt`](storage::NNInt) and
   [`Balance`](storage::Balance), which check in every profile.
+
+Beyond that, [`U256`] and [`I256`] carry OpenZeppelin's `Math.sol` and
+`SignedMath.sol` surfaces — `mul_shr`, `mul_mod`, `mod_exp`, `inv_mod`,
+`average`, `ceil_div`, and `integer_sqrt`/`log2`/`log10`/`log256` with a
+[`Rounding`] direction — so a Solidity port has the same vocabulary. Every
+fallible one ships as a `checked_` form beside the panicking one.
 
 # System functions
 

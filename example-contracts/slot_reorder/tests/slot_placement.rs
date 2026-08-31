@@ -127,9 +127,8 @@ fn keypath_identity_matches_pinned_slot() {
     // Keypaths hold live VM hash streams, so identity checks need a frame.
     TestEnvironment::no_cost()
         .transact(|tx| {
-            tx.call(&ContractAddress::named("identity")).run(|| {
-                keypath_identity_matches_pinned_slot_body()
-            })
+            tx.call(&ContractAddress::named("identity"))
+                .run(|| keypath_identity_matches_pinned_slot_body())
         })
         .assert_success();
 }
@@ -179,9 +178,8 @@ fn wide_slot_indices_match_runtime_child() {
     // Keypaths hold live VM hash streams, so identity checks need a frame.
     TestEnvironment::no_cost()
         .transact(|tx| {
-            tx.call(&ContractAddress::named("wide")).run(|| {
-                wide_slot_indices_match_runtime_child_body()
-            })
+            tx.call(&ContractAddress::named("wide"))
+                .run(|| wide_slot_indices_match_runtime_child_body())
         })
         .assert_success();
 }
