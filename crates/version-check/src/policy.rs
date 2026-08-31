@@ -43,6 +43,17 @@ impl Named {
 /// their own version line rather than the workspace's.
 pub const INTERFACE_PREFIX: &str = "standard-interfaces/";
 
+/// Manifests under this prefix hold the standard-interface implementation
+/// components, which ride the interface crates' version line and release in
+/// lockstep with them.
+pub const IMPL_PREFIX: &str = "standard-impls/";
+
+/// True when `rel` belongs to the independently-versioned interface family:
+/// the standard-interface crates and their implementation components.
+pub fn in_interface_family(rel: &str) -> bool {
+    rel.starts_with(INTERFACE_PREFIX) || rel.starts_with(IMPL_PREFIX)
+}
+
 /// Crates from the protocol-rs repository, which release together at one
 /// version. A breaking change here forces a new standard-interfaces release, so
 /// that clients can request a version built against it.
@@ -55,13 +66,24 @@ pub const PROTOCOL_CRATES: &[&str] = &[
 ];
 
 /// In-repo pins that are not `=`.
-pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[OperatorException {
-    manifest_prefix: "standard-interfaces/",
-    dep: "sdk",
-    op: Op::Caret,
-    reason: "the published interface crates are compatible with any sdk patch \
-             release, so they deliberately do not pin the SDK in lockstep",
-}];
+pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
+    OperatorException {
+        manifest_prefix: "standard-interfaces/",
+        dep: "sdk",
+        op: Op::Caret,
+        reason: "the published interface crates are compatible with any sdk \
+                 patch release, so they deliberately do not pin the SDK in \
+                 lockstep",
+    },
+    OperatorException {
+        manifest_prefix: "standard-impls/",
+        dep: "sdk",
+        op: Op::Caret,
+        reason: "the published implementation components follow the interface \
+                 crates' policy: compatible with any sdk patch release, so \
+                 they deliberately do not pin the SDK in lockstep",
+    },
+];
 
 /// Packages allowed to write a literal `version` instead of inheriting the
 /// workspace version.
@@ -80,6 +102,22 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
         name: "groundhog-erc1271-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-erc20-pausable-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-access-control-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-access-control",
+        reason: "implementation component on the standard interfaces' \
+                 independent version line, released in lockstep with its \
+                 interface crate",
     },
     Named {
         name: "version-mismatch-helper",

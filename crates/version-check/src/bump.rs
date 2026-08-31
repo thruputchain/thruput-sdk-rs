@@ -13,8 +13,8 @@
 //!
 //! There is no hardcoded file list here. The two crate families are told apart
 //! by how they declare their own version — [`VersionSpec::Inherited`] for the
-//! workspace family, a literal under `standard-interfaces/` for the interface
-//! line.
+//! workspace family, a literal under `standard-interfaces/` or
+//! `standard-impls/` for the interface line.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -26,7 +26,7 @@ use semver::Version;
 use toml_edit::{DocumentMut, TableLike, Value};
 
 use crate::model::{Repo, VersionSpec};
-use crate::policy::{INTERFACE_PREFIX, PROTOCOL_CRATES};
+use crate::policy::{PROTOCOL_CRATES, in_interface_family};
 
 #[derive(Debug)]
 pub enum Error {
@@ -162,7 +162,7 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
     let interface_pkgs: Vec<(&str, &Version, &str)> = repo
         .manifests
         .iter()
-        .filter(|m| m.rel.starts_with(INTERFACE_PREFIX))
+        .filter(|m| in_interface_family(&m.rel))
         .filter_map(|m| {
             let p = m.package.as_ref()?;
             Some((p.name.as_str(), p.version.as_ref()?, m.rel.as_str()))
@@ -280,7 +280,7 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
         let Some(raw) = edge.req_raw.as_deref() else {
             continue;
         };
-        let in_interfaces = edge.manifest.starts_with(INTERFACE_PREFIX);
+        let in_interfaces = in_interface_family(&edge.manifest);
         let family = repo
             .locals
             .get(&edge.name)

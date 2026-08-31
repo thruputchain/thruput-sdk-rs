@@ -1,7 +1,8 @@
 //! Round-trip tests for the bump planner against fixture repositories.
 //!
 //! Each test builds a miniature repo in a temp dir — a root workspace, two
-//! workspace-family crates, and one standard-interface crate — then plans a
+//! workspace-family crates, one standard-interface crate, and one
+//! standard-impls component riding the interface version line — then plans a
 //! bump, applies it, reloads, and asserts both the rewritten values and that
 //! `checks::all` is clean afterwards (the checks are the bump's declared
 //! postcondition).
@@ -21,8 +22,10 @@ fn write(root: &Path, rel: &str, content: &str) {
 }
 
 /// A minimal repository the checks pass on: a root workspace at 0.17.4, a
-/// `tool` crate pinning `sdk` exactly, and a standard-interface crate with its
-/// own version line and a caret-family `sdk` pin.
+/// `tool` crate pinning `sdk` exactly, a standard-interface crate with its
+/// own version line and a caret-family `sdk` pin, and a standard-impls
+/// component on the same interface version line that exact-pins the
+/// interface crate.
 ///
 /// The `.gitmodules` entry mirrors the real repo so the agreement exceptions
 /// scoped to `integration_test/contracts/` count as unscanned rather than
@@ -81,6 +84,18 @@ version = "0.4.2"
 
 [dependencies]
 sdk = { path = "../../crates/sdk", version = "0.17.0" }
+"#,
+    );
+    write(
+        dir,
+        "standard-impls/access-control/Cargo.toml",
+        r#"[package]
+name = "groundhog-access-control"
+version = "0.4.2"
+
+[dependencies]
+sdk = { path = "../../crates/sdk", version = "0.17.0" }
+groundhog-erc20-if = { path = "../../standard-interfaces/erc20-if", version = "=0.4.2" }
 "#,
     );
 }
@@ -168,11 +183,24 @@ fn patch_bump_roundtrip() {
     assert_eq!(root.workspace_version, Some(Version::new(0, 17, 5)));
     assert_eq!(req_of(&after, "Cargo.toml", "sdk"), "=0.17.5");
     assert_eq!(req_of(&after, "crates/tool/Cargo.toml", "sdk"), "=0.17.5");
-    // Interface line and its caret-family sdk pin untouched.
+    // Interface line and its caret-family sdk pin untouched — the
+    // standard-impls component included.
     assert_eq!(interface_version(&after), Version::new(0, 4, 2));
     assert_eq!(
         req_of(&after, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
         "0.17.0"
+    );
+    assert_eq!(
+        req_of(&after, "standard-impls/access-control/Cargo.toml", "sdk"),
+        "0.17.0"
+    );
+    assert_eq!(
+        req_of(
+            &after,
+            "standard-impls/access-control/Cargo.toml",
+            "groundhog-erc20-if"
+        ),
+        "=0.4.2"
     );
     assert_clean(&after);
 }
@@ -209,6 +237,33 @@ fn breaking_bump_moves_interfaces_and_refreshes_sdk_pins() {
     assert_eq!(
         req_of(&after, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
         "0.18.0"
+    );
+    // The standard-impls component rides the interface line: its version and
+    // caret sdk pin move like an interface crate's, and its exact pin on the
+    // interface crate tracks the new interface version.
+    assert_eq!(
+        after
+            .manifest("standard-impls/access-control/Cargo.toml")
+            .unwrap()
+            .package
+            .as_ref()
+            .unwrap()
+            .version
+            .clone()
+            .unwrap(),
+        Version::new(0, 4, 3)
+    );
+    assert_eq!(
+        req_of(&after, "standard-impls/access-control/Cargo.toml", "sdk"),
+        "0.18.0"
+    );
+    assert_eq!(
+        req_of(
+            &after,
+            "standard-impls/access-control/Cargo.toml",
+            "groundhog-erc20-if"
+        ),
+        "=0.4.3"
     );
     assert_clean(&after);
 }

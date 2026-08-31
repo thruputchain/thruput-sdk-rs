@@ -1,0 +1,48 @@
+[package]
+name = "erc20_pausable"
+description = "Example pausable ERC20 contract with metadata and role-based access control"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = [
+    "sdk/dev",
+    "groundhog-erc20-if/dev",
+    "groundhog-erc20-metadata-if/dev",
+    "groundhog-erc20-pausable-if/dev",
+    "groundhog-access-control-if/dev",
+    "groundhog-access-control/dev",
+]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `groundhog build --target rv32 -p erc20_pausable`
+# derives `--bin erc20_pausable` from the package name, so the name here
+# must stay the underscored package name. `required-features` keeps it out
+# of host builds.
+[[bin]]
+name = "erc20_pausable"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { workspace = true }
+groundhog-erc20-if = { workspace = true }
+groundhog-erc20-metadata-if = { workspace = true }
+groundhog-erc20-pausable-if = { workspace = true }
+groundhog-access-control-if = { workspace = true }
+groundhog-access-control = { workspace = true }
+
+[dev-dependencies]
+erc20_pausable = { path = ".", features = ["dev"] }

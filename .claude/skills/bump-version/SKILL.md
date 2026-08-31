@@ -63,11 +63,13 @@ What the tool edits, and what to do by hand if you are not using it.
   `path` pointing at an in-repo crate.
 
 The standard-interface pins (`groundhog-erc20-if`, `groundhog-erc20-metadata-if`,
-`groundhog-erc1271-if`) sit on their own version line — `=0.1.6` at the time of
-writing — and are bumped independently of the workspace version, when the SDK
-undergoes a semver-major change.
+`groundhog-erc1271-if`, `groundhog-erc20-pausable-if`,
+`groundhog-access-control-if`) and the implementation-component pin
+(`groundhog-access-control`) sit on their own shared version line — `=0.1.6` at
+the time of writing — and are bumped independently of the workspace version,
+when the SDK undergoes a semver-major change.
 
-### 2. Standard interface crates
+### 2. Standard interface crates and implementation components
 
 Each carries its own `sdk` dep rather than inheriting from the workspace. Update
 the pin in **both** `[dependencies]` and
@@ -76,6 +78,11 @@ the pin in **both** `[dependencies]` and
 - `standard-interfaces/groundhog-erc20/Cargo.toml`
 - `standard-interfaces/groundhog-erc20-metadata/Cargo.toml`
 - `standard-interfaces/groundhog-erc1271/Cargo.toml`
+- `standard-interfaces/groundhog-erc20-pausable/Cargo.toml`
+- `standard-interfaces/groundhog-access-control/Cargo.toml`
+- `standard-impls/groundhog-access-control/Cargo.toml` — this one also carries
+  an exact `=` pin on `groundhog-access-control-if` (the two release in
+  lockstep on the interface version line), which the bump must update too.
 
 These pins are deliberately **caret** (`version = "0.17.4"`), not exact: the
 published interface crates are compatible with any SDK patch release. Do not
