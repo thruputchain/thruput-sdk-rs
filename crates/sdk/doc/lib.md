@@ -364,11 +364,6 @@ exceptions it declares. Types reach the spec through
 [`#[contract_type]`](macro@crate::contract_type) or
 [`ContractTypeSpec`](derive@crate::ContractTypeSpec).
 
-Spec shaking drops a trait's candidate spec unless something anchors it,
-normally a `#[contract]` impl. An interface crate that ships on its own
-anchors its spec with
-[`export_interface_spec!`](macro@crate::export_interface_spec).
-
 # Testing
 
 Three testing lanes, all behind feature `dev`:
