@@ -56,3 +56,17 @@ jobs:
       # the test harness.
       - name: Miri - rv32 runtime (mem intrinsics, dispatch, bump allocator)
         run: cargo miri test -p groundhog-rv32-runtime --lib
+
+      # `knuth_d` keeps its division scratch buffers as `MaybeUninit` and
+      # initialises only part of each, so its soundness is a claim about
+      # indices -- exactly what Miri checks. `tests/knuth_shapes.rs` is built
+      # for this: it visits every `(nn, dn)` shape both instantiations admit
+      # instead of sampling operands, which makes it exhaustive where it
+      # matters and cheap enough to interpret (~1 min, against hours for the
+      # sampling suites in `differential.rs`).
+      #
+      # Verified to be load-bearing rather than vacuous: dropping the `un[nn]`
+      # write makes this step fail with "constructing invalid value of type
+      # u32: encountered uninitialized memory".
+      - name: Miri - u256 division scratch buffers (MaybeUninit soundness)
+        run: cargo miri test -p groundhog-u256 --test knuth_shapes

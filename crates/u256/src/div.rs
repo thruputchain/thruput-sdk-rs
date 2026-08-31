@@ -16,6 +16,7 @@
 //! [`knuth_d`] has the numbers.
 
 use crate::{LIMBS, U256};
+use core::mem::MaybeUninit;
 
 /// The number of 32-bit limbs in a full-precision (512-bit) product.
 pub(crate) const WIDE_LIMBS: usize = 2 * LIMBS;
@@ -267,41 +268,54 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// and the mechanism is a guess this comment declines to make. What holds
 /// across every row is the sign: specialised is never worse than shared.
 ///
-/// # Why the buffers are zeroed
+/// # The scratch buffers
 ///
-/// Four arrays, and the zeros are load-bearing in only two of them:
+/// Four arrays, and only two of them want zeros:
 ///
-/// - `q` and `r` **are** the answer. The quotient occupies `nn - dn + 1`
-///   limbs and the remainder `dn`, but both are returned full width, so their
-///   high limbs genuinely are zero and something has to write them.
+/// - `q` and `r` **are** the answer. The quotient occupies `nn - dn + 1` limbs
+///   and the remainder `dn`, but both are returned full width, so their high
+///   limbs genuinely are zero and something has to write them. They stay
+///   `[u32; _]`, zero-initialised.
 /// - `vn` and `un` are scratch. The normalisation loops fill `vn[0..dn]` and
 ///   `un[0..=nn]` before anything reads them, and nothing ever reads above
-///   that, so their zero-init is dead. Removing it means `MaybeUninit`, which
-///   means `unsafe`: the crate's only `unsafe` today is a trait method it is
-///   obliged to implement, and seventeen stores on a 972-gas operation is not
-///   the trade that should change that. Being a `const fn` is *not* the
-///   obstacle -- `MaybeUninit` works in one on stable, compile-time evaluation
-///   of a partially initialised array included, so long as the uninitialised
-///   tail is never read.
+///   that, so zeroing them was dead work. They are `MaybeUninit` -- the
+///   `SAFETY` note above the function states the two invariants every read
+///   leans on.
 ///
-/// LLVM does not elide the dead half, so those stores are real: the `div`
-/// artifact carries 40 `sw zero` against the `none` calibration build's 18,
-/// which is the four arrays written out in full. The dynamic `vn[dn - 1]` and
-/// `un[j + dn]` indexing pins them to the stack, out of reach of the
-/// dead-store elimination that a scalarised array would have got.
+/// LLVM could not remove that dead half on its own. The dynamic `vn[dn - 1]`
+/// and `un[j + dn]` indexing pins both arrays to the stack, out of reach of
+/// the dead-store elimination a scalarised array would have got, so the
+/// zeroing was real stores in the artifact: 40 `sw zero` over the `none`
+/// calibration build, which is all four arrays written out in full.
 ///
 /// The safe way to reach them -- write every slot unconditionally, so a later
-/// store dominates each element -- was tried on `vn` and does not work:
+/// store dominates each element -- was tried first, on `vn`, and does not
+/// work. `MaybeUninit` does. rv32, marginal over `none`:
 ///
-/// | | .text | gas | `sw zero` |
+/// | | `div` .text | `div` gas | `sw zero` |
 /// |---|---|---|---|
-/// | zero-init, then write `0..dn` | 2,572 | 972.26 | 58 |
-/// | write all `LIMBS` unconditionally | 2,924 | 947.25 | 58 |
+/// | zero-init, then write `0..dn` | 2,572 | 972.26 | 40 |
+/// | write all `LIMBS` unconditionally | 2,924 | 947.25 | 40 |
+/// | `MaybeUninit` | **2,360** | **928.25** | **25** |
 ///
-/// The zero stores survive either way, and the unrolled full-width loop costs
-/// **352 bytes to save 25 gas** -- the wrong way round where the 64 KiB
-/// artifact cap binds. So the dead zero-init stays, and `unsafe` is the only
-/// thing that would actually remove it.
+/// The full-width write keeps every zero store and costs 352 bytes to save 25
+/// gas -- backwards where the 64 KiB artifact cap binds. `MaybeUninit` removes
+/// 15 of the 40 and is smaller *and* faster on every caller:
+///
+/// | | .text | gas |
+/// |---|---|---|
+/// | `div` | 2,572 -> 2,360 (**-8.2%**) | 972.26 -> 928.25 (**-4.5%**) |
+/// | `mul_div_u128` | 3,012 -> 2,788 (**-7.4%**) | 1712.23 -> 1628.24 (**-4.9%**) |
+/// | `mul_div` | 3,992 -> 3,892 (**-2.5%**) | 4712.23 -> 4534.23 (**-3.8%**) |
+///
+/// This is the crate's only discretionary `unsafe`, so it is the one place
+/// Miri earns its keep: `.github/workflows/miri.yml` runs this crate's suite
+/// under it, and the tests thin their random sweeps under `cfg!(miri)` rather
+/// than skipping any shape.
+///
+/// Being a `const fn` was never the obstacle, incidentally -- `MaybeUninit`
+/// works in one on stable, compile-time evaluation of a partially initialised
+/// array included, so long as the uninitialised tail is never read.
 ///
 /// `#[inline]` on the generated function was measured too, on the theory that
 /// it would restore the pre-split shape exactly: it costs 156 bytes on `div`
@@ -327,6 +341,22 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// guess was 20% light -- which is why it is a measurement now.)
 macro_rules! knuth_d {
     ($name:ident, $n:expr) => {
+        // `vn` and `un` are `MaybeUninit` scratch, so every read of them is
+        // `unsafe`. Two facts, established here once, make all of those reads
+        // sound; the `SAFETY` comments below say which one each leans on.
+        //
+        // I1. `vn[0..dn]` is initialised. The normalisation loop writes every
+        //     index below `dn` before anything reads one, and every later read
+        //     is at `dn - 1`, at `dn - 2` (`dn >= 2`), or at an `i < dn`.
+        //
+        // I2. `un[0..=nn]` is initialised. Its loop writes `nn` and then every
+        //     index below it. Every later read is at `i + j`, `j + dn`,
+        //     `j + dn - 1`, `j + dn - 2` -- all at most `nn`, since `j` stops
+        //     at `nn - dn` and `i` at `dn - 1` -- or at `i` and `i + 1` in the
+        //     remainder loop, where `i < dn` and `dn <= nn`.
+        //
+        // Nothing reads above those bounds, which is the whole reason the
+        // tails are left uninitialised: see "Why the buffers are zeroed".
         const fn $name(
             u: &[u32; $n],
             nn: usize,
@@ -340,8 +370,9 @@ macro_rules! knuth_d {
             let s = v[dn - 1].leading_zeros();
 
             // Normalise the divisor so its top limb has its high bit set, which is
-            // what bounds the quotient-digit estimate below.
-            let mut vn = [0u32; LIMBS];
+            // what bounds the quotient-digit estimate below. Establishes I1.
+            let mut vn: [MaybeUninit<u32>; LIMBS] =
+                [MaybeUninit::uninit(); LIMBS];
             let mut i = dn;
             while i > 0 {
                 i -= 1;
@@ -350,13 +381,18 @@ macro_rules! knuth_d {
                 } else {
                     v[i - 1] >> (32 - s)
                 };
-                vn[i] = (v[i] << s) | lo;
+                vn[i] = MaybeUninit::new((v[i] << s) | lo);
             }
 
             // Normalised dividend, one limb wider so the estimate always has two
-            // limbs to read.
-            let mut un = [0u32; $n + 1];
-            un[nn] = if s == 0 { 0 } else { u[nn - 1] >> (32 - s) };
+            // limbs to read. Establishes I2.
+            let mut un: [MaybeUninit<u32>; $n + 1] =
+                [MaybeUninit::uninit(); $n + 1];
+            un[nn] = MaybeUninit::new(if s == 0 {
+                0
+            } else {
+                u[nn - 1] >> (32 - s)
+            });
             let mut i = nn;
             while i > 0 {
                 i -= 1;
@@ -365,7 +401,7 @@ macro_rules! knuth_d {
                 } else {
                     u[i - 1] >> (32 - s)
                 };
-                un[i] = (u[i] << s) | lo;
+                un[i] = MaybeUninit::new((u[i] << s) | lo);
             }
 
             let mut q = [0u32; $n];
@@ -387,9 +423,11 @@ macro_rules! knuth_d {
                 // the whole loop on native 32-bit `DIVU`s instead of one
                 // `__udivdi3` per quotient digit, and skips the wrapper's
                 // re-normalisation prologue.
-                let hi = un[j + dn];
-                let lo = un[j + dn - 1];
-                let dv = vn[dn - 1];
+                // SAFETY: I2 -- `j + dn <= nn`, so both are initialised.
+                let hi = unsafe { un[j + dn].assume_init() };
+                let lo = unsafe { un[j + dn - 1].assume_init() };
+                // SAFETY: I1 -- `dn >= 2`, so `dn - 1 < dn`.
+                let dv = unsafe { vn[dn - 1].assume_init() };
 
                 let (mut qhat, mut rhat) = if hi < dv {
                     let (qh, rh) = div_rem_2by1_normalized(hi, lo, dv);
@@ -408,9 +446,13 @@ macro_rules! knuth_d {
                 // bits that make that true, so it guards the loop rather than only
                 // breaking out of it. `qhat < B` now holds by construction, so the
                 // estimate no longer needs its own bound check.
+                // SAFETY: I1 and I2 -- `dn - 2 < dn` (`dn >= 2`) and
+                // `j + dn - 2 < nn`.
+                let vn_second = unsafe { vn[dn - 2].assume_init() };
+                let un_third = unsafe { un[j + dn - 2].assume_init() };
                 while rhat < B
-                    && qhat * (vn[dn - 2] as u64)
-                        > (rhat << 32) | (un[j + dn - 2] as u64)
+                    && qhat * (vn_second as u64)
+                        > (rhat << 32) | (un_third as u64)
                 {
                     qhat -= 1;
                     rhat += dv as u64;
@@ -420,15 +462,19 @@ macro_rules! knuth_d {
                 let mut k: i64 = 0;
                 let mut i = 0;
                 while i < dn {
-                    let p = qhat * (vn[i] as u64);
-                    let t =
-                        (un[i + j] as i64) - k - ((p & 0xffff_ffff) as i64);
-                    un[i + j] = t as u32;
+                    // SAFETY: I1 -- `i < dn`.
+                    let vi = unsafe { vn[i].assume_init() };
+                    // SAFETY: I2 -- `i + j <= nn - 1`.
+                    let uij = unsafe { un[i + j].assume_init() };
+                    let p = qhat * (vi as u64);
+                    let t = (uij as i64) - k - ((p & 0xffff_ffff) as i64);
+                    un[i + j] = MaybeUninit::new(t as u32);
                     k = ((p >> 32) as i64) - (t >> 32);
                     i += 1;
                 }
-                let t = (un[j + dn] as i64) - k;
-                un[j + dn] = t as u32;
+                // SAFETY: I2 -- `j + dn <= nn`.
+                let t = (unsafe { un[j + dn].assume_init() } as i64) - k;
+                un[j + dn] = MaybeUninit::new(t as u32);
 
                 q[j] = qhat as u32;
 
@@ -439,13 +485,19 @@ macro_rules! knuth_d {
                     let mut carry = 0u64;
                     let mut i = 0;
                     while i < dn {
-                        let sum = (un[i + j] as u64) + (vn[i] as u64) + carry;
-                        un[i + j] = sum as u32;
+                        // SAFETY: I1 and I2 -- `i < dn` and `i + j <= nn - 1`.
+                        let vi = unsafe { vn[i].assume_init() };
+                        let uij = unsafe { un[i + j].assume_init() };
+                        let sum = (uij as u64) + (vi as u64) + carry;
+                        un[i + j] = MaybeUninit::new(sum as u32);
                         carry = sum >> 32;
                         i += 1;
                     }
-                    un[j + dn] =
-                        (un[j + dn] as u64).wrapping_add(carry) as u32;
+                    // SAFETY: I2 -- `j + dn <= nn`.
+                    let top = unsafe { un[j + dn].assume_init() };
+                    un[j + dn] = MaybeUninit::new(
+                        (top as u64).wrapping_add(carry) as u32,
+                    );
                 }
             }
 
@@ -453,8 +505,11 @@ macro_rules! knuth_d {
             let mut r = [0u32; LIMBS];
             let mut i = 0;
             while i < dn {
-                let hi = if s == 0 { 0 } else { un[i + 1] << (32 - s) };
-                r[i] = (un[i] >> s) | hi;
+                // SAFETY: I2 -- `i < dn` and `dn <= nn`, so `i + 1 <= nn`.
+                let lo = unsafe { un[i].assume_init() };
+                let next = unsafe { un[i + 1].assume_init() };
+                let hi = if s == 0 { 0 } else { next << (32 - s) };
+                r[i] = (lo >> s) | hi;
                 i += 1;
             }
 
