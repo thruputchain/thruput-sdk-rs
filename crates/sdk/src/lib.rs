@@ -36,17 +36,18 @@ pub use groundhog_contract_spec as __contract_spec;
 /// the operators wrap when `overflow-checks` is off (as in every contract
 /// profile) and panic when it is on. The native test harness builds with
 /// overflow checks *on*, so an overflow that fails a test wraps silently
-/// on-chain — see the "Arithmetic on-chain" section of the SDK README, and
-/// prefer `checked_*` (or the storage-level `NNInt`/`Balance` guards) for
-/// money math.
+/// on-chain — see the [Arithmetic](crate#arithmetic) section of the crate
+/// docs, and prefer `checked_*` (or the storage-level
+/// [`NNInt`](crate::storage::NNInt) / [`Balance`](crate::storage::Balance)
+/// guards) for money math.
 ///
 /// For the exact `a * b / d` that motivates most reaches for a 256-bit type,
 /// see [`u256::mul_div_u128`] (`u128` in, `u128` out) or [`U256::mul_div`]
 /// (256-bit throughout, on an exact 512-bit intermediate). The crate also
 /// carries OpenZeppelin's `Math.sol` and `SignedMath.sol` surfaces —
 /// `mul_shr`, `mul_mod`, `mod_exp`, `inv_mod`, `average`, `ceil_div`,
-/// `sqrt`/`log2`/`log10`/`log256` with a [`Rounding`] direction — under the
-/// same names.
+/// `integer_sqrt`/`log2`/`log10`/`log256` with a [`Rounding`] direction —
+/// under the same names bar that one (Solidity's is `sqrt`).
 ///
 /// `U256::from` takes a `u128` and `I256::from` an `i128`, both const fns, so
 /// unsuffixed literals and const items work: `const FEE: U256 =
@@ -241,5 +242,5 @@ pub use groundhog_macros::storage;
 
 mod mock;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use mock::*;

@@ -61,11 +61,11 @@ pub(crate) fn assert_no_live_guards() {
          discarding their storage writes. Drop the guard(s) before \
          returning."
     );
-    #[cfg(feature = "mock")]
+    #[cfg(feature = "dev")]
     std::panic::panic_any(
         groundhog_native_exec::invoke_error::unrecoverable_error(),
     );
-    #[cfg(not(feature = "mock"))]
+    #[cfg(not(feature = "dev"))]
     panic!("contract_return with {n} live deferred-write storage guard(s)");
 }
 

@@ -1,6 +1,6 @@
 //! Runtime exit (trap)
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 #[allow(dead_code)]
 #[allow(unused)]
 /// Toss a deterministic error for the mock execution environment to catch
@@ -11,7 +11,7 @@ pub fn trap() -> ! {
     panic_any(deterministic_error())
 }
 
-#[cfg(not(feature = "mock"))]
+#[cfg(not(feature = "dev"))]
 #[inline(always)]
 pub fn trap() -> ! {
     panic!("unreachable");

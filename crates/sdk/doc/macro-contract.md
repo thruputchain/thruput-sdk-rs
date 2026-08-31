@@ -92,9 +92,6 @@ method completes successfully. Exceptions and faults revert the frame.
 The state type should derive [`Storage`](derive@crate::Storage) (or use
 [`storage`](macro@crate::storage)).
 
-Use `storage = false` for stateless contracts that should be called on a
-temporary default value instead of persistent state.
-
 #### Endpoint identifier customization
 
 Each exported contract entrypoint is named with an identifier derived from:
