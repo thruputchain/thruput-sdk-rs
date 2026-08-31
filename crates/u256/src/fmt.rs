@@ -9,23 +9,23 @@ use crate::U256;
 use core::fmt;
 
 /// 2^256 - 1 is 64 hexadecimal digits.
-const HEX_DIGITS: usize = 64;
+pub(crate) const HEX_DIGITS: usize = 64;
 
 /// 2^256 - 1 is 78 decimal digits. Only the decimal path uses this, and that
 /// is behind `fmt`.
 #[cfg(feature = "fmt")]
-const DEC_DIGITS: usize = 78;
+pub(crate) const DEC_DIGITS: usize = 78;
 
-const LOWER: [u8; 16] = *b"0123456789abcdef";
+pub(crate) const LOWER: [u8; 16] = *b"0123456789abcdef";
 
 // Only `UpperHex` uses this, and that is behind `fmt` -- so in a guest build
 // the table itself must go too, or it is dead rodata.
 #[cfg(feature = "fmt")]
-const UPPER: [u8; 16] = *b"0123456789ABCDEF";
+pub(crate) const UPPER: [u8; 16] = *b"0123456789ABCDEF";
 
 /// Renders the significant hex digits into `buf`, returning them as a string.
 /// Digits are written from the back, so the return value borrows the tail.
-fn hex_digits<'a>(
+pub(crate) fn hex_digits<'a>(
     n: &U256,
     buf: &'a mut [u8; HEX_DIGITS],
     table: &[u8; 16],
@@ -86,7 +86,10 @@ impl fmt::UpperHex for U256 {
 
 /// Renders the decimal digits into `buf`, returning them as a string.
 #[cfg(feature = "fmt")]
-fn dec_digits<'a>(n: &U256, buf: &'a mut [u8; DEC_DIGITS]) -> &'a str {
+pub(crate) fn dec_digits<'a>(
+    n: &U256,
+    buf: &'a mut [u8; DEC_DIGITS],
+) -> &'a str {
     let mut pos = buf.len();
     let mut v = *n;
 

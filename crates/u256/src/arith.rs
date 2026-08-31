@@ -130,6 +130,31 @@ impl U256 {
         }
     }
 
+    /// Negation, with a flag reporting whether it wrapped.
+    ///
+    /// Everything but zero wraps -- there are no negative values here. The
+    /// wrapped result is the two's complement, which is what
+    /// [`I256`](crate::I256) is built on.
+    #[inline]
+    pub const fn overflowing_neg(self) -> (Self, bool) {
+        (Self::ZERO.wrapping_sub(self), !self.is_zero())
+    }
+
+    /// Negation, returning `None` for every value but zero.
+    #[inline]
+    pub const fn checked_neg(self) -> Option<Self> {
+        match self.overflowing_neg() {
+            (v, false) => Some(v),
+            (_, true) => None,
+        }
+    }
+
+    /// Negation, wrapping: the two's complement of `self`.
+    #[inline]
+    pub const fn wrapping_neg(self) -> Self {
+        Self::ZERO.wrapping_sub(self)
+    }
+
     // -----------------------------------------------------------------------
     // Multiplication
     // -----------------------------------------------------------------------
@@ -170,6 +195,47 @@ impl U256 {
             i += 1;
         }
         Self::from_limbs(out)
+    }
+
+    /// The exact 512-bit product of two `U256`s, as `(low, high)`.
+    ///
+    /// Halves are ordered low-first, matching `u128::widening_mul`.
+    /// OpenZeppelin's `Math.mul512` returns them the other way round.
+    ///
+    /// Cannot overflow, so no check and no `Option`; sixty-four `mul`/`mulhu`
+    /// pairs. This is the intermediate the full-precision
+    /// [`mul_div`](U256::mul_div) family divides back down -- reach for that
+    /// rather than for the halves, unless the 512-bit value is the answer.
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(not(target_arch = "riscv32"), inline)]
+    pub const fn widening_mul_u256(self, rhs: Self) -> (Self, Self) {
+        let mut out = [0u32; 2 * LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            let mut carry = 0u32;
+            let mut j = 0;
+            while j < LIMBS {
+                let (lo, hi) =
+                    mac(out[i + j], self.limbs[i], rhs.limbs[j], carry);
+                out[i + j] = lo;
+                carry = hi;
+                j += 1;
+            }
+            // Untouched by every earlier `i`, whose inner loop stopped one
+            // limb short of it -- so this is an assignment, not an add.
+            out[i + LIMBS] = carry;
+            i += 1;
+        }
+
+        let mut lo = [0u32; LIMBS];
+        let mut hi = [0u32; LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            lo[i] = out[i];
+            hi[i] = out[i + LIMBS];
+            i += 1;
+        }
+        (Self::from_limbs(lo), Self::from_limbs(hi))
     }
 
     /// Multiplication by a 32-bit value, with a flag reporting overflow.
@@ -251,6 +317,61 @@ impl U256 {
             (v, false) => v,
             (_, true) => Self::MAX,
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Bitwise, from `const fn`
+    //
+    // The operator impls below are the spelling callers want; they just are
+    // not `const`, and much of this crate is. Same answers.
+    // -----------------------------------------------------------------------
+
+    /// Bitwise AND, usable from a `const fn`.
+    #[inline]
+    pub const fn const_bitand(self, rhs: Self) -> Self {
+        let mut out = [0u32; LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            out[i] = self.limbs[i] & rhs.limbs[i];
+            i += 1;
+        }
+        Self::from_limbs(out)
+    }
+
+    /// Bitwise OR, usable from a `const fn`.
+    #[inline]
+    pub const fn const_bitor(self, rhs: Self) -> Self {
+        let mut out = [0u32; LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            out[i] = self.limbs[i] | rhs.limbs[i];
+            i += 1;
+        }
+        Self::from_limbs(out)
+    }
+
+    /// Bitwise XOR, usable from a `const fn`.
+    #[inline]
+    pub const fn const_bitxor(self, rhs: Self) -> Self {
+        let mut out = [0u32; LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            out[i] = self.limbs[i] ^ rhs.limbs[i];
+            i += 1;
+        }
+        Self::from_limbs(out)
+    }
+
+    /// Bitwise NOT, usable from a `const fn`.
+    #[inline]
+    pub const fn const_not(self) -> Self {
+        let mut out = [0u32; LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            out[i] = !self.limbs[i];
+            i += 1;
+        }
+        Self::from_limbs(out)
     }
 
     // -----------------------------------------------------------------------
@@ -347,9 +468,9 @@ impl U256 {
 // consumers are host tools, never gas-metered contracts, so they pay the
 // guard rather than ever silently wrapping (see the gate in lib.rs).
 #[cfg(feature = "nightly")]
-const OVERFLOW_CHECKS: bool = cfg!(overflow_checks);
+pub(crate) const OVERFLOW_CHECKS: bool = cfg!(overflow_checks);
 #[cfg(not(feature = "nightly"))]
-const OVERFLOW_CHECKS: bool = true;
+pub(crate) const OVERFLOW_CHECKS: bool = true;
 
 impl Add for U256 {
     type Output = Self;
@@ -439,7 +560,7 @@ impl Rem for U256 {
 /// here as a very large `u128`: out of range for the panic path, and masking to
 /// its own low bits for the wrapping path, both matching the primitives.
 #[inline]
-const fn shift_bits(wide: u128) -> (u32, bool) {
+pub(crate) const fn shift_bits(wide: u128) -> (u32, bool) {
     ((wide as u32) & (U256::BITS - 1), wide >= U256::BITS as u128)
 }
 
@@ -509,38 +630,26 @@ impl Not for U256 {
 
     #[inline]
     fn not(self) -> Self {
-        let mut out = [0u32; LIMBS];
-        let mut i = 0;
-        while i < LIMBS {
-            out[i] = !self.limbs[i];
-            i += 1;
-        }
-        Self::from_limbs(out)
+        self.const_not()
     }
 }
 
 macro_rules! impl_bitop {
-    ($trait:ident, $method:ident, $op:tt) => {
+    ($trait:ident, $method:ident, $const_method:ident) => {
         impl $trait for U256 {
             type Output = Self;
 
             #[inline]
             fn $method(self, rhs: Self) -> Self {
-                let mut out = [0u32; LIMBS];
-                let mut i = 0;
-                while i < LIMBS {
-                    out[i] = self.limbs[i] $op rhs.limbs[i];
-                    i += 1;
-                }
-                Self::from_limbs(out)
+                self.$const_method(rhs)
             }
         }
     };
 }
 
-impl_bitop!(BitAnd, bitand, &);
-impl_bitop!(BitOr, bitor, |);
-impl_bitop!(BitXor, bitxor, ^);
+impl_bitop!(BitAnd, bitand, const_bitand);
+impl_bitop!(BitOr, bitor, const_bitor);
+impl_bitop!(BitXor, bitxor, const_bitxor);
 
 // `impl_assign!` itself is defined above `impl_shift!`, which also expands it.
 impl_assign!(AddAssign, add_assign, Add, add, U256);

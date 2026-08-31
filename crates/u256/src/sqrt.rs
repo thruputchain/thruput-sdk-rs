@@ -25,7 +25,7 @@ impl U256 {
 
         while !bit.is_zero() {
             let t = res.wrapping_add(bit);
-            if const_ge(x, t) {
+            if x.const_ge(t) {
                 x = x.wrapping_sub(t);
                 res = res.wrapping_shr(1).wrapping_add(bit);
             } else {
@@ -36,17 +36,4 @@ impl U256 {
 
         res
     }
-}
-
-/// `a >= b`, usable from `const fn` (the `PartialOrd` impl is not const).
-#[inline]
-const fn const_ge(a: U256, b: U256) -> bool {
-    let mut i = crate::LIMBS;
-    while i > 0 {
-        i -= 1;
-        if a.limbs[i] != b.limbs[i] {
-            return a.limbs[i] > b.limbs[i];
-        }
-    }
-    true
 }

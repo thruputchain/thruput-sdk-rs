@@ -77,23 +77,35 @@ to override that default.
 Deployed contracts are built with `overflow-checks = false` (see
 `[profile.release]` in `example-contracts/.cargo/config.toml` and its
 integration_test twin), so on-chain integer arithmetic — including
-`sdk::U256`, which deliberately mirrors the primitives — **silently wraps
-on overflow**. The native test harness compiles with cargo's dev profile,
-where overflow checks are on, so the same expression that panics (and
-fails the test) on the host wraps to a small number on-chain. **A test
-passing under the harness proves nothing about overflow behavior in
-deployment.**
+`sdk::U256` and `sdk::I256`, which deliberately mirror the primitives —
+**silently wraps on overflow**. The native test harness compiles with
+cargo's dev profile, where overflow checks are on, so the same expression
+that panics (and fails the test) on the host wraps to a small number
+on-chain. **A test passing under the harness proves nothing about overflow
+behavior in deployment.**
 
 For money math, be explicit instead of relying on operators:
 
 - `checked_add` / `checked_sub` / `checked_mul` on the primitives and on
-  `sdk::U256`, combined with a typed throw on `None`;
+  `sdk::U256` / `sdk::I256`, combined with a typed throw on `None`;
 - `sdk::mul_div_u128` / `sdk::checked_mul_div_u128` for `a * b / d` with
-  a 256-bit intermediate (the panics of `mul_div_u128` are unconditional,
-  not `overflow-checks`-gated);
+  a 256-bit intermediate, or `U256::mul_div` / `I256::mul_div` to stay at
+  256 bits throughout, on an exact 512-bit intermediate (the panics of the
+  `mul_div` family are unconditional, not `overflow-checks`-gated);
 - storage-level guards: `NNInt::strict_inc` / `try_strict_inc` for a
   call-time non-negativity check, and `Balance::increase` / `decrease`,
   which fail on overflow and overdraft in every profile.
+
+### 256-bit math utilities
+
+`sdk::U256` and `sdk::I256` carry OpenZeppelin's `Math.sol` and
+`SignedMath.sol` surfaces under the same names, so a port from Solidity keeps
+its vocabulary: `mul_div` and `mul_shr` (full precision, 512-bit
+intermediate), `mul_mod` / `add_mod` / `mod_exp` / `inv_mod`, `average`,
+`ceil_div`, `pow`, and `sqrt` / `log2` / `log10` / `log256` with a
+`sdk::Rounding` direction. Solidity's `tryAdd` family is spelled
+`checked_add` here, `clz` is `leading_zeros`, and `ternary` — a branchless
+select for the EVM's gas model — is `if`.
 
 Note that this repository contains
 [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
