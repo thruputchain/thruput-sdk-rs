@@ -41,6 +41,17 @@ const CALLER: ContractAddress = ContractAddress::new([0xEE; 32]);
 /// return early), and `B` is smaller than `A` but still over 128 bits, so
 /// `div`/`rem` take the multi-limb quotient path rather than a single-limb fast
 /// path. Neither is zero, and the kernels force divisors odd anyway.
+///
+/// **What the `div` row is not.** `B` is 201 bits — seven of eight `u32` limbs,
+/// four of four `u64` ones — so Knuth D runs its quotient loop twice on `u256`
+/// and once on `uint`, against a possible seven for a two-limb divisor. That is
+/// enough to exercise the loop and not enough for it to dominate, which is why
+/// `div` lands near `div_small` rather than far above it. Read the division
+/// rows as a near-floor case: a per-call overhead shows up as a larger
+/// fraction here than it would on a deeper divide, and a change to the
+/// quotient loop itself shows up as a smaller one. The two backends also run
+/// different digit counts on the same operands, because their limb widths
+/// differ — inherent to the comparison, not a flaw in it.
 const A_HI: u128 = 0xF1E2_D3C4_B5A6_9788_796A_5B4C_3D2E_1F0B;
 const A_LO: u128 = 0x0123_4567_89AB_CDEF_FEDC_BA98_7654_3211;
 const B_HI: u128 = 0x0000_0000_0000_0123_4567_89AB_CDEF_0123;

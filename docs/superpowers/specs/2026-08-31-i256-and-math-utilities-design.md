@@ -111,10 +111,22 @@ over the `none` calibration build:
 | one shared function | 2,576 | **1221.05** | 680 / 756.04 | 2,996 | 1798.05 |
 | two instantiations | 2,572 | 972.05 | 680 / 756.04 | 3,012 | 1712.05 |
 
-Sharing buys 64 bytes and costs **27% more gas on every division** — the
-zero-init and copy-out of buffers twice the size the narrow path can ever fill.
-Division is the hot path of the contracts this crate exists for, so that trade
-is backwards.
+Sharing buys 64 bytes and costs **+258 gas per division, 27% on these
+operands** — the zero-init and copy-out of buffers twice the size the narrow
+path can ever fill. Division is the hot path of the contracts this crate exists
+for, so that trade is backwards.
+
+**That 27% is a worst case, not a constant**, and it is worth saying why before
+anyone quotes it. The overhead is per call, so it is a larger fraction of a
+shallow division than a deep one — and the bench's fixed operands make `div`
+shallow. Its divisor is 201 bits, seven of eight `u32` limbs, so Knuth D runs
+its quotient loop **twice out of a possible seven**; that is also why `div`
+(972 gas) sits so close to `div_small` (756), which always does eight 2-by-1
+divides. Nor is the overhead purely fixed: the same change cost
+`mul_div_u128` only 63 gas through the same `checked_div_rem`, because LLVM
+elides more of the oversized zero-init in that call shape. What holds across
+every row measured is the sign — specialised is never worse than shared — which
+is what the decision rests on.
 
 What shipped instead: the algorithm is written once as a `macro_rules!` body
 and instantiated at two dividend widths, each with buffers sized to its own.

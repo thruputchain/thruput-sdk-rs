@@ -251,12 +251,21 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// | one shared function | 2,576 | 1221.05 | 2,996 | 1798.05 |
 /// | two instantiations | 2,572 | 972.05 | 3,012 | 1712.05 |
 ///
-/// Sharing one function buys 64 bytes and costs **27% more gas per division**
-/// -- the zero-init and copy-out of buffers twice the size the narrow path can
-/// ever fill. Division is the hot path of the contracts this crate exists for,
-/// so that is the wrong way round. Specialising gets the bytes anyway (68
-/// below the pre-change baseline) for +0.9% gas, and leaves `mul_div_u128`
-/// both smaller and faster than before.
+/// Sharing one function buys 64 bytes and costs **+258 gas per division, 27% on
+/// the bench's operands** -- the zero-init and copy-out of buffers twice the
+/// size the narrow path can ever fill. Division is the hot path of the
+/// contracts this crate exists for, so that is the wrong way round.
+/// Specialising gets the bytes anyway (68 below the pre-change baseline) for
+/// +0.9% gas, and leaves `mul_div_u128` both smaller and faster than before.
+///
+/// Read the 27% as a worst case, not a constant. The overhead is per call, so
+/// it is a larger fraction of a shallow division than a deep one, and the
+/// bench's operands make `div` shallow: its divisor is 201 bits, seven of
+/// eight limbs, so Knuth D runs its quotient loop twice out of a possible
+/// seven. It is also not purely fixed -- the same change cost `mul_div_u128`
+/// only 63 gas through the same `checked_div_rem`, because LLVM elides more of
+/// the oversized zero-init in that call shape. What holds across every row is
+/// the sign: specialised is never worse than shared.
 ///
 /// `#[inline]` on the generated function was measured too, on the theory that
 /// it would restore the pre-split shape exactly: it costs 156 bytes on `div`
