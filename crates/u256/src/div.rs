@@ -252,9 +252,8 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// | two instantiations | 2,572 | 972.05 | 3,012 | 1712.05 |
 ///
 /// Sharing one function buys 64 bytes and costs **+258 gas per division, 27% on
-/// the bench's operands** -- the zero-init and copy-out of buffers twice the
-/// size the narrow path can ever fill. Division is the hot path of the
-/// contracts this crate exists for, so that is the wrong way round.
+/// the bench's operands**. Division is the hot path of the contracts this
+/// crate exists for, so that is the wrong way round.
 /// Specialising gets the bytes anyway (68 below the pre-change baseline) for
 /// +0.9% gas, and leaves `mul_div_u128` both smaller and faster than before.
 ///
@@ -263,9 +262,31 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// bench's operands make `div` shallow: its divisor is 201 bits, seven of
 /// eight limbs, so Knuth D runs its quotient loop twice out of a possible
 /// seven. It is also not purely fixed -- the same change cost `mul_div_u128`
-/// only 63 gas through the same `checked_div_rem`, because LLVM elides more of
-/// the oversized zero-init in that call shape. What holds across every row is
-/// the sign: specialised is never worse than shared.
+/// only 63 gas through the same `checked_div_rem`. Why the two call shapes
+/// differ by that much was not isolated; only the totals above were measured,
+/// and the mechanism is a guess this comment declines to make. What holds
+/// across every row is the sign: specialised is never worse than shared.
+///
+/// # Why the buffers are zeroed
+///
+/// Four arrays, and the zeros are load-bearing in only two of them:
+///
+/// - `q` and `r` **are** the answer. The quotient occupies `nn - dn + 1`
+///   limbs and the remainder `dn`, but both are returned full width, so their
+///   high limbs genuinely are zero and something has to write them.
+/// - `vn` and `un` are scratch. The normalisation loops fill `vn[0..dn]` and
+///   `un[0..=nn]` before anything reads them, and nothing ever reads above
+///   that, so their zero-init is dead. It is there because `dn` and `nn` are
+///   runtime values and a `const fn` cannot declare a partially initialised
+///   array without `unsafe` -- and the only `unsafe` in this crate is a trait
+///   method it is obliged to implement, which is not a rule worth breaking to
+///   save seventeen stores.
+///
+/// LLVM does not elide the dead half, so those stores are real: the `div`
+/// artifact carries 40 `sw zero` against the `none` calibration build's 18,
+/// which is the four arrays written out in full. The dynamic `vn[dn - 1]` and
+/// `un[j + dn]` indexing pins them to the stack, where a scalarised array
+/// would have let dead-store elimination reach them.
 ///
 /// `#[inline]` on the generated function was measured too, on the theory that
 /// it would restore the pre-split shape exactly: it costs 156 bytes on `div`

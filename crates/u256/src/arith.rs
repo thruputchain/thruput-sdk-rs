@@ -6,25 +6,23 @@
 //!
 //! # Inlining
 //!
-//! The big bodies here are `#[inline(never)]` on rv32 and `#[inline]`
-//! everywhere else. Two things drive that split.
+//! The big bodies here are `#[inline(never)]` on rv32 and carry no hint
+//! anywhere else. Only the rv32 half does anything.
 //!
-//! Deleting `#[inline]` would be a no-op: contract profiles build with fat LTO
-//! and one codegen unit, where LLVM inlines on its own cost model regardless
-//! of the hint. Only `inline(never)` changes anything.
+//! Inlining lets LLVM specialize each copy against known-zero limbs, so
+//! `.text` grows with the call-site count. Measured on rv32 against a probe
+//! with N distinct call sites, `inline(never)` breaks even at roughly 1.3 call
+//! sites for `widening_mul`/`overflowing_mul`, 1.2 for `from_be_bytes` and 1.8
+//! for `to_be_bytes`. Real contracts sit at a handful -- the swap pair has
+//! four multiply sites -- and rv32 is where the 64 KiB artifact cap binds, so
+//! outlining pays there.
 //!
-//! And the right answer differs by target, because inlining lets LLVM
-//! specialize each copy against known-zero limbs. Measured on rv32 `.text`
-//! against a probe with N distinct call sites, `inline(never)` breaks even at
-//! roughly 1.3 call sites for `widening_mul`/`overflowing_mul`, 1.2 for
-//! `from_be_bytes`, and 1.8 for `to_be_bytes` -- against host builds, where
-//! the break-even is several times higher.
-//!
-//! Real contracts sit at a handful of call sites (the swap pair has four
-//! multiply sites), so outlining pays on rv32. rv32 is also where the 64 KiB
-//! artifact cap binds, hence the `cfg_attr`. Keep the small bodies
-//! -- add/sub/shift/compare/`is_zero`/`from_limbs` -- plain `#[inline]`: they
-//! are smaller than the call sequence that would replace them.
+//! Host builds get no hint at all. They are tests and the CLI's spec-tool,
+//! never gas-metered and never up against a code cap, so there is nothing
+//! there worth tuning for; an `#[inline]` on this side would have been noise.
+//! Keep the small bodies -- add/sub/shift/compare/`is_zero`/`from_limbs` --
+//! plain `#[inline]`: they are smaller than the call sequence that would
+//! replace them, which is a codesize claim, not a host-speed one.
 
 use crate::{LIMBS, U256};
 use core::ops::{
@@ -172,7 +170,6 @@ impl U256 {
     /// amounts). Cannot overflow, so no check and no `Option`; sixteen
     /// `mul`/`mulhu` pairs.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn widening_mul(a: u128, b: u128) -> Self {
         let al = [
             a as u32,
@@ -214,7 +211,6 @@ impl U256 {
     /// [`mul_div`](U256::mul_div) family divides back down -- reach for that
     /// rather than for the halves, unless the 512-bit value is the answer.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn widening_mul_u256(self, rhs: Self) -> (Self, Self) {
         let mut out = [0u32; 2 * LIMBS];
         let mut i = 0;
@@ -268,7 +264,6 @@ impl U256 {
     /// Outlined on rv32; see [`U256::widening_mul`] and the note at the top of
     /// this module.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let mut out = [0u32; LIMBS];
         let mut overflow = false;

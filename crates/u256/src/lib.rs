@@ -292,7 +292,6 @@ impl U256 {
     /// Outlined on rv32 -- every contract that stores a `U256` pays for this
     /// one. See the inlining note in `arith`.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
         let mut out = [0u8; 32];
         let mut i = 0;
@@ -313,7 +312,6 @@ impl U256 {
     ///
     /// Outlined on rv32; see the inlining note in `arith`.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
         let mut limbs = [0u32; LIMBS];
         let mut i = 0;
