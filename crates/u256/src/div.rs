@@ -276,17 +276,32 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 ///   high limbs genuinely are zero and something has to write them.
 /// - `vn` and `un` are scratch. The normalisation loops fill `vn[0..dn]` and
 ///   `un[0..=nn]` before anything reads them, and nothing ever reads above
-///   that, so their zero-init is dead. It is there because `dn` and `nn` are
-///   runtime values and a `const fn` cannot declare a partially initialised
-///   array without `unsafe` -- and the only `unsafe` in this crate is a trait
-///   method it is obliged to implement, which is not a rule worth breaking to
-///   save seventeen stores.
+///   that, so their zero-init is dead. Removing it means `MaybeUninit`, which
+///   means `unsafe`: the crate's only `unsafe` today is a trait method it is
+///   obliged to implement, and seventeen stores on a 972-gas operation is not
+///   the trade that should change that. Being a `const fn` is *not* the
+///   obstacle -- `MaybeUninit` works in one on stable, compile-time evaluation
+///   of a partially initialised array included, so long as the uninitialised
+///   tail is never read.
 ///
 /// LLVM does not elide the dead half, so those stores are real: the `div`
 /// artifact carries 40 `sw zero` against the `none` calibration build's 18,
 /// which is the four arrays written out in full. The dynamic `vn[dn - 1]` and
-/// `un[j + dn]` indexing pins them to the stack, where a scalarised array
-/// would have let dead-store elimination reach them.
+/// `un[j + dn]` indexing pins them to the stack, out of reach of the
+/// dead-store elimination that a scalarised array would have got.
+///
+/// The safe way to reach them -- write every slot unconditionally, so a later
+/// store dominates each element -- was tried on `vn` and does not work:
+///
+/// | | .text | gas | `sw zero` |
+/// |---|---|---|---|
+/// | zero-init, then write `0..dn` | 2,572 | 972.26 | 58 |
+/// | write all `LIMBS` unconditionally | 2,924 | 947.25 | 58 |
+///
+/// The zero stores survive either way, and the unrolled full-width loop costs
+/// **352 bytes to save 25 gas** -- the wrong way round where the 64 KiB
+/// artifact cap binds. So the dead zero-init stays, and `unsafe` is the only
+/// thing that would actually remove it.
 ///
 /// `#[inline]` on the generated function was measured too, on the theory that
 /// it would restore the pre-split shape exactly: it costs 156 bytes on `div`
