@@ -31,10 +31,10 @@
 //!
 //! # What a verifier must check
 //!
-//! [`check_signed_op`] performs all of it, and each check maps to a
-//! [`SignedOpError`]. Skipping any one of them reopens a replay path:
+//! [`SignedOpNonces::verify_and_spend`] performs all of it, and each check maps
+//! to a [`SignedOpError`]. Skipping any one of them reopens a replay path:
 //!
-//! - the nonce, against what this signer owes;
+//! - the nonce slot, against what this signer has already spent;
 //! - `valid_until`, against the current block height;
 //! - that the body decodes as the payload type the contract expects;
 //! - the signature, against the bytes all of that produces.
@@ -56,15 +56,19 @@
 //! hash explicitly.
 //!
 //! So a verifying contract must be *told* its network hash and store it, which
-//! is why [`check_signed_op`] takes one rather than reading it. Store it at
-//! deployment and treat it as configuration. Until the protocol grows a way to
-//! read it, a contract that hardcodes or omits it is replayable across any
-//! network carrying the same address.
+//! is why [`SignedOpNonces`] stores one rather than reading it. Set it at
+//! deployment with [`SignedOpNonces::initialize`] and treat it as
+//! configuration. Until the protocol grows a way to read it, a contract that
+//! hardcodes or omits it is replayable across any network carrying the same
+//! address.
 
 extern crate alloc;
 
 mod error;
 pub use error::*;
+
+mod nonces;
+pub use nonces::*;
 
 mod verify;
 pub use verify::*;
@@ -72,7 +76,8 @@ pub use verify::*;
 use alloc::vec::Vec;
 use sdk::signer::{Opaque, Signed};
 use sdk::xdr::BytesM;
-use sdk::{BlockHeight, ContractAddress, contract};
+use sdk::types::Ed25519PublicKey;
+use sdk::{BlockHeight, contract};
 
 /// The wire form of a signed operation: everything the signer committed to that
 /// the verifier cannot already know.
@@ -85,15 +90,21 @@ use sdk::{BlockHeight, ContractAddress, contract};
 /// signature was meant for, which is the replay these fields exist to stop.
 #[sdk::contract_type]
 pub struct Operation {
-    /// The signer's nonce this operation spends.
+    /// The nonce **slot** this operation spends — an index, not a counter.
+    ///
+    /// Slots may be spent in any order, so a signer can have several operations
+    /// outstanding without the submission order mattering. See
+    /// [`SignedOpNonces`]. Read the signer's current word with
+    /// [`SignedOp::signed_op_nonce_word`] to pick a free one.
     pub nonce: u64,
     /// Last block height at which this operation may execute.
     pub valid_until: BlockHeight,
     /// The CXS-encoded application payload.
     ///
     /// Bytes on the wire because calldata is bytes, but never treated as bytes:
-    /// [`check_signed_op`] decodes them as the payload type the contract
-    /// expects and rebuilds the preimage from the typed value, so the payload's
+    /// [`SignedOpNonces::verify_and_spend`] decodes them as the payload type the
+    /// contract expects and rebuilds the preimage from the typed value, so the
+    /// payload's
     /// [`ContractTypeSpec::TYPE_DEF`](groundhog_contract_spec::ContractTypeSpec)
     /// is bound into the signature. There is no operation-type field here for
     /// the same reason: the type is in the signed bytes, not on the wire.
@@ -113,11 +124,17 @@ pub struct Operation {
 /// `execute_signed_op` is the structured, replay-protected form.
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
-    /// The nonce `signer`'s next operation must carry.
+    /// The 64-slot bitmap covering nonces `word * 64 ..= word * 64 + 63` for
+    /// `signer`; a set bit is a spent slot.
     ///
-    /// Clients read this to build an operation. Implementations must increment
-    /// it when an operation is accepted, so a signature spends exactly once.
-    fn signed_op_nonce(&self, signer: &ContractAddress) -> u64;
+    /// Clients read one word to find a free slot, which is why this returns a
+    /// word rather than a single slot's state: it answers 64 questions per
+    /// call. See [`SignedOpNonces::word`].
+    fn signed_op_nonce_word(
+        &self,
+        signer: &Ed25519PublicKey,
+        word: u64,
+    ) -> u64;
 
     /// Verify `op` under `signature`, spend its nonce, and mint its auth
     /// tokens.

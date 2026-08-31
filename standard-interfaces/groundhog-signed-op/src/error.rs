@@ -1,7 +1,8 @@
 /// Why a signed operation was refused.
 ///
 /// Every variant is a check a verifier must actually perform;
-/// [`check_signed_op`](crate::check_signed_op) throws all of them.
+/// [`SignedOpNonces::verify_and_spend`](crate::SignedOpNonces::verify_and_spend)
+/// throws all of them.
 ///
 /// Note what is *not* here: there is no "wrong operation type" error. The
 /// payload type's definition is part of the signed bytes, so a message of some
@@ -19,10 +20,10 @@ pub enum SignedOpError {
     /// signer cannot retract.
     #[cfg_attr(feature = "dev", error("Operation has expired"))]
     Expired = 2,
-    /// The nonce is not the one this signer owes, so the operation is either a
-    /// replay or out of order.
-    #[cfg_attr(feature = "dev", error("Unexpected nonce"))]
-    UnexpectedNonce = 3,
+    /// This signer has already spent that nonce slot — the operation is a
+    /// replay, or its slot was cancelled.
+    #[cfg_attr(feature = "dev", error("Nonce slot already spent"))]
+    NonceAlreadySpent = 3,
     /// The body did not decode as the expected payload type.
     #[cfg_attr(feature = "dev", error("Malformed operation body"))]
     MalformedBody = 4,

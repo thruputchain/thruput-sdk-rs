@@ -95,7 +95,7 @@ Notes for implementers:
   *constructed*, never parsed. Both sides build it from typed values and
   re-encode. A verifier that accepted preimage bytes over the wire would have to
   reject non-canonical varints itself.
-- **The body is a typed value, not opaque bytes.** `check_signed_op::<T>`
+- **The body is a typed value, not opaque bytes.** `verify_and_spend::<T>`
   decodes the wire bytes as `T` first and rebuilds the preimage from the decoded
   value. That canonicalises: a non-canonical encoding that happens to decode
   re-encodes to what the signer actually signed, or fails verification.
@@ -187,6 +187,43 @@ An anonymous shape has no identity to bind, so signing one would be
 indistinguishable from signing any other value with the same field types. Wrap
 it in a named type.
 
+## 4b. Nonces are unordered slots, not a counter
+
+`Operation.nonce` is a **slot index**. Slot `n` is bit `n % 64` of word `n / 64`,
+and `SignedOpNonces` stores `(signer_key, word) -> u64` bitmaps.
+
+A sequential counter would force submission *order*: sign slots 5 and 6, and if
+6 lands first it fails and stays failed. That is the wrong default for the case
+this mechanism exists to serve — the signer does not control submission and may
+have several operations outstanding. Slots may be spent in any order.
+
+Reading one word answers 64 questions, so a client picks a free slot in one
+call (`signed_op_nonce_word`). Cancelling a word (`cancel_word`) revokes up to
+64 outstanding operations in a single write, which is the only way to retract a
+signature before its `valid_until`.
+
+Slots are keyed by the signing **key**, not an address: an operation is
+authorized by whoever holds the key, and address-from-pubkey derivation needs an
+account nonce this layer does not carry.
+
+### Why not the transaction nonce
+
+The transaction `Uniquifier` stops a *transaction* being replayed. A signed
+operation is data — anyone can put the same payload and signature in a different
+transaction with a different nonce, which the node sees as entirely fresh. So
+transaction-level uniqueness gives an operation nothing.
+
+Binding an operation to its carrying transaction is also impossible:
+`get_source_transaction_hash()` exists, but the transaction hash covers the
+calldata, which carries the operation and its signature. And the uniquifier is
+not exposed to contracts at all — the context syscalls are `GetMsgSender`,
+`GetCurrentAddress`, `GetSourceTransactionHash`, `GetAuthClaim`,
+`GetBlockHeight`.
+
+`GetAuthClaim` does let a contract see how the *transaction* was authorized, so
+an operation can be bound to a specific submitter. That is submitter
+restriction, not replay protection, and is left to applications.
+
 ## 5. Auth tokens: why these are "operations"
 
 `SignedOp::execute_signed_op` returns `Vec<Signed<Opaque>>`, matching
@@ -208,8 +245,8 @@ network in the preimage — the same pubkey yields the same address on every
 network, which is exactly why transaction signatures carry a network hash
 explicitly.
 
-So `check_signed_op` takes the network hash as a parameter, and a verifying
-contract must be **told** it at deployment and store it as configuration. Until
+So `SignedOpNonces` stores the network hash, and a verifying contract must be
+**told** it at deployment (`initialize`) and keep it as configuration. Until
 the protocol grows a way to read it, a contract that hardcodes or omits it is
 replayable across any network carrying the same address.
 
@@ -221,7 +258,7 @@ and is the only part of this design that would touch `hogd`.
 | Crate | Contents |
 |---|---|
 | `groundhog-domain-separator` | `domain_separator!`, `SIGNED_OP`, `SignedOp<T>`, `DomainSeparator::preimage` |
-| `groundhog-signed-op-if` | `SignedOp` trait, `Operation` wire type, `SignedOpError`, `check_signed_op::<T>`, `decode_body`, `signed_op_of` |
+| `groundhog-signed-op-if` | `SignedOp` trait, `Operation` wire type, `SignedOpError`, `SignedOpNonces` storage, `verify_signed_op::<T>`, `decode_body`, `signed_op_of` |
 | `groundhog-test-vectors` | `signed-op` subcommand |
 
 `groundhog-contract-util` is untouched: entrypoint IDs are unrelated to this.

@@ -40,51 +40,30 @@ where
     }
 }
 
-/// Every check a verifier owes, in the order that fails cheapest first.
+/// The stateless half of verification: expiry, decode, signature.
 ///
-/// Returns the decoded payload on success; a caller that reaches the next line
-/// may spend the nonce and mint tokens. Throws the matching [`SignedOpError`]
-/// on the first failure.
+/// Returns the decoded payload; throws the matching [`SignedOpError`] on the
+/// first failed check. **This does not touch nonces**, so on its own it does not
+/// make an operation single-use. Reach for
+/// [`SignedOpNonces::verify_and_spend`](crate::SignedOpNonces::verify_and_spend)
+/// unless you are implementing your own replay protection — it does the nonce
+/// check and the spend in the same call, which is the pairing you cannot safely
+/// get half of.
 ///
 /// `T` is the payload type this contract expects. Its
 /// [`ContractTypeSpec::TYPE_DEF`] is part of the signed bytes, so naming the
 /// wrong `T` produces [`SignedOpError::InvalidSignature`] rather than silently
 /// reinterpreting the message. There is no separate type check to skip.
-///
-/// Spending the nonce is the *caller's* job, deliberately: this touches no
-/// storage, so it stays usable from a read-only entrypoint answering "would
-/// this be accepted?". A contract that calls this and forgets to increment the
-/// signer's nonce has built a replayable operation, so do both together.
-///
-/// # Example
-///
-/// ```ignore
-/// let expected = self.nonces.get(&signer);
-/// let transfer: Transfer = check_signed_op(
-///     &self.network.get(),
-///     &sdk::get_current_address(),
-///     &op,
-///     expected,
-///     &signer_pubkey,
-///     &signature,
-/// );
-/// self.nonces.set(&signer, expected + 1);
-/// ```
-pub fn check_signed_op<T>(
+pub fn verify_signed_op<T>(
     network: &NetworkHash,
     verifying_contract: &ContractAddress,
     op: &Operation,
-    expected_nonce: u64,
     signer: &Ed25519PublicKey,
     signature: &Ed25519Signature,
 ) -> T
 where
     T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
 {
-    if op.nonce != expected_nonce {
-        sdk::throw(SignedOpError::UnexpectedNonce);
-    }
-
     // `valid_until` is inclusive: an operation is good through the end of that
     // height, matching how `Uniquifier::block_expiry_height` reads.
     if sdk::block::get_block_height() > op.valid_until {
