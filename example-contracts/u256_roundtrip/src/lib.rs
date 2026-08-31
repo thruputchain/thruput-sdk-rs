@@ -10,3 +10,6 @@ mod implementation;
 pub use implementation::U256Roundtrip;
 pub use implementation::U256RoundtripClient;
 pub use implementation::U256RoundtripEntrypoints;
+
+#[cfg(feature = "bottle-test")]
+mod bottle_test;
