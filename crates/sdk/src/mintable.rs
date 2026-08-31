@@ -154,6 +154,7 @@ impl_mintable_type_leaf!(
     crate::types::Ed25519Signature,
     crate::types::BlockHeight,
     groundhog_u256::U256,
+    groundhog_u256::I256,
     crate::types::ContractEntrypointID,
 );
 
@@ -228,6 +229,7 @@ impl_mintable_leaf!(
     crate::types::Ed25519Signature,
     crate::types::BlockHeight,
     groundhog_u256::U256,
+    groundhog_u256::I256,
     crate::types::ContractEntrypointID,
 );
 

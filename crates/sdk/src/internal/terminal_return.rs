@@ -27,7 +27,7 @@ pub fn contract_return(buf: &[u8], auth_token_ids: &[u32]) -> ! {
 
 #[doc(hidden)]
 #[inline]
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn contract_return_encoded<RET>(ret: &RET) -> !
 where
     RET: WriteXDR + ?Sized + CollectAuthHandles,

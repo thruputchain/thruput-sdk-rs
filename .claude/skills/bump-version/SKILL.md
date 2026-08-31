@@ -40,8 +40,9 @@ Things it does **not** cover, so they stay on you:
 - Whether the change is breaking, and what the new version number should be.
 - The `TEST_FFI_VERSION` constant (step 4 below).
 - Checking whether every publishable in-repo crate appears in the
-  `PRIMARY_PACKAGES` or `INTERFACE_PACKAGES` list of
-  `.github/workflows/publish.yml`.
+  `PRIMARY_PACKAGES`, `INTERFACE_PACKAGES` or `INTERFACE_DEPENDENT_PACKAGES`
+  list of `.github/workflows/publish.yml` — whichever matches where it sits
+  relative to `standard-interfaces/`.
 
 To check without bumping — before starting, or at any point:
 

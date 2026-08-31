@@ -25,7 +25,7 @@ use crate::{AuthHandleBuf, sys};
 /// event) hits the cold fresh-buffer fallback, since the scratch is already
 /// borrowed here (no-alloc: a 4 KiB stack buffer) — keep the closure small:
 /// decode, `re_throw`, or `to_owned` only.
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,

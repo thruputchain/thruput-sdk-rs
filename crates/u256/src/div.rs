@@ -4,12 +4,22 @@
 //! inside [`U256::div_rem`], so a contract that only divides by constants (or
 //! formats a decimal) links the cheap routine and not Knuth D. Measured by
 //! `scripts/bigint-bench.sh -b u256 -o "div div_small"`: linking `div` adds
-//! 2,640 bytes of rv32 .text where `div_small` adds 680, so the general path
-//! costs 1,960 on top of the small one. (It was 240 more before the Knuth D
+//! 2,572 bytes of rv32 .text where `div_small` adds 680, so the general path
+//! costs 1,892 on top of the small one. (It was 240 more before the Knuth D
 //! loop called `div_rem_2by1_normalized` directly, and far worse when the
 //! quotient estimate went through `__udivdi3` -- see the estimate below.)
+//!
+//! Knuth D is written once as a macro and instantiated at two dividend widths
+//! -- eight limbs for the `U256 / U256` operators, sixteen for the
+//! full-precision `mul_div` family, whose dividend is a 512-bit product. A
+//! single shared function over the wider buffers was measured and rejected;
+//! [`knuth_d`] has the numbers.
 
 use crate::{LIMBS, U256};
+use core::mem::MaybeUninit;
+
+/// The number of 32-bit limbs in a full-precision (512-bit) product.
+pub(crate) const WIDE_LIMBS: usize = 2 * LIMBS;
 
 /// The base of the limb representation, as a `u64` for intermediate work.
 const B: u64 = 1 << 32;
@@ -104,12 +114,34 @@ impl U256 {
     /// If `rhs` is zero.
     #[inline]
     pub const fn div_rem_small(self, rhs: u32) -> (Self, u32) {
+        self.div_rem_small_from(rhs, 0)
+    }
+
+    /// [`div_rem_small`](Self::div_rem_small), resuming from a partial
+    /// remainder rather than from zero.
+    ///
+    /// Chaining two calls divides a 512-bit value by a 32-bit one: the high
+    /// half's remainder seeds the low half. That keeps the `dn == 1` case of
+    /// [`div_rem_512`] on this cheap routine instead of widening the Knuth D
+    /// buffers to reach it.
+    ///
+    /// # Panics
+    ///
+    /// If `rhs` is zero. `rem` must already be below `rhs`, which every
+    /// caller satisfies by construction (it is a remainder of `rhs`).
+    #[inline]
+    pub(crate) const fn div_rem_small_from(
+        self,
+        rhs: u32,
+        rem: u32,
+    ) -> (Self, u32) {
         if rhs == 0 {
             panic!("attempt to divide by zero");
         }
+        debug_assert!(rem < rhs);
 
         let mut q = [0u32; LIMBS];
-        let mut rem = 0u32;
+        let mut rem = rem;
 
         let mut i = LIMBS;
         while i > 0 {
@@ -154,137 +186,12 @@ impl U256 {
         // `div_rem_small` never links the code below.
         if dn == 1 {
             let (q, r) = self.div_rem_small(rhs.limbs[0]);
-            let mut rem = [0u32; LIMBS];
-            rem[0] = r;
-            return Some((q, Self::from_limbs(rem)));
+            return Some((q, Self::from_u32(r)));
         }
 
-        // Knuth algorithm D (Hacker's Delight `divmnu`), base 2^32.
-        let u = self.limbs;
-        let v = rhs.limbs;
-
-        let s = v[dn - 1].leading_zeros();
-
-        // Normalise the divisor so its top limb has its high bit set, which is
-        // what bounds the quotient-digit estimate below.
-        let mut vn = [0u32; LIMBS];
-        let mut i = dn;
-        while i > 0 {
-            i -= 1;
-            let lo = if i == 0 || s == 0 {
-                0
-            } else {
-                v[i - 1] >> (32 - s)
-            };
-            vn[i] = (v[i] << s) | lo;
-        }
-
-        // Normalised dividend, one limb wider so the estimate always has two
-        // limbs to read.
-        let mut un = [0u32; LIMBS + 1];
-        un[nn] = if s == 0 { 0 } else { u[nn - 1] >> (32 - s) };
-        let mut i = nn;
-        while i > 0 {
-            i -= 1;
-            let lo = if i == 0 || s == 0 {
-                0
-            } else {
-                u[i - 1] >> (32 - s)
-            };
-            un[i] = (u[i] << s) | lo;
-        }
-
-        let mut q = [0u32; LIMBS];
-
-        let mut j = nn - dn + 1;
-        while j > 0 {
-            j -= 1;
-
-            // Estimate one quotient limb from the top two dividend limbs.
-            //
-            // `div_rem_2by1_normalized` wants `hi < dv`, while Knuth allows
-            // equality (the running remainder is below the divisor, so
-            // `hi <= dv`). Equality means the true digit is `B + lo / dv`, at
-            // least `B`; step D3 clamps that to `B - 1`, which is still an
-            // upper bound on the real quotient digit, and the correction below
-            // plus the add-back take it the rest of the way. Spelling the
-            // common branch as `div_rem_2by1_normalized` -- `dv` is the
-            // normalised divisor's top limb, so its high bit is set -- keeps
-            // the whole loop on native 32-bit `DIVU`s instead of one
-            // `__udivdi3` per quotient digit, and skips the wrapper's
-            // re-normalisation prologue.
-            let hi = un[j + dn];
-            let lo = un[j + dn - 1];
-            let dv = vn[dn - 1];
-
-            let (mut qhat, mut rhat) = if hi < dv {
-                let (qh, rh) = div_rem_2by1_normalized(hi, lo, dv);
-                (qh as u64, rh as u64)
-            } else {
-                // `hi <= dv` (above), so only equality reaches here, and the
-                // Knuth rhat `num - (B - 1) * dv` collapses: `num` is
-                // `dv * B + lo`, so subtracting `(B - 1) * dv` leaves
-                // `dv + lo`.
-                debug_assert!(hi == dv);
-                (B - 1, (dv as u64) + (lo as u64))
-            };
-
-            // `rhat >= B` makes the test below vacuous -- `(rhat << 32) | ..`
-            // exceeds any `qhat * vn[dn - 2]` -- and the shift would drop the
-            // bits that make that true, so it guards the loop rather than only
-            // breaking out of it. `qhat < B` now holds by construction, so the
-            // estimate no longer needs its own bound check.
-            while rhat < B
-                && qhat * (vn[dn - 2] as u64)
-                    > (rhat << 32) | (un[j + dn - 2] as u64)
-            {
-                qhat -= 1;
-                rhat += dv as u64;
-            }
-
-            // Multiply and subtract.
-            let mut k: i64 = 0;
-            let mut i = 0;
-            while i < dn {
-                let p = qhat * (vn[i] as u64);
-                let t = (un[i + j] as i64) - k - ((p & 0xffff_ffff) as i64);
-                un[i + j] = t as u32;
-                k = ((p >> 32) as i64) - (t >> 32);
-                i += 1;
-            }
-            let t = (un[j + dn] as i64) - k;
-            un[j + dn] = t as u32;
-
-            q[j] = qhat as u32;
-
-            // Estimate one too large (probability ~2/2^32): add the divisor
-            // back. Rare enough that the tests need a wide sweep to hit it.
-            if t < 0 {
-                q[j] -= 1;
-                let mut carry = 0u64;
-                let mut i = 0;
-                while i < dn {
-                    let sum = (un[i + j] as u64) + (vn[i] as u64) + carry;
-                    un[i + j] = sum as u32;
-                    carry = sum >> 32;
-                    i += 1;
-                }
-                un[j + dn] = (un[j + dn] as u64).wrapping_add(carry) as u32;
-            }
-        }
-
-        // Undo the normalisation shift on the remainder.
-        let mut r = [0u32; LIMBS];
-        let mut i = 0;
-        while i < dn {
-            let hi = if s == 0 { 0 } else { un[i + 1] << (32 - s) };
-            r[i] = (un[i] >> s) | hi;
-            i += 1;
-        }
-
-        Some((Self::from_limbs(q), Self::from_limbs(r)))
+        let (q, r) = div_rem_knuth(&self.limbs, nn, &rhs.limbs, dn);
+        Some((Self::from_limbs(q), r))
     }
-
     /// Division, returning `None` if `rhs` is zero.
     #[inline]
     pub const fn checked_div(self, rhs: Self) -> Option<Self> {
@@ -302,6 +209,371 @@ impl U256 {
             None => None,
         }
     }
+}
+
+/// The low [`LIMBS`] limbs of a full-precision limb array.
+#[inline]
+pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
+    let mut out = [0u32; LIMBS];
+    let mut i = 0;
+    while i < LIMBS {
+        out[i] = wide[i];
+        i += 1;
+    }
+    out
+}
+
+/// Generates a Knuth algorithm D (Hacker's Delight `divmnu`) specialised to a
+/// dividend of `$n` limbs, base 2^32.
+///
+/// The generated function divides the `nn`-limb value `u` by the `dn`-limb
+/// value `v`, returning the quotient's limbs and the remainder. The quotient
+/// occupies the low `nn - dn + 1` limbs of the returned array; the rest are
+/// zero.
+///
+/// It requires `2 <= dn <= LIMBS`, `dn <= nn <= $n`, `u[nn - 1] != 0` and
+/// `v[dn - 1] != 0`. Every caller establishes these from a `limb_len`.
+///
+/// # Why a macro
+///
+/// Two widths need this: the `U256 / U256` operators divide eight limbs, and
+/// [`div_rem_512`] divides the sixteen of a full-precision product. One body,
+/// two instantiations, each sized to its own dividend.
+///
+/// The obvious alternative -- one function over the wider buffers, called by
+/// both, since every loop is bounded by the runtime `nn`/`dn` anyway -- was
+/// written first and measured second. It loses.
+/// `scripts/bigint-bench.sh -b u256 -o "div div_small mul_div_u128"`, rv32,
+/// marginal over the `none` calibration build:
+///
+/// | | `div` .text | `div` gas | `mul_div_u128` .text | `mul_div_u128` gas |
+/// |---|---|---|---|---|
+/// | before this change | 2,640 | 963.05 | 3,036 | 1735.05 |
+/// | one shared function | 2,576 | 1221.05 | 2,996 | 1798.05 |
+/// | two instantiations | 2,572 | 972.05 | 3,012 | 1712.05 |
+///
+/// Sharing one function buys 64 bytes and costs **+258 gas per division, 27% on
+/// the bench's operands**. Division is the hot path of the contracts this
+/// crate exists for, so that is the wrong way round.
+/// Specialising gets the bytes anyway (68 below the pre-change baseline) for
+/// +0.9% gas, and leaves `mul_div_u128` both smaller and faster than before.
+///
+/// Read the 27% as a worst case, not a constant. The overhead is per call, so
+/// it is a larger fraction of a shallow division than a deep one, and the
+/// bench's operands make `div` shallow: its divisor is 201 bits, seven of
+/// eight limbs, so Knuth D runs its quotient loop twice out of a possible
+/// seven. It is also not purely fixed -- the same change cost `mul_div_u128`
+/// only 63 gas through the same `checked_div_rem`. Why the two call shapes
+/// differ by that much was not isolated; only the totals above were measured,
+/// and the mechanism is a guess this comment declines to make. What holds
+/// across every row is the sign: specialised is never worse than shared.
+///
+/// # The scratch buffers
+///
+/// Four arrays, and only two of them want zeros:
+///
+/// - `q` and `r` **are** the answer. The quotient occupies `nn - dn + 1` limbs
+///   and the remainder `dn`, but both are returned full width, so their high
+///   limbs genuinely are zero and something has to write them. They stay
+///   `[u32; _]`, zero-initialised.
+/// - `vn` and `un` are scratch. The normalisation loops fill `vn[0..dn]` and
+///   `un[0..=nn]` before anything reads them, and nothing ever reads above
+///   that, so zeroing them was dead work. They are `MaybeUninit` -- the
+///   `SAFETY` note above the function states the two invariants every read
+///   leans on.
+///
+/// LLVM could not remove that dead half on its own. The dynamic `vn[dn - 1]`
+/// and `un[j + dn]` indexing pins both arrays to the stack, out of reach of
+/// the dead-store elimination a scalarised array would have got, so the
+/// zeroing was real stores in the artifact: 40 `sw zero` over the `none`
+/// calibration build, which is all four arrays written out in full.
+///
+/// The safe way to reach them -- write every slot unconditionally, so a later
+/// store dominates each element -- was tried first, on `vn`, and does not
+/// work. `MaybeUninit` does. rv32, marginal over `none`:
+///
+/// | | `div` .text | `div` gas | `sw zero` |
+/// |---|---|---|---|
+/// | zero-init, then write `0..dn` | 2,572 | 972.05 | 40 |
+/// | write all `LIMBS` unconditionally | 2,924 | 947.05 | 40 |
+/// | `MaybeUninit` | **2,360** | **928.05** | **25** |
+///
+/// The full-width write keeps every zero store and costs 352 bytes to save 25
+/// gas -- backwards where the 64 KiB artifact cap binds. `MaybeUninit` removes
+/// 15 of the 40 and is smaller *and* faster on every caller:
+///
+/// | | .text | gas |
+/// |---|---|---|
+/// | `div` | 2,572 -> 2,360 (**-8.2%**) | 972.05 -> 928.05 (**-4.5%**) |
+/// | `mul_div_u128` | 3,012 -> 2,788 (**-7.4%**) | 1712.05 -> 1628.05 (**-4.9%**) |
+/// | `mul_div` | 3,992 -> 3,892 (**-2.5%**) | 4712.05 -> 4534.05 (**-3.8%**) |
+///
+/// This is the crate's only discretionary `unsafe`, so it is the one place
+/// Miri earns its keep: `.github/workflows/miri.yml` runs this crate's suite
+/// under it, and the tests thin their random sweeps under `cfg!(miri)` rather
+/// than skipping any shape.
+///
+/// Being a `const fn` was never the obstacle, incidentally -- `MaybeUninit`
+/// works in one on stable, compile-time evaluation of a partially initialised
+/// array included, so long as the uninitialised tail is never read.
+///
+/// `#[inline]` on the generated function was measured too, on the theory that
+/// it would restore the pre-split shape exactly: it costs 156 bytes on `div`
+/// to save 2 gas, and makes `mul_div_u128` both bigger and slower. Not taken.
+///
+/// What the split costs instead is now measured too, by an op that calls both
+/// paths in one kernel so the artifact carries both instantiations:
+///
+/// | | .text | gas |
+/// |---|---|---|
+/// | `mul_div` alone | 3,892 | 4534.05 |
+/// | `div` alone | 2,360 | 928.05 |
+/// | both in one artifact | 6,088 | 5468.05 |
+///
+/// So adding `/` to a contract that already links `mul_div` costs **2,196
+/// bytes** -- against 2,360 standalone, meaning barely 160 bytes are shared
+/// and the two Knuth D copies are all but fully duplicated. Sharing one
+/// function would have saved most of that ~2.2 KB, and cost 27% of every
+/// division's gas. Both halves of that trade are numbers.
+///
+/// (An earlier version of this comment guessed the second copy at "the 1,892
+/// bytes one copy costs over `div_small`". Measuring it said otherwise, by
+/// about 20% -- which is why it is a measurement now.)
+macro_rules! knuth_d {
+    ($name:ident, $n:expr) => {
+        // `vn` and `un` are `MaybeUninit` scratch, so every read of them is
+        // `unsafe`. Two facts, established here once, make all of those reads
+        // sound; the `SAFETY` comments below say which one each leans on.
+        //
+        // I1. `vn[0..dn]` is initialised. The normalisation loop writes every
+        //     index below `dn` before anything reads one, and every later read
+        //     is at `dn - 1`, at `dn - 2` (`dn >= 2`), or at an `i < dn`.
+        //
+        // I2. `un[0..=nn]` is initialised. Its loop writes `nn` and then every
+        //     index below it. Every later read is at `i + j`, `j + dn`,
+        //     `j + dn - 1`, `j + dn - 2` -- all at most `nn`, since `j` stops
+        //     at `nn - dn` and `i` at `dn - 1` -- or at `i` and `i + 1` in the
+        //     remainder loop, where `i < dn` and `dn <= nn`.
+        //
+        // Nothing reads above those bounds, which is the whole reason the
+        // tails are left uninitialised: see "Why the buffers are zeroed".
+        const fn $name(
+            u: &[u32; $n],
+            nn: usize,
+            v: &[u32; LIMBS],
+            dn: usize,
+        ) -> ([u32; $n], U256) {
+            debug_assert!(dn >= 2);
+            debug_assert!(nn >= dn);
+            debug_assert!(nn <= $n);
+
+            let s = v[dn - 1].leading_zeros();
+
+            // Normalise the divisor so its top limb has its high bit set, which is
+            // what bounds the quotient-digit estimate below. Establishes I1.
+            let mut vn: [MaybeUninit<u32>; LIMBS] =
+                [MaybeUninit::uninit(); LIMBS];
+            let mut i = dn;
+            while i > 0 {
+                i -= 1;
+                let lo = if i == 0 || s == 0 {
+                    0
+                } else {
+                    v[i - 1] >> (32 - s)
+                };
+                vn[i] = MaybeUninit::new((v[i] << s) | lo);
+            }
+
+            // Normalised dividend, one limb wider so the estimate always has two
+            // limbs to read. Establishes I2.
+            let mut un: [MaybeUninit<u32>; $n + 1] =
+                [MaybeUninit::uninit(); $n + 1];
+            un[nn] = MaybeUninit::new(if s == 0 {
+                0
+            } else {
+                u[nn - 1] >> (32 - s)
+            });
+            let mut i = nn;
+            while i > 0 {
+                i -= 1;
+                let lo = if i == 0 || s == 0 {
+                    0
+                } else {
+                    u[i - 1] >> (32 - s)
+                };
+                un[i] = MaybeUninit::new((u[i] << s) | lo);
+            }
+
+            let mut q = [0u32; $n];
+
+            let mut j = nn - dn + 1;
+            while j > 0 {
+                j -= 1;
+
+                // Estimate one quotient limb from the top two dividend limbs.
+                //
+                // `div_rem_2by1_normalized` wants `hi < dv`, while Knuth allows
+                // equality (the running remainder is below the divisor, so
+                // `hi <= dv`). Equality means the true digit is `B + lo / dv`, at
+                // least `B`; step D3 clamps that to `B - 1`, which is still an
+                // upper bound on the real quotient digit, and the correction below
+                // plus the add-back take it the rest of the way. Spelling the
+                // common branch as `div_rem_2by1_normalized` -- `dv` is the
+                // normalised divisor's top limb, so its high bit is set -- keeps
+                // the whole loop on native 32-bit `DIVU`s instead of one
+                // `__udivdi3` per quotient digit, and skips the wrapper's
+                // re-normalisation prologue.
+                // SAFETY: I2 -- `j + dn <= nn`, so both are initialised.
+                let hi = unsafe { un[j + dn].assume_init() };
+                let lo = unsafe { un[j + dn - 1].assume_init() };
+                // SAFETY: I1 -- `dn >= 2`, so `dn - 1 < dn`.
+                let dv = unsafe { vn[dn - 1].assume_init() };
+
+                let (mut qhat, mut rhat) = if hi < dv {
+                    let (qh, rh) = div_rem_2by1_normalized(hi, lo, dv);
+                    (qh as u64, rh as u64)
+                } else {
+                    // `hi <= dv` (above), so only equality reaches here, and the
+                    // Knuth rhat `num - (B - 1) * dv` collapses: `num` is
+                    // `dv * B + lo`, so subtracting `(B - 1) * dv` leaves
+                    // `dv + lo`.
+                    debug_assert!(hi == dv);
+                    (B - 1, (dv as u64) + (lo as u64))
+                };
+
+                // `rhat >= B` makes the test below vacuous -- `(rhat << 32) | ..`
+                // exceeds any `qhat * vn[dn - 2]` -- and the shift would drop the
+                // bits that make that true, so it guards the loop rather than only
+                // breaking out of it. `qhat < B` now holds by construction, so the
+                // estimate no longer needs its own bound check.
+                // SAFETY: I1 and I2 -- `dn - 2 < dn` (`dn >= 2`) and
+                // `j + dn - 2 < nn`.
+                let vn_second = unsafe { vn[dn - 2].assume_init() };
+                let un_third = unsafe { un[j + dn - 2].assume_init() };
+                while rhat < B
+                    && qhat * (vn_second as u64)
+                        > (rhat << 32) | (un_third as u64)
+                {
+                    qhat -= 1;
+                    rhat += dv as u64;
+                }
+
+                // Multiply and subtract.
+                let mut k: i64 = 0;
+                let mut i = 0;
+                while i < dn {
+                    // SAFETY: I1 -- `i < dn`.
+                    let vi = unsafe { vn[i].assume_init() };
+                    // SAFETY: I2 -- `i + j <= nn - 1`.
+                    let uij = unsafe { un[i + j].assume_init() };
+                    let p = qhat * (vi as u64);
+                    let t = (uij as i64) - k - ((p & 0xffff_ffff) as i64);
+                    un[i + j] = MaybeUninit::new(t as u32);
+                    k = ((p >> 32) as i64) - (t >> 32);
+                    i += 1;
+                }
+                // SAFETY: I2 -- `j + dn <= nn`.
+                let t = (unsafe { un[j + dn].assume_init() } as i64) - k;
+                un[j + dn] = MaybeUninit::new(t as u32);
+
+                q[j] = qhat as u32;
+
+                // Estimate one too large (probability ~2/2^32): add the divisor
+                // back. Rare enough that the tests need a wide sweep to hit it.
+                if t < 0 {
+                    q[j] -= 1;
+                    let mut carry = 0u64;
+                    let mut i = 0;
+                    while i < dn {
+                        // SAFETY: I1 and I2 -- `i < dn` and `i + j <= nn - 1`.
+                        let vi = unsafe { vn[i].assume_init() };
+                        let uij = unsafe { un[i + j].assume_init() };
+                        let sum = (uij as u64) + (vi as u64) + carry;
+                        un[i + j] = MaybeUninit::new(sum as u32);
+                        carry = sum >> 32;
+                        i += 1;
+                    }
+                    // SAFETY: I2 -- `j + dn <= nn`.
+                    let top = unsafe { un[j + dn].assume_init() };
+                    un[j + dn] = MaybeUninit::new(
+                        (top as u64).wrapping_add(carry) as u32,
+                    );
+                }
+            }
+
+            // Undo the normalisation shift on the remainder.
+            let mut r = [0u32; LIMBS];
+            let mut i = 0;
+            while i < dn {
+                // SAFETY: I2 -- `i < dn` and `dn <= nn`, so `i + 1 <= nn`.
+                let lo = unsafe { un[i].assume_init() };
+                let next = unsafe { un[i + 1].assume_init() };
+                let hi = if s == 0 { 0 } else { next << (32 - s) };
+                r[i] = (lo >> s) | hi;
+                i += 1;
+            }
+
+            (q, U256::from_limbs(r))
+        }
+    };
+}
+
+knuth_d!(div_rem_knuth, LIMBS);
+knuth_d!(div_rem_knuth_wide, WIDE_LIMBS);
+
+/// Divides the 512-bit value `hi * 2^256 + lo` by `d`, returning the
+/// quotient's sixteen limbs and the remainder. `None` if `d` is zero.
+///
+/// The quotient genuinely needs 512 bits when `d <= hi`; callers that require
+/// a `U256` answer check the upper half themselves. The remainder is below
+/// `d`, so it always fits.
+pub(crate) const fn div_rem_512(
+    hi: U256,
+    lo: U256,
+    d: U256,
+) -> Option<([u32; WIDE_LIMBS], U256)> {
+    let dn = d.limb_len();
+    if dn == 0 {
+        return None;
+    }
+
+    // Same split as the narrow path: dividing by a single limb stays on
+    // `div_rem_small`, seeded across the two halves, rather than widening
+    // Knuth D's buffers to reach a case it does not need.
+    if dn == 1 {
+        let divisor = d.limbs[0];
+        let (qhi, rem) = hi.div_rem_small(divisor);
+        let (qlo, rem) = lo.div_rem_small_from(divisor, rem);
+        let mut q = [0u32; WIDE_LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            q[i] = qlo.limbs[i];
+            q[i + LIMBS] = qhi.limbs[i];
+            i += 1;
+        }
+        return Some((q, U256::from_u32(rem)));
+    }
+
+    let mut u = [0u32; WIDE_LIMBS];
+    let mut i = 0;
+    while i < LIMBS {
+        u[i] = lo.limbs[i];
+        u[i + LIMBS] = hi.limbs[i];
+        i += 1;
+    }
+
+    let mut nn = WIDE_LIMBS;
+    while nn > 0 && u[nn - 1] == 0 {
+        nn -= 1;
+    }
+    // `dn <= LIMBS`, so a dividend with fewer significant limbs than the
+    // divisor has an empty high half, and the remainder is just `lo`.
+    if nn < dn {
+        return Some(([0u32; WIDE_LIMBS], lo));
+    }
+
+    let (q, r) = div_rem_knuth_wide(&u, nn, &d.limbs, dn);
+    Some((q, r))
 }
 
 /// Computes `a * b / d` exactly, without the intermediate product needing to

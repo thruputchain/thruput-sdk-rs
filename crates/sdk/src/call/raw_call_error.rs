@@ -40,7 +40,7 @@ pub enum RawCallError<X = RawException> {
 /// `RawCallError<X>` with `widen_uninhabited_exn`.)
 pub type CallFault = RawCallError<core::convert::Infallible>;
 
-#[cfg(feature = "debugging")]
+#[cfg(not(target_arch = "riscv32"))]
 impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -68,14 +68,21 @@ impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
 impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
     for RawCallError<X>
 {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         match self {
             RawCallError::Invalid => library_throw(CallingError::Invalid),
             RawCallError::Exception(exn) => {
                 crate::re_throw::ReThrow::re_throw(exn)
             }
+            // The message is host-side state, so only the host has one to
+            // render. A guest carries no string for this: the rv32
+            // `#[panic_handler]` ignores `PanicInfo` and issues `ebreak`,
+            // so anything formatted here would be payload nothing reads.
+            #[cfg(not(target_arch = "riscv32"))]
             RawCallError::Fault(f) => panic!("{f}"),
+            #[cfg(target_arch = "riscv32")]
+            RawCallError::Fault(_) => panic!(),
             RawCallError::UnparseableReturn(error) => {
                 library_throw(CallingError::DecodingSuccess(error))
             }

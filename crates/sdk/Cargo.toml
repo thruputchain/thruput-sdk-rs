@@ -71,32 +71,28 @@ std = [
     "xdrs/detailed-errors",
 ]
 
-# Enable recommended development features
+# The mock executor, for testing contracts natively.
+#
+# This stays a feature, unlike the diagnostics that were folded into target
+# gates: it does not change what a contract computes, it decides whether the
+# native executor is in the dependency graph at all -- pulling
+# `groundhog-native-exec` and through it the hogd FFI library. Host crates
+# that only read specs (`spec-tool`, `erc20-test`, the `*-if` crates) build
+# `sdk` without it and should not have to fetch a shared object to do so.
+#
+# `syscalls_mock` and `linkme` are not listed: the host target table below
+# supplies both unconditionally.
 dev = [
-    "debugging",
-    "call_tracking",
-    "dep:groundhog-storage-cost",
-    "mock",
-    ]
-
-# Enable the mock executor for local testing
-mock = [
     "std",
     "dep:groundhog-native-exec",
     "dep:groundhog-storage-cost",
     "groundhog-macros/mock",
-    "groundhog-xdr/syscalls_mock",
-    "dep:linkme",
     "dep:sha2",
 ]
 
 # Forwarded to groundhog-sys (via native-exec): build the FFI library from
 # source (HOGD_FFI_BUILD=1) instead of downloading a prebuilt binary.
 source-build = ["groundhog-native-exec?/source-build"]
-
-# Diagnostics (can be enabled without mock, alloc and std)
-debugging = ["groundhog-u256/fmt"]
-call_tracking = ["debugging"] # contract-call tracking
 
 # Optional diagnostic features (not enabled by "dev")
 logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
@@ -109,7 +105,7 @@ required-features = ["std"]
 # absent, so the cases would fail to resolve instead of failing on the bound.
 [[test]]
 name = "compile_fail_mock"
-required-features = ["mock"]
+required-features = ["dev"]
 
 # RV32 contracts use real syscalls into hogd. Host-native builds use the mock
 # syscall implementation linked through native-exec.
@@ -130,6 +126,12 @@ groundhog-rv32-runtime = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
+# Diagnostics are host-only (see `exn::fault` and `diagnostics`): the
+# `Display` impls on the exception types and the formatting they need are
+# gated on this same target, so a guest never builds either. Keeping the
+# features here rather than behind a Cargo feature is what makes that
+# guarantee unconditional -- no dependency can turn them on for a contract.
+groundhog-u256 = { workspace = true, features = ["fmt"] }
 # Host-only: backs the storage-domain uniqueness registry (STORAGE_DOMAINS),
 # cfg-gated out of guest builds — see storage/domain_registry.rs.
 linkme = { workspace = true }

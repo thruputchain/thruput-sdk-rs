@@ -1,4 +1,4 @@
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn ensure<E>(pred: bool, err: E)
 where
     E: crate::Exn,

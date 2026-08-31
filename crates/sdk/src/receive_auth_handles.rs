@@ -72,6 +72,7 @@ impl_receive_noop!(
     sdk::types::Ed25519PublicKey,
     sdk::types::Ed25519Signature,
     groundhog_u256::U256,
+    groundhog_u256::I256,
     sdk::types::ContractEntrypointID,
 );
 

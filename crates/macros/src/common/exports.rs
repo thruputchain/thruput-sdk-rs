@@ -16,6 +16,25 @@ use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
 
+fn hex_symbol_component(value: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+
+    let mut encoded = String::with_capacity(value.len() * 2);
+    for byte in value.bytes() {
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    encoded
+}
+
+fn encoded_crate_scope(package_name: &str, package_version: &str) -> String {
+    format!(
+        "{}__{}",
+        hex_symbol_component(package_name),
+        hex_symbol_component(package_version)
+    )
+}
+
 /// Generate exports
 pub fn generate(
     contract: &impl ContractSrc,
@@ -531,18 +550,21 @@ pub fn generate_method(
     // compiling the contract crate, which is the process this macro expands
     // in. The version is part of the scope because one host binary can
     // legitimately link two semver-distinct instances of one contract
-    // package (e.g. a migration test pinning an old release), and cargo
-    // forbids two instances of the same name AND version — so name@version
-    // is a true per-crate-instance identity, while name alone is not.
-    let crate_scope = format!(
-        "{}@{}",
-        std::env::var("CARGO_PKG_NAME")
+    // package (e.g. a migration test pinning an old release), so the version
+    // must be part of the scope. Cargo can also link same-name, same-version
+    // packages from distinct sources, but it does not expose that source
+    // PackageId to proc macros; those rare instances share this guard scope.
+    // Encode both available components as hex because characters such as
+    // `@`, `-`, and `[]` have special meaning in ELF linker version scripts.
+    let crate_scope = encoded_crate_scope(
+        &std::env::var("CARGO_PKG_NAME")
             .unwrap_or_else(|_| "unknown-crate".to_string()),
-        std::env::var("CARGO_PKG_VERSION")
+        &std::env::var("CARGO_PKG_VERSION")
             .unwrap_or_else(|_| "0.0.0".to_string()),
     );
-    let scoped_link_guard_name = format!("{link_name}[{crate_scope}]");
-    let scoped_id_guard_name = format!("{id_guard_name}[{crate_scope}]");
+    let scoped_link_guard_name = format!("{link_name}__crate__{crate_scope}");
+    let scoped_id_guard_name =
+        format!("{id_guard_name}__crate__{crate_scope}");
     let scoped_link_guard_ident =
         format_ident!("__GH_ENTRY_NAME_GUARD_CRATE_{}", ident);
     let scoped_id_guard_ident =
@@ -597,7 +619,7 @@ pub fn generate_method(
         // build. (`cargo check` skips codegen and still passes; build/test
         // is the loud gate.)
         //
-        // The `[<crate>@<version>]` scope suffix is what makes always-on
+        // The hex-encoded `<crate>__<version>` scope suffix is what makes always-on
         // emission safe: host test binaries routinely link MANY contract
         // crates (e.g. several implementations of one standard interface,
         // or two semver-distinct instances of one contract package in a
@@ -837,20 +859,20 @@ mod tests {
             .to_string();
 
         // Expansion happens in this test process, so the scope suffix is
-        // this crate's own package identity. name@version, not name alone:
+        // this crate's available package identity. name+version, not name alone:
         // one host binary may link two semver-distinct instances of one
         // contract package, and only name+version identifies an instance.
         let crate_scope = format!(
-            "{}@{}",
-            std::env::var("CARGO_PKG_NAME").unwrap(),
-            std::env::var("CARGO_PKG_VERSION").unwrap(),
+            "{}__{}",
+            hex_symbol_component(&std::env::var("CARGO_PKG_NAME").unwrap()),
+            hex_symbol_component(&std::env::var("CARGO_PKG_VERSION").unwrap()),
         );
         let link_name = contract_util::entrypoint_link_name(
             Some("Iface"),
             &super::super::contract::interface_vers_default(),
             &contract_util::NormalizedMethodSignature::new("ping"),
         );
-        let scoped_guard = format!("{link_name}[{crate_scope}]");
+        let scoped_guard = format!("{link_name}__crate__{crate_scope}");
         assert!(generated.contains(&scoped_guard), "{generated}");
         assert!(
             generated.contains("__GH_ENTRY_NAME_GUARD_CRATE_"),
@@ -868,5 +890,18 @@ mod tests {
             .matches("cfg (all (feature = \"entrypoints\" , target_arch = \"riscv32\"))")
             .count();
         assert_eq!(cfg_gates, 3, "{generated}");
+    }
+
+    #[test]
+    fn crate_scope_is_injective_and_safe_for_linker_version_scripts() {
+        let scope = encoded_crate_scope("my-counter", "0.1.0+dev");
+
+        assert_eq!(scope, "6d792d636f756e746572__302e312e302b646576");
+        assert!(
+            scope
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() || byte == b'_')
+        );
+        assert_ne!(scope, encoded_crate_scope("my_2d_counter", "0.1.0+dev"));
     }
 }

@@ -4,7 +4,8 @@
 #
 #   1. the workspace-versioned crates up through `sdk`
 #   2. the standard-interface crates, which caret-depend on `sdk`
-#   3. `groundhog-spec-tool`, which exact-pins the standard-interface crates
+#   3. the crates downstream of the standard interfaces: `groundhog-spec-tool`
+#      and the `erc20-*-test` crates
 #
 # Every step tolerates re-runs: tags are recreated at HEAD and only pushed
 # when new, `cargo publish` skips versions the registry already has, and doc
@@ -38,9 +39,9 @@ concurrency:
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   # Workspace-versioned crates published under the `v<version>` tag, in
-  # dependency order. groundhog-spec-tool is on the same version line but is
-  # named separately below: it exact-pins the standard-interface crates, so
-  # it publishes after them, while they depend on `sdk` from this list.
+  # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
+  # line but is named separately: those crates publish after the standard
+  # interfaces, while these are what the interfaces depend on.
   PRIMARY_PACKAGES: >-
     groundhog-event
     groundhog-storage-cost
@@ -54,6 +55,7 @@ env:
     groundhog-test-vectors
     groundhog-rv32-runtime
     sdk
+    bottle-test-if
   # Standard-interface crates and their implementation components: versioned
   # independently of the workspace, each published under its own
   # `<crate>-v<version>` tag. In dependency order: groundhog-access-control
@@ -65,6 +67,13 @@ env:
     groundhog-erc20-pausable-if
     groundhog-access-control-if
     groundhog-access-control
+  # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
+  # PRIMARY_PACKAGES.
+  INTERFACE_DEPENDENT_PACKAGES: >-
+    groundhog-spec-tool
+    erc20-test
+    erc20-native-test
+    erc20-bottle-test
 
 jobs:
   publish:
@@ -104,12 +113,12 @@ jobs:
       - name: Publish dry run
         uses: ./actions/cargo-publish-dry-run
         with:
-          packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
-          # groundhog-spec-tool exact-pins the standard-interface crates, which
-          # are workspace path deps here — `cargo vendor` skips those, so the
-          # offline packaging steps need them pre-vendored. Pre-vendoring an
-          # interface crate resolves its deps against vendor/ too, so the
-          # primaries it depends on come first, in dependency order.
+          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
+          # The interface-dependent crates reach the standard interfaces (and
+          # each other) as workspace path deps — `cargo vendor` skips those, so
+          # the offline packaging steps need them pre-vendored. Pre-vendoring a
+          # crate resolves its deps against vendor/ too, so the crates it
+          # depends on come first, in dependency order.
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
@@ -122,10 +131,13 @@ jobs:
             groundhog-u256
             groundhog-rv32-runtime
             sdk
+            bottle-test-if
             groundhog-erc20-if
+            groundhog-erc20-metadata-if
             groundhog-erc1271-if
             groundhog-erc20-pausable-if
             groundhog-access-control-if
+            erc20-test
           # groundhog-domain-separator's backends are additive, so most combinations
           # are fine. The exception is a bare `syscall`: it forwards to
           # `groundhog-xdr/syscalls`, which has no dispatch path on the host.
@@ -200,7 +212,7 @@ jobs:
         id: publish-tag
         uses: ./actions/cargo-release-tag
         with:
-          packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
+          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           github-token: ${{ github.token }}
 
       # Each interface crate gets its own `<crate>-v<version>` tag, which
@@ -375,11 +387,11 @@ jobs:
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
 
-      - name: Publish spec-tool
+      - name: Publish interface-dependent crates
         if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-spec-tool
+          packages: ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           git-tag: ${{ steps.publish-tag.outputs.tag }}
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
@@ -393,7 +405,7 @@ jobs:
         if: ${{ inputs.dry_run == false }}
         uses: ./actions/cargo-doc
         with:
-          packages: ${{ env.PRIMARY_PACKAGES }} groundhog-spec-tool
+          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           arch-only-packages: groundhog-rv32-runtime
           version: ${{ steps.publish-tag.outputs.version }}
           registry-name: groundhog

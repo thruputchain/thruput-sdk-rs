@@ -30,22 +30,34 @@ pub use groundhog_contract_spec as contract_spec;
 #[doc(hidden)]
 pub use groundhog_contract_spec as __contract_spec;
 
-/// 256-bit unsigned integer arithmetic.
+/// 256-bit integer arithmetic, signed and unsigned.
 ///
-/// [`U256`] behaves like `u128`, including on overflow: the operators wrap
-/// when `overflow-checks` is off (as in every contract profile) and panic when
-/// it is on. The native test harness builds with overflow checks *on*, so an
-/// overflow that fails a test wraps silently on-chain — see the "Arithmetic
-/// on-chain" section of the SDK README, and prefer `checked_*` (or the
-/// storage-level `NNInt`/`Balance` guards) for money math. See
-/// [`u256::mul_div_u128`] for the exact `a * b / d` that motivates most
-/// reaches for a 256-bit type.
+/// [`U256`] and [`I256`] behave like `u128` and `i128`, including on overflow:
+/// the operators wrap when `overflow-checks` is off (as in every contract
+/// profile) and panic when it is on. The native test harness builds with
+/// overflow checks *on*, so an overflow that fails a test wraps silently
+/// on-chain — see the [Arithmetic](crate#arithmetic) section of the crate
+/// docs, and prefer `checked_*` (or the storage-level
+/// [`NNInt`](crate::storage::NNInt) / [`Balance`](crate::storage::Balance)
+/// guards) for money math.
 ///
-/// `U256::from` takes a `u128` and is a const fn, so unsuffixed literals and
-/// const items both work: `const FEE: U256 = U256::from(1000)`. Narrower
-/// values go through `.into()`, [`U256::from_u32`], or [`U256::from_u64`].
+/// For the exact `a * b / d` that motivates most reaches for a 256-bit type,
+/// see [`u256::mul_div_u128`] (`u128` in, `u128` out) or [`U256::mul_div`]
+/// (256-bit throughout, on an exact 512-bit intermediate). The crate also
+/// carries OpenZeppelin's `Math.sol` and `SignedMath.sol` surfaces —
+/// `mul_shr`, `mul_mod`, `mod_exp`, `inv_mod`, `average`, `ceil_div`,
+/// `integer_sqrt`/`log2`/`log10`/`log256` with a [`Rounding`] direction —
+/// under the same names bar that one (Solidity's is `sqrt`).
+///
+/// `U256::from` takes a `u128` and `I256::from` an `i128`, both const fns, so
+/// unsuffixed literals and const items work: `const FEE: U256 =
+/// U256::from(1000)`. Narrower values go through `.into()`,
+/// [`U256::from_u32`]/[`U256::from_u64`], or
+/// [`I256::from_i32`]/[`I256::from_i64`].
 pub use groundhog_u256 as u256;
-pub use groundhog_u256::{U256, checked_mul_div_u128, mul_div_u128};
+pub use groundhog_u256::{
+    I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
+};
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -95,7 +107,6 @@ pub mod internal;
 mod cell;
 mod diagnostics;
 mod local;
-mod panic;
 mod re_throw;
 mod throw;
 mod util;
@@ -158,7 +169,6 @@ pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
 pub use mintable::*;
-pub use panic::*;
 pub use re_throw::*;
 pub use receive_auth_handles::*;
 pub use rt::*;
@@ -232,5 +242,5 @@ pub use groundhog_macros::storage;
 
 mod mock;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use mock::*;
