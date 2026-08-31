@@ -13,9 +13,16 @@
 //! * Division truncates toward zero, and the remainder takes the sign of the
 //!   dividend (`-7 / 2 == -3`, `-7 % 2 == -1`).
 //! * `>>` is an arithmetic shift: the sign bit is replicated.
-//! * `MIN / -1`, `MIN.abs()` and `-MIN` overflow. Like the operators on
-//!   [`U256`], they panic when `overflow-checks` is on and wrap when it is
-//!   off; the `checked_` forms report instead.
+//! * `MIN.abs()` and `-MIN` overflow. Like the operators on [`U256`], they
+//!   panic when `overflow-checks` is on and wrap when it is off; the
+//!   `checked_` forms report instead.
+//! * `MIN / -1` and `MIN % -1` overflow too, but they **panic
+//!   unconditionally**, in a release contract profile as well. That is not an
+//!   inconsistency: division overflow is the one case the primitives also
+//!   leave ungated, because on real hardware the alternative is a trap rather
+//!   than a wrapped value. `i128::MIN / -1` panics under
+//!   `-C overflow-checks=off` too. Use `wrapping_div`/`checked_div` where an
+//!   abort is not wanted.
 //!
 //! The wire encoding is the two's complement value as 32 big-endian bytes --
 //! the same 32 bytes a `U256` with those bits would produce, and what
@@ -231,9 +238,12 @@ impl I256 {
 
     /// Returns the big-endian two's complement byte representation.
     ///
-    /// Outlined on rv32; see the inlining note in `arith`.
-    #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
+    /// `#[inline]`, not the `inline(never)` the unsigned pair carries: the
+    /// body is a reinterpretation and a call, so the byte-swap loop this
+    /// reaches is [`U256::to_be_bytes`], which is *already* outlined on rv32
+    /// for exactly that reason. Outlining the wrapper too would add a second
+    /// symbol and a call/return per conversion, not remove one.
+    #[inline]
     pub const fn to_be_bytes(self) -> [u8; 32] {
         self.cast_unsigned().to_be_bytes()
     }
@@ -241,9 +251,8 @@ impl I256 {
     /// Constructs a value from its big-endian two's complement byte
     /// representation.
     ///
-    /// Outlined on rv32; see the inlining note in `arith`.
-    #[cfg_attr(target_arch = "riscv32", inline(never))]
-    #[cfg_attr(not(target_arch = "riscv32"), inline)]
+    /// `#[inline]` for the reason [`to_be_bytes`](Self::to_be_bytes) gives.
+    #[inline]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
         U256::from_be_bytes(bytes).cast_signed()
     }

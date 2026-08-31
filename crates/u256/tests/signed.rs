@@ -586,10 +586,55 @@ fn division_by_zero_panics() {
     let _ = I256::ONE / I256::ZERO;
 }
 
+/// Division overflow is the one arithmetic overflow the primitives do *not*
+/// gate on `overflow-checks`: `i128::MIN / -1` panics under
+/// `-C overflow-checks=off` too, because the alternative on real hardware is a
+/// trap. So this panic must be unconditional, and a contract profile must not
+/// quietly produce `MIN` here.
+///
+/// The test suite runs with checks on, so this case alone cannot prove the
+/// ungated half; `division_overflow_is_not_gated_on_overflow_checks` below
+/// pins the shape that would regress if the gate came back.
 #[test]
 #[should_panic(expected = "attempt to divide with overflow")]
-fn min_over_minus_one_panics_under_overflow_checks() {
+fn min_over_minus_one_panics() {
     let _ = I256::MIN / I256::MINUS_ONE;
+}
+
+#[test]
+#[should_panic(expected = "attempt to divide with overflow")]
+fn min_rem_minus_one_panics() {
+    let _ = I256::MIN % I256::MINUS_ONE;
+}
+
+/// The ungated claim, stated where a reader will find it.
+///
+/// `div_rem` reaches its overflow `panic!` without consulting
+/// `OVERFLOW_CHECKS` — unlike `+`, `-`, `*` and unary `-`, which all do. A
+/// regression that re-gated it would leave every assertion above passing (the
+/// harness builds with checks on) and silently change what ships, so the
+/// escape hatches are asserted here instead: they are the only in-profile way
+/// to get a value out of `MIN / -1`, and they must keep working.
+#[test]
+fn division_overflow_is_not_gated_on_overflow_checks() {
+    assert_eq!(I256::MIN.checked_div(I256::MINUS_ONE), None);
+    assert_eq!(I256::MIN.checked_rem(I256::MINUS_ONE), None);
+    assert_eq!(I256::MIN.wrapping_div(I256::MINUS_ONE), I256::MIN);
+    assert_eq!(I256::MIN.wrapping_rem(I256::MINUS_ONE), I256::ZERO);
+    assert_eq!(
+        I256::MIN.overflowing_div(I256::MINUS_ONE),
+        (I256::MIN, true)
+    );
+    assert_eq!(
+        I256::MIN.overflowing_rem(I256::MINUS_ONE),
+        (I256::ZERO, true)
+    );
+
+    // And the same shapes on i128, so "like the primitives" is visible rather
+    // than asserted: these are total there too.
+    assert_eq!(i128::MIN.checked_div(-1), None);
+    assert_eq!(i128::MIN.wrapping_div(-1), i128::MIN);
+    assert_eq!(i128::MIN.overflowing_div(-1), (i128::MIN, true));
 }
 
 // ---------------------------------------------------------------------------
@@ -742,6 +787,81 @@ fn wrapping_forms_wrap_where_the_operators_would_panic() {
     // The same shapes on i128, so the claim "like the primitives" is visible.
     assert_eq!(i128::MAX.wrapping_add(1), i128::MIN);
     assert_eq!(i128::MIN.wrapping_sub(1), i128::MAX);
+}
+
+/// The `overflowing_*` family is what every `checked_`/`wrapping_`/
+/// `saturating_` form is built on, so its *flag* is the thing a bug would hide
+/// in: the wrappers either discard it or branch on it, and a flag stuck at
+/// `false` would leave them all still returning plausible values. Assert the
+/// pairs directly.
+#[test]
+fn overflowing_forms_report_their_flags() {
+    // Negation and absolute value: MIN is the only overflow.
+    assert_eq!(I256::ZERO.overflowing_neg(), (I256::ZERO, false));
+    assert_eq!(I256::ONE.overflowing_neg(), (I256::MINUS_ONE, false));
+    assert_eq!(I256::MAX.overflowing_neg(), (-I256::MAX, false));
+    assert_eq!(I256::MIN.overflowing_neg(), (I256::MIN, true));
+
+    assert_eq!(I256::MINUS_ONE.overflowing_abs(), (I256::ONE, false));
+    assert_eq!(I256::MAX.overflowing_abs(), (I256::MAX, false));
+    assert_eq!(I256::MIN.overflowing_abs(), (I256::MIN, true));
+
+    // Arithmetic shift: the flag reports the mask, not a lost value.
+    assert_eq!(I256::MINUS_ONE.overflowing_shr(0), (I256::MINUS_ONE, false));
+    assert_eq!(I256::MIN.overflowing_shr(255), (I256::MINUS_ONE, false));
+    assert_eq!(I256::ONE.overflowing_shr(256), (I256::ONE, true));
+    assert_eq!(I256::from(8).overflowing_shr(2), (I256::from(2), false));
+
+    // Exponentiation.
+    assert_eq!(I256::from(3).overflowing_pow(0), (I256::ONE, false));
+    assert_eq!(I256::from(-3).overflowing_pow(3), (I256::from(-27), false));
+    assert!(!I256::from(2).overflowing_pow(254).1);
+    assert!(I256::from(2).overflowing_pow(255).1);
+    assert_eq!(I256::from(-2).overflowing_pow(255), (I256::MIN, false));
+    assert!(I256::from(-2).overflowing_pow(256).1);
+
+    // Every flag must agree with its `checked_` sibling, across the boundary
+    // values -- that is the invariant the wrappers rely on.
+    for v in boundary_values() {
+        assert_eq!(v.overflowing_neg().1, v.checked_neg().is_none(), "{v:?}");
+        assert_eq!(v.overflowing_abs().1, v.checked_abs().is_none(), "{v:?}");
+        for exp in [0u32, 1, 2, 3, 8] {
+            assert_eq!(
+                v.overflowing_pow(exp).1,
+                v.checked_pow(exp).is_none(),
+                "{v:?}^{exp}"
+            );
+        }
+        for n in [0u32, 1, 255, 256, 300] {
+            assert_eq!(v.overflowing_shr(n).1, v.checked_shr(n).is_none());
+            assert_eq!(v.overflowing_shl(n).1, v.checked_shl(n).is_none());
+        }
+        for d in [I256::ONE, I256::MINUS_ONE, I256::from(3), I256::MIN] {
+            assert_eq!(
+                v.overflowing_div(d).1,
+                v.checked_div(d).is_none(),
+                "{v:?} / {d:?}"
+            );
+            assert_eq!(v.overflowing_rem(d).1, v.checked_rem(d).is_none());
+        }
+    }
+}
+
+/// `U256`'s own negation family, added alongside `I256` and equally unasserted
+/// until now.
+#[test]
+fn unsigned_negation_reports_its_flag() {
+    assert_eq!(U256::ZERO.overflowing_neg(), (U256::ZERO, false));
+    assert_eq!(U256::ONE.overflowing_neg(), (U256::MAX, true));
+    assert_eq!(U256::MAX.overflowing_neg(), (U256::ONE, true));
+    assert_eq!(U256::ZERO.checked_neg(), Some(U256::ZERO));
+    assert_eq!(U256::ONE.checked_neg(), None);
+    // The two's complement identity `-x == !x + 1`, which is what I256 leans
+    // on everywhere.
+    for shift in [0u32, 1, 63, 127, 255] {
+        let x = U256::ONE << shift;
+        assert_eq!(x.wrapping_neg(), (!x).wrapping_add(U256::ONE), "{x:?}");
+    }
 }
 
 // ---------------------------------------------------------------------------

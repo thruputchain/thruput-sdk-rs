@@ -97,7 +97,7 @@ impl core::str::FromStr for I256 {
     type Err = ParseI256Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use crate::U256;
+        use crate::{ParseU256Error, U256};
 
         let (negative, digits) = match s.as_bytes().first() {
             None => return Err(ParseI256Error::Empty),
@@ -111,38 +111,35 @@ impl core::str::FromStr for I256 {
             return Err(ParseI256Error::InvalidDigit);
         }
 
-        let mut acc = U256::ZERO;
-        for byte in digits.bytes() {
-            if !byte.is_ascii_digit() {
-                return Err(ParseI256Error::InvalidDigit);
-            }
-            let (scaled, overflow) = acc.overflowing_mul_u32(10);
-            if overflow {
-                return Err(ParseI256Error::Overflow);
-            }
-            let (next, overflow) =
-                scaled.overflowing_add(U256::from_u32((byte - b'0') as u32));
-            if overflow {
-                return Err(ParseI256Error::Overflow);
-            }
-            acc = next;
-        }
+        // The magnitude goes through the unsigned parser rather than a second
+        // copy of its accumulation loop. Two copies of an overflow-sensitive
+        // parse is one too many: a fix to either would silently leave the
+        // other behind, and a guest linking both would pay for both.
+        let magnitude = U256::from_str(digits).map_err(|e| match e {
+            // Unreachable -- `digits` is non-empty above -- but mapped rather
+            // than unwrapped so a change to either parser cannot panic here.
+            ParseU256Error::Empty => ParseI256Error::Empty,
+            ParseU256Error::InvalidDigit => ParseI256Error::InvalidDigit,
+            ParseU256Error::Overflow => ParseI256Error::Overflow,
+        })?;
 
         // The negative range reaches one further, so the bound is on the
-        // magnitude rather than on the value it would become.
+        // magnitude rather than on the value it would become. Note this is a
+        // *second* bound: the unsigned parser has already rejected anything
+        // past `U256::MAX`, and this narrows what is left to the signed range.
         let limit = if negative {
             U256::ONE.wrapping_shl(255)
         } else {
             Self::MAX.cast_unsigned()
         };
-        if acc > limit {
+        if magnitude > limit {
             return Err(ParseI256Error::Overflow);
         }
 
         Ok(if negative {
-            acc.wrapping_neg().cast_signed()
+            magnitude.wrapping_neg().cast_signed()
         } else {
-            acc.cast_signed()
+            magnitude.cast_signed()
         })
     }
 }

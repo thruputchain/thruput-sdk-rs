@@ -480,6 +480,7 @@ fn operations(rows: &[Row]) -> Vec<&str> {
         "div_small",
         "rem",
         "mul_div_u128",
+        "mul_div",
         "shl",
         "shr",
         "bitwise",

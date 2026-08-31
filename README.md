@@ -99,13 +99,27 @@ For money math, be explicit instead of relying on operators:
 ### 256-bit math utilities
 
 `sdk::U256` and `sdk::I256` carry OpenZeppelin's `Math.sol` and
-`SignedMath.sol` surfaces under the same names, so a port from Solidity keeps
-its vocabulary: `mul_div` and `mul_shr` (full precision, 512-bit
-intermediate), `mul_mod` / `add_mod` / `mod_exp` / `inv_mod`, `average`,
-`ceil_div`, `pow`, and `sqrt` / `log2` / `log10` / `log256` with a
-`sdk::Rounding` direction. Solidity's `tryAdd` family is spelled
-`checked_add` here, `clz` is `leading_zeros`, and `ternary` — a branchless
-select for the EVM's gas model — is `if`.
+`SignedMath.sol` surfaces, so a port from Solidity keeps its vocabulary:
+`mul_div` and `mul_shr` (full precision, 512-bit intermediate), `mul_mod` /
+`add_mod` / `mod_exp` / `inv_mod`, `average`, `ceil_div`, `pow`, and
+`log2` / `log10` / `log256`.
+
+Names match Solidity's modulo casing, with these exceptions:
+
+| Solidity | Here |
+|---|---|
+| `sqrt(a)` | `integer_sqrt` — the name the crate shipped with |
+| `sqrt(a, Rounding)`, `log2(v, Rounding)`, … | `sqrt_rounding`, `log2_rounding`, `log10_rounding`, `log256_rounding` |
+| `tryAdd` / `trySub` / `tryMul` / `tryDiv` / `tryMod` | `checked_add` and friends |
+| `mul512`, `add512` | `widening_mul_u256`, `overflowing_add` — pairs, ordered `(low, high)` |
+| `clz` | `leading_zeros` |
+| `ternary` | `if` — it is a branchless select for the EVM's gas model |
+
+Every fallible operation comes as a `checked_` form returning `Option` and a
+panicking one; `U256::mul_div` aborts where `U256::checked_mul_div` reports.
+There is no `U512`, and none is needed: Solidity has no type wider than
+`uint256` either, and the only consumers of a 512-bit intermediate in
+`Math.sol` — `mulDiv` and `mulShr` — are here whole.
 
 Note that this repository contains
 [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).

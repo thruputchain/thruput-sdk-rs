@@ -206,6 +206,19 @@ impl U256 {
         }
     }
 
+    /// Division following `rounding`.
+    ///
+    /// # Panics
+    ///
+    /// If `rhs` is zero, matching `/`.
+    #[inline]
+    pub const fn div_rounding(self, rhs: Self, rounding: Rounding) -> Self {
+        match self.checked_div_rounding(rhs, rounding) {
+            Some(v) => v,
+            None => panic!("attempt to divide by zero"),
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Full-precision multiply-divide
     // -----------------------------------------------------------------------
@@ -328,6 +341,21 @@ impl U256 {
     /// `Math.mulShr`, whose `n` is a `uint8` and so cannot reach 256 at all.
     #[inline]
     pub const fn checked_mul_shr(x: Self, y: Self, n: u32) -> Option<Self> {
+        match Self::mul_shr_parts(x, y, n) {
+            Some((v, _)) => Some(v),
+            None => None,
+        }
+    }
+
+    /// The shifted product and whether any set bit was shifted out, or `None`
+    /// when the result does not fit.
+    ///
+    /// One place the 512-bit product is formed, so the rounding entry point
+    /// does not have to build it a second time -- `widening_mul_u256` is
+    /// `inline(never)` on rv32 and sixty-four `mul`/`mulhu` pairs, which is
+    /// not a thing to pay twice for a single `Ceil`.
+    #[inline]
+    const fn mul_shr_parts(x: Self, y: Self, n: u32) -> Option<(Self, bool)> {
         if n >= Self::BITS {
             return None;
         }
@@ -338,12 +366,18 @@ impl U256 {
             return None;
         }
         if n == 0 {
-            return Some(lo);
+            // Nothing is shifted out, so nothing is lost.
+            return Some((lo, false));
         }
-        Some(
+        // Only the low half can carry a dropped bit, since `n < 256`.
+        let dropped = !lo
+            .const_bitand(Self::MAX.wrapping_shr(Self::BITS - n))
+            .is_zero();
+        Some((
             hi.wrapping_shl(Self::BITS - n)
                 .const_bitor(lo.wrapping_shr(n)),
-        )
+            dropped,
+        ))
     }
 
     /// `floor(x * y >> n)` computed on the exact 512-bit product.
@@ -374,24 +408,15 @@ impl U256 {
         n: u32,
         rounding: Rounding,
     ) -> Option<Self> {
-        let v = match Self::checked_mul_shr(x, y, n) {
-            Some(v) => v,
+        let (v, dropped) = match Self::mul_shr_parts(x, y, n) {
+            Some(pair) => pair,
             None => return None,
         };
-        // Nothing is dropped by a zero-bit shift, so nothing to round.
-        if n == 0 || !rounding.unsigned_rounds_up() {
-            return Some(v);
-        }
-        // Inexact exactly when the product has a set bit below `n`. Only the
-        // low half can carry one, since `n < 256`.
-        let (lo, _) = x.widening_mul_u256(y);
-        if lo
-            .const_bitand(Self::MAX.wrapping_shr(Self::BITS - n))
-            .is_zero()
-        {
-            Some(v)
-        } else {
+        if dropped && rounding.unsigned_rounds_up() {
+            // Rounding up can leave the range the truncated value just fit.
             v.checked_add(Self::ONE)
+        } else {
+            Some(v)
         }
     }
 
@@ -445,6 +470,19 @@ impl U256 {
         }
     }
 
+    /// `(x + y) % m`, computed on the exact 257-bit sum.
+    ///
+    /// # Panics
+    ///
+    /// If `m` is zero.
+    #[inline]
+    pub const fn add_mod(x: Self, y: Self, m: Self) -> Self {
+        match Self::checked_add_mod(x, y, m) {
+            Some(v) => v,
+            None => panic!("attempt to divide by zero"),
+        }
+    }
+
     /// `(x * y) % m`, computed on the exact 512-bit product. Returns `None` if
     /// `m` is zero.
     ///
@@ -475,8 +513,9 @@ impl U256 {
     ///
     /// Square-and-multiply over [`checked_mul_mod`](Self::checked_mul_mod):
     /// one full-precision multiply-divide per bit of `e`, plus one more per
-    /// set bit. Solidity gets this from the EIP-198 precompile; there is no
-    /// precompile here, so the loop is real work.
+    /// set bit -- up to 512 for a full-width exponent. See
+    /// [`mod_exp`](Self::mod_exp) for what that costs and why an
+    /// attacker-chosen exponent is a gas-exhaustion surface.
     pub const fn checked_mod_exp(b: Self, e: Self, m: Self) -> Option<Self> {
         if m.is_zero() {
             return None;
@@ -514,6 +553,19 @@ impl U256 {
     }
 
     /// `b.pow(e) % m`. `Math.modExp`.
+    ///
+    /// # Cost
+    ///
+    /// **This is the most expensive function in the crate, by a wide margin.**
+    /// The loop runs once per bit of `e`, with one full-precision
+    /// multiply-divide per bit and another per set bit -- up to 512 of them
+    /// for a full-width exponent. At the ~4,700 gas this PR's bench measures
+    /// for one `mul_div`, a 256-bit exponent is on the order of two million
+    /// gas. Solidity gets this from the EIP-198 precompile for a flat fee;
+    /// there is no precompile here.
+    ///
+    /// An entrypoint that lets a caller choose `e` or `m` is therefore a
+    /// gas-exhaustion surface. Bound the exponent, or charge for it.
     ///
     /// # Panics
     ///
@@ -586,6 +638,19 @@ impl U256 {
     /// for primality**; a composite modulus produces a wrong answer rather
     /// than an error, exactly as in Solidity. Use
     /// [`inv_mod`](Self::inv_mod) when the modulus is not known to be prime.
+    ///
+    /// # Cost
+    ///
+    /// This is [`mod_exp`](Self::mod_exp) with a full-width exponent, so it is
+    /// as expensive as that function's worst case. It reads like a cheap
+    /// helper and is not one.
+    ///
+    /// # Panics
+    ///
+    /// If `p` is zero. Note that this differs from [`inv_mod`](Self::inv_mod),
+    /// which is total and answers zero for a degenerate modulus: swapping one
+    /// for the other after establishing primality elsewhere turns that zero
+    /// into an abort.
     pub const fn inv_mod_prime(a: Self, p: Self) -> Self {
         Self::mod_exp(a, p.wrapping_sub(Self::from_u32(2)), p)
     }
@@ -707,30 +772,52 @@ impl U256 {
     /// number of digits -- so this never links Knuth D, unlike the ladder of
     /// 256-bit constants Solidity uses.
     pub const fn log10(self) -> u32 {
+        self.log10_parts().0
+    }
+
+    /// `floor(log10(self))`, and whether `10^that` is strictly below `self`.
+    ///
+    /// The second value is what [`log10_rounding`](Self::log10_rounding)
+    /// needs, and it falls out of this loop for free: the result is a power of
+    /// ten exactly when every peeled chunk divided exactly and what is left is
+    /// itself one. Recomputing `10^r` afterwards to compare would instead link
+    /// [`pow`](Self::pow) -- and through it the general 256x256 multiply --
+    /// into a function built specifically to avoid dragging in that class of
+    /// code.
+    const fn log10_parts(self) -> (u32, bool) {
         /// The largest power of ten fitting in a `u32`'s divisor slot.
         const P8: u32 = 100_000_000;
 
+        // `log10(0)` is defined as 0 here, and `10^0 == 1` is above zero
+        // rather than below it, so zero never rounds up. Every path below
+        // assumes `self >= 1`.
+        if self.is_zero() {
+            return (0, false);
+        }
+
         let mut v = self;
         let mut r = 0u32;
+        let mut exact = true;
         // `limb_len() > 1` means `v >= 2^32 > 10^8`, so the second test only
         // ever runs on a single-limb value.
         while v.limb_len() > 1 || v.to_limbs()[0] >= P8 {
-            let (q, _) = v.div_rem_small(P8);
+            let (q, rem) = v.div_rem_small(P8);
+            if rem != 0 {
+                exact = false;
+            }
             v = q;
             r += 8;
         }
-        r + log10_u32(v.to_limbs()[0])
+        let (tail, tail_exact) = log10_u32(v.to_limbs()[0]);
+        (r + tail, !(exact && tail_exact))
     }
 
     /// `log10(self)` following `rounding`, or zero for zero. `Math.log10` with
     /// a rounding argument.
     #[inline]
     pub const fn log10_rounding(self, rounding: Rounding) -> u32 {
-        let r = self.log10();
-        // `r <= 77`, so `10^r` is representable.
-        if rounding.unsigned_rounds_up()
-            && Self::from_u32(10).wrapping_pow(r).const_lt(self)
-        {
+        let (r, inexact) = self.log10_parts();
+        if rounding.unsigned_rounds_up() && inexact {
             r + 1
         } else {
             r
@@ -760,22 +847,30 @@ impl U256 {
     }
 }
 
-/// `floor(log10(x))` for an `x` below `10^8`, which is every value
-/// [`U256::log10`] hands it.
+/// `floor(log10(x))`, and whether `x` is exactly that power of ten.
+///
+/// `x` is at least 1 and below `10^8` at the only call site, which is what
+/// lets the final value decide exactness: after the ladder it is a single
+/// digit, and a power of ten only if that digit is 1.
 #[inline]
-const fn log10_u32(x: u32) -> u32 {
+const fn log10_u32(x: u32) -> (u32, bool) {
     let mut x = x;
     let mut r = 0;
+    let mut exact = true;
     if x >= 10_000 {
+        exact &= x.is_multiple_of(10_000);
         x /= 10_000;
         r += 4;
     }
     if x >= 100 {
+        exact &= x.is_multiple_of(100);
         x /= 100;
         r += 2;
     }
     if x >= 10 {
+        exact &= x.is_multiple_of(10);
+        x /= 10;
         r += 1;
     }
-    r
+    (r, exact && x == 1)
 }

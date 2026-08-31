@@ -213,26 +213,32 @@ impl I256 {
     // -----------------------------------------------------------------------
 
     /// Wrapping multiplication, with a flag reporting whether it overflowed.
+    ///
+    /// One 256x256 multiply, not two. The overflow test needs the magnitude
+    /// product, and the wrapped *signed* bits follow from it without a second
+    /// pass: `a * b = (-1)^(sign a ^ sign b) * |a| * |b|`, and that identity
+    /// survives reduction mod 2^256, so negating the magnitude product gives
+    /// exactly the bits `cast_unsigned().wrapping_mul()` would have. On rv32
+    /// the schoolbook loop is `inline(never)`, so the saved call is a real
+    /// one -- and it is on the path of every `*`, `checked_mul`,
+    /// `saturating_mul` and step of [`pow`](Self::pow).
     #[inline]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-        let v = self
-            .cast_unsigned()
-            .wrapping_mul(rhs.cast_unsigned())
-            .cast_signed();
-
-        // The low 256 bits are sign-agnostic, so the overflow test is a
-        // magnitude bound -- and the bound depends on the result's sign,
-        // since the negative range reaches one further.
         let (mag, wide) =
             self.unsigned_abs().overflowing_mul(rhs.unsigned_abs());
         let negative = self.is_negative() != rhs.is_negative();
+
+        let v = if negative { mag.wrapping_neg() } else { mag };
+
+        // The bound depends on the result's sign, since the negative range
+        // reaches one further.
         let limit = if negative {
             // 2^255, `MIN`'s magnitude.
             U256::ONE.wrapping_shl(255)
         } else {
             Self::MAX.cast_unsigned()
         };
-        (v, wide || mag.const_gt(limit))
+        (v.cast_signed(), wide || mag.const_gt(limit))
     }
 
     /// Multiplication, returning `None` on overflow.
@@ -316,20 +322,58 @@ impl I256 {
     ///
     /// # Panics
     ///
-    /// If `rhs` is zero, always. On `MIN / -1`, only if `overflow-checks` is
-    /// on -- otherwise that case wraps to `(MIN, 0)`, like the primitives.
+    /// If `rhs` is zero, or on `MIN / -1`. **Both panics are unconditional**,
+    /// and deliberately so: division overflow is the one arithmetic overflow
+    /// the primitives do not key off `overflow-checks`. `i128::MIN / -1`
+    /// panics under `-C overflow-checks=off` exactly as it does with checks
+    /// on, because the alternative on real hardware is a trap rather than a
+    /// wrapped value. Matching the primitives here means *not* gating this.
+    ///
+    /// The consequence is worth stating plainly, since it is the opposite of
+    /// what the rest of this type does: a contract profile silently wraps
+    /// `MIN + 1` and `MIN * 2`, but aborts on `MIN / -1`. Reach for
+    /// [`wrapping_div`](Self::wrapping_div) or
+    /// [`checked_div`](Self::checked_div) if an abort is not what the call
+    /// site wants.
     #[inline]
     pub const fn div_rem(self, rhs: Self) -> (Self, Self) {
         if rhs.is_zero() {
             panic!("attempt to divide by zero");
         }
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
-            if OVERFLOW_CHECKS {
-                panic!("attempt to divide with overflow");
-            }
-            return (Self::MIN, Self::ZERO);
+            panic!("attempt to divide with overflow");
         }
         self.div_rem_unchecked(rhs)
+    }
+
+    /// Division, with a flag reporting whether it overflowed.
+    ///
+    /// The flag is set only by `MIN / -1`, whose wrapped quotient is `MIN`.
+    ///
+    /// # Panics
+    ///
+    /// If `rhs` is zero.
+    #[inline]
+    pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
+        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
+            return (Self::MIN, true);
+        }
+        (self.wrapping_div(rhs), false)
+    }
+
+    /// Remainder, with a flag reporting whether it overflowed.
+    ///
+    /// The flag is set only by `MIN % -1`, whose wrapped remainder is zero.
+    ///
+    /// # Panics
+    ///
+    /// If `rhs` is zero.
+    #[inline]
+    pub const fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
+        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
+            return (Self::ZERO, true);
+        }
+        (self.wrapping_rem(rhs), false)
     }
 
     /// Division, returning `None` if `rhs` is zero or the division overflows.

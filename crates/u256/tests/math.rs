@@ -426,6 +426,62 @@ fn mul_div_overflow_panics() {
     let _ = U256::mul_div(U256::MAX, U256::MAX, U256::ONE);
 }
 
+/// Every fallible operation ships as a `checked_` form and a panicking one.
+/// `add_mod` and `div_rounding` were the two that shipped without a partner;
+/// this pins the pairing so the next addition does not repeat it.
+#[test]
+fn panicking_and_checked_forms_agree() {
+    let (a, b, m) = (U256::from(7), U256::from(9), U256::from(5));
+    assert_eq!(
+        U256::add_mod(a, b, m),
+        U256::checked_add_mod(a, b, m).unwrap()
+    );
+    assert_eq!(
+        U256::mul_mod(a, b, m),
+        U256::checked_mul_mod(a, b, m).unwrap()
+    );
+    assert_eq!(a.ceil_div(b), a.checked_ceil_div(b).unwrap());
+    assert_eq!(
+        U256::mul_div(a, b, m),
+        U256::checked_mul_div(a, b, m).unwrap()
+    );
+    for rounding in ROUNDINGS {
+        assert_eq!(
+            a.div_rounding(b, rounding),
+            a.checked_div_rounding(b, rounding).unwrap(),
+            "{rounding:?}"
+        );
+        assert_eq!(
+            U256::mul_div_rounding(a, b, m, rounding),
+            U256::checked_mul_div_rounding(a, b, m, rounding).unwrap()
+        );
+        assert_eq!(
+            U256::mul_shr_rounding(a, b, 3, rounding),
+            U256::checked_mul_shr_rounding(a, b, 3, rounding).unwrap()
+        );
+    }
+    assert_eq!(
+        U256::mul_shr(a, b, 3),
+        U256::checked_mul_shr(a, b, 3).unwrap()
+    );
+    assert_eq!(
+        U256::mod_exp(a, b, m),
+        U256::checked_mod_exp(a, b, m).unwrap()
+    );
+}
+
+#[test]
+#[should_panic(expected = "attempt to divide by zero")]
+fn add_mod_by_zero_panics() {
+    let _ = U256::add_mod(U256::ONE, U256::ONE, U256::ZERO);
+}
+
+#[test]
+#[should_panic(expected = "attempt to divide by zero")]
+fn div_rounding_by_zero_panics() {
+    let _ = U256::ONE.div_rounding(U256::ZERO, Rounding::Ceil);
+}
+
 #[test]
 #[should_panic(expected = "mul_shr result exceeds U256")]
 fn mul_shr_overflow_panics() {
@@ -758,6 +814,37 @@ fn logs_cover_the_full_256_bit_range() {
     let mut p = U256::ONE;
     for e in 0..=77u32 {
         assert_eq!(p.log10(), e, "log10(10^{e})");
+
+        // `log10_rounding` derives exactness from the peeling loop rather
+        // than recomputing `10^r`; `pow` here is the independent oracle for
+        // that, across the whole decimal range rather than a handful of
+        // cases. An exact power never rounds up; its neighbours both do,
+        // in opposite directions.
+        assert_eq!(p.log10_rounding(Rounding::Ceil), e, "ceil log10(10^{e})");
+        assert_eq!(
+            (p + U256::ONE).log10_rounding(Rounding::Ceil),
+            e + 1,
+            "ceil log10(10^{e} + 1)"
+        );
+        if e > 0 {
+            assert_eq!(
+                (p - U256::ONE).log10_rounding(Rounding::Ceil),
+                e,
+                "ceil log10(10^{e} - 1)"
+            );
+        }
+        for rounding in ROUNDINGS {
+            let want = p.log10()
+                + u32::from(
+                    rounding.unsigned_rounds_up() && ten.pow(p.log10()) < p,
+                );
+            assert_eq!(
+                p.log10_rounding(rounding),
+                want,
+                "10^{e} {rounding:?}"
+            );
+        }
+
         if e > 0 {
             assert_eq!((p - U256::ONE).log10(), e - 1, "log10(10^{e} - 1)");
         }

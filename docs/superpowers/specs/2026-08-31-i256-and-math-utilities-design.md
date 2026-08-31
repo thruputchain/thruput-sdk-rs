@@ -77,10 +77,18 @@ Semantics follow the primitives:
   consumer is a Solidity port. `div_euclid`/`rem_euclid` are there for the
   floor convention.
 - `>>` is arithmetic.
-- `MIN / -1`, `MIN.abs()` and `-MIN` overflow; they panic under
-  `overflow-checks` and wrap without it, exactly as the `U256` operators do.
-  `unsigned_abs` is the total version, and returns a `U256` — the same shape
-  `SignedMath.abs` has.
+- `MIN.abs()` and `-MIN` overflow; they panic under `overflow-checks` and wrap
+  without it, exactly as the `U256` operators do. `unsigned_abs` is the total
+  version, and returns a `U256` — the same shape `SignedMath.abs` has.
+- `MIN / -1` and `MIN % -1` overflow too, and **panic unconditionally**,
+  release profile included. The first cut gated them on `overflow-checks` for
+  symmetry with the rest of the type, and that was wrong: division overflow is
+  the one arithmetic overflow the primitives themselves leave ungated, because
+  on real hardware the alternative is a trap rather than a wrapped value
+  (verified — `i128::MIN / -1` panics under `-C overflow-checks=off`). Gating
+  it would have meant a contract silently computing `MIN` where the primitive
+  aborts, on an input an attacker can often reach, and no host test could see
+  it because the harness builds with checks on.
 
 **Wire format.** 32 big-endian two's complement bytes: byte for byte what a
 `U256` with those bits encodes, and what Ethereum's `int256` uses. The spec
