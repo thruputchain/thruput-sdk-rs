@@ -27,4 +27,11 @@ pub enum SignedOpError {
     /// The body did not decode as the expected payload type.
     #[cfg_attr(feature = "dev", error("Malformed operation body"))]
     MalformedBody = 4,
+    /// The nonce fell out of the replay window before it was spent.
+    ///
+    /// An artifact of the current sliding-window filter, which forgets in order
+    /// to bound its storage. A garbage-collecting replay cache would not need
+    /// this variant; treat its presence as the marker for that gap.
+    #[cfg_attr(feature = "dev", error("Nonce older than the replay window"))]
+    NonceTooOld = 5,
 }

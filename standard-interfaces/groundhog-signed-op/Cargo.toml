@@ -28,4 +28,6 @@ groundhog-domain-separator = { path = "../../crates/domain-separator", registry 
 [lib]
 crate-type = ["rlib"]
 doctest = false
-test = false
+# Unlike the declaration-only standard interfaces, this crate carries logic --
+# the replay window's accept/record rules -- so its unit tests run.
+test = true

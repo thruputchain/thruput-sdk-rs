@@ -34,7 +34,7 @@
 //! [`SignedOpNonces::verify_and_spend`] performs all of it, and each check maps
 //! to a [`SignedOpError`]. Skipping any one of them reopens a replay path:
 //!
-//! - the nonce slot, against what this signer has already spent;
+//! - the nonce, against what this signer has already spent;
 //! - `valid_until`, against the current block height;
 //! - that the body decodes as the payload type the contract expects;
 //! - the signature, against the bytes all of that produces.
@@ -90,12 +90,16 @@ use sdk::{BlockHeight, contract};
 /// signature was meant for, which is the replay these fields exist to stop.
 #[sdk::contract_type]
 pub struct Operation {
-    /// The nonce **slot** this operation spends — an index, not a counter.
+    /// The nonce this operation spends — an opaque value the signer chooses,
+    /// not a counter it must keep in step with.
     ///
-    /// Slots may be spent in any order, so a signer can have several operations
-    /// outstanding without the submission order mattering. See
-    /// [`SignedOpNonces`]. Read the signer's current word with
-    /// [`SignedOp::signed_op_nonce_word`] to pick a free one.
+    /// Nonces may be spent in any order, so a signer can have several
+    /// operations outstanding without submission order mattering. Ask
+    /// [`SignedOp::next_signed_op_nonce`] for one that will be accepted.
+    ///
+    /// The current filter forgets nonces far below the highest one accepted, so
+    /// a very stale operation is refused with
+    /// [`SignedOpError::NonceTooOld`] — see [`SignedOpNonces`].
     pub nonce: u64,
     /// Last block height at which this operation may execute.
     pub valid_until: BlockHeight,
@@ -124,17 +128,24 @@ pub struct Operation {
 /// `execute_signed_op` is the structured, replay-protected form.
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
-    /// The 64-slot bitmap covering nonces `word * 64 ..= word * 64 + 63` for
-    /// `signer`; a set bit is a spent slot.
+    /// A nonce that would be accepted for `signer` right now.
     ///
-    /// Clients read one word to find a free slot, which is why this returns a
-    /// word rather than a single slot's state: it answers 64 questions per
-    /// call. See [`SignedOpNonces::word`].
-    fn signed_op_nonce_word(
+    /// Clients call this to pick one. A signer preparing several operations at
+    /// once should take this value and increment locally — anything above the
+    /// current high water mark is equally acceptable.
+    fn next_signed_op_nonce(&self, signer: &Ed25519PublicKey) -> u64;
+
+    /// Whether `nonce` would be accepted for `signer` right now.
+    ///
+    /// Deliberately a question about behaviour rather than a view of stored
+    /// state: the replay filter behind it is a stopgap (see
+    /// [`SignedOpNonces`]) and this must keep meaning the same thing once it is
+    /// replaced.
+    fn is_signed_op_nonce_usable(
         &self,
         signer: &Ed25519PublicKey,
-        word: u64,
-    ) -> u64;
+        nonce: u64,
+    ) -> bool;
 
     /// Verify `op` under `signature`, spend its nonce, and mint its auth
     /// tokens.

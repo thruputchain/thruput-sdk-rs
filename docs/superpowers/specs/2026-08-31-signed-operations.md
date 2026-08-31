@@ -187,24 +187,51 @@ An anonymous shape has no identity to bind, so signing one would be
 indistinguishable from signing any other value with the same field types. Wrap
 it in a named type.
 
-## 4b. Nonces are unordered slots, not a counter
+## 4b. Nonces, and the replay filter behind them
 
-`Operation.nonce` is a **slot index**. Slot `n` is bit `n % 64` of word `n / 64`,
-and `SignedOpNonces` stores `(signer_key, word) -> u64` bitmaps.
+`Operation.nonce` is an opaque `u64` the signer picks — not a counter it must
+keep in step with. Nonces may be spent in **any order**, because a sequential
+counter would force submission order: sign 5 and 6, and if 6 lands first it
+fails and stays failed. That is wrong for the case this exists to serve, where
+the signer does not control submission and may have several operations
+outstanding.
 
-A sequential counter would force submission *order*: sign slots 5 and 6, and if
-6 lands first it fails and stays failed. That is the wrong default for the case
-this mechanism exists to serve — the signer does not control submission and may
-have several operations outstanding. Slots may be spent in any order.
+### The filter is a stopgap, and the interface says so
 
-Reading one word answers 64 questions, so a client picks a free slot in one
-call (`signed_op_nonce_word`). Cancelling a word (`cancel_word`) revokes up to
-64 outstanding operations in a single write, which is the only way to retract a
-signature before its `valid_until`.
+`SignedOpNonces` currently holds a sliding window per signer: the highest nonce
+accepted plus a 128-bit map of those at or below it. Constant storage, garbage
+collected by sliding forward.
 
-Slots are keyed by the signing **key**, not an address: an operation is
-authorized by whoever holds the key, and address-from-pubkey derivation needs an
-account nonce this layer does not carry.
+It is meant to be replaced by `hogd`'s garbage-collecting replay cache once that
+is exposed to contracts, so **nothing in the public surface names a word, a
+bitmap, or any other artifact of the representation.** Callers get three
+behavioural questions, which mean the same thing under either implementation:
+
+| | |
+|---|---|
+| `next_nonce(signer)` | give me one that will be accepted |
+| `is_usable(signer, n)` | would this be accepted |
+| `verify_and_spend(...)` | check it and consume it, atomically |
+| `cancel_through(signer, n)` | refuse everything at or below `n` |
+
+`SignedOpError::NonceTooOld` is the one leak, and deliberately so: a window
+forgets, a replay cache would not. Treat that variant as the marker for
+knowingly incomplete functionality — when the cache lands, it goes.
+
+### What the window fixes, and what it does not
+
+It fixes **storage growth**. A per-operation record grows without bound and
+nothing at this layer could collect it; a window is 24 bytes per signer forever.
+
+It does **not** fix **write contention**, and slightly worsens it: every
+operation from one signer reads and rewrites one slot, where a word-keyed bitmap
+would spread them across several. Of a set of concurrent transactions spending
+nonces for one signer, one commits and the rest conflict — the constraint
+`Vector`'s length field already documents. No mergeable primitive avoids it: the
+storage layer has commutative *addition* (`NNInt`) but no commutative bit-set,
+so a read-modify-write is unavoidable today. Per-signer serialisation is
+arguably inherent — those operations contend for one nonce space — but a replay
+cache could remove it, which is a further reason to keep the seam clean.
 
 ### Why not the transaction nonce
 
@@ -213,14 +240,14 @@ operation is data — anyone can put the same payload and signature in a differe
 transaction with a different nonce, which the node sees as entirely fresh. So
 transaction-level uniqueness gives an operation nothing.
 
-Binding an operation to its carrying transaction is also impossible:
+Binding an operation to its carrying transaction is impossible anyway:
 `get_source_transaction_hash()` exists, but the transaction hash covers the
-calldata, which carries the operation and its signature. And the uniquifier is
-not exposed to contracts at all — the context syscalls are `GetMsgSender`,
+calldata, which carries the operation *and its signature*. And the uniquifier is
+not exposed to contracts — the context syscalls are `GetMsgSender`,
 `GetCurrentAddress`, `GetSourceTransactionHash`, `GetAuthClaim`,
 `GetBlockHeight`.
 
-`GetAuthClaim` does let a contract see how the *transaction* was authorized, so
+`GetAuthClaim` does let a contract see how the *transaction* was authorised, so
 an operation can be bound to a specific submitter. That is submitter
 restriction, not replay protection, and is left to applications.
 
@@ -258,7 +285,7 @@ and is the only part of this design that would touch `hogd`.
 | Crate | Contents |
 |---|---|
 | `groundhog-domain-separator` | `domain_separator!`, `SIGNED_OP`, `SignedOp<T>`, `DomainSeparator::preimage` |
-| `groundhog-signed-op-if` | `SignedOp` trait, `Operation` wire type, `SignedOpError`, `SignedOpNonces` storage, `verify_signed_op::<T>`, `decode_body`, `signed_op_of` |
+| `groundhog-signed-op-if` | `SignedOp` trait, `Operation` wire type, `SignedOpError`, `SignedOpNonces` replay filter, `verify_signed_op::<T>`, `decode_body`, `signed_op_of` |
 | `groundhog-test-vectors` | `signed-op` subcommand |
 
 `groundhog-contract-util` is untouched: entrypoint IDs are unrelated to this.
@@ -285,7 +312,10 @@ Two ways to close that, in preference order:
 ## 9. Follow-ups not done here
 
 - The client half (§8).
-- A worked example contract with nonce storage.
+- A worked example contract; nothing implements the trait yet, so the
+  `SignedOpNonces` storage path compiles but has never run on-chain.
+- Swapping the sliding window for `hogd`'s replay cache once exposed (§4b),
+  which removes `SignedOpError::NonceTooOld`.
 - `GetNetworkHash` (§6).
 - Bumping the `groundhog-test-vectors` pin in
   `client-ts/scripts/regen-test-vectors.sh` once a release carries `signed-op`.
