@@ -25,6 +25,18 @@
 //! bits on both types, so only comparison, division, the arithmetic right
 //! shift and formatting are genuinely separate code -- see `signed`.
 //!
+//! Every `Display`, `FromStr`, `LowerHex` and `UpperHex` impl in this crate --
+//! on the integers and on their error types alike -- sits behind the `fmt`
+//! feature, so a guest build carries neither the decimal-division loop nor the
+//! string literals those impls need. `sdk` enables `fmt` only under
+//! `cfg(not(target_arch = "riscv32"))`, so a contract does not build them at
+//! all rather than building them and relying on the linker to notice they are
+//! dead: a `Display` bound on [`U256`] does not resolve for
+//! `riscv32im-unknown-none-elf`. Cargo features are additive, so a dependency
+//! that names this crate with `fmt` itself would still turn it back on --
+//! nothing here can prevent that. `Debug` is the deliberate exception -- see
+//! `fmt`.
+//!
 //! The keying is exact under the `nightly` feature (guest builds get it
 //! through `sdk`), which reads rustc's real `overflow-checks` flag. Without
 //! it — on a stable compiler, where that cfg does not exist — overflow
@@ -379,6 +391,11 @@ impl From<bool> for U256 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TryFromIntError(pub(crate) ());
 
+/// Gated on `fmt` like every other `Display` in this crate: the message is a
+/// string literal, and a guest build that never formats the error should not
+/// carry it. `std` implies `fmt`, so the `Error` impl below always has its
+/// `Display` bound.
+#[cfg(feature = "fmt")]
 impl core::fmt::Display for TryFromIntError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("value does not fit in the target type")
