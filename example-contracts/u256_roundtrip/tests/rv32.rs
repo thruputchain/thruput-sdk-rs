@@ -22,6 +22,10 @@ static NONCE: SHA256Hash = sdk::sha256_static!("U256_ROUNDTRIP_TEST_NONCE");
 static SIGNED_NONCE: SHA256Hash =
     sdk::sha256_static!("I256_ROUNDTRIP_TEST_NONCE");
 
+/// And one more, for the `I256::MIN` case below.
+static MIN_NONCE: SHA256Hash =
+    sdk::sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE");
+
 /// A value whose limbs all differ and whose top bit is set, so any limb
 /// reordering or truncation in the calldata/return/storage paths shows up.
 fn test_value() -> U256 {
@@ -113,6 +117,68 @@ fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
             let client = U256RoundtripClient::new(&addr);
 
             assert_eq!(client.stored_signed(), arg);
+        })
+    })
+    .assert_success();
+}
+
+/// `I256::MIN` negating to itself, end to end.
+///
+/// The other signed test cannot reach this case: it asserts the negation
+/// flips sign, which `MIN` by definition does not. That left the exact value
+/// the contract's own doc comment cites as its reason for calling
+/// `wrapping_neg` covered only on the host, by `crates/u256/tests/signed.rs`.
+///
+/// The guest is where it counts. Contract profiles build with
+/// `overflow-checks` off while the native harness builds with them on, so
+/// wrapping is what a deployed contract actually gets and the host cannot
+/// observe it. `MIN` is also the extreme case for the ABI: `0x8000...0000`
+/// is its own two's complement, all 32 bytes of it.
+///
+/// What this pins, exactly: that `MIN` survives the calldata decode, the
+/// guest-side negation, the typed return, and the storage round trip as that
+/// bit pattern and no other. Verified by mutation -- an off-by-one before the
+/// negation fails it with `MAX` against `MIN`.
+///
+/// What it does *not* pin, because `MIN` is a fixed point of negation: that
+/// the contract negates at all. A body that returned its argument untouched
+/// would pass here. That case belongs to the sibling test above, which
+/// catches it -- checked by the same mutation.
+#[test]
+fn i256_min_negates_to_itself_through_rv32() {
+    let contract = sdk::load_rv32_contract(RV32_PATH);
+    let env = sdk::TestEnvironment::no_cost();
+    let contract_hash = env.setup_create_contract(&contract);
+
+    // Not `-I256::MIN`: that is the overflow this test exists to pin, and
+    // the operator would panic on it here (the harness builds checked).
+    let arg = I256::MIN;
+    assert!(arg.is_negative() && arg.wrapping_neg().is_negative());
+
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&MIN_NONCE, &contract_hash);
+            let client = U256RoundtripClient::new(&addr);
+
+            // Negating in the guest returns `MIN` unchanged...
+            assert_eq!(client.negate_and_store(arg), I256::MIN);
+            assert_eq!(client.stored_signed(), I256::MIN);
+
+            // ...and stays there, rather than drifting on a second pass.
+            assert_eq!(client.negate_and_store(I256::MIN), I256::MIN);
+            assert_eq!(client.stored_signed(), I256::MIN);
+        })
+    })
+    .assert_success();
+
+    env.advance_block();
+
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = get_deploy_address(&MIN_NONCE, &contract_hash);
+            let client = U256RoundtripClient::new(&addr);
+
+            assert_eq!(client.stored_signed(), I256::MIN);
         })
     })
     .assert_success();
