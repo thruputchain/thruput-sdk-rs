@@ -273,12 +273,33 @@ agree before either number is believed.
 | `mul_div_u128` | 3,012 | 1712.05 | 11,280 | 10280.04 |
 | `mul_div` | 3,992 | 4712.05 | 21,568 | 22625.04 |
 
-Two things worth reading off it. `uint`'s full-precision `mulDiv` costs **21,568
-bytes — a third of the 64 KiB artifact code cap for one operation**, which is
-the original design's 11,300-byte `Div`/`Rem` problem repeated at double width.
-And the full-precision path here costs 1,420 bytes over the narrow `div`: that
-is the wide Knuth D instantiation plus `widening_mul_u256`, and it is the price
-of the second copy the specialisation decision above chose to pay.
+`uint`'s full-precision `mulDiv` costs **21,568 bytes — a third of the 64 KiB
+artifact code cap for one operation**, which is the original design's
+11,300-byte `Div`/`Rem` problem repeated at double width.
+
+The `mul_div` row sits 1,420 bytes above the `div` row. Read that carefully: it
+is *not* "a Knuth D plus `widening_mul_u256`", because `div`'s 2,572 already
+contains a Knuth D. By the symbol tables of the two artifacts
+(`llvm-readelf -sW target/bigint-bench/u256.{div,mul_div}.elf`), which is what
+the unstripped ELFs the bench keeps aside are for:
+
+| | `none` | `div` | `mul_div` |
+|---|---|---|---|
+| `drive` (the kernel, with Knuth D inlined into it) | 288 | 2,756 | 3,584 |
+| `widening_mul_u256` (outlined, per its rv32 `inline(never)`) | — | — | 592 |
+
+`(3,584 - 2,756) + 592 = 1,420`: the 512-bit multiply, plus the wide kernel
+being *larger than* the narrow one, not additional to it.
+
+**What these rows do not measure is the cost of the second Knuth D copy.** Each
+artifact carries exactly one kernel — `OPS_SELECTED == 1` in `kernel.rs`
+enforces it — so neither of these builds links both instantiations. Only a
+contract calling both `/` and the full-precision family pays for two, and the
+one-kernel-per-artifact design is precisely what makes that unmeasurable here.
+Its order of magnitude is the 1,892 bytes one Knuth D costs over
+`div_small` (2,572 - 680), but that is an inference from the single-kernel rows,
+not a measurement. Measuring it would need a two-kernel probe outside this
+harness.
 
 The `div` and `mul_div_u128` rows are byte-identical to the runs before the op
 was added, which confirms the new trait method costs nothing to a build that

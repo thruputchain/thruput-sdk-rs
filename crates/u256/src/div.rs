@@ -263,8 +263,11 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// to save 2 gas, and makes `mul_div_u128` both bigger and slower. Not taken.
 ///
 /// What the split costs instead: a contract using both `/` and the
-/// full-precision family links Knuth D twice. That is the trade, made with the
-/// numbers in hand.
+/// full-precision family links Knuth D twice. That cost is *not* in the table
+/// above -- the bench builds one kernel per artifact, so no row there carries
+/// both instantiations. Its order of magnitude is the 1,892 bytes one copy
+/// costs over `div_small`, inferred rather than measured. The trade was made on
+/// the gas column, which is measured.
 macro_rules! knuth_d {
     ($name:ident, $n:expr) => {
         const fn $name(
