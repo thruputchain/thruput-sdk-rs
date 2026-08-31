@@ -1,9 +1,9 @@
 //! Mock-execution utilities.
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 mod contract_test;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 mod mock_public {
     pub use super::contract_test::*;
 
@@ -31,21 +31,21 @@ mod mock_public {
     pub use groundhog_storage_cost::*;
 }
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use mock_public::*;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 #[doc(hidden)]
 pub mod mock_registry;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use mock_registry::register_mock_package;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 #[doc(hidden)]
 pub extern crate linkme as __linkme;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 #[macro_export]
 macro_rules! declare_mock_contract {
     () => {
@@ -58,7 +58,7 @@ macro_rules! declare_mock_contract {
     };
 }
 
-#[cfg(not(feature = "mock"))]
+#[cfg(not(feature = "dev"))]
 #[macro_export]
 macro_rules! declare_mock_contract {
     () => {};

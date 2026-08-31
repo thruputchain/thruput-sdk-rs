@@ -230,5 +230,5 @@ pub use groundhog_macros::storage;
 
 mod mock;
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub use mock::*;
