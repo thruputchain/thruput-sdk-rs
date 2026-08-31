@@ -387,6 +387,7 @@ name = "groundhog-domain-separator"
 version = "0.25.0"
 dependencies = [
  "groundhog-contract-spec",
+ "groundhog-macros",
  "groundhog-xdr",
  "hex-literal",
  "sha2",
@@ -545,6 +546,7 @@ dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
  "groundhog-domain-separator",
+ "groundhog-macros",
  "groundhog-xdr",
  "serde_json",
  "xdrs",

@@ -217,15 +217,12 @@ domain_separator! {
 }
 
 domain_separator! {
-    /// Domain separator for signed operations (`"SignedOp"`).
+    /// Domain separator for signed operations (`"SignedOp::1"`).
     ///
-    /// Operations are hashed under one shared separator and distinguished from
-    /// each other *inside* the preimage, by
-    /// [`OperationTypeId`](crate::OperationTypeId) — see
-    /// [`signed_op_hash`](crate::signed_op_hash). An application that wants its
-    /// own separator as well can declare one with [`domain_separator!`] and
-    /// pass it to
-    /// [`signed_op_hash_in`](crate::signed_op_hash_in).
+    /// Operations share this one separator; what tells them apart inside the
+    /// preimage is the payload type's own definition. See [`SignedOp`].
+    ///
+    /// [`SignedOp`]: crate::SignedOp
     pub const SIGNED_OP = "SignedOp" version "1";
 }
 

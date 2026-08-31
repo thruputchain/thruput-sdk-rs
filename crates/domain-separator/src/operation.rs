@@ -184,7 +184,34 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> SignedOp<'_, T> {
         &self,
         separator: &DomainSeparator,
     ) -> alloc::vec::Vec<u8> {
-        separator.preimage(&self.repr())
+        separator.preimage(&self.repr(), Self::capacity_hint(separator))
+    }
+
+    /// Everything but the body, whose size is not knowable for a generic `T`.
+    /// Under-reserving costs one realloc; starting from zero costs several, and
+    /// on a guest each dead intermediate buffer is never reclaimed — the bump
+    /// allocator's `dealloc` is a no-op.
+    fn capacity_hint(separator: &DomainSeparator) -> usize {
+        separator.as_bytes().len()
+            + 32 // network
+            + 32 // verifying_contract
+            + 9  // nonce, widest CXS varint
+            + 9  // valid_until, widest CXS varint
+            + T::TYPE_DEF.const_cxs_size()
+    }
+
+    /// [`preimage`](Self::preimage) into caller-provided storage, returning the
+    /// written prefix of `scratch`.
+    ///
+    /// The allocation-free path for contracts whose payload has a known bound.
+    /// Safe: the encode is bounds-checked, so a short buffer is an error, not
+    /// undefined behaviour. Ed25519 verification needs these bytes rather than
+    /// a digest, which is why a hash-only variant would not serve.
+    pub fn preimage_into<'s>(
+        &self,
+        scratch: &'s mut [core::mem::MaybeUninit<u8>],
+    ) -> WriteResult<&'s [u8]> {
+        SIGNED_OP.preimage_into(&self.repr(), scratch)
     }
 
     /// `sha256` of [`preimage`](Self::preimage) — a stable *identifier* for
@@ -194,33 +221,7 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> SignedOp<'_, T> {
     #[cfg(feature = "alloc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn hash<H: Sha256Backend>(&self) -> SHA256Hash {
-        self.hash_in::<H>(&SIGNED_OP)
-    }
-
-    /// [`hash`](Self::hash) under an application's own separator.
-    #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-    pub fn hash_in<H: Sha256Backend>(
-        &self,
-        separator: &DomainSeparator,
-    ) -> SHA256Hash {
-        separator.hash::<H, _>(&self.repr())
-    }
-
-    /// Allocation-free [`hash`](Self::hash), for contracts.
-    ///
-    /// # Safety
-    ///
-    /// Same contract as [`DomainSeparator::hash_into`]: `scratch` must hold
-    /// `SIGNED_OP.as_bytes().len()` plus the worst-case CXS size of the
-    /// preimage — [`SIGNED_OP_HEADER_MAX_LEN`] plus `T::TYPE_DEF`'s encoding
-    /// plus the body's — and `body` must respect its declared XDR bounds.
-    pub unsafe fn hash_into<H: Sha256Backend>(
-        &self,
-        scratch: &mut [core::mem::MaybeUninit<u8>],
-    ) -> SHA256Hash {
-        // SAFETY: forwarded caller contract.
-        unsafe { SIGNED_OP.hash_into::<H, _>(&self.repr(), scratch) }
+        SIGNED_OP.hash::<H, _>(&self.repr())
     }
 }
 
@@ -236,83 +237,51 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> WriteXDR for SignedOp<'_, T> {
     }
 }
 
-/// Bytes of fixed-width header before anything varies: two 32-byte hashes.
-/// `type_def`, `nonce`, `valid_until` and the body all follow and are all
-/// variable-length but self-delimiting.
-pub const SIGNED_OP_FIXED_PREFIX_LEN: usize = 32 + 32;
-
-/// Worst-case header length excluding `type_def` and the body:
-/// [`SIGNED_OP_FIXED_PREFIX_LEN`] plus the widest CXS encoding of a `u64` nonce
-/// and an `i64` block height (9 bytes each).
-pub const SIGNED_OP_HEADER_MAX_LEN: usize = SIGNED_OP_FIXED_PREFIX_LEN + 9 + 9;
-
 #[cfg(all(test, feature = "std", feature = "sha2"))]
 mod tests {
     use super::*;
     use crate::backend::Sha2;
-    use groundhog_contract_spec::view::{
-        ContractFieldView, ContractStructDefView, ContractTypeView,
-    };
+    use groundhog_contract_spec::ContractTypeName;
+    use groundhog_contract_spec::view::ContractTypeView;
+    use groundhog_macros::ContractTypeSpec as DeriveContractTypeSpec;
 
-    /// Stands in for a `#[contract_type]` payload; the macro emits exactly this
-    /// pair of impls.
-    #[derive(WriteXDR)]
+    // Fixtures derive their spec impls through the same derive
+    // `#[contract_type]` runs, so they cannot claim a shape the real macro
+    // would never emit. Only `ContractTypeName` is hand-written -- the derive
+    // references it but never emits it -- which is also what lets `GrantV2`
+    // deliberately keep the name "Grant".
+
+    #[derive(WriteXDR, DeriveContractTypeSpec)]
+    #[contract_type_spec(crate = "crate::__sdk_paths")]
     struct Grant {
         amount: u64,
     }
-
-    impl ContractTypeSpec for Grant {
-        const TYPE_DEF: ContractTypeDefView<'static> =
-            ContractTypeDefView::Struct(ContractStructDefView {
-                name: "Grant",
-                fields: &[ContractFieldView {
-                    name: "amount",
-                    ty: ContractTypeView::U64,
-                }],
-            });
+    impl ContractTypeName for Grant {
+        const NAME: &'static str = "Grant";
     }
 
     /// Byte-identical to `Grant` as a *value* — same field type, and CXS has no
     /// framing to tell them apart. Only `TYPE_DEF` separates them.
-    #[derive(WriteXDR)]
+    #[derive(WriteXDR, DeriveContractTypeSpec)]
+    #[contract_type_spec(crate = "crate::__sdk_paths")]
     struct Revoke {
         id: u64,
     }
-
-    impl ContractTypeSpec for Revoke {
-        const TYPE_DEF: ContractTypeDefView<'static> =
-            ContractTypeDefView::Struct(ContractStructDefView {
-                name: "Revoke",
-                fields: &[ContractFieldView {
-                    name: "id",
-                    ty: ContractTypeView::U64,
-                }],
-            });
+    impl ContractTypeName for Revoke {
+        const NAME: &'static str = "Revoke";
     }
 
-    /// `Grant` with a field added — the schema-evolution case a name-based or
-    /// hash-of-name binding would silently keep accepting.
-    #[derive(WriteXDR)]
+    /// `Grant` with a field added, and *still named* `Grant` — the
+    /// schema-evolution case a name-based or hash-of-name binding would
+    /// silently keep accepting.
+    #[derive(WriteXDR, DeriveContractTypeSpec)]
+    #[contract_type_spec(crate = "crate::__sdk_paths")]
     struct GrantV2 {
         amount: u64,
         recipient: u64,
     }
-
-    impl ContractTypeSpec for GrantV2 {
-        const TYPE_DEF: ContractTypeDefView<'static> =
-            ContractTypeDefView::Struct(ContractStructDefView {
-                name: "Grant",
-                fields: &[
-                    ContractFieldView {
-                        name: "amount",
-                        ty: ContractTypeView::U64,
-                    },
-                    ContractFieldView {
-                        name: "recipient",
-                        ty: ContractTypeView::U64,
-                    },
-                ],
-            });
+    impl ContractTypeName for GrantV2 {
+        const NAME: &'static str = "Grant";
     }
 
     fn op<T: WriteXDR + ContractTypeSpec>(body: &T) -> SignedOp<'_, T> {
@@ -333,7 +302,6 @@ mod tests {
 
         assert_eq!(&encoded[0..32], &[0x5au8; 32], "network");
         assert_eq!(&encoded[32..64], &[0x03u8; 32], "verifying_contract");
-        assert_eq!(SIGNED_OP_FIXED_PREFIX_LEN, 64);
 
         let mut tail = alloc::vec::Vec::new();
         tail.extend_from_slice(
@@ -344,7 +312,7 @@ mod tests {
             &xdrs::cxs::encode(&BlockHeight::new(1_000)).unwrap(),
         );
         tail.extend_from_slice(&xdrs::cxs::encode(&body).unwrap());
-        assert_eq!(&encoded[SIGNED_OP_FIXED_PREFIX_LEN..], tail.as_slice());
+        assert_eq!(&encoded[64..], tail.as_slice());
     }
 
     /// The whole point. Two payloads that encode to the same bytes must not
@@ -396,36 +364,25 @@ mod tests {
     /// Groundhog's addressing removes the premise, not just the symptom.
     #[test]
     fn type_def_names_nested_types_rather_than_inlining_them() {
-        #[derive(WriteXDR)]
+        #[derive(WriteXDR, DeriveContractTypeSpec)]
+        #[contract_type_spec(crate = "crate::__sdk_paths")]
         struct Inner {
             debit: u64,
         }
-        impl ContractTypeSpec for Inner {
-            const TYPE_DEF: ContractTypeDefView<'static> =
-                ContractTypeDefView::Struct(ContractStructDefView {
-                    name: "Inner",
-                    fields: &[ContractFieldView {
-                        name: "debit",
-                        ty: ContractTypeView::U64,
-                    }],
-                });
+        impl ContractTypeName for Inner {
+            const NAME: &'static str = "Inner";
         }
 
-        #[derive(WriteXDR)]
+        // Derived, not asserted: whether the nested field comes out as a
+        // `Named` ref or an inlined definition is the derive's decision, and
+        // this test exists to observe it.
+        #[derive(WriteXDR, DeriveContractTypeSpec)]
+        #[contract_type_spec(crate = "crate::__sdk_paths")]
         struct Outer {
             inner: Inner,
         }
-        impl ContractTypeSpec for Outer {
-            // What `#[contract_type]` emits for a nested contract-type field:
-            // `<Inner as ContractTypeRefSpec>::INFO.ty`, which is a `Named` ref.
-            const TYPE_DEF: ContractTypeDefView<'static> =
-                ContractTypeDefView::Struct(ContractStructDefView {
-                    name: "Outer",
-                    fields: &[ContractFieldView {
-                        name: "inner",
-                        ty: ContractTypeView::Named("Inner"),
-                    }],
-                });
+        impl ContractTypeName for Outer {
+            const NAME: &'static str = "Outer";
         }
 
         let ContractTypeDefView::Struct(outer) = Outer::TYPE_DEF else {
@@ -452,24 +409,22 @@ mod tests {
     /// something indistinguishable from any other pair of integers.
     #[test]
     fn tuple_structs_carry_a_type_def() {
-        #[derive(WriteXDR)]
+        #[derive(WriteXDR, DeriveContractTypeSpec)]
+        #[contract_type_spec(crate = "crate::__sdk_paths")]
         struct Pair(u64, u64);
-        impl ContractTypeSpec for Pair {
-            const TYPE_DEF: ContractTypeDefView<'static> =
-                ContractTypeDefView::Struct(ContractStructDefView {
-                    name: "Pair",
-                    fields: &[
-                        ContractFieldView {
-                            name: "0",
-                            ty: ContractTypeView::U64,
-                        },
-                        ContractFieldView {
-                            name: "1",
-                            ty: ContractTypeView::U64,
-                        },
-                    ],
-                });
+        impl ContractTypeName for Pair {
+            const NAME: &'static str = "Pair";
         }
+
+        // The derive names unnamed fields `_0`/`_1`, not `0`/`1`. Reading it
+        // off the derive rather than asserting a guess is the point: a
+        // hand-written fixture here would have pinned a shape `#[contract_type]`
+        // never emits.
+        let ContractTypeDefView::Struct(def) = Pair::TYPE_DEF else {
+            panic!("Pair is a struct");
+        };
+        assert_eq!(def.fields[0].name, "_0");
+        assert_eq!(def.fields[1].name, "_1");
 
         let pair = Pair(1, 2);
         let grant = Grant { amount: 1 };
@@ -548,14 +503,21 @@ mod tests {
     }
 
     #[test]
-    fn hash_into_matches_hash() {
+    fn preimage_into_matches_preimage() {
         use core::mem::MaybeUninit;
         let body = Grant { amount: 42 };
         let o = op(&body);
         let mut scratch = [MaybeUninit::<u8>::uninit(); 512];
-        assert_eq!(
-            unsafe { o.hash_into::<Sha2>(&mut scratch) },
-            o.hash::<Sha2>()
-        );
+        assert_eq!(o.preimage_into(&mut scratch).unwrap(), &o.preimage()[..]);
+    }
+
+    /// A short buffer is an error, not undefined behaviour — the reason
+    /// `preimage_into` is safe where `DomainSeparator::hash_into` is not.
+    #[test]
+    fn preimage_into_rejects_a_short_buffer() {
+        use core::mem::MaybeUninit;
+        let body = Grant { amount: 42 };
+        let mut scratch = [MaybeUninit::<u8>::uninit(); 8];
+        assert!(op(&body).preimage_into(&mut scratch).is_err());
     }
 }

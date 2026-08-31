@@ -3,7 +3,7 @@
 use core::mem::MaybeUninit;
 
 use groundhog_xdr::types::SHA256Hash;
-use xdrs::WriteXDR;
+use xdrs::{WriteResult, WriteXDR};
 
 use crate::DomainSeparator;
 use crate::backend::Sha256Backend;
@@ -74,17 +74,53 @@ impl DomainSeparator {
     /// so signing these bytes directly is both cheaper and one less convention
     /// than signing [`hash`](Self::hash)'s output — the same reasoning
     /// `transaction_signature_preimage` follows.
+    ///
+    /// `capacity_hint` sizes the buffer up front. It need not be exact — too
+    /// small only costs a realloc, too large only costs bytes — but starting
+    /// from zero is worth avoiding on a guest, where the bump allocator's
+    /// `dealloc` is a no-op and every intermediate buffer is permanently lost
+    /// out of 64 KiB. `transaction_signature_preimage` reserves for the same
+    /// reason. Contracts that can bound the size should prefer
+    /// [`preimage_into`](Self::preimage_into) and skip the heap entirely.
     #[cfg(feature = "alloc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn preimage<T: WriteXDR + ?Sized>(
         &self,
         object: &T,
+        capacity_hint: usize,
     ) -> alloc::vec::Vec<u8> {
         let preimage = HashPreimage {
             domain_separator: self,
             object,
         };
-        xdrs::cxs::encode(&preimage).expect("cxs encode failed")
+        let mut w =
+            xdrs::cxs::buf_writer::BufWriter::with_capacity(capacity_hint);
+        preimage.write_xdr(&mut w).expect("cxs encode failed");
+        w.into()
+    }
+
+    /// [`preimage`](Self::preimage) into caller-provided storage, returning the
+    /// written prefix of `scratch`.
+    ///
+    /// The allocation-free path, and unlike
+    /// [`hash_into`](Self::hash_into) it is safe: the encode is bounds-checked,
+    /// so a short buffer is an error rather than undefined behaviour. Ed25519
+    /// verification needs the preimage *bytes*, not a digest, so this is what a
+    /// contract with a bounded payload reaches for.
+    pub fn preimage_into<'s, T: WriteXDR + ?Sized>(
+        &self,
+        object: &T,
+        scratch: &'s mut [MaybeUninit<u8>],
+    ) -> WriteResult<&'s [u8]> {
+        let preimage = HashPreimage {
+            domain_separator: self,
+            object,
+        };
+        let written = xdrs::cxs::encode_into(&preimage, scratch)?;
+        // SAFETY: the writer initializes every byte it counts.
+        Ok(unsafe {
+            core::slice::from_raw_parts(scratch.as_ptr() as *const u8, written)
+        })
     }
 
     /// `sha256(self || cxs(object))`, allocating the scratch buffer.
@@ -96,7 +132,7 @@ impl DomainSeparator {
         &self,
         object: &T,
     ) -> SHA256Hash {
-        SHA256Hash::new(H::sha256(&self.preimage(object)))
+        SHA256Hash::new(H::sha256(&self.preimage(object, 0)))
     }
 }
 

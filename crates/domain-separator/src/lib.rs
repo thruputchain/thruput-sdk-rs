@@ -64,9 +64,20 @@ mod transaction;
 pub use transaction::transaction_signature_preimage;
 
 mod operation;
-pub use operation::{
-    SIGNED_OP_FIXED_PREFIX_LEN, SIGNED_OP_HEADER_MAX_LEN, SignedOp,
-};
+pub use operation::SignedOp;
+
+/// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what `sdk`
+/// re-exports. Test-only: the fixtures in `operation` derive their spec impls
+/// rather than hand-writing them, so they cannot drift from what
+/// `#[contract_type]` actually emits — a hand-written fixture asserts against
+/// itself. Not public API; `groundhog-u256` has the same shim for the
+/// non-test case.
+#[cfg(test)]
+#[doc(hidden)]
+pub mod __sdk_paths {
+    pub use groundhog_contract_spec as __contract_spec;
+    pub use xdrs as __xdrs;
+}
 
 mod pubkey;
 #[cfg(feature = "sha2")]

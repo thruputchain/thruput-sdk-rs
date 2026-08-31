@@ -4,9 +4,7 @@ use groundhog_xdr::auth_claim::PubkeyAccountPreimage;
 use groundhog_xdr::types::{Ed25519PublicKey, PublicKey};
 use serde_json::{Value, json};
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
+use crate::hex;
 
 struct Case {
     pubkey: [u8; 32],

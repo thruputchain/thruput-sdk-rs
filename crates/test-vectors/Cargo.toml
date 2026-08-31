@@ -15,6 +15,7 @@ description = "Generate cross-language test vectors for Groundhog SDK types"
 xdrs = { workspace = true, features = ["derive", "alloc", "int128"] }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
 groundhog-contract-spec = { workspace = true }
+groundhog-macros = { workspace = true }
 groundhog-contract-util = { workspace = true }
 groundhog-domain-separator = { workspace = true }
 serde_json = "1"

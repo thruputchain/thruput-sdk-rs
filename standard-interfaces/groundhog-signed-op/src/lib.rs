@@ -126,9 +126,14 @@ pub trait SignedOp {
     /// tokens. Throws a [`SignedOpError`] if any check fails; it must not
     /// return an empty `Vec` to signal refusal, which a caller expecting no
     /// tokens cannot distinguish from success.
+    ///
+    /// `signature` is a borrow, matching `ERC1271::is_valid_signature`: SDK
+    /// argument decoding borrows the calldata buffer for the whole handler
+    /// frame, so a slice is zero-copy where a `Vec<u8>` would copy 64 bytes
+    /// onto a guest heap that never reclaims them.
     fn execute_signed_op(
         &mut self,
         op: Operation,
-        signature: Vec<u8>,
+        signature: &[u8],
     ) -> Vec<Signed<Opaque>>;
 }

@@ -10,11 +10,7 @@
 //! `#[contract_type]` and a client has to reproduce from the contract spec it
 //! already ships.
 
-use groundhog_contract_spec::ContractTypeSpec;
-use groundhog_contract_spec::view::{
-    ContractFieldView, ContractStructDefView, ContractTypeDefView,
-    ContractTypeView,
-};
+use groundhog_contract_spec::{ContractTypeName, ContractTypeSpec};
 use groundhog_domain_separator::{SIGNED_OP, Sha2, SignedOp};
 use groundhog_xdr::types::{
     BlockHeight, ContractAddress, NetworkHash, SHA256Hash,
@@ -22,69 +18,47 @@ use groundhog_xdr::types::{
 use serde_json::{Value, json};
 use xdrs::WriteXDR;
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
+use crate::hex;
 
-// Stand-ins for `#[contract_type]` payloads; the macro emits exactly these
-// impls. Written out by hand so this crate needs no dependency on the SDK.
+// Payload types for the vectors. These must be *derived*, not hand-written:
+// `type_def_cxs_hex` below is the cross-SDK contract a client reproduces byte
+// for byte, so a hand-written `TYPE_DEF` would pin bytes no real
+// `#[contract_type]` payload ever produces. The derive is the same one
+// `#[contract_type]` runs; `crate = "crate::__sdk_paths"` just points it at this
+// crate's re-exports, since `sdk` is not a dependency here.
 
 /// A two-field payload with an address, exercising a non-primitive field type.
-#[derive(WriteXDR)]
+#[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
+#[contract_type_spec(crate = "crate::__sdk_paths")]
 struct Transfer {
     to: ContractAddress,
     amount: u64,
 }
 
-impl ContractTypeSpec for Transfer {
-    const TYPE_DEF: ContractTypeDefView<'static> =
-        ContractTypeDefView::Struct(ContractStructDefView {
-            name: "Transfer",
-            fields: &[
-                ContractFieldView {
-                    name: "to",
-                    ty: ContractTypeView::Address,
-                },
-                ContractFieldView {
-                    name: "amount",
-                    ty: ContractTypeView::U64,
-                },
-            ],
-        });
+impl ContractTypeName for Transfer {
+    const NAME: &'static str = "Transfer";
 }
 
 /// Encodes byte-identically to [`Revoke`]; only the type definition separates
 /// them. This pair is the reason the binding exists.
-#[derive(WriteXDR)]
+#[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
+#[contract_type_spec(crate = "crate::__sdk_paths")]
 struct Grant {
     amount: u64,
 }
 
-impl ContractTypeSpec for Grant {
-    const TYPE_DEF: ContractTypeDefView<'static> =
-        ContractTypeDefView::Struct(ContractStructDefView {
-            name: "Grant",
-            fields: &[ContractFieldView {
-                name: "amount",
-                ty: ContractTypeView::U64,
-            }],
-        });
+impl ContractTypeName for Grant {
+    const NAME: &'static str = "Grant";
 }
 
-#[derive(WriteXDR)]
+#[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
+#[contract_type_spec(crate = "crate::__sdk_paths")]
 struct Revoke {
     id: u64,
 }
 
-impl ContractTypeSpec for Revoke {
-    const TYPE_DEF: ContractTypeDefView<'static> =
-        ContractTypeDefView::Struct(ContractStructDefView {
-            name: "Revoke",
-            fields: &[ContractFieldView {
-                name: "id",
-                ty: ContractTypeView::U64,
-            }],
-        });
+impl ContractTypeName for Revoke {
+    const NAME: &'static str = "Revoke";
 }
 
 struct Header {
@@ -109,8 +83,6 @@ fn vector<T: WriteXDR + ContractTypeSpec>(
 
     json!({
         "label": label,
-        "domain_separator": "SignedOp::1",
-        "domain_separator_cxs_hex": hex(SIGNED_OP.as_bytes()),
         "type_name": T::TYPE_DEF.symbol(),
         "type_def_cxs_hex": hex(&xdrs::cxs::encode(&T::TYPE_DEF).unwrap()),
         "network_hex": hex(&header.network),
@@ -167,6 +139,10 @@ pub fn generate() -> Value {
     json!({
         "version": 1,
         "category": "signed_op",
+        // Constant across every vector, so stated once. Derived from
+        // `SIGNED_OP` rather than typed out, or it could drift from the
+        // separator the vectors were generated under.
+        "domain_separator_cxs_hex": hex(SIGNED_OP.as_bytes()),
         "vectors": vectors,
     })
 }
@@ -191,11 +167,11 @@ mod tests {
         let out = generate();
         let vectors = out["vectors"].as_array().expect("vectors array");
         assert!(!vectors.is_empty());
+        let sep = out["domain_separator_cxs_hex"].as_str().unwrap();
+        // 0x00 + 0x0b + "SignedOp::1" => 13 bytes => 26 hex chars.
+        assert_eq!(sep.len(), 26);
         for v in vectors {
             assert_eq!(v["expected_digest_hex"].as_str().unwrap().len(), 64);
-            let sep = v["domain_separator_cxs_hex"].as_str().unwrap();
-            // 0x00 + 0x0b + "SignedOp::1" => 13 bytes => 26 hex chars.
-            assert_eq!(sep.len(), 26);
             // The signed message is exactly the separator then the struct.
             let signed = v["signed_message_hex"].as_str().unwrap();
             let preimage = v["preimage_cxs_hex"].as_str().unwrap();
