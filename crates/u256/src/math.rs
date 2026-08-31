@@ -23,10 +23,11 @@
 //!
 //! # Code size
 //!
-//! [`mul_div`](U256::mul_div) and the other full-precision entry points share
-//! one copy of Knuth D with the `U256 / U256` operators (see `div`), so a
-//! contract that uses both pays for the algorithm once. They do link the
-//! 512-bit multiply, which the narrower [`U256::widening_mul`] does not, and
+//! [`mul_div`](U256::mul_div) and the other full-precision entry points link
+//! their own instantiation of Knuth D, sized to a 512-bit dividend, plus the
+//! 512-bit multiply that the narrower [`U256::widening_mul`] does not need.
+//! A contract that also uses `/` therefore links Knuth D twice; `div`'s
+//! `knuth_d` documents why that beats sharing one copy, with the numbers.
 //! [`mod_exp`](U256::mod_exp) and [`inv_mod`](U256::inv_mod) are loops over
 //! that pair -- reach for them knowingly.
 

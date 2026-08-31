@@ -92,18 +92,44 @@ A distinct spec name rather than a shared one is the whole safety property
 here: a decoder that confused them would read the same 32 bytes with the wrong
 sign.
 
-### One Knuth D, two widths
+### One Knuth D body, two widths
 
 `Math.mulDiv` needs a 512-bit dividend. The choice was between a second copy of
 Knuth algorithm D specialised to sixteen limbs, and generalising the existing
-one.
+one to serve both.
 
-Generalising won. `div_rem_knuth` now takes the dividend as a limb *slice* with
-an explicit length, and is called by both the `U256 / U256` operators (eight
-limbs) and `div_rem_512` (sixteen). Every loop in it is bounded by the runtime
-`nn`/`dn`, so the wider buffers cost the narrow caller ~64 bytes of stack and
-no instructions — where a second copy would have cost both, on the crate's most
-delicate routine.
+**The first answer was wrong, and the benchmark said so.** Generalising looks
+free: `div_rem_knuth` takes the dividend as a limb slice with an explicit
+length, every loop is bounded by the runtime `nn`/`dn`, so the wider buffers
+should cost the narrow caller stack and no instructions. Measured on rv32 with
+`scripts/bigint-bench.sh -b u256 -o "div div_small mul_div_u128"`, marginal
+over the `none` calibration build:
+
+| | `div` .text | `div` gas | `div_small` | `mul_div_u128` .text | `mul_div_u128` gas |
+|---|---|---|---|---|---|
+| before this change | 2,640 | 963.05 | 680 / 756.04 | 3,036 | 1735.05 |
+| one shared function | 2,576 | **1221.05** | 680 / 756.04 | 2,996 | 1798.05 |
+| two instantiations | 2,572 | 972.05 | 680 / 756.04 | 3,012 | 1712.05 |
+
+Sharing buys 64 bytes and costs **27% more gas on every division** — the
+zero-init and copy-out of buffers twice the size the narrow path can ever fill.
+Division is the hot path of the contracts this crate exists for, so that trade
+is backwards.
+
+What shipped instead: the algorithm is written once as a `macro_rules!` body
+and instantiated at two dividend widths, each with buffers sized to its own.
+One source of truth, two specialised functions. That gets the bytes anyway (68
+below the pre-change baseline, since the eight-limb quotient no longer round
+trips through a sixteen-limb array) for +0.9% gas, and leaves `mul_div_u128`
+both smaller and faster than before the change.
+
+`#[inline]` on the generated function was measured too, on the theory it would
+restore the pre-split shape exactly: it costs 156 bytes on `div` to save 2 gas,
+and makes `mul_div_u128` both bigger and slower. Not taken.
+
+The cost of specialising is that a contract using both `/` and the
+full-precision family links Knuth D twice. That is the trade, made with numbers
+rather than reasoning.
 
 The original design's code-size rule is untouched: `div_rem_small` is still a
 separate function, so a contract that only divides by constants (or formats a
@@ -225,13 +251,25 @@ Plus four SDK end-to-end cases (was two) and a second lowered-artifact case in
 No new dependencies, so no lockfile changes: the 512-bit test oracle is another
 `uint::construct_uint!` on the dev-dependency that was already there.
 
-**Not measured here.** The original design's rv32 codesize numbers came from
-`dev bigint-bench`, which needs the `groundhog` CLI. The generalisation of
-Knuth D is expected to be codesize-neutral (identical instructions, wider stack
-frames), but that is reasoning, not a measurement, and it should be confirmed
-with `dev bigint-bench -o 'div div_small'` before release. The benchmark
-harness itself is unchanged — it measures one kernel per artifact against
-Parity's `uint`, which has no signed counterpart to compare against.
+**Measured.** `scripts/bigint-bench.sh -b u256 -o "div div_small
+mul_div_u128"` was run on the pinned CLI (0.9.0) against both this branch and
+the base commit, in the same environment; the base run reproduced the recorded
+2,640 exactly, which is what makes the comparison sound. Numbers and the
+decision they forced are in "One Knuth D body, two widths" above. Net effect on
+the pre-existing operations: `div` 68 bytes smaller at +0.9% gas, `div_small`
+unchanged in both, `mul_div_u128` 24 bytes smaller and 1.3% faster.
+
+**Still unmeasured: the new 256-bit `mul_div` itself.** The benchmark compares
+one kernel per artifact against Parity's `uint`, and `uint` has no
+full-precision `mulDiv` to compare against — a row would need a hand-rolled
+512-bit implementation on the `uint` side to be a fair baseline, which is its
+own piece of work. Adding one (a `construct_uint!(PU512(8))` in the parity
+backend, which is what a contract author using `uint` would actually write)
+would let future changes to the full-precision path be tracked the way `div` is
+now. Worth doing; deliberately not folded into this change.
+
+`I256` has no bench rows for the same reason: `uint` is unsigned, so there is
+nothing to diff against.
 
 ## Success criteria
 
@@ -240,7 +278,8 @@ Parity's `uint`, which has no signed counterpart to compare against.
 - `mul_div`/`mul_shr`/`mul_mod` agree with an exact 512-bit oracle across both
   divisor paths, and report overflow rather than truncating. ✅
 - A contract that only divides by constants still does not link Knuth D
-  (`div_rem_small` unchanged, and `log10` deliberately built on it). ✅ by
-  construction; ⏳ pending a `bigint-bench` measurement.
+  (`div_rem_small` unchanged, and `log10` deliberately built on it). ✅
+  measured: `div_small` is 680 bytes and 756.04 gas, identical to the
+  pre-change baseline.
 - `U256` and `I256` differ on the wire in exactly one byte, and that byte is
   the type name. ✅ pinned.
