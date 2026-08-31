@@ -15,6 +15,7 @@ const OPS_SELECTED: usize = cfg!(feature = "op-none") as usize
     + cfg!(feature = "op-div-small") as usize
     + cfg!(feature = "op-rem") as usize
     + cfg!(feature = "op-mul-div-u128") as usize
+    + cfg!(feature = "op-mul-div") as usize
     + cfg!(feature = "op-shl") as usize
     + cfg!(feature = "op-shr") as usize
     + cfg!(feature = "op-bitwise") as usize
@@ -88,6 +89,7 @@ kernels! {
     "op-div-small"    => "div_small",      ops::div_small;
     "op-rem"          => "rem",            ops::rem;
     "op-mul-div-u128" => "mul_div_u128",   ops::mul_div_u128;
+    "op-mul-div"      => "mul_div",        ops::mul_div;
     "op-shl"          => "shl",            ops::shl;
     "op-shr"          => "shr",            ops::shr;
     "op-bitwise"      => "bitwise",        ops::bitwise;

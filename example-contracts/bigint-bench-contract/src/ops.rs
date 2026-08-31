@@ -79,6 +79,18 @@ pub fn mul_div_u128<B: Backend>(a: B, b: B) -> B {
     B::from_u128(B::mul_div_u128(a.low_u128(), b, b | 1))
 }
 
+/// `a * b / d` through an exact 512-bit intermediate.
+///
+/// `d = b | 1` keeps the quotient inside 256 bits for every input, on the same
+/// argument [`mul_div_u128`] uses one width down: with `b` odd, `d == b` and
+/// the quotient is exactly `a`; with `b` even, `d > b` and it is smaller. Both
+/// backends panic when the quotient overflows, so this is a precondition, not
+/// a nicety.
+#[inline]
+pub fn mul_div<B: Backend>(a: B, b: B) -> B {
+    B::mul_div(a, b, b.bitor(B::one()))
+}
+
 /// Left shift.
 ///
 /// The distance is reduced modulo the width: `sdk::U256::wrapping_shl` masks

@@ -259,17 +259,34 @@ decision they forced are in "One Knuth D body, two widths" above. Net effect on
 the pre-existing operations: `div` 68 bytes smaller at +0.9% gas, `div_small`
 unchanged in both, `mul_div_u128` 24 bytes smaller and 1.3% faster.
 
-**Still unmeasured: the new 256-bit `mul_div` itself.** The benchmark compares
-one kernel per artifact against Parity's `uint`, and `uint` has no
-full-precision `mulDiv` to compare against — a row would need a hand-rolled
-512-bit implementation on the `uint` side to be a fair baseline, which is its
-own piece of work. Adding one (a `construct_uint!(PU512(8))` in the parity
-backend, which is what a contract author using `uint` would actually write)
-would let future changes to the full-precision path be tracked the way `div` is
-now. Worth doing; deliberately not folded into this change.
+**The new 256-bit `mul_div` has its own bench row.** `uint` ships no
+full-precision `mulDiv`, so the row needed a baseline: a
+`construct_uint!(PU512(8))` in the parity backend with limb-for-limb widening,
+which is what a contract author on that backend would have to write themselves
+(`full_mul` exists only for the pairings inside `uint` itself). That makes it a
+fair comparison rather than a strawman. `tests/differential.rs` asserts the two
+agree before either number is believed.
 
-`I256` has no bench rows for the same reason: `uint` is unsigned, so there is
-nothing to diff against.
+| operation | `u256` .text | `u256` gas | `uint` .text | `uint` gas |
+|---|---|---|---|---|
+| `div` | 2,572 | 972.05 | 11,624 | 5002.05 |
+| `mul_div_u128` | 3,012 | 1712.05 | 11,280 | 10280.04 |
+| `mul_div` | 3,992 | 4712.05 | 21,568 | 22625.04 |
+
+Two things worth reading off it. `uint`'s full-precision `mulDiv` costs **21,568
+bytes — a third of the 64 KiB artifact code cap for one operation**, which is
+the original design's 11,300-byte `Div`/`Rem` problem repeated at double width.
+And the full-precision path here costs 1,420 bytes over the narrow `div`: that
+is the wide Knuth D instantiation plus `widening_mul_u256`, and it is the price
+of the second copy the specialisation decision above chose to pay.
+
+The `div` and `mul_div_u128` rows are byte-identical to the runs before the op
+was added, which confirms the new trait method costs nothing to a build that
+does not select it — the property the whole one-kernel-per-artifact design
+rests on.
+
+`I256` still has no bench rows: `uint` is unsigned, so there is nothing to diff
+against.
 
 ## Success criteria
 

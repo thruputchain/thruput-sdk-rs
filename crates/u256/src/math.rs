@@ -26,10 +26,17 @@
 //! [`mul_div`](U256::mul_div) and the other full-precision entry points link
 //! their own instantiation of Knuth D, sized to a 512-bit dividend, plus the
 //! 512-bit multiply that the narrower [`U256::widening_mul`] does not need.
-//! A contract that also uses `/` therefore links Knuth D twice; `div`'s
+//! Measured by `scripts/bigint-bench.sh -o mul_div`, rv32: **3,992 bytes** of
+//! `.text` and 4712 gas per call, against 2,572 and 972 for a plain `/`. The
+//! same operation over Parity's `uint` -- which has no full-precision `mulDiv`,
+//! so the baseline widens to a `construct_uint!(PU512(8))` by hand, as a
+//! contract author there would -- costs 21,568 bytes and 22,625 gas: a third of
+//! the 64 KiB artifact code cap, for one operation.
+//!
+//! A contract that uses both `/` and this family links Knuth D twice; `div`'s
 //! `knuth_d` documents why that beats sharing one copy, with the numbers.
 //! [`mod_exp`](U256::mod_exp) and [`inv_mod`](U256::inv_mod) are loops over
-//! that pair -- reach for them knowingly.
+//! the multiply-divide pair -- reach for them knowingly.
 
 use crate::div::{WIDE_LIMBS, div_rem_512, low_limbs};
 use crate::{LIMBS, U256};

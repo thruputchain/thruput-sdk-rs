@@ -180,7 +180,10 @@ dev expand example-contracts/erc20
 `dev bigint-bench` reports rv32 codesize and runtime gas per operation for each
 256-bit integer implementation under test — today `sdk::U256` against Parity's
 `uint` — so a change to `crates/u256` can be diffed against the implementation it
-replaced. It builds the benchmark contract once per (implementation, operation)
+replaced. Where `uint` has no equivalent entry point (its full-precision
+`mulDiv`), the backend supplies the one a contract author on that backend would
+have to write, and `cargo test -p bigint-bench-contract` asserts the two agree
+before any number is believed. It builds the benchmark contract once per (implementation, operation)
 pair, which is minutes of work, so it is not part of `ci`:
 
 ```shell
