@@ -224,16 +224,7 @@ macro_rules! __match_exn_arms {
 
     // -- guarded typed arm ----------------------------------------------
     ($lbl:lifetime, $exn:ident,
-     $pat:pat if $guard:expr => $body:block , $($rest:tt)*) => {{
-        if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
-            && $guard
-        {
-            break $lbl ($body);
-        }
-        $crate::__match_exn_arms!($lbl, $exn, $($rest)*)
-    }};
-    ($lbl:lifetime, $exn:ident,
-     $pat:pat if $guard:expr => $body:block $($rest:tt)*) => {{
+     $pat:pat if $guard:expr => $body:block $(,)? $($rest:tt)*) => {{
         if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
             && $guard
         {
@@ -252,14 +243,7 @@ macro_rules! __match_exn_arms {
     }};
 
     // -- plain typed arm -------------------------------------------------
-    ($lbl:lifetime, $exn:ident, $pat:pat => $body:block , $($rest:tt)*) => {{
-        if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
-        {
-            break $lbl ($body);
-        }
-        $crate::__match_exn_arms!($lbl, $exn, $($rest)*)
-    }};
-    ($lbl:lifetime, $exn:ident, $pat:pat => $body:block $($rest:tt)*) => {{
+    ($lbl:lifetime, $exn:ident, $pat:pat => $body:block $(,)? $($rest:tt)*) => {{
         if let ::core::option::Option::Some($pat) = $crate::exn::__try_as($exn)
         {
             break $lbl ($body);
@@ -275,15 +259,7 @@ macro_rules! __match_exn_arms {
     }};
 
     // -- ran out of arms without a `_` -----------------------------------
-    ($lbl:lifetime, $exn:ident,) => {
-        ::core::compile_error!(
-            "`match_exn!` requires a final `_ => ...` arm: its arms are \
-             tried in order rather than checked for exhaustiveness, so an \
-             exception matching none of them must be handled explicitly \
-             (`_ => e.re_throw()` propagates it)"
-        )
-    };
-    ($lbl:lifetime, $exn:ident) => {
+    ($lbl:lifetime, $exn:ident $(,)?) => {
         ::core::compile_error!(
             "`match_exn!` requires a final `_ => ...` arm: its arms are \
              tried in order rather than checked for exhaustiveness, so an \
