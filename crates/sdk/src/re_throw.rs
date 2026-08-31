@@ -2,7 +2,7 @@
 pub trait ReThrow {
     /// Re-throw this error. Exceptions are propagated as exceptions;
     /// faults panic (a fault stays a fault).
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> !;
 }
 
@@ -13,7 +13,7 @@ pub trait OrReThrow<T> {
 }
 
 impl<T, E: ReThrow> OrReThrow<T> for Result<T, E> {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn or_re_throw(self) -> T {
         match self {
             Ok(v) => v,
@@ -23,7 +23,7 @@ impl<T, E: ReThrow> OrReThrow<T> for Result<T, E> {
 }
 
 impl ReThrow for core::convert::Infallible {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         match self {}
     }

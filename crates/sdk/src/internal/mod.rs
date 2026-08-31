@@ -14,10 +14,10 @@ pub use mu_buf::*;
 pub use serialize::*;
 pub use terminal_return::*;
 
-#[cfg(feature = "call_tracking")]
+#[cfg(all(not(target_arch = "riscv32"), feature = "call_tracking"))]
 mod call_tracking_contexts;
 
-#[cfg(feature = "call_tracking")]
+#[cfg(all(not(target_arch = "riscv32"), feature = "call_tracking"))]
 pub use call_tracking_contexts::*;
 
 /// Constant-time string equality check for use in `const` assertions.

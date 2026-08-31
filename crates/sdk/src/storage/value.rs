@@ -40,7 +40,7 @@ where
 {
     /// Deserialize and return the stored value.
     /// Aborts if the key does not exist.
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn get(&self) -> T {
         use crate::re_throw::OrReThrow;
         self.try_get().or_re_throw()
@@ -151,7 +151,7 @@ where
     T: xdrs::WriteXDR + for<'a> xdrs::ReadXDR<'a>,
 {
     /// Load the value and return a mutable reference to it.
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn load_mut(&mut self) -> ValueMut<'_, T> {
         let value = self.get();
         ValueMut {

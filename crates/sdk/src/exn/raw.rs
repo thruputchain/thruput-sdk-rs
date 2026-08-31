@@ -104,9 +104,9 @@ impl<'s> RawExceptionRef<'s> {
     /// Re-throw to our caller: abort with the original wire bytes, verbatim.
     /// Zero-copy — this is what plain (non-`try_`) generated methods do.
     #[inline]
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn re_throw(&self) -> ! {
-        #[cfg(all(feature = "debugging", feature = "std"))]
+        #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
         crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
 
         crate::contract_op::contract_abort(self.wire)
@@ -140,7 +140,7 @@ fn fmt_exn(
         "{name} {{ selector: 0x{selector:016X}, payload: {} bytes",
         payload.len(),
     )?;
-    #[cfg(feature = "debugging")]
+    #[cfg(not(target_arch = "riscv32"))]
     write!(f, ", hex: {}", crate::hex::hex_encode(&payload))?;
     write!(f, " }}")
 }
@@ -225,9 +225,9 @@ impl RawException {
 
     /// Re-throw to our caller with the original wire bytes, verbatim.
     #[inline]
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub fn re_throw(&self) -> ! {
-        #[cfg(all(feature = "debugging", feature = "std"))]
+        #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
         crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
 
         crate::contract_op::contract_abort(self.wire.as_ref())
@@ -268,7 +268,7 @@ impl core::fmt::Debug for RawException {
 }
 
 impl crate::re_throw::ReThrow for RawException {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn re_throw(self) -> ! {
         RawException::re_throw(&self)
     }

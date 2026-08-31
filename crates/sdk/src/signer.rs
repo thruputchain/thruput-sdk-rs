@@ -101,7 +101,7 @@ pub trait AssumeTokens: Sized {
     /// Throwing convenience form:
     /// [`try_assume_tokens`](Self::try_assume_tokens) with a count mismatch
     /// propagated as a typed abort.
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     fn assume_tokens(tokens: alloc::vec::Vec<Signed<Opaque>>) -> Self {
         use crate::re_throw::OrReThrow;
         Self::try_assume_tokens(tokens).or_re_throw()
