@@ -34,11 +34,4 @@ pub enum SignedOpError {
     /// this variant; treat its presence as the marker for that gap.
     #[cfg_attr(feature = "dev", error("Nonce older than the replay window"))]
     NonceTooOld = 5,
-    /// The operation names a channel this contract does not offer.
-    ///
-    /// The channel count is fixed at deployment, so that a signer's replay
-    /// state stays bounded rather than growing one window per channel it
-    /// invents.
-    #[cfg_attr(feature = "dev", error("Unknown channel"))]
-    UnknownChannel = 6,
 }

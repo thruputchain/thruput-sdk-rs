@@ -234,18 +234,18 @@ So replay state is per `(signer, channel)`. Operations a signer puts in
 different channels commit in the same block; operations sharing a channel
 serialise. That is the concurrency knob, and it is the signer's to turn.
 
-The channel count is **bounded and chosen by the verifying contract** at
-`initialize`, not an open `u32` space. An unbounded channel space would let any
-signer mint an unbounded number of windows that nothing at this layer can
-collect. With a bound of `n`, a signer's replay state is at most `n` × 24 bytes,
-permanently, and the contract decides how much concurrency it will pay storage
-for. Note it bounds *simultaneous consumption*, not outstanding operations — a
-handful of channels is usually plenty.
+Channel numbers are the signer's to choose, and nothing polices them. The point
+is not a limit — it is that state grows only when a signer *decides* to use
+another channel, and then stops. A signer working in channels 0..4 has four
+windows, permanently, however many operations it signs.
+
+That is the contrast with the shape this replaced, where a bitmap was minted for
+every 64 nonces: growth nobody chose and nothing could collect. A signer that
+invents a thousand channels gets a thousand windows and has only itself to
+answer to.
 
 `channel` is in the signed preimage; it has to be, or one signature would replay
-once per channel. The *bound* is contract policy checked at verification, so an
-operation naming a channel the contract does not have is refused
-(`SignedOpError::UnknownChannel`) rather than being a signature problem.
+once per channel.
 
 ### What the window fixes
 

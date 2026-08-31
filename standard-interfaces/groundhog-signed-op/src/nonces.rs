@@ -36,18 +36,16 @@
 //! independently and commit in the same block; operations sharing a channel
 //! serialise. That is the concurrency knob, and it is the signer's to turn.
 //!
-//! The channel count is **bounded and chosen by the verifying contract** at
-//! [`initialize`](SignedOpNonces::initialize), not an open `u32` space. This is
-//! the whole point: an unbounded channel space would let any signer mint an
-//! unbounded number of windows, none of which this layer can collect. With a
-//! bound of `n`, a signer's replay state is at most `n` windows of 24 bytes,
-//! forever, and the contract decides how much concurrency it is willing to pay
-//! storage for.
+//! Channel numbers are the signer's to choose, and nothing here polices them.
+//! What matters is that state grows only when a signer *decides* to use another
+//! channel, and then stops: a signer who works in channels 0..4 has four
+//! windows, permanently, however many operations it signs. Contrast the shape
+//! this replaced, where a bitmap was minted for every 64 nonces — growth that
+//! nobody chose and nothing could collect. A signer that invents a thousand
+//! channels gets a thousand windows and has only itself to answer to.
 //!
 //! `channel` is part of the *signed* preimage. It has to be: if a submitter
-//! could choose it, one signature would replay once per channel. The bound, by
-//! contrast, is contract policy checked at verification — an operation signed
-//! for a channel the contract does not have is simply refused.
+//! could choose it, one signature would replay once per channel.
 
 use groundhog_contract_spec::ContractTypeSpec;
 use groundhog_xdr::types::NetworkHash;
@@ -149,48 +147,20 @@ pub struct SignedOpNonces {
     /// The network these signatures are valid on. Stored because a contract
     /// cannot read its own network hash — see the crate docs.
     network: Value<NetworkHash>,
-    /// How many channels this contract offers. Bounds a signer's replay state
-    /// at `channels` windows; see the module docs.
-    channels: Value<u32>,
+    /// One window per `(signer, channel)` a signer has actually used.
     windows: Map<(Ed25519PublicKey, u32), Value<ReplayWindow>>,
 }
 
 impl SignedOpNonces {
-    /// Record the network these signatures are bound to and how many channels
-    /// this contract offers. Call once at deployment.
-    ///
-    /// A wrong or missing network silently removes a replay bound. `channels`
-    /// is the concurrency-versus-storage trade: a signer may have up to
-    /// `channels` operations consumed in one block, and pays at most
-    /// `channels` windows of permanent state. One channel means no concurrency;
-    /// a handful is usually plenty, since it bounds *simultaneous* consumption,
-    /// not total outstanding operations.
-    ///
-    /// # Panics
-    ///
-    /// If `channels` is zero — no channel would be valid, so no operation
-    /// could ever be accepted.
-    pub fn initialize(&mut self, network: &NetworkHash, channels: u32) {
-        assert!(channels > 0, "a verifier needs at least one channel");
+    /// Record the network these signatures are bound to. Call once at
+    /// deployment; a wrong or missing value silently removes a replay bound.
+    pub fn initialize(&mut self, network: &NetworkHash) {
         self.network.set(network);
-        self.channels.set(&channels);
     }
 
     /// The configured network hash.
     pub fn network(&self) -> NetworkHash {
         self.network.get()
-    }
-
-    /// How many channels this contract offers; valid channels are
-    /// `0..channel_count()`.
-    pub fn channel_count(&self) -> u32 {
-        self.channels.get()
-    }
-
-    fn require_channel(&self, channel: u32) {
-        if channel >= self.channels.get() {
-            sdk::throw(SignedOpError::UnknownChannel);
-        }
     }
 
     fn window(
@@ -215,10 +185,8 @@ impl SignedOpNonces {
         channel: u32,
         nonce: u64,
     ) -> bool {
-        channel < self.channels.get()
-            && self
-                .window(signer, channel)
-                .is_none_or(|window| window.admits(nonce).is_ok())
+        self.window(signer, channel)
+            .is_none_or(|window| window.admits(nonce).is_ok())
     }
 
     /// A nonce that would be accepted for `signer` right now.
@@ -244,7 +212,6 @@ impl SignedOpNonces {
         channel: u32,
         through: u64,
     ) {
-        self.require_channel(channel);
         let mut window = self
             .window(signer, channel)
             .unwrap_or(ReplayWindow::opened_at(through));
@@ -268,7 +235,6 @@ impl SignedOpNonces {
     where
         T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
     {
-        self.require_channel(op.channel);
         let mut window = self
             .window(signer, op.channel)
             .unwrap_or(ReplayWindow::opened_at(op.nonce));
@@ -295,7 +261,6 @@ impl SignedOpNonces {
     where
         T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
     {
-        self.require_channel(op.channel);
         if let Some(window) = self.window(signer, op.channel) {
             if let Err(e) = window.admits(op.nonce) {
                 sdk::throw(e);
