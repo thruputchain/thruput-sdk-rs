@@ -1,7 +1,7 @@
 # Signed Operations
 
-**Status:** implemented in `groundhog-domain-separator`, `groundhog-signed-op-if`
-and `groundhog-test-vectors` (`signed-op` vectors). The TypeScript client half
+**Status:** implemented in `groundhog-domain-separator`, `groundhog-signed-op-if`,
+`groundhog-signed-op` and `groundhog-test-vectors` (`signed-op` vectors). The TypeScript client half
 is not done.
 
 A *signed operation* is a structured message, signed off-chain, that
@@ -45,10 +45,12 @@ contract address is bound to one code image for its life, so
 ## Wire form and verification
 
 `groundhog_signed_op_if::Operation` carries `signer`, `nonce`, `valid_until`
-and the CXS `body`. The network and verifying contract are deliberately not on
-the wire; the verifier reads them from syscalls.
+and the CXS `body`. The interface crate is declaration-only (trait, wire type,
+error), so a caller depends on it without pulling in verification. The network
+and verifying contract are deliberately not on the wire; the verifier reads
+them from syscalls.
 
-`SignedOpNonces` is a per-signer sequence number (`Map<Ed25519PublicKey,
+`groundhog_signed_op::SignedOpNonces` is a per-signer sequence number (`Map<Ed25519PublicKey,
 Value<u64>>`). `verify_and_spend::<T>` checks the nonce is the signer's next,
 checks expiry, decodes the body as `T`, rebuilds the preimage from the decoded
 value, verifies the signature, then increments. Decoding first is what binds

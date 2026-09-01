@@ -95,6 +95,7 @@ groundhog-access-control-if = { path = "standard-interfaces/groundhog-access-con
 groundhog-signed-op-if = { path = "standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.19" }
 # Standard-interface implementation components (also this repository)
 groundhog-access-control = { path = "standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.19" }
+groundhog-signed-op = { path = "standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.19" }
 # Test-support crates
 erc20-test = { path = "standard-tests/erc20-test", registry = "groundhog", version = "=0.27.0" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.27.0" }

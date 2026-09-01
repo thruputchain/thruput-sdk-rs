@@ -8,10 +8,13 @@
 //! contract, so the signer need not be the submitter: the pattern behind
 //! permits, session keys and delegated wallet actions.
 //!
-//! The bytes that get signed are defined by
-//! [`groundhog_domain_separator::SignedOp`]. This crate carries one over the
-//! wire ([`Operation`]), checks it ([`SignedOpNonces::verify_and_spend`]), and
-//! declares the contract interface ([`SignedOp`]).
+//! This crate is the interface half: the [`Operation`] wire type, the
+//! [`SignedOp`] contract trait, and [`SignedOpError`]. It pulls in nothing
+//! beyond the SDK, so a caller that only needs to *invoke* a signed-op
+//! contract through `SignedOpClient` depends on this crate alone. The bytes
+//! that get signed are defined by `groundhog_domain_separator::SignedOp`, and
+//! the verification and nonce state a verifying contract embeds live in the
+//! `groundhog-signed-op` component crate.
 //!
 //! Like `ERC1271::is_valid_signature`, [`SignedOp::execute_signed_op`] returns
 //! auth tokens: a validated operation mints an auth-token tree, so one
@@ -23,9 +26,6 @@ extern crate alloc;
 
 mod error;
 pub use error::*;
-
-mod verify;
-pub use verify::*;
 
 use alloc::vec::Vec;
 use sdk::signer::{Opaque, Signed};
@@ -50,10 +50,10 @@ pub struct Operation {
     pub nonce: u64,
     /// Last block height (inclusive) at which this operation may execute.
     pub valid_until: BlockHeight,
-    /// The CXS-encoded application payload. Decoded as the payload type the
-    /// contract expects before verification, so the type's definition is
-    /// bound into the signature and a non-canonical encoding re-encodes to
-    /// what was signed or fails.
+    /// The CXS-encoded application payload. A verifier decodes it as the
+    /// payload type it expects before checking the signature, so the type's
+    /// definition is bound into the signature and a non-canonical encoding
+    /// re-encodes to what was signed or fails.
     pub body: BytesM,
 }
 

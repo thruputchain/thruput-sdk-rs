@@ -1,13 +1,62 @@
-//! The checks a verifying contract performs, and the nonce state behind them.
+//! Embeddable implementation of the [`SignedOp`] standard interface.
+//!
+//! The interface crate (`groundhog-signed-op-if`, re-exported here) is the
+//! trait, wire type and error. This crate is the verifying side: the checks a
+//! contract performs on an [`Operation`], and the nonce state behind them,
+//! packaged as [`SignedOpNonces`], a storage component a contract embeds as a
+//! field of its own storage struct. The contract still declares the
+//! `#[contract] impl SignedOp` block itself:
+//!
+//! ```ignore
+//! #[sdk::storage]
+//! pub struct MyWallet {
+//!     nonces: SignedOpNonces,
+//!     // ...
+//! }
+//!
+//! #[contract]
+//! impl SignedOp for MyWallet {
+//!     fn next_signed_op_nonce(&self, signer: &Ed25519PublicKey) -> u64 {
+//!         self.nonces.next_nonce(signer)
+//!     }
+//!
+//!     fn execute_signed_op(
+//!         &mut self,
+//!         op: Operation,
+//!         signature: &Ed25519Signature,
+//!     ) -> Vec<Signed<Opaque>> {
+//!         let transfer: Transfer = self.nonces.verify_and_spend(&op, signature);
+//!         // ... check that `op.signer` may authorize this, then mint tokens
+//!     }
+//! }
+//! ```
+//!
+//! # What a verifier must check
+//!
+//! [`SignedOpNonces::verify_and_spend`] performs all of it, and each check
+//! maps to a [`SignedOpError`]:
+//!
+//! - the nonce, against what this signer has already spent;
+//! - `valid_until`, against the current block height;
+//! - that the body decodes as the payload type the contract expects;
+//! - the signature, against the bytes all of that produces.
+//!
+//! The network hash and the verifying contract are inside those bytes rather
+//! than on the wire: they come from `sdk::block::get_network_hash` and
+//! `sdk::get_current_address`, so a submitter cannot name the network or
+//! contract a signature was meant for.
+
+#![cfg_attr(not(feature = "dev"), no_std)]
+#![allow(clippy::result_large_err)]
+
+pub use groundhog_signed_op_if::*;
 
 use groundhog_contract_spec::ContractTypeSpec;
-use groundhog_domain_separator::SignedOp;
+use groundhog_domain_separator::SignedOp as SignedOpPreimage;
 use sdk::exn::NoneIfMissing;
 use sdk::storage::{Map, Value};
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::{ReadXDR, WriteXDR};
-
-use crate::{Operation, SignedOpError};
 
 /// The stateless checks: expiry, decode, signature. Returns the decoded
 /// payload, or throws the matching [`SignedOpError`].
@@ -33,7 +82,7 @@ where
         Err(_) => sdk::throw(SignedOpError::MalformedBody),
     };
 
-    let preimage = SignedOp {
+    let preimage = SignedOpPreimage {
         network: sdk::block::get_network_hash(),
         verifying_contract: sdk::get_current_address(),
         nonce: op.nonce,

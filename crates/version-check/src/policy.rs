@@ -125,6 +125,12 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  interface crate",
     },
     Named {
+        name: "groundhog-signed-op",
+        reason: "implementation component on the standard interfaces' \
+                 independent version line, released in lockstep with its \
+                 interface crate",
+    },
+    Named {
         name: "version-mismatch-helper",
         reason: "fixture that deliberately carries a fixed version to exercise \
                  the SDK's version-mismatch diagnostics",

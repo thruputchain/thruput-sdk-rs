@@ -58,14 +58,15 @@ env:
     bottle-test-if
   # Standard-interface crates and their implementation components: versioned
   # independently of the workspace, each published under its own
-  # `<crate>-v<version>` tag. In dependency order: groundhog-access-control
-  # exact-pins groundhog-access-control-if, so it comes after it.
+  # `<crate>-v<version>` tag. In dependency order: each implementation
+  # component exact-pins its interface crate, so it comes after it.
   INTERFACE_PACKAGES: >-
     groundhog-erc20-if
     groundhog-erc1271-if
     groundhog-erc20-metadata-if
     groundhog-erc20-pausable-if
     groundhog-signed-op-if
+    groundhog-signed-op
     groundhog-access-control-if
     groundhog-access-control
   # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
@@ -183,9 +184,9 @@ jobs:
             --deny warnings
         with:
           packages: ${{ env.INTERFACE_PACKAGES }}
-          # groundhog-access-control exact-pins groundhog-access-control-if, a
-          # workspace path dep here, so its offline packaging needs the
-          # interface crate pre-vendored (after the primaries it depends on).
+          # The implementation components exact-pin their interface crates,
+          # workspace path deps here, so their offline packaging needs those
+          # pre-vendored (after the primaries they depend on).
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
@@ -198,6 +199,7 @@ jobs:
             groundhog-u256
             groundhog-rv32-runtime
             sdk
+            groundhog-signed-op-if
             groundhog-access-control-if
           # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
           # cannot link on the host (no `main`); it is verified by the rv32 step below.
@@ -268,6 +270,18 @@ jobs:
         with:
           packages: groundhog-erc20-pausable-if
           tag-prefix: 'groundhog-erc20-pausable-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-signed-op
+        if: ${{ inputs.dry_run == false }}
+        id: tag-signed-op
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-signed-op
+          tag-prefix: 'groundhog-signed-op-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: groundhog
@@ -395,6 +409,19 @@ jobs:
           packages: groundhog-signed-op-if
           git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
           tag-prefix: 'groundhog-signed-op-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      # After groundhog-signed-op-if: the component exact-pins it, and this
+      # publish resolves deps against the live registry.
+      - name: Publish groundhog-signed-op
+        if: ${{ inputs.dry_run == false && steps.tag-signed-op.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-signed-op
+          git-tag: ${{ steps.tag-signed-op.outputs.tag }}
+          tag-prefix: 'groundhog-signed-op-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'

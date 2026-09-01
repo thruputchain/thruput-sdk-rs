@@ -501,11 +501,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "groundhog-signed-op-if"
+name = "groundhog-signed-op"
 version = "0.1.19"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-domain-separator",
+ "groundhog-signed-op-if",
+ "sdk",
+]
+
+[[package]]
+name = "groundhog-signed-op-if"
+version = "0.1.19"
+dependencies = [
  "sdk",
  "thiserror",
 ]
