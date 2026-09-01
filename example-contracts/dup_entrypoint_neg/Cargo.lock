@@ -198,9 +198,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.29.0"
+version = "0.30.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "105495559564d58bef558164423977945f1da4b35a6a109ad7519eb1793a75f7"
+checksum = "ed289c39080291f6c0c8b02172e5f111fa3af98b9b2ecd11a88cb4817cc036fb"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -225,15 +225,15 @@ dependencies = [
 
 [[package]]
 name = "groundhog-syscall"
-version = "0.29.0"
+version = "0.30.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "2e2786b0b271501b8fcea7b437950a86213a8d8fe0002c37a5e9f36509ec055a"
+checksum = "4289f8246239243774c8a9f9e65e2a35e04c30d26ae472c411d799f53d968447"
 
 [[package]]
 name = "groundhog-trace"
-version = "0.29.0"
+version = "0.30.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "04081db8e096c261f5101eb68477b7ec981127e0bceca300d529f87087cca02a"
+checksum = "57cc7f0d3ccce6e4ed60d86de302b6b8f64311dc6266c2a7f9cd28bf1aa6cce5"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -253,9 +253,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.29.0"
+version = "0.30.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "6d0da0fdf80aef5ae540302511104cde645418560ebc04df32e9ea7f13afa547"
+checksum = "35bc2c9a6e9bb103d20f4518804d3647e661244a022c77a3a261509effa625c8"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
@@ -269,9 +269,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.29.0"
+version = "0.30.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "2d401bac051f0d7277081e4a70939d66d755467f1e44d05fa4b370e66e8fba02"
+checksum = "505e7abe8e8ae619bc746fa6aa8d2a1b7a23b31e572a2e8f757681758784f16c"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -309,9 +309,9 @@ dependencies = [
 
 [[package]]
 name = "hogexec-internal"
-version = "0.29.0"
+version = "0.30.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "71a020791dc273aa6cc5388a1b287796819a1b0d3058b08c6250ddd7bbdd449b"
+checksum = "0b8786ebbcfbc0dbf871b66471a00a629ba48c37fc72d6c40608a9958a628570"
 dependencies = [
  "xdrs",
 ]
