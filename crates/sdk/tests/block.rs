@@ -2,14 +2,16 @@
 
 use sdk::contract_test;
 
+contract_test!(network_hash_is_the_environments_configured_network {
+    // contract_test! builds a TestEnvironment on the default test network, so
+    // the syscall must report exactly that hash -- not zeros, and not some
+    // other network's.
+    assert_eq!(sdk::block::get_network_hash(), sdk::test_network_hash());
+});
+
 contract_test!(network_hash_is_stable_within_a_transaction {
     // Fixed for the life of the network, so every read in a transaction --
     // indeed every read ever -- agrees.
-    //
-    // Not asserted against TestEnvironment's configured network hash yet: the
-    // mock db behind test_ffi 0.27.0 leaves proposal_header.network_hash unset
-    // on the tip it fabricates, so the syscall reports zeros there. Fixed in
-    // hogd; assert the real value once a test_ffi carrying that fix is pinned.
     assert_eq!(sdk::block::get_network_hash(), sdk::block::get_network_hash());
 });
 
