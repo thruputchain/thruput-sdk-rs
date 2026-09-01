@@ -90,7 +90,11 @@ impl SignedOpNonces {
             sdk::throw(SignedOpError::UnexpectedNonce);
         }
         let body = verify_signed_op::<T>(op, signature);
-        self.next.at_mut(&op.signer).set(&(expected + 1));
+        // Exclusive: two transactions carrying the same operation both read
+        // `expected` and would both write the same `expected + 1`, and a
+        // shared write lets identical values commit side by side. The
+        // exclusive lock makes the second spend conflict instead.
+        self.next.at_mut_exclusive(&op.signer).set(&(expected + 1));
         body
     }
 }

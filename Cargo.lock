@@ -532,6 +532,7 @@ dependencies = [
  "groundhog-erc1271-if",
  "groundhog-erc20-if",
  "groundhog-erc20-pausable-if",
+ "groundhog-signed-op-if",
  "sdk",
  "serde_json",
  "tempfile",
