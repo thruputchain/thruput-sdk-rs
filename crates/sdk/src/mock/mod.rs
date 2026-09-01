@@ -17,7 +17,9 @@ mod mock_public {
         mock_transaction_handler::{
             MockTransactionConfig, MockTransactionHandler,
         },
-        test_environment::{TestEnvironment, TestEnvironmentHandle},
+        test_environment::{
+            TestEnvironment, TestEnvironmentHandle, test_network_hash,
+        },
         test_helpers::Named,
         transact_result::TransactResult,
         transaction_builder::TransactionBuilder,
