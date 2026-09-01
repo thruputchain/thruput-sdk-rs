@@ -1,0 +1,5 @@
+error: throws lists `DupError` more than once
+ --> tests/compile-fail/throws_duplicate_type.rs:9:29
+  |
+9 | #[contract(throws(DupError, DupError))]
+  |                             ^^^^^^^^

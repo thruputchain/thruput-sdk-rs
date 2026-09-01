@@ -67,10 +67,10 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
         // Burn too much
         let amt = 60;
         assert!(m.balances[&owner] < amt);
-        assert!(matches!(
-            client.try_burn(&owner, amt),
-            Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-        ));
+        assert_eq!(
+            client.try_burn(&owner, amt).unwrap_err().try_as(),
+            Some(ERC20Error::TooLarge),
+        );
     }
 
     // Transfer
@@ -82,10 +82,10 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     {
         // Transfer too much
         assert!(m.balances[&owner] < 1000);
-        assert!(matches!(
-            client.try_transfer(other, 1000),
-            Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-        ));
+        assert_eq!(
+            client.try_transfer(other, 1000).unwrap_err().try_as(),
+            Some(ERC20Error::TooLarge),
+        );
     }
 
     // Burn from other address
@@ -100,10 +100,13 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 
     #[cfg(not(feature = "no_check_aborts"))]
     // Withdraw too much approval
-    assert!(matches!(
-        client.try_adjust_allowance(other, -20),
-        Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-    ));
+    assert_eq!(
+        client
+            .try_adjust_allowance(other, -20)
+            .unwrap_err()
+            .try_as(),
+        Some(ERC20Error::TooLarge),
+    );
 
     // Withdraw some approval
     let amt = 10;
@@ -151,10 +154,13 @@ pub fn erc20_funded_test(
 
     #[cfg(not(feature = "no_check_aborts"))]
     // Withdraw too much approval
-    assert!(matches!(
-        client.try_adjust_allowance(other, -20),
-        Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-    ));
+    assert_eq!(
+        client
+            .try_adjust_allowance(other, -20)
+            .unwrap_err()
+            .try_as(),
+        Some(ERC20Error::TooLarge),
+    );
 
     // Withdraw some approval
     let amt = 10;

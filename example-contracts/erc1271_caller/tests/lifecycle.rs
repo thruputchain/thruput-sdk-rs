@@ -1,4 +1,4 @@
-use groundhog_erc1271_if::{ERC1271Client, ERC1271ClientError};
+use groundhog_erc1271_if::{ERC1271Client, ERC1271Error};
 use sdk::*;
 
 fn setup_env() -> (sdk::TestEnvironmentHandle, ContractAddress, ContractAddress)
@@ -68,17 +68,10 @@ fn erc1271_rejection_throws_error() {
         tx.call(&ContractAddress::named("test")).run(move || {
             let result = ERC1271Client::new(&wallet_addr)
                 .try_is_valid_signature(&message, &bad_sig);
-            match result {
-                Err(ERC1271ClientError::ERC1271Error(e)) => {
-                    assert_eq!(e as i32, 1); // InvalidSignature = 1
-                }
-                other => {
-                    panic!(
-                        "Expected Throw(InvalidSignature), got: {:?}",
-                        other
-                    )
-                }
-            }
+            assert_eq!(
+                result.unwrap_err().try_as(),
+                Some(ERC1271Error::InvalidSignature),
+            );
         })
     })
     .assert_success();

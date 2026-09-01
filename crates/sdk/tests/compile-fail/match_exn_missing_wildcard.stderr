@@ -1,0 +1,10 @@
+error: `match_exn!` requires a final `_ => ...` arm: its arms are tried in order rather than checked for exhaustiveness, so an exception matching none of them must be handled explicitly (`_ => e.re_throw()` propagates it)
+  --> tests/compile-fail/match_exn_missing_wildcard.rs:12:19
+   |
+12 |       let _n: u32 = match_exn!(e, {
+   |  ___________________^
+13 | |         E::A => 1,
+14 | |     });
+   | |______^
+   |
+   = note: this error originates in the macro `$crate::__match_exn_arms` which comes from the expansion of the macro `match_exn` (in Nightly builds, run with -Z macro-backtrace for more info)

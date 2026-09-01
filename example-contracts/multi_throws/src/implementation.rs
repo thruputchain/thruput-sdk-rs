@@ -73,7 +73,7 @@ impl MultiThrows for Contract {
     fn relay_undecodable(target: ContractAddress) {
         let client = MultiClient::new(&target);
         match client.try_throw_undecodable() {
-            Err(MultiClientError::BadDecode(caught)) => {
+            Err(CallError::Exception(caught)) => {
                 // Unrelated SDK op between catch and re-throw: `Hash::hash`
                 // (crates/sdk/src/hash.rs) encodes into and reads back the
                 // shared call scratch via `with_scratch`, so this genuinely
@@ -87,7 +87,7 @@ impl MultiThrows for Contract {
             }
             other => client_library_throw(LibraryExn::Called(
                 FaultString::from_display(format_args!(
-                    "expected BadDecode, got {other:?}"
+                    "expected a caught exception, got {other:?}"
                 )),
             )),
         }
@@ -96,23 +96,23 @@ impl MultiThrows for Contract {
     fn relay_undecodable_twice(target: ContractAddress) {
         let client = MultiClient::new(&target);
 
-        // Catch two BadDecode exceptions and hold BOTH alive at once —
+        // Catch two undecodable exceptions and hold BOTH alive at once —
         // pins that no-alloc catching is unlimited/concurrent, exactly
         // like `alloc` (each caught exception owns its buffer, so any
         // number may be live concurrently).
         let caught1 = match client.try_throw_undecodable() {
-            Err(MultiClientError::BadDecode(c)) => c,
+            Err(CallError::Exception(c)) => c,
             other => client_library_throw(LibraryExn::Called(
                 FaultString::from_display(format_args!(
-                    "expected BadDecode (1st catch), got {other:?}"
+                    "expected a caught exception (1st catch), got {other:?}"
                 )),
             )),
         };
         let caught2 = match client.try_throw_undecodable() {
-            Err(MultiClientError::BadDecode(c)) => c,
+            Err(CallError::Exception(c)) => c,
             other => client_library_throw(LibraryExn::Called(
                 FaultString::from_display(format_args!(
-                    "expected BadDecode (2nd catch), got {other:?}"
+                    "expected a caught exception (2nd catch), got {other:?}"
                 )),
             )),
         };

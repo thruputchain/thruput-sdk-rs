@@ -1,5 +1,0 @@
-error: throws contains duplicate generated client error variant `Error`; `alpha :: Error` and `beta :: Error` would both map to it
-  --> tests/compile-fail/throws_variant_name_collision.rs:17:33
-   |
-17 | #[contract(throws(alpha::Error, beta::Error))]
-   |                                 ^^^^^^^^^^^

@@ -24,36 +24,38 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     assert_eq!(client.try_add(6), Ok(7));
 
     match client.try_throws_my_exn() {
-        Err(ClientError::MyExn(ref my_exn)) => {
-            println!("OK: {:?}", my_exn);
-        }
-        Err(ce) => {
-            panic!("Unexpected call error: {:?}", ce)
-        }
+        Err(e) => match_exn!(e, {
+            MyExn => println!("OK: MyExn"),
+            _ => panic!("Unexpected call error: {e:?}"),
+        }),
         r => panic!("Unexpected result: {:?}", r),
     }
 
-    // Throw something undeclared with `throws`.
-    // With selector-based dispatch, `throw(Thing)` serializes with Thing's
-    // selector. Since Thing is not declared in `throws`, the caller's decoder
-    // puts it in the Unknown variant.
+    // Throw something undeclared with `throws`. `throw(Thing)` serializes
+    // with Thing's own selector; `Thing` is private to the contract, so no
+    // caller can name it and no typed arm can match it — it reaches `_`.
     match client.try_throw_thing() {
-        Err(ClientError::Unknown(ref raw)) => {
+        Err(ref e @ CallError::Exception(ref raw)) => {
+            assert_eq!(
+                match_exn!(e, {
+                    MyExn => "my-exn",
+                    BigExn { .. } => "big-exn",
+                    _ => "unmatched",
+                }),
+                "unmatched"
+            );
             println!(
-                "OK: unknown error with selector 0x{:016X}",
+                "OK: undeclared error with selector 0x{:016X}",
                 raw.selector()
             )
         }
-        Err(ClientError::MyExn(ref my_err)) => {
-            // If Thing and MyExn happen to have the same selector (unlikely),
-            // we'd get here. Accept either outcome.
-            println!("OK: decoded as MyExn: {:?}", my_err)
-        }
         r => panic!("Unexpected result: {:?}", r),
     }
 
+    // `LibraryExn` is matched like any other exception type, so its nested
+    // variant is reachable in a single arm rather than through a wrapper.
     match client.try_syscall_err() {
-        Err(ClientError::Library(ref lib_exn)) => match lib_exn {
+        Err(e) => match_exn!(e, {
             LibraryExn::Syscall(sys_exn) => {
                 if sys_exn.has_code(
                     SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist,
@@ -64,8 +66,8 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
                     panic!("Unexpected syscall exception: {:?}", sys_exn);
                 }
             }
-            _ => panic!("Unexpected library exn: {:?}", lib_exn),
-        },
+            _ => panic!("Unexpected error: {e:?}"),
+        }),
         r => panic!("Unexpected result: {:?}", r),
     }
 
@@ -73,10 +75,13 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
     // buffer but fits the protocol's 1024-byte return cap — it must arrive
     // intact at the caller, not die at encode time.
     match client.try_throw_big_exn() {
-        Err(ClientError::BigExn(ref big)) => {
-            assert_eq!(big.payload, [0xAB; 600]);
-            println!("OK: 600-byte exception propagated intact");
-        }
+        Err(e) => match_exn!(e, {
+            BigExn { payload } => {
+                assert_eq!(payload, [0xAB; 600]);
+                println!("OK: 600-byte exception propagated intact");
+            }
+            _ => panic!("Unexpected error: {e:?}"),
+        }),
         r => panic!("Unexpected result: {:?}", r),
     }
 }
@@ -89,7 +94,7 @@ pub fn panic_test(contract_hash: &SHA256Hash) {
     let client = Client::new(&addr);
 
     match client.try_panics() {
-        Err(ClientError::Fault(f)) => {
+        Err(CallError::Fault(f)) => {
             println!("OK: Got fault: {}", f);
         }
         Err(e) => {

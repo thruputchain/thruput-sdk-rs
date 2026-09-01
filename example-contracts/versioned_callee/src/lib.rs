@@ -8,4 +8,3 @@ mod interface;
 pub use implementation::VersionedCalleeContract;
 pub use interface::VersionedCallee;
 pub use interface::VersionedCalleeClient;
-pub use interface::VersionedCalleeClientError;

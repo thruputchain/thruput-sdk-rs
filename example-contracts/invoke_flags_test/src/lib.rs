@@ -6,5 +6,4 @@ mod implementation;
 
 pub use implementation::KeyValueStore;
 pub use implementation::KeyValueStoreClient;
-pub use implementation::KeyValueStoreClientError;
 pub use implementation::KeyValueStoreEntrypoints;

@@ -12,12 +12,11 @@ impl ImportedErrorCaller {
         match imported_error_callee::ImportedErrorCalleeClient::new(target)
             .try_throw_imported_error()
         {
-            Err(
-                imported_error_callee::ImportedErrorCalleeClientError::ImportedError(
-                    _
-                ),
-            ) => 1,
-            _ => 0,
+            Err(e) => match_exn!(e, {
+                imported_error_callee::ImportedError::Denied => 1,
+                _ => 0,
+            }),
+            Ok(()) => 0,
         }
     }
 }
