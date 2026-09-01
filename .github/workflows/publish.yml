@@ -65,6 +65,7 @@ env:
     groundhog-erc1271-if
     groundhog-erc20-metadata-if
     groundhog-erc20-pausable-if
+    groundhog-signed-op-if
     groundhog-access-control-if
     groundhog-access-control
   # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
@@ -136,6 +137,7 @@ jobs:
             groundhog-erc20-metadata-if
             groundhog-erc1271-if
             groundhog-erc20-pausable-if
+            groundhog-signed-op-if
             groundhog-access-control-if
             erc20-test
           # groundhog-domain-separator's backends are additive, so most combinations
@@ -283,6 +285,18 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
+      - name: Tag groundhog-signed-op-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-signed-op-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-signed-op-if
+          tag-prefix: 'groundhog-signed-op-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
       - name: Tag groundhog-access-control
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control
@@ -370,6 +384,17 @@ jobs:
           packages: groundhog-access-control-if
           git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
           tag-prefix: 'groundhog-access-control-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      - name: Publish groundhog-signed-op-if
+        if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-signed-op-if
+          git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
+          tag-prefix: 'groundhog-signed-op-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'

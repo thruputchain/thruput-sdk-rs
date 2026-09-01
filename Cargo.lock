@@ -502,7 +502,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-signed-op-if"
-version = "0.1.0"
+version = "0.1.19"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-domain-separator",
