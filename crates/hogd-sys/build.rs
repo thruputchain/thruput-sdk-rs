@@ -12,8 +12,11 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 const TEST_FFI_VERSION: &str = "0.27.0";
 
 /// Must match the version expected by hogd/built_contracts' build scripts.
+/// Bump this in lockstep with `TEST_FFI_VERSION`: the hogd tag we check out
+/// gates its contract builds on an exact `groundhog <version>` match, so a
+/// stale pin fails the source build in built_contracts/build_risc.sh.
 #[cfg(feature = "source-build")]
-const GROUNDHOG_CLI_VERSION: &str = "0.10.2";
+const GROUNDHOG_CLI_VERSION: &str = "0.11.0";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
@@ -542,7 +545,13 @@ fn fetch_hogd_rust_deps(
             .as_ref()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_default();
-        if installed_ver == expected_ver {
+        // `groundhog --version` appends build detail, e.g.
+        // "groundhog 0.11.0 (commit abc1234)". Compare the release version
+        // only, or this never matches and we reinstall on every build.
+        let installed_release = installed_ver
+            .split_once(" (")
+            .map_or(installed_ver.as_str(), |(release, _)| release);
+        if installed_release == expected_ver {
             println!(
                 "cargo:warning=groundhog-cli {GROUNDHOG_CLI_VERSION} \
                  already installed, skipping",
