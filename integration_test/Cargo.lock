@@ -348,6 +348,7 @@ dependencies = [
 name = "groundhog-domain-separator"
 version = "0.27.0"
 dependencies = [
+ "groundhog-contract-spec",
  "groundhog-xdr",
  "sha2",
  "xdrs",
