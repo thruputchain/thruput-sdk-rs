@@ -292,6 +292,26 @@ returns the auth tokens a wallet chooses to mint. The caller destructures them
 with `AssumeTokens`, then consumes each one and checks its minter against the
 wallet address it trusts.
 
+### Minting limits
+
+A token node carries at most **4** direct children
+(`groundhog_xdr::auth_token::kAuthTokenMaxChildNodes`), and [`mint_auth_token`]
+**panics** past that rather than reporting it. The count is per node and per
+level of the preimage — containers do not open a new level, so five elements
+in a `Vec<Signed<u64>>` field are five children of one node. A nested
+`Signed<T>` does open a level: its own payload gets its own budget of four.
+
+This matters more on chain than in a test: a panicking contract faults with
+no message, code or location ([#358]), so a preimage that outgrew the cap is
+indistinguishable from any other trap. Keep preimage shapes within the cap by
+construction.
+
+The encoded payload is separately capped at 256 bytes
+(`kAuthTokenMaxLen`), which *is* reported — as
+`AuthTokenError::MintEncodeFailure`.
+
+[#358]: https://github.com/groundhogchain/sdk_rs/issues/358
+
 # Arithmetic
 
 [`U256`] and its signed counterpart [`I256`] behave like `u128` and `i128`,
