@@ -191,11 +191,7 @@ pub use hasher::*;
 pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
-// Not a glob: `mod mintable` is `#[doc(hidden)]`, but a glob re-export
-// republishes its whole surface -- including the encode helpers and the
-// child-node buffer -- as undocumented crate-root items. Only the names a
-// contract (or macro expansion) legitimately writes belong here; the rest
-// stay reachable at `sdk::mintable::…` for the SDK's own use.
+// Explicit: a glob would republish #[doc(hidden)] mintable internals.
 pub use mintable::{AuthTokenPreimage, Mintable, MintableType};
 pub use re_throw::*;
 pub use receive_auth_handles::*;
