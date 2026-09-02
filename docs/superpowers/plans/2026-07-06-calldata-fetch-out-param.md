@@ -8,7 +8,7 @@
 
 **Architecture:** The shared calldata machinery becomes `fetch_calldata_and_auth_tokens(&mut Calldata, &mut AuthTokenIdBuf)` — non-generic, `#[inline(never)]`, throwing. Macro-generated wrappers own the two buffers as frame locals, call the primitive directly, and run their decode/invoke/encode body inline. No closure, no `as fn` cast, no `call_indirect` anywhere in the entrypoint path.
 
-**Tech Stack:** Rust (workspace at `/Users/geofframseyer/groundhog/sdk_rs`), proc-macro codegen via `quote!`, wasm fleet built with `scripts/dev.sh`, `wasm-objdump` for table inspection.
+**Tech Stack:** Rust (workspace at `sdk_rs`), proc-macro codegen via `quote!`, wasm fleet built with `scripts/dev.sh`, `wasm-objdump` for table inspection.
 
 ## Global Constraints
 
@@ -320,7 +320,7 @@ pub fn calldata(count: u32) {
 
 - [ ] **Step 3: Verify the identifier is fully gone and the contract builds**
 
-Run: `grep -rn "with_calldata_and_auth_tokens" /Users/geofframseyer/groundhog/sdk_rs --include="*.rs"`
+Run: `grep -rn "with_calldata_and_auth_tokens" sdk_rs --include="*.rs"`
 Expected: no output.
 
 Run (from the repo root): `scripts/dev.sh build integration_test/calldata_raw`

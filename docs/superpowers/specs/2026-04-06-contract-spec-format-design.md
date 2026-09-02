@@ -67,7 +67,7 @@ The resulting spec must be:
 
 - No events in this slice.
 - No derive macros in this slice.
-- No replacement of the legacy [`src/spec.rs`](/Users/geoff/groundhog/sdk_rs/src/spec.rs)
+- No replacement of the legacy [`src/spec.rs`](src/spec.rs)
   path in this slice.
 - No indexed type references in emitted fragments or in the canonical wire
   format.

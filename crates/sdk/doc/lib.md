@@ -86,7 +86,7 @@ dev = ["sdk/dev"]
 [lib]
 crate-type = ["rlib"]
 
-# The rv32 artifact. `groundhog build --target rv32 -p my-contract` derives
+# The rv32 artifact. `groundhog build -p my-contract` derives
 # `--bin my-contract` from the package name, so this name must match it.
 # src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
 # my_contract;` force-links the rlib so the entrypoint records reach the
@@ -204,7 +204,7 @@ generated client, which exposes two calling styles:
 - `client.method(...)`: success-oriented path. Typed exceptions are re-thrown to
   the caller, and faults stay faults.
 - `client.try_method(...)`: inspection path. Returns
-  `Result<ReturnType, ClientError>`.
+  `Result<ReturnType, CallError>`.
 
 Use [`InvokeConfig`] (or the generated `with_gas_limit` constructor) to bound
 the gas a subcall may spend, and [`deploy`] to create new contracts.

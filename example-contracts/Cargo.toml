@@ -18,7 +18,6 @@ members = [
     "test_bytestring",
     "trait_sourced_method_spec",
     "u256_roundtrip",
-    "rcq_test",
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",
@@ -92,8 +91,8 @@ version = "0.4.0"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
-repository = "https://github.com/groundhogchain/example-contracts.git"
-homepage = "https://github.com/groundhogchain/example-contracts.git"
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
 keywords = ["groundhog"]
 categories = ["blockchain"]
 edition = "2024"

@@ -9,7 +9,8 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "SDK"
+description = "Groundhog smart-contract SDK: storage types, events, typed cross-contract calls, and a native test harness"
+readme = "../../README.md"
 metadata.docs.rs.features = [
     "std",
 ]

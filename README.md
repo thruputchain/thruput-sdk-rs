@@ -121,42 +121,25 @@ There is no `U512`, and none is needed: Solidity has no type wider than
 `uint256` either, and the only consumers of a 512-bit intermediate in
 `Math.sol` — `mulDiv` and `mulShr` — are here whole.
 
-Note that this repository contains
-[git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
-To include their contents when cloning, use:
-
-```shell
-git clone --recurse-submodules ${REPO_URL}
-```
-
-To retrieve or update their contents in an existing cloned repository, use:
-
-```shell
-git submodule update --init --recursive
-```
+A plain `git clone` is sufficient to build and test the SDK. The one
+submodule, `integration_test/contracts`, is an optional private test corpus
+used only by `./scripts/dev.sh test-itc`; `git submodule update --init` will
+fail without access to it, and nothing else depends on it.
 
 ## Requirements
 
 ### Rust toolchain
 
-You can use [rustup](https://rustup.rs/) to get a Rust toolchain.
+Install [rustup](https://rustup.rs/). `rust-toolchain.toml` pins the nightly
+toolchain this repository builds with and lists the `riscv32im-unknown-none-elf`
+target and the `rust-src` component, so rustup installs them automatically on
+the first `cargo` invocation. No manual `rustup target add` step is needed.
 
-Then install the RV32 contract target:
+### Optional: ccache
 
-```shell
-rustup +nightly target add riscv32im-unknown-none-elf
-```
-
-Also, install the rust sources so the build process can
-recompile them in a more compact form to reduce code size:
-
-```shell
-rustup component add rust-src --toolchain nightly
-```
-
-### Ccache
-
-Install [ccache](https://ccache.dev/) with your package manager.
+[ccache](https://ccache.dev/) is only used when building the hogd test
+executor from source (`HOGD_FFI_BUILD=1`). The default prebuilt download path
+does not need it.
 
 ## Building
 
