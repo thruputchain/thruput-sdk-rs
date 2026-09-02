@@ -1,7 +1,7 @@
 //! The block-data syscalls, exercised against the real host.
 
-use sdk::Named;
 use sdk::contract_test;
+use sdk::{Duration, Named, TimePoint};
 
 contract_test!(network_hash_is_the_environments_configured_network {
     // contract_test! builds a TestEnvironment on the default test network, so
@@ -37,29 +37,29 @@ contract_test!(block_height_and_timepoint_are_independent {
 // contract body returns the timepoint rather than capturing it: `run` takes an
 // UnwindSafe closure, which `&mut` capture is not.
 
-/// The wall clock in Unix nanoseconds, the unit `TimePoint` carries.
-fn wall_clock_nanos() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("system clock is before the Unix epoch")
-        .as_nanos() as u64
+/// The wall clock, as the timepoint the host would stamp a block with now.
+fn wall_clock() -> TimePoint {
+    TimePoint::UNIX_EPOCH
+        + std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock is before the Unix epoch")
 }
 
 fn read_block_timepoint(
     env: &sdk::TestEnvironmentHandle,
     address: &sdk::ContractAddress,
-) -> u64 {
+) -> TimePoint {
     let result = env
         .transact(|tx| tx.call(address).run(sdk::block::get_block_timepoint));
     result.assert_success();
-    result.assert_return_as::<sdk::TimePoint>().into_inner()
+    result.assert_return_as::<sdk::TimePoint>()
 }
 
 #[test]
 fn block_timepoint_defaults_to_a_real_clock_reading() {
     // Before the environment exists: it stamps its first block's timepoint at
     // construction, so a bound taken afterwards is already too late.
-    let before = wall_clock_nanos();
+    let before = wall_clock();
 
     let env = sdk::TestEnvironment::no_cost();
     let address = sdk::ContractAddress::named("block_timepoint_wall_clock");
@@ -67,16 +67,20 @@ fn block_timepoint_defaults_to_a_real_clock_reading() {
     let first = read_block_timepoint(&env, &address);
     env.advance_block();
     let second = read_block_timepoint(&env, &address);
-    let after = wall_clock_nanos();
+    let after = wall_clock();
 
     // Bracketed by clock reads taken around the test. This is what separates a
     // real Unix-nanosecond reading from the constant the host used to report:
     // 1'700'000'000 is a Unix *seconds* value in a nanoseconds field, so it
     // sits about fifty years below `before`.
-    for observed in [first, second] {
+    let window = before.clone()..=after.clone();
+    for observed in [&first, &second] {
         assert!(
-            (before..=after).contains(&observed),
-            "timepoint {observed} outside [{before}, {after}]"
+            window.contains(observed),
+            "timepoint {} outside [{}, {}]",
+            **observed,
+            *before,
+            *after
         );
     }
 
@@ -87,7 +91,9 @@ fn block_timepoint_defaults_to_a_real_clock_reading() {
     // advance_block_at_pins_the_timepoint.
     assert!(
         second >= first,
-        "timepoint went backwards: {second} < {first}"
+        "timepoint went backwards: {} < {}",
+        *second,
+        *first
     );
 }
 
@@ -98,16 +104,16 @@ fn advance_block_at_pins_the_timepoint() {
 
     // Pin forward from where we are: the environment opens its first block on
     // the wall clock, and blocks may not move backwards.
-    const ONE_HOUR_NANOS: u64 = 3_600_000_000_000;
-    let pinned = read_block_timepoint(&env, &address) + ONE_HOUR_NANOS;
+    const ONE_HOUR: Duration = Duration::from_hours(1);
+    let pinned = &read_block_timepoint(&env, &address) + ONE_HOUR;
 
-    env.advance_block_at(pinned.into());
+    env.advance_block_at(pinned.clone());
     assert_eq!(read_block_timepoint(&env, &address), pinned);
     // Still fixed for the whole block.
     assert_eq!(read_block_timepoint(&env, &address), pinned);
 
-    let later = pinned + ONE_HOUR_NANOS;
-    env.advance_block_at(later.into());
+    let later = &pinned + ONE_HOUR;
+    env.advance_block_at(later.clone());
     assert_eq!(read_block_timepoint(&env, &address), later);
 }
 
@@ -118,5 +124,5 @@ fn advance_block_at_refuses_to_go_backwards() {
     let address = sdk::ContractAddress::named("block_timepoint_backwards");
 
     let now = read_block_timepoint(&env, &address);
-    env.advance_block_at((now - 1).into());
+    env.advance_block_at(&now - Duration::from_nanos(1));
 }
