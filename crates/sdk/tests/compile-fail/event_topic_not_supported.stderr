@@ -1,0 +1,5 @@
+error[E0599]: no method named `into_topic` found for type `u8` in the current scope
+  --> tests/compile-fail/event_topic_not_supported.rs:10:14
+   |
+10 |     pub tag: u8,
+   |              ^^ method not found in `u8`

@@ -1,0 +1,8 @@
+error[E0277]: `u64` cannot be a storage field
+  --> tests/compile-fail-storage/plain_field_not_storage.rs:11:12
+   |
+11 |     count: u64,
+   |            ^^^ the trait `StorageField` is not implemented for `u64`
+   |
+   = note: storage fields hold handles, not values: wrap plain data in `Value<u64>`
+   = note: the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node` for a nested `#[storage]` struct

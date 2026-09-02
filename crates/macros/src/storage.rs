@@ -148,6 +148,15 @@ fn impl_from_keypath(
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
     let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
+    let generic_idents: Vec<syn::Ident> = generics
+        .params
+        .iter()
+        .filter_map(|p| match p {
+            syn::GenericParam::Type(t) => Some(t.ident.clone()),
+            syn::GenericParam::Const(c) => Some(c.ident.clone()),
+            syn::GenericParam::Lifetime(_) => None,
+        })
+        .collect();
 
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
@@ -210,15 +219,31 @@ fn impl_from_keypath(
                 // generic impls — it captures no generic params.
                 const __SLOT_FRAME: ::sdk::storage::FramedComponent =
                     ::sdk::storage::FramedComponent::from_u32(#idx);
-                keypath.child_framed(&__SLOT_FRAME).into()
+                // Through `StorageField` rather than `.into()`: see the
+                // bound below. Going via `From` would add a second,
+                // redundant error from inside this constructor whenever a
+                // field is not a storage type.
+                <#field_type as ::sdk::storage::StorageField>::__from_keypath(
+                    keypath.child_framed(&__SLOT_FRAME),
+                )
             };
         });
 
-        // Add `FieldType: From<Keypath>` bound
-        generics
-            .make_where_clause()
-            .predicates
-            .push(syn::parse_quote!(#field_type: From<Keypath>));
+        // A generic field type needs its `StorageField` bound stated in the
+        // where clause; a concrete one must not have it there. A
+        // where-clause bound on a concrete type that cannot satisfy it is
+        // *trivially* unsatisfiable, which rustc reports at the derive's
+        // span with a `#![feature(trivial_bounds)]` suggestion — never the
+        // fix, and it does not say which field is wrong. Left out, the
+        // `__from_keypath` call in the initializer above raises the same
+        // obligation as an ordinary one, so the error lands on the field and
+        // carries `StorageField`'s `on_unimplemented`.
+        if type_mentions_generic(field_type, &generic_idents) {
+            generics
+                .make_where_clause()
+                .predicates
+                .push(syn::parse_quote!(#field_type: StorageField));
+        }
     }
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -240,6 +265,31 @@ fn impl_from_keypath(
             }
         };
     })
+}
+
+/// Whether `ty` mentions any of `params` — i.e. whether a bound on it is
+/// resolved per-instantiation rather than trivially at the definition.
+///
+/// Token-level on purpose: a false positive (a path segment that merely
+/// shares an identifier with a parameter) only means the field keeps the
+/// where-clause bound, which is what the derive did for every field before.
+fn type_mentions_generic(ty: &syn::Type, params: &[syn::Ident]) -> bool {
+    if params.is_empty() {
+        return false;
+    }
+    quote!(#ty)
+        .into_iter()
+        .any(|tt| tokens_mention(&tt, params))
+}
+
+fn tokens_mention(tt: &proc_macro2::TokenTree, params: &[syn::Ident]) -> bool {
+    match tt {
+        proc_macro2::TokenTree::Ident(id) => params.contains(id),
+        proc_macro2::TokenTree::Group(g) => {
+            g.stream().into_iter().any(|t| tokens_mention(&t, params))
+        }
+        _ => false,
+    }
 }
 
 // Produce an error referencing a particular code span

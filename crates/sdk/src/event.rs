@@ -11,6 +11,11 @@ pub use groundhog_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
 /// Types that are already 32 bytes (like `ContractAddress`) implement
 /// this as a zero-copy borrow. Other types are XDR-encoded and SHA-256
 /// hashed to produce a 32-byte topic.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be an event topic",
+    note = "`#[topic]` fields must be 32 bytes wide (`[u8; 32]`, `ContractAddress`, `SHA256Hash`) or one of `u128`, `i128`, `u64`, `i64`, `u32`, `i32`, `bool`, `str`, `[u8]`",
+    note = "for any other type, either widen it to one of those or drop `#[topic]` and let it ride in the event payload, where it stays readable"
+)]
 pub trait IntoTopic {
     #[allow(clippy::wrong_self_convention)]
     fn into_topic(&self) -> TopicSrc<'_>;
