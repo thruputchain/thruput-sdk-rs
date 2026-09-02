@@ -449,6 +449,44 @@ jobs:
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
 
+      # A GitHub Release for the workspace tag pushed above, so the repository
+      # has a human-readable release history next to the registry. Placed
+      # after the publishes rather than straight after the tag step: a run
+      # that dies mid-publish then leaves no release announcing crates that
+      # are not on the registry, and re-dispatching creates it.
+      #
+      # `gh` is not guaranteed to exist on the self-hosted `hog1` runner, so
+      # this uses the REST API through actions/github-script with
+      # ${{ github.token }} (the job already declares `permissions: contents:
+      # write`). Idempotent like every other step here: an existing release
+      # for the tag is left untouched.
+      - name: Create GitHub Release
+        if: ${{ inputs.dry_run == false && steps.publish-tag.outputs.tag != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const tag = '${{ steps.publish-tag.outputs.tag }}';
+            const { owner, repo } = context.repo;
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner, repo, tag,
+              });
+              core.info(`release already exists for ${tag}: ${existing.data.html_url}`);
+              return;
+            } catch (error) {
+              if (error.status !== 404) { throw error; }
+            }
+            const created = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              name: tag,
+              body: `See [CHANGELOG.md](https://github.com/${owner}/${repo}/blob/${tag}/CHANGELOG.md) for this release's entry.`,
+              generate_release_notes: true,
+            });
+            core.info(`created release ${created.data.html_url}`);
+
       # Build and upload rustdoc to groundhog.dev/docs, after the crates publish.
       # HEAD is the freshly-tagged commit, so expected-tag validates cleanly.
       # arch-only crates can't build docs on the host, so they're skipped (same

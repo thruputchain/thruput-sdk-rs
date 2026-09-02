@@ -38,6 +38,11 @@ Decide which of the three you want, then let it do the arithmetic:
 Things it does **not** cover, so they stay on you:
 
 - Whether the change is breaking, and what the new version number should be.
+- `CHANGELOG.md`: rename the `Unreleased` section to the version you are
+  releasing, date it, add a fresh empty `Unreleased` above it, and add the
+  two `compare/...` link definitions at the bottom. Anything breaking belongs
+  under `Changed` marked **BREAKING**. The release workflow links the tag's
+  release notes at this file.
 - The `TEST_FFI_VERSION` constant (step 4 below).
 - Checking whether every publishable in-repo crate appears in the
   `PRIMARY_PACKAGES`, `INTERFACE_PACKAGES` or `INTERFACE_DEPENDENT_PACKAGES`
