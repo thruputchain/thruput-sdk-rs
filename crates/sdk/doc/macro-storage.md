@@ -16,10 +16,13 @@ All fields must be SDK storage types. Plain data must be wrapped in
 | Type | Description |
 |------|-------------|
 | [`Value<T>`](crate::storage::Value) | Single XDR-serializable value |
-| [`NNInt`](crate::storage::NNInt) | Non-negative 64-bit integer with atomic arithmetic |
+| [`NNInt`](crate::storage::NNInt) | `i128` with a commit-time non-negativity floor, written as mergeable deltas |
+| [`Balance`](crate::storage::Balance) | Unsigned, zero-defaulting balance over `NNInt`; `increase`/`decrease` take `u128` and fail on overflow and overdraft in every profile |
 | [`Bytestring`](crate::storage::Bytestring) | Variable-length byte blob |
 | [`Map<K, V>`](crate::storage::Map) | Key-addressed collection (entries not enumerable) |
 | [`Vector<S>`](crate::storage::Vector) | Index-addressed, sparse-capable sequence |
+| [`RCQ<T>`](crate::storage::RCQ) | Retrocausal queue: append now, consume in a later block |
+| [`CapacityConstraint`](crate::storage::CapacityConstraint) | Single non-idempotent write per transaction, for supply caps and similar |
 | [`Node<T>`](crate::storage::Node) | Nested storage struct used inside collections |
 
 # Common patterns
@@ -85,8 +88,11 @@ fully deleted. It provides three methods:
 | Type | Deletable? | Notes |
 |------|-----------|-------|
 | `NNInt` | Yes | |
+| `Balance` | Yes | |
 | `Value<T>` | Yes | |
 | `Bytestring` | Yes | |
+| `CapacityConstraint` | Yes | |
+| `RCQ<T>` | Yes | Subject to the per-deletion cleanup budget |
 | `Node<T>` | When `T: Deletable` | |
 | `Vector<S>` | When `S: Deletable` | |
 | `Map<K, V>` | **No** | Cannot enumerate entries |
