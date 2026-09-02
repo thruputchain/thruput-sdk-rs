@@ -751,10 +751,22 @@ fn download_with_retry(
     let mut wait_secs = 5;
     for attempt in 0..=max_retries {
         let mut cmd = Command::new("curl");
-        cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
+        // `--write-out` prints the HTTP status after the transfer so an
+        // authentication failure can be told apart from a transient one:
+        // `--fail` alone collapses every HTTP error into exit code 22.
+        cmd.arg("--fail")
+            .arg("-L")
+            .arg("--silent")
+            .arg("--show-error")
+            .arg("--write-out")
+            .arg("%{http_code}")
+            .arg("-o")
+            .arg(&tmp)
+            .arg(url)
+            .stdout(std::process::Stdio::piped());
 
-        let status = match &auth_config {
-            None => cmd.status(),
+        let output = match &auth_config {
+            None => cmd.output(),
             Some(config) => {
                 cmd.arg("--config").arg("-");
                 cmd.stdin(std::process::Stdio::piped());
@@ -765,25 +777,41 @@ fn download_with_retry(
                     if let Some(mut stdin) = child.stdin.take() {
                         stdin.write_all(config.as_bytes())?;
                     }
-                    child.wait()
+                    child.wait_with_output()
                 })
             }
         };
 
-        match status {
-            Ok(s) if s.success() && tmp.exists() => {
+        match output {
+            Ok(o) if o.status.success() && tmp.exists() => {
                 // Atomic rename
                 fs::rename(&tmp, dest)
                     .map_err(|e| format!("rename failed: {e}"))?;
                 return Ok(());
             }
-            Ok(s) => {
+            Ok(o) => {
                 let _ = fs::remove_file(&tmp);
+                let http_code = String::from_utf8_lossy(&o.stdout)
+                    .trim()
+                    .parse::<u16>()
+                    .ok();
+                // A rejected credential does not fix itself on retry, and
+                // the retry schedule would hide the cause for half a
+                // minute. Say what is missing and stop.
+                if let Some(code @ (401 | 403)) = http_code {
+                    return Err(auth_failure_message(
+                        code,
+                        auth_config.is_some(),
+                    ));
+                }
                 if attempt < max_retries {
-                    let code = s.code().unwrap_or(-1);
+                    let code = o.status.code().unwrap_or(-1);
                     let next = attempt + 1;
+                    let http = http_code
+                        .map(|c| format!(", HTTP {c}"))
+                        .unwrap_or_default();
                     println!(
-                        "cargo:warning=download attempt {next} failed (exit {code}), retrying in {wait_secs}s...",
+                        "cargo:warning=download attempt {next} failed (exit {code}{http}), retrying in {wait_secs}s...",
                     );
                     std::thread::sleep(std::time::Duration::from_secs(
                         wait_secs,
@@ -802,6 +830,35 @@ fn download_with_retry(
 
     let total = max_retries + 1;
     Err(format!("download failed after {total} attempts: {url}"))
+}
+
+/// The error for a download the server refused on credentials.
+///
+/// This is the first thing a new contract author hits when running
+/// `cargo test` without the early-access download credentials, so it
+/// names every way to supply them.
+fn auth_failure_message(http_code: u16, had_credentials: bool) -> String {
+    let cause = if had_credentials {
+        "the server rejected the credentials in HOGD_FFI_USER / HOGD_FFI_PASSWORD"
+    } else {
+        "no credentials were supplied"
+    };
+    format!(
+        "downloading the Groundhog native test executor (the `sdk/dev` \
+         feature's prebuilt library) requires early-access credentials, and \
+         {cause} (HTTP {http_code}).\n\
+         \n\
+         To fix this, do one of:\n\
+         - export HOGD_FFI_PASSWORD (and HOGD_FFI_USER if you were given \
+         one) before running `cargo test`;\n\
+         - run `groundhog init` once to store the credentials, then use \
+         `groundhog test`, which passes them to cargo for you;\n\
+         - point HOGD_FFI_LIB_DIR at a directory that already holds the \
+         library.\n\
+         \n\
+         Only host-side test builds need this download; `groundhog build` \
+         and rv32 contract builds do not."
+    )
 }
 
 /// Download a file if not already cached, using URL-based invalidation.
