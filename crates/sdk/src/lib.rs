@@ -179,7 +179,7 @@ pub use rt::*;
 pub use serialize::*;
 pub use signer::*;
 pub use throw::*;
-pub use time::*;
+pub use time::Duration;
 pub use types::*;
 pub use util::*;
 // XDR serialization vocabulary that is part of the SDK's public API (macro

@@ -369,34 +369,34 @@ Other useful modules and types:
 
 [`get_block_timepoint`](block::get_block_timepoint) is the block's Unix
 nanoseconds as a [`TimePoint`], and [`get_block_height`](block::get_block_height)
-its [`BlockHeight`]. Arithmetic on them goes through two SDK types --
-[`Duration`](time::Duration) for time and [`BlockCount`](block::BlockCount)
-for heights -- so a deadline reads the way it does in Solidity:
+its [`BlockHeight`]. Both do arithmetic directly -- `TimePoint` with
+[`core::time::Duration`], `BlockHeight` with a signed number of blocks -- so
+a deadline reads the way it does in Solidity:
 
 ```rust,ignore
-use sdk::time::Duration;
+use sdk::time::DAY;
 use sdk::*;
 
 let now = get_block_timepoint();
-let deadline = &now + 7 * Duration::DAY;          // or Duration::from_days(7)
+let deadline = &now + 7 * DAY;                    // or Duration::from_hours(7 * 24)
 ensure(now < deadline, Error::Expired);
-let elapsed = now.duration_since(&start);         // saturates at zero
+let elapsed = &now - &start;                      // saturates at zero
 
-let review = get_block_height() + BlockCount::new(100);
-let waited = get_block_height().blocks_since(&opened);
+let review = get_block_height() + 100;
+let waited = get_block_height() - opened;         // i64
 ```
 
-[`Duration`](time::Duration) mirrors `core::time::Duration` -- the same
-constructors, accessors, and operators, plus `DAY` / `WEEK` unit constants --
-and converts to and from it. It is one `u64` of nanoseconds on the wire, like
-`TimePoint`, so both it and `BlockCount` can be `#[contract_type]` fields,
-method arguments, and [`Value`](storage::Value)s. The checked and saturating
-forms live on [`TimePointExt`] and [`BlockHeightExt`].
+The [`time`](mod@time) module re-exports `Duration` and adds the unit
+constants (`HOUR`, `DAY`, `WEEK`, ...) that `core` has no stable constructor
+for. The checked and saturating forms -- `checked_add`, `saturating_add`,
+`duration_since`, `checked_duration_since`, `blocks_since` -- are inherent
+methods on the two types.
 
 Unlike the integer primitives above, this arithmetic **panics on overflow in
 every profile**: a deadline that wrapped into the past would be a security
-bug, and `core::time` behaves the same way. See the [`time`](mod@time) module
-docs.
+bug, and `core::time` behaves the same way. `Duration` itself has no wire
+encoding, so store the `TimePoint` endpoints rather than the span. See the
+[`time`](mod@time) module docs.
 
 # Interfaces And Specs
 

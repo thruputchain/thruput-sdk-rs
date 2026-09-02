@@ -56,8 +56,6 @@ impl_collect_noop!(
     sdk::types::ContractAddress,
     sdk::types::BlockHeight,
     sdk::types::TimePoint,
-    sdk::time::Duration,
-    sdk::block::BlockCount,
     sdk::types::SHA256Hash,
     sdk::types::Ed25519PublicKey,
     sdk::types::Ed25519Signature,
