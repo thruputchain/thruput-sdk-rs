@@ -20,7 +20,7 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build --target rv32 -p unknown_method` derives
+# The rv32 artifact. `groundhog build -p unknown_method` derives
 # `--bin unknown_method` from the package name, so the name here must stay the
 # underscored package name. `required-features` keeps it out of host builds.
 [[bin]]

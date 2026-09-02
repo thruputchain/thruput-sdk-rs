@@ -7,7 +7,7 @@
 //! unimplemented candidate contributes a differently-shaped `SharedConfig`
 //! def to the pool.  With the retained name ambiguous, `collect_named_types`
 //! must fail spec canonicalization with a typedef conflict: the ELF links,
-//! but the spec step of `groundhog build --target rv32` must error.  dev.sh's
+//! but the spec step of `groundhog build` must error.  dev.sh's
 //! `check_rv32_typedef_conflict_detected` asserts exactly that.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
