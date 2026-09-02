@@ -48,13 +48,28 @@ cd scaffold-smoke
 # Point the scaffold's sdk dependency at this checkout instead of the
 # published release the template pins. A path dep ignores the template's
 # version requirement, so this keeps testing head across version bumps.
-if [ "$(grep -c '^sdk = ' Cargo.toml)" != 1 ]; then
-    echo "error: expected exactly one '^sdk = ' line in the scaffolded" >&2
-    echo "Cargo.toml; the CLI template layout changed — update $0" >&2
+#
+# The template declares `sdk` once per target (guest `no_std`, host `std`),
+# so rewrite only the version+registry part of each line and leave the rest
+# — notably the host line's `features = ["std"]` — intact. Rewriting whole
+# lines would silently drop those features.
+if ! grep -q '^sdk = ' Cargo.toml; then
+    echo "error: no '^sdk = ' line in the scaffolded Cargo.toml;" >&2
+    echo "the CLI template layout changed — update $0" >&2
     exit 1
 fi
-sed -i.bak "s|^sdk = .*|sdk = { path = \"$SDK_DIR/crates/sdk\" }|" Cargo.toml
+sed -i.bak -E \
+    "s|^sdk = \{ version = \"[^\"]+\", registry = \"groundhog\"|sdk = { path = \"$SDK_DIR/crates/sdk\"|" \
+    Cargo.toml
 rm Cargo.toml.bak
+# A template that still resolves sdk from the registry would test the
+# published release instead of this checkout — the failure this script exists
+# to prevent, and one that is invisible in a passing build.
+if grep -q '^sdk = .*registry = "groundhog"' Cargo.toml; then
+    echo "error: an '^sdk = ' line still resolves sdk from the registry;" >&2
+    echo "the CLI template layout changed — update $0" >&2
+    exit 1
+fi
 
 # Build the contract, exactly as the scaffold's "next steps" suggest. RV32
 # is the CLI's only artifact target, so the build takes no target flag: 0.9.6
