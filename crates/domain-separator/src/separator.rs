@@ -153,6 +153,32 @@ const TRANSACTION_BYTES: [u8; TRANSACTION_N] =
 pub const TRANSACTION: DomainSeparator =
     DomainSeparator::from_cxs_bytes(&TRANSACTION_BYTES);
 
+const SIGNED_OP_NAME: &[u8] = b"SignedOp";
+
+const _: () = ::core::assert!(
+    SIGNED_OP_NAME.len() <= 256,
+    "domain separator name exceeds BytesM<256>"
+);
+
+const SIGNED_OP_REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
+    ext: 0,
+    name: SIGNED_OP_NAME,
+};
+
+const SIGNED_OP_N: usize = prefix_size(&SIGNED_OP_REPR);
+
+const SIGNED_OP_BYTES: [u8; SIGNED_OP_N] =
+    prefix_bytes::<SIGNED_OP_N>(&SIGNED_OP_REPR);
+
+/// Domain separator for signed operations (`"SignedOp"`); see `SignedOp`.
+///
+/// Signed directly, like [`TRANSACTION`]. Not a protocol separator: the
+/// validator never sees these bytes, only contracts and clients do. If the
+/// envelope layout ever changes, give the new layout a new name so signatures
+/// made under the old one stop verifying.
+pub const SIGNED_OP: DomainSeparator =
+    DomainSeparator::from_cxs_bytes(&SIGNED_OP_BYTES);
+
 #[cfg(all(test, feature = "alloc", feature = "sha2"))]
 mod tests {
     use super::*;
@@ -182,6 +208,14 @@ mod tests {
     #[test]
     fn separators_are_distinct() {
         assert_ne!(PUBKEY_ACCOUNT.as_bytes(), TRANSACTION.as_bytes());
+        assert_ne!(PUBKEY_ACCOUNT.as_bytes(), SIGNED_OP.as_bytes());
+        assert_ne!(TRANSACTION.as_bytes(), SIGNED_OP.as_bytes());
+    }
+
+    #[test]
+    fn signed_op_expected_bytes() {
+        // 0x00 (ext discriminant) + 0x08 (opaque len) + "SignedOp".
+        assert_eq!(SIGNED_OP.as_bytes(), &b"\x00\x08SignedOp"[..]);
     }
 
     /// The `WriteXDR` pass-through must re-emit the prefix verbatim — no length

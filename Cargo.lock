@@ -402,6 +402,8 @@ dependencies = [
 name = "groundhog-domain-separator"
 version = "0.27.0"
 dependencies = [
+ "groundhog-contract-spec",
+ "groundhog-macros",
  "groundhog-xdr",
  "hex-literal",
  "sha2",
@@ -499,6 +501,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-signed-op"
+version = "0.1.19"
+dependencies = [
+ "groundhog-contract-spec",
+ "groundhog-domain-separator",
+ "groundhog-signed-op-if",
+ "sdk",
+]
+
+[[package]]
+name = "groundhog-signed-op-if"
+version = "0.1.19"
+dependencies = [
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-spec"
 version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
@@ -520,6 +540,7 @@ dependencies = [
  "groundhog-erc1271-if",
  "groundhog-erc20-if",
  "groundhog-erc20-pausable-if",
+ "groundhog-signed-op-if",
  "sdk",
  "serde_json",
  "tempfile",
@@ -556,8 +577,10 @@ checksum = "c446dde72e2133da0ca06290c053963738fc1d96395c71ca154996655cf3ac95"
 name = "groundhog-test-vectors"
 version = "0.27.0"
 dependencies = [
+ "groundhog-contract-spec",
  "groundhog-contract-util",
  "groundhog-domain-separator",
+ "groundhog-macros",
  "groundhog-xdr",
  "serde_json",
  "xdrs",

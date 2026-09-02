@@ -49,7 +49,7 @@ pub use backend::Sha256Backend;
 pub use backend::Syscall;
 
 mod separator;
-pub use separator::{DomainSeparator, PUBKEY_ACCOUNT, TRANSACTION};
+pub use separator::{DomainSeparator, PUBKEY_ACCOUNT, SIGNED_OP, TRANSACTION};
 
 mod preimage;
 
@@ -59,6 +59,25 @@ mod transaction;
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub use transaction::transaction_signature_preimage;
 
+#[cfg(feature = "alloc")]
+mod operation;
+#[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+pub use operation::SignedOp;
+
+/// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what `sdk`
+/// re-exports, so test fixtures can derive their spec impls instead of
+/// hand-writing them. `groundhog-u256` has the same shim.
+#[cfg(test)]
+#[doc(hidden)]
+pub mod __sdk_paths {
+    pub use groundhog_contract_spec as __contract_spec;
+    pub use xdrs as __xdrs;
+}
+
+// Address derivation needs a backend; with neither feature the module would be
+// dead code, and a guest that only builds preimages (`SignedOp`) has neither.
+#[cfg(any(feature = "sha2", feature = "syscall"))]
 mod pubkey;
 #[cfg(feature = "sha2")]
 pub use pubkey::sha2;
