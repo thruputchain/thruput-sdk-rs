@@ -254,7 +254,7 @@ pub(crate) fn widen_uninhabited_exn<X>(e: CallFault) -> RawCallError<X> {
         RawCallError::DepthExceeded => RawCallError::DepthExceeded,
         RawCallError::InvokeRejected(c) => RawCallError::InvokeRejected(c),
         RawCallError::Exception(x) => match x {},
-        RawCallError::Fault => RawCallError::Fault,
+        RawCallError::Fault(f) => RawCallError::Fault(f),
         RawCallError::UnparseableReturn(f) => {
             RawCallError::UnparseableReturn(f)
         }
@@ -324,7 +324,11 @@ fn invoke_frame(
                 // out-of-range status would mean the host broke the syscall
                 // contract; it lands here too, which is the safe reading —
                 // the frame did not return a result either way.
-                return Err(RawCallError::Fault);
+                //
+                // Empty because nothing on this path has a message to give:
+                // the frame status is all the runtime reports. A host-side
+                // description captured beside the call would go here.
+                return Err(RawCallError::Fault(FaultString::empty()));
             }
         }
         // The call was rejected before any child frame ran. Each documented

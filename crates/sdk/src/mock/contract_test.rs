@@ -65,7 +65,7 @@ where
                 )),
             }
         }
-        Fault => Err(RawCallError::Fault),
+        Fault => Err(RawCallError::Fault(FaultString::empty())),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }

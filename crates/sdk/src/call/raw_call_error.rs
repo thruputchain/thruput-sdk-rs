@@ -56,12 +56,20 @@ pub enum RawCallError<X = RawException> {
     /// A child frame ran and terminated without producing a result: a panic,
     /// a trap, or exhausting its gas.
     ///
-    /// Carries nothing, on every target. The runtime reports a faulted child
-    /// as a bare frame status with neither a return nor an abort buffer, so
-    /// there is no message to relay even on the host. A callee that wants its
-    /// failure to be legible to its caller must abort with an exception
-    /// instead of faulting.
-    Fault,
+    /// **Nothing populates the message today, on any target** — every
+    /// construction site passes [`FaultString::empty`], so `as_str()` reads
+    /// `"<fault>"`. The runtime reports a faulted child as a bare frame
+    /// status with neither a return nor an abort buffer, so no message
+    /// crosses the call boundary and none ever will: the payload is a seat
+    /// reserved for a *host-side* description captured beside the call (the
+    /// native harness catches the callee's panic and today only prints it),
+    /// not for anything the callee sends. On rv32 it stays a zero-sized
+    /// field, so a guest pays nothing for the seat either way.
+    ///
+    /// A callee that wants its failure to be legible to its caller — on
+    /// chain, not just in a host test — must abort with an exception rather
+    /// than fault.
+    Fault(FaultString),
 
     /// Decode error: the called contract returned some unparseable return result
     UnparseableReturn(FaultString),
@@ -151,9 +159,7 @@ impl<X: core::fmt::Debug> core::fmt::Display for RawCallError<X> {
                 write!(f, "call refused: {code:?}")
             }
             RawCallError::Exception(exn) => write!(f, "exception: {exn:?}"),
-            RawCallError::Fault => {
-                write!(f, "callee faulted without producing a result")
-            }
+            RawCallError::Fault(fault) => write!(f, "fault: {fault}"),
             RawCallError::UnparseableReturn(error) => {
                 write!(f, "unparseable return: {error}")
             }
@@ -193,14 +199,14 @@ impl<X: crate::re_throw::ReThrow> crate::re_throw::ReThrow
             RawCallError::Exception(exn) => {
                 crate::re_throw::ReThrow::re_throw(exn)
             }
-            // A fault carries no message on any target (see the variant
-            // docs), and the rv32 `#[panic_handler]` ignores `PanicInfo`
-            // and issues `ebreak`, so a guest gets no string literal it
-            // would only be paying to store.
+            // Renders whatever host-side description was recorded beside
+            // the call, or `"<fault>"` when none was. A guest has no message
+            // to render and no way to surface one: its `#[panic_handler]`
+            // ignores `PanicInfo` and issues `ebreak`.
             #[cfg(not(target_arch = "riscv32"))]
-            RawCallError::Fault => panic!("called contract faulted"),
+            RawCallError::Fault(f) => panic!("{f}"),
             #[cfg(target_arch = "riscv32")]
-            RawCallError::Fault => panic!(),
+            RawCallError::Fault(_) => panic!(),
             RawCallError::UnparseableReturn(error) => {
                 library_throw(CallingError::DecodingSuccess(error))
             }
@@ -277,10 +283,10 @@ mod tests {
         ];
         for e in &rejected {
             assert!(e.is_rejected_before_call(), "{e:?}");
-            assert_ne!(*e, RawCallError::Fault);
+            assert_ne!(*e, RawCallError::Fault(FaultString::empty()));
         }
 
-        let ran: RawCallError = RawCallError::Fault;
+        let ran: RawCallError = RawCallError::Fault(FaultString::empty());
         assert!(!ran.is_rejected_before_call());
     }
 }

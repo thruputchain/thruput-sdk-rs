@@ -94,8 +94,8 @@ pub fn panic_test(contract_hash: &SHA256Hash) {
     let client = Client::new(&addr);
 
     match client.try_panics() {
-        Err(CallError::Fault) => {
-            println!("OK: Got fault");
+        Err(CallError::Fault(f)) => {
+            println!("OK: Got fault: {}", f);
         }
         Err(e) => {
             panic!("Unexpected error: {:?}", e);

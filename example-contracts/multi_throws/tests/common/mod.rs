@@ -82,8 +82,8 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     // panic. A fault carries no exception, so it stays an ordinary `match`
     // arm rather than a `match_exn!` one.
     match client.try_forward_fault(addr2) {
-        Err(CallError::Fault) => {
-            println!("OK: forwarded fault through call chain");
+        Err(CallError::Fault(ref f)) => {
+            println!("OK: forwarded fault through call chain: {}", f);
         }
         other => panic!("expected forwarded Fault, got {:?}", other),
     }

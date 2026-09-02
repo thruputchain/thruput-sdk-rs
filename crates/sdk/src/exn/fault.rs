@@ -16,6 +16,8 @@ use core::fmt::{self, Debug};
 
 // Host-only, like everything that reads or renders a fault's message.
 #[cfg(not(target_arch = "riscv32"))]
+use core::any::Any;
+#[cfg(not(target_arch = "riscv32"))]
 use core::error::Error;
 #[cfg(not(target_arch = "riscv32"))]
 use core::fmt::Display;
@@ -92,6 +94,23 @@ impl FaultString {
     #[cfg(target_arch = "riscv32")]
     pub fn from_display<S>(_s: S) -> Self {
         Self {}
+    }
+
+    /// Recover a message from a panic payload, when it is a string.
+    ///
+    /// Host-only: a guest neither unwinds nor records a message. Nothing in
+    /// the SDK calls this yet — it is the intended entry point for the
+    /// native harness to hand a caught callee panic to
+    /// [`RawCallError::Fault`](crate::call::RawCallError::Fault), which is
+    /// where a fault's message would have to come from. Nothing on the call
+    /// boundary carries one.
+    #[cfg(not(target_arch = "riscv32"))]
+    pub fn from_any(a: &dyn Any) -> Self {
+        if let Some(s) = a.downcast_ref::<&str>() {
+            Self::from_display(s)
+        } else {
+            Self::from_display("<unknown>")
+        }
     }
 }
 

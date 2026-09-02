@@ -9,6 +9,7 @@
 //! compares equal to every other `FaultString`.
 
 use sdk::call::{RawCallError, try_call_raw_with};
+use sdk::exn::FaultString;
 use sdk::invoke_config::InvokeFlagSet;
 use sdk::*;
 
@@ -62,13 +63,22 @@ fn self_call_reports_reentrance_not_fault() {
 }
 
 /// The distinction has to survive as a *value*, not just as a rendered
-/// message: on rv32 there is no message, and `FaultString` compares equal to
-/// every other `FaultString` on every target, so an assertion on the old
-/// `Fault(_)` shape could not have caught this.
+/// message. `FaultString` compares equal to every other `FaultString` on
+/// every target, and on rv32 it holds nothing at all, so a rejection sharing
+/// the `Fault` variant compared equal to a genuine callee fault — no
+/// assertion on the payload could have separated them. Keeping them in
+/// distinct variants is what makes them distinguishable.
 #[test]
 fn reentrance_is_not_equal_to_fault() {
     let addr = ContractAddress::named("call_rejection_ne");
     let err = call_from_frame_at("call_rejection_ne", &addr);
 
-    assert_ne!(err, RawCallError::Fault);
+    assert_ne!(err, RawCallError::Fault(FaultString::empty()));
+
+    // The premise: any two `Fault`s are equal whatever their messages, so
+    // the variant split is doing the work, not the payload.
+    assert_eq!(
+        RawCallError::<()>::Fault(FaultString::empty()),
+        RawCallError::<()>::Fault(FaultString::from_display("boom")),
+    );
 }
