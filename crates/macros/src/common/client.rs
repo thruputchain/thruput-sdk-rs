@@ -107,6 +107,9 @@ pub fn generate(
             use ::sdk::OrReThrow;
 
             impl #client_ident {
+                /// A client for the contract deployed at `address`, with the
+                /// default invocation configuration: no gas cap and no
+                /// invocation flags.
                 pub fn #constructor_ident(address: &ContractAddress) -> Self {
                     Self {
                         address: address.clone(),
@@ -114,6 +117,8 @@ pub fn generate(
                     }
                 }
 
+                /// A copy of this client whose calls may spend at most
+                /// `gas_limit` gas. The original client is unchanged.
                 pub fn #gas_limit_helper_ident(&self, gas_limit: u64) -> Self {
                     Self {
                         address: self.address.clone(),
@@ -124,25 +129,33 @@ pub fn generate(
                     }
                 }
 
-                pub fn #try_invoke_helper_ident(self) -> Self {
+                /// A copy of this client whose calls ask the callee frame to
+                /// acquire its commit locks before returning, so a `try_`
+                /// call observes a commit conflict as a failure instead of
+                /// the whole transaction failing later. The original client
+                /// is unchanged.
+                pub fn #try_invoke_helper_ident(&self) -> Self {
                     Self {
+                        address: self.address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
                                     | ::sdk::invoke_config::InvokeFlag::TryInvoke.0,
                                 .. self.config
                         },
-                        .. self
                     }
                 }
 
-                pub fn #read_only_helper_ident(self) -> Self {
+                /// A copy of this client whose calls are rejected if the
+                /// callee writes storage, deploys a contract, or performs any
+                /// other state change. The original client is unchanged.
+                pub fn #read_only_helper_ident(&self) -> Self {
                     Self {
+                        address: self.address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
                                     | ::sdk::invoke_config::InvokeFlag::ReadOnly.0,
                                 .. self.config
                         },
-                        .. self
                     }
                 }
 
