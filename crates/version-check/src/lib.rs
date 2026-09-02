@@ -14,6 +14,7 @@ pub mod bump;
 pub mod checks;
 pub mod model;
 pub mod policy;
+pub mod publish_order;
 
 use std::path::Path;
 
