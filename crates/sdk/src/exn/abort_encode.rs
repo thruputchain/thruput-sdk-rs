@@ -261,6 +261,8 @@ mod tests {
             ));
         }
         assert_wire_compat(LibraryExn::Calling(CallingError::Invalid));
+        assert_wire_compat(LibraryExn::Calling(CallingError::Reentrance));
+        assert_wire_compat(LibraryExn::Calling(CallingError::DepthExceeded));
     }
 
     #[test]
