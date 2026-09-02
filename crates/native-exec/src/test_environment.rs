@@ -414,9 +414,35 @@ impl TestEnvironmentInner {
     /// This makes the effects of the previous block visible to the next block.
     /// Only the transactions that were successfully committed will be visible to the next block.
     /// An error may occur if there are any transactions that executed but did not commit or abort.
+    ///
+    /// The new block takes its timepoint from the wall clock. Use
+    /// [`TestEnvironmentInner::advance_block_at`] to pin one instead.
     pub fn advance_block(&mut self) {
-        let res = unsafe { groundhog_sys::advance_new_block(self.db.db) };
+        self.advance_block_inner(std::ptr::null())
+    }
+
+    /// Advances to the next block as [`TestEnvironmentInner::advance_block`]
+    /// does, but pins the new block's timepoint rather than reading the clock.
+    ///
+    /// Blocks only move forward in time: `block_timepoint` must be at or after
+    /// the open block's, and the host refuses an earlier one.
+    pub fn advance_block_at(&mut self, block_timepoint: TimePoint) {
+        let raw: u64 = block_timepoint.into_inner();
+        self.advance_block_inner(&raw)
+    }
+
+    fn advance_block_inner(&mut self, block_timepoint: *const u64) {
+        let res = unsafe {
+            groundhog_sys::advance_new_block(self.db.db, block_timepoint)
+        };
         let err: FFIErrorCode = res.into();
+        if err == FFIErrorCode::InvalidArgument {
+            panic!(
+                "failed to advance block: the requested timepoint precedes the \
+                 block it would follow. Blocks only move forward in time; pin a \
+                 timepoint at or after the current block's."
+            );
+        }
         if err != FFIErrorCode::None {
             panic!("failed to advance block: {:?}", err);
         }
@@ -591,8 +617,29 @@ impl TestEnvironment {
     /// Advance to the next block, making committed effects visible to
     /// subsequent transactions. Panics if a transaction executed but was
     /// neither committed nor aborted.
+    ///
+    /// The new block takes its timepoint from the wall clock, so
+    /// [`sdk::block::get_block_timepoint`] reports a plausible present-day
+    /// value that moves between blocks. Use
+    /// [`TestEnvironmentHandle::advance_block_at`] to drive contract logic
+    /// keyed on time -- deadlines, expiry, vesting, rate limits.
     pub fn advance_block(self: &TestEnvironmentHandle) {
         self.inner.borrow_mut().advance_block()
+    }
+
+    /// Advance to the next block with its timepoint pinned to
+    /// `block_timepoint` (Unix nanoseconds) rather than read from the clock.
+    ///
+    /// Blocks only move forward in time, so this panics if `block_timepoint`
+    /// precedes the current block's. Note the environment opens its first
+    /// block on the wall clock, so pin forward from
+    /// [`sdk::block::get_block_timepoint`] rather than at an absolute past
+    /// date.
+    pub fn advance_block_at(
+        self: &TestEnvironmentHandle,
+        block_timepoint: TimePoint,
+    ) {
+        self.inner.borrow_mut().advance_block_at(block_timepoint)
     }
 
     /// The storage cost model the environment's database is running with.
