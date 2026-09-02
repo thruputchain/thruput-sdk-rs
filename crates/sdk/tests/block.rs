@@ -37,6 +37,14 @@ contract_test!(block_height_and_timepoint_are_independent {
 // contract body returns the timepoint rather than capturing it: `run` takes an
 // UnwindSafe closure, which `&mut` capture is not.
 
+/// The wall clock in Unix nanoseconds, the unit `TimePoint` carries.
+fn wall_clock_nanos() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock is before the Unix epoch")
+        .as_nanos() as u64
+}
+
 fn read_block_timepoint(
     env: &sdk::TestEnvironmentHandle,
     address: &sdk::ContractAddress,
@@ -48,20 +56,38 @@ fn read_block_timepoint(
 }
 
 #[test]
-fn block_timepoint_moves_forward_across_blocks() {
+fn block_timepoint_defaults_to_a_real_clock_reading() {
+    // Before the environment exists: it stamps its first block's timepoint at
+    // construction, so a bound taken afterwards is already too late.
+    let before = wall_clock_nanos();
+
     let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("block_timepoint_advances");
+    let address = sdk::ContractAddress::named("block_timepoint_wall_clock");
 
     let first = read_block_timepoint(&env, &address);
     env.advance_block();
     let second = read_block_timepoint(&env, &address);
+    let after = wall_clock_nanos();
 
-    // Each block takes its own clock reading, so time moves. Before test_ffi
-    // 0.28.0 the host reported one hardcoded constant for every block, and
-    // these two were equal.
+    // Bracketed by clock reads taken around the test. This is what separates a
+    // real Unix-nanosecond reading from the constant the host used to report:
+    // 1'700'000'000 is a Unix *seconds* value in a nanoseconds field, so it
+    // sits about fifty years below `before`.
+    for observed in [first, second] {
+        assert!(
+            (before..=after).contains(&observed),
+            "timepoint {observed} outside [{before}, {after}]"
+        );
+    }
+
+    // Only that blocks do not move backwards -- equal timepoints are legal, so
+    // asserting strict progress here would be testing the clock's granularity
+    // rather than the contract. That successive blocks carry *distinct*
+    // timepoints when asked to is covered deterministically by
+    // advance_block_at_pins_the_timepoint.
     assert!(
-        second > first,
-        "timepoint did not advance: {second} follows {first}"
+        second >= first,
+        "timepoint went backwards: {second} < {first}"
     );
 }
 
