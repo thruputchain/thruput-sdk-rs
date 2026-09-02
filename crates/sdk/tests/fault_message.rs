@@ -15,7 +15,15 @@
 //!
 //! "Not recorded" is the deliberate half: a caller must not be handed some
 //! other frame's message, so absence reads as `"<fault>"` rather than as
-//! whatever was lying around.
+//! whatever was lying around. The last row is covered twice over — once with
+//! the middle contract swallowing the fault and once with it propagating —
+//! because propagation is what carries a panic across two invoke hops, and
+//! that is where a misattributed message would do the most damage.
+//!
+//! There is no `invoke` → mock row: opening a mock frame needs a handler, and
+//! those are neither `Send` nor `Sync`, so a body registered with
+//! `register_method` cannot capture one. That shape is unconstructible rather
+//! than untested.
 
 use sdk::call::{RawCallError, try_call_raw_with};
 use sdk::contract::ContractEntrypointID;
@@ -231,4 +239,110 @@ fn nested_invoke_fault_does_not_leak_outward() {
          {outcome:?}"
     );
     assert_eq!(root_message, None);
+}
+
+/// mock → invoke → invoke, with the middle contract *propagating* rather than
+/// swallowing — the shape `nested_invoke_fault_does_not_leak_outward` does not
+/// reach, since there the middle contract catches and returns normally.
+///
+/// Two invoke hops separate the panic from the reader, and neither can carry a
+/// message. What matters is that the reader is told nothing rather than told
+/// something wrong: the innermost text must not surface two levels up, where
+/// it would name a contract the caller never invoked.
+///
+/// (The third level cannot itself be a mock *frame*: opening one needs a
+/// handler, and those are neither `Send` nor `Sync`, so a contract body
+/// registered with `register_method` cannot capture one. `invoke → mock frame`
+/// is unconstructible, not merely untested.)
+#[test]
+fn fault_propagating_through_a_middle_contract_is_not_misattributed() {
+    let env = TestEnvironment::no_cost();
+    let root_addr = ContractAddress::named("fault_msg_prop_root");
+    let middle_addr = ContractAddress::named("fault_msg_prop_middle");
+    let inner_addr = ContractAddress::named("fault_msg_prop_inner");
+
+    deploy_mock(&env, &inner_addr, || -> () {
+        panic!("innermost contract exploded")
+    });
+
+    // Propagates instead of catching: `or_re_throw` on a `Fault` panics, so
+    // the middle contract's own frame faults too.
+    deploy_mock(&env, &middle_addr, move || {
+        try_call_raw_with(
+            &inner_addr,
+            ContractEntrypointID::from(ENTRY),
+            u64::MAX,
+            &(),
+            InvokeFlagSet::default(),
+            |e| e.to_owned(),
+        )
+        .or_re_throw()
+    });
+
+    let (outcome, root_message) =
+        call_from_frame(&env, &root_addr, &middle_addr);
+
+    match outcome.expect_err("the fault propagates, so the call fails") {
+        RawCallError::Fault(f) => {
+            assert_ne!(
+                f.as_str(),
+                "innermost contract exploded",
+                "the innermost message must not surface two invoke hops up"
+            );
+            assert_eq!(f.as_str(), "<fault>");
+        }
+        other => panic!("expected Fault, got {other:?}"),
+    }
+
+    assert_eq!(
+        root_message, None,
+        "the root frame captured the error rather than panicking, so it has \
+         no message of its own"
+    );
+}
+
+/// The same chain, but the root frame re-throws too, so it faults on its own
+/// account and records a message.
+///
+/// That message comes from `re_throw`'s `panic!("{f}")` rendering an empty
+/// `FaultString`, so it reads `"<fault>"` — the placeholder having round-tripped
+/// through a panic. Pinned because it is the one way a `Fault` message can be
+/// non-`None` without anyone having observed a real one, and it must still not
+/// be the innermost contract's text.
+#[test]
+fn a_rethrown_fault_records_the_placeholder_not_the_inner_text() {
+    let env = TestEnvironment::no_cost();
+    let root_addr = ContractAddress::named("fault_msg_rethrow_root");
+    let callee_addr = ContractAddress::named("fault_msg_rethrow_callee");
+
+    deploy_mock(&env, &callee_addr, || -> () {
+        panic!("callee text that must not travel")
+    });
+
+    let callee = callee_addr;
+    let result = env.transact(|tx| {
+        tx.call(&root_addr).run(move || -> () {
+            try_call_raw_with(
+                &callee,
+                ContractEntrypointID::from(ENTRY),
+                u64::MAX,
+                &(),
+                InvokeFlagSet::default(),
+                |e| e.to_owned(),
+            )
+            .or_re_throw()
+        })
+    });
+
+    assert!(
+        result.frame().is_fault(),
+        "the root frame re-threw, so it faults"
+    );
+    assert_eq!(result.fault_message(), Some("<fault>"));
+
+    let res: Result<(), RawCallError> = into_root_call_result(&result);
+    match res {
+        Err(RawCallError::Fault(f)) => assert_eq!(f.as_str(), "<fault>"),
+        other => panic!("expected Fault, got {other:?}"),
+    }
 }
