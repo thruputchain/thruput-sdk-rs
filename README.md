@@ -143,24 +143,37 @@ git submodule update --init --recursive
 
 ### Rust toolchain
 
-You can use [rustup](https://rustup.rs/) to get a Rust toolchain.
+Install [rustup](https://rustup.rs/). That is the whole requirement: this
+repository's `rust-toolchain.toml` pins the toolchain
+(`nightly-2026-07-01`) together with the `riscv32im-unknown-none-elf`
+contract target and the `rust-src` component (needed to recompile the
+standard library in a more compact form via `-Zbuild-std`), and rustup
+installs all three on the first `cargo` invocation inside this checkout.
 
-Then install the RV32 contract target:
+Do not add the target or component to the floating `nightly` channel
+(`rustup +nightly target add ...`) — that is a different toolchain from the
+pinned one this repository builds with.
 
-```shell
-rustup +nightly target add riscv32im-unknown-none-elf
-```
+Contract (rv32) builds need that pinned nightly — `-Zbuild-std` is a
+nightly-only flag — while the host side is deliberately kept
+stable-compatible: the `nightly` feature of `groundhog-u256` rides the
+`riscv32` target gate precisely so that "host builds of `sdk` (the CLI's
+spec-tool path) stay compilable on stable" (`crates/sdk/Cargo.toml`).
 
-Also, install the rust sources so the build process can
-recompile them in a more compact form to reduce code size:
+### Building the hogd FFI from source (optional)
 
-```shell
-rustup component add rust-src --toolchain nightly
-```
+Native tests link the hogd test-FFI library, which `crates/hogd-sys/build.rs`
+downloads prebuilt by default; nothing beyond the Rust toolchain is needed
+for that path. Only the from-source path — `HOGD_FFI_BUILD=1` together with
+the `source-build` feature — compiles hogd's C++, and it additionally needs:
 
-### Ccache
+- cmake and a clang toolchain (`CC=clang`, `CXX=clang++`: hogd's C++ does not
+  build with gcc), plus libclang for bindgen;
+- [ccache](https://ccache.dev/), which the cmake configuration is wired to
+  use as the compiler launcher.
 
-Install [ccache](https://ccache.dev/) with your package manager.
+See `.github/workflows/hogd_build_from_source.yml` for the exact environment
+CI uses for that path.
 
 ## Building
 
