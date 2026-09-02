@@ -191,7 +191,8 @@ pub use hasher::*;
 pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
-pub use mintable::*;
+// Explicit: a glob would republish #[doc(hidden)] mintable internals.
+pub use mintable::{AuthTokenPreimage, Mintable, MintableType};
 pub use re_throw::*;
 pub use receive_auth_handles::*;
 pub use rt::*;
