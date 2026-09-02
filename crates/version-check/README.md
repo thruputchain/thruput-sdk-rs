@@ -115,6 +115,7 @@ none short-circuits, so one run tells you everything that needs fixing.
 | `lockfile` | Every lockfile agrees with the manifests on in-repo versions, and locks in-repo packages from their path rather than a registry source. | The six lockfiles are the easiest thing to forget; the registry-source case is a `grep`-proof failure. |
 | `default-members` | Non-target-only `crates/*` members appear in `default-members`. | Host-wide `cargo build`/`test`/`doc` build only `default-members`, so an omitted crate is silently untested. |
 | `external-agreement` | Every manifest pinning the same external crate pins it identically. | Probably what we want. (Compares version requirements only, not features.) |
+| `publish-order` | Every in-repo dependency is vendored and published before its dependent in `.github/workflows/publish.yml`. | `cargo package` resolves dev-dependencies too, so a list out of order fails the release itself. The workflow is dispatched by hand, so the first run to exercise a new edge is usually a real release. |
 
 ## Exceptions
 
@@ -162,7 +163,8 @@ Not yet implemented, in rough order of value:
   `PRIMARY_PACKAGES` or `INTERFACE_PACKAGES` list of
   `.github/workflows/publish.yml`. A new published crate missing from the
   release workflow is the same class of error as a missed pin, and is currently
-  caught only by noticing it never shipped.
+  caught only by noticing it never shipped. `publish-order` already reads those
+  lists, so this needs the coverage rule rather than any new parsing.
 - **`ffi-version`** — `crates/hogd-sys/build.rs` carries a `TEST_FFI_VERSION`
   constant on its own independent version line. Worth at least parsing and
   sanity-checking, though what it should be checked *against* is unclear.

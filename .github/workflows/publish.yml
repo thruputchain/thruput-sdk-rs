@@ -41,16 +41,18 @@ env:
   # Workspace-versioned crates published under the `v<version>` tag, in
   # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
   # line but is named separately: those crates publish after the standard
-  # interfaces, while these are what the interfaces depend on.
+  # interfaces, while these are what the interfaces depend on. Dev-dependencies
+  # count toward that order: packaging resolves them too, so `groundhog-macros`
+  # precedes `groundhog-domain-separator`, whose tests use it.
   PRIMARY_PACKAGES: >-
     groundhog-event
     groundhog-storage-cost
     groundhog-contract-util
     groundhog-contract-spec
     groundhog-sys
+    groundhog-macros
     groundhog-domain-separator
     groundhog-native-exec
-    groundhog-macros
     groundhog-u256
     groundhog-test-vectors
     groundhog-rv32-runtime
@@ -120,16 +122,17 @@ jobs:
           # each other) as workspace path deps — `cargo vendor` skips those, so
           # the offline packaging steps need them pre-vendored. Pre-vendoring a
           # crate resolves its deps against vendor/ too, so the crates it
-          # depends on come first, in dependency order.
+          # depends on come first, in dependency order — dev-dependencies
+          # included.
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
             groundhog-contract-util
             groundhog-contract-spec
             groundhog-sys
+            groundhog-macros
             groundhog-domain-separator
             groundhog-native-exec
-            groundhog-macros
             groundhog-u256
             groundhog-rv32-runtime
             sdk
@@ -193,9 +196,9 @@ jobs:
             groundhog-contract-util
             groundhog-contract-spec
             groundhog-sys
+            groundhog-macros
             groundhog-domain-separator
             groundhog-native-exec
-            groundhog-macros
             groundhog-u256
             groundhog-rv32-runtime
             sdk
