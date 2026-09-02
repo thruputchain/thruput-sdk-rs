@@ -125,15 +125,29 @@ There is no `U512`, and none is needed: Solidity has no type wider than
 `uint256` either, and the only consumers of a 512-bit intermediate in
 `Math.sol` — `mulDiv` and `mulShr` — are here whole.
 
-Note that this repository contains
-[git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
-To include their contents when cloning, use:
+### Cloning
 
 ```shell
-git clone --recurse-submodules ${REPO_URL}
+git clone ${REPO_URL}
 ```
 
-To retrieve or update their contents in an existing cloned repository, use:
+Do **not** pass `--recurse-submodules`. This repository has one
+[submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules),
+`integration_test/contracts`, and `.gitmodules` points it at
+`ssh://git@github.com/groundhogchain/integration_test_contracts.git` — a
+private repository, so the recursive clone fails for anyone outside the
+team.
+
+It is internal-only. The one thing that needs its contents is the
+integration block of `scripts/dev.sh ci` — `itc_build_rv32_all`,
+`itc_test_all` and `itc_bottle_test_all` (`scripts/dev.sh:937-941`) — which
+`SKIP_INTEGRATION=1` skips. (`dev.sh lint` also walks
+`integration_test/contracts`, but an unpopulated directory yields no
+packages, so it is a no-op there.) Everything else — the SDK's own tests,
+the docs build, `example-contracts`, and the quality checks — runs without
+the submodule.
+
+Team members with access populate it the usual way:
 
 ```shell
 git submodule update --init --recursive
