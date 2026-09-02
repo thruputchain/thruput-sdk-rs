@@ -35,11 +35,32 @@ deployed artifact, and a contract spec describing the interface. Declaring
 exceptions is a separate step, covered under
 [calling and errors](#calling-and-errors).
 
-Sections: [Cargo features](#cargo-features), [storage](#storage),
-[calling and errors](#calling-and-errors), [events](#events),
-[authorization](#authorization), [arithmetic](#arithmetic),
-[system functions](#system-functions),
+Sections: [stability](#stability), [Cargo features](#cargo-features),
+[storage](#storage), [calling and errors](#calling-and-errors),
+[events](#events), [authorization](#authorization),
+[arithmetic](#arithmetic), [system functions](#system-functions),
 [interfaces and specs](#interfaces-and-specs), and [testing](#testing).
+
+# Stability
+
+The SDK is `0.x`, and `0.x` here means what Cargo means by it: **any minor
+release may break your contract.** A `0.27` → `0.28` bump is allowed to
+rename, move or delete public items, and the reorganization this crate still
+has ahead of it will use that allowance. Pin the exact version you build
+against, and read the release notes before moving.
+
+Two parts of the surface are not public API at all, at any version:
+
+- **[`mod@internal`]** — the landing pad for what macro expansions call.
+  Generated code writes `::sdk::internal::…`, which is why the module is
+  `pub`; hand-written contract code should never name it.
+- **Anything marked `#[doc(hidden)]`** — if an item has no page in these
+  docs, it is an implementation detail, whether or not a path reaches it.
+
+Both change without notice, including in a patch release. What *is* covered
+by the version number is everything else documented here: the macros, the
+storage types, the exception and authorization vocabulary, the client API,
+and the test harness.
 
 # Cargo features
 

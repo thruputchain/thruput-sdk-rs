@@ -152,8 +152,6 @@ pub use call::ContractClient;
 // constantly, so it belongs at the root next to `match_exn!`.
 pub use call::CallError;
 
-// TODO: Make these modules pub(crate) at most, in order to allow
-// reorganization without breaking changes.
 pub mod auth_claim;
 pub mod block;
 pub mod collect_auth_handles;
