@@ -47,8 +47,8 @@ version = "0.27.0"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
-repository = "https://github.com/groundhogchain/sdk_rs.git"
-homepage = "https://github.com/groundhogchain/sdk_rs.git"
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
 keywords = ["groundhog"]
 categories = ["blockchain"]
 
