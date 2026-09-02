@@ -67,8 +67,8 @@ The resulting spec must be:
 
 - No events in this slice.
 - No derive macros in this slice.
-- No replacement of the legacy [`src/spec.rs`](/Users/geoff/groundhog/sdk_rs/src/spec.rs)
-  path in this slice.
+- No replacement of the legacy `src/spec.rs` path in this slice. (That file
+  no longer exists; the spec model lives in `crates/contract-spec/` today.)
 - No indexed type references in emitted fragments or in the canonical wire
   format.
 - No final customization surface for user-defined type symbols yet.

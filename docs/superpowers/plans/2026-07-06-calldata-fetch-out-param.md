@@ -8,7 +8,7 @@
 
 **Architecture:** The shared calldata machinery becomes `fetch_calldata_and_auth_tokens(&mut Calldata, &mut AuthTokenIdBuf)` — non-generic, `#[inline(never)]`, throwing. Macro-generated wrappers own the two buffers as frame locals, call the primitive directly, and run their decode/invoke/encode body inline. No closure, no `as fn` cast, no `call_indirect` anywhere in the entrypoint path.
 
-**Tech Stack:** Rust (workspace at `/Users/geofframseyer/groundhog/sdk_rs`), proc-macro codegen via `quote!`, wasm fleet built with `scripts/dev.sh`, `wasm-objdump` for table inspection.
+**Tech Stack:** Rust (this workspace), proc-macro codegen via `quote!`, wasm fleet built with `scripts/dev.sh`, `wasm-objdump` for table inspection.
 
 ## Global Constraints
 
@@ -320,7 +320,8 @@ pub fn calldata(count: u32) {
 
 - [ ] **Step 3: Verify the identifier is fully gone and the contract builds**
 
-Run: `grep -rn "with_calldata_and_auth_tokens" /Users/geofframseyer/groundhog/sdk_rs --include="*.rs"`
+Run: `grep -rn "with_calldata_and_auth_tokens" . --include="*.rs"` from the
+repository root
 Expected: no output.
 
 Run (from the repo root): `scripts/dev.sh build integration_test/calldata_raw`
@@ -375,8 +376,8 @@ If any table exceeds its expectation, dump the element segment (`wasm-objdump -x
 - [ ] **Step 3: Record wasm sizes**
 
 ```bash
-ls -l target/optimized/*.wasm | awk '{print $5, $9}' | sort -k2 > /private/tmp/claude-501/-Users-geofframseyer-groundhog-sdk-rs/f5dde5ef-adf3-4f86-95c6-20e0d8c49b64/scratchpad/sizes-branch.txt
-cat /private/tmp/claude-501/-Users-geofframseyer-groundhog-sdk-rs/f5dde5ef-adf3-4f86-95c6-20e0d8c49b64/scratchpad/sizes-branch.txt
+ls -l target/optimized/*.wasm | awk '{print $5, $9}' | sort -k2 > /tmp/scratchpad/sizes-branch.txt
+cat /tmp/scratchpad/sizes-branch.txt
 ```
 
 Known main baselines to compare against: `authclaim_test` 4761 B, `dev_wallet` 10070 B (optimized). Expected: ~neutral per contract (each export trades a 32-byte thunk for buffer locals + one direct call; the table and its element segment shrink). A regression of more than a few hundred bytes on any single contract means LTO re-inlined the fetch body — verify `#[inline(never)]` survived and investigate before proceeding.

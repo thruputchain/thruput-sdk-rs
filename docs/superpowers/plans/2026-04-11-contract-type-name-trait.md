@@ -228,7 +228,7 @@ cargo check -p groundhog-macros
 
 Run:
 ```bash
-cd /Users/geoff/groundhog/sdk_rs/example-contracts && cargo check -p spec_named_types --features dev
+cd example-contracts && cargo check -p spec_named_types --features dev
 ```
 
 - [ ] **Step 5: Commit**
@@ -337,7 +337,7 @@ cargo check -p groundhog-macros && cargo test -p groundhog-macros --lib
 
 Run:
 ```bash
-cd /Users/geoff/groundhog/sdk_rs/example-contracts && cargo check -p exceptions --features dev && cargo check -p multi_throws --features dev
+cd example-contracts && cargo check -p exceptions --features dev && cargo check -p multi_throws --features dev
 ```
 
 - [ ] **Step 5: Update compile-fail stderr if needed**
