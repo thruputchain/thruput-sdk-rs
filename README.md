@@ -2,6 +2,32 @@ This SDK facilitates writing contracts in Rust.
 
 ## Contract Author Quickstart
 
+The canonical way to start a contract is the CLI scaffold. It writes the
+manifest, `src/lib.rs`, the `#![no_main]` `src/main.rs` wrapper and a
+`rust-toolchain.toml`, and `scripts/scaffold-smoke.sh` runs exactly this
+path — `groundhog new`, then `groundhog build` — against this checkout on
+every push to `main`:
+
+```shell
+groundhog new my-contract
+cd my-contract
+groundhog build          # compiles and lowers the rv32 artifact
+```
+
+Installing the CLI goes through the private Groundhog registry today, which
+is what this repository's own scripts do (`scripts/ci.sh`,
+`scripts/scaffold-smoke.sh`):
+
+```shell
+cargo install groundhog-cli --registry groundhog --locked
+```
+
+That needs a `groundhog` registry index and token (see `.cargo/config.toml`
+and `CARGO_REGISTRIES_GROUNDHOG_TOKEN`); CI additionally installs the exact
+version pinned in `scripts/groundhog-cli-version.sh`. There is no public
+install path yet — distribution is tracked in
+[groundhogchain/packaging#86](https://github.com/groundhogchain/packaging/issues/86).
+
 Polished examples and tutorials are maintained outside this repository:
 the [developer docs](https://docs.groundhog.dev/start/getting-started/) walk
 through scaffolding a project with `groundhog new`, and
@@ -10,23 +36,51 @@ holds worked contracts. (The `example-contracts/` directory here is an
 internal test corpus for SDK development, not a set of recommended starting
 points.)
 
-Contract crates using the native test harness typically need:
+### The contract crate
+
+A contract crate is an ordinary Rust crate: an rlib holding the contract,
+plus a thin rv32 binary that force-links it so the entrypoint records reach
+the artifact. Without that `[[bin]]` and its `src/main.rs` wrapper there is
+no artifact to deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) —
+the SDK's front page, also readable through `./scripts/dev.sh open-docs` —
+explains each piece, and documents this manifest:
 
 ```toml
 [features]
-# Required: the #[contract] macro gates guest entrypoint codegen on this.
+# Yours, not the SDK's. `#[contract]` gates guest entrypoint codegen on it,
+# so a dependency cannot inject entrypoints into your binary.
 entrypoints = []
 dev = ["sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
 
+# The rv32 artifact. `groundhog build -p my-contract` derives
+# `--bin my-contract` from the package name, so this name must match it.
+# src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
+# my_contract;` force-links the rlib so the entrypoint records reach the
+# binary.
+[[bin]]
+name = "my-contract"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
-sdk = { path = "../sdk_rs/crates/sdk" }
+sdk = { workspace = true }
 
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
 ```
+
+`sdk = { workspace = true }` assumes a workspace to inherit the pin from; a
+standalone project carries a published version requirement on that line
+instead, which is what the scaffold writes (`scripts/scaffold-smoke.sh`
+rewrites it to a path dependency to test the scaffold against this
+checkout).
+
+Native tests additionally link the hogd test-FFI library, downloaded on
+first build by `crates/hogd-sys/build.rs`, so `cargo test` needs access to
+that download as well as to the registry.
 
 Tests run contracts natively against a `TestEnvironment` (an in-process
 groundhog instance). The canonical pattern is the fluent transaction API:
