@@ -326,8 +326,10 @@ fn invoke_frame(
                 // the frame did not return a result either way.
                 //
                 // Empty because nothing on this path has a message to give:
-                // the frame status is all the runtime reports. A host-side
-                // description captured beside the call would go here.
+                // the frame status is all the runtime reports, and the
+                // callee's own panic was caught inside the runtime's frame.
+                // The harness records a message only for a frame it ran
+                // itself — see `into_root_call_result`.
                 return Err(RawCallError::Fault(FaultString::empty()));
             }
         }

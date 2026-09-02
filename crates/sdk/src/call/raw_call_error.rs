@@ -56,15 +56,24 @@ pub enum RawCallError<X = RawException> {
     /// A child frame ran and terminated without producing a result: a panic,
     /// a trap, or exhausting its gas.
     ///
-    /// **Nothing populates the message today, on any target** — every
-    /// construction site passes [`FaultString::empty`], so `as_str()` reads
-    /// `"<fault>"`. The runtime reports a faulted child as a bare frame
-    /// status with neither a return nor an abort buffer, so no message
-    /// crosses the call boundary and none ever will: the payload is a seat
-    /// reserved for a *host-side* description captured beside the call (the
-    /// native harness catches the callee's panic and today only prints it),
-    /// not for anything the callee sends. On rv32 it stays a zero-sized
-    /// field, so a guest pays nothing for the seat either way.
+    /// The message is *host-side state recorded beside the call*, never
+    /// something the callee sent: the runtime reports a faulted child as a
+    /// bare frame status with neither a return nor an abort buffer, so no
+    /// message crosses the call boundary and none ever will. That splits the
+    /// two cases:
+    ///
+    /// - **A frame the native harness ran itself** — the root frame of an
+    ///   `env.transact`, reaching here through `into_root_call_result`. The
+    ///   harness caught that panic, so the message is the panicking body's
+    ///   own.
+    /// - **A `raw_Invoke`ed callee** — caught inside the runtime's own
+    ///   frame, where there is nothing to attribute a message against, so
+    ///   the payload is [`FaultString::empty`] and `as_str()` reads
+    ///   `"<fault>"`. Reporting anything else here would mean reporting some
+    ///   other frame's message.
+    ///
+    /// On rv32 there is no message either way: `FaultString` is a zero-sized
+    /// field there, so a guest pays nothing for carrying one.
     ///
     /// A callee that wants its failure to be legible to its caller — on
     /// chain, not just in a host test — must abort with an exception rather
