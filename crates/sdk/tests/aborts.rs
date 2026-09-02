@@ -15,7 +15,7 @@ fn test_panic() {
     });
     let res: Result<(), RawCallError> = into_root_call_result(&result);
     assert!(
-        matches!(res, Err(RawCallError::Fault(_))),
+        matches!(res, Err(RawCallError::Fault)),
         "Unexpected invocation result: {:?}",
         res
     );

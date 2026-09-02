@@ -45,7 +45,7 @@ impl ExnCatch for Contract {
         match outcome {
             Ok(()) => 0,
             // Carries no exception, so it stays an ordinary `match` arm.
-            Err(CallError::Fault(_)) => 1,
+            Err(CallError::Fault) => 1,
             Err(e) => match_exn!(e, {
                 AlphaError::NotFound => 2,
                 AlphaError::Overflow => 3,
