@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "SDK"
+description = "Groundhog smart-contract SDK for Rust (rv32 guest runtime and native test harness)"
 metadata.docs.rs.features = [
     "std",
 ]
