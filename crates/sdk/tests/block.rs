@@ -98,15 +98,15 @@ fn advance_block_at_pins_the_timepoint() {
 
     // Pin forward from where we are: the environment opens its first block on
     // the wall clock, and blocks may not move backwards.
-    const ONE_HOUR_NANOS: u64 = 3_600_000_000_000;
-    let pinned = read_block_timepoint(&env, &address) + ONE_HOUR_NANOS;
+    let one_hour = sdk::time::Duration::HOUR.as_nanos();
+    let pinned = read_block_timepoint(&env, &address) + one_hour;
 
     env.advance_block_at(pinned.into());
     assert_eq!(read_block_timepoint(&env, &address), pinned);
     // Still fixed for the whole block.
     assert_eq!(read_block_timepoint(&env, &address), pinned);
 
-    let later = pinned + ONE_HOUR_NANOS;
+    let later = pinned + one_hour;
     env.advance_block_at(later.into());
     assert_eq!(read_block_timepoint(&env, &address), later);
 }

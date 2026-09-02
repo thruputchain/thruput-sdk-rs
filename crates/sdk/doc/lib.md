@@ -353,7 +353,7 @@ The SDK provides convenient wrappers around Groundhog syscalls:
 
 Context about the running transaction:
 
-- [`mod@block`]: the height of the block being executed in
+- [`mod@block`]: the height and timepoint of the block being executed in
 - [`mod@stats`]: transaction statistics, including
   [`gas_remaining()`](stats::gas_remaining)
 - [`mod@log`]: contract logging
@@ -364,6 +364,39 @@ Other useful modules and types:
   - [`ContractAddress`](ContractAddress)
   - [`StorageKey`](StorageKey)
   - [`PublicKey`](PublicKey)
+
+# Time And Block Heights
+
+[`get_block_timepoint`](block::get_block_timepoint) is the block's Unix
+nanoseconds as a [`TimePoint`], and [`get_block_height`](block::get_block_height)
+its [`BlockHeight`]. Arithmetic on them goes through two SDK types --
+[`Duration`](time::Duration) for time and [`BlockCount`](block::BlockCount)
+for heights -- so a deadline reads the way it does in Solidity:
+
+```rust,ignore
+use sdk::time::Duration;
+use sdk::*;
+
+let now = get_block_timepoint();
+let deadline = &now + 7 * Duration::DAY;          // or Duration::from_days(7)
+ensure(now < deadline, Error::Expired);
+let elapsed = now.duration_since(&start);         // saturates at zero
+
+let review = get_block_height() + BlockCount::new(100);
+let waited = get_block_height().blocks_since(&opened);
+```
+
+[`Duration`](time::Duration) mirrors `core::time::Duration` -- the same
+constructors, accessors, and operators, plus `DAY` / `WEEK` unit constants --
+and converts to and from it. It is one `u64` of nanoseconds on the wire, like
+`TimePoint`, so both it and `BlockCount` can be `#[contract_type]` fields,
+method arguments, and [`Value`](storage::Value)s. The checked and saturating
+forms live on [`TimePointExt`] and [`BlockHeightExt`].
+
+Unlike the integer primitives above, this arithmetic **panics on overflow in
+every profile**: a deadline that wrapped into the past would be a security
+bug, and `core::time` behaves the same way. See the [`time`](mod@time) module
+docs.
 
 # Interfaces And Specs
 

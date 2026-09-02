@@ -4,7 +4,7 @@ use groundhog_xdr::{
     syserr::SysErr,
     types::{
         BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
-        SHA256Hash,
+        SHA256Hash, TimePoint,
     },
 };
 
@@ -19,6 +19,12 @@ impl ContractTypeRefSpec for ContractAddress {
 impl ContractTypeRefSpec for BlockHeight {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I64,
+    };
+}
+
+impl ContractTypeRefSpec for TimePoint {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U64,
     };
 }
 

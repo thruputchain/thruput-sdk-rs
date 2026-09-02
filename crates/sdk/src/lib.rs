@@ -153,6 +153,7 @@ pub mod rt;
 pub mod serialize;
 pub mod signer;
 pub mod stats;
+pub mod time;
 pub mod types;
 
 #[doc(hidden)]
@@ -178,6 +179,7 @@ pub use rt::*;
 pub use serialize::*;
 pub use signer::*;
 pub use throw::*;
+pub use time::*;
 pub use types::*;
 pub use util::*;
 // XDR serialization vocabulary that is part of the SDK's public API (macro
