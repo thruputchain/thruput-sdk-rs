@@ -62,11 +62,13 @@ sed -i.bak -E \
     "s|^sdk = \{ version = \"[^\"]+\", registry = \"groundhog\"|sdk = { path = \"$SDK_DIR/crates/sdk\"|" \
     Cargo.toml
 rm Cargo.toml.bak
-# A template that still resolves sdk from the registry would test the
-# published release instead of this checkout — the failure this script exists
-# to prevent, and one that is invisible in a passing build.
-if grep -q '^sdk = .*registry = "groundhog"' Cargo.toml; then
-    echo "error: an '^sdk = ' line still resolves sdk from the registry;" >&2
+# Every inline declaration must now point at this checkout. Assert the path
+# is present rather than that a registry reference is absent: an absence
+# check would restate the rewrite's own assumptions about quoting and key
+# order, and so pass on exactly the templates the rewrite silently skips —
+# leaving the smoke test to build the published release and still succeed.
+if grep '^sdk = ' Cargo.toml | grep -qvF "path = \"$SDK_DIR/crates/sdk\""; then
+    echo "error: an '^sdk = ' line was not rewritten to this checkout;" >&2
     echo "the CLI template layout changed — update $0" >&2
     exit 1
 fi
