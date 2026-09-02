@@ -65,7 +65,16 @@ where
                 )),
             }
         }
-        Fault => Err(RawCallError::Fault(FaultString::empty())),
+        // The harness caught this frame's own panic and kept its message;
+        // there is none when the fault came from a called contract instead
+        // (see `TransactResult::fault_message`), and `empty()` reads back as
+        // `"<fault>"` for that case.
+        Fault => Err(RawCallError::Fault(
+            result
+                .fault_message()
+                .map(FaultString::from_display)
+                .unwrap_or_else(FaultString::empty),
+        )),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }

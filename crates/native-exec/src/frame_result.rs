@@ -39,6 +39,7 @@ pub struct FrameResult {
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
+    fault_message: Option<String>,
 }
 
 impl FrameResult {
@@ -52,7 +53,31 @@ impl FrameResult {
             output,
             trace,
             events,
+            fault_message: None,
         }
+    }
+
+    /// Attach the message from the panic that faulted this frame.
+    pub fn with_fault_message(mut self, message: Option<String>) -> Self {
+        self.fault_message = message;
+        self
+    }
+
+    /// The message from the panic that faulted this frame's own body.
+    ///
+    /// `None` whenever there is nothing to report rather than nothing to
+    /// find, and the two are worth telling apart:
+    ///
+    /// - the frame did not fault, or faulted without a string payload;
+    /// - the frame faulted because a `raw_Invoke`ed callee did. That callee
+    ///   ran in a frame the runtime owns, caught its own panic in
+    ///   `invoke_wrapper`, and reported an error code — the message never
+    ///   reaches this side. It is still printed to stderr by the panic hook.
+    ///
+    /// So a message here is always *this* frame's body panicking, never a
+    /// nested frame's.
+    pub fn fault_message(&self) -> Option<&str> {
+        self.fault_message.as_deref()
     }
 
     // -- Status checks (using pattern matching for safety) --

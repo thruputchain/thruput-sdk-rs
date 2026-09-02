@@ -125,6 +125,15 @@ pub struct MockInvocationFrame {
     state: MockInvocationFrameState,
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     root_frame_closed: Option<Rc<Cell<bool>>>,
+    /// The message from the panic that faulted THIS frame's body, recorded
+    /// at `execute`'s catch site.
+    ///
+    /// Set only for a plain panic out of this frame's own lambda, which is
+    /// what makes it this frame's rather than a nested one's: a child frame
+    /// catches its own panic and closes itself, so the panic never reaches
+    /// here; and a `raw_Invoke`ed callee is caught by `invoke_wrapper`,
+    /// which has no frame to record against at all (see `fault_message`).
+    fault_message: Option<String>,
 }
 
 impl MockInvocationFrame {
@@ -165,6 +174,7 @@ impl MockInvocationFrame {
             state: MockInvocationFrameState::Started,
             context_pushcount,
             root_frame_closed,
+            fault_message: None,
         }
     }
 
@@ -350,6 +360,13 @@ impl MockInvocationFrame {
                     // an ordinary panic payload is contract code panicking
                     // (already printed by the hook): a deterministic failure
                     // of this frame.
+                    //
+                    // Keep the message before closing: this is the one point
+                    // where the payload and the frame it belongs to are both
+                    // in hand, on one thread, with no ambiguity about which
+                    // frame faulted.
+                    self.fault_message =
+                        crate::invoke_error::panic_payload_message(&*err);
                     self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Deterministic);
                 }
             }
@@ -363,6 +380,7 @@ impl MockInvocationFrame {
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
+                    .with_fault_message(self.fault_message.clone())
             }
             _ => {
                 eprintln!(

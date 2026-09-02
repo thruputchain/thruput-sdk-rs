@@ -19,7 +19,7 @@ fn call_from_frame_at(
     target: &ContractAddress,
 ) -> RawCallError<()> {
     let env = TestEnvironment::no_cost();
-    let target = target.clone();
+    let target = *target;
     let mut captured = None;
 
     let result = env.transact(|tx| {

@@ -160,6 +160,23 @@ pub(crate) fn is_panic_hook_active() -> bool {
     PANIC_HOOK_DEPTH.with(|c| c.get()) > 0
 }
 
+/// The message from a panic payload, when it carries one.
+///
+/// Covers the two shapes `panic!` produces — a `&'static str` for a literal
+/// message and a `String` for a formatted one. Any other payload (a
+/// `panic_any` of some other type) has no message to report and yields
+/// `None` rather than a placeholder, so a caller can tell "no message" from
+/// a message that happens to read like one.
+pub fn panic_payload_message(
+    payload: &(dyn std::any::Any + Send),
+) -> Option<String> {
+    if let Some(s) = payload.downcast_ref::<&'static str>() {
+        Some((*s).to_string())
+    } else {
+        payload.downcast_ref::<String>().cloned()
+    }
+}
+
 /// Wrap a contract closure in the catch site that maps its panics to
 /// groundhog invoke error codes.
 ///
