@@ -5,7 +5,6 @@ error[E0277]: `u64` cannot be stored in a `Map` or `Vector`
    |                        ^^ the trait `StorageType` is not implemented for `u64`
    |
    = note: element types must be storage handles: wrap plain data in `Value<u64>`; a nested `#[storage]` struct goes in `Node<_>`
-   = note: the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node`
    = help: the following other types implement trait `StorageType`:
              Balance
              Bytestring

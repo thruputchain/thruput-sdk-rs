@@ -1,4 +1,8 @@
+use super::balance::Balance;
+use super::bytestring::Bytestring;
+use super::capacity_constraint::CapacityConstraint;
 use super::keypath::Keypath;
+use super::nnint::NNInt;
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
 use groundhog_xdr::storage_item::StorageDeltaFlags;
@@ -8,8 +12,9 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 #[allow(private_bounds)]
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be stored in a `Map` or `Vector`",
-    note = "element types must be storage handles: wrap plain data in `Value<{Self}>`; a nested `#[storage]` struct goes in `Node<_>`",
-    note = "the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node`"
+    // No list of handle types here: the trait is sealed with explicit impls,
+    // so rustc enumerates them itself. A hand-kept copy only drifts.
+    note = "element types must be storage handles: wrap plain data in `Value<{Self}>`; a nested `#[storage]` struct goes in `Node<_>`"
 )]
 pub trait StorageType: Sealed + From<Keypath> {}
 
@@ -23,15 +28,21 @@ pub trait StorageType: Sealed + From<Keypath> {}
 /// `#![feature(trivial_bounds)]`, which is never the fix.
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be a storage field",
-    note = "storage fields hold handles, not values: wrap plain data in `Value<{Self}>`",
-    note = "the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node` for a nested `#[storage]` struct"
+    // Replaces rustc's default "the trait `X` is not implemented" label. The
+    // trait name still reaches the user in the help lines rustc adds, but the
+    // span annotation reads as guidance rather than naming an internal marker.
+    label = "not a storage handle",
+    // No list here either: the impls below are explicit and the `#[storage]`
+    // derive adds one per struct, so rustc prints the set itself.
+    note = "storage fields hold handles, not values: wrap plain data in `Value<{Self}>`"
 )]
-pub trait StorageField {
+#[doc(hidden)]
+pub trait __StorageFieldDiagnostic {
     /// Build the field handle from its keypath.
     ///
     /// The trait's only item, and `From<Keypath>` is deliberately *not* a
     /// supertrait: with one the failure of a non-storage field would be
-    /// reported twice, once for `StorageField` and once for the supertrait
+    /// reported twice, once for `__StorageFieldDiagnostic` and once for the supertrait
     /// obligation behind it. The blanket impl below supplies this for every
     /// `From<Keypath>` type, so the set of accepted field types is the same
     /// either way. Not intended to be called or implemented directly.
@@ -39,11 +50,39 @@ pub trait StorageField {
     fn __from_keypath(keypath: Keypath) -> Self;
 }
 
-// `do_not_recommend` keeps rustc from reporting this impl's unsatisfied
-// `From<Keypath>` bound in place of the `StorageField` bound the derive
-// wrote, which is what carries the diagnostic above.
-#[diagnostic::do_not_recommend]
-impl<T: From<Keypath>> StorageField for T {
+macro_rules! storage_field {
+    ($($ty:ty),* $(,)?) => {$(
+        impl __StorageFieldDiagnostic for $ty {
+            fn __from_keypath(keypath: Keypath) -> Self {
+                Self::from(keypath)
+            }
+        }
+    )*};
+}
+
+storage_field!(NNInt, Balance, Bytestring, CapacityConstraint);
+
+impl<T> __StorageFieldDiagnostic for super::value::Value<T> {
+    fn __from_keypath(keypath: Keypath) -> Self {
+        Self::from(keypath)
+    }
+}
+impl<K, V> __StorageFieldDiagnostic for super::map::Map<K, V> {
+    fn __from_keypath(keypath: Keypath) -> Self {
+        Self::from(keypath)
+    }
+}
+impl<S> __StorageFieldDiagnostic for super::vector::Vector<S> {
+    fn __from_keypath(keypath: Keypath) -> Self {
+        Self::from(keypath)
+    }
+}
+impl<S> __StorageFieldDiagnostic for super::rcq::RCQ<S> {
+    fn __from_keypath(keypath: Keypath) -> Self {
+        Self::from(keypath)
+    }
+}
+impl<T: From<Keypath>> __StorageFieldDiagnostic for Node<T> {
     fn __from_keypath(keypath: Keypath) -> Self {
         Self::from(keypath)
     }
