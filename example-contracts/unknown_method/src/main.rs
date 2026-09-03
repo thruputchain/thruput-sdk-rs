@@ -1,7 +1,7 @@
 //! RV32 binary wrapper for the `unknown_method` contract.
 //!
-//! `groundhog build --target rv32` derives `--bin unknown_method` from the
-//! package name, so this target is what produces the deployable ELF.
+//! `groundhog build` derives `--bin unknown_method` from the package name, so
+//! this target is what produces the deployable ELF.
 
 #![no_std]
 #![no_main]

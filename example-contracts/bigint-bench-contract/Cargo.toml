@@ -15,9 +15,9 @@ edition.workspace = true
 crate-type = ["rlib"]
 doctest = false
 
-# The rv32 artifact. `groundhog build --target rv32 -p bigint-bench-contract`
-# derives `--bin bigint_bench_contract` from the package name, so the name here
-# must stay the underscored package name.
+# The rv32 artifact. `groundhog build -p bigint-bench-contract` derives
+# `--bin bigint_bench_contract` from the package name, so the name here must
+# stay the underscored package name.
 [[bin]]
 name = "bigint_bench_contract"
 path = "src/main.rs"
