@@ -4,9 +4,7 @@
 //! Reentrance and the cross-invoke depth bound are reported by `Invoke` as
 //! syscall errors, distinct from `kSyscallErrorCodeInvalidSyscallInput`. They
 //! used to be stringified into the `Fault` variant's message, which made them
-//! indistinguishable from a panicking callee — completely so on rv32, where
-//! that message compiles out, and even on the host, where `FaultString`
-//! compares equal to every other `FaultString`.
+//! indistinguishable from a panicking callee.
 
 use sdk::PanicRecord;
 use sdk::call::{RawCallError, try_call_raw_with};

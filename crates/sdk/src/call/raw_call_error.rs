@@ -74,13 +74,7 @@ pub enum RawCallError<X = RawException> {
     ///   `"<fault>"`. Reporting anything else here would mean reporting some
     ///   other frame's message.
     ///
-    /// [`FaultInfo`] is the harness's panic record, so it holds anything at
-    /// all only under `dev`, which is what puts that harness in the
-    /// dependency graph. There it carries the panic's location alongside its
-    /// message, and `Display` renders them as `message at file:line:column`.
-    /// Without `dev` — a guest build always, since it can never enable it —
-    /// there is no record to hold: [`FaultInfo`] is zero-sized, it reads
-    /// `"<fault>"`, and a contract pays nothing for carrying one.
+    /// See [`FaultInfo`] for what the payload holds and where.
     ///
     /// A callee that wants its failure to be legible to its caller — on
     /// chain, not just in a host test — must abort with an exception rather

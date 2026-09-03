@@ -59,7 +59,13 @@ impl FrameResult {
     }
 
     /// Attach the panic that faulted this frame.
-    pub fn with_fault_panic(mut self, panic: Option<PanicRecord>) -> Self {
+    ///
+    /// Crate-internal: the frame executor is the only thing that may set
+    /// this, which is what makes a record here always *this* frame's body.
+    pub(crate) fn with_fault_panic(
+        mut self,
+        panic: Option<PanicRecord>,
+    ) -> Self {
         self.fault_panic = panic;
         self
     }

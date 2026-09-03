@@ -43,10 +43,23 @@ fn deploy_mock<F>(env: &TestEnvironmentHandle, addr: &ContractAddress, body: F)
 where
     F: Fn() + std::panic::UnwindSafe + Clone + Send + Sync + 'static,
 {
-    let mut c = env.add_contract();
-    c.register_method(ContractEntrypointID::from(ENTRY), body);
-    let _ = env.setup_create_contract(&c.as_contract());
-    env.setup_create_deployment(addr, &c.as_contract());
+    env.register_mock(|c| {
+        c.register_method(ContractEntrypointID::from(ENTRY), body);
+    })
+    .deploy_contract_to(addr);
+}
+
+/// Unwrap a call outcome that must be a `Fault`.
+#[track_caller]
+fn expect_fault<T, X>(outcome: Result<T, RawCallError<X>>) -> FaultInfo
+where
+    T: std::fmt::Debug,
+    X: std::fmt::Debug,
+{
+    match outcome {
+        Err(RawCallError::Fault(f)) => f,
+        other => panic!("expected Fault, got {other:?}"),
+    }
 }
 
 /// Call `target` from inside a frame running at `caller`, returning both the
@@ -93,13 +106,8 @@ fn root_frame_panic_message_reaches_the_caller() {
         Some("the specific thing that went wrong")
     );
 
-    let res: Result<(), RawCallError> = into_root_call_result(&result);
-    match res {
-        Err(RawCallError::Fault(f)) => {
-            assert_eq!(f.as_str(), "the specific thing that went wrong")
-        }
-        other => panic!("expected Fault, got {other:?}"),
-    }
+    let fault = expect_fault(into_root_call_result::<()>(&result));
+    assert_eq!(fault.as_str(), "the specific thing that went wrong");
 }
 
 /// `panic!` with a format produces a `String` payload rather than a
@@ -182,15 +190,12 @@ fn callee_fault_carries_no_message_and_leaks_none() {
     let (outcome, caller_message) =
         call_from_frame(&env, &caller_addr, &callee_addr);
 
-    match outcome.expect_err("the callee panics, so the call fails") {
-        RawCallError::Fault(f) => assert_eq!(
-            f.as_str(),
-            "<fault>",
-            "a callee's message is not available on this path; reporting \
-             anything else would mean reporting the wrong frame's"
-        ),
-        other => panic!("expected Fault, got {other:?}"),
-    }
+    assert_eq!(
+        expect_fault(outcome).as_str(),
+        "<fault>",
+        "a callee's message is not available on this path; reporting \
+         anything else would mean reporting the wrong frame's"
+    );
     assert_eq!(
         caller_message, None,
         "the calling frame did not itself panic, so it has no message"
@@ -285,17 +290,13 @@ fn fault_propagating_through_a_middle_contract_is_not_misattributed() {
     let (outcome, root_message) =
         call_from_frame(&env, &root_addr, &middle_addr);
 
-    match outcome.expect_err("the fault propagates, so the call fails") {
-        RawCallError::Fault(f) => {
-            assert_ne!(
-                f.as_str(),
-                "innermost contract exploded",
-                "the innermost message must not surface two invoke hops up"
-            );
-            assert_eq!(f.as_str(), "<fault>");
-        }
-        other => panic!("expected Fault, got {other:?}"),
-    }
+    let fault = expect_fault(outcome);
+    assert_ne!(
+        fault.as_str(),
+        "innermost contract exploded",
+        "the innermost message must not surface two invoke hops up"
+    );
+    assert_eq!(fault.as_str(), "<fault>");
 
     assert_eq!(
         root_message, None,
@@ -343,11 +344,10 @@ fn a_rethrown_fault_records_the_placeholder_not_the_inner_text() {
     );
     assert_eq!(result.fault_message(), Some("<fault>"));
 
-    let res: Result<(), RawCallError> = into_root_call_result(&result);
-    match res {
-        Err(RawCallError::Fault(f)) => assert_eq!(f.as_str(), "<fault>"),
-        other => panic!("expected Fault, got {other:?}"),
-    }
+    assert_eq!(
+        expect_fault(into_root_call_result::<()>(&result)).as_str(),
+        "<fault>"
+    );
 }
 
 /// The location is the half `catch_unwind` cannot supply: it exists only in
@@ -378,24 +378,19 @@ fn a_faulting_frame_records_where_it_panicked() {
     assert!(location.line > 0);
 
     // And it reaches the caller, rendered alongside the message.
-    let res: Result<(), RawCallError> = into_root_call_result(&result);
-    match res {
-        Err(RawCallError::Fault(f)) => {
-            let rendered = f.to_string();
-            assert!(
-                rendered.starts_with("located panic at "),
-                "unexpected rendering: {rendered}"
-            );
-            assert!(rendered.contains("fault_message.rs"));
-            // The same `PanicLocation` the harness recorded, not a copy
-            // into a parallel type.
-            assert_eq!(
-                f.location().expect("location reaches the caller"),
-                location
-            );
-        }
-        other => panic!("expected Fault, got {other:?}"),
-    }
+    let fault = expect_fault(into_root_call_result::<()>(&result));
+    let rendered = fault.to_string();
+    assert!(
+        rendered.starts_with("located panic at "),
+        "unexpected rendering: {rendered}"
+    );
+    assert!(rendered.contains("fault_message.rs"));
+    // The same `PanicLocation` the harness recorded, not a copy into a
+    // parallel type.
+    assert_eq!(
+        fault.location().expect("location reaches the caller"),
+        location
+    );
 }
 
 /// A fault with no location renders as the bare message, and one with

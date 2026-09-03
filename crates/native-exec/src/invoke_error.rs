@@ -77,11 +77,8 @@ thread_local! {
 
 /// Where a contract body panicked.
 ///
-/// The one location type: the SDK holds this same struct inside its
-/// `FaultInfo` rather than defining a parallel one, so there is a single
-/// place a location is described and no conversion to keep in step. That
-/// costs the SDK nothing it was not already paying — reading a location is
-/// only possible under `dev`, which is what puts this crate in the graph.
+/// The SDK holds this same struct inside its `FaultInfo` rather than
+/// mirroring it, so a location is described in one place.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanicLocation {
     /// Source file, as `panic!` recorded it.
@@ -130,16 +127,19 @@ thread_local! {
 /// `payload` is the authority on the message; a stashed record whose message
 /// disagrees belongs to some other panic (one hooked but never caught here)
 /// and contributes no location rather than a misleading one.
-pub fn take_panic_record(payload: &(dyn std::any::Any + Send)) -> PanicRecord {
-    let stashed = HOOKED_PANIC.with(|slot| slot.borrow_mut().take());
+pub(crate) fn take_panic_record(
+    payload: &(dyn std::any::Any + Send),
+) -> PanicRecord {
     let message = panic_payload_message(payload);
-    match stashed {
-        Some(record) if record.message == message => record,
-        _ => PanicRecord {
-            message,
-            location: None,
-        },
-    }
+    let location = take_hooked_panic()
+        .filter(|hooked| hooked.message == message)
+        .and_then(|hooked| hooked.location);
+    PanicRecord { message, location }
+}
+
+/// Take whatever the hook stashed on this thread, leaving the slot empty.
+fn take_hooked_panic() -> Option<PanicRecord> {
+    HOOKED_PANIC.with(|slot| slot.borrow_mut().take())
 }
 
 /// Activates the classifying panic hook on the calling thread for as long as
@@ -197,42 +197,40 @@ fn install_panic_hook() {
             // frame executor), which maps non-[`InvokeError`] payloads to a
             // deterministic error.
             if panic_info.payload().downcast_ref::<InvokeError>().is_none() {
-                _print_panic_info(panic_info);
+                let record = PanicRecord {
+                    message: panic_payload_message(panic_info.payload()),
+                    location: panic_info.location().map(|l| PanicLocation {
+                        file: l.file().to_string(),
+                        line: l.line(),
+                        column: l.column(),
+                    }),
+                };
+                print_panic(&record, panic_info.payload());
                 // Stash what only the hook can see. The catch site takes it
                 // back and cross-checks the message, so a record left behind
                 // by a panic caught somewhere else cannot be misread as this
                 // one's.
-                HOOKED_PANIC.with(|slot| {
-                    *slot.borrow_mut() = Some(PanicRecord {
-                        message: panic_payload_message(panic_info.payload()),
-                        location: panic_info.location().map(|l| {
-                            PanicLocation {
-                                file: l.file().to_string(),
-                                line: l.line(),
-                                column: l.column(),
-                            }
-                        }),
-                    });
-                });
+                HOOKED_PANIC.with(|slot| *slot.borrow_mut() = Some(record));
             }
         }));
     });
 }
 
-fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
-    if let Some(payload) = panic_info.payload().downcast_ref::<String>() {
-        eprintln!("Panic message: {}", payload);
-    } else if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
-        eprintln!("Panic message: {}", payload);
-    } else {
-        eprintln!("Panic: {:?}", panic_info.payload());
+/// Print a contract panic compactly, in place of the default hook's output.
+///
+/// Reads the already-captured `record` rather than re-inspecting the hook
+/// info, so the text and the value the catch site receives cannot drift.
+/// `payload` is only for the non-string case, which has no message.
+fn print_panic(record: &PanicRecord, payload: &(dyn std::any::Any + Send)) {
+    match &record.message {
+        Some(message) => eprintln!("Panic message: {}", message),
+        None => eprintln!("Panic: {:?}", payload),
     }
 
-    if let Some(location) = panic_info.location() {
+    if let Some(location) = &record.location {
         eprintln!(
             "Panic occurred at file '{}' line {}",
-            location.file(),
-            location.line()
+            location.file, location.line
         );
     }
 }
@@ -250,7 +248,7 @@ pub(crate) fn is_panic_hook_active() -> bool {
 /// `panic_any` of some other type) has no message to report and yields
 /// `None` rather than a placeholder, so a caller can tell "no message" from
 /// a message that happens to read like one.
-pub fn panic_payload_message(
+fn panic_payload_message(
     payload: &(dyn std::any::Any + Send),
 ) -> Option<String> {
     if let Some(s) = payload.downcast_ref::<&'static str>() {
@@ -293,6 +291,13 @@ where
                     // An ordinary panic out of contract code; the hook
                     // already printed it. Deterministic failure of this
                     // invocation.
+                    //
+                    // Drop the hook's record rather than leave it for some
+                    // later frame to take: this catch site cannot attribute
+                    // a message (it has no frame in hand), but it did catch
+                    // the panic, so every catch site takes what it caught
+                    // and a stale record cannot outlive its panic.
+                    drop(take_hooked_panic());
                     return groundhog_sys::ForeignInvokeResult {
                         panic: InvokeErrorCode::Deterministic.0,
                     };
