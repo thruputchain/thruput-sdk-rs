@@ -24,6 +24,23 @@ pub trait StorageType: Sealed + StorageHandle {}
 /// Replaces what used to be a `From<Keypath>` bound. Owning the trait is what
 /// lets the derive's error say which field is wrong and what to do about it —
 /// a `#[diagnostic::on_unimplemented]` cannot be attached to `From`.
+///
+/// # Migrating a hand-rolled handle
+///
+/// The derive used to bound fields on `From<Keypath>`, so a type implementing
+/// that by hand was accepted as a storage field. Such a type now needs a
+/// `StorageHandle` impl too, which can forward to the existing conversion:
+///
+/// ```ignore
+/// impl StorageHandle for MyHandle {
+///     fn from_keypath(keypath: Keypath) -> Self {
+///         Self::from(keypath)
+///     }
+/// }
+/// ```
+///
+/// The SDK handle types and every `#[storage]` struct are covered already, and
+/// nothing in this repo or `example-contracts` writes such an impl by hand.
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be a storage field",
     // No hand-kept list of handle types: the impls are explicit and the
