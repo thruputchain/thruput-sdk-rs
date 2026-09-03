@@ -5,48 +5,23 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
-#[allow(private_bounds)]
 #[diagnostic::on_unimplemented(
-    message = "`{Self}` cannot be stored in a `Map` or `Vector`",
-    note = "element types must be storage handles: wrap plain data in `Value<{Self}>`; a nested `#[storage]` struct goes in `Node<_>`",
-    note = "the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node`"
+    message = "`{Self}` is not a storage type",
+    note = "storage holds handles, not values: wrap plain data in `Value<{Self}>`",
+    note = "the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and any `#[storage]` struct"
 )]
 pub trait StorageType: Sealed + From<Keypath> {}
 
-/// Marker for types usable as a field of a `#[storage]` struct.
+/// Build a storage field handle from its keypath.
 ///
-/// Blanket-implemented for every type that implements `From<Keypath>`, so it
-/// accepts exactly what the field initializers need and nothing more: the
-/// storage handles, `Node<T>`, and nested `#[storage]` structs. It exists to
-/// carry the diagnostic below — required directly, a plain field reports a
-/// bare `From<Keypath>` bound at the derive's span, with rustc suggesting
-/// `#![feature(trivial_bounds)]`, which is never the fix.
-#[diagnostic::on_unimplemented(
-    message = "`{Self}` cannot be a storage field",
-    note = "storage fields hold handles, not values: wrap plain data in `Value<{Self}>`",
-    note = "the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node` for a nested `#[storage]` struct"
-)]
-pub trait StorageField {
-    /// Build the field handle from its keypath.
-    ///
-    /// The trait's only item, and `From<Keypath>` is deliberately *not* a
-    /// supertrait: with one the failure of a non-storage field would be
-    /// reported twice, once for `StorageField` and once for the supertrait
-    /// obligation behind it. The blanket impl below supplies this for every
-    /// `From<Keypath>` type, so the set of accepted field types is the same
-    /// either way. Not intended to be called or implemented directly.
-    #[doc(hidden)]
-    fn __from_keypath(keypath: Keypath) -> Self;
-}
-
-// `do_not_recommend` keeps rustc from reporting this impl's unsatisfied
-// `From<Keypath>` bound in place of the `StorageField` bound the derive
-// wrote, which is what carries the diagnostic above.
-#[diagnostic::do_not_recommend]
-impl<T: From<Keypath>> StorageField for T {
-    fn __from_keypath(keypath: Keypath) -> Self {
-        Self::from(keypath)
-    }
+/// The `#[storage]` derive calls this rather than `.into()` so that a field
+/// whose type is not a storage type fails `T: StorageType` *at the field*,
+/// carrying the diagnostic above. A `From<Keypath>` bound would instead be
+/// reported at the derive's span with a `#![feature(trivial_bounds)]`
+/// suggestion, which is never the fix.
+#[doc(hidden)]
+pub fn __field_from_keypath<T: StorageType>(keypath: Keypath) -> T {
+    T::from(keypath)
 }
 
 /// Wrapper marking a compound storage field group.

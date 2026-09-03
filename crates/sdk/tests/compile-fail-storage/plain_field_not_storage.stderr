@@ -1,8 +1,23 @@
-error[E0277]: `u64` cannot be a storage field
+error[E0277]: `u64` is not a storage type
   --> tests/compile-fail-storage/plain_field_not_storage.rs:11:12
    |
 11 |     count: u64,
-   |            ^^^ the trait `StorageField` is not implemented for `u64`
+   |            ^^^ the trait `StorageType` is not implemented for `u64`
    |
-   = note: storage fields hold handles, not values: wrap plain data in `Value<u64>`
-   = note: the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and `Node` for a nested `#[storage]` struct
+   = note: storage holds handles, not values: wrap plain data in `Value<u64>`
+   = note: the handle types are `Value`, `NNInt`, `Balance`, `Bytestring`, `Map`, `Vector`, `RCQ`, `CapacityConstraint`, and any `#[storage]` struct
+   = help: the following other types implement trait `StorageType`:
+             Balance
+             Bytestring
+             CapacityConstraint
+             Config
+             NNInt
+             Node<T>
+             RCQ<S>
+             sdk::storage::Map<K, V>
+           and $N others
+note: required by a bound in `sdk::storage::__field_from_keypath`
+  --> src/storage/node.rs
+   |
+   | pub fn __field_from_keypath<T: StorageType>(keypath: Keypath) -> T {
+   |                                ^^^^^^^^^^^ required by this bound in `__field_from_keypath`

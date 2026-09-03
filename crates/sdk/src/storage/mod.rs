@@ -10,7 +10,9 @@ pub use error::*;
 pub mod keypath;
 pub use keypath::*;
 
-mod sealed;
+#[doc(hidden)]
+pub mod sealed;
+pub use sealed::Sealed;
 
 pub mod node;
 pub use node::*;

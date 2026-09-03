@@ -219,30 +219,29 @@ fn impl_from_keypath(
                 // generic impls — it captures no generic params.
                 const __SLOT_FRAME: ::sdk::storage::FramedComponent =
                     ::sdk::storage::FramedComponent::from_u32(#idx);
-                // Through `StorageField` rather than `.into()`: see the
-                // bound below. Going via `From` would add a second,
-                // redundant error from inside this constructor whenever a
-                // field is not a storage type.
-                <#field_type as ::sdk::storage::StorageField>::__from_keypath(
+                // Through the `StorageType`-bounded helper rather than
+                // `.into()`: it makes a non-storage field fail `T:
+                // StorageType` here, at the field, instead of failing a
+                // bare `From<Keypath>` bound at the derive's span.
+                ::sdk::storage::__field_from_keypath::<#field_type>(
                     keypath.child_framed(&__SLOT_FRAME),
                 )
             };
         });
 
-        // A generic field type needs its `StorageField` bound stated in the
+        // A generic field type needs its `StorageType` bound stated in the
         // where clause; a concrete one must not have it there. A
         // where-clause bound on a concrete type that cannot satisfy it is
         // *trivially* unsatisfiable, which rustc reports at the derive's
         // span with a `#![feature(trivial_bounds)]` suggestion — never the
         // fix, and it does not say which field is wrong. Left out, the
-        // `__from_keypath` call in the initializer above raises the same
-        // obligation as an ordinary one, so the error lands on the field and
-        // carries `StorageField`'s `on_unimplemented`.
+        // helper call in the initializer above raises the same obligation as
+        // an ordinary one, so the error lands on the field and carries
+        // `StorageType`'s `on_unimplemented`.
         if type_mentions_generic(field_type, &generic_idents) {
-            generics
-                .make_where_clause()
-                .predicates
-                .push(syn::parse_quote!(#field_type: StorageField));
+            generics.make_where_clause().predicates.push(
+                syn::parse_quote!(#field_type: ::sdk::storage::StorageType),
+            );
         }
     }
 
@@ -263,6 +262,14 @@ fn impl_from_keypath(
                     }
                 }
             }
+
+            // A `#[storage]` struct is itself a storage type: it may be a
+            // field of an enclosing one, or a `Map`/`Vector` element. The
+            // seal lives in the SDK, so only this derive can grant it.
+            impl #impl_generics ::sdk::storage::Sealed for #ident #ty_generics
+                #where_clause {}
+            impl #impl_generics ::sdk::storage::StorageType for #ident #ty_generics
+                #where_clause {}
         };
     })
 }
