@@ -293,13 +293,14 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         // rather than at the `derive(Event)` line, which names neither the
         // field nor the trait.
         //
-        // Method-call syntax, not a fully qualified call: the impls are on
-        // `[u8; 32]`, `str` and `[u8]`, and the common topic types reach them
-        // by auto-deref (`ContractAddress` derefs to `[u8; 32]`, `&str` to
-        // `str`). A qualified call skips that and would reject every address
-        // topic.
+        // Fully qualified, so a `#[topic]` field with no impl fails the
+        // `IntoTopic` bound at the field and picks up the trait's
+        // `on_unimplemented`. Method-call syntax resolved through auto-deref
+        // instead, which reports a bare E0599 with no note; the impls for
+        // `ContractAddress` and `&T` in event.rs are what make the qualified
+        // form accept every real topic type.
         let call = quote::quote_spanned! { field.ty.span() =>
-            self.#field_ident.into_topic()
+            <_ as ::sdk::event::IntoTopic>::into_topic(&self.#field_ident)
         };
         quote! {
             #index => ::core::option::Option::Some(#call),

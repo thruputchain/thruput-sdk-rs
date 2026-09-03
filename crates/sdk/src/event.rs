@@ -70,6 +70,28 @@ impl IntoTopic for [u8] {
     }
 }
 
+// The note above names `ContractAddress` and `SHA256Hash` as valid topics, but
+// they only reached an impl through auto-deref on the method call, so a
+// `T: IntoTopic` bound rejected them. Real impls make the documented set true
+// and let the derive state the bound.
+impl IntoTopic for crate::types::ContractAddress {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        (**self).into_topic()
+    }
+}
+
+impl IntoTopic for crate::types::SHA256Hash {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        (**self).into_topic()
+    }
+}
+
+impl<T: IntoTopic + ?Sized> IntoTopic for &T {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        (**self).into_topic()
+    }
+}
+
 /// Emit an event.
 ///
 /// Groundhog currently supports up to three total topics per event. Derived
