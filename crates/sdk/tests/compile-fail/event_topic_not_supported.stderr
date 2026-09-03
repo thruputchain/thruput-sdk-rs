@@ -4,8 +4,7 @@ error[E0277]: `u8` cannot be an event topic
 10 |     pub tag: u8,
    |              ^^ the trait `IntoTopic` is not implemented for `u8`
    |
-   = note: `#[topic]` fields must be 32 bytes wide (`[u8; 32]`, `ContractAddress`, `SHA256Hash`) or one of `u128`, `i128`, `u64`, `i64`, `u32`, `i32`, `bool`, `str`, `[u8]`
-   = note: for any other type, either widen it to one of those or drop `#[topic]` and let it ride in the event payload, where it stays readable
+   = note: either widen the field to a listed type, or drop `#[topic]` and let it ride in the event payload, where it stays readable
    = help: the following other types implement trait `IntoTopic`:
              i128
              i32
