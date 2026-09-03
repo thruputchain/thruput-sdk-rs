@@ -2,9 +2,13 @@ This SDK facilitates writing contracts in Rust.
 
 ## Contract Author Quickstart
 
-Polished examples and tutorials are maintained outside this repository.
-(The `example-contracts/` directory here is an internal test corpus for SDK
-development, not a set of recommended starting points.)
+Polished examples and tutorials are maintained outside this repository:
+the [developer docs](https://docs.groundhog.dev/start/getting-started/) walk
+through scaffolding a project with `groundhog new`, and
+[groundhog-examples](https://github.com/groundhogchain/groundhog-examples)
+holds worked contracts. (The `example-contracts/` directory here is an
+internal test corpus for SDK development, not a set of recommended starting
+points.)
 
 Contract crates using the native test harness typically need:
 
@@ -33,7 +37,7 @@ result is asserted on:
 ```rust,ignore
 use sdk::*;
 
-static NONCE: SHA256Hash = SHA256Hash::new(hash_to_array!("my-test-nonce"));
+static NONCE: SHA256Hash = sdk::sha256_static!("my-test-nonce");
 
 let env = TestEnvironment::no_cost();
 let test_contract = my_contract::register_mock_contract(&env);

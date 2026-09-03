@@ -250,6 +250,9 @@ where
 pub(crate) fn widen_uninhabited_exn<X>(e: CallFault) -> RawCallError<X> {
     match e {
         RawCallError::Invalid => RawCallError::Invalid,
+        RawCallError::Reentrance => RawCallError::Reentrance,
+        RawCallError::DepthExceeded => RawCallError::DepthExceeded,
+        RawCallError::InvokeRejected(c) => RawCallError::InvokeRejected(c),
         RawCallError::Exception(x) => match x {},
         RawCallError::Fault(f) => RawCallError::Fault(f),
         RawCallError::UnparseableReturn(f) => {
@@ -316,21 +319,23 @@ fn invoke_frame(
             } else if status == InvocationFrameStatusCode::Abort {
                 false
             } else {
-                // Fault (trap / out of gas) or an unexpected status code.
-                return Err(RawCallError::Fault(FaultString::from_display(
-                    format_args!("child frame faulted: {status:?}"),
-                )));
+                // A child frame ran and produced neither a return nor an
+                // abort buffer: it faulted (panic, trap, or out of gas). An
+                // out-of-range status would mean the host broke the syscall
+                // contract; it lands here too, which is the safe reading —
+                // the frame did not return a result either way.
+                //
+                // Empty because nothing on this path has a message to give:
+                // the frame status is all the runtime reports. A host-side
+                // description captured beside the call would go here.
+                return Err(RawCallError::Fault(FaultString::empty()));
             }
         }
-        // The call was rejected before any child frame ran.
-        Err(syserr) if syserr.is_invalid_input() => {
-            return Err(RawCallError::Invalid);
-        }
-        Err(syserr) => {
-            return Err(RawCallError::Fault(FaultString::from_display(
-                format_args!("{syserr:?}"),
-            )));
-        }
+        // The call was rejected before any child frame ran. Each documented
+        // rejection keeps its own identity: folding reentrance or the depth
+        // bound into a fault would tell the caller its callee misbehaved,
+        // when in fact the callee never ran.
+        Err(syserr) => return Err(classify_invoke_rejection(syserr)),
     };
 
     // The protocol caps returns at kMaxReturnBufferLen; a larger reported

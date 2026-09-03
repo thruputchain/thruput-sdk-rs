@@ -27,10 +27,9 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build --target rv32 -p erc20_pausable`
-# derives `--bin erc20_pausable` from the package name, so the name here
-# must stay the underscored package name. `required-features` keeps it out
-# of host builds.
+# The rv32 artifact. `groundhog build -p erc20_pausable` derives
+# `--bin erc20_pausable` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
 [[bin]]
 name = "erc20_pausable"
 path = "src/main.rs"

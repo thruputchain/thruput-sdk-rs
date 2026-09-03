@@ -98,7 +98,12 @@ impl FaultString {
 
     /// Recover a message from a panic payload, when it is a string.
     ///
-    /// Host-only: a guest neither unwinds nor records a message.
+    /// Host-only: a guest neither unwinds nor records a message. Nothing in
+    /// the SDK calls this yet — it is the intended entry point for the
+    /// native harness to hand a caught callee panic to
+    /// [`RawCallError::Fault`](crate::call::RawCallError::Fault), which is
+    /// where a fault's message would have to come from. Nothing on the call
+    /// boundary carries one.
     #[cfg(not(target_arch = "riscv32"))]
     pub fn from_any(a: &dyn Any) -> Self {
         if let Some(s) = a.downcast_ref::<&str>() {

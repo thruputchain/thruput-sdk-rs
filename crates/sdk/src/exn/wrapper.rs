@@ -35,6 +35,23 @@ pub enum CallingError {
 
     #[cfg_attr(not(target_arch = "riscv32"), error("Encoding arguments: {0}"))]
     EncodingArgs(FaultString) = 3,
+
+    /// The target address already had a frame open on the invocation stack,
+    /// so the runtime refused the call as reentrant. The callee never ran.
+    #[cfg_attr(
+        not(target_arch = "riscv32"),
+        error("Invalid call: target already has an open frame (reentrant)")
+    )]
+    Reentrance = 4,
+
+    /// Admitting the call would have exceeded the network's cross-invoke
+    /// depth bound. The callee never ran; the same call succeeds from a
+    /// shallower frame.
+    #[cfg_attr(
+        not(target_arch = "riscv32"),
+        error("Invalid call: cross-invoke depth bound reached")
+    )]
+    DepthExceeded = 5,
 }
 
 /// `Result<T, CallingError>::or_re_throw()` aborts with the typed

@@ -16,13 +16,13 @@ All fields must be SDK storage types. Plain data must be wrapped in
 | Type | Description |
 |------|-------------|
 | [`Value<T>`](crate::storage::Value) | Single XDR-serializable value |
-| [`NNInt`](crate::storage::NNInt) | `i128` with a commit-time non-negativity floor, written as mergeable deltas |
-| [`Balance`](crate::storage::Balance) | Unsigned, zero-defaulting balance over `NNInt`; `increase`/`decrease` take `u128` and fail on overflow and overdraft in every profile |
+| [`Balance`](crate::storage::Balance) | Non-negative, zero-defaulting `u128` amount with checked and lazy `increase`/`decrease`; the type to reach for first for balances, allowances, and supply |
+| [`NNInt`](crate::storage::NNInt) | `i128` counter whose signed increments merge across concurrent transactions; the floor is enforced at commit (see its docs for the `set`/`inc`/`strict_inc` rules) |
+| [`CapacityConstraint`](crate::storage::CapacityConstraint) | Block-wide linear limit that concurrent transactions consume from |
 | [`Bytestring`](crate::storage::Bytestring) | Variable-length byte blob |
+| [`RCQ<T>`](crate::storage::RCQ) | Retrocausal queue: inserts commute, consumes are sequential |
 | [`Map<K, V>`](crate::storage::Map) | Key-addressed collection (entries not enumerable) |
 | [`Vector<S>`](crate::storage::Vector) | Index-addressed, sparse-capable sequence |
-| [`RCQ<T>`](crate::storage::RCQ) | Retrocausal queue: append now, consume in a later block |
-| [`CapacityConstraint`](crate::storage::CapacityConstraint) | Single non-idempotent write per transaction, for supply caps and similar |
 | [`Node<T>`](crate::storage::Node) | Nested storage struct used inside collections |
 
 # Common patterns
@@ -89,10 +89,10 @@ fully deleted. It provides three methods:
 |------|-----------|-------|
 | `NNInt` | Yes | |
 | `Balance` | Yes | |
+| `CapacityConstraint` | Yes | |
 | `Value<T>` | Yes | |
 | `Bytestring` | Yes | |
-| `CapacityConstraint` | Yes | |
-| `RCQ<T>` | Yes | Subject to the per-deletion cleanup budget |
+| `RCQ<T>` | Yes | Deletion cost scales with the queue's size |
 | `Node<T>` | When `T: Deletable` | |
 | `Vector<S>` | When `S: Deletable` | |
 | `Map<K, V>` | **No** | Cannot enumerate entries |

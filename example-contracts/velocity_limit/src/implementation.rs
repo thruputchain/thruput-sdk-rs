@@ -72,7 +72,7 @@ impl VelocityLimitedWithdrawal {
         let mut config = limit.configuration.get();
         // if the limit's period has elapsed, reset it
         let current_height = get_block_height();
-        if *current_height - *config.last_reset_height
+        if &current_height - &config.last_reset_height
             > *config.period_frequency
         {
             config.last_reset_height = current_height;
