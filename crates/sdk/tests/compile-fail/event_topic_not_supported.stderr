@@ -1,7 +1,7 @@
 error[E0277]: `u8` cannot be an event topic
-  --> tests/compile-fail/event_topic_not_supported.rs:10:14
+  --> tests/compile-fail/event_topic_not_supported.rs:13:14
    |
-10 |     pub tag: u8,
+13 |     pub tag: u8,
    |              ^^ the trait `IntoTopic` is not implemented for `u8`
    |
    = note: either widen the field to a listed type, or drop `#[topic]` and let it ride in the event payload, where it stays readable

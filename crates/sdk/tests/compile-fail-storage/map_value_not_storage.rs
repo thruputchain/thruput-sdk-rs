@@ -1,6 +1,9 @@
 // A plain value as a `Map` value type. The bound is only checked at the
-// first access, so that is where the diagnostic has to be useful: it must
-// say to wrap the value, not list the nine implementors.
+// first access, so that is where the diagnostic has to be useful.
+//
+// rustc lists the implementors itself here, because `StorageType` is sealed
+// with explicit impls. What the attribute adds is the part it cannot infer:
+// that the fix is to wrap the value, not to reach for a different type.
 #![allow(unexpected_cfgs)]
 
 use sdk::ContractAddress;
