@@ -1,3 +1,4 @@
+use crate::invoke_error::PanicRecord;
 use groundhog_event::{EmittedEvent, Event, TypedEvent};
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
@@ -39,7 +40,7 @@ pub struct FrameResult {
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
-    fault_message: Option<String>,
+    fault_panic: Option<PanicRecord>,
 }
 
 impl FrameResult {
@@ -53,31 +54,38 @@ impl FrameResult {
             output,
             trace,
             events,
-            fault_message: None,
+            fault_panic: None,
         }
     }
 
-    /// Attach the message from the panic that faulted this frame.
-    pub fn with_fault_message(mut self, message: Option<String>) -> Self {
-        self.fault_message = message;
+    /// Attach the panic that faulted this frame.
+    pub fn with_fault_panic(mut self, panic: Option<PanicRecord>) -> Self {
+        self.fault_panic = panic;
         self
     }
 
-    /// The message from the panic that faulted this frame's own body.
+    /// The panic that faulted this frame's own body.
     ///
     /// `None` whenever there is nothing to report rather than nothing to
     /// find, and the two are worth telling apart:
     ///
-    /// - the frame did not fault, or faulted without a string payload;
+    /// - the frame did not fault, or faulted with neither a string payload
+    ///   nor a hook record;
     /// - the frame faulted because a `raw_Invoke`ed callee did. That callee
     ///   ran in a frame the runtime owns, caught its own panic in
-    ///   `invoke_wrapper`, and reported an error code — the message never
-    ///   reaches this side. It is still printed to stderr by the panic hook.
+    ///   `invoke_wrapper`, and reported an error code — nothing reaches this
+    ///   side. It is still printed to stderr by the panic hook.
     ///
-    /// So a message here is always *this* frame's body panicking, never a
+    /// So a record here is always *this* frame's body panicking, never a
     /// nested frame's.
+    pub fn fault_panic(&self) -> Option<&PanicRecord> {
+        self.fault_panic.as_ref()
+    }
+
+    /// Just the message from [`fault_panic`](Self::fault_panic), for callers
+    /// that do not want the location.
     pub fn fault_message(&self) -> Option<&str> {
-        self.fault_message.as_deref()
+        self.fault_panic.as_ref()?.message.as_deref()
     }
 
     // -- Status checks (using pattern matching for safety) --

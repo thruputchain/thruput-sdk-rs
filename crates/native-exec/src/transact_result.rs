@@ -18,10 +18,14 @@ impl TransactResult {
         Self { frame, exec_result }
     }
 
-    /// The message from the panic that faulted the root frame's body, if it
-    /// faulted with one. See [`FrameResult::fault_message`] for what `None`
-    /// covers — notably, a fault caused by a called contract rather than by
-    /// this frame's own body.
+    /// The panic that faulted the root frame's body, if it faulted with one.
+    /// See [`FrameResult::fault_panic`] for what `None` covers — notably, a
+    /// fault caused by a called contract rather than by this frame's own body.
+    pub fn fault_panic(&self) -> Option<&crate::invoke_error::PanicRecord> {
+        self.frame.fault_panic()
+    }
+
+    /// Just the message from [`fault_panic`](Self::fault_panic).
     pub fn fault_message(&self) -> Option<&str> {
         self.frame.fault_message()
     }

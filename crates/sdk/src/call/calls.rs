@@ -4,7 +4,7 @@ use super::contract_result::*;
 use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{FaultString, RawExceptionRef};
+use crate::exn::{FaultInfo, FaultString, RawExceptionRef};
 use crate::types::transaction::{
     InvocationFrameStatusCode, kMaxReturnBufferLen,
 };
@@ -330,7 +330,7 @@ fn invoke_frame(
                 // callee's own panic was caught inside the runtime's frame.
                 // The harness records a message only for a frame it ran
                 // itself — see `into_root_call_result`.
-                return Err(RawCallError::Fault(FaultString::empty()));
+                return Err(RawCallError::Fault(FaultInfo::empty()));
             }
         }
         // The call was rejected before any child frame ran. Each documented

@@ -1,10 +1,13 @@
-//! A faulting frame's panic message, where the harness can honestly report
-//! one.
+//! A faulting frame's panic — message and location — where the harness can
+//! honestly report one.
 //!
-//! The message is recorded at `MockInvocationFrame::execute`'s catch site,
-//! which is the one place the payload and the frame it belongs to are both in
-//! hand on a single thread. That bounds what is knowable, and the tests below
-//! pin both halves of the bound across the four ways frames nest:
+//! Both are recorded at `MockInvocationFrame::execute`'s catch site, which is
+//! the one place the payload and the frame it belongs to are both in hand on
+//! a single thread. The message comes from the payload; the location comes
+//! from the panic hook, which ran during the same unwind on the same thread
+//! and is the only place it exists at all. That bounds what is knowable, and
+//! the tests below pin both halves of the bound across the four ways frames
+//! nest (the rows apply to the location exactly as to the message):
 //!
 //! | outer | inner | inner's message |
 //! |---|---|---|
@@ -345,4 +348,63 @@ fn a_rethrown_fault_records_the_placeholder_not_the_inner_text() {
         Err(RawCallError::Fault(f)) => assert_eq!(f.as_str(), "<fault>"),
         other => panic!("expected Fault, got {other:?}"),
     }
+}
+
+/// The location is the half `catch_unwind` cannot supply: it exists only in
+/// the panic hook, which runs during the unwind on the same thread that then
+/// catches. This pins that handoff end to end.
+#[test]
+fn a_faulting_frame_records_where_it_panicked() {
+    let env = TestEnvironment::no_cost();
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("fault_loc"))
+            .run(|| -> () { panic!("located panic") })
+    });
+
+    let record = result
+        .fault_panic()
+        .expect("a panicking frame records its panic");
+    assert_eq!(record.message.as_deref(), Some("located panic"));
+
+    let location = record
+        .location
+        .as_ref()
+        .expect("the hook supplies the location");
+    assert!(
+        location.file.ends_with("fault_message.rs"),
+        "expected this test file, got {}",
+        location.file
+    );
+    assert!(location.line > 0);
+
+    // And it reaches the caller, rendered alongside the message.
+    let res: Result<(), RawCallError> = into_root_call_result(&result);
+    match res {
+        Err(RawCallError::Fault(f)) => {
+            let rendered = f.to_string();
+            assert!(
+                rendered.starts_with("located panic at "),
+                "unexpected rendering: {rendered}"
+            );
+            assert!(rendered.contains("fault_message.rs"));
+            let loc = f.location().expect("location reaches the caller");
+            assert_eq!(loc.line(), location.line);
+            assert_eq!(loc.column(), location.column);
+        }
+        other => panic!("expected Fault, got {other:?}"),
+    }
+}
+
+/// A fault with no location renders as the bare message, and one with
+/// neither as the placeholder — so the `at ...` suffix always means a real
+/// location was recorded rather than a formatting artifact.
+#[test]
+fn rendering_degrades_cleanly_without_a_location() {
+    use sdk::exn::{FaultInfo, FaultString};
+
+    assert_eq!(FaultInfo::empty().to_string(), "<fault>");
+    assert_eq!(
+        FaultInfo::from_message(FaultString::from_display("boom")).to_string(),
+        "boom"
+    );
 }

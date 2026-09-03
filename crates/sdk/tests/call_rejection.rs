@@ -9,7 +9,7 @@
 //! compares equal to every other `FaultString`.
 
 use sdk::call::{RawCallError, try_call_raw_with};
-use sdk::exn::FaultString;
+use sdk::exn::{FaultInfo, FaultString};
 use sdk::invoke_config::InvokeFlagSet;
 use sdk::*;
 
@@ -73,12 +73,14 @@ fn reentrance_is_not_equal_to_fault() {
     let addr = ContractAddress::named("call_rejection_ne");
     let err = call_from_frame_at("call_rejection_ne", &addr);
 
-    assert_ne!(err, RawCallError::Fault(FaultString::empty()));
+    assert_ne!(err, RawCallError::Fault(FaultInfo::empty()));
 
     // The premise: any two `Fault`s are equal whatever their messages, so
     // the variant split is doing the work, not the payload.
     assert_eq!(
-        RawCallError::<()>::Fault(FaultString::empty()),
-        RawCallError::<()>::Fault(FaultString::from_display("boom")),
+        RawCallError::<()>::Fault(FaultInfo::empty()),
+        RawCallError::<()>::Fault(FaultInfo::from_message(
+            FaultString::from_display("boom")
+        )),
     );
 }

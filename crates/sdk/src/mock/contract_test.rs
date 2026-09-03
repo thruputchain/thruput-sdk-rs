@@ -11,8 +11,8 @@
 //! full SignedTransaction path (the only place gas_consumed is observable).
 
 use crate::call::RawCallError;
-use crate::exn::FaultString;
 use crate::exn::RawException;
+use crate::exn::{FaultInfo, FaultLocation, FaultString};
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
 use groundhog_native_exec as native_exec;
@@ -25,6 +25,29 @@ use groundhog_xdr::transaction::{
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
+
+/// Assemble the SDK's [`FaultInfo`] from what the harness recorded for the
+/// root frame's panic.
+///
+/// The message and the location are independently absent: a `panic_any` of a
+/// non-string type has no message, and a fault the harness did not catch
+/// itself has neither.
+fn fault_info(result: &TransactResult) -> FaultInfo {
+    let Some(record) = result.fault_panic() else {
+        return FaultInfo::empty();
+    };
+    let message = record
+        .message
+        .as_deref()
+        .map(FaultString::from_display)
+        .unwrap_or_else(FaultString::empty);
+    FaultInfo::from_message(message).with_location(
+        record
+            .location
+            .as_ref()
+            .map(|l| FaultLocation::new(&l.file, l.line, l.column)),
+    )
+}
 
 /// Decode a `TransactResult`'s root-frame outcome into the same
 /// `Result<T, RawCallError>` shape that contract clients produce.
@@ -65,16 +88,11 @@ where
                 )),
             }
         }
-        // The harness caught this frame's own panic and kept its message;
-        // there is none when the fault came from a called contract instead
-        // (see `TransactResult::fault_message`), and `empty()` reads back as
-        // `"<fault>"` for that case.
-        Fault => Err(RawCallError::Fault(
-            result
-                .fault_message()
-                .map(FaultString::from_display)
-                .unwrap_or_else(FaultString::empty),
-        )),
+        // The harness caught this frame's own panic and kept what it saw;
+        // there is nothing when the fault came from a called contract
+        // instead (see `TransactResult::fault_panic`), and `empty()` reads
+        // back as `"<fault>"` for that case.
+        Fault => Err(RawCallError::Fault(fault_info(result))),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }

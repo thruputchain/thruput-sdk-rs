@@ -75,6 +75,68 @@ thread_local! {
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
+/// Where a contract body panicked.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PanicLocation {
+    /// Source file, as `panic!` recorded it.
+    pub file: String,
+    /// 1-based line within [`file`](Self::file).
+    pub line: u32,
+    /// 1-based column within the line.
+    pub column: u32,
+}
+
+/// What the harness could see of a contract body's panic.
+///
+/// The message comes from the payload at the catch site and the location from
+/// the panic hook, which is the only place it exists — `catch_unwind` hands
+/// back a payload and nothing else. Either half can be absent: a `panic_any`
+/// of a non-string type has no message, and a panic reaching a catch site
+/// without a matching hook record has no location.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PanicRecord {
+    /// The panic's message, when its payload carried one.
+    pub message: Option<String>,
+    /// Where the panic happened, when the hook recorded it.
+    pub location: Option<PanicLocation>,
+}
+
+impl PanicRecord {
+    /// True when neither half was recorded, so there is nothing to report.
+    pub fn is_empty(&self) -> bool {
+        self.message.is_none() && self.location.is_none()
+    }
+}
+
+thread_local! {
+    /// What the hook saw of the panic currently unwinding this thread.
+    static HOOKED_PANIC: std::cell::RefCell<Option<PanicRecord>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Take the record the hook stashed for the panic now being caught.
+///
+/// The hook runs during the unwind on the *same thread* that then catches it
+/// — see [`PanicHookGuard`], whose docs spell out why a body and the guard
+/// around it always share a thread. That makes this handoff thread-local by
+/// construction, unlike anything between a caller and its callee, which run
+/// on whichever pool threads resumed them.
+///
+/// `payload` is the authority on the message; a stashed record whose message
+/// disagrees belongs to some other panic (one hooked but never caught here)
+/// and contributes no location rather than a misleading one.
+pub fn take_panic_record(payload: &(dyn std::any::Any + Send)) -> PanicRecord {
+    let stashed = HOOKED_PANIC.with(|slot| slot.borrow_mut().take());
+    let message = panic_payload_message(payload);
+    match stashed {
+        Some(record) if record.message == message => record,
+        _ => PanicRecord {
+            message,
+            location: None,
+        },
+    }
+}
+
 /// Activates the classifying panic hook on the calling thread for as long as
 /// it is held, installing it on first use.
 ///
@@ -131,6 +193,22 @@ fn install_panic_hook() {
             // deterministic error.
             if panic_info.payload().downcast_ref::<InvokeError>().is_none() {
                 _print_panic_info(panic_info);
+                // Stash what only the hook can see. The catch site takes it
+                // back and cross-checks the message, so a record left behind
+                // by a panic caught somewhere else cannot be misread as this
+                // one's.
+                HOOKED_PANIC.with(|slot| {
+                    *slot.borrow_mut() = Some(PanicRecord {
+                        message: panic_payload_message(panic_info.payload()),
+                        location: panic_info.location().map(|l| {
+                            PanicLocation {
+                                file: l.file().to_string(),
+                                line: l.line(),
+                                column: l.column(),
+                            }
+                        }),
+                    });
+                });
             }
         }));
     });

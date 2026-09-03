@@ -1,7 +1,7 @@
 //! The raw, untyped error from a contract call.
 
 use crate::exn::{
-    CallingError, FaultString, RawException,
+    CallingError, FaultInfo, FaultString, RawException,
     client_library_throw as library_throw, syscall_exn,
 };
 use crate::sys::{SysErr, SyscallNo};
@@ -68,17 +68,21 @@ pub enum RawCallError<X = RawException> {
     ///   own.
     /// - **A `raw_Invoke`ed callee** — caught inside the runtime's own
     ///   frame, where there is nothing to attribute a message against, so
-    ///   the payload is [`FaultString::empty`] and `as_str()` reads
+    ///   the payload is [`FaultInfo::empty`] and `as_str()` reads
     ///   `"<fault>"`. Reporting anything else here would mean reporting some
     ///   other frame's message.
     ///
-    /// On rv32 there is no message either way: `FaultString` is a zero-sized
-    /// field there, so a guest pays nothing for carrying one.
+    /// [`FaultInfo`] carries the panic's location alongside its message
+    /// where the harness saw one; `Display` renders them as
+    /// `message at file:line:column`.
+    ///
+    /// On rv32 there is nothing either way: [`FaultInfo`] is a zero-sized
+    /// type there, so a guest pays nothing for carrying one.
     ///
     /// A callee that wants its failure to be legible to its caller — on
     /// chain, not just in a host test — must abort with an exception rather
     /// than fault.
-    Fault(FaultString),
+    Fault(FaultInfo),
 
     /// Decode error: the called contract returned some unparseable return result
     UnparseableReturn(FaultString),
@@ -292,10 +296,10 @@ mod tests {
         ];
         for e in &rejected {
             assert!(e.is_rejected_before_call(), "{e:?}");
-            assert_ne!(*e, RawCallError::Fault(FaultString::empty()));
+            assert_ne!(*e, RawCallError::Fault(FaultInfo::empty()));
         }
 
-        let ran: RawCallError = RawCallError::Fault(FaultString::empty());
+        let ran: RawCallError = RawCallError::Fault(FaultInfo::empty());
         assert!(!ran.is_rejected_before_call());
     }
 }

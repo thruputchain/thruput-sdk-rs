@@ -293,3 +293,195 @@ mod tests {
         assert_eq!(FaultString::from_display(long).as_str(), "<too-big>");
     }
 }
+
+/// Where a fault happened, as `panic!` recorded it.
+///
+/// Host-only: the location comes from the panic hook, which a guest has no
+/// equivalent of — its `#[panic_handler]` ignores `PanicInfo` entirely.
+#[cfg(not(target_arch = "riscv32"))]
+#[derive(Clone, PartialEq, Eq)]
+pub struct FaultLocation {
+    file: heapless::String<FILE_CAP>,
+    line: u32,
+    column: u32,
+}
+
+/// Capacity of the recorded file path. Paths longer than this keep their
+/// tail, which is the part that identifies the file.
+#[cfg(not(target_arch = "riscv32"))]
+const FILE_CAP: usize = 200;
+
+#[cfg(not(target_arch = "riscv32"))]
+impl FaultLocation {
+    /// Record `file:line:column`, keeping the tail of an oversized path.
+    pub fn new(file: &str, line: u32, column: u32) -> Self {
+        let tail = match file.len().checked_sub(FILE_CAP) {
+            None => file,
+            // A path longer than the cap keeps its end: the leading
+            // directories are the interchangeable part.
+            Some(excess) => {
+                let mut start = excess;
+                while start < file.len() && !file.is_char_boundary(start) {
+                    start += 1;
+                }
+                &file[start..]
+            }
+        };
+        let mut stored = heapless::String::new();
+        // Cannot fail: `tail` is at most FILE_CAP bytes by construction.
+        let _ = stored.push_str(tail);
+        Self {
+            file: stored,
+            line,
+            column,
+        }
+    }
+
+    pub fn file(&self) -> &str {
+        &self.file
+    }
+
+    pub fn line(&self) -> u32 {
+        self.line
+    }
+
+    pub fn column(&self) -> u32 {
+        self.column
+    }
+}
+
+#[cfg(not(target_arch = "riscv32"))]
+impl Display for FaultLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}:{}", self.file, self.line, self.column)
+    }
+}
+
+#[cfg(not(target_arch = "riscv32"))]
+impl Debug for FaultLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+/// What is known about the panic that faulted a frame: its message, and
+/// where it happened.
+///
+/// Both halves are host-side diagnostic state, kept out of the wire form for
+/// the same reason [`FaultString`] is — see the module docs. On `riscv32`
+/// this is a zero-sized type: the message field compiles out with
+/// `FaultString` and the location has nowhere to come from, since a guest's
+/// `#[panic_handler]` ignores `PanicInfo` and issues `ebreak`.
+///
+/// Two `FaultInfo`s are always equal, following [`FaultString`]: the contents
+/// are diagnostic, not part of the value's identity, so comparisons behave
+/// the same on host and guest.
+#[derive(Clone, Default)]
+pub struct FaultInfo {
+    message: FaultString,
+    #[cfg(not(target_arch = "riscv32"))]
+    location: Option<FaultLocation>,
+}
+
+impl FaultInfo {
+    /// A fault with nothing recorded.
+    #[inline]
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// A fault carrying only a message.
+    pub fn from_message(message: FaultString) -> Self {
+        Self {
+            message,
+            #[cfg(not(target_arch = "riscv32"))]
+            location: None,
+        }
+    }
+
+    /// The message, or `"<fault>"` when none was recorded.
+    #[cfg(not(target_arch = "riscv32"))]
+    pub fn as_str(&self) -> &str {
+        self.message.as_str()
+    }
+
+    /// The recorded message.
+    pub fn message(&self) -> &FaultString {
+        &self.message
+    }
+
+    /// Where the panic happened, when the harness saw it.
+    ///
+    /// Absent for a fault the harness did not catch itself — a
+    /// `raw_Invoke`ed callee's panic is caught inside the runtime's own
+    /// frame, which reports a status code and nothing else.
+    #[cfg(not(target_arch = "riscv32"))]
+    pub fn location(&self) -> Option<&FaultLocation> {
+        self.location.as_ref()
+    }
+
+    /// Attach the location the panic hook recorded.
+    #[cfg(not(target_arch = "riscv32"))]
+    pub fn with_location(mut self, location: Option<FaultLocation>) -> Self {
+        self.location = location;
+        self
+    }
+}
+
+// Hand-written for the same reason as `FaultString`'s: the contents are
+// host-only state, so deriving would make equality differ by target.
+impl PartialEq for FaultInfo {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for FaultInfo {}
+
+/// Renders as `message at file:line:column`, dropping either half that was
+/// not recorded. With neither, this is `FaultString`'s `"<fault>"`.
+#[cfg(not(target_arch = "riscv32"))]
+impl Display for FaultInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.location {
+            Some(location) => write!(f, "{} at {location}", self.message),
+            None => write!(f, "{}", self.message),
+        }
+    }
+}
+
+// A guest records neither half, so this renders nothing -- deliberately not
+// even a placeholder, which would put a string in every contract for a value
+// that is always empty there.
+#[cfg(target_arch = "riscv32")]
+impl Display for FaultInfo {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+
+#[cfg(not(target_arch = "riscv32"))]
+impl Debug for FaultInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FaultInfo")
+            .field("message", &self.message)
+            .field("location", &self.location)
+            .finish()
+    }
+}
+
+#[cfg(target_arch = "riscv32")]
+impl Debug for FaultInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("FaultInfo")
+    }
+}
+
+#[cfg(not(target_arch = "riscv32"))]
+impl Error for FaultInfo {}
+
+// A guest carries neither half, so the whole struct vanishes. Pinned here so
+// a `cfg` slip that let the host-side state through would fail the guest
+// build rather than quietly costing every contract stack per live fault.
+#[cfg(target_arch = "riscv32")]
+const _: () = assert!(core::mem::size_of::<FaultInfo>() == 0);
