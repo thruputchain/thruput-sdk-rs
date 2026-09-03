@@ -2,7 +2,6 @@
 
 sdk::declare_mock_contract!();
 
-use sdk::storage::StorageHandle;
 use sdk::storage::{Map, Value, Vector};
 use sdk::*;
 
@@ -47,7 +46,7 @@ impl StorageErrorContract {
     /// simulate slot aliasing / type confusion.
     pub fn corrupt_len_slot(&mut self) {
         let mut bad: Value<()> =
-            <Value<()>>::from_keypath(self.numbers.keypath().child(&0u32));
+            Value::from(self.numbers.keypath().child(&0u32));
         bad.set(&());
     }
 

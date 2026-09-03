@@ -1,15 +1,11 @@
-error[E0308]: mismatched types
- --> tests/compile-fail-storage/map_double_borrow.rs:4:49
-  |
-4 |     let mut m: Map<u64, Value<u64>> = Map::from(Keypath::default());
-  |                                       --------- ^^^^^^^^^^^^^^^^^^ expected `Map<u64, Value<u64>>`, found `Keypath`
-  |                                       |
-  |                                       arguments to this function are incorrect
-  |
-  = note: expected struct `sdk::storage::Map<u64, sdk::storage::Value<u64>>`
-             found struct `sdk::storage::Keypath`
-note: associated function defined here
- --> $RUST/core/src/convert/mod.rs
-  |
-  |     fn from(value: T) -> Self;
-  |        ^^^^
+error[E0499]: cannot borrow `m` as mutable more than once at a time
+  --> tests/compile-fail-storage/map_double_borrow.rs:8:21
+   |
+ 5 |     let mut slot = m.at_mut(&10u64);
+   |                    - first mutable borrow occurs here
+...
+ 8 |     let mut slot2 = m.at_mut(&12u64);
+   |                     ^ second mutable borrow occurs here
+...
+11 |     slot.set(&15u64);
+   |     ---- first borrow later used here

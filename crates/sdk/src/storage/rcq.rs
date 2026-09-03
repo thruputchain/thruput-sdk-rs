@@ -47,6 +47,15 @@ impl<T> super::node::StorageHandle for RCQ<T> {
     }
 }
 
+// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
+// bounds fields on `StorageHandle`, not this, so the field diagnostic is
+// unaffected.
+impl<T> From<Keypath> for RCQ<T> {
+    fn from(keypath: Keypath) -> Self {
+        <Self as super::node::StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl<T> RCQ<T> {
     /// Retrieve the storage key of the RCQ item.
     pub fn key(&self) -> &StorageKey {

@@ -136,6 +136,12 @@ fn impl_from_keypath(
                             Self
                         }
                     }
+
+                    impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
+                        fn from(keypath: Keypath) -> Self {
+                            <Self as ::sdk::storage::StorageHandle>::from_keypath(keypath)
+                        }
+                    }
                 };
             });
         }
@@ -261,6 +267,17 @@ fn impl_from_keypath(
                     Self {
                         #field_names
                     }
+                }
+            }
+
+            // Convenience: keeps `keypath.into()` working for storage structs.
+            // Fields are bounded on `StorageHandle`, not this, so the field
+            // diagnostic is unaffected.
+            impl #impl_generics From<Keypath> for #ident #ty_generics
+                #where_clause
+            {
+                fn from(keypath: Keypath) -> Self {
+                    <Self as ::sdk::storage::StorageHandle>::from_keypath(keypath)
                 }
             }
 

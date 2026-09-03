@@ -58,6 +58,15 @@ impl<S> super::node::StorageHandle for Vector<S> {
     }
 }
 
+// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
+// bounds fields on `StorageHandle`, not this, so the field diagnostic is
+// unaffected.
+impl<S> From<Keypath> for Vector<S> {
+    fn from(keypath: Keypath) -> Self {
+        <Self as super::node::StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl<S> super::sealed::Sealed for Vector<S> {}
 impl<S> super::node::StorageType for Vector<S> {}
 
@@ -302,7 +311,6 @@ impl<'a, S: StorageType> IntoIterator for &'a mut Vector<S> {
 
 #[cfg(test)]
 mod test_vector_slots {
-    use super::super::node::StorageHandle;
     use super::*;
     use crate::storage::Value;
 
@@ -310,7 +318,7 @@ mod test_vector_slots {
     // must address exactly what runtime child() derives.
     crate::contract_test!(fixed_slots_match_runtime_child {
         let root = Keypath::default().child("V");
-        let v = <Vector<Value<u32>>>::from_keypath(root.clone());
+        let v: Vector<Value<u32>> = Vector::from(root.clone());
         assert_eq!(*v.len.key(), root.child(&0u32).generate_key());
         assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
         assert!(v.keypath().addresses_same_slot(&root));

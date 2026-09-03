@@ -53,6 +53,13 @@ impl<T: StorageHandle> StorageHandle for Node<T> {
     }
 }
 
+// Convenience: keeps `keypath.into()` working for nodes too.
+impl<T: StorageHandle> From<Keypath> for Node<T> {
+    fn from(keypath: Keypath) -> Self {
+        <Self as StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl<T> Deref for Node<T> {
     type Target = T;
     fn deref(&self) -> &T {

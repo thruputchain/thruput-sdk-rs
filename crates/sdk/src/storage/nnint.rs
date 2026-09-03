@@ -39,6 +39,15 @@ impl super::node::StorageHandle for NNInt {
     }
 }
 
+// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
+// bounds fields on `StorageHandle`, not this, so the field diagnostic is
+// unaffected.
+impl From<Keypath> for NNInt {
+    fn from(keypath: Keypath) -> Self {
+        <Self as super::node::StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl NNInt {
     /// Get the current value.  Aborts if location not yet set.
     pub fn get(&self) -> i128 {

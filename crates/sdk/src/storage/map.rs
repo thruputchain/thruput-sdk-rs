@@ -42,6 +42,15 @@ impl<K, V> super::node::StorageHandle for Map<K, V> {
     }
 }
 
+// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
+// bounds fields on `StorageHandle`, not this, so the field diagnostic is
+// unaffected.
+impl<K, V> From<Keypath> for Map<K, V> {
+    fn from(keypath: Keypath) -> Self {
+        <Self as super::node::StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl<K, V> Map<K, V> {
     pub fn keypath(&self) -> &Keypath {
         &self.keypath

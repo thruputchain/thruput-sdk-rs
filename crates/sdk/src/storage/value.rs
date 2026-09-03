@@ -24,6 +24,15 @@ impl<T> super::node::StorageHandle for Value<T> {
     }
 }
 
+// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
+// bounds fields on `StorageHandle`, not this, so the field diagnostic is
+// unaffected.
+impl<T> From<Keypath> for Value<T> {
+    fn from(keypath: Keypath) -> Self {
+        <Self as super::node::StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl<T> super::sealed::Sealed for Value<T> {}
 impl<T> super::node::StorageType for Value<T> {}
 

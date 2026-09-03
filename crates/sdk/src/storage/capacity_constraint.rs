@@ -55,6 +55,15 @@ impl super::node::StorageHandle for CapacityConstraint {
     }
 }
 
+// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
+// bounds fields on `StorageHandle`, not this, so the field diagnostic is
+// unaffected.
+impl From<Keypath> for CapacityConstraint {
+    fn from(keypath: Keypath) -> Self {
+        <Self as super::node::StorageHandle>::from_keypath(keypath)
+    }
+}
+
 impl CapacityConstraint {
     /// Get the remaining capacity: the capacity at the last
     /// [`set_capacity`](Self::set_capacity) (in this transaction, or
