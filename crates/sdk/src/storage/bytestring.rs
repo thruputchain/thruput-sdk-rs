@@ -8,8 +8,8 @@ pub struct Bytestring {
     key: LeafKey,
 }
 
-impl From<Keypath> for Bytestring {
-    fn from(keypath: Keypath) -> Self {
+impl super::node::StorageHandle for Bytestring {
+    fn from_keypath(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
         }

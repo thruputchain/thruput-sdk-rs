@@ -131,8 +131,8 @@ fn impl_from_keypath(
                 const _: () = {
                     use ::sdk::storage::*;
 
-                    impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
-                        fn from(_keypath: Keypath) -> Self {
+                    impl #impl_generics ::sdk::storage::StorageHandle for #ident #ty_generics #where_clause {
+                        fn from_keypath(_keypath: Keypath) -> Self {
                             Self
                         }
                     }
@@ -223,7 +223,7 @@ fn impl_from_keypath(
                 // bound below. Going via `From` would add a second,
                 // redundant error from inside this constructor whenever a
                 // field is not a storage type.
-                <#field_type as ::sdk::storage::StorageHandle>::__from_keypath(
+                <#field_type as ::sdk::storage::StorageHandle>::from_keypath(
                     keypath.child_framed(&__SLOT_FRAME),
                 )
             };
@@ -235,7 +235,7 @@ fn impl_from_keypath(
         // *trivially* unsatisfiable, which rustc reports at the derive's
         // span with a `#![feature(trivial_bounds)]` suggestion — never the
         // fix, and it does not say which field is wrong. Left out, the
-        // `__from_keypath` call in the initializer above raises the same
+        // `from_keypath` call in the initializer above raises the same
         // obligation as an ordinary one, so the error lands on the field and
         // carries `StorageHandle`'s `on_unimplemented`.
         if type_mentions_generic(field_type, &generic_idents) {
@@ -252,10 +252,10 @@ fn impl_from_keypath(
         const _: () = {
             use ::sdk::storage::*;
 
-            impl #impl_generics From<Keypath> for #ident #ty_generics
+            impl #impl_generics ::sdk::storage::StorageHandle for #ident #ty_generics
                 #where_clause
             {
-                fn from(keypath: Keypath) -> Self {
+                fn from_keypath(keypath: Keypath) -> Self {
                     #field_initializers
 
                     Self {
@@ -264,16 +264,6 @@ fn impl_from_keypath(
                 }
             }
 
-            // Lets a nested `#[storage]` struct be a field of an enclosing
-            // one, and puts it in the implementor list rustc prints when a
-            // field is not a storage handle.
-            impl #impl_generics ::sdk::storage::StorageHandle
-                for #ident #ty_generics #where_clause
-            {
-                fn __from_keypath(keypath: Keypath) -> Self {
-                    <Self as From<Keypath>>::from(keypath)
-                }
-            }
         };
     })
 }
