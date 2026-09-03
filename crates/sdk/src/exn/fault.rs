@@ -134,10 +134,15 @@ impl Debug for FaultString {
     }
 }
 
+// Writes nothing rather than the type's name: a guest has no message, and a
+// name would be a string literal in every contract that instantiates this
+// impl, for a value that is always empty there. The impl exists only because
+// the bound demands it -- `LibraryExn` derives `Debug` and the throw helpers
+// take `T: Debug` -- not because a guest has anything to print.
 #[cfg(target_arch = "riscv32")]
 impl Debug for FaultString {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("FaultString")
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
@@ -450,16 +455,6 @@ impl Display for FaultInfo {
     }
 }
 
-// A guest records neither half, so this renders nothing -- deliberately not
-// even a placeholder, which would put a string in every contract for a value
-// that is always empty there.
-#[cfg(target_arch = "riscv32")]
-impl core::fmt::Display for FaultInfo {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
-}
-
 #[cfg(not(target_arch = "riscv32"))]
 impl Debug for FaultInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -470,10 +465,14 @@ impl Debug for FaultInfo {
     }
 }
 
+// Writes nothing, for the reason `FaultString`'s guest `Debug` does. This
+// impl exists only to satisfy `RawCallError`'s `#[derive(Debug)]`; removing
+// it fails the guest build, so it cannot simply be dropped the way the guest
+// `Display` was.
 #[cfg(target_arch = "riscv32")]
 impl Debug for FaultInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("FaultInfo")
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
