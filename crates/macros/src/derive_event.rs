@@ -3,6 +3,7 @@ use crate::common::contract::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use syn::spanned::Spanned;
 use syn::{DeriveInput, Fields, GenericParam, Result};
 
 /// Returns (topic_fields, payload_fields).
@@ -288,10 +289,21 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     let topic_arms = topics.iter().enumerate().map(|(i, field)| {
         let index = (i + 1) as u32; // 0 is SIGNATURE
         let field_ident = field.ident.as_ref().unwrap();
+        // Spanned to the field's type so an unsupported topic reports there
+        // rather than at the `derive(Event)` line, which names neither the
+        // field nor the trait.
+        //
+        // Fully qualified, so a `#[topic]` field with no impl fails the
+        // `IntoTopic` bound at the field and picks up the trait's
+        // `on_unimplemented`. Method-call syntax resolved through auto-deref
+        // instead, which reports a bare E0599 with no note; the impls for
+        // `ContractAddress` and `&T` in event.rs are what make the qualified
+        // form accept every real topic type.
+        let call = quote::quote_spanned! { field.ty.span() =>
+            <_ as ::sdk::event::IntoTopic>::into_topic(&self.#field_ident)
+        };
         quote! {
-            #index => ::core::option::Option::Some(
-                self.#field_ident.into_topic()
-            ),
+            #index => ::core::option::Option::Some(#call),
         }
     });
 
