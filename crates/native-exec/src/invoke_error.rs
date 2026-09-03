@@ -75,17 +75,6 @@ thread_local! {
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
-/// Where a contract body panicked.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PanicLocation {
-    /// Source file, as `panic!` recorded it.
-    pub file: String,
-    /// 1-based line within [`file`](Self::file).
-    pub line: u32,
-    /// 1-based column within the line.
-    pub column: u32,
-}
-
 /// What the harness could see of a contract body's panic.
 ///
 /// The message comes from the payload at the catch site and the location from
@@ -93,19 +82,20 @@ pub struct PanicLocation {
 /// back a payload and nothing else. Either half can be absent: a `panic_any`
 /// of a non-string type has no message, and a panic reaching a catch site
 /// without a matching hook record has no location.
+///
+/// Flat rather than nesting a location struct: this is the capture layer, and
+/// the only named location type is the SDK's bounded `FaultLocation`, on the
+/// far side of the conversion.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PanicRecord {
     /// The panic's message, when its payload carried one.
     pub message: Option<String>,
-    /// Where the panic happened, when the hook recorded it.
-    pub location: Option<PanicLocation>,
-}
-
-impl PanicRecord {
-    /// True when neither half was recorded, so there is nothing to report.
-    pub fn is_empty(&self) -> bool {
-        self.message.is_none() && self.location.is_none()
-    }
+    /// Source file, when the hook recorded a location.
+    pub file: Option<String>,
+    /// 1-based line within [`file`](Self::file); meaningless without it.
+    pub line: u32,
+    /// 1-based column within the line; meaningless without a file.
+    pub column: u32,
 }
 
 thread_local! {
@@ -132,7 +122,7 @@ pub fn take_panic_record(payload: &(dyn std::any::Any + Send)) -> PanicRecord {
         Some(record) if record.message == message => record,
         _ => PanicRecord {
             message,
-            location: None,
+            ..Default::default()
         },
     }
 }
@@ -198,15 +188,12 @@ fn install_panic_hook() {
                 // by a panic caught somewhere else cannot be misread as this
                 // one's.
                 HOOKED_PANIC.with(|slot| {
+                    let at = panic_info.location();
                     *slot.borrow_mut() = Some(PanicRecord {
                         message: panic_payload_message(panic_info.payload()),
-                        location: panic_info.location().map(|l| {
-                            PanicLocation {
-                                file: l.file().to_string(),
-                                line: l.line(),
-                                column: l.column(),
-                            }
-                        }),
+                        file: at.map(|l| l.file().to_string()),
+                        line: at.map_or(0, |l| l.line()),
+                        column: at.map_or(0, |l| l.column()),
                     });
                 });
             }

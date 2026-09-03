@@ -415,21 +415,16 @@ impl FaultInfo {
         &self.message
     }
 
-    /// Where the panic happened, when the harness saw it.
+    /// Where the panic happened, when the harness recorded it.
     ///
-    /// Absent for a fault the harness did not catch itself — a
+    /// Absent when nothing was recorded for the fault at all — a
     /// `raw_Invoke`ed callee's panic is caught inside the runtime's own
-    /// frame, which reports a status code and nothing else.
+    /// frame, which reports a status code and nothing else — and when a
+    /// panic reached the catch site with no matching hook record, which
+    /// leaves a message with no location beside it.
     #[cfg(not(target_arch = "riscv32"))]
     pub fn location(&self) -> Option<&FaultLocation> {
         self.location.as_ref()
-    }
-
-    /// Attach the location the panic hook recorded.
-    #[cfg(not(target_arch = "riscv32"))]
-    pub fn with_location(mut self, location: Option<FaultLocation>) -> Self {
-        self.location = location;
-        self
     }
 }
 
@@ -478,6 +473,37 @@ impl Debug for FaultInfo {
 
 #[cfg(not(target_arch = "riscv32"))]
 impl Error for FaultInfo {}
+
+// The harness's record is the only source of a populated `FaultInfo`, and
+// `PanicRecord` keeps the location as flat fields rather than a struct of its
+// own: it is the capture layer, where the hook hands over an unbounded path,
+// while `FaultLocation` is the bounded, no-alloc form contract-facing code
+// sees. One type cannot serve both — `sdk` depends on `native-exec` and never
+// the reverse, and that dep is optional and host-only, so this conversion
+// exists only under `dev`.
+#[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
+impl From<&groundhog_native_exec::invoke_error::PanicRecord> for FaultInfo {
+    fn from(
+        record: &groundhog_native_exec::invoke_error::PanicRecord,
+    ) -> Self {
+        // Destructured so a field added to the record fails to compile here
+        // rather than being silently dropped.
+        let groundhog_native_exec::invoke_error::PanicRecord {
+            message,
+            file,
+            line,
+            column,
+        } = record;
+        Self {
+            message: message
+                .as_deref()
+                .map_or_else(FaultString::empty, FaultString::from_display),
+            location: file
+                .as_deref()
+                .map(|f| FaultLocation::new(f, *line, *column)),
+        }
+    }
+}
 
 // A guest carries neither half, so the whole struct vanishes. Pinned here so
 // a `cfg` slip that let the host-side state through would fail the guest

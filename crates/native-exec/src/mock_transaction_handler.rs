@@ -366,8 +366,8 @@ impl MockInvocationFrame {
                     // in hand, on one thread, with no ambiguity about which
                     // frame faulted. The hook's record (which carries the
                     // location) is taken here too, on that same thread.
-                    let record = crate::invoke_error::take_panic_record(&*err);
-                    self.fault_panic = (!record.is_empty()).then_some(record);
+                    self.fault_panic =
+                        Some(crate::invoke_error::take_panic_record(&*err));
                     self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Deterministic);
                 }
             }

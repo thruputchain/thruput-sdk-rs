@@ -65,7 +65,9 @@ pub enum RawCallError<X = RawException> {
     /// - **A frame the native harness ran itself** — the root frame of an
     ///   `env.transact`, reaching here through `into_root_call_result`. The
     ///   harness caught that panic, so the message is the panicking body's
-    ///   own.
+    ///   own. A frame that died with no ordinary panic to catch leaves it
+    ///   empty: running out of gas unwinds an `InvokeError`, which carries
+    ///   no message.
     /// - **A `raw_Invoke`ed callee** — caught inside the runtime's own
     ///   frame, where there is nothing to attribute a message against, so
     ///   the payload is [`FaultInfo::empty`] and `as_str()` reads
