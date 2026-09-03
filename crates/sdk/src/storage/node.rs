@@ -6,74 +6,43 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
 #[allow(private_bounds)]
+// No list of element types here: the trait is sealed with explicit impls, so
+// rustc enumerates them itself. This adds only the part it cannot infer --
+// that the fix is to wrap the value rather than find a different type.
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be stored in a `Map` or `Vector`",
-    // No list of handle types here: the trait is sealed with explicit impls,
-    // so rustc enumerates them itself. A hand-kept copy only drifts.
     note = "element types must be storage handles: wrap plain data in `Value<{Self}>`; a nested `#[storage]` struct goes in `Node<_>`"
 )]
-pub trait StorageType: Sealed + StorageHandle {}
+pub trait StorageType: Sealed + From<Keypath> {}
 
-/// Builds a storage handle from the keypath its slot resolves to.
+/// Build a storage field handle from its keypath.
 ///
-/// The constructor every storage handle is made through, and the bound the
-/// `#[storage]` derive puts on its fields. Implemented by the SDK handle
-/// types and, via the derive, by every `#[storage]` struct; plain data is
-/// wrapped in [`Value<T>`](super::Value) rather than implementing this.
-///
-/// Replaces what used to be a `From<Keypath>` bound. Owning the trait is what
-/// lets the derive's error say which field is wrong and what to do about it —
-/// a `#[diagnostic::on_unimplemented]` cannot be attached to `From`.
-///
-/// # Migrating a hand-rolled handle
-///
-/// The derive used to bound fields on `From<Keypath>`, so a type implementing
-/// that by hand was accepted as a storage field. Such a type now needs a
-/// `StorageHandle` impl too, which can forward to the existing conversion:
-///
-/// ```ignore
-/// impl StorageHandle for MyHandle {
-///     fn from_keypath(keypath: Keypath) -> Self {
-///         Self::from(keypath)
-///     }
-/// }
-/// ```
-///
-/// The SDK handle types and every `#[storage]` struct are covered already, and
-/// nothing in this repo or `example-contracts` writes such an impl by hand.
-#[diagnostic::on_unimplemented(
-    message = "`{Self}` cannot be a storage field",
-    // No hand-kept list of handle types: the impls are explicit and the
-    // derive adds one per struct, so rustc enumerates the set itself.
-    note = "storage fields hold handles, not values: wrap plain data in `Value<{Self}>`"
-)]
-pub trait StorageHandle {
-    /// Build the handle for `keypath`.
-    fn from_keypath(keypath: Keypath) -> Self;
+/// The `#[storage]` derive calls this rather than `.into()` so that a field
+/// whose type is not a storage handle fails here, at the field. Stated as a
+/// where-clause bound on a concrete type it is *trivially* unsatisfiable,
+/// which rustc reports at the derive's span suggesting
+/// `#![feature(trivial_bounds)]` — never the fix, and it does not say which
+/// field is wrong.
+#[doc(hidden)]
+pub fn __field_from_keypath<T: From<Keypath>>(keypath: Keypath) -> T {
+    T::from(keypath)
 }
 
 /// Wrapper marking a compound storage field group.
 ///
 /// Derefs to `T` for field access. The node does not retain its own keypath:
-/// each field handle constructed by `T::from_keypath` already carries the path it
+/// each field handle constructed by `T::from` already carries the path it
 /// needs, so keeping the parent path would add an unused buffer and require an
 /// otherwise-unnecessary clone during construction.
 pub struct Node<T> {
     fields: T,
 }
 
-impl<T: StorageHandle> StorageHandle for Node<T> {
-    fn from_keypath(keypath: Keypath) -> Self {
-        Self {
-            fields: T::from_keypath(keypath),
-        }
-    }
-}
-
-// Convenience: keeps `keypath.into()` working for nodes too.
-impl<T: StorageHandle> From<Keypath> for Node<T> {
+impl<T: From<Keypath>> From<Keypath> for Node<T> {
     fn from(keypath: Keypath) -> Self {
-        <Self as StorageHandle>::from_keypath(keypath)
+        Self {
+            fields: T::from(keypath),
+        }
     }
 }
 
@@ -91,7 +60,7 @@ impl<T> DerefMut for Node<T> {
 }
 
 impl<T> Sealed for Node<T> {}
-impl<T: StorageHandle> StorageType for Node<T> {}
+impl<T: From<Keypath>> StorageType for Node<T> {}
 
 impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
@@ -102,7 +71,7 @@ impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
 /// Marker for types usable as a contract's root state by `#[contract]`.
 ///
 /// Automatically implemented for every type that implements
-/// `StorageHandle` — i.e. anything annotated with `#[storage]`, including
+/// `From<Keypath>` — i.e. anything annotated with `#[storage]`, including
 /// unit structs like `struct Token;`. Contract methods taking
 /// `&self`/`&mut self` require the state type to implement this trait;
 /// contracts with only associated functions never construct state and do
@@ -112,9 +81,9 @@ impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
     note = "methods taking `&self`/`&mut self` require the state type to be a storage struct: add `#[storage]` to the definition of `{Self}`",
     note = "contracts with only associated functions (no `self` methods) do not need `#[storage]`"
 )]
-pub trait ContractState: StorageHandle {}
+pub trait ContractState: From<Keypath> {}
 
-impl<T: StorageHandle> ContractState for T {}
+impl<T: From<Keypath>> ContractState for T {}
 
 /// Carries a storage struct's root domain separator.
 ///
@@ -143,7 +112,7 @@ pub trait StorageDomain {
 #[doc(hidden)]
 #[inline(never)]
 pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
-    Node::from_keypath(Keypath::root(T::DOMAIN))
+    Node::from(Keypath::root(T::DOMAIN))
 }
 
 #[cfg(test)]

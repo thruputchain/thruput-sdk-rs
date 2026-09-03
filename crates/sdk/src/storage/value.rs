@@ -15,21 +15,12 @@ pub struct Value<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> super::node::StorageHandle for Value<T> {
-    fn from_keypath(keypath: Keypath) -> Self {
+impl<T> From<Keypath> for Value<T> {
+    fn from(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
             _marker: PhantomData,
         }
-    }
-}
-
-// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
-// bounds fields on `StorageHandle`, not this, so the field diagnostic is
-// unaffected.
-impl<T> From<Keypath> for Value<T> {
-    fn from(keypath: Keypath) -> Self {
-        <Self as super::node::StorageHandle>::from_keypath(keypath)
     }
 }
 

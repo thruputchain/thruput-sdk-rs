@@ -44,23 +44,14 @@ pub struct CapacityConstraint {
     _live: crate::storage::live_guards::LiveGuard,
 }
 
-impl super::node::StorageHandle for CapacityConstraint {
-    fn from_keypath(keypath: Keypath) -> Self {
+impl From<Keypath> for CapacityConstraint {
+    fn from(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
             capacity: None,
             delta: 0,
             _live: crate::storage::live_guards::LiveGuard::new(),
         }
-    }
-}
-
-// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
-// bounds fields on `StorageHandle`, not this, so the field diagnostic is
-// unaffected.
-impl From<Keypath> for CapacityConstraint {
-    fn from(keypath: Keypath) -> Self {
-        <Self as super::node::StorageHandle>::from_keypath(keypath)
     }
 }
 

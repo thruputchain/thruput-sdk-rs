@@ -131,15 +131,9 @@ fn impl_from_keypath(
                 const _: () = {
                     use ::sdk::storage::*;
 
-                    impl #impl_generics ::sdk::storage::StorageHandle for #ident #ty_generics #where_clause {
-                        fn from_keypath(_keypath: Keypath) -> Self {
-                            Self
-                        }
-                    }
-
                     impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
-                        fn from(keypath: Keypath) -> Self {
-                            <Self as ::sdk::storage::StorageHandle>::from_keypath(keypath)
+                        fn from(_keypath: Keypath) -> Self {
+                            Self
                         }
                     }
                 };
@@ -154,13 +148,16 @@ fn impl_from_keypath(
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
     let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
+    // Lifetimes are included: a field like `H<'a>` whose impl is conditional
+    // (say only `H<'static>`) still needs its bound in the where clause, or
+    // the generated impl is rejected for an arbitrary `'a`.
     let generic_idents: Vec<syn::Ident> = generics
         .params
         .iter()
-        .filter_map(|p| match p {
-            syn::GenericParam::Type(t) => Some(t.ident.clone()),
-            syn::GenericParam::Const(c) => Some(c.ident.clone()),
-            syn::GenericParam::Lifetime(_) => None,
+        .map(|p| match p {
+            syn::GenericParam::Type(t) => t.ident.clone(),
+            syn::GenericParam::Const(c) => c.ident.clone(),
+            syn::GenericParam::Lifetime(l) => l.lifetime.ident.clone(),
         })
         .collect();
 
@@ -225,30 +222,26 @@ fn impl_from_keypath(
                 // generic impls — it captures no generic params.
                 const __SLOT_FRAME: ::sdk::storage::FramedComponent =
                     ::sdk::storage::FramedComponent::from_u32(#idx);
-                // Through `StorageHandle` rather than `.into()`: see the
-                // bound below. Going via `From` would add a second,
-                // redundant error from inside this constructor whenever a
-                // field is not a storage type.
-                <#field_type as ::sdk::storage::StorageHandle>::from_keypath(
+                // Through the helper rather than `.into()`: the bound is
+                // the same, but raising it from a call puts the error on
+                // the field instead of the derive's span.
+                ::sdk::storage::__field_from_keypath::<#field_type>(
                     keypath.child_framed(&__SLOT_FRAME),
                 )
             };
         });
 
-        // A generic field type needs its `StorageHandle` bound stated in the
-        // where clause; a concrete one must not have it there. A
-        // where-clause bound on a concrete type that cannot satisfy it is
-        // *trivially* unsatisfiable, which rustc reports at the derive's
-        // span with a `#![feature(trivial_bounds)]` suggestion — never the
-        // fix, and it does not say which field is wrong. Left out, the
-        // `from_keypath` call in the initializer above raises the same
-        // obligation as an ordinary one, so the error lands on the field and
-        // carries `StorageHandle`'s `on_unimplemented`.
+        // Only a generic field type needs its bound stated here. On a
+        // concrete one the bound is *trivially* unsatisfiable when unmet,
+        // which rustc reports at the derive's span with a
+        // `#![feature(trivial_bounds)]` suggestion that is never the fix and
+        // does not name the field. Left out, the helper call above raises the
+        // same obligation as an ordinary one, at the field.
         if type_mentions_generic(field_type, &generic_idents) {
             generics
                 .make_where_clause()
                 .predicates
-                .push(syn::parse_quote!(#field_type: StorageHandle));
+                .push(syn::parse_quote!(#field_type: From<Keypath>));
         }
     }
 
@@ -258,10 +251,10 @@ fn impl_from_keypath(
         const _: () = {
             use ::sdk::storage::*;
 
-            impl #impl_generics ::sdk::storage::StorageHandle for #ident #ty_generics
+            impl #impl_generics From<Keypath> for #ident #ty_generics
                 #where_clause
             {
-                fn from_keypath(keypath: Keypath) -> Self {
+                fn from(keypath: Keypath) -> Self {
                     #field_initializers
 
                     Self {
@@ -269,20 +262,17 @@ fn impl_from_keypath(
                     }
                 }
             }
-
-            // Convenience: keeps `keypath.into()` working for storage structs.
-            // Fields are bounded on `StorageHandle`, not this, so the field
-            // diagnostic is unaffected.
-            impl #impl_generics From<Keypath> for #ident #ty_generics
-                #where_clause
-            {
-                fn from(keypath: Keypath) -> Self {
-                    <Self as ::sdk::storage::StorageHandle>::from_keypath(keypath)
-                }
-            }
-
         };
     })
+}
+
+// Produce an error referencing a particular code span
+fn err<T, S, M>(spanned: &S, msg: M) -> Result<T>
+where
+    S: Spanned,
+    M: AsRef<str>,
+{
+    Err(syn::Error::new(spanned.span(), msg.as_ref()))
 }
 
 /// Whether `ty` mentions any of `params` — i.e. whether a bound on it is
@@ -308,13 +298,4 @@ fn tokens_mention(tt: &proc_macro2::TokenTree, params: &[syn::Ident]) -> bool {
         }
         _ => false,
     }
-}
-
-// Produce an error referencing a particular code span
-fn err<T, S, M>(spanned: &S, msg: M) -> Result<T>
-where
-    S: Spanned,
-    M: AsRef<str>,
-{
-    Err(syn::Error::new(spanned.span(), msg.as_ref()))
 }

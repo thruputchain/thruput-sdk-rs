@@ -35,19 +35,10 @@ pub struct Map<K, V> {
     _marker: PhantomData<fn() -> (K, V)>,
 }
 
-impl<K, V> super::node::StorageHandle for Map<K, V> {
-    fn from_keypath(keypath: Keypath) -> Self {
-        let _marker = PhantomData;
-        Self { keypath, _marker }
-    }
-}
-
-// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
-// bounds fields on `StorageHandle`, not this, so the field diagnostic is
-// unaffected.
 impl<K, V> From<Keypath> for Map<K, V> {
     fn from(keypath: Keypath) -> Self {
-        <Self as super::node::StorageHandle>::from_keypath(keypath)
+        let _marker = PhantomData;
+        Self { keypath, _marker }
     }
 }
 
@@ -62,7 +53,7 @@ impl<K, V> Map<K, V> {
         V: StorageType,
     {
         let keypath = self.make_entry_keypath(entry_key);
-        let slot = V::from_keypath(keypath);
+        let slot = V::from(keypath);
         SlotRef::new(self, slot)
     }
 
@@ -72,7 +63,7 @@ impl<K, V> Map<K, V> {
         V: StorageType,
     {
         let keypath = self.make_entry_keypath(entry_key);
-        let slot = V::from_keypath(keypath);
+        let slot = V::from(keypath);
         SlotMut::new(self, slot)
     }
 
@@ -83,7 +74,7 @@ impl<K, V> Map<K, V> {
     {
         let mut keypath = self.make_entry_keypath(entry_key);
         keypath.set_exclusive();
-        let slot = V::from_keypath(keypath);
+        let slot = V::from(keypath);
         SlotMut::new(self, slot)
     }
 
@@ -117,7 +108,7 @@ impl<K, V> Map<K, V> {
             }
         }
 
-        let slots = keypaths.map(V::from_keypath);
+        let slots = keypaths.map(V::from);
         DisjointMut {
             slots,
             _borrow: PhantomData,
@@ -139,7 +130,7 @@ impl<K, V> Map<K, V> {
         K: WriteXDR,
         V: StorageType,
     {
-        let slots = keys.map(|k| V::from_keypath(self.make_entry_keypath(k)));
+        let slots = keys.map(|k| V::from(self.make_entry_keypath(k)));
         DisjointMut {
             slots,
             _borrow: PhantomData,

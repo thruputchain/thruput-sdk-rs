@@ -8,20 +8,11 @@ pub struct Bytestring {
     key: LeafKey,
 }
 
-impl super::node::StorageHandle for Bytestring {
-    fn from_keypath(keypath: Keypath) -> Self {
+impl From<Keypath> for Bytestring {
+    fn from(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
         }
-    }
-}
-
-// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
-// bounds fields on `StorageHandle`, not this, so the field diagnostic is
-// unaffected.
-impl From<Keypath> for Bytestring {
-    fn from(keypath: Keypath) -> Self {
-        <Self as super::node::StorageHandle>::from_keypath(keypath)
     }
 }
 

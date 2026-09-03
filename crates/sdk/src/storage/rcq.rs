@@ -38,21 +38,12 @@ pub struct RCQ<T> {
     phantom_entry: PhantomData<fn() -> T>,
 }
 
-impl<T> super::node::StorageHandle for RCQ<T> {
-    fn from_keypath(keypath: Keypath) -> Self {
+impl<T> From<Keypath> for RCQ<T> {
+    fn from(keypath: Keypath) -> Self {
         Self {
             key: keypath.into(),
             phantom_entry: PhantomData,
         }
-    }
-}
-
-// Convenience: keeps `keypath.into()` working. The `#[storage]` derive
-// bounds fields on `StorageHandle`, not this, so the field diagnostic is
-// unaffected.
-impl<T> From<Keypath> for RCQ<T> {
-    fn from(keypath: Keypath) -> Self {
-        <Self as super::node::StorageHandle>::from_keypath(keypath)
     }
 }
 
