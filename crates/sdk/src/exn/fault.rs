@@ -454,7 +454,7 @@ impl Display for FaultInfo {
 // even a placeholder, which would put a string in every contract for a value
 // that is always empty there.
 #[cfg(target_arch = "riscv32")]
-impl Display for FaultInfo {
+impl core::fmt::Display for FaultInfo {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         Ok(())
     }
