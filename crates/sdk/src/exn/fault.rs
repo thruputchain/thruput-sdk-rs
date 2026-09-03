@@ -1,4 +1,6 @@
-//! The message carried alongside a contract fault.
+//! What a contract fault carries: [`FaultString`], the bounded message the
+//! exception types hold, and [`FaultInfo`], the panic record behind
+//! [`RawCallError::Fault`](crate::call::RawCallError::Fault).
 //!
 //! `FaultString` encodes to **zero bytes on every target and every feature
 //! combination**. The message it carries is host-side diagnostic state, not
@@ -10,6 +12,10 @@
 //!
 //! On `riscv32` the message is absent entirely: the field, the formatting, and
 //! the buffer all compile out, so a guest pays nothing for it.
+//!
+//! [`FaultInfo`] is a separate story: it is not a wire type and holds the
+//! harness's record verbatim, so it exists only where that record can --
+//! under `dev`, on the host -- and is zero-sized everywhere else.
 
 use crate::xdr::*;
 use core::fmt::{self, Debug};
@@ -22,10 +28,10 @@ use core::error::Error;
 #[cfg(not(target_arch = "riscv32"))]
 use core::fmt::Display;
 
-/// The harness's location type, held directly rather than mirrored — see
-/// [`FaultInfo::location`].
+/// The harness's own types, held directly rather than mirrored — see
+/// [`FaultInfo`].
 #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
-use groundhog_native_exec::invoke_error::PanicLocation;
+use groundhog_native_exec::invoke_error::{PanicLocation, PanicRecord};
 
 /// Capacity of the host-side message. Host-only: a guest has no field to size.
 #[cfg(not(target_arch = "riscv32"))]
@@ -304,29 +310,26 @@ mod tests {
     }
 }
 
-/// What is known about the panic that faulted a frame: its message, and
-/// where it happened.
+/// What the harness recorded about the panic that faulted a frame.
 ///
-/// Both halves are host-side diagnostic state, kept out of the wire form for
-/// the same reason [`FaultString`] is — see the module docs. The location is
-/// there only under `dev`, the feature that puts the recording harness in the
-/// dependency graph; without it nothing could ever populate the field. On
-/// `riscv32` the whole struct is zero-sized: the message compiles out with
-/// `FaultString`, and a guest's `#[panic_handler]` ignores `PanicInfo` and
-/// issues `ebreak`, so there is no location to be had either.
+/// A thin wrapper over the harness's `PanicRecord`, which is the only thing
+/// that ever produces one. (Unlinked: that type is only in scope under
+/// `dev`, and this one is compiled everywhere.) It exists as a distinct type
+/// because
+/// [`RawCallError::Fault`](crate::call::RawCallError::Fault) is compiled for
+/// every target while `PanicRecord` is not: the `cfg` has to be absorbed by a
+/// payload type, since an enum variant's field cannot carry one.
+///
+/// So this is zero-sized wherever the record cannot exist — on `riscv32`, and
+/// on a host built without `dev` — and a guest pays nothing for carrying one.
 ///
 /// Two `FaultInfo`s are always equal, following [`FaultString`]: the contents
 /// are diagnostic, not part of the value's identity, so comparisons behave
 /// the same on host and guest.
 #[derive(Clone, Default)]
 pub struct FaultInfo {
-    message: FaultString,
-    // Gated on `dev`, not merely on the host: `dev` is what puts
-    // `native-exec` in the graph, and the harness is the only thing that ever
-    // records a location. A host build without it would carry a field that
-    // could only ever be `None`.
     #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
-    location: Option<PanicLocation>,
+    record: Option<PanicRecord>,
 }
 
 impl FaultInfo {
@@ -336,36 +339,40 @@ impl FaultInfo {
         Self::default()
     }
 
-    /// A fault carrying only a message.
-    pub fn from_message(message: FaultString) -> Self {
-        Self {
-            message,
-            #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
-            location: None,
-        }
-    }
-
     /// The message, or `"<fault>"` when none was recorded.
+    ///
+    /// Host-only, like everything that reads a fault's text. Without `dev`
+    /// there is no record to read, so this is always the placeholder.
     #[cfg(not(target_arch = "riscv32"))]
     pub fn as_str(&self) -> &str {
-        self.message.as_str()
+        #[cfg(feature = "dev")]
+        if let Some(message) =
+            self.record.as_ref().and_then(|r| r.message.as_deref())
+        {
+            return message;
+        }
+        "<fault>"
     }
 
-    /// The recorded message.
-    pub fn message(&self) -> &FaultString {
-        &self.message
-    }
-
-    /// Where the panic happened, when the harness recorded it.
+    /// What the harness recorded, when it recorded anything.
     ///
-    /// Absent when nothing was recorded for the fault at all — a
-    /// `raw_Invoke`ed callee's panic is caught inside the runtime's own
-    /// frame, which reports a status code and nothing else — and when a
-    /// panic reached the catch site with no matching hook record, which
-    /// leaves a message with no location beside it.
+    /// Absent for a fault it never caught: a `raw_Invoke`ed callee's panic is
+    /// caught inside the runtime's own frame, which reports a status code and
+    /// nothing else, and a frame that ran out of gas unwinds an `InvokeError`
+    /// that never reaches the panic catch site.
+    #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
+    pub fn record(&self) -> Option<&PanicRecord> {
+        self.record.as_ref()
+    }
+
+    /// Where the panic happened, when the hook recorded a location.
+    ///
+    /// Absent whenever [`record`](Self::record) is, and also when a panic
+    /// reached the catch site with no matching hook record — that leaves a
+    /// message with no location beside it.
     #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
     pub fn location(&self) -> Option<&PanicLocation> {
-        self.location.as_ref()
+        self.record.as_ref()?.location.as_ref()
     }
 }
 
@@ -380,14 +387,13 @@ impl PartialEq for FaultInfo {
 impl Eq for FaultInfo {}
 
 /// Renders as `message at file:line:column`, dropping either half that was
-/// not recorded. With neither, this is `FaultString`'s `"<fault>"`. The
-/// location half exists only under `dev`; elsewhere this is the message.
+/// not recorded. With neither, this is `"<fault>"`.
 #[cfg(not(target_arch = "riscv32"))]
 impl Display for FaultInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)?;
+        f.write_str(self.as_str())?;
         #[cfg(feature = "dev")]
-        if let Some(location) = &self.location {
+        if let Some(location) = self.location() {
             write!(f, " at {location}")?;
         }
         Ok(())
@@ -398,9 +404,8 @@ impl Display for FaultInfo {
 impl Debug for FaultInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = f.debug_struct("FaultInfo");
-        s.field("message", &self.message);
         #[cfg(feature = "dev")]
-        s.field("location", &self.location);
+        s.field("record", &self.record);
         s.finish()
     }
 }
@@ -419,31 +424,20 @@ impl Debug for FaultInfo {
 #[cfg(not(target_arch = "riscv32"))]
 impl Error for FaultInfo {}
 
-// The harness's record is the only source of a populated `FaultInfo`. The
-// location crosses as-is: it is the same [`PanicLocation`] on both sides, so
-// only the message needs converting, into `FaultString`'s bounded form.
+// The harness's record is the only source of a populated `FaultInfo`, and it
+// crosses whole: there is nothing to translate, only a `cfg` to absorb.
 #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
-impl From<&groundhog_native_exec::invoke_error::PanicRecord> for FaultInfo {
-    fn from(
-        record: &groundhog_native_exec::invoke_error::PanicRecord,
-    ) -> Self {
-        // Destructured so a field added to the record fails to compile here
-        // rather than being silently dropped.
-        let groundhog_native_exec::invoke_error::PanicRecord {
-            message,
-            location,
-        } = record;
+impl From<&PanicRecord> for FaultInfo {
+    fn from(record: &PanicRecord) -> Self {
         Self {
-            message: message
-                .as_deref()
-                .map_or_else(FaultString::empty, FaultString::from_display),
-            location: location.clone(),
+            record: Some(record.clone()),
         }
     }
 }
 
-// A guest carries neither half, so the whole struct vanishes. Pinned here so
-// a `cfg` slip that let the host-side state through would fail the guest
-// build rather than quietly costing every contract stack per live fault.
-#[cfg(target_arch = "riscv32")]
+// Without `dev` there is no record to hold, so the whole struct vanishes --
+// on a guest, which can never enable `dev`, and on a host build that simply
+// does not. Pinned here so a `cfg` slip that let the record through would
+// fail those builds rather than quietly costing them stack per live fault.
+#[cfg(not(feature = "dev"))]
 const _: () = assert!(core::mem::size_of::<FaultInfo>() == 0);

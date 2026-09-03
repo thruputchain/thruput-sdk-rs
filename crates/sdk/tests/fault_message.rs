@@ -403,11 +403,16 @@ fn a_faulting_frame_records_where_it_panicked() {
 /// location was recorded rather than a formatting artifact.
 #[test]
 fn rendering_degrades_cleanly_without_a_location() {
-    use sdk::exn::{FaultInfo, FaultString};
+    use sdk::PanicRecord;
+    use sdk::exn::FaultInfo;
 
     assert_eq!(FaultInfo::empty().to_string(), "<fault>");
     assert_eq!(
-        FaultInfo::from_message(FaultString::from_display("boom")).to_string(),
+        FaultInfo::from(&PanicRecord {
+            message: Some("boom".into()),
+            location: None,
+        })
+        .to_string(),
         "boom"
     );
 }
