@@ -219,17 +219,17 @@ fn impl_from_keypath(
                 // generic impls — it captures no generic params.
                 const __SLOT_FRAME: ::sdk::storage::FramedComponent =
                     ::sdk::storage::FramedComponent::from_u32(#idx);
-                // Through `__StorageFieldDiagnostic` rather than `.into()`: see the
+                // Through `StorageHandle` rather than `.into()`: see the
                 // bound below. Going via `From` would add a second,
                 // redundant error from inside this constructor whenever a
                 // field is not a storage type.
-                <#field_type as ::sdk::storage::__StorageFieldDiagnostic>::__from_keypath(
+                <#field_type as ::sdk::storage::StorageHandle>::__from_keypath(
                     keypath.child_framed(&__SLOT_FRAME),
                 )
             };
         });
 
-        // A generic field type needs its `__StorageFieldDiagnostic` bound stated in the
+        // A generic field type needs its `StorageHandle` bound stated in the
         // where clause; a concrete one must not have it there. A
         // where-clause bound on a concrete type that cannot satisfy it is
         // *trivially* unsatisfiable, which rustc reports at the derive's
@@ -237,11 +237,12 @@ fn impl_from_keypath(
         // fix, and it does not say which field is wrong. Left out, the
         // `__from_keypath` call in the initializer above raises the same
         // obligation as an ordinary one, so the error lands on the field and
-        // carries `__StorageFieldDiagnostic`'s `on_unimplemented`.
+        // carries `StorageHandle`'s `on_unimplemented`.
         if type_mentions_generic(field_type, &generic_idents) {
-            generics.make_where_clause().predicates.push(
-                syn::parse_quote!(#field_type: __StorageFieldDiagnostic),
-            );
+            generics
+                .make_where_clause()
+                .predicates
+                .push(syn::parse_quote!(#field_type: StorageHandle));
         }
     }
 
@@ -266,7 +267,7 @@ fn impl_from_keypath(
             // Lets a nested `#[storage]` struct be a field of an enclosing
             // one, and puts it in the implementor list rustc prints when a
             // field is not a storage handle.
-            impl #impl_generics ::sdk::storage::__StorageFieldDiagnostic
+            impl #impl_generics ::sdk::storage::StorageHandle
                 for #ident #ty_generics #where_clause
             {
                 fn __from_keypath(keypath: Keypath) -> Self {
