@@ -75,6 +75,73 @@ thread_local! {
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
+/// Where a contract body panicked.
+///
+/// The SDK holds this same struct inside its `FaultInfo` rather than
+/// mirroring it, so a location is described in one place.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PanicLocation {
+    /// Source file, as `panic!` recorded it.
+    pub file: String,
+    /// 1-based line within [`file`](Self::file).
+    pub line: u32,
+    /// 1-based column within the line.
+    pub column: u32,
+}
+
+impl std::fmt::Display for PanicLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.file, self.line, self.column)
+    }
+}
+
+/// What the harness could see of a contract body's panic.
+///
+/// The message comes from the payload at the catch site and the location from
+/// the panic hook, which is the only place it exists — `catch_unwind` hands
+/// back a payload and nothing else. Either half can be absent: a `panic_any`
+/// of a non-string type has no message, and a panic reaching a catch site
+/// without a matching hook record has no location.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PanicRecord {
+    /// The panic's message, when its payload carried one.
+    pub message: Option<String>,
+    /// Where the panic happened, when the hook recorded it.
+    pub location: Option<PanicLocation>,
+}
+
+thread_local! {
+    /// What the hook saw of the panic currently unwinding this thread.
+    static HOOKED_PANIC: std::cell::RefCell<Option<PanicRecord>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Take the record the hook stashed for the panic now being caught.
+///
+/// The hook runs during the unwind on the *same thread* that then catches it
+/// — see [`PanicHookGuard`], whose docs spell out why a body and the guard
+/// around it always share a thread. That makes this handoff thread-local by
+/// construction, unlike anything between a caller and its callee, which run
+/// on whichever pool threads resumed them.
+///
+/// `payload` is the authority on the message; a stashed record whose message
+/// disagrees belongs to some other panic (one hooked but never caught here)
+/// and contributes no location rather than a misleading one.
+pub(crate) fn take_panic_record(
+    payload: &(dyn std::any::Any + Send),
+) -> PanicRecord {
+    let message = panic_payload_message(payload);
+    let location = take_hooked_panic()
+        .filter(|hooked| hooked.message == message)
+        .and_then(|hooked| hooked.location);
+    PanicRecord { message, location }
+}
+
+/// Take whatever the hook stashed on this thread, leaving the slot empty.
+fn take_hooked_panic() -> Option<PanicRecord> {
+    HOOKED_PANIC.with(|slot| slot.borrow_mut().take())
+}
+
 /// Activates the classifying panic hook on the calling thread for as long as
 /// it is held, installing it on first use.
 ///
@@ -130,26 +197,40 @@ fn install_panic_hook() {
             // frame executor), which maps non-[`InvokeError`] payloads to a
             // deterministic error.
             if panic_info.payload().downcast_ref::<InvokeError>().is_none() {
-                _print_panic_info(panic_info);
+                let record = PanicRecord {
+                    message: panic_payload_message(panic_info.payload()),
+                    location: panic_info.location().map(|l| PanicLocation {
+                        file: l.file().to_string(),
+                        line: l.line(),
+                        column: l.column(),
+                    }),
+                };
+                print_panic(&record, panic_info.payload());
+                // Stash what only the hook can see. The catch site takes it
+                // back and cross-checks the message, so a record left behind
+                // by a panic caught somewhere else cannot be misread as this
+                // one's.
+                HOOKED_PANIC.with(|slot| *slot.borrow_mut() = Some(record));
             }
         }));
     });
 }
 
-fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
-    if let Some(payload) = panic_info.payload().downcast_ref::<String>() {
-        eprintln!("Panic message: {}", payload);
-    } else if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
-        eprintln!("Panic message: {}", payload);
-    } else {
-        eprintln!("Panic: {:?}", panic_info.payload());
+/// Print a contract panic compactly, in place of the default hook's output.
+///
+/// Reads the already-captured `record` rather than re-inspecting the hook
+/// info, so the text and the value the catch site receives cannot drift.
+/// `payload` is only for the non-string case, which has no message.
+fn print_panic(record: &PanicRecord, payload: &(dyn std::any::Any + Send)) {
+    match &record.message {
+        Some(message) => eprintln!("Panic message: {}", message),
+        None => eprintln!("Panic: {:?}", payload),
     }
 
-    if let Some(location) = panic_info.location() {
+    if let Some(location) = &record.location {
         eprintln!(
             "Panic occurred at file '{}' line {}",
-            location.file(),
-            location.line()
+            location.file, location.line
         );
     }
 }
@@ -158,6 +239,23 @@ fn _print_panic_info(panic_info: &std::panic::PanicHookInfo<'_>) {
 /// is contract code failing rather than a harness bug.
 pub(crate) fn is_panic_hook_active() -> bool {
     PANIC_HOOK_DEPTH.with(|c| c.get()) > 0
+}
+
+/// The message from a panic payload, when it carries one.
+///
+/// Covers the two shapes `panic!` produces — a `&'static str` for a literal
+/// message and a `String` for a formatted one. Any other payload (a
+/// `panic_any` of some other type) has no message to report and yields
+/// `None` rather than a placeholder, so a caller can tell "no message" from
+/// a message that happens to read like one.
+fn panic_payload_message(
+    payload: &(dyn std::any::Any + Send),
+) -> Option<String> {
+    if let Some(s) = payload.downcast_ref::<&'static str>() {
+        Some((*s).to_string())
+    } else {
+        payload.downcast_ref::<String>().cloned()
+    }
 }
 
 /// Wrap a contract closure in the catch site that maps its panics to
@@ -193,6 +291,13 @@ where
                     // An ordinary panic out of contract code; the hook
                     // already printed it. Deterministic failure of this
                     // invocation.
+                    //
+                    // Drop the hook's record rather than leave it for some
+                    // later frame to take: this catch site cannot attribute
+                    // a message (it has no frame in hand), but it did catch
+                    // the panic, so every catch site takes what it caught
+                    // and a stale record cannot outlive its panic.
+                    drop(take_hooked_panic());
                     return groundhog_sys::ForeignInvokeResult {
                         panic: InvokeErrorCode::Deterministic.0,
                     };
