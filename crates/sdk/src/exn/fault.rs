@@ -22,6 +22,11 @@ use core::error::Error;
 #[cfg(not(target_arch = "riscv32"))]
 use core::fmt::Display;
 
+/// The harness's location type, held directly rather than mirrored — see
+/// [`FaultInfo::location`].
+#[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
+use groundhog_native_exec::invoke_error::PanicLocation;
+
 /// Capacity of the host-side message. Host-only: a guest has no field to size.
 #[cfg(not(target_arch = "riscv32"))]
 const CAP: usize = 500;
@@ -299,84 +304,16 @@ mod tests {
     }
 }
 
-/// Where a fault happened, as `panic!` recorded it.
-///
-/// Host-only: the location comes from the panic hook, which a guest has no
-/// equivalent of — its `#[panic_handler]` ignores `PanicInfo` entirely.
-#[cfg(not(target_arch = "riscv32"))]
-#[derive(Clone, PartialEq, Eq)]
-pub struct FaultLocation {
-    file: heapless::String<FILE_CAP>,
-    line: u32,
-    column: u32,
-}
-
-/// Capacity of the recorded file path. Paths longer than this keep their
-/// tail, which is the part that identifies the file.
-#[cfg(not(target_arch = "riscv32"))]
-const FILE_CAP: usize = 200;
-
-#[cfg(not(target_arch = "riscv32"))]
-impl FaultLocation {
-    /// Record `file:line:column`, keeping the tail of an oversized path.
-    pub fn new(file: &str, line: u32, column: u32) -> Self {
-        let tail = match file.len().checked_sub(FILE_CAP) {
-            None => file,
-            // A path longer than the cap keeps its end: the leading
-            // directories are the interchangeable part.
-            Some(excess) => {
-                let mut start = excess;
-                while start < file.len() && !file.is_char_boundary(start) {
-                    start += 1;
-                }
-                &file[start..]
-            }
-        };
-        let mut stored = heapless::String::new();
-        // Cannot fail: `tail` is at most FILE_CAP bytes by construction.
-        let _ = stored.push_str(tail);
-        Self {
-            file: stored,
-            line,
-            column,
-        }
-    }
-
-    pub fn file(&self) -> &str {
-        &self.file
-    }
-
-    pub fn line(&self) -> u32 {
-        self.line
-    }
-
-    pub fn column(&self) -> u32 {
-        self.column
-    }
-}
-
-#[cfg(not(target_arch = "riscv32"))]
-impl Display for FaultLocation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}:{}", self.file, self.line, self.column)
-    }
-}
-
-#[cfg(not(target_arch = "riscv32"))]
-impl Debug for FaultLocation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{self}")
-    }
-}
-
 /// What is known about the panic that faulted a frame: its message, and
 /// where it happened.
 ///
 /// Both halves are host-side diagnostic state, kept out of the wire form for
-/// the same reason [`FaultString`] is — see the module docs. On `riscv32`
-/// this is a zero-sized type: the message field compiles out with
-/// `FaultString` and the location has nowhere to come from, since a guest's
-/// `#[panic_handler]` ignores `PanicInfo` and issues `ebreak`.
+/// the same reason [`FaultString`] is — see the module docs. The location is
+/// there only under `dev`, the feature that puts the recording harness in the
+/// dependency graph; without it nothing could ever populate the field. On
+/// `riscv32` the whole struct is zero-sized: the message compiles out with
+/// `FaultString`, and a guest's `#[panic_handler]` ignores `PanicInfo` and
+/// issues `ebreak`, so there is no location to be had either.
 ///
 /// Two `FaultInfo`s are always equal, following [`FaultString`]: the contents
 /// are diagnostic, not part of the value's identity, so comparisons behave
@@ -384,8 +321,12 @@ impl Debug for FaultLocation {
 #[derive(Clone, Default)]
 pub struct FaultInfo {
     message: FaultString,
-    #[cfg(not(target_arch = "riscv32"))]
-    location: Option<FaultLocation>,
+    // Gated on `dev`, not merely on the host: `dev` is what puts
+    // `native-exec` in the graph, and the harness is the only thing that ever
+    // records a location. A host build without it would carry a field that
+    // could only ever be `None`.
+    #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
+    location: Option<PanicLocation>,
 }
 
 impl FaultInfo {
@@ -399,7 +340,7 @@ impl FaultInfo {
     pub fn from_message(message: FaultString) -> Self {
         Self {
             message,
-            #[cfg(not(target_arch = "riscv32"))]
+            #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
             location: None,
         }
     }
@@ -422,8 +363,8 @@ impl FaultInfo {
     /// frame, which reports a status code and nothing else — and when a
     /// panic reached the catch site with no matching hook record, which
     /// leaves a message with no location beside it.
-    #[cfg(not(target_arch = "riscv32"))]
-    pub fn location(&self) -> Option<&FaultLocation> {
+    #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
+    pub fn location(&self) -> Option<&PanicLocation> {
         self.location.as_ref()
     }
 }
@@ -439,24 +380,28 @@ impl PartialEq for FaultInfo {
 impl Eq for FaultInfo {}
 
 /// Renders as `message at file:line:column`, dropping either half that was
-/// not recorded. With neither, this is `FaultString`'s `"<fault>"`.
+/// not recorded. With neither, this is `FaultString`'s `"<fault>"`. The
+/// location half exists only under `dev`; elsewhere this is the message.
 #[cfg(not(target_arch = "riscv32"))]
 impl Display for FaultInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.location {
-            Some(location) => write!(f, "{} at {location}", self.message),
-            None => write!(f, "{}", self.message),
+        write!(f, "{}", self.message)?;
+        #[cfg(feature = "dev")]
+        if let Some(location) = &self.location {
+            write!(f, " at {location}")?;
         }
+        Ok(())
     }
 }
 
 #[cfg(not(target_arch = "riscv32"))]
 impl Debug for FaultInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("FaultInfo")
-            .field("message", &self.message)
-            .field("location", &self.location)
-            .finish()
+        let mut s = f.debug_struct("FaultInfo");
+        s.field("message", &self.message);
+        #[cfg(feature = "dev")]
+        s.field("location", &self.location);
+        s.finish()
     }
 }
 
@@ -474,13 +419,9 @@ impl Debug for FaultInfo {
 #[cfg(not(target_arch = "riscv32"))]
 impl Error for FaultInfo {}
 
-// The harness's record is the only source of a populated `FaultInfo`, and
-// `PanicRecord` keeps the location as flat fields rather than a struct of its
-// own: it is the capture layer, where the hook hands over an unbounded path,
-// while `FaultLocation` is the bounded, no-alloc form contract-facing code
-// sees. One type cannot serve both — `sdk` depends on `native-exec` and never
-// the reverse, and that dep is optional and host-only, so this conversion
-// exists only under `dev`.
+// The harness's record is the only source of a populated `FaultInfo`. The
+// location crosses as-is: it is the same [`PanicLocation`] on both sides, so
+// only the message needs converting, into `FaultString`'s bounded form.
 #[cfg(all(not(target_arch = "riscv32"), feature = "dev"))]
 impl From<&groundhog_native_exec::invoke_error::PanicRecord> for FaultInfo {
     fn from(
@@ -490,17 +431,13 @@ impl From<&groundhog_native_exec::invoke_error::PanicRecord> for FaultInfo {
         // rather than being silently dropped.
         let groundhog_native_exec::invoke_error::PanicRecord {
             message,
-            file,
-            line,
-            column,
+            location,
         } = record;
         Self {
             message: message
                 .as_deref()
                 .map_or_else(FaultString::empty, FaultString::from_display),
-            location: file
-                .as_deref()
-                .map(|f| FaultLocation::new(f, *line, *column)),
+            location: location.clone(),
         }
     }
 }

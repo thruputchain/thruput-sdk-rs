@@ -366,15 +366,16 @@ fn a_faulting_frame_records_where_it_panicked() {
         .expect("a panicking frame records its panic");
     assert_eq!(record.message.as_deref(), Some("located panic"));
 
-    let file = record
-        .file
-        .as_deref()
+    let location = record
+        .location
+        .as_ref()
         .expect("the hook supplies the location");
     assert!(
-        file.ends_with("fault_message.rs"),
-        "expected this test file, got {file}"
+        location.file.ends_with("fault_message.rs"),
+        "expected this test file, got {}",
+        location.file
     );
-    assert!(record.line > 0);
+    assert!(location.line > 0);
 
     // And it reaches the caller, rendered alongside the message.
     let res: Result<(), RawCallError> = into_root_call_result(&result);
@@ -386,9 +387,12 @@ fn a_faulting_frame_records_where_it_panicked() {
                 "unexpected rendering: {rendered}"
             );
             assert!(rendered.contains("fault_message.rs"));
-            let loc = f.location().expect("location reaches the caller");
-            assert_eq!(loc.line(), record.line);
-            assert_eq!(loc.column(), record.column);
+            // The same `PanicLocation` the harness recorded, not a copy
+            // into a parallel type.
+            assert_eq!(
+                f.location().expect("location reaches the caller"),
+                location
+            );
         }
         other => panic!("expected Fault, got {other:?}"),
     }

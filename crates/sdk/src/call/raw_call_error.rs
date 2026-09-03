@@ -74,9 +74,10 @@ pub enum RawCallError<X = RawException> {
     ///   `"<fault>"`. Reporting anything else here would mean reporting some
     ///   other frame's message.
     ///
-    /// [`FaultInfo`] carries the panic's location alongside its message
-    /// where the harness saw one; `Display` renders them as
-    /// `message at file:line:column`.
+    /// Under `dev`, [`FaultInfo`] carries the panic's location alongside its
+    /// message where the harness recorded one, and `Display` renders them as
+    /// `message at file:line:column`. Elsewhere it is the message alone —
+    /// nothing outside the harness records a location.
     ///
     /// On rv32 there is nothing either way: [`FaultInfo`] is a zero-sized
     /// type there, so a guest pays nothing for carrying one.

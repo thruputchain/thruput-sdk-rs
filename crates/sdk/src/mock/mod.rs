@@ -12,7 +12,10 @@ mod mock_public {
             ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,
         },
         frame_result::FrameResult,
-        invoke_error::InvokeError,
+        // `PanicLocation` is named by `FaultInfo::location`, and
+        // `PanicRecord` by `TransactResult::fault_panic`; both were
+        // reachable through those before being nameable here.
+        invoke_error::{InvokeError, PanicLocation, PanicRecord},
         mock_contract::MockContract,
         mock_transaction_handler::{
             MockTransactionConfig, MockTransactionHandler,
