@@ -35,8 +35,8 @@ pub struct Balance {
     key: LeafKey,
 }
 
-impl From<Keypath> for Balance {
-    fn from(keypath: Keypath) -> Self {
+impl super::node::StorageHandle for Balance {
+    fn from_keypath(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
         }

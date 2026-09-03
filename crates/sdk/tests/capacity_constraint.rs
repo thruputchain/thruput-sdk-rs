@@ -10,22 +10,22 @@ contract_test!(test_consumption_merges_across_handles {
     // Two sequential handles to the same cell within one transaction: the
     // second handle's writeback must merge with (not replace) the first's.
     {
-        let mut c: CapacityConstraint = Keypath::default().into();
+        let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
         c.set_capacity(100);
         c.consume_capacity(60);
         assert_eq!(c.get_remaining_capacity(), 40);
     }
     {
-        let mut c: CapacityConstraint = Keypath::default().into();
+        let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
         c.consume_capacity(30);
         assert_eq!(c.get_remaining_capacity(), 10);
     }
-    let c: CapacityConstraint = Keypath::default().into();
+    let c = <CapacityConstraint>::from_keypath(Keypath::default());
     assert_eq!(c.get_remaining_capacity(), 10);
 });
 
 contract_test!(test_negative_consume_releases_capacity {
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     c.set_capacity(10);
     c.consume_capacity(7);
     c.consume_capacity(-3);
@@ -33,7 +33,7 @@ contract_test!(test_negative_consume_releases_capacity {
 });
 
 contract_test!(test_temporary_violation_within_transaction {
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     c.set_capacity(10);
     c.consume_capacity(15);
     assert_eq!(c.get_remaining_capacity(), -5);
@@ -42,14 +42,14 @@ contract_test!(test_temporary_violation_within_transaction {
 });
 
 contract_test!(test_set_capacity_after_local_write_reports_err {
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     c.consume_capacity(5);
     assert_eq!(
         c.try_set_capacity(100),
         Err(LibraryExn::CapacityConstraintAlreadyWritten)
     );
 
-    let mut c2: CapacityConstraint = Keypath::default().into();
+    let mut c2 = <CapacityConstraint>::from_keypath(Keypath::default());
     c2.set_capacity(100);
     assert_eq!(
         c2.try_set_capacity(50),
@@ -61,10 +61,10 @@ contract_test!(test_set_capacity_after_dropped_write_reports_err {
     // The first-write check must consult the pending storage state, so it
     // catches writes flushed by a handle that has already been dropped.
     {
-        let mut c: CapacityConstraint = Keypath::default().into();
+        let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
         c.consume_capacity(5);
     }
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     assert_eq!(
         c.try_set_capacity(100),
         Err(LibraryExn::CapacityConstraintAlreadyWritten)
@@ -78,7 +78,7 @@ contract_test!(test_set_capacity_same_value_is_idempotent {
     // Repeating the value already set on this handle is a no-op that
     // preserves recorded consumption.
     {
-        let mut c: CapacityConstraint = Keypath::default().into();
+        let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
         c.set_capacity(100);
         c.consume_capacity(60);
         assert_eq!(c.try_set_capacity(100), Ok(()));
@@ -92,7 +92,7 @@ contract_test!(test_set_capacity_same_value_is_idempotent {
 
     // Same value against the pending set flushed by the dropped handle:
     // also a no-op, consumption still preserved.
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     assert_eq!(c.try_set_capacity(100), Ok(()));
     c.consume_capacity(10);
     assert_eq!(c.get_remaining_capacity(), 30);
@@ -103,7 +103,7 @@ contract_test!(test_set_capacity_same_value_is_idempotent {
 });
 
 contract_test!(test_explicit_flush {
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     // A clean handle flushes as a no-op.
     assert_eq!(c.try_flush(), Ok(()));
 
@@ -112,7 +112,7 @@ contract_test!(test_explicit_flush {
     c.flush();
 
     // The flush landed: a second handle sees it...
-    let peek: CapacityConstraint = Keypath::default().into();
+    let peek = <CapacityConstraint>::from_keypath(Keypath::default());
     assert_eq!(peek.get_remaining_capacity(), 40);
 
     // ...and the flushed handle is clean again: consumption staged after
@@ -125,11 +125,11 @@ contract_test!(test_explicit_flush {
 contract_test!(test_read_only_handle_leaves_no_trace {
     {
         // A never-written cell reads as zero remaining capacity.
-        let c: CapacityConstraint = Keypath::default().into();
+        let c = <CapacityConstraint>::from_keypath(Keypath::default());
         assert_eq!(c.get_remaining_capacity(), 0);
     }
     // The read-only handle above must not count as a prior write.
-    let mut c: CapacityConstraint = Keypath::default().into();
+    let mut c = <CapacityConstraint>::from_keypath(Keypath::default());
     assert_eq!(c.try_set_capacity(100), Ok(()));
     assert_eq!(c.get_remaining_capacity(), 100);
 });

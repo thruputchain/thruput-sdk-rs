@@ -31,8 +31,8 @@ pub struct NNInt {
     key: LeafKey,
 }
 
-impl From<Keypath> for NNInt {
-    fn from(keypath: Keypath) -> Self {
+impl super::node::StorageHandle for NNInt {
+    fn from_keypath(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
         }

@@ -10,6 +10,7 @@
 //! `example-contracts/u256_roundtrip/tests/rv32.rs`.
 
 use sdk::contract::ContractEntrypointID;
+use sdk::storage::StorageHandle;
 use sdk::storage::{Keypath, Value};
 use sdk::*;
 
@@ -88,7 +89,7 @@ fn u256_roundtrips_through_storage_value() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let mut slot: Value<U256> = Keypath::default().into();
+            let mut slot = <Value<U256>>::from_keypath(Keypath::default());
             slot.set(&value);
             // Read back within the same frame.
             assert_eq!(slot.get(), value);
@@ -100,7 +101,7 @@ fn u256_roundtrips_through_storage_value() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let slot: Value<U256> = Keypath::default().into();
+            let slot = <Value<U256>>::from_keypath(Keypath::default());
             assert_eq!(slot.get(), value);
         })
     })
@@ -155,7 +156,7 @@ fn i256_roundtrips_through_storage_value() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let mut slot: Value<I256> = Keypath::default().into();
+            let mut slot = <Value<I256>>::from_keypath(Keypath::default());
             slot.set(&value);
             assert_eq!(slot.get(), value);
         })
@@ -166,7 +167,7 @@ fn i256_roundtrips_through_storage_value() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let slot: Value<I256> = Keypath::default().into();
+            let slot = <Value<I256>>::from_keypath(Keypath::default());
             assert_eq!(slot.get(), value);
             assert!(slot.get().is_negative());
         })

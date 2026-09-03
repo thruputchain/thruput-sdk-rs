@@ -128,7 +128,7 @@ fn run_rcq<T>(
 ) -> TransactResult {
     run(env, || {
         let keypath = Keypath::default();
-        let rcq: RCQ<T> = keypath.into();
+        let rcq = <RCQ<T>>::from_keypath(keypath);
         f(rcq)
     })
 }

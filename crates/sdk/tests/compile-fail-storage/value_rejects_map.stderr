@@ -1,3 +1,19 @@
+error[E0308]: mismatched types
+ --> tests/compile-fail-storage/value_rejects_map.rs:4:53
+  |
+4 |     let mut v: Value<Map<u32, NNInt>> = Value::from(Keypath::default());
+  |                                         ----------- ^^^^^^^^^^^^^^^^^^ expected `Value<Map<u32, NNInt>>`, found `Keypath`
+  |                                         |
+  |                                         arguments to this function are incorrect
+  |
+  = note: expected struct `sdk::storage::Value<sdk::storage::Map<u32, sdk::storage::NNInt>>`
+             found struct `sdk::storage::Keypath`
+note: associated function defined here
+ --> $RUST/core/src/convert/mod.rs
+  |
+  |     fn from(value: T) -> Self;
+  |        ^^^^
+
 error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::Map<u32, sdk::storage::NNInt>>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_map.rs:5:7
   |
@@ -11,3 +27,19 @@ error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::stora
   |
   = note: the following trait bounds were not satisfied:
           `sdk::storage::Map<u32, sdk::storage::NNInt>: WriteXDR`
+
+error[E0308]: mismatched types
+ --> tests/compile-fail-storage/value_rejects_map.rs:5:22
+  |
+5 |     v.set(&Map::from(Keypath::default()));
+  |            --------- ^^^^^^^^^^^^^^^^^^ expected `Map<_, _>`, found `Keypath`
+  |            |
+  |            arguments to this function are incorrect
+  |
+  = note: expected struct `sdk::storage::Map<_, _>`
+             found struct `sdk::storage::Keypath`
+note: associated function defined here
+ --> $RUST/core/src/convert/mod.rs
+  |
+  |     fn from(value: T) -> Self;
+  |        ^^^^

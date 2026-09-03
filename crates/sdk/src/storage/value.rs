@@ -15,8 +15,8 @@ pub struct Value<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> From<Keypath> for Value<T> {
-    fn from(keypath: Keypath) -> Self {
+impl<T> super::node::StorageHandle for Value<T> {
+    fn from_keypath(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
             _marker: PhantomData,

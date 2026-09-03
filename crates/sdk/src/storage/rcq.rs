@@ -38,8 +38,8 @@ pub struct RCQ<T> {
     phantom_entry: PhantomData<fn() -> T>,
 }
 
-impl<T> From<Keypath> for RCQ<T> {
-    fn from(keypath: Keypath) -> Self {
+impl<T> super::node::StorageHandle for RCQ<T> {
+    fn from_keypath(keypath: Keypath) -> Self {
         Self {
             key: keypath.into(),
             phantom_entry: PhantomData,

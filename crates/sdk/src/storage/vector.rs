@@ -39,8 +39,8 @@ impl<S> Debug for Vector<S> {
     }
 }
 
-impl<S> From<Keypath> for Vector<S> {
-    fn from(keypath: Keypath) -> Self {
+impl<S> super::node::StorageHandle for Vector<S> {
+    fn from_keypath(keypath: Keypath) -> Self {
         // Fixed layout slots (0 = len, 1 = values), pre-framed at const
         // time: state-load appends constant bytes instead of runtime-CXS-
         // encoding through the scratch buffer. Element slots stay runtime-
@@ -52,8 +52,8 @@ impl<S> From<Keypath> for Vector<S> {
 
         Self {
             keypath,
-            len: Value::from(len_kp),
-            values: Map::from(values_kp),
+            len: Value::from_keypath(len_kp),
+            values: Map::from_keypath(values_kp),
         }
     }
 }
@@ -91,7 +91,7 @@ impl<S: StorageType> Vector<S> {
     pub fn at(&self, index: u32) -> SlotRef<'_, Self, S> {
         self.bounds_check(index);
         let keypath = self.make_elem_keypath(index);
-        let slot = S::from(keypath);
+        let slot = S::from_keypath(keypath);
         SlotRef::new(self, slot)
     }
 
@@ -99,7 +99,7 @@ impl<S: StorageType> Vector<S> {
     pub fn at_mut(&mut self, index: u32) -> SlotMut<'_, Self, S> {
         self.bounds_check(index);
         let keypath = self.make_elem_keypath(index);
-        let slot = S::from(keypath);
+        let slot = S::from_keypath(keypath);
         SlotMut::new(self, slot)
     }
 
@@ -117,7 +117,7 @@ impl<S: StorageType> Vector<S> {
         let new_len = idx.checked_add(1).unwrap();
         self.len.set_exclusive(&new_len);
         let keypath = self.make_elem_keypath(idx);
-        let slot = S::from(keypath);
+        let slot = S::from_keypath(keypath);
         SlotMut::new(self, slot)
     }
 
@@ -131,7 +131,7 @@ impl<S: StorageType> Vector<S> {
     /// conflict at commit — see the Concurrency notes on [`Vector`].
     pub fn push_with<R>(&mut self, f: impl FnOnce(&mut S) -> R) -> R {
         let idx = self.len();
-        let mut slot = S::from(self.make_elem_keypath(idx));
+        let mut slot = S::from_keypath(self.make_elem_keypath(idx));
         let out = f(&mut slot);
         let new_len = idx.checked_add(1).unwrap();
         self.len.set_exclusive(&new_len);
@@ -187,7 +187,7 @@ impl<S: StorageType + Deletable> Vector<S> {
             super::error::oob_throw(0, 0);
         }
         let new_len = len - 1;
-        let mut elem = S::from(self.make_elem_keypath(new_len));
+        let mut elem = S::from_keypath(self.make_elem_keypath(new_len));
         elem.delete_internal(StorageDeltaFlags::ExclusiveLock);
         self.len.set_exclusive(&new_len);
     }
@@ -197,7 +197,7 @@ impl<S: StorageType + Deletable> Deletable for Vector<S> {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
         let len = self.len();
         for i in 0..len {
-            let mut elem = S::from(self.make_elem_keypath(i));
+            let mut elem = S::from_keypath(self.make_elem_keypath(i));
             elem.delete_internal(flags);
         }
         self.len.delete_internal(flags);
@@ -218,7 +218,7 @@ impl<'a, S: StorageType> Iterator for VectorIter<'a, S> {
         if self.index >= self.len {
             return None;
         }
-        let elem = S::from(self.vec.make_elem_keypath(self.index));
+        let elem = S::from_keypath(self.vec.make_elem_keypath(self.index));
         self.index += 1;
         Some(SlotRef::new(self.vec, elem))
     }
@@ -237,7 +237,7 @@ impl<'a, S: StorageType> DoubleEndedIterator for VectorIter<'a, S> {
             return None;
         }
         self.len -= 1;
-        let elem = S::from(self.vec.make_elem_keypath(self.len));
+        let elem = S::from_keypath(self.vec.make_elem_keypath(self.len));
         Some(SlotRef::new(self.vec, elem))
     }
 }
@@ -256,7 +256,7 @@ impl<'a, S: StorageType> Iterator for VectorIterMut<'a, S> {
         if self.index >= self.len {
             return None;
         }
-        let elem = S::from(self.vec.make_elem_keypath(self.index));
+        let elem = S::from_keypath(self.vec.make_elem_keypath(self.index));
         self.index += 1;
         // SAFETY: the iterator holds &'a mut Vector<S>, ensuring
         // exclusive access to the vector for 'a.
@@ -277,7 +277,7 @@ impl<'a, S: StorageType> DoubleEndedIterator for VectorIterMut<'a, S> {
             return None;
         }
         self.len -= 1;
-        let elem = S::from(self.vec.make_elem_keypath(self.len));
+        let elem = S::from_keypath(self.vec.make_elem_keypath(self.len));
         Some(SlotMut::new_detached(elem))
     }
 }
@@ -302,6 +302,7 @@ impl<'a, S: StorageType> IntoIterator for &'a mut Vector<S> {
 
 #[cfg(test)]
 mod test_vector_slots {
+    use super::super::node::StorageHandle;
     use super::*;
     use crate::storage::Value;
 
@@ -309,7 +310,7 @@ mod test_vector_slots {
     // must address exactly what runtime child() derives.
     crate::contract_test!(fixed_slots_match_runtime_child {
         let root = Keypath::default().child("V");
-        let v: Vector<Value<u32>> = Vector::from(root.clone());
+        let v = <Vector<Value<u32>>>::from_keypath(root.clone());
         assert_eq!(*v.len.key(), root.child(&0u32).generate_key());
         assert!(v.values.keypath().addresses_same_slot(&root.child(&1u32)));
         assert!(v.keypath().addresses_same_slot(&root));

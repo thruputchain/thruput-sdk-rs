@@ -3,30 +3,31 @@
 use sdk::Named;
 use sdk::contract_test;
 use sdk::exn::LibraryExn;
+use sdk::storage::StorageHandle;
 use sdk::storage::{Balance, Keypath, NNInt};
 
 contract_test!(balance_defaults_to_zero {
-    let balance: Balance = Keypath::default().into();
+    let balance = <Balance>::from_keypath(Keypath::default());
     assert_eq!(balance.get(), 0);
     assert_eq!(balance.try_get(), Ok(0));
 });
 
 contract_test!(balance_increases_and_decreases {
-    let mut balance: Balance = Keypath::default().into();
+    let mut balance = <Balance>::from_keypath(Keypath::default());
     balance.increase(100);
     balance.decrease(35);
     assert_eq!(balance.get(), 65);
 });
 
 contract_test!(balance_lazily_increases_and_decreases {
-    let mut balance: Balance = Keypath::default().into();
+    let mut balance = <Balance>::from_keypath(Keypath::default());
     balance.lazy_increase(100);
     balance.lazy_decrease(35);
     assert_eq!(balance.get(), 65);
 });
 
 contract_test!(balance_underflow_is_immediate_and_non_mutating {
-    let mut balance: Balance = Keypath::default().into();
+    let mut balance = <Balance>::from_keypath(Keypath::default());
     balance.increase(10);
     assert_eq!(
         balance.try_decrease(11),
@@ -39,7 +40,7 @@ contract_test!(lazy_decrease_checks_a_balance_written_this_transaction {
     // A checked increase leaves a pending "set" value, which the storage
     // layer requires the accumulated delta to respect, so the underflow is
     // reported here rather than deferred to commit.
-    let mut balance: Balance = Keypath::default().into();
+    let mut balance = <Balance>::from_keypath(Keypath::default());
     balance.increase(10);
     assert_eq!(
         balance.try_lazy_decrease(11),
@@ -49,7 +50,7 @@ contract_test!(lazy_decrease_checks_a_balance_written_this_transaction {
 });
 
 contract_test!(balance_increase_overflow_is_immediate_and_non_mutating {
-    let mut balance: Balance = Keypath::default().into();
+    let mut balance = <Balance>::from_keypath(Keypath::default());
     balance.increase(Balance::MAX);
     assert_eq!(
         balance.try_increase(1),
@@ -60,23 +61,23 @@ contract_test!(balance_increase_overflow_is_immediate_and_non_mutating {
 
 contract_test!(zero_adjustments_leave_missing_balance_unwritten {
     let keypath = Keypath::default();
-    let mut balance: Balance = keypath.clone().into();
+    let mut balance = <Balance>::from_keypath(keypath.clone());
     balance.increase(0);
     balance.decrease(0);
     balance.lazy_increase(0);
     balance.lazy_decrease(0);
 
-    let raw: NNInt = keypath.into();
+    let raw = <NNInt>::from_keypath(keypath);
     assert!(raw.try_get().unwrap_err().is_storage_missing());
 });
 
 contract_test!(balance_rejects_negative_raw_state {
     let keypath = Keypath::default();
     {
-        let mut raw: NNInt = keypath.clone().into();
+        let mut raw = <NNInt>::from_keypath(keypath.clone());
         raw.set(-1);
     }
-    let balance: Balance = keypath.into();
+    let balance = <Balance>::from_keypath(keypath);
     assert_eq!(
         balance.try_get(),
         Err(LibraryExn::NonNegativeIntUnderflow)
@@ -84,7 +85,7 @@ contract_test!(balance_rejects_negative_raw_state {
 });
 
 contract_test!(balance_rejects_amounts_above_i128_max {
-    let mut balance: Balance = Keypath::default().into();
+    let mut balance = <Balance>::from_keypath(Keypath::default());
     let too_large = (i128::MAX as u128) + 1;
     assert_eq!(
         balance.try_increase(too_large),
@@ -111,7 +112,7 @@ fn balance_and_nnint_share_committed_storage_representation() {
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             balance.increase(12);
         })
     })
@@ -120,7 +121,7 @@ fn balance_and_nnint_share_committed_storage_representation() {
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut raw: NNInt = Keypath::default().into();
+            let mut raw = <NNInt>::from_keypath(Keypath::default());
             assert_eq!(raw.get(), 12);
             raw.inc(3);
         })
@@ -130,7 +131,7 @@ fn balance_and_nnint_share_committed_storage_representation() {
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let balance: Balance = Keypath::default().into();
+            let balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.get(), 15);
         })
     })
@@ -145,7 +146,7 @@ fn lazy_increase_defers_committed_base_overflow() {
     // Set balance to max value
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             balance.increase(Balance::MAX);
         })
     })
@@ -156,7 +157,7 @@ fn lazy_increase_defers_committed_base_overflow() {
     // Lazy increase tx should succeed but fail to commit
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.try_lazy_increase(1), Ok(()));
         })
     })
@@ -165,7 +166,7 @@ fn lazy_increase_defers_committed_base_overflow() {
     // Checked increase should fail immediately
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(
                 balance.try_increase(1),
                 Err(LibraryExn::NonNegativeIntOverflow)
@@ -183,7 +184,7 @@ fn lazy_increase_accepts_overflow_of_loaded_value() {
     // Set balance to max value
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             balance.increase(Balance::MAX);
         })
     })
@@ -194,12 +195,12 @@ fn lazy_increase_accepts_overflow_of_loaded_value() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             // Load the committed value
-            let balance: Balance = Keypath::default().into();
+            let balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.get(), Balance::MAX);
 
             // Lazy increase: accepts overflowing increase despite
             // previously-loaded value
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.try_lazy_increase(1), Ok(()));
         })
     })
@@ -213,7 +214,7 @@ fn lazy_decrease_defers_committed_base_underflow() {
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             balance.increase(10);
         })
     })
@@ -224,7 +225,7 @@ fn lazy_decrease_defers_committed_base_underflow() {
     // Lazy decrease tx should succeed but fail to commit
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.try_lazy_decrease(11), Ok(()));
         })
     })
@@ -233,7 +234,7 @@ fn lazy_decrease_defers_committed_base_underflow() {
     // Checked decrease should fail immediately
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(
                 balance.try_decrease(11),
                 Err(LibraryExn::NonNegativeIntUnderflow)
@@ -250,7 +251,7 @@ fn lazy_decrease_accepts_underflow_of_loaded_value() {
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             balance.increase(10);
         })
     })
@@ -261,12 +262,12 @@ fn lazy_decrease_accepts_underflow_of_loaded_value() {
     env.transact(|tx| {
         tx.call(&address).run(|| {
             // Load the committed value
-            let balance: Balance = Keypath::default().into();
+            let balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.get(), 10);
 
             // Lazy decrease: accepts underflowing decrease despite
             // previously-loaded value
-            let mut balance: Balance = Keypath::default().into();
+            let mut balance = <Balance>::from_keypath(Keypath::default());
             assert_eq!(balance.try_lazy_decrease(11), Ok(()));
         })
     })

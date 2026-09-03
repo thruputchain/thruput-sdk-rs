@@ -12,6 +12,6 @@ error[E0277]: `u64` cannot be a storage field
              Config
              NNInt
              Node<T>
-             RCQ<S>
+             RCQ<T>
              sdk::storage::Map<K, V>
            and $N others

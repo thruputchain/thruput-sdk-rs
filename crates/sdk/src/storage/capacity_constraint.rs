@@ -44,8 +44,8 @@ pub struct CapacityConstraint {
     _live: crate::storage::live_guards::LiveGuard,
 }
 
-impl From<Keypath> for CapacityConstraint {
-    fn from(keypath: Keypath) -> Self {
+impl super::node::StorageHandle for CapacityConstraint {
+    fn from_keypath(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
             capacity: None,
