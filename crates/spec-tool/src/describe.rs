@@ -43,6 +43,9 @@ const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
     groundhog_access_control_if::__groundhog_spec_fragment_AccessControlError,
 ];
 
+const SIGNED_OP_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[groundhog_signed_op_if::__groundhog_spec_fragment_SignedOpError];
+
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
         name: "LibraryExn",
@@ -88,6 +91,15 @@ pub const REGISTRY: &[DescribableType] = &[
             as sdk::exn::Exn>::SELECTOR,
         fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
         root: "AccessControlError",
+    },
+    DescribableType {
+        name: "SignedOpError",
+        crate_name: "groundhog-signed-op-if",
+        major_version: "0.1",
+        selector:
+            <groundhog_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
+        fragments: SIGNED_OP_ERROR_FRAGMENTS,
+        root: "SignedOpError",
     },
 ];
 

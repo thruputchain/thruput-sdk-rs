@@ -1,7 +1,7 @@
 //! RV32 binary wrapper for the `test_bytestring` contract.
 //!
-//! `groundhog build --target rv32` derives `--bin test_bytestring` from the
-//! package name, so this target is what produces the deployable ELF.
+//! `groundhog build` derives `--bin test_bytestring` from the package name, so
+//! this target is what produces the deployable ELF.
 //!
 //! This contract registers its entrypoints by hand rather than through the
 //! `#[contract]` macro; see lib.rs.

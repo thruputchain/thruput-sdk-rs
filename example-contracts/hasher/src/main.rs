@@ -1,7 +1,7 @@
 //! RV32 binary wrapper for the `hasher` contract.
 //!
-//! `groundhog build --target rv32` derives `--bin hasher` from the
-//! package name, so this target is what produces the deployable ELF.
+//! `groundhog build` derives `--bin hasher` from the package name, so this
+//! target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the
 //! entrypoint records land in the binary. The runtime (`_start`,

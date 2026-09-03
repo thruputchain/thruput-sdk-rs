@@ -32,7 +32,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench-if"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "sdk",
 ]
@@ -48,7 +48,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "sdk",
 ]
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -262,7 +262,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -273,7 +273,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -382,7 +382,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-access-control"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "groundhog-access-control-if",
  "sdk",
@@ -390,7 +390,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-access-control-if"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "sdk",
  "thiserror",
@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-xdr",
  "sha2",
@@ -418,8 +418,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-domain-separator"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
+ "groundhog-contract-spec",
  "groundhog-xdr",
  "sha2",
  "xdrs",
@@ -427,7 +428,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc1271-if"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "sdk",
  "thiserror",
@@ -435,7 +436,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "groundhog-xdr",
  "sdk",
@@ -444,7 +445,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-metadata-if"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "groundhog-xdr",
  "heapless",
@@ -454,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-pausable-if"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "sdk",
  "thiserror",
@@ -462,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -470,7 +471,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-macros"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -483,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-event",
  "groundhog-storage-cost",
@@ -498,7 +499,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-rv32-runtime"
-version = "0.27.0"
+version = "0.28.0"
 
 [[package]]
 name = "groundhog-serde_arrays"
@@ -511,9 +512,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.30.0"
+version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "ed289c39080291f6c0c8b02172e5f111fa3af98b9b2ecd11a88cb4817cc036fb"
+checksum = "d4850841ea8c274ba7929841cd7a2ad4470878cd1380c0202277db6f5df17e0e"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -521,7 +522,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -529,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "fslock",
  "sha2",
@@ -538,15 +539,15 @@ dependencies = [
 
 [[package]]
 name = "groundhog-syscall"
-version = "0.30.0"
+version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "4289f8246239243774c8a9f9e65e2a35e04c30d26ae472c411d799f53d968447"
+checksum = "c446dde72e2133da0ca06290c053963738fc1d96395c71ca154996655cf3ac95"
 
 [[package]]
 name = "groundhog-trace"
-version = "0.30.0"
+version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "57cc7f0d3ccce6e4ed60d86de302b6b8f64311dc6266c2a7f9cd28bf1aa6cce5"
+checksum = "2e93eca4a1803212ca03257d8c0877e047b0f9466652f1891b87df69ff215de0"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -557,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-u256"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-macros",
@@ -566,9 +567,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.30.0"
+version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "35bc2c9a6e9bb103d20f4518804d3647e661244a022c77a3a261509effa625c8"
+checksum = "2ac032f64026e1e2d12ad3de04a425867f386015d3653644d1c73f8a5b6f2bdb"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
@@ -582,9 +583,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.30.0"
+version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "505e7abe8e8ae619bc746fa6aa8d2a1b7a23b31e572a2e8f757681758784f16c"
+checksum = "3c9d19f0e4cbcb173e0797db6f3e2f16a1382977235d3d6468fc5c47b8c85648"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -645,9 +646,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.30.0"
+version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "0b8786ebbcfbc0dbf871b66471a00a629ba48c37fc72d6c40608a9958a628570"
+checksum = "4651fcaf1e45a672835989e5751aa0865db7ede00604d13f2dda946d58f689b3"
 dependencies = [
  "xdrs",
 ]
@@ -962,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-event",

@@ -59,6 +59,26 @@ pub use groundhog_u256::{
     I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
 };
 
+/// A span of time, for arithmetic on [`TimePoint`].
+///
+/// `core`'s own type, re-exported so a contract can reach for it without
+/// naming `core` itself. `groundhog-xdr` implements `+` and `-` between
+/// `TimePoint` and `Duration`, so a deadline reads the way it does in
+/// Solidity:
+///
+/// ```ignore
+/// let now = sdk::block::get_block_timepoint();
+/// let deadline = &now + 7 * Duration::from_hours(24);
+/// if now > deadline { ... }
+/// ```
+///
+/// Those operators panic on overflow in every build profile, unlike the
+/// integer primitives: a deadline that silently wrapped into the past would
+/// be a security bug. [`TimePoint::checked_add`] and `saturating_add` handle
+/// the edge without panicking. [`BlockHeight`] takes the same shape against
+/// a signed number of blocks, which needs no import.
+pub use core::time::Duration;
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -171,7 +191,8 @@ pub use hasher::*;
 pub use hex::*;
 pub use invoke_config::*;
 pub use log::*;
-pub use mintable::*;
+// Explicit: a glob would republish #[doc(hidden)] mintable internals.
+pub use mintable::{AuthTokenPreimage, Mintable, MintableType};
 pub use re_throw::*;
 pub use receive_auth_handles::*;
 pub use rt::*;

@@ -6,9 +6,8 @@
 //! key — while still linking `iface_conflict_if_b`, whose colliding
 //! candidate carries different emits metadata for that key.  The retained
 //! key's metadata is genuinely ambiguous, so the spec rewrite must fail:
-//! the ELF links, but the spec step of `groundhog build --target rv32`
-//! must error.
-//! dev.sh's `check_iface_conflict_detected` asserts exactly that.
+//! the ELF links, but the spec step of `groundhog build` must error.  dev.sh's
+//! `check_iface_conflict_detected` asserts exactly that.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

@@ -1,7 +1,7 @@
 //! RV32 binary wrapper for the `raw_iface_dep` contract.
 //!
-//! `groundhog build --target rv32` derives `--bin raw_iface_dep` from the
-//! package name, so this target is what produces the deployable ELF.
+//! `groundhog build` derives `--bin raw_iface_dep` from the package name, so
+//! this target is what produces the deployable ELF.
 //!
 //! This contract registers its entrypoints by hand rather than through the
 //! `#[contract]` macro; see lib.rs.
