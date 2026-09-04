@@ -61,8 +61,8 @@ erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "
 bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.29.0" }
 
 # External groundhog dependencies
-groundhog-xdr = { registry = "groundhog", version = "0.31.0", features = ["xdrs", "syscalls"] }
-groundhog-syscall = { registry = "groundhog", version = "0.31.0" }
+groundhog-xdr = { registry = "groundhog", version = "0.30.1", features = ["xdrs", "syscalls"] }
+groundhog-syscall = { registry = "groundhog", version = "0.30.1" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
