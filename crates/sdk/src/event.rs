@@ -87,6 +87,18 @@ impl IntoTopic for crate::types::SHA256Hash {
     }
 }
 
+impl IntoTopic for crate::U256 {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        TopicSrc::Owned(self.to_be_bytes())
+    }
+}
+
+impl IntoTopic for crate::I256 {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        TopicSrc::Owned(self.to_be_bytes())
+    }
+}
+
 impl<T: IntoTopic + ?Sized> IntoTopic for &T {
     fn into_topic(&self) -> TopicSrc<'_> {
         (**self).into_topic()

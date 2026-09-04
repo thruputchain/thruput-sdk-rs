@@ -76,6 +76,8 @@ pub enum ContractTypeView<'a> {
     /// optional `ContractType` field). Consumes no calldata bytes; the
     /// token handle arrives out of band.
     SignedToken(Option<&'a ContractTypeView<'a>>) = 17,
+    U256 = 18,
+    I256 = 19,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -375,6 +377,8 @@ impl From<ContractTypeView<'_>> for ContractType {
                     },
                 }
             }
+            ContractTypeView::U256 => ContractType::U256,
+            ContractTypeView::I256 => ContractType::I256,
         }
     }
 }

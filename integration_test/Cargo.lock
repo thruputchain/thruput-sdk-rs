@@ -471,7 +471,6 @@ name = "groundhog-u256"
 version = "0.28.0"
 dependencies = [
  "groundhog-contract-spec",
- "groundhog-macros",
  "xdrs",
 ]
 
