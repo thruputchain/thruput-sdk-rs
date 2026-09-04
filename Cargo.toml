@@ -106,14 +106,14 @@ bigint-bench-if = { path = "crates/bigint-bench-if" }
 
 # Deps from protocol-rs repo:
 groundhog-spec = { registry = "groundhog", version = "0.31.0", default-features = false }
-groundhog-trace = { registry = "groundhog", version = "0.30.1" }
-groundhog-xdr = { registry = "groundhog", version = "0.30.1", features = ["xdrs"] }
-groundhog-syscall = { registry = "groundhog", version = "0.30.1" }
-hogexec-internal = { registry = "groundhog", version = "0.30.1" }
+groundhog-trace = { registry = "groundhog", version = "0.31.0" }
+groundhog-xdr = { registry = "groundhog", version = "0.31.0", features = ["xdrs"] }
+groundhog-syscall = { registry = "groundhog", version = "0.31.0" }
+hogexec-internal = { registry = "groundhog", version = "0.31.0" }
 
 # Deps from xdrs repo:
 xdrs = { registry = "groundhog", version = "0.8.2", default-features = false, features = ["int128", "heapless"] }
-xdr-common = { registry = "groundhog", version = "0.8.0" }
+xdr-common = { registry = "groundhog", version = "0.8.4" }
 
 # External crates.io dependencies
 thiserror = { version = "2.0.12", default-features = false }
