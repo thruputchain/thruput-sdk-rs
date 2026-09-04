@@ -16,10 +16,6 @@ crate-type = ["rlib"]
 
 [dependencies]
 groundhog-contract-spec = { workspace = true }
-# Used only for `#[derive(ContractTypeSpec)]`, via its `crate = "..."` override
-# (PR #337). Depending on `sdk` for the same derive would be a cycle, since
-# `sdk` depends on this crate.
-groundhog-macros = { workspace = true }
 xdrs = { workspace = true }
 
 [dev-dependencies]

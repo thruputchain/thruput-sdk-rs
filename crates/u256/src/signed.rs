@@ -64,19 +64,7 @@ use crate::{LIMBS, TryFromIntError, U256};
 /// the layout and the wire encoding match [`U256`] exactly. See the module
 /// documentation for the semantics.
 ///
-/// Named field, and named `limbs`, for the reason [`U256`] gives: the spec
-/// derive would call an unnamed field `_0`, and the field name is
-/// wire-visible.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Default,
-    groundhog_macros::ContractTypeSpec,
-)]
-#[contract_type_spec(crate = "crate::__sdk_paths")]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct I256 {
     pub(crate) limbs: [u32; LIMBS],
 }

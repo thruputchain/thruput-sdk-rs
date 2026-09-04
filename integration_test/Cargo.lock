@@ -148,7 +148,7 @@ version = "0.1.0"
 dependencies = [
  "default_wallet",
  "groundhog-domain-separator",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "sdk",
 ]
 
@@ -241,7 +241,7 @@ version = "0.28.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "sdk",
  "thiserror",
 ]
@@ -329,7 +329,7 @@ name = "groundhog-contract-spec"
 version = "0.28.0"
 dependencies = [
  "groundhog-spec",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "heapless",
  "xdr-common",
  "xdrs",
@@ -339,7 +339,7 @@ dependencies = [
 name = "groundhog-contract-util"
 version = "0.28.0"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "sha2",
  "syn 3.0.3",
 ]
@@ -349,7 +349,7 @@ name = "groundhog-domain-separator"
 version = "0.28.0"
 dependencies = [
  "groundhog-contract-spec",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "sha2",
  "xdrs",
 ]
@@ -366,7 +366,7 @@ dependencies = [
 name = "groundhog-erc20-if"
 version = "0.1.20"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "sdk",
  "thiserror",
 ]
@@ -375,7 +375,7 @@ dependencies = [
 name = "groundhog-event"
 version = "0.28.0"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "xdrs",
 ]
 
@@ -385,7 +385,7 @@ version = "0.28.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "proc-macro2",
  "quote",
  "sha2",
@@ -400,7 +400,7 @@ dependencies = [
  "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-trace",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "hogexec-internal",
  "sha2",
  "xdr-common",
@@ -422,11 +422,11 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.30.1"
+version = "0.31.0"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
-checksum = "d4850841ea8c274ba7929841cd7a2ad4470878cd1380c0202277db6f5df17e0e"
+checksum = "f4085b09a07e7377f4ffd57cea5df5dff88f354357c24c101f3c7a225364e860"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.31.0",
  "xdrs",
 ]
 
@@ -434,7 +434,7 @@ dependencies = [
 name = "groundhog-storage-cost"
 version = "0.28.0"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "xdrs",
 ]
 
@@ -459,7 +459,7 @@ version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "2e93eca4a1803212ca03257d8c0877e047b0f9466652f1891b87df69ff215de0"
 dependencies = [
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "hogexec-internal",
  "schemars",
  "xdr-common",
@@ -471,7 +471,6 @@ name = "groundhog-u256"
 version = "0.28.0"
 dependencies = [
  "groundhog-contract-spec",
- "groundhog-macros",
  "xdrs",
 ]
 
@@ -483,10 +482,23 @@ checksum = "2ac032f64026e1e2d12ad3de04a425867f386015d3653644d1c73f8a5b6f2bdb"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
- "groundhog-xdr-macros",
+ "groundhog-xdr-macros 0.30.1",
  "schemars",
  "serde",
  "thiserror",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "groundhog-xdr"
+version = "0.31.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "a884397a7990d1e91be9ef8d078d177c92c690310e02d012e1a29b07c6b600f7"
+dependencies = [
+ "groundhog-serde_arrays",
+ "groundhog-xdr-macros 0.31.0",
+ "serde",
  "xdr-common",
  "xdrs",
 ]
@@ -496,6 +508,21 @@ name = "groundhog-xdr-macros"
 version = "0.30.1"
 source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
 checksum = "3c9d19f0e4cbcb173e0797db6f3e2f16a1382977235d3d6468fc5c47b8c85648"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "syn 3.0.3",
+]
+
+[[package]]
+name = "groundhog-xdr-macros"
+version = "0.31.0"
+source = "sparse+https://groundhog.dev/crates/api/v1/crates/"
+checksum = "6456cf2ac9865ef441579a7734fdda2c5f79a29d22e1d6e75d870a980c19c17f"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -642,7 +669,7 @@ name = "no_syscall_test"
 version = "0.1.0"
 dependencies = [
  "groundhog-syscall",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "no_syscall_test",
  "sdk",
 ]
@@ -700,7 +727,7 @@ dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
  "groundhog-syscall",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "read_only_test",
  "sdk",
 ]
@@ -791,7 +818,7 @@ dependencies = [
  "groundhog-rv32-runtime",
  "groundhog-storage-cost",
  "groundhog-u256",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "heapless",
  "hogexec-internal",
  "linkme",
@@ -973,7 +1000,7 @@ name = "syscall_misc_tests"
 version = "0.2.0"
 dependencies = [
  "groundhog-syscall",
- "groundhog-xdr",
+ "groundhog-xdr 0.30.1",
  "sdk",
  "sha2",
  "syscall_misc_tests",

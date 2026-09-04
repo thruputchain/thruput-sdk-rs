@@ -65,27 +65,10 @@ pub use div::{checked_mul_div_u128, mul_div_u128};
 pub use math::Rounding;
 pub use signed::I256;
 
-// The spec derive emits this at the type's definition site; `U256`'s lands at
-// the crate root because the struct is declared here. Re-export `I256`'s from
-// its module so both are reachable under one path -- which is how a spec
-// fragment is named elsewhere in the workspace (`spec-tool`'s registry) and
-// how `tests/spec_abi.rs` pins these two.
-#[doc(hidden)]
-pub use signed::__groundhog_spec_fragment_I256;
-
 #[cfg(feature = "fmt")]
 pub use fmt::ParseU256Error;
 #[cfg(feature = "fmt")]
 pub use signed_fmt::ParseI256Error;
-
-/// Path shim for `#[derive(ContractTypeSpec)]`. The derive would otherwise emit
-/// `::sdk::…`, and `sdk` depends on this crate; both names it needs are just
-/// `sdk` re-exporting a crate below it.
-#[doc(hidden)]
-pub mod __sdk_paths {
-    pub use groundhog_contract_spec as __contract_spec;
-    pub use xdrs as __xdrs;
-}
 
 /// The number of 32-bit limbs in a [`U256`].
 pub(crate) const LIMBS: usize = 8;
@@ -95,18 +78,7 @@ pub(crate) const LIMBS: usize = 8;
 /// Limbs are least-significant-first in memory; the wire encoding is
 /// most-significant-first (see `integration`), matching xdrs' `u128`.
 ///
-/// Named field rather than a tuple because the spec derive would call an
-/// unnamed field `_0`, and `limbs` is wire-visible.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Default,
-    groundhog_macros::ContractTypeSpec,
-)]
-#[contract_type_spec(crate = "crate::__sdk_paths")]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct U256 {
     pub(crate) limbs: [u32; LIMBS],
 }

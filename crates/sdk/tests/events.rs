@@ -590,6 +590,34 @@ fn test_hashed_topic_event() {
     });
 }
 
+#[derive(Event)]
+struct WideIntegerTopicEvent {
+    #[topic]
+    unsigned: U256,
+    #[topic]
+    signed: I256,
+}
+
+#[test]
+fn wide_integer_topics_use_their_bytes_directly() {
+    let env = TestEnvironment::no_cost();
+    let unsigned = U256::from_be_bytes([0xA5; 32]);
+    let signed = I256::from(-2);
+    let unsigned_topic = unsigned.to_be_bytes();
+    let signed_topic = signed.to_be_bytes();
+
+    let result = env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(|| {
+            log_event(&WideIntegerTopicEvent { unsigned, signed });
+        })
+    });
+
+    result.assert_event::<WideIntegerTopicEvent>(0, |event| {
+        assert_eq!(event.topic(1), Some(&unsigned_topic));
+        assert_eq!(event.topic(2), Some(&signed_topic));
+    });
+}
+
 //-------------------------------------------------------------------------
 // Multi-lifetime event: both lifetimes unify to the decode buffer lifetime
 
