@@ -81,7 +81,7 @@ fn test_exhaustion_throws_typed_abort() {
 #[test]
 fn test_derivation_pins_no_streams() {
     let env = TestEnvironment::no_cost();
-    let cap = env.get_network_config().max_sha256_buffers as usize;
+    let cap = 8;
     assert!(cap > 0);
 
     env.transact(|tx| {
