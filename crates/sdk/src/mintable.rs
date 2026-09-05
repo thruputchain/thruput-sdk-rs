@@ -178,6 +178,10 @@ impl<const MAX: usize> MintableType for heapless::String<MAX> {
     type Preimage = Self;
 }
 
+impl<const N: usize> MintableType for heapless::Vec<u8, N> {
+    type Preimage = Self;
+}
+
 #[cfg(feature = "alloc")]
 impl<T: MintableType + 'static, const MAX: u32> MintableType for VecM<T, MAX> {
     type Preimage = VecM<T::Preimage, MAX>;
@@ -253,6 +257,12 @@ impl<const MAX: u32> Mintable for StringM<MAX> {
 }
 
 impl<const MAX: usize> Mintable for heapless::String<MAX> {
+    fn mint_into_parent(preimage: Self, _children: &mut ChildNodeBuf) -> Self {
+        preimage
+    }
+}
+
+impl<const N: usize> Mintable for heapless::Vec<u8, N> {
     fn mint_into_parent(preimage: Self, _children: &mut ChildNodeBuf) -> Self {
         preimage
     }

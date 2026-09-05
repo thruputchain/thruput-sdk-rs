@@ -228,6 +228,17 @@ impl<const MAX: u32> ContractTypeRefSpec for xdr_common::BytesM<MAX> {
     };
 }
 
+/// Bounded bytes with no allocator: the same wire shape as `BytesM<N>`, and
+/// the same spec, but decodable in a no-`alloc` guest.
+impl<const N: usize> ContractTypeRefSpec for heapless::Vec<u8, N> {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
+            element: &view::ContractTypeView::U8,
+            max_len: N as u32,
+        }),
+    };
+}
+
 impl<T, const N: usize> ContractTypeRefSpec for [T; N]
 where
     T: ContractTypeRefSpec,
