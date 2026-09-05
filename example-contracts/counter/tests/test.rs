@@ -75,16 +75,13 @@ fn test_gas_limit_does_not_propagate() {
             let client = CounterClient::new(&addr);
             client.initialize(10);
 
-            // Mock contract bodies run natively and consume no gas, so a
-            // frame admitted with a tiny budget still completes: test-ffi
-            // clamps the child's budget like production kInvoke but only
-            // debits what the body consumed (nothing, for a mock). The call
-            // must succeed rather than fault.
+            // Native mock instructions are unmetered, but their syscalls
+            // still consume gas. A one-unit budget cannot complete get();
+            // no_cost() disables storage costs, not syscall gas accounting.
             let result = client.with_gas_limit(1).try_get();
-            assert_eq!(
-                result.ok(),
-                Some(10),
-                "gas-limited call against a mock should succeed"
+            assert!(
+                matches!(&result, Err(sdk::call::RawCallError::Fault(_))),
+                "gas-limited mock call should fault, got {result:?}"
             );
 
             // Subsequent call without explicit gas limit should use default
