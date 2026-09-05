@@ -53,6 +53,21 @@ pub fn generate_impl_registry_fragment(
         quote! { #self_ty::__mock }
     };
 
+    // The registry admits one storage-bearing self type per package. An
+    // impl block none of whose methods take `self` never loads that type's
+    // state, so it is stateless like a free function and registers like
+    // one: it may sit beside the contract's storage type (an ERC-165
+    // carrier struct, say) without counting as a second contract.
+    let stateless = item.items.iter().all(|impl_item| match impl_item {
+        syn::ImplItem::Fn(f) => f.sig.receiver().is_none(),
+        _ => true,
+    });
+    let self_type_key = if stateless {
+        quote! { None }
+    } else {
+        quote! { Some(stringify!(#self_ty)) }
+    };
+
     Ok(quote! {
         const _: () = {
             fn register(contract: &mut ::sdk::MockContract) {
@@ -64,7 +79,7 @@ pub fn generate_impl_registry_fragment(
             static FRAGMENT: ::sdk::mock_registry::ContractMockFragment =
                 ::sdk::mock_registry::ContractMockFragment {
                     package_name: env!("CARGO_PKG_NAME"),
-                    self_type_key: Some(stringify!(#self_ty)),
+                    self_type_key: #self_type_key,
                     register,
                 };
         };

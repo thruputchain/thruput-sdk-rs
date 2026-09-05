@@ -12,7 +12,7 @@ use groundhog_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
 use groundhog_erc165_if::{
-    ERC165, ERC165Client, probe_interface, try_probe_interface,
+    ERC165Client, probe_interface, try_probe_interface,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -331,7 +331,7 @@ fn supports_interface_reports_derived_claims() {
 
             // Every implemented interface, named through the trait...
             for id in [
-                <Token as ERC165>::INTERFACE_ID,
+                groundhog_erc165_if::ERC165Entrypoints::INTERFACE_ID,
                 <Token as ERC20>::INTERFACE_ID,
                 <Token as ERC20Metadata>::INTERFACE_ID,
                 <Token as ERC20Pausable>::INTERFACE_ID,

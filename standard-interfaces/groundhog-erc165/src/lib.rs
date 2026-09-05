@@ -11,16 +11,13 @@
 //! actually linked.
 //!
 //! ```ignore
-//! #[contract(version = "0.1.0")]
-//! impl ERC165 for Token {
-//!     fn supports_interface(id: InterfaceId) -> bool {
-//!         groundhog_erc165_if::implements!(id)
-//!     }
-//! }
+//! groundhog_erc165_if::impl_erc165!();
 //! ```
 //!
-//! [`impl_erc165!`] is shorthand for exactly that block. Contracts that
-//! write neither carry no `supports_interface` entrypoint and no records
+//! That expands to a `#[contract] impl ERC165` on a hidden stateless
+//! struct whose `supports_interface` is `implements!(id)`; the method
+//! takes no `self`, so no storage struct is involved. Contracts that do
+//! not invoke it carry no `supports_interface` entrypoint and no records
 //! in their image: the table is anchored only by the reader behind
 //! [`implements!`], so it is dropped from any image that never calls it.
 //!
@@ -49,8 +46,9 @@ pub use sdk::implements;
 /// `supports_interface` returns `true` for [`ERC165::INTERFACE_ID`] itself,
 /// since the impl block that provides it is one more record in the table.
 /// It takes no `self`: the answer is a property of the contract's code, so
-/// it neither loads nor touches storage, and callers may invoke it
-/// read-only.
+/// it neither loads nor touches storage, callers may invoke it read-only,
+/// and the impl can live on any type — [`impl_erc165!`] puts it on a
+/// hidden stateless one.
 #[contract(client = ERC165Client)]
 pub trait ERC165 {
     /// True if this contract implements the interface identified by
@@ -58,22 +56,34 @@ pub trait ERC165 {
     fn supports_interface(interface_id: InterfaceId) -> bool;
 }
 
-/// Shorthand for the `#[contract] impl ERC165 for $ty` block whose
-/// `supports_interface` is [`implements!`].
+/// Give this contract ERC-165: a `#[contract] impl ERC165` whose
+/// `supports_interface` is [`implements!`], on a hidden stateless carrier
+/// struct.
 ///
 /// ```ignore
-/// groundhog_erc165_if::impl_erc165!(TokenContract);
+/// groundhog_erc165_if::impl_erc165!();
 /// ```
+///
+/// Invoke it once, at module level in the contract crate, next to the
+/// contract's other `#[contract]` impls. `supports_interface` takes no
+/// `self`, so the impl does not need — and is not tied to — the contract's
+/// storage struct; the carrier is stateless and registers with the host
+/// mock like a free function. Writing the same block by hand on any type
+/// is equivalent.
 #[macro_export]
 macro_rules! impl_erc165 {
-    ($ty:ty) => {
+    () => {
+        /// Stateless carrier for this contract's ERC-165 impl.
+        #[doc(hidden)]
+        pub struct __GroundhogErc165;
+
         // The version pins this impl to the interface crate's major line
         // (like every impl of a standard interface), not to the invoking
         // crate's version. Bump it with the crate's major version; the
         // interface-version mismatch diagnostic catches a stale value at
         // the first call site.
         #[::sdk::contract(version = "0.1.0")]
-        impl $crate::ERC165 for $ty {
+        impl $crate::ERC165 for __GroundhogErc165 {
             fn supports_interface(interface_id: $crate::InterfaceId) -> bool {
                 $crate::implements!(interface_id)
             }
