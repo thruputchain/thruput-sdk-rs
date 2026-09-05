@@ -61,27 +61,26 @@ fn id_follows_name_and_major_version_only() {
     );
 }
 
-/// The host interface table holds the impl blocks of the contract crate a
-/// type belongs to, whichever struct carries them: a contract is an image,
-/// not a storage struct.
+/// The host interface table holds the impl blocks of the contract crate
+/// that expanded them, whichever struct carries them: a contract is an
+/// image, not a storage struct, and `implements!` scopes to the invoking
+/// package.
 #[test]
 fn interface_table_reflects_the_contract_crate() {
-    use sdk::interface_table::implements;
+    use sdk::interface_table::implements_in;
 
-    assert!(implements::<CounterContract>(
+    assert!(sdk::implements!(CounterEntrypoints::INTERFACE_ID));
+    assert!(!sdk::implements!(CounterV2Entrypoints::INTERFACE_ID));
+    // The same query from another package, or another version of this one,
+    // sees a different contract.
+    assert!(!implements_in(
+        "some-other-contract",
+        env!("CARGO_PKG_VERSION"),
         CounterEntrypoints::INTERFACE_ID
     ));
-    assert!(!implements::<CounterContract>(
-        CounterV2Entrypoints::INTERFACE_ID
-    ));
-    // Another struct in the same crate sees the same table, as it would on
-    // the guest, where both would share one dispatch table.
-    struct SiblingInSameCrate;
-    assert!(implements::<SiblingInSameCrate>(
-        CounterEntrypoints::INTERFACE_ID
-    ));
-    // A type from another crate belongs to another contract (or none).
-    assert!(!implements::<sdk::ContractAddress>(
+    assert!(!implements_in(
+        env!("CARGO_PKG_NAME"),
+        "0.0.0-other",
         CounterEntrypoints::INTERFACE_ID
     ));
 }

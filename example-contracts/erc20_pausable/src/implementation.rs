@@ -332,12 +332,12 @@ impl AccessControl for PausableTokenContract {
     }
 }
 
-// ERC-165 interface detection: `implements` reads the interface table the
+// ERC-165 interface detection: `implements!` reads the interface table the
 // impl blocks above (and this one) leave behind, so there is no list here
 // to keep in sync.
 #[contract(version = "0.1.0")]
 impl ERC165 for PausableTokenContract {
     fn supports_interface(interface_id: InterfaceId) -> bool {
-        implements::<Self>(interface_id)
+        implements!(interface_id)
     }
 }

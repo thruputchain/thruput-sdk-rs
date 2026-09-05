@@ -127,7 +127,8 @@ The current set:
   implementation-component crates are compatible with any SDK patch release.
 - The standard-interface crates (`groundhog-erc20-if`,
   `groundhog-erc20-metadata-if`, `groundhog-erc1271-if`,
-  `groundhog-erc20-pausable-if`, `groundhog-access-control-if`) and the
+  `groundhog-erc20-pausable-if`, `groundhog-erc165-if`,
+  `groundhog-access-control-if`) and the
   `groundhog-access-control` component, plus `bottle-test-if` and
   `version-mismatch-helper`, declare their own versions instead of inheriting
   the workspace version.

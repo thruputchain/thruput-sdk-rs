@@ -7,22 +7,22 @@
 //! name and major version — the pair that namespaces its entrypoint IDs —
 //! and every `#[contract]` impl block leaves a record of that id in the
 //! contract's interface table (see `sdk::interface_table`). So the claim
-//! is not written at all: [`implements`] reads it off the impls that
+//! is not written at all: [`implements!`] reads it off the impls that
 //! actually linked.
 //!
 //! ```ignore
 //! #[contract(version = "0.1.0")]
 //! impl ERC165 for Token {
 //!     fn supports_interface(id: InterfaceId) -> bool {
-//!         groundhog_erc165_if::implements::<Self>(id)
+//!         groundhog_erc165_if::implements!(id)
 //!     }
 //! }
 //! ```
 //!
 //! [`impl_erc165!`] is shorthand for exactly that block. Contracts that
-//! write neither carry no `supports_interface` entrypoint and no records:
-//! the table is anchored only by [`implements`], so the linker drops it
-//! from any image that never calls it.
+//! write neither carry no `supports_interface` entrypoint and no records
+//! in their image: the table is anchored only by the reader behind
+//! [`implements!`], so it is dropped from any image that never calls it.
 //!
 //! The Ethereum detection dance (a 30k-gas `staticcall`, then probing
 //! `0xffffffff`) is unnecessary: a contract without this interface throws
@@ -42,7 +42,7 @@ use sdk::exn::{LibraryExn, MatchExn};
 use sdk::{ContractAddress, contract};
 
 pub use sdk::InterfaceId;
-pub use sdk::interface_table::implements;
+pub use sdk::implements;
 
 /// The ERC-165 interface: query whether a contract implements an interface.
 ///
@@ -59,7 +59,7 @@ pub trait ERC165 {
 }
 
 /// Shorthand for the `#[contract] impl ERC165 for $ty` block whose
-/// `supports_interface` is [`implements`]`::<$ty>`.
+/// `supports_interface` is [`implements!`].
 ///
 /// ```ignore
 /// groundhog_erc165_if::impl_erc165!(TokenContract);
@@ -75,7 +75,7 @@ macro_rules! impl_erc165 {
         #[::sdk::contract(version = "0.1.0")]
         impl $crate::ERC165 for $ty {
             fn supports_interface(interface_id: $crate::InterfaceId) -> bool {
-                $crate::implements::<$ty>(interface_id)
+                $crate::implements!(interface_id)
             }
         }
     };

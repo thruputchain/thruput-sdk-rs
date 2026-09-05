@@ -78,11 +78,11 @@ pub fn generate(
     // the entrypoint records, and gated like them on rv32 — a dependency
     // that does not enable `entrypoints` exports nothing, so it must not
     // advertise anything either.
-    let interface_record = contract.self_ty().map(|self_ty| {
+    let interface_record = contract.self_ty().map(|_| {
         let id_lit = interface_id_literal(iface_name, &iface_vers);
         quote! {
             #[cfg(any(not(target_arch = "riscv32"), feature = "entrypoints"))]
-            ::sdk::__interface_record!(#self_ty, #id_lit);
+            ::sdk::__interface_record!(#id_lit);
         }
     });
 

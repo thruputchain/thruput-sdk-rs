@@ -3,8 +3,8 @@
 //!
 //! Every `#[contract] impl Trait for T` (and every bare `#[contract] impl T`)
 //! expands to one 8-byte [`InterfaceId`] record via
-//! [`__interface_record!`](crate::__interface_record). [`implements`] answers
-//! whether a given id is among them. This is what `groundhog-erc165-if`
+//! [`__interface_record!`](crate::__interface_record). [`implements!`](crate::implements)
+//! answers whether a given id is among them. This is what `groundhog-erc165-if`
 //! builds `supports_interface` on: the claim is read off the impls that
 //! actually linked, so there is no list to maintain and nothing to get wrong.
 //!
@@ -16,8 +16,8 @@
 //! Whether that section reaches the deployed image is the lowerer's call,
 //! made the way it already drops the raw spec section: the reader below
 //! touches a one-word anchor in `groundhog_rv32_interfaces_anchor`, an
-//! ordinary GC-able section that survives the link only if [`implements`]
-//! was instantiated. The lowerer copies the table into VM memory only when
+//! ordinary GC-able section that survives the link only if the table reader
+//! behind [`implements!`](crate::implements) was instantiated. The lowerer copies the table into VM memory only when
 //! the anchor section is present. A contract with no ERC-165 impl therefore
 //! ships an image byte-identical to one built without this module; one with
 //! an impl pays four bytes of anchor plus 8 per impl block, plus the scan.
@@ -30,23 +30,23 @@
 //! holds both ids and `supports_interface` says yes to both — which is the
 //! truth ERC-165 asks about. On the guest the table is simply the whole
 //! image. On the host, where one test process holds many contracts, the
-//! records go through a `linkme` slice and are keyed by the *crate* of the
-//! implementing type, so [`implements`]`::<A>` sees `B`'s impls too, the
-//! same as the guest, while another contract crate's records stay apart.
-//! That matches the mock registry, which also builds a host contract from
-//! one package's fragments.
+//! records go through a `linkme` slice keyed by the package that expanded
+//! them, name and version both, so [`implements!`](crate::implements) from
+//! inside a contract crate sees every impl block of that crate — `A`'s and
+//! `B`'s alike, the same as the guest — while another contract crate's
+//! records, or another version of this one (a migration test may link two),
+//! stay apart. That is the scope the entrypoint guards and the mock
+//! registry already use for "one contract".
 
 use crate::InterfaceId;
 
-/// One host-side record: the implementing type and the interface it
-/// implements. The type is identified by name at query time (its crate
-/// segment is what the lookup compares), which is why the record carries a
-/// function rather than a string: `type_name` is not usable in a static
-/// initializer.
+/// One host-side record: the package (name and version) whose `#[contract]`
+/// impl block expanded it, and the interface that block implements.
 #[cfg(not(target_arch = "riscv32"))]
 #[doc(hidden)]
 pub struct HostRecord {
-    pub type_name: fn() -> &'static str,
+    pub package: &'static str,
+    pub version: &'static str,
     pub id: InterfaceId,
 }
 
@@ -56,38 +56,64 @@ pub struct HostRecord {
 #[linkme(crate = crate::__linkme)]
 pub static HOST_RECORDS: [HostRecord];
 
-/// True if the contract `T` belongs to carries a `#[contract]` impl of the
-/// interface identified by `interface_id`.
+/// True if the contract identified by `package`/`version` carries a
+/// `#[contract]` impl of the interface identified by `interface_id`.
 ///
-/// `T` names the contract, not the storage struct: on the guest there is
-/// one contract per image, so `T` is not consulted and the table is scanned
-/// whole; on the host the records are filtered to `T`'s crate, so every
-/// impl block in the contract crate counts, whichever struct it is on (see
-/// the module docs). Neither touches storage.
-#[cfg_attr(
-    target_arch = "riscv32",
-    allow(clippy::extra_unused_type_parameters)
-)]
-pub fn implements<T: ?Sized>(interface_id: InterfaceId) -> bool {
-    #[cfg(target_arch = "riscv32")]
-    {
-        rv32::contains(interface_id)
-    }
-
-    #[cfg(not(target_arch = "riscv32"))]
-    {
-        let krate = crate_of(core::any::type_name::<T>());
-        HOST_RECORDS.iter().any(|r| {
-            r.id == interface_id && crate_of((r.type_name)()) == krate
-        })
-    }
+/// [`implements!`](crate::implements) supplies the caller crate's own
+/// package name and version, which is the form contracts use. On the guest
+/// there is one contract per image, so the scope is not consulted and the
+/// table is scanned whole; on the host the records are filtered to that
+/// package. Neither touches storage.
+#[cfg(target_arch = "riscv32")]
+pub fn implements_in(
+    _package: &str,
+    _version: &str,
+    interface_id: InterfaceId,
+) -> bool {
+    rv32::contains(interface_id)
 }
 
-/// The leading path segment of a `type_name` string: the crate the type
-/// was defined in, which is the host's stand-in for "the contract image".
+/// True if the contract identified by `package`/`version` carries a
+/// `#[contract]` impl of the interface identified by `interface_id`.
+///
+/// [`implements!`](crate::implements) supplies the caller crate's own
+/// package name and version, which is the form contracts use. On the guest
+/// there is one contract per image, so the scope is not consulted and the
+/// table is scanned whole; on the host the records are filtered to that
+/// package. Neither touches storage.
 #[cfg(not(target_arch = "riscv32"))]
-fn crate_of(type_name: &str) -> &str {
-    type_name.split("::").next().unwrap_or(type_name)
+pub fn implements_in(
+    package: &str,
+    version: &str,
+    interface_id: InterfaceId,
+) -> bool {
+    HOST_RECORDS.iter().any(|r| {
+        r.id == interface_id && r.package == package && r.version == version
+    })
+}
+
+/// True if this contract carries a `#[contract]` impl of the interface
+/// identified by the given [`InterfaceId`].
+///
+/// Expands to [`interface_table::implements_in`](crate::interface_table::implements_in)
+/// scoped to the invoking crate's package name and version, so it must be
+/// invoked from the contract crate itself — which is where a
+/// `supports_interface` body lives:
+///
+/// ```ignore
+/// fn supports_interface(id: InterfaceId) -> bool {
+///     sdk::implements!(id)
+/// }
+/// ```
+#[macro_export]
+macro_rules! implements {
+    ($id:expr) => {
+        $crate::interface_table::implements_in(
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            $id,
+        )
+    };
 }
 
 #[cfg(target_arch = "riscv32")]
@@ -138,22 +164,17 @@ mod rv32 {
     }
 }
 
-/// Register one interface-table record for `$self_ty`. Emitted by
+/// Register one interface-table record for the invoking crate. Emitted by
 /// `#[contract]` for every impl block; not for hand-written use.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __interface_record {
-    ($self_ty:ty, $id:expr) => {
+    ($id:expr) => {
         const _: () = {
             #[cfg(target_arch = "riscv32")]
             #[used]
             #[unsafe(link_section = "groundhog_rv32_interfaces")]
             static __GH_INTERFACE_RECORD: $crate::InterfaceId = $id;
-
-            #[cfg(not(target_arch = "riscv32"))]
-            fn __gh_type_name() -> &'static str {
-                ::core::any::type_name::<$self_ty>()
-            }
 
             #[cfg(not(target_arch = "riscv32"))]
             #[$crate::__linkme::distributed_slice(
@@ -162,7 +183,8 @@ macro_rules! __interface_record {
             #[linkme(crate = $crate::__linkme)]
             static __GH_INTERFACE_RECORD: $crate::interface_table::HostRecord =
                 $crate::interface_table::HostRecord {
-                    type_name: __gh_type_name,
+                    package: env!("CARGO_PKG_NAME"),
+                    version: env!("CARGO_PKG_VERSION"),
                     id: $id,
                 };
         };
