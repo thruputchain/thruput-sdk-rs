@@ -164,11 +164,11 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 &iface_vers,
             );
             stripped.items.push(parse_quote! {
-                /// The identity of this interface at its major version:
-                /// `sha256("groundhog-interface" :: name :: MAJOR)[0..8]`, the
-                /// pair that also namespaces its entrypoint IDs. Every implementor
-                /// inherits it, and every `#[contract]` impl of this trait
-                /// records it in the contract's interface table
+                /// The identity of this interface at its major version, as
+                /// derived by `groundhog_contract_util::interface_id` from the
+                /// same (name, MAJOR) pair that namespaces its entrypoint IDs.
+                /// Every implementor inherits it, and every `#[contract]` impl
+                /// of this trait records it in the contract's interface table
                 /// (`sdk::interface_table`).
                 const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
             });
