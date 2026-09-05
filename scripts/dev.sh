@@ -682,8 +682,15 @@ lint_contracts() {
         return 1
     }
 
+    local contract_packages
+    contract_packages=$(ls_contract_packages "$packages_dir") || return 1
+    [ -n "$contract_packages" ] || {
+        fail "No enabled contract packages found: $packages_dir (initialize submodules)"
+        return 1
+    }
+
     local package
-    for package in $(ls_contract_packages "$packages_dir") ; do
+    for package in $contract_packages ; do
         lint_contract "$workspace_dir" "$package" || {
             fail "Failed linting contract $package"
             return 1
