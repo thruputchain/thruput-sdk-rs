@@ -5,8 +5,9 @@
 //! - `event ApprovalForAll(address indexed owner, address indexed operator, bool approved)`
 //!
 //! The two addresses are topics, as on Ethereum. A Groundhog event carries
-//! two topics beyond its signature, so the token id rides in the payload
-//! instead of being the third; filter on the addresses and decode the id.
+//! two topics beyond its signature, so the token id (a 32-byte
+//! [`TokenId`], not a `uint256`) rides in the payload instead of being
+//! the third; filter on the addresses and decode the id.
 //! Minting and burning have their own [`MintEvent`] and [`BurnEvent`],
 //! where Ethereum overloads `Transfer` with the zero address; a transfer
 //! involving the zero address here is exactly that.
@@ -38,9 +39,9 @@ fn address_topic<'a>(
 pub fn log_transfer_event(
     from: &ContractAddress,
     to: &ContractAddress,
-    token_id: TokenId,
+    token_id: &TokenId,
 ) {
-    log_event(&TransferEvent::new(from, to, token_id));
+    log_event(&TransferEvent::new(from, to, *token_id));
 }
 
 /// An event emitted when a token changes owner. Minting and burning are
@@ -85,13 +86,12 @@ impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
 
 impl<'a> fmt::Display for TransferEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let id_bytes = self.token_id.to_be_bytes();
         write!(
             f,
             "TRANSFER({}, {}, token:{})",
             hex_encode(self.from),
             hex_encode(self.to),
-            hex_encode(&id_bytes),
+            hex_encode(&self.token_id),
         )
     }
 }
@@ -99,8 +99,8 @@ impl<'a> fmt::Display for TransferEvent<'a> {
 // ----------------------------------------------------------------------
 
 /// Log that `token_id` was created for `to`.
-pub fn log_mint_event(to: &ContractAddress, token_id: TokenId) {
-    log_event(&MintEvent::new(to, token_id));
+pub fn log_mint_event(to: &ContractAddress, token_id: &TokenId) {
+    log_event(&MintEvent::new(to, *token_id));
 }
 
 /// An event emitted when a token is created.
@@ -137,12 +137,11 @@ impl<'a> TryFrom<EmittedEvent<'a>> for MintEvent<'a> {
 
 impl<'a> fmt::Display for MintEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let id_bytes = self.token_id.to_be_bytes();
         write!(
             f,
             "MINT_TO({}, token:{})",
             hex_encode(self.to),
-            hex_encode(&id_bytes)
+            hex_encode(&self.token_id)
         )
     }
 }
@@ -150,8 +149,8 @@ impl<'a> fmt::Display for MintEvent<'a> {
 // ----------------------------------------------------------------------
 
 /// Log that `token_id` was destroyed, taking it from `from`.
-pub fn log_burn_event(from: &ContractAddress, token_id: TokenId) {
-    log_event(&BurnEvent::new(from, token_id));
+pub fn log_burn_event(from: &ContractAddress, token_id: &TokenId) {
+    log_event(&BurnEvent::new(from, *token_id));
 }
 
 /// An event emitted when a token is destroyed.
@@ -188,12 +187,11 @@ impl<'a> TryFrom<EmittedEvent<'a>> for BurnEvent<'a> {
 
 impl<'a> fmt::Display for BurnEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let id_bytes = self.token_id.to_be_bytes();
         write!(
             f,
             "BURN_FROM({}, token:{})",
             hex_encode(self.from),
-            hex_encode(&id_bytes)
+            hex_encode(&self.token_id)
         )
     }
 }
@@ -204,9 +202,9 @@ impl<'a> fmt::Display for BurnEvent<'a> {
 pub fn log_approval_event(
     owner: &ContractAddress,
     approved: &ContractAddress,
-    token_id: TokenId,
+    token_id: &TokenId,
 ) {
-    log_event(&ApprovalEvent::new(owner, approved, token_id));
+    log_event(&ApprovalEvent::new(owner, approved, *token_id));
 }
 
 /// An event emitted when the approved address for a token changes.
@@ -256,13 +254,12 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
 
 impl<'a> fmt::Display for ApprovalEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let id_bytes = self.token_id.to_be_bytes();
         write!(
             f,
             "APPROVE({}, {}, token:{})",
             hex_encode(self.owner),
             hex_encode(self.approved),
-            hex_encode(&id_bytes),
+            hex_encode(&self.token_id),
         )
     }
 }

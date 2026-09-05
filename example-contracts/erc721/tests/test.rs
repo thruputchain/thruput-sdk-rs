@@ -27,8 +27,11 @@ const NAME: &str = "Groundhog Punks";
 const SYMBOL: &str = "GHP";
 const BASE_URI: &str = "https://example.com/nft/";
 
-fn id(n: u64) -> TokenId {
-    TokenId::from_u64(n)
+/// A token id with `n` in its last byte.
+fn id(n: u8) -> TokenId {
+    let mut bytes = [0u8; 32];
+    bytes[31] = n;
+    TokenId::new(bytes)
 }
 
 /// Deploy the token, initialize it as `ADMIN`, and mint ids 1 and 2 to
@@ -47,8 +50,8 @@ fn deploy_token(env: &TestEnvironmentHandle) -> ContractAddress {
                 SYMBOL.try_into().unwrap(),
                 BASE_URI.try_into().unwrap(),
             );
-            admin.mint(&ALICE, id(1));
-            admin.mint(&ALICE, id(2));
+            admin.mint(&ALICE, &id(1));
+            admin.mint(&ALICE, &id(2));
             addr
         })
     });
@@ -145,6 +148,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
     let env = TestEnvironment::no_cost();
     let contract = erc721::register_mock_contract(&env);
     let hash = *contract.as_hash();
+    let big = TokenId::new([0xff; 32]);
 
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
@@ -169,32 +173,33 @@ fn mint_sets_owner_balance_metadata_and_events() {
                 Some(NftError::AlreadyInitialized),
             );
 
-            let big = TokenId::from_u128(u128::MAX);
-            admin.mint(&ALICE, id(1));
-            admin.mint(&BOB, big);
+            admin.mint(&ALICE, &id(1));
+            admin.mint(&BOB, &big);
             assert_eq!(
-                admin.try_mint(&BOB, id(1)).unwrap_err().try_as(),
+                admin.try_mint(&BOB, &id(1)).unwrap_err().try_as(),
                 Some(NftError::TokenAlreadyMinted),
             );
 
             let token = ERC721Client::new(&addr);
-            assert_eq!(token.owner_of(id(1)), ALICE);
-            assert_eq!(token.owner_of(big), BOB);
+            assert_eq!(token.owner_of(&id(1)), ALICE);
+            assert_eq!(token.owner_of(&big), BOB);
             assert_eq!(token.balance_of(&ALICE), 1);
             assert_eq!(token.balance_of(&BOB), 1);
             assert_eq!(token.balance_of(&OPERATOR), 0);
-            assert_eq!(token.get_approved(id(1)), *CONTRACT_ADDR_ZERO);
+            assert_eq!(token.get_approved(&id(1)), *CONTRACT_ADDR_ZERO);
 
             let meta = ERC721MetadataClient::new(&addr);
             assert_eq!(meta.name().as_str(), NAME);
             assert_eq!(meta.symbol().as_str(), SYMBOL);
+            // The URI is the base followed by the id in hex.
             assert_eq!(
-                meta.token_uri(id(1)).as_str(),
-                "https://example.com/nft/1"
+                meta.token_uri(&id(1)).as_str(),
+                "https://example.com/nft/\
+                 0000000000000000000000000000000000000000000000000000000000000001"
             );
             assert_eq!(
-                meta.token_uri(big).as_str(),
-                "https://example.com/nft/340282366920938463463374607431768211455"
+                meta.token_uri(&big).as_str(),
+                format!("{BASE_URI}{}", hex_encode(&big))
             );
 
             // Everything about an unminted id is `NonexistentToken`.
@@ -204,19 +209,16 @@ fn mint_sets_owner_balance_metadata_and_events() {
                     Some(ERC721Error::NonexistentToken)
                 );
             };
-            missing(token.try_owner_of(id(9)).map(drop));
-            missing(token.try_get_approved(id(9)).map(drop));
-            missing(meta.try_token_uri(id(9)).map(drop));
-            missing(token.try_transfer_from(&ALICE, &BOB, id(9)));
+            missing(token.try_owner_of(&id(9)).map(drop));
+            missing(token.try_get_approved(&id(9)).map(drop));
+            missing(meta.try_token_uri(&id(9)).map(drop));
+            missing(token.try_transfer_from(&ALICE, &BOB, &id(9)));
             addr
         })
     });
     result.assert_success();
     let addr: ContractAddress = result.assert_return_as();
-    assert_eq!(
-        mints(&result, &addr),
-        vec![(ALICE, id(1)), (BOB, TokenId::from_u128(u128::MAX))]
-    );
+    assert_eq!(mints(&result, &addr), vec![(ALICE, id(1)), (BOB, big)]);
     assert!(transfers(&result, &addr).is_empty());
     env.advance_block();
 
@@ -225,7 +227,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
         tx.call(&ALICE).run(move || {
             assert_eq!(
                 NftAdminClient::new(&addr)
-                    .try_mint(&ALICE, id(3))
+                    .try_mint(&ALICE, &id(3))
                     .unwrap_err()
                     .try_as(),
                 Some(NftError::MustBeAdministrator),
@@ -246,12 +248,12 @@ fn transfer_from_checks_owner_and_authorization() {
             let token = ERC721Client::new(&addr);
             assert_eq!(
                 token
-                    .try_transfer_from(&ALICE, &BOB, id(1))
+                    .try_transfer_from(&ALICE, &BOB, &id(1))
                     .unwrap_err()
                     .try_as(),
                 Some(ERC721Error::InsufficientApproval),
             );
-            assert_eq!(token.owner_of(id(1)), ALICE);
+            assert_eq!(token.owner_of(&id(1)), ALICE);
         })
     });
     result.assert_success();
@@ -263,14 +265,14 @@ fn transfer_from_checks_owner_and_authorization() {
             let token = ERC721Client::new(&addr);
             assert_eq!(
                 token
-                    .try_transfer_from(&BOB, &ALICE, id(1))
+                    .try_transfer_from(&BOB, &ALICE, &id(1))
                     .unwrap_err()
                     .try_as(),
                 Some(ERC721Error::IncorrectOwner),
             );
 
-            token.transfer_from(&ALICE, &BOB, id(1));
-            assert_eq!(token.owner_of(id(1)), BOB);
+            token.transfer_from(&ALICE, &BOB, &id(1));
+            assert_eq!(token.owner_of(&id(1)), BOB);
             assert_eq!(token.balance_of(&ALICE), 1);
             assert_eq!(token.balance_of(&BOB), 1);
         })
@@ -288,8 +290,8 @@ fn approvals_and_operators_authorize_transfers() {
     let result = env.transact(|tx| {
         tx.call(&ALICE).run(move || {
             let token = ERC721Client::new(&addr);
-            token.approve(&BOB, id(1));
-            assert_eq!(token.get_approved(id(1)), BOB);
+            token.approve(&BOB, &id(1));
+            assert_eq!(token.get_approved(&id(1)), BOB);
 
             token.set_approval_for_all(&OPERATOR, true);
             assert!(token.is_approved_for_all(&ALICE, &OPERATOR));
@@ -310,21 +312,21 @@ fn approvals_and_operators_authorize_transfers() {
         tx.call(&BOB).run(move || {
             let token = ERC721Client::new(&addr);
             assert_eq!(
-                token.try_approve(&NOBODY, id(1)).unwrap_err().try_as(),
+                token.try_approve(&NOBODY, &id(1)).unwrap_err().try_as(),
                 Some(ERC721Error::InvalidApprover),
             );
             assert_eq!(
                 token
-                    .try_transfer_from(&ALICE, &BOB, id(2))
+                    .try_transfer_from(&ALICE, &BOB, &id(2))
                     .unwrap_err()
                     .try_as(),
                 Some(ERC721Error::InsufficientApproval),
             );
 
-            token.transfer_from(&ALICE, &BOB, id(1));
-            assert_eq!(token.owner_of(id(1)), BOB);
+            token.transfer_from(&ALICE, &BOB, &id(1));
+            assert_eq!(token.owner_of(&id(1)), BOB);
             // The transfer consumed the approval.
-            assert_eq!(token.get_approved(id(1)), *CONTRACT_ADDR_ZERO);
+            assert_eq!(token.get_approved(&id(1)), *CONTRACT_ADDR_ZERO);
         })
     });
     result.assert_success();
@@ -334,13 +336,13 @@ fn approvals_and_operators_authorize_transfers() {
     let result = env.transact(|tx| {
         tx.call(&OPERATOR).run(move || {
             let token = ERC721Client::new(&addr);
-            token.approve(&NOBODY, id(2));
-            assert_eq!(token.get_approved(id(2)), NOBODY);
-            token.approve(CONTRACT_ADDR_ZERO, id(2));
-            assert_eq!(token.get_approved(id(2)), *CONTRACT_ADDR_ZERO);
+            token.approve(&NOBODY, &id(2));
+            assert_eq!(token.get_approved(&id(2)), NOBODY);
+            token.approve(CONTRACT_ADDR_ZERO, &id(2));
+            assert_eq!(token.get_approved(&id(2)), *CONTRACT_ADDR_ZERO);
 
-            token.transfer_from(&ALICE, &OPERATOR, id(2));
-            assert_eq!(token.owner_of(id(2)), OPERATOR);
+            token.transfer_from(&ALICE, &OPERATOR, &id(2));
+            assert_eq!(token.owner_of(&id(2)), OPERATOR);
             assert_eq!(token.balance_of(&ALICE), 0);
         })
     });
@@ -355,7 +357,7 @@ fn approvals_and_operators_authorize_transfers() {
     let result = env.transact(|tx| {
         tx.call(&OPERATOR).run(move || {
             let token = ERC721Client::new(&addr);
-            token.transfer_from(&OPERATOR, &ALICE, id(2));
+            token.transfer_from(&OPERATOR, &ALICE, &id(2));
         })
     });
     result.assert_success();
@@ -377,7 +379,7 @@ fn approvals_and_operators_authorize_transfers() {
             assert!(!token.is_approved_for_all(&ALICE, &OPERATOR));
             assert_eq!(
                 token
-                    .try_transfer_from(&ALICE, &OPERATOR, id(2))
+                    .try_transfer_from(&ALICE, &OPERATOR, &id(2))
                     .unwrap_err()
                     .try_as(),
                 Some(ERC721Error::InsufficientApproval),
@@ -399,8 +401,8 @@ fn safe_transfer_consults_the_receiver() {
             let data = TransferData::from_slice(b"hello").unwrap();
 
             // A contract with the hook takes the token and sees the call.
-            token.safe_transfer_from(&ALICE, &receiver, id(1), data.clone());
-            assert_eq!(token.owner_of(id(1)), receiver);
+            token.safe_transfer_from(&ALICE, &receiver, &id(1), data.clone());
+            assert_eq!(token.owner_of(&id(1)), receiver);
             assert_eq!(
                 ReceiverClient::new(&receiver).last_delivery(),
                 Some(Delivery {
@@ -422,16 +424,16 @@ fn safe_transfer_consults_the_receiver() {
             invalid_receiver(token.try_safe_transfer_from(
                 &ALICE,
                 &counter,
-                id(2),
+                &id(2),
                 TransferData::new(),
             ));
             invalid_receiver(token.try_safe_transfer_from(
                 &ALICE,
                 &NOBODY,
-                id(2),
+                &id(2),
                 TransferData::new(),
             ));
-            assert_eq!(token.owner_of(id(2)), ALICE);
+            assert_eq!(token.owner_of(&id(2)), ALICE);
 
             // A receiver that throws rejects the transfer with its own
             // reason, which reaches the caller undeclared but decodable.
@@ -439,17 +441,17 @@ fn safe_transfer_consults_the_receiver() {
                 .try_safe_transfer_from(
                     &ALICE,
                     &receiver,
-                    id(2),
+                    &id(2),
                     TransferData::from_slice(REJECT_DATA).unwrap(),
                 )
                 .unwrap_err();
             assert_eq!(refused.try_as(), Some(ReceiverError::Refused));
-            assert_eq!(token.owner_of(id(2)), ALICE);
+            assert_eq!(token.owner_of(&id(2)), ALICE);
             assert_eq!(token.balance_of(&receiver), 1);
 
             // Plain `transfer_from` asks nobody.
-            token.transfer_from(&ALICE, &counter, id(2));
-            assert_eq!(token.owner_of(id(2)), counter);
+            token.transfer_from(&ALICE, &counter, &id(2));
+            assert_eq!(token.owner_of(&id(2)), counter);
         })
     });
     result.assert_success();
@@ -468,7 +470,7 @@ fn burn_needs_authorization_and_removes_the_token() {
         tx.call(&BOB).run(move || {
             assert_eq!(
                 NftAdminClient::new(&addr)
-                    .try_burn(id(1))
+                    .try_burn(&id(1))
                     .unwrap_err()
                     .try_as(),
                 Some(ERC721Error::InsufficientApproval),
@@ -481,11 +483,11 @@ fn burn_needs_authorization_and_removes_the_token() {
     let result = env.transact(|tx| {
         tx.call(&ALICE).run(move || {
             let token = ERC721Client::new(&addr);
-            token.approve(&BOB, id(2));
-            NftAdminClient::new(&addr).burn(id(1));
+            token.approve(&BOB, &id(2));
+            NftAdminClient::new(&addr).burn(&id(1));
 
             assert_eq!(
-                token.try_owner_of(id(1)).unwrap_err().try_as(),
+                token.try_owner_of(&id(1)).unwrap_err().try_as(),
                 Some(ERC721Error::NonexistentToken),
             );
             assert_eq!(token.balance_of(&ALICE), 1);
@@ -499,7 +501,7 @@ fn burn_needs_authorization_and_removes_the_token() {
     // The approved address may burn, and a burned id can be minted again.
     let result = env.transact(|tx| {
         tx.call(&BOB).run(move || {
-            NftAdminClient::new(&addr).burn(id(2));
+            NftAdminClient::new(&addr).burn(&id(2));
             assert_eq!(ERC721Client::new(&addr).balance_of(&ALICE), 0);
         })
     });
@@ -507,8 +509,8 @@ fn burn_needs_authorization_and_removes_the_token() {
     env.advance_block();
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
-            NftAdminClient::new(&addr).mint(&BOB, id(1));
-            assert_eq!(ERC721Client::new(&addr).owner_of(id(1)), BOB);
+            NftAdminClient::new(&addr).mint(&BOB, &id(1));
+            assert_eq!(ERC721Client::new(&addr).owner_of(&id(1)), BOB);
         })
     });
     result.assert_success();

@@ -34,7 +34,7 @@ impl ERC721Receiver for Receiver {
         &mut self,
         operator: &ContractAddress,
         from: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
         data: TransferData,
     ) {
         ensure(data.as_slice() != REJECT_DATA, ReceiverError::Refused);
@@ -42,7 +42,7 @@ impl ERC721Receiver for Receiver {
         self.last.set(&Delivery {
             operator: *operator,
             from: *from,
-            token_id,
+            token_id: *token_id,
             data,
         });
     }

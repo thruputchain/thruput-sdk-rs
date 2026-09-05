@@ -6,8 +6,11 @@
 //! The shapes follow [EIP-721] and OpenZeppelin's `IERC721` so that a
 //! contract ported from Solidity keeps its vocabulary: `owner_of`,
 //! `transfer_from`, `approve` and `set_approval_for_all` mean what they
-//! mean there and a token id is a [`U256`]. Minting and burning are their
-//! own events rather than transfers from or to the zero address, and the
+//! mean there. A token id is a [`SHA256Hash`] rather than a `uint256`: 32
+//! opaque bytes, the same shape as an address or a role, so a collection
+//! may number its tokens, hash their content, or mint under any other
+//! scheme. Minting and burning are their own events rather than transfers
+//! from or to the zero address, and the
 //! zero address is an ordinary destination; its one role is standing for
 //! "no approval" in [`ERC721::get_approved`] and [`ERC721::approve`], as
 //! `address(0)` does in Solidity.
@@ -37,10 +40,12 @@ pub use error::*;
 mod events;
 pub use events::*;
 
-use sdk::{ContractAddress, U256, contract};
+use sdk::{ContractAddress, SHA256Hash, contract};
 
-/// Identifies one token within a contract.
-pub type TokenId = U256;
+/// Identifies one token within a contract: 32 opaque bytes, where
+/// Ethereum uses a `uint256`. How a collection assigns them is its own
+/// business.
+pub type TokenId = SHA256Hash;
 
 /// Upper bound on [`TransferData`], in bytes.
 pub const TRANSFER_DATA_MAX: usize = 256;
@@ -100,7 +105,7 @@ pub trait ERC721 {
     fn balance_of(&self, owner: &ContractAddress) -> u64;
 
     /// Owner of `token_id`. Throws [`ERC721Error::NonexistentToken`].
-    fn owner_of(&self, token_id: TokenId) -> ContractAddress;
+    fn owner_of(&self, token_id: &TokenId) -> ContractAddress;
 
     /// Move `token_id` from `from` to `to`, then call
     /// [`ERC721Receiver::on_erc721_received`] on `to` with `data`.
@@ -113,7 +118,7 @@ pub trait ERC721 {
         &mut self,
         from: &ContractAddress,
         to: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
         data: TransferData,
     );
 
@@ -129,7 +134,7 @@ pub trait ERC721 {
         &mut self,
         from: &ContractAddress,
         to: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
     );
 
     /// Let `to` transfer `token_id`, replacing any previous approval, and
@@ -137,7 +142,7 @@ pub trait ERC721 {
     ///
     /// The caller must be the owner or an approved operator. Throws
     /// [`ERC721Error::NonexistentToken`] and [`ERC721Error::InvalidApprover`].
-    fn approve(&mut self, to: &ContractAddress, token_id: TokenId);
+    fn approve(&mut self, to: &ContractAddress, token_id: &TokenId);
 
     /// Grant or revoke `operator` over every token the caller owns, now and
     /// later, and emit [`ApprovalForAllEvent`].
@@ -149,7 +154,7 @@ pub trait ERC721 {
 
     /// The address approved for `token_id`, or [`CONTRACT_ADDR_ZERO`].
     /// Throws [`ERC721Error::NonexistentToken`].
-    fn get_approved(&self, token_id: TokenId) -> ContractAddress;
+    fn get_approved(&self, token_id: &TokenId) -> ContractAddress;
 
     /// True when `operator` is approved for all of `owner`'s tokens.
     fn is_approved_for_all(
@@ -171,7 +176,7 @@ pub trait ERC721Metadata {
 
     /// The metadata URI for `token_id`. Throws
     /// [`ERC721Error::NonexistentToken`].
-    fn token_uri(&self, token_id: TokenId) -> TokenUri;
+    fn token_uri(&self, token_id: &TokenId) -> TokenUri;
 }
 
 /// The hook a contract implements to take custody of tokens through
@@ -191,7 +196,7 @@ pub trait ERC721Receiver {
         &mut self,
         operator: &ContractAddress,
         from: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
         data: TransferData,
     );
 }

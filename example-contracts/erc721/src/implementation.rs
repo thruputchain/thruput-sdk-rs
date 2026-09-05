@@ -49,7 +49,7 @@ pub struct Config {
     pub administrator: ContractAddress,
     pub name: Name,
     pub symbol: Symbol,
-    /// Prefix of every token's URI; the token id in decimal follows it.
+    /// Prefix of every token's URI; the token id in hex follows it.
     pub base_uri: TokenUri,
 }
 
@@ -59,19 +59,19 @@ impl NftContract {
     }
 
     /// Owner of `token_id`, or `None` if it does not exist.
-    fn _owner_of(&self, token_id: TokenId) -> Option<ContractAddress> {
-        self.owners.at(&token_id).try_get().none_if_missing()
+    fn _owner_of(&self, token_id: &TokenId) -> Option<ContractAddress> {
+        self.owners.at(token_id).try_get().none_if_missing()
     }
 
     /// Owner of `token_id`, throwing [`ERC721Error::NonexistentToken`].
-    fn _require_owned(&self, token_id: TokenId) -> ContractAddress {
+    fn _require_owned(&self, token_id: &TokenId) -> ContractAddress {
         self._owner_of(token_id)
             .unwrap_or_else(|| throw(ERC721Error::NonexistentToken))
     }
 
-    fn _approved_for(&self, token_id: TokenId) -> ContractAddress {
+    fn _approved_for(&self, token_id: &TokenId) -> ContractAddress {
         self.token_approvals
-            .at(&token_id)
+            .at(token_id)
             .try_get()
             .none_if_missing()
             .unwrap_or(*CONTRACT_ADDR_ZERO)
@@ -95,7 +95,7 @@ impl NftContract {
         &self,
         owner: &ContractAddress,
         spender: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
     ) -> bool {
         spender == owner
             || self._is_operator(owner, spender)
@@ -109,7 +109,7 @@ impl NftContract {
         spender: &ContractAddress,
         from: &ContractAddress,
         to: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
     ) {
         let owner = self._require_owned(token_id);
         ensure(
@@ -118,10 +118,10 @@ impl NftContract {
         );
         ensure(owner == *from, ERC721Error::IncorrectOwner);
 
-        self.token_approvals.at_mut(&token_id).delete();
+        self.token_approvals.at_mut(token_id).delete();
         self.balances.at_mut(from).inc(-1);
         self.balances.at_mut(to).inc(1);
-        self.owners.at_mut(&token_id).set(to);
+        self.owners.at_mut(token_id).set(to);
 
         log_transfer_event(from, to, token_id);
     }
@@ -133,7 +133,7 @@ impl NftContract {
         operator: &ContractAddress,
         from: &ContractAddress,
         to: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
         data: TransferData,
     ) {
         match ERC721ReceiverClient::new(to)
@@ -165,7 +165,7 @@ impl ERC721 for NftContract {
             .unwrap_or_else(|_| throw(LibraryExn::NonNegativeIntUnderflow))
     }
 
-    fn owner_of(&self, token_id: TokenId) -> ContractAddress {
+    fn owner_of(&self, token_id: &TokenId) -> ContractAddress {
         self._require_owned(token_id)
     }
 
@@ -173,7 +173,7 @@ impl ERC721 for NftContract {
         &mut self,
         from: &ContractAddress,
         to: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
         data: TransferData,
     ) {
         let operator = get_caller();
@@ -185,13 +185,13 @@ impl ERC721 for NftContract {
         &mut self,
         from: &ContractAddress,
         to: &ContractAddress,
-        token_id: TokenId,
+        token_id: &TokenId,
     ) {
         let spender = get_caller();
         self._transfer(&spender, from, to, token_id);
     }
 
-    fn approve(&mut self, to: &ContractAddress, token_id: TokenId) {
+    fn approve(&mut self, to: &ContractAddress, token_id: &TokenId) {
         let caller = get_caller();
         let owner = self._require_owned(token_id);
         ensure(
@@ -200,9 +200,9 @@ impl ERC721 for NftContract {
         );
 
         if to == CONTRACT_ADDR_ZERO {
-            self.token_approvals.at_mut(&token_id).delete();
+            self.token_approvals.at_mut(token_id).delete();
         } else {
-            self.token_approvals.at_mut(&token_id).set(to);
+            self.token_approvals.at_mut(token_id).set(to);
         }
 
         log_approval_event(&owner, to, token_id);
@@ -226,7 +226,7 @@ impl ERC721 for NftContract {
         log_approval_for_all_event(&owner, operator, approved);
     }
 
-    fn get_approved(&self, token_id: TokenId) -> ContractAddress {
+    fn get_approved(&self, token_id: &TokenId) -> ContractAddress {
         self._require_owned(token_id);
         self._approved_for(token_id)
     }
@@ -250,39 +250,14 @@ impl ERC721Metadata for NftContract {
         self.config.get().symbol
     }
 
-    fn token_uri(&self, token_id: TokenId) -> TokenUri {
+    fn token_uri(&self, token_id: &TokenId) -> TokenUri {
         self._require_owned(token_id);
 
         let mut uri = self.config.get().base_uri;
-        write_decimal(&mut uri, token_id)
+        write!(uri, "{}", hex_encode(token_id))
             .unwrap_or_else(|_| throw(LibraryExn::StorageSerialization));
         uri
     }
-}
-
-/// Append `value` in decimal to `out`, failing if it does not fit.
-///
-/// `U256`'s `Display` is host-only by design (the crate keeps the decimal
-/// formatter out of guest builds), so this spells out the one loop a token
-/// URI needs, over the cheap small-divisor division.
-fn write_decimal(out: &mut TokenUri, value: U256) -> core::fmt::Result {
-    // 78 digits hold `U256::MAX`.
-    let mut digits = [0u8; 78];
-    let mut n = digits.len();
-    let mut rest = value;
-    loop {
-        let (quotient, digit) = rest.div_rem_small(10);
-        n -= 1;
-        digits[n] = b'0' + digit as u8;
-        rest = quotient;
-        if rest.is_zero() {
-            break;
-        }
-    }
-    // Only ASCII digits were written, so the slice is valid UTF-8.
-    let text =
-        core::str::from_utf8(&digits[n..]).map_err(|_| core::fmt::Error)?;
-    out.write_str(text)
 }
 
 /// This contract's own surface: setup, minting, and burning.
@@ -318,7 +293,7 @@ impl NftContract {
     /// Throws [`NftError::MustBeAdministrator`]
     /// unless the caller is the administrator, and
     /// [`NftError::TokenAlreadyMinted`] if the id exists.
-    pub fn mint(&mut self, to: &ContractAddress, token_id: TokenId) {
+    pub fn mint(&mut self, to: &ContractAddress, token_id: &TokenId) {
         ensure(
             get_caller() == self._administrator(),
             NftError::MustBeAdministrator,
@@ -329,7 +304,7 @@ impl NftContract {
         );
 
         self.balances.at_mut(to).inc(1);
-        self.owners.at_mut(&token_id).set(to);
+        self.owners.at_mut(token_id).set(to);
 
         log_mint_event(to, token_id);
     }
@@ -338,7 +313,7 @@ impl NftContract {
     /// The caller needs the same authorization as
     /// for a transfer; throws [`ERC721Error::NonexistentToken`] and
     /// [`ERC721Error::InsufficientApproval`].
-    pub fn burn(&mut self, token_id: TokenId) {
+    pub fn burn(&mut self, token_id: &TokenId) {
         let caller = get_caller();
         let owner = self._require_owned(token_id);
         ensure(
@@ -346,9 +321,9 @@ impl NftContract {
             ERC721Error::InsufficientApproval,
         );
 
-        self.token_approvals.at_mut(&token_id).delete();
+        self.token_approvals.at_mut(token_id).delete();
         self.balances.at_mut(&owner).inc(-1);
-        self.owners.at_mut(&token_id).delete();
+        self.owners.at_mut(token_id).delete();
 
         log_burn_event(&owner, token_id);
     }
