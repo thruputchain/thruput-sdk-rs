@@ -296,9 +296,12 @@ dependencies = [
 name = "erc20_pausable"
 version = "0.4.0"
 dependencies = [
+ "counter",
  "erc20_pausable",
  "groundhog-access-control",
  "groundhog-access-control-if",
+ "groundhog-erc1271-if",
+ "groundhog-erc165-if",
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
  "groundhog-erc20-pausable-if",
@@ -431,6 +434,13 @@ version = "0.1.19"
 dependencies = [
  "sdk",
  "thiserror",
+]
+
+[[package]]
+name = "groundhog-erc165-if"
+version = "0.1.19"
+dependencies = [
+ "sdk",
 ]
 
 [[package]]

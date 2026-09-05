@@ -1,0 +1,16 @@
+error[E0277]: the trait bound `Contract: NotImplemented` is not satisfied
+  --> tests/compile-fail/unimplemented_interface.rs:29:35
+   |
+29 | groundhog_erc165_if::impl_erc165!(Contract: Implemented, NotImplemented);
+   |                                   ^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `NotImplemented` is not implemented for `Contract`
+  --> tests/compile-fail/unimplemented_interface.rs:16:1
+   |
+16 | pub struct Contract {
+   | ^^^^^^^^^^^^^^^^^^^
+help: this trait has no implementations, consider adding one
+  --> tests/compile-fail/unimplemented_interface.rs:11:1
+   |
+11 | pub trait NotImplemented {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^

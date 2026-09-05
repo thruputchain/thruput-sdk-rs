@@ -145,6 +145,34 @@ pub fn contract_entrypoint_id(
     ContractEntrypointID::from(entrypoint_id)
 }
 
+/// Derive the interface ID of an (interface name, version) pair: the
+/// 32-byte identity of an interface at a major version, shared by every
+/// entrypoint the interface exports.
+///
+/// This is the (interface, MAJOR version) prefix of the
+/// [`contract_entrypoint_id`] preimage under its own domain tag, so an
+/// interface ID never collides with an entrypoint ID preimage, and two
+/// interfaces agree on an ID exactly when their entrypoints share a
+/// namespace. `#[contract]` emits it as `Trait::INTERFACE_ID` and
+/// `<Iface>Entrypoints::INTERFACE_ID`; `groundhog-erc165-if` is the
+/// on-chain query surface for it.
+pub fn interface_id(
+    interface_name: Option<&str>,
+    version_str: &str,
+) -> [u8; 32] {
+    let interface_name = interface_name.unwrap_or(UNNAMED_INTERFACE);
+    let major_version = semver::major_version_from_string(version_str);
+
+    // Interface ID = sha256("groundhog-interface" :: INTERFACE_NAME :: MAJOR_VERSION)
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(b"groundhog-interface");
+    hasher.update(b"::");
+    hasher.update(interface_name.as_bytes());
+    hasher.update(b"::");
+    hasher.update(major_version.as_bytes());
+    hasher.finalize().into()
+}
+
 /// The export symbol name of the entrypoint for the given
 /// (interface, version, method) triple: [`contract_entrypoint_id`] rendered
 /// through [`entrypoint_export_name`]. Use this instead of composing the two

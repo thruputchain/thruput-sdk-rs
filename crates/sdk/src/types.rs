@@ -32,6 +32,17 @@ pub mod sys {
 // Shorthand for use in contracts
 pub use StorageKeyContractData as StorageKey;
 
+/// The identity of a contract interface at a major version.
+///
+/// `#[contract]` on a trait derives it from the interface's effective name
+/// and major version — the same pair that namespaces the interface's
+/// entrypoint IDs — and exposes it as `Trait::INTERFACE_ID` and
+/// `<Iface>Entrypoints::INTERFACE_ID`. Two contracts implementing the same
+/// interface crate therefore agree on the ID, and a major-version bump
+/// changes it. This is Groundhog's analogue of an ERC-165 interface ID;
+/// `groundhog-erc165-if` is the query surface for it.
+pub type InterfaceId = SHA256Hash;
+
 pub use groundhog_xdr::auth_token::{
     AuthToken, AuthTokenNode, AuthTokenPayload, kAuthTokenMaxChildNodes,
     kAuthTokenMaxDepth, kAuthTokenMaxLen,

@@ -173,6 +173,16 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// (E0428 on names you never wrote) or compiles while silently merging
 /// the entrypoint surface — neither is supported.
 ///
+/// # Interface id
+///
+/// A `#[contract]` trait gains an associated `INTERFACE_ID: sdk::InterfaceId`,
+/// derived from the effective interface name and major version (the pair
+/// that also namespaces its entrypoint IDs), and the generated
+/// `<Iface>Entrypoints` wrapper carries the same constant. The name is
+/// reserved on contract traits. `<T as Trait>::INTERFACE_ID` resolves only
+/// when `T` implements the trait, which is how `groundhog-erc165-if`
+/// verifies a contract's interface claims at compile time.
+///
 /// # Storage-domain collision detection
 ///
 /// When a contract uses multiple storage structs, `#[contract]` generates a

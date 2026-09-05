@@ -108,6 +108,7 @@ groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-m
 groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.19" }
 groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.19" }
 groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.19" }
+groundhog-erc165-if = { path = "../standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.19" }
 groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.19" }
 
 erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.27.0" }

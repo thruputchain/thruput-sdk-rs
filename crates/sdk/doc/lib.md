@@ -373,6 +373,12 @@ crate and get the same generated client either way. That is how the standard
 interfaces in `standard-interfaces/` (`groundhog-erc20`,
 `groundhog-erc20-metadata`, `groundhog-erc1271`) are consumed.
 
+Every `#[contract]` trait also carries an [`InterfaceId`] as
+`Trait::INTERFACE_ID`, derived from its name and major version.
+`groundhog-erc165` is the query surface for it: `impl_erc165!(Token: ERC20,
+ERC20Metadata)` derives a `supports_interface` entrypoint from the traits a
+contract implements, and the compiler rejects a claim for one it does not.
+
 Alongside the entrypoints, the macros emit a machine-readable **contract
 spec**: the interface's methods, their argument and return types, and the
 exceptions it declares. Types reach the spec through

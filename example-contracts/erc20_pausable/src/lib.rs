@@ -2,7 +2,8 @@
 //!
 //! Combines four standard interfaces on one storage struct: the ERC20
 //! token core, the metadata extension, the pausable extension, and
-//! role-based access control gating who may pause.
+//! role-based access control gating who may pause. ERC-165 interface
+//! detection is derived from those four with `impl_erc165!`.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
@@ -14,11 +15,13 @@ mod interface {
     pub use groundhog_erc20_if::*;
     pub use groundhog_erc20_metadata_if::*;
     pub use groundhog_erc20_pausable_if::*;
+    pub use groundhog_erc165_if::*;
 }
 
 // Client stubs that provide the interfaces via cross-contract calls
 pub use interface::{
-    AccessControlClient, ERC20Client, ERC20MetadataClient, ERC20PausableClient,
+    AccessControlClient, ERC20Client, ERC20MetadataClient,
+    ERC20PausableClient, ERC165Client,
 };
 
 // An implementation of the contract interfaces
@@ -28,4 +31,6 @@ mod implementation;
 pub use implementation::{PAUSER_ROLE, PausableTokenContract};
 
 // Re-export the traits so tests can name them
-pub use interface::{AccessControl, ERC20, ERC20Metadata, ERC20Pausable};
+pub use interface::{
+    AccessControl, ERC20, ERC20Metadata, ERC20Pausable, ERC165,
+};

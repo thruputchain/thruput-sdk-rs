@@ -269,6 +269,7 @@ fn generate_entrypoints_wrapper(
 ) -> TokenStream {
     let entrypoints_ident =
         format_ident!("{}Entrypoints", effective_interface_name);
+    let interface_id_lit = interface_id_literal(iface_name, iface_vers);
     let entrypoints = methods.iter().map(|method| {
         let ident = &method.sig().ident;
         let entrypoint =
@@ -293,6 +294,11 @@ fn generate_entrypoints_wrapper(
 
         #[allow(non_upper_case_globals)]
         impl #entrypoints_ident {
+            /// The identity of this interface at its major version, shared
+            /// by every entrypoint below. Equal to the trait's
+            /// `INTERFACE_ID` for trait-defined interfaces.
+            pub const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
+
             pub fn into_u64(self) -> u64 {
                 self.0.into_u64()
             }

@@ -15,6 +15,19 @@ pub fn contract_entrypoint_id(
     EntrypointSignature::new(interface_name, version_str, method).id()
 }
 
+/// The `::sdk::InterfaceId` literal for an (interface, version) pair, from
+/// [`groundhog_contract_util::interface_id`].
+pub fn interface_id_literal(
+    interface_name: Option<&str>,
+    version_str: &str,
+) -> TokenStream {
+    let bytes =
+        groundhog_contract_util::interface_id(interface_name, version_str);
+    quote!(
+        ::sdk::InterfaceId::new([#(#bytes),*])
+    )
+}
+
 pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {
     let name = entrypoint_export_name(entrypoint);
     let lit = Literal::from_str(&format!("0x{name}")).unwrap();
