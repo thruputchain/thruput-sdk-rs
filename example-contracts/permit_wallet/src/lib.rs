@@ -12,24 +12,18 @@
 //! (the preimage covers `PermitRequest::TYPE_DEF`), so a wallet serving
 //! several kinds of signed operation would need one enum spanning all of them
 //! — and every added variant would change that `TYPE_DEF` and retire every
-//! outstanding signature. Per-purpose wallets also give each purpose its own
-//! nonce sequence, so an unsubmitted permit doesn't stall unrelated
-//! operations.
+//! outstanding signature.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-extern crate alloc;
-
 sdk::declare_mock_contract!();
 
-use alloc::vec;
-use alloc::vec::Vec;
-
 use groundhog_erc20_permit_if::{PermitGrant, PermitRequest};
-use groundhog_signed_op::{Operation, SignedOp, SignedOpNonces};
+use groundhog_signed_op::{Operation, SignedOp, SignedOpReplayCache};
 use sdk::mintable::{AuthTokenPreimage, MintableType};
 use sdk::signer::{Opaque, Signed};
 use sdk::storage::Value;
+use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::*;
 
@@ -46,16 +40,12 @@ type PermitGrantPreimage = <PermitGrant as MintableType>::Preimage;
 pub enum WalletError {
     #[cfg_attr(feature = "dev", error("Wallet already initialized"))]
     AlreadyInitialized = 1,
-    /// The operation's signer is not the key this wallet currently accepts.
-    /// What a rotated-out key gets.
-    #[cfg_attr(feature = "dev", error("Signer is not the wallet owner"))]
-    NotOwner = 2,
     /// `rotate_owner` called by anyone other than the administrator.
     #[cfg_attr(
         feature = "dev",
         error("Caller is not the wallet administrator")
     )]
-    NotAdministrator = 3,
+    NotAdministrator = 2,
 }
 
 #[sdk::storage]
@@ -65,7 +55,7 @@ pub struct PermitWallet {
     /// open.
     administrator: Value<ContractAddress>,
     owner: Value<Ed25519PublicKey>,
-    nonces: SignedOpNonces,
+    replay: SignedOpReplayCache,
 }
 
 #[contract(client = PermitWalletClient, throws = WalletError)]
@@ -105,35 +95,31 @@ impl PermitWallet {
     pub fn owner(&self) -> Ed25519PublicKey {
         self.owner.get()
     }
+
+    /// Drop a consumed uniquifier once its expiry has passed. Open to anyone:
+    /// it can only remove entries for operations that could no longer execute.
+    pub fn prune(&mut self, block_expiry_height: BlockHeight, nonce: u64) {
+        self.replay.prune(&Uniquifier {
+            block_expiry_height,
+            nonce,
+        });
+    }
 }
 
 #[contract(version = "0.1.0")]
 impl SignedOp for PermitWallet {
-    fn next_signed_op_nonce(&self, signer: &Ed25519PublicKey) -> u64 {
-        self.nonces.next_nonce(signer)
-    }
-
     fn execute_signed_op(
         &mut self,
         op: Operation,
         signature: &Ed25519Signature,
-    ) -> Vec<Signed<Opaque>> {
-        // Authority first: only the current owner's operations are worth
-        // verifying. Note what this does *not* do. A refusal is a throw, the
-        // throw reverts this frame, and a reverted frame writes nothing — so
-        // no refusal can spend the nonce, and a permit signed by a former key
-        // is not retired, only refused while that key is not the owner. The
-        // `SignedOp` interface requires refusal to throw, so this is
-        // inherent, not a choice made here.
-        if op.signer != self.owner.get() {
-            throw(WalletError::NotOwner);
-        }
-
-        // Nonce, expiry, body decode and signature, against a preimage bound
-        // to this network and this wallet. Spends the nonce, so the operation
-        // is single-use whatever happens downstream.
+    ) -> Signed<Opaque> {
+        // Expiry, replay, body decode and signature under the current owner
+        // key, then the pair is consumed. A refusal throws and reverts the
+        // frame, consuming nothing: a permit signed by a former key fails
+        // as InvalidSignature while that key is not the owner, and is
+        // honored again if the key is rotated back.
         let request: PermitRequest =
-            self.nonces.verify_and_spend(&op, signature);
+            self.replay.consume(&op, signature, &self.owner.get());
 
         // `consumer` comes from the signed body, so the owner picks which
         // token may consume this grant. Taking it from `get_caller()` instead
@@ -151,9 +137,9 @@ impl SignedOp for PermitWallet {
 
         // The submitter carries the token to the ERC20 in this same frame, so
         // it need not outlive the current block.
-        vec![sdk::signer::mint_opaque_auth_token(
+        sdk::signer::mint_opaque_auth_token(
             sdk::block::get_block_height(),
             &sdk::mintable::encode_auth_token_node(&node),
-        )]
+        )
     }
 }

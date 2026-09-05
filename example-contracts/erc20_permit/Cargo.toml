@@ -40,10 +40,6 @@ groundhog-erc20-permit-if = { workspace = true }
 [dev-dependencies]
 erc20_permit = { path = ".", features = ["dev"] }
 permit_wallet = { path = "../permit_wallet", features = ["dev"] }
-# The token itself never touches a signed operation; the test plays the
-# submitter, which takes one to the wallet.
 groundhog-signed-op-if = { workspace = true, features = ["dev"] }
-# `std` pulls in `alloc` + `sha2`; the host side needs `SignedOp` (alloc-gated)
-# to rebuild the preimage a signer covers.
 groundhog-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek = { workspace = true }

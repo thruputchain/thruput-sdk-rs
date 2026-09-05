@@ -15,7 +15,7 @@
 //! are settled at commit, where the loser fails nondeterministically. So each
 //! write below is followed by `advance_block` before anything reads it, and
 //! "submit the same permit twice" is two different tests: in one block it is
-//! a commit conflict, across blocks it is a spent nonce.
+//! a commit conflict, across blocks it is a consumed pair.
 
 use ed25519_dalek::{Signer, SigningKey};
 use erc20_permit::{
@@ -24,8 +24,9 @@ use erc20_permit::{
 };
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
 use groundhog_signed_op_if::{Operation, SignedOpClient, SignedOpError};
-use permit_wallet::{PermitWalletClient, WalletError};
-use sdk::signer::{AssumeTokens, Signed};
+use permit_wallet::PermitWalletClient;
+use sdk::signer::Signed;
+use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::BytesM;
 use sdk::*;
@@ -107,30 +108,32 @@ fn current_height(env: &sdk::TestEnvironmentHandle) -> BlockHeight {
 /// Sign `body` as an operation addressed to `verifying_contract`.
 ///
 /// Mirrors what an off-chain signer does: build the preimage from the network,
-/// the wallet, the nonce, the expiry and the body's `TYPE_DEF`, then sign it.
-/// The signer's key never reaches the token contract.
+/// the wallet, the `(nonce, expiry)` uniquifier and the body's `TYPE_DEF`,
+/// then sign it. The signer's key reaches neither contract: the wallet checks
+/// against the key it holds.
 fn sign(
     seed: &[u8; 32],
     verifying_contract: &ContractAddress,
     nonce: u64,
-    valid_until: BlockHeight,
+    expiry: BlockHeight,
     body: &PermitRequest,
 ) -> (Operation, Ed25519Signature) {
     let key = SigningKey::from_bytes(seed);
     let preimage = SignedOpPreimage {
         network: sdk::test_network_hash(),
         verifying_contract: *verifying_contract,
-        nonce,
-        valid_until: valid_until.clone(),
+        uniquifier: Uniquifier {
+            block_expiry_height: expiry.clone(),
+            nonce,
+        },
         body,
     }
     .preimage()
     .expect("encoding the signed-operation preimage");
 
     let op = Operation {
-        signer: Ed25519PublicKey::from(key.verifying_key().to_bytes()),
+        block_expiry_height: expiry,
         nonce,
-        valid_until,
         body: BytesM(sdk::xdr::cxs::encode(body).expect("encoding the body")),
     };
     (op, Ed25519Signature::from(key.sign(&preimage).to_bytes()))
@@ -146,34 +149,37 @@ fn standard_request() -> PermitRequest {
     }
 }
 
-/// Alice's standard permit at nonce 0, valid for `HORIZON` more blocks.
+/// Alice's standard permit at nonce 0, valid through `expiry`.
 ///
 /// Rebuilt rather than cloned where a test needs it twice: ed25519 signing is
-/// deterministic and the preimage is identical, so a second call yields the
-/// same bytes a submitter would have kept a copy of.
-fn alice_permit(
-    env: &sdk::TestEnvironmentHandle,
-) -> (Operation, Ed25519Signature) {
-    let valid_until = current_height(env) + HORIZON;
+/// deterministic and the preimage is identical, so a second call with the
+/// same expiry yields the same bytes a submitter would have kept a copy of.
+fn alice_permit_until(expiry: BlockHeight) -> (Operation, Ed25519Signature) {
     sign(
         &ALICE_SEED,
         &wallet_address(),
         0,
-        valid_until,
+        expiry,
         &standard_request(),
     )
 }
 
-/// The submitter's first step: take the operation to Alice's wallet and
-/// unwrap the one grant it mints. Runs inside a frame.
+/// Alice's standard permit, valid for `HORIZON` more blocks.
+fn alice_permit(
+    env: &sdk::TestEnvironmentHandle,
+) -> (Operation, Ed25519Signature) {
+    alice_permit_until(current_height(env) + HORIZON)
+}
+
+/// The submitter's first step: take the operation to Alice's wallet and name
+/// the one token it mints as the grant. Runs inside a frame.
 fn mint_grant(
     op: Operation,
     signature: &Ed25519Signature,
 ) -> Signed<PermitGrant> {
-    let tokens = SignedOpClient::new(&wallet_address())
-        .execute_signed_op(op, signature);
-    let (grant,): (Signed<PermitGrant>,) = AssumeTokens::assume_tokens(tokens);
-    grant
+    SignedOpClient::new(&wallet_address())
+        .execute_signed_op(op, signature)
+        .assume()
 }
 
 /// Submit `op` as `spender()`: mint the grant at the wallet, then pass it into
@@ -194,9 +200,9 @@ fn submit_permit(
 /// Assert that the wallet refuses `op` with `expected`.
 ///
 /// A macro rather than a function returning the error: a `CallError` is not
-/// XDR-encodable, so it cannot leave the frame — the check has to happen
-/// inside the closure, where the erc1271 tests make it too. These cases never
-/// reach the token contract: a refused operation mints nothing to pass down.
+/// XDR-encodable, so it cannot leave the frame and the check has to happen
+/// inside the closure. These cases never reach the token contract: a refused
+/// operation mints nothing to pass down.
 macro_rules! assert_wallet_refuses {
     ($env:expr, $op:expr, $signature:expr, $expected:expr $(,)?) => {{
         let (op, signature) = ($op, $signature);
@@ -329,20 +335,21 @@ fn only_the_named_spender_may_redeem_a_grant_directly() {
     assert_eq!(balance_of(&env, receiver()), 0);
 }
 
-/// Within one block, replay is settled by the commit protocol, not the nonce.
+/// Within one block, replay is settled by the commit protocol, not the cache.
 ///
 /// Both submissions execute against the previous block's state, so both see
-/// nonce 0, both verify, and both would write `1`. Identical values commit
-/// side by side — which is why `verify_and_spend` takes the nonce slot under
+/// the pair unconsumed, both verify, and both would write it. Identical
+/// values commit side by side — which is why `consume` takes the slot under
 /// an *exclusive* lock: the second commit conflicts instead of landing.
 #[test]
 fn a_second_submission_in_the_same_block_loses_at_commit() {
     let env = setup();
+    let expiry = current_height(&env) + HORIZON;
 
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) = alice_permit_until(expiry.clone());
     submit_permit(&env, op, signature).assert_success();
 
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) = alice_permit_until(expiry);
     submit_permit(&env, op, signature)
         .assert_commit_failed_nondeterministically();
 
@@ -350,22 +357,24 @@ fn a_second_submission_in_the_same_block_loses_at_commit() {
     assert_eq!(allowance(&env), GRANTED, "exactly one submission landed");
 }
 
-/// Across blocks, replay is settled by the nonce: the first submission's
-/// spend is visible, and the second is no longer next in sequence.
+/// Across blocks, replay is settled by the cache: the first consumption of
+/// the `(nonce, block_expiry_height)` pair is visible, and the same pair is
+/// refused.
 #[test]
-fn a_second_submission_in_a_later_block_fails_on_the_nonce() {
+fn a_second_submission_in_a_later_block_is_already_consumed() {
     let env = setup();
+    let expiry = current_height(&env) + HORIZON;
 
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) = alice_permit_until(expiry.clone());
     submit_permit(&env, op, signature).assert_success();
     env.advance_block();
 
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) = alice_permit_until(expiry);
     assert_wallet_refuses!(
         &env,
         op,
         signature,
-        SignedOpError::UnexpectedNonce
+        SignedOpError::AlreadyConsumed
     );
 
     env.advance_block();
@@ -376,14 +385,7 @@ fn a_second_submission_in_a_later_block_fails_on_the_nonce() {
 fn a_permit_stops_working_after_its_expiry_height() {
     let env = setup();
     // Valid through the current height only, so the next block is stale.
-    let valid_until = current_height(&env);
-    let (op, signature) = sign(
-        &ALICE_SEED,
-        &wallet_address(),
-        0,
-        valid_until,
-        &standard_request(),
-    );
+    let (op, signature) = alice_permit_until(current_height(&env));
     env.advance_block();
 
     assert_wallet_refuses!(&env, op, signature, SignedOpError::Expired);
@@ -395,19 +397,23 @@ fn a_permit_stops_working_after_its_expiry_height() {
 #[test]
 fn a_signature_from_another_key_is_refused() {
     let env = setup();
-    let valid_until = current_height(&env) + HORIZON;
+    let expiry = current_height(&env) + HORIZON;
     let (op, signature) = sign(
         &MALLORY_SEED,
         &wallet_address(),
         0,
-        valid_until,
+        expiry,
         &standard_request(),
     );
 
-    // The signature itself would verify — under Mallory's key, which
-    // `op.signer` names. The refusal is the wallet's policy: that key is not
-    // its owner.
-    assert_wallet_refuses!(&env, op, signature, WalletError::NotOwner);
+    // The wallet checks against the key it holds, and nothing on the wire
+    // names Mallory's, so her signature simply does not verify.
+    assert_wallet_refuses!(
+        &env,
+        op,
+        signature,
+        SignedOpError::InvalidSignature
+    );
 
     env.advance_block();
     assert_eq!(allowance(&env), 0);
@@ -416,15 +422,15 @@ fn a_signature_from_another_key_is_refused() {
 #[test]
 fn a_permit_signed_for_another_wallet_is_refused() {
     let env = setup();
-    let valid_until = current_height(&env) + HORIZON;
-    // Same key, same body, same nonce — only the wallet the preimage names
-    // differs, which is what stops one wallet's signature being replayed at
-    // another.
+    let expiry = current_height(&env) + HORIZON;
+    // Same key, same body, same uniquifier — only the wallet the preimage
+    // names differs, which is what stops one wallet's signature being
+    // replayed at another.
     let (op, signature) = sign(
         &ALICE_SEED,
         &ContractAddress::named("some-other-wallet"),
         0,
-        valid_until,
+        expiry,
         &standard_request(),
     );
 
@@ -474,8 +480,9 @@ fn only_the_administrator_may_rotate_the_owner() {
 ///
 /// This is the case a design that derives the owner from the signing key gets
 /// wrong: the address would still derive from the old key, so the stale
-/// permit would be honored. Here authority is wallet state, and the rotation
-/// is one write.
+/// permit would be honored. Here authority is wallet state, the rotation is
+/// one write, and Alice's signature no longer verifies under the key the
+/// wallet now checks against.
 #[test]
 fn rotating_the_wallet_key_refuses_outstanding_permits() {
     let env = setup();
@@ -486,7 +493,12 @@ fn rotating_the_wallet_key_refuses_outstanding_permits() {
     // the permit would still see the old owner and succeed.
     env.advance_block();
 
-    assert_wallet_refuses!(&env, op, signature, WalletError::NotOwner);
+    assert_wallet_refuses!(
+        &env,
+        op,
+        signature,
+        SignedOpError::InvalidSignature
+    );
 
     env.advance_block();
     assert_eq!(allowance(&env), 0);
@@ -494,24 +506,30 @@ fn rotating_the_wallet_key_refuses_outstanding_permits() {
 }
 
 /// Refusal is a throw, a throw reverts the frame, and a reverted frame writes
-/// nothing — so a refused permit does not spend its nonce. Rotate back to the
-/// key that signed it and it is valid again. "Refused while rotated out" is
-/// the guarantee; "retired" would be a stronger claim than the interface can
-/// make, since it requires refusal to throw.
+/// nothing — so a refused permit does not consume its pair. Rotate back to
+/// the key that signed it and the very same bytes are valid again. "Refused
+/// while rotated out" is the guarantee; "retired" would be a stronger claim
+/// than the interface can make, since it requires refusal to throw.
 #[test]
 fn a_permit_from_a_former_key_revives_if_the_wallet_rotates_back() {
     let env = setup();
-    let (op, signature) = alice_permit(&env);
+    let expiry = current_height(&env) + HORIZON;
+    let (op, signature) = alice_permit_until(expiry.clone());
 
     rotate_owner_as(&env, admin(), public_key(&MALLORY_SEED)).assert_success();
     env.advance_block();
-    assert_wallet_refuses!(&env, op, signature, WalletError::NotOwner);
+    assert_wallet_refuses!(
+        &env,
+        op,
+        signature,
+        SignedOpError::InvalidSignature
+    );
     env.advance_block();
 
     rotate_owner_as(&env, admin(), public_key(&ALICE_SEED)).assert_success();
     env.advance_block();
 
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) = alice_permit_until(expiry);
     submit_permit(&env, op, signature).assert_success();
     env.advance_block();
     assert_eq!(allowance(&env), GRANTED);
