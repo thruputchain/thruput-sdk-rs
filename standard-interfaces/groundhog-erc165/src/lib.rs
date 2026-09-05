@@ -13,7 +13,7 @@
 //! ```ignore
 //! #[contract(version = "0.1.0")]
 //! impl ERC165 for Token {
-//!     fn supports_interface(id: &InterfaceId) -> bool {
+//!     fn supports_interface(id: InterfaceId) -> bool {
 //!         groundhog_erc165_if::implements::<Self>(id)
 //!     }
 //! }
@@ -55,7 +55,7 @@ pub use sdk::interface_table::implements;
 pub trait ERC165 {
     /// True if this contract implements the interface identified by
     /// `interface_id`.
-    fn supports_interface(interface_id: &InterfaceId) -> bool;
+    fn supports_interface(interface_id: InterfaceId) -> bool;
 }
 
 /// Shorthand for the `#[contract] impl ERC165 for $ty` block whose
@@ -74,7 +74,7 @@ macro_rules! impl_erc165 {
         // the first call site.
         #[::sdk::contract(version = "0.1.0")]
         impl $crate::ERC165 for $ty {
-            fn supports_interface(interface_id: &$crate::InterfaceId) -> bool {
+            fn supports_interface(interface_id: $crate::InterfaceId) -> bool {
                 $crate::implements::<$ty>(interface_id)
             }
         }
@@ -92,7 +92,7 @@ macro_rules! impl_erc165 {
 /// answer".
 pub fn try_probe_interface(
     target: &ContractAddress,
-    interface_id: &InterfaceId,
+    interface_id: InterfaceId,
 ) -> Result<bool, CallError> {
     match ERC165Client::new(target)
         .with_read_only()
@@ -110,7 +110,7 @@ pub fn try_probe_interface(
 /// `supports_interface` entrypoint.
 pub fn probe_interface(
     target: &ContractAddress,
-    interface_id: &InterfaceId,
+    interface_id: InterfaceId,
 ) -> bool {
     use sdk::OrReThrow;
 

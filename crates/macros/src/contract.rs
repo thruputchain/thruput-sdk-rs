@@ -165,8 +165,8 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             );
             stripped.items.push(parse_quote! {
                 /// The identity of this interface at its major version:
-                /// `sha256("groundhog-interface" :: name :: MAJOR)`, the pair
-                /// that also namespaces its entrypoint IDs. Every implementor
+                /// `sha256("groundhog-interface" :: name :: MAJOR)[0..8]`, the
+                /// pair that also namespaces its entrypoint IDs. Every implementor
                 /// inherits it, and every `#[contract]` impl of this trait
                 /// records it in the contract's interface table
                 /// (`sdk::interface_table`).

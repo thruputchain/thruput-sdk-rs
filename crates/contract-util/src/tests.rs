@@ -223,7 +223,7 @@ fn interface_id_pinned() {
         h.finalize()
     };
     assert_eq!(
-        crate::interface_id(Some("ERC20"), "0.1.19").as_slice(),
-        expected.as_slice()
+        crate::interface_id(Some("ERC20"), "0.1.19")[..],
+        expected[0..8]
     );
 }

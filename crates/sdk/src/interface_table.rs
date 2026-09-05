@@ -2,7 +2,7 @@
 //! by the linker from its `#[contract]` impl blocks.
 //!
 //! Every `#[contract] impl Trait for T` (and every bare `#[contract] impl T`)
-//! expands to one 32-byte [`InterfaceId`] record via
+//! expands to one 8-byte [`InterfaceId`] record via
 //! [`__interface_record!`](crate::__interface_record). [`implements`] answers
 //! whether a given id is among them. This is what `groundhog-erc165-if`
 //! builds `supports_interface` on: the claim is read off the impls that
@@ -20,7 +20,7 @@
 //! was instantiated. The lowerer copies the table into VM memory only when
 //! the anchor section is present. A contract with no ERC-165 impl therefore
 //! ships an image byte-identical to one built without this module; one with
-//! an impl pays four bytes of anchor plus 32 per impl block, plus the scan.
+//! an impl pays four bytes of anchor plus 8 per impl block, plus the scan.
 //!
 //! On the host the records go through a `linkme` slice, keyed by the
 //! implementing type so a test process holding many contracts keeps them
@@ -36,7 +36,7 @@ use crate::InterfaceId;
 #[doc(hidden)]
 pub struct HostRecord {
     pub type_name: fn() -> &'static str,
-    pub id: [u8; 32],
+    pub id: InterfaceId,
 }
 
 #[cfg(not(target_arch = "riscv32"))]
@@ -55,12 +55,10 @@ pub static HOST_RECORDS: [HostRecord];
     target_arch = "riscv32",
     allow(clippy::extra_unused_type_parameters)
 )]
-pub fn implements<T: ?Sized>(interface_id: &InterfaceId) -> bool {
-    let wanted = interface_id.as_slice();
-
+pub fn implements<T: ?Sized>(interface_id: InterfaceId) -> bool {
     #[cfg(target_arch = "riscv32")]
     {
-        rv32::records().iter().any(|id| id[..] == *wanted)
+        rv32::contains(interface_id)
     }
 
     #[cfg(not(target_arch = "riscv32"))]
@@ -68,8 +66,7 @@ pub fn implements<T: ?Sized>(interface_id: &InterfaceId) -> bool {
         let type_name = core::any::type_name::<T>();
         HOST_RECORDS
             .iter()
-            .filter(|r| (r.type_name)() == type_name)
-            .any(|r| r.id[..] == *wanted)
+            .any(|r| r.id == interface_id && (r.type_name)() == type_name)
     }
 }
 
@@ -80,12 +77,12 @@ mod rv32 {
     // as records so `&raw const` yields correctly-typed pointers; only their
     // addresses are read.
     unsafe extern "C" {
-        static __groundhog_rv32_interfaces_start: [u8; 32];
-        static __groundhog_rv32_interfaces_end: [u8; 32];
+        static __groundhog_rv32_interfaces_start: super::InterfaceId;
+        static __groundhog_rv32_interfaces_end: super::InterfaceId;
     }
 
     // The lowerer's signal that the table has a reader. Deliberately not
-    // `#[used]`: the linker keeps this static only because `records` reads
+    // `#[used]`: the linker keeps this static only because `contains` reads
     // it, so its section exists in the ELF exactly when `implements` was
     // instantiated, and the lowerer keys the table's presence in the image
     // off that. Section name shared with the linker script and the
@@ -93,20 +90,30 @@ mod rv32 {
     #[unsafe(link_section = "groundhog_rv32_interfaces_anchor")]
     static ANCHOR: u32 = 1;
 
-    pub(super) fn records() -> &'static [[u8; 32]] {
+    /// Scan the table for `wanted`. Out of line and cold so LLVM keeps it
+    /// a plain eight-byte-stride loop: inlined at -O3 it unrolls the scan
+    /// eightfold, ~250 bytes of code for a table of a handful of records.
+    #[cold]
+    #[inline(never)]
+    pub(super) fn contains(wanted: super::InterfaceId) -> bool {
         // SAFETY: the linker script ALIGN(8)s the section start and brackets
         // exactly the KEEP'd `groundhog_rv32_interfaces` input section, whose
         // sole writer is `__interface_record!` (each entry a `static [u8;
-        // 32]`, so the section is a well-formed array of stride 32). An
-        // empty table gives start == end -> len 0. Length via integer math,
-        // not `offset_from`: the two statics are distinct declarations, so
-        // pointer provenance between them is not guaranteed.
+        // 8]`, so the section is a well-formed array of stride 8). An empty
+        // table gives start == end and no reads. The bracket symbols are
+        // distinct declarations, so they are compared as addresses rather
+        // than through `offset_from`, which needs shared provenance.
         unsafe {
             core::ptr::read_volatile(&raw const ANCHOR);
-            let start = &raw const __groundhog_rv32_interfaces_start;
+            let mut p = &raw const __groundhog_rv32_interfaces_start;
             let end = &raw const __groundhog_rv32_interfaces_end;
-            let len = (end as usize - start as usize) / 32;
-            core::slice::from_raw_parts(start, len)
+            while (p as usize) < (end as usize) {
+                if core::ptr::read_volatile(p) == wanted {
+                    return true;
+                }
+                p = p.add(1);
+            }
+            false
         }
     }
 }
@@ -121,7 +128,7 @@ macro_rules! __interface_record {
             #[cfg(target_arch = "riscv32")]
             #[used]
             #[unsafe(link_section = "groundhog_rv32_interfaces")]
-            static __GH_INTERFACE_RECORD: [u8; 32] = $id;
+            static __GH_INTERFACE_RECORD: $crate::InterfaceId = $id;
 
             #[cfg(not(target_arch = "riscv32"))]
             fn __gh_type_name() -> &'static str {

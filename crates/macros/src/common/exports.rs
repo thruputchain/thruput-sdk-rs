@@ -79,10 +79,10 @@ pub fn generate(
     // that does not enable `entrypoints` exports nothing, so it must not
     // advertise anything either.
     let interface_record = contract.self_ty().map(|self_ty| {
-        let bytes = contract_util::interface_id(iface_name, &iface_vers);
+        let id_lit = interface_id_literal(iface_name, &iface_vers);
         quote! {
             #[cfg(any(not(target_arch = "riscv32"), feature = "entrypoints"))]
-            ::sdk::__interface_record!(#self_ty, [#(#bytes),*]);
+            ::sdk::__interface_record!(#self_ty, #id_lit);
         }
     });
 

@@ -38,7 +38,7 @@ fn trait_wrapper_and_util_agree() {
         CounterEntrypoints::INTERFACE_ID
     );
     assert_eq!(
-        CounterEntrypoints::INTERFACE_ID.as_slice(),
+        CounterEntrypoints::INTERFACE_ID,
         interface_id(Some("Counter"), "1.2.3")
     );
 }
@@ -67,14 +67,14 @@ fn interface_table_reflects_impl_blocks() {
     use sdk::interface_table::implements;
 
     assert!(implements::<CounterContract>(
-        &CounterEntrypoints::INTERFACE_ID
+        CounterEntrypoints::INTERFACE_ID
     ));
     assert!(!implements::<CounterContract>(
-        &CounterV2Entrypoints::INTERFACE_ID
+        CounterV2Entrypoints::INTERFACE_ID
     ));
     // A type with no #[contract] impl has no records at all.
     struct Uninvolved;
-    assert!(!implements::<Uninvolved>(&CounterEntrypoints::INTERFACE_ID));
+    assert!(!implements::<Uninvolved>(CounterEntrypoints::INTERFACE_ID));
 }
 
 #[sdk::storage]

@@ -146,31 +146,34 @@ pub fn contract_entrypoint_id(
 }
 
 /// Derive the interface ID of an (interface name, version) pair: the
-/// 32-byte identity of an interface at a major version, shared by every
-/// entrypoint the interface exports.
+/// identity of an interface at a major version, shared by every entrypoint
+/// the interface exports.
 ///
-/// This is the (interface, MAJOR version) prefix of the
-/// [`contract_entrypoint_id`] preimage under its own domain tag, so an
-/// interface ID never collides with an entrypoint ID preimage, and two
-/// interfaces agree on an ID exactly when their entrypoints share a
-/// namespace. `#[contract]` emits it as `Trait::INTERFACE_ID` and
-/// `<Iface>Entrypoints::INTERFACE_ID`; `groundhog-erc165-if` is the
-/// on-chain query surface for it.
+/// Truncated to 8 bytes exactly like [`contract_entrypoint_id`], and for the
+/// same reason: the ID is a *name*, derived from `(interface, MAJOR)` that
+/// anyone may declare, so its width only has to keep honestly distinct
+/// interfaces apart, not resist an adversary. The preimage carries its own
+/// domain tag so an interface ID never collides with an entrypoint ID
+/// preimage. `#[contract]` emits it as `Trait::INTERFACE_ID` and
+/// `<Iface>Entrypoints::INTERFACE_ID`; `groundhog-erc165-if` is the on-chain
+/// query surface for it.
 pub fn interface_id(
     interface_name: Option<&str>,
     version_str: &str,
-) -> [u8; 32] {
+) -> [u8; 8] {
     let interface_name = interface_name.unwrap_or(UNNAMED_INTERFACE);
     let major_version = semver::major_version_from_string(version_str);
 
-    // Interface ID = sha256("groundhog-interface" :: INTERFACE_NAME :: MAJOR_VERSION)
+    // Interface ID = sha256("groundhog-interface" :: INTERFACE_NAME :: MAJOR_VERSION)[0..8]
     let mut hasher = sha2::Sha256::new();
     hasher.update(b"groundhog-interface");
     hasher.update(b"::");
     hasher.update(interface_name.as_bytes());
     hasher.update(b"::");
     hasher.update(major_version.as_bytes());
-    hasher.finalize().into()
+    let result = hasher.finalize();
+
+    result[0..8].try_into().unwrap()
 }
 
 /// The export symbol name of the entrypoint for the given

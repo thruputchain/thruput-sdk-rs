@@ -157,7 +157,7 @@ SECTIONS
     *(.data .data.*)
   } > DATA
 
-  /* Interface table: one 32-byte InterfaceId record per #[contract] impl
+  /* Interface table: one 8-byte InterfaceId record per #[contract] impl
    * block, emitted by the groundhog-macros expansion via
    * #[link_section = "groundhog_rv32_interfaces"] and read by
    * sdk::interface_table. Same shape as the dispatch table above: KEEP'd

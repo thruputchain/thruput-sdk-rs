@@ -337,7 +337,7 @@ impl AccessControl for PausableTokenContract {
 // to keep in sync.
 #[contract(version = "0.1.0")]
 impl ERC165 for PausableTokenContract {
-    fn supports_interface(interface_id: &InterfaceId) -> bool {
+    fn supports_interface(interface_id: InterfaceId) -> bool {
         implements::<Self>(interface_id)
     }
 }

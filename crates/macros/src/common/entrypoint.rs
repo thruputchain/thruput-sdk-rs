@@ -23,9 +23,7 @@ pub fn interface_id_literal(
 ) -> TokenStream {
     let bytes =
         groundhog_contract_util::interface_id(interface_name, version_str);
-    quote!(
-        ::sdk::InterfaceId::new([#(#bytes),*])
-    )
+    quote!([#(#bytes),*])
 }
 
 pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {

@@ -12,7 +12,7 @@ use groundhog_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
 use groundhog_erc165_if::{
-    ERC165, ERC165Client, InterfaceId, probe_interface, try_probe_interface,
+    ERC165, ERC165Client, probe_interface, try_probe_interface,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -337,31 +337,31 @@ fn supports_interface_reports_derived_claims() {
                 <Token as ERC20Pausable>::INTERFACE_ID,
                 <Token as AccessControl>::INTERFACE_ID,
             ] {
-                assert!(erc165.supports_interface(&id));
-                assert!(probe_interface(&addr, &id));
+                assert!(erc165.supports_interface(id));
+                assert!(probe_interface(&addr, id));
             }
             // ...and the interface crates agree on those IDs without
             // naming the implementing type.
             assert!(erc165.supports_interface(
-                &groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID
+                groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID
             ));
 
             // An interface it does not implement, and an arbitrary ID.
             assert!(!erc165.supports_interface(
-                &groundhog_erc1271_if::ERC1271Entrypoints::INTERFACE_ID
+                groundhog_erc1271_if::ERC1271Entrypoints::INTERFACE_ID
             ));
-            assert!(!erc165.supports_interface(&InterfaceId::new([0xff; 32])));
+            assert!(!erc165.supports_interface([0xff; 8]));
 
             // A target without ERC-165 is "no", not an error.
             let erc20 = groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID;
-            assert_eq!(try_probe_interface(&bare_addr, &erc20), Ok(false));
-            assert!(!probe_interface(&bare_addr, &erc20));
+            assert_eq!(try_probe_interface(&bare_addr, erc20), Ok(false));
+            assert!(!probe_interface(&bare_addr, erc20));
 
             // No contract at all is a real failure, not a "no".
             const EMPTY_ADDR: ContractAddress =
                 ContractAddress::new([0x78; 32]);
             assert_eq!(
-                try_probe_interface(&EMPTY_ADDR, &erc20),
+                try_probe_interface(&EMPTY_ADDR, erc20),
                 Err(CallError::Invalid)
             );
         })
