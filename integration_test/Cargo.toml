@@ -49,15 +49,15 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.29.0" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.29.0", default-features = false }
+sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.30.0" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.30.0", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.21" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.22" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.29.0" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.29.0" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.29.0" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.29.0" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.30.0" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.30.0" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.30.0" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.30.0" }
 
 # External groundhog dependencies
 groundhog-xdr = { registry = "groundhog", version = "0.30.1", features = ["xdrs", "syscalls"] }
