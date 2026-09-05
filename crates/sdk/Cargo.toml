@@ -10,6 +10,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Groundhog smart-contract SDK for Rust (rv32 guest runtime and native test harness)"
+readme = "../../README.md"
 metadata.docs.rs.features = [
     "std",
 ]
