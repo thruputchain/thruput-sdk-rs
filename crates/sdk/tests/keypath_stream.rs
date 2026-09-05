@@ -81,7 +81,22 @@ fn test_exhaustion_throws_typed_abort() {
 #[test]
 fn test_derivation_pins_no_streams() {
     let env = TestEnvironment::no_cost();
-    let cap = env.get_network_config().max_sha256_buffers as usize;
+    use groundhog_xdr::network_config::{ConfigParam, NetworkConfig};
+    let NetworkConfig::_0 { v0 } = env.get_network_config() else {
+        panic!("unsupported test network configuration version");
+    };
+    let cap = v0
+        .params
+        .iter()
+        .find_map(|param| match param {
+            ConfigParam::kConfigParamMaxSHA256Buffers {
+                max_sha256_buffers,
+            } => Some(*max_sha256_buffers as usize),
+            _ => None,
+        })
+        .expect(
+            "test network configuration must state its SHA-256 buffer cap",
+        );
     assert!(cap > 0);
 
     env.transact(|tx| {

@@ -294,6 +294,7 @@ fn invoke_frame(
         entrypoint_id: entrypoint,
         gas_limit,
         flags,
+        reserved: 0,
     };
     let mut outputs = sys::CopyableInvokeOutputs {
         return_buffer_len: 0,
