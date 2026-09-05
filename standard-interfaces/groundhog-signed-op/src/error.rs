@@ -8,8 +8,8 @@
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum SignedOpError {
     /// The signature does not verify against the operation's preimage under
-    /// the signer's key. Also what a wrongly-typed or tampered payload
-    /// produces.
+    /// the key the verifying contract requires. Also what a signature from
+    /// any other key, or a wrongly-typed or tampered payload, produces.
     #[cfg_attr(feature = "dev", error("Invalid signature"))]
     InvalidSignature = 1,
     /// `block_expiry_height` is in the past.

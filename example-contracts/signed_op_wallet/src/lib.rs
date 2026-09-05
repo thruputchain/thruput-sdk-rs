@@ -2,9 +2,9 @@
 //!
 //! One owner key, one payload type, one token per operation. What it shows is
 //! the shape every `SignedOp` wallet shares: embed a
-//! [`SignedOpReplayCache`], let [`consume`](SignedOpReplayCache::consume) do
-//! the verification and replay protection, apply the wallet's own policy to
-//! `op.signer`, then mint. The tests pin the replay model — the chain's
+//! [`SignedOpReplayCache`], hand [`consume`](SignedOpReplayCache::consume)
+//! the key the wallet holds and let it do the verification and replay
+//! protection, then mint. The tests pin the replay model — the chain's
 //! `(nonce, block_expiry_height)` pair, consumed once, dead after expiry.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
@@ -31,9 +31,6 @@ pub struct Grant {
 pub enum WalletError {
     #[cfg_attr(feature = "dev", error("Wallet already initialized"))]
     AlreadyInitialized = 1,
-    /// The operation's signer is not the key this wallet accepts.
-    #[cfg_attr(feature = "dev", error("Signer is not the wallet owner"))]
-    NotOwner = 2,
 }
 
 #[sdk::storage]
@@ -77,15 +74,12 @@ impl SignedOp for SignedOpWallet {
         op: Operation,
         signature: &Ed25519Signature,
     ) -> Signed<Opaque> {
-        // Authority first: only the owner's operations are worth verifying.
-        // A refusal throws and reverts, so nothing below leaves a mark.
-        if op.signer != self.owner.get() {
-            throw(WalletError::NotOwner);
-        }
-
-        // Replay, expiry, body decode and signature, against a preimage
-        // bound to this network and this wallet; consumes the pair.
-        let grant: Grant = self.replay.consume(&op, signature);
+        // Expiry, replay, body decode and signature, against a preimage
+        // bound to this network and this wallet, under the wallet's own key:
+        // `op` names none, so a submitter cannot choose what the signature is
+        // checked against. Consumes the pair; a refusal throws and reverts.
+        let grant: Grant =
+            self.replay.consume(&op, signature, &self.owner.get());
 
         let node =
             sdk::mintable::build_auth_token_node::<u64>(AuthTokenPreimage {

@@ -14,7 +14,7 @@ use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::BytesM;
 use sdk::*;
-use signed_op_wallet::{Grant, SignedOpWalletClient, WalletError};
+use signed_op_wallet::{Grant, SignedOpWalletClient};
 
 const ALICE_SEED: [u8; 32] = [0x11; 32];
 const MALLORY_SEED: [u8; 32] = [0x22; 32];
@@ -74,7 +74,6 @@ fn sign(
     .preimage()
     .expect("encoding the signed-operation preimage");
     let op = Operation {
-        signer: Ed25519PublicKey::from(key.verifying_key().to_bytes()),
         block_expiry_height: uniquifier.block_expiry_height,
         nonce: uniquifier.nonce,
         body: BytesM(sdk::xdr::cxs::encode(body).expect("encoding the body")),
@@ -257,8 +256,10 @@ fn pruning_waits_for_expiry_and_never_revives_an_operation() {
     assert_refuses!(&env, op, sig, SignedOpError::Expired);
 }
 
+/// The wallet checks against the key it holds; the operation names no key,
+/// so there is nothing on the wire for Mallory to substitute.
 #[test]
-fn a_signature_from_another_key_is_refused_by_the_wallet() {
+fn a_signature_from_another_key_is_refused() {
     let env = setup();
     let expiry = current_height(&env) + 8;
     let (op, sig) = sign(
@@ -267,7 +268,7 @@ fn a_signature_from_another_key_is_refused_by_the_wallet() {
         uniquifier(expiry, NONCE),
         &Grant { amount: AMOUNT },
     );
-    assert_refuses!(&env, op, sig, WalletError::NotOwner);
+    assert_refuses!(&env, op, sig, SignedOpError::InvalidSignature);
 }
 
 #[test]

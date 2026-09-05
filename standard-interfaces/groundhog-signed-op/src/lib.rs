@@ -26,6 +26,11 @@
 //! submitted in the order they were signed. The consuming side lives in the
 //! `groundhog-signed-op` component crate.
 //!
+//! Which key must have signed is the verifying contract's decision, made
+//! from its own state: [`Operation`] carries no key, so a submitter cannot
+//! name the key a signature is checked against, and a contract cannot check
+//! against a wire-supplied key and forget to compare it with its own.
+//!
 //! This crate is the interface half: the [`Operation`] wire type, the
 //! [`SignedOp`] contract trait, and [`SignedOpError`]. It pulls in nothing
 //! beyond the SDK, so a caller that only needs to *invoke* a signed-op
@@ -42,8 +47,8 @@ mod error;
 pub use error::*;
 
 use sdk::signer::{Opaque, Signed};
+use sdk::types::Ed25519Signature;
 use sdk::types::transaction::Uniquifier;
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::BytesM;
 use sdk::{BlockHeight, contract};
 
@@ -53,16 +58,15 @@ use sdk::{BlockHeight, contract};
 /// but deliberately absent here: the verifier supplies them from what it
 /// knows (`sdk::block::get_network_hash`, `sdk::get_current_address`). Taking
 /// them off the wire would let a submitter name the network and contract the
-/// signature was meant for.
+/// signature was meant for. The signing key is absent for the same reason:
+/// the verifying contract checks the signature against the key it holds, so
+/// nothing on the wire says who signed.
 ///
 /// `block_expiry_height` and `nonce` are a [`Uniquifier`], declared in its
 /// field order so their encoding is byte-for-byte the chain's;
 /// [`uniquifier`](Self::uniquifier) reassembles it.
 #[sdk::contract_type]
 pub struct Operation {
-    /// The key that signed this operation. Whether that key is *allowed* to
-    /// authorize the action is the verifying contract's policy.
-    pub signer: Ed25519PublicKey,
     /// Last block height (inclusive) at which this operation may execute.
     pub block_expiry_height: BlockHeight,
     /// Chosen by the signer: any value, as long as the pair
@@ -94,6 +98,9 @@ impl Operation {
 pub trait SignedOp {
     /// Verify `op` under `signature`, consume its uniquifier, and mint the
     /// auth token it authorizes.
+    ///
+    /// Which key the signature must verify under is the implementor's to
+    /// decide from its own state; `op` names none.
     ///
     /// Always exactly one token on success: the root of whatever tree the
     /// operation authorizes, with anything for downstream contracts as its

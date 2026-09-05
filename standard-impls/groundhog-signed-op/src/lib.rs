@@ -21,8 +21,9 @@
 //!         op: Operation,
 //!         signature: &Ed25519Signature,
 //!     ) -> Signed<Opaque> {
-//!         let transfer: Transfer = self.replay.consume(&op, signature);
-//!         // ... check that `op.signer` may authorize this, then mint
+//!         let transfer: Transfer =
+//!             self.replay.consume(&op, signature, &self.owner.get());
+//!         // ... mint what `transfer` authorizes
 //!     }
 //! }
 //! ```
@@ -36,12 +37,16 @@
 //! - the `(nonce, block_expiry_height)` pair, against what this contract has
 //!   already consumed;
 //! - that the body decodes as the payload type the contract expects;
-//! - the signature, against the bytes all of that produces.
+//! - the signature, against the bytes all of that produces, under the key
+//!   the contract passes in.
 //!
-//! The network hash and the verifying contract are inside those bytes rather
-//! than on the wire: they come from `sdk::block::get_network_hash` and
-//! `sdk::get_current_address`, so a submitter cannot name the network or
-//! contract a signature was meant for.
+//! The network hash, the verifying contract and the key are not on the wire.
+//! The first two are inside the signed bytes, from
+//! `sdk::block::get_network_hash` and `sdk::get_current_address`; the key is
+//! the `key` argument, from the contract's own state. So a submitter cannot
+//! name the network, the contract, or the key a signature is checked
+//! against, and a contract cannot verify against a wire-supplied key and
+//! forget to compare it with its own.
 //!
 //! # The replay model
 //!
@@ -62,8 +67,8 @@ use groundhog_contract_spec::ContractTypeSpec;
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
 use sdk::exn::NoneIfMissing;
 use sdk::storage::{Deletable, Map, Value};
-use sdk::types::Ed25519Signature;
 use sdk::types::transaction::Uniquifier;
+use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::{ReadXDR, WriteXDR};
 
 /// The stateless checks: expiry, decode, signature. Returns the decoded
@@ -73,15 +78,21 @@ use sdk::xdr::{ReadXDR, WriteXDR};
 /// operation single-use. Use [`SignedOpReplayCache::consume`] unless the
 /// contract keeps its own replay state.
 ///
-/// `T` is the payload type this contract expects. Its `TYPE_DEF` is part of
-/// the signed bytes, so naming the wrong `T` fails as
-/// [`SignedOpError::InvalidSignature`] rather than reinterpreting the message.
-pub fn verify_signed_op<T>(op: &Operation, signature: &Ed25519Signature) -> T
+/// `key` is the key the contract requires, from its own state; a contract
+/// holding several decides which applies before calling. `T` is the payload
+/// type this contract expects. Its `TYPE_DEF` is part of the signed bytes, so
+/// naming the wrong `T` fails as [`SignedOpError::InvalidSignature`] rather
+/// than reinterpreting the message.
+pub fn verify_signed_op<T>(
+    op: &Operation,
+    signature: &Ed25519Signature,
+    key: &Ed25519PublicKey,
+) -> T
 where
     T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
 {
     check_expiry(op);
-    decode_and_verify(op, signature)
+    decode_and_verify(op, signature, key)
 }
 
 /// Throws [`SignedOpError::Expired`] once the current height is past
@@ -94,8 +105,12 @@ fn check_expiry(op: &Operation) {
 }
 
 /// Decode the body as `T` and check the signature over the preimage that
-/// decoding produces.
-fn decode_and_verify<T>(op: &Operation, signature: &Ed25519Signature) -> T
+/// decoding produces, under `key`.
+fn decode_and_verify<T>(
+    op: &Operation,
+    signature: &Ed25519Signature,
+    key: &Ed25519PublicKey,
+) -> T
 where
     T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
 {
@@ -113,8 +128,7 @@ where
     .preimage()
     .unwrap_or_else(|_| sdk::throw(SignedOpError::MalformedBody));
 
-    if !sdk::crypto::verify_signature_ed25519(&op.signer, signature, &preimage)
-    {
+    if !sdk::crypto::verify_signature_ed25519(key, signature, &preimage) {
         sdk::throw(SignedOpError::InvalidSignature);
     }
     body
@@ -139,9 +153,10 @@ pub struct SignedOpReplayCache {
 }
 
 impl SignedOpReplayCache {
-    /// Verify an operation and consume its uniquifier, returning the decoded
-    /// payload. Throws [`SignedOpError`] on any failed check, in which case
-    /// nothing is written.
+    /// Verify an operation under `key` and consume its uniquifier, returning
+    /// the decoded payload. Throws [`SignedOpError`] on any failed check, in
+    /// which case nothing is written. `key` comes from the contract's own
+    /// state, as for [`verify_signed_op`].
     ///
     /// The checks run in the order the crate docs list them. Expiry comes
     /// before the cache, so a dead operation is
@@ -152,6 +167,7 @@ impl SignedOpReplayCache {
         &mut self,
         op: &Operation,
         signature: &Ed25519Signature,
+        key: &Ed25519PublicKey,
     ) -> T
     where
         T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
@@ -167,7 +183,7 @@ impl SignedOpReplayCache {
         {
             sdk::throw(SignedOpError::AlreadyConsumed);
         }
-        let body = decode_and_verify::<T>(op, signature);
+        let body = decode_and_verify::<T>(op, signature, key);
         // Exclusive: two transactions carrying the same operation in one
         // block both see the pair absent and would both write it, and a
         // shared write lets identical values commit side by side. The

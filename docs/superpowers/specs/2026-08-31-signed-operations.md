@@ -5,7 +5,8 @@
 > unordered `(nonce, block_expiry_height)` uniquifier model; see
 > `2026-09-05-signed-op-uniquifier.md`. The preimage now carries a
 > `Uniquifier` (expiry first, then nonce) where this note has nonce then
-> `valid_until`. Everything else here stands.
+> `valid_until`. `Operation` no longer carries `signer`: the verifier takes
+> the key from the contract's own state. Everything else here stands.
 
 **Status:** implemented in `groundhog-domain-separator`, `groundhog-signed-op-if`,
 `groundhog-signed-op` and `groundhog-test-vectors` (`signed-op` vectors). The TypeScript client half

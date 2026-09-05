@@ -18,7 +18,6 @@ touching the trait, the wire type, the preimage, or the errors.
 ```rust
 #[sdk::contract_type]
 pub struct Operation {
-    pub signer: Ed25519PublicKey,
     /// Last height (inclusive) at which this operation may execute.
     pub block_expiry_height: BlockHeight,
     /// Chosen by the signer; any value, as long as the
@@ -31,6 +30,14 @@ impl Operation {
     pub fn uniquifier(&self) -> Uniquifier { .. }   // sdk::types::transaction::Uniquifier
 }
 ```
+
+There is no `signer` field. The verifier checks the signature against a key
+the contract passes in from its own state, so a submitter cannot name the key
+a signature is checked against, and a contract cannot verify against a
+wire-supplied key and forget to compare it with its own. Which key applies is
+the contract's policy; a wallet holding several picks one before calling. The
+key was never part of the preimage, so the signed bytes and the vectors are
+unchanged by its removal from the wire.
 
 The two fields sit in `Uniquifier`'s declared order (`block_expiry_height`,
 then `nonce`), so `cxs(block_expiry_height) || cxs(nonce)` is byte-identical
@@ -107,8 +114,10 @@ wallet and receive what it minted; only the verifying component allocates.
 ## Component (`groundhog-signed-op`)
 
 ```rust
-/// Stateless: expiry, decode, signature.
-pub fn verify_signed_op<T>(op: &Operation, signature: &Ed25519Signature) -> T;
+/// Stateless: expiry, decode, signature under `key` (from contract state).
+pub fn verify_signed_op<T>(
+    op: &Operation, signature: &Ed25519Signature, key: &Ed25519PublicKey,
+) -> T;
 
 #[sdk::storage]
 pub struct SignedOpReplayCache { consumed: Map<Uniquifier, Value<()>> }
@@ -116,7 +125,9 @@ pub struct SignedOpReplayCache { consumed: Map<Uniquifier, Value<()>> }
 impl SignedOpReplayCache {
     /// Expiry → cache hit (AlreadyConsumed) → decode + signature → consume
     /// under an exclusive lock. Throws on any failure; writes nothing.
-    pub fn consume<T>(&mut self, op: &Operation, signature: &Ed25519Signature) -> T;
+    pub fn consume<T>(
+        &mut self, op: &Operation, signature: &Ed25519Signature, key: &Ed25519PublicKey,
+    ) -> T;
     /// Delete a dead entry. Throws unless current_height > block_expiry_height.
     pub fn prune(&mut self, uniquifier: &Uniquifier);   // NotYetExpired until then
 }
@@ -138,5 +149,6 @@ the body of `consume` changes.
 - `groundhog-erc1271-if` is removed, with the `erc1271_*` examples; the
   `integration_test_contracts` submodule moves to a commit whose
   `simple_wallet` implements `SignedOp` instead.
-- client-ts (separate repo): preimage builder order + field rename.
+- client-ts (separate repo): preimage builder order + field rename, and
+  `signer` dropped from the calldata.
 
