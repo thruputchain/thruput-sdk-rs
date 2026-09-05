@@ -1,8 +1,7 @@
 //! RV32 binary wrapper for the `iface_conflict_caller` contract.
 //!
-//! `groundhog build --target rv32` derives `--bin iface_conflict_caller`
-//! from the package name, so this target is what produces the deployable
-//! ELF.
+//! `groundhog build` derives `--bin iface_conflict_caller` from the package
+//! name, so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the
 //! entrypoint records land in the binary. The runtime (`_start`,

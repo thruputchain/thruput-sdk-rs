@@ -24,9 +24,9 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build --target rv32 -p hasher` derives
-# `--bin hasher` from the package name, so the name here must stay the
-# underscored package name. `required-features` keeps it out of host builds.
+# The rv32 artifact. `groundhog build -p hasher` derives `--bin hasher` from
+# the package name, so the name here must stay the underscored package name.
+# `required-features` keeps it out of host builds.
 [[bin]]
 name = "hasher"
 path = "src/main.rs"

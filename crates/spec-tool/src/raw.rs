@@ -14,7 +14,7 @@ pub use groundhog_contract_spec::{
 
 pub const FINAL_FORMAT_TAG: &str = "gh_contract_spec_v1";
 
-/// Parse the contents of a raw spec custom section.
+/// Parse the contents of a raw spec ELF section.
 ///
 /// The section body is a bare concatenation of XDR-encoded [`SpecFragment`]
 /// values with no count prefix or framing: fragments are decoded one after

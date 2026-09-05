@@ -11,7 +11,7 @@
 //! full SignedTransaction path (the only place gas_consumed is observable).
 
 use crate::call::RawCallError;
-use crate::exn::FaultString;
+use crate::exn::FaultInfo;
 use crate::exn::RawException;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
@@ -65,7 +65,18 @@ where
                 )),
             }
         }
-        Fault => Err(RawCallError::Fault(FaultString::empty())),
+        // Whatever the harness recorded for this frame's own panic. There
+        // is no record when the frame faulted without an ordinary panic to
+        // catch — a syscall that runs out of gas unwinds an `InvokeError`
+        // instead, which carries no message — or when the fault came from a
+        // called contract (see `TransactResult::fault_panic`). Both read
+        // back as `"<fault>"`.
+        Fault => Err(RawCallError::Fault(
+            result
+                .fault_panic()
+                .map(FaultInfo::from)
+                .unwrap_or_default(),
+        )),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }

@@ -83,6 +83,8 @@ fn all_primitive_types_roundtrip() {
         ContractType::I64,
         ContractType::U128,
         ContractType::I128,
+        ContractType::U256,
+        ContractType::I256,
         ContractType::String,
         ContractType::Bytes,
         ContractType::Address,

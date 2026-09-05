@@ -182,7 +182,6 @@ impl ContractSrc for syn::ItemTrait {
     }
 
     fn interface_vers(&self) -> Option<String> {
-        // TODO: some mechanism for specifying a version
         None
     }
 
@@ -258,7 +257,6 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn interface_vers(&self) -> Option<String> {
-        // TODO: some mechanism for specifying a version
         None
     }
 

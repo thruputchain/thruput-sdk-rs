@@ -32,8 +32,9 @@ For trait impls, the trait is authoritative for the client name. Adding an
 explicit `client = ...` attribute to the impl is rejected to avoid
 double-generation.
 
-The macro reserves `new`, `with_gas_limit`, and the `try_` prefix for
-method/function identifiers on exported contract surfaces. `#[contract]`
+The macro reserves `new`, `with_gas_limit`, `with_commit_locking`,
+`with_read_only`, and the `try_` prefix for method/function identifiers on
+exported contract surfaces. `#[contract]`
 rejects trait methods, trait-impl methods, public inherent-impl methods, and
 free `#[contract] fn` names that use them to avoid collisions with generated
 client helpers and keep naming consistent across contract surfaces.

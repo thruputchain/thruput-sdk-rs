@@ -128,7 +128,9 @@ pub fn __try_as<T: Exn + ReadXDROwned>(
 /// ```
 ///
 /// Everything structural — `Ok`, [`Fault`](crate::call::RawCallError::Fault),
-/// [`Invalid`](crate::call::RawCallError::Invalid), the encode/decode
+/// [`Invalid`](crate::call::RawCallError::Invalid),
+/// [`Reentrance`](crate::call::RawCallError::Reentrance), the rest of the
+/// pre-call rejections, the encode/decode
 /// failures — stays an ordinary Rust `match`, with real exhaustiveness
 /// checking. This macro's only job is typed downcasting. It accepts anything
 /// implementing [`MatchExn`](crate::exn::MatchExn): a
@@ -351,7 +353,7 @@ macro_rules! __match_exn_arms {
 #[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
-    use crate::exn::{FaultString, LibraryExn};
+    use crate::exn::{FaultInfo, LibraryExn};
     use crate::internal::encode_xdr;
     use crate::xdr::*;
 
@@ -419,7 +421,7 @@ mod tests {
     fn non_exception_failures_reach_the_wildcard() {
         assert!(classify(RawCallError::Invalid).starts_with("other:"));
         assert!(
-            classify(RawCallError::Fault(FaultString::from_display("boom")))
+            classify(RawCallError::Fault(FaultInfo::empty()))
                 .starts_with("other:")
         );
     }
@@ -516,8 +518,7 @@ mod tests {
     /// selector; `CallError::Exception` is what separates those.
     #[test]
     fn try_decode_is_none_when_no_exception_is_carried() {
-        let fault: RawCallError =
-            RawCallError::Fault(FaultString::from_display("boom"));
+        let fault: RawCallError = RawCallError::Fault(FaultInfo::empty());
         assert!(fault.try_decode::<Alpha>().is_none());
         let invalid: RawCallError = RawCallError::Invalid;
         assert!(invalid.try_decode::<Alpha>().is_none());

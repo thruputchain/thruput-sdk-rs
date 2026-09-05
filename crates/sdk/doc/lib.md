@@ -204,7 +204,25 @@ generated client, which exposes two calling styles:
 - `client.method(...)`: success-oriented path. Typed exceptions are re-thrown to
   the caller, and faults stay faults.
 - `client.try_method(...)`: inspection path. Returns
-  `Result<ReturnType, CallError>`.
+  `Result<ReturnType, CallError>`. A caught exception stays undecoded: match
+  it with [`match_exn!`], or decode it as a named type with `try_as` /
+  `try_decode`.
+
+```rust,ignore
+match token.try_transfer(&to, amount) {
+    Ok(()) => { /* ... */ }
+    Err(CallError::Fault(f)) => { /* ... */ }
+    Err(e) => match_exn!(e, {
+        ERC20Error::InsufficientBalance    => { /* ... */ }
+        LibraryExn::NonNegativeIntOverflow => { /* ... */ }
+        _ => e.re_throw(),
+    }),
+}
+```
+
+Everything structural — `Ok`, `Fault`, `Invalid` — stays an ordinary Rust
+`match` with real exhaustiveness checking; the macro's only job is typed
+downcasting. See [`match_exn!`] for the matching rules.
 
 Use [`InvokeConfig`] (or the generated `with_gas_limit` constructor) to bound
 the gas a subcall may spend, and [`deploy`] to create new contracts.

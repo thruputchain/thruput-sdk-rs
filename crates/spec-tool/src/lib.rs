@@ -780,6 +780,8 @@ fn validate_type(ty: &ContractType) -> Result<(), SpecToolError> {
         | ContractType::I64
         | ContractType::U128
         | ContractType::I128
+        | ContractType::U256
+        | ContractType::I256
         | ContractType::String
         | ContractType::Bytes
         | ContractType::Address => Ok(()),
@@ -1023,6 +1025,8 @@ fn collect_named_types(
         | ContractType::I64
         | ContractType::U128
         | ContractType::I128
+        | ContractType::U256
+        | ContractType::I256
         | ContractType::String
         | ContractType::Bytes
         | ContractType::Address => {}
@@ -1090,6 +1094,8 @@ fn canonical_type_key(ty: &ContractType) -> String {
         ContractType::I64 => "i64".to_string(),
         ContractType::U128 => "u128".to_string(),
         ContractType::I128 => "i128".to_string(),
+        ContractType::U256 => "u256".to_string(),
+        ContractType::I256 => "i256".to_string(),
         ContractType::String => "string".to_string(),
         ContractType::Bytes => "bytes".to_string(),
         ContractType::Address => "address".to_string(),
@@ -1208,6 +1214,8 @@ pub fn type_to_json(ty: &ContractType) -> serde_json::Value {
         ContractType::I64 => json!({"kind": "i64"}),
         ContractType::U128 => json!({"kind": "u128"}),
         ContractType::I128 => json!({"kind": "i128"}),
+        ContractType::U256 => json!({"kind": "u256"}),
+        ContractType::I256 => json!({"kind": "i256"}),
         ContractType::String => json!({"kind": "string"}),
         ContractType::Bytes => json!({"kind": "bytes"}),
         ContractType::Address => json!({"kind": "address"}),

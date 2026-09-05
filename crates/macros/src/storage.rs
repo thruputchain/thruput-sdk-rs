@@ -148,6 +148,18 @@ fn impl_from_keypath(
     let mut field_names = TokenStream::new();
     let mut field_initializers = TokenStream::new();
     let mut resolved: Vec<(u32, proc_macro2::Span)> = Vec::new();
+    // Lifetimes are included: a field like `H<'a>` whose impl is conditional
+    // (say only `H<'static>`) still needs its bound in the where clause, or
+    // the generated impl is rejected for an arbitrary `'a`.
+    let generic_idents: Vec<syn::Ident> = generics
+        .params
+        .iter()
+        .map(|p| match p {
+            syn::GenericParam::Type(t) => t.ident.clone(),
+            syn::GenericParam::Const(c) => c.ident.clone(),
+            syn::GenericParam::Lifetime(l) => l.lifetime.ident.clone(),
+        })
+        .collect();
 
     for (i, field) in named_fields.iter().enumerate() {
         let field_name = &field.ident;
@@ -210,15 +222,27 @@ fn impl_from_keypath(
                 // generic impls — it captures no generic params.
                 const __SLOT_FRAME: ::sdk::storage::FramedComponent =
                     ::sdk::storage::FramedComponent::from_u32(#idx);
-                keypath.child_framed(&__SLOT_FRAME).into()
+                // Through the helper rather than `.into()`: the bound is
+                // the same, but raising it from a call puts the error on
+                // the field instead of the derive's span.
+                ::sdk::storage::__field_from_keypath::<#field_type>(
+                    keypath.child_framed(&__SLOT_FRAME),
+                )
             };
         });
 
-        // Add `FieldType: From<Keypath>` bound
-        generics
-            .make_where_clause()
-            .predicates
-            .push(syn::parse_quote!(#field_type: From<Keypath>));
+        // Only a generic field type needs its bound stated here. On a
+        // concrete one the bound is *trivially* unsatisfiable when unmet,
+        // which rustc reports at the derive's span with a
+        // `#![feature(trivial_bounds)]` suggestion that is never the fix and
+        // does not name the field. Left out, the helper call above raises the
+        // same obligation as an ordinary one, at the field.
+        if type_mentions_generic(field_type, &generic_idents) {
+            generics
+                .make_where_clause()
+                .predicates
+                .push(syn::parse_quote!(#field_type: From<Keypath>));
+        }
     }
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -249,4 +273,29 @@ where
     M: AsRef<str>,
 {
     Err(syn::Error::new(spanned.span(), msg.as_ref()))
+}
+
+/// Whether `ty` mentions any of `params` — i.e. whether a bound on it is
+/// resolved per-instantiation rather than trivially at the definition.
+///
+/// Token-level on purpose: a false positive (a path segment that merely
+/// shares an identifier with a parameter) only means the field keeps the
+/// where-clause bound, which is what the derive did for every field before.
+fn type_mentions_generic(ty: &syn::Type, params: &[syn::Ident]) -> bool {
+    if params.is_empty() {
+        return false;
+    }
+    quote!(#ty)
+        .into_iter()
+        .any(|tt| tokens_mention(&tt, params))
+}
+
+fn tokens_mention(tt: &proc_macro2::TokenTree, params: &[syn::Ident]) -> bool {
+    match tt {
+        proc_macro2::TokenTree::Ident(id) => params.contains(id),
+        proc_macro2::TokenTree::Group(g) => {
+            g.stream().into_iter().any(|t| tokens_mention(&t, params))
+        }
+        _ => false,
+    }
 }

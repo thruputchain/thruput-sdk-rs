@@ -531,7 +531,7 @@ mod tests {
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("groundhogspecrawv1"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv2"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
