@@ -99,23 +99,23 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.29.0" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.29.0" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.29.0", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.30.0" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.30.0" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.30.0", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.21" }
-groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.21" }
-groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.21" }
-groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.21" }
-groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.21" }
-groundhog-signed-op-if = { path = "../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.21" }
-groundhog-signed-op = { path = "../standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.21" }
-groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.21" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.22" }
+groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.22" }
+groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.22" }
+groundhog-signed-op-if = { path = "../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.22" }
+groundhog-signed-op = { path = "../standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.22" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.29.0" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.29.0" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.29.0" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.29.0" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.30.0" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.30.0" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.30.0" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.30.0" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # External groundhog dependencies
