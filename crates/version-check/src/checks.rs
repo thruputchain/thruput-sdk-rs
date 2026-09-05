@@ -29,7 +29,7 @@ pub struct Violation {
 }
 
 impl Violation {
-    fn new(
+    pub(crate) fn new(
         check: &'static str,
         location: String,
         message: String,
@@ -53,6 +53,7 @@ pub fn all(repo: &Repo) -> Vec<Violation> {
     lockfiles(repo, &mut out);
     default_members(repo, &mut out);
     external_agreement(repo, &mut out);
+    crate::publish_order::check(repo, &mut out);
     out
 }
 

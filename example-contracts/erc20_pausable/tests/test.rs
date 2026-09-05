@@ -348,7 +348,7 @@ fn supports_interface_reports_derived_claims() {
 
             // An interface it does not implement, and an arbitrary ID.
             assert!(!erc165.supports_interface(
-                groundhog_erc1271_if::ERC1271Entrypoints::INTERFACE_ID
+                groundhog_signed_op_if::SignedOpEntrypoints::INTERFACE_ID
             ));
             assert!(!erc165.supports_interface([0xff; 8]));
 

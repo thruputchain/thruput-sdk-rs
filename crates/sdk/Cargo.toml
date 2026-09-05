@@ -9,7 +9,8 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "SDK"
+description = "Groundhog smart-contract SDK for Rust (rv32 guest runtime and native test harness)"
+readme = "../../README.md"
 metadata.docs.rs.features = [
     "std",
 ]
@@ -25,10 +26,13 @@ groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
 groundhog-contract-spec = { workspace = true }
 groundhog-u256 = { workspace = true }
-hogexec-internal = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
 
 # Optional Groundhog dependencies
+# Host-only: the mock module re-exports its `ffi_enums` (see mock/mod.rs), and
+# that is the crate's only use of it. Optional so a guest build -- and the
+# public dependency tree of a contract -- does not name an "internal" crate.
+hogexec-internal = { workspace = true, optional = true }
 groundhog-contract-util = { workspace = true, optional = true }
 groundhog-storage-cost = { workspace = true, optional = true }
 groundhog-native-exec = { workspace = true, optional = true }
@@ -86,6 +90,7 @@ dev = [
     "std",
     "dep:groundhog-native-exec",
     "dep:groundhog-storage-cost",
+    "dep:hogexec-internal",
     "groundhog-macros/mock",
     "dep:sha2",
 ]

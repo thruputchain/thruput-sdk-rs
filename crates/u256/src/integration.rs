@@ -71,13 +71,14 @@ impl WriteXDR for I256 {
 // Contract spec
 // ---------------------------------------------------------------------------
 
-// The spec impls, anchor fn and raw link-section fragment come from
-// `#[derive(ContractTypeSpec)]` in `lib.rs`. `ContractTypeName` is the
-// exception -- the derive references it but never emits it.
-impl spec::ContractTypeName for U256 {
-    const NAME: &'static str = "U256";
+impl spec::ContractTypeRefSpec for U256 {
+    const INFO: spec::ContractTypeInfo<'static> = spec::ContractTypeInfo {
+        ty: spec::ContractTypeView::U256,
+    };
 }
 
-impl spec::ContractTypeName for I256 {
-    const NAME: &'static str = "I256";
+impl spec::ContractTypeRefSpec for I256 {
+    const INFO: spec::ContractTypeInfo<'static> = spec::ContractTypeInfo {
+        ty: spec::ContractTypeView::I256,
+    };
 }

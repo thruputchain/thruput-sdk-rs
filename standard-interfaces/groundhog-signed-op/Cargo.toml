@@ -1,0 +1,39 @@
+[package]
+name = "groundhog-signed-op-if"
+version = "0.1.22"
+edition.workspace = true
+publish.workspace = true
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "Signed operation (off-chain authorization) standard interface for Groundhog smart contracts"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+[features]
+# Selects the rv32 spec-carrier bin target (below), built with
+# `-F entrypoints` like every other contract's spec build. A plain
+# `cargo build`/`test` skips the entry-point-less bin without it.
+entrypoints = []
+dev = ["sdk/dev"]
+
+[dependencies]
+# No `alloc`: the interface returns one token, not a Vec, so a no-alloc
+# contract can call a wallet and receive it. Only the verifying component
+# (groundhog-signed-op) allocates, to build the preimage.
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.30.0" }
+thiserror = { workspace = true }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.30.0", features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# rv32 spec carrier: builds the SignedOp interface on its own for spec
+# extraction. `required-features` keeps a plain `cargo build`/`test` from
+# building this rv32-only, entry-point-less binary.
+[[bin]]
+name = "groundhog_signed_op_if"
+path = "src/main.rs"
+required-features = ["entrypoints"]

@@ -179,8 +179,8 @@ pub fn interface_id(
 /// The export symbol name of the entrypoint for the given
 /// (interface, version, method) triple: [`contract_entrypoint_id`] rendered
 /// through [`entrypoint_export_name`]. Use this instead of composing the two
-/// by hand — when the ID preimage changes (e.g. the signature-checksum TODO
-/// above), every caller stays in sync.
+/// by hand so that every caller stays in sync if the ID preimage ever
+/// changes (for example, if a signature checksum is added to it).
 pub fn entrypoint_export_name_for(
     interface_name: Option<&str>,
     version_str: &str,

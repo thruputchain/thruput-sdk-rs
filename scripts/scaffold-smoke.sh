@@ -48,13 +48,30 @@ cd scaffold-smoke
 # Point the scaffold's sdk dependency at this checkout instead of the
 # published release the template pins. A path dep ignores the template's
 # version requirement, so this keeps testing head across version bumps.
-if [ "$(grep -c '^sdk = ' Cargo.toml)" != 1 ]; then
-    echo "error: expected exactly one '^sdk = ' line in the scaffolded" >&2
-    echo "Cargo.toml; the CLI template layout changed — update $0" >&2
+#
+# The template declares `sdk` once per target (guest `no_std`, host `std`),
+# so rewrite only the version+registry part of each line and leave the rest
+# — notably the host line's `features = ["std"]` — intact. Rewriting whole
+# lines would silently drop those features.
+if ! grep -q '^sdk = ' Cargo.toml; then
+    echo "error: no '^sdk = ' line in the scaffolded Cargo.toml;" >&2
+    echo "the CLI template layout changed — update $0" >&2
     exit 1
 fi
-sed -i.bak "s|^sdk = .*|sdk = { path = \"$SDK_DIR/crates/sdk\" }|" Cargo.toml
+sed -i.bak -E \
+    "s|^sdk = \{ version = \"[^\"]+\", registry = \"groundhog\"|sdk = { path = \"$SDK_DIR/crates/sdk\"|" \
+    Cargo.toml
 rm Cargo.toml.bak
+# Every inline declaration must now point at this checkout. Assert the path
+# is present rather than that a registry reference is absent: an absence
+# check would restate the rewrite's own assumptions about quoting and key
+# order, and so pass on exactly the templates the rewrite silently skips —
+# leaving the smoke test to build the published release and still succeed.
+if grep '^sdk = ' Cargo.toml | grep -qvF "path = \"$SDK_DIR/crates/sdk\""; then
+    echo "error: an '^sdk = ' line was not rewritten to this checkout;" >&2
+    echo "the CLI template layout changed — update $0" >&2
+    exit 1
+fi
 
 # Build the contract, exactly as the scaffold's "next steps" suggest. RV32
 # is the CLI's only artifact target, so the build takes no target flag: 0.9.6

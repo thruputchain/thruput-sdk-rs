@@ -1,0 +1,22 @@
+[package]
+name = "groundhog-erc20-permit-if"
+version = "0.1.22"
+edition.workspace = true
+publish.workspace = true
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "Off-chain approval (permit) standard interface for Groundhog ERC20 tokens"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+[features]
+dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.30.0" }
+groundhog-erc20-if = { path = "../groundhog-erc20", registry = "groundhog", version = "=0.1.22" }
+thiserror = { workspace = true, optional = true }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false

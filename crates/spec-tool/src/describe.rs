@@ -32,9 +32,6 @@ const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
 const ERC20_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
     &[groundhog_erc20_if::__groundhog_spec_fragment_ERC20Error];
 
-const ERC1271_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[groundhog_erc1271_if::__groundhog_spec_fragment_ERC1271Error];
-
 const ERC20_PAUSABLE_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
     groundhog_erc20_pausable_if::__groundhog_spec_fragment_ERC20PausableError,
 ];
@@ -42,6 +39,12 @@ const ERC20_PAUSABLE_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
 const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
     groundhog_access_control_if::__groundhog_spec_fragment_AccessControlError,
 ];
+
+const SIGNED_OP_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[groundhog_signed_op_if::__groundhog_spec_fragment_SignedOpError];
+
+const ERC20_PERMIT_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[groundhog_erc20_permit_if::__groundhog_spec_fragment_ERC20PermitError];
 
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
@@ -63,15 +66,6 @@ pub const REGISTRY: &[DescribableType] = &[
         root: "ERC20Error",
     },
     DescribableType {
-        name: "ERC1271Error",
-        crate_name: "groundhog-erc1271-if",
-        major_version: "0.1",
-        selector:
-            <groundhog_erc1271_if::ERC1271Error as sdk::exn::Exn>::SELECTOR,
-        fragments: ERC1271_ERROR_FRAGMENTS,
-        root: "ERC1271Error",
-    },
-    DescribableType {
         name: "ERC20PausableError",
         crate_name: "groundhog-erc20-pausable-if",
         major_version: "0.1",
@@ -88,6 +82,24 @@ pub const REGISTRY: &[DescribableType] = &[
             as sdk::exn::Exn>::SELECTOR,
         fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
         root: "AccessControlError",
+    },
+    DescribableType {
+        name: "SignedOpError",
+        crate_name: "groundhog-signed-op-if",
+        major_version: "0.1",
+        selector:
+            <groundhog_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
+        fragments: SIGNED_OP_ERROR_FRAGMENTS,
+        root: "SignedOpError",
+    },
+    DescribableType {
+        name: "ERC20PermitError",
+        crate_name: "groundhog-erc20-permit-if",
+        major_version: "0.1",
+        selector:
+            <groundhog_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
+        fragments: ERC20_PERMIT_ERROR_FRAGMENTS,
+        root: "ERC20PermitError",
     },
 ];
 

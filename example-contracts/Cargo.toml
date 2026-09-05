@@ -7,18 +7,20 @@ members = [
     "complex-storage",
     "counter",
     "erc20",
+    "erc20_permit",
     "erc20_pausable",
     "erc20_raw_storage",
     "erc20_low_level",
     "exceptions",
     "genesis_deployer",
     "hasher",
+    "signed_op_wallet",
+    "permit_wallet",
     "rcq_test",
     "simple_wallet_old",
     "test_bytestring",
     "trait_sourced_method_spec",
     "u256_roundtrip",
-    "rcq_test",
     "stateless",
     "codegen_trait_noclient",
     "codegen_trait_client",
@@ -47,8 +49,6 @@ members = [
     "signer_middle",
     "signer_minter",
     "signer_tuple_test",
-    "erc1271_wallet",
-    "erc1271_caller",
     "invoke_flags_test",
     "multi_root_storage",
     "slot_reorder",
@@ -92,29 +92,31 @@ version = "0.4.0"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
 publish = ["groundhog"]
-repository = "https://github.com/groundhogchain/example-contracts.git"
-homepage = "https://github.com/groundhogchain/example-contracts.git"
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
 keywords = ["groundhog"]
 categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.27.0" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.27.0" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.27.0", default-features = false }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.30.0" }
+groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.30.0" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.30.0", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.19" }
-groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.19" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.19" }
-groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.19" }
-groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.19" }
-groundhog-erc165-if = { path = "../standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.19" }
-groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.19" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.22" }
+groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc165-if = { path = "../standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.22" }
+groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.22" }
+groundhog-signed-op-if = { path = "../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.22" }
+groundhog-signed-op = { path = "../standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.22" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.27.0" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.27.0" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.27.0" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.27.0" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.30.0" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.30.0" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.30.0" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.30.0" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # External groundhog dependencies
@@ -124,6 +126,7 @@ xdrs = { registry = "groundhog", version = "0.8.2", default-features = false }
 sha2 = { version = "0.11.0", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 hex-literal = "1.0.0"
+ed25519-dalek = { version = "3" }
 heapless = { version = "0.9.2" }
 
 [profile.release]

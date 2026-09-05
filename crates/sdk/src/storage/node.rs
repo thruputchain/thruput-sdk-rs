@@ -6,7 +6,27 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
 #[allow(private_bounds)]
+// No list of element types here: the trait is sealed with explicit impls, so
+// rustc enumerates them itself. This adds only the part it cannot infer --
+// that the fix is to wrap the value rather than find a different type.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be stored in a `Map` or `Vector`",
+    note = "element types must be storage handles: wrap plain data in `Value<{Self}>`; a nested `#[storage]` struct goes in `Node<_>`"
+)]
 pub trait StorageType: Sealed + From<Keypath> {}
+
+/// Build a storage field handle from its keypath.
+///
+/// The `#[storage]` derive calls this rather than `.into()` so that a field
+/// whose type is not a storage handle fails here, at the field. Stated as a
+/// where-clause bound on a concrete type it is *trivially* unsatisfiable,
+/// which rustc reports at the derive's span suggesting
+/// `#![feature(trivial_bounds)]` — never the fix, and it does not say which
+/// field is wrong.
+#[doc(hidden)]
+pub fn __field_from_keypath<T: From<Keypath>>(keypath: Keypath) -> T {
+    T::from(keypath)
+}
 
 /// Wrapper marking a compound storage field group.
 ///

@@ -11,6 +11,12 @@ pub use groundhog_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
 /// Types that are already 32 bytes (like `ContractAddress`) implement
 /// this as a zero-copy borrow. Other types are XDR-encoded and SHA-256
 /// hashed to produce a 32-byte topic.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be an event topic",
+    // No list of accepted types: the impls are explicit, so rustc prints them
+    // itself. A hand-kept copy only drifts.
+    note = "either widen the field to a listed type, or drop `#[topic]` and let it ride in the event payload, where it stays readable"
+)]
 pub trait IntoTopic {
     #[allow(clippy::wrong_self_convention)]
     fn into_topic(&self) -> TopicSrc<'_>;
@@ -62,6 +68,40 @@ impl IntoTopic for str {
 impl IntoTopic for [u8] {
     fn into_topic(&self) -> TopicSrc<'_> {
         TopicSrc::Owned(hash_to_topic(&self))
+    }
+}
+
+// The note above names `ContractAddress` and `SHA256Hash` as valid topics, but
+// they only reached an impl through auto-deref on the method call, so a
+// `T: IntoTopic` bound rejected them. Real impls make the documented set true
+// and let the derive state the bound.
+impl IntoTopic for crate::types::ContractAddress {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        (**self).into_topic()
+    }
+}
+
+impl IntoTopic for crate::types::SHA256Hash {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        (**self).into_topic()
+    }
+}
+
+impl IntoTopic for crate::U256 {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        TopicSrc::Owned(self.to_be_bytes())
+    }
+}
+
+impl IntoTopic for crate::I256 {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        TopicSrc::Owned(self.to_be_bytes())
+    }
+}
+
+impl<T: IntoTopic + ?Sized> IntoTopic for &T {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        (**self).into_topic()
     }
 }
 

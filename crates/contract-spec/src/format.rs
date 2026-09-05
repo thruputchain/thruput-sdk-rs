@@ -1,4 +1,4 @@
-//! Wire-format versioning for the raw spec custom section.
+//! Wire-format versioning for the raw spec ELF section.
 //!
 //! The raw section body is an unframed concatenation of XDR-encoded
 //! [`SpecFragment`](crate::SpecFragment) values, so a parser that disagrees
@@ -32,7 +32,7 @@
 //! incompatible encodings shipped under that name, so the bytes cannot be
 //! interpreted from the section name alone.
 
-/// Prefix shared by every version of the raw spec custom section name.
+/// Prefix shared by every version of the raw spec ELF section name.
 ///
 /// Consumers match on this rather than on [`RAW_SECTION_NAME`] so that a
 /// section written by a different SDK is recognized as a raw spec section of
@@ -41,17 +41,17 @@
 pub const RAW_SECTION_PREFIX: &str = "groundhogspecraw";
 
 /// Wire-format version of the raw spec section this SDK produces and parses.
-pub const RAW_SPEC_FORMAT: u32 = 1;
+pub const RAW_SPEC_FORMAT: u32 = 2;
 
-/// Name of the raw spec custom section this SDK emits.
+/// Name of the raw spec ELF section this SDK emits.
 ///
 /// Kept as a literal rather than concatenated from [`RAW_SECTION_PREFIX`] and
 /// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `groundhog-macros`
 /// needs a literal anyway; `raw_section_name_matches_its_parts` pins the
 /// three against each other.
-pub const RAW_SECTION_NAME: &str = "groundhogspecrawv1";
+pub const RAW_SECTION_NAME: &str = "groundhogspecrawv2";
 
-/// Name of the finalized spec custom section.
+/// Name of the finalized spec ELF section.
 ///
 /// Unversioned: it holds a `ContractSpec`, whose compatibility is governed by
 /// the protocol-level `groundhog-spec` crate rather than by this module.
@@ -69,7 +69,7 @@ pub enum SpecSection {
     Other,
 }
 
-/// Classify a custom section name.
+/// Classify an ELF section name.
 ///
 /// A `groundhogspecraw` section whose suffix is not `v<integer>` classifies
 /// as [`SpecSection::Other`]: an unparseable suffix cannot be reported as a

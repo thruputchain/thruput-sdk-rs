@@ -22,9 +22,9 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build --target rv32 -p counter` derives
-# `--bin counter` from the package name, so the name here must stay the
-# underscored package name. `required-features` keeps it out of host builds.
+# The rv32 artifact. `groundhog build -p counter` derives `--bin counter` from
+# the package name, so the name here must stay the underscored package name.
+# `required-features` keeps it out of host builds.
 [[bin]]
 name = "counter"
 path = "src/main.rs"

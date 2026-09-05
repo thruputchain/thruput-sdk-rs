@@ -24,7 +24,7 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build --target rv32 -p u256_roundtrip` derives
+# The rv32 artifact. `groundhog build -p u256_roundtrip` derives
 # `--bin u256_roundtrip` from the package name, so the name here must stay the
 # underscored package name. `required-features` keeps it out of host builds.
 [[bin]]

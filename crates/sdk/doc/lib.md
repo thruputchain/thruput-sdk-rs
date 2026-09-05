@@ -86,7 +86,7 @@ dev = ["sdk/dev"]
 [lib]
 crate-type = ["rlib"]
 
-# The rv32 artifact. `groundhog build --target rv32 -p my-contract` derives
+# The rv32 artifact. `groundhog build -p my-contract` derives
 # `--bin my-contract` from the package name, so this name must match it.
 # src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
 # my_contract;` force-links the rlib so the entrypoint records reach the
@@ -204,7 +204,25 @@ generated client, which exposes two calling styles:
 - `client.method(...)`: success-oriented path. Typed exceptions are re-thrown to
   the caller, and faults stay faults.
 - `client.try_method(...)`: inspection path. Returns
-  `Result<ReturnType, ClientError>`.
+  `Result<ReturnType, CallError>`. A caught exception stays undecoded: match
+  it with [`match_exn!`], or decode it as a named type with `try_as` /
+  `try_decode`.
+
+```rust,ignore
+match token.try_transfer(&to, amount) {
+    Ok(()) => { /* ... */ }
+    Err(CallError::Fault(f)) => { /* ... */ }
+    Err(e) => match_exn!(e, {
+        ERC20Error::InsufficientBalance    => { /* ... */ }
+        LibraryExn::NonNegativeIntOverflow => { /* ... */ }
+        _ => e.re_throw(),
+    }),
+}
+```
+
+Everything structural — `Ok`, `Fault`, `Invalid` — stays an ordinary Rust
+`match` with real exhaustiveness checking; the macro's only job is typed
+downcasting. See [`match_exn!`] for the matching rules.
 
 Use [`InvokeConfig`] (or the generated `with_gas_limit` constructor) to bound
 the gas a subcall may spend, and [`deploy`] to create new contracts.
@@ -287,10 +305,33 @@ bypass.
   contract acting as an account, declares the public keys and weights its
   address requires.
 
-`groundhog-erc1271` is the wallet-facing shape of this: `is_valid_signature`
-returns the auth tokens a wallet chooses to mint. The caller destructures them
-with `AssumeTokens`, then consumes each one and checks its minter against the
-wallet address it trusts.
+`groundhog-signed-op` is the wallet-facing shape of this — Groundhog's
+ERC-1271 equivalent, with the message typed and domain-separated in the
+spirit of EIP-712 and replay-protected by the chain's uniquifier model.
+`execute_signed_op` returns the one auth token a wallet mints — the root of
+whatever it authorizes, with tokens for downstream contracts as child nodes.
+The caller names its payload type with `Signed::assume`, then consumes it
+and checks its minter against the wallet address it trusts.
+
+### Minting limits
+
+A token node carries at most **4** direct children
+(`groundhog_xdr::auth_token::kAuthTokenMaxChildNodes`), and [`mint_auth_token`]
+**panics** past that rather than reporting it. The count is per node and per
+level of the preimage — containers do not open a new level, so five elements
+in a `Vec<Signed<u64>>` field are five children of one node. A nested
+`Signed<T>` does open a level: its own payload gets its own budget of four.
+
+This matters more on chain than in a test: a panicking contract faults with
+no message, code or location ([#358]), so a preimage that outgrew the cap is
+indistinguishable from any other trap. Keep preimage shapes within the cap by
+construction.
+
+The encoded payload is separately capped at 256 bytes
+(`kAuthTokenMaxLen`), which *is* reported — as
+`AuthTokenError::MintEncodeFailure`.
+
+[#358]: https://github.com/groundhogchain/sdk_rs/issues/358
 
 # Arithmetic
 
@@ -371,7 +412,7 @@ Other useful modules and types:
 impl of that trait exports an implementation. Callers depend on the interface
 crate and get the same generated client either way. That is how the standard
 interfaces in `standard-interfaces/` (`groundhog-erc20`,
-`groundhog-erc20-metadata`, `groundhog-erc1271`) are consumed.
+`groundhog-erc20-metadata`, `groundhog-signed-op`) are consumed.
 
 Every `#[contract]` trait also carries an [`InterfaceId`] as
 `Trait::INTERFACE_ID`, derived from its name and major version, and every

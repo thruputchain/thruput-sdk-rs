@@ -1,0 +1,18 @@
+error[E0277]: the trait bound `u64: From<sdk::storage::Keypath>` is not satisfied
+  --> tests/compile-fail-storage/plain_field_not_storage.rs:18:12
+   |
+18 |     count: u64,
+   |            ^^^ the trait `From<sdk::storage::Keypath>` is not implemented for `u64`
+   |
+   = help: `u64` implements trait `From<T>`:
+             From<bool>
+             From<char>
+             From<std::ascii::Char>
+             From<u16>
+             From<u32>
+             From<u8>
+note: required by a bound in `sdk::storage::__field_from_keypath`
+  --> src/storage/node.rs
+   |
+   | pub fn __field_from_keypath<T: From<Keypath>>(keypath: Keypath) -> T {
+   |                                ^^^^^^^^^^^^^ required by this bound in `__field_from_keypath`

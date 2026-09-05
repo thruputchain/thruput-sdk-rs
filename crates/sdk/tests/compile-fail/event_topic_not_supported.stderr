@@ -1,0 +1,14 @@
+error[E0277]: `u8` cannot be an event topic
+  --> tests/compile-fail/event_topic_not_supported.rs:13:14
+   |
+13 |     pub tag: u8,
+   |              ^^ the trait `IntoTopic` is not implemented for `u8`
+   |
+   = note: either widen the field to a listed type, or drop `#[topic]` and let it ride in the event payload, where it stays readable
+   = help: the following other types implement trait `IntoTopic`:
+             i128
+             i32
+             i64
+             u128
+             u32
+             u64

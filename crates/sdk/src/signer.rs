@@ -349,6 +349,10 @@ where
 /// consumed by the contract named in `preimage.consumer`. Nested `Signed`
 /// fields inside the preimage are minted as child tokens of this one.
 ///
+/// Panics past `kAuthTokenMaxChildNodes` (4) `Signed` fields at one level;
+/// containers do not open a level. Encoded `T` over `kAuthTokenMaxLen` (256
+/// bytes) throws `AuthTokenError::MintEncodeFailure` instead.
+///
 /// Aborts the transaction if the `MintAuthToken` syscall fails.
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(

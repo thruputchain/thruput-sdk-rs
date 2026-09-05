@@ -782,7 +782,7 @@ cargo test -p groundhog-codegen spec_reg --offline
 Then run:
 
 ```bash
-HOGD_FFI_LIB_DIR=/Users/geoff/groundhog/sdk_rs/target/debug/build/groundhog-sys-c7e1afbcc679e113/out/hogd_lib_0.12.1 \
+HOGD_FFI_LIB_DIR=target/debug/build/groundhog-sys-c7e1afbcc679e113/out/hogd_lib_0.12.1 \
 env -u RUSTC_WRAPPER cargo test --offline --manifest-path example-contracts/Cargo.toml \
   --features dev --no-run -p stateless -p counter -p erc20_low_level -p multi_imported_traits
 ```
@@ -1054,7 +1054,7 @@ cargo test -p groundhog-spec-tool --test rewrite built_contracts_produce_expecte
 Then run:
 
 ```bash
-HOGD_FFI_LIB_DIR=/Users/geoff/groundhog/sdk_rs/target/debug/build/groundhog-sys-c7e1afbcc679e113/out/hogd_lib_0.12.1 \
+HOGD_FFI_LIB_DIR=target/debug/build/groundhog-sys-c7e1afbcc679e113/out/hogd_lib_0.12.1 \
 env -u RUSTC_WRAPPER cargo test --offline --manifest-path example-contracts/Cargo.toml \
   --features dev --no-run -p counter -p erc20_low_level -p multi_imported_traits -p free_fn_unnamed
 ```
@@ -1096,7 +1096,7 @@ cargo test -p groundhog-spec-tool --offline
 Run:
 
 ```bash
-HOGD_FFI_LIB_DIR=/Users/geoff/groundhog/sdk_rs/target/debug/build/groundhog-sys-c7e1afbcc679e113/out/hogd_lib_0.12.1 \
+HOGD_FFI_LIB_DIR=target/debug/build/groundhog-sys-c7e1afbcc679e113/out/hogd_lib_0.12.1 \
 env -u RUSTC_WRAPPER cargo test --offline --manifest-path example-contracts/Cargo.toml \
   --features dev --no-run -p stateless -p counter -p erc20_low_level -p multi_imported_traits -p free_fn_unnamed
 ```

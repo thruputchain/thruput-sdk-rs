@@ -99,11 +99,6 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc1271-if",
-        reason: "standard interfaces share an independent version line, bumped \
-                 on SDK semver-major rather than every release",
-    },
-    Named {
         name: "groundhog-erc20-pausable-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
@@ -114,12 +109,28 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  on SDK semver-major rather than every release",
     },
     Named {
+        name: "groundhog-signed-op-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
+        name: "groundhog-erc20-permit-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
         name: "groundhog-erc165-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
         name: "groundhog-access-control",
+        reason: "implementation component on the standard interfaces' \
+                 independent version line, released in lockstep with its \
+                 interface crate",
+    },
+    Named {
+        name: "groundhog-signed-op",
         reason: "implementation component on the standard interfaces' \
                  independent version line, released in lockstep with its \
                  interface crate",
