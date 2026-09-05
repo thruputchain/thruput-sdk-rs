@@ -7,7 +7,7 @@ TARGET_DIR="$(realpath "target")"
 ### BUILDING ###
 
 cargo() {
-    if [ -v CARGO_UNLOCK ] && [ -n "$CARGO_UNLOCK" ]; then
+    if [ -n "${CARGO_UNLOCK:-}" ]; then
         command cargo "$@"
     else
         command cargo --locked "$@"
@@ -677,8 +677,20 @@ lint_contracts() {
     local packages_dir
     packages_dir="${1:-$workspace_dir}"; shift 2>/dev/null || true
 
+    [ -d "$packages_dir" ] || {
+        fail "Contract directory not found: $packages_dir"
+        return 1
+    }
+
+    local contract_packages
+    contract_packages=$(ls_contract_packages "$packages_dir") || return 1
+    [ -n "$contract_packages" ] || {
+        fail "No enabled contract packages found: $packages_dir (initialize submodules)"
+        return 1
+    }
+
     local package
-    for package in $(ls_contract_packages "$packages_dir") ; do
+    for package in $contract_packages ; do
         lint_contract "$workspace_dir" "$package" || {
             fail "Failed linting contract $package"
             return 1
@@ -1029,7 +1041,7 @@ xxx_check() {
 lint() {
     cargo clippy -F dev --lib &&
     lint_contracts "example-contracts" &&
-    lint_contracts "integration_test" "contracts"
+    lint_contracts "integration_test" "integration_test/contracts"
 }
 
 lint_check() {

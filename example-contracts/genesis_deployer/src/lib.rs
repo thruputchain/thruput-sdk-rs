@@ -29,6 +29,7 @@ impl GenesisDeployer {
             entrypoint_id: method,
             gas_limit: u64::MAX,
             flags,
+            reserved: 0,
         };
         let mut outputs = sys::CopyableInvokeOutputs {
             return_buffer_len: 0,
