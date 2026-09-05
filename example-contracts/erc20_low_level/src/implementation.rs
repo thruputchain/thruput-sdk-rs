@@ -146,7 +146,7 @@ pub fn mint(recipient: &ContractAddress, amount: Amount) {
     add_to_balance(recipient, diff);
     add_to_total_supply(diff);
 
-    log_transfer_event(CONTRACT_ADDR_ZERO, recipient, amount);
+    log_mint_event(recipient, amount);
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -157,7 +157,7 @@ pub fn burn(loser: &ContractAddress, amount: Amount) {
     add_to_balance(loser, -diff);
     add_to_total_supply(-diff);
 
-    log_transfer_event(loser, CONTRACT_ADDR_ZERO, amount);
+    log_burn_event(loser, amount);
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]

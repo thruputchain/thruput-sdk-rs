@@ -1,24 +1,18 @@
 //! ERC20 Events
 //!
-//! See [EIP-20].
-//!
-//! # Transfer
+//! See [EIP-20] for `Transfer` and `Approval`:
 //!
 //! `event Transfer(address indexed _from, address indexed _to, uint256 _value)`
-//!
-//! "MUST trigger when tokens are transferred, including zero value transfers. A token contract
-//! which creates new tokens SHOULD trigger a Transfer event with the `_from` address set to `0x0`
-//! when tokens are created."
-//!
-//! # Approval
-//!
 //! `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
 //!
-//! "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+//! Supply changes have their own events here, [`MintEvent`] and
+//! [`BurnEvent`], where Ethereum overloads `Transfer` with the zero address
+//! as `_from` or `_to`. On Groundhog the zero address is an address like
+//! any other, so a transfer involving it is exactly that, and a mint or
+//! burn says so by name.
 //!
 //! [EIP-20]: https://eips.ethereum.org/EIPS/eip-20#events
 
-use crate::CONTRACT_ADDR_ZERO;
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
 use sdk::{
@@ -42,8 +36,7 @@ pub fn log_transfer_event(
 }
 
 /// An event emitted when ERC20 tokens are transferred between addresses.
-/// If `from` is address zero, this is a "mint" event.
-/// If `to` is address zero, is is a "burn" event.
+/// Supply changes are [`MintEvent`] and [`BurnEvent`], not transfers.
 #[derive(Event, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransferEvent<'a> {
     #[topic]
@@ -107,29 +100,13 @@ impl<'a> From<&TransferEvent<'a>> for stdevt::TransferEvent {
 
 impl<'a> fmt::Display for TransferEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.from == CONTRACT_ADDR_ZERO {
-            write!(
-                f,
-                "MINT_TO({}, amount:{:?})",
-                hex_encode(self.to),
-                self.amount
-            )
-        } else if self.to == CONTRACT_ADDR_ZERO {
-            write!(
-                f,
-                "BURN_FROM({}, amount:{:?})",
-                hex_encode(self.from),
-                self.amount
-            )
-        } else {
-            write!(
-                f,
-                "TRANSFER({}, {}, amount:{:?})",
-                hex_encode(self.from),
-                hex_encode(self.to),
-                self.amount,
-            )
-        }
+        write!(
+            f,
+            "TRANSFER({}, {}, amount:{:?})",
+            hex_encode(self.from),
+            hex_encode(self.to),
+            self.amount,
+        )
     }
 }
 
@@ -223,10 +200,126 @@ impl<'a> fmt::Display for ApprovalEvent<'a> {
 
 // ----------------------------------------------------------------------
 
+/// Log that `amount` tokens were created into `to`.
+pub fn log_mint_event(to: &ContractAddress, amount: u128) {
+    log_event(&MintEvent::new(to, crate::error::amount_to_diff(amount)));
+}
+
+/// An event emitted when tokens are created.
+#[derive(Event, Clone, Debug, PartialEq, Eq)]
+pub struct MintEvent<'a> {
+    #[topic]
+    pub to: &'a ContractAddress,
+    /// The created amount; non-negative, typed like
+    /// [`TransferEvent::amount`].
+    pub amount: i128,
+}
+
+impl<'a> MintEvent<'a> {
+    pub fn new(to: &'a ContractAddress, amount: i128) -> Self {
+        Self { to, amount }
+    }
+}
+
+impl<'a> TryFrom<EmittedEvent<'a>> for MintEvent<'a> {
+    type Error = &'static str;
+
+    fn try_from(
+        event: EmittedEvent<'a>,
+    ) -> core::result::Result<Self, Self::Error> {
+        let sig = event.topic(0).ok_or("No event signature")?;
+        if sig != MintEvent::SIGNATURE {
+            return Err("Unexpected event signature");
+        }
+
+        let to: &ContractAddress =
+            event.topic(1).ok_or("Missing topic")?.into();
+        let payload = event
+            .payload()
+            .ok_or("Malformed event: topics overrun body")?;
+        let amount: i128 = sdk::internal::decode_xdr(payload)
+            .map_err(|_| "Couldn't parse event payload")?;
+
+        Ok(MintEvent::new(to, amount))
+    }
+}
+
+impl<'a> fmt::Display for MintEvent<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "MINT_TO({}, amount:{:?})",
+            hex_encode(self.to),
+            self.amount
+        )
+    }
+}
+
+// ----------------------------------------------------------------------
+
+/// Log that `amount` tokens were destroyed from `from`.
+pub fn log_burn_event(from: &ContractAddress, amount: u128) {
+    log_event(&BurnEvent::new(from, crate::error::amount_to_diff(amount)));
+}
+
+/// An event emitted when tokens are destroyed.
+#[derive(Event, Clone, Debug, PartialEq, Eq)]
+pub struct BurnEvent<'a> {
+    #[topic]
+    pub from: &'a ContractAddress,
+    /// The destroyed amount; non-negative, typed like
+    /// [`TransferEvent::amount`].
+    pub amount: i128,
+}
+
+impl<'a> BurnEvent<'a> {
+    pub fn new(from: &'a ContractAddress, amount: i128) -> Self {
+        Self { from, amount }
+    }
+}
+
+impl<'a> TryFrom<EmittedEvent<'a>> for BurnEvent<'a> {
+    type Error = &'static str;
+
+    fn try_from(
+        event: EmittedEvent<'a>,
+    ) -> core::result::Result<Self, Self::Error> {
+        let sig = event.topic(0).ok_or("No event signature")?;
+        if sig != BurnEvent::SIGNATURE {
+            return Err("Unexpected event signature");
+        }
+
+        let from: &ContractAddress =
+            event.topic(1).ok_or("Missing topic")?.into();
+        let payload = event
+            .payload()
+            .ok_or("Malformed event: topics overrun body")?;
+        let amount: i128 = sdk::internal::decode_xdr(payload)
+            .map_err(|_| "Couldn't parse event payload")?;
+
+        Ok(BurnEvent::new(from, amount))
+    }
+}
+
+impl<'a> fmt::Display for BurnEvent<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "BURN_FROM({}, amount:{:?})",
+            hex_encode(self.from),
+            self.amount
+        )
+    }
+}
+
+// ----------------------------------------------------------------------
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ERC20Event<'a> {
     Transfer(TransferEvent<'a>),
     Approval(ApprovalEvent<'a>),
+    Mint(MintEvent<'a>),
+    Burn(BurnEvent<'a>),
 }
 
 impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
@@ -244,6 +337,8 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
             ApprovalEvent::SIGNATURE => {
                 Ok(ERC20Event::Approval(event.try_into()?))
             }
+            MintEvent::SIGNATURE => Ok(ERC20Event::Mint(event.try_into()?)),
+            BurnEvent::SIGNATURE => Ok(ERC20Event::Burn(event.try_into()?)),
             _ => Err("Unexpected event signature"),
         }
     }
@@ -256,6 +351,43 @@ impl<'a> fmt::Display for ERC20Event<'a> {
         match self {
             ERC20Event::Transfer(e) => e.fmt(f),
             ERC20Event::Approval(e) => e.fmt(f),
+            ERC20Event::Mint(e) => e.fmt(f),
+            ERC20Event::Burn(e) => e.fmt(f),
+        }
+    }
+}
+
+/// Owned, XDR-encodable form of [`MintEvent`], for event logs that cross a
+/// contract boundary (there is no `standard_asset_events` counterpart).
+#[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
+pub struct StdMintEvent {
+    pub to_address: ContractAddress,
+    pub amount: i128,
+}
+
+impl<'a> From<&MintEvent<'a>> for StdMintEvent {
+    fn from(val: &MintEvent<'a>) -> Self {
+        StdMintEvent {
+            to_address: *val.to,
+            amount: val.amount,
+        }
+    }
+}
+
+/// Owned, XDR-encodable form of [`BurnEvent`].
+#[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
+pub struct StdBurnEvent {
+    pub from_address: ContractAddress,
+    pub amount: i128,
+}
+
+impl<'a> From<&BurnEvent<'a>> for StdBurnEvent {
+    fn from(val: &BurnEvent<'a>) -> Self {
+        StdBurnEvent {
+            from_address: *val.from,
+            amount: val.amount,
         }
     }
 }
@@ -266,6 +398,8 @@ impl<'a> fmt::Display for ERC20Event<'a> {
 pub enum StdERC20Event {
     Transfer(stdevt::TransferEvent),
     Approval(stdevt::ApprovalEvent),
+    Mint(StdMintEvent),
+    Burn(StdBurnEvent),
 }
 
 impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
@@ -273,6 +407,8 @@ impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
         match val {
             ERC20Event::Transfer(e) => StdERC20Event::Transfer(e.into()),
             ERC20Event::Approval(e) => StdERC20Event::Approval(e.into()),
+            ERC20Event::Mint(e) => StdERC20Event::Mint(e.into()),
+            ERC20Event::Burn(e) => StdERC20Event::Burn(e.into()),
         }
     }
 }

@@ -12,6 +12,13 @@ use sdk::{ContractAddress, contract};
 pub type Amount = u128;
 pub type Difference = i128;
 
+/// The all-zero address.
+///
+/// Nothing in this interface treats it specially any more: mints and burns
+/// are [`MintEvent`] and [`BurnEvent`], not transfers from or to it. It
+/// stays exported for consumers that render or model those events, and
+/// as the address groundhogchain/hogd#3871 proposes reserving as "nothing
+/// is here".
 pub const CONTRACT_ADDR_ZERO: &ContractAddress =
     &ContractAddress::new([0; 32]);
 
@@ -30,7 +37,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, ApprovalEvent)
+    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -74,12 +81,12 @@ pub trait ERC20 {
     /// Get balance for caller
     fn get_balance(&self) -> Amount;
 
-    /// Create tokens into `receiver` address.
+    /// Create tokens into `receiver` address and emit [`MintEvent`].
     /// Throws [`ERC20Error::MustBeContractOwner`] unless the caller is the
     /// administrator.
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount);
 
-    /// Destroy tokens from `owner` address.
+    /// Destroy tokens from `owner` address and emit [`BurnEvent`].
     /// Throws [`ERC20Error::MustBeContractOwner`] unless the caller is the
     /// administrator, and [`ERC20Error::TooLarge`] if `owner`'s balance is
     /// less than `amount`.

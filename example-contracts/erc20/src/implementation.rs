@@ -201,7 +201,7 @@ impl ERC20 for TokenContract {
         self._increase_total_supply(amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
+        log_mint_event(receiver, amount);
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
@@ -214,7 +214,7 @@ impl ERC20 for TokenContract {
         self._decrease_balance(owner, amount);
         self._decrease_total_supply(amount);
 
-        log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount);
+        log_burn_event(owner, amount);
     }
 
     fn total_supply(&self) -> Amount {

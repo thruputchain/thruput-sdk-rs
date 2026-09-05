@@ -39,7 +39,7 @@ impl Model {
 
         *balance = (*balance).checked_add(amount).unwrap();
 
-        self.log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
+        self.log_mint_event(receiver, amount);
     }
 
     pub fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
@@ -49,7 +49,7 @@ impl Model {
 
         *balance = (*balance).checked_sub(amount).unwrap();
 
-        self.log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount);
+        self.log_burn_event(owner, amount);
     }
 
     pub fn adjust_allowance(
@@ -93,6 +93,20 @@ impl Model {
     ) {
         let amount = i128::try_from(amount).expect("model amount fits i128");
         let event = ERC20Event::Transfer(TransferEvent::new(from, to, amount));
+
+        self.events.push((&event).into());
+    }
+
+    fn log_mint_event(&mut self, to: &ContractAddress, amount: u128) {
+        let amount = i128::try_from(amount).expect("model amount fits i128");
+        let event = ERC20Event::Mint(MintEvent::new(to, amount));
+
+        self.events.push((&event).into());
+    }
+
+    fn log_burn_event(&mut self, from: &ContractAddress, amount: u128) {
+        let amount = i128::try_from(amount).expect("model amount fits i128");
+        let event = ERC20Event::Burn(BurnEvent::new(from, amount));
 
         self.events.push((&event).into());
     }
