@@ -9,12 +9,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-extern crate alloc;
-
 sdk::declare_mock_contract!();
-
-use alloc::vec;
-use alloc::vec::Vec;
 
 use groundhog_signed_op::{Operation, SignedOp, SignedOpReplayCache};
 use sdk::mintable::AuthTokenPreimage;
@@ -77,7 +72,7 @@ impl SignedOp for SignedOpWallet {
         &mut self,
         op: Operation,
         signature: &Ed25519Signature,
-    ) -> Vec<Signed<Opaque>> {
+    ) -> Signed<Opaque> {
         // Authority first: only the owner's operations are worth verifying.
         // A refusal throws and reverts, so nothing below leaves a mark.
         if op.signer != self.owner.get() {
@@ -93,9 +88,9 @@ impl SignedOp for SignedOpWallet {
                 consumer: get_caller(),
                 data: grant.amount,
             });
-        vec![sdk::signer::mint_opaque_auth_token(
+        sdk::signer::mint_opaque_auth_token(
             sdk::block::get_block_height(),
             &sdk::mintable::encode_auth_token_node(&node),
-        )]
+        )
     }
 }

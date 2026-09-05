@@ -85,7 +85,7 @@ Each line mirrors the transaction replay cache (groundhog-xdr
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
     fn execute_signed_op(&mut self, op: Operation, signature: &Ed25519Signature)
-        -> Vec<Signed<Opaque>>;
+        -> Signed<Opaque>;   // one root token; downstream grants are its children
 }
 
 #[sdk::contract_exception] #[non_exhaustive]
@@ -99,7 +99,9 @@ pub enum SignedOpError {
 ```
 
 `next_signed_op_nonce` is removed: nothing on-chain is needed to choose a
-fresh pair.
+fresh pair. The return type is one token rather than a `Vec`, and the
+interface crate drops `alloc` with it, so a no-alloc contract can call a
+wallet and receive what it minted; only the verifying component allocates.
 
 ## Component (`groundhog-signed-op`)
 

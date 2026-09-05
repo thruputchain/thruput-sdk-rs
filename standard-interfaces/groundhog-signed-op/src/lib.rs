@@ -31,18 +31,16 @@
 //! beyond the SDK, so a caller that only needs to *invoke* a signed-op
 //! contract through `SignedOpClient` depends on this crate alone.
 //!
-//! [`SignedOp::execute_signed_op`] returns auth tokens: a validated operation
-//! mints an auth-token tree, so one signature can authorize a whole scoped
-//! call graph, each downstream contract consuming only its own node. Callers
-//! destructure the result with
-//! [`AssumeTokens::assume_tokens`](sdk::AssumeTokens::assume_tokens).
-
-extern crate alloc;
+//! [`SignedOp::execute_signed_op`] returns one auth token: a validated
+//! operation mints an auth-token tree whose root it hands back, so one
+//! signature can authorize a whole scoped call graph, each downstream
+//! contract consuming only its own node. The caller names the payload type
+//! with [`Signed::assume`] and consumes it, or passes it down. One token
+//! rather than a `Vec` keeps this crate — and every caller — free of `alloc`.
 
 mod error;
 pub use error::*;
 
-use alloc::vec::Vec;
 use sdk::signer::{Opaque, Signed};
 use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
@@ -91,17 +89,18 @@ impl Operation {
 /// A contract that accepts operations authorized by an off-chain signature.
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
-    /// Verify `op` under `signature`, consume its uniquifier, and mint its
-    /// auth tokens.
+    /// Verify `op` under `signature`, consume its uniquifier, and mint the
+    /// auth token it authorizes.
     ///
-    /// Returns an empty `Vec` if the operation authorizes something needing no
-    /// tokens. Throws a [`SignedOpError`] if any check fails; it must not
-    /// return an empty `Vec` to signal refusal. A refusal is a throw, so it
+    /// Always exactly one token on success: the root of whatever tree the
+    /// operation authorizes, with anything for downstream contracts as its
+    /// child nodes. Throws a [`SignedOpError`] if any check fails; refusal is
+    /// never expressed through the token. A refusal is a throw, so it
     /// consumes nothing: a refused operation stays submittable until it
     /// expires.
     fn execute_signed_op(
         &mut self,
         op: Operation,
         signature: &Ed25519Signature,
-    ) -> Vec<Signed<Opaque>>;
+    ) -> Signed<Opaque>;
 }

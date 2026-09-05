@@ -9,7 +9,7 @@
 use ed25519_dalek::{Signer, SigningKey};
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
 use groundhog_signed_op::{Operation, SignedOpClient, SignedOpError};
-use sdk::signer::{AssumeTokens, Signed};
+use sdk::signer::Signed;
 use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::BytesM;
@@ -104,8 +104,8 @@ fn alice_grant(
     )
 }
 
-/// Submit as `submitter()`, unwrap the one token the wallet mints, and consume
-/// it here — the submitter is the named consumer.
+/// Submit as `submitter()`, name the token's payload, and consume it here —
+/// the submitter is the named consumer.
 fn submit(
     env: &sdk::TestEnvironmentHandle,
     op: Operation,
@@ -113,9 +113,9 @@ fn submit(
 ) -> sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&submitter()).run(move || {
-            let tokens = SignedOpClient::new(&wallet())
-                .execute_signed_op(op, &signature);
-            let (token,): (Signed<u64>,) = AssumeTokens::assume_tokens(tokens);
+            let token: Signed<u64> = SignedOpClient::new(&wallet())
+                .execute_signed_op(op, &signature)
+                .assume();
             let (amount, minter) = token.consume();
             assert_eq!(amount, AMOUNT);
             assert_eq!(minter, wallet());

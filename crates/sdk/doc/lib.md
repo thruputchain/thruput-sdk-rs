@@ -308,9 +308,10 @@ bypass.
 `groundhog-signed-op` is the wallet-facing shape of this — Groundhog's
 ERC-1271 equivalent, with the message typed and domain-separated in the
 spirit of EIP-712 and replay-protected by the chain's uniquifier model.
-`execute_signed_op` returns the auth tokens a wallet chooses to mint. The
-caller destructures them with `AssumeTokens`, then consumes each one and
-checks its minter against the wallet address it trusts.
+`execute_signed_op` returns the one auth token a wallet mints — the root of
+whatever it authorizes, with tokens for downstream contracts as child nodes.
+The caller names its payload type with `Signed::assume`, then consumes it
+and checks its minter against the wallet address it trusts.
 
 # Arithmetic
 
