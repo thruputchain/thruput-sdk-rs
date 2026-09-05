@@ -205,9 +205,7 @@ impl SignedOpReplayCache {
         if sdk::block::get_block_height() <= uniquifier.block_expiry_height {
             sdk::throw(SignedOpError::NotYetExpired);
         }
-        let mut slot = self.consumed.at_mut(uniquifier);
-        if slot.try_get().none_if_missing().is_some() {
-            slot.delete();
-        }
+        // Delete is idempotent, so no need to look before removing.
+        self.consumed.at_mut(uniquifier).delete();
     }
 }
