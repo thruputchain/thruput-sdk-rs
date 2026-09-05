@@ -216,6 +216,23 @@ fn an_expired_operation_is_refused() {
     assert_refuses!(&env, op, sig, SignedOpError::Expired);
 }
 
+/// Past its height a consumed pair is `Expired`, not `AlreadyConsumed`:
+/// expiry is checked before the cache, so the refusal reads the same before
+/// and after the entry is pruned.
+#[test]
+fn a_consumed_operation_reports_expired_once_past_its_height() {
+    let env = setup();
+    let u = uniquifier(current_height(&env) + 1, NONCE);
+    let (op, sig) =
+        sign(&ALICE_SEED, &wallet(), u.clone(), &Grant { amount: AMOUNT });
+    submit(&env, op, sig).assert_success();
+    env.advance_block();
+    env.advance_block();
+
+    let (op, sig) = sign(&ALICE_SEED, &wallet(), u, &Grant { amount: AMOUNT });
+    assert_refuses!(&env, op, sig, SignedOpError::Expired);
+}
+
 /// Pruning drops a dead entry and can never re-admit the operation: the
 /// expiry that makes the entry prunable is checked before the cache.
 #[test]

@@ -46,6 +46,10 @@ pub struct SignedOpWallet {
 impl SignedOpWallet {
     /// Set the key this wallet accepts. Throws
     /// [`WalletError::AlreadyInitialized`] if called more than once.
+    ///
+    /// Open to any caller. Call it in the transaction that deploys the
+    /// wallet, so no other transaction can reach the wallet uninitialized and
+    /// claim it.
     pub fn initialize(&mut self, owner: &Ed25519PublicKey) {
         if self.owner.try_get().none_if_missing().is_some() {
             throw(WalletError::AlreadyInitialized);

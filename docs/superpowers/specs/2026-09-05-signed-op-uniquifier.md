@@ -63,8 +63,9 @@ Each line mirrors the transaction replay cache (groundhog-xdr
   scoped to the verifying contract. Same nonce with a different expiry is a
   different operation and does not conflict.
 - **Scope is the contract, not the signer**, as the chain scopes by invoked
-  address. All keys authorized at one wallet share the space; with 64-bit
-  chosen nonces a collision is the signer's own doing, not an attack.
+  address. All keys authorized at one wallet share the space, so a wallet
+  with several signers has them draw nonces at random; a collision is then
+  the signer's own doing, not an attack.
 - **Validity**: `current_height <= block_expiry_height` (inclusive — "invalid
   after this block").
 - **Same-block double consumption conflicts at commit**, as
@@ -113,7 +114,7 @@ pub fn verify_signed_op<T>(op: &Operation, signature: &Ed25519Signature) -> T;
 pub struct SignedOpReplayCache { consumed: Map<Uniquifier, Value<()>> }
 
 impl SignedOpReplayCache {
-    /// Cache hit (AlreadyConsumed) → expiry → decode + signature → consume
+    /// Expiry → cache hit (AlreadyConsumed) → decode + signature → consume
     /// under an exclusive lock. Throws on any failure; writes nothing.
     pub fn consume<T>(&mut self, op: &Operation, signature: &Ed25519Signature) -> T;
     /// Delete a dead entry. Throws unless current_height > block_expiry_height.

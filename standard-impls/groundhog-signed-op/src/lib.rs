@@ -20,17 +20,17 @@
 //!         &mut self,
 //!         op: Operation,
 //!         signature: &Ed25519Signature,
-//!     ) -> Vec<Signed<Opaque>> {
+//!     ) -> Signed<Opaque> {
 //!         let transfer: Transfer = self.replay.consume(&op, signature);
-//!         // ... check that `op.signer` may authorize this, then mint tokens
+//!         // ... check that `op.signer` may authorize this, then mint
 //!     }
 //! }
 //! ```
 //!
 //! # What a verifier must check
 //!
-//! [`SignedOpReplayCache::consume`] performs all of it, and each check maps
-//! to a [`SignedOpError`]:
+//! [`SignedOpReplayCache::consume`] performs all of it, in this order, and
+//! each check maps to a [`SignedOpError`]:
 //!
 //! - `block_expiry_height`, against the current block height;
 //! - the `(nonce, block_expiry_height)` pair, against what this contract has
@@ -80,12 +80,25 @@ pub fn verify_signed_op<T>(op: &Operation, signature: &Ed25519Signature) -> T
 where
     T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
 {
-    let now = sdk::block::get_block_height();
-    // Inclusive, as the chain reads a transaction's block_expiry_height.
-    if now > op.block_expiry_height {
+    check_expiry(op);
+    decode_and_verify(op, signature)
+}
+
+/// Throws [`SignedOpError::Expired`] once the current height is past
+/// `op.block_expiry_height`. Inclusive, as the chain reads a transaction's
+/// `block_expiry_height`.
+fn check_expiry(op: &Operation) {
+    if sdk::block::get_block_height() > op.block_expiry_height {
         sdk::throw(SignedOpError::Expired);
     }
+}
 
+/// Decode the body as `T` and check the signature over the preimage that
+/// decoding produces.
+fn decode_and_verify<T>(op: &Operation, signature: &Ed25519Signature) -> T
+where
+    T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
+{
     let body: T = match sdk::xdr::cxs::decode(op.body.0.as_slice()) {
         Ok(body) => body,
         Err(_) => sdk::throw(SignedOpError::MalformedBody),
@@ -113,10 +126,13 @@ where
 /// [`consume`](Self::consume), which checks and records the pair in one call
 /// so "verified but never consumed" is not expressible.
 ///
-/// Keyed by the [`Uniquifier`] alone, scoped to the contract, exactly as the
-/// chain's replay cache is scoped to an address: every key authorized here
-/// shares one space. With 64-bit chosen nonces a collision is the signer's
-/// own doing.
+/// Keyed by the [`Uniquifier`] alone and scoped to the contract, exactly as
+/// the chain's replay cache is scoped to an address rather than a key: every
+/// key authorized here shares one space, and a pair one key has consumed is
+/// refused from every other. A contract that admits several signers should
+/// have them draw nonces at random — 64 random bits do not collide by
+/// accident, two counters do — and a collision under any scheme costs a
+/// fresh pair, never an execution.
 #[sdk::storage]
 pub struct SignedOpReplayCache {
     consumed: Map<Uniquifier, Value<()>>,
@@ -126,6 +142,12 @@ impl SignedOpReplayCache {
     /// Verify an operation and consume its uniquifier, returning the decoded
     /// payload. Throws [`SignedOpError`] on any failed check, in which case
     /// nothing is written.
+    ///
+    /// The checks run in the order the crate docs list them. Expiry comes
+    /// before the cache, so a dead operation is
+    /// [`Expired`](SignedOpError::Expired) whether or not its entry has been
+    /// pruned; pruning changes nothing observable. The cache comes before the
+    /// signature, so a replay costs no verification.
     pub fn consume<T>(
         &mut self,
         op: &Operation,
@@ -134,10 +156,8 @@ impl SignedOpReplayCache {
     where
         T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
     {
+        check_expiry(op);
         let uniquifier = op.uniquifier();
-        // Cheapest refusal first; a hit needs no signature check. Expiry is
-        // inside verify_signed_op and so precedes the cache on the success
-        // path too, which is what makes pruning safe.
         if self
             .consumed
             .at(&uniquifier)
@@ -147,7 +167,7 @@ impl SignedOpReplayCache {
         {
             sdk::throw(SignedOpError::AlreadyConsumed);
         }
-        let body = verify_signed_op::<T>(op, signature);
+        let body = decode_and_verify::<T>(op, signature);
         // Exclusive: two transactions carrying the same operation in one
         // block both see the pair absent and would both write it, and a
         // shared write lets identical values commit side by side. The

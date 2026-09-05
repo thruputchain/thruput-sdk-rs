@@ -67,7 +67,10 @@ pub struct Operation {
     pub block_expiry_height: BlockHeight,
     /// Chosen by the signer: any value, as long as the pair
     /// `(nonce, block_expiry_height)` has not been consumed at the verifying
-    /// contract. Random or locally counted both work; there is no ordering.
+    /// contract. There is no ordering. The consumed pairs are the contract's,
+    /// not the key's — as the chain's replay cache is per address — so where
+    /// several keys sign for one contract, draw nonces at random rather than
+    /// counting; a lone key may do either.
     pub nonce: u64,
     /// The CXS-encoded application payload. A verifier decodes it as the
     /// payload type it expects before checking the signature, so the type's
