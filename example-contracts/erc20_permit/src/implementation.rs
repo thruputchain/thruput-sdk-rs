@@ -1,8 +1,8 @@
 //! ERC20 state and the two grant-consuming entrypoints.
 
 use groundhog_erc20_if::{
-    Amount, CONTRACT_ADDR_ZERO, Difference, ERC20, ERC20Error, amount_to_diff,
-    log_approval_event, log_transfer_event,
+    Amount, Difference, ERC20, ERC20Error, amount_to_diff, log_approval_event,
+    log_burn_event, log_mint_event, log_transfer_event,
 };
 use groundhog_erc20_permit_if::{ERC20Permit, ERC20PermitError, PermitGrant};
 use sdk::signer::Signed;
@@ -135,7 +135,7 @@ impl ERC20 for PermitToken {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         self._lazy_increase_balance(receiver, amount);
 
-        log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
+        log_mint_event(receiver, amount);
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
@@ -148,7 +148,7 @@ impl ERC20 for PermitToken {
             .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
-        log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount);
+        log_burn_event(owner, amount);
     }
 
     fn total_supply(&self) -> Amount {
