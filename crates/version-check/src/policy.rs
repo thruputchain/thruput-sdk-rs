@@ -124,6 +124,11 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  on SDK semver-major rather than every release",
     },
     Named {
+        name: "groundhog-erc721-if",
+        reason: "standard interfaces share an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
         name: "groundhog-access-control",
         reason: "implementation component on the standard interfaces' \
                  independent version line, released in lockstep with its \

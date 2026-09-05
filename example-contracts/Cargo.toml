@@ -9,6 +9,8 @@ members = [
     "erc20",
     "erc20_permit",
     "erc20_pausable",
+    "erc721",
+    "erc721_receiver",
     "erc20_raw_storage",
     "erc20_low_level",
     "exceptions",
@@ -112,6 +114,7 @@ groundhog-access-control = { path = "../standard-impls/groundhog-access-control"
 groundhog-signed-op-if = { path = "../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.27" }
 groundhog-signed-op = { path = "../standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.27" }
 groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.27" }
+groundhog-erc721-if = { path = "../standard-interfaces/groundhog-erc721", registry = "groundhog", version = "=0.1.27" }
 
 erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.34.0" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.34.0" }
