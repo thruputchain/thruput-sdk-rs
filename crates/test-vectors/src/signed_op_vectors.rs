@@ -8,6 +8,7 @@
 
 use groundhog_contract_spec::{ContractTypeName, ContractTypeSpec};
 use groundhog_domain_separator::{SIGNED_OP, SignedOp};
+use groundhog_xdr::transaction::Uniquifier;
 use groundhog_xdr::types::{
     BlockHeight, ContractAddress, NetworkHash, SHA256Hash,
 };
@@ -58,8 +59,8 @@ impl ContractTypeName for Revoke {
 struct Header {
     network: [u8; 32],
     verifying_contract: [u8; 32],
+    block_expiry_height: i64,
     nonce: u64,
-    valid_until: i64,
 }
 
 fn vector<T: WriteXDR + ContractTypeSpec>(
@@ -67,11 +68,14 @@ fn vector<T: WriteXDR + ContractTypeSpec>(
     header: &Header,
     body: &T,
 ) -> Value {
+    let uniquifier = Uniquifier {
+        block_expiry_height: BlockHeight::new(header.block_expiry_height),
+        nonce: header.nonce,
+    };
     let op = SignedOp {
         network: NetworkHash::new(SHA256Hash::new(header.network)),
         verifying_contract: ContractAddress::from(header.verifying_contract),
-        nonce: header.nonce,
-        valid_until: BlockHeight::new(header.valid_until),
+        uniquifier: uniquifier.clone(),
         body,
     };
 
@@ -81,8 +85,12 @@ fn vector<T: WriteXDR + ContractTypeSpec>(
         "type_def_cxs_hex": hex(&xdrs::cxs::encode(&T::TYPE_DEF).unwrap()),
         "network_hex": hex(&header.network),
         "verifying_contract_hex": hex(&header.verifying_contract),
+        // The chain's Uniquifier, encoded as it sits in the preimage
+        // (expiry first, then nonce); the two fields are also given
+        // separately for clients that build the pair themselves.
+        "block_expiry_height": header.block_expiry_height.to_string(),
         "nonce": header.nonce.to_string(),
-        "valid_until": header.valid_until.to_string(),
+        "uniquifier_cxs_hex": hex(&xdrs::cxs::encode(&uniquifier).unwrap()),
         "body_cxs_hex": hex(&xdrs::cxs::encode(body).unwrap()),
         "signed_message_hex": hex(&op.preimage().unwrap()),
     })
@@ -92,21 +100,21 @@ pub fn generate() -> Value {
     let zeroed = Header {
         network: [0u8; 32],
         verifying_contract: [0u8; 32],
+        block_expiry_height: 0,
         nonce: 0,
-        valid_until: 0,
     };
     let typical = Header {
         network: [0x5a; 32],
         verifying_contract: [0x03; 32],
+        block_expiry_height: 1_000,
         nonce: 1,
-        valid_until: 1_000,
     };
     // Widest varints: where a client assuming fixed-width integers breaks.
     let extremes = Header {
         network: [0xff; 32],
         verifying_contract: [0xee; 32],
+        block_expiry_height: i64::MAX,
         nonce: u64::MAX,
-        valid_until: i64::MAX,
     };
 
     let vectors = vec![
@@ -127,7 +135,8 @@ pub fn generate() -> Value {
     ];
 
     json!({
-        "version": 1,
+        // 2: the nonce/expiry pair became a Uniquifier, encoded expiry-first.
+        "version": 2,
         "category": "signed_op",
         "domain_separator_cxs_hex": hex(SIGNED_OP.as_bytes()),
         "vectors": vectors,
@@ -160,6 +169,22 @@ mod tests {
             assert!(signed.contains(v["type_def_cxs_hex"].as_str().unwrap()));
             assert!(signed.ends_with(v["body_cxs_hex"].as_str().unwrap()));
         }
+    }
+
+    /// The preimage carries the uniquifier as the chain encodes it: expiry,
+    /// then nonce, immediately before the body.
+    #[test]
+    fn uniquifier_sits_before_the_body_expiry_first() {
+        let out = generate();
+        let vectors = out["vectors"].as_array().unwrap();
+        let v = find(vectors, "grant_typical");
+        let signed = v["signed_message_hex"].as_str().unwrap();
+        let uniq = v["uniquifier_cxs_hex"].as_str().unwrap();
+        let body = v["body_cxs_hex"].as_str().unwrap();
+        assert!(signed.ends_with(&format!("{uniq}{body}")));
+        let expiry =
+            hex(&xdrs::cxs::encode(&BlockHeight::new(1_000)).unwrap());
+        assert!(uniq.starts_with(&expiry));
     }
 
     #[test]

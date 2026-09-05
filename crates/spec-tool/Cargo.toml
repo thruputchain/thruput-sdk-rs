@@ -18,7 +18,6 @@ path = "src/lib.rs"
 groundhog-contract-spec = { workspace = true, features = ["alloc", "serde"] }
 groundhog-contract-util = { workspace = true }
 groundhog-erc20-if = { workspace = true }
-groundhog-erc1271-if = { workspace = true }
 groundhog-erc20-pausable-if = { workspace = true }
 groundhog-access-control-if = { workspace = true }
 groundhog-signed-op-if = { workspace = true }

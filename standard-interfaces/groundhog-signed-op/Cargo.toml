@@ -16,7 +16,10 @@ entrypoints = []
 dev = ["sdk/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.29.0", features = ["alloc"] }
+# No `alloc`: the interface returns one token, not a Vec, so a no-alloc
+# contract can call a wallet and receive it. Only the verifying component
+# (groundhog-signed-op) allocates, to build the preimage.
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.29.0" }
 thiserror = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]

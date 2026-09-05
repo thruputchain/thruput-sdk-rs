@@ -411,14 +411,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "groundhog-erc1271-if"
-version = "0.1.21"
-dependencies = [
- "sdk",
- "thiserror",
-]
-
-[[package]]
 name = "groundhog-erc20-if"
 version = "0.1.21"
 dependencies = [
@@ -537,7 +529,6 @@ dependencies = [
  "groundhog-access-control-if",
  "groundhog-contract-spec",
  "groundhog-contract-util",
- "groundhog-erc1271-if",
  "groundhog-erc20-if",
  "groundhog-erc20-pausable-if",
  "groundhog-signed-op-if",

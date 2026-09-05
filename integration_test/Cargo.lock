@@ -355,14 +355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "groundhog-erc1271-if"
-version = "0.1.21"
-dependencies = [
- "sdk",
- "thiserror",
-]
-
-[[package]]
 name = "groundhog-erc20-if"
 version = "0.1.21"
 dependencies = [
@@ -942,7 +934,6 @@ dependencies = [
 name = "simple_wallet"
 version = "0.1.0"
 dependencies = [
- "groundhog-erc1271-if",
  "sdk",
  "simple_wallet",
 ]

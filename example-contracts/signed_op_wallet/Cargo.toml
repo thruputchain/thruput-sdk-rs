@@ -1,0 +1,37 @@
+[package]
+name = "signed_op_wallet"
+description = "The smallest wallet accepting signed operations"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "dep:thiserror", "groundhog-signed-op/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[[bin]]
+name = "signed_op_wallet"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+# `alloc`: the mint functions encode the token node into a `Vec`.
+sdk = { workspace = true, features = ["alloc"] }
+groundhog-signed-op = { workspace = true }
+thiserror = { workspace = true, optional = true }
+
+[dev-dependencies]
+signed_op_wallet = { path = ".", features = ["dev"] }
+groundhog-domain-separator = { workspace = true, features = ["std"] }
+ed25519-dalek = { workspace = true }

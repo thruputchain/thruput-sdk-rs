@@ -8,28 +8,47 @@
 //! contract, so the signer need not be the submitter: the pattern behind
 //! permits, session keys and delegated wallet actions.
 //!
+//! This is Groundhog's equivalent of ERC-1271 — a contract validates a
+//! signature under its own policy and hands back what it authorizes — with
+//! the message format built in rather than left to each wallet. The message
+//! is typed and domain-separated in the spirit of EIP-712: the signed bytes
+//! bind the network, the verifying contract, the payload type's definition,
+//! a [`Uniquifier`] and the payload itself, so a signature cannot be moved to
+//! another network, another contract, another shape of message, or replayed.
+//! See `groundhog_domain_separator::SignedOp` for the exact layout.
+//!
+//! Replay protection is the chain's own model. An operation carries a
+//! [`Uniquifier`] — a signer-chosen nonce and an expiry height — and a
+//! verifying contract consumes the `(nonce, block_expiry_height)` pair
+//! exactly once, the way the transaction replay cache consumes a
+//! transaction's uniquifier at its invoked address. Nonces are unordered, so
+//! nothing on-chain has to be read before signing and operations need not be
+//! submitted in the order they were signed. The consuming side lives in the
+//! `groundhog-signed-op` component crate.
+//!
+//! Which key must have signed is the verifying contract's decision, made
+//! from its own state: [`Operation`] carries no key, so a submitter cannot
+//! name the key a signature is checked against, and a contract cannot check
+//! against a wire-supplied key and forget to compare it with its own.
+//!
 //! This crate is the interface half: the [`Operation`] wire type, the
 //! [`SignedOp`] contract trait, and [`SignedOpError`]. It pulls in nothing
 //! beyond the SDK, so a caller that only needs to *invoke* a signed-op
-//! contract through `SignedOpClient` depends on this crate alone. The bytes
-//! that get signed are defined by `groundhog_domain_separator::SignedOp`, and
-//! the verification and nonce state a verifying contract embeds live in the
-//! `groundhog-signed-op` component crate.
+//! contract through `SignedOpClient` depends on this crate alone.
 //!
-//! Like `ERC1271::is_valid_signature`, [`SignedOp::execute_signed_op`] returns
-//! auth tokens: a validated operation mints an auth-token tree, so one
-//! signature can authorize a whole scoped call graph, each downstream contract
-//! consuming only its own node. Callers destructure the result with
-//! [`AssumeTokens::assume_tokens`](sdk::AssumeTokens::assume_tokens).
-
-extern crate alloc;
+//! [`SignedOp::execute_signed_op`] returns one auth token: a validated
+//! operation mints an auth-token tree whose root it hands back, so one
+//! signature can authorize a whole scoped call graph, each downstream
+//! contract consuming only its own node. The caller names the payload type
+//! with [`Signed::assume`] and consumes it, or passes it down. One token
+//! rather than a `Vec` keeps this crate — and every caller — free of `alloc`.
 
 mod error;
 pub use error::*;
 
-use alloc::vec::Vec;
 use sdk::signer::{Opaque, Signed};
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
+use sdk::types::Ed25519Signature;
+use sdk::types::transaction::Uniquifier;
 use sdk::xdr::BytesM;
 use sdk::{BlockHeight, contract};
 
@@ -39,17 +58,24 @@ use sdk::{BlockHeight, contract};
 /// but deliberately absent here: the verifier supplies them from what it
 /// knows (`sdk::block::get_network_hash`, `sdk::get_current_address`). Taking
 /// them off the wire would let a submitter name the network and contract the
-/// signature was meant for.
+/// signature was meant for. The signing key is absent for the same reason:
+/// the verifying contract checks the signature against the key it holds, so
+/// nothing on the wire says who signed.
+///
+/// `block_expiry_height` and `nonce` are a [`Uniquifier`], declared in its
+/// field order so their encoding is byte-for-byte the chain's;
+/// [`uniquifier`](Self::uniquifier) reassembles it.
 #[sdk::contract_type]
 pub struct Operation {
-    /// The key that signed this operation. Whether that key is *allowed* to
-    /// authorize the action is the verifying contract's policy.
-    pub signer: Ed25519PublicKey,
-    /// The signer's sequence number at the verifying contract; see
-    /// [`SignedOp::next_signed_op_nonce`].
-    pub nonce: u64,
     /// Last block height (inclusive) at which this operation may execute.
-    pub valid_until: BlockHeight,
+    pub block_expiry_height: BlockHeight,
+    /// Chosen by the signer: any value, as long as the pair
+    /// `(nonce, block_expiry_height)` has not been consumed at the verifying
+    /// contract. There is no ordering. The consumed pairs are the contract's,
+    /// not the key's — as the chain's replay cache is per address — so where
+    /// several keys sign for one contract, draw nonces at random rather than
+    /// counting; a lone key may do either.
+    pub nonce: u64,
     /// The CXS-encoded application payload. A verifier decodes it as the
     /// payload type it expects before checking the signature, so the type's
     /// definition is bound into the signature and a non-canonical encoding
@@ -57,26 +83,34 @@ pub struct Operation {
     pub body: BytesM,
 }
 
+impl Operation {
+    /// The `(nonce, block_expiry_height)` pair a verifier consumes.
+    pub fn uniquifier(&self) -> Uniquifier {
+        Uniquifier {
+            block_expiry_height: self.block_expiry_height.clone(),
+            nonce: self.nonce,
+        }
+    }
+}
+
 /// A contract that accepts operations authorized by an off-chain signature.
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
-    /// The nonce `signer`'s next operation at this contract must carry.
+    /// Verify `op` under `signature`, consume its uniquifier, and mint the
+    /// auth token it authorizes.
     ///
-    /// Nonces are sequential per signer, starting at zero: each accepted
-    /// operation increments it, so operations from one signer execute in the
-    /// order they were signed, and an unexecuted one is retired by any later
-    /// operation.
-    fn next_signed_op_nonce(&self, signer: &Ed25519PublicKey) -> u64;
-
-    /// Verify `op` under `signature`, spend its nonce, and mint its auth
-    /// tokens.
+    /// Which key the signature must verify under is the implementor's to
+    /// decide from its own state; `op` names none.
     ///
-    /// Returns an empty `Vec` if the operation authorizes something needing no
-    /// tokens. Throws a [`SignedOpError`] if any check fails; it must not
-    /// return an empty `Vec` to signal refusal.
+    /// Always exactly one token on success: the root of whatever tree the
+    /// operation authorizes, with anything for downstream contracts as its
+    /// child nodes. Throws a [`SignedOpError`] if any check fails; refusal is
+    /// never expressed through the token. A refusal is a throw, so it
+    /// consumes nothing: a refused operation stays submittable until it
+    /// expires.
     fn execute_signed_op(
         &mut self,
         op: Operation,
         signature: &Ed25519Signature,
-    ) -> Vec<Signed<Opaque>>;
+    ) -> Signed<Opaque>;
 }

@@ -99,11 +99,6 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc1271-if",
-        reason: "standard interfaces share an independent version line, bumped \
-                 on SDK semver-major rather than every release",
-    },
-    Named {
         name: "groundhog-erc20-pausable-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",

@@ -8,17 +8,22 @@
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum SignedOpError {
     /// The signature does not verify against the operation's preimage under
-    /// the signer's key. Also what a wrongly-typed or tampered payload
-    /// produces.
+    /// the key the verifying contract requires. Also what a signature from
+    /// any other key, or a wrongly-typed or tampered payload, produces.
     #[cfg_attr(feature = "dev", error("Invalid signature"))]
     InvalidSignature = 1,
-    /// `valid_until` is in the past.
+    /// `block_expiry_height` is in the past.
     #[cfg_attr(feature = "dev", error("Operation has expired"))]
     Expired = 2,
-    /// `nonce` is not the signer's next sequence number at this contract.
-    #[cfg_attr(feature = "dev", error("Unexpected nonce"))]
-    UnexpectedNonce = 3,
+    /// The `(nonce, block_expiry_height)` pair has already been consumed at
+    /// this contract.
+    #[cfg_attr(feature = "dev", error("Operation already consumed"))]
+    AlreadyConsumed = 3,
     /// The body did not decode as the expected payload type.
     #[cfg_attr(feature = "dev", error("Malformed operation body"))]
     MalformedBody = 4,
+    /// A consumed entry was asked to be pruned before its
+    /// `block_expiry_height` had passed.
+    #[cfg_attr(feature = "dev", error("Operation has not expired yet"))]
+    NotYetExpired = 5,
 }
