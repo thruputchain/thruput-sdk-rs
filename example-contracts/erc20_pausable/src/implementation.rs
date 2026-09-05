@@ -11,9 +11,8 @@
 //!   `initialize` grants [`DEFAULT_ADMIN_ROLE`] and [`PAUSER_ROLE`] to
 //!   the administrator; the component's flat default administers every
 //!   role with [`DEFAULT_ADMIN_ROLE`].
-//! - [`ERC165`]: derived with `impl_erc165!` from the four trait impls
-//!   above, so `supports_interface` cannot claim an interface this
-//!   contract does not implement.
+//! - [`ERC165`]: `supports_interface` reads the linker-collected interface
+//!   table, so it reports exactly the impl blocks in this file.
 
 use crate::interface::*;
 use groundhog_access_control::AccessControlState;
@@ -333,11 +332,12 @@ impl AccessControl for PausableTokenContract {
     }
 }
 
-// ERC-165 interface detection, derived from the impls above. Listing a
-// trait the contract does not implement is a compile error.
-groundhog_erc165_if::impl_erc165!(
-    PausableTokenContract: ERC20,
-    ERC20Metadata,
-    ERC20Pausable,
-    AccessControl,
-);
+// ERC-165 interface detection: `implements` reads the interface table the
+// impl blocks above (and this one) leave behind, so there is no list here
+// to keep in sync.
+#[contract(version = "0.1.0")]
+impl ERC165 for PausableTokenContract {
+    fn supports_interface(interface_id: &InterfaceId) -> bool {
+        implements::<Self>(interface_id)
+    }
+}

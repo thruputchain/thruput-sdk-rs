@@ -2,8 +2,8 @@
 //!
 //! Combines four standard interfaces on one storage struct: the ERC20
 //! token core, the metadata extension, the pausable extension, and
-//! role-based access control gating who may pause. ERC-165 interface
-//! detection is derived from those four with `impl_erc165!`.
+//! role-based access control gating who may pause, plus ERC-165 interface
+//! detection read off the interface table those impls leave behind.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

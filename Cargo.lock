@@ -420,9 +420,7 @@ dependencies = [
 name = "groundhog-erc165-if"
 version = "0.1.19"
 dependencies = [
- "groundhog-erc165-if",
  "sdk",
- "trybuild",
 ]
 
 [[package]]

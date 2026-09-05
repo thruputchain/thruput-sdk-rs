@@ -73,6 +73,19 @@ pub fn generate(
         TokenStream::new()
     };
 
+    // One interface-table record per impl block (see
+    // `sdk::interface_table`): the same `#[used]` + KEEP'd-section shape as
+    // the entrypoint records, and gated like them on rv32 — a dependency
+    // that does not enable `entrypoints` exports nothing, so it must not
+    // advertise anything either.
+    let interface_record = contract.self_ty().map(|self_ty| {
+        let bytes = contract_util::interface_id(iface_name, &iface_vers);
+        quote! {
+            #[cfg(any(not(target_arch = "riscv32"), feature = "entrypoints"))]
+            ::sdk::__interface_record!(#self_ty, [#(#bytes),*]);
+        }
+    });
+
     // For trait impls, emit compile-time assertions that the impl-side
     // entrypoint metadata matches the trait definition.
     let trait_metadata_assertions = if let (Some(trait_path), Some(self_ty)) =
@@ -235,6 +248,8 @@ pub fn generate(
         }
 
         #trait_metadata_assertions
+
+        #interface_record
 
         #domain_registration
 

@@ -61,6 +61,22 @@ fn id_follows_name_and_major_version_only() {
     );
 }
 
+/// The host interface table holds exactly the impl blocks of each type.
+#[test]
+fn interface_table_reflects_impl_blocks() {
+    use sdk::interface_table::implements;
+
+    assert!(implements::<CounterContract>(
+        &CounterEntrypoints::INTERFACE_ID
+    ));
+    assert!(!implements::<CounterContract>(
+        &CounterV2Entrypoints::INTERFACE_ID
+    ));
+    // A type with no #[contract] impl has no records at all.
+    struct Uninvolved;
+    assert!(!implements::<Uninvolved>(&CounterEntrypoints::INTERFACE_ID));
+}
+
 #[sdk::storage]
 struct CounterContract {
     value: sdk::storage::Value<u32>,

@@ -157,6 +157,31 @@ SECTIONS
     *(.data .data.*)
   } > DATA
 
+  /* Interface table: one 32-byte InterfaceId record per #[contract] impl
+   * block, emitted by the groundhog-macros expansion via
+   * #[link_section = "groundhog_rv32_interfaces"] and read by
+   * sdk::interface_table. Same shape as the dispatch table above: KEEP'd
+   * (nothing references the records) and bracketed by script-defined
+   * symbols. Its own output section rather than a slice of .rodata because
+   * the lowerer decides whether it reaches the deployed image: the section
+   * is copied into VM memory only when groundhog_rv32_interfaces_anchor is
+   * present, and that anchor is an ordinary GC-able word that survives the
+   * link only if sdk::interface_table::implements was instantiated (an
+   * ERC-165 impl). Both live at the top of the data image so a dropped
+   * table shortens it rather than leaving a hole. Section names are shared
+   * with the SDK macros and the groundhog-rpc lowerer's allowlist. */
+  groundhog_rv32_interfaces : ALIGN(8)
+  {
+    __groundhog_rv32_interfaces_start = .;
+    KEEP(*(groundhog_rv32_interfaces))
+    __groundhog_rv32_interfaces_end = .;
+  } > DATA
+
+  groundhog_rv32_interfaces_anchor : ALIGN(4)
+  {
+    *(groundhog_rv32_interfaces_anchor)
+  } > DATA
+
   . = ALIGN(8);
   .bss (NOLOAD) : ALIGN(8)
   {

@@ -167,10 +167,9 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 /// The identity of this interface at its major version:
                 /// `sha256("groundhog-interface" :: name :: MAJOR)`, the pair
                 /// that also namespaces its entrypoint IDs. Every implementor
-                /// inherits it; `<T as Trait>::INTERFACE_ID` compiles only if
-                /// `T` implements the trait, which is what lets
-                /// `groundhog-erc165-if` verify an interface claim at compile
-                /// time.
+                /// inherits it, and every `#[contract]` impl of this trait
+                /// records it in the contract's interface table
+                /// (`sdk::interface_table`).
                 const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
             });
             stripped.items.push(parse_quote! {

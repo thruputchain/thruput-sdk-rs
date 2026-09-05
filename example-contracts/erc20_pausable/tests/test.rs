@@ -307,9 +307,9 @@ fn roles_gate_pausing_and_are_administered() {
     assert_eq!(revoked_events(&result), vec![(PAUSER_ROLE, OTHER, ADMIN)]);
 }
 
-/// ERC-165: the derived `supports_interface` answers for exactly the
-/// interfaces this contract implements (plus ERC-165 itself), and the
-/// probe helpers fold a target without the entrypoint into `false`.
+/// ERC-165: `supports_interface` answers for exactly the interfaces this
+/// contract implements (ERC-165 itself included), and the probe helpers
+/// fold a target without the entrypoint into `false`.
 #[test]
 fn supports_interface_reports_derived_claims() {
     use erc20_pausable::{
