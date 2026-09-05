@@ -129,7 +129,7 @@ The current set:
 - The standard-interface crates (`groundhog-erc20-if`,
   `groundhog-erc20-metadata-if`,
   `groundhog-erc20-pausable-if`, `groundhog-access-control-if`,
-  `groundhog-signed-op-if`) and the
+  `groundhog-signed-op-if`, `groundhog-erc20-permit-if`) and the
   `groundhog-access-control` and `groundhog-signed-op` components, plus
   `bottle-test-if` and
   `version-mismatch-helper`, declare their own versions instead of inheriting

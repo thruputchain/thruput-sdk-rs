@@ -1,0 +1,52 @@
+[package]
+name = "permit_wallet"
+description = "Example wallet authorizing ERC20 permits with off-chain signatures"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+# Minting auth tokens needs the heap, i.e. `sdk/alloc`, which also installs
+# the rv32 runtime's allocator. On the guest that arrives through
+# groundhog-signed-op-if, which pins `sdk` with `alloc`; `groundhog build`
+# passes --no-default-features, so `default` below only covers host builds,
+# the same shape as erc1271_wallet and signer_middle.
+default = ["alloc"]
+alloc = ["sdk/alloc"]
+entrypoints = []
+dev = [
+    "sdk/dev",
+    "dep:thiserror",
+    "groundhog-signed-op/dev",
+    "groundhog-erc20-permit-if/dev",
+]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `groundhog build -p permit_wallet` derives
+# `--bin permit_wallet` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "permit_wallet"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { workspace = true }
+groundhog-signed-op = { workspace = true }
+groundhog-erc20-permit-if = { workspace = true }
+# Host-only: `WalletError`'s Display impls are behind `dev`, like every other
+# contract exception in this workspace.
+thiserror = { workspace = true, optional = true }
+
+[dev-dependencies]
+permit_wallet = { path = ".", features = ["dev"] }

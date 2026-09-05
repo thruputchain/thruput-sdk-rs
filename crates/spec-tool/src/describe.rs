@@ -43,6 +43,9 @@ const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
 const SIGNED_OP_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
     &[groundhog_signed_op_if::__groundhog_spec_fragment_SignedOpError];
 
+const ERC20_PERMIT_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[groundhog_erc20_permit_if::__groundhog_spec_fragment_ERC20PermitError];
+
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
         name: "LibraryExn",
@@ -88,6 +91,15 @@ pub const REGISTRY: &[DescribableType] = &[
             <groundhog_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
         fragments: SIGNED_OP_ERROR_FRAGMENTS,
         root: "SignedOpError",
+    },
+    DescribableType {
+        name: "ERC20PermitError",
+        crate_name: "groundhog-erc20-permit-if",
+        major_version: "0.1",
+        selector:
+            <groundhog_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
+        fragments: ERC20_PERMIT_ERROR_FRAGMENTS,
+        root: "ERC20PermitError",
     },
 ];
 
