@@ -12,12 +12,6 @@ categories.workspace = true
 edition.workspace = true
 
 [features]
-# Minting auth tokens needs the heap (`sdk/alloc`, which also installs the
-# rv32 runtime's allocator); on the guest that arrives through
-# groundhog-signed-op-if. `groundhog build` passes --no-default-features, so
-# `default` covers host builds only; `groundhog build` selects `entrypoints`.
-default = ["alloc"]
-alloc = ["sdk/alloc"]
 entrypoints = []
 dev = ["sdk/dev", "dep:thiserror", "groundhog-signed-op/dev"]
 
@@ -26,22 +20,18 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build -p signed_op_wallet` derives
-# `--bin signed_op_wallet` from the package name, so the name here must stay
-# the underscored package name. `required-features` keeps it out of host
-# builds.
 [[bin]]
 name = "signed_op_wallet"
 path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+# `alloc`: the mint functions encode the token node into a `Vec`.
+sdk = { workspace = true, features = ["alloc"] }
 groundhog-signed-op = { workspace = true }
 thiserror = { workspace = true, optional = true }
 
 [dev-dependencies]
 signed_op_wallet = { path = ".", features = ["dev"] }
-# Host side of the test: rebuild the preimage a signer covers.
 groundhog-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek = { workspace = true }

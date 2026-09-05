@@ -193,19 +193,12 @@ impl SignedOpReplayCache {
         body
     }
 
-    /// Delete a dead entry. Throws [`SignedOpError::NotYetExpired`] unless
-    /// the current height is past `uniquifier`'s expiry, so an entry can only
-    /// be removed once the operation it records could no longer execute
-    /// anyway. A no-op for an entry that is not present.
-    ///
-    /// Anyone may call this through whatever entrypoint a contract exposes
-    /// for it; the chain's own cache will garbage-collect instead once it is
-    /// available to contracts.
+    /// Delete a dead entry. Throws [`SignedOpError::NotYetExpired`] while
+    /// the operation could still execute; anyone may call it after that.
     pub fn prune(&mut self, uniquifier: &Uniquifier) {
         if sdk::block::get_block_height() <= uniquifier.block_expiry_height {
             sdk::throw(SignedOpError::NotYetExpired);
         }
-        // Delete is idempotent, so no need to look before removing.
         self.consumed.at_mut(uniquifier).delete();
     }
 }
