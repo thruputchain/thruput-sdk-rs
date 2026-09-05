@@ -64,7 +64,8 @@ What the tool edits, and what to do by hand if you are not using it.
 
 The standard-interface pins (`groundhog-erc20-if`, `groundhog-erc20-metadata-if`,
 `groundhog-erc20-pausable-if`,
-`groundhog-access-control-if`, `groundhog-signed-op-if`) and the
+`groundhog-access-control-if`, `groundhog-signed-op-if`,
+`groundhog-erc20-permit-if`) and the
 implementation-component pins
 (`groundhog-access-control`, `groundhog-signed-op`) sit on their own shared version line — `=0.1.6` at
 the time of writing — and are bumped independently of the workspace version,

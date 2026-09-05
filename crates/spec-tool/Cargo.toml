@@ -21,6 +21,7 @@ groundhog-erc20-if = { workspace = true }
 groundhog-erc20-pausable-if = { workspace = true }
 groundhog-access-control-if = { workspace = true }
 groundhog-signed-op-if = { workspace = true }
+groundhog-erc20-permit-if = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }

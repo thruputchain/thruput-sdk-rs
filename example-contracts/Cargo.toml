@@ -7,6 +7,7 @@ members = [
     "complex-storage",
     "counter",
     "erc20",
+    "erc20_permit",
     "erc20_pausable",
     "erc20_raw_storage",
     "erc20_low_level",
@@ -14,6 +15,7 @@ members = [
     "genesis_deployer",
     "hasher",
     "signed_op_wallet",
+    "permit_wallet",
     "rcq_test",
     "simple_wallet_old",
     "test_bytestring",
@@ -108,6 +110,7 @@ groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-
 groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.21" }
 groundhog-signed-op-if = { path = "../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.21" }
 groundhog-signed-op = { path = "../standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.21" }
+groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.21" }
 
 erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.29.0" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.29.0" }

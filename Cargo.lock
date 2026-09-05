@@ -440,6 +440,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc20-permit-if"
+version = "0.1.21"
+dependencies = [
+ "groundhog-erc20-if",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-event"
 version = "0.29.0"
 dependencies = [
@@ -531,6 +540,7 @@ dependencies = [
  "groundhog-contract-util",
  "groundhog-erc20-if",
  "groundhog-erc20-pausable-if",
+ "groundhog-erc20-permit-if",
  "groundhog-signed-op-if",
  "sdk",
  "serde_json",
