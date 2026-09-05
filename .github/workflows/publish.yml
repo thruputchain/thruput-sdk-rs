@@ -140,6 +140,7 @@ jobs:
             groundhog-erc20-if
             groundhog-erc20-metadata-if
             groundhog-erc20-pausable-if
+            groundhog-erc20-permit-if
             groundhog-signed-op-if
             groundhog-access-control-if
             erc20-test
