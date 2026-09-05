@@ -48,8 +48,6 @@ members = [
     "signer_middle",
     "signer_minter",
     "signer_tuple_test",
-    "erc1271_wallet",
-    "erc1271_caller",
     "invoke_flags_test",
     "multi_root_storage",
     "slot_reorder",
@@ -106,7 +104,6 @@ groundhog-domain-separator = { path = "../crates/domain-separator", registry = "
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.21" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.21" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.21" }
 groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.21" }
 groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.21" }
 groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.21" }

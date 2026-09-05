@@ -134,8 +134,8 @@ the body of `consume` changes.
   tests pin the replay semantics above.
 - The ERC20 permit change (#428) rebases onto this: its wallet moves to
   `SignedOpReplayCache` and its replay tests to the pair model.
-- `groundhog-erc1271-if` is documented as superseded; it stays until
-  `integration_test_contracts`' `simple_wallet` migrates, since that
-  submodule builds it under `--deny warnings` at a pinned commit.
+- `groundhog-erc1271-if` is removed, with the `erc1271_*` examples; the
+  `integration_test_contracts` submodule moves to a commit whose
+  `simple_wallet` implements `SignedOp` instead.
 - client-ts (separate repo): preimage builder order + field rename.
 

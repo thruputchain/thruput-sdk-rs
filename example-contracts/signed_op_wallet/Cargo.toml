@@ -15,7 +15,7 @@ edition.workspace = true
 # Minting auth tokens needs the heap (`sdk/alloc`, which also installs the
 # rv32 runtime's allocator); on the guest that arrives through
 # groundhog-signed-op-if. `groundhog build` passes --no-default-features, so
-# `default` covers host builds only — the erc1271_wallet shape.
+# `default` covers host builds only; `groundhog build` selects `entrypoints`.
 default = ["alloc"]
 alloc = ["sdk/alloc"]
 entrypoints = []

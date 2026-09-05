@@ -481,7 +481,7 @@ check_rv32_contract_spec_artifacts() {
     # typedef shaking (both directions covered by a single fixture).
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
-    local erc20_json signer_callee_json erc1271_wallet_json
+    local erc20_json signer_callee_json signed_op_wallet_json
     local phantom_method_json prerelease_json trait_sourced_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
@@ -493,7 +493,7 @@ check_rv32_contract_spec_artifacts() {
     genesis_json="${groundhog_dir}/genesis_deployer.spec.json"
     erc20_json="${groundhog_dir}/erc20_raw_storage.spec.json"
     signer_callee_json="${groundhog_dir}/signer_callee.spec.json"
-    erc1271_wallet_json="${groundhog_dir}/erc1271_wallet.spec.json"
+    signed_op_wallet_json="${groundhog_dir}/signed_op_wallet.spec.json"
     phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
     prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
     trait_sourced_json="${groundhog_dir}/trait_sourced_method_spec.spec.json"
@@ -587,7 +587,7 @@ check_rv32_contract_spec_artifacts() {
     # `Signed<Opaque>` is an erased (null) preimage.
     assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
     assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
-    assert_file_contains "$erc1271_wallet_json" '"kind":"vec","element":{"kind":"signed_token","preimage":null}' &&
+    assert_file_contains "$signed_op_wallet_json" '"kind":"signed_token","preimage":null' &&
 
     # Cross-crate event shaking: event_shaking_subset implements only the
     # `Adopted` trait from event_shaking_if; `Orphan` is never implemented.

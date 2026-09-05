@@ -386,9 +386,9 @@ fn diverged_interface_versions_are_refused() {
     // together, so they must start together.
     write(
         tmp.path(),
-        "standard-interfaces/erc1271-if/Cargo.toml",
+        "standard-interfaces/erc20-pausable-if/Cargo.toml",
         r#"[package]
-name = "groundhog-erc1271-if"
+name = "groundhog-erc20-pausable-if"
 version = "0.4.1"
 
 [dependencies]

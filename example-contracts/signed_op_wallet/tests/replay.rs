@@ -123,9 +123,8 @@ fn submit(
     })
 }
 
-/// Assert the wallet refuses `op` with `expected`. Inside the closure, as the
-/// erc1271 tests do: a `CallError` is not XDR-encodable and cannot leave the
-/// frame.
+/// Assert the wallet refuses `op` with `expected`. Inside the closure: a
+/// `CallError` is not XDR-encodable and cannot leave the frame.
 macro_rules! assert_refuses {
     ($env:expr, $op:expr, $signature:expr, $expected:expr $(,)?) => {{
         let (op, signature) = ($op, $signature);

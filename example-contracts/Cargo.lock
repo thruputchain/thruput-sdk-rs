@@ -268,25 +268,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "erc1271_caller"
-version = "0.4.0"
-dependencies = [
- "erc1271_caller",
- "erc1271_wallet",
- "groundhog-erc1271-if",
- "sdk",
-]
-
-[[package]]
-name = "erc1271_wallet"
-version = "0.4.0"
-dependencies = [
- "erc1271_wallet",
- "groundhog-erc1271-if",
- "sdk",
-]
-
-[[package]]
 name = "erc20"
 version = "0.4.0"
 dependencies = [
@@ -479,14 +460,6 @@ dependencies = [
  "groundhog-xdr 0.30.1",
  "sha2",
  "xdrs",
-]
-
-[[package]]
-name = "groundhog-erc1271-if"
-version = "0.1.21"
-dependencies = [
- "sdk",
- "thiserror",
 ]
 
 [[package]]

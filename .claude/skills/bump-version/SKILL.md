@@ -63,7 +63,7 @@ What the tool edits, and what to do by hand if you are not using it.
   `path` pointing at an in-repo crate.
 
 The standard-interface pins (`groundhog-erc20-if`, `groundhog-erc20-metadata-if`,
-`groundhog-erc1271-if`, `groundhog-erc20-pausable-if`,
+`groundhog-erc20-pausable-if`,
 `groundhog-access-control-if`, `groundhog-signed-op-if`) and the
 implementation-component pins
 (`groundhog-access-control`, `groundhog-signed-op`) sit on their own shared version line — `=0.1.6` at
@@ -78,7 +78,6 @@ the pin in **both** `[dependencies]` and
 
 - `standard-interfaces/groundhog-erc20/Cargo.toml`
 - `standard-interfaces/groundhog-erc20-metadata/Cargo.toml`
-- `standard-interfaces/groundhog-erc1271/Cargo.toml`
 - `standard-interfaces/groundhog-erc20-pausable/Cargo.toml`
 - `standard-interfaces/groundhog-access-control/Cargo.toml`
 - `standard-impls/groundhog-access-control/Cargo.toml` — this one also carries

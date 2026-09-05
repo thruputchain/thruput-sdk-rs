@@ -1896,7 +1896,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
 
 #[test]
 fn opaque_signed_token_return_type_canonicalizes() {
-    // A `Vec<Signed<Opaque>>` return (e.g. erc1271's is_valid_signature):
+    // A `Vec<Signed<Opaque>>` return (a wallet handing back several tokens):
     // the erased preimage must survive canonicalization untouched.
     let spec = canon(&[
         SpecFragment::SpecInterface {
